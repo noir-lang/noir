@@ -67,8 +67,8 @@ fn main() {
         assert(func_b_def.module().location() != func_b_def.location());
 
         // TypeDefinition::location() works.
-        let type_def_a = quote { TargetType }.as_type().as_data_type().unwrap().0;
-        let type_def_b = quote { inner::OtherType }.as_type().as_data_type().unwrap().0;
+        let type_def_a = quote { TargetType }.as_type().as_data_type().unwrap().definition();
+        let type_def_b = quote { inner::OtherType }.as_type().as_data_type().unwrap().definition();
         assert_eq(type_def_a.location(), type_def_a.location());
         assert(type_def_a.location() != type_def_b.location());
 

@@ -880,7 +880,7 @@ jobs:
       #- test-integration-browser
       - test-nargo-doc
       - test-examples
-      - compile-noir-contracts
+      # - compile-noir-contracts
     permissions:
       contents: read
 

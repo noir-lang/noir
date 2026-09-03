@@ -29,6 +29,7 @@
 <li><a href="#as_integer">as_integer</a></li>
 <li><a href="#as_mutable_reference">as_mutable_reference</a></li>
 <li><a href="#as_str">as_str</a></li>
+<li><a href="#as_struct">as_struct</a></li>
 <li><a href="#as_tuple">as_tuple</a></li>
 <li><a href="#as_vector">as_vector</a></li>
 <li><a href="#get_trait_impl">get_trait_impl</a></li>
@@ -126,17 +127,17 @@
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../std/primitive.Type.html" class="primitive">Type</a></code></h3>
 
-<div class="padded-methods"><code id="as_array" class="code-header">pub comptime fn <a href="#as_array" class="fn">as_array</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(Self, Self)&gt;</code>
+<div class="padded-methods"><code id="as_array" class="code-header">pub comptime fn <a href="#as_array" class="fn">as_array</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/meta/typ/struct.ArrayType.html" class="struct">ArrayType</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>If this type is an array, return a pair of (element type, size type).</p>
+<p>If this type is an array, return its element and length types.</p>
 <p>Example:</p>
 <pre><code><span class="kw">comptime</span> {
     <span class="kw">let</span> array_type = <span class="kw">quote</span> { [Field; <span class="number">3</span>] }.as_type();
-    <span class="kw">let</span> (field_type, three_type) = array_type.as_array().unwrap();
+    <span class="kw">let</span> array = array_type.as_array().unwrap();
 
-    <span class="kw">assert</span>(field_type.is_field());
-    <span class="kw">assert_eq</span>(three_type.as_constant().unwrap(), <span class="number">3</span>);
+    <span class="kw">assert</span>(array.element_type().is_field());
+    <span class="kw">assert_eq</span>(array.length_type().as_constant().unwrap(), <span class="number">3</span>);
 }</code></pre></div>
 </div><code id="as_constant" class="code-header">pub comptime fn <a href="#as_constant" class="fn">as_constant</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;</code>
 
@@ -144,11 +145,10 @@
 <p>If this type is a constant integer (such as the <code>3</code> in the array type <code>[Field; 3]</code>),
 return the numeric constant.</p>
 </div>
-</div><code id="as_integer" class="code-header">pub comptime fn <a href="#as_integer" class="fn">as_integer</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(<a href="../std/primitive.bool.html" class="primitive">bool</a>, <a href="../std/primitive.u8.html" class="primitive">u8</a>)&gt;</code>
+</div><code id="as_integer" class="code-header">pub comptime fn <a href="#as_integer" class="fn">as_integer</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/meta/typ/struct.IntegerType.html" class="struct">IntegerType</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>If this is an integer type, return a boolean which is <code>true</code>
-if the type is signed, as well as the number of bits of this integer type.</p>
+<p>If this is an integer type, return its signedness and bit width.</p>
 </div>
 </div><code id="as_mutable_reference" class="code-header">pub comptime fn <a href="#as_mutable_reference" class="fn">as_mutable_reference</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;</code>
 
@@ -165,11 +165,17 @@ if the type is signed, as well as the number of bits of this integer type.</p>
 <div class="padded-description"><div class="comments">
 <p>If this is a <code>str&lt;N&gt;</code> type, returns the length <code>N</code> as a type.</p>
 </div>
-</div><code id="as_data_type" class="code-header">pub comptime fn <a href="#as_data_type" class="fn">as_data_type</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;(<a href="../std/primitive.TypeDefinition.html" class="primitive">TypeDefinition</a>, [Self])&gt;</code>
+</div><code id="as_struct" class="code-header">pub comptime fn <a href="#as_struct" class="fn">as_struct</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/meta/typ/struct.DataType.html" class="struct">DataType</a>&gt;</code>
+
+<div class="padded-description"><div class="deprecated">
+<span class="emoji">👎</span>
+Deprecated: This method has been renamed to `as_data_type`
+</div>
+</div><code id="as_data_type" class="code-header">pub comptime fn <a href="#as_data_type" class="fn">as_data_type</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/meta/typ/struct.DataType.html" class="struct">DataType</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>If this is a struct or enum type, returns the type in addition to any generic arguments on this type.</p>
-</div>
+<p>If this is a struct or enum type, returns its <a href="../std/primitive.TypeDefinition.html"><code>TypeDefinition</code></a> and
+generic arguments.</p></div>
 </div><code id="as_tuple" class="code-header">pub comptime fn <a href="#as_tuple" class="fn">as_tuple</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;[Self]&gt;</code>
 
 <div class="padded-description"><div class="comments">

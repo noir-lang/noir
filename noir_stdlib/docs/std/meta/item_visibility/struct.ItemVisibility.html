@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../../../styles.css">
+<script>window.docRoot = "../../../";</script>
+<script defer src="../../../search-index.js"></script>
+<script defer src="../../../nargo_doc.js"></script>
+<script defer src="../../../search.js"></script>
+<title>Struct ItemVisibility documentation</title>
+</head>
+<body>
+<div id="sidebar-toggle">
+<button id="sidebar-toggle-button"></button>
+<div id="sidebar-toggle-title">ItemVisibility</div>
+</div>
+<span id="main-contents">
+<nav class="sidebar">
+<h1><a href="../../../index.html">noir_stdlib</a></h1>
+<div><a href="../../../all.html">All items</a></div>
+<h2 id="crate-name"><a href="../../index.html">std</a></h2>
+<div id="crate-version">1.0.0-beta.26</div>
+<h2><a href="#struct">Struct ItemVisibility</a></h2>
+<h3>Methods</h3>
+<ul class="sidebar-list">
+<li><a href="#as_quoted">as_quoted</a></li>
+<li><a href="#is_private">is_private</a></li>
+<li><a href="#is_public">is_public</a></li>
+<li><a href="#is_public_crate">is_public_crate</a></li>
+</ul>
+<h2>In module item_visibility</h2>
+<h3>Structs</h3><ul class="item-list">
+<li><a href="struct.ItemVisibility.html">ItemVisibility</a></div></li>
+</ul>
+</nav>
+<main>
+<div><a href="../../../index.html">noir_stdlib</a> - <a href="../../index.html">std</a>::<a href="../index.html">meta</a>::<a href="index.html">item_visibility</a></div>
+<div class="heading-row">
+<h1 class="heading-content">Struct <span id="struct" class="struct">ItemVisibility</span></h1>
+<button id="search-toggle" type="button">Search</button>
+</div>
+<input id="search-input" type="search" placeholder="Type 's' or '/' to search" autocomplete="off" spellcheck="false" aria-label="Search" hidden>
+<div id="search-results" hidden></div>
+<div id="page-content">
+<pre><code>pub comptime struct ItemVisibility
+{ <span class="comment">/* private fields */</span> }
+</code></pre>
+<div class="comments">
+<p>The visibility of an item in a Noir program.</p>
+</div>
+<h2>Implementations</h2>
+<h3><code class="code-header">impl <a href="../../../std/meta/item_visibility/struct.ItemVisibility.html" class="struct">ItemVisibility</a></code></h3>
+
+<div class="padded-methods"><code id="is_private" class="code-header">pub comptime fn <a href="#is_private" class="fn">is_private</a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns <code>true</code> if the item is private.</p>
+</div>
+</div><code id="is_public" class="code-header">pub comptime fn <a href="#is_public" class="fn">is_public</a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns <code>true</code> if the item is public outside its crate.</p>
+</div>
+</div><code id="is_public_crate" class="code-header">pub comptime fn <a href="#is_public_crate" class="fn">is_public_crate</a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns <code>true</code> if the item is public only within its crate.</p>
+</div>
+</div><code id="as_quoted" class="code-header">pub comptime fn <a href="#as_quoted" class="fn">as_quoted</a>(self) -> <a href="../../../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns this visibility as quoted syntax for use in generated code.</p>
+</div>
+</div></div></div>
+</main>
+</span>
+</body>
+</html>

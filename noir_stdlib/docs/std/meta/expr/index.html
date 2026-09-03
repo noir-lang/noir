@@ -21,11 +21,19 @@
 <h2 id="crate-name"><a href="../../index.html">std</a></h2>
 <div id="crate-version">1.0.0-beta.26</div>
 <h2><a href="#mod">Module expr</a></h2>
+<h3>Module items</h3>
+<ul class="sidebar-list">
+<li><a href="#structs">Structs</a></li>
+</ul>
 <h2>In module meta</h2>
 <h3>Modules</h3><ul class="item-list">
 <li><a href="../ctstring/index.html">ctstring</a></div></li>
+<li><a href="../expr/index.html">expr</a></div></li>
+<li><a href="../function_def/index.html">function_def</a></div></li>
+<li><a href="../item_visibility/index.html">item_visibility</a></div></li>
 <li><a href="../op/index.html">op</a></div></li>
 <li><a href="../typ/index.html">typ</a></div></li>
+<li><a href="../type_def/index.html">type_def</a></div></li>
 </ul>
 <h3>Type aliases</h3><ul class="item-list">
 <li><a href="../type.DeriveFunction.html">DeriveFunction</a></div></li>
@@ -52,6 +60,30 @@
 <div class="comments">
 <p>Contains methods on the built-in <code>Expr</code> type for quoted, syntactically valid expressions.</p>
 </div>
+<h2 id="structs">Structs</h2><ul class="item-list">
+<li><div class="item-name"><a href="struct.AssertEqExpression.html" class="struct">AssertEqExpression</a></div><div class="item-description">An assert-eq expression decomposed by <a href="../../../std/primitive.Expr.html#as_assert_eq"><code>Expr::as_assert_eq</code></a>.</div></li>
+<li><div class="item-name"><a href="struct.AssertExpression.html" class="struct">AssertExpression</a></div><div class="item-description">An assert expression decomposed by <a href="../../../std/primitive.Expr.html#as_assert"><code>Expr::as_assert</code></a> into its predicate and
+optional message.</div></li>
+<li><div class="item-name"><a href="struct.AssignExpression.html" class="struct">AssignExpression</a></div><div class="item-description">An assignment expression decomposed by <a href="../../../std/primitive.Expr.html#as_assign"><code>Expr::as_assign</code></a>.</div></li>
+<li><div class="item-name"><a href="struct.BinaryOpExpression.html" class="struct">BinaryOpExpression</a></div><div class="item-description">A binary operation decomposed by <a href="../../../std/primitive.Expr.html#as_binary_op"><code>Expr::as_binary_op</code></a>.</div></li>
+<li><div class="item-name"><a href="struct.CastExpression.html" class="struct">CastExpression</a></div><div class="item-description">A cast expression decomposed by <a href="../../../std/primitive.Expr.html#as_cast"><code>Expr::as_cast</code></a>.</div></li>
+<li><div class="item-name"><a href="struct.ConstructorExpression.html" class="struct">ConstructorExpression</a></div><div class="item-description">A constructor expression decomposed by <a href="../../../std/primitive.Expr.html#as_constructor"><code>Expr::as_constructor</code></a>.</div></li>
+<li><div class="item-name"><a href="struct.ConstructorField.html" class="struct">ConstructorField</a></div><div class="item-description">A field in a <a href="../../../std/meta/expr/struct.ConstructorExpression.html"><code>ConstructorExpression</code></a>.</div></li>
+<li><div class="item-name"><a href="struct.ForExpression.html" class="struct">ForExpression</a></div><div class="item-description">A for loop over an expression, decomposed by <a href="../../../std/primitive.Expr.html#as_for"><code>Expr::as_for</code></a>.</div></li>
+<li><div class="item-name"><a href="struct.ForRangeExpression.html" class="struct">ForRangeExpression</a></div><div class="item-description">A for loop over a range, decomposed by <a href="../../../std/primitive.Expr.html#as_for_range"><code>Expr::as_for_range</code></a>.</div></li>
+<li><div class="item-name"><a href="struct.FunctionCallExpression.html" class="struct">FunctionCallExpression</a></div><div class="item-description">A function call decomposed by <a href="../../../std/primitive.Expr.html#as_function_call"><code>Expr::as_function_call</code></a>.</div></li>
+<li><div class="item-name"><a href="struct.IfExpression.html" class="struct">IfExpression</a></div><div class="item-description">An if expression decomposed by <a href="../../../std/primitive.Expr.html#as_if"><code>Expr::as_if</code></a>.</div></li>
+<li><div class="item-name"><a href="struct.IndexExpression.html" class="struct">IndexExpression</a></div><div class="item-description">An index expression decomposed by <a href="../../../std/primitive.Expr.html#as_index"><code>Expr::as_index</code></a>.</div></li>
+<li><div class="item-name"><a href="struct.IntegerLiteral.html" class="struct">IntegerLiteral</a></div><div class="item-description">An integer literal decomposed by <a href="../../../std/primitive.Expr.html#as_integer"><code>Expr::as_integer</code></a>.</div></li>
+<li><div class="item-name"><a href="struct.LambdaExpression.html" class="struct">LambdaExpression</a></div><div class="item-description">A lambda expression decomposed by <a href="../../../std/primitive.Expr.html#as_lambda"><code>Expr::as_lambda</code></a>.</div></li>
+<li><div class="item-name"><a href="struct.LambdaParameter.html" class="struct">LambdaParameter</a></div><div class="item-description">A parameter in a <a href="../../../std/meta/expr/struct.LambdaExpression.html"><code>LambdaExpression</code></a>.</div></li>
+<li><div class="item-name"><a href="struct.LetExpression.html" class="struct">LetExpression</a></div><div class="item-description">A let expression decomposed by <a href="../../../std/primitive.Expr.html#as_let"><code>Expr::as_let</code></a>.</div></li>
+<li><div class="item-name"><a href="struct.MemberAccessExpression.html" class="struct">MemberAccessExpression</a></div><div class="item-description">A member access decomposed by <a href="../../../std/primitive.Expr.html#as_member_access"><code>Expr::as_member_access</code></a>.</div></li>
+<li><div class="item-name"><a href="struct.MethodCallExpression.html" class="struct">MethodCallExpression</a></div><div class="item-description">A method call decomposed by <a href="../../../std/primitive.Expr.html#as_method_call"><code>Expr::as_method_call</code></a>.</div></li>
+<li><div class="item-name"><a href="struct.RepeatedElementArrayExpression.html" class="struct">RepeatedElementArrayExpression</a></div><div class="item-description">A repeated-element array decomposed by <a href="../../../std/primitive.Expr.html#as_repeated_element_array"><code>Expr::as_repeated_element_array</code></a>.</div></li>
+<li><div class="item-name"><a href="struct.RepeatedElementVectorExpression.html" class="struct">RepeatedElementVectorExpression</a></div><div class="item-description">A repeated-element vector decomposed by <a href="../../../std/primitive.Expr.html#as_repeated_element_vector"><code>Expr::as_repeated_element_vector</code></a>.</div></li>
+<li><div class="item-name"><a href="struct.UnaryOpExpression.html" class="struct">UnaryOpExpression</a></div><div class="item-description">A unary operation decomposed by <a href="../../../std/primitive.Expr.html#as_unary_op"><code>Expr::as_unary_op</code></a>.</div></li>
+</ul>
 </div>
 </main>
 </span>
