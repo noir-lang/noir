@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "acir"
-version = "1.0.0-beta.26"
+version = "1.0.0-rc.0"
 dependencies = [
  "acir",
  "acir_field",
@@ -37,7 +37,7 @@ dependencies = [
 
 [[package]]
 name = "acir_field"
-version = "1.0.0-beta.26"
+version = "1.0.0-rc.0"
 dependencies = [
  "ark-bls12-381",
  "ark-bn254",
@@ -54,7 +54,7 @@ dependencies = [
 
 [[package]]
 name = "acvm"
-version = "1.0.0-beta.26"
+version = "1.0.0-rc.0"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -79,7 +79,7 @@ dependencies = [
 
 [[package]]
 name = "acvm_blackbox_solver"
-version = "1.0.0-beta.26"
+version = "1.0.0-rc.0"
 dependencies = [
  "acir",
  "aes",
@@ -118,7 +118,7 @@ dependencies = [
 
 [[package]]
 name = "acvm_js"
-version = "1.0.0-beta.26"
+version = "1.0.0-rc.0"
 dependencies = [
  "acvm",
  "bn254_blackbox_solver",
@@ -668,7 +668,7 @@ dependencies = [
 
 [[package]]
 name = "bn254_blackbox_solver"
-version = "1.0.0-beta.26"
+version = "1.0.0-rc.0"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -695,7 +695,7 @@ dependencies = [
 
 [[package]]
 name = "brillig"
-version = "1.0.0-beta.26"
+version = "1.0.0-rc.0"
 dependencies = [
  "acir_field",
  "itertools 0.15.0",
@@ -707,7 +707,7 @@ dependencies = [
 
 [[package]]
 name = "brillig_vm"
-version = "1.0.0-beta.26"
+version = "1.0.0-rc.0"
 dependencies = [
  "acir",
  "acvm_blackbox_solver",
@@ -1769,7 +1769,7 @@ dependencies = [
 
 [[package]]
 name = "fm"
-version = "1.0.0-beta.26"
+version = "1.0.0-rc.0"
 dependencies = [
  "codespan-reporting",
  "iter-extended",
@@ -2577,7 +2577,7 @@ checksum = "a6cb138bb79a146c1bd460005623e142ef0181e3d0219cb493e02f7d08a35695"
 
 [[package]]
 name = "iter-extended"
-version = "1.0.0-beta.26"
+version = "1.0.0-rc.0"
 
 [[package]]
 name = "itertools"
@@ -3113,7 +3113,7 @@ dependencies = [
 
 [[package]]
 name = "msgpack_tagged"
-version = "1.0.0-beta.26"
+version = "1.0.0-rc.0"
 dependencies = [
  "msgpack_tagged_derive",
  "rmp",
@@ -3127,7 +3127,7 @@ dependencies = [
 
 [[package]]
 name = "msgpack_tagged_derive"
-version = "1.0.0-beta.26"
+version = "1.0.0-rc.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3136,7 +3136,7 @@ dependencies = [
 
 [[package]]
 name = "nargo"
-version = "1.0.0-beta.26"
+version = "1.0.0-rc.0"
 dependencies = [
  "acvm",
  "brillig",
@@ -3166,7 +3166,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_cli"
-version = "1.0.0-beta.26"
+version = "1.0.0-rc.0"
 dependencies = [
  "acvm",
  "ark-bn254",
@@ -3237,7 +3237,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_doc"
-version = "1.0.0-beta.26"
+version = "1.0.0-rc.0"
 dependencies = [
  "fm",
  "insta",
@@ -3254,7 +3254,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_expand"
-version = "1.0.0-beta.26"
+version = "1.0.0-rc.0"
 dependencies = [
  "fm",
  "nargo_fmt",
@@ -3264,7 +3264,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_fmt"
-version = "1.0.0-beta.26"
+version = "1.0.0-rc.0"
 dependencies = [
  "noirc_errors",
  "noirc_frontend",
@@ -3277,7 +3277,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_fuzz_target"
-version = "1.0.0-beta.26"
+version = "1.0.0-rc.0"
 dependencies = [
  "afl",
  "nargo",
@@ -3287,7 +3287,7 @@ dependencies = [
 
 [[package]]
 name = "nargo_toml"
-version = "1.0.0-beta.26"
+version = "1.0.0-rc.0"
 dependencies = [
  "dirs",
  "fm",
@@ -3354,7 +3354,7 @@ dependencies = [
 
 [[package]]
 name = "noir_artifact_cli"
-version = "1.0.0-beta.26"
+version = "1.0.0-rc.0"
 dependencies = [
  "acir",
  "acvm",
@@ -3379,7 +3379,7 @@ dependencies = [
 
 [[package]]
 name = "noir_ast_fuzzer"
-version = "1.0.0-beta.26"
+version = "1.0.0-rc.0"
 dependencies = [
  "acir",
  "acvm",
@@ -3411,7 +3411,7 @@ dependencies = [
 
 [[package]]
 name = "noir_ast_fuzzer_fuzz"
-version = "1.0.0-beta.26"
+version = "1.0.0-rc.0"
 dependencies = [
  "acir",
  "arbitrary",
@@ -3431,7 +3431,7 @@ dependencies = [
 
 [[package]]
 name = "noir_debugger"
-version = "1.0.0-beta.26"
+version = "1.0.0-rc.0"
 dependencies = [
  "acvm",
  "assert_cmd",
@@ -3453,7 +3453,7 @@ dependencies = [
 
 [[package]]
 name = "noir_greybox_fuzzer"
-version = "1.0.0-beta.26"
+version = "1.0.0-rc.0"
 dependencies = [
  "acvm",
  "build-data",
@@ -3474,7 +3474,7 @@ dependencies = [
 
 [[package]]
 name = "noir_inspector"
-version = "1.0.0-beta.26"
+version = "1.0.0-rc.0"
 dependencies = [
  "acir",
  "assert_cmd",
@@ -3493,7 +3493,7 @@ dependencies = [
 
 [[package]]
 name = "noir_lsp"
-version = "1.0.0-beta.26"
+version = "1.0.0-rc.0"
 dependencies = [
  "acvm",
  "async-lsp",
@@ -3524,7 +3524,7 @@ dependencies = [
 
 [[package]]
 name = "noir_profiler"
-version = "1.0.0-beta.26"
+version = "1.0.0-rc.0"
 dependencies = [
  "acir",
  "bn254_blackbox_solver",
@@ -3553,7 +3553,7 @@ dependencies = [
 
 [[package]]
 name = "noir_ssa_cli"
-version = "1.0.0-beta.26"
+version = "1.0.0-rc.0"
 dependencies = [
  "base64 0.23.1",
  "clap",
@@ -3575,7 +3575,7 @@ dependencies = [
 
 [[package]]
 name = "noir_ssa_executor"
-version = "1.0.0-beta.26"
+version = "1.0.0-rc.0"
 dependencies = [
  "acvm",
  "base64 0.23.1",
@@ -3592,7 +3592,7 @@ dependencies = [
 
 [[package]]
 name = "noir_ssa_fuzzer"
-version = "1.0.0-beta.26"
+version = "1.0.0-rc.0"
 dependencies = [
  "acvm",
  "libfuzzer-sys",
@@ -3610,7 +3610,7 @@ dependencies = [
 
 [[package]]
 name = "noir_wasm"
-version = "1.0.0-beta.26"
+version = "1.0.0-rc.0"
 dependencies = [
  "build-data",
  "console_error_panic_hook",
@@ -3634,7 +3634,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_abi"
-version = "1.0.0-beta.26"
+version = "1.0.0-rc.0"
 dependencies = [
  "acvm",
  "iter-extended",
@@ -3654,7 +3654,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_abi_wasm"
-version = "1.0.0-beta.26"
+version = "1.0.0-rc.0"
 dependencies = [
  "acvm",
  "build-data",
@@ -3673,11 +3673,11 @@ dependencies = [
 
 [[package]]
 name = "noirc_arena"
-version = "1.0.0-beta.26"
+version = "1.0.0-rc.0"
 
 [[package]]
 name = "noirc_artifacts"
-version = "1.0.0-beta.26"
+version = "1.0.0-rc.0"
 dependencies = [
  "acir",
  "acvm",
@@ -3697,7 +3697,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_artifacts_info"
-version = "1.0.0-beta.26"
+version = "1.0.0-rc.0"
 dependencies = [
  "acir",
  "acvm",
@@ -3711,7 +3711,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_driver"
-version = "1.0.0-beta.26"
+version = "1.0.0-rc.0"
 dependencies = [
  "acvm",
  "build-data",
@@ -3731,7 +3731,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_errors"
-version = "1.0.0-beta.26"
+version = "1.0.0-rc.0"
 dependencies = [
  "codespan-reporting",
  "fm",
@@ -3743,7 +3743,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_evaluator"
-version = "1.0.0-beta.26"
+version = "1.0.0-rc.0"
 dependencies = [
  "acvm",
  "arbtest",
@@ -3783,7 +3783,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_frontend"
-version = "1.0.0-beta.26"
+version = "1.0.0-rc.0"
 dependencies = [
  "acvm",
  "base64 0.23.1",
@@ -3820,7 +3820,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_printable_type"
-version = "1.0.0-beta.26"
+version = "1.0.0-rc.0"
 dependencies = [
  "acvm",
  "iter-extended",
@@ -3832,7 +3832,7 @@ dependencies = [
 
 [[package]]
 name = "noirc_span"
-version = "1.0.0-beta.26"
+version = "1.0.0-rc.0"
 dependencies = [
  "codespan",
  "serde",
@@ -7161,7 +7161,7 @@ dependencies = [
 
 [[package]]
 name = "workspace_layering"
-version = "1.0.0-beta.26"
+version = "1.0.0-rc.0"
 dependencies = [
  "serde_json",
 ]
