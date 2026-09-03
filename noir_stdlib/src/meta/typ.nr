@@ -175,11 +175,6 @@ impl Type {
     pub comptime fn as_str(self) -> Option<Type> {}
     // docs:end:as_str
 
-    #[deprecated("This method has been renamed to `as_data_type`")]
-    pub comptime fn as_struct(self) -> Option<DataType> {
-        self.as_data_type()
-    }
-
     /// If this is a struct or enum type, returns its [`TypeDefinition`] and
     /// generic arguments.
     // docs:start:as_data_type
