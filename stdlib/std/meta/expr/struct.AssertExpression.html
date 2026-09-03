@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../../../styles.css">
+<script>window.docRoot = "../../../";</script>
+<script defer src="../../../search-index.js"></script>
+<script defer src="../../../nargo_doc.js"></script>
+<script defer src="../../../search.js"></script>
+<title>Struct AssertExpression documentation</title>
+</head>
+<body>
+<div id="sidebar-toggle">
+<button id="sidebar-toggle-button"></button>
+<div id="sidebar-toggle-title">AssertExpression</div>
+</div>
+<span id="main-contents">
+<nav class="sidebar">
+<h1><a href="../../../index.html">noir_stdlib</a></h1>
+<div><a href="../../../all.html">All items</a></div>
+<h2 id="crate-name"><a href="../../index.html">std</a></h2>
+<div id="crate-version">1.0.0-beta.26</div>
+<h2><a href="#struct">Struct AssertExpression</a></h2>
+<h3>Methods</h3>
+<ul class="sidebar-list">
+<li><a href="#message">message</a></li>
+<li><a href="#predicate">predicate</a></li>
+</ul>
+<h2>In module expr</h2>
+<h3>Structs</h3><ul class="item-list">
+<li><a href="struct.AssertEqExpression.html">AssertEqExpression</a></div></li>
+<li><a href="struct.AssertExpression.html">AssertExpression</a></div></li>
+<li><a href="struct.AssignExpression.html">AssignExpression</a></div></li>
+<li><a href="struct.BinaryOpExpression.html">BinaryOpExpression</a></div></li>
+<li><a href="struct.CastExpression.html">CastExpression</a></div></li>
+<li><a href="struct.ConstructorExpression.html">ConstructorExpression</a></div></li>
+<li><a href="struct.ConstructorField.html">ConstructorField</a></div></li>
+<li><a href="struct.ForExpression.html">ForExpression</a></div></li>
+<li><a href="struct.ForRangeExpression.html">ForRangeExpression</a></div></li>
+<li><a href="struct.FunctionCallExpression.html">FunctionCallExpression</a></div></li>
+<li><a href="struct.IfExpression.html">IfExpression</a></div></li>
+<li><a href="struct.IndexExpression.html">IndexExpression</a></div></li>
+<li><a href="struct.IntegerLiteral.html">IntegerLiteral</a></div></li>
+<li><a href="struct.LambdaExpression.html">LambdaExpression</a></div></li>
+<li><a href="struct.LambdaParameter.html">LambdaParameter</a></div></li>
+<li><a href="struct.LetExpression.html">LetExpression</a></div></li>
+<li><a href="struct.MemberAccessExpression.html">MemberAccessExpression</a></div></li>
+<li><a href="struct.MethodCallExpression.html">MethodCallExpression</a></div></li>
+<li><a href="struct.RepeatedElementArrayExpression.html">RepeatedElementArrayExpression</a></div></li>
+<li><a href="struct.RepeatedElementVectorExpression.html">RepeatedElementVectorExpression</a></div></li>
+<li><a href="struct.UnaryOpExpression.html">UnaryOpExpression</a></div></li>
+</ul>
+</nav>
+<main>
+<div><a href="../../../index.html">noir_stdlib</a> - <a href="../../index.html">std</a>::<a href="../index.html">meta</a>::<a href="index.html">expr</a></div>
+<div class="heading-row">
+<h1 class="heading-content">Struct <span id="struct" class="struct">AssertExpression</span></h1>
+<button id="search-toggle" type="button">Search</button>
+</div>
+<input id="search-input" type="search" placeholder="Type 's' or '/' to search" autocomplete="off" spellcheck="false" aria-label="Search" hidden>
+<div id="search-results" hidden></div>
+<div id="page-content">
+<pre><code>pub comptime struct AssertExpression
+{ <span class="comment">/* private fields */</span> }
+</code></pre>
+<div class="comments">
+<p>An assert expression decomposed by <a href="../../../std/primitive.Expr.html#as_assert"><code>Expr::as_assert</code></a> into its predicate and
+optional message.</p></div>
+<h2>Implementations</h2>
+<h3><code class="code-header">impl <a href="../../../std/meta/expr/struct.AssertExpression.html" class="struct">AssertExpression</a></code></h3>
+
+<div class="padded-methods"><code id="predicate" class="code-header">pub comptime fn <a href="#predicate" class="fn">predicate</a>(self) -> <a href="../../../std/primitive.Expr.html" class="primitive">Expr</a></code>
+
+<div class="padded-description"><div class="comments">
+<p>The predicate being asserted.</p>
+</div>
+</div><code id="message" class="code-header">pub comptime fn <a href="#message" class="fn">message</a>(self) -> <a href="../../../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../../../std/primitive.Expr.html" class="primitive">Expr</a>&gt;</code>
+
+<div class="padded-description"><div class="comments">
+<p>The optional assertion message.</p>
+</div>
+</div></div></div>
+</main>
+</span>
+</body>
+</html>

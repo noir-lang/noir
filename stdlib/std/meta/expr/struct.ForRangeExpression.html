@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../../../styles.css">
+<script>window.docRoot = "../../../";</script>
+<script defer src="../../../search-index.js"></script>
+<script defer src="../../../nargo_doc.js"></script>
+<script defer src="../../../search.js"></script>
+<title>Struct ForRangeExpression documentation</title>
+</head>
+<body>
+<div id="sidebar-toggle">
+<button id="sidebar-toggle-button"></button>
+<div id="sidebar-toggle-title">ForRangeExpression</div>
+</div>
+<span id="main-contents">
+<nav class="sidebar">
+<h1><a href="../../../index.html">noir_stdlib</a></h1>
+<div><a href="../../../all.html">All items</a></div>
+<h2 id="crate-name"><a href="../../index.html">std</a></h2>
+<div id="crate-version">1.0.0-beta.26</div>
+<h2><a href="#struct">Struct ForRangeExpression</a></h2>
+<h3>Methods</h3>
+<ul class="sidebar-list">
+<li><a href="#body">body</a></li>
+<li><a href="#end">end</a></li>
+<li><a href="#identifier">identifier</a></li>
+<li><a href="#is_inclusive">is_inclusive</a></li>
+<li><a href="#start">start</a></li>
+</ul>
+<h2>In module expr</h2>
+<h3>Structs</h3><ul class="item-list">
+<li><a href="struct.AssertEqExpression.html">AssertEqExpression</a></div></li>
+<li><a href="struct.AssertExpression.html">AssertExpression</a></div></li>
+<li><a href="struct.AssignExpression.html">AssignExpression</a></div></li>
+<li><a href="struct.BinaryOpExpression.html">BinaryOpExpression</a></div></li>
+<li><a href="struct.CastExpression.html">CastExpression</a></div></li>
+<li><a href="struct.ConstructorExpression.html">ConstructorExpression</a></div></li>
+<li><a href="struct.ConstructorField.html">ConstructorField</a></div></li>
+<li><a href="struct.ForExpression.html">ForExpression</a></div></li>
+<li><a href="struct.ForRangeExpression.html">ForRangeExpression</a></div></li>
+<li><a href="struct.FunctionCallExpression.html">FunctionCallExpression</a></div></li>
+<li><a href="struct.IfExpression.html">IfExpression</a></div></li>
+<li><a href="struct.IndexExpression.html">IndexExpression</a></div></li>
+<li><a href="struct.IntegerLiteral.html">IntegerLiteral</a></div></li>
+<li><a href="struct.LambdaExpression.html">LambdaExpression</a></div></li>
+<li><a href="struct.LambdaParameter.html">LambdaParameter</a></div></li>
+<li><a href="struct.LetExpression.html">LetExpression</a></div></li>
+<li><a href="struct.MemberAccessExpression.html">MemberAccessExpression</a></div></li>
+<li><a href="struct.MethodCallExpression.html">MethodCallExpression</a></div></li>
+<li><a href="struct.RepeatedElementArrayExpression.html">RepeatedElementArrayExpression</a></div></li>
+<li><a href="struct.RepeatedElementVectorExpression.html">RepeatedElementVectorExpression</a></div></li>
+<li><a href="struct.UnaryOpExpression.html">UnaryOpExpression</a></div></li>
+</ul>
+</nav>
+<main>
+<div><a href="../../../index.html">noir_stdlib</a> - <a href="../../index.html">std</a>::<a href="../index.html">meta</a>::<a href="index.html">expr</a></div>
+<div class="heading-row">
+<h1 class="heading-content">Struct <span id="struct" class="struct">ForRangeExpression</span></h1>
+<button id="search-toggle" type="button">Search</button>
+</div>
+<input id="search-input" type="search" placeholder="Type 's' or '/' to search" autocomplete="off" spellcheck="false" aria-label="Search" hidden>
+<div id="search-results" hidden></div>
+<div id="page-content">
+<pre><code>pub comptime struct ForRangeExpression
+{ <span class="comment">/* private fields */</span> }
+</code></pre>
+<div class="comments">
+<p>A for loop over a range, decomposed by <a href="../../../std/primitive.Expr.html#as_for_range"><code>Expr::as_for_range</code></a>.</p></div>
+<h2>Implementations</h2>
+<h3><code class="code-header">impl <a href="../../../std/meta/expr/struct.ForRangeExpression.html" class="struct">ForRangeExpression</a></code></h3>
+
+<div class="padded-methods"><code id="identifier" class="code-header">pub comptime fn <a href="#identifier" class="fn">identifier</a>(self) -> <a href="../../../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
+
+<div class="padded-description"><div class="comments">
+<p>The loop variable as a <a href="../../../std/primitive.Quoted.html"><code>Quoted</code></a> identifier.</p></div>
+</div><code id="start" class="code-header">pub comptime fn <a href="#start" class="fn">start</a>(self) -> <a href="../../../std/primitive.Expr.html" class="primitive">Expr</a></code>
+
+<div class="padded-description"><div class="comments">
+<p>The range's lower bound.</p>
+</div>
+</div><code id="end" class="code-header">pub comptime fn <a href="#end" class="fn">end</a>(self) -> <a href="../../../std/primitive.Expr.html" class="primitive">Expr</a></code>
+
+<div class="padded-description"><div class="comments">
+<p>The range's upper bound.</p>
+</div>
+</div><code id="is_inclusive" class="code-header">pub comptime fn <a href="#is_inclusive" class="fn">is_inclusive</a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns <code>true</code> if the upper bound is inclusive.</p>
+</div>
+</div><code id="body" class="code-header">pub comptime fn <a href="#body" class="fn">body</a>(self) -> <a href="../../../std/primitive.Expr.html" class="primitive">Expr</a></code>
+
+<div class="padded-description"><div class="comments">
+<p>The loop body.</p>
+</div>
+</div></div></div>
+</main>
+</span>
+</body>
+</html>

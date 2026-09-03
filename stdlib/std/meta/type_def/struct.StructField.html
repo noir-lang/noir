@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="../../../styles.css">
+<script>window.docRoot = "../../../";</script>
+<script defer src="../../../search-index.js"></script>
+<script defer src="../../../nargo_doc.js"></script>
+<script defer src="../../../search.js"></script>
+<title>Struct StructField documentation</title>
+</head>
+<body>
+<div id="sidebar-toggle">
+<button id="sidebar-toggle-button"></button>
+<div id="sidebar-toggle-title">StructField</div>
+</div>
+<span id="main-contents">
+<nav class="sidebar">
+<h1><a href="../../../index.html">noir_stdlib</a></h1>
+<div><a href="../../../all.html">All items</a></div>
+<h2 id="crate-name"><a href="../../index.html">std</a></h2>
+<div id="crate-version">1.0.0-beta.26</div>
+<h2><a href="#struct">Struct StructField</a></h2>
+<h3>Methods</h3>
+<ul class="sidebar-list">
+<li><a href="#name">name</a></li>
+<li><a href="#typ">typ</a></li>
+<li><a href="#visibility">visibility</a></li>
+</ul>
+<h2>In module type_def</h2>
+<h3>Structs</h3><ul class="item-list">
+<li><a href="struct.StructField.html">StructField</a></div></li>
+<li><a href="struct.TypeGeneric.html">TypeGeneric</a></div></li>
+</ul>
+</nav>
+<main>
+<div><a href="../../../index.html">noir_stdlib</a> - <a href="../../index.html">std</a>::<a href="../index.html">meta</a>::<a href="index.html">type_def</a></div>
+<div class="heading-row">
+<h1 class="heading-content">Struct <span id="struct" class="struct">StructField</span></h1>
+<button id="search-toggle" type="button">Search</button>
+</div>
+<input id="search-input" type="search" placeholder="Type 's' or '/' to search" autocomplete="off" spellcheck="false" aria-label="Search" hidden>
+<div id="search-results" hidden></div>
+<div id="page-content">
+<pre><code>pub comptime struct StructField
+{ <span class="comment">/* private fields */</span> }
+</code></pre>
+<div class="comments">
+<p>A field of a <a href="../../../std/primitive.TypeDefinition.html"><code>TypeDefinition</code></a>, returned from
+<a href="../../../std/primitive.TypeDefinition.html#fields"><code>TypeDefinition::fields</code></a> and <a href="../../../std/primitive.TypeDefinition.html#fields_as_written"><code>TypeDefinition::fields_as_written</code></a>.</p></div>
+<h2>Implementations</h2>
+<h3><code class="code-header">impl <a href="../../../std/meta/type_def/struct.StructField.html" class="struct">StructField</a></code></h3>
+
+<div class="padded-methods"><code id="name" class="code-header">pub comptime fn <a href="#name" class="fn">name</a>(self) -> <a href="../../../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
+
+<div class="padded-description"><div class="comments">
+<p>The field's declared name, as a <a href="../../../std/primitive.Quoted.html"><code>Quoted</code></a> identifier.</p></div>
+</div><code id="typ" class="code-header">pub comptime fn <a href="#typ" class="fn">typ</a>(self) -> <a href="../../../std/primitive.Type.html" class="primitive">Type</a></code>
+
+<div class="padded-description"><div class="comments">
+<p>The field's declared type.</p>
+</div>
+</div><code id="visibility" class="code-header">pub comptime fn <a href="#visibility" class="fn">visibility</a>(self) -> <a href="../../../std/meta/item_visibility/struct.ItemVisibility.html" class="struct">ItemVisibility</a></code>
+
+<div class="padded-description"><div class="comments">
+<p>The field's declared visibility.</p>
+</div>
+</div></div></div>
+</main>
+</span>
+</body>
+</html>

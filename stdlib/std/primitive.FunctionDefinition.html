@@ -147,13 +147,19 @@ top of a function:</p>
 
 <code id="name" class="code-header">pub comptime fn <a href="#name" class="fn">name</a>(self) -> <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
 
-<code id="parameters" class="code-header">pub comptime fn <a href="#parameters" class="fn">parameters</a>(self) -> [(<a href="../std/primitive.Quoted.html" class="primitive">Quoted</a>, <a href="../std/primitive.Type.html" class="primitive">Type</a>)]</code>
+<code id="parameters" class="code-header">pub comptime fn <a href="#parameters" class="fn">parameters</a>(self) -> [<a href="../std/meta/function_def/struct.FunctionParameter.html" class="struct">FunctionParameter</a>]</code>
 
-<code id="return_type" class="code-header">pub comptime fn <a href="#return_type" class="fn">return_type</a>(self) -> <a href="../std/primitive.Type.html" class="primitive">Type</a></code>
+<div class="padded-description"><div class="comments">
+<p>The parameters this function was declared with, in source order.</p>
+</div>
+</div><code id="return_type" class="code-header">pub comptime fn <a href="#return_type" class="fn">return_type</a>(self) -> <a href="../std/primitive.Type.html" class="primitive">Type</a></code>
 
-<code id="visibility" class="code-header">pub comptime fn <a href="#visibility" class="fn">visibility</a>(self) -> <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
+<code id="visibility" class="code-header">pub comptime fn <a href="#visibility" class="fn">visibility</a>(self) -> <a href="../std/meta/item_visibility/struct.ItemVisibility.html" class="struct">ItemVisibility</a></code>
 
-</div><h2>Trait implementations</h2>
+<div class="padded-description"><div class="comments">
+<p>The function's visibility.</p>
+</div>
+</div></div><h2>Trait implementations</h2>
 <h3 id="impl-Eq-for-FunctionDefinition"><code class="code-header">impl <a href="../std/cmp/trait.Eq.html" class="trait">Eq</a> for <a href="../std/primitive.FunctionDefinition.html" class="primitive">FunctionDefinition</a></code></h3>
 
 <div class="padded-methods"><code class="code-header">pub comptime fn <span class="fn">eq</span>(self, other: Self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>

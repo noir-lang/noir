@@ -23,13 +23,18 @@
 <h2><a href="#mod">Module typ</a></h2>
 <h3>Module items</h3>
 <ul class="sidebar-list">
+<li><a href="#structs">Structs</a></li>
 <li><a href="#functions">Functions</a></li>
 </ul>
 <h2>In module meta</h2>
 <h3>Modules</h3><ul class="item-list">
 <li><a href="../ctstring/index.html">ctstring</a></div></li>
+<li><a href="../expr/index.html">expr</a></div></li>
+<li><a href="../function_def/index.html">function_def</a></div></li>
+<li><a href="../item_visibility/index.html">item_visibility</a></div></li>
 <li><a href="../op/index.html">op</a></div></li>
 <li><a href="../typ/index.html">typ</a></div></li>
+<li><a href="../type_def/index.html">type_def</a></div></li>
 </ul>
 <h3>Type aliases</h3><ul class="item-list">
 <li><a href="../type.DeriveFunction.html">DeriveFunction</a></div></li>
@@ -56,6 +61,14 @@
 <div class="comments">
 <p>Contains methods on the built-in <code>Type</code> type used for representing a type in the source program.</p>
 </div>
+<h2 id="structs">Structs</h2><ul class="item-list">
+<li><div class="item-name"><a href="struct.ArrayType.html" class="struct">ArrayType</a></div><div class="item-description">An array type decomposed by <a href="../../../std/primitive.Type.html#as_array"><code>Type::as_array</code></a> into its element and length
+components.</div></li>
+<li><div class="item-name"><a href="struct.DataType.html" class="struct">DataType</a></div><div class="item-description">A struct or enum type decomposed by <a href="../../../std/primitive.Type.html#as_data_type"><code>Type::as_data_type</code></a> into its
+<a href="../../../std/primitive.TypeDefinition.html"><code>TypeDefinition</code></a> and its concrete generic arguments.</div></li>
+<li><div class="item-name"><a href="struct.IntegerType.html" class="struct">IntegerType</a></div><div class="item-description">An integer type decomposed by <a href="../../../std/primitive.Type.html#as_integer"><code>Type::as_integer</code></a> into its signedness and
+bit width.</div></li>
+</ul>
 <h2 id="functions">Functions</h2><ul class="item-list">
 <li><div class="item-name"><a href="fn.fresh_type_variable.html" class="fn">fresh_type_variable</a></div><div class="item-description">Creates and returns an unbound type variable. This is a special kind of type internal
 to type checking which will type check with any other type. When it is type checked
