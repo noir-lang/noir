@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788447715476,
+  "lastUpdate": 1788447726017,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4923,105 +4923,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "da90b5279d776bedec6dc3726e53bab8eb814b0c",
-          "message": "fix(ssa): let constant folding replace a `&T` result with the `&mut T` cell it reads (#13514)",
-          "timestamp": "2026-08-12T13:51:15Z",
-          "tree_id": "1f1404692636911f542f1e847db900ecdd205f4f",
-          "url": "https://github.com/noir-lang/noir/commit/da90b5279d776bedec6dc3726e53bab8eb814b0c"
-        },
-        "date": 1786544410970,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 6.242,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 217,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 14.6,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 1.998,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 2.5,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 2.51,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 2.516,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 205,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 264,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 2.096,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 15.76,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 49.34,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 2.6,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.905,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.69,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "9dfde92fe4020934c80855b3fb4f6fc2164445cc",
           "message": "fix(ssa): visit each value once when decomposing a constraint (#13516)",
           "timestamp": "2026-08-12T14:57:43Z",
@@ -9806,6 +9707,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.419,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7001b28397a7df48f38f9d6ff7a11fa5e80de4a8",
+          "message": "feat(stdlib): wrap comptime tuple-returning APIs in named structs (#13550)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>\nCo-authored-by: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-09-03T14:34:26Z",
+          "tree_id": "2d35b4bc4c61e041d755eb89c3f2661a812e4f5a",
+          "url": "https://github.com/noir-lang/noir/commit/7001b28397a7df48f38f9d6ff7a11fa5e80de4a8"
+        },
+        "date": 1788447654527,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.933,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.592,
             "unit": "s"
           }
         ]
