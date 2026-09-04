@@ -88,7 +88,9 @@ pub(crate) fn run(args: ExecuteCommand, workspace: Workspace) -> Result<(), CliE
         let prover_file = package.root_dir.join(&args.prover_name).with_extension("toml");
 
         let cmd = noir_artifact_cli::commands::execute_cmd::ExecuteCommand {
-            artifact_path: program_artifact_path,
+            artifact_path: Some(program_artifact_path),
+            bytecode_path: None,
+            abi_path: None,
             prover_file,
             overwrite_return: args.overwrite_return,
             output_dir: Some(workspace.target_directory_path()),
