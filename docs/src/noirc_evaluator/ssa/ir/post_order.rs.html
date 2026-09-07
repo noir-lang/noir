@@ -876,7 +876,7 @@
 <a href=#876 id=876 data-nosnippet>876</a>    </span><span class="kw">fn </span>optimized_ssa(src: <span class="kw-2">&amp;</span>str) -&gt; Ssa {
 <a href=#877 id=877 data-nosnippet>877</a>        <span class="kw">let </span>program = get_monomorphized(src).expect(<span class="string">"program should monomorphize"</span>);
 <a href=#878 id=878 data-nosnippet>878</a>        <span class="kw">let </span>ssa = generate_ssa(program).expect(<span class="string">"SSA generation should succeed"</span>);
-<a href=#879 id=879 data-nosnippet>879</a>        <span class="kw">let </span>options = SsaEvaluatorOptions::default();
+<a href=#879 id=879 data-nosnippet>879</a>        <span class="kw">let </span>options = SsaEvaluatorOptions::for_tests();
 <a href=#880 id=880 data-nosnippet>880</a>        <span class="kw">let </span>builder = SsaBuilder::from_ssa(
 <a href=#881 id=881 data-nosnippet>881</a>            ssa,
 <a href=#882 id=882 data-nosnippet>882</a>            options.ssa_logging.clone(),

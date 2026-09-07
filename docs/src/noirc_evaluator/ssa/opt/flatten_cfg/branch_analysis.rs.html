@@ -630,7 +630,7 @@
 <a href=#630 id=630 data-nosnippet>630</a>    }
 <a href=#631 id=631 data-nosnippet>631</a>
 <a href=#632 id=632 data-nosnippet>632</a>    <span class="kw">fn </span>run_pipeline_up_to_pass(<span class="kw-2">mut </span>ssa: Ssa, stop_before_pass: <span class="kw-2">&amp;</span>str) -&gt; Ssa {
-<a href=#633 id=633 data-nosnippet>633</a>        <span class="kw">let </span>options = SsaEvaluatorOptions::default();
+<a href=#633 id=633 data-nosnippet>633</a>        <span class="kw">let </span>options = SsaEvaluatorOptions::for_tests();
 <a href=#634 id=634 data-nosnippet>634</a>        <span class="kw">let </span>pipeline = primary_passes(<span class="kw-2">&amp;</span>options);
 <a href=#635 id=635 data-nosnippet>635</a>        <span class="kw">for </span>pass <span class="kw">in </span>pipeline {
 <a href=#636 id=636 data-nosnippet>636</a>            <span class="kw">if </span>pass.msg() == stop_before_pass {
