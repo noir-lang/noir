@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788773886261,
+  "lastUpdate": 1788773903656,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4893,105 +4893,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "9dfde92fe4020934c80855b3fb4f6fc2164445cc",
-          "message": "fix(ssa): visit each value once when decomposing a constraint (#13516)",
-          "timestamp": "2026-08-12T14:57:43Z",
-          "tree_id": "151282468ee12ef6a6c758c5571cb296f7cac454",
-          "url": "https://github.com/noir-lang/noir/commit/9dfde92fe4020934c80855b3fb4f6fc2164445cc"
-        },
-        "date": 1786548471190,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 6.304,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 168,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 13.66,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 2.662,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 2.42,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 2.59,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 2.464,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 321,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 248,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.792,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 15.58,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 53.8,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 2.614,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.793,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.778,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "f490b3ff4b7104c1ebbcb82592ca7ab250ecbd5f",
           "message": "fix(ssa): run simplify_cfg to a fixed point so no constant-condition jmpif survives (#13515)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
           "timestamp": "2026-08-13T12:57:14Z",
@@ -9711,6 +9612,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.592,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "47a8f232968def43700577252c619b870f611700",
+          "message": "chore(deps): bump the actions-minor-and-patch group with 2 updates (#13601)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-09-07T09:03:47Z",
+          "tree_id": "86e90e312b849277998a96994c8b79cfac892678",
+          "url": "https://github.com/noir-lang/noir/commit/47a8f232968def43700577252c619b870f611700"
+        },
+        "date": 1788773779867,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 1.012,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.858,
             "unit": "s"
           }
         ]
