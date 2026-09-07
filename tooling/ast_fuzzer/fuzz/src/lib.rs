@@ -24,9 +24,13 @@ fn show_ssa() -> bool {
 }
 
 pub fn default_ssa_options() -> SsaEvaluatorOptions {
+    // Note that these are the test options, not the options `nargo` compiles with: the
+    // under-constrained and Brillig-constraint checks are skipped and the inliner is at its
+    // least aggressive setting. That is what the fuzzer has always run; naming it here rather
+    // than reaching it through `Default` just makes the choice visible.
     ssa::SsaEvaluatorOptions {
         ssa_logging: if show_ssa() { ssa::SsaLogging::All } else { ssa::SsaLogging::None },
-        ..Default::default()
+        ..ssa::SsaEvaluatorOptions::for_tests()
     }
 }
 
