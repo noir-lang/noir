@@ -25,6 +25,29 @@ install-rust-tools: install-binstall
     cargo binstall cargo-insta@1.42.2 -y {{ cargo-binstall-args }}
     cargo binstall cargo-mutants@25.3.1 -y {{ cargo-binstall-args }}
 
+# Installs cvc5 (the -gpl build, needed for its finite-field SMT theory) for
+# the noirc_evaluator ssa::smt_verify tests
+[private]
+install-cvc5:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if command -v cvc5 >/dev/null 2>&1; then
+      exit 0
+    fi
+    case "$(uname -s)-$(uname -m)" in
+      Linux-x86_64)  asset=cvc5-Linux-x86_64-static-gpl.zip ;;
+      Linux-aarch64) asset=cvc5-Linux-arm64-static-gpl.zip ;;
+      Darwin-x86_64) asset=cvc5-macOS-x86_64-static-gpl.zip ;;
+      Darwin-arm64)  asset=cvc5-macOS-arm64-static-gpl.zip ;;
+      *) echo "install-cvc5: unsupported platform $(uname -s)-$(uname -m)" >&2; exit 1 ;;
+    esac
+    url="https://github.com/cvc5/cvc5/releases/download/cvc5-1.3.4/$asset"
+    tmp=$(mktemp -d)
+    curl -fsSL -o "$tmp/cvc5.zip" "$url"
+    unzip -q "$tmp/cvc5.zip" -d "$tmp"
+    install -m755 "$tmp"/*/bin/cvc5 "$HOME/.cargo/bin/cvc5"
+    rm -rf "$tmp"
+
 # Installs tools necessary for working with Javascript code
 install-js-tools: install-binstall
     cargo binstall wasm-pack@0.13.1 -y {{ cargo-binstall-args }}

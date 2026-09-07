@@ -103,7 +103,8 @@ jobs:
           RUST_MIN_STACK=8388608 \
           cargo nextest run --archive-file nextest-archive-arm64.tar.zst \
             --partition count:${{ matrix.partition }}/8 \
-            --profile ci-master
+            --profile ci-master \
+            -E 'not test(ssa::smt_verify)'
         env:
           # Tests that spawn their own `cargo build` (notably trybuild's
           # compile_fail in `msgpack_tagged`) detect this and skip — see

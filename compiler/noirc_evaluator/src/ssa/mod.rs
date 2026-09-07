@@ -78,6 +78,8 @@ pub mod interpreter;
 pub mod ir;
 pub mod opt;
 pub mod parser;
+#[cfg(test)]
+mod smt_verify;
 pub mod ssa_gen;
 pub(crate) mod validation;
 mod visit_once_deque;
