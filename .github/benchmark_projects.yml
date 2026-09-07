@@ -1,4 +1,4 @@
-define: &AZ_COMMIT 28549d2f7df060c34c14a13efc9157b0f8ff51d3
+define: &AZ_COMMIT d5b9e49bad0d52acbf5c0547237588295d0ba9bf
 projects:
   # The private kernel circuits do not compile against this branch: the pinned
   # aztec-packages commit calls `BoundedVec::from_parts_unchecked`, which this
