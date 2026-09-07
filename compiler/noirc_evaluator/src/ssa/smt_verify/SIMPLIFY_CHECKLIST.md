@@ -13,6 +13,12 @@ separately if/when it starts.
 
 ## Binary operators (`ir/dfg/simplify/binary.rs`)
 
+**Operator normalization** (applied unconditionally before the per-operator
+rules below, and before constant folding — discovered while testing the
+`Mul` boolean rules, not originally catalogued here)
+- [ ] Field: `unchecked_add`/`unchecked_sub`/`unchecked_mul` → checked (unchecked is meaningless for `Field`, kept only to reduce SSA noise)
+- [x] boolean: checked `mul` → `unchecked_mul` (multiplying two `{0,1}` values can never overflow) — tested as a side effect of `mul_boolean_b_times_bx_holds`, `mul_boolean_bx_times_b_holds`
+
 - [ ] Constant folding: both operands constant → evaluate directly (`eval_constant_binary_op`, applies to every operator below)
 
 **Add**
@@ -25,9 +31,9 @@ separately if/when it starts.
 **Mul**
 - [x] `x * 1 → x` / `1 * x → x` (guarded by `can_simplify_arithmetic_identity`) — two separate branches, tested separately: `mul_one_lhs_holds_for_all_field_elements`, `mul_one_rhs_holds_for_all_field_elements`
 - [x] `x * 0 → 0` / `0 * x → 0` — one shared branch, tested in `mul_zero_holds_for_all_field_elements`
-- [ ] `b * b → b` when `b` is boolean
-- [ ] `b * (b * x) → b * x` when `b` is boolean
-- [ ] `(b * x) * b → b * x` when `b` is boolean
+- [x] `b * b → b` when `b` is boolean — tested in `mul_boolean_square_holds`
+- [x] `b * (b * x) → b * x` when `b` is boolean — tested in `mul_boolean_b_times_bx_holds`
+- [x] `(b * x) * b → b * x` when `b` is boolean — tested in `mul_boolean_bx_times_b_holds`
 
 **Div**
 - [ ] `x / 1 → x`
@@ -39,8 +45,8 @@ separately if/when it starts.
 
 **Eq**
 - [ ] `x == x → true`
-- [ ] boolean `(b == true) → b`, `(true == b) → b`
-- [ ] boolean `(b == false) → !b`, `(false == b) → !b`
+- [x] boolean `(b == true) → b`, `(true == b) → b` — tested in `eq_boolean_true_rhs_holds`, `eq_boolean_true_lhs_holds`
+- [x] boolean `(b == false) → !b`, `(false == b) → !b` — tested in `eq_boolean_false_rhs_holds`, `eq_boolean_false_lhs_holds`
 
 **Lt**
 - [ ] `x < x → false`
@@ -52,7 +58,7 @@ separately if/when it starts.
 - [ ] `x & 0 → 0` / `0 & x → 0`
 - [ ] `x & x → x`
 - [ ] unsigned bitwise-AND-with-power-of-two-minus-one-mask → `Truncate`
-- [ ] boolean `x & y → x * y` (unchecked mul)
+- [x] boolean `x & y → x * y` (unchecked mul) — tested in `and_boolean_is_unchecked_mul_holds`
 
 **Or**
 - [ ] `x | 0 → x` / `0 | x → x`
@@ -69,8 +75,8 @@ separately if/when it starts.
 
 ## Other instructions (`ir/dfg/simplify.rs` top-level dispatch)
 
-- [ ] `Not`: constant boolean → constant
-- [ ] `Not`: `!!x → x`
+- [x] `Not`: constant boolean → constant — tested in `not_constant_holds`
+- [x] `Not`: `!!x → x` — tested in `not_not_holds`
 - [ ] `Constrain`: decomposed via `decompose_constrain` (see below)
 - [ ] `ArrayGet`: constant out-of-bounds index → trap, collapsed to an in-bounds same-field index
 - [ ] `ArrayGet`: constant index into a value built by a previous `MakeArray`/`ArraySet` → the stored value directly

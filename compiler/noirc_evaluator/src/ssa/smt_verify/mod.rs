@@ -31,6 +31,7 @@ use super::Ssa;
 use super::ir::basic_block::BasicBlockId;
 use super::ir::dfg::DataFlowGraph;
 use super::ir::instruction::{Binary, BinaryOp, Instruction, InstructionId, TerminatorInstruction};
+use super::ir::types::Type;
 use super::ir::value::{Value, ValueId};
 
 /// The values a block's `Return` terminator returns. Panics on any other
@@ -103,21 +104,53 @@ impl<'a> Encoder<'a> {
     /// Translates a single instruction into an SMT-LIB2 term, from its
     /// actual `lhs`/`rhs`/`operator` fields.
     fn encode_instruction(&mut self, instruction: InstructionId) -> String {
-        let (lhs, rhs, operator) = match &self.dfg[instruction] {
-            Instruction::Binary(Binary { lhs, rhs, operator }) => (*lhs, *rhs, *operator),
-            other => panic!("smt_verify: encoding for instruction {other:?} is not implemented"),
-        };
-
-        let lhs = self.encode_value(lhs);
-        let rhs = self.encode_value(rhs);
-        match operator {
-            BinaryOp::Add { .. } => format!("(ff.add {lhs} {rhs})"),
-            BinaryOp::Sub { .. } => format!("(ff.add {lhs} (ff.neg {rhs}))"),
-            BinaryOp::Mul { .. } => format!("(ff.mul {lhs} {rhs})"),
-            other => {
-                panic!("smt_verify: encoding for binary operator {other:?} is not implemented")
+        match &self.dfg[instruction] {
+            Instruction::Binary(Binary { lhs, rhs, operator }) => {
+                let (lhs, rhs, operator) = (*lhs, *rhs, *operator);
+                if operator == BinaryOp::And {
+                    self.assert_boolean(lhs, "And");
+                    self.assert_boolean(rhs, "And");
+                }
+                let lhs = self.encode_value(lhs);
+                let rhs = self.encode_value(rhs);
+                match operator {
+                    BinaryOp::Add { .. } => format!("(ff.add {lhs} {rhs})"),
+                    BinaryOp::Sub { .. } => format!("(ff.add {lhs} (ff.neg {rhs}))"),
+                    BinaryOp::Mul { .. } => format!("(ff.mul {lhs} {rhs})"),
+                    BinaryOp::Eq => format!("(ite (= {lhs} {rhs}) (as ff1 FF) (as ff0 FF))"),
+                    // Valid because both operands are asserted boolean above:
+                    // AND on {0,1} values is exactly multiplication.
+                    BinaryOp::And => format!("(ff.mul {lhs} {rhs})"),
+                    other => {
+                        panic!(
+                            "smt_verify: encoding for binary operator {other:?} is not implemented"
+                        )
+                    }
+                }
             }
+            Instruction::Not(value) => {
+                let value = *value;
+                self.assert_boolean(value, "Not");
+                let value = self.encode_value(value);
+                // Valid because `value` is asserted boolean above: NOT on a
+                // {0,1} value is `1 - x`.
+                format!("(ff.add (as ff1 FF) (ff.neg {value}))")
+            }
+            other => panic!("smt_verify: encoding for instruction {other:?} is not implemented"),
         }
+    }
+
+    /// Panics if `value`'s SSA type isn't boolean. `And` and `Not` are only
+    /// encoded correctly for boolean operands (AND/NOT on `{0,1}` values are
+    /// multiplication/`1-x`; that's not a valid encoding of bitwise
+    /// AND/complement on wider integer types), so this guards against
+    /// silently mistranslating an out-of-scope case instead of catching it.
+    fn assert_boolean(&self, value: ValueId, context: &str) {
+        assert!(
+            *self.dfg.type_of_value(value) == Type::bool(),
+            "smt_verify: {context} is only encoded for boolean operands, got {:?}",
+            self.dfg.type_of_value(value)
+        );
     }
 }
 
@@ -141,9 +174,24 @@ fn ssa_equivalent(before: &Ssa, after: &Ssa) -> Option<bool> {
     let before_block = before_fn.entry_block();
     let after_block = after_fn.entry_block();
 
-    let params: Vec<String> =
-        (0..before_fn.dfg[before_block].parameters().len()).map(|i| format!("p{i}")).collect();
-    let param_decls = params.iter().map(|p| format!("(declare-const {p} FF)"));
+    let param_ids = before_fn.dfg[before_block].parameters();
+    let params: Vec<String> = (0..param_ids.len()).map(|i| format!("p{i}")).collect();
+
+    // Plain `(declare-const pN FF)`, plus, for boolean-typed parameters, an
+    // idempotence constraint (`pN * pN = pN`) asserting `pN` is `0` or `1` —
+    // needed for simplify rules (boolean `Mul`/`Eq`/`And`) that only hold
+    // over a value actually constrained to two elements, not a free one.
+    let param_decls: Vec<String> = params
+        .iter()
+        .zip(param_ids)
+        .flat_map(|(name, &value_id)| {
+            let mut lines = vec![format!("(declare-const {name} FF)")];
+            if *before_fn.dfg.type_of_value(value_id) == Type::bool() {
+                lines.push(format!("(assert (= (ff.mul {name} {name}) {name}))"));
+            }
+            lines
+        })
+        .collect();
 
     let mut before_enc = Encoder::new(&before_fn.dfg, "before", before_block, &params);
     let before_terms: Vec<String> = return_values(&before_fn.dfg, before_block)
@@ -179,7 +227,8 @@ fn ssa_equivalent(before: &Ssa, after: &Ssa) -> Option<bool> {
         "(set-logic QF_FF)\n(define-sort FF () (_ FiniteField {}))\n",
         field_modulus_decimal()
     );
-    for line in param_decls.chain(before_enc.declarations).chain(after_enc.declarations) {
+    for line in param_decls.into_iter().chain(before_enc.declarations).chain(after_enc.declarations)
+    {
         script.push_str(&line);
         script.push('\n');
     }
@@ -458,6 +507,185 @@ fn shared_values_are_encoded_once_not_reexpanded() {
         v2 = add v1, v1
         v3 = add v2, v2
         return v3
+    }
+    ");
+}
+
+#[test]
+fn mul_boolean_square_holds() {
+    let after = assert_simplify_preserves_behavior(
+        "acir(inline) fn main f0 {
+           b0(v0: u1):
+             v1 = mul v0, v0
+             return v1
+         }",
+    );
+    assert_ssa_snapshot!(after, @r"
+    acir(inline) fn main f0 {
+      b0(v0: u1):
+        return v0
+    }
+    ");
+}
+
+#[test]
+fn mul_boolean_b_times_bx_holds() {
+    let after = assert_simplify_preserves_behavior(
+        "acir(inline) fn main f0 {
+           b0(v0: u1, v1: u1):
+             v2 = mul v0, v1
+             v3 = mul v0, v2
+             return v3
+         }",
+    );
+    assert_ssa_snapshot!(after, @r"
+    acir(inline) fn main f0 {
+      b0(v0: u1, v1: u1):
+        v2 = unchecked_mul v0, v1
+        return v2
+    }
+    ");
+}
+
+#[test]
+fn mul_boolean_bx_times_b_holds() {
+    let after = assert_simplify_preserves_behavior(
+        "acir(inline) fn main f0 {
+           b0(v0: u1, v1: u1):
+             v2 = mul v0, v1
+             v3 = mul v2, v0
+             return v3
+         }",
+    );
+    assert_ssa_snapshot!(after, @r"
+    acir(inline) fn main f0 {
+      b0(v0: u1, v1: u1):
+        v2 = unchecked_mul v0, v1
+        return v2
+    }
+    ");
+}
+
+#[test]
+fn eq_boolean_true_rhs_holds() {
+    let after = assert_simplify_preserves_behavior(
+        "acir(inline) fn main f0 {
+           b0(v0: u1):
+             v1 = eq v0, u1 1
+             return v1
+         }",
+    );
+    assert_ssa_snapshot!(after, @r"
+    acir(inline) fn main f0 {
+      b0(v0: u1):
+        return v0
+    }
+    ");
+}
+
+#[test]
+fn eq_boolean_true_lhs_holds() {
+    let after = assert_simplify_preserves_behavior(
+        "acir(inline) fn main f0 {
+           b0(v0: u1):
+             v1 = eq u1 1, v0
+             return v1
+         }",
+    );
+    assert_ssa_snapshot!(after, @r"
+    acir(inline) fn main f0 {
+      b0(v0: u1):
+        return v0
+    }
+    ");
+}
+
+#[test]
+fn eq_boolean_false_rhs_holds() {
+    let after = assert_simplify_preserves_behavior(
+        "acir(inline) fn main f0 {
+           b0(v0: u1):
+             v1 = eq v0, u1 0
+             return v1
+         }",
+    );
+    assert_ssa_snapshot!(after, @r"
+    acir(inline) fn main f0 {
+      b0(v0: u1):
+        v1 = not v0
+        return v1
+    }
+    ");
+}
+
+#[test]
+fn eq_boolean_false_lhs_holds() {
+    let after = assert_simplify_preserves_behavior(
+        "acir(inline) fn main f0 {
+           b0(v0: u1):
+             v1 = eq u1 0, v0
+             return v1
+         }",
+    );
+    assert_ssa_snapshot!(after, @r"
+    acir(inline) fn main f0 {
+      b0(v0: u1):
+        v1 = not v0
+        return v1
+    }
+    ");
+}
+
+#[test]
+fn and_boolean_is_unchecked_mul_holds() {
+    let after = assert_simplify_preserves_behavior(
+        "acir(inline) fn main f0 {
+           b0(v0: u1, v1: u1):
+             v2 = and v0, v1
+             return v2
+         }",
+    );
+    assert_ssa_snapshot!(after, @r"
+    acir(inline) fn main f0 {
+      b0(v0: u1, v1: u1):
+        v2 = unchecked_mul v0, v1
+        return v2
+    }
+    ");
+}
+
+#[test]
+fn not_not_holds() {
+    let after = assert_simplify_preserves_behavior(
+        "acir(inline) fn main f0 {
+           b0(v0: u1):
+             v1 = not v0
+             v2 = not v1
+             return v2
+         }",
+    );
+    assert_ssa_snapshot!(after, @r"
+    acir(inline) fn main f0 {
+      b0(v0: u1):
+        v1 = not v0
+        return v0
+    }
+    ");
+}
+
+#[test]
+fn not_constant_holds() {
+    let after = assert_simplify_preserves_behavior(
+        "acir(inline) fn main f0 {
+           b0():
+             v0 = not u1 1
+             return v0
+         }",
+    );
+    assert_ssa_snapshot!(after, @r"
+    acir(inline) fn main f0 {
+      b0():
+        return u1 0
     }
     ");
 }
