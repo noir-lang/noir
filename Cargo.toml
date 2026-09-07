@@ -23,7 +23,6 @@ members = [
     "tooling/nargo_fmt",
     "tooling/nargo_cli",
     "tooling/nargo_toml",
-    "tooling/nargo_fuzz_target",
     "tooling/noirc_artifacts",
     "tooling/noirc_artifacts_info",
     "tooling/noirc_abi",
@@ -139,7 +138,6 @@ noirc_span = { path = "compiler/noirc_span" }
 # Noir tooling workspace dependencies
 noir_greybox_fuzzer = { path = "tooling/greybox_fuzzer" }
 nargo = { path = "tooling/nargo" }
-nargo_cli = { path = "tooling/nargo_cli" }
 nargo_doc = { path = "tooling/nargo_doc" }
 nargo_expand = { path = "tooling/nargo_expand" }
 nargo_fmt = { path = "tooling/nargo_fmt" }

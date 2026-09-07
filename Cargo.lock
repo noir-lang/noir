@@ -165,18 +165,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "afl"
-version = "0.18.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "97f234ba65eadcb51ea4e5c33dfdf05d6c512e297b4fb8fd31159e2dac4e7cc8"
-dependencies = [
- "home",
- "libc",
- "rustc_version",
- "xdg",
-]
-
-[[package]]
 name = "ahash"
 version = "0.8.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2111,15 +2099,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "home"
-version = "0.5.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cc627f471c528ff0c4a49e1d5e60450c8f6461dd6d10ba9dcd3a61d3dff7728d"
-dependencies = [
- "windows-sys 0.61.2",
-]
-
-[[package]]
 name = "http"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3273,16 +3252,6 @@ dependencies = [
  "test-case",
  "thiserror 2.0.20",
  "toml 0.8.23",
-]
-
-[[package]]
-name = "nargo_fuzz_target"
-version = "1.0.0-beta.26"
-dependencies = [
- "afl",
- "nargo",
- "nargo_cli",
- "noirc_driver",
 ]
 
 [[package]]
@@ -4851,15 +4820,6 @@ name = "rustc-stable-hash"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "781442f29170c5c93b7185ad559492601acdc71d5bb0706f5868094f45cfcd08"
-
-[[package]]
-name = "rustc_version"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cfcb3a22ef46e85b45de6ee7e79d063319ebb6594faafcf1c225ea92ab6e9b92"
-dependencies = [
- "semver",
-]
 
 [[package]]
 name = "rustix"
@@ -7171,12 +7131,6 @@ name = "writeable"
 version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1ffae5123b2d3fc086436f8834ae3ab053a283cfac8fe0a0b8eaae044768a4c4"
-
-[[package]]
-name = "xdg"
-version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2fb433233f2df9344722454bc7e96465c9d03bff9d77c248f9e7523fe79585b5"
 
 [[package]]
 name = "xxhash-rust"
