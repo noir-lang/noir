@@ -265,7 +265,6 @@ window.searchIndex = [
   {"name":"as_repeated_element_vector","path":"std::Expr","kind":"method","url":"std/primitive.Expr.html#as_repeated_element_vector","desc":"If this expression is a repeated element vector `[elem; length]`, return"},
   {"name":"as_str","path":"std::Type","kind":"method","url":"std/primitive.Type.html#as_str","desc":"If this is a `str<N>` type, returns the length `N` as a type."},
   {"name":"as_str_unchecked","path":"std::array","kind":"method","url":"std/primitive.array.html#as_str_unchecked","desc":"Converts a byte array of type `[u8; N]` to a string. Note that this performs no UTF-8 validation -"},
-  {"name":"as_struct","path":"std::Type","kind":"method","url":"std/primitive.Type.html#as_struct","desc":""},
   {"name":"as_trait_constraint","path":"std::Quoted","kind":"method","url":"std/primitive.Quoted.html#as_trait_constraint","desc":""},
   {"name":"as_trait_constraint","path":"std::TraitDefinition","kind":"method","url":"std/primitive.TraitDefinition.html#as_trait_constraint","desc":""},
   {"name":"as_tuple","path":"std::Expr","kind":"method","url":"std/primitive.Expr.html#as_tuple","desc":"If this expression is a tuple `(field1, ..., fieldN)`,"},
