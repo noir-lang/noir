@@ -604,7 +604,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
     ///
     /// An in-place write into a global is never a write the program itself can make. The
     /// globals are established once, before any evaluation, and every evaluation shares
-    /// them; at run time each Brillig entry point re-initialises the globals region
+    /// them; at run time each Brillig entry point re-initializes the globals region
     /// (`brillig_ir/entry_point.rs`) and ACVM builds a fresh VM per `BrilligCall`, so no
     /// invocation can observe another's write. The interpreter therefore treats global
     /// storage the way it treats storage with a reference count above 1: it copies.
@@ -1401,7 +1401,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             let storage = array.elements.as_ptr() as StorageIdentity;
             let is_rc_one = *array.rc.borrow() == 1;
             // A global is not the sole live reference to its storage even when its reference
-            // count says so, so `is_rc_one` alone is not licence to write through it — see
+            // count says so, so `is_rc_one` alone is not license to write through it — see
             // [`Self::is_global_storage`].
             let should_mutate = if self.in_unconstrained_context() {
                 is_rc_one && !self.is_global_storage(storage)
@@ -1584,7 +1584,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 /// Evaluate an integer (non-`Field`, non-`u1`) binary operation in the field+type model.
 ///
 /// `lhs`/`rhs` are integer values of the same type whose stored field is the two's-complement bit
-/// pattern (which may be out of range in ACIR mode). The runtime selects overflow behaviour:
+/// pattern (which may be out of range in ACIR mode). The runtime selects overflow behavior:
 /// Brillig wraps in fixed-width registers, while ACIR carries the extended field and range-checks at
 /// checked operations. Comparisons, bitwise ops, shifts, div/mod and *signed* checked arithmetic
 /// reduce their operands and reuse [`eval_constant_binary_op`]; only unchecked arithmetic and

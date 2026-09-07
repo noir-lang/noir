@@ -1959,7 +1959,7 @@ fn globals_are_not_mutated_between_entry_calls() {
 }
 
 /// The same property within a single evaluation: at run time each of these two Brillig calls is
-/// a separate invocation, with ACVM building a fresh VM and the entry point re-initialising the
+/// a separate invocation, with ACVM building a fresh VM and the entry point re-initializing the
 /// globals region, so neither can see the other's in-place write to `g0`. Both calls read `g0[0]`
 /// (5) before writing to it and add `g0[1]` (7), so both must return 12.
 #[test]

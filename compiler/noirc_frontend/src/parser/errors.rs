@@ -299,7 +299,7 @@ impl<'a> From<&'a ParserError> for Diagnostic {
                 ),
                 ParserErrorReason::UnknownLint { name } => Diagnostic::simple_warning(
                     format!("Unknown lint `{name}` in `allow` attribute"),
-                    "This lint is not recognised, so the `allow` has no effect".into(),
+                    "This lint is not recognized, so the `allow` has no effect".into(),
                     error.location(),
                 ),
                 ParserErrorReason::MissingSafetyComment => Diagnostic::simple_warning(
