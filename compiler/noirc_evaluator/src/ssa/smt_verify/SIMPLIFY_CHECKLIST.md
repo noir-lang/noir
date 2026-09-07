@@ -3,7 +3,7 @@
 Tracks which of the compiler's actual `simplify` rewrite rules
 (`compiler/noirc_evaluator/src/ssa/ir/dfg/simplify.rs` and its submodules)
 have an SMT equivalence test in `smt_verify`, via
-`assert_simplify_preserves_behavior` (`compiler/noirc_evaluator/src/ssa/smt_verify/mod.rs`).
+`assert_simplify_preserves_behavior` (`compiler/noirc_evaluator/src/ssa/smt_verify/ssa/mod.rs`).
 
 Check an item off only once a `smt_verify` test exercises that specific rule
 — not just the instruction it belongs to. Each item links to its source
