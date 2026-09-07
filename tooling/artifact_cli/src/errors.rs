@@ -96,4 +96,7 @@ pub enum CliError {
 
     #[error("Failed to save contract '{0}':\n{1}")]
     FailedToSaveContract(String, Box<CliError>),
+
+    #[error("{0}")]
+    Generic(String),
 }
