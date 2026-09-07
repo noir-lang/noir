@@ -121,7 +121,7 @@ pub(super) fn assert_not_if_else(instruction: &Instruction) {
 /// ACIR has no memory operations, so by this point `mem2reg` must have promoted every allocation.
 /// One surviving here means it could not: something kept the address first-class past the last
 /// `mem2reg` run, which is usually an aggregate that still holds the reference — an array of
-/// references which is live, or one which is dead but was not recognised as such, leaving the
+/// references which is live, or one which is dead but was not recognized as such, leaving the
 /// address ineligible for promotion.
 ///
 /// Dynamically selecting a reference out of an array is the known way to keep an address

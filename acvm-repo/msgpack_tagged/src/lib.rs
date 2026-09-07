@@ -103,7 +103,7 @@ pub trait MsgpackTagged: 'static {
     /// The wire shape of this type — either a [`Product`] (struct/tuple
     /// struct) or a [`Sum`] (enum). The derive macro emits this from
     /// `#[tag(N)]` annotations; primitives and container types use a
-    /// `Tagged::Product` with empty `fields`, signalling they don't appear
+    /// `Tagged::Product` with empty `fields`, signaling they don't appear
     /// directly on the wire as a registry entry but still satisfy the bound.
     const TAGGED: Tagged;
 

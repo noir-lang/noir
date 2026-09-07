@@ -778,7 +778,7 @@ impl<'f> Context<'f> {
     /// A global's storage is not function-local, so the forward walk that decides whether an
     /// in-place mutation is observable cannot answer the question for it: the observing read
     /// may be in another function, or in another invocation of this Brillig entry point (each
-    /// re-initialises the globals region, and ACVM builds a fresh VM per `BrilligCall`). The
+    /// re-initializes the globals region, and ACVM builds a fresh VM per `BrilligCall`). The
     /// storage is also live for the whole program, so it is never "the last use". Mechanism 2
     /// (block-parameter threading) therefore cannot protect a mutation of a global; only an
     /// `inc_rc` can. See [`Context::unprotected_global_for_source`].

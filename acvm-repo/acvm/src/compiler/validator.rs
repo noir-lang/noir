@@ -1010,7 +1010,7 @@ mod tests {
         // Here the output witness holds an arbitrary value that no Brillig program needs to have
         // produced, and nothing constrained consumes it. Validation must still succeed because the
         // witness satisfies every constraint in the circuit (there are none). This is exactly the
-        // behaviour audit finding noir-claude#502 mistook for a bug.
+        // behavior audit finding noir-claude#502 mistook for a bug.
         let circuit = make_circuit(vec![Opcode::BrilligCall {
             id: BrilligFunctionId::new(0),
             inputs: vec![BrilligInputs::Single(Witness(1).into())],

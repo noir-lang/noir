@@ -9,7 +9,7 @@ This README explains how to use each of them as well as specifying which feature
 
 ## Supported project types
 
-At the time of writing, the debugger supports debugging binary projects, but not contracts. At the end of this README, we'll elaborate on what the current state of Noir contract debugging is, and the pre-requisites to fulfil.
+At the time of writing, the debugger supports debugging binary projects, but not contracts. At the end of this README, we'll elaborate on what the current state of Noir contract debugging is, and the pre-requisites to fulfill.
 
 
 ## REPL debugger

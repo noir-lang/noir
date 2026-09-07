@@ -51,7 +51,7 @@ fn all_publishable_acvm_crates_are_tracked_by_release_please() {
         if !relative.starts_with("acvm-repo") {
             continue;
         }
-        // `publish = false` serialises as an empty array; anything else
+        // `publish = false` serializes as an empty array; anything else
         // (including `null`) means the crate can be published.
         if matches!(pkg["publish"].as_array(), Some(registries) if registries.is_empty()) {
             continue;
