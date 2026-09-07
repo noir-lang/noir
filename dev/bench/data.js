@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788784645320,
+  "lastUpdate": 1788784679583,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -21685,48 +21685,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "9d66a0e905c7bc8deb68632cb7d06097e016284f",
-          "message": "chore: resolve builtin/foreign attribute names to a shared enum (#13521)\n\nCo-authored-by: Claude Fable 5 <noreply@anthropic.com>",
-          "timestamp": "2026-08-18T14:17:56Z",
-          "tree_id": "7954f7b213b8726a90fa506a7eda1bb114d9a845",
-          "url": "https://github.com/noir-lang/noir/commit/9d66a0e905c7bc8deb68632cb7d06097e016284f"
-        },
-        "date": 1787064009090,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 126493,
-            "range": "± 372",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 112895,
-            "range": "± 1332",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3043572,
-            "range": "± 11484",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "526c684add657939b878436563093e06ab980b37",
           "message": "fix: don't deduplicate vector intrinsics in brillig (#13536)",
@@ -23769,6 +23727,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3044450,
             "range": "± 1950",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "454bcb487e8fb75aaf7cc7d4c0c1c6d22f2aeb44",
+          "message": "chore(docs): prune docs snapshots that are never built, and bound the directory (#13608)",
+          "timestamp": "2026-09-07T13:33:48+01:00",
+          "tree_id": "864efcdf676868ab38b2f6df1e46d75c3e922367",
+          "url": "https://github.com/noir-lang/noir/commit/454bcb487e8fb75aaf7cc7d4c0c1c6d22f2aeb44"
+        },
+        "date": 1788784582764,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 163504,
+            "range": "± 453",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 135407,
+            "range": "± 10928",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2124223,
+            "range": "± 4002",
             "unit": "ns/iter"
           }
         ]
