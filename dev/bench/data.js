@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788784885537,
+  "lastUpdate": 1788784888655,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4598,105 +4598,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "f7a599e08deac499e8e7af94760a530325acf592",
-          "message": "chore(deps-dev): bump the npm-minor-and-patch group across 1 directory with 4 updates (#13532)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-08-18T11:01:48Z",
-          "tree_id": "c7af78b0b44675eec921e7fad98939849ab19d0b",
-          "url": "https://github.com/noir-lang/noir/commit/f7a599e08deac499e8e7af94760a530325acf592"
-        },
-        "date": 1787052826540,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 6.396,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 139,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 14.62,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 2.33,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 2.25,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 2.85,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 2.642,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 301,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 297,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 2.846,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 16.96,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 54.58,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 2.586,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.948,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.795,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -8781,6 +8682,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.648,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "454bcb487e8fb75aaf7cc7d4c0c1c6d22f2aeb44",
+          "message": "chore(docs): prune docs snapshots that are never built, and bound the directory (#13608)",
+          "timestamp": "2026-09-07T13:33:48+01:00",
+          "tree_id": "864efcdf676868ab38b2f6df1e46d75c3e922367",
+          "url": "https://github.com/noir-lang/noir/commit/454bcb487e8fb75aaf7cc7d4c0c1c6d22f2aeb44"
+        },
+        "date": 1788784773872,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.977,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.54,
             "unit": "s"
           }
         ]
