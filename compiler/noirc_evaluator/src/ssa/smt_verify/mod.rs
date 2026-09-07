@@ -313,6 +313,108 @@ fn sub_self_is_zero_holds_for_all_field_elements() {
 }
 
 #[test]
+fn add_zero_lhs_holds_for_all_field_elements() {
+    let after = assert_simplify_preserves_behavior(
+        "acir(inline) fn main f0 {
+           b0(v0: Field):
+             v1 = add Field 0, v0
+             return v1
+         }",
+    );
+    assert_ssa_snapshot!(after, @r"
+    acir(inline) fn main f0 {
+      b0(v0: Field):
+        return v0
+    }
+    ");
+}
+
+#[test]
+fn add_zero_rhs_holds_for_all_field_elements() {
+    let after = assert_simplify_preserves_behavior(
+        "acir(inline) fn main f0 {
+           b0(v0: Field):
+             v1 = add v0, Field 0
+             return v1
+         }",
+    );
+    assert_ssa_snapshot!(after, @r"
+    acir(inline) fn main f0 {
+      b0(v0: Field):
+        return v0
+    }
+    ");
+}
+
+#[test]
+fn sub_zero_rhs_holds_for_all_field_elements() {
+    let after = assert_simplify_preserves_behavior(
+        "acir(inline) fn main f0 {
+           b0(v0: Field):
+             v1 = sub v0, Field 0
+             return v1
+         }",
+    );
+    assert_ssa_snapshot!(after, @r"
+    acir(inline) fn main f0 {
+      b0(v0: Field):
+        return v0
+    }
+    ");
+}
+
+#[test]
+fn mul_one_lhs_holds_for_all_field_elements() {
+    let after = assert_simplify_preserves_behavior(
+        "acir(inline) fn main f0 {
+           b0(v0: Field):
+             v1 = mul Field 1, v0
+             return v1
+         }",
+    );
+    assert_ssa_snapshot!(after, @r"
+    acir(inline) fn main f0 {
+      b0(v0: Field):
+        return v0
+    }
+    ");
+}
+
+#[test]
+fn mul_one_rhs_holds_for_all_field_elements() {
+    let after = assert_simplify_preserves_behavior(
+        "acir(inline) fn main f0 {
+           b0(v0: Field):
+             v1 = mul v0, Field 1
+             return v1
+         }",
+    );
+    assert_ssa_snapshot!(after, @r"
+    acir(inline) fn main f0 {
+      b0(v0: Field):
+        return v0
+    }
+    ");
+}
+
+#[test]
+fn mul_zero_holds_for_all_field_elements() {
+    let after = assert_simplify_preserves_behavior(
+        "acir(inline) fn main f0 {
+           b0(v0: Field):
+             v1 = mul v0, Field 0
+             return v1
+         }",
+    );
+    assert_ssa_snapshot!(after, @r"
+    acir(inline) fn main f0 {
+      b0(v0: Field):
+        return Field 0
+    }
+    ");
+}
+
+#[test]
 fn dead_instruction_elimination_preserves_behavior() {
     let after = assert_pass_preserves_behavior(
         "acir(inline) fn main f0 {

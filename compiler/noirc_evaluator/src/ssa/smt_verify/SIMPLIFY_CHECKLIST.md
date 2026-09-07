@@ -16,15 +16,15 @@ separately if/when it starts.
 - [ ] Constant folding: both operands constant → evaluate directly (`eval_constant_binary_op`, applies to every operator below)
 
 **Add**
-- [ ] `x + 0 → x` / `0 + x → x` (guarded by `can_simplify_arithmetic_identity`)
+- [x] `x + 0 → x` / `0 + x → x` (guarded by `can_simplify_arithmetic_identity`) — two separate branches in the source, tested separately: `add_zero_lhs_holds_for_all_field_elements`, `add_zero_rhs_holds_for_all_field_elements`
 
 **Sub**
 - [x] `x - x → 0` — tested in `sub_self_is_zero_holds_for_all_field_elements`
-- [ ] `x - 0 → x` (guarded by `can_simplify_arithmetic_identity`)
+- [x] `x - 0 → x` (guarded by `can_simplify_arithmetic_identity`) — tested in `sub_zero_rhs_holds_for_all_field_elements`
 
 **Mul**
-- [ ] `x * 1 → x` / `1 * x → x` (guarded by `can_simplify_arithmetic_identity`)
-- [ ] `x * 0 → 0` / `0 * x → 0`
+- [x] `x * 1 → x` / `1 * x → x` (guarded by `can_simplify_arithmetic_identity`) — two separate branches, tested separately: `mul_one_lhs_holds_for_all_field_elements`, `mul_one_rhs_holds_for_all_field_elements`
+- [x] `x * 0 → 0` / `0 * x → 0` — one shared branch, tested in `mul_zero_holds_for_all_field_elements`
 - [ ] `b * b → b` when `b` is boolean
 - [ ] `b * (b * x) → b * x` when `b` is boolean
 - [ ] `(b * x) * b → b * x` when `b` is boolean
