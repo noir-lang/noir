@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788818126813,
+  "lastUpdate": 1788818130733,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -31944,105 +31944,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "030e0d47470f54ec18b7005bc3cc0bc6952fd4a9",
-          "message": "fix(brillig): emit a trap for unreachable terminators (#13448)\n\nCo-authored-by: Claude Fable 5 <noreply@anthropic.com>",
-          "timestamp": "2026-08-19T12:26:17Z",
-          "tree_id": "2b1ca2d536cfe459fd04999493a9bd4aeb5eaee2",
-          "url": "https://github.com/noir-lang/noir/commit/030e0d47470f54ec18b7005bc3cc0bc6952fd4a9"
-        },
-        "date": 1787145479175,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 823.5,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 904.4,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 666.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 324.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 328.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 390.5,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 312.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 690.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 731.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 489.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 691.3,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 854.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 244.6,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 2073.7,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 151.4,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "14e9dc36b518b1a79fa97b97ed95246b97e33449",
           "message": "feat(ssa): check purity contracts during SSA interpretation (#13518)\n\nCo-authored-by: Claude Fable 5 <noreply@anthropic.com>",
           "timestamp": "2026-08-19T12:56:16Z",
@@ -35652,6 +35553,40 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/e33da6ba7e46081281ea8717ac9df896d1a732f0"
         },
         "date": 1788806075894,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 2073.7,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 151.5,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "5e0051297d7133571ddd2bcaf2b7963f84f7d1bc",
+          "message": "chore: drop cspell allowlist entries for words that no longer appear in the repo (#13615)",
+          "timestamp": "2026-09-07T21:31:13Z",
+          "tree_id": "e8fa2cf48e8895fdf06b407e756bf37ec26bf692",
+          "url": "https://github.com/noir-lang/noir/commit/5e0051297d7133571ddd2bcaf2b7963f84f7d1bc"
+        },
+        "date": 1788818034703,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
