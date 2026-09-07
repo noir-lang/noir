@@ -1,6 +1,0 @@
-{"suite":"sha512","name":"oracle_tests::test_sha384_1"}
-{"suite":"sha512","name":"oracle_tests::test_sha384_100"}
-{"suite":"sha512","name":"oracle_tests::test_sha384_256"}
-{"suite":"sha512","name":"oracle_tests::test_sha512_1"}
-{"suite":"sha512","name":"oracle_tests::test_sha512_100"}
-{"suite":"sha512","name":"oracle_tests::test_sha512_256"}

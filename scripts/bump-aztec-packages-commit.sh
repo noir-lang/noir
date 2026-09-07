@@ -10,5 +10,4 @@ function bump_commit() {
 
 }
 
-bump_commit ./EXTERNAL_NOIR_LIBRARIES.yml
 bump_commit ./.github/benchmark_projects.yml
