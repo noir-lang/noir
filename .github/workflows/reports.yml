@@ -359,7 +359,7 @@ jobs:
           retention-days: 3
           overwrite: true
 
-  external_repo_reports:
+  benchmark_project_reports:
     needs: [build-nargo, build-noir-inspector, benchmark-projects-list]
     runs-on: ubuntu-22.04
     timeout-minutes: 20
@@ -370,22 +370,10 @@ jobs:
       matrix:
         include: ${{ fromJson( needs.benchmark-projects-list.outputs.projects )}}
 
-    name: External repo compilation and execution reports - ${{ matrix.repo }}/${{ matrix.path }}
+    name: Compilation and execution reports - ${{ matrix.name }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          sparse-checkout: |
-            .github/actions/download-binary/action.yml
-            scripts/gather_benchmark_data.sh
-            scripts/process_benchmark_data.sh
-          sparse-checkout-cone-mode: false
-
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: ${{ matrix.repo }}
-          path: test-repo
-          ref: ${{ matrix.ref }}
 
       - name: Download nargo binary
         uses: ./.github/actions/download-binary
@@ -401,7 +389,7 @@ jobs:
         id: compilation_report
         run: |
           PACKAGE_NAME=$(basename ${{ matrix.path }})
-          REPORT_NAME=external_report_$PACKAGE_NAME.json
+          REPORT_NAME=benchmark_report_$PACKAGE_NAME.json
           REPORT_PATH=$(pwd)/$REPORT_NAME
 
           echo "report_name=$REPORT_NAME" >> $GITHUB_OUTPUT
@@ -410,9 +398,6 @@ jobs:
       - name: Generate report data
         run: ./scripts/gather_benchmark_data.sh
         env:
-          REPO_SLUG: ${{ matrix.repo }}
-          PROJECT_TAG: ${{ matrix.ref }}
-          REPO_DIR: test-repo
           PROJECT_DIR: ${{ matrix.path }}
           OUTPUT_DIR: ${{ github.workspace }}/output
           NUM_COMPILE_RUNS: ${{ matrix.num_compile_runs }}
@@ -484,7 +469,7 @@ jobs:
             exit 1
           fi
 
-  external_repo_memory_report:
+  benchmark_project_memory_report:
     needs: [build-nargo, benchmark-projects-list]
     runs-on: ubuntu-22.04
     timeout-minutes: 30
@@ -495,41 +480,24 @@ jobs:
       matrix:
         include: ${{ fromJson( needs.benchmark-projects-list.outputs.projects )}}
 
-    name: External repo memory report - ${{ matrix.repo }}/${{ matrix.path }}
+    name: Memory report - ${{ matrix.name }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          # Note that we are checking them out under `scripts`, including the github action.
-          path: scripts
-          sparse-checkout: |
-            .github/actions/download-binary/action.yml
-            test_programs/memory_report.sh
-            test_programs/parse_memory.sh
-          sparse-checkout-cone-mode: false
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Download nargo binary
-        uses: ./scripts/.github/actions/download-binary
+        uses: ./.github/actions/download-binary
         with:
           name: nargo
 
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: ${{ matrix.repo }}
-          path: test-repo
-          ref: ${{ matrix.ref }}
-
       - name: Generate compilation memory report
         id: compilation_report
-        working-directory: ./test-repo/${{ matrix.path }}
+        working-directory: ./${{ matrix.path }}
         run: |
-          mv /home/runner/work/noir/noir/scripts/test_programs/memory_report.sh ./memory_report.sh
-          mv /home/runner/work/noir/noir/scripts/test_programs/parse_memory.sh ./parse_memory.sh
-          ./memory_report.sh 1
+          ${{ github.workspace }}/test_programs/memory_report.sh 1
 
           # Rename the memory report as the execution report is about to write to the same file
-          PACKAGE_NAME=${{ matrix.path }}
-          PACKAGE_NAME=$(basename $PACKAGE_NAME)
+          PACKAGE_NAME=$(basename ${{ matrix.path }})
           REPORT_NAME=compilation_mem_report_$PACKAGE_NAME.json
           REPORT_PATH=$(pwd)/$REPORT_NAME
           mv ./memory_report.json $REPORT_PATH
@@ -549,13 +517,12 @@ jobs:
 
       - name: Generate execution memory report
         id: execution_report
-        working-directory: ./test-repo/${{ matrix.path }}
+        working-directory: ./${{ matrix.path }}
         if: ${{ !matrix.cannot_execute }}
         run: |
-          ./memory_report.sh 1 1
+          ${{ github.workspace }}/test_programs/memory_report.sh 1 1
 
-          PACKAGE_NAME=${{ matrix.path }}
-          PACKAGE_NAME=$(basename $PACKAGE_NAME)
+          PACKAGE_NAME=$(basename ${{ matrix.path }})
           REPORT_NAME=execution_mem_report_$PACKAGE_NAME.json
           REPORT_PATH=$(pwd)/$REPORT_NAME
           mv ./memory_report.json $REPORT_PATH
@@ -599,9 +566,9 @@ jobs:
 
   upload_compilation_reports:
     name: Upload compilation reports
-    needs: [external_repo_reports, benchmark-projects-list]
+    needs: [benchmark_project_reports, benchmark-projects-list]
     timeout-minutes: 5
-    # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
+    # We want this job to run even if one variation of the matrix in `benchmark_project_reports` fails
     # but only if there are benchmark projects to report on.
     if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
     runs-on: ubuntu-22.04
@@ -618,7 +585,7 @@ jobs:
       - name: Download matrix compilation reports
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
-          pattern: external_report_*
+          pattern: benchmark_report_*
           path: ./reports
           merge-multiple: true
 
@@ -647,9 +614,9 @@ jobs:
 
   upload_elaboration_reports:
     name: Upload elaboration reports
-    needs: [external_repo_reports, benchmark-projects-list]
+    needs: [benchmark_project_reports, benchmark-projects-list]
     timeout-minutes: 5
-    # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
+    # We want this job to run even if one variation of the matrix in `benchmark_project_reports` fails
     # but only if there are benchmark projects to report on.
     if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
     runs-on: ubuntu-22.04
@@ -666,7 +633,7 @@ jobs:
       - name: Download matrix compilation reports
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
-          pattern: external_report_*
+          pattern: benchmark_report_*
           path: ./reports
           merge-multiple: true
 
@@ -695,9 +662,9 @@ jobs:
 
   upload_execution_reports:
     name: Upload execution reports
-    needs: [external_repo_reports, benchmark-projects-list]
+    needs: [benchmark_project_reports, benchmark-projects-list]
     timeout-minutes: 5
-    # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
+    # We want this job to run even if one variation of the matrix in `benchmark_project_reports` fails
     # but only if there are benchmark projects to report on.
     if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
     runs-on: ubuntu-22.04
@@ -714,7 +681,7 @@ jobs:
       - name: Download matrix compilation reports
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
-          pattern: external_report_*
+          pattern: benchmark_report_*
           path: ./reports
           merge-multiple: true
 
@@ -743,9 +710,9 @@ jobs:
 
   upload_artifact_reports:
     name: Upload artifact reports
-    needs: [external_repo_reports, benchmark-projects-list]
+    needs: [benchmark_project_reports, benchmark-projects-list]
     timeout-minutes: 5
-    # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
+    # We want this job to run even if one variation of the matrix in `benchmark_project_reports` fails
     # but only if there are benchmark projects to report on.
     if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
     runs-on: ubuntu-22.04
@@ -762,7 +729,7 @@ jobs:
       - name: Download matrix compilation reports
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
-          pattern: external_report_*
+          pattern: benchmark_report_*
           path: ./reports
           merge-multiple: true
 
@@ -791,9 +758,9 @@ jobs:
 
   upload_opcode_reports:
     name: Upload opcode reports
-    needs: [external_repo_reports, benchmark-projects-list]
+    needs: [benchmark_project_reports, benchmark-projects-list]
     timeout-minutes: 5
-    # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
+    # We want this job to run even if one variation of the matrix in `benchmark_project_reports` fails
     # but only if there are benchmark projects to report on.
     if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
     runs-on: ubuntu-22.04
@@ -810,7 +777,7 @@ jobs:
       - name: Download matrix compilation reports
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
-          pattern: external_report_*
+          pattern: benchmark_report_*
           path: ./reports
           merge-multiple: true
 
@@ -839,9 +806,9 @@ jobs:
 
   upload_brillig_compilation_reports:
     name: Upload Brillig compilation reports
-    needs: [external_repo_reports, benchmark-projects-list]
+    needs: [benchmark_project_reports, benchmark-projects-list]
     timeout-minutes: 5
-    # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
+    # We want this job to run even if one variation of the matrix in `benchmark_project_reports` fails
     # but only if there are benchmark projects to report on.
     if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
     runs-on: ubuntu-22.04
@@ -858,7 +825,7 @@ jobs:
       - name: Download matrix compilation reports
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
-          pattern: external_report_*
+          pattern: benchmark_report_*
           path: ./reports
           merge-multiple: true
 
@@ -887,9 +854,9 @@ jobs:
 
   upload_brillig_execution_reports:
     name: Upload Brillig execution reports
-    needs: [external_repo_reports, benchmark-projects-list]
+    needs: [benchmark_project_reports, benchmark-projects-list]
     timeout-minutes: 5
-    # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
+    # We want this job to run even if one variation of the matrix in `benchmark_project_reports` fails
     # but only if there are benchmark projects to report on.
     if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
     runs-on: ubuntu-22.04
@@ -906,7 +873,7 @@ jobs:
       - name: Download matrix compilation reports
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
-          pattern: external_report_*
+          pattern: benchmark_report_*
           path: ./reports
           merge-multiple: true
 
@@ -935,9 +902,9 @@ jobs:
 
   upload_brillig_artifact_reports:
     name: Upload Brillig artifact reports
-    needs: [external_repo_reports, benchmark-projects-list]
+    needs: [benchmark_project_reports, benchmark-projects-list]
     timeout-minutes: 5
-    # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
+    # We want this job to run even if one variation of the matrix in `benchmark_project_reports` fails
     # but only if there are benchmark projects to report on.
     if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
     runs-on: ubuntu-22.04
@@ -954,7 +921,7 @@ jobs:
       - name: Download matrix compilation reports
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
-          pattern: external_report_*
+          pattern: benchmark_report_*
           path: ./reports
           merge-multiple: true
 
@@ -983,9 +950,9 @@ jobs:
 
   upload_compilation_memory_report:
     name: Upload compilation memory report
-    needs: [generate_memory_report, external_repo_memory_report, benchmark-projects-list]
+    needs: [generate_memory_report, benchmark_project_memory_report, benchmark-projects-list]
     timeout-minutes: 5
-    # We want this job to run even if one variation of the matrix in `external_repo_memory_report` fails
+    # We want this job to run even if one variation of the matrix in `benchmark_project_memory_report` fails
     # but only if there are benchmark projects to report on.
     if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
     runs-on: ubuntu-22.04
@@ -1036,9 +1003,9 @@ jobs:
 
   upload_execution_memory_report:
     name: Upload execution memory report
-    needs: [generate_memory_report, external_repo_memory_report, benchmark-projects-list]
+    needs: [generate_memory_report, benchmark_project_memory_report, benchmark-projects-list]
     timeout-minutes: 5
-    # We want this job to run even if one variation of the matrix in `external_repo_memory_report` fails
+    # We want this job to run even if one variation of the matrix in `benchmark_project_memory_report` fails
     # but only if there are benchmark projects to report on.
     if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
     runs-on: ubuntu-22.04

@@ -6,25 +6,11 @@ NARGO=${NARGO:-nargo}
 OUTPUT_DIR=$(realpath ${OUTPUT_DIR:-"$(dirname "$0")/output")})
 mkdir -p $OUTPUT_DIR
 
-echo "PROJECT_TAG: ${PROJECT_TAG}"
 echo "PROJECT_DIR: ${PROJECT_DIR}"
 
 # Silence logs from the Elaborator and other frontend stuff,
 # otherwise it can take too long and produce too much data.
 NOIR_LOG=trace,noirc_frontend=off
-
-setup_repo() {
-    local repo_slug=$1
-    local repo_tag=$2
-    local temp_dir=$3
-
-    local repo_url="https://github.com/$repo_slug"
-
-    # Sadly we cannot use depth=1 clones here as we need to be able to checkout
-    # commit hashes as well as branches/releases
-    git clone $repo_url $temp_dir
-    git -C $temp_dir -c advice.detachedHead=false checkout $repo_tag
-}
 
 compile_project() {
     echo "Compiling program (ACIR)"
@@ -72,14 +58,7 @@ save_brillig_artifact() {
     mv ./target/*.json $OUTPUT_DIR/brillig_artifact.json
 }
 
-if [ -z "${REPO_DIR:-}" ]; then
-    TMP_DIR=$(mktemp -d)
-    trap "rm -rf $TMP_DIR" EXIT
-
-    setup_repo $REPO_SLUG $PROJECT_TAG $TMP_DIR
-fi
-
-REPO_DIR=${REPO_DIR:-$TMP_DIR}
+REPO_DIR=${REPO_DIR:-"$(dirname "$0")/.."}
 cd "$REPO_DIR/$PROJECT_DIR"
 
 [[ -f ./Prover.toml ]] && HAS_PROVER_INPUTS=true
