@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["execute","execute_program","run"],"struct":["ExecuteCommand","ExecuteProgramArgs"]};
+window.SIDEBAR_ITEMS = {"enum":["InputSource"],"fn":["execute","execute_program","run"],"struct":["ExecuteCommand","ExecuteProgramArgs"]};
