@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788788796557,
+  "lastUpdate": 1788788799648,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4403,105 +4403,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "5024cf8a737d037144c88e307ed5edbe4f80e482",
-          "message": "chore(deps): bump the cargo-minor-and-patch group with 4 updates (#13533)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-08-18T12:49:29Z",
-          "tree_id": "b68a47d5f0412c8d41e04816f7ef06128f396187",
-          "url": "https://github.com/noir-lang/noir/commit/5024cf8a737d037144c88e307ed5edbe4f80e482"
-        },
-        "date": 1787059182945,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 4.872,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 230,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 15.68,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 2.586,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 2.58,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 2.7,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 2.014,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 316,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 289,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 2.808,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 19.32,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 53.98,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 2.474,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.802,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.675,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -8456,6 +8357,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.642,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c4e14b4fc3add00bbd1d46c7d250ecd767547215",
+          "message": "fix: pin legacy ABI/artifact schema default to a fixed V1 (#13584)",
+          "timestamp": "2026-09-07T13:20:33Z",
+          "tree_id": "2c44dfb29a4c691d368deb66a20e39bcffbf82e9",
+          "url": "https://github.com/noir-lang/noir/commit/c4e14b4fc3add00bbd1d46c7d250ecd767547215"
+        },
+        "date": 1788788709864,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.961,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 2.004,
             "unit": "s"
           }
         ]
