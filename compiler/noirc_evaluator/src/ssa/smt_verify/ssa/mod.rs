@@ -139,17 +139,36 @@ impl<'a> Encoder<'a> {
     }
 }
 
+/// Encodes one `Ssa`'s main function into its `Encoder`-produced
+/// declarations and return terms, given `params[i]` as the shared
+/// free-variable name for parameter `i` (see [`Encoder::new`]). Exposed for
+/// reuse by the SSA<->ACIR comparator, which needs exactly these two things
+/// to compare against an ACIR encoding sharing the same parameter names.
+pub(super) fn encode_function(
+    ssa: &Ssa,
+    prefix: &str,
+    params: &[String],
+) -> (Vec<String>, Vec<String>) {
+    let function = &ssa.functions[&ssa.main_id];
+    let block = function.entry_block();
+
+    let mut encoder = Encoder::new(&function.dfg, prefix, block, params);
+    let return_terms: Vec<String> = return_values(&function.dfg, block)
+        .to_vec()
+        .into_iter()
+        .map(|value| encoder.encode_value(value))
+        .collect();
+
+    (encoder.declarations, return_terms)
+}
+
 /// Checks whether `before` and `after` return the same values for every
 /// input, or `None` if `cvc5` isn't installed. Parameters are unified by
 /// position (see [`Encoder::new`]) since `before` and `after` are separate
 /// `Ssa` graphs with unrelated internal ids.
 fn ssa_equivalent(before: &Ssa, after: &Ssa) -> Option<bool> {
     let before_fn = &before.functions[&before.main_id];
-    let after_fn = &after.functions[&after.main_id];
-    let before_block = before_fn.entry_block();
-    let after_block = after_fn.entry_block();
-
-    let param_ids = before_fn.dfg[before_block].parameters();
+    let param_ids = before_fn.dfg[before_fn.entry_block()].parameters();
     let params: Vec<String> = (0..param_ids.len()).map(|i| format!("p{i}")).collect();
 
     // Plain `(declare-const pN FF)`, plus, for boolean-typed parameters, an
@@ -168,19 +187,8 @@ fn ssa_equivalent(before: &Ssa, after: &Ssa) -> Option<bool> {
         })
         .collect();
 
-    let mut before_enc = Encoder::new(&before_fn.dfg, "before", before_block, &params);
-    let before_terms: Vec<String> = return_values(&before_fn.dfg, before_block)
-        .to_vec()
-        .into_iter()
-        .map(|value| before_enc.encode_value(value))
-        .collect();
-
-    let mut after_enc = Encoder::new(&after_fn.dfg, "after", after_block, &params);
-    let after_terms: Vec<String> = return_values(&after_fn.dfg, after_block)
-        .to_vec()
-        .into_iter()
-        .map(|value| after_enc.encode_value(value))
-        .collect();
+    let (before_decls, before_terms) = encode_function(before, "before", &params);
+    let (after_decls, after_terms) = encode_function(after, "after", &params);
 
     assert_eq!(
         before_terms.len(),
@@ -202,8 +210,7 @@ fn ssa_equivalent(before: &Ssa, after: &Ssa) -> Option<bool> {
         "(set-logic QF_FF)\n(define-sort FF () (_ FiniteField {}))\n",
         field_modulus_decimal()
     );
-    for line in param_decls.into_iter().chain(before_enc.declarations).chain(after_enc.declarations)
-    {
+    for line in param_decls.into_iter().chain(before_decls).chain(after_decls) {
         script.push_str(&line);
         script.push('\n');
     }
@@ -219,20 +226,12 @@ fn ssa_equivalent(before: &Ssa, after: &Ssa) -> Option<bool> {
 fn encode_to_smt_text(src: &str) -> String {
     let ssa = Ssa::from_str(src).expect("hand-written SSA text must parse");
     let function = &ssa.functions[&ssa.main_id];
-    let block = function.entry_block();
+    let num_params = function.dfg[function.entry_block()].parameters().len();
+    let params: Vec<String> = (0..num_params).map(|i| format!("p{i}")).collect();
 
-    let params: Vec<String> =
-        (0..function.dfg[block].parameters().len()).map(|i| format!("p{i}")).collect();
     let mut lines: Vec<String> = params.iter().map(|p| format!("(declare-const {p} FF)")).collect();
-
-    let mut encoder = Encoder::new(&function.dfg, "t", block, &params);
-    let return_terms: Vec<String> = return_values(&function.dfg, block)
-        .to_vec()
-        .into_iter()
-        .map(|value| encoder.encode_value(value))
-        .collect();
-
-    lines.extend(encoder.declarations);
+    let (declarations, return_terms) = encode_function(&ssa, "t", &params);
+    lines.extend(declarations);
     lines.push(format!("return: {}", return_terms.join(", ")));
     lines.join("\n")
 }

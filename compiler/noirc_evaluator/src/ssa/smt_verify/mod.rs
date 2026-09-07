@@ -20,6 +20,7 @@ use num_bigint::BigUint;
 
 mod acir;
 mod ssa;
+mod ssa_acir;
 
 /// SMT-LIB2 decimal representation of a field element (non-negative, unlike
 /// `FieldElement`'s own `Display`, which prints small negative representations).

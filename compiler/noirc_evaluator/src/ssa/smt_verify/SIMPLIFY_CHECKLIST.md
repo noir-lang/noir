@@ -14,8 +14,7 @@ separately if/when it starts.
 ## Binary operators (`ir/dfg/simplify/binary.rs`)
 
 **Operator normalization** (applied unconditionally before the per-operator
-rules below, and before constant folding — discovered while testing the
-`Mul` boolean rules, not originally catalogued here)
+rules below, and before constant folding)
 - [ ] Field: `unchecked_add`/`unchecked_sub`/`unchecked_mul` → checked (unchecked is meaningless for `Field`, kept only to reduce SSA noise)
 - [x] boolean: checked `mul` → `unchecked_mul` (multiplying two `{0,1}` values can never overflow) — tested as a side effect of `mul_boolean_b_times_bx_holds`, `mul_boolean_bx_times_b_holds`
 
