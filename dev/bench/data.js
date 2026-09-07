@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788782214201,
+  "lastUpdate": 1788782216730,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4883,105 +4883,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "b914a2766ab740c6500c084a9874c419466603b4",
-          "message": "chore(acir): enforce side-effects predicate scope (#13492)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-08-13T13:30:54Z",
-          "tree_id": "9bfb3ea8a235edc6b176390c29f42e4a1e24674d",
-          "url": "https://github.com/noir-lang/noir/commit/b914a2766ab740c6500c084a9874c419466603b4"
-        },
-        "date": 1786629657313,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 6.328,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 224,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 13.84,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 2.096,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 2.46,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 2.66,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 2.454,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 256,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 333,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 2.646,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 14.84,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 43.44,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 2.546,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.893,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.494,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -9581,6 +9482,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.896,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5e6bd2302cd1f5218dcacaa19defe6b774c4b9ce",
+          "message": "chore(deps): bump browserslist from 4.28.1 to 4.28.8 (#13586)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-09-07T12:49:43+01:00",
+          "tree_id": "79fe8b680e61f15516b3d33555ce454f224a59d3",
+          "url": "https://github.com/noir-lang/noir/commit/5e6bd2302cd1f5218dcacaa19defe6b774c4b9ce"
+        },
+        "date": 1788782119288,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.924,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.459,
             "unit": "s"
           }
         ]
