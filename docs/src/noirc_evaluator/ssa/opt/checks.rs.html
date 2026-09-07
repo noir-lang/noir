@@ -121,7 +121,7 @@
 <a href=#121 id=121 data-nosnippet>121</a>/// ACIR has no memory operations, so by this point `mem2reg` must have promoted every allocation.
 <a href=#122 id=122 data-nosnippet>122</a>/// One surviving here means it could not: something kept the address first-class past the last
 <a href=#123 id=123 data-nosnippet>123</a>/// `mem2reg` run, which is usually an aggregate that still holds the reference — an array of
-<a href=#124 id=124 data-nosnippet>124</a>/// references which is live, or one which is dead but was not recognised as such, leaving the
+<a href=#124 id=124 data-nosnippet>124</a>/// references which is live, or one which is dead but was not recognized as such, leaving the
 <a href=#125 id=125 data-nosnippet>125</a>/// address ineligible for promotion.
 <a href=#126 id=126 data-nosnippet>126</a>///
 <a href=#127 id=127 data-nosnippet>127</a>/// Dynamically selecting a reference out of an array is the known way to keep an address

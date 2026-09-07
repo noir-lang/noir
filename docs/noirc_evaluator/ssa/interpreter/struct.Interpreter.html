@@ -106,7 +106,7 @@ fail, since passes are free to deduplicate or remove calls to them.</p>
 ) -&gt; <a class="enum" href="errors/enum.InterpreterError.html" title="enum noirc_evaluator::ssa::interpreter::errors::InterpreterError">InterpreterError</a></h4></section><details class="toggle method-toggle" open><summary><section id="method.is_global_storage" class="method"><a class="src rightside" href="../../../src/noirc_evaluator/ssa/interpreter/mod.rs.html#611-613">Source</a><h4 class="code-header">fn <a href="#method.is_global_storage" class="fn">is_global_storage</a>(&amp;self, storage: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.pointer.html">*const </a><a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.unit.html">()</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.bool.html">bool</a></h4></section></summary><div class="docblock"><p>Whether <code>storage</code> is owned by one of the program’s globals.</p>
 <p>An in-place write into a global is never a write the program itself can make. The
 globals are established once, before any evaluation, and every evaluation shares
-them; at run time each Brillig entry point re-initialises the globals region
+them; at run time each Brillig entry point re-initializes the globals region
 (<code>brillig_ir/entry_point.rs</code>) and ACVM builds a fresh VM per <code>BrilligCall</code>, so no
 invocation can observe another’s write. The interpreter therefore treats global
 storage the way it treats storage with a reference count above 1: it copies.</p>

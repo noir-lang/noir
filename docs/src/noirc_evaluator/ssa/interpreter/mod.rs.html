@@ -604,7 +604,7 @@
 <a href=#604 id=604 data-nosnippet>604</a>    ///
 <a href=#605 id=605 data-nosnippet>605</a>    /// An in-place write into a global is never a write the program itself can make. The
 <a href=#606 id=606 data-nosnippet>606</a>    /// globals are established once, before any evaluation, and every evaluation shares
-<a href=#607 id=607 data-nosnippet>607</a>    /// them; at run time each Brillig entry point re-initialises the globals region
+<a href=#607 id=607 data-nosnippet>607</a>    /// them; at run time each Brillig entry point re-initializes the globals region
 <a href=#608 id=608 data-nosnippet>608</a>    /// (`brillig_ir/entry_point.rs`) and ACVM builds a fresh VM per `BrilligCall`, so no
 <a href=#609 id=609 data-nosnippet>609</a>    /// invocation can observe another's write. The interpreter therefore treats global
 <a href=#610 id=610 data-nosnippet>610</a>    /// storage the way it treats storage with a reference count above 1: it copies.
@@ -1401,7 +1401,7 @@
 <a href=#1401 id=1401 data-nosnippet>1401</a>            <span class="kw">let </span>storage = array.elements.as_ptr() <span class="kw">as </span>StorageIdentity;
 <a href=#1402 id=1402 data-nosnippet>1402</a>            <span class="kw">let </span>is_rc_one = <span class="kw-2">*</span>array.rc.borrow() == <span class="number">1</span>;
 <a href=#1403 id=1403 data-nosnippet>1403</a>            <span class="comment">// A global is not the sole live reference to its storage even when its reference
-<a href=#1404 id=1404 data-nosnippet>1404</a>            // count says so, so `is_rc_one` alone is not licence to write through it — see
+<a href=#1404 id=1404 data-nosnippet>1404</a>            // count says so, so `is_rc_one` alone is not license to write through it — see
 <a href=#1405 id=1405 data-nosnippet>1405</a>            // [`Self::is_global_storage`].
 <a href=#1406 id=1406 data-nosnippet>1406</a>            </span><span class="kw">let </span>should_mutate = <span class="kw">if </span><span class="self">self</span>.in_unconstrained_context() {
 <a href=#1407 id=1407 data-nosnippet>1407</a>                is_rc_one &amp;&amp; !<span class="self">self</span>.is_global_storage(storage)
@@ -1584,7 +1584,7 @@
 <a href=#1584 id=1584 data-nosnippet>1584</a><span class="doccomment">/// Evaluate an integer (non-`Field`, non-`u1`) binary operation in the field+type model.
 <a href=#1585 id=1585 data-nosnippet>1585</a>///
 <a href=#1586 id=1586 data-nosnippet>1586</a>/// `lhs`/`rhs` are integer values of the same type whose stored field is the two's-complement bit
-<a href=#1587 id=1587 data-nosnippet>1587</a>/// pattern (which may be out of range in ACIR mode). The runtime selects overflow behaviour:
+<a href=#1587 id=1587 data-nosnippet>1587</a>/// pattern (which may be out of range in ACIR mode). The runtime selects overflow behavior:
 <a href=#1588 id=1588 data-nosnippet>1588</a>/// Brillig wraps in fixed-width registers, while ACIR carries the extended field and range-checks at
 <a href=#1589 id=1589 data-nosnippet>1589</a>/// checked operations. Comparisons, bitwise ops, shifts, div/mod and *signed* checked arithmetic
 <a href=#1590 id=1590 data-nosnippet>1590</a>/// reduce their operands and reuse [`eval_constant_binary_op`]; only unchecked arithmetic and

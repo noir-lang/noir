@@ -4,7 +4,7 @@ and never go through <code>serialize_struct</code> / <code>deserialize_struct</c
 <code>register_into</code> is a no-op — they exist only to satisfy the <code>T: MsgpackTagged</code>
 bound that the macro propagates onto every tagged field’s type. The
 <a href="../enum.Tagged.html" title="enum msgpack_tagged::Tagged"><code>Tagged</code></a> shape they advertise is a <a href="../struct.Product.html" title="struct msgpack_tagged::Product"><code>Product</code></a> with empty <code>fields</code>,
-signalling “no on-the-wire structure of my own.”</p>
+signaling “no on-the-wire structure of my own.”</p>
 <p><code>PhantomData&lt;T&gt;</code> lives here for the same reason: zero-sized, wire-irrelevant,
 never registers anything. The struct-field auto-skip in the derive still
 drops <code>PhantomData</code> fields from the wire, but inside enum variant payloads

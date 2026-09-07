@@ -8,7 +8,7 @@ the minimum number of instructions possible.</p>
 <li>Continue inserting instructions until either
 <ul>
 <li>Another <a href="../../ir/instruction/enum.Instruction.html#variant.EnableSideEffectsIf" title="variant noirc_evaluator::ssa::ir::instruction::Instruction::EnableSideEffectsIf"><code>Instruction::EnableSideEffectsIf</code></a> is encountered, if so then drop the previous
-<a href="../../ir/instruction/type.InstructionId.html" title="type noirc_evaluator::ssa::ir::instruction::InstructionId"><code>InstructionId</code></a> in favour of this one.</li>
+<a href="../../ir/instruction/type.InstructionId.html" title="type noirc_evaluator::ssa::ir::instruction::InstructionId"><code>InstructionId</code></a> in favor of this one.</li>
 <li>An <a href="../../ir/instruction/enum.Instruction.html" title="enum noirc_evaluator::ssa::ir::instruction::Instruction">Instruction</a> that is affected by the side-effects variable is encountered, if so
 then insert the currently saved <a href="../../ir/instruction/enum.Instruction.html#variant.EnableSideEffectsIf" title="variant noirc_evaluator::ssa::ir::instruction::Instruction::EnableSideEffectsIf"><code>Instruction::EnableSideEffectsIf</code></a> before the
 <a href="../../ir/instruction/enum.Instruction.html" title="enum noirc_evaluator::ssa::ir::instruction::Instruction">Instruction</a>. Continue inserting instructions until the next

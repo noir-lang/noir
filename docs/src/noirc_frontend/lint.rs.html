@@ -7,13 +7,13 @@
 <a href=#7 id=7 data-nosnippet>7</a>//! to silence it.
 <a href=#8 id=8 data-nosnippet>8</a>//!
 <a href=#9 id=9 data-nosnippet>9</a>//! [`Lint`] is the closed set of valid slugs. Making the set closed is what lets the
-<a href=#10 id=10 data-nosnippet>10</a>//! parser reject an unrecognised slug: parsing `#[allow(&lt;slug&gt;)]`
+<a href=#10 id=10 data-nosnippet>10</a>//! parser reject an unrecognized slug: parsing `#[allow(&lt;slug&gt;)]`
 <a href=#11 id=11 data-nosnippet>11</a>//! (`parser/parser/attributes.rs`) looks the slug up with [`Lint::from_slug`], and an
 <a href=#12 id=12 data-nosnippet>12</a>//! unknown slug raises the `UnknownLint` warning rather than being accepted as an inert
 <a href=#13 id=13 data-nosnippet>13</a>//! no-op the author mistakes for a working suppression. That warning is a parser warning,
 <a href=#14 id=14 data-nosnippet>14</a>//! which never blocks elaboration, so the lint the author *meant* to silence still fires.
 <a href=#15 id=15 data-nosnippet>15</a>//!
-<a href=#16 id=16 data-nosnippet>16</a>//! Consumers that honour `#[allow(...)]` compare against a [`Lint`] (via
+<a href=#16 id=16 data-nosnippet>16</a>//! Consumers that honor `#[allow(...)]` compare against a [`Lint`] (via
 <a href=#17 id=17 data-nosnippet>17</a>//! [`crate::token::Attributes::has_allow`] / `SecondaryAttributeKind::is_allow`) rather
 <a href=#18 id=18 data-nosnippet>18</a>//! than a bare string, so the slug spellings live only in [`Lint::slug`].
 <a href=#19 id=19 data-nosnippet>19</a>//!
@@ -51,7 +51,7 @@
 <a href=#51 id=51 data-nosnippet>51</a>        }
 <a href=#52 id=52 data-nosnippet>52</a>    }
 <a href=#53 id=53 data-nosnippet>53</a>
-<a href=#54 id=54 data-nosnippet>54</a>    <span class="doccomment">/// Look up a lint by its slug, returning `None` if the slug is not recognised.
+<a href=#54 id=54 data-nosnippet>54</a>    <span class="doccomment">/// Look up a lint by its slug, returning `None` if the slug is not recognized.
 <a href=#55 id=55 data-nosnippet>55</a>    </span><span class="kw">pub fn </span>from_slug(slug: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;Lint&gt; {
 <a href=#56 id=56 data-nosnippet>56</a>        Lint::iter().find(|lint| lint.slug() == slug)
 <a href=#57 id=57 data-nosnippet>57</a>    }

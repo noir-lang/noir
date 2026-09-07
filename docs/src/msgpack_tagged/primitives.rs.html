@@ -5,7 +5,7 @@
 <a href=#5 id=5 data-nosnippet>5</a>//! `register_into` is a no-op — they exist only to satisfy the `T: MsgpackTagged`
 <a href=#6 id=6 data-nosnippet>6</a>//! bound that the macro propagates onto every tagged field's type. The
 <a href=#7 id=7 data-nosnippet>7</a>//! [`Tagged`] shape they advertise is a [`Product`](crate::Product) with empty `fields`,
-<a href=#8 id=8 data-nosnippet>8</a>//! signalling "no on-the-wire structure of my own."
+<a href=#8 id=8 data-nosnippet>8</a>//! signaling "no on-the-wire structure of my own."
 <a href=#9 id=9 data-nosnippet>9</a>//!
 <a href=#10 id=10 data-nosnippet>10</a>//! `PhantomData&lt;T&gt;` lives here for the same reason: zero-sized, wire-irrelevant,
 <a href=#11 id=11 data-nosnippet>11</a>//! never registers anything. The struct-field auto-skip in the derive still

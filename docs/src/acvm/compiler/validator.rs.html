@@ -1010,7 +1010,7 @@
 <a href=#1010 id=1010 data-nosnippet>1010</a>        // Here the output witness holds an arbitrary value that no Brillig program needs to have
 <a href=#1011 id=1011 data-nosnippet>1011</a>        // produced, and nothing constrained consumes it. Validation must still succeed because the
 <a href=#1012 id=1012 data-nosnippet>1012</a>        // witness satisfies every constraint in the circuit (there are none). This is exactly the
-<a href=#1013 id=1013 data-nosnippet>1013</a>        // behaviour audit finding noir-claude#502 mistook for a bug.
+<a href=#1013 id=1013 data-nosnippet>1013</a>        // behavior audit finding noir-claude#502 mistook for a bug.
 <a href=#1014 id=1014 data-nosnippet>1014</a>        </span><span class="kw">let </span>circuit = make_circuit(<span class="macro">vec!</span>[Opcode::BrilligCall {
 <a href=#1015 id=1015 data-nosnippet>1015</a>            id: BrilligFunctionId::new(<span class="number">0</span>),
 <a href=#1016 id=1016 data-nosnippet>1016</a>            inputs: <span class="macro">vec!</span>[BrilligInputs::Single(Witness(<span class="number">1</span>).into())],

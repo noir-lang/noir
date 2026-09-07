@@ -778,7 +778,7 @@
 <a href=#778 id=778 data-nosnippet>778</a>    /// A global's storage is not function-local, so the forward walk that decides whether an
 <a href=#779 id=779 data-nosnippet>779</a>    /// in-place mutation is observable cannot answer the question for it: the observing read
 <a href=#780 id=780 data-nosnippet>780</a>    /// may be in another function, or in another invocation of this Brillig entry point (each
-<a href=#781 id=781 data-nosnippet>781</a>    /// re-initialises the globals region, and ACVM builds a fresh VM per `BrilligCall`). The
+<a href=#781 id=781 data-nosnippet>781</a>    /// re-initializes the globals region, and ACVM builds a fresh VM per `BrilligCall`). The
 <a href=#782 id=782 data-nosnippet>782</a>    /// storage is also live for the whole program, so it is never "the last use". Mechanism 2
 <a href=#783 id=783 data-nosnippet>783</a>    /// (block-parameter threading) therefore cannot protect a mutation of a global; only an
 <a href=#784 id=784 data-nosnippet>784</a>    /// `inc_rc` can. See [`Context::unprotected_global_for_source`].

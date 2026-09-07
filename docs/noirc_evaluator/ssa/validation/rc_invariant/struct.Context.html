@@ -249,7 +249,7 @@ Whether <code>alias_set</code> contains a global.</p>
 <p>A global’s storage is not function-local, so the forward walk that decides whether an
 in-place mutation is observable cannot answer the question for it: the observing read
 may be in another function, or in another invocation of this Brillig entry point (each
-re-initialises the globals region, and ACVM builds a fresh VM per <code>BrilligCall</code>). The
+re-initializes the globals region, and ACVM builds a fresh VM per <code>BrilligCall</code>). The
 storage is also live for the whole program, so it is never “the last use”. Mechanism 2
 (block-parameter threading) therefore cannot protect a mutation of a global; only an
 <code>inc_rc</code> can. See <a href="struct.Context.html#method.unprotected_global_for_source" title="method noirc_evaluator::ssa::validation::rc_invariant::Context::unprotected_global_for_source"><code>Context::unprotected_global_for_source</code></a>.</p>

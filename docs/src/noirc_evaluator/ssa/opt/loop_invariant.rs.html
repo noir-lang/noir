@@ -481,7 +481,7 @@
 <a href=#481 id=481 data-nosnippet>481</a>                    }
 <a href=#482 id=482 data-nosnippet>482</a>                } <span class="kw">else </span>{
 <a href=#483 id=483 data-nosnippet>483</a>                    <span class="kw">let </span>dfg = <span class="kw-2">&amp;</span><span class="self">self</span>.inserter.function.dfg;
-<a href=#484 id=484 data-nosnippet>484</a>                    <span class="comment">// If the block has already been labelled as impure, we don't need to check the current
+<a href=#484 id=484 data-nosnippet>484</a>                    <span class="comment">// If the block has already been labeled as impure, we don't need to check the current
 <a href=#485 id=485 data-nosnippet>485</a>                    // instruction's side effects.
 <a href=#486 id=486 data-nosnippet>486</a>                    // Note that purity is dependent on the instruction ordering, which is expected because
 <a href=#487 id=487 data-nosnippet>487</a>                    // it tells us exactly if there is a side-effect instruction before the current one.
@@ -3357,7 +3357,7 @@
 <a href=#3357 id=3357 data-nosnippet>3357</a>    ///
 <a href=#3358 id=3358 data-nosnippet>3358</a>    /// The bump is redundant in this particular shape, since the entry block already protects
 <a href=#3359 id=3359 data-nosnippet>3359</a>    /// `v1`: the pre-header scan in `unprotected_mutable_array_operands` is deliberately local,
-<a href=#3360 id=3360 data-nosnippet>3360</a>    /// and [`inserts_inc_rc_for_hoisted_array_set`] pins the case it does recognise. Conservative
+<a href=#3360 id=3360 data-nosnippet>3360</a>    /// and [`inserts_inc_rc_for_hoisted_array_set`] pins the case it does recognize. Conservative
 <a href=#3361 id=3361 data-nosnippet>3361</a>    /// in this direction costs one rc bump; conservative in the other is a miscompilation. See
 <a href=#3362 id=3362 data-nosnippet>3362</a>    /// [`hoisted_vector_mutator_guard_prevents_operand_corruption`] for the shape where the guard
 <a href=#3363 id=3363 data-nosnippet>3363</a>    /// changes the result.

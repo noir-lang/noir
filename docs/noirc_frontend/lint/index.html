@@ -5,12 +5,12 @@ return value, …). Each lint has a stable, human-readable slug (<code>dead_code
 <code>unused_variables</code>, …) that a user can name in an <code>#[allow(...)]</code> attribute
 to silence it.</p>
 <p><a href="enum.Lint.html" title="enum noirc_frontend::lint::Lint"><code>Lint</code></a> is the closed set of valid slugs. Making the set closed is what lets the
-parser reject an unrecognised slug: parsing <code>#[allow(&lt;slug&gt;)]</code>
+parser reject an unrecognized slug: parsing <code>#[allow(&lt;slug&gt;)]</code>
 (<code>parser/parser/attributes.rs</code>) looks the slug up with <a href="enum.Lint.html#method.from_slug" title="associated function noirc_frontend::lint::Lint::from_slug"><code>Lint::from_slug</code></a>, and an
 unknown slug raises the <code>UnknownLint</code> warning rather than being accepted as an inert
 no-op the author mistakes for a working suppression. That warning is a parser warning,
 which never blocks elaboration, so the lint the author <em>meant</em> to silence still fires.</p>
-<p>Consumers that honour <code>#[allow(...)]</code> compare against a <a href="enum.Lint.html" title="enum noirc_frontend::lint::Lint"><code>Lint</code></a> (via
+<p>Consumers that honor <code>#[allow(...)]</code> compare against a <a href="enum.Lint.html" title="enum noirc_frontend::lint::Lint"><code>Lint</code></a> (via
 <a href="../lexer/token/struct.Attributes.html#method.has_allow" title="method noirc_frontend::lexer::token::Attributes::has_allow"><code>crate::token::Attributes::has_allow</code></a> / <code>SecondaryAttributeKind::is_allow</code>) rather
 than a bare string, so the slug spellings live only in <a href="enum.Lint.html#method.slug" title="method noirc_frontend::lint::Lint::slug"><code>Lint::slug</code></a>.</p>
 <p><a href="enum.Lint.html" title="enum noirc_frontend::lint::Lint"><code>Lint</code></a> lists only the lints <code>#[allow(...)]</code> actually silences: a slug is “known” only

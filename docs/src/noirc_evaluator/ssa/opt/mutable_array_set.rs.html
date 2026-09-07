@@ -124,7 +124,7 @@
 <a href=#124 id=124 data-nosnippet>124</a>
 <a href=#125 id=125 data-nosnippet>125</a>    <span class="doccomment">/// Remember this instruction as the last time the array has been read or written to.
 <a href=#126 id=126 data-nosnippet>126</a>    ///
-<a href=#127 id=127 data-nosnippet>127</a>    /// Any previous instruction marked to be made mutable needs to be cancelled,
+<a href=#127 id=127 data-nosnippet>127</a>    /// Any previous instruction marked to be made mutable needs to be canceled,
 <a href=#128 id=128 data-nosnippet>128</a>    /// as it turned out not to be the last use.
 <a href=#129 id=129 data-nosnippet>129</a>    </span><span class="kw">fn </span>set_last_use(<span class="kw-2">&amp;mut </span><span class="self">self</span>, array: ValueId, instruction_id: InstructionId) {
 <a href=#130 id=130 data-nosnippet>130</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(existing) = <span class="self">self</span>.array_to_last_use.insert(array, instruction_id) {
