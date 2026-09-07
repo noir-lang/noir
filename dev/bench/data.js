@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788796689531,
+  "lastUpdate": 1788805984691,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19401,48 +19401,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "c65f2cfee10e2c3cf0250db297af6fe3e097897f",
-          "message": "chore(deps): bump @web/dev-server-esbuild from 1.0.5 to 2.0.0 (#13534)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-08-19T12:37:52Z",
-          "tree_id": "04c5bc112570bd14df8231af5aad7075afab83fb",
-          "url": "https://github.com/noir-lang/noir/commit/c65f2cfee10e2c3cf0250db297af6fe3e097897f"
-        },
-        "date": 1787144849998,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 98005,
-            "range": "± 335",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 87053,
-            "range": "± 1212",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2356564,
-            "range": "± 6374",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -21494,6 +21452,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2655214,
             "range": "± 5135",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "e33da6ba7e46081281ea8717ac9df896d1a732f0",
+          "message": "chore: remove an orphaned CI script and three unreferenced docs images (#13616)",
+          "timestamp": "2026-09-07T18:11:19Z",
+          "tree_id": "c5e518c855236b247d7415ee1ad8fe42c46153ba",
+          "url": "https://github.com/noir-lang/noir/commit/e33da6ba7e46081281ea8717ac9df896d1a732f0"
+        },
+        "date": 1788805900165,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 126787,
+            "range": "± 546",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 112622,
+            "range": "± 1789",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3042722,
+            "range": "± 4520",
             "unit": "ns/iter"
           }
         ]
