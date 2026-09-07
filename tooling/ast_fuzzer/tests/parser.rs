@@ -28,7 +28,7 @@ fn arb_ssa_roundtrip() {
             let config = Config::default();
             let program = arb_program(u, config)?;
 
-            let options = ssa::SsaEvaluatorOptions::default();
+            let options = ssa::SsaEvaluatorOptions::for_tests();
             let pipeline = primary_passes(&options);
             let last_pass = u.choose_index(pipeline.len())?;
             let passes = &pipeline[0..last_pass];
