@@ -29,7 +29,11 @@ pub struct ExecuteCommand {
 
     /// Path to a witness file (.gz) to use as the initial witness instead of a
     /// Prover.toml. This is the same gzipped format that `noir-execute` outputs.
-    #[clap(long, conflicts_with = "prover_file", value_parser = parse_and_normalize_path)]
+    #[clap(
+        long,
+        conflicts_with_all = ["prover_file", "overwrite_return"],
+        value_parser = parse_and_normalize_path
+    )]
     pub witness_file: Option<PathBuf>,
 
     /// Optionally overwrite the `return` entry in the Prover.toml file.
@@ -83,12 +87,6 @@ pub fn run(args: ExecuteCommand) -> Result<(), CliError> {
             ));
         }
     };
-
-    if args.overwrite_return && args.witness_file.is_some() {
-        return Err(CliError::Generic(
-            "--overwrite-return cannot be used with --witness-file".to_string(),
-        ));
-    }
 
     let artifact = Artifact::read_from_file(&args.artifact_path)?;
     let artifact_name = args.artifact_path.file_stem().and_then(|s| s.to_str()).unwrap_or_default();
