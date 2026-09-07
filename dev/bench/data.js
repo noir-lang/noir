@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788782187493,
+  "lastUpdate": 1788782191382,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -38929,105 +38929,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "8ae8f2581236db224371adf192c9220cc96bafe0",
-          "message": "fix: derive force_unconstrained per position instead of pass-wide (#13464)\n\nCo-authored-by: Claude Opus 5 <noreply@anthropic.com>",
-          "timestamp": "2026-08-14T12:51:34Z",
-          "tree_id": "89efb7e43452273e5c7e44f0fd97827dbe7636a0",
-          "url": "https://github.com/noir-lang/noir/commit/8ae8f2581236db224371adf192c9220cc96bafe0"
-        },
-        "date": 1786713782566,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 823.4,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 904.1,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 666.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 324.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 328.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 390.5,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 312.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 690.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 731.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 489.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 691.3,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 854.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 244.6,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 2073.7,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 151.4,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "5d03f42ead67ccd1aae768301b6a33adb1574089",
           "message": "fix: array nested via array_set must not be mutated (#13524)",
           "timestamp": "2026-08-14T14:53:34Z",
@@ -43672,6 +43573,40 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/47a8f232968def43700577252c619b870f611700"
         },
         "date": 1788773760739,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 2073.7,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 151.5,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d7a91ec6529f7ffb48d25f9b39b67a3ef30bb85c",
+          "message": "chore(deps): bump fast-uri from 3.1.4 to 3.1.6 in /docs (#13593)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-09-07T12:50:06+01:00",
+          "tree_id": "0dfd77f37ee723ed1ec4d6904352827f9b260de5",
+          "url": "https://github.com/noir-lang/noir/commit/d7a91ec6529f7ffb48d25f9b39b67a3ef30bb85c"
+        },
+        "date": 1788782095285,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
