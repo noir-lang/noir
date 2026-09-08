@@ -12,6 +12,7 @@
 //! payload `Product`, and any `#[tag(...)]` on a variant's field is rejected.
 //!
 //! Design: [issue #12554](https://github.com/noir-lang/noir/issues/12554).
+#![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;

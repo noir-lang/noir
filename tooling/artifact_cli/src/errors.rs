@@ -13,9 +13,6 @@ pub enum FilesystemError {
     #[error("Cannot find input file '{0}'")]
     MissingInputFile(PathBuf),
 
-    #[error("Failed to create output file '{0}': {1}")]
-    OutputFileCreationFailed(PathBuf, String),
-
     #[error("Failed to parse input file '{0}': {1}")]
     InvalidInputFile(PathBuf, String),
 
