@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788818646392,
+  "lastUpdate": 1788863870143,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18631,48 +18631,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "175c3fe68792c3843e744cb9778e2b8c03b5f9e3",
-          "message": "chore(deps): bump js-yaml from 4.3.0 to 4.3.1 (#13488)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-08-19T14:52:10Z",
-          "tree_id": "d608c53e7dac8fe209d253ed95b32f049cb2236c",
-          "url": "https://github.com/noir-lang/noir/commit/175c3fe68792c3843e744cb9778e2b8c03b5f9e3"
-        },
-        "date": 1787152385476,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 127312,
-            "range": "± 3427",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 105421,
-            "range": "± 1403",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 1728697,
-            "range": "± 73848",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -20724,6 +20682,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2655094,
             "range": "± 2010",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "662b19ce80c7aecc4be513b5bb32e0c3c5651ff0",
+          "message": "chore(deps-dev): bump the npm-minor-and-patch group with 2 updates (#13623)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-09-08T10:14:30Z",
+          "tree_id": "8efe6a4715ded5edaef9738f43a908fb6ee7b49a",
+          "url": "https://github.com/noir-lang/noir/commit/662b19ce80c7aecc4be513b5bb32e0c3c5651ff0"
+        },
+        "date": 1788863784547,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 169350,
+            "range": "± 1351",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 135654,
+            "range": "± 557",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2655550,
+            "range": "± 8239",
             "unit": "ns/iter"
           }
         ]
