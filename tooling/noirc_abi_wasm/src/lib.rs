@@ -24,9 +24,11 @@ use wasm_bindgen::{JsValue, prelude::wasm_bindgen};
 
 mod errors;
 mod js_witness_map;
+mod js_witness_stack;
 
 use errors::JsAbiError;
 use js_witness_map::JsWitnessMap;
+use js_witness_stack::JsWitnessStack;
 
 #[wasm_bindgen(typescript_custom_section)]
 const INPUT_MAP: &'static str = r#"
@@ -170,6 +172,24 @@ pub fn serialize_witness(witness_map: JsWitnessMap) -> Result<Vec<u8>, JsAbiErro
     let witness_stack: WitnessStack<FieldElement> = converted_witness.into();
     let output = witness_stack.serialize();
     output.map_err(|_| JsAbiError::new("Failed to serialize witness stack".to_string()))
+}
+
+#[wasm_bindgen(js_name = deserializeWitness)]
+pub fn deserialize_witness(bytes: Vec<u8>) -> Result<JsWitnessMap, JsAbiError> {
+    console_error_panic_hook::set_once();
+    let mut witness_stack =
+        WitnessStack::deserialize(bytes.as_slice()).map_err(|err| err.to_string())?;
+    let witness =
+        witness_stack.pop().expect("Should have at least one witness on the stack").witness;
+    Ok(witness.into())
+}
+
+#[wasm_bindgen(js_name = deserializeWitnessStack)]
+pub fn deserialize_witness_stack(bytes: Vec<u8>) -> Result<JsWitnessStack, JsAbiError> {
+    console_error_panic_hook::set_once();
+    let witness_stack =
+        WitnessStack::deserialize(bytes.as_slice()).map_err(|err| err.to_string())?;
+    Ok(witness_stack.into())
 }
 
 #[wasm_bindgen(js_name = abiDecodeError)]
