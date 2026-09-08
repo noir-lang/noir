@@ -44,7 +44,7 @@
 <a href=#44 id=44 data-nosnippet>44</a>    rules: <span class="kw-2">&amp;</span>[rules::Rule],
 <a href=#45 id=45 data-nosnippet>45</a>    max_rewrites: usize,
 <a href=#46 id=46 data-nosnippet>46</a>) {
-<a href=#47 id=47 data-nosnippet>47</a>    <span class="kw">for </span>func <span class="kw">in </span>program.functions.iter_mut() {
+<a href=#47 id=47 data-nosnippet>47</a>    <span class="kw">for </span>func <span class="kw">in </span><span class="kw-2">&amp;mut </span>program.functions {
 <a href=#48 id=48 data-nosnippet>48</a>        <span class="kw">if </span>func.name.ends_with(<span class="string">"_proxy"</span>) {
 <a href=#49 id=49 data-nosnippet>49</a>            <span class="kw">continue</span>;
 <a href=#50 id=50 data-nosnippet>50</a>        }
@@ -210,7 +210,7 @@
 <a href=#210 id=210 data-nosnippet>210</a>            </span>}
 <a href=#211 id=211 data-nosnippet>211</a>            Expression::Call(call) <span class="kw">if </span>is_special_call(call) =&gt; {
 <a href=#212 id=212 data-nosnippet>212</a>                <span class="kw">let </span>ctx = rules::Context { is_in_special_call: <span class="bool-val">true</span>, ..<span class="kw-2">*</span>ctx };
-<a href=#213 id=213 data-nosnippet>213</a>                <span class="kw">for </span>arg <span class="kw">in </span>call.arguments.iter_mut() {
+<a href=#213 id=213 data-nosnippet>213</a>                <span class="kw">for </span>arg <span class="kw">in </span><span class="kw-2">&amp;mut </span>call.arguments {
 <a href=#214 id=214 data-nosnippet>214</a>                    <span class="self">self</span>.rewrite_expr(<span class="kw-2">&amp;</span>ctx, u, arg);
 <a href=#215 id=215 data-nosnippet>215</a>                }
 <a href=#216 id=216 data-nosnippet>216</a>                <span class="bool-val">false
@@ -316,7 +316,7 @@
 <a href=#316 id=316 data-nosnippet>316</a>    };
 <a href=#317 id=317 data-nosnippet>317</a>
 <a href=#318 id=318 data-nosnippet>318</a>    <span class="attr">#[derive(Clone, Debug, Default)]
-<a href=#319 id=319 data-nosnippet>319</a>    </span><span class="kw">pub struct </span>Context {
+<a href=#319 id=319 data-nosnippet>319</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct </span>Context {
 <a href=#320 id=320 data-nosnippet>320</a>        <span class="doccomment">/// Is the function we're rewriting unconstrained?
 <a href=#321 id=321 data-nosnippet>321</a>        </span><span class="kw">pub </span>unconstrained: bool,
 <a href=#322 id=322 data-nosnippet>322</a>        <span class="doccomment">/// Are we rewriting an expression which is a `start` or `end` of a `for` loop?
@@ -334,13 +334,13 @@
 <a href=#334 id=334 data-nosnippet>334</a>        <span class="kw">dyn </span>Fn(<span class="kw-2">&amp;mut </span>Unstructured, <span class="kw-2">&amp;mut </span>VariableContext, <span class="kw-2">&amp;mut </span>Expression) -&gt; arbitrary::Result&lt;()&gt;;
 <a href=#335 id=335 data-nosnippet>335</a>
 <a href=#336 id=336 data-nosnippet>336</a>    <span class="doccomment">/// Metamorphic transformation rule.
-<a href=#337 id=337 data-nosnippet>337</a>    </span><span class="kw">pub struct </span>Rule {
+<a href=#337 id=337 data-nosnippet>337</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct </span>Rule {
 <a href=#338 id=338 data-nosnippet>338</a>        <span class="kw">pub </span>matches: Box&lt;MatchFn&gt;,
 <a href=#339 id=339 data-nosnippet>339</a>        <span class="kw">pub </span>rewrite: Box&lt;RewriteFn&gt;,
 <a href=#340 id=340 data-nosnippet>340</a>    }
 <a href=#341 id=341 data-nosnippet>341</a>
 <a href=#342 id=342 data-nosnippet>342</a>    <span class="kw">impl </span>Rule {
-<a href=#343 id=343 data-nosnippet>343</a>        <span class="kw">pub fn </span>new(
+<a href=#343 id=343 data-nosnippet>343</a>        <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>new(
 <a href=#344 id=344 data-nosnippet>344</a>            matches: <span class="kw">impl </span>Fn(<span class="kw-2">&amp;</span>Context, <span class="kw-2">&amp;</span>Expression) -&gt; bool + <span class="lifetime">'static</span>,
 <a href=#345 id=345 data-nosnippet>345</a>            rewrite: <span class="kw">impl </span>Fn(
 <a href=#346 id=346 data-nosnippet>346</a>                <span class="kw-2">&amp;mut </span>Unstructured,
@@ -353,12 +353,12 @@
 <a href=#353 id=353 data-nosnippet>353</a>        }
 <a href=#354 id=354 data-nosnippet>354</a>
 <a href=#355 id=355 data-nosnippet>355</a>        <span class="doccomment">/// Check if the rule can be applied on an expression.
-<a href=#356 id=356 data-nosnippet>356</a>        </span><span class="kw">pub fn </span>matches(<span class="kw-2">&amp;</span><span class="self">self</span>, ctx: <span class="kw-2">&amp;</span>Context, expr: <span class="kw-2">&amp;</span>Expression) -&gt; bool {
+<a href=#356 id=356 data-nosnippet>356</a>        </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>matches(<span class="kw-2">&amp;</span><span class="self">self</span>, ctx: <span class="kw-2">&amp;</span>Context, expr: <span class="kw-2">&amp;</span>Expression) -&gt; bool {
 <a href=#357 id=357 data-nosnippet>357</a>            (<span class="self">self</span>.matches)(ctx, expr)
 <a href=#358 id=358 data-nosnippet>358</a>        }
 <a href=#359 id=359 data-nosnippet>359</a>
 <a href=#360 id=360 data-nosnippet>360</a>        <span class="doccomment">/// Apply the rule on an expression, mutating/replacing it in-place.
-<a href=#361 id=361 data-nosnippet>361</a>        </span><span class="kw">pub fn </span>rewrite(
+<a href=#361 id=361 data-nosnippet>361</a>        </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>rewrite(
 <a href=#362 id=362 data-nosnippet>362</a>            <span class="kw-2">&amp;</span><span class="self">self</span>,
 <a href=#363 id=363 data-nosnippet>363</a>            u: <span class="kw-2">&amp;mut </span>Unstructured,
 <a href=#364 id=364 data-nosnippet>364</a>            vars: <span class="kw-2">&amp;mut </span>VariableContext,
@@ -369,7 +369,7 @@
 <a href=#369 id=369 data-nosnippet>369</a>    }
 <a href=#370 id=370 data-nosnippet>370</a>
 <a href=#371 id=371 data-nosnippet>371</a>    <span class="doccomment">/// Construct all rules that we can apply on a program.
-<a href=#372 id=372 data-nosnippet>372</a>    </span><span class="kw">pub fn </span>collect(config: <span class="kw-2">&amp;</span>Config) -&gt; Vec&lt;Rule&gt; {
+<a href=#372 id=372 data-nosnippet>372</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>collect(config: <span class="kw-2">&amp;</span>Config) -&gt; Vec&lt;Rule&gt; {
 <a href=#373 id=373 data-nosnippet>373</a>        <span class="kw">let </span><span class="kw-2">mut </span>rules = <span class="macro">vec!</span>[
 <a href=#374 id=374 data-nosnippet>374</a>            num_add_zero(),
 <a href=#375 id=375 data-nosnippet>375</a>            num_sub_zero(),
@@ -400,27 +400,27 @@
 <a href=#400 id=400 data-nosnippet>400</a>    }
 <a href=#401 id=401 data-nosnippet>401</a>
 <a href=#402 id=402 data-nosnippet>402</a>    <span class="doccomment">/// Transform any numeric value `x` into `x+0`
-<a href=#403 id=403 data-nosnippet>403</a>    </span><span class="kw">pub fn </span>num_add_zero() -&gt; Rule {
+<a href=#403 id=403 data-nosnippet>403</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>num_add_zero() -&gt; Rule {
 <a href=#404 id=404 data-nosnippet>404</a>        num_op(BinaryOpKind::Add, <span class="number">0</span>)
 <a href=#405 id=405 data-nosnippet>405</a>    }
 <a href=#406 id=406 data-nosnippet>406</a>
 <a href=#407 id=407 data-nosnippet>407</a>    <span class="doccomment">/// Transform any numeric value `x` into `x-0`
-<a href=#408 id=408 data-nosnippet>408</a>    </span><span class="kw">pub fn </span>num_sub_zero() -&gt; Rule {
+<a href=#408 id=408 data-nosnippet>408</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>num_sub_zero() -&gt; Rule {
 <a href=#409 id=409 data-nosnippet>409</a>        num_op(BinaryOpKind::Subtract, <span class="number">0</span>)
 <a href=#410 id=410 data-nosnippet>410</a>    }
 <a href=#411 id=411 data-nosnippet>411</a>
 <a href=#412 id=412 data-nosnippet>412</a>    <span class="doccomment">/// Transform any numeric value `x` into `x*1`
-<a href=#413 id=413 data-nosnippet>413</a>    </span><span class="kw">pub fn </span>num_mul_one() -&gt; Rule {
+<a href=#413 id=413 data-nosnippet>413</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>num_mul_one() -&gt; Rule {
 <a href=#414 id=414 data-nosnippet>414</a>        num_op(BinaryOpKind::Multiply, <span class="number">1</span>)
 <a href=#415 id=415 data-nosnippet>415</a>    }
 <a href=#416 id=416 data-nosnippet>416</a>
 <a href=#417 id=417 data-nosnippet>417</a>    <span class="doccomment">/// Transform any numeric value `x` into `x/1`
-<a href=#418 id=418 data-nosnippet>418</a>    </span><span class="kw">pub fn </span>num_div_one() -&gt; Rule {
+<a href=#418 id=418 data-nosnippet>418</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>num_div_one() -&gt; Rule {
 <a href=#419 id=419 data-nosnippet>419</a>        num_op(BinaryOpKind::Divide, <span class="number">1</span>)
 <a href=#420 id=420 data-nosnippet>420</a>    }
 <a href=#421 id=421 data-nosnippet>421</a>
 <a href=#422 id=422 data-nosnippet>422</a>    <span class="doccomment">/// Break an integer literal `a` into `b + c`.
-<a href=#423 id=423 data-nosnippet>423</a>    </span><span class="kw">pub fn </span>int_break_up() -&gt; Rule {
+<a href=#423 id=423 data-nosnippet>423</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>int_break_up() -&gt; Rule {
 <a href=#424 id=424 data-nosnippet>424</a>        Rule::new(
 <a href=#425 id=425 data-nosnippet>425</a>            |ctx, expr| {
 <a href=#426 id=426 data-nosnippet>426</a>                <span class="kw">if </span>ctx.is_in_range &amp;&amp; !ctx.unconstrained || ctx.is_in_ref_mut {
@@ -471,7 +471,7 @@
 <a href=#471 id=471 data-nosnippet>471</a>    }
 <a href=#472 id=472 data-nosnippet>472</a>
 <a href=#473 id=473 data-nosnippet>473</a>    <span class="doccomment">/// Transform boolean value `x` into `x | x`.
-<a href=#474 id=474 data-nosnippet>474</a>    </span><span class="kw">pub fn </span>bool_or_self() -&gt; Rule {
+<a href=#474 id=474 data-nosnippet>474</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>bool_or_self() -&gt; Rule {
 <a href=#475 id=475 data-nosnippet>475</a>        Rule::new(bool_rule_matches, |_u, _locals, expr| {
 <a href=#476 id=476 data-nosnippet>476</a>            expr::replace(expr, |expr| expr::binary(expr.clone(), BinaryOpKind::Or, expr));
 <a href=#477 id=477 data-nosnippet>477</a>            <span class="prelude-val">Ok</span>(())
@@ -479,7 +479,7 @@
 <a href=#479 id=479 data-nosnippet>479</a>    }
 <a href=#480 id=480 data-nosnippet>480</a>
 <a href=#481 id=481 data-nosnippet>481</a>    <span class="doccomment">/// Transform boolean value `x` into `x ^ x ^ x`.
-<a href=#482 id=482 data-nosnippet>482</a>    </span><span class="kw">pub fn </span>bool_xor_self() -&gt; Rule {
+<a href=#482 id=482 data-nosnippet>482</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>bool_xor_self() -&gt; Rule {
 <a href=#483 id=483 data-nosnippet>483</a>        Rule::new(bool_rule_matches, |_u, _locals, expr| {
 <a href=#484 id=484 data-nosnippet>484</a>            expr::replace(expr, |expr| {
 <a href=#485 id=485 data-nosnippet>485</a>                <span class="kw">let </span>rhs = expr::binary(expr.clone(), BinaryOpKind::Xor, expr.clone());
@@ -490,7 +490,7 @@
 <a href=#490 id=490 data-nosnippet>490</a>    }
 <a href=#491 id=491 data-nosnippet>491</a>
 <a href=#492 id=492 data-nosnippet>492</a>    <span class="doccomment">/// Transform boolean value `x` into `rnd ^ x ^ rnd`.
-<a href=#493 id=493 data-nosnippet>493</a>    </span><span class="kw">pub fn </span>bool_xor_rand() -&gt; Rule {
+<a href=#493 id=493 data-nosnippet>493</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>bool_xor_rand() -&gt; Rule {
 <a href=#494 id=494 data-nosnippet>494</a>        Rule::new(bool_rule_matches, |u, _locals, expr| {
 <a href=#495 id=495 data-nosnippet>495</a>            <span class="comment">// This is where we could access the scope to look for a random bool variable.
 <a href=#496 id=496 data-nosnippet>496</a>            </span><span class="kw">let </span>rnd = expr::gen_literal(u, <span class="kw-2">&amp;</span>Type::Bool, <span class="kw-2">&amp;</span>Config::default())<span class="question-mark">?</span>;
@@ -505,7 +505,7 @@
 <a href=#505 id=505 data-nosnippet>505</a>    <span class="doccomment">/// Transform commutative arithmetic operations:
 <a href=#506 id=506 data-nosnippet>506</a>    /// * `a + b` into `b + a`
 <a href=#507 id=507 data-nosnippet>507</a>    /// * `a * b` into `b * a`
-<a href=#508 id=508 data-nosnippet>508</a>    </span><span class="kw">pub fn </span>num_commute() -&gt; Rule {
+<a href=#508 id=508 data-nosnippet>508</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>num_commute() -&gt; Rule {
 <a href=#509 id=509 data-nosnippet>509</a>        Rule::new(
 <a href=#510 id=510 data-nosnippet>510</a>            |_ctx, expr| {
 <a href=#511 id=511 data-nosnippet>511</a>                <span class="macro">matches!</span>(
@@ -531,7 +531,7 @@
 <a href=#531 id=531 data-nosnippet>531</a>    <span class="doccomment">/// Transform any expression into an if-then-else with the itself
 <a href=#532 id=532 data-nosnippet>532</a>    /// repeated in the _then_ and _else_ branch:
 <a href=#533 id=533 data-nosnippet>533</a>    /// * `x` into `if c { x } else { x }`
-<a href=#534 id=534 data-nosnippet>534</a>    </span><span class="kw">pub fn </span>any_inevitable() -&gt; Rule {
+<a href=#534 id=534 data-nosnippet>534</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>any_inevitable() -&gt; Rule {
 <a href=#535 id=535 data-nosnippet>535</a>        Rule::new(
 <a href=#536 id=536 data-nosnippet>536</a>            |ctx, expr| {
 <a href=#537 id=537 data-nosnippet>537</a>                !ctx.is_in_special_call
@@ -541,10 +541,10 @@
 <a href=#541 id=541 data-nosnippet>541</a>                    <span class="comment">// `let x = 1;` transformed into `if true { let x = 1; } else { let x = 1; }` would leave `x` undefined.
 <a href=#542 id=542 data-nosnippet>542</a>                    </span>&amp;&amp; !<span class="macro">matches!</span>(expr, Expression::Let(<span class="kw">_</span>))
 <a href=#543 id=543 data-nosnippet>543</a>                    <span class="comment">// We can't return references from an `if` statement
-<a href=#544 id=544 data-nosnippet>544</a>                    </span>&amp;&amp; expr.return_type().map(|typ| !types::contains_reference(typ.as_ref())).unwrap_or(<span class="bool-val">true</span>)
+<a href=#544 id=544 data-nosnippet>544</a>                    </span>&amp;&amp; expr.return_type().is_none_or(|typ| !types::contains_reference(typ.as_ref()))
 <a href=#545 id=545 data-nosnippet>545</a>            },
 <a href=#546 id=546 data-nosnippet>546</a>            |u, vars, expr| {
-<a href=#547 id=547 data-nosnippet>547</a>                <span class="kw">let </span>typ = expr.return_type().map(|typ| typ.into_owned()).unwrap_or(Type::Unit);
+<a href=#547 id=547 data-nosnippet>547</a>                <span class="kw">let </span>typ = expr.return_type().map_or(Type::Unit, |typ| typ.into_owned());
 <a href=#548 id=548 data-nosnippet>548</a>
 <a href=#549 id=549 data-nosnippet>549</a>                <span class="comment">// Find a bool expression we can use. For simplicity just consider actual bool variables,
 <a href=#550 id=550 data-nosnippet>550</a>                // not things that can produce variables, so we have less logic to repeat for the `FunctionContext`.
@@ -831,7 +831,7 @@
 <a href=#831 id=831 data-nosnippet>831</a>                        ident.id = vars.next_ident_id();
 <a href=#832 id=832 data-nosnippet>832</a>                    }
 <a href=#833 id=833 data-nosnippet>833</a>                    Expression::Let(let_) =&gt; {
-<a href=#834 id=834 data-nosnippet>834</a>                        replace_local_id(vars, <span class="kw-2">&amp;mut </span>replacements.borrow_mut(), <span class="kw-2">&amp;mut </span>let_.id)
+<a href=#834 id=834 data-nosnippet>834</a>                        replace_local_id(vars, <span class="kw-2">&amp;mut </span>replacements.borrow_mut(), <span class="kw-2">&amp;mut </span>let_.id);
 <a href=#835 id=835 data-nosnippet>835</a>                    }
 <a href=#836 id=836 data-nosnippet>836</a>                    Expression::For(for_) =&gt; replace_local_id(
 <a href=#837 id=837 data-nosnippet>837</a>                        vars,
@@ -843,8 +843,8 @@
 <a href=#843 id=843 data-nosnippet>843</a>                        <span class="kw">if let </span><span class="prelude-val">Some</span>(replacement) = replacements.get(<span class="kw-2">&amp;</span>match_.variable_to_match.<span class="number">0</span>) {
 <a href=#844 id=844 data-nosnippet>844</a>                            match_.variable_to_match.<span class="number">0 </span>= <span class="kw-2">*</span>replacement;
 <a href=#845 id=845 data-nosnippet>845</a>                        }
-<a href=#846 id=846 data-nosnippet>846</a>                        <span class="kw">for </span>case <span class="kw">in </span>match_.cases.iter_mut() {
-<a href=#847 id=847 data-nosnippet>847</a>                            <span class="kw">for </span>(arg, <span class="kw">_</span>) <span class="kw">in </span>case.arguments.iter_mut() {
+<a href=#846 id=846 data-nosnippet>846</a>                        <span class="kw">for </span>case <span class="kw">in </span><span class="kw-2">&amp;mut </span>match_.cases {
+<a href=#847 id=847 data-nosnippet>847</a>                            <span class="kw">for </span>(arg, <span class="kw">_</span>) <span class="kw">in </span><span class="kw-2">&amp;mut </span>case.arguments {
 <a href=#848 id=848 data-nosnippet>848</a>                                replace_local_id(vars, <span class="kw-2">&amp;mut </span>replacements, arg);
 <a href=#849 id=849 data-nosnippet>849</a>                            }
 <a href=#850 id=850 data-nosnippet>850</a>                        }

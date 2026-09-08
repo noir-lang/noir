@@ -76,7 +76,7 @@
 <a href=#76 id=76 data-nosnippet>76</a>    ///
 <a href=#77 id=77 data-nosnippet>77</a>    /// The `cases` determine how many tests to run on CI.
 <a href=#78 id=78 data-nosnippet>78</a>    /// Tune this so that we can expect CI to be able to get through all cases in reasonable time.
-<a href=#79 id=79 data-nosnippet>79</a>    </span><span class="kw">pub fn </span>fuzz_with_arbtest(f: <span class="kw">impl </span>Fn(<span class="kw-2">&amp;mut </span>Unstructured) -&gt; eyre::Result&lt;()&gt;, cases: u32) {
+<a href=#79 id=79 data-nosnippet>79</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>fuzz_with_arbtest(f: <span class="kw">impl </span>Fn(<span class="kw-2">&amp;mut </span>Unstructured) -&gt; eyre::Result&lt;()&gt;, cases: u32) {
 <a href=#80 id=80 data-nosnippet>80</a>        <span class="kw">let _ </span>= env_logger::try_init();
 <a href=#81 id=81 data-nosnippet>81</a>
 <a href=#82 id=82 data-nosnippet>82</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(seed) = seed_from_env() {
@@ -180,10 +180,10 @@
 <a href=#180 id=180 data-nosnippet>180</a>    }
 <a href=#181 id=181 data-nosnippet>181</a>
 <a href=#182 id=182 data-nosnippet>182</a>    <span class="doccomment">/// Generate seeds for `arbtest` where the top 32 bits are random and the lower 32 bits represent the input size.
-<a href=#183 id=183 data-nosnippet>183</a>    </span><span class="kw">fn </span>seed_strategy() -&gt; proptest::strategy::BoxedStrategy&lt;u64&gt; {
+<a href=#183 id=183 data-nosnippet>183</a>    </span><span class="kw">fn </span>seed_strategy() -&gt; BoxedStrategy&lt;u64&gt; {
 <a href=#184 id=184 data-nosnippet>184</a>        (MIN_SIZE..MAX_SIZE)
 <a href=#185 id=185 data-nosnippet>185</a>            .prop_flat_map(<span class="kw">move </span>|size| {
-<a href=#186 id=186 data-nosnippet>186</a>                any::&lt;u64&gt;().prop_map(<span class="kw">move </span>|raw| (size <span class="kw">as </span>u64) | (raw &lt;&lt; u32::BITS))
+<a href=#186 id=186 data-nosnippet>186</a>                any::&lt;u64&gt;().prop_map(<span class="kw">move </span>|raw| u64::from(size) | (raw &lt;&lt; u32::BITS))
 <a href=#187 id=187 data-nosnippet>187</a>            })
 <a href=#188 id=188 data-nosnippet>188</a>            .boxed()
 <a href=#189 id=189 data-nosnippet>189</a>    }
