@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788869093817,
+  "lastUpdate": 1788874173445,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17356,48 +17356,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "84175309cea1d72c97aeb3c121e6d7f00c894684",
-          "message": "fix(acir_gen): do not alias source memory block from zero-width array_set result (#13547)",
-          "timestamp": "2026-08-20T18:53:42Z",
-          "tree_id": "39f52c26215a6d79fb84a706a26b51d22619d8e9",
-          "url": "https://github.com/noir-lang/noir/commit/84175309cea1d72c97aeb3c121e6d7f00c894684"
-        },
-        "date": 1787253206018,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 126811,
-            "range": "± 299",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 113020,
-            "range": "± 2801",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3044745,
-            "range": "± 7197",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -19449,6 +19407,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2654932,
             "range": "± 14599",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "aead1b59cc7330dae9f529ce73b3dc2151326f1c",
+          "message": "feat(wasm): export `deserializeWitness` and `deserializeWitnessStack` from `noirc_abi_wasm` (#13590)\n\nCo-authored-by: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-09-08T13:04:57Z",
+          "tree_id": "c1024cdf43452ac4104994b3a5da577ec2c8c93f",
+          "url": "https://github.com/noir-lang/noir/commit/aead1b59cc7330dae9f529ce73b3dc2151326f1c"
+        },
+        "date": 1788874087755,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 167986,
+            "range": "± 3636",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136923,
+            "range": "± 267",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2658810,
+            "range": "± 2079",
             "unit": "ns/iter"
           }
         ]
