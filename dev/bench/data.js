@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788875243090,
+  "lastUpdate": 1788875403113,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -25502,105 +25502,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "b61b187d616e4c6d8267a55e2f2938e187cc0b1b",
-          "message": "chore(deps): bump the cargo-minor-and-patch group with 4 updates (#13562)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-08-25T10:01:02Z",
-          "tree_id": "63a62ade38656dc96a7fbf581f867bc18264f536",
-          "url": "https://github.com/noir-lang/noir/commit/b61b187d616e4c6d8267a55e2f2938e187cc0b1b"
-        },
-        "date": 1787653937075,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.938,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 2.36,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 1.548,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 2.56,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 2.62,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 2.62,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 1.8,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 3.91,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 3.96,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 2.564,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 2.772,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 2.664,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 2.014,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.414,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.385,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "98612432+Osraka@users.noreply.github.com",
             "name": "Osraka",
             "username": "Osraka"
@@ -28645,6 +28546,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 0.263,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4fd0f35a5a1a4e98fe9cecabbc27c894ceecdea3",
+          "message": "feat: ship noir-execute in release tarballs (#13589)\n\nCo-authored-by: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-09-08T13:23:17Z",
+          "tree_id": "88c7b9d1352fa8148cbc8c069768d8fdd5cef837",
+          "url": "https://github.com/noir-lang/noir/commit/4fd0f35a5a1a4e98fe9cecabbc27c894ceecdea3"
+        },
+        "date": 1788875329342,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.415,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.377,
             "unit": "s"
           }
         ]
