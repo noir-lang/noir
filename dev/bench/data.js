@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788864245883,
+  "lastUpdate": 1788864248609,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3892,105 +3892,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "14e9dc36b518b1a79fa97b97ed95246b97e33449",
-          "message": "feat(ssa): check purity contracts during SSA interpretation (#13518)\n\nCo-authored-by: Claude Fable 5 <noreply@anthropic.com>",
-          "timestamp": "2026-08-19T12:56:16Z",
-          "tree_id": "c20f01e9660f96e8790b6021200bb7b0192aeb5c",
-          "url": "https://github.com/noir-lang/noir/commit/14e9dc36b518b1a79fa97b97ed95246b97e33449"
-        },
-        "date": 1787146099646,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 6.824,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 247,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 15.46,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 2.59,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 2.6,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 2.84,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 2.642,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 304,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 305,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 2.714,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 15.1,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 43.54,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 2.636,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.937,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.735,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "d94a1eac87c1631626977d6fd12d6d20f289439d",
           "message": "fix: array_index_needs_explicit_oob_check must consider flattened size (#13462)\n\nCo-authored-by: Claude Fable 5 <noreply@anthropic.com>",
@@ -7416,6 +7317,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.622,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "ae461bf8d8c7d121eae22f01016c90fda03562ca",
+          "message": "chore(deps): bump the hardhat group with 2 updates (#13620)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-09-08T10:14:38Z",
+          "tree_id": "572c74874389df969cf17957ac924139798ab153",
+          "url": "https://github.com/noir-lang/noir/commit/ae461bf8d8c7d121eae22f01016c90fda03562ca"
+        },
+        "date": 1788864163761,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.942,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.344,
             "unit": "s"
           }
         ]
