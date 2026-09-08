@@ -766,7 +766,12 @@ impl<'a> FunctionContext<'a> {
     fn dereference_lvalue(&mut self, values: &Values, element_type: &ast::Type) -> Values {
         let element_types = Self::convert_type(element_type);
         values.map_both(element_types, |value, element_type| {
-            let reference = value.eval_reference();
+            // See `FunctionContext::dereference`: a deferred borrow's cell is write-once,
+            // so the borrowed value is what a load would have returned.
+            if let Value::DeferredBorrow(borrow) = &value {
+                return Tree::Leaf(borrow.borrowed());
+            }
+            let reference = value.eval_reference(self);
             self.builder.insert_load(reference, element_type).into()
         })
     }
@@ -1003,7 +1008,7 @@ impl<'a> FunctionContext<'a> {
                 }
             }
             (Tree::Leaf(lhs), Tree::Leaf(rhs)) => {
-                let (lhs, rhs) = (lhs.eval_reference(), rhs.eval(self));
+                let (lhs, rhs) = (lhs.eval_reference(self), rhs.eval(self));
                 self.builder.insert_store(lhs, rhs);
             }
             (lhs, rhs) => {

@@ -1475,3 +1475,113 @@ fn brillig_pop_front_empty_check_uses_the_vector_pop_message() {
          generated SSA still reads:\n{ssa}"
     );
 }
+
+#[test]
+fn immutable_borrow_chain_that_is_only_read_emits_no_cells() {
+    // Each `&` over a temporary would otherwise cost an `allocate` plus a `store`, so a
+    // three-deep chain costs three of each even though the only thing done with it is to
+    // dereference it straight back down again. Nothing can write through a `&T`, so the
+    // dereference can hand back the borrowed value and no cell is needed at all.
+    let src = "
+    unconstrained fn main(x: Field) -> pub Field {
+        let a = & & & x;
+        ***a
+    }
+    ";
+    let program = get_monomorphized(src).unwrap();
+    let ssa = generate_ssa(program).unwrap();
+    let results = ssa.interpret(vec![InterpreterValue::field(FieldElement::from(7u128))]).unwrap();
+    assert_eq!(results, vec![InterpreterValue::field(FieldElement::from(7u128))]);
+
+    assert_ssa_snapshot!(ssa, @r"
+    brillig(inline) fn main f0 {
+      b0(v0: Field):
+        return v0
+    }
+    ");
+}
+
+#[test]
+fn immutable_borrow_used_as_a_value_shares_one_cell_between_uses() {
+    // The cell is only emitted once the reference itself is used as a value — here, passed
+    // to a function. Both calls take the same reference, so both share the one cell.
+    let src = "
+    unconstrained fn read(r: &Field) -> Field {
+        *r
+    }
+
+    unconstrained fn main(x: Field) -> pub Field {
+        let r = &(x + 1);
+        read(r) + read(r)
+    }
+    ";
+    let program = get_monomorphized(src).unwrap();
+    let ssa = generate_ssa(program).unwrap();
+    assert_ssa_snapshot!(ssa, @r"
+    brillig(inline) fn main f0 {
+      b0(v0: Field):
+        v2 = add v0, Field 1
+        v3 = allocate -> &mut Field
+        store v2 at v3
+        v5 = call f1(v3) -> Field
+        v6 = call f1(v3) -> Field
+        v7 = add v5, v6
+        return v7
+    }
+    brillig(inline) fn read f1 {
+      b0(v0: &Field):
+        v1 = load v0 -> Field
+        return v1
+    }
+    ");
+}
+
+#[test]
+fn immutable_borrow_cell_is_emitted_in_the_block_the_borrow_was_written_in() {
+    // The borrow is written in the entry block but the first use that needs a cell is in a
+    // conditional branch. Emitting the cell at that first use would leave it not dominating
+    // the `read(r)` in the other branch, so it belongs in the block the borrow was written in.
+    let src = "
+    unconstrained fn read(r: &Field) -> Field {
+        *r
+    }
+
+    unconstrained fn main(x: Field, c: bool) -> pub Field {
+        let r = &(x + 1);
+        if c { read(r) } else { read(r) + 1 }
+    }
+    ";
+    let program = get_monomorphized(src).unwrap();
+    let ssa = generate_ssa(program).unwrap();
+    let results = ssa
+        .interpret(vec![
+            InterpreterValue::field(FieldElement::from(7u128)),
+            InterpreterValue::bool(false),
+        ])
+        .unwrap();
+    assert_eq!(results, vec![InterpreterValue::field(FieldElement::from(9u128))]);
+
+    assert_ssa_snapshot!(ssa, @r"
+    brillig(inline) fn main f0 {
+      b0(v0: Field, v1: u1):
+        v4 = add v0, Field 1
+        v5 = allocate -> &mut Field
+        store v4 at v5
+        jmpif v1 then: b1(), else: b2()
+      b1():
+        v7 = call f1(v5) -> Field
+        jmp b3(v7)
+      b2():
+        v8 = call f1(v5) -> Field
+        v9 = add v8, Field 1
+        jmp b3(v9)
+      b3(v2: Field):
+        return v2
+    }
+    brillig(inline) fn read f1 {
+      b0(v0: &Field):
+        v1 = load v0 -> Field
+        return v1
+    }
+    ");
+}

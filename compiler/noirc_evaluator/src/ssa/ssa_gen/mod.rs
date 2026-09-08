@@ -268,7 +268,7 @@ impl FunctionContext<'_> {
 
     /// Codegen an identifier, automatically loading its value if it is mutable.
     fn codegen_ident(&mut self, ident: &ast::Ident) -> Values {
-        self.codegen_ident_reference(ident).map(|value| value.eval(self).into())
+        self.codegen_ident_reference(ident).map(|value| Tree::Leaf(value.eval_or_defer(self)))
     }
 
     fn codegen_literal(&mut self, literal: &ast::Literal) -> Result<Values, RuntimeError> {
@@ -458,30 +458,38 @@ impl FunctionContext<'_> {
                 if unary.skip {
                     return Ok(rhs);
                 }
-                let ast::Type::Reference(element_type, _) = &unary.result_type else {
+                let ast::Type::Reference(element_type, mutable) = &unary.result_type else {
                     panic!(
                         "codegen_unary: expected reference result type for a Reference unary op, got {}",
                         unary.result_type
                     );
                 };
+                let mutable = *mutable;
                 let element_types = Self::convert_type(element_type);
                 Ok(rhs.map_both(element_types, |rhs, element_type| {
                     match rhs {
-                        value::Value::Normal(value) => {
-                            // The cell uses the borrow's declared pointee type — the
-                            // value may carry a more-mutable reference type than the
-                            // borrow declares — and is always allocated as `&mut T`,
-                            // even for an immutable borrow: the initializing store
-                            // below is only valid through a mutable reference type,
-                            // and a `&mut T` value may be used wherever `&T` is
-                            // expected.
+                        // The `.into()` here converts the Value::Mutable into
+                        // a Value::Normal so it is no longer automatically dereferenced.
+                        value::Value::Mutable(reference, _) => reference.into(),
+                        // Borrowing a temporary. The cell uses the borrow's declared
+                        // pointee type — the value may carry a more-mutable reference
+                        // type than the borrow declares — and is always allocated as
+                        // `&mut T`, even for an immutable borrow: the initializing store
+                        // is only valid through a mutable reference type, and a `&mut T`
+                        // value may be used wherever `&T` is expected.
+                        rhs if mutable => {
+                            let value = rhs.eval(self);
                             let alloc = self.builder.insert_allocate(element_type);
                             self.builder.insert_store(alloc, value);
                             Tree::Leaf(value::Value::Normal(alloc))
                         }
-                        // The `.into()` here converts the Value::Mutable into
-                        // a Value::Normal so it is no longer automatically dereferenced.
-                        value::Value::Mutable(reference, _) => reference.into(),
+                        // Nothing can write through a `&T`, so the cell is only needed if
+                        // the reference is used as a value rather than dereferenced.
+                        rhs => Tree::Leaf(value::Value::deferred_borrow(
+                            rhs,
+                            element_type,
+                            self.builder.current_block(),
+                        )),
                     }
                 }))
             }
@@ -495,6 +503,11 @@ impl FunctionContext<'_> {
     fn dereference(&mut self, values: &Values, element_type: &ast::Type) -> Values {
         let element_types = Self::convert_type(element_type);
         values.map_both(element_types, |value, element_type| {
+            // A deferred borrow hands back the borrowed value directly, leaving its cell
+            // unmaterialized. The load would return the same value: the cell is write-once.
+            if let value::Value::DeferredBorrow(borrow) = &value {
+                return Tree::Leaf(borrow.borrowed());
+            }
             let reference = value.eval(self);
             self.builder.insert_load(reference, element_type).into()
         })
@@ -516,7 +529,7 @@ impl FunctionContext<'_> {
                 let references = self.codegen_expression(&unary.rhs)?;
                 let element_types = Self::convert_type(&unary.result_type);
                 Ok(references.map_both(element_types, |value, element_type| {
-                    let reference = value.eval_reference();
+                    let reference = value.eval_reference(self);
                     Tree::Leaf(value::Value::Mutable(reference, element_type))
                 }))
             }
@@ -1509,10 +1522,7 @@ impl FunctionContext<'_> {
                 Tree::Leaf(self.new_mutable_variable_with_type(value, element_type))
             });
         } else {
-            values = values.map(|value| {
-                let value = value.eval(self);
-                Tree::Leaf(value::Value::Normal(value))
-            });
+            values = values.map(|value| Tree::Leaf(value.eval_or_defer(self)));
         }
 
         self.define(let_expr.id, values);

@@ -1,6 +1,10 @@
+use std::cell::Cell;
+use std::rc::Rc;
+
 use iter_extended::vecmap;
 use itertools::Itertools;
 
+use crate::ssa::ir::basic_block::BasicBlockId;
 use crate::ssa::ir::types::Type;
 use crate::ssa::ir::value::ValueId as IrValueId;
 
@@ -33,9 +37,97 @@ pub(super) enum Value {
 
     /// A mutable variable that must be loaded as the given type before being used
     Mutable(IrValueId, Type),
+
+    /// An immutable borrow of a temporary, e.g. the `&(x + 1)` in `foo(&(x + 1))`,
+    /// whose backing cell has not been emitted yet. See [`DeferredBorrow`].
+    DeferredBorrow(Rc<DeferredBorrow>),
+}
+
+/// An immutable borrow of a temporary whose `allocate`/`store` pair is only emitted if
+/// the reference is used as a value.
+///
+/// Nothing can write through a `&T`, so the cell such a borrow needs is written exactly
+/// once, by the store that initializes it. That makes two consequences available to
+/// SSA generation:
+///
+/// - Dereferencing the borrow can hand back the borrowed value instead of loading from
+///   the cell, so a borrow that is only ever dereferenced needs no cell at all. A chain
+///   such as `&&&x` collapses to `x` with no instructions emitted.
+/// - When the cell *is* needed, it can be emitted in the block the borrow was written in
+///   rather than at the first use, so one cell serves every use no matter which block
+///   reaches it first.
+///
+/// Both rest on the pointee never changing, so neither is available for `&mut`. Handing
+/// back the borrowed value there would be wrong as soon as a write lands between two
+/// reads, and a read compiled before the write cannot be revisited: in
+/// `for _ in 0..2 { let b = *a; *a = b + 1; }` the read is compiled first and would be
+/// pinned to the pre-loop value for every iteration.
+#[derive(Debug)]
+pub(super) struct DeferredBorrow {
+    /// The borrowed value. Itself a `Value` so that nested borrows such as `&(&x)` can
+    /// stay deferred: the outer borrow only forces the inner one when it is materialized.
+    borrowed: Value,
+
+    /// The pointee type of the cell. This is the borrow's declared pointee type, which
+    /// can be less mutable than the borrowed value's own type.
+    element_type: Type,
+
+    /// The block the borrow expression was compiled in. Every use of the borrow is
+    /// dominated by this block, so emitting the cell here is valid wherever the first
+    /// use turns out to be.
+    block: BasicBlockId,
+
+    /// The cell, once emitted.
+    cell: Cell<Option<IrValueId>>,
+}
+
+impl DeferredBorrow {
+    /// The value this reference points at, without emitting a load. Valid because the
+    /// cell is write-once: the value is the same before and after materialization.
+    pub(super) fn borrowed(&self) -> Value {
+        self.borrowed.clone()
+    }
+
+    /// Emit the `allocate`/`store` pair backing this borrow, or return the cell from a
+    /// previous call. The pair is emitted at the end of the block the borrow was written
+    /// in, before that block's terminator.
+    fn materialize(&self, ctx: &mut FunctionContext) -> IrValueId {
+        if let Some(cell) = self.cell.get() {
+            return cell;
+        }
+
+        let resume_at = ctx.builder.current_block();
+        // The borrowed value may itself be a deferred borrow belonging to an earlier
+        // block, so switch back afterwards rather than assuming `eval` left us here.
+        ctx.builder.switch_to_block(self.block);
+        let borrowed = self.borrowed.clone().eval(ctx);
+        ctx.builder.switch_to_block(self.block);
+
+        let cell = ctx.builder.insert_allocate(self.element_type.clone());
+        ctx.builder.insert_store(cell, borrowed);
+        ctx.builder.switch_to_block(resume_at);
+
+        self.cell.set(Some(cell));
+        cell
+    }
 }
 
 impl Value {
+    /// An immutable borrow of the given value, deferred until something needs the
+    /// reference itself rather than the value behind it.
+    pub(super) fn deferred_borrow(
+        borrowed: Value,
+        element_type: Type,
+        block: BasicBlockId,
+    ) -> Value {
+        Value::DeferredBorrow(Rc::new(DeferredBorrow {
+            borrowed,
+            element_type,
+            block,
+            cell: Cell::new(None),
+        }))
+    }
+
     /// Evaluate a value, returning an `IrValue` from it.
     /// This has no effect on `Value::Normal`, but any variables will
     /// need to be loaded from memory
@@ -43,15 +135,26 @@ impl Value {
         match self {
             Value::Normal(value) => value,
             Value::Mutable(address, typ) => ctx.builder.insert_load(address, typ),
+            Value::DeferredBorrow(borrow) => borrow.materialize(ctx),
+        }
+    }
+
+    /// Like [`Self::eval`], but leaves a deferred borrow deferred: the reference is only
+    /// being moved around, which does not need the cell to exist.
+    pub(super) fn eval_or_defer(self, ctx: &mut FunctionContext) -> Value {
+        match self {
+            Value::DeferredBorrow(_) => self,
+            other => Value::Normal(other.eval(ctx)),
         }
     }
 
     /// Evaluates the value, returning a reference to the mutable variable found within
     /// if possible. Compared to .eval, this method will not load from self if it is `Value::Mutable`.
-    pub(super) fn eval_reference(self) -> IrValueId {
+    pub(super) fn eval_reference(self, ctx: &mut FunctionContext) -> IrValueId {
         match self {
             Value::Normal(value) => value,
             Value::Mutable(address, _) => address,
+            Value::DeferredBorrow(borrow) => borrow.materialize(ctx),
         }
     }
 }
