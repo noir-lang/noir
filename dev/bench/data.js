@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788867087233,
+  "lastUpdate": 1788867278092,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17881,48 +17881,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "36b2691e9b58445a749daeebdfa825c52a1c6338",
-          "message": "chore(ci): run acvm_js browser tests in the Playwright container (#13544)",
-          "timestamp": "2026-08-20T14:12:48Z",
-          "tree_id": "485362c5e57a90cee0c21ec739bd2b18e0f86ba5",
-          "url": "https://github.com/noir-lang/noir/commit/36b2691e9b58445a749daeebdfa825c52a1c6338"
-        },
-        "date": 1787236708462,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 126922,
-            "range": "± 341",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 112929,
-            "range": "± 2632",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3042776,
-            "range": "± 8413",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "309f40ff30eb032624ab27b57b3215620d4232f8",
           "message": "fix(acir_gen): emit an unsatisfiable constraint for unreachable terminators (#13541)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
           "timestamp": "2026-08-20T17:05:25Z",
@@ -19964,6 +19922,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2655961,
             "range": "± 2788",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9fa14162ffc8a8df02b3a89830a4212cdfdff319",
+          "message": "chore(deps-dev): bump mocha from 11.8.0 to 12.0.0 in the testing group across 1 directory (#13621)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-09-08T11:11:39Z",
+          "tree_id": "18b53e82efeab022643a2c3c2f4e1e8f6dcf5ba9",
+          "url": "https://github.com/noir-lang/noir/commit/9fa14162ffc8a8df02b3a89830a4212cdfdff319"
+        },
+        "date": 1788867195796,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 167543,
+            "range": "± 2312",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136473,
+            "range": "± 460",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2654789,
+            "range": "± 2045",
             "unit": "ns/iter"
           }
         ]
