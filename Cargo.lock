@@ -3338,7 +3338,6 @@ dependencies = [
  "noirc_artifacts",
  "noirc_driver",
  "noirc_errors",
- "noirc_printable_type",
  "serde",
  "serde_json",
  "thiserror 2.0.20",
@@ -3382,7 +3381,6 @@ dependencies = [
 name = "noir_ast_fuzzer_fuzz"
 version = "1.0.0-rc.0"
 dependencies = [
- "acir",
  "arbitrary",
  "arbtest",
  "color-eyre",
@@ -3445,7 +3443,6 @@ dependencies = [
 name = "noir_inspector"
 version = "1.0.0-rc.0"
 dependencies = [
- "acir",
  "assert_cmd",
  "bn254_blackbox_solver",
  "clap",
@@ -3456,8 +3453,6 @@ dependencies = [
  "noirc_artifacts",
  "noirc_artifacts_info",
  "predicates",
- "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -3537,8 +3532,6 @@ dependencies = [
  "noirc_evaluator",
  "serde_json",
  "tempfile",
- "thiserror 2.0.20",
- "toml 0.8.23",
  "tracing-subscriber",
 ]
 
@@ -3668,8 +3661,6 @@ dependencies = [
 name = "noirc_artifacts_info"
 version = "1.0.0-rc.0"
 dependencies = [
- "acir",
- "acvm",
  "iter-extended",
  "noirc_artifacts",
  "prettytable-rs",
@@ -5538,7 +5529,6 @@ dependencies = [
  "k256",
  "libfuzzer-sys",
  "log",
- "noir_ssa_executor",
  "noir_ssa_fuzzer",
  "noirc_artifacts",
  "noirc_driver",
