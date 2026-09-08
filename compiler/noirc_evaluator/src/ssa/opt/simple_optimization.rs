@@ -179,7 +179,7 @@ impl SimpleOptimizationContext<'_, '_> {
                     // This for example can happen with a `v2 = make_array [v1]` that got turned
                     // into `v2 = make_array [Field 0]`: `v2` didn't get a new result (it's not `v3`),
                     // but an instruction that uses `v2` could get simplified now when it wasn't before
-                    // (an example is a call to `posiedon2_permutation(v2)`)
+                    // (an example is a call to `poseidon2_permutation(v2)`)
                     self.dirty_values.insert(results[i]);
                 }
 

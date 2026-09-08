@@ -26,9 +26,6 @@ use crate::foreign_calls::ForeignCallError;
 /// Errors covering situations where a package cannot be compiled.
 #[derive(Debug, Error)]
 pub enum CompileError {
-    #[error("Package `{0}` has type `lib` but only `bin` types can be compiled")]
-    LibraryCrate(CrateName),
-
     #[error("Package `{0}` is expected to have a `main` function but it does not")]
     MissingMainFunction(CrateName),
 

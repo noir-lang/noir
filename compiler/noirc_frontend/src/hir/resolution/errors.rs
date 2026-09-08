@@ -133,8 +133,6 @@ pub enum ResolverError {
     },
     #[error("Global failed to evaluate")]
     UnevaluatedGlobalType { location: Location },
-    #[error("Globals used in a type position must be non-negative")]
-    NegativeGlobalType { location: Location, global_value: Value },
     #[error("Globals used in a type position must be integers")]
     NonIntegralGlobalType { location: Location, global_value: Value },
     #[error("Global value `{global_value}` does not fit its types's range")]
@@ -217,10 +215,6 @@ pub enum ResolverError {
     InvalidNumericAliasExpression { location: Location },
     #[error("expected numeric expressions, got {typ}")]
     ExpectedNumericExpression { typ: String, location: Location },
-    #[error(
-        "Indexing an array or vector with a type other than `u32` is deprecated and will soon be an error"
-    )]
-    NonU32Index { location: Location },
     #[error(
         "The type parameter `{ident}` is not constrained by the impl trait, self type, or predicates"
     )]
@@ -307,7 +301,6 @@ impl ResolverError {
             | ResolverError::MutableGlobal { location }
             | ResolverError::UnspecifiedGlobalType { pattern_location: location, .. }
             | ResolverError::UnevaluatedGlobalType { location }
-            | ResolverError::NegativeGlobalType { location, .. }
             | ResolverError::NonIntegralGlobalType { location, .. }
             | ResolverError::GlobalDoesNotFitItsType { location, .. }
             | ResolverError::SelfReferentialType { location }
@@ -334,8 +327,7 @@ impl ResolverError {
             | ResolverError::VariableAlreadyDefinedInPattern { new_location: location, .. }
             | ResolverError::ExpectedNumericExpression { location, .. }
             | ResolverError::InvalidNumericAliasExpression { location } => *location,
-            ResolverError::NonU32Index { location }
-            | ResolverError::NoPredicatesAttributeOnUnconstrained { location, .. }
+            ResolverError::NoPredicatesAttributeOnUnconstrained { location, .. }
             | ResolverError::NoPredicatesAttributeOnEntryPoint { location, .. }
             | ResolverError::FoldAttributeOnUnconstrained { location, .. }
             | ResolverError::InlineNeverAttributeOnConstrained { location, .. }
@@ -751,13 +743,6 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *location,
                 )
             }
-            ResolverError::NegativeGlobalType { location, global_value } => {
-                Diagnostic::simple_error(
-                    "Globals used in a type position must be non-negative".to_string(),
-                    format!("But found value `{global_value:?}`"),
-                    *location,
-                )
-            }
             ResolverError::NonIntegralGlobalType { location, global_value } => {
                 Diagnostic::simple_error(
                     "Globals used in a type position must be integers".to_string(),
@@ -1004,13 +989,6 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             ResolverError::ExpectedNumericExpression { typ, location } => {
                 Diagnostic::simple_error(
                     format!("Expected a numeric expression, but got `{typ}`"),
-                    String::new(),
-                    *location,
-                )
-            },
-            ResolverError::NonU32Index { location } => {
-                Diagnostic::simple_warning(
-                    "Indexing an array or vector with a type other than `u32` is deprecated and will soon be an error".to_string(),
                     String::new(),
                     *location,
                 )

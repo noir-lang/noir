@@ -202,12 +202,10 @@ pub(super) fn keyword_builtin_function(keyword: &Keyword) -> Option<BuiltInFunct
         | Keyword::Break
         | Keyword::CallData
         | Keyword::Comptime
-        | Keyword::Constrain
         | Keyword::Constrained
         | Keyword::Continue
         | Keyword::Contract
         | Keyword::Crate
-        | Keyword::Dep
         | Keyword::Dual
         | Keyword::Else
         | Keyword::Enum

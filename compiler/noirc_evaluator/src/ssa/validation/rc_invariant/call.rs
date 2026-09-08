@@ -104,6 +104,29 @@ fn verify_function(function: &Function, needs_check: &impl Fn(FunctionId) -> boo
                 .filter(|&arg| function.dfg.type_of_value(arg).is_array())
                 .collect();
             for arg in array_args {
+                // See the same check in [`super::array_set`]: a global's storage outlives the
+                // function, so only an `inc_rc` can keep a callee's in-place mutation of it
+                // unobservable.
+                let alias_set = ctx.alias_set_for(arg, block_id, idx);
+                if let Some(global) =
+                    ctx.unprotected_global_for_source(&alias_set, arg, block_id, idx)
+                {
+                    let message = format!(
+                        "call in function {} passes array {arg}, whose storage may be that of \
+                         global {global}, to a callee that may mutate it, with no `inc_rc` \
+                         protecting it on that path; a global is live for the whole program, \
+                         so an in-place mutation would be observable",
+                        function.name(),
+                    );
+                    return Err(RuntimeError::CallArgAliasViolation {
+                        message,
+                        call_stack: function.dfg.get_instruction_call_stack(instruction_id),
+                        aliased_use_call_stack: function
+                            .dfg
+                            .get_instruction_call_stack(instruction_id),
+                    });
+                }
+
                 let Some(hit) = ctx.aliased_use_for_source(
                     arg,
                     block_id,

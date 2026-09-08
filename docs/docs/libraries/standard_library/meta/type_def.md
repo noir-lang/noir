@@ -32,8 +32,9 @@ if an incorrect amount of generic arguments are given for this type.
 
 #include_code generics noir_stdlib/src/meta/type_def.nr rust
 
-Returns each generic on this type definition. Each generic is represented as a tuple containing the type,
-and an optional containing the numeric type if it's a numeric generic.
+Returns each generic on this type definition as a `TypeGeneric`. Use `typ()` to get the
+generic's type variable. For a numeric generic, `numeric_type()` contains its numeric type;
+for other generics, it returns `None`.
 
 Example:
 
@@ -49,11 +50,11 @@ comptime fn example(foo: TypeDefinition) {
 
     // Fails because `T` isn't in scope
     // let t = quote { T }.as_type();
-    // assert_eq(foo.generics()[0].0, t);
-    assert(foo.generics()[0].1.is_none());
+    // assert_eq(foo.generics()[0].typ(), t);
+    assert(foo.generics()[0].numeric_type().is_none());
 
     // Last generic is numeric, so we have the numeric type available to us
-    assert(foo.generics()[2].1.is_some());
+    assert(foo.generics()[2].numeric_type().is_some());
 }
 ```
 
@@ -61,18 +62,20 @@ comptime fn example(foo: TypeDefinition) {
 
 #include_code fields noir_stdlib/src/meta/type_def.nr rust
 
-Returns (name, type, visibility) tuples of each field in this struct type.
-Any generic types used in each field type is automatically substituted with the
-provided generic arguments.
+Returns each field in this struct type as a `StructField`. Use `name()` and `typ()` to inspect
+its name and type. `visibility()` returns the field's [`ItemVisibility`](./item_visibility.md).
+Generic types used in each field type are automatically substituted with the provided generic
+arguments.
 
 ### fields_as_written
 
 #include_code fields_as_written noir_stdlib/src/meta/type_def.nr rust
 
-Returns (name, type, visibility) tuples of each field in this struct type. Each type is as-is
-with any generic arguments unchanged. Unless the field types are not needed,
-users should generally prefer to use `TypeDefinition::fields` over this
-function if possible.
+Returns each field in this struct type as a `StructField`. Use `name()` and `typ()` to inspect
+its name and type. `visibility()` returns the field's [`ItemVisibility`](./item_visibility.md).
+Each type is returned as written, with any generic arguments unchanged. Unless the field types
+are not needed, users should generally prefer to use `TypeDefinition::fields` over this function
+if possible.
 
 ### has_named_attribute
 

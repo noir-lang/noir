@@ -174,18 +174,11 @@ impl Parser<'_> {
 
     /// `PathKind`
     ///     = '::'
-    ///     | 'dep' '::'
     ///     | 'crate' '::'
     ///     | 'super' '::'
     ///     | nothing
     pub(super) fn parse_path_kind(&mut self) -> PathKind {
-        let start_location = self.current_token_location;
-        let mut deprecated_dep_found = false;
-
         let mut kind = if self.at(&Token::DoubleColon) {
-            PathKind::Absolute
-        } else if self.eat_keyword(Keyword::Dep) {
-            deprecated_dep_found = true;
             PathKind::Absolute
         } else if self.eat_keyword(Keyword::Crate) {
             PathKind::Crate
@@ -209,16 +202,6 @@ impl Parser<'_> {
                 self.eat_or_error(Token::DoubleColon);
                 *extras += 1;
             }
-        }
-
-        if deprecated_dep_found {
-            // In the error message, try to include the actual dependency being imported
-            let dependency_name = if let Token::Ident(name) = self.token.token() {
-                name.clone()
-            } else {
-                "dependency".to_string()
-            };
-            self.push_error(ParserErrorReason::DeprecatedDep(dependency_name), start_location);
         }
 
         kind

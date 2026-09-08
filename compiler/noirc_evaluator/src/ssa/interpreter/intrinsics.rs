@@ -515,7 +515,9 @@ impl<W: Write> Interpreter<'_, W> {
     /// interpreter agrees with Brillig execution. In a constrained (ACIR) context reference counts
     /// are not tracked, so we always copy.
     fn vector_mutates_in_place(&self, vector: &ArrayValue) -> bool {
-        self.in_unconstrained_context() && *vector.rc.borrow() == 1
+        self.in_unconstrained_context()
+            && *vector.rc.borrow() == 1
+            && !self.is_global_storage(vector.elements.as_ptr() as StorageIdentity)
     }
 
     /// Apply `f` to a vector's backing elements, mutating them in place when

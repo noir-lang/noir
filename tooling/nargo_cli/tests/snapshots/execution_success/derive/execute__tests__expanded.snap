@@ -20,8 +20,13 @@ impl DoNothing for MyStruct {
 
 comptime fn derive_do_nothing(s: TypeDefinition) -> Quoted {
     let typ: Type = s.as_type();
-    let generics: Quoted =
-        s.generics().map(|g: (Type, Option<Type>)| -> Quoted quote { $g }).join(quote { ,  });
+    let generics: Quoted = s
+        .generics()
+        .map(|generic: std::meta::type_def::TypeGeneric| -> Quoted {
+            let typ: Type = generic.typ();
+            quote { $typ }
+        })
+        .join(quote { ,  });
     quote {
         impl<$generics> DoNothing for $typ {
             fn do_nothing(_self: Self) {

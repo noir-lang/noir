@@ -9,7 +9,6 @@ use crate::{
 #[derive(Debug)]
 pub enum MonomorphizationError {
     UnknownArrayLength { err: TypeCheckError, location: Location },
-    UnknownConstant { location: Location },
     NoDefaultType { location: Location },
     InternalError { message: &'static str, location: Location },
     InterpreterError(InterpreterError),
@@ -47,7 +46,6 @@ impl MonomorphizationError {
     fn location(&self) -> Location {
         match self {
             MonomorphizationError::UnknownArrayLength { location, .. }
-            | MonomorphizationError::UnknownConstant { location }
             | MonomorphizationError::InternalError { location, .. }
             | MonomorphizationError::ComptimeFnInRuntimeCode { location, .. }
             | MonomorphizationError::ComptimeTypeInRuntimeCode { location, .. }
@@ -96,9 +94,6 @@ impl From<MonomorphizationError> for CustomDiagnostic {
                 let message = "Invalid array length".into();
                 let secondary = err.to_string();
                 return CustomDiagnostic::simple_error(message, secondary, *location);
-            }
-            MonomorphizationError::UnknownConstant { .. } => {
-                "Could not resolve constant".to_string()
             }
             MonomorphizationError::CheckedTransmuteFailed { actual, expected, .. } => {
                 format!("checked_transmute failed: expected `{expected}` but found `{actual}`")

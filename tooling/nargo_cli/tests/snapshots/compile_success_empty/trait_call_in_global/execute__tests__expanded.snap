@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-global s: BoundedVec<Field, 2> = BoundedVec::<Field, 2> { len: 1, storage: [0x00, 0x00] };
+global s: BoundedVec<Field, 2> = <BoundedVec<Field, 2> as From<[Field; 1]>>::from([0_Field]);
 
 fn main() {
     let _: BoundedVec<Field, 2> = s;

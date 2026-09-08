@@ -303,7 +303,7 @@ impl<'f> Validator<'f> {
                     panic!("ArrayGet/ArraySet index must be u32");
                 }
                 let array_type = dfg.type_of_value(*array);
-                if !array_type.contains_an_array() {
+                if !array_type.is_array() {
                     panic!("ArrayGet/ArraySet must operate on an array; got {array_type}");
                 }
                 assert!(!array_type.is_nested_vector(), "ICE: Nested vector type is not supported");
@@ -3676,5 +3676,37 @@ mod tests {
         ";
         let ssa = Ssa::from_str_no_validation(src).unwrap();
         super::validate_terminators(ssa.main());
+    }
+
+    #[test]
+    #[should_panic(expected = "ArrayGet/ArraySet must operate on an array")]
+    fn disallows_array_get_on_reference_to_array() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v1 = make_array [Field 11, Field 22, Field 33] : [Field; 3]
+            v2 = allocate -> &mut [Field; 3]
+            store v1 at v2
+            v3 = array_get v2, index u32 0 -> Field // v2 is &mut [Field; 3]
+            return v3
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "ArrayGet/ArraySet must operate on an array")]
+    fn disallows_array_set_on_reference_to_array() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v1 = make_array [Field 11, Field 22, Field 33] : [Field; 3]
+            v2 = allocate -> &mut [Field; 3]
+            store v1 at v2
+            v3 = array_set v2, index u32 0, value Field 44 // v2 is &mut [Field; 3]
+            return v3
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
     }
 }

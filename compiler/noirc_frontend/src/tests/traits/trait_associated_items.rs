@@ -2667,7 +2667,7 @@ fn explicit_type_mismatch_at_trait_method_call_with_non_unit_associated_constant
 /// binds `<T as Serialize>::N` to `0`, so the impl method's instantiated
 /// return type contains `(N * 0)` rather than the unbound-`_assoc * N` shape
 /// the original bug exposed. The user's `[u32; 0]` annotation does not
-/// simplify against `[u32; (N * 0)]` (the canonicaliser does not currently
+/// simplify against `[u32; (N * 0)]` (the canonicalizer does not currently
 /// reduce `X * 0` to `0`), but the error is precise about which factor came
 /// from the impl, which is the property we want to lock in: a wrong but
 /// associated-constant-aware error rather than a silent acceptance based on

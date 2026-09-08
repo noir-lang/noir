@@ -3939,4 +3939,69 @@ mod test {
         );
         assert_ssa_does_not_change(&src, |ssa| ssa.fold_constants_using_constraints(MIN_ITER));
     }
+
+    /// Folding a constant-argument Brillig call evaluates it in the compiler's own SSA
+    /// interpreter, and that evaluation is speculative: it happens for a call the compiled
+    /// program may never perform, on a path it may never take. It must therefore leave nothing
+    /// behind for the next call folded with the same interpreter.
+    ///
+    /// Here `evil` writes `Field 99` into the global while it is folded, and `read` — folded
+    /// next — must still see `Field 1`. The two calls are on mutually exclusive `jmpif` arms,
+    /// so no execution performs both. A snapshot assertion alone would not have caught the leak
+    /// (`Field 99` is a perfectly well-formed constant); interpreting before and after does.
+    #[test]
+    fn folding_a_call_does_not_leak_a_global_mutation_into_the_next_call() {
+        let src = "
+        g0 = make_array [Field 1, Field 2] : [Field; 2]
+
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            v1 = make_array [Field 5, Field 6] : [Field; 2]
+            v2 = call f1(v1) -> Field
+            jmp b3(v2)
+          b2():
+            v3 = call f2(u32 0) -> Field
+            jmp b3(v3)
+          b3(v4: Field):
+            return v4
+        }
+
+        brillig(inline) fn evil f1 {
+          b0(v0: [Field; 2]):
+            v1 = array_set v0, index u32 0, value Field 7
+            v2 = array_set g0, index u32 0, value Field 99
+            v3 = array_get v1, index u32 0 -> Field
+            v4 = array_get v2, index u32 0 -> Field
+            v5 = add v3, v4
+            return v5
+        }
+
+        brillig(inline) fn read f2 {
+          b0(v0: u32):
+            v1 = array_get g0, index v0 -> Field
+            return v1
+        }
+        ";
+
+        // `v0 = false` takes the `else` arm, which reads the global.
+        let (ssa, result) = assert_pass_does_not_affect_execution(
+            Ssa::from_str(src).unwrap(),
+            vec![Value::bool(false)],
+            |ssa| ssa.fold_constants(DEFAULT_MAX_ITER),
+        );
+        assert_eq!(
+            result,
+            Ok(vec![Value::field(1_u128.into())]),
+            "the reader observes the global's own value"
+        );
+
+        // `evil`'s own write is still visible to `evil` itself: it reads back `Field 7 + Field 99`.
+        assert_eq!(
+            ssa.interpret(vec![Value::bool(true)]),
+            Ok(vec![Value::field(106_u128.into())]),
+            "the mutator observes its own copy"
+        );
+    }
 }
