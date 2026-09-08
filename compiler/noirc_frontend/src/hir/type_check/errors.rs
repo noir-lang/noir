@@ -153,10 +153,6 @@ pub enum TypeCheckError {
     FieldNot { location: Location },
     #[error("Fields cannot be compared, try casting to an integer first")]
     FieldComparison { location: Location },
-    #[error(
-        "The bit count in a bit-shift operation must fit in a u8, try casting the right hand side into a u8 first"
-    )]
-    InvalidShiftSize { location: Location },
     #[error("Cannot `bool {op} bool`")]
     InvalidBoolInfixOp { op: BinaryOpKind, location: Location },
     #[error("Error with additional context")]
@@ -248,8 +244,6 @@ pub enum TypeCheckError {
     NoSuchNamedTypeArg { name: Ident, item: String },
     #[error("`{item}` is missing the associated type `{name}`")]
     MissingNamedTypeArg { name: Rc<String>, item: String, location: Location },
-    #[error("Internal compiler error: type unspecified for value")]
-    UnspecifiedType { location: Location },
     #[error("Binding `{typ}` here to the `_` inside would create a cyclic type")]
     CyclicType { typ: Type, location: Location },
     #[error("Type annotations required before indexing this array or vector")]
@@ -371,7 +365,6 @@ impl TypeCheckError {
             | TypeCheckError::FieldModulo { location }
             | TypeCheckError::FieldNot { location }
             | TypeCheckError::FieldComparison { location }
-            | TypeCheckError::InvalidShiftSize { location }
             | TypeCheckError::InvalidBoolInfixOp { location, .. }
             | TypeCheckError::NonHomogeneousArray { first_location: location, .. }
             | TypeCheckError::TypeAnnotationsNeededForMethodCall { location }
@@ -400,7 +393,6 @@ impl TypeCheckError {
             | TypeCheckError::StringIndexAssign { location }
             | TypeCheckError::MacroReturningNonExpr { location, .. }
             | TypeCheckError::MissingNamedTypeArg { location, .. }
-            | TypeCheckError::UnspecifiedType { location }
             | TypeCheckError::CyclicType { location, .. }
             | TypeCheckError::TypeAnnotationsNeededForIndex { location }
             | TypeCheckError::UnnecessaryUnsafeBlock { location }
@@ -625,7 +617,6 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::UnconstrainedEnumReturnToConstrained { location }
             | TypeCheckError::NonConstantEvaluated { location, .. }
             | TypeCheckError::StringIndexAssign { location }
-            | TypeCheckError::InvalidShiftSize { location }
             | TypeCheckError::VerifyProofWithTypeInBrillig { location } => {
                 Diagnostic::simple_error(error.to_string(), String::new(), *location)
             }
@@ -825,9 +816,6 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 Diagnostic::simple_error(error.to_string(), String::new(), *location)
             }
             TypeCheckError::UnsafeFn { location } => {
-                Diagnostic::simple_error(error.to_string(), String::new(), *location)
-            }
-            TypeCheckError::UnspecifiedType { location } => {
                 Diagnostic::simple_error(error.to_string(), String::new(), *location)
             }
             TypeCheckError::CyclicType { typ: _, location } => {
