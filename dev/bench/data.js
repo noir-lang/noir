@@ -1,107 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788868801118,
+  "lastUpdate": 1788868849108,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "309f40ff30eb032624ab27b57b3215620d4232f8",
-          "message": "fix(acir_gen): emit an unsatisfiable constraint for unreachable terminators (#13541)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
-          "timestamp": "2026-08-20T17:05:25Z",
-          "tree_id": "c5ce1c4bfa79ebd6eb6dff16e21a6d8cb9b91e6a",
-          "url": "https://github.com/noir-lang/noir/commit/309f40ff30eb032624ab27b57b3215620d4232f8"
-        },
-        "date": 1787248165768,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 313.85,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 548.49,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 524.69,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 361.47,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 361.47,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 362.34,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 361.47,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 5800,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 5800,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 363.06,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 870.83,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 1340,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 361.47,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 103.76,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 149.12,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -3669,6 +3570,40 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/9fa14162ffc8a8df02b3a89830a4212cdfdff319"
         },
         "date": 1788867420983,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore_depth_10",
+            "value": 106.81,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 150.52,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "464ccb70659bb04b301645ccaeeaa17fdc384816",
+          "message": "chore(deps-dev): bump the linter group with 2 updates (#13619)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-09-08T11:33:25Z",
+          "tree_id": "86149388b52644e7430a31f00f9d867072cea8ed",
+          "url": "https://github.com/noir-lang/noir/commit/464ccb70659bb04b301645ccaeeaa17fdc384816"
+        },
+        "date": 1788868744618,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
