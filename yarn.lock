@@ -2051,7 +2051,7 @@ __metadata:
     eslint-plugin-prettier: "npm:^5.5.6"
     mocha: "npm:^11.8.0"
     prettier: "npm:3.9.6"
-    tsx: "npm:^4.23.12"
+    tsx: "npm:^4.23.13"
     typescript: "npm:^6.0.3"
   languageName: unknown
   linkType: soft
@@ -2073,7 +2073,7 @@ __metadata:
     mocha: "npm:^11.8.0"
     prettier: "npm:3.9.6"
     ts-command-line-args: "npm:^2.5.1"
-    tsx: "npm:^4.23.12"
+    tsx: "npm:^4.23.13"
     typescript: "npm:^6.0.3"
   bin:
     noir-codegen: lib/main.js
@@ -2099,7 +2099,7 @@ __metadata:
     pako: "npm:^3.0.1"
     prettier: "npm:3.9.6"
     tsc-multi: "npm:^1.1.0"
-    tsx: "npm:^4.23.12"
+    tsx: "npm:^4.23.13"
     typescript: "npm:^6.0.3"
   languageName: unknown
   linkType: soft
@@ -2143,12 +2143,12 @@ __metadata:
     readable-stream: "npm:^4.7.0"
     sinon: "npm:^22.1.0"
     ts-loader: "npm:^9.6.2"
-    tsx: "npm:^4.23.12"
+    tsx: "npm:^4.23.13"
     typescript: "npm:^6.0.3"
     unzipit: "npm:^2.0.3"
     url: "npm:^0.11.4"
     webpack: "npm:^5.109.2"
-    webpack-cli: "npm:^7.2.2"
+    webpack-cli: "npm:^7.2.3"
     webpack-dev-server: "npm:^6.0.0"
   languageName: unknown
   linkType: soft
@@ -2164,7 +2164,7 @@ __metadata:
     "@web/test-runner-playwright": "npm:^1.0.0"
     eslint: "npm:^10.9.1"
     mocha: "npm:^11.8.0"
-    tsx: "npm:^4.23.12"
+    tsx: "npm:^4.23.13"
   languageName: unknown
   linkType: soft
 
@@ -2182,7 +2182,7 @@ __metadata:
     globals: "npm:^17.11.0"
     mocha: "npm:^11.8.0"
     prettier: "npm:3.9.6"
-    tsx: "npm:^4.23.12"
+    tsx: "npm:^4.23.13"
     typescript: "npm:^6.0.3"
   languageName: unknown
   linkType: soft
@@ -11862,9 +11862,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"tsx@npm:^4.23.12":
-  version: 4.23.12
-  resolution: "tsx@npm:4.23.12"
+"tsx@npm:^4.23.13":
+  version: 4.23.13
+  resolution: "tsx@npm:4.23.13"
   dependencies:
     esbuild: "npm:~0.28.0"
     fsevents: "npm:~2.3.3"
@@ -11873,7 +11873,7 @@ __metadata:
       optional: true
   bin:
     tsx: dist/cli.mjs
-  checksum: 10/167a5571cb211aff257d200cd75a1003b1e0e59d641c1e6ff99f6cdfada46ff6ce311e105722699b4763feb1371b2d8084bcc413c7e54aae3761c852817dc0b0
+  checksum: 10/064c7de2b3ad923fee8feeffc5698738a75f10d98d8a024c6c8efac5351a7825e84aa7a933778145c4f769405f8a95f8f49289a7bff698ba79fd92ff67e26289
   languageName: node
   linkType: hard
 
@@ -12330,9 +12330,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"webpack-cli@npm:^7.2.2":
-  version: 7.2.2
-  resolution: "webpack-cli@npm:7.2.2"
+"webpack-cli@npm:^7.2.3":
+  version: 7.2.3
+  resolution: "webpack-cli@npm:7.2.3"
   dependencies:
     "@discoveryjs/json-ext": "npm:^1.1.0"
     commander: "npm:^14.0.3"
@@ -12345,7 +12345,7 @@ __metadata:
   peerDependencies:
     js-yaml: ^4.0.0 || ^5.0.0
     json5: ^2.2.3
-    toml: ^3.0.0 || ^4.0.0
+    toml: ^3.0.0 || ^4.0.0 || ^5.0.0
     webpack: ^5.101.0
     webpack-bundle-analyzer: ^4.0.0 || ^5.0.0
     webpack-dev-server: ^5.0.0 || ^6.0.0
@@ -12362,7 +12362,7 @@ __metadata:
       optional: true
   bin:
     webpack-cli: bin/cli.js
-  checksum: 10/c010aabe502e2c1caa1fa7ea42ce4b107b96e47ed5b2b3761283ef1c9bd508b3f51e6cce7365833346a85ae0dd50419160c2be0001f37d83a950269073e738a7
+  checksum: 10/3a6dbe625757567523a0ee0c8c9d225adf79c2482c13c295893aef8b59a5a1d3721353e0ca2305e30a862d41681bf15db8df94394fd0a73962b20c902afd268f
   languageName: node
   linkType: hard
 
