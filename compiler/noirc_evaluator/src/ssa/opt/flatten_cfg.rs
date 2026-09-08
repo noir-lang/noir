@@ -307,6 +307,16 @@ pub(crate) struct Context<'f> {
     /// because they have been replaced by an optimized merged array. Doing it during
     /// flattening rather than leaving it to DIE means we avoid leaving a constraint behind.
     superseded_array_sets: HashSet<InstructionId>,
+
+    /// Addresses to which this flattening pass has already emitted at least one `Store`.
+    ///
+    /// [`Self::try_optimize_store_of_array_set`] rebases the merged `array_set` onto
+    /// `previous_value` — a fresh `Load` inserted by flattening. That is only sound when
+    /// `previous_value` sees the same memory snapshot as the source `array_set`'s base.
+    /// Once any `Store` to `address` has landed the two loads read different snapshots, so
+    /// the optimization would silently drop earlier writes; the fallback full-array
+    /// `IfElse` handles this correctly.
+    stored_addresses: HashSet<ValueId>,
 }
 
 /// Tracks the origin of a merge result to collapse redundant nested merges.
@@ -420,6 +430,7 @@ impl<'f> Context<'f> {
             target_block,
             no_predicate: false,
             superseded_array_sets: HashSet::default(),
+            stored_addresses: HashSet::default(),
         }
     }
 
@@ -1190,6 +1201,15 @@ impl<'f> Context<'f> {
         condition: ValueId,
         call_stack: CallStackId,
     ) -> Option<ValueId> {
+        // Once any `Store` to `address` has already been emitted this pass, `previous_value`
+        // (the fresh `Load` this flattening step just inserted) sees a different memory
+        // snapshot from any `array_set` base still keyed off an older load. Rebasing the
+        // per-element merge onto `previous_value` would then silently drop the earlier
+        // store's writes — see the fallback full-array `IfElse` at the caller.
+        if self.stored_addresses.contains(&address) {
+            return None;
+        }
+
         // Each array_set is emitted under `enable_side_effects u1 1` so that
         // `remove_unreachable_instructions` won't zero it out. ArraySet has
         // `requires_acir_gen_predicate = true`, but the merged value (IfElse)
@@ -1425,6 +1445,14 @@ impl<'f> Context<'f> {
         let instruction = self.handle_instruction_side_effects(instruction, call_stack);
 
         let instruction_is_allocate = matches!(&instruction, Instruction::Allocate);
+        // Poison [`Self::try_optimize_store_of_array_set`] for this address before the
+        // next `Store` we see — future `array_set` bases keyed off older loads no longer
+        // see the same snapshot as a fresh `previous_value` load.
+        let stored_address = if let Instruction::Store { address, .. } = &instruction {
+            Some(*address)
+        } else {
+            None
+        };
         let results = self.inserter.push_instruction_value(
             instruction,
             id,
@@ -1437,6 +1465,9 @@ impl<'f> Context<'f> {
         // values across branches for it later.
         if instruction_is_allocate {
             self.local_allocations.insert(results.first());
+        }
+        if let Some(address) = stored_address {
+            self.stored_addresses.insert(address);
         }
     }
 
@@ -2835,6 +2866,50 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn flatten_preserves_store_of_array_set_with_stale_base_load() {
+        // Regression for AztecProtocol/noir-claude#1513: `try_optimize_store_of_array_set`
+        // accepted an `array_set` whose base was loaded from the same address, but did not
+        // require that that older load see the same memory snapshot as the fresh
+        // `previous_value` load flattening emits. When an earlier store to the same address
+        // has already landed, the two loads read different snapshots, and rebasing the
+        // per-element merge onto `previous_value` silently drops the earlier store's write.
+        //
+        // Here both stores in `b1` use `v3` (the single pre-branch load) as their base. The
+        // second store overwrites the first at index 0 but must leave slot 1 alone, so the
+        // final array is `[42, 2]`. Under the buggy optimization it becomes `[42, 99]` — the
+        // stale `99` from the intermediate `store v4 at v2` survives because the optimizer
+        // rebuilds `v5`'s merge on the fresh load, which already reflects `v4`.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 2], v1: u1):
+            v2 = allocate -> &mut [Field; 2]
+            store v0 at v2
+            jmpif v1 then: b1(), else: b2()
+          b1():
+            v3 = load v2 -> [Field; 2]
+            v4 = array_set v3, index u32 1, value Field 99
+            store v4 at v2
+            v5 = array_set v3, index u32 0, value Field 42
+            store v5 at v2
+            jmp b2()
+          b2():
+            v6 = load v2 -> [Field; 2]
+            return v6
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let inputs = vec![
+            InterpreterValue::array(
+                vec![InterpreterValue::field(1u32.into()), InterpreterValue::field(2u32.into())],
+                vec![Type::field()],
+            ),
+            InterpreterValue::from_constant(1_u128.into(), NumericType::bool()).unwrap().into(),
+        ];
+        assert_pass_does_not_affect_execution(ssa, inputs, |ssa| ssa.flatten_cfg());
     }
 
     #[test]
