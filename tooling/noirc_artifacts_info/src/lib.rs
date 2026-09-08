@@ -1,3 +1,5 @@
+#![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
+
 use iter_extended::vecmap;
 use noirc_artifacts::program::ProgramArtifact;
 use prettytable::{Row, Table, row};

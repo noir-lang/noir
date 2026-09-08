@@ -227,13 +227,11 @@ mod tests {
     use crate::meta::op::{BinaryOp, UnaryOp};
 
     comptime fn unary_op(quoted: Quoted) -> UnaryOp {
-        let (op, _) = quoted.as_expr().unwrap().as_unary_op().unwrap();
-        op
+        quoted.as_expr().unwrap().as_unary_op().unwrap().operator()
     }
 
     comptime fn binary_op(quoted: Quoted) -> BinaryOp {
-        let (_, op, _) = quoted.as_expr().unwrap().as_binary_op().unwrap();
-        op
+        quoted.as_expr().unwrap().as_binary_op().unwrap().operator()
     }
 
     #[test]

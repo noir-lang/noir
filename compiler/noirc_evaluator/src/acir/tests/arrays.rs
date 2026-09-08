@@ -1489,7 +1489,7 @@ fn predicated_constant_index_get_on_heterogeneous_vector() {
 #[test]
 fn predicated_constant_index_get_on_heterogeneous_array() {
     // The array-typed counterpart of `predicated_constant_index_get_on_heterogeneous_vector`,
-    // pinning the behaviour the vector case should match: `is_safe_index` holds for an
+    // pinning the behavior the vector case should match: `is_safe_index` holds for an
     // in-bounds constant index into an array, so no bias is applied and both reads stay on the
     // slots the index resolved to.
     let src = "

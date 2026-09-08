@@ -1,5 +1,5 @@
 // Implementation taken from https://github.com/hashcloak/semaphore-noir/blob/d14e0475ad93b5f70ad16a0dafbc8b5b0519c4c5/packages/circuits-noir/src/main.nr
-// Used under MIT licence.
+// Used under MIT license.
 
 use ec::bjj::BabyJubJubParams;
 use ec::{Curve, CurveTrait};
@@ -53,7 +53,7 @@ fn main(
     // The public key is derived by multiplying the generator point with the secret key,
     // interpreted as a scalar.
     let generator: Curve<BabyJubJubParams> = Curve { x: BASE8[0], y: BASE8[1] };
-    // ScalarField is parameterised by the number of 4-bit vectors it contains.
+    // ScalarField is parameterized by the number of 4-bit vectors it contains.
     // Since secret key is already known to be max 251 bits, there are 63 vectors.
     let secret_scalar: ScalarField<63> = ScalarField::from(secret_key);
     let pubkey = generator.mul(secret_scalar);

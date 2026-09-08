@@ -44,8 +44,12 @@ pub const MAIN_RETURN_NAME: &str = "return";
 /// The version of the ABI schema emitted by this version of Noir.
 pub const ABI_VERSION: u32 = 1;
 
+/// The schema version of ABI JSON written before `ABI_VERSION` existed. This is a historical
+/// fact about those files and must not change when `ABI_VERSION` is incremented.
+const LEGACY_ABI_VERSION: u32 = 1;
+
 const fn default_abi_version() -> u32 {
-    ABI_VERSION
+    LEGACY_ABI_VERSION
 }
 
 fn deserialize_abi_version<'de, D>(deserializer: D) -> Result<u32, D::Error>

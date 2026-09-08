@@ -18,7 +18,6 @@ noirc_driver.workspace = true
 noirc_frontend.workspace = true
 noirc_artifacts.workspace = true
 acvm.workspace = true
-noir_ssa_executor.workspace = true
 itertools.workspace = true
 log.workspace = true
 env_logger.workspace = true

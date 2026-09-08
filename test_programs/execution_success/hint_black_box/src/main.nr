@@ -46,7 +46,7 @@ fn main(a: u32, b: u32) {
     // This would cause a causes a crash during SSA passes unless it's a Brillig runtime:
     //  > Could not resolve some references to the array. All references must be resolved at compile time
     // The SSA cannot have Allocate by the time we start generating ACIR, but `black_box` prevents them
-    // from being optimised away during SSA passes.
+    // from being optimized away during SSA passes.
     // If we use `--force-brillig` then the it doesn't crash but the assertion fails because `mem2reg`
     // eliminates the storing to the reference.
     //let mut c = 0;
