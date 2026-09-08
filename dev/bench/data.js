@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788863870143,
+  "lastUpdate": 1788864005360,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3958,105 +3958,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "030e0d47470f54ec18b7005bc3cc0bc6952fd4a9",
-          "message": "fix(brillig): emit a trap for unreachable terminators (#13448)\n\nCo-authored-by: Claude Fable 5 <noreply@anthropic.com>",
-          "timestamp": "2026-08-19T12:26:17Z",
-          "tree_id": "2b1ca2d536cfe459fd04999493a9bd4aeb5eaee2",
-          "url": "https://github.com/noir-lang/noir/commit/030e0d47470f54ec18b7005bc3cc0bc6952fd4a9"
-        },
-        "date": 1787145483466,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 6.42,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 203,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 13.74,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 2.572,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 2.59,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 2.69,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 2.524,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 284,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 330,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 2.622,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 14.18,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 53.08,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 2.006,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.808,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.692,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "14e9dc36b518b1a79fa97b97ed95246b97e33449",
           "message": "feat(ssa): check purity contracts during SSA interpretation (#13518)\n\nCo-authored-by: Claude Fable 5 <noreply@anthropic.com>",
           "timestamp": "2026-08-19T12:56:16Z",
@@ -7546,6 +7447,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.534,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "662b19ce80c7aecc4be513b5bb32e0c3c5651ff0",
+          "message": "chore(deps-dev): bump the npm-minor-and-patch group with 2 updates (#13623)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-09-08T10:14:30Z",
+          "tree_id": "8efe6a4715ded5edaef9738f43a908fb6ee7b49a",
+          "url": "https://github.com/noir-lang/noir/commit/662b19ce80c7aecc4be513b5bb32e0c3c5651ff0"
+        },
+        "date": 1788863938357,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 1.074,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.622,
             "unit": "s"
           }
         ]
