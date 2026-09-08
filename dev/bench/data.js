@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788874502063,
+  "lastUpdate": 1788875243090,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17096,48 +17096,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "b61b187d616e4c6d8267a55e2f2938e187cc0b1b",
-          "message": "chore(deps): bump the cargo-minor-and-patch group with 4 updates (#13562)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-08-25T10:01:02Z",
-          "tree_id": "63a62ade38656dc96a7fbf581f867bc18264f536",
-          "url": "https://github.com/noir-lang/noir/commit/b61b187d616e4c6d8267a55e2f2938e187cc0b1b"
-        },
-        "date": 1787653375868,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 158559,
-            "range": "± 2111",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 125141,
-            "range": "± 2307",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2133508,
-            "range": "± 25218",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "98612432+Osraka@users.noreply.github.com",
             "name": "Osraka",
             "username": "Osraka"
@@ -19189,6 +19147,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2658810,
             "range": "± 2079",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4fd0f35a5a1a4e98fe9cecabbc27c894ceecdea3",
+          "message": "feat: ship noir-execute in release tarballs (#13589)\n\nCo-authored-by: Claude Opus 4.6 <noreply@anthropic.com>",
+          "timestamp": "2026-09-08T13:23:17Z",
+          "tree_id": "88c7b9d1352fa8148cbc8c069768d8fdd5cef837",
+          "url": "https://github.com/noir-lang/noir/commit/4fd0f35a5a1a4e98fe9cecabbc27c894ceecdea3"
+        },
+        "date": 1788875174285,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 98938,
+            "range": "± 396",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 87998,
+            "range": "± 2015",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2372507,
+            "range": "± 30475",
             "unit": "ns/iter"
           }
         ]
