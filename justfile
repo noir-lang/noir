@@ -83,8 +83,6 @@ package: build-bins
     cp ./target/{{ target }}/release/nargo ./dist/nargo
     cp ./target/{{ target }}/release/noir-profiler ./dist/noir-profiler
     cp ./target/{{ target }}/release/noir-inspector ./dist/noir-inspector
-    # TODO(https://github.com/noir-lang/noir/issues/7445): Remove the separate nargo binary
-    tar -czf nargo-{{ target }}.tar.gz -C dist nargo
     tar -czf noir-{{ target }}.tar.gz -C dist .
 
 # Macos uses a 7z instead of tar
@@ -95,8 +93,6 @@ package: build-bins
     cp ./target/{{ target }}/release/noir-profiler ./dist/noir-profiler
     cp ./target/{{ target }}/release/noir-inspector ./dist/noir-inspector
 
-    # TODO(https://github.com/noir-lang/noir/issues/7445): Remove the separate nargo binary
-    7z a -ttar -so -an ./dist/nargo | 7z a -si ./nargo-{{ target }}.tar.gz
     7z a -ttar -so -an ./dist/* | 7z a -si ./noir-{{ target }}.tar.gz
 
 # Run tests
