@@ -63,17 +63,13 @@
 <a href=#63 id=63 data-nosnippet>63</a>    </span>)]
 <a href=#64 id=64 data-nosnippet>64</a>    </span>MissingParamWitnessValue { name: String, witness_index: Witness },
 <a href=#65 id=65 data-nosnippet>65</a>    <span class="attr">#[error(
-<a href=#66 id=66 data-nosnippet>66</a>        <span class="string">"Attempted to write to witness index {0:?} but it is already initialized to a different value"
+<a href=#66 id=66 data-nosnippet>66</a>        <span class="string">"The return value is expected to be a {return_type:?} but found incompatible value {value:?}"
 <a href=#67 id=67 data-nosnippet>67</a>    </span>)]
-<a href=#68 id=68 data-nosnippet>68</a>    </span>InconsistentWitnessAssignment(Witness),
-<a href=#69 id=69 data-nosnippet>69</a>    <span class="attr">#[error(
-<a href=#70 id=70 data-nosnippet>70</a>        <span class="string">"The return value is expected to be a {return_type:?} but found incompatible value {value:?}"
-<a href=#71 id=71 data-nosnippet>71</a>    </span>)]
-<a href=#72 id=72 data-nosnippet>72</a>    </span>ReturnTypeMismatch { return_type: AbiType, value: InputValue },
-<a href=#73 id=73 data-nosnippet>73</a>    <span class="attr">#[error(<span class="string">"No return value is expected but received {0:?}"</span>)]
-<a href=#74 id=74 data-nosnippet>74</a>    </span>UnexpectedReturnValue(InputValue),
-<a href=#75 id=75 data-nosnippet>75</a>    <span class="attr">#[error(
-<a href=#76 id=76 data-nosnippet>76</a>        <span class="string">"Could not decode string parameter `{name}`: witness value {value} is not a valid byte (must be in the range 0..=255)"
-<a href=#77 id=77 data-nosnippet>77</a>    </span>)]
-<a href=#78 id=78 data-nosnippet>78</a>    </span>StringValueOutsideByteRange { name: String, value: FieldElement },
-<a href=#79 id=79 data-nosnippet>79</a>}</code></pre></div></section></main></body></html>
+<a href=#68 id=68 data-nosnippet>68</a>    </span>ReturnTypeMismatch { return_type: AbiType, value: InputValue },
+<a href=#69 id=69 data-nosnippet>69</a>    <span class="attr">#[error(<span class="string">"No return value is expected but received {0:?}"</span>)]
+<a href=#70 id=70 data-nosnippet>70</a>    </span>UnexpectedReturnValue(InputValue),
+<a href=#71 id=71 data-nosnippet>71</a>    <span class="attr">#[error(
+<a href=#72 id=72 data-nosnippet>72</a>        <span class="string">"Could not decode string parameter `{name}`: witness value {value} is not a valid byte (must be in the range 0..=255)"
+<a href=#73 id=73 data-nosnippet>73</a>    </span>)]
+<a href=#74 id=74 data-nosnippet>74</a>    </span>StringValueOutsideByteRange { name: String, value: FieldElement },
+<a href=#75 id=75 data-nosnippet>75</a>}</code></pre></div></section></main></body></html>
