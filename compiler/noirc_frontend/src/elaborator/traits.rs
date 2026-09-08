@@ -174,7 +174,8 @@ use itertools::Itertools;
 use noirc_errors::Location;
 
 use crate::{
-    Kind, NamedGeneric, ResolvedGeneric, Type, TypeBindings, TypeVariable,
+    IMPL_TRAIT_PARAMETER_NAME_PREFIX, Kind, NamedGeneric, ResolvedGeneric, Type, TypeBindings,
+    TypeVariable,
     ast::{
         FunctionDefinition, FunctionKind, GenericTypeArgs, Ident, NoirFunction, Path, TraitBound,
         TraitItem, UnresolvedGeneric, UnresolvedTraitConstraint, UnresolvedType,
@@ -444,7 +445,7 @@ impl Elaborator<'_> {
 
         let the_trait = self.get_trait(trait_id);
         let trait_name = the_trait.name.to_string();
-        let object_name = object.to_string();
+        let object_name = self.unresolved_type_name(object);
         let associated_type_bounds = the_trait.associated_type_bounds.clone();
 
         for associated_type in &the_trait.associated_types.clone() {
@@ -520,7 +521,7 @@ impl Elaborator<'_> {
         let new_generic = TypeVariable::unbound(new_generic_id, Kind::Normal);
         generics.push(new_generic.clone());
 
-        let name = format!("impl {trait_path}");
+        let name = format!("{IMPL_TRAIT_PARAMETER_NAME_PREFIX}{trait_path}");
         let generic_type = new_generic.into_named_generic(&Rc::new(name), None);
         let trait_bound = TraitBound { trait_path, trait_generics };
 

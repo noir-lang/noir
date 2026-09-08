@@ -12,7 +12,14 @@ pub fn foo(x: Field, y: u32) -> u32 {
 
 // Given a function, wrap its parameters in a struct definition
 comptime fn output_struct(f: FunctionDefinition) -> Quoted {
-    let fields = f.parameters().map(|(name, typ)| quote { $name: $typ, }).join(quote {});
+    let fields = f
+        .parameters()
+        .map(|parameter| {
+            let name = parameter.name();
+            let typ = parameter.typ();
+            quote { $name: $typ, }
+        })
+        .join(quote {});
 
     quote {
         struct Foo { $fields }

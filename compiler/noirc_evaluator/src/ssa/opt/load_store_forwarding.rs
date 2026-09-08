@@ -221,7 +221,11 @@ fn forward_loads_and_stores_in_block(
 mod tests {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{opt::assert_ssa_does_not_change, ssa_gen::Ssa},
+        ssa::{
+            interpreter::value::Value,
+            opt::{assert_pass_does_not_affect_execution, assert_ssa_does_not_change},
+            ssa_gen::Ssa,
+        },
     };
 
     #[test]
@@ -1846,5 +1850,50 @@ mod tests {
             return
         }
         ");
+    }
+
+    /// Regression for noir-claude#1362: a scalar `array_set` on a composite
+    /// element preserves the element's reference fields, and a call through
+    /// such a preserved reference must invalidate a cached load of the value it
+    /// points to.
+    ///
+    /// The array holds `(Field, &mut Field)` elements. `array_set` overwrites
+    /// only tuple field 0, so field 1 still holds the original `v0` reference.
+    /// `call f1(v3)` stores `Field 1` through that reference, so the final
+    /// `load v0` observes `Field 1`: alias analysis keeps the preserved
+    /// reference in the result's alias graph, so Load-Store Forwarding treats
+    /// the call as reaching `v0` and keeps the load live.
+    ///
+    /// `assert_pass_does_not_affect_execution` interprets `main` before and
+    /// after the pass and asserts the results match, pinning that the pass
+    /// preserves the `Field 1` outcome.
+    #[test]
+    fn preserves_reference_field_of_composite_array_set_across_call() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 0 at v0
+            v1 = make_array [Field 7, v0] : [(Field, &mut Field); 1]
+            v2 = array_set v1, index u32 0, value Field 99
+            v3 = array_get v2, index u32 1 -> &mut Field
+            call f1(v3)
+            v4 = load v0 -> Field
+            return v4
+        }
+        brillig(inline) fn f1 f1 {
+          b0(v0: &mut Field):
+            store Field 1 at v0
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let (_, result) =
+            assert_pass_does_not_affect_execution(ssa, vec![], |ssa| ssa.load_store_forwarding());
+
+        // The call stores `Field 1` through the preserved reference, so the
+        // final load returns it.
+        assert_eq!(result.unwrap(), vec![Value::field(1_u128.into())]);
     }
 }

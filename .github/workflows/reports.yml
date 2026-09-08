@@ -1090,7 +1090,7 @@ jobs:
   # This is a job which depends on all test jobs and reports the overall status.
   # This allows us to add/remove test jobs without having to update the required workflows.
   reports-end:
-    name: End
+    name: Report End
     runs-on: ubuntu-22.04
     timeout-minutes: 5
     permissions:

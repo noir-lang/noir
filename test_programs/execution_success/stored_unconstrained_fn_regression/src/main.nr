@@ -23,6 +23,23 @@ fn get_choose() -> unconstrained fn(u32) -> u32 {
     choose
 }
 
+/// Returns 1 when compiled as a constrained function, 100 when compiled as an unconstrained one.
+fn probe() -> u32 {
+    if is_unconstrained() {
+        100
+    } else {
+        1
+    }
+}
+
+fn other(x: u32) -> u32 {
+    x + 200
+}
+
+fn takes_unconstrained_fn(_f: unconstrained fn(u32) -> u32, r: u32) -> u32 {
+    r
+}
+
 fn pick(cond: bool) -> unconstrained fn(u32) -> u32 {
     if cond {
         choose
@@ -62,4 +79,65 @@ fn main() {
 
     // 7. function return whose body is a block with a terminal function reference
     assert_eq(call_unc(block_return(), 7), 107);
+
+    // Cases 8-12 cover the other direction: an `unconstrained fn` target must force only the
+    // value that occupies the slot. A function value nested inside the same expression that
+    // carries its own constrained type, or that sits in a position not producing the slot's
+    // value, keeps the runtime its own type declares.
+    //
+    // Each case compares against `probe()` called from `main` directly, so the expectation
+    // tracks the runtime `main` itself was compiled for. That is 1 normally, and 100 under
+    // `--force-brillig`, where every function in the program is legitimately unconstrained.
+    let expected = probe();
+
+    // 8. nested `let` with its own constrained `fn` type, inside a forced `let` RHS
+    let mut a: u32 = 0;
+    let _a: unconstrained fn(u32) -> u32 = {
+        let g: fn() -> u32 = probe;
+        a = g();
+        choose
+    };
+    assert_eq(a, expected);
+
+    // 9. unannotated lambda inside a forced `let` RHS
+    let mut b: u32 = 0;
+    let _b: unconstrained fn(u32) -> u32 = {
+        let g = || if is_unconstrained() { 100 } else { 1 };
+        b = g();
+        choose
+    };
+    assert_eq(b, expected);
+
+    // 10. call argument whose parameter type is `unconstrained fn`
+    let mut c: u32 = 0;
+    let _c = takes_unconstrained_fn(
+        {
+            let g: fn() -> u32 = probe;
+            c = g();
+            choose
+        },
+        0,
+    );
+    assert_eq(c, expected);
+
+    // 11. struct constructor field
+    let mut d: u32 = 0;
+    let _d = Holder {
+        f: {
+            let g: fn() -> u32 = probe;
+            d = g();
+            choose
+        },
+    };
+    assert_eq(d, expected);
+
+    // 12. `if` condition -- the branches produce the slot's value, the condition does not, so a
+    // lambda built in the condition matches `main`'s runtime and `choose` is selected. Forcing
+    // the condition's lambda would select `other` instead, giving 208.
+    let cond_probe: unconstrained fn(u32) -> u32 = if (|| probe())() == expected {
+        choose
+    } else {
+        other
+    };
+    assert_eq(call_unc(cond_probe, 8), 108);
 }

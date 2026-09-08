@@ -27,6 +27,7 @@ fn main() -> Result<(), String> {
     // Rebuild if the tests have changed
     println!("cargo:rerun-if-changed=tests");
     println!("cargo:rerun-if-changed=ignored-tests.txt");
+    println!("cargo:rerun-if-changed=ignored-noir-tests.txt");
     // TODO(https://github.com/noir-lang/noir/issues/8351): Running the tests changes the timestamps on test_programs files (file lock?).
     // That has the knock-on effect of then needing to rebuild the tests after running the tests.
     println!("cargo:rerun-if-changed={}", test_dir.as_os_str().to_str().unwrap());
@@ -47,11 +48,13 @@ fn generate_debugger_tests(test_file: &mut File, test_data_dir: &Path) {
         .filter(|c| c.path().is_dir() && c.path().join("Nargo.toml").exists());
     let ignored_tests_contents = std::fs::read_to_string("ignored-tests.txt").unwrap();
     let ignored_tests = ignored_tests_contents.lines().collect::<HashSet<_>>();
+    let mut unmatched_ignored_tests = ignored_tests.clone();
 
     for test_dir in test_case_dirs {
         let test_name =
             test_dir.file_name().into_string().expect("Directory can't be converted to string");
         let ignored = ignored_tests.contains(test_name.as_str());
+        unmatched_ignored_tests.remove(test_name.as_str());
         if test_name.contains('-') {
             panic!(
                 "Invalid test directory: {test_name}. Cannot include `-`, please convert to `_`"
@@ -63,16 +66,18 @@ fn generate_debugger_tests(test_file: &mut File, test_data_dir: &Path) {
             test_file,
             r#"
 #[test]
-{ignored}
+{should_panic}
 fn debug_{test_name}() {{
     debugger_execution_success("{test_dir}");
 }}
             "#,
             test_dir = test_dir.display(),
-            ignored = if ignored { "#[ignore]" } else { "" },
+            should_panic = if ignored { "#[should_panic]" } else { "" },
         )
         .expect("Could not write templated test file.");
     }
+
+    assert_all_ignored_tests_matched(unmatched_ignored_tests, "ignored-tests.txt");
 }
 
 fn generate_test_runner_debugger_tests(test_file: &mut File, test_data_dir: &Path) {
@@ -85,6 +90,7 @@ fn generate_test_runner_debugger_tests(test_file: &mut File, test_data_dir: &Pat
         .filter(|c| c.path().is_dir() && c.path().join("Nargo.toml").exists());
     let ignored_tests_contents = std::fs::read_to_string("ignored-noir-tests.txt").unwrap();
     let ignored_tests = ignored_tests_contents.lines().collect::<HashSet<_>>();
+    let mut unmatched_ignored_tests = ignored_tests.clone();
 
     for test_dir in test_case_dirs {
         let test_file_name =
@@ -121,20 +127,36 @@ fn generate_test_runner_debugger_tests(test_file: &mut File, test_data_dir: &Pat
                 .unwrap();
 
             let ignored = ignored_tests.contains(test_name);
+            unmatched_ignored_tests.remove(test_name);
 
             write!(
                 test_file,
                 r#"
     #[test]
-    {ignored}
+    {should_panic}
     fn debug_test_{test_file_name}_{test_name}() {{
         debugger_test_success("{test_dir}", "{test_name}");
     }}
                 "#,
                 test_dir = test_dir.display(),
-                ignored = if ignored { "#[ignore]" } else { "" },
+                should_panic = if ignored { "#[should_panic]" } else { "" },
             )
             .expect("Could not write templated test file.");
         }
     }
+
+    assert_all_ignored_tests_matched(unmatched_ignored_tests, "ignored-noir-tests.txt");
+}
+
+fn assert_all_ignored_tests_matched(unmatched_ignored_tests: HashSet<&str>, file_name: &str) {
+    if unmatched_ignored_tests.is_empty() {
+        return;
+    }
+
+    let mut unmatched_ignored_tests = unmatched_ignored_tests.into_iter().collect::<Vec<_>>();
+    unmatched_ignored_tests.sort_unstable();
+    panic!(
+        "the following tests listed in {file_name} do not exist: {}",
+        unmatched_ignored_tests.join(", ")
+    );
 }

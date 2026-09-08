@@ -1,0 +1,5 @@
+[package]
+name = "global_string_control_char"
+type = "bin"
+authors = [""]
+[dependencies]

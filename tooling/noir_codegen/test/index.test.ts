@@ -128,6 +128,7 @@ it('codegens a callable function with no return value', async () => {
 it('codegens `Promise<void>` for functions with no return value', () => {
   const program: CompiledCircuit = {
     abi: {
+      abi_version: 1,
       parameters: [{ name: 'x', type: { kind: 'integer', sign: 'unsigned', width: 64 }, visibility: 'private' }],
       return_type: null,
       error_types: {},

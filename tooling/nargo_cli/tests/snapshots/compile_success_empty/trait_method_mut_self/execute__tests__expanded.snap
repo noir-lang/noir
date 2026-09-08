@@ -40,10 +40,7 @@ impl SomeTrait for AType {
     }
 }
 
-fn pass_trait_by_value_impl_param(mut a_mut_ref: impl SomeTrait, value: Field)
-where
-    impl SomeTrait: SomeTrait,
-{
+fn pass_trait_by_value_impl_param(mut a_mut_ref: impl SomeTrait, value: Field) {
     a_mut_ref.set_value(value);
     assert(a_mut_ref.get_value() == value);
 }

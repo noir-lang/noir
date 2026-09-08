@@ -742,6 +742,33 @@ impl DataFlowGraph {
         self.get_numeric_constant_with_type(value).map(|(value, _typ)| value)
     }
 
+    /// Whether the given block's last non-terminator instruction is a `Constrain` that will
+    /// trap for every witness — both operands are compile-time numeric constants and they are
+    /// not equal. The `Unreachable` terminator that follows such an instruction needs no
+    /// additional trap: the block cannot be reached without also violating the preceding
+    /// constraint.
+    ///
+    /// `ConstrainNotEqual` is deliberately excluded even though its always-failing shape at
+    /// the SSA type level (both operands are equal constants) is analogous. Unlike `Constrain`,
+    /// it is predicated at ACIR gen (`assert_neq_var` multiplies by the current side-effects
+    /// predicate), so under a predicate of zero the emitted assertion is `0 == 0` and does not
+    /// fail. Recognising it here without also checking the enclosing predicate would let an
+    /// `Unreachable` after a predicated `constrain_not_equal` compile to an empty, satisfiable
+    /// circuit.
+    pub(crate) fn block_ends_with_always_failing_constraint(&self, block_id: BasicBlockId) -> bool {
+        let Some(&last_instr_id) = self[block_id].instructions().last() else {
+            return false;
+        };
+        let Instruction::Constrain(lhs, rhs, _) = &self[last_instr_id] else {
+            return false;
+        };
+        let (Some(a), Some(b)) = (self.get_numeric_constant(*lhs), self.get_numeric_constant(*rhs))
+        else {
+            return false;
+        };
+        a != b
+    }
+
     /// Similar to `get_numeric_constant` but returns the value as a signed or unsigned integer.
     /// Returns `None` if the given value is not an integer constant.
     pub(crate) fn get_integer_constant(&self, value: ValueId) -> Option<IntegerConstant> {

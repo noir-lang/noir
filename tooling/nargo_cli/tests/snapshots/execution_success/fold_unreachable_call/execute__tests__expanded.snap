@@ -1,0 +1,16 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+#[fold]
+fn folded() -> Field {
+    1_Field
+}
+
+fn main() -> pub Field {
+    if false {
+        folded()
+    } else {
+        0_Field
+    }
+}

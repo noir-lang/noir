@@ -5,11 +5,11 @@ usually-undesirable code (an unused item, an unnecessary `mut`, a `pub` that isn
 needed, …). Unlike a hard error, a lint can be silenced by the author when the flagged
 code is intentional, by naming it in an `#[allow(...)]` attribute.
 
-## Behaviour
+## Behavior
 
 `#[allow(<lint>)]` silences the named lint on the item or statement it is attached to. It
 attaches to items and `let` statements today; blocks, expressions, and match arms are not
-yet supported (see [Intended direction](#intended-direction)). The recognised lints:
+yet supported (see [Intended direction](#intended-direction)). The recognized lints:
 
 - `dead_code` — suppresses the "never used" / "never constructed" warning on a function,
   struct, enum, trait, or impl method.
@@ -18,11 +18,11 @@ yet supported (see [Intended direction](#intended-direction)). The recognised li
 - `constant_return` — suppresses the warning for an entry point that always returns a
   constant value.
 
-An unrecognised name — a typo such as `#[allow(dead_cod)]` — is reported as an `unknown
+An unrecognized name — a typo such as `#[allow(dead_cod)]` — is reported as an `unknown
 lint` warning and silences nothing, so the lint it was meant to suppress still fires; that
 warning does not stop compilation.
 
-Each of these behaviours is pinned by a test, which is the authoritative specification:
+Each of these behaviors is pinned by a test, which is the authoritative specification:
 `allow_dead_code_on_unused_function`,
 `does_not_error_on_unused_impl_method_if_marked_as_allow_dead_code`,
 `silences_unused_variable_warning`, `warns_on_unknown_lint_in_allow_attribute`, and
@@ -40,7 +40,7 @@ This mirrors Rust's lint-control attributes; see
 ## Lint names are a closed set
 
 The set of valid lint names is a closed set (the `Lint` enum) rather than free-form strings.
-This is a deliberate decision: because the set is closed, an unrecognised name can be
+This is a deliberate decision: because the set is closed, an unrecognized name can be
 reported to the author instead of being accepted as an inert no-op that is mistaken for a
 working suppression.
 

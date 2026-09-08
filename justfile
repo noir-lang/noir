@@ -33,7 +33,13 @@ install-js-tools: install-binstall
 
 # Installs Playwright (necessary for Javascript browser tests but slow to install)
 install-playwright browsers='chromium webkit':
-    npx -y playwright@1.58.2 install --with-deps {{ browsers }}
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # Resolve into a variable first: inlined in the `npx` argument, a failed
+    # resolve would leave `playwright@`, which npm reads as `*` and installs
+    # whatever the registry has published latest.
+    version="$(./scripts/playwright_version.sh)"
+    npx -y "playwright@${version}" install --with-deps {{ browsers }}
 
 # Installs Foundry (necessary for examples)
 install-foundry:
@@ -69,6 +75,7 @@ build-bins: install-binstall
     {{ cargo }} build --package nargo_cli --release --target={{ target }} --no-default-features
     {{ cargo }} build --package noir_profiler --release --target={{ target }} --no-default-features
     {{ cargo }} build --package noir_inspector --release --target={{ target }} --no-default-features
+    {{ cargo }} build --package noir_artifact_cli --release --target={{ target }} --no-default-features
 
 # Package release artifacts
 [linux]
@@ -77,8 +84,8 @@ package: build-bins
     cp ./target/{{ target }}/release/nargo ./dist/nargo
     cp ./target/{{ target }}/release/noir-profiler ./dist/noir-profiler
     cp ./target/{{ target }}/release/noir-inspector ./dist/noir-inspector
-    # TODO(https://github.com/noir-lang/noir/issues/7445): Remove the separate nargo binary
-    tar -czf nargo-{{ target }}.tar.gz -C dist nargo
+    cp ./target/{{ target }}/release/noir-execute ./dist/noir-execute
+
     tar -czf noir-{{ target }}.tar.gz -C dist .
 
 # Macos uses a 7z instead of tar
@@ -88,9 +95,8 @@ package: build-bins
     cp ./target/{{ target }}/release/nargo ./dist/nargo
     cp ./target/{{ target }}/release/noir-profiler ./dist/noir-profiler
     cp ./target/{{ target }}/release/noir-inspector ./dist/noir-inspector
+    cp ./target/{{ target }}/release/noir-execute ./dist/noir-execute
 
-    # TODO(https://github.com/noir-lang/noir/issues/7445): Remove the separate nargo binary
-    7z a -ttar -so -an ./dist/nargo | 7z a -si ./nargo-{{ target }}.tar.gz
     7z a -ttar -so -an ./dist/* | 7z a -si ./noir-{{ target }}.tar.gz
 
 # Run tests
