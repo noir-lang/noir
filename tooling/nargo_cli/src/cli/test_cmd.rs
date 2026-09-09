@@ -24,7 +24,7 @@ use nargo::{
     errors::CompileError,
     foreign_calls::{DefaultForeignCallBuilder, OracleResolverUrl},
     insert_all_files_for_workspace_into_file_manager,
-    ops::{FuzzConfig, TestStatus, report_errors},
+    ops::{ContextState, FuzzConfig, TestStatus, report_errors},
     package::Package,
     parse_all, prepare_package,
     workspace::Workspace,
@@ -103,6 +103,14 @@ pub(crate) struct TestCommand {
     /// Only run fuzz tests (tests that have arguments)
     #[clap(long, conflicts_with("no_fuzz"))]
     only_fuzz: bool,
+
+    /// Elaborate the package again for every test rather than sharing one elaboration per thread
+    ///
+    /// Sharing is a large speedup on packages with many tests, but it means a test compiles
+    /// against a context that earlier tests on the same thread have already compiled against.
+    /// Use this to check whether a surprising result depends on what ran before it.
+    #[clap(long)]
+    no_context_reuse: bool,
 
     /// If given, load/store fuzzer corpus from this folder
     #[arg(long)]
@@ -207,7 +215,19 @@ struct CachedContext<'a> {
     package: &'a Package,
     context: Context<'a, 'a>,
     crate_id: CrateId,
+    /// How many tests this context has already compiled, against [`MAX_TESTS_PER_CONTEXT`].
+    tests_run: usize,
 }
+
+/// How many tests one elaborated [`Context`] compiles before it is rebuilt.
+///
+/// Monomorphization writes back into the shared `NodeInterner` even when it succeeds:
+/// `record_impl_instantiation_bindings` merges each call site's instantiation bindings into
+/// whatever is already stored for that call site. A context therefore drifts a little further
+/// from its elaborated state with every test it compiles, and nothing reports that drift.
+/// Rebuilding on a fixed interval bounds how far a difference can travel; at this many tests the
+/// extra elaborations cost a few percent of a long run.
+const MAX_TESTS_PER_CONTEXT: usize = 32;
 
 pub(crate) struct TestResult {
     name: TestName,
@@ -362,44 +382,52 @@ impl<'a> TestRunner<'a> {
                 .test_start_async(&test.name, &test.package_name)
                 .expect("Could not display test start");
 
-            if !cached.as_ref().is_some_and(|cached| std::ptr::eq(cached.package, test.package)) {
-                let (context, crate_id) = self
-                    .prepare_package_and_check_crate(test.package, false)
-                    .expect("Any errors should have occurred when collecting test functions");
-                cached = Some(CachedContext { package: test.package, context, crate_id });
-            }
-            let cached_context = cached.as_mut().expect("just populated");
-
             let time_before_test = std::time::Instant::now();
-            let run = std::panic::AssertUnwindSafe(|| {
-                self.run_test::<Bn254BlackBoxSolver>(cached_context, &test)
-            });
-            let unwound = catch_unwind(run);
 
-            // A test that unwound may have left type variables bound or the interner half-updated,
-            // so the context is no longer safe to hand to the next test.
-            // The comptime interpreter also takes ownership of the evaluation tracker, which the
-            // coverage report needs rebuilt per test.
-            if unwound.is_err() || self.args.coverage || self.args.force_comptime {
-                cached = None;
-            }
+            // A skipped test compiles nothing, so it needs no context and dirties none. Checking
+            // before the context is built keeps `--only-fuzz`, `--no-fuzz` and `--force-comptime`
+            // from elaborating a package they then never touch.
+            let (status, output, test_coverage) = if self.is_filtered_out(&test) {
+                (TestStatus::Skipped, String::new(), None)
+            } else {
+                // Elaborating inside the guard keeps an ICE in `check_crate` to a single failed
+                // test; escaping this closure would unwind the worker and abort the whole run.
+                let run = std::panic::AssertUnwindSafe(|| {
+                    let cached_context = self.cached_context_for(&mut cached, &test);
+                    cached_context.tests_run += 1;
+                    self.run_test::<Bn254BlackBoxSolver>(cached_context, &test)
+                });
+                let unwound = catch_unwind(run);
 
-            let (status, output, test_coverage) = match unwound {
-                Ok(values) => values,
-                Err(err) => (
-                    TestStatus::Fail {
-                                    message:
-                                        // It seems `panic!("...")` makes the error be `&str`, so we handle this common case
-                                        if let Some(message) = err.downcast_ref::<&str>() {
-                                            message.to_string()
-                                        } else {
-                                            "An unexpected error happened".to_string()
-                                        },
-                                    error_diagnostic: None,
+                // Only a test that both finished and left the context fit to compile against may
+                // hand it on. A test that unwound may have left type variables bound or the
+                // interner half-updated; a test whose compilation failed definitely has, and that
+                // case does not show up in the status, since `#[test(should_fail)]` reports a pass
+                // when compilation fails.
+                let reusable = matches!(unwound, Ok((_, _, _, ContextState::Clean)))
+                    && !self.args.no_context_reuse
+                    && cached.as_ref().is_some_and(|c| c.tests_run < MAX_TESTS_PER_CONTEXT);
+                if !reusable {
+                    cached = None;
+                }
+
+                match unwound {
+                    Ok((status, output, test_coverage, _)) => (status, output, test_coverage),
+                    Err(err) => (
+                        TestStatus::Fail {
+                            message:
+                                // It seems `panic!("...")` makes the error be `&str`, so we handle this common case
+                                if let Some(message) = err.downcast_ref::<&str>() {
+                                    message.to_string()
+                                } else {
+                                    "An unexpected error happened".to_string()
                                 },
-                    String::new(),
-                    None,
-                ),
+                            error_diagnostic: None,
+                        },
+                        String::new(),
+                        None,
+                    ),
+                }
             };
             let time_to_run = time_before_test.elapsed();
 
@@ -738,21 +766,42 @@ impl<'a> TestRunner<'a> {
         context.get_all_test_functions_in_crate_matching(&crate_id, &self.pattern)
     }
 
+    /// Whether the fuzzing flags exclude `test`, in which case it is reported as skipped and
+    /// never compiled.
+    fn is_filtered_out(&self, test: &Test<'a>) -> bool {
+        ((self.args.no_fuzz || self.args.force_comptime) && test.has_arguments)
+            || (self.args.only_fuzz && !test.has_arguments)
+    }
+
+    /// Return the context to compile `test` against, elaborating `test`'s package into `cached`
+    /// unless it already holds an elaboration of that same package.
+    ///
+    /// A workspace hands its packages to the worker threads through one shared iterator, so
+    /// consecutive tests on a thread are not necessarily from the same package.
+    fn cached_context_for<'b>(
+        &'a self,
+        cached: &'b mut Option<CachedContext<'a>>,
+        test: &Test<'a>,
+    ) -> &'b mut CachedContext<'a> {
+        if !cached.as_ref().is_some_and(|cached| std::ptr::eq(cached.package, test.package)) {
+            let (context, crate_id) = self
+                .prepare_package_and_check_crate(test.package, false)
+                .expect("Any errors should have occurred when collecting test functions");
+            *cached =
+                Some(CachedContext { package: test.package, context, crate_id, tests_run: 0 });
+        }
+        cached.as_mut().expect("just populated")
+    }
+
     /// Runs a single test.
     ///
-    /// Returns its status together with whatever was printed to stdout during the test,
-    /// along with an optional coverage report.
+    /// Returns its status together with whatever was printed to stdout during the test, an
+    /// optional coverage report, and whether the context is still fit to compile another test.
     fn run_test<S: BlackBoxFunctionSolver<FieldElement> + Default>(
         &'a self,
         cached: &mut CachedContext<'a>,
         test: &Test<'a>,
-    ) -> (TestStatus, String, Option<lcov::Report>) {
-        if ((self.args.no_fuzz || self.args.force_comptime) && test.has_arguments)
-            || (self.args.only_fuzz && !test.has_arguments)
-        {
-            return (TestStatus::Skipped, String::new(), None);
-        }
-
+    ) -> (TestStatus, String, Option<lcov::Report>, ContextState) {
         let CachedContext { context, crate_id, .. } = cached;
         let fn_name = test.name.as_str();
 
@@ -761,17 +810,23 @@ impl<'a> TestRunner<'a> {
         let (_, test_function) = test_functions.first().expect("Test function should exist");
 
         if self.args.no_run {
-            let status = match noirc_driver::compile_no_check(
+            let (status, context_state) = match noirc_driver::compile_no_check(
                 context,
                 &self.args.compile_options,
                 test_function.id,
                 None,
                 false,
             ) {
-                Ok(_) => TestStatus::Skipped,
-                Err(err) => nargo::ops::test_status_program_compile_fail(err, test_function),
+                Ok(_) => (TestStatus::Skipped, ContextState::Clean),
+                Err(err) => {
+                    let context_state = nargo::ops::context_state_after_compile_error(&err);
+                    (
+                        nargo::ops::test_status_program_compile_fail(err, test_function),
+                        context_state,
+                    )
+                }
             };
-            return (status, String::new(), None);
+            return (status, String::new(), None, context_state);
         }
 
         if self.args.force_comptime || self.args.coverage && !test.has_arguments {
@@ -789,7 +844,9 @@ impl<'a> TestRunner<'a> {
                 coverage::tracker_to_report(&tracker, test_function.id, fn_name, context)
             });
 
-            return (status, output, report);
+            // The interpreter walked the whole function against this context and the coverage
+            // report took ownership of the evaluation tracker, which the next test needs rebuilt.
+            return (status, output, report, ContextState::Dirty);
         }
 
         let blackbox_solver = S::default();
@@ -809,7 +866,7 @@ impl<'a> TestRunner<'a> {
             },
         };
 
-        let test_status = nargo::ops::run_or_fuzz_test(
+        let (test_status, context_state) = nargo::ops::run_or_fuzz_test(
             &blackbox_solver,
             context,
             test_function,
@@ -832,7 +889,7 @@ impl<'a> TestRunner<'a> {
         let output_string =
             String::from_utf8(output_buffer).expect("output buffer should contain valid utf8");
 
-        (test_status, output_string, None)
+        (test_status, output_string, None, context_state)
     }
 
     /// Display the status of a single test
