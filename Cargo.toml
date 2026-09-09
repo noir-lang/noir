@@ -27,7 +27,6 @@ members = [
     "tooling/noirc_artifacts_info",
     "tooling/noirc_abi",
     "tooling/noirc_abi_wasm",
-    "tooling/acvm_cli",
     "tooling/artifact_cli",
     "tooling/profiler",
     "tooling/inspector",
@@ -53,7 +52,6 @@ members = [
 ]
 default-members = [
     "tooling/nargo_cli",
-    "tooling/acvm_cli",
     "tooling/artifact_cli",
     "tooling/ssa_cli",
     "tooling/profiler",
