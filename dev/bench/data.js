@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788967007520,
+  "lastUpdate": 1788967065281,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -15340,48 +15340,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "4794fb8d1e67e2395b4aaeb1269bb109a639c1b0",
-          "message": "chore(ssa): hold the interpreter's globals outside the call stack (#13551)",
-          "timestamp": "2026-08-26T13:34:21Z",
-          "tree_id": "021adc5a67a96655230bba181f84ce6ad231211e",
-          "url": "https://github.com/noir-lang/noir/commit/4794fb8d1e67e2395b4aaeb1269bb109a639c1b0"
-        },
-        "date": 1787752614035,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 124779,
-            "range": "± 4484",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 97464,
-            "range": "± 4857",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 1723062,
-            "range": "± 21763",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "ead45a52af7d89c28fb00fca3cd254782e153df9",
           "message": "fix(ssa): never mutate a global's storage in place in the SSA interpreter (#13553)",
@@ -17424,6 +17382,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2657025,
             "range": "± 1406",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "70f78f437f029db3a347497a6c34ae22761b13d1",
+          "message": "chore(acir_gen): compute the fallback offset from the gating decision (#13477)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-09-09T14:54:18Z",
+          "tree_id": "42ff27aa224f9da759d1be9543709038a0e1dec2",
+          "url": "https://github.com/noir-lang/noir/commit/70f78f437f029db3a347497a6c34ae22761b13d1"
+        },
+        "date": 1788966978294,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 169093,
+            "range": "± 245",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136435,
+            "range": "± 532",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2651776,
+            "range": "± 2383",
             "unit": "ns/iter"
           }
         ]
