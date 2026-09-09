@@ -49,7 +49,7 @@ copying the whole vector.</p>
 a new <code>BlockId</code></p>
 </div><span id="structfield.data_bus" class="structfield section-header"><a href="#structfield.data_bus" class="anchor field">§</a><code>data_bus: <a class="struct" href="../ssa/function_builder/data_bus/struct.DataBus.html" title="struct noirc_evaluator::ssa::function_builder::data_bus::DataBus">DataBus</a></code></span><span id="structfield.shared_context" class="structfield section-header"><a href="#structfield.shared_context" class="anchor field">§</a><code>shared_context: &amp;'a mut <a class="struct" href="shared_context/struct.SharedContext.html" title="struct noirc_evaluator::acir::shared_context::SharedContext">SharedContext</a>&lt;FieldElement&gt;</code></span><div class="docblock"><p>Contains state that is generated and also used across ACIR functions</p>
 </div><span id="structfield.brillig" class="structfield section-header"><a href="#structfield.brillig" class="anchor field">§</a><code>brillig: &amp;'a <a class="struct" href="../brillig/struct.Brillig.html" title="struct noirc_evaluator::brillig::Brillig">Brillig</a></code></span><span id="structfield.brillig_options" class="structfield section-header"><a href="#structfield.brillig_options" class="anchor field">§</a><code>brillig_options: &amp;'a <a class="struct" href="../brillig/struct.BrilligOptions.html" title="struct noirc_evaluator::brillig::BrilligOptions">BrilligOptions</a></code></span><div class="docblock"><p>Options affecting Brillig code generation.</p>
-</div><h2 id="implementations" class="section-header">Implementations<a href="#implementations" class="anchor">§</a></h2><div id="implementations-list"><details class="toggle implementors-toggle" open><summary><section id="impl-Context%3C'_%3E" class="impl"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#152-1475">Source</a><a href="#impl-Context%3C'_%3E" class="anchor">§</a><h3 class="code-header">impl <a class="struct" href="struct.Context.html" title="struct noirc_evaluator::acir::Context">Context</a>&lt;'_&gt;</h3></section></summary><div class="impl-items"><details class="toggle method-toggle" open><summary><section id="method.next_block_id" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#154-158">Source</a><h4 class="code-header">fn <a href="#method.next_block_id" class="fn">next_block_id</a>(&amp;mut self) -&gt; BlockId</h4></section></summary><div class="docblock"><p>Allocate a fresh, unique [<code>BlockId</code>] for a memory block.</p>
+</div><h2 id="implementations" class="section-header">Implementations<a href="#implementations" class="anchor">§</a></h2><div id="implementations-list"><details class="toggle implementors-toggle" open><summary><section id="impl-Context%3C'_%3E" class="impl"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#152-1497">Source</a><a href="#impl-Context%3C'_%3E" class="anchor">§</a><h3 class="code-header">impl <a class="struct" href="struct.Context.html" title="struct noirc_evaluator::acir::Context">Context</a>&lt;'_&gt;</h3></section></summary><div class="impl-items"><details class="toggle method-toggle" open><summary><section id="method.next_block_id" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#154-158">Source</a><h4 class="code-header">fn <a href="#method.next_block_id" class="fn">next_block_id</a>(&amp;mut self) -&gt; BlockId</h4></section></summary><div class="docblock"><p>Allocate a fresh, unique [<code>BlockId</code>] for a memory block.</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.block_id" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#162-168">Source</a><h4 class="code-header">pub(super) fn <a href="#method.block_id" class="fn">block_id</a>(&amp;mut self, value: <a class="type" href="../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>) -&gt; BlockId</h4></section></summary><div class="docblock"><p>Get the <code>BlockId</code> corresponding to the <code>ValueId</code>
 If there is no matching <code>BlockId</code>, we create a new one.</p>
 </div></details><section id="method.return_data_block_id" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#170-176">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.return_data_block_id" class="fn">return_data_block_id</a>(&amp;mut self) -&gt; BlockId</h4></section><details class="toggle method-toggle" open><summary><section id="method.type_sizes_block_id" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#182-188">Source</a><h4 class="code-header">fn <a href="#method.type_sizes_block_id" class="fn">type_sizes_block_id</a>(&amp;mut self, value: <a class="type" href="../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>) -&gt; BlockId</h4></section></summary><div class="docblock"><p>Get the next [<code>BlockId</code>] for the internal element type sizes array.
@@ -60,14 +60,14 @@ of non-homogenous arrays.</p>
     &amp;mut self,
     witnesses: &amp;<a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;Witness&gt;,
     dfg: &amp;<a class="struct" href="../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
-) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.unit.html">()</a>, <a class="enum" href="../errors/enum.RuntimeError.html" title="enum noirc_evaluator::errors::RuntimeError">RuntimeError</a>&gt;</h4></section><details class="toggle method-toggle" open><summary><section id="method.handle_array_operation" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#222-274">Source</a><h4 class="code-header">pub(super) fn <a href="#method.handle_array_operation" class="fn">handle_array_operation</a>(
+) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.unit.html">()</a>, <a class="enum" href="../errors/enum.RuntimeError.html" title="enum noirc_evaluator::errors::RuntimeError">RuntimeError</a>&gt;</h4></section><details class="toggle method-toggle" open><summary><section id="method.handle_array_operation" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#222-279">Source</a><h4 class="code-header">pub(super) fn <a href="#method.handle_array_operation" class="fn">handle_array_operation</a>(
     &amp;mut self,
     instruction: <a class="struct" href="../ssa/ir/map/struct.Id.html" title="struct noirc_evaluator::ssa::ir::map::Id">Id</a>&lt;<a class="enum" href="../ssa/ir/instruction/enum.Instruction.html" title="enum noirc_evaluator::ssa::ir::instruction::Instruction">Instruction</a>&gt;,
     dfg: &amp;<a class="struct" href="../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.unit.html">()</a>, <a class="enum" href="../errors/enum.RuntimeError.html" title="enum noirc_evaluator::errors::RuntimeError">RuntimeError</a>&gt;</h4></section></summary><div class="docblock"><p>Handles an <code>ArrayGet</code> or <code>ArraySet</code> instruction.
 To set an index of the array (and create a new array in doing so), pass <code>Some(value)</code> for
 <code>store_value</code>. To just retrieve an index of the array, pass <code>None</code> for <code>store_value</code>.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.handle_disabled_array_operation" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#293-331">Source</a><h4 class="code-header">fn <a href="#method.handle_disabled_array_operation" class="fn">handle_disabled_array_operation</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.handle_disabled_array_operation" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#298-336">Source</a><h4 class="code-header">fn <a href="#method.handle_disabled_array_operation" class="fn">handle_disabled_array_operation</a>(
     &amp;mut self,
     instruction: <a class="struct" href="../ssa/ir/map/struct.Id.html" title="struct noirc_evaluator::ssa::ir::map::Id">Id</a>&lt;<a class="enum" href="../ssa/ir/instruction/enum.Instruction.html" title="enum noirc_evaluator::ssa::ir::instruction::Instruction">Instruction</a>&gt;,
     dfg: &amp;<a class="struct" href="../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
@@ -88,7 +88,7 @@ theirs, so their value is not a don’t-care. See the comment on that check belo
 <h5 id="returns"><a class="doc-anchor" href="#returns">§</a>Returns</h5>
 <p><code>true</code> if the operation was resolved as disabled
 <code>false</code> if the predicate is not statically false, or does not belong to this instruction</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.handle_zero_length_array" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#340-362">Source</a><h4 class="code-header">fn <a href="#method.handle_zero_length_array" class="fn">handle_zero_length_array</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.handle_zero_length_array" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#345-367">Source</a><h4 class="code-header">fn <a href="#method.handle_zero_length_array" class="fn">handle_zero_length_array</a>(
     &amp;mut self,
     array: <a class="type" href="../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     dfg: &amp;<a class="struct" href="../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
@@ -99,7 +99,7 @@ leaving an assertion that the side effect variable must be false.</p>
 <h5 id="returns-1"><a class="doc-anchor" href="#returns-1">§</a>Returns</h5>
 <p><code>true</code> if we have a zero length array
 <code>false</code> if we do not have a zero length array</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.handle_constant_index_wrapper" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#373-421">Source</a><h4 class="code-header">fn <a href="#method.handle_constant_index_wrapper" class="fn">handle_constant_index_wrapper</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.handle_constant_index_wrapper" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#378-426">Source</a><h4 class="code-header">fn <a href="#method.handle_constant_index_wrapper" class="fn">handle_constant_index_wrapper</a>(
     &amp;mut self,
     instruction: <a class="struct" href="../ssa/ir/map/struct.Id.html" title="struct noirc_evaluator::ssa::ir::map::Id">Id</a>&lt;<a class="enum" href="../ssa/ir/instruction/enum.Instruction.html" title="enum noirc_evaluator::ssa::ir::instruction::Instruction">Instruction</a>&gt;,
     dfg: &amp;<a class="struct" href="../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
@@ -113,7 +113,7 @@ position is known (even if the value of this <code>AcirValue</code> is unknown).
 <h5 id="returns-2"><a class="doc-anchor" href="#returns-2">§</a>Returns</h5>
 <p><code>true</code> if we performed a compile-time read/write
 <code>false</code> if we did not perform a compile-time read/write</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.constant_index" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#439-450">Source</a><h4 class="code-header">fn <a href="#method.constant_index" class="fn">constant_index</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.constant_index" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#444-455">Source</a><h4 class="code-header">fn <a href="#method.constant_index" class="fn">constant_index</a>(
     &amp;mut self,
     index: <a class="type" href="../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     dfg: &amp;<a class="struct" href="../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
@@ -130,7 +130,7 @@ of an index type. ACIR folds over the field, so an expression such as <code>unch
 wrapped; the two agree exactly when the folded value fits a <code>u32</code>. A wider value is left for
 the paths that do not have to interpret it as a slot — a disabled access, or a runtime
 bounds failure.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.handle_constant_index" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#453-514">Source</a><h4 class="code-header">fn <a href="#method.handle_constant_index" class="fn">handle_constant_index</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.handle_constant_index" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#458-519">Source</a><h4 class="code-header">fn <a href="#method.handle_constant_index" class="fn">handle_constant_index</a>(
     &amp;mut self,
     instruction: <a class="struct" href="../ssa/ir/map/struct.Id.html" title="struct noirc_evaluator::ssa::ir::map::Id">Id</a>&lt;<a class="enum" href="../ssa/ir/instruction/enum.Instruction.html" title="enum noirc_evaluator::ssa::ir::instruction::Instruction">Instruction</a>&gt;,
     dfg: &amp;<a class="struct" href="../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
@@ -138,12 +138,12 @@ bounds failure.</p>
     index: FieldElement,
     store_value: <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="enum" href="types/enum.AcirValue.html" title="enum noirc_evaluator::acir::types::AcirValue">AcirValue</a>&gt;,
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.bool.html">bool</a>, <a class="enum" href="../errors/enum.RuntimeError.html" title="enum noirc_evaluator::errors::RuntimeError">RuntimeError</a>&gt;</h4></section></summary><div class="docblock"><p>See <a href="struct.Context.html#method.handle_constant_index_wrapper" title="method noirc_evaluator::acir::Context::handle_constant_index_wrapper"><code>Self::handle_constant_index_wrapper</code></a></p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.compute_offset" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#532-555">Source</a><h4 class="code-header">fn <a href="#method.compute_offset" class="fn">compute_offset</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.compute_offset" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#545-577">Source</a><h4 class="code-header">fn <a href="#method.compute_offset" class="fn">compute_offset</a>(
     &amp;self,
     instruction: <a class="struct" href="../ssa/ir/map/struct.Id.html" title="struct noirc_evaluator::ssa::ir::map::Id">Id</a>&lt;<a class="enum" href="../ssa/ir/instruction/enum.Instruction.html" title="enum noirc_evaluator::ssa::ir::instruction::Instruction">Instruction</a>&gt;,
     dfg: &amp;<a class="struct" href="../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
     array_typ: &amp;<a class="enum" href="../ssa/ir/types/enum.Type.html" title="enum noirc_evaluator::ssa::ir::types::Type">Type</a>,
-) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.usize.html">usize</a></h4></section></summary><div class="docblock"><p>For an <code>ArrayGet</code>, finds the flat slot offset of the element field whose type matches
+) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.usize.html">usize</a>, <a class="enum" href="../errors/enum.RuntimeError.html" title="enum noirc_evaluator::errors::RuntimeError">RuntimeError</a>&gt;</h4></section></summary><div class="docblock"><p>For an <code>ArrayGet</code>, finds the flat slot offset of the element field whose type matches
 the result: the read targets a field of the element, and that same field also exists in
 element 0, at this offset, with exactly the result’s layout.</p>
 <p><a href="struct.Context.html#method.get_flattened_index" title="method noirc_evaluator::acir::Context::get_flattened_index"><code>Self::get_flattened_index</code></a> biases the predicate-gated index by this offset
@@ -152,25 +152,32 @@ element 0 and is type-compatible by construction: no leaf of the result can end 
 holding a value wider than its declared type. The offset must be in flat slot units, the
 units of the index it biases: an item ordinal diverges from it as soon as a multi-slot
 field precedes the matched one, sending the fallback read to slots of unrelated types.</p>
-<p>A match always exists for SSA generated from Noir source: an <code>array_get</code>’s result is
-one of the element’s fields. No match is an ICE (reachable only through hand-written
-SSA, which the SSA validator currently accepts).</p>
+<p>A match always exists for a read that SSA generation produced: an <code>array_get</code>’s result is
+one of the element’s fields. It is not an invariant the SSA type system enforces, though —
+<a href="../ssa/validation/index.html" title="mod noirc_evaluator::ssa::validation"><code>crate::ssa::validation</code></a> only checks an <code>array_get</code>’s result type against the element
+types when a reference is involved, and deliberately tolerates a numeric mismatch left
+behind by a pass in code it has already proven unreachable. Such a read has no slot whose
+type this can vouch for, so it is reported as an ICE rather than lowered onto a fallback
+slot that could hold a wider value than the result’s leaves declare.</p>
+<p>Only a read whose index is gated needs an offset, so the error is out of reach for the
+safe-index reads that a defaulted (constant) index produces; see
+<a href="struct.Context.html#method.handle_array_operation" title="method noirc_evaluator::acir::Context::handle_array_operation"><code>Context::handle_array_operation</code></a>.</p>
 <p>cf. <a href="https://github.com/noir-lang/noir/pull/4971">https://github.com/noir-lang/noir/pull/4971</a></p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.convert_array_operation_inputs" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#566-603">Source</a><h4 class="code-header">fn <a href="#method.convert_array_operation_inputs" class="fn">convert_array_operation_inputs</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.convert_array_operation_inputs" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#588-620">Source</a><h4 class="code-header">fn <a href="#method.convert_array_operation_inputs" class="fn">convert_array_operation_inputs</a>(
     &amp;mut self,
     array_id: <a class="type" href="../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     dfg: &amp;<a class="struct" href="../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
     index: <a class="type" href="../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     store_value: <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="type" href="../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>&gt;,
-    offset: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.usize.html">usize</a>,
+    gating: <a class="enum" href="arrays/enum.IndexGating.html" title="enum noirc_evaluator::acir::arrays::IndexGating">IndexGating</a>,
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;(<a class="struct" href="types/struct.AcirVar.html" title="struct noirc_evaluator::acir::types::AcirVar">AcirVar</a>, <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="enum" href="types/enum.AcirValue.html" title="enum noirc_evaluator::acir::types::AcirValue">AcirValue</a>&gt;), <a class="enum" href="../errors/enum.RuntimeError.html" title="enum noirc_evaluator::errors::RuntimeError">RuntimeError</a>&gt;</h4></section></summary><div class="docblock"><p>Sets up the inputs for an <code>ArrayGet</code> / <code>ArraySet</code> instruction.</p>
 <p>Returns the flat memory index to read/write at and, for <code>ArraySet</code>, the
 (predicated) value to store.</p>
 <p><a href="struct.Context.html#method.get_flattened_index" title="method noirc_evaluator::acir::Context::get_flattened_index"><code>Self::get_flattened_index</code></a> gates the returned index by the side-effects predicate
-where necessary and biases the disabled-branch fallback to <code>offset</code>, so the dummy value
-a disabled read returns is type-compatible with the read’s result type
+where necessary and biases the disabled-branch fallback to <code>gating</code>’s offset, so the
+dummy value a disabled read returns is type-compatible with the read’s result type
 (see <a href="struct.Context.html#method.compute_offset" title="method noirc_evaluator::acir::Context::compute_offset"><code>Self::compute_offset</code></a>).</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.predicated_store_value" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#607-622">Source</a><h4 class="code-header">fn <a href="#method.predicated_store_value" class="fn">predicated_store_value</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.predicated_store_value" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#624-639">Source</a><h4 class="code-header">fn <a href="#method.predicated_store_value" class="fn">predicated_store_value</a>(
     &amp;mut self,
     store: <a class="type" href="../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     dfg: &amp;<a class="struct" href="../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
@@ -178,17 +185,17 @@ a disabled read returns is type-compatible with the read’s result type
     dummy_predicate_index: <a class="struct" href="types/struct.AcirVar.html" title="struct noirc_evaluator::acir::types::AcirVar">AcirVar</a>,
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="enum" href="types/enum.AcirValue.html" title="enum noirc_evaluator::acir::types::AcirValue">AcirValue</a>, <a class="enum" href="../errors/enum.RuntimeError.html" title="enum noirc_evaluator::errors::RuntimeError">RuntimeError</a>&gt;</h4></section></summary><div class="docblock"><p>When there is a predicate, the store value is predicate*value + (1-predicate)*dummy, where dummy is the value of the array at the requested index.
 It is a dummy value because in the case of a false predicate, the value stored at the requested index will be itself.</p>
-</div></details><section id="method.convert_array_set_store_value" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#624-690">Source</a><h4 class="code-header">fn <a href="#method.convert_array_set_store_value" class="fn">convert_array_set_store_value</a>(
+</div></details><section id="method.convert_array_set_store_value" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#641-707">Source</a><h4 class="code-header">fn <a href="#method.convert_array_set_store_value" class="fn">convert_array_set_store_value</a>(
     &amp;mut self,
     store_value: &amp;<a class="enum" href="types/enum.AcirValue.html" title="enum noirc_evaluator::acir::types::AcirValue">AcirValue</a>,
     dummy_value: &amp;<a class="enum" href="types/enum.AcirValue.html" title="enum noirc_evaluator::acir::types::AcirValue">AcirValue</a>,
-) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="enum" href="types/enum.AcirValue.html" title="enum noirc_evaluator::acir::types::AcirValue">AcirValue</a>, <a class="enum" href="../errors/enum.RuntimeError.html" title="enum noirc_evaluator::errors::RuntimeError">RuntimeError</a>&gt;</h4></section><details class="toggle method-toggle" open><summary><section id="method.get_from_call_data" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#693-713">Source</a><h4 class="code-header">fn <a href="#method.get_from_call_data" class="fn">get_from_call_data</a>(
+) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="enum" href="types/enum.AcirValue.html" title="enum noirc_evaluator::acir::types::AcirValue">AcirValue</a>, <a class="enum" href="../errors/enum.RuntimeError.html" title="enum noirc_evaluator::errors::RuntimeError">RuntimeError</a>&gt;</h4></section><details class="toggle method-toggle" open><summary><section id="method.get_from_call_data" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#710-730">Source</a><h4 class="code-header">fn <a href="#method.get_from_call_data" class="fn">get_from_call_data</a>(
     &amp;mut self,
     offset: &amp;mut <a class="struct" href="types/struct.AcirVar.html" title="struct noirc_evaluator::acir::types::AcirVar">AcirVar</a>,
     call_data_block: BlockId,
     typ: &amp;<a class="enum" href="../ssa/ir/types/enum.Type.html" title="enum noirc_evaluator::ssa::ir::types::Type">Type</a>,
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="enum" href="types/enum.AcirValue.html" title="enum noirc_evaluator::acir::types::AcirValue">AcirValue</a>, <a class="enum" href="../errors/enum.RuntimeError.html" title="enum noirc_evaluator::errors::RuntimeError">RuntimeError</a>&gt;</h4></section></summary><div class="docblock"><p>Returns the acir value at the provided databus offset</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.array_get" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#720-732">Source</a><h4 class="code-header">fn <a href="#method.array_get" class="fn">array_get</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.array_get" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#737-749">Source</a><h4 class="code-header">fn <a href="#method.array_get" class="fn">array_get</a>(
     &amp;mut self,
     instruction: <a class="struct" href="../ssa/ir/map/struct.Id.html" title="struct noirc_evaluator::ssa::ir::map::Id">Id</a>&lt;<a class="enum" href="../ssa/ir/instruction/enum.Instruction.html" title="enum noirc_evaluator::ssa::ir::instruction::Instruction">Instruction</a>&gt;,
     array: <a class="type" href="../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
@@ -198,28 +205,28 @@ It is a dummy value because in the case of a false predicate, the value stored a
 <p><code>var_index</code> is already predicated: on a disabled branch it is gated and biased to the
 type-matching fallback offset (see <a href="struct.Context.html#method.compute_offset" title="method noirc_evaluator::acir::Context::compute_offset"><code>Self::compute_offset</code></a>), so the value read always
 fits the declared result type.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.load_array_value" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#735-791">Source</a><h4 class="code-header">fn <a href="#method.load_array_value" class="fn">load_array_value</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.load_array_value" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#752-808">Source</a><h4 class="code-header">fn <a href="#method.load_array_value" class="fn">load_array_value</a>(
     &amp;mut self,
     array: <a class="type" href="../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     var_index: <a class="struct" href="types/struct.AcirVar.html" title="struct noirc_evaluator::acir::types::AcirVar">AcirVar</a>,
     res_typ: &amp;<a class="enum" href="../ssa/ir/types/enum.Type.html" title="enum noirc_evaluator::ssa::ir::types::Type">Type</a>,
     dfg: &amp;<a class="struct" href="../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="enum" href="types/enum.AcirValue.html" title="enum noirc_evaluator::acir::types::AcirValue">AcirValue</a>, <a class="enum" href="../errors/enum.RuntimeError.html" title="enum noirc_evaluator::errors::RuntimeError">RuntimeError</a>&gt;</h4></section></summary><div class="docblock"><p>Loads a value either from call-data bus or from memory.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.array_get_value" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#795-826">Source</a><h4 class="code-header">pub(super) fn <a href="#method.array_get_value" class="fn">array_get_value</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.array_get_value" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#812-843">Source</a><h4 class="code-header">pub(super) fn <a href="#method.array_get_value" class="fn">array_get_value</a>(
     &amp;mut self,
     ssa_type: &amp;<a class="enum" href="../ssa/ir/types/enum.Type.html" title="enum noirc_evaluator::ssa::ir::types::Type">Type</a>,
     block_id: BlockId,
     var_index: &amp;mut <a class="struct" href="types/struct.AcirVar.html" title="struct noirc_evaluator::acir::types::AcirVar">AcirVar</a>,
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="enum" href="types/enum.AcirValue.html" title="enum noirc_evaluator::acir::types::AcirValue">AcirValue</a>, <a class="enum" href="../errors/enum.RuntimeError.html" title="enum noirc_evaluator::errors::RuntimeError">RuntimeError</a>&gt;</h4></section></summary><div class="docblock"><p>Reads the value of type <code>ssa_type</code> at the flattened position <code>var_index</code> of the array backed
 by <code>block_id</code>, emitting a <code>MemoryOp::Read</code> per scalar and advancing <code>var_index</code> past it.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.array_zero_value" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#832-853">Source</a><h4 class="code-header">pub(super) fn <a href="#method.array_zero_value" class="fn">array_zero_value</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.array_zero_value" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#849-870">Source</a><h4 class="code-header">pub(super) fn <a href="#method.array_zero_value" class="fn">array_zero_value</a>(
     &amp;mut self,
     ssa_type: &amp;<a class="enum" href="../ssa/ir/types/enum.Type.html" title="enum noirc_evaluator::ssa::ir::types::Type">Type</a>,
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="enum" href="types/enum.AcirValue.html" title="enum noirc_evaluator::acir::types::AcirValue">AcirValue</a>, <a class="enum" href="../errors/enum.RuntimeError.html" title="enum noirc_evaluator::errors::RuntimeError">RuntimeError</a>&gt;</h4></section></summary><div class="docblock"><p>Construct a value with all zero values, which we can use to provide a default value
 when we cannot use <code>array_get_value</code> because the array length itself is zero, yet
 we also don’t want a memory operation to fail, because the operation will never
 actually run, because we know that the side effect variable is false.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.array_set" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#860-906">Source</a><h4 class="code-header">fn <a href="#method.array_set" class="fn">array_set</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.array_set" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#877-923">Source</a><h4 class="code-header">fn <a href="#method.array_set" class="fn">array_set</a>(
     &amp;mut self,
     instruction: <a class="struct" href="../ssa/ir/map/struct.Id.html" title="struct noirc_evaluator::ssa::ir::map::Id">Id</a>&lt;<a class="enum" href="../ssa/ir/instruction/enum.Instruction.html" title="enum noirc_evaluator::ssa::ir::instruction::Instruction">Instruction</a>&gt;,
     var_index: <a class="struct" href="types/struct.AcirVar.html" title="struct noirc_evaluator::acir::types::AcirVar">AcirVar</a>,
@@ -233,7 +240,7 @@ actually run, because we know that the side effect variable is false.</p>
 generally very inefficient and should be avoided if possible. Currently
 this is controlled by SSA’s array set optimization pass.</li>
 </ul>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.resolve_array_set_block" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#911-931">Source</a><h4 class="code-header">fn <a href="#method.resolve_array_set_block" class="fn">resolve_array_set_block</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.resolve_array_set_block" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#928-948">Source</a><h4 class="code-header">fn <a href="#method.resolve_array_set_block" class="fn">resolve_array_set_block</a>(
     &amp;mut self,
     array: <a class="type" href="../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     result: <a class="type" href="../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
@@ -244,13 +251,13 @@ this is controlled by SSA’s array set optimization pass.</li>
 <li>if <code>mutate_array</code> is <code>true</code>, we return the existing initialized <code>block_id</code></li>
 <li>otherwise create a new block ID and copy the existing contents into it</li>
 </ul>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.array_set_value" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#934-972">Source</a><h4 class="code-header">pub(super) fn <a href="#method.array_set_value" class="fn">array_set_value</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.array_set_value" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#951-989">Source</a><h4 class="code-header">pub(super) fn <a href="#method.array_set_value" class="fn">array_set_value</a>(
     &amp;mut self,
     value: &amp;<a class="enum" href="types/enum.AcirValue.html" title="enum noirc_evaluator::acir::types::AcirValue">AcirValue</a>,
     block_id: BlockId,
     var_index: &amp;mut <a class="struct" href="types/struct.AcirVar.html" title="struct noirc_evaluator::acir::types::AcirVar">AcirVar</a>,
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.unit.html">()</a>, <a class="enum" href="../errors/enum.RuntimeError.html" title="enum noirc_evaluator::errors::RuntimeError">RuntimeError</a>&gt;</h4></section></summary><div class="docblock"><p>Set a value at a specific index in the memory block of an array.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.make_array_set_result_value" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#982-1008">Source</a><h4 class="code-header">pub(super) fn <a href="#method.make_array_set_result_value" class="fn">make_array_set_result_value</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.make_array_set_result_value" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#999-1025">Source</a><h4 class="code-header">pub(super) fn <a href="#method.make_array_set_result_value" class="fn">make_array_set_result_value</a>(
     &amp;mut self,
     array: <a class="type" href="../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     block_id: BlockId,
@@ -263,7 +270,7 @@ memory block has already been resolved by <a href="struct.Context.html#method.re
 <ul>
 <li>Populates the <code>value_types</code> vector. See <a href="types/struct.AcirDynamicArray.html#structfield.value_types" title="field noirc_evaluator::acir::types::AcirDynamicArray::value_types"><code>AcirDynamicArray::value_types</code></a> for more information.</li>
 </ul>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.init_element_type_sizes_array" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#1020-1048">Source</a><h4 class="code-header">pub(super) fn <a href="#method.init_element_type_sizes_array" class="fn">init_element_type_sizes_array</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.init_element_type_sizes_array" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#1037-1065">Source</a><h4 class="code-header">pub(super) fn <a href="#method.init_element_type_sizes_array" class="fn">init_element_type_sizes_array</a>(
     &amp;mut self,
     array_typ: &amp;<a class="enum" href="../ssa/ir/types/enum.Type.html" title="enum noirc_evaluator::ssa::ir::types::Type">Type</a>,
     array_id: <a class="type" href="../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
@@ -278,7 +285,7 @@ To reconcile this, each element’s “flattened index” is computed relative t
 In some cases this requires consulting a side “element type sizes”
 array to calculate offsets when elements have a non-homogenous layout.</p>
 <p>See <a href="arrays/index.html" title="mod noirc_evaluator::acir::arrays">self</a> for a more concrete example of how this types sizes array is used.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.element_type_sizes_table" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#1064-1112">Source</a><h4 class="code-header">fn <a href="#method.element_type_sizes_table" class="fn">element_type_sizes_table</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.element_type_sizes_table" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#1081-1129">Source</a><h4 class="code-header">fn <a href="#method.element_type_sizes_table" class="fn">element_type_sizes_table</a>(
     &amp;mut self,
     array_typ: &amp;<a class="enum" href="../ssa/ir/types/enum.Type.html" title="enum noirc_evaluator::ssa::ir::types::Type">Type</a>,
     array_id: <a class="type" href="../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
@@ -297,7 +304,7 @@ the same non-homogenous array (e.g. an unrolled loop) from rebuilding it. The ca
 only by <code>(array_id, shift)</code>; <code>supplied_acir_value</code> is a shortcut used to size the table on a
 miss and is ignored on a hit (it is always the same value’s ACIR representation, so it has
 the same flattened length as <code>convert_value(array_id)</code>).</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.reuse_or_init_element_type_sizes" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#1122-1150">Source</a><h4 class="code-header">fn <a href="#method.reuse_or_init_element_type_sizes" class="fn">reuse_or_init_element_type_sizes</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.reuse_or_init_element_type_sizes" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#1139-1167">Source</a><h4 class="code-header">fn <a href="#method.reuse_or_init_element_type_sizes" class="fn">reuse_or_init_element_type_sizes</a>(
     &amp;mut self,
     table: <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.u32.html">u32</a>&gt;,
     preferred_block: BlockId,
@@ -308,30 +315,30 @@ prefix (the table is never mutated and is a cumulative prefix-offset array, so r
 the first entries of a larger table yields the same offsets). Otherwise initializes a new
 table into <code>preferred_block</code>, or a fresh block when <code>preferred_block</code> is already in use (it
 may hold this value’s smaller, non-shifted table).</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.read_array_with_type" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#1155-1191">Source</a><h4 class="code-header">pub(super) fn <a href="#method.read_array_with_type" class="fn">read_array_with_type</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.read_array_with_type" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#1172-1208">Source</a><h4 class="code-header">pub(super) fn <a href="#method.read_array_with_type" class="fn">read_array_with_type</a>(
     &amp;mut self,
     array: <a class="enum" href="types/enum.AcirValue.html" title="enum noirc_evaluator::acir::types::AcirValue">AcirValue</a>,
     array_typ: &amp;<a class="enum" href="../ssa/ir/types/enum.Type.html" title="enum noirc_evaluator::ssa::ir::types::Type">Type</a>,
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;Vector&lt;<a class="enum" href="types/enum.AcirValue.html" title="enum noirc_evaluator::acir::types::AcirValue">AcirValue</a>&gt;, <a class="enum" href="../errors/enum.RuntimeError.html" title="enum noirc_evaluator::errors::RuntimeError">RuntimeError</a>&gt;</h4></section></summary><div class="docblock"><p>Read an array and reconstruct its structure based on the SSA type.
 For <code>DynamicArrays</code> with nested arrays, this preserves the nested structure
 instead of returning a flat array.</p>
-</div></details><section id="method.copy_array" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#1193-1214">Source</a><h4 class="code-header">pub(super) fn <a href="#method.copy_array" class="fn">copy_array</a>(
+</div></details><section id="method.copy_array" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#1210-1231">Source</a><h4 class="code-header">pub(super) fn <a href="#method.copy_array" class="fn">copy_array</a>(
     &amp;mut self,
     source: <a class="type" href="../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     destination: BlockId,
     dfg: &amp;<a class="struct" href="../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
-) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.unit.html">()</a>, <a class="enum" href="../errors/enum.RuntimeError.html" title="enum noirc_evaluator::errors::RuntimeError">RuntimeError</a>&gt;</h4></section><section id="method.read_dynamic_array" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#1216-1230">Source</a><h4 class="code-header">pub(super) fn <a href="#method.read_dynamic_array" class="fn">read_dynamic_array</a>(
+) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.unit.html">()</a>, <a class="enum" href="../errors/enum.RuntimeError.html" title="enum noirc_evaluator::errors::RuntimeError">RuntimeError</a>&gt;</h4></section><section id="method.read_dynamic_array" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#1233-1247">Source</a><h4 class="code-header">pub(super) fn <a href="#method.read_dynamic_array" class="fn">read_dynamic_array</a>(
     &amp;mut self,
     source: BlockId,
     array_len: FlattenedLength,
     value_types: &amp;[<a class="enum" href="../ssa/ir/types/enum.NumericType.html" title="enum noirc_evaluator::ssa::ir::types::NumericType">NumericType</a>],
-) -&gt; impl <a class="trait" href="https://doc.rust-lang.org/1.89.0/core/iter/traits/iterator/trait.Iterator.html" title="trait core::iter::traits::iterator::Iterator">Iterator</a>&lt;Item = <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="enum" href="types/enum.AcirValue.html" title="enum noirc_evaluator::acir::types::AcirValue">AcirValue</a>, <a class="enum" href="../errors/enum.RuntimeError.html" title="enum noirc_evaluator::errors::RuntimeError">RuntimeError</a>&gt;&gt;</h4></section><section id="method.copy_dynamic_array" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#1232-1243">Source</a><h4 class="code-header">fn <a href="#method.copy_dynamic_array" class="fn">copy_dynamic_array</a>(
+) -&gt; impl <a class="trait" href="https://doc.rust-lang.org/1.89.0/core/iter/traits/iterator/trait.Iterator.html" title="trait core::iter::traits::iterator::Iterator">Iterator</a>&lt;Item = <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="enum" href="types/enum.AcirValue.html" title="enum noirc_evaluator::acir::types::AcirValue">AcirValue</a>, <a class="enum" href="../errors/enum.RuntimeError.html" title="enum noirc_evaluator::errors::RuntimeError">RuntimeError</a>&gt;&gt;</h4></section><section id="method.copy_dynamic_array" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#1249-1260">Source</a><h4 class="code-header">fn <a href="#method.copy_dynamic_array" class="fn">copy_dynamic_array</a>(
     &amp;mut self,
     source: BlockId,
     destination: BlockId,
     array_len: FlattenedLength,
     value_types: &amp;[<a class="enum" href="../ssa/ir/types/enum.NumericType.html" title="enum noirc_evaluator::ssa::ir::types::NumericType">NumericType</a>],
-) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.unit.html">()</a>, <a class="enum" href="../errors/enum.RuntimeError.html" title="enum noirc_evaluator::errors::RuntimeError">RuntimeError</a>&gt;</h4></section><details class="toggle method-toggle" open><summary><section id="method.index_gating_without_fallback" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#1251-1258">Source</a><h4 class="code-header">pub(super) fn <a href="#method.index_gating_without_fallback" class="fn">index_gating_without_fallback</a>(
+) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.unit.html">()</a>, <a class="enum" href="../errors/enum.RuntimeError.html" title="enum noirc_evaluator::errors::RuntimeError">RuntimeError</a>&gt;</h4></section><details class="toggle method-toggle" open><summary><section id="method.index_gating_without_fallback" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#1268-1275">Source</a><h4 class="code-header">pub(super) fn <a href="#method.index_gating_without_fallback" class="fn">index_gating_without_fallback</a>(
     &amp;self,
     is_safe_index: <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.bool.html">bool</a>,
 ) -&gt; <a class="enum" href="arrays/enum.IndexGating.html" title="enum noirc_evaluator::acir::arrays::IndexGating">IndexGating</a></h4></section></summary><div class="docblock"><p>The gating for an access that addresses whole elements, and so has no field of the element
@@ -339,7 +346,7 @@ to fall back on: a disabled branch collapses it to the start of the block.</p>
 <p>A statically safe index is used as-is, so a lowering whose only predicated operand is this
 index reads no predicate at all. That acknowledgment is recorded here, where the decision
 is made, rather than left to each caller to remember.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.get_flattened_index" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#1277-1352">Source</a><h4 class="code-header">pub(super) fn <a href="#method.get_flattened_index" class="fn">get_flattened_index</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.get_flattened_index" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#1294-1374">Source</a><h4 class="code-header">pub(super) fn <a href="#method.get_flattened_index" class="fn">get_flattened_index</a>(
     &amp;mut self,
     array_typ: &amp;<a class="enum" href="../ssa/ir/types/enum.Type.html" title="enum noirc_evaluator::ssa::ir::types::Type">Type</a>,
     array_id: <a class="type" href="../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
@@ -361,13 +368,13 @@ applied here, on the gated path and nowhere else: an index that is not gated —
 index, or a constant resolved through the element-type-sizes table below — stays on its
 true slots whatever the predicate is, and must not be biased.</p>
 <p>See <a href="arrays/index.html" title="mod noirc_evaluator::acir::arrays">self</a> for a more concrete example of how flattened indices are computed.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.flattened_size" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#1357-1377">Source</a><h4 class="code-header">pub(super) fn <a href="#method.flattened_size" class="fn">flattened_size</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.flattened_size" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#1379-1399">Source</a><h4 class="code-header">pub(super) fn <a href="#method.flattened_size" class="fn">flattened_size</a>(
     &amp;mut self,
     array: <a class="type" href="../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     dfg: &amp;<a class="struct" href="../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
 ) -&gt; FlattenedLength</h4></section></summary><div class="docblock"><p>Calculate the flattened size of a value.</p>
 <p>For vectors this will be based on the capacity, not semantic length.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.has_zero_length" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#1384-1408">Source</a><h4 class="code-header">pub(super) fn <a href="#method.has_zero_length" class="fn">has_zero_length</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.has_zero_length" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#1406-1430">Source</a><h4 class="code-header">pub(super) fn <a href="#method.has_zero_length" class="fn">has_zero_length</a>(
     &amp;mut self,
     array: <a class="type" href="../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     dfg: &amp;<a class="struct" href="../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
@@ -375,11 +382,11 @@ true slots whatever the predicate is, and must not be biased.</p>
 <p>This is different from <code>flattened_size</code> in that a non-zero length
 array containing zero length arrays has zero size, but we can still
 access its elements.</p>
-</div></details><section id="method.ensure_array_is_initialized" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#1410-1440">Source</a><h4 class="code-header">pub(super) fn <a href="#method.ensure_array_is_initialized" class="fn">ensure_array_is_initialized</a>(
+</div></details><section id="method.ensure_array_is_initialized" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#1432-1462">Source</a><h4 class="code-header">pub(super) fn <a href="#method.ensure_array_is_initialized" class="fn">ensure_array_is_initialized</a>(
     &amp;mut self,
     array: <a class="type" href="../ssa/ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     dfg: &amp;<a class="struct" href="../ssa/ir/dfg/struct.DataFlowGraph.html" title="struct noirc_evaluator::ssa::ir::dfg::DataFlowGraph">DataFlowGraph</a>,
-) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;BlockId, <a class="enum" href="../errors/enum.RuntimeError.html" title="enum noirc_evaluator::errors::RuntimeError">RuntimeError</a>&gt;</h4></section><details class="toggle method-toggle" open><summary><section id="method.initialize_array" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#1444-1474">Source</a><h4 class="code-header">pub(super) fn <a href="#method.initialize_array" class="fn">initialize_array</a>(
+) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;BlockId, <a class="enum" href="../errors/enum.RuntimeError.html" title="enum noirc_evaluator::errors::RuntimeError">RuntimeError</a>&gt;</h4></section><details class="toggle method-toggle" open><summary><section id="method.initialize_array" class="method"><a class="src rightside" href="../../src/noirc_evaluator/acir/arrays.rs.html#1466-1496">Source</a><h4 class="code-header">pub(super) fn <a href="#method.initialize_array" class="fn">initialize_array</a>(
     &amp;mut self,
     array: BlockId,
     len: FlattenedLength,
