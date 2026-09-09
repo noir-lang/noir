@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788961938011,
+  "lastUpdate": 1788961941799,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3363,105 +3363,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "b61b187d616e4c6d8267a55e2f2938e187cc0b1b",
-          "message": "chore(deps): bump the cargo-minor-and-patch group with 4 updates (#13562)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-08-25T10:01:02Z",
-          "tree_id": "63a62ade38656dc96a7fbf581f867bc18264f536",
-          "url": "https://github.com/noir-lang/noir/commit/b61b187d616e4c6d8267a55e2f2938e187cc0b1b"
-        },
-        "date": 1787653936021,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 6.894,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 249,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 12.92,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 2.632,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 2.62,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 2.67,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 1.842,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 276,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 276,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 2.676,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 17.78,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 44.04,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 2.034,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.926,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.689,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "98612432+Osraka@users.noreply.github.com",
             "name": "Osraka",
             "username": "Osraka"
@@ -6376,6 +6277,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.682,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "92de26d8cd97100927759291336c5a670d699b9f",
+          "message": "chore(deps): bump colord from 2.9.3 to 2.10.0 in /docs (#13628)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-09-09T13:26:15Z",
+          "tree_id": "243c44ba7229bc285180a74e4bed8fe5803a874f",
+          "url": "https://github.com/noir-lang/noir/commit/92de26d8cd97100927759291336c5a670d699b9f"
+        },
+        "date": 1788961879679,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 1.057,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.706,
             "unit": "s"
           }
         ]
