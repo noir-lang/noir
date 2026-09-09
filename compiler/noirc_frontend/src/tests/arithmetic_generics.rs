@@ -63,14 +63,14 @@ fn checked_casts_do_not_prevent_canonicalization() {
 
 // A return-type expression that simplifies to `simplified` (the value the
 // function body must produce) but whose unsimplified `from` obligation contains
-// the cancelling core `(N - 1) + 1`. With N = 0 the `(0 - 1)` subexpression
+// the canceling core `(N - 1) + 1`. With N = 0 the `(0 - 1)` subexpression
 // underflows u32 even though every layer simplifies away, so canonicalizing the
 // CheckedCast must not drop the inner `from`: the underflow has to be reported
-// at monomorphization regardless of how the cancelling core is wrapped.
+// at monomorphization regardless of how the canceling core is wrapped.
 //
 // Parametrised over the return type so it stays concise and extensible to other
 // arithmetic we want to reject.
-#[test_case("(N - 1) + 1", "N" ; "cancelling core simplified out of to")]
+#[test_case("(N - 1) + 1", "N" ; "canceling core simplified out of to")]
 #[test_case("((N - 1) + 1) + 0", "N" ; "wrapped in outer add zero")]
 #[test_case("((N - 1) + 1) + 1", "N + 1" ; "wrapped in outer add one")]
 fn arithmetic_generics_intermediate_underflow_reported(return_length: &str, simplified: &str) {

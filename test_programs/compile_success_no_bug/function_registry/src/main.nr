@@ -44,7 +44,8 @@ pub fn foo() {}
 
 fn main() {
     comptime {
-        let crate_root_module = quote { DummyHasher }.as_type().as_data_type().unwrap().0.module();
+        let crate_root_module =
+            quote { DummyHasher }.as_type().as_data_type().unwrap().definition().module();
         assert(REGISTRY.get(crate_root_module).is_some());
         assert(REGISTRY.get(crate_root_module).unwrap().len() == 1);
         assert(REGISTRY.get(crate_root_module).unwrap()[0].name() == quote { foo });

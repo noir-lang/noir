@@ -124,7 +124,7 @@ impl<'f> Context<'f> {
 
     /// Remember this instruction as the last time the array has been read or written to.
     ///
-    /// Any previous instruction marked to be made mutable needs to be cancelled,
+    /// Any previous instruction marked to be made mutable needs to be canceled,
     /// as it turned out not to be the last use.
     fn set_last_use(&mut self, array: ValueId, instruction_id: InstructionId) {
         if let Some(existing) = self.array_to_last_use.insert(array, instruction_id) {

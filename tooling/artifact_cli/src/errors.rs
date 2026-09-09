@@ -13,9 +13,6 @@ pub enum FilesystemError {
     #[error("Cannot find input file '{0}'")]
     MissingInputFile(PathBuf),
 
-    #[error("Failed to create output file '{0}': {1}")]
-    OutputFileCreationFailed(PathBuf, String),
-
     #[error("Failed to parse input file '{0}': {1}")]
     InvalidInputFile(PathBuf, String),
 
@@ -96,4 +93,7 @@ pub enum CliError {
 
     #[error("Failed to save contract '{0}':\n{1}")]
     FailedToSaveContract(String, Box<CliError>),
+
+    #[error("{0}")]
+    Generic(String),
 }

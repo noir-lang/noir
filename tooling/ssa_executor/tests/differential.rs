@@ -488,10 +488,10 @@ fn interpreter_vs_backends_on_out_of_range_consumers() {
 //
 // The engines model a global array differently, and nothing in the harness above
 // exercised that: the interpreter holds the globals in its own scope for as long as
-// the interpreter lives, while a compiled Brillig entry point re-initialises the
+// the interpreter lives, while a compiled Brillig entry point re-initializes the
 // globals region on every invocation (`brillig_ir/entry_point.rs`) and ACVM builds a
 // fresh VM per `Opcode::BrilligCall`. The cases below pin the observable consequences
-// of that difference to the backends' behaviour.
+// of that difference to the backends' behavior.
 // ---------------------------------------------------------------------------
 
 const U32: NumericType = NumericType::Unsigned { bit_size: 32 };
@@ -580,9 +580,9 @@ fn brillig_write_to_an_inc_rcd_global_copies() {
 /// keeps them distinct, and the `BrilligCall` count is asserted rather than assumed, because
 /// nothing else in the assertion below would notice if the pair collapsed back into one call.
 ///
-/// Both invocations then read the globals region their own entry point initialised, so the
+/// Both invocations then read the globals region their own entry point initialized, so the
 /// answer is `g0[0] + g0[1]`. An invocation observing another invocation's *write* to a global
-/// is the neighbouring property, covered by `brillig_invocations_do_not_share_globals`.
+/// is the neighboring property, covered by `brillig_invocations_do_not_share_globals`.
 #[test]
 fn two_brillig_calls_read_the_same_global() {
     let src = "
@@ -608,7 +608,7 @@ fn two_brillig_calls_read_the_same_global() {
 
 /// The program a Brillig entry point sees on its second invocation must be the one it
 /// saw on its first: ACVM constructs a fresh VM per `Opcode::BrilligCall` and the entry
-/// point re-runs its globals initialisation, so an in-place write to a global made by
+/// point re-runs its globals initialization, so an in-place write to a global made by
 /// one invocation cannot be observed by the next.
 ///
 /// `f1` writes its argument into `g0[0]` — with nothing bumping the global's reference

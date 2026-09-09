@@ -7,7 +7,7 @@
 //!   [`InstructionId`][crate::ssa::ir::instruction::InstructionId].
 //! - Continue inserting instructions until either
 //!     - Another [`Instruction::EnableSideEffectsIf`] is encountered, if so then drop the previous
-//!       [`InstructionId`][crate::ssa::ir::instruction::InstructionId] in favour of this one.
+//!       [`InstructionId`][crate::ssa::ir::instruction::InstructionId] in favor of this one.
 //!     - An [Instruction] that is affected by the side-effects variable is encountered, if so
 //!       then insert the currently saved [`Instruction::EnableSideEffectsIf`] before the
 //!       [Instruction]. Continue inserting instructions until the next

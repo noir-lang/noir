@@ -875,7 +875,7 @@ fn truncate_then_cast_preserves_in_range_negative() {
     assert_eq!(value, from_constant(65436_u32.into(), NumericType::signed(16)));
 }
 
-/// The same behaviour holds for the smaller widths used by `i16 as i8`: `-1_i16 as i8 == -1`.
+/// The same behavior holds for the smaller widths used by `i16 as i8`: `-1_i16 as i8 == -1`.
 #[test]
 fn truncate_then_cast_recovers_negative_i16_to_i8() {
     let value = expect_value(

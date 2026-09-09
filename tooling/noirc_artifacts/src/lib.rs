@@ -20,8 +20,12 @@ pub mod ssa;
 /// The version of the artifact schema emitted by this version of Noir.
 pub const ARTIFACT_VERSION: u32 = 1;
 
+/// The schema version of artifact JSON written before `ARTIFACT_VERSION` existed. This is a
+/// historical fact about those files and must not change when `ARTIFACT_VERSION` is incremented.
+const LEGACY_ARTIFACT_VERSION: u32 = 1;
+
 pub(crate) const fn default_artifact_version() -> u32 {
-    ARTIFACT_VERSION
+    LEGACY_ARTIFACT_VERSION
 }
 
 pub(crate) fn deserialize_artifact_version<'de, D>(deserializer: D) -> Result<u32, D::Error>
@@ -129,13 +133,13 @@ mod tests {
         let program = program.as_object_mut().unwrap();
         program.remove("artifact_version");
         let program: ProgramArtifact = serde_json::from_value(program.clone().into()).unwrap();
-        assert_eq!(program.artifact_version, ARTIFACT_VERSION);
+        assert_eq!(program.artifact_version, 1);
 
         let mut contract = serde_json::to_value(contract_artifact()).unwrap();
         let contract = contract.as_object_mut().unwrap();
         contract.remove("artifact_version");
         let contract: ContractArtifact = serde_json::from_value(contract.clone().into()).unwrap();
-        assert_eq!(contract.artifact_version, ARTIFACT_VERSION);
+        assert_eq!(contract.artifact_version, 1);
     }
 
     #[test]

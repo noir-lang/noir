@@ -10,7 +10,7 @@ mod tests {
     };
 
     fn run_all_passes(ssa: Ssa) -> Result<Ssa, RuntimeError> {
-        let options = SsaEvaluatorOptions::default();
+        let options = SsaEvaluatorOptions::for_tests();
 
         let builder = SsaBuilder::from_ssa(
             ssa,
