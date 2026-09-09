@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788968682777,
+  "lastUpdate": 1788968834615,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -29692,105 +29692,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "4794fb8d1e67e2395b4aaeb1269bb109a639c1b0",
-          "message": "chore(ssa): hold the interpreter's globals outside the call stack (#13551)",
-          "timestamp": "2026-08-26T13:34:21Z",
-          "tree_id": "021adc5a67a96655230bba181f84ce6ad231211e",
-          "url": "https://github.com/noir-lang/noir/commit/4794fb8d1e67e2395b4aaeb1269bb109a639c1b0"
-        },
-        "date": 1787753213931,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.39,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 1.38,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 1.336,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 2.282,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 1.52,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 2.03,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 2.206,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 1.12,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 2.15,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.776,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 2.214,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 2.228,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 2.246,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.293,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.262,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "ead45a52af7d89c28fb00fca3cd254782e153df9",
           "message": "fix(ssa): never mutate a global's storage in place in the SSA interpreter (#13553)",
@@ -32306,6 +32207,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 0.197,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "0a9e10d3dc337e19f75983bc38edd2b40fbde712",
+          "message": "chore: remove the acvm_cli crate (#13632)",
+          "timestamp": "2026-09-09T15:21:49Z",
+          "tree_id": "f7632919653bc4026bf63c943fee32bd6feccd4c",
+          "url": "https://github.com/noir-lang/noir/commit/0a9e10d3dc337e19f75983bc38edd2b40fbde712"
+        },
+        "date": 1788968787784,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.244,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.241,
             "unit": "s"
           }
         ]
