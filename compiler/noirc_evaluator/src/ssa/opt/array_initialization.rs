@@ -185,3 +185,234 @@ impl Function {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::assert_ssa_snapshot;
+
+    use super::Ssa;
+
+    /// A chain that overwrites every element collapses into the array it builds.
+    #[test]
+    fn collapses_full_initialization_chain() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field, v2: Field, v3: Field):
+            v4 = make_array [Field 0, Field 0, Field 0, Field 0] : [Field; 4]
+            v5 = array_set v4, index u32 0, value v0
+            v6 = array_set v5, index u32 1, value v1
+            v7 = array_set v6, index u32 2, value v2
+            v8 = array_set v7, index u32 3, value v3
+            return v8
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.lower_array_initializations();
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field, v2: Field, v3: Field):
+            v5 = make_array [Field 0, Field 0, Field 0, Field 0] : [Field; 4]
+            v6 = make_array [v0, v1, v2, v3] : [Field; 4]
+            return v6
+        }
+        ");
+    }
+
+    /// Elements the chain never writes keep the value the root `make_array` gave them.
+    #[test]
+    fn keeps_elements_the_chain_does_not_write() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field, v2: Field, v3: Field):
+            v4 = make_array [Field 7, Field 7, Field 7, Field 7, Field 7] : [Field; 5]
+            v5 = array_set v4, index u32 0, value v0
+            v6 = array_set v5, index u32 1, value v1
+            v7 = array_set v6, index u32 2, value v2
+            v8 = array_set v7, index u32 3, value v3
+            return v8
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.lower_array_initializations();
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field, v2: Field, v3: Field):
+            v5 = make_array [Field 7, Field 7, Field 7, Field 7, Field 7] : [Field; 5]
+            v6 = make_array [v0, v1, v2, v3, Field 7] : [Field; 5]
+            return v6
+        }
+        ");
+    }
+
+    /// A later write to an index an earlier one already set wins.
+    #[test]
+    fn later_write_to_the_same_index_wins() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field, v2: Field, v3: Field):
+            v4 = make_array [Field 0, Field 0, Field 0] : [Field; 3]
+            v5 = array_set v4, index u32 0, value v0
+            v6 = array_set v5, index u32 1, value v1
+            v7 = array_set v6, index u32 2, value v2
+            v8 = array_set v7, index u32 0, value v3
+            return v8
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.lower_array_initializations();
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field, v2: Field, v3: Field):
+            v5 = make_array [Field 0, Field 0, Field 0] : [Field; 3]
+            v6 = make_array [v3, v1, v2] : [Field; 3]
+            return v6
+        }
+        ");
+    }
+
+    /// Rewriting a couple of writes only churns the IR, so short chains are left alone.
+    #[test]
+    fn does_not_collapse_chain_below_threshold() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field, v2: Field):
+            v3 = make_array [Field 0, Field 0, Field 0] : [Field; 3]
+            v4 = array_set v3, index u32 0, value v0
+            v5 = array_set v4, index u32 1, value v1
+            v6 = array_set v5, index u32 2, value v2
+            return v6
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.lower_array_initializations();
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field, v2: Field):
+            v4 = make_array [Field 0, Field 0, Field 0] : [Field; 3]
+            v6 = array_set v4, index u32 0, value v0
+            v8 = array_set v6, index u32 1, value v1
+            v10 = array_set v8, index u32 2, value v2
+            return v10
+        }
+        ");
+    }
+
+    /// If anything reads an intermediate array the chain is abandoned: the walk stops at that array,
+    /// which is an `array_set` rather than a `make_array`, so the untouched elements are unknown.
+    #[test]
+    fn does_not_collapse_a_chain_with_an_observed_intermediate() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field, v2: Field, v3: Field):
+            v4 = make_array [Field 0, Field 0, Field 0, Field 0] : [Field; 4]
+            v5 = array_set v4, index u32 0, value v0
+            v6 = array_set v5, index u32 1, value v1
+            v7 = array_set v6, index u32 2, value v2
+            v8 = array_set v7, index u32 3, value v3
+            v9 = array_get v6, index u32 0 -> Field
+            return v8, v9
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.lower_array_initializations();
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field, v2: Field, v3: Field):
+            v5 = make_array [Field 0, Field 0, Field 0, Field 0] : [Field; 4]
+            v7 = array_set v5, index u32 0, value v0
+            v9 = array_set v7, index u32 1, value v1
+            v11 = array_set v9, index u32 2, value v2
+            v13 = array_set v11, index u32 3, value v3
+            v14 = array_get v9, index u32 0 -> Field
+            return v13, v14
+        }
+        ");
+    }
+
+    /// A non-constant index could hit any element, so the resulting array is not known.
+    #[test]
+    fn does_not_collapse_non_constant_index() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: u32):
+            v5 = make_array [Field 0, Field 0, Field 0, Field 0] : [Field; 4]
+            v6 = array_set v5, index u32 0, value v0
+            v7 = array_set v6, index u32 1, value v1
+            v8 = array_set v7, index v4, value v2
+            v9 = array_set v8, index u32 3, value v3
+            return v9
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.lower_array_initializations();
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: u32):
+            v6 = make_array [Field 0, Field 0, Field 0, Field 0] : [Field; 4]
+            v8 = array_set v6, index u32 0, value v0
+            v10 = array_set v8, index u32 1, value v1
+            v11 = array_set v10, index v4, value v2
+            v13 = array_set v11, index u32 3, value v3
+            return v13
+        }
+        ");
+    }
+
+    /// Writes under a predicate are conditional and cannot be folded into an unconditional array.
+    #[test]
+    fn does_not_collapse_under_a_predicate() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: u1):
+            enable_side_effects v4
+            v5 = make_array [Field 0, Field 0, Field 0, Field 0] : [Field; 4]
+            v6 = array_set v5, index u32 0, value v0
+            v7 = array_set v6, index u32 1, value v1
+            v8 = array_set v7, index u32 2, value v2
+            v9 = array_set v8, index u32 3, value v3
+            return v9
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.lower_array_initializations();
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: u1):
+            enable_side_effects v4
+            v6 = make_array [Field 0, Field 0, Field 0, Field 0] : [Field; 4]
+            v8 = array_set v6, index u32 0, value v0
+            v10 = array_set v8, index u32 1, value v1
+            v12 = array_set v10, index u32 2, value v2
+            v14 = array_set v12, index u32 3, value v3
+            return v14
+        }
+        ");
+    }
+
+    /// Without a `make_array` root the untouched elements are unknown.
+    #[test]
+    fn does_not_collapse_chain_rooted_at_an_opaque_array() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 4], v1: Field, v2: Field, v3: Field, v4: Field):
+            v5 = array_set v0, index u32 0, value v1
+            v6 = array_set v5, index u32 1, value v2
+            v7 = array_set v6, index u32 2, value v3
+            v8 = array_set v7, index u32 3, value v4
+            return v8
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.lower_array_initializations();
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 4], v1: Field, v2: Field, v3: Field, v4: Field):
+            v6 = array_set v0, index u32 0, value v1
+            v8 = array_set v6, index u32 1, value v2
+            v10 = array_set v8, index u32 2, value v3
+            v12 = array_set v10, index u32 3, value v4
+            return v12
+        }
+        ");
+    }
+}
