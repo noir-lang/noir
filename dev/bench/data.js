@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788962062365,
+  "lastUpdate": 1788962092966,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3242,105 +3242,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "60aeee68ae4b08a0345550e1e52e812efe24ad61",
-          "message": "chore(deps): bump the npm-minor-and-patch group with 2 updates (#13559)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-08-25T14:19:57Z",
-          "tree_id": "dc3fd70118b83272b1bc9f5266fd484824840157",
-          "url": "https://github.com/noir-lang/noir/commit/60aeee68ae4b08a0345550e1e52e812efe24ad61"
-        },
-        "date": 1787669405663,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 7.248,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 190,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 15.78,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 2.53,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 2.56,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 3,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 2.698,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 288,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 252,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 2.216,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 16.68,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 53.96,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 2.098,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.95,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 2.062,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "8739a7482a40feccb6fd4369ae47855e58b6cbf8",
           "message": "chore(deps): bump @web/test-runner from 0.20.2 to 1.0.0 (#13560)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
@@ -6116,6 +6017,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.109,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "9cbcbfd22f8e5c940fa447ed350a1b349e94ca64",
+          "message": "chore(deps): bump js-yaml from 3.15.1 to 3.15.2 in /docs (#13629)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-09-09T13:26:11Z",
+          "tree_id": "fe8db4b1dc1a5bf50c68968e18d28cb98781aeba",
+          "url": "https://github.com/noir-lang/noir/commit/9cbcbfd22f8e5c940fa447ed350a1b349e94ca64"
+        },
+        "date": 1788962008425,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.752,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.185,
             "unit": "s"
           }
         ]
