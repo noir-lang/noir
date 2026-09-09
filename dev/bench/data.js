@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788880989656,
+  "lastUpdate": 1788961743028,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -16340,48 +16340,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "9476c3519a007bfff57c341ee2660276e9f91c40",
-          "message": "chore(deps-dev): bump @types/pako from 2.0.4 to 3.0.0 (#13561)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-08-25T15:29:55Z",
-          "tree_id": "dbd02b780a3bab7b64993a2bdaa51902b6034ee0",
-          "url": "https://github.com/noir-lang/noir/commit/9476c3519a007bfff57c341ee2660276e9f91c40"
-        },
-        "date": 1787673033266,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 168237,
-            "range": "± 766",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 137009,
-            "range": "± 1984",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2653684,
-            "range": "± 7670",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "f023157bdfc0ccab12e2992b64495f6e98507cfd",
           "message": "chore(deps): bump @nomicfoundation/hardhat-keystore from 3.0.12 to 3.0.13 in the hardhat group (#13558)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
@@ -18424,6 +18382,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2370663,
             "range": "± 21205",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "92de26d8cd97100927759291336c5a670d699b9f",
+          "message": "chore(deps): bump colord from 2.9.3 to 2.10.0 in /docs (#13628)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-09-09T13:26:15Z",
+          "tree_id": "243c44ba7229bc285180a74e4bed8fe5803a874f",
+          "url": "https://github.com/noir-lang/noir/commit/92de26d8cd97100927759291336c5a670d699b9f"
+        },
+        "date": 1788961674825,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 98754,
+            "range": "± 336",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 87581,
+            "range": "± 626",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2361255,
+            "range": "± 3189",
             "unit": "ns/iter"
           }
         ]
