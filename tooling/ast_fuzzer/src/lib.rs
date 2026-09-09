@@ -115,11 +115,15 @@ pub struct Config {
     ///
     /// The attribute inlines the callee's body only after the flattening pass, so the body
     /// runs unpredicated: a call sitting in an untaken branch really executes in ACIR while
-    /// in Brillig it does not. That is the attribute's documented behavior, but it means a
-    /// target that asserts two builds of the same program agree (ACIR vs Brillig, or two
-    /// predicate structures the morph is entitled to change) reports a false positive for
-    /// any program whose `#[no_predicates]` function is fallible or side-effecting. Such
-    /// targets set this flag; targets that compare a pass against its own input keep it off.
+    /// in Brillig it does not, and it executes after flattening while it does not before.
+    /// That is the attribute's documented behavior, but it means any target that asserts
+    /// two executions of the same program agree — two builds (ACIR vs Brillig, or two
+    /// predicate structures the morph is entitled to change), or two points in the pass
+    /// pipeline that straddle flattening — reports a false positive for any program whose
+    /// `#[no_predicates]` function is fallible or side-effecting. Such targets set this
+    /// flag. `valid_after_pass` checks the shape of the SSA rather than what it prints,
+    /// so it keeps the attribute and remains the target that covers this part of
+    /// flattening.
     pub avoid_no_predicates: bool,
     /// Only use comptime friendly expressions.
     pub comptime_friendly: bool,

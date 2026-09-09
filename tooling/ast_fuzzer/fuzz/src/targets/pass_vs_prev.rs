@@ -27,7 +27,14 @@ use noirc_evaluator::ssa::ssa_gen::Ssa;
 use noirc_evaluator::ssa::{SsaPass, primary_passes, ssa_gen};
 
 pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
-    let config = Config { avoid_overflow: u.arbitrary()?, ..Config::default() };
+    // The two sampled steps can straddle flattening, which is where a `#[no_predicates]`
+    // body stops being predicated: a call sitting in an untaken branch starts executing,
+    // so the two steps legitimately disagree on printed output. That is the attribute's
+    // documented behavior, not a pass breaking semantic preservation — see
+    // [`Config::avoid_no_predicates`]. `valid_after_pass` keeps generating the attribute,
+    // so the coverage that reaches this part of flattening is not lost.
+    let config =
+        Config { avoid_overflow: u.arbitrary()?, avoid_no_predicates: true, ..Config::default() };
 
     let inputs = CompareInterpreted::arb(u, config, |u, program| {
         let options = CompareOptions::arbitrary(u)?;
