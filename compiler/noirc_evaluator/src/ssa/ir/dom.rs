@@ -1237,9 +1237,6 @@ mod differential_tests {
     #[test]
     fn random_control_flow_graphs_agree_with_reference_dominator_sets() {
         let mut checked = 0usize;
-        let mut skipped = 0usize;
-        let mut total_reachable = 0usize;
-        let mut max_reachable = 0usize;
         let mut with_irreducible = 0usize;
         let mut pairs = 0usize;
         for seed in 1..2000u64 {
@@ -1249,7 +1246,6 @@ mod differential_tests {
                 let cfg = ControlFlowGraph::with_function(func);
                 let post_order = PostOrder::with_cfg(&cfg);
                 if post_order.as_slice().is_empty() {
-                    skipped += 1;
                     continue;
                 }
                 let tree = DominatorTree::with_cfg_and_post_order(
@@ -1263,17 +1259,17 @@ mod differential_tests {
                     post_order.as_slice(),
                     &format!("seed {seed}, {num_blocks} blocks"),
                 );
-                let n = post_order.as_slice().len();
                 checked += 1;
-                total_reachable += n;
-                max_reachable = max_reachable.max(n);
-                pairs += n * n;
+                pairs += post_order.as_slice().len().pow(2);
                 if is_irreducible(&cfg, post_order.as_slice()) {
                     with_irreducible += 1;
                 }
             }
         }
+        // The corpus is only worth what it covers, so state the floor rather than trusting that
+        // the generator above still produces interesting graphs.
         assert!(checked > 10_000, "coverage too thin: only {checked} graphs checked");
+        assert!(pairs > 500_000, "coverage too thin: only {pairs} dominance pairs checked");
         assert!(with_irreducible > 1000, "no irreducible control flow exercised");
     }
 
