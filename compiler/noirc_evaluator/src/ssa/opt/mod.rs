@@ -6,6 +6,7 @@
 
 mod alias_analysis;
 mod array_get;
+mod array_initialization;
 mod array_set;
 mod array_set_window_optimization;
 mod as_vector_length;
