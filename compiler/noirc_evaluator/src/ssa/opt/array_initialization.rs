@@ -39,16 +39,27 @@ use crate::ssa::{
     ssa_gen::Ssa,
 };
 
-/// Chains shorter than this are left alone: the win comes from removing many array values, and
-/// rewriting a couple of writes only churns the IR.
-const MIN_CHAIN_LENGTH: usize = 4;
+/// Minimum number of element visits a rewrite has to save before it is worth doing.
+///
+/// A chain of `n` writes over an `len`-element array makes later passes walk `n` array values of
+/// `len` elements; the `make_array` it collapses to is one value of `len` elements, so the rewrite
+/// saves roughly `(n - 1) * len` element visits. Gating on that rather than on `n` alone is what
+/// tracks the cost being avoided: 4 writes over a 5-element array is not the shape that hurts,
+/// 4,096 writes over a 4,096-element array is.
+const MIN_COLLAPSE_WORK: usize = 64;
 
 impl Ssa {
     /// See the [module docs][self] for more information.
     #[tracing::instrument(level = "trace", skip(self))]
-    pub(crate) fn lower_array_initializations(mut self) -> Self {
+    pub(crate) fn lower_array_initializations(self) -> Self {
+        self.lower_array_initializations_saving_at_least(MIN_COLLAPSE_WORK)
+    }
+
+    /// [`Ssa::lower_array_initializations`] with an explicit threshold, so tests can exercise the
+    /// rewrite on arrays small enough to read in a snapshot.
+    fn lower_array_initializations_saving_at_least(mut self, min_work: usize) -> Self {
         for func in self.functions.values_mut() {
-            func.lower_array_initializations();
+            func.lower_array_initializations(min_work);
         }
         self
     }
@@ -64,7 +75,7 @@ struct Link {
 }
 
 impl Function {
-    fn lower_array_initializations(&mut self) {
+    fn lower_array_initializations(&mut self, min_work: usize) {
         let blocks = self.reachable_blocks();
 
         // Writes under a predicate are conditional, so a chain of them cannot be collapsed into an
@@ -131,13 +142,18 @@ impl Function {
                 }
                 current = link.array;
             };
-            if chain.len() < MIN_CHAIN_LENGTH {
+            // A single write cannot be shortened, and the saving is only known once the array's
+            // length is, so the work check comes after the root is resolved.
+            if chain.len() < 2 {
                 continue;
             }
 
             let Some((mut elements, typ)) = self.dfg.get_array_constant(root) else {
                 continue;
             };
+            if (chain.len() - 1) * elements.len() < min_work {
+                continue;
+            }
             // Composite element types flatten several values per index, so an index is not a
             // direct offset into `elements`. Only handle the flat case.
             if typ.element_size().0 != 1 {
@@ -207,7 +223,7 @@ mod tests {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.lower_array_initializations();
+        let ssa = ssa.lower_array_initializations_saving_at_least(8);
         assert_ssa_snapshot!(ssa, @"
         acir(inline) fn main f0 {
           b0(v0: Field, v1: Field, v2: Field, v3: Field):
@@ -233,7 +249,7 @@ mod tests {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.lower_array_initializations();
+        let ssa = ssa.lower_array_initializations_saving_at_least(8);
         assert_ssa_snapshot!(ssa, @"
         acir(inline) fn main f0 {
           b0(v0: Field, v1: Field, v2: Field, v3: Field):
@@ -259,7 +275,7 @@ mod tests {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.lower_array_initializations();
+        let ssa = ssa.lower_array_initializations_saving_at_least(8);
         assert_ssa_snapshot!(ssa, @"
         acir(inline) fn main f0 {
           b0(v0: Field, v1: Field, v2: Field, v3: Field):
@@ -270,7 +286,8 @@ mod tests {
         ");
     }
 
-    /// Rewriting a couple of writes only churns the IR, so short chains are left alone.
+    /// A chain saving fewer element visits than the threshold is left alone: here 2 writes over a
+    /// 3-element array save 6, under the 8 the test asks for.
     #[test]
     fn does_not_collapse_chain_below_threshold() {
         let src = "
@@ -284,7 +301,7 @@ mod tests {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.lower_array_initializations();
+        let ssa = ssa.lower_array_initializations_saving_at_least(8);
         assert_ssa_snapshot!(ssa, @"
         acir(inline) fn main f0 {
           b0(v0: Field, v1: Field, v2: Field):
@@ -314,7 +331,7 @@ mod tests {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.lower_array_initializations();
+        let ssa = ssa.lower_array_initializations_saving_at_least(8);
         assert_ssa_snapshot!(ssa, @"
         acir(inline) fn main f0 {
           b0(v0: Field, v1: Field, v2: Field, v3: Field):
@@ -344,7 +361,7 @@ mod tests {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.lower_array_initializations();
+        let ssa = ssa.lower_array_initializations_saving_at_least(8);
         assert_ssa_snapshot!(ssa, @"
         acir(inline) fn main f0 {
           b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: u32):
@@ -374,7 +391,7 @@ mod tests {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.lower_array_initializations();
+        let ssa = ssa.lower_array_initializations_saving_at_least(8);
         assert_ssa_snapshot!(ssa, @"
         acir(inline) fn main f0 {
           b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: u1):
@@ -385,6 +402,36 @@ mod tests {
             v12 = array_set v10, index u32 2, value v2
             v14 = array_set v12, index u32 3, value v3
             return v14
+        }
+        ");
+    }
+
+    /// The production threshold leaves the small chains alone that ordinary code is full of - a
+    /// Poseidon sponge state update looks exactly like a short initialisation chain.
+    #[test]
+    fn production_threshold_ignores_a_small_chain() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field, v2: Field, v3: Field):
+            v4 = make_array [Field 0, Field 0, Field 0, Field 0] : [Field; 4]
+            v5 = array_set v4, index u32 0, value v0
+            v6 = array_set v5, index u32 1, value v1
+            v7 = array_set v6, index u32 2, value v2
+            v8 = array_set v7, index u32 3, value v3
+            return v8
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.lower_array_initializations();
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field, v2: Field, v3: Field):
+            v5 = make_array [Field 0, Field 0, Field 0, Field 0] : [Field; 4]
+            v7 = array_set v5, index u32 0, value v0
+            v9 = array_set v7, index u32 1, value v1
+            v11 = array_set v9, index u32 2, value v2
+            v13 = array_set v11, index u32 3, value v3
+            return v13
         }
         ");
     }
@@ -403,7 +450,7 @@ mod tests {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.lower_array_initializations();
+        let ssa = ssa.lower_array_initializations_saving_at_least(8);
         assert_ssa_snapshot!(ssa, @"
         acir(inline) fn main f0 {
           b0(v0: [Field; 4], v1: Field, v2: Field, v3: Field, v4: Field):
