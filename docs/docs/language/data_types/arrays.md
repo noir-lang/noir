@@ -115,9 +115,11 @@ fn main(x: u32) {
 ```
 
 ## Indexing with Field Elements
+
 Working with the native Field type can help producing more optimized programs (if you know what you are doing!), by avoiding overflow checks in general and in particular for array index, u32 arithmetic.
 However Noir type system will require your array index to be `u32`, so if you computed an array index using the Field type, you will have to convert it into a `u32`. This operation is usually costly because the 'unbounded' Field element needs to be reduced modulo `2^32`. However we can benefit from the array out-of-bound checks in order to avoid this costly operation.
 One way to do it is the following:
+
 1. use `assert_max_bit_size::<32>();` and `as u32` in order to convert a Field into a u32 using only one range-check, if you know that the Field is indeed 32 bits (or less).
 2. Index the array with the resulting u32: `array[x as u32]`. This will remove the range-check from the previous step.
 
@@ -209,7 +211,7 @@ fn main() {
 Applies a function to each element of the array, returning a new array containing the mapped elements.
 
 ```rust
-fn map<U>(self, f: fn(T) -> U) -> [U; N]
+fn map<U, Env>(&self, f: fn[Env](T) -> U) -> [U; N] 
 ```
 
 example
