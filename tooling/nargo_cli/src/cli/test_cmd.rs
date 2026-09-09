@@ -211,23 +211,18 @@ struct Test<'a> {
 /// Elaborating a package is the single most expensive part of `nargo test` on a large program and
 /// produces the same result for every test in that package, so a worker holds onto the context it
 /// built and reuses it for the next test from the same package.
+///
+/// A context is kept only while the tests compiled against it report [`ContextState::Clean`], which
+/// covers the ways a compilation is known to leave the interner mutated. It does not cover
+/// monomorphization's writes on the success path — `record_impl_instantiation_bindings` merges each
+/// call site's instantiation bindings into whatever the interner already holds for that call site —
+/// so a context does drift from its elaborated state as it compiles more tests, with nothing
+/// reporting that drift. `--no-context-reuse` is the way to rule that out for a given run.
 struct CachedContext<'a> {
     package: &'a Package,
     context: Context<'a, 'a>,
     crate_id: CrateId,
-    /// How many tests this context has already compiled, against [`MAX_TESTS_PER_CONTEXT`].
-    tests_run: usize,
 }
-
-/// How many tests one elaborated [`Context`] compiles before it is rebuilt.
-///
-/// Monomorphization writes back into the shared `NodeInterner` even when it succeeds:
-/// `record_impl_instantiation_bindings` merges each call site's instantiation bindings into
-/// whatever is already stored for that call site. A context therefore drifts a little further
-/// from its elaborated state with every test it compiles, and nothing reports that drift.
-/// Rebuilding on a fixed interval bounds how far a difference can travel; at this many tests the
-/// extra elaborations cost a few percent of a long run.
-const MAX_TESTS_PER_CONTEXT: usize = 32;
 
 pub(crate) struct TestResult {
     name: TestName,
@@ -394,7 +389,6 @@ impl<'a> TestRunner<'a> {
                 // test; escaping this closure would unwind the worker and abort the whole run.
                 let run = std::panic::AssertUnwindSafe(|| {
                     let cached_context = self.cached_context_for(&mut cached, &test);
-                    cached_context.tests_run += 1;
                     self.run_test::<Bn254BlackBoxSolver>(cached_context, &test)
                 });
                 let unwound = catch_unwind(run);
@@ -405,8 +399,7 @@ impl<'a> TestRunner<'a> {
                 // case does not show up in the status, since `#[test(should_fail)]` reports a pass
                 // when compilation fails.
                 let reusable = matches!(unwound, Ok((_, _, _, ContextState::Clean)))
-                    && !self.args.no_context_reuse
-                    && cached.as_ref().is_some_and(|c| c.tests_run < MAX_TESTS_PER_CONTEXT);
+                    && !self.args.no_context_reuse;
                 if !reusable {
                     cached = None;
                 }
@@ -787,8 +780,7 @@ impl<'a> TestRunner<'a> {
             let (context, crate_id) = self
                 .prepare_package_and_check_crate(test.package, false)
                 .expect("Any errors should have occurred when collecting test functions");
-            *cached =
-                Some(CachedContext { package: test.package, context, crate_id, tests_run: 0 });
+            *cached = Some(CachedContext { package: test.package, context, crate_id });
         }
         cached.as_mut().expect("just populated")
     }
