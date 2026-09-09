@@ -3,7 +3,7 @@ use std::{
     cmp::max,
     collections::{BTreeMap, HashMap},
     fmt::Display,
-    panic::{UnwindSafe, catch_unwind},
+    panic::catch_unwind,
     path::PathBuf,
     rc::Rc,
     sync::{
@@ -193,10 +193,20 @@ struct Test<'a> {
     name: TestName,
     package_name: PackageName,
     has_arguments: bool,
-    /// Execute the test, returning the test status, the printed output,
-    /// and an optional coverage report.
-    runner:
-        Box<dyn FnOnce() -> (TestStatus, TestName, Option<lcov::Report>) + Send + UnwindSafe + 'a>,
+    package: &'a Package,
+    foreign_call_resolver_url: Option<&'a str>,
+    root_path: Option<PathBuf>,
+}
+
+/// An elaborated [`Context`] kept alive across the tests a worker thread runs.
+///
+/// Elaborating a package is the single most expensive part of `nargo test` on a large program and
+/// produces the same result for every test in that package, so a worker holds onto the context it
+/// built and reuses it for the next test from the same package.
+struct CachedContext<'a> {
+    package: &'a Package,
+    context: Context<'a, 'a>,
+    crate_id: CrateId,
 }
 
 pub(crate) struct TestResult {
@@ -334,12 +344,14 @@ impl<'a> TestRunner<'a> {
     /// Process a chunk of tests sequentially and send the results to the main thread
     /// We need this functions, because first we process the standard tests, and then the fuzz tests.
     fn process_chunk_of_tests<I>(
-        &self,
+        &'a self,
         iter_tests: &Mutex<I>,
         thread_sender: &Sender<(TestResult, Option<lcov::Report>)>,
     ) where
         I: Iterator<Item = Test<'a>>,
     {
+        let mut cached: Option<CachedContext<'a>> = None;
+
         loop {
             // Get next test to process from the iterator.
             let Some(test) = iter_tests.lock().unwrap().next() else {
@@ -350,8 +362,29 @@ impl<'a> TestRunner<'a> {
                 .test_start_async(&test.name, &test.package_name)
                 .expect("Could not display test start");
 
+            if !cached.as_ref().is_some_and(|cached| std::ptr::eq(cached.package, test.package)) {
+                let (context, crate_id) = self
+                    .prepare_package_and_check_crate(test.package, false)
+                    .expect("Any errors should have occurred when collecting test functions");
+                cached = Some(CachedContext { package: test.package, context, crate_id });
+            }
+            let cached_context = cached.as_mut().expect("just populated");
+
             let time_before_test = std::time::Instant::now();
-            let (status, output, test_coverage) = match catch_unwind(test.runner) {
+            let run = std::panic::AssertUnwindSafe(|| {
+                self.run_test::<Bn254BlackBoxSolver>(cached_context, &test)
+            });
+            let unwound = catch_unwind(run);
+
+            // A test that unwound may have left type variables bound or the interner half-updated,
+            // so the context is no longer safe to hand to the next test.
+            // The comptime interpreter also takes ownership of the evaluation tracker, which the
+            // coverage report needs rebuilt per test.
+            if unwound.is_err() || self.args.coverage || self.args.force_comptime {
+                cached = None;
+            }
+
+            let (status, output, test_coverage) = match unwound {
                 Ok(values) => values,
                 Err(err) => (
                     TestStatus::Fail {
@@ -589,7 +622,7 @@ impl<'a> TestRunner<'a> {
                             let Some(package) = iter.lock().unwrap().next() else {
                                 break;
                             };
-                            let collected = self.collect_package_tests::<Bn254BlackBoxSolver>(
+                            let collected = self.collect_package_tests(
                                 package,
                                 self.args.oracle_resolver.as_ref().map(|url| url.as_str()),
                                 Some(self.workspace.root_dir.clone()),
@@ -624,7 +657,7 @@ impl<'a> TestRunner<'a> {
     /// Compiles a single package and returns all of its tests.
     ///
     /// Optionally returns a tally of functions and lines that can be covered by tests.
-    fn collect_package_tests<S: BlackBoxFunctionSolver<FieldElement> + Default>(
+    fn collect_package_tests(
         &'a self,
         package: &'a Package,
         foreign_call_resolver_url: Option<&'a str>,
@@ -637,27 +670,13 @@ impl<'a> TestRunner<'a> {
         // Convert the test functions into runnable tests.
         let tests: Vec<Test> = test_functions
             .into_iter()
-            .map(|(test_name, test_function)| {
-                let test_name_copy = test_name.clone();
-                let root_path = root_path.clone();
-                let package_name_clone = package_name.clone();
-                let package_name_clone2 = package_name.clone();
-                let runner = Box::new(move || {
-                    self.run_test::<S>(
-                        package,
-                        &test_name,
-                        test_function.has_arguments,
-                        foreign_call_resolver_url,
-                        root_path,
-                        package_name_clone.clone(),
-                    )
-                });
-                Test {
-                    name: test_name_copy,
-                    package_name: package_name_clone2,
-                    runner,
-                    has_arguments: test_function.has_arguments,
-                }
+            .map(|(test_name, test_function)| Test {
+                name: test_name,
+                package_name: package_name.clone(),
+                has_arguments: test_function.has_arguments,
+                package,
+                foreign_call_resolver_url,
+                root_path: root_path.clone(),
             })
             .collect();
 
@@ -725,32 +744,25 @@ impl<'a> TestRunner<'a> {
     /// along with an optional coverage report.
     fn run_test<S: BlackBoxFunctionSolver<FieldElement> + Default>(
         &'a self,
-        package: &Package,
-        fn_name: &str,
-        has_arguments: bool,
-        foreign_call_resolver_url: Option<&str>,
-        root_path: Option<PathBuf>,
-        package_name: PackageName,
+        cached: &mut CachedContext<'a>,
+        test: &Test<'a>,
     ) -> (TestStatus, String, Option<lcov::Report>) {
-        if ((self.args.no_fuzz || self.args.force_comptime) && has_arguments)
-            || (self.args.only_fuzz && !has_arguments)
+        if ((self.args.no_fuzz || self.args.force_comptime) && test.has_arguments)
+            || (self.args.only_fuzz && !test.has_arguments)
         {
             return (TestStatus::Skipped, String::new(), None);
         }
 
-        // This is really hacky but we can't share `Context` or `S` across threads.
-        // We then need to construct a separate copy for each test.
-        let (mut context, crate_id) = self
-            .prepare_package_and_check_crate(package, false)
-            .expect("Any errors should have occurred when collecting test functions");
+        let CachedContext { context, crate_id, .. } = cached;
+        let fn_name = test.name.as_str();
 
         let pattern = FunctionNameMatch::Exact(vec![fn_name.to_string()]);
-        let test_functions = context.get_all_test_functions_in_crate_matching(&crate_id, &pattern);
+        let test_functions = context.get_all_test_functions_in_crate_matching(crate_id, &pattern);
         let (_, test_function) = test_functions.first().expect("Test function should exist");
 
         if self.args.no_run {
             let status = match noirc_driver::compile_no_check(
-                &mut context,
+                context,
                 &self.args.compile_options,
                 test_function.id,
                 None,
@@ -762,7 +774,7 @@ impl<'a> TestRunner<'a> {
             return (status, String::new(), None);
         }
 
-        if self.args.force_comptime || self.args.coverage && !has_arguments {
+        if self.args.force_comptime || self.args.coverage && !test.has_arguments {
             let output = Rc::new(RefCell::new(Vec::new()));
             context.set_comptime_printing(output.clone());
 
@@ -774,7 +786,7 @@ impl<'a> TestRunner<'a> {
             let output = String::from_utf8(output.into_inner()).expect("not UTF-8");
 
             let report = context.evaluation_tracker.take().map(|tracker| {
-                coverage::tracker_to_report(&tracker, test_function.id, fn_name, &context)
+                coverage::tracker_to_report(&tracker, test_function.id, fn_name, context)
             });
 
             return (status, output, report);
@@ -799,19 +811,19 @@ impl<'a> TestRunner<'a> {
 
         let test_status = nargo::ops::run_or_fuzz_test(
             &blackbox_solver,
-            &mut context,
+            context,
             test_function,
             &mut output_buffer,
-            package_name.clone(),
+            test.package_name.clone(),
             &self.args.compile_options,
             fuzz_config,
             |output, base| {
                 DefaultForeignCallBuilder {
                     output,
                     enable_mocks: true,
-                    resolver_url: foreign_call_resolver_url.map(|s| s.to_string()),
-                    root_path: root_path.clone(),
-                    package_name: Some(package_name.clone()),
+                    resolver_url: test.foreign_call_resolver_url.map(|s| s.to_string()),
+                    root_path: test.root_path.clone(),
+                    package_name: Some(test.package_name.clone()),
                 }
                 .build_with_base(base)
             },
