@@ -130,8 +130,8 @@ fn load_and_compile_project(
         .ok_or(LoadError::Generic(workspace_not_found_error_msg(project_folder, package)))?;
     let package = workspace
         .into_iter()
-        .find(|p| p.is_binary() || p.is_contract())
-        .ok_or(LoadError::Generic("No matching binary or contract packages found in workspace. Only these packages can be debugged.".into()))?;
+        .find(|p| p.is_binary() || p.is_contract() || (test_name.is_some() && p.is_library()))
+        .ok_or(LoadError::Generic("No matching packages found in workspace.".into()))?;
 
     let (compiled_program, test_def) = match test_name {
         None => {
@@ -209,10 +209,6 @@ fn loop_uninitialized_dap<R: Read, W: Write>(mut server: Server<R, W>) -> Result
                     .get("oracleResolver")
                     .and_then(|v| v.as_str())
                     .map(String::from);
-
-                eprintln!("Project folder: {project_folder}");
-                eprintln!("Package: {}", package.unwrap_or("(default)"));
-                eprintln!("Prover name: {prover_name}");
 
                 let compile_options = compile_options_for_debugging(
                     generate_acir,
