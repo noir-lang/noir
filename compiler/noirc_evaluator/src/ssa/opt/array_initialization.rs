@@ -25,6 +25,10 @@
 //!
 //! The last condition means this must run before flattening, which is also where it is most
 //! useful: it removes the chain before the passes that would pay the quadratic cost on it.
+//!
+//! Element types wider than one value need no special handling: an array of tuples flattens to one
+//! `make_array` element per field, and `array_set` indexes those flat slots directly, so writing
+//! `elements[index]` is right for `[(Field, Field); N]` just as it is for `[Field; N]`.
 
 use acvm::AcirField;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
@@ -152,11 +156,6 @@ impl Function {
                 continue;
             };
             if (chain.len() - 1) * elements.len() < min_work {
-                continue;
-            }
-            // Composite element types flatten several values per index, so an index is not a
-            // direct offset into `elements`. Only handle the flat case.
-            if typ.element_size().0 != 1 {
                 continue;
             }
 
@@ -432,6 +431,59 @@ mod tests {
             v11 = array_set v9, index u32 2, value v2
             v13 = array_set v11, index u32 3, value v3
             return v13
+        }
+        ");
+    }
+
+    /// An array of tuples flattens to two `make_array` elements per index, and `array_set` writes
+    /// those flat slots one at a time, so a chain over one covers two slots per source-level index.
+    #[test]
+    fn collapses_chain_over_a_composite_element_type() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v2 = make_array [Field 0, Field 0, Field 0, Field 0] : [(Field, Field); 2]
+            v3 = array_set v2, index u32 0, value v0
+            v4 = array_set v3, index u32 1, value v1
+            v5 = array_set v4, index u32 2, value v1
+            v6 = array_set v5, index u32 3, value v0
+            return v6
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.lower_array_initializations_saving_at_least(8);
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v3 = make_array [Field 0, Field 0, Field 0, Field 0] : [(Field, Field); 2]
+            v4 = make_array [v0, v1, v1, v0] : [(Field, Field); 2]
+            return v4
+        }
+        ");
+    }
+
+    /// A chain that writes only one field of each tuple leaves the other at its initial value.
+    #[test]
+    fn collapses_partial_chain_over_a_composite_element_type() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field, v2: Field, v3: Field):
+            v4 = make_array [Field 9, Field 9, Field 9, Field 9, Field 9, Field 9, Field 9, Field 9] : [(Field, Field); 4]
+            v5 = array_set v4, index u32 0, value v0
+            v6 = array_set v5, index u32 2, value v1
+            v7 = array_set v6, index u32 4, value v2
+            v8 = array_set v7, index u32 6, value v3
+            return v8
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.lower_array_initializations_saving_at_least(8);
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field, v2: Field, v3: Field):
+            v5 = make_array [Field 9, Field 9, Field 9, Field 9, Field 9, Field 9, Field 9, Field 9] : [(Field, Field); 4]
+            v6 = make_array [v0, Field 9, v1, Field 9, v2, Field 9, v3, Field 9] : [(Field, Field); 4]
+            return v6
         }
         ");
     }
