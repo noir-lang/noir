@@ -1,5 +1,5 @@
 [package]
-name = "regression_1615"
+name = "predicated_composite_get_wide_slot"
 type = "bin"
 authors = [""]
 

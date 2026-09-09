@@ -1,3 +1,5 @@
+// Regression test for https://github.com/noir-lang/noir-claude/issues/1615
+//
 // The result of an array read at a statically-safe index must not be multiplied by the
 // side-effects predicate: such a read is never redirected, so it needs no repair, and the
 // predicate live at that point can belong to the *other* branch — `remove_enable_side_effects`
