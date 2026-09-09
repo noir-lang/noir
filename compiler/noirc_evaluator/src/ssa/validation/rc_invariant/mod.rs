@@ -164,7 +164,7 @@ use crate::{
         ir::{
             basic_block::BasicBlockId,
             cfg::ControlFlowGraph,
-            dom::DominatorTree,
+            dom::{DominanceQueries, DominatorTree},
             function::Function,
             instruction::{Instruction, InstructionId, TerminatorInstruction},
             post_order::PostOrder,
@@ -354,7 +354,8 @@ impl<'f> Context<'f> {
     fn new(function: &'f Function) -> Self {
         let cfg = ControlFlowGraph::with_function(function);
         let post_order = PostOrder::with_cfg(&cfg);
-        let dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
+        let dom_tree =
+            DominatorTree::with_cfg_and_post_order(&cfg, &post_order, DominanceQueries::Enabled);
 
         // Cache the reverse-post-order block list once. Used for the
         // per-instruction setup pass below and (more importantly) by

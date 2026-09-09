@@ -59,7 +59,7 @@ use crate::{
             basic_block::BasicBlockId,
             cfg::ControlFlowGraph,
             dfg::DataFlowGraph,
-            dom::DominatorTree,
+            dom::{DominanceQueries, DominatorTree},
             function::{Function, FunctionId, RuntimeType},
             function_inserter::FunctionInserter,
             instruction::{
@@ -687,7 +687,8 @@ impl Loops {
     pub(crate) fn find_all(function: &Function, order: LoopOrder) -> Self {
         let cfg = ControlFlowGraph::with_function(function);
         let post_order = PostOrder::with_cfg(&cfg);
-        let dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
+        let dom_tree =
+            DominatorTree::with_cfg_and_post_order(&cfg, &post_order, DominanceQueries::Enabled);
 
         let mut loops = vec![];
 
