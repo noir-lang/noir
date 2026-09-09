@@ -1074,7 +1074,7 @@ fn struct_turbofish_matching_struct_type_alias() {
 }
 
 #[test]
-fn no_turbofish_matching_on_type_alias_without_generics_with_underlaying_struct_with_generics() {
+fn no_turbofish_matching_on_type_alias_without_generics_with_underlying_struct_with_generics() {
     let src = r#"
     struct S<A> {}
 

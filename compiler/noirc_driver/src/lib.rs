@@ -5,11 +5,12 @@
 use insta as _;
 
 use std::hash::BuildHasher;
+use std::sync::OnceLock;
 
 use abi_gen::{abi_type_from_hir_type, value_to_abi_value};
 use acvm::AcirField;
 use acvm::acir::circuit::{ErrorSelector, Program, display_program};
-use clap::Args;
+use clap::{Args, Parser};
 use fm::{FileId, FileManager};
 use iter_extended::vecmap;
 use noirc_abi::{AbiErrorType, AbiNamedValue, AbiParameter, AbiType};
@@ -301,51 +302,32 @@ pub struct CompileOptions {
 }
 
 impl Default for CompileOptions {
+    /// Derived from the `clap` attributes on the fields above rather than restated here, so
+    /// that the defaults a user gets on the command line and the defaults a caller gets from
+    /// `CompileOptions::default()` cannot drift apart. That matters because `default()` is a
+    /// real compilation path, not just a test convenience: `noir_wasm` and the debug adapter
+    /// both reach the compiler through it rather than through argument parsing.
     fn default() -> Self {
-        Self {
-            force_compile: false,
-            show_ssa: false,
-            show_ssa_pass: Vec::new(),
-            hide_unchanged_ssa: false,
-            with_ssa_locations: false,
-            show_contract_fn: None,
-            skip_ssa_pass: Vec::new(),
-            emit_ssa: false,
-            validate_between_passes: false,
-            minimal_ssa: false,
-            show_brillig: false,
-            show_brillig_opcode_advisories: false,
-            print_acir: false,
-            benchmark_codegen: false,
-            deny_warnings: false,
-            silence_warnings: false,
-            show_monomorphized: false,
-            instrument_debug: false,
-            force_brillig: false,
-            debug_comptime_in_file: None,
-            show_artifact_paths: false,
-            skip_underconstrained_check: false,
-            skip_brillig_constraints_check: false,
-            brillig_constraints_check_max_array_output_length:
-                checks::DEFAULT_MAX_ARRAY_OUTPUT_LENGTH,
-            brillig_constraints_check_max_ancestor_distance: checks::DEFAULT_MAX_ANCESTOR_DISTANCE,
-            enable_brillig_debug_assertions: false,
-            inliner_aggressiveness: i64::MAX,
-            constant_folding_max_iter: CONSTANT_FOLDING_MAX_ITER,
-            small_function_max_instructions: INLINING_MAX_INSTRUCTIONS,
-            max_bytecode_increase_percent: None,
-            max_unroll_iterations: MAX_UNROLL_ITERATIONS,
-            force_unroll_threshold: FORCE_UNROLL_THRESHOLD,
-            specialization_threshold: DEFAULT_SPECIALIZATION_THRESHOLD,
-            max_specializations_per_fn: DEFAULT_MAX_SPECIALIZATIONS_PER_FN,
-            max_stack_frame_size: MAX_STACK_FRAME_SIZE,
-            num_stack_frames: NUM_STACK_FRAMES,
-            max_scratch_space: MAX_SCRATCH_SPACE,
-            debug_compile_stdin: false,
-            unstable_features: Vec::new(),
-            no_unstable_features: false,
-            disable_comptime_printing: false,
+        /// Gives the flattened [`CompileOptions`] a [`Parser`] to be parsed through.
+        #[derive(Parser)]
+        struct DefaultCompileOptions {
+            #[command(flatten)]
+            options: CompileOptions,
         }
+
+        // Building the `clap` command costs more than a struct literal, and `default()` is
+        // called once per compilation (and once per iteration in the fuzzers), so build the
+        // defaults once and hand out clones.
+        static DEFAULTS: OnceLock<CompileOptions> = OnceLock::new();
+        DEFAULTS
+            .get_or_init(|| {
+                DefaultCompileOptions::try_parse_from(["nargo"])
+                    .expect(
+                        "no field of CompileOptions is required, so parsing no arguments succeeds",
+                    )
+                    .options
+            })
+            .clone()
     }
 }
 

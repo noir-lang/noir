@@ -133,8 +133,6 @@ pub enum ResolverError {
     },
     #[error("Global failed to evaluate")]
     UnevaluatedGlobalType { location: Location },
-    #[error("Globals used in a type position must be non-negative")]
-    NegativeGlobalType { location: Location, global_value: Value },
     #[error("Globals used in a type position must be integers")]
     NonIntegralGlobalType { location: Location, global_value: Value },
     #[error("Global value `{global_value}` does not fit its types's range")]
@@ -303,7 +301,6 @@ impl ResolverError {
             | ResolverError::MutableGlobal { location }
             | ResolverError::UnspecifiedGlobalType { pattern_location: location, .. }
             | ResolverError::UnevaluatedGlobalType { location }
-            | ResolverError::NegativeGlobalType { location, .. }
             | ResolverError::NonIntegralGlobalType { location, .. }
             | ResolverError::GlobalDoesNotFitItsType { location, .. }
             | ResolverError::SelfReferentialType { location }
@@ -743,13 +740,6 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                 Diagnostic::simple_error(
                     "Global failed to evaluate".to_string(),
                     String::new(),
-                    *location,
-                )
-            }
-            ResolverError::NegativeGlobalType { location, global_value } => {
-                Diagnostic::simple_error(
-                    "Globals used in a type position must be non-negative".to_string(),
-                    format!("But found value `{global_value:?}`"),
                     *location,
                 )
             }

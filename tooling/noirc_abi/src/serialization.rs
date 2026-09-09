@@ -90,7 +90,7 @@ mod tests {
         });
 
         let abi: Abi = serde_json::from_value(serialized).unwrap();
-        assert_eq!(abi.abi_version, ABI_VERSION);
+        assert_eq!(abi.abi_version, 1);
     }
 
     #[test]

@@ -362,22 +362,22 @@ The following is an incomplete list of some `comptime` types along with some use
     - Returns true if `self` implements the given trait constraint
 - `Expr`: A syntactically valid expression. Can be used to recur on a program's parse tree to inspect how it is structured.
   - Methods:
-    - `fn as_function_call(self) -> Option<(Expr, [Expr])>`
-      - If this is a function call expression, return `(function, arguments)`
+    - `fn as_function_call(self) -> Option<FunctionCallExpression>`
+      - If this is a function call expression, return its function and arguments
     - `fn as_block(self) -> Option<[Expr]>`
       - If this is a block, return each statement in the block
 - `FunctionDefinition`: A function definition
   - Methods:
-    - `fn parameters(self) -> [(Quoted, Type)]`
-      - Returns a vector of `(name, type)` pairs for each parameter
+    - `fn parameters(self) -> [FunctionParameter]`
+      - Returns each parameter's name and type
 - `TypeDefinition`: A struct or enum definition
   - Methods:
     - `fn as_type(self) -> Type`
       - Returns this `TypeDefinition` as a `Type`. Any generics are kept as-is
-    - `fn generics(self) -> [Quoted]`
-      - Return the name of each generic on this struct
-    - `fn fields(self) -> [(Quoted, Type)]`
-      - Return the name and type of each field
+    - `fn generics(self) -> [TypeGeneric]`
+      - Return each generic parameter on this type
+    - `fn fields(self) -> [StructField]`
+      - Return the name, type, and visibility of each field
 - `TraitConstraint`: A trait constraint such as `From<Field>`
 - `TypedExpr`: A type-checked expression.
 - `UnresolvedType`: A syntactic notation that refers to a Noir type that hasn't been resolved yet

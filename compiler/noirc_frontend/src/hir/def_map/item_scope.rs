@@ -60,7 +60,7 @@ impl ItemScope {
                 // The exception to this is when we're explicitly importing something
                 // which exists in the Noir stdlib prelude.
                 //
-                // In this case we ignore the prelude and favour the explicit import.
+                // In this case we ignore the prelude and favor the explicit import.
                 if o.get().is_prelude && !is_prelude {
                     // Explicit import or definition overrides prelude
                     *o.get_mut() = NamespaceItem { id: mod_def, visibility, is_prelude };

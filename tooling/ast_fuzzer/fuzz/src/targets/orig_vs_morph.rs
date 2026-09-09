@@ -48,7 +48,7 @@ fn rewrite_program(
     rules: &[rules::Rule],
     max_rewrites: usize,
 ) {
-    for func in program.functions.iter_mut() {
+    for func in &mut program.functions {
         if func.name.ends_with("_proxy") {
             continue;
         }
@@ -214,7 +214,7 @@ impl MorphContext<'_> {
             }
             Expression::Call(call) if is_special_call(call) => {
                 let ctx = rules::Context { is_in_special_call: true, ..*ctx };
-                for arg in call.arguments.iter_mut() {
+                for arg in &mut call.arguments {
                     self.rewrite_expr(&ctx, u, arg);
                 }
                 false
@@ -320,7 +320,7 @@ mod rules {
     };
 
     #[derive(Clone, Debug, Default)]
-    pub struct Context {
+    pub(super) struct Context {
         /// Is the function we're rewriting unconstrained?
         pub unconstrained: bool,
         /// Are we rewriting an expression which is a `start` or `end` of a `for` loop?
@@ -338,13 +338,13 @@ mod rules {
         dyn Fn(&mut Unstructured, &mut VariableContext, &mut Expression) -> arbitrary::Result<()>;
 
     /// Metamorphic transformation rule.
-    pub struct Rule {
+    pub(super) struct Rule {
         pub matches: Box<MatchFn>,
         pub rewrite: Box<RewriteFn>,
     }
 
     impl Rule {
-        pub fn new(
+        pub(super) fn new(
             matches: impl Fn(&Context, &Expression) -> bool + 'static,
             rewrite: impl Fn(
                 &mut Unstructured,
@@ -357,12 +357,12 @@ mod rules {
         }
 
         /// Check if the rule can be applied on an expression.
-        pub fn matches(&self, ctx: &Context, expr: &Expression) -> bool {
+        pub(super) fn matches(&self, ctx: &Context, expr: &Expression) -> bool {
             (self.matches)(ctx, expr)
         }
 
         /// Apply the rule on an expression, mutating/replacing it in-place.
-        pub fn rewrite(
+        pub(super) fn rewrite(
             &self,
             u: &mut Unstructured,
             vars: &mut VariableContext,
@@ -373,7 +373,7 @@ mod rules {
     }
 
     /// Construct all rules that we can apply on a program.
-    pub fn collect(config: &Config) -> Vec<Rule> {
+    pub(super) fn collect(config: &Config) -> Vec<Rule> {
         let mut rules = vec![
             num_add_zero(),
             num_sub_zero(),
@@ -404,27 +404,27 @@ mod rules {
     }
 
     /// Transform any numeric value `x` into `x+0`
-    pub fn num_add_zero() -> Rule {
+    pub(super) fn num_add_zero() -> Rule {
         num_op(BinaryOpKind::Add, 0)
     }
 
     /// Transform any numeric value `x` into `x-0`
-    pub fn num_sub_zero() -> Rule {
+    pub(super) fn num_sub_zero() -> Rule {
         num_op(BinaryOpKind::Subtract, 0)
     }
 
     /// Transform any numeric value `x` into `x*1`
-    pub fn num_mul_one() -> Rule {
+    pub(super) fn num_mul_one() -> Rule {
         num_op(BinaryOpKind::Multiply, 1)
     }
 
     /// Transform any numeric value `x` into `x/1`
-    pub fn num_div_one() -> Rule {
+    pub(super) fn num_div_one() -> Rule {
         num_op(BinaryOpKind::Divide, 1)
     }
 
     /// Break an integer literal `a` into `b + c`.
-    pub fn int_break_up() -> Rule {
+    pub(super) fn int_break_up() -> Rule {
         Rule::new(
             |ctx, expr| {
                 if ctx.is_in_range && !ctx.unconstrained || ctx.is_in_ref_mut {
@@ -475,7 +475,7 @@ mod rules {
     }
 
     /// Transform boolean value `x` into `x | x`.
-    pub fn bool_or_self() -> Rule {
+    pub(super) fn bool_or_self() -> Rule {
         Rule::new(bool_rule_matches, |_u, _locals, expr| {
             expr::replace(expr, |expr| expr::binary(expr.clone(), BinaryOpKind::Or, expr));
             Ok(())
@@ -483,7 +483,7 @@ mod rules {
     }
 
     /// Transform boolean value `x` into `x ^ x ^ x`.
-    pub fn bool_xor_self() -> Rule {
+    pub(super) fn bool_xor_self() -> Rule {
         Rule::new(bool_rule_matches, |_u, _locals, expr| {
             expr::replace(expr, |expr| {
                 let rhs = expr::binary(expr.clone(), BinaryOpKind::Xor, expr.clone());
@@ -494,7 +494,7 @@ mod rules {
     }
 
     /// Transform boolean value `x` into `rnd ^ x ^ rnd`.
-    pub fn bool_xor_rand() -> Rule {
+    pub(super) fn bool_xor_rand() -> Rule {
         Rule::new(bool_rule_matches, |u, _locals, expr| {
             // This is where we could access the scope to look for a random bool variable.
             let rnd = expr::gen_literal(u, &Type::Bool, &Config::default())?;
@@ -509,7 +509,7 @@ mod rules {
     /// Transform commutative arithmetic operations:
     /// * `a + b` into `b + a`
     /// * `a * b` into `b * a`
-    pub fn num_commute() -> Rule {
+    pub(super) fn num_commute() -> Rule {
         Rule::new(
             |_ctx, expr| {
                 matches!(
@@ -535,7 +535,7 @@ mod rules {
     /// Transform any expression into an if-then-else with the itself
     /// repeated in the _then_ and _else_ branch:
     /// * `x` into `if c { x } else { x }`
-    pub fn any_inevitable() -> Rule {
+    pub(super) fn any_inevitable() -> Rule {
         Rule::new(
             |ctx, expr| {
                 !ctx.is_in_special_call
@@ -545,10 +545,10 @@ mod rules {
                     // `let x = 1;` transformed into `if true { let x = 1; } else { let x = 1; }` would leave `x` undefined.
                     && !matches!(expr, Expression::Let(_))
                     // We can't return references from an `if` statement
-                    && expr.return_type().map(|typ| !types::contains_reference(typ.as_ref())).unwrap_or(true)
+                    && expr.return_type().is_none_or(|typ| !types::contains_reference(typ.as_ref()))
             },
             |u, vars, expr| {
-                let typ = expr.return_type().map(|typ| typ.into_owned()).unwrap_or(Type::Unit);
+                let typ = expr.return_type().map_or(Type::Unit, |typ| typ.into_owned());
 
                 // Find a bool expression we can use. For simplicity just consider actual bool variables,
                 // not things that can produce variables, so we have less logic to repeat for the `FunctionContext`.
@@ -835,7 +835,7 @@ mod helpers {
                         ident.id = vars.next_ident_id();
                     }
                     Expression::Let(let_) => {
-                        replace_local_id(vars, &mut replacements.borrow_mut(), &mut let_.id)
+                        replace_local_id(vars, &mut replacements.borrow_mut(), &mut let_.id);
                     }
                     Expression::For(for_) => replace_local_id(
                         vars,
@@ -847,8 +847,8 @@ mod helpers {
                         if let Some(replacement) = replacements.get(&match_.variable_to_match.0) {
                             match_.variable_to_match.0 = *replacement;
                         }
-                        for case in match_.cases.iter_mut() {
-                            for (arg, _) in case.arguments.iter_mut() {
+                        for case in &mut match_.cases {
+                            for (arg, _) in &mut case.arguments {
                                 replace_local_id(vars, &mut replacements, arg);
                             }
                         }
