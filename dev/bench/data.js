@@ -1,107 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788968914014,
+  "lastUpdate": 1788968941290,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "ead45a52af7d89c28fb00fca3cd254782e153df9",
-          "message": "fix(ssa): never mutate a global's storage in place in the SSA interpreter (#13553)",
-          "timestamp": "2026-08-26T13:34:22Z",
-          "tree_id": "1671d8ba2e701d3b3c861d3c2da6d96623ae4283",
-          "url": "https://github.com/noir-lang/noir/commit/ead45a52af7d89c28fb00fca3cd254782e153df9"
-        },
-        "date": 1787754041906,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 313.85,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 548.49,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 524.69,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 361.47,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 361.47,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 362.34,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 361.47,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 5800,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 5800,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 363.06,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 870.83,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 1340,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 361.47,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 103.76,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 149.12,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -2954,6 +2855,40 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/70f78f437f029db3a347497a6c34ae22761b13d1"
         },
         "date": 1788967208657,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore_depth_10",
+            "value": 106.81,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 150.52,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "0a9e10d3dc337e19f75983bc38edd2b40fbde712",
+          "message": "chore: remove the acvm_cli crate (#13632)",
+          "timestamp": "2026-09-09T15:21:49Z",
+          "tree_id": "f7632919653bc4026bf63c943fee32bd6feccd4c",
+          "url": "https://github.com/noir-lang/noir/commit/0a9e10d3dc337e19f75983bc38edd2b40fbde712"
+        },
+        "date": 1788968852685,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
