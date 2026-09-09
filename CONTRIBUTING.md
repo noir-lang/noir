@@ -186,8 +186,6 @@ When we are ready to release the version, we approve and squash the release pull
 
 We aim to have every documentation version matching the versions of Noir. However, to avoid unnecessary build time and size to the existent documentation, they aren't currently released alongside the stable releases, and instead are released ad-hoc.
 
-Please contact any member of the DevRel[^1] team if you believe a new docs version should be cut.
-
 ### Documentation structure
 
 The Noir documentation is versioned according to the [Docusaurus documentation](https://docusaurus.io/docs/versioning). In the `versioned_docs` and `versioned_sidebars` folders you will find the docs and configs for the previous versions. If any change needs to be made to older versions, please do them in those folders.
@@ -230,5 +228,3 @@ Release Please would generate add the following to the Changelog:
 
 * **optimizer:** Compile Boolean to u1
 ```
-
-[^1]: Currently, @critesjosh, @catmcgee and @signorecello. For Noir documentation, it is recommended to tag @signorecello

@@ -98,6 +98,7 @@ impl FunctionBuilder {
         this.current_function.set_runtime(function.runtime());
         this.current_function.dfg.set_function_purities(this.purities.clone());
         this.set_allow_malformed_simplify(function.dfg.allow_malformed_simplify);
+        this.current_function.dfg.allow_constant_return = function.dfg.allow_constant_return;
         this
     }
 
@@ -426,7 +427,7 @@ impl FunctionBuilder {
 
     /// Insert a `make_array` instruction to create a new array or vector.
     /// Returns the new array value. Expects `typ` to be an array or vector type.
-    pub fn insert_make_array(&mut self, elements: im::Vector<ValueId>, typ: Type) -> ValueId {
+    pub fn insert_make_array(&mut self, elements: imbl::Vector<ValueId>, typ: Type) -> ValueId {
         assert!(matches!(typ, Type::Array(..) | Type::Vector(_)));
         self.insert_instruction(Instruction::MakeArray { elements, typ }, None).first()
     }

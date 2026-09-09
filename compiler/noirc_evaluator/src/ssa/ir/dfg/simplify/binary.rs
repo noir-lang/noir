@@ -115,7 +115,7 @@ pub(super) fn simplify_binary(
                 let zero = dfg.make_constant(FieldElement::zero(), lhs_type);
                 return SimplifyResult::SimplifiedTo(zero);
             }
-            if dfg.get_value_max_num_bits(lhs) == 1 {
+            if dfg.is_boolean_value(lhs) {
                 // Squaring a boolean value is a noop.
                 if lhs == rhs {
                     return SimplifyResult::SimplifiedTo(lhs);
@@ -131,7 +131,7 @@ pub(super) fn simplify_binary(
                 }
             }
             // (b*x)*b = b*x if b is boolean
-            if dfg.get_value_max_num_bits(rhs) == 1
+            if dfg.is_boolean_value(rhs)
                 && let super::Value::Instruction { instruction, .. } = &dfg[lhs]
                 && let Instruction::Binary(Binary { lhs: b_lhs, rhs: b_rhs, operator }) =
                     dfg[*instruction]

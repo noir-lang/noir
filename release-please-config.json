@@ -3,7 +3,7 @@
   "bump-minor-pre-major": true,
   "bump-patch-for-minor-pre-major": true,
   "prerelease": true,
-  "prerelease-type": "beta",
+  "prerelease-type": "rc",
   "pull-request-title-pattern": "chore: Release Noir(${version})",
   "group-pull-request-title-pattern": "chore: Release Noir(${version})",
   "packages": {

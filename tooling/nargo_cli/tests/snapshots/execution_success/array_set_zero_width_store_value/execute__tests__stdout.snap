@@ -1,0 +1,6 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 179
+expression: stdout
+---
+[array_set_zero_width_store_value] Circuit output: 0x08

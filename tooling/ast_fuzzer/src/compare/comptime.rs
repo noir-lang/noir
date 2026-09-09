@@ -76,6 +76,51 @@ fn prepare_and_compile_snippet<W: std::io::Write + 'static>(
     (res, output)
 }
 
+/// Declarations appended to the generated source before it is handed to the elaborator
+/// by [`CompareComptime::exec_direct`].
+///
+/// That path elaborates the snippet standalone, registering it as both the root crate and
+/// the stdlib, so nothing from `noir_stdlib` is in scope. Any stdlib item the AST printer
+/// can emit therefore has to be declared here, or elaboration fails before the comparison
+/// even runs. The printer renders builtins that are methods in Noir source as method calls
+/// (`s.as_bytes()`), so a bare `#[builtin]` free function would not resolve either — the
+/// declaration has to keep the same shape the printer assumes.
+///
+/// Vector and array builtins are deliberately absent: they are low-level extensions that
+/// cannot be expressed this way, which is why the target that uses this path sets
+/// `Config::avoid_vectors`.
+const COMPTIME_STDLIB_SHIM: &str = r#"
+        impl<let N: u32> str<N> {
+            #[builtin(str_as_bytes)]
+            pub fn as_bytes(self) -> [u8; N] {}
+        }
+
+        #[oracle(print)]
+        unconstrained fn print_oracle<T>(with_newline: bool, input: T) {}
+
+        unconstrained fn print_unconstrained<T>(with_newline: bool, input: T) {
+            print_oracle(with_newline, input);
+        }
+
+        pub fn println<T>(input: T) {
+            unsafe {
+                print_unconstrained(true, input);
+            }
+        }
+
+        pub fn print<T>(input: T) {
+            unsafe {
+                print_unconstrained(false, input);
+            }
+        }
+        "#;
+
+/// The source handed to the elaborator by [`CompareComptime::exec_direct`]: the generated
+/// program made `comptime`, followed by the stdlib items that path cannot import.
+fn comptime_source(program_source: &str) -> String {
+    format!("comptime {program_source}{COMPTIME_STDLIB_SHIM}")
+}
+
 /// Compare the execution of a Noir program in pure comptime (via interpreter)
 /// vs normal SSA execution.
 pub struct CompareComptime {
@@ -98,30 +143,7 @@ impl CompareComptime {
         let (res2, print2) =
             Self::exec_bytecode(&self.ssa.artifact.program, initial_witness.clone());
 
-        // Include the print part of stdlib for the elaborator to be able to use the print oracle
-        let import_print = r#"
-        #[oracle(print)]
-        unconstrained fn print_oracle<T>(with_newline: bool, input: T) {}
-
-        unconstrained fn print_unconstrained<T>(with_newline: bool, input: T) {
-            print_oracle(with_newline, input);
-        }
-
-        pub fn println<T>(input: T) {
-            unsafe {
-                print_unconstrained(true, input);
-            }
-        }
-
-        pub fn print<T>(input: T) {
-            unsafe {
-                print_unconstrained(false, input);
-            }
-        }
-        "#;
-
-        // Add comptime modifier for main
-        let source = format!("comptime {}{}", self.source, import_print);
+        let source = comptime_source(&self.source);
         let output = Rc::new(RefCell::new(Vec::new()));
 
         // Take the printed output.
@@ -312,7 +334,34 @@ impl HasPrograms for CompareComptime {
 
 #[cfg(test)]
 mod tests {
-    use super::prepare_and_compile_snippet;
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    use noirc_frontend::elaborator::test_utils::interpret;
+
+    use super::{comptime_source, prepare_and_compile_snippet};
+
+    /// The AST fuzzer turns a `str<N>` into a `[u8; N]` with the `str_as_bytes` builtin, which the
+    /// printer renders as `s.as_bytes()`. `exec_direct` elaborates with the generated snippet
+    /// standing in for the stdlib, so the shim it appends has to carry that method or every
+    /// generated program containing a string-to-bytes conversion dies with `UnresolvedMethodCall`
+    /// before it is ever compared.
+    #[test]
+    fn shim_resolves_str_as_bytes() {
+        let source = comptime_source(
+            r#"
+fn main() -> pub [u8; 2] {
+    comptime { func_1("AB") }
+}
+fn func_1(a: str<2>) -> [u8; 2] {
+    a.as_bytes()
+}
+"#,
+        );
+        let output = Rc::new(RefCell::new(Vec::new()));
+        interpret(&source, output)
+            .expect("`str::as_bytes` should resolve against the comptime shim");
+    }
 
     /// Comptime compilation can fail with stack overflow because of how the interpreter is evaluating instructions.
     /// We could apply `#[inline(always)]` on some of the `Interpreter::elaborate_` functions to make it go further,

@@ -223,7 +223,9 @@ impl Elaborator<'_> {
         for (i, variant) in enum_def.variants.iter().enumerate() {
             let parameters = variant.item.parameters.as_ref();
             let types = parameters.map(|params| {
-                vecmap(params, |typ| self.resolve_type(typ.clone(), wildcard_allowed))
+                // `use_type` so a struct mentioned in a variant payload counts as constructed,
+                // for the same reason as struct fields (see `resolve_struct_fields`).
+                vecmap(params, |typ| self.use_type(typ.clone(), wildcard_allowed))
             });
             let name = variant.item.name.clone();
 

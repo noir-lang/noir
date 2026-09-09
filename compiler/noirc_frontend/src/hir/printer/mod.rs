@@ -3,10 +3,10 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 use crate::graph::{CrateGraph, CrateId};
 use crate::hir::comptime::FormatStringFragment;
 use crate::hir::printer::items::ItemBuilder;
-use crate::hir::resolution::visibility::module_def_id_visibility;
+use crate::hir::resolution::visibility::{module_def_id_visibility, struct_member_is_visible};
 use crate::node_interner::TraitImplId;
 use crate::{
-    DataType, Kind, NamedGeneric, ResolvedGenerics, Type,
+    DataType, Kind, NamedGeneric, ResolvedGenerics, Type, TypeVariableId,
     ast::{DocComment, Ident, ItemVisibility},
     graph::Dependency,
     hir::{
@@ -16,11 +16,14 @@ use crate::{
     },
     hir_def::{
         expr::HirExpression,
+        function::FuncMeta,
         stmt::{HirLetStatement, HirPattern},
         traits::{ResolvedTraitBound, TraitConstraint},
     },
     modules::{get_parent_module, module_def_id_is_visible, module_def_id_to_reference_id},
-    node_interner::{FuncId, GlobalId, GlobalValue, NodeInterner, ReferenceId, TypeAliasId},
+    node_interner::{
+        FuncId, GlobalId, GlobalValue, NodeInterner, ReferenceId, TypeAliasId, TypeId,
+    },
     shared::Visibility,
     token::{FunctionAttributeKind, LocatedToken, SecondaryAttribute, SecondaryAttributeKind},
 };
@@ -89,6 +92,11 @@ struct ItemPrinter<'context, 'string> {
     imports: HashMap<ModuleDefId, Ident>,
     self_type: Option<Type>,
 
+    /// When printing the body of a trait, this is the trait's `Self` type variable.
+    /// Any unbound occurrence of it (for example in `Self::method()` inside a default
+    /// method) must be printed as `Self`, which is the only name it has in source.
+    trait_self_typevar: Option<TypeVariableId>,
+
     /// Trait constraints in scope from an enclosing trait, trait impl, inherent impl, or
     /// function. A method's own where clause is filtered against these (see
     /// [`Self::parent_constraints_contain`]) so constraints already shown on the enclosing item
@@ -122,6 +130,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             module_id,
             imports,
             self_type: None,
+            trait_self_typevar: None,
             trait_constraints: Vec::new(),
             trait_impls_printed: HashSet::new(),
         }
@@ -416,6 +425,12 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         self.push_str("type ");
         self.push_str(&type_alias.name.to_string());
         self.show_generics(&type_alias.generics);
+        // A numeric type alias (`type Double<let N: u32>: u32 = N * 2;`) must spell out its
+        // numeric type, otherwise the right-hand side is rejected as a type expression.
+        if let Kind::Numeric(numeric_type) = type_alias.typ.kind() {
+            self.push_str(": ");
+            self.show_type(&numeric_type);
+        }
         self.push_str(" = ");
         self.show_type(&type_alias.typ);
         self.push(';');
@@ -448,6 +463,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         self.increase_indent();
 
         self.trait_constraints = trait_.where_clause.clone();
+        self.trait_self_typevar = Some(trait_.self_type_typevar.id());
 
         let mut printed_type_or_function = false;
 
@@ -498,6 +514,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         self.push('}');
 
         self.trait_constraints.clear();
+        self.trait_self_typevar = None;
 
         // Only show trait impls for types outside of the current crate:
         // trait impls for types in this crate are already shown alongside the type definition.
@@ -558,14 +575,29 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                 self.push_str("let ");
                 self.push_str(&named_type.name.to_string());
                 self.push_str(": ");
+                // `Self` doesn't resolve in an associated constant's numeric type annotation,
+                // so print the type itself even when it's the impl's self type. This covers
+                // the whole declaration — annotation, value and the value's type suffix —
+                // since the value is a numeric type expression subject to the same rule.
+                let self_type = self.self_type.take();
                 self.show_type(&numeric_type);
                 self.push_str(" = ");
+                // An unsuffixed literal in this position is checked as `u32`, so a constant
+                // of any other numeric type needs its type suffix.
+                if let Type::Constant(constant) = named_type.typ.follow_bindings() {
+                    self.push_str(&constant.to_string());
+                    self.push('_');
+                    self.show_type(&numeric_type);
+                } else {
+                    self.show_type(&named_type.typ);
+                }
+                self.self_type = self_type;
             } else {
                 self.push_str("type ");
                 self.push_str(&named_type.name.to_string());
                 self.push_str(" = ");
+                self.show_type(&named_type.typ);
             }
-            self.show_type(&named_type.typ);
             self.push_str(";");
 
             printed_item = true;
@@ -617,11 +649,165 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         self.push_str(&global_info.ident.to_string());
         self.push_str(": ");
         self.show_type(&typ);
+        let mut initializer_may_differ_from_value = false;
         if let GlobalValue::Resolved(value) = &global_info.value {
             self.push_str(" = ");
-            self.show_value(value);
+            // Prefer the evaluated value: a comptime-mutable global's final value can differ
+            // from what its initializer evaluates to. But some values can't be reconstructed
+            // as source code (private struct fields, comptime-only values): for those, print
+            // the original initializer expression, which is at least as visible as it was in
+            // the original program.
+            if self.value_is_representable(value) {
+                self.show_value(value);
+            } else if let Some(let_statement) = self.interner.get_global_let_statement(global_id) {
+                // For a mutable global the mutations happened via attributes and comptime
+                // blocks that are already expanded away, so re-evaluating the initializer
+                // does not reproduce the final value.
+                initializer_may_differ_from_value = definition.mutable;
+                let expr_id = let_statement.expression;
+                let hir_expr = self.interner.expression(&expr_id);
+                self.show_hir_expression(hir_expr, expr_id);
+            } else {
+                self.show_value(value);
+            }
         }
         self.push_str(";");
+        if initializer_may_differ_from_value {
+            self.push_str(
+                " // Warning: this global was mutated at compile time; its final value could not be printed, so this is its initializer",
+            );
+        }
+    }
+
+    /// Whether [`Self::show_value`] can print `value` as source code that compiles from the
+    /// current module. Some values have no code representation at all (they print as a
+    /// `panic(...)` placeholder), and a struct literal only compiles where the struct's type
+    /// and all of its fields are visible.
+    fn value_is_representable(&self, value: &Value) -> bool {
+        match value {
+            Value::Unit
+            | Value::Bool(_)
+            | Value::Integer(_)
+            | Value::Quoted(_)
+            | Value::Zeroed(_) => true,
+
+            Value::Function(func_id, ..) => self.function_is_visible(*func_id),
+
+            // A closure prints as just its lambda, so any captured variables would be
+            // dangling references at the global's scope.
+            Value::Closure(closure) => closure.lambda.captures.is_empty(),
+
+            Value::String(bytes) | Value::CtString(bytes) => string_bytes_are_representable(bytes),
+
+            Value::FormatString(fragments, ..) => fragments.iter().all(|fragment| match fragment {
+                FormatStringFragment::String(string) => {
+                    format_string_fragment_is_representable(string)
+                }
+                FormatStringFragment::Value { value, .. } => self.value_is_representable(value),
+            }),
+
+            Value::Tuple(values) => {
+                values.iter().all(|value| self.value_is_representable(&value.borrow()))
+            }
+
+            Value::Struct(fields, typ) => {
+                self.struct_literal_is_visible(typ)
+                    && fields.values().all(|value| self.value_is_representable(&value.borrow()))
+            }
+
+            Value::Enum(_, args, typ) => {
+                self.data_type_is_visible(typ)
+                    && args.iter().all(|arg| self.value_is_representable(arg))
+            }
+
+            Value::Array(values, _) | Value::Vector(values, _) => {
+                values.iter().all(|value| self.value_is_representable(value))
+            }
+
+            Value::Pointer(value, ..) => self.value_is_representable(&value.borrow()),
+
+            // These print as a `panic(...)` placeholder (see `show_value`).
+            Value::TypeDefinition(_)
+            | Value::TraitConstraint(..)
+            | Value::TraitDefinition(_)
+            | Value::TraitImpl(_)
+            | Value::FunctionDefinition(_)
+            | Value::ModuleDefinition(_)
+            | Value::Type(_)
+            | Value::Expr(_)
+            | Value::TypedExpr(_)
+            | Value::UnresolvedType(_)
+            | Value::Location(_) => false,
+        }
+    }
+
+    /// Whether a struct literal of the given type compiles from the current module:
+    /// the type itself and every field must be visible.
+    fn struct_literal_is_visible(&self, typ: &Type) -> bool {
+        let typ = typ.follow_bindings();
+        let Type::DataType(data_type, generics) = &typ else {
+            return true;
+        };
+        let data_type = data_type.borrow();
+        if !self.data_type_id_is_visible(data_type.id, data_type.visibility) {
+            return false;
+        }
+        let Some(fields) = data_type.get_fields(generics) else {
+            return false;
+        };
+        fields.iter().all(|(_, _, visibility)| {
+            struct_member_is_visible(data_type.id, *visibility, self.module_id, self.def_maps)
+        })
+    }
+
+    /// Whether the given data type (by name) is visible from the current module.
+    fn data_type_is_visible(&self, typ: &Type) -> bool {
+        let typ = typ.follow_bindings();
+        let Type::DataType(data_type, _) = &typ else {
+            return true;
+        };
+        let data_type = data_type.borrow();
+        self.data_type_id_is_visible(data_type.id, data_type.visibility)
+    }
+
+    fn data_type_id_is_visible(&self, id: TypeId, visibility: ItemVisibility) -> bool {
+        let module_def_id = ModuleDefId::TypeId(id);
+        self.module_def_id_is_visible_or_reexported(module_def_id, visibility)
+    }
+
+    /// Whether a reference to the given function compiles from the current module. Methods
+    /// (impl, trait impl or trait functions) are printed as `Type::method` or
+    /// `<Type as Trait>::method`, whose visibility follows the container, so only plain
+    /// functions are checked here.
+    fn function_is_visible(&self, func_id: FuncId) -> bool {
+        let func_meta = self.interner.function_meta(&func_id);
+        if func_meta.trait_impl.is_some()
+            || func_meta.trait_id.is_some()
+            || func_meta.type_id.is_some()
+        {
+            return true;
+        }
+        let visibility = self.interner.function_visibility(func_id);
+        self.module_def_id_is_visible_or_reexported(ModuleDefId::FunctionId(func_id), visibility)
+    }
+
+    /// This over-approximates on purpose: a re-export *somewhere* isn't necessarily nameable
+    /// from this module, but it matches what `show_reference_to_module_def_id` does — when an
+    /// item isn't directly visible it prints through the first re-export it finds.
+    fn module_def_id_is_visible_or_reexported(
+        &self,
+        module_def_id: ModuleDefId,
+        visibility: ItemVisibility,
+    ) -> bool {
+        module_def_id_is_visible(
+            module_def_id,
+            self.module_id,
+            visibility,
+            None,
+            self.interner,
+            self.def_maps,
+            self.dependencies,
+        ) || !self.interner.get_reexports(module_def_id).is_empty()
     }
 
     /// Whether a constraint already in scope from an enclosing item subsumes the given one, so
@@ -677,7 +863,16 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                 if matches!(visibility, Visibility::Public) {
                     self.push_str("pub ");
                 }
-                self.show_type(typ);
+
+                // An `impl Trait` parameter desugars to a hidden generic whose synthetic name
+                // omits the trait's generic arguments (see `desugar_impl_trait_arg`), so it is
+                // printed from its resolved trait constraint instead.
+                if let Some(constraint) = impl_trait_parameter_constraint(func_meta, typ) {
+                    self.push_str("impl ");
+                    self.show_trait_bound(&constraint.trait_bound);
+                } else {
+                    self.show_type(typ);
+                }
             }
 
             if index != parameters.len() - 1 {
@@ -705,7 +900,20 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             .cloned()
             .collect::<Vec<_>>();
 
-        self.show_where_clause(&func_trait_constraints);
+        // An `impl Trait` parameter desugars to a hidden generic named `impl {Trait}` with a
+        // trait constraint (see `desugar_impl_trait_arg`). That constraint is implied by the
+        // parameter type itself and its synthetic name is not valid in a where clause, so it
+        // must not be printed.
+        let shown_trait_constraints = func_trait_constraints
+            .iter()
+            .filter(|constraint| {
+                !matches!(&constraint.typ,
+                    Type::NamedGeneric(generic) if generic.is_impl_trait_parameter())
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+
+        self.show_where_clause(&shown_trait_constraints);
 
         let previous_trait_constraints_length = self.trait_constraints.len();
         self.trait_constraints.extend(func_trait_constraints);
@@ -949,7 +1157,9 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             Value::Integer(int) => self.push_str(&int.to_string()),
             Value::String(bytes) => {
                 let string = String::from_utf8_lossy(bytes);
-                self.push_str(&format!("{string:?}"));
+                self.push('"');
+                self.push_str(&escape_string_literal(&string));
+                self.push('"');
             }
             Value::FormatString(fragments, _typ, _) => {
                 let has_values = fragments
@@ -982,7 +1192,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                 for fragment in fragments.iter() {
                     match fragment {
                         FormatStringFragment::String(string) => {
-                            self.push_str(&string.replace('"', "\\\""));
+                            self.push_str(&escape_format_string_fragment(string));
                         }
                         FormatStringFragment::Value { name, value: _ } => {
                             self.push('{');
@@ -998,10 +1208,10 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                 }
             }
             Value::CtString(bytes) => {
-                let string = String::from_utf8_lossy(bytes);
+                let string = escape_string_literal(&String::from_utf8_lossy(bytes));
                 let std = if self.crate_id.is_stdlib() { "std" } else { "crate" };
                 self.push_str(&format!(
-                    "{std}::meta::ctstring::AsCtString::as_ctstring({string:?})"
+                    "{std}::meta::ctstring::AsCtString::as_ctstring(\"{string}\")"
                 ));
             }
             Value::Function(func_id, ..) => {
@@ -1418,5 +1628,100 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
 
     fn push(&mut self, char: char) {
         self.string.push(char);
+    }
+}
+
+/// If `typ` is the hidden generic minted for an `impl Trait` parameter, returns the trait
+/// constraint that was desugared alongside it (see `desugar_impl_trait_arg`). The synthetic
+/// generic's name omits the trait's generic arguments, so printing the parameter faithfully
+/// requires the resolved bound instead.
+fn impl_trait_parameter_constraint<'meta>(
+    func_meta: &'meta FuncMeta,
+    typ: &Type,
+) -> Option<&'meta TraitConstraint> {
+    let Type::NamedGeneric(generic) = typ else {
+        return None;
+    };
+    if !generic.is_impl_trait_parameter() {
+        return None;
+    }
+    func_meta.trait_constraints.iter().find(|constraint| {
+        matches!(&constraint.typ,
+            Type::NamedGeneric(constraint_generic)
+                if constraint_generic.type_var.id() == generic.type_var.id())
+    })
+}
+
+/// Whether these string bytes print as a `"..."` literal that both lexes back to the same
+/// bytes and is readable. Noir source is UTF-8, so bytes that aren't have no literal form at
+/// all. Beyond that this is a quality bar rather than a hard limit: Noir has no numeric
+/// escape, so a character outside [`escape_string_literal`]'s escape set can only be written
+/// raw, and a raw control character in expanded output is worse to read than the initializer
+/// expression it would replace.
+fn string_bytes_are_representable(bytes: &[u8]) -> bool {
+    let Ok(string) = std::str::from_utf8(bytes) else {
+        return false;
+    };
+    string.chars().all(char_prints_readably)
+}
+
+/// Whether this format string fragment prints readably inside an `f"..."` literal. Fragments
+/// are always UTF-8, so only the readability bar above applies.
+fn format_string_fragment_is_representable(string: &str) -> bool {
+    string.chars().all(char_prints_readably)
+}
+
+/// Whether a character has a printable form in a string literal: either it needs no escape,
+/// or it is one of the six [`escape_string_literal`] can escape. Rust's `{:?}` is the oracle
+/// for "needs an escape", since it escapes exactly the characters that don't render as
+/// themselves - control characters, combining marks and other format characters, all of which
+/// it writes as `\u{..}`, a form Noir has no equivalent of.
+fn char_prints_readably(char: char) -> bool {
+    // `{:?}` on a string prints `'` unescaped, even though `char::escape_debug` escapes it.
+    if char == '\'' {
+        return true;
+    }
+    let mut escaped = char.escape_debug();
+    match escaped.next() {
+        Some('\\') => matches!(escaped.next(), Some('r' | 'n' | 't' | '0' | '"' | '\\')),
+        _ => true,
+    }
+}
+
+/// Escapes `string` so that it lexes back to exactly these characters inside a `"..."`
+/// literal. Noir's only escapes are `\r \n \t \0 \" \\` (see `Lexer::eat_string_literal`);
+/// there is no numeric escape, so every other character is written raw.
+fn escape_string_literal(string: &str) -> String {
+    let mut escaped = String::with_capacity(string.len());
+    for char in string.chars() {
+        push_escaped_char(&mut escaped, char);
+    }
+    escaped
+}
+
+/// Escapes `string` so that it lexes back to exactly these characters inside an `f"..."`
+/// literal: the same escapes as a plain string literal, except that `{` and `}` must be
+/// doubled so they aren't read as an interpolation (see `Lexer::eat_fmt_string`).
+fn escape_format_string_fragment(string: &str) -> String {
+    let mut escaped = String::with_capacity(string.len());
+    for char in string.chars() {
+        match char {
+            '{' => escaped.push_str("{{"),
+            '}' => escaped.push_str("}}"),
+            _ => push_escaped_char(&mut escaped, char),
+        }
+    }
+    escaped
+}
+
+fn push_escaped_char(escaped: &mut String, char: char) {
+    match char {
+        '\r' => escaped.push_str("\\r"),
+        '\n' => escaped.push_str("\\n"),
+        '\t' => escaped.push_str("\\t"),
+        '\0' => escaped.push_str("\\0"),
+        '"' => escaped.push_str("\\\""),
+        '\\' => escaped.push_str("\\\\"),
+        _ => escaped.push(char),
     }
 }

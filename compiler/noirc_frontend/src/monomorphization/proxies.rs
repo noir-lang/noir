@@ -280,6 +280,7 @@ fn make_proxy(id: FuncId, ident: Ident, unconstrained: bool) -> Function {
         unconstrained,
         inline_type: InlineType::InlineAlways,
         is_entry_point: false, // This only matters for creating artifacts
+        allow_constant_return: false,
     }
 }
 
@@ -363,7 +364,7 @@ mod tests {
             f(true);
         }
 
-        #[builtin(foo)]
+        #[builtin(black_box)]
         pub fn foo<T>(x: T) -> T {}
         ";
 
@@ -386,19 +387,19 @@ mod tests {
         }
         #[inline_always]
         fn foo_proxy$f3(p0$l0: Field) -> Field {
-            foo$foo(p0$l0)
+            foo$black_box(p0$l0)
         }
         #[inline_always]
         unconstrained fn foo_proxy$f4(p0$l0: Field) -> Field {
-            foo$foo(p0$l0)
+            foo$black_box(p0$l0)
         }
         #[inline_always]
         fn foo_proxy$f5(p0$l0: bool) -> bool {
-            foo$foo(p0$l0)
+            foo$black_box(p0$l0)
         }
         #[inline_always]
         unconstrained fn foo_proxy$f6(p0$l0: bool) -> bool {
-            foo$foo(p0$l0)
+            foo$black_box(p0$l0)
         }
         ");
     }

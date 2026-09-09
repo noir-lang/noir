@@ -31,7 +31,7 @@ interface SourceCodeLocation {
 }
 
 export function parseDebugSymbols(debugSymbols: string): DebugInfo[] {
-  return JSON.parse(inflate(base64Decode(debugSymbols), { to: 'string', raw: true })).debug_infos;
+  return JSON.parse(inflate(base64Decode(debugSymbols), { toText: true, raw: true })).debug_infos;
 }
 
 /**

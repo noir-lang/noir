@@ -224,7 +224,9 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
             }
             (PoppedFromEmptyVector { .. }, ConstrainEqFailed { msg, .. }) => {
                 // The removal of unreachable instructions can replace popping from an empty vector with an always-fail constraint.
-                msg.as_ref().is_some_and(|msg| msg == "Index out of bounds")
+                msg.as_ref().is_some_and(|msg| {
+                    msg == "Index out of bounds" || msg == "Attempt to pop from an empty vector"
+                })
             }
             (IndexOutOfBounds { .. }, ConstrainEqFailed { msg, .. }) => {
                 msg.as_ref().is_some_and(|msg| msg.contains("Index out of bounds"))
@@ -469,6 +471,24 @@ mod tests {
         assert!(!Comparable::equivalent(
             &overflow(BinaryOp::Mod),
             &constrain_eq_failed("attempt to divide with overflow"),
+        ));
+    }
+
+    #[test]
+    fn empty_vector_pop_matches_its_lowered_constraint() {
+        let popped = InterpreterError::PoppedFromEmptyVector {
+            vector: Id::new(0),
+            instruction: "vector_pop_front",
+        };
+
+        assert!(Comparable::equivalent(
+            &popped,
+            &constrain_eq_failed("Attempt to pop from an empty vector"),
+        ));
+        assert!(Comparable::equivalent(&popped, &constrain_eq_failed("Index out of bounds"),));
+        assert!(!Comparable::equivalent(
+            &popped,
+            &constrain_eq_failed("attempt to divide by zero"),
         ));
     }
 

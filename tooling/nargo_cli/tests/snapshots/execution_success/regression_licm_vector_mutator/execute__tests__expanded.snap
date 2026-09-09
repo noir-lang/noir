@@ -1,0 +1,20 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn main(x: bool, n: u32) -> pub bool {
+    let mut v: [bool] = [x].as_vector();
+    for _ in 0_u32..n {
+        v = v.push_back(x);
+    }
+    let mut acc: u32 = 0_u32;
+    for _ in 0_u32..2_u32 {
+        {
+            let op_rhs_0: u32 = v.push_front(false).len();
+            acc = acc + op_rhs_0;
+        }
+    }
+    assert(acc > 0_u32);
+    assert(v[0_u32] == x);
+    v[0_u32]
+}

@@ -924,12 +924,15 @@ impl<'a> Formatter<'a> {
         for chunk in group.chunks {
             match chunk {
                 Chunk::Text(text_chunk, _) => {
+                    self.write_indentation();
                     self.write(&text_chunk.string);
                 }
                 Chunk::TrailingComment(text_chunk, _) => {
+                    self.write_indentation();
                     self.write(&text_chunk.string);
                 }
                 Chunk::LeadingComment(text_chunk) => {
+                    self.write_indentation();
                     self.write(&text_chunk.string);
                     self.write_space_without_skipping_whitespace_and_comments();
                 }
@@ -973,6 +976,7 @@ impl<'a> Formatter<'a> {
             match chunk {
                 Chunk::Text(text_chunk, verbatim) => {
                     if verbatim {
+                        self.write_indentation();
                         self.write(&text_chunk.string);
                     } else if text_chunk.has_newlines {
                         self.write_chunk_lines(&text_chunk.string, false);
@@ -988,9 +992,9 @@ impl<'a> Formatter<'a> {
                         {
                             self.write_line_without_skipping_whitespace_and_comments();
                             self.increase_indentation();
-                            self.write_indentation();
                             increased_indentation += 1;
                         }
+                        self.write_indentation();
                         self.write(&text_chunk.string);
                     }
                 }
@@ -1080,6 +1084,11 @@ impl<'a> Formatter<'a> {
         });
         let string = text_chunk.string;
 
+        // The lambda's parameter list may have ended the line (for example with a
+        // `//` comment's terminating newline), leaving us at a fresh line that needs
+        // indentation (`write_indentation` is a no-op mid-line).
+        self.write_indentation();
+
         // Don't remove the braces if the lambda's body is a Semi expression.
         if string.ends_with("; }") || string.ends_with("; },") {
             self.write(&string);
@@ -1104,6 +1113,11 @@ impl<'a> Formatter<'a> {
         // The logic involves checking whether each line is part of a line or block comment
         // and wrapping those accordingly.
         let mut inside_block_comment = false;
+
+        // The previous chunk may have ended the line (for example with a `//` comment's
+        // terminating newline), in which case this chunk's first line starts fresh and
+        // needs indentation (`write_indentation` is a no-op mid-line).
+        self.write_indentation();
 
         let lines: Vec<_> = string.lines().collect();
 
@@ -1290,6 +1304,16 @@ impl<'a> Formatter<'a> {
             if inside_block_comment && line.trim_end().ends_with("*/") {
                 inside_block_comment = false;
             }
+        }
+
+        // `str::lines()` above drops a final newline, but that newline is meaningful:
+        // in particular it may be the one that terminates a `//` comment on the chunk's
+        // last line, and anything appended to that line would become part of the
+        // comment. Re-emit it (`write_line_without_...` is a no-op if the line already
+        // ended, so writers that break the line themselves are unaffected).
+        if string.ends_with('\n') {
+            self.trim_spaces();
+            self.write_line_without_skipping_whitespace_and_comments();
         }
     }
 

@@ -27,6 +27,7 @@ use crate::{
             HirStatement,
         },
     },
+    lint::Lint,
     node_interner::{DefinitionId, DefinitionKind, ExprId, GlobalId, StmtId},
 };
 
@@ -220,9 +221,9 @@ impl Elaborator<'_> {
         );
 
         let warn_if_unused =
-            !let_stmt.attributes.iter().any(|attr| attr.kind.is_allow("unused_variables"));
+            !let_stmt.attributes.iter().any(|attr| attr.kind.is_allow(Lint::UnusedVariables));
         let warn_if_not_mutated =
-            !let_stmt.attributes.iter().any(|attr| attr.kind.is_allow("unused_mut"));
+            !let_stmt.attributes.iter().any(|attr| attr.kind.is_allow(Lint::UnusedMut));
 
         let r#type = annotated_type;
         let mut parameter_names_in_list = rustc_hash::FxHashMap::default();

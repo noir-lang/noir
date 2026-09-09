@@ -110,6 +110,8 @@ pub(crate) fn gen_brillig_for(
 
 #[cfg(test)]
 mod entry_point {
+    use acvm::acir::brillig::Opcode as BrilligOpcode;
+
     use crate::{
         assert_artifact_snapshot,
         brillig::{
@@ -286,5 +288,37 @@ mod entry_point {
         59: sp[2] = u32 add sp[3], sp[5]
         60: return
         ");
+    }
+
+    #[test]
+    fn unreachable_terminator_keeps_jump_targets_in_range() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            constrain v0 == u32 7
+            unreachable
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let options = BrilligOptions::default();
+        let brillig = ssa.to_brillig(&options);
+
+        let args = vec![BrilligParameter::SingleAddr(32)];
+        let entry = gen_brillig_for(ssa.main(), &args, &brillig, &options).unwrap();
+
+        let len = entry.byte_code.len();
+        for (index, opcode) in entry.byte_code.iter().enumerate() {
+            let target = match opcode {
+                BrilligOpcode::Jump { location }
+                | BrilligOpcode::JumpIf { location, .. }
+                | BrilligOpcode::Call { location } => *location,
+                _ => continue,
+            };
+            assert!(
+                target < len,
+                "opcode {index} ({opcode:?}) targets {target}, \
+                 which is out of range for a program of {len} opcodes"
+            );
+        }
     }
 }

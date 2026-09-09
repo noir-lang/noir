@@ -281,8 +281,14 @@ pub fn u32_literal(value: u32) -> Expression {
 }
 
 /// Create a variable.
-pub fn let_var(id: LocalId, mutable: bool, name: String, expr: Expression) -> Expression {
-    Expression::Let(Let { id, mutable, name, expression: Box::new(expr) })
+pub fn let_var(
+    id: LocalId,
+    mutable: bool,
+    name: String,
+    typ: Type,
+    expr: Expression,
+) -> Expression {
+    Expression::Let(Let { id, mutable, name, expression: Box::new(expr), typ })
 }
 
 /// Create an `if` expression, with an optional `else`.

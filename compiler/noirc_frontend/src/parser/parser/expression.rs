@@ -1067,8 +1067,7 @@ impl Parser<'_> {
     }
 
     /// `ConstrainExpression`
-    ///     = 'constrain' Expression
-    ///     | 'assert' Arguments
+    ///     = 'assert' Arguments
     ///     | '`assert_eq`' Arguments
     pub(super) fn parse_constrain_expression(&mut self) -> Option<ConstrainExpression> {
         let start_location = self.current_token_location;
@@ -1088,19 +1087,6 @@ impl Parser<'_> {
                     location: self.location_since(start_location),
                 }
             }
-            ConstrainKind::Constrain => {
-                self.push_error(
-                    ParserErrorReason::ConstrainDeprecated,
-                    self.previous_token_location,
-                );
-
-                let expression = self.parse_expression_or_error();
-                ConstrainExpression {
-                    kind,
-                    arguments: vec![expression],
-                    location: self.location_since(start_location),
-                }
-            }
         })
     }
 
@@ -1109,8 +1095,6 @@ impl Parser<'_> {
             Some(ConstrainKind::Assert)
         } else if self.eat_keyword(Keyword::AssertEq) {
             Some(ConstrainKind::AssertEq)
-        } else if self.eat_keyword(Keyword::Constrain) {
-            Some(ConstrainKind::Constrain)
         } else {
             None
         }
@@ -2314,20 +2298,6 @@ mod tests {
         };
         assert_eq!(constrain.kind, ConstrainKind::AssertEq);
         assert_eq!(constrain.arguments.len(), 3);
-    }
-
-    #[test]
-    fn parses_constrain() {
-        let src = "
-        constrain 1
-        ^^^^^^^^^ Use of deprecated keyword 'constrain'
-        ";
-        let expression = check_errors(src, |parser| parser.parse_expression_or_error());
-        let ExpressionKind::Constrain(constrain) = expression.kind else {
-            panic!("Expected constrain expression");
-        };
-        assert_eq!(constrain.kind, ConstrainKind::Constrain);
-        assert_eq!(constrain.arguments.len(), 1);
     }
 
     #[test]

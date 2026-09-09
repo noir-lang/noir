@@ -1,0 +1,7 @@
+[package]
+name = "array_set_zero_width_store_value"
+version = "0.1.0"
+type = "bin"
+authors = [""]
+
+[dependencies]

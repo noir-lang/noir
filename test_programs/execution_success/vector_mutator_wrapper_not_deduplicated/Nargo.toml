@@ -1,0 +1,6 @@
+[package]
+name = "vector_mutator_wrapper_not_deduplicated"
+type = "bin"
+authors = [""]
+
+[dependencies]

@@ -92,7 +92,17 @@ pub fn assert_no_errors_without_report(src: &str) -> Context<'_, '_> {
 }
 
 fn assert_no_errors_and_to_string(src: &str) -> String {
-    let context = assert_no_errors(src);
+    assert_no_errors_and_to_string_using_features(
+        src,
+        FrontendOptions::test_default().enabled_unstable_features,
+    )
+}
+
+fn assert_no_errors_and_to_string_using_features(
+    src: &str,
+    features: &[UnstableFeature],
+) -> String {
+    let context = assert_no_errors_using_features(src, features);
     let expanded = display_crate(
         *context.crate_graph.root_crate_id(),
         &context.crate_graph,
@@ -107,7 +117,7 @@ fn assert_no_errors_and_to_string(src: &str) -> String {
     // its module and break access to a module-private item. Only hard errors are checked: the
     // printer can legitimately produce code whose warnings (e.g. unused imports) differ from the
     // original.
-    let errors = get_program_errors(&expanded);
+    let errors = get_program_using_features(&expanded, features).2;
     let errors: Vec<_> =
         errors.iter().map(CustomDiagnostic::from).filter(CustomDiagnostic::is_error).collect();
     if !errors.is_empty() {

@@ -124,6 +124,11 @@ pub(crate) struct DataFlowGraph {
     /// Indicate whether the Brillig array index offset optimizations have been performed.
     pub(crate) brillig_arrays_offset: bool,
 
+    /// When `true`, the `constant_return` warning is not emitted if this function is an
+    /// ACIR entry point whose return value is constant. Set from a
+    /// `#[allow(constant_return)]` attribute on the source function.
+    pub(crate) allow_constant_return: bool,
+
     /// When `false` (the default), a `simplify_*` routine that detects malformed input — SSA that
     /// could not arise from well-formed compilation — panics via [`bail_malformed!`][crate::ssa::ir::dfg::simplify::bail_malformed].
     /// When `true`, those routines instead emit a trace and decline to simplify, leaving the
@@ -584,8 +589,7 @@ impl DataFlowGraph {
                     // unchecked Sub can underflow to a field-negative (near-modulus) value at any
                     // width. Report a conservative upper bound rather than the static type width,
                     // so callers never mistake that width for a range proof. (In Brillig the result
-                    // wraps to the type width, and a `u1` unchecked Mul stays a single bit, so
-                    // those keep the static width.)
+                    // wraps to the type width, so it keeps the static width.)
                     Instruction::Binary(binary)
                         if self.runtime().is_acir()
                             && matches!(
@@ -593,9 +597,7 @@ impl DataFlowGraph {
                                 BinaryOp::Add { unchecked: true }
                                     | BinaryOp::Sub { unchecked: true }
                                     | BinaryOp::Mul { unchecked: true }
-                            )
-                            && !(value_bit_size == 1
-                                && matches!(binary.operator, BinaryOp::Mul { .. })) =>
+                            ) =>
                     {
                         let field_max = FieldElement::max_num_bits();
                         let bound = match binary.operator {
@@ -603,9 +605,21 @@ impl DataFlowGraph {
                                 .operand_max_num_bits(binary.lhs)
                                 .max(self.operand_max_num_bits(binary.rhs))
                                 .saturating_add(1),
-                            BinaryOp::Mul { .. } => self
-                                .operand_max_num_bits(binary.lhs)
-                                .saturating_add(self.operand_max_num_bits(binary.rhs)),
+                            BinaryOp::Mul { .. } => {
+                                let lhs_bits = self.operand_max_num_bits(binary.lhs);
+                                let rhs_bits = self.operand_max_num_bits(binary.rhs);
+                                // A 0/1 operand selects the other operand or zero, adding no
+                                // bits. In particular a `u1` Mul of two canonical `u1`s stays a
+                                // single bit, while a wide operand (e.g. an `unchecked_add u1`
+                                // holding 2) propagates its full bound to the product.
+                                if lhs_bits <= 1 {
+                                    rhs_bits
+                                } else if rhs_bits <= 1 {
+                                    lhs_bits
+                                } else {
+                                    lhs_bits.saturating_add(rhs_bits)
+                                }
+                            }
                             _ => field_max,
                         };
                         bound.min(field_max)
@@ -622,11 +636,11 @@ impl DataFlowGraph {
     /// Upper bound on the number of bits an operand of an unchecked ACIR arithmetic instruction
     /// may hold.
     ///
-    /// Only unchecked ACIR arithmetic can exceed its static type width (a `u1` unchecked Mul is
-    /// the one exception that cannot), so every other value is bounded by that width. An operand
-    /// that is itself unchecked ACIR arithmetic is bounded only by the field width. This is an
-    /// O(1) upper bound that never inspects the operand's own operands; it can only
-    /// over-approximate, so callers that use it to drop range checks never do so unsoundly.
+    /// Only unchecked ACIR arithmetic can exceed its static type width, so every other value is
+    /// bounded by that width. An operand that is itself unchecked ACIR arithmetic is bounded only
+    /// by the field width. This is an O(1) upper bound that never inspects the operand's own
+    /// operands; it can only over-approximate, so callers that use it to drop range checks never
+    /// do so unsoundly.
     fn operand_max_num_bits(&self, value: ValueId) -> u32 {
         let value_bit_size = self.type_of_value(value).bit_size();
         if self.runtime().is_acir()
@@ -638,12 +652,36 @@ impl DataFlowGraph {
                     | BinaryOp::Sub { unchecked: true }
                     | BinaryOp::Mul { unchecked: true }
             )
-            && !(value_bit_size == 1 && matches!(binary.operator, BinaryOp::Mul { .. }))
         {
             FieldElement::max_num_bits()
         } else {
             value_bit_size
         }
+    }
+
+    /// True if `value` is boolean: a 0/1 constant, a `u1`-typed value, or a chain of casts
+    /// bottoming out at one of those.
+    ///
+    /// This trusts the static type: a `u1`-typed value is assumed to hold 0 or 1, the canonicality
+    /// invariant the compiler maintains for every value it creates (in ACIR a `u1` unchecked
+    /// add/sub result can transiently violate it, but such values only ever flow into truncations
+    /// and casts). Use this for algebraic rewrites that are valid for canonical values, such as
+    /// `b*b = b`. Do NOT use it to justify deleting a range check: for that,
+    /// [`Self::get_value_max_num_bits`] gives a bound that does not assume canonicality of
+    /// unchecked arithmetic results.
+    pub(crate) fn is_boolean_value(&self, value: ValueId) -> bool {
+        if let Some(constant) = self.get_numeric_constant(value) {
+            return constant.is_zero() || constant.is_one();
+        }
+        if self.type_of_value(value).bit_size() == 1 {
+            return true;
+        }
+        if let Value::Instruction { instruction, .. } = self[value]
+            && let Instruction::Cast(inner, _) = self[instruction]
+        {
+            return self.is_boolean_value(inner);
+        }
+        false
     }
 
     /// True if the type of this value is `Type::Reference`.
@@ -704,6 +742,33 @@ impl DataFlowGraph {
         self.get_numeric_constant_with_type(value).map(|(value, _typ)| value)
     }
 
+    /// Whether the given block's last non-terminator instruction is a `Constrain` that will
+    /// trap for every witness — both operands are compile-time numeric constants and they are
+    /// not equal. The `Unreachable` terminator that follows such an instruction needs no
+    /// additional trap: the block cannot be reached without also violating the preceding
+    /// constraint.
+    ///
+    /// `ConstrainNotEqual` is deliberately excluded even though its always-failing shape at
+    /// the SSA type level (both operands are equal constants) is analogous. Unlike `Constrain`,
+    /// it is predicated at ACIR gen (`assert_neq_var` multiplies by the current side-effects
+    /// predicate), so under a predicate of zero the emitted assertion is `0 == 0` and does not
+    /// fail. Recognising it here without also checking the enclosing predicate would let an
+    /// `Unreachable` after a predicated `constrain_not_equal` compile to an empty, satisfiable
+    /// circuit.
+    pub(crate) fn block_ends_with_always_failing_constraint(&self, block_id: BasicBlockId) -> bool {
+        let Some(&last_instr_id) = self[block_id].instructions().last() else {
+            return false;
+        };
+        let Instruction::Constrain(lhs, rhs, _) = &self[last_instr_id] else {
+            return false;
+        };
+        let (Some(a), Some(b)) = (self.get_numeric_constant(*lhs), self.get_numeric_constant(*rhs))
+        else {
+            return false;
+        };
+        a != b
+    }
+
     /// Similar to `get_numeric_constant` but returns the value as a signed or unsigned integer.
     /// Returns `None` if the given value is not an integer constant.
     pub(crate) fn get_integer_constant(&self, value: ValueId) -> Option<IntegerConstant> {
@@ -725,7 +790,10 @@ impl DataFlowGraph {
 
     /// Returns the item values in with this `ValueId` if it refers to an array constant, along with the type of the array item.
     /// Otherwise, this returns None.
-    pub(crate) fn get_array_constant(&self, value: ValueId) -> Option<(im::Vector<ValueId>, Type)> {
+    pub(crate) fn get_array_constant(
+        &self,
+        value: ValueId,
+    ) -> Option<(imbl::Vector<ValueId>, Type)> {
         match self.get_local_or_global_instruction(value)? {
             Instruction::MakeArray { elements, typ } => Some((elements.clone(), typ.clone())),
             _ => None,

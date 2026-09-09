@@ -23,6 +23,8 @@ excluded_dirs=(
     "fold_distinct_return"
     "fold_fibonacci"
     "fold_numeric_generic_poseidon"
+    "fold_out_of_order_calls"
+    "fold_unreachable_call"
     "regression_7143"
     "regression_7612"
 )

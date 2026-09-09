@@ -1,0 +1,43 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn add1(r: &mut Field) -> &mut Field {
+    *r = *r + 1_Field;
+    r
+}
+
+fn mul2(r: &mut Field) -> &mut Field {
+    *r = *r * 2_Field;
+    r
+}
+
+fn main(c: bool, x: Field) {
+    let f: fn(&mut Field) -> &mut Field = if c { add1 } else { mul2 };
+    let mut v: Field = x;
+    let r: &mut Field = f(&mut v);
+    *r = *r + 10_Field;
+    let expected: Field = if c {
+        x + 11_Field
+    } else {
+        (x * 2_Field) + 10_Field
+    };
+    assert(v == expected);
+    // Safety: comment added by `nargo expand`
+    unsafe {
+        dispatch_unconstrained(c, x);
+    }
+}
+
+unconstrained fn dispatch_unconstrained(c: bool, x: Field) {
+    let f: fn(&mut Field) -> &mut Field = if c { mul2 } else { add1 };
+    let mut v: Field = x;
+    let r: &mut Field = f(&mut v);
+    *r = *r + 10_Field;
+    let expected: Field = if c {
+        (x * 2_Field) + 10_Field
+    } else {
+        x + 11_Field
+    };
+    assert(v == expected);
+}

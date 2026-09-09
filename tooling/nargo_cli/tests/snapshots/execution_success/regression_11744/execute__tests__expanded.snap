@@ -1,0 +1,14 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+struct Foo {
+    a: [Field; 2],
+    b: u8,
+}
+
+fn main(x: [Foo; 3], i: u32, c: bool) -> pub u8 {
+    let mut r: u8 = 0_u8;
+    if c { r = x[i].b & 15_u8; };
+    r
+}

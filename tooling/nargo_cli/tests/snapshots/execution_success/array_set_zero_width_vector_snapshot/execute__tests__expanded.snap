@@ -1,0 +1,18 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 374
+expression: expanded_code
+---
+struct Cell {
+    a: Field,
+    e: [Field; 0],
+}
+
+fn main(x: Field, z: Field, idx: u32, j: u32, k: u32, l: u32) -> pub Field {
+    let mut v: [Cell] = [Cell { a: x, e: [] }, Cell { a: x + 1_Field, e: [] }].as_vector();
+    v = v.insert(idx, Cell { a: x + 2_Field, e: [] });
+    let mut c: [Cell] = v;
+    c[j].e = [];
+    v[k].a = z;
+    (c[l].a * 100_Field) + v[l].a
+}

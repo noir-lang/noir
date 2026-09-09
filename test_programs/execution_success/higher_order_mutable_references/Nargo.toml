@@ -1,0 +1,6 @@
+[package]
+name = "higher_order_mutable_references"
+type = "bin"
+authors = [""]
+
+[dependencies]

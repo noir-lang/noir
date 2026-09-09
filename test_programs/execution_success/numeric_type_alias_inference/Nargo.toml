@@ -1,0 +1,5 @@
+[package]
+name = "numeric_type_alias_inference"
+type = "bin"
+authors = [""]
+[dependencies]

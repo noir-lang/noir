@@ -805,6 +805,38 @@ impl<'f> Context<'f> {
         None
     }
 
+    /// Orient a merge so that its `then_value` carries the weaker of the two operand types.
+    ///
+    /// [`Instruction::result_type`] takes an `IfElse`'s type from its `then_value` alone, so the
+    /// two operands cannot be merged in an arbitrary order once their types differ. Branch
+    /// arguments joining on a block parameter are exactly where two independently-typed values
+    /// meet: an immutable borrow of a temporary is allocated as `&mut T` by SSA gen, so a
+    /// conditional can join one with a genuine `&T`. Merging in that order would type the result
+    /// `&mut T` and hand out a writable alias of an immutable reference.
+    ///
+    /// Swapping both values *and* their conditions is semantics-preserving — the instruction names
+    /// each side's condition explicitly, and both the interpreter and Brillig codegen treat the two
+    /// sides symmetrically — so the merge is simply built the other way around when that is the
+    /// well-typed orientation. The operands are left alone when neither type can be used as the
+    /// other; that is a malformed merge which validation reports rather than silently reorders.
+    fn orient_merge_by_type(
+        &self,
+        then_condition: ValueId,
+        then_value: ValueId,
+        else_condition: ValueId,
+        else_value: ValueId,
+    ) -> (ValueId, ValueId, ValueId, ValueId) {
+        let dfg = &self.inserter.function.dfg;
+        let then_type = dfg.type_of_value(then_value);
+        let else_type = dfg.type_of_value(else_value);
+
+        if !else_type.can_be_used_as(&then_type) && then_type.can_be_used_as(&else_type) {
+            (else_condition, else_value, then_condition, then_value)
+        } else {
+            (then_condition, then_value, else_condition, else_value)
+        }
+    }
+
     /// Build the collapsed merge tuple, deriving the else_condition as `NOT(then_condition)`.
     fn with_else_condition(
         &mut self,
@@ -925,6 +957,8 @@ impl<'f> Context<'f> {
                 let (then_condition, then_value, else_condition, else_value) = collapsed.unwrap_or(
                     (cond_context.then_branch.condition, then_arg, else_branch.condition, else_arg),
                 );
+                let (then_condition, then_value, else_condition, else_value) = self
+                    .orient_merge_by_type(then_condition, then_value, else_condition, else_value);
 
                 let instruction =
                     Instruction::IfElse { then_condition, then_value, else_condition, else_value };
@@ -1710,8 +1744,54 @@ mod tests {
                 value::{Value, ValueId},
             },
             opt::assert_pass_does_not_affect_execution,
+            ssa_gen::validate_ssa,
         },
     };
+
+    #[test]
+    fn merges_mixed_reference_mutability_at_the_weaker_type() {
+        // `Instruction::result_type` takes an `IfElse`'s type from its `then_value`, so a merge of
+        // a `&mut u1` with a `&u1` must be built the other way round. Merging in source order
+        // would type the result `&mut u1` and launder the immutable `v1` into a writable alias.
+        let src = "
+        acir(inline) fn foo f0 {
+          b0(v0: u1, v1: &u1):
+            v2 = allocate -> &mut u1
+            store v0 at v2
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b3(v2)
+          b2():
+            jmp b3(v1)
+          b3(v3: &u1):
+            v4 = load v3 -> u1
+            return v4
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap().flatten_cfg();
+        validate_ssa(&ssa, true);
+    }
+
+    #[test]
+    fn merges_nested_reference_mutability_at_the_weaker_type() {
+        // The same rule one level down: `&mut &mut u1` weakens to `&&u1` because an immutable
+        // target reference is covariant in its pointee.
+        let src = "
+        acir(inline) fn foo f0 {
+          b0(v0: u1, v1: &&u1):
+            v2 = allocate -> &mut &mut u1
+            jmpif v0 then: b1(), else: b2()
+          b1():
+            jmp b3(v2)
+          b2():
+            jmp b3(v1)
+          b3(v3: &&u1):
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap().flatten_cfg();
+        validate_ssa(&ssa, true);
+    }
 
     #[test]
     fn basic_jmpif() {
@@ -3575,7 +3655,6 @@ mod merge_provenance_tests {
             v11 = unchecked_mul v0, v4
             constrain v0 == u1 1
             constrain v2 == u1 1
-            constrain v0 == u1 1
             constrain v1 == u1 1
             return
         }

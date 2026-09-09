@@ -62,6 +62,7 @@ pub fn next_local_and_ident_id(func: &Function) -> (u32, u32) {
 ///
 /// The function also takes care of changing all function pointers into unconstrained ones.
 pub fn change_all_functions_into_unconstrained(mut program: Program) -> Program {
+    let oracle_wrappers = noirc_frontend::ownership::find_oracle_wrappers(&program);
     for f in &mut program.functions {
         if f.unconstrained {
             continue;
@@ -97,7 +98,7 @@ pub fn change_all_functions_into_unconstrained(mut program: Program) -> Program 
             });
             true
         });
-        f.handle_ownership();
+        f.handle_ownership(&oracle_wrappers);
     }
     program
 }
@@ -231,5 +232,6 @@ fn make_print_wrapper(
         unconstrained: true,
         inline_type: InlineType::default(),
         is_entry_point: false,
+        allow_constant_return: false,
     }
 }

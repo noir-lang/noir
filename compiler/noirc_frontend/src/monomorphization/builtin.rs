@@ -13,7 +13,7 @@ use crate::{
         errors::MonomorphizationError,
     },
     node_interner::{self, ExprId},
-    shared::{Signedness, Visibility},
+    shared::{Builtin, Signedness, Visibility},
     token::FmtStrFragment,
 };
 
@@ -32,6 +32,19 @@ enum HandledOpcode {
 }
 
 impl Monomorphizer<'_> {
+    /// Resolve a `#[builtin]`/`#[foreign]` attribute name to its [`Builtin`], erroring
+    /// on names the compiler does not implement (previously an unknown name survived
+    /// to SSA generation and panicked there).
+    pub(super) fn lookup_builtin(
+        name: &str,
+        location: Location,
+    ) -> Result<Builtin, MonomorphizationError> {
+        Builtin::lookup(name).ok_or_else(|| MonomorphizationError::UnknownBuiltin {
+            name: name.to_string(),
+            location,
+        })
+    }
+
     /// Try to evaluate certain builtin functions (just the function itself) given their type.
     /// All builtins are function types, so the evaluated result will always be a new function or None.
     ///
@@ -41,7 +54,7 @@ impl Monomorphizer<'_> {
     #[expect(clippy::too_many_arguments)]
     pub(super) fn try_evaluate_builtin(
         &mut self,
-        opcode_string: &str,
+        builtin: Builtin,
         typ: Type,
         turbofish_generics: Vec<Type>,
         bindings_key: CanonicalBindings,
@@ -49,7 +62,7 @@ impl Monomorphizer<'_> {
         id: node_interner::FuncId,
         location: Location,
     ) -> Result<Option<FuncId>, MonomorphizationError> {
-        let Some(opcode) = HandledOpcode::parse(opcode_string) else { return Ok(None) };
+        let Some(opcode) = HandledOpcode::from_builtin(builtin) else { return Ok(None) };
 
         let (parameter_types, return_type, env, unconstrained) = match typ {
             Type::Function(parameters, ret, env, unconstrained) => {
@@ -99,7 +112,7 @@ impl Monomorphizer<'_> {
             new_function_id,
             Function {
                 id: new_function_id,
-                name: opcode_string.to_string(),
+                name: builtin.name().to_string(),
                 parameters,
                 body,
                 return_type: converted_return_type,
@@ -107,6 +120,7 @@ impl Monomorphizer<'_> {
                 unconstrained: is_unconstrained,
                 inline_type: InlineType::InlineAlways,
                 is_entry_point: false,
+                allow_constant_return: false,
             },
         );
         let typ = Type::Function(parameter_types, return_type, env, unconstrained);
@@ -309,6 +323,7 @@ impl Monomorphizer<'_> {
             unconstrained,
             inline_type: InlineType::default(),
             is_entry_point: false,
+            allow_constant_return: false,
         };
         self.push_function(id, function);
 
@@ -342,7 +357,7 @@ impl Monomorphizer<'_> {
         {
             let location = self.interner.expr_location(expr_id);
 
-            return Ok(Some(match HandledOpcode::parse(opcode) {
+            return Ok(Some(match HandledOpcode::from_builtin(*opcode) {
                 Some(HandledOpcode::CheckedTransmute) => {
                     assert_eq!(arguments.len(), 1);
                     let parameter_type = self.interner.id_type(arguments[0]).follow_bindings();
@@ -399,16 +414,16 @@ impl Monomorphizer<'_> {
 }
 
 impl HandledOpcode {
-    fn parse(opcode: &str) -> Option<Self> {
-        match opcode {
-            "checked_transmute" => Some(Self::CheckedTransmute),
-            "modulus_be_bits" => Some(Self::ModulusBeBits),
-            "modulus_be_bytes" => Some(Self::ModulusBeBytes),
-            "modulus_le_bits" => Some(Self::ModulusLeBits),
-            "modulus_le_bytes" => Some(Self::ModulusLeBytes),
-            "modulus_num_bits" => Some(Self::ModulusNumBits),
-            "poseidon2_config_state_size" => Some(Self::Poseidon2ConfigStateSize),
-            "zeroed" => Some(Self::Zeroed),
+    fn from_builtin(builtin: Builtin) -> Option<Self> {
+        match builtin {
+            Builtin::CheckedTransmute => Some(Self::CheckedTransmute),
+            Builtin::ModulusBeBits => Some(Self::ModulusBeBits),
+            Builtin::ModulusBeBytes => Some(Self::ModulusBeBytes),
+            Builtin::ModulusLeBits => Some(Self::ModulusLeBits),
+            Builtin::ModulusLeBytes => Some(Self::ModulusLeBytes),
+            Builtin::ModulusNumBits => Some(Self::ModulusNumBits),
+            Builtin::Poseidon2ConfigStateSize => Some(Self::Poseidon2ConfigStateSize),
+            Builtin::Zeroed => Some(Self::Zeroed),
             _ => None,
         }
     }

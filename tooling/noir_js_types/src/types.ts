@@ -99,6 +99,7 @@ export interface DebugInfo {
 export type WitnessMap = Map<number, string>;
 
 export type Abi = {
+  abi_version: 1;
   parameters: AbiParameter[];
   return_type: { abi_type: AbiType; visibility: Visibility } | null;
   error_types: Partial<Record<string, AbiErrorType>>;

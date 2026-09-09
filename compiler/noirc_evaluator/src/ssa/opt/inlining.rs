@@ -14,7 +14,7 @@ use crate::{
     ssa::{opt::inlining::inline_info::compute_bottom_up_order, visit_once_deque::VisitOnceDeque},
 };
 use acvm::acir::AcirField;
-use im::HashMap;
+use imbl::HashMap;
 use iter_extended::vecmap;
 use itertools::Itertools;
 use noirc_errors::call_stack::{CallStack, CallStackId};

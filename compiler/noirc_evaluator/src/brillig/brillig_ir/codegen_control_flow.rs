@@ -186,6 +186,14 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.enter_section(end_section);
     }
 
+    /// Emits an unconditional trap with empty error data (no error information).
+    pub(crate) fn codegen_trap(&mut self) {
+        let error_data = self.make_usize_constant_instruction(0_usize.into()).map(|size| {
+            HeapVector { pointer: ReservedRegisters::free_memory_pointer(), size: size.address }
+        });
+        self.trap_instruction(*error_data);
+    }
+
     /// Jump to a trap condition if `condition` is false.
     /// The trap will include the given message as error data.
     ///
@@ -204,12 +212,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
             // Special case: No error selector means completely empty error data
             let Some(error_selector) = error_selector else {
-                let error_data =
-                    ctx.make_usize_constant_instruction(0_usize.into()).map(|size| HeapVector {
-                        pointer: ReservedRegisters::free_memory_pointer(),
-                        size: size.address,
-                    });
-                ctx.trap_instruction(*error_data);
+                ctx.codegen_trap();
                 return;
             };
 

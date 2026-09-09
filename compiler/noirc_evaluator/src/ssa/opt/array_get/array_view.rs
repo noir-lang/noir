@@ -9,7 +9,7 @@
 //! The fields are private to this module: outside code seeds a view with [`ArrayView::for_value`],
 //! extends it with [`ArrayView::with_element`], and reads it with [`ArrayView::resolve`], so the
 //! predicate rule that makes a cached element safe to use lives in one place.
-use im::OrdMap;
+use imbl::OrdMap;
 
 use crate::ssa::ir::{
     dfg::DataFlowGraph,
@@ -39,7 +39,7 @@ struct KnownElement {
 enum ArrayBase {
     /// Indices not in `elements` come from this `make_array`'s elements, which are stored in logical
     /// order, so a constant index reads that element directly.
-    MakeArray { elements: im::Vector<ValueId> },
+    MakeArray { elements: imbl::Vector<ValueId> },
     /// Indices not in `elements` can be read directly from this array (a function parameter), at
     /// the same index. `length` bounds which indices that is valid for.
     ReadFrom { array: ValueId, length: u32 },
@@ -120,7 +120,7 @@ impl ArrayView {
         }
     }
 
-    fn from_make_array(elements: im::Vector<ValueId>) -> Self {
+    fn from_make_array(elements: imbl::Vector<ValueId>) -> Self {
         ArrayView { elements: OrdMap::new(), base: ArrayBase::MakeArray { elements } }
     }
 

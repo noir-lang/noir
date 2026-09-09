@@ -88,6 +88,7 @@ use crate::{
         },
         def_map::LocalModuleId,
     },
+    lint::Lint,
     node_interner::{FuncId, TraitId},
 };
 
@@ -181,7 +182,7 @@ impl Elaborator<'_> {
                 self.declare_methods(self_type, &function_ids);
 
                 for (_, method_id, method) in &functions.functions {
-                    if !method.def.attributes.has_allow("dead_code") {
+                    if !method.def.attributes.has_allow(Lint::DeadCode) {
                         let name = method.name_ident().clone();
                         self.usage_tracker.add_unused_impl_function(
                             *method_id,

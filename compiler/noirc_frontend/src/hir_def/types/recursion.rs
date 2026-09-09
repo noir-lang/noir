@@ -11,8 +11,8 @@ use crate::{
 #[derive(Clone, Default)]
 pub(crate) struct TypeRecursionContext {
     depth: u32,
-    data_types: im::HashSet<(TypeId, Vec<Type>)>,
-    aliases: im::HashSet<(TypeAliasId, Vec<Type>)>,
+    data_types: imbl::HashSet<(TypeId, Vec<Type>)>,
+    aliases: imbl::HashSet<(TypeAliasId, Vec<Type>)>,
 }
 
 impl TypeRecursionContext {
