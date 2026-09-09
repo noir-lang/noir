@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1788967159506,
+  "lastUpdate": 1788967162432,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22642,105 +22642,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "63074a4366c9a360c00b75a1e92216b171eac3ec",
-          "message": "chore(ci): derive the Playwright version from yarn.lock instead of pinning it in four places (#13564)",
-          "timestamp": "2026-08-26T13:25:43Z",
-          "tree_id": "166004594a538924d79d010b1f9a1028e13e3534",
-          "url": "https://github.com/noir-lang/noir/commit/63074a4366c9a360c00b75a1e92216b171eac3ec"
-        },
-        "date": 1787752885738,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.544,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 2.44,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 1.954,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 2.524,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 2.7,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 2.77,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 1.774,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 4.61,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 4.15,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 2.16,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 2.766,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 2.4,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 2.634,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.417,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.348,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "4794fb8d1e67e2395b4aaeb1269bb109a639c1b0",
           "message": "chore(ssa): hold the interpreter's globals outside the call stack (#13551)",
           "timestamp": "2026-08-26T13:34:21Z",
@@ -25320,6 +25221,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 0.4,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "163862677+noirwhal@users.noreply.github.com",
+            "name": "noirwhal",
+            "username": "noirwhal"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "255a640dd40d0615fb27f89bf653fafa345f91eb",
+          "message": "chore: Release Noir(1.0.0-rc.1) (#13611)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
+          "timestamp": "2026-09-09T14:50:24Z",
+          "tree_id": "c00ade9370b00b33c57915751b0bebb8bda7af85",
+          "url": "https://github.com/noir-lang/noir/commit/255a640dd40d0615fb27f89bf653fafa345f91eb"
+        },
+        "date": 1788967064285,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.437,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.387,
             "unit": "s"
           }
         ]
