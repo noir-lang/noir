@@ -4,7 +4,7 @@ use acvm::acir::BlackBoxFunc;
 use acvm::acir::brillig::lengths::SemanticLength;
 use acvm::blackbox_solver::sha256_compression;
 use acvm::{BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement, acir::AcirField};
-use im::Vector;
+use imbl::Vector;
 use noirc_errors::call_stack::CallStackId;
 
 use crate::ssa::ir::types::NumericType;
@@ -50,7 +50,7 @@ fn constant_point_result_helper(
     let result_x = dfg.make_constant(x, NumericType::NativeField);
     let result_y = dfg.make_constant(y, NumericType::NativeField);
 
-    let elements = im::vector![result_x, result_y];
+    let elements = imbl::vector![result_x, result_y];
     let typ = Type::Array(Arc::new(vec![Type::field(), Type::field()]), SemanticLength(1));
     Instruction::MakeArray { elements, typ }
 }
@@ -127,7 +127,7 @@ fn simplify_msm_helper(
         let result_x = dfg.make_constant(result_x, NumericType::NativeField);
         let result_y = dfg.make_constant(result_y, NumericType::NativeField);
 
-        let elements = im::vector![result_x, result_y];
+        let elements = imbl::vector![result_x, result_y];
         let typ = Type::Array(Arc::new(vec![Type::field(), Type::field()]), SemanticLength(1));
         let instruction = Instruction::MakeArray { elements, typ };
         let result_array = dfg.insert_instruction_and_results(instruction, block, None, call_stack);

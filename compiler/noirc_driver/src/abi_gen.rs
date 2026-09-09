@@ -4,7 +4,8 @@ use acvm::AcirField;
 use acvm::acir::circuit::ErrorSelector;
 use iter_extended::vecmap;
 use noirc_abi::{
-    Abi, AbiErrorType, AbiParameter, AbiReturnType, AbiType, AbiValue, AbiVisibility, Sign,
+    ABI_VERSION, Abi, AbiErrorType, AbiParameter, AbiReturnType, AbiType, AbiValue, AbiVisibility,
+    Sign,
 };
 use noirc_errors::Location;
 use noirc_evaluator::ErrorType;
@@ -34,7 +35,7 @@ pub fn gen_abi(
         .into_iter()
         .map(|(selector, typ)| (selector, build_abi_error_type(context, typ)))
         .collect();
-    Abi { parameters, return_type, error_types }
+    Abi { abi_version: ABI_VERSION, parameters, return_type, error_types }
 }
 
 // Get the Span of the root crate's main function, or else a dummy span if that fails

@@ -26,7 +26,7 @@ When a `CheckedCast` is evaluated to a constant (`Type::evaluate_to_integer_help
   `TypeCheckError::is_constant_arithmetic_failure` — that error propagates even though `to`
   evaluated successfully. This is what rejects `(N - 1) + 1` at `N = 0`.
 - Any other failure of `from` is tolerated and `to`'s value is used. This is required because
-  `from` may contain type variables that simplification cancelled out of `to` (e.g.
+  `from` may contain type variables that simplification canceled out of `to` (e.g.
   `from = (M + N) - M`, `to = N` with `M` unbound), and because canonicalization itself
   evaluates subexpressions speculatively while variables are still unbound.
 

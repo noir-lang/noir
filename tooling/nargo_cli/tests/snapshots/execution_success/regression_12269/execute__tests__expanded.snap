@@ -4,7 +4,7 @@ expression: expanded_code
 ---
 global BROKEN_BYTES: [u8; 4] = [102, 111, 128, 111];
 
-global S: str<4> = "fo�o";
+global S: str<4> = BROKEN_BYTES.as_str_unchecked();
 
 fn main() {
     println(S);

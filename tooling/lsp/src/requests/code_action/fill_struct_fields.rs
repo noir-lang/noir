@@ -118,12 +118,11 @@ impl CodeActionFinder<'_> {
 
 #[cfg(test)]
 mod tests {
-    use tokio::test;
 
     use crate::requests::code_action::tests::assert_code_action;
 
     #[test]
-    async fn test_fill_struct_fields_code_action_no_space() {
+    fn test_fill_struct_fields_code_action_no_space() {
         let title = "Fill struct fields";
 
         let src = r#"
@@ -148,11 +147,11 @@ mod tests {
         }
         "#;
 
-        assert_code_action(title, src, expected).await;
+        assert_code_action(title, src, expected);
     }
 
     #[test]
-    async fn test_fill_struct_fields_code_action_space() {
+    fn test_fill_struct_fields_code_action_space() {
         let title = "Fill struct fields";
 
         let src = r#"
@@ -177,11 +176,11 @@ mod tests {
         }
         "#;
 
-        assert_code_action(title, src, expected).await;
+        assert_code_action(title, src, expected);
     }
 
     #[test]
-    async fn test_fill_struct_fields_code_action_some_fields() {
+    fn test_fill_struct_fields_code_action_some_fields() {
         let title = "Fill struct fields";
 
         let src = r#"
@@ -208,11 +207,11 @@ mod tests {
         }
         "#;
 
-        assert_code_action(title, src, expected).await;
+        assert_code_action(title, src, expected);
     }
 
     #[test]
-    async fn test_fill_struct_fields_code_action_some_fields_trailing_comma() {
+    fn test_fill_struct_fields_code_action_some_fields_trailing_comma() {
         let title = "Fill struct fields";
 
         let src = r#"
@@ -239,11 +238,11 @@ mod tests {
         }
         "#;
 
-        assert_code_action(title, src, expected).await;
+        assert_code_action(title, src, expected);
     }
 
     #[test]
-    async fn test_fill_struct_fields_code_action_multiline_empty() {
+    fn test_fill_struct_fields_code_action_multiline_empty() {
         let title = "Fill struct fields";
 
         let src = r#"
@@ -272,11 +271,11 @@ mod tests {
         }
         "#;
 
-        assert_code_action(title, src, expected).await;
+        assert_code_action(title, src, expected);
     }
 
     #[test]
-    async fn test_fill_struct_fields_code_action_multiline_some_fields() {
+    fn test_fill_struct_fields_code_action_multiline_some_fields() {
         let title = "Fill struct fields";
 
         let src = r#"
@@ -306,6 +305,6 @@ mod tests {
         }
         "#;
 
-        assert_code_action(title, src, expected).await;
+        assert_code_action(title, src, expected);
     }
 }

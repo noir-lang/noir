@@ -1,0 +1,32 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+mod victim {
+    pub struct Box<T> {
+        pub value: T,
+    }
+
+    impl LocalConst for Box<Field> {
+        let N: u32 = 1_u32;
+    }
+
+    impl crate::CallerConst for Box<Field> {
+        let N: u32 = 2_u32;
+    }
+
+    trait LocalConst {
+        let N: u32;
+    }
+
+    pub fn scope_anchor() {}
+}
+
+trait CallerConst {
+    let N: u32;
+}
+
+fn main() {
+    let selected: u32 = { 1_u32 };
+    assert(selected == 1_u32);
+}

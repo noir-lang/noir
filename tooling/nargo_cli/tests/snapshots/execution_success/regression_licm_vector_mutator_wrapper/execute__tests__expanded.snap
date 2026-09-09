@@ -1,0 +1,29 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn helper(v: [bool]) -> Field {
+    let mut len: Field = v.push_front(false).len() as Field;
+    for _ in 0_u32..10_u32 {
+        len = (len * 3_Field) + 1_Field;
+    }
+    len
+}
+
+unconstrained fn main(x: bool, n: u32) -> pub bool {
+    let mut v: [bool] = [x].as_vector();
+    for _ in 0_u32..n {
+        v = v.push_back(x);
+    }
+    let mut acc: Field = 0_Field;
+    for _ in 0_u32..2_u32 {
+        {
+            let op_rhs_0: Field = helper(v);
+            acc = acc + op_rhs_0;
+        }
+    }
+    assert(acc != 0_Field);
+    assert(helper(v) != 0_Field);
+    assert(v[0_u32] == x);
+    v[0_u32]
+}

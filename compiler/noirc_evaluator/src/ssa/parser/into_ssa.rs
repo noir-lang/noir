@@ -550,7 +550,7 @@ impl Translator {
                 .dfg
                 .make_constant(constant.value, constant.typ.unwrap_numeric()),
             ParsedGlobalValue::MakeArray(make_array) => {
-                let mut elements = im::Vector::new();
+                let mut elements = imbl::Vector::new();
                 for element in make_array.elements {
                     let element_id = match element {
                         ParsedValue::NumericConstant(constant) => self

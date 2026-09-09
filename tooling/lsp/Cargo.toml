@@ -33,13 +33,11 @@ fm.workspace = true
 rayon.workspace = true
 rustc-hash.workspace = true
 iter-extended.workspace = true
-convert_case = "0.11"
+convert_case = "0.12"
 num-bigint.workspace = true
 fuzzy-matcher = "0.3.7"
-
-[target.'cfg(all(target_arch = "wasm32", not(target_os = "wasi")))'.dependencies]
-wasm-bindgen.workspace = true
+tokio = { version = "1.52", features = ["sync"] }
 
 [dev-dependencies]
-tokio = { version = "1.52", features = ["macros", "rt"] }
+tokio = { version = "1.52", features = ["sync", "macros", "rt", "time"] }
 insta.workspace = true

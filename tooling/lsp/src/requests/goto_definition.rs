@@ -1,5 +1,3 @@
-use std::future::{self, Future};
-
 use crate::utils;
 use crate::visitor_reference_finder::VisitorReferenceFinder;
 use crate::{LspState, types::GotoDefinitionResult};
@@ -14,17 +12,15 @@ use super::{process_request, to_lsp_location};
 pub(crate) fn on_goto_definition_request(
     state: &mut LspState,
     params: GotoDefinitionParams,
-) -> impl Future<Output = Result<GotoDefinitionResult, ResponseError>> + use<> {
-    let result = on_goto_definition_inner(state, params, false);
-    future::ready(result)
+) -> Result<GotoDefinitionResult, ResponseError> {
+    on_goto_definition_inner(state, params, false)
 }
 
 pub(crate) fn on_goto_type_definition_request(
     state: &mut LspState,
     params: GotoTypeDefinitionParams,
-) -> impl Future<Output = Result<GotoDefinitionResult, ResponseError>> + use<> {
-    let result = on_goto_definition_inner(state, params, true);
-    future::ready(result)
+) -> Result<GotoDefinitionResult, ResponseError> {
+    on_goto_definition_inner(state, params, true)
 }
 
 fn on_goto_definition_inner(
@@ -84,20 +80,18 @@ mod goto_definition_tests {
 
     use crate::test_utils::{self, search_in_text};
     use async_lsp::lsp_types::{Position, Range};
-    use tokio::test;
 
     use super::*;
 
     /// Run goto-definition from every occurrence of `name` in `src` and assert each lands at
     /// the `definition_index`-th occurrence. The definition position itself is skipped because
     /// goto on a definition does not currently return itself.
-    async fn expect_goto_for_all_references(src: &str, name: &str, definition_index: usize) {
+    fn expect_goto_for_all_references(src: &str, name: &str, definition_index: usize) {
         let ranges = search_in_text(src, name);
         let expected_range = ranges[definition_index];
 
         let (mut state, noir_text_document) =
-            test_utils::init_lsp_server_with_inline_source("document_symbol", "src/main.nr", src)
-                .await;
+            test_utils::init_lsp_server_with_inline_source("document_symbol", "src/main.nr", src);
 
         for (index, range) in ranges.iter().enumerate() {
             if index == definition_index {
@@ -116,7 +110,6 @@ mod goto_definition_tests {
             };
 
             let response = on_goto_definition_request(&mut state, params)
-                .await
                 .expect("Could execute on_goto_definition_request")
                 .unwrap_or_else(|| {
                     panic!("Didn't get a goto definition response for index {index}")
@@ -134,14 +127,13 @@ mod goto_definition_tests {
     /// `[[...]]` range, also embedded in `src`. Both markers are stripped before the source
     /// is sent to the LSP, so the test reads as "click here, expect to land there" without
     /// any line/character arithmetic in the assertion.
-    async fn expect_goto_inline(src: &str) {
+    fn expect_goto_inline(src: &str) {
         let (cleaned, cursor, expected_target) = test_utils::parse_cursor_and_target_marker(src);
         let (mut state, noir_text_document) = test_utils::init_lsp_server_with_inline_source(
             "document_symbol",
             "src/main.nr",
             &cleaned,
-        )
-        .await;
+        );
 
         let params = GotoDefinitionParams {
             text_document_position_params: lsp_types::TextDocumentPositionParams {
@@ -155,7 +147,6 @@ mod goto_definition_tests {
         };
 
         let response = on_goto_definition_request(&mut state, params)
-            .await
             .expect("Could execute on_goto_definition_request")
             .unwrap_or_else(|| panic!("Didn't get a goto definition response"));
 
@@ -167,19 +158,17 @@ mod goto_definition_tests {
         }
     }
 
-    async fn expect_goto(
+    fn expect_goto(
         directory: &str,
         position: Position,
         expected_file: &str,
         expected_range: Range,
     ) {
-        let (mut state, noir_text_document) = test_utils::init_lsp_server(directory).await;
+        let (mut state, noir_text_document) = test_utils::init_lsp_server(directory);
 
         let params = GotoDefinitionParams {
             text_document_position_params: lsp_types::TextDocumentPositionParams {
-                text_document: lsp_types::TextDocumentIdentifier {
-                    uri: noir_text_document.clone(),
-                },
+                text_document: lsp_types::TextDocumentIdentifier { uri: noir_text_document },
                 position,
             },
             work_done_progress_params: Default::default(),
@@ -187,7 +176,6 @@ mod goto_definition_tests {
         };
 
         let response = on_goto_definition_request(&mut state, params)
-            .await
             .expect("Could execute on_goto_definition_request")
             .unwrap_or_else(|| panic!("Didn't get a goto definition response"));
 
@@ -200,7 +188,7 @@ mod goto_definition_tests {
     }
 
     #[test]
-    async fn goto_from_function_location_to_declaration() {
+    fn goto_from_function_location_to_declaration() {
         expect_goto_for_all_references(
             r#"fn another_function() -> Field {
     1
@@ -213,12 +201,11 @@ fn main() {
 "#,
             "another_function",
             0,
-        )
-        .await;
+        );
     }
 
     #[test]
-    async fn goto_from_use_as() {
+    fn goto_from_use_as() {
         // Clicking on the `aliased_function` introduced by `use ... as` jumps to the
         // underlying function declaration (marked by `[[...]]`).
         expect_goto_inline(
@@ -232,12 +219,11 @@ fn main() {
     let _ = aliased_function();
 }
 "#,
-        )
-        .await;
+        );
     }
 
     #[test]
-    async fn goto_module_from_call_path() {
+    fn goto_module_from_call_path() {
         expect_goto(
             "go_to_definition",
             Position { line: 17, character: 4 }, // "bar" in "bar::baz()"
@@ -246,12 +232,11 @@ fn main() {
                 start: Position { line: 0, character: 0 },
                 end: Position { line: 0, character: 0 },
             },
-        )
-        .await;
+        );
     }
 
     #[test]
-    async fn goto_inline_module_from_call_path() {
+    fn goto_inline_module_from_call_path() {
         expect_goto(
             "go_to_definition",
             Position { line: 18, character: 9 }, // "inline" in "bar::inline::qux()"
@@ -260,12 +245,11 @@ fn main() {
                 start: Position { line: 2, character: 4 },
                 end: Position { line: 2, character: 10 },
             },
-        )
-        .await;
+        );
     }
 
     #[test]
-    async fn goto_module_from_use_path() {
+    fn goto_module_from_use_path() {
         expect_goto_inline(
             r#"mod [[foo]] {
     pub fn another_function() -> Field { 1 }
@@ -273,12 +257,11 @@ fn main() {
 
 use >|<foo::another_function;
 "#,
-        )
-        .await;
+        );
     }
 
     #[test]
-    async fn goto_module_from_mod() {
+    fn goto_module_from_mod() {
         expect_goto(
             "go_to_definition",
             Position { line: 9, character: 4 }, // "bar" in "mod bar;"
@@ -287,12 +270,11 @@ use >|<foo::another_function;
                 start: Position { line: 0, character: 0 },
                 end: Position { line: 0, character: 0 },
             },
-        )
-        .await;
+        );
     }
 
     #[test]
-    async fn goto_for_local_variable() {
+    fn goto_for_local_variable() {
         expect_goto_for_all_references(
             r#"fn main() {
     let some_var = 1;
@@ -301,22 +283,21 @@ use >|<foo::another_function;
 "#,
             "some_var",
             0,
-        )
-        .await;
+        );
     }
 
     #[test]
-    async fn goto_at_struct_definition_finds_same_struct() {
-        expect_goto_inline("struct [[>|<Foo]] {}\n").await;
+    fn goto_at_struct_definition_finds_same_struct() {
+        expect_goto_inline("struct [[>|<Foo]] {}\n");
     }
 
     #[test]
-    async fn goto_at_trait_definition_finds_same_trait() {
-        expect_goto_inline("trait [[>|<Trait]] {}\n").await;
+    fn goto_at_trait_definition_finds_same_trait() {
+        expect_goto_inline("trait [[>|<Trait]] {}\n");
     }
 
     #[test]
-    async fn goto_crate() {
+    fn goto_crate() {
         expect_goto(
             "go_to_definition",
             Position { line: 29, character: 6 }, // "dependency" in "use dependency::something"
@@ -325,12 +306,11 @@ use >|<foo::another_function;
                 start: Position { line: 0, character: 0 },
                 end: Position { line: 0, character: 0 },
             },
-        )
-        .await;
+        );
     }
 
     #[test]
-    async fn goto_attribute_function() {
+    fn goto_attribute_function() {
         expect_goto_inline(
             r#"#[>|<attr]
 pub fn foo() {}
@@ -339,12 +319,11 @@ comptime fn [[attr]](_: FunctionDefinition) -> Quoted {
     quote { pub fn hello() {} }
 }
 "#,
-        )
-        .await;
+        );
     }
 
     #[test]
-    async fn goto_reference_in_doc_comment() {
+    fn goto_reference_in_doc_comment() {
         let src = r#"struct Foo {}
 
 /// See [F>|<oo].
@@ -355,8 +334,7 @@ fn test_doc_comment() {}
                 "document_symbol",
                 "src/main.nr",
                 src,
-            )
-            .await;
+            );
 
         let params = GotoDefinitionParams {
             text_document_position_params: lsp_types::TextDocumentPositionParams {
@@ -370,7 +348,6 @@ fn test_doc_comment() {}
         };
 
         let response = on_goto_definition_request(&mut state, params)
-            .await
             .expect("Could execute on_goto_definition_request")
             .unwrap_or_else(|| panic!("Didn't get a goto definition response"));
         let GotoDefinitionResponse::Link(links) = response else {

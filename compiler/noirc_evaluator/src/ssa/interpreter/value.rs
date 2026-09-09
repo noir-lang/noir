@@ -3,6 +3,7 @@ use std::sync::Arc;
 use acvm::{AcirField, FieldElement, acir::brillig::lengths::SemanticLength};
 use iter_extended::{try_vecmap, vecmap};
 use noirc_frontend::Shared;
+use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
     brillig::{assert_u32, assert_usize},
@@ -101,7 +102,46 @@ impl ArrayValue {
     }
 }
 
+/// An address identifying a `Shared` storage cell (an array's elements or a
+/// reference's pointee), used purely for identity comparisons: an in-place write to
+/// a cell is observable through every handle whose storage identity is equal.
+pub(crate) type StorageIdentity = *const ();
+
 impl Value {
+    /// Collects the [StorageIdentity] of every storage cell reachable from this value,
+    /// recursing through array elements and reference contents.
+    ///
+    /// The set answers "which memory could an in-place write make visible through
+    /// this value": it is captured from a call's arguments on entry to a function
+    /// whose recorded purity forbids mutating caller-visible memory, and checked
+    /// against on every in-place write. The caller must keep the value (or a clone
+    /// of it) alive for as long as the set is used, so that none of the collected
+    /// allocations can be freed and their addresses reused.
+    pub(crate) fn collect_storage_identities(&self, identities: &mut HashSet<StorageIdentity>) {
+        match self {
+            Value::Numeric(_)
+            | Value::Function(_)
+            | Value::Intrinsic(_)
+            | Value::ForeignFunction(_) => (),
+            Value::Reference(reference) => {
+                // The insertion check also breaks cycles (a reference stored inside
+                // an array it points to).
+                if identities.insert(reference.element.as_ptr() as StorageIdentity)
+                    && let Some(element) = reference.element.borrow().as_ref()
+                {
+                    element.collect_storage_identities(identities);
+                }
+            }
+            Value::ArrayOrVector(array) => {
+                if identities.insert(array.elements.as_ptr() as StorageIdentity) {
+                    for element in array.elements.borrow().iter() {
+                        element.collect_storage_identities(identities);
+                    }
+                }
+            }
+        }
+    }
+
     #[allow(unused)]
     pub(crate) fn get_type(&self) -> Type {
         match self {

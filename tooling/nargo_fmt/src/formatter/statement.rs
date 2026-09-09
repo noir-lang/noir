@@ -514,6 +514,46 @@ mod tests {
     }
 
     #[test]
+    fn format_let_statement_with_comment_after_let_keyword() {
+        // Regression test for https://github.com/noir-lang/noir-claude/issues/1646:
+        // the comment's terminating newline was dropped, so the rest of the
+        // statement was swallowed into the comment and no longer parsed.
+        let src = "fn main() {
+    let // C1
+    mut x: Field = 1;
+    assert(x == 1);
+}
+";
+        let expected = "fn main() {
+    let // C1
+    mut x: Field = 1;
+    assert(x == 1);
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_let_statement_with_comment_between_unsafe_and_block() {
+        // Regression test for https://github.com/noir-lang/noir-claude/issues/1646.
+        let src = "fn main(x: Field) {
+    let y = unsafe // Safety: no constraints needed
+    {
+        helper(x)
+    };
+    assert(y == x);
+}
+";
+        let expected = "fn main(x: Field) {
+    let y = unsafe // Safety: no constraints needed
+    { helper(x) };
+    assert(y == x);
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
     fn format_let_statement_with_long_type() {
         let src = " fn foo() {
         let  some_variable: ThisIsAReallyLongType  = 123;
@@ -623,6 +663,28 @@ mod tests {
         let src = " fn foo() { x  + =  2 ; } ";
         let expected = "fn foo() {
     x += 2;
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_op_assign_with_comment_after_operator() {
+        // Regression test for https://github.com/noir-lang/noir-claude/issues/1646:
+        // the comment's terminating newline was dropped, so the right-hand side
+        // was swallowed into the comment.
+        let src = "fn main() {
+    let mut total = 0;
+    total += // running sum
+        1 * 2;
+    assert(total == 2);
+}
+";
+        let expected = "fn main() {
+    let mut total = 0;
+    total += // running sum
+    1 * 2;
+    assert(total == 2);
 }
 ";
         assert_format(src, expected);

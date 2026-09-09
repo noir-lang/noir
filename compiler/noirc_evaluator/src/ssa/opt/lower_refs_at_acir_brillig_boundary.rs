@@ -216,10 +216,13 @@ fn build_wrapper(
         builder.add_parameter(param_type)
     });
 
-    // Build the argument list for the inner call.
+    // Build the argument list for the inner call. Reference parameters are
+    // re-materialized as a `&mut` cell regardless of the callee's reference
+    // mutability: the initializing store is only valid through a mutable
+    // reference type, and a `&mut T` value may be passed where `&T` is expected.
     let inner_args = vecmap(params.iter().copied().enumerate(), |(pos, param_val)| {
-        if let Type::Reference(inner, mutable) = &callee_param_types[pos] {
-            let alloc = builder.insert_allocate_with_mutability(inner.as_ref().clone(), *mutable);
+        if let Type::Reference(inner, _) = &callee_param_types[pos] {
+            let alloc = builder.insert_allocate(inner.as_ref().clone());
             builder.insert_store(alloc, param_val);
             alloc
         } else {

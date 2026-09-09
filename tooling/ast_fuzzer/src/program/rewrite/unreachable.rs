@@ -1,6 +1,6 @@
 use std::collections::{BTreeSet, VecDeque};
 
-use im::HashMap;
+use imbl::HashMap;
 use noirc_frontend::monomorphization::{
     ast::{Definition, Expression, FuncId, Ident, Program},
     visitor::visit_expr_mut,

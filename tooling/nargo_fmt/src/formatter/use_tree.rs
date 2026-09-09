@@ -269,8 +269,8 @@ use aztec::{
     }
 
     #[test]
-    fn format_use_dep() {
-        let src = " use dep :: foo :: bar;  ";
+    fn format_use_absolute() {
+        let src = " use :: foo :: bar;  ";
         let expected = "use ::foo::bar;\n";
         assert_format(src, expected);
     }

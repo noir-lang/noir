@@ -14,7 +14,10 @@ use crate::{
     shared::Signedness,
     token::Attributes,
 };
-use crate::{shared::Visibility, token::FunctionAttributeKind};
+use crate::{
+    shared::{Builtin, Visibility},
+    token::FunctionAttributeKind,
+};
 use serde::{Deserialize, Serialize};
 
 use super::HirType;
@@ -214,8 +217,8 @@ pub enum Definition {
     Local(LocalId),
     Global(GlobalId),
     Function(FuncId),
-    Builtin(String),
-    LowLevel(String),
+    Builtin(Builtin),
+    LowLevel(Builtin),
     /// A foreign/externally-defined unconstrained function.
     ///
     /// `pure` is `true` when the user marked the oracle declaration with
@@ -398,6 +401,11 @@ pub struct Let {
     pub mutable: bool,
     pub name: String,
     pub expression: Box<Expression>,
+    /// The declared type of the binding. For mutable bindings this determines
+    /// the element type of the allocated cell, which can differ from the
+    /// initializer value's type in reference mutability (e.g. a borrow of a
+    /// mutable variable is `&mut T`-typed while the binding declares `&T`).
+    pub typ: Type,
 }
 
 #[derive(Debug, Clone, Hash)]
@@ -542,6 +550,11 @@ pub struct Function {
     pub unconstrained: bool,
     pub inline_type: InlineType,
     pub is_entry_point: bool,
+
+    /// True if the source function was annotated with `#[allow(constant_return)]`,
+    /// which silences the `constant_return` warning raised during ACIR generation
+    /// when this function is an ACIR entry point whose return value is constant.
+    pub allow_constant_return: bool,
 }
 
 /// Compared to `hir_def::types::Type`, this monomorphized Type has:

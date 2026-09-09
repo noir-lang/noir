@@ -13,10 +13,14 @@ use std::{
 };
 
 use acvm::{BlackBoxFunctionSolver, FieldElement};
+use async_lsp::lsp_types;
 use async_lsp::lsp_types::request::{
     CodeActionRequest, Completion, DocumentSymbolRequest, FoldingRangeRequest, HoverRequest,
     InlayHintRequest, PrepareRenameRequest, References, Rename, SemanticTokensFullRequest,
     SignatureHelpRequest, WorkspaceSymbolRequest,
+};
+use async_lsp::lsp_types::{
+    DidChangeTextDocumentParams, DidCloseTextDocumentParams, DidOpenTextDocumentParams,
 };
 use async_lsp::{
     AnyEvent, AnyNotification, AnyRequest, ClientSocket, Error, LspService, ResponseError,
@@ -47,25 +51,25 @@ use rayon::prelude::*;
 use rustc_hash::FxHashSet;
 
 use notifications::{
-    on_did_change_configuration, on_did_change_text_document, on_did_change_watched_files,
-    on_did_close_text_document, on_did_open_text_document, on_did_save_text_document, on_exit,
-    on_initialized,
+    on_did_change_configuration, on_did_change_watched_files, on_did_close_text_document,
+    on_did_open_text_document, on_did_save_text_document, on_initialized,
 };
 use requests::{
     LspInitializationOptions, WorkspaceSymbolCache, on_code_action_request, on_code_lens_request,
     on_completion_request, on_document_symbol_request, on_formatting, on_goto_declaration_request,
     on_goto_definition_request, on_goto_type_definition_request, on_hover_request, on_initialize,
     on_inlay_hint_request, on_prepare_rename_request, on_references_request, on_rename_request,
-    on_shutdown, on_signature_help_request, on_test_run_request, on_tests_request,
-    on_workspace_symbol_request,
+    on_signature_help_request, on_test_run_request, on_tests_request, on_workspace_symbol_request,
 };
 use serde_json::Value as JsonValue;
 use thiserror::Error;
 use tower::Service;
 
+mod actor;
 mod doc_comments;
 mod notifications;
 mod requests;
+mod server_state_tests;
 mod solver;
 mod tests;
 mod trait_impl_method_stub_generator;
@@ -83,6 +87,7 @@ use types::{NargoTest, NargoTestId, Position, Range, Url, notification, request}
 use with_file::parsed_module_with_file;
 
 use crate::{
+    actor::{ActorMessage, ActorResponse, CompilerActor},
     requests::{
         on_expand_request, on_folding_range_request, on_semantic_tokens_full_request,
         on_std_source_code_request,
@@ -133,7 +138,7 @@ struct PackageCacheData {
 }
 
 impl LspState {
-    fn new(
+    pub(crate) fn new(
         client: &ClientSocket,
         solver: impl BlackBoxFunctionSolver<FieldElement> + 'static,
     ) -> Self {
@@ -154,48 +159,194 @@ impl LspState {
 }
 
 pub struct NargoLspService {
-    router: Router<LspState>,
+    router: Router<ServerState>,
+}
+
+/// State for the LSP main loop. Requests and notifications are forwarded as messages to
+/// the compiler actor, which owns the [`LspState`], so handling a message here is always fast
+/// no matter how much compiler work it triggers.
+///
+/// The main loop additionally mirrors the current text of every open document: it is the
+/// entry point for all document changes, so its mirror is always up to date, even while the
+/// actor is still busy type-checking older text. Requests that need only source text (like
+/// formatting, which sits on the save path when format-on-save is enabled) are answered here
+/// directly from the mirror instead of queueing behind compiler work.
+struct ServerState {
+    actor: CompilerActor,
+    /// Latest text of every open document, keyed by its URI.
+    input_files: HashMap<String, String>,
+}
+
+impl ServerState {
+    fn open_document(&mut self, params: DidOpenTextDocumentParams) {
+        self.input_files
+            .insert(params.text_document.uri.to_string(), params.text_document.text.clone());
+        notify_actor(&self.actor, on_did_open_text_document, params);
+    }
+
+    fn change_document(&mut self, params: DidChangeTextDocumentParams) {
+        if let Some(change) = params.content_changes.first() {
+            self.input_files.insert(params.text_document.uri.to_string(), change.text.clone());
+        }
+        // Document changes get a dedicated message so the actor can coalesce consecutive
+        // changes to the same document into the latest one.
+        self.actor.send(ActorMessage::FileChanged(params));
+    }
+
+    fn close_document(&mut self, params: DidCloseTextDocumentParams) {
+        self.input_files.remove(&params.text_document.uri.to_string());
+        notify_actor(&self.actor, on_did_close_text_document, params);
+    }
+
+    fn format_document(
+        &self,
+        params: lsp_types::DocumentFormattingParams,
+    ) -> impl Future<Output = Result<Option<Vec<lsp_types::TextEdit>>, ResponseError>> + use<> {
+        std::future::ready(on_formatting(&self.input_files, params))
+    }
+
+    fn document_symbol(
+        &self,
+        params: lsp_types::DocumentSymbolParams,
+    ) -> impl Future<Output = Result<Option<lsp_types::DocumentSymbolResponse>, ResponseError>> + use<>
+    {
+        std::future::ready(on_document_symbol_request(&self.input_files, params))
+    }
+
+    fn folding_range(
+        &self,
+        params: lsp_types::FoldingRangeParams,
+    ) -> impl Future<Output = Result<Option<Vec<lsp_types::FoldingRange>>, ResponseError>> + use<>
+    {
+        std::future::ready(on_folding_range_request(&self.input_files, params))
+    }
+}
+
+/// Adapts a request handler over `&mut LspState` into a main-loop handler that forwards the
+/// request to the compiler actor and resolves with its reply.
+fn forward_request<P, T>(
+    handler: fn(&mut LspState, P) -> Result<T, ResponseError>,
+) -> impl Fn(&mut ServerState, P) -> ActorResponse<T>
+where
+    P: Send + 'static,
+    T: Send + 'static,
+{
+    move |state, params| state.actor.request(move |lsp_state| handler(lsp_state, params))
+}
+
+/// Adapts a notification handler over `&mut LspState` into a main-loop handler that forwards
+/// the notification to the compiler actor.
+///
+/// The handler cannot influence the main loop (it runs on the actor thread after the
+/// main-loop handler already returned `Continue`); an error it returns is only reported.
+fn forward_notification<P>(
+    handler: fn(&mut LspState, P) -> Result<(), Error>,
+) -> impl Fn(&mut ServerState, P) -> ControlFlow<Result<(), Error>>
+where
+    P: Send + 'static,
+{
+    move |state, params| {
+        notify_actor(&state.actor, handler, params);
+        ControlFlow::Continue(())
+    }
+}
+
+/// Enqueues a notification handler on the actor, reporting (instead of propagating) any
+/// error it returns since the main loop has already moved on.
+fn notify_actor<P>(
+    actor: &CompilerActor,
+    handler: fn(&mut LspState, P) -> Result<(), Error>,
+    params: P,
+) where
+    P: Send + 'static,
+{
+    actor.notify(move |lsp_state| {
+        if let Err(error) = handler(lsp_state, params) {
+            eprintln!("error processing notification: {error}");
+        }
+    });
 }
 
 impl NargoLspService {
     pub fn new(
         client: &ClientSocket,
-        solver: impl BlackBoxFunctionSolver<FieldElement> + 'static,
+        solver: impl BlackBoxFunctionSolver<FieldElement> + Send + 'static,
     ) -> Self {
-        let state = LspState::new(client, solver);
-        let mut router = Router::new(state);
+        let actor = CompilerActor::spawn(client.clone(), solver);
+        let mut router = Router::new(ServerState { actor, input_files: HashMap::new() });
         router
-            .request::<request::Initialize, _>(on_initialize)
-            .request::<request::Formatting, _>(on_formatting)
-            .request::<request::Shutdown, _>(on_shutdown)
-            .request::<request::CodeLens, _>(on_code_lens_request)
-            .request::<request::NargoTests, _>(on_tests_request)
-            .request::<request::NargoTestRun, _>(on_test_run_request)
-            .request::<request::GotoDefinition, _>(on_goto_definition_request)
-            .request::<request::GotoDeclaration, _>(on_goto_declaration_request)
-            .request::<request::GotoTypeDefinition, _>(on_goto_type_definition_request)
-            .request::<SemanticTokensFullRequest, _>(on_semantic_tokens_full_request)
-            .request::<DocumentSymbolRequest, _>(on_document_symbol_request)
-            .request::<References, _>(on_references_request)
-            .request::<PrepareRenameRequest, _>(on_prepare_rename_request)
-            .request::<Rename, _>(on_rename_request)
-            .request::<HoverRequest, _>(on_hover_request)
-            .request::<InlayHintRequest, _>(on_inlay_hint_request)
-            .request::<Completion, _>(on_completion_request)
-            .request::<SignatureHelpRequest, _>(on_signature_help_request)
-            .request::<CodeActionRequest, _>(on_code_action_request)
-            .request::<WorkspaceSymbolRequest, _>(on_workspace_symbol_request)
-            .request::<FoldingRangeRequest, _>(on_folding_range_request)
-            .request::<NargoExpand, _>(on_expand_request)
-            .request::<NargoStdSourceCode, _>(on_std_source_code_request)
-            .notification::<notification::Initialized>(on_initialized)
-            .notification::<notification::DidChangeConfiguration>(on_did_change_configuration)
-            .notification::<notification::DidOpenTextDocument>(on_did_open_text_document)
-            .notification::<notification::DidChangeTextDocument>(on_did_change_text_document)
-            .notification::<notification::DidCloseTextDocument>(on_did_close_text_document)
-            .notification::<notification::DidSaveTextDocument>(on_did_save_text_document)
-            .notification::<notification::DidChangeWatchedFiles>(on_did_change_watched_files)
-            .notification::<notification::Exit>(on_exit);
+            .request::<request::Initialize, _>(forward_request(on_initialize))
+            .request::<request::Formatting, _>(|state: &mut ServerState, params| {
+                state.format_document(params)
+            })
+            // `shutdown` (and `exit` below) are deliberate no-ops. The `LifecycleLayer`
+            // wrapped around this service (see `nargo_cli`'s `lsp` command) implements the
+            // protocol's lifecycle: after `shutdown` it rejects further requests, and on
+            // `exit` it stops the main loop. That drops `ServerState`, whose `CompilerActor`
+            // disconnects its channel on drop, ending the actor thread. Nothing is forwarded
+            // to the actor because it holds no resources needing explicit cleanup; if that
+            // ever changes, these handlers are the place to hook it up.
+            .request::<request::Shutdown, _>(|_state: &mut ServerState, _params| {
+                std::future::ready(Ok(()))
+            })
+            .request::<request::CodeLens, _>(forward_request(on_code_lens_request))
+            .request::<request::NargoTests, _>(forward_request(on_tests_request))
+            .request::<request::NargoTestRun, _>(forward_request(on_test_run_request))
+            .request::<request::GotoDefinition, _>(forward_request(on_goto_definition_request))
+            .request::<request::GotoDeclaration, _>(forward_request(on_goto_declaration_request))
+            .request::<request::GotoTypeDefinition, _>(forward_request(
+                on_goto_type_definition_request,
+            ))
+            .request::<SemanticTokensFullRequest, _>(forward_request(
+                on_semantic_tokens_full_request,
+            ))
+            .request::<DocumentSymbolRequest, _>(|state: &mut ServerState, params| {
+                state.document_symbol(params)
+            })
+            .request::<References, _>(forward_request(on_references_request))
+            .request::<PrepareRenameRequest, _>(forward_request(on_prepare_rename_request))
+            .request::<Rename, _>(forward_request(on_rename_request))
+            .request::<HoverRequest, _>(forward_request(on_hover_request))
+            .request::<InlayHintRequest, _>(forward_request(on_inlay_hint_request))
+            .request::<Completion, _>(forward_request(on_completion_request))
+            .request::<SignatureHelpRequest, _>(forward_request(on_signature_help_request))
+            .request::<CodeActionRequest, _>(forward_request(on_code_action_request))
+            .request::<WorkspaceSymbolRequest, _>(forward_request(on_workspace_symbol_request))
+            .request::<FoldingRangeRequest, _>(|state: &mut ServerState, params| {
+                state.folding_range(params)
+            })
+            .request::<NargoExpand, _>(forward_request(on_expand_request))
+            .request::<NargoStdSourceCode, _>(forward_request(on_std_source_code_request))
+            .notification::<notification::Initialized>(forward_notification(on_initialized))
+            .notification::<notification::DidChangeConfiguration>(forward_notification(
+                on_did_change_configuration,
+            ))
+            .notification::<notification::DidOpenTextDocument>(|state: &mut ServerState, params| {
+                state.open_document(params);
+                ControlFlow::Continue(())
+            })
+            .notification::<notification::DidChangeTextDocument>(
+                |state: &mut ServerState, params| {
+                    state.change_document(params);
+                    ControlFlow::Continue(())
+                },
+            )
+            .notification::<notification::DidCloseTextDocument>(
+                |state: &mut ServerState, params| {
+                    state.close_document(params);
+                    ControlFlow::Continue(())
+                },
+            )
+            .notification::<notification::DidSaveTextDocument>(forward_notification(
+                on_did_save_text_document,
+            ))
+            .notification::<notification::DidChangeWatchedFiles>(forward_notification(
+                on_did_change_watched_files,
+            ))
+            // No-op: see the `shutdown` handler above.
+            .notification::<notification::Exit>(|_state: &mut ServerState, _params| {
+                ControlFlow::Continue(())
+            });
         Self { router }
     }
 }

@@ -1,0 +1,18 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+comptime mut global COUNTER: u32 = 1;
+
+comptime fn bump(_f: FunctionDefinition) {
+    COUNTER = COUNTER + 1_u32;
+}
+
+fn foo() {}
+
+fn main(x: Field) {
+    foo();
+    let counter: u32 = 1_u32;
+    assert(counter == 1_u32);
+    assert(x == 5_Field);
+}

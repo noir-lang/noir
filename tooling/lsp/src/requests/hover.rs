@@ -1,5 +1,3 @@
-use std::future::{self, Future};
-
 use async_lsp::ResponseError;
 use async_lsp::lsp_types::{Hover, HoverParams};
 use from_reference::hover_from_reference;
@@ -15,15 +13,14 @@ mod from_visitor;
 pub(crate) fn on_hover_request(
     state: &mut LspState,
     params: HoverParams,
-) -> impl Future<Output = Result<Option<Hover>, ResponseError>> + use<> {
+) -> Result<Option<Hover>, ResponseError> {
     let position = params.text_document_position_params.position;
-    let result = process_request(state, params.text_document_position_params, |args| {
+
+    process_request(state, params.text_document_position_params, |args| {
         let file_id = args.location.file;
         hover_from_reference(file_id, position, &args)
             .or_else(|| hover_from_visitor(file_id, position, &args))
-    });
-
-    future::ready(result)
+    })
 }
 
 #[cfg(test)]
@@ -34,24 +31,22 @@ mod hover_tests {
     use async_lsp::lsp_types::{
         HoverContents, TextDocumentIdentifier, TextDocumentPositionParams, WorkDoneProgressParams,
     };
-    use tokio::test;
 
     /// Source is inline Noir with a `>|<` cursor marker. The fixture workspace
     /// (`test_programs/workspace`) supplies the `one` and `std` dependency crates;
     /// `two/src/lib.nr` itself is replaced by `src` for the duration of the test.
-    async fn assert_hover(src: &str, expected_text: &str) {
-        let hover_text = get_hover_text(src).await;
+    fn assert_hover(src: &str, expected_text: &str) {
+        let hover_text = get_hover_text(src);
         assert_eq!(hover_text, expected_text);
     }
 
-    async fn get_hover_text(src: &str) -> String {
+    fn get_hover_text(src: &str) -> String {
         let (mut state, file_uri, position, _src) =
             test_utils::init_lsp_server_with_inline_source_and_cursor(
                 "workspace",
                 "two/src/lib.nr",
                 src,
-            )
-            .await;
+            );
 
         let hover = on_hover_request(
             &mut state,
@@ -63,7 +58,6 @@ mod hover_tests {
                 work_done_progress_params: WorkDoneProgressParams { work_done_token: None },
             },
         )
-        .await
         .expect("Could not execute hover")
         .unwrap();
 
@@ -75,19 +69,18 @@ mod hover_tests {
     }
 
     #[test]
-    async fn hover_on_module() {
+    fn hover_on_module() {
         // cSpell:disable
         assert_hover(
             "use one::>|<subone;",
             r#"    one
     mod subone"#,
-        )
-        .await;
+        );
         // cSpell:enable
     }
 
     #[test]
-    async fn hover_on_struct() {
+    fn hover_on_struct() {
         // cSpell:disable
         assert_hover(
             r#"use one::subone;
@@ -99,26 +92,24 @@ fn use_struct() {
         some_field: i32,
         some_other_field: Field,
     }"#,
-        )
-        .await;
+        );
         // cSpell:enable
     }
 
     #[test]
-    async fn hover_on_generic_struct() {
+    fn hover_on_generic_struct() {
         // cSpell:disable
         assert_hover(
             "use one::subone::>|<GenericStruct;",
             r#"    one::subone
     struct GenericStruct<A, B> {
     }"#,
-        )
-        .await;
+        );
         // cSpell:enable
     }
 
     #[test]
-    async fn hover_on_struct_member() {
+    fn hover_on_struct_member() {
         // cSpell:disable
         assert_hover(
             r#"use one::subone;
@@ -127,25 +118,23 @@ fn use_struct() {
 }"#,
             r#"    one::subone::SubOneStruct
     some_field: i32"#,
-        )
-        .await;
+        );
         // cSpell:enable
     }
 
     #[test]
-    async fn hover_on_trait() {
+    fn hover_on_trait() {
         // cSpell:disable
         assert_hover(
             "use one::subone::>|<SomeTrait;",
             r#"    one::subone
     trait SomeTrait"#,
-        )
-        .await;
+        );
         // cSpell:enable
     }
 
     #[test]
-    async fn hover_on_invalid_global() {
+    fn hover_on_invalid_global() {
         // cSpell:disable
         assert_hover(
             r#"fn use_invalid_global() {
@@ -153,13 +142,12 @@ fn use_struct() {
 }"#,
             r#"    one::subone
     global invalid_global: Field = 0x02"#,
-        )
-        .await;
+        );
         // cSpell:enable
     }
 
     #[test]
-    async fn hover_on_valid_global() {
+    fn hover_on_valid_global() {
         // cSpell:disable
         assert_hover(
             r#"fn use_valid_global() {
@@ -167,23 +155,21 @@ fn use_struct() {
 }"#,
             r#"    one::subone
     global valid_global: Field = 0x02"#,
-        )
-        .await;
+        );
         // cSpell:enable
     }
 
     #[test]
-    async fn hover_on_global_array() {
+    fn hover_on_global_array() {
         assert_hover(
             "global a>|<rray: [Field; 3] = [1, 2 + 3, 4];",
             r#"    two
     global array: [Field; 3] = [0x01, 0x05, 0x04]"#,
-        )
-        .await;
+        );
     }
 
     #[test]
-    async fn hover_on_function() {
+    fn hover_on_function() {
         assert_hover(
             r#"use one::function_one;
 pub fn caller() {
@@ -191,22 +177,20 @@ pub fn caller() {
 }"#,
             r#"    one
     pub fn function_one<A, B>()"#,
-        )
-        .await;
+        );
     }
 
     #[test]
-    async fn hover_on_local_function() {
+    fn hover_on_local_function() {
         assert_hover(
             "pub fn >|<function_two() {}",
             r#"    two
     pub fn function_two()"#,
-        )
-        .await;
+        );
     }
 
     #[test]
-    async fn hover_on_function_with_where_clause() {
+    fn hover_on_function_with_where_clause() {
         assert_hover(
             r#"pub trait Foo {}
 
@@ -219,12 +203,11 @@ pub fn caller() {
 }"#,
             r#"    two
     pub fn takes_foo<T>(value: T) where T: Foo"#,
-        )
-        .await;
+        );
     }
 
     #[test]
-    async fn hover_on_method_shows_only_its_own_where_clause_not_the_impls() {
+    fn hover_on_method_shows_only_its_own_where_clause_not_the_impls() {
         // For an inherent impl, the compiler merges the impl's `where` clause into each
         // method's own constraints during collection. Hovering a method should show only the
         // method's own `where` clause (`U: Foo`), not the impl's (`T: Foo`), which belongs on
@@ -248,12 +231,11 @@ pub fn caller(w: Wrapper<u32>) {
             r#"    two::Wrapper
     impl<T> Wrapper<T>
     pub fn combine<U>(self, other: U) where U: Foo"#,
-        )
-        .await;
+        );
     }
 
     #[test]
-    async fn hover_on_struct_method() {
+    fn hover_on_struct_method() {
         // cSpell:disable
         assert_hover(
             r#"use one::subone;
@@ -264,37 +246,34 @@ fn use_struct_method() {
             r#"    one::subone::SubOneStruct
     impl SubOneStruct
     fn foo(self, x: i32, y: i32) -> Field"#,
-        )
-        .await;
+        );
         // cSpell:enable
     }
 
     #[test]
-    async fn hover_on_local_var() {
+    fn hover_on_local_var() {
         assert_hover(
             r#"fn use_local_var() {
     let regular_var = 0;
     let _ = >|<regular_var;
 }"#,
             "    let regular_var: Field",
-        )
-        .await;
+        );
     }
 
     #[test]
-    async fn hover_on_local_mut_var() {
+    fn hover_on_local_mut_var() {
         assert_hover(
             r#"fn use_local_var() {
     let mut mutable_var = 0;
     >|<mutable_var = 1;
 }"#,
             "    let mut mutable_var: Field",
-        )
-        .await;
+        );
     }
 
     #[test]
-    async fn hover_on_local_var_whose_type_you_can_navigate_to() {
+    fn hover_on_local_var_whose_type_you_can_navigate_to() {
         let workspace_on_src_lib_path = std::env::current_dir()
             .unwrap()
             .join("test_programs/workspace/one/src/lib.nr")
@@ -322,8 +301,7 @@ use std::collections::bounded_vec::BoundedVec;
 fn instantiate_generic() {
     let >|<x: BoundedVec<subone::SubOneStruct, 3> = BoundedVec::new();
 }"#,
-        )
-        .await;
+        );
         assert!(hover_text.contains("    let x: BoundedVec<SubOneStruct, 3>"));
         assert!(
             hover_text.contains(&expected_bounded_vec_link),
@@ -337,52 +315,48 @@ fn instantiate_generic() {
     }
 
     #[test]
-    async fn hover_on_parameter() {
+    fn hover_on_parameter() {
         assert_hover(
             r#"fn use_parameter(some_param: i32) {
     let _ = >|<some_param;
 }"#,
             "    some_param: i32",
-        )
-        .await;
+        );
     }
 
     #[test]
-    async fn hover_on_alias() {
+    fn hover_on_alias() {
         // cSpell:disable
         assert_hover(
             "use one::subone::>|<SomeAlias;",
             r#"    one::subone
     type SomeAlias = i32"#,
-        )
-        .await;
+        );
         // cSpell:enable
     }
 
     #[test]
-    async fn hover_on_trait_on_call() {
+    fn hover_on_trait_on_call() {
         assert_hover(
             r#"use std::default::Default;
 fn use_impl_method() {
     let _: i32 = >|<Default::default();
 }"#,
             "    std::default\n    trait Default\n\n---\n\nReturn an implementation-defined default value for the given type.\nThis is most often a zeroed value or an empty container, but there\nare no actual restrictions on what an implementation could return.\n",
-        )
-        .await;
+        );
     }
 
     #[test]
-    async fn hover_on_std_module_in_use() {
+    fn hover_on_std_module_in_use() {
         assert_hover(
             "use std::>|<default::Default;",
             r#"    std
     mod default"#,
-        )
-        .await;
+        );
     }
 
     #[test]
-    async fn hover_on_crate_module_in_call() {
+    fn hover_on_crate_module_in_call() {
         // cSpell:disable
         assert_hover(
             r#"fn use_invalid_global() {
@@ -390,34 +364,31 @@ fn use_impl_method() {
 }"#,
             r#"    one
     mod subone"#,
-        )
-        .await;
+        );
         // cSpell:enable
     }
 
     #[test]
-    async fn hover_on_module_without_crate_or_std_prefix() {
+    fn hover_on_module_without_crate_or_std_prefix() {
         assert_hover(
             "mod >|<other;",
             r#"    two
     mod other"#,
-        )
-        .await;
+        );
     }
 
     #[test]
-    async fn hover_on_module_with_crate_prefix() {
+    fn hover_on_module_with_crate_prefix() {
         assert_hover(
             r#"mod other;
 use crate::>|<other::other_function;"#,
             r#"    two
     mod other"#,
-        )
-        .await;
+        );
     }
 
     #[test]
-    async fn hover_on_module_on_struct_constructor() {
+    fn hover_on_module_on_struct_constructor() {
         // cSpell:disable
         assert_hover(
             r#"use one::subone;
@@ -426,13 +397,12 @@ fn use_struct_method() {
 }"#,
             r#"    one
     mod subone"#,
-        )
-        .await;
+        );
         // cSpell:enable
     }
 
     #[test]
-    async fn hover_on_type_inside_generic_arguments() {
+    fn hover_on_type_inside_generic_arguments() {
         // cSpell:disable
         assert_hover(
             r#"use one::subone;
@@ -446,18 +416,17 @@ fn instantiate_generic() {
         some_field: i32,
         some_other_field: Field,
     }"#,
-        )
-        .await;
+        );
         // cSpell:enable
     }
 
     #[test]
-    async fn hover_on_crate_segment() {
-        assert_hover("use o>|<ne::function_one;", "    crate one").await;
+    fn hover_on_crate_segment() {
+        assert_hover("use o>|<ne::function_one;", "    crate one");
     }
 
     #[test]
-    async fn hover_on_attribute_function() {
+    fn hover_on_attribute_function() {
         assert_hover(
             r#"comptime fn attr(_: FunctionDefinition) -> Quoted {
     quote { pub fn hello() {} }
@@ -466,12 +435,11 @@ fn instantiate_generic() {
 #[>|<attr]
 pub fn foo() {}"#,
             "    two\n    comptime fn attr(_: FunctionDefinition) -> Quoted",
-        )
-        .await;
+        );
     }
 
     #[test]
-    async fn hover_on_generic_struct_function() {
+    fn hover_on_generic_struct_function() {
         let hover_text = get_hover_text(
             r#"struct Foo<T> {}
 
@@ -484,8 +452,7 @@ impl<U> Foo<U> {
 fn new_foo() -> Foo<i32> {
     Foo::n>|<ew()
 }"#,
-        )
-        .await;
+        );
         assert!(hover_text.starts_with(
             "    two::Foo
     impl<U> Foo<U>
@@ -494,7 +461,7 @@ fn new_foo() -> Foo<i32> {
     }
 
     #[test]
-    async fn hover_on_trait_impl_function_call() {
+    fn hover_on_trait_impl_function_call() {
         let hover_text = get_hover_text(
             r#"struct Foo<T> {}
 
@@ -514,8 +481,7 @@ fn use_bar_stuff() {
     let foo = Foo::new();
     foo.bar_stuf>|<f();
 }"#,
-        )
-        .await;
+        );
         assert!(hover_text.starts_with(
             "    two
     impl<A> Bar<A, i32> for Foo<A>
@@ -524,7 +490,7 @@ fn use_bar_stuff() {
     }
 
     #[test]
-    async fn hover_on_trait_impl_function_self_generics() {
+    fn hover_on_trait_impl_function_self_generics() {
         assert_hover(
             r#"trait NoGenericsTrait {
     fn quux(self);
@@ -541,12 +507,11 @@ fn call_quux() {
             "    two
     impl<A, B> NoGenericsTrait for (A, B)
     fn quux(self)",
-        )
-        .await;
+        );
     }
 
     #[test]
-    async fn hover_on_trait_impl_method_uses_docs_from_trait_method() {
+    fn hover_on_trait_impl_method_uses_docs_from_trait_method() {
         let hover_text = get_hover_text(
             r#"trait TraitWithDocs {
     /// Some docs
@@ -556,31 +521,28 @@ fn call_quux() {
 impl TraitWithDocs for Field {
     fn >|<foo() {}
 }"#,
-        )
-        .await;
+        );
         assert!(hover_text.contains("Some docs"));
     }
 
     #[test]
-    async fn hover_on_function_with_mut_self() {
+    fn hover_on_function_with_mut_self() {
         let hover_text = get_hover_text(
             r#"struct Foo<T> {}
 
 impl<U> Foo<U> {
     fn mut>|<_self(&mut self) {}
 }"#,
-        )
-        .await;
+        );
         assert!(hover_text.contains("fn mut_self(&mut self)"));
     }
 
     #[test]
-    async fn hover_on_empty_enum_type() {
+    fn hover_on_empty_enum_type() {
         let hover_text = get_hover_text(
             r#"/// Red, blue, etc.
 enum Empty>|<Color {}"#,
-        )
-        .await;
+        );
         assert!(hover_text.contains(
             "    two
     enum EmptyColor {
@@ -593,15 +555,14 @@ Red, blue, etc."
     }
 
     #[test]
-    async fn hover_on_non_empty_enum_type() {
+    fn hover_on_non_empty_enum_type() {
         let hover_text = get_hover_text(
             r#"/// Red, blue, etc.
 enum Co>|<lor {
     /// Like a tomato
     Red(Field),
 }"#,
-        )
-        .await;
+        );
         assert!(hover_text.contains(
             "    two
     enum Color {
@@ -615,14 +576,13 @@ Red, blue, etc."
     }
 
     #[test]
-    async fn hover_on_enum_variant() {
+    fn hover_on_enum_variant() {
         let hover_text = get_hover_text(
             r#"enum Color {
     /// Like a tomato
     Re>|<d(Field),
 }"#,
-        )
-        .await;
+        );
         assert!(hover_text.contains(
             "    two::Color
     Red(Field)
@@ -634,7 +594,7 @@ Like a tomato"
     }
 
     #[test]
-    async fn hover_on_enum_variant_in_call() {
+    fn hover_on_enum_variant_in_call() {
         let hover_text = get_hover_text(
             r#"enum Color {
     /// Like a tomato
@@ -644,8 +604,7 @@ Like a tomato"
 fn test_enum() -> Color {
     Color::R>|<ed(1)
 }"#,
-        )
-        .await;
+        );
         assert!(hover_text.contains(
             "    two::Color
     Red(Field)
@@ -657,43 +616,40 @@ Like a tomato"
     }
 
     #[test]
-    async fn hover_on_integer_literal() {
+    fn hover_on_integer_literal() {
         // cSpell:disable
         let hover_text = get_hover_text(
             r#"use one::subone;
 fn use_struct() {
     let _ = subone::SubOneStruct { some_field: 0, some_other_field: 1>|<23 };
 }"#,
-        )
-        .await;
+        );
         // cSpell:enable
         assert_eq!(&hover_text, "    Field\n---\nvalue of literal: `123 (0x7b)`");
     }
 
     #[test]
-    async fn hover_on_negative_integer_literal() {
+    fn hover_on_negative_integer_literal() {
         let hover_text = get_hover_text(
             r#"fn negative_integer() -> i32 {
     ->|<8
 }"#,
-        )
-        .await;
+        );
         assert_eq!(&hover_text, "    i32\n---\nvalue of literal: `-8 (-0x08)`");
     }
 
     #[test]
-    async fn hover_on_i32() {
+    fn hover_on_i32() {
         let hover_text = get_hover_text(
             r#"fn use_parameter(some_param: i3>|<2) {
     let _ = some_param;
 }"#,
-        )
-        .await;
+        );
         assert_eq!(&hover_text, "    i32\n---\nThe 32-bit signed integer type.\n");
     }
 
     #[test]
-    async fn hover_on_doc_comment_reference() {
+    fn hover_on_doc_comment_reference() {
         // cSpell:disable
         assert_hover(
             r#"/// See [o>|<ne::subone::SubOneStruct]
@@ -703,19 +659,17 @@ fn doc_comments_test() {}"#,
         some_field: i32,
         some_other_field: Field,
     }"#,
-        )
-        .await;
+        );
         // cSpell:enable
     }
 
     #[test]
-    async fn hover_on_numeric_generic() {
+    fn hover_on_numeric_generic() {
         let hover_text = get_hover_text(
             r#"fn hover_on_numeric_generic<let N: u32>() {
     println(>|<N);
 }"#,
-        )
-        .await;
+        );
         assert_eq!(&hover_text, "    let N: u32");
     }
 }

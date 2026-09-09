@@ -110,27 +110,22 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         right: SingleAddrVariable,
         result: SingleAddrVariable,
     ) {
-        let scratch_var_i = self.brillig_context.allocate_single_addr(left.bit_size);
-        let scratch_var_j = self.brillig_context.allocate_single_addr(left.bit_size);
+        let quotient = self.brillig_context.allocate_single_addr(left.bit_size);
+        let product = self.brillig_context.allocate_single_addr(left.bit_size);
 
-        // i = left / right
+        // quotient = left / right
         self.brillig_context.convert_signed_division(
             left,
             right,
-            *scratch_var_i,
+            *quotient,
             SignedDivisionOperator::Mod,
         );
 
-        // j = i * right
-        self.brillig_context.binary_instruction(
-            *scratch_var_i,
-            right,
-            *scratch_var_j,
-            BrilligBinaryOp::Mul,
-        );
+        // product = quotient * right
+        self.brillig_context.binary_instruction(*quotient, right, *product, BrilligBinaryOp::Mul);
 
-        // result_register = left - j
-        self.brillig_context.binary_instruction(left, *scratch_var_j, result, BrilligBinaryOp::Sub);
+        // result_register = left - product
+        self.brillig_context.binary_instruction(left, *product, result, BrilligBinaryOp::Sub);
     }
 
     fn mod_by_zero_check(&mut self, right: SingleAddrVariable) {

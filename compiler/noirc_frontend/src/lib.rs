@@ -18,6 +18,7 @@ pub mod elaborator;
 pub mod error_reporting;
 pub mod graph;
 pub mod lexer;
+pub mod lint;
 pub mod locations;
 pub mod modules;
 pub mod monomorphization;

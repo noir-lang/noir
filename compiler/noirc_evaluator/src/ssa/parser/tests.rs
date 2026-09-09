@@ -601,7 +601,7 @@ fn test_allocate() {
 fn test_load() {
     let src = "
         acir(inline) fn main f0 {
-          b0(v0: Field):
+          b0(v0: &Field):
             v1 = load v0 -> Field
             return
         }

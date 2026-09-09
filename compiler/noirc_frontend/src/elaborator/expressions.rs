@@ -673,6 +673,17 @@ impl Elaborator<'_> {
             HirExpression::MemberAccess(member_access) => {
                 self.check_can_mutate(member_access.lhs, location);
             }
+            HirExpression::Prefix(prefix)
+                if matches!(prefix.operator, UnaryOp::Dereference { .. }) =>
+            {
+                // &ref cannot be mutated
+                let typ = self.interner.id_type(prefix.rhs).follow_bindings();
+                if matches!(typ, Type::Reference(_, false)) {
+                    self.push_err(TypeCheckError::MutableReferenceBehindImmutableReference {
+                        location,
+                    });
+                }
+            }
             _ => (),
         }
     }
@@ -1110,7 +1121,7 @@ impl Elaborator<'_> {
         } else {
             let message = has_optional_msg.then(|| expr.arguments.pop().unwrap());
             let expr = match expr.kind {
-                ConstrainKind::Assert | ConstrainKind::Constrain => expr.arguments.pop().unwrap(),
+                ConstrainKind::Assert => expr.arguments.pop().unwrap(),
                 ConstrainKind::AssertEq => {
                     let rhs = expr.arguments.pop().unwrap();
                     let lhs = expr.arguments.pop().unwrap();

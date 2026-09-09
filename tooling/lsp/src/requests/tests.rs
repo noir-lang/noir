@@ -1,5 +1,3 @@
-use std::future::{self, Future};
-
 use crate::insert_all_files_for_workspace_into_file_manager;
 use async_lsp::lsp_types::{LogMessageParams, MessageType};
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
@@ -14,8 +12,8 @@ use crate::{
 pub(crate) fn on_tests_request(
     state: &mut LspState,
     params: NargoTestsParams,
-) -> impl Future<Output = Result<NargoTestsResult, ResponseError>> + use<> {
-    future::ready(on_tests_request_inner(state, params))
+) -> Result<NargoTestsResult, ResponseError> {
+    on_tests_request_inner(state, params)
 }
 
 fn on_tests_request_inner(

@@ -339,7 +339,12 @@ mod tests {
     }
 
     fn interpret_execution_failure(mut nargo: Command) {
-        nargo.assert().failure();
+        // The interpreter must fail at every SSA pass: a result that flips between passes means
+        // the interpreter disagrees with some pass's semantics, which is an interpreter or pass
+        // bug even in a program that is expected to fail. Printed output is allowed to differ
+        // between passes, because for programs that exhaust the interpreter's recursion limit the
+        // amount of output produced before the limit legitimately depends on inlining.
+        nargo.assert().failure().stdout(predicate::str::contains("Result changed.").not());
     }
 
     fn nargo_expand_execute(test_program_dir: PathBuf) {

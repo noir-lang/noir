@@ -3,6 +3,7 @@
 use crate::{
     ast::UnaryOp,
     monomorphization::ast::{Ident, Literal},
+    shared::Builtin,
 };
 
 use super::ast::{
@@ -580,7 +581,14 @@ impl AstPrinter {
             let is_unsafe = unconstrained && !self.in_unconstrained;
             let special = match definition {
                 Definition::Oracle { name: s, .. } if s == "print" => Some(SpecialCall::Print),
-                Definition::Builtin(s) if s.starts_with("array") || s.starts_with("vector") => {
+                // Builtins that are written as methods in Noir source have to be printed that
+                // way, or the printed program does not parse back: `as_bytes(s)` is not a
+                // function in scope, `s.as_bytes()` is.
+                Definition::Builtin(builtin)
+                    if builtin.name().starts_with("array")
+                        || builtin.name().starts_with("vector")
+                        || matches!(builtin, Builtin::AsVector | Builtin::StrAsBytes) =>
+                {
                     Some(SpecialCall::Object(name.clone()))
                 }
                 _ => None,

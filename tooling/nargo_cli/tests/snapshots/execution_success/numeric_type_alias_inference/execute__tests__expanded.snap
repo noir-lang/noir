@@ -1,0 +1,33 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+trait Which {
+    fn which(self) -> Field;
+}
+
+impl Which for u8 {
+    fn which(self) -> Field {
+        1_Field
+    }
+}
+
+impl Which for Field {
+    fn which(self) -> Self {
+        2_Field
+    }
+}
+
+type AliasN<let N: u8>: u8 = N;
+
+fn takes<T>(value: T) -> T
+where
+    T: Which,
+{
+    value
+}
+
+fn main(x: Field) {
+    assert(takes(200_u8).which() == 1_Field);
+    assert(x == 5_Field);
+}

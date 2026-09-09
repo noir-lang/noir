@@ -149,8 +149,8 @@ fn check_for_underconstrained_values_within_function(
 struct Context {
     block_queue: VisitOnceDeque,
     uf: UnionFind,
-    brillig_return_to_argument: im::HashMap<ValueId, Vec<ValueId>>,
-    brillig_return_to_instruction_id: im::HashMap<ValueId, InstructionId>,
+    brillig_return_to_argument: imbl::HashMap<ValueId, Vec<ValueId>>,
+    brillig_return_to_instruction_id: imbl::HashMap<ValueId, InstructionId>,
 }
 
 impl Default for Context {
@@ -158,8 +158,8 @@ impl Default for Context {
         Self {
             block_queue: VisitOnceDeque::default(),
             uf: UnionFind::new(),
-            brillig_return_to_argument: im::HashMap::default(),
-            brillig_return_to_instruction_id: im::HashMap::default(),
+            brillig_return_to_argument: imbl::HashMap::default(),
+            brillig_return_to_instruction_id: imbl::HashMap::default(),
         }
     }
 }

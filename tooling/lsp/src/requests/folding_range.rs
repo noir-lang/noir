@@ -1,16 +1,14 @@
-use std::future;
+use std::collections::HashMap;
+use std::path::PathBuf;
 
 use async_lsp::{
     ResponseError,
-    lsp_types::{FoldingRange, FoldingRangeParams, Position, TextDocumentPositionParams},
+    lsp_types::{FoldingRange, FoldingRangeParams},
 };
+use fm::{FileMap, PathString};
 
-use crate::{
-    LspState,
-    requests::{
-        folding_range::{comments_collector::CommentsCollector, nodes_collector::NodesCollector},
-        process_request,
-    },
+use crate::requests::folding_range::{
+    comments_collector::CommentsCollector, nodes_collector::NodesCollector,
 };
 
 mod comments_collector;
@@ -18,30 +16,28 @@ mod nodes_collector;
 #[cfg(test)]
 mod tests;
 
+/// Like formatting, this request is parse-only: it takes the open documents' current texts
+/// instead of `LspState`, so the main loop answers it directly from its text mirror instead
+/// of queueing it behind type-checking.
 pub(crate) fn on_folding_range_request(
-    state: &mut LspState,
+    input_files: &HashMap<String, String>,
     params: FoldingRangeParams,
-) -> impl Future<Output = Result<Option<Vec<FoldingRange>>, ResponseError>> + use<> {
-    let text_document_position_params = TextDocumentPositionParams {
-        text_document: params.text_document,
-        position: Position { line: 0, character: 0 },
+) -> Result<Option<Vec<FoldingRange>>, ResponseError> {
+    let uri = params.text_document.uri;
+    let Some(source) = input_files.get(&uri.to_string()) else {
+        return Ok(None);
     };
 
-    let result = process_request(state, text_document_position_params, |args| {
-        let file_id = args.location.file;
-        let file = args.files.get_file(file_id).unwrap();
-        let source = file.source();
+    let mut files = FileMap::default();
+    let file_id = files.add_file(PathString::from_path(PathBuf::from(uri.path())), source.clone());
 
-        let comments_collector = CommentsCollector::new(file_id, args.files);
-        let mut ranges = comments_collector.collect(source);
+    let comments_collector = CommentsCollector::new(file_id, &files);
+    let mut ranges = comments_collector.collect(source);
 
-        let nodes_collector = NodesCollector::new(file_id, args.files);
-        let node_ranges = nodes_collector.collect(source);
+    let nodes_collector = NodesCollector::new(file_id, &files);
+    let node_ranges = nodes_collector.collect(source);
 
-        ranges.extend(node_ranges);
+    ranges.extend(node_ranges);
 
-        Some(ranges)
-    });
-
-    future::ready(result)
+    Ok(Some(ranges))
 }

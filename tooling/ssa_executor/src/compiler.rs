@@ -88,7 +88,12 @@ pub fn compile_from_artifacts(artifacts: ArtifactsAndWarnings) -> CompiledProgra
         hash: 1, // const hash, doesn't matter in this case
         program,
         debug,
-        abi: Abi { parameters: vec![], return_type: None, error_types: BTreeMap::new() },
+        abi: Abi {
+            abi_version: noirc_abi::ABI_VERSION,
+            parameters: vec![],
+            return_type: None,
+            error_types: BTreeMap::new(),
+        },
         file_map,
         noir_version: NOIR_ARTIFACT_VERSION_STRING.to_string(),
         warnings,

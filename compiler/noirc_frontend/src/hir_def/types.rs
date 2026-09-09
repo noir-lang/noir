@@ -206,7 +206,19 @@ impl NamedGeneric {
     pub fn is_associated(&self) -> bool {
         self.name.contains("::")
     }
+
+    /// Whether this is the hidden generic desugared from an `impl Trait` parameter
+    /// (see `desugar_impl_trait_arg`), recognizable by its synthetic name: a user-written
+    /// generic name can never contain a space.
+    pub fn is_impl_trait_parameter(&self) -> bool {
+        self.name.starts_with(IMPL_TRAIT_PARAMETER_NAME_PREFIX)
+    }
 }
+
+/// Prefix of the synthetic name minted for the hidden generic that an `impl Trait` parameter
+/// desugars to. Shared between the elaborator (which mints the name) and the HIR printer
+/// (which recognizes such generics via [`NamedGeneric::is_impl_trait_parameter`]).
+pub const IMPL_TRAIT_PARAMETER_NAME_PREFIX: &str = "impl ";
 
 /// A Kind is the type of a Type. These are used since only certain kinds of types are allowed in
 /// certain positions.
@@ -957,6 +969,13 @@ impl<T> From<T> for Shared<T> {
 impl<T> Shared<T> {
     pub fn new(thing: T) -> Shared<T> {
         Shared(Rc::new(RefCell::new(thing)))
+    }
+
+    /// A pointer identifying the shared allocation itself, for identity comparisons.
+    /// Two `Shared` handles observe each other's mutations exactly when their
+    /// `as_ptr` results are equal (note that `PartialEq` compares contents instead).
+    pub fn as_ptr(&self) -> *const T {
+        self.0.as_ptr()
     }
 
     pub fn borrow(&self) -> std::cell::Ref<T> {

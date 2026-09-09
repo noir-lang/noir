@@ -11,14 +11,13 @@ use super::on_code_action_request;
 
 /// Given a string with ">|<" (cursor) in it, returns all code actions that are available
 /// at that position together with the string with ">|<" removed.
-async fn get_code_action(src: &str) -> (CodeActionResponse, String) {
+fn get_code_action(src: &str) -> (CodeActionResponse, String) {
     let (mut state, noir_text_document, position, src) =
         test_utils::init_lsp_server_with_inline_source_and_cursor(
             "document_symbol",
             "src/main.nr",
             src,
-        )
-        .await;
+        );
 
     let response = on_code_action_request(
         &mut state,
@@ -30,14 +29,13 @@ async fn get_code_action(src: &str) -> (CodeActionResponse, String) {
             partial_result_params: PartialResultParams { partial_result_token: None },
         },
     )
-    .await
     .expect("Could not execute on_code_action_request")
     .expect("Expected to get a CodeActionResponse, got None");
     (response, src)
 }
 
-pub(crate) async fn assert_code_action(title: &str, src: &str, expected: &str) {
-    let (actions, src) = get_code_action(src).await;
+pub(crate) fn assert_code_action(title: &str, src: &str, expected: &str) {
+    let (actions, src) = get_code_action(src);
     let action = actions
         .iter()
         .filter_map(|action| {

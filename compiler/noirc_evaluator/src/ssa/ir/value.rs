@@ -121,12 +121,19 @@ impl ValueMapping {
         }
     }
 
-    /// Returns true if all [`ValueId`]s are mapped to a [`ValueId`] of the same type.
+    /// Returns true if every replacement value may be used wherever the value it replaces
+    /// was expected.
     ///
-    /// Mapping a [`ValueId`] to one of a different type implies a compilation error.
+    /// This is the directional [`Type::can_be_used_as`] rather than type equality, because a
+    /// borrow is always allocated as `&mut T` even when the borrow is declared `&T` (see the
+    /// `UnaryOp::Reference` arm of `codegen_unary`). A `&T`-typed read of such a cell can
+    /// therefore be replaced by the `&mut T` cell itself, which is a weakening and sound;
+    /// the reverse would hand a mutable view to code that only proved an immutable one.
     #[must_use]
     #[cfg(debug_assertions)]
     pub(crate) fn value_types_are_consistent(&self, dfg: &super::dfg::DataFlowGraph) -> bool {
-        self.map.iter().all(|(from, to)| dfg.type_of_value(*from) == dfg.type_of_value(*to))
+        self.map
+            .iter()
+            .all(|(from, to)| dfg.type_of_value(*to).can_be_used_as(&dfg.type_of_value(*from)))
     }
 }

@@ -1,3 +1,4 @@
+use std::meta::item_visibility::ItemVisibility;
 use std::meta::type_of;
 
 pub struct Foo {
@@ -45,19 +46,19 @@ comptime fn function_attr(f: FunctionDefinition) {
     let parameters = f.parameters();
     assert_eq(parameters.len(), 5);
 
-    assert_eq(parameters[0].0, quote { w });
-    assert_eq(parameters[1].0, quote { y });
-    assert_eq(parameters[2].0, quote { Foo { x, field: some_field } });
-    assert_eq(parameters[3].0, quote { mut a });
-    assert_eq(parameters[4].0, quote { (b, c) });
+    assert_eq(parameters[0].name(), quote { w });
+    assert_eq(parameters[1].name(), quote { y });
+    assert_eq(parameters[2].name(), quote { Foo { x, field: some_field } });
+    assert_eq(parameters[3].name(), quote { mut a });
+    assert_eq(parameters[4].name(), quote { (b, c) });
 
     let an_i32: i32 = 0;
 
-    assert_eq(parameters[0].1, type_of(an_i32));
-    assert_eq(parameters[1].1, type_of(0));
-    assert_eq(parameters[2].1, type_of(Foo { x: 0, field: 1 }));
-    assert_eq(parameters[3].1, type_of(true));
-    assert_eq(parameters[4].1, type_of((an_i32, an_i32)));
+    assert_eq(parameters[0].typ(), type_of(an_i32));
+    assert_eq(parameters[1].typ(), type_of(0));
+    assert_eq(parameters[2].typ(), type_of(Foo { x: 0, field: 1 }));
+    assert_eq(parameters[3].typ(), type_of(true));
+    assert_eq(parameters[4].typ(), type_of((an_i32, an_i32)));
 
     // Check FunctionDefinition::return_type
     assert_eq(f.return_type(), type_of(an_i32));
@@ -67,7 +68,11 @@ comptime fn function_attr(f: FunctionDefinition) {
 
     assert(f.has_named_attribute("function_attr"));
 
-    assert_eq(f.visibility(), quote { pub })
+    let visibility: ItemVisibility = f.visibility();
+    assert(visibility.is_public());
+    assert(!visibility.is_private());
+    assert(!visibility.is_public_crate());
+    assert_eq(visibility.as_quoted(), quote { pub });
 }
 
 comptime fn singleton_tuple_attr(f: FunctionDefinition) {
@@ -76,7 +81,7 @@ comptime fn singleton_tuple_attr(f: FunctionDefinition) {
 
     // A singleton tuple in a nested position must keep its trailing comma:
     // `((nested,),)` must not be reflected as `((nested))`.
-    assert_eq(parameters[0].0, quote { ((nested,),) });
+    assert_eq(parameters[0].name(), quote { ((nested,),) });
 }
 
 comptime fn struct_field_attr(f: FunctionDefinition) {
@@ -84,17 +89,25 @@ comptime fn struct_field_attr(f: FunctionDefinition) {
     // resolved on demand; this must not panic when the fields are still deferred.
     let parameters = f.parameters();
     assert_eq(parameters.len(), 1);
-    assert_eq(parameters[0].0, quote { Wrapper { value: (inner,) } });
+    assert_eq(parameters[0].name(), quote { Wrapper { value: (inner,) } });
 }
 
 comptime fn check_named_attribute(f: FunctionDefinition) {
     assert(f.has_named_attribute("test"));
     assert(f.has_named_attribute("deprecated"));
-    assert_eq(f.visibility(), quote { })
+    let visibility = f.visibility();
+    assert(visibility.is_private());
+    assert(!visibility.is_public());
+    assert(!visibility.is_public_crate());
+    assert_eq(visibility.as_quoted(), quote {});
 }
 
 comptime fn check_visibility(f: FunctionDefinition) {
-    assert_eq(f.visibility(), quote { pub(crate) })
+    let visibility = f.visibility();
+    assert(visibility.is_public_crate());
+    assert(!visibility.is_private());
+    assert(!visibility.is_public());
+    assert_eq(visibility.as_quoted(), quote { pub(crate) });
 }
 
 fn main() {

@@ -1,6 +1,5 @@
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
-    future::{self, Future},
     ops::Deref,
 };
 
@@ -65,8 +64,8 @@ mod tests;
 pub(crate) fn on_completion_request(
     state: &mut LspState,
     params: CompletionParams,
-) -> impl Future<Output = Result<Option<CompletionResponse>, ResponseError>> + use<> {
-    let result = process_request(state, params.text_document_position.clone(), |args| {
+) -> Result<Option<CompletionResponse>, ResponseError> {
+    process_request(state, params.text_document_position.clone(), |args| {
         let file_id = args.location.file;
         let byte_index = utils::position_to_byte_index(
             args.files,
@@ -90,8 +89,7 @@ pub(crate) fn on_completion_request(
             args.interner,
         );
         finder.find(&parsed_module)
-    });
-    future::ready(result)
+    })
 }
 
 struct NodeFinder<'a> {

@@ -1,0 +1,11 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    for i in 0_u32..1_u32 {
+        let x: i8 = -1_i8 + (i as i8);
+        let r: i16 = (x as u8) as i16;
+        assert(r == 255_i16);
+    }
+}

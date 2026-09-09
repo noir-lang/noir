@@ -33,13 +33,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Build list of libraries
         id: get_critical_libraries
         run: |
           set -euo pipefail
-          LIBRARIES=$(yq ./EXTERNAL_NOIR_LIBRARIES.yml -o json | jq -c '.libraries | map({ repo, ref, path: (.path // ""), timeout:(.timeout // 2), nargo_args })')
+          LIBRARIES=$(yq ./EXTERNAL_NOIR_LIBRARIES.yml -o json | jq -c '.libraries | map({ repo, ref, path: (.path // ""), timeout:(.timeout // 5), nargo_args })')
           if [ -z "$LIBRARIES" ] || [ "$LIBRARIES" = "null" ]; then
             echo "::error::Failed to parse EXTERNAL_NOIR_LIBRARIES.yml — got empty or null library list"
             exit 1
@@ -63,7 +63,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # Errors if installation would result in modifications to yarn.lock
       - name: Install
@@ -91,12 +91,12 @@ jobs:
     name: Build ${{ matrix.name }}
     steps:
       - name: Checkout Noir repo
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.89.0
 
-      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           key: x86_64-unknown-linux-gnu
           cache-on-failure: true
@@ -122,12 +122,12 @@ jobs:
 
     steps:
       - name: Checkout Noir repo
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.89.0
 
-      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           key: noirc-abi
           cache-on-failure: true
@@ -158,12 +158,12 @@ jobs:
 
     steps:
       - name: Checkout sources
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.89.0
 
-      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           key: noir-wasm
           cache-on-failure: true
@@ -197,12 +197,12 @@ jobs:
 
     steps:
       - name: Checkout sources
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.89.0
 
-      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           key: acvm-js
           cache-on-failure: true
@@ -237,7 +237,7 @@ jobs:
 
     steps:
       - name: Checkout sources
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Download artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
@@ -251,17 +251,57 @@ jobs:
       - name: Run node tests
         run: yarn workspace @noir-lang/acvm_js test
 
+  # Reads the Playwright version out of yarn.lock once for the whole workflow.
+  # It has to be a separate job rather than a step in each consumer: the
+  # `test-acvm_js-browser` container image is resolved before any step of that
+  # job runs, so the version can only reach it as a `needs` output.
+  playwright-version:
+    name: Resolve Playwright version
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.playwright.outputs.version }}
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Resolve into a variable first. Inlining the substitution into the `echo`
+      # would hand the step `echo`'s exit status, so a failed resolve would
+      # publish an empty version and let every dependant start.
+      - name: Resolve Playwright version
+        id: playwright
+        run: |
+          set -euo pipefail
+          version="$(./scripts/playwright_version.sh)"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
   test-acvm_js-browser:
-    needs: [build-acvm-js]
+    needs: [build-acvm-js, playwright-version]
     name: ACVM JS (Browser)
     runs-on: ubuntu-22.04
+    # Playwright's WebKit build needs a chunk of Ubuntu system libraries that
+    # `install-deps` fetches from the Azure apt mirror at job time. Those
+    # mirrors intermittently fail to fully install (see the
+    # `##[warning]playwright install-deps failed; continuing` step, followed by
+    # `browserType.launch: Target page, context or browser has been closed`
+    # for every WebKit test). Running inside Playwright's official container
+    # takes the apt round-trip out of the job entirely: the browsers and their
+    # system libs are already baked into the image, so `install-deps` doesn't
+    # run and can't flake. Tag tracks the Playwright version yarn.lock resolves
+    # so the browsers match the driver.
+    container:
+      image: mcr.microsoft.com/playwright:v${{ needs.playwright-version.outputs.version }}-jammy
+      options: --user root
     timeout-minutes: 30
     permissions:
       contents: read
 
     steps:
       - name: Checkout sources
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Download artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
@@ -272,18 +312,13 @@ jobs:
       - name: Set up test environment
         uses: ./.github/actions/setup
 
-      - name: Install Playwright
-        uses: ./.github/actions/install-playwright
-        with:
-          browsers: "chromium webkit"
-
       - name: Run browser tests
         uses: ./.github/actions/retry
         with:
           run: yarn workspace @noir-lang/acvm_js test:browser
 
   test-noirc-abi:
-    needs: [build-noirc-abi]
+    needs: [build-noirc-abi, playwright-version]
     name: noirc_abi
     runs-on: ubuntu-22.04
     timeout-minutes: 30
@@ -292,7 +327,7 @@ jobs:
 
     steps:
       - name: Checkout sources
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Download wasm package artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
@@ -308,6 +343,8 @@ jobs:
 
       - name: Install Playwright
         uses: ./.github/actions/install-playwright
+        with:
+          playwright-version: ${{ needs.playwright-version.outputs.version }}
 
       - name: Run browser tests
         uses: ./.github/actions/retry
@@ -324,7 +361,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Download nargo binary
         uses: ./.github/actions/download-binary
@@ -357,7 +394,7 @@ jobs:
           yarn workspace @noir-lang/noir_js test
 
   test-noir-wasm:
-    needs: [build-noir-wasm, build-binaries]
+    needs: [build-noir-wasm, build-binaries, playwright-version]
     name: noir_wasm
     runs-on: ubuntu-22.04
     timeout-minutes: 30
@@ -366,7 +403,7 @@ jobs:
 
     steps:
       - name: Checkout sources
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Download wasm package artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
@@ -387,6 +424,8 @@ jobs:
 
       - name: Install Playwright
         uses: ./.github/actions/install-playwright
+        with:
+          playwright-version: ${{ needs.playwright-version.outputs.version }}
 
       - name: Run node tests
         run: yarn workspace @noir-lang/noir_wasm test:node
@@ -406,7 +445,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Download nargo binary
         uses: ./.github/actions/download-binary
@@ -449,7 +488,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install `bb`
         run: |
@@ -506,7 +545,7 @@ jobs:
 
   #   steps:
   #     - name: Checkout
-  #       uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+  #       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
   #     - name: Download acvm_js package artifact
   #       uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
@@ -548,17 +587,17 @@ jobs:
   test-examples:
     name: Example scripts
     runs-on: ubuntu-24.04
-    needs: [build-binaries, build-acvm-js, build-noirc-abi]
+    needs: [build-binaries, build-acvm-js, build-noirc-abi, playwright-version]
     timeout-minutes: 30
     permissions:
       contents: read
 
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@b00af27efadbc7b4ca8b82abbd903b17cc874d2a # v1.9.0
+        uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1.9.1
         with:
           version: v1.3.3
 
@@ -567,6 +606,8 @@ jobs:
 
       - name: Install Playwright
         uses: ./.github/actions/install-playwright
+        with:
+          playwright-version: ${{ needs.playwright-version.outputs.version }}
 
       - uses: taiki-e/install-action@just
 
@@ -644,10 +685,10 @@ jobs:
           echo "timeout: ${{ matrix.timeout }}"
 
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: ${{ matrix.repo }}
           path: test-repo
@@ -705,47 +746,6 @@ jobs:
             exit 1
           fi
 
-  compile-noir-contracts:
-    name: Compile `noir-contracts` zero inliner aggressiveness
-    needs: [build-binaries]
-    runs-on: ubuntu-22.04
-    timeout-minutes: 30
-    permissions:
-      contents: read
-    steps:
-      - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          # Note that we are checking out into a sub-directory, which affects action paths.
-          path: noir-repo
-
-      - name: Resolve pinned aztec-packages commit
-        id: aztec-commit
-        run: echo "commit=$(yq '.define' ./noir-repo/EXTERNAL_NOIR_LIBRARIES.yml)" >> "$GITHUB_OUTPUT"
-
-      - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          repository: AztecProtocol/aztec-packages
-          ref: ${{ steps.aztec-commit.outputs.commit }}
-          path: test-repo
-
-      - name: Download nargo binary
-        uses: ./noir-repo/.github/actions/download-binary
-        with:
-          name: nargo
-
-      - name: Remove requirements on compiler version
-        working-directory: ./test-repo
-        run: |
-          # Github actions seems to not expand "**" in globs by default.
-          shopt -s globstar
-          sed -i '/^compiler_version/d' ./**/Nargo.toml
-
-      - name: Run nargo compile
-        working-directory: ./test-repo/noir-projects/noir-contracts
-        run: nargo compile --inliner-aggressiveness 0
-
   upload_critical_library_report:
     name: Upload critical library report
     needs: [external-repo-checks]
@@ -760,7 +760,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Download matrix test reports
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
@@ -802,7 +802,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Download nargo binary
         uses: ./.github/actions/download-binary
@@ -839,7 +839,6 @@ jobs:
       #- test-integration-browser
       - test-nargo-doc
       - test-examples
-      - compile-noir-contracts
     permissions:
       contents: read
 

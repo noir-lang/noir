@@ -27,7 +27,7 @@ noirc_printable_type.workspace = true
 num-bigint.workspace = true
 num-integer.workspace = true
 num-traits.workspace = true
-im.workspace = true
+imbl.workspace = true
 indexmap.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -49,6 +49,7 @@ num-traits.workspace = true
 test-case.workspace = true
 insta.workspace = true
 noirc_frontend = { workspace = true, features = ["test_utils"] }
+strum.workspace = true
 
 [features]
 bn254 = ["noirc_frontend/bn254"]

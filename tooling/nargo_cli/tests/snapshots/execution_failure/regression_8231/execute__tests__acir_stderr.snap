@@ -2,6 +2,27 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
+warning: variable does not need to be mutable
+   ┌─ src/main.nr:20:15
+   │
+20 │ fn func_1(mut a: u64, mut b: [bool; 1], mut c: [bool; 1]) -> (i64, [bool; 1]) {
+   │               -
+   │
+
+warning: variable does not need to be mutable
+   ┌─ src/main.nr:20:27
+   │
+20 │ fn func_1(mut a: u64, mut b: [bool; 1], mut c: [bool; 1]) -> (i64, [bool; 1]) {
+   │                           -
+   │
+
+warning: variable does not need to be mutable
+   ┌─ src/main.nr:20:45
+   │
+20 │ fn func_1(mut a: u64, mut b: [bool; 1], mut c: [bool; 1]) -> (i64, [bool; 1]) {
+   │                                             -
+   │
+
 warning: Return variable contains a constant value
    ┌─ src/main.nr:14:5
    │  

@@ -51,7 +51,7 @@
 use std::collections::{HashMap, HashSet};
 
 use acvm::{AcirField, FieldElement, acir::brillig::lengths::ElementTypesLength};
-use im::Vector;
+use imbl::Vector;
 
 use crate::{
     brillig::assert_u32,

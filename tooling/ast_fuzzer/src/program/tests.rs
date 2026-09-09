@@ -39,6 +39,7 @@ fn generate_ssa_from_body(body: Expression) -> ssa_gen::Ssa {
         unconstrained: false,
         inline_type: InlineType::Inline,
         is_entry_point: false,
+        allow_constant_return: false,
     };
 
     let program = Program {
@@ -149,6 +150,7 @@ fn test_recursion_limit_rewrite() {
             unconstrained,
             inline_type: InlineType::InlineAlways,
             is_entry_point: false,
+            allow_constant_return: false,
         };
 
         ctx.function_declarations.insert(
@@ -309,6 +311,7 @@ fn test_wrap_oracle_prints_in_functions() {
                 typ: Type::Bool,
             },
         ))),
+        typ: array_type.clone(),
     });
 
     let value_ident = Ident {
@@ -354,6 +357,7 @@ fn test_wrap_oracle_prints_in_functions() {
         unconstrained: false,
         inline_type: InlineType::default(),
         is_entry_point: true,
+        allow_constant_return: false,
     };
 
     ctx.functions.insert(FuncId(0), main_func);
@@ -373,4 +377,80 @@ fn test_wrap_oracle_prints_in_functions() {
         println(value)
     }
     ");
+}
+
+/// Number of ACIR memory slots a type occupies once flattened.
+fn flattened_size(typ: &Type) -> u32 {
+    match typ {
+        Type::Unit => 0,
+        Type::String(n) => *n,
+        Type::Array(n, item) => n * flattened_size(item),
+        Type::Tuple(items) => items.iter().map(flattened_size).sum(),
+        _ => 1,
+    }
+}
+
+/// Does an array's element type mix member sizes, and does it do so because one of
+/// the members is itself a composite?
+///
+/// ACIR generation resolves a read on an array whose element members all occupy one
+/// flattened slot without ever consulting its non-homogeneous machinery: element type
+/// sizes, fallback offsets, and result predication all stay dormant. Only a mixed-size
+/// element reaches them.
+///
+/// The composite requirement is what makes this a test of type *depth*. A `str<N>`
+/// member also mixes sizes while being a leaf, so an array of tuples of scalars-and-
+/// strings is reachable at a lower depth; an array element holding a nested array or
+/// tuple is not.
+fn has_composite_mixed_size_element(typ: &Type) -> bool {
+    let Type::Array(_, elem) = typ else { return false };
+    let Type::Tuple(members) = elem.as_ref() else { return false };
+    let sizes = members.iter().map(flattened_size).collect::<Vec<_>>();
+    let mixes_sizes = sizes.iter().any(|size| *size != sizes[0]);
+    let has_composite =
+        members.iter().any(|m| matches!(m, Type::Array(_, _) | Type::Tuple(_) | Type::Vector(_)));
+    mixes_sizes && has_composite
+}
+
+/// The type generator must be able to produce arrays whose elements are structs with
+/// members of differing flattened size, such as `[(Field, [u8; 2]); 3]`.
+///
+/// This is the shape behind the whole non-homogeneous half of `acir/arrays.rs`, and it
+/// is idiomatic Noir — a struct with a scalar header and a small fixed-size array member.
+/// It needs a composite inside the array element, which is one level deeper than the
+/// expression nesting the fuzzer wants, hence [`Config::max_type_depth`].
+#[test]
+fn test_generates_non_homogeneous_array_types() {
+    // A deterministic byte source; the generator only needs entropy, not randomness.
+    let mut state = 0x2545_F491_4F6C_DD1Du64;
+    let mut data = vec![0u8; 1 << 16];
+    for byte in &mut data {
+        state ^= state << 13;
+        state ^= state >> 7;
+        state ^= state << 17;
+        *byte = state as u8;
+    }
+    let mut u = Unstructured::new(&data);
+
+    let config = Config::default();
+    let max_type_depth = config.max_type_depth;
+    let mut ctx = Context::new(config);
+
+    let mut found = 0;
+    let mut generated = 0;
+    while !u.is_empty() {
+        let Ok(typ) = ctx.gen_type(&mut u, max_type_depth, false, false, false, true) else {
+            break;
+        };
+        generated += 1;
+        if has_composite_mixed_size_element(&typ) {
+            found += 1;
+        }
+    }
+
+    assert!(
+        found > 0,
+        "generated {generated} types without a single array of mixed-size structs; \
+         ACIR's non-homogeneous array handling is unreachable from the fuzzer"
+    );
 }

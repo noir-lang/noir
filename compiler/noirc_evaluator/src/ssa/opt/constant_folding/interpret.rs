@@ -1,6 +1,6 @@
 use std::io::Empty;
 
-use im::Vector;
+use imbl::Vector;
 use iter_extended::vecmap;
 
 use crate::ssa::{

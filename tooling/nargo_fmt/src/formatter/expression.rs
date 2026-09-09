@@ -132,7 +132,10 @@ impl ChunkFormatter<'_, '_> {
                 }));
             }
             Literal::Integer(..) => group.text(self.chunk(|formatter| {
-                if formatter.is_at(Token::Minus) {
+                // A `-` in front of an integer literal is folded into the literal itself, and
+                // because negating zero yields zero every `-` in front of a literal zero folds
+                // into the same literal.
+                while formatter.is_at(Token::Minus) {
                     formatter.write_token(Token::Minus);
                     formatter.skip_comments_and_whitespace();
                 }
@@ -871,7 +874,13 @@ impl ChunkFormatter<'_, '_> {
             } else {
                 1
             };
-            for _ in 0..tokens_count {
+            for index in 0..tokens_count {
+                // `<<` and `>>` are lexed as two separate tokens so that nested generic types
+                // are easier to parse, which means whitespace or a comment can sit between the
+                // two halves of a shift operator.
+                if index > 0 {
+                    formatter.skip_comments_and_whitespace();
+                }
                 formatter.write_current_token();
                 formatter.bump();
             }
@@ -1240,11 +1249,6 @@ impl ChunkFormatter<'_, '_> {
         let keyword = match constrain_statement.kind {
             ConstrainKind::Assert => Keyword::Assert,
             ConstrainKind::AssertEq => Keyword::AssertEq,
-            ConstrainKind::Constrain => {
-                unreachable!(
-                    "constrain always produces an error, and the formatter doesn't run when there are errors"
-                )
-            }
         };
 
         group.text(self.chunk(|formatter| {
@@ -1526,6 +1530,20 @@ mod tests {
     }
 
     #[test]
+    fn format_repeated_negative_zero() {
+        let src = "global x =  - - - 0 ;";
+        let expected = "global x = ---0;\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_negative_zero_with_comment_before_it() {
+        let src = "global x = - // negate\n-0;";
+        let expected = "global x = - // negate\n-0;\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
     fn format_ref_mut_integer() {
         let src = "global x = & mut 42 ;";
         let expected = "global x = &mut 42;\n";
@@ -1780,6 +1798,27 @@ global y = 1;
     }
 
     #[test]
+    fn format_shift_written_as_two_separate_tokens() {
+        let src = "global x =  a  <  <  b  ;";
+        let expected = "global x = a << b;\n";
+        assert_format(src, expected);
+
+        let src = "global x =  a  >  >  b  ;";
+        let expected = "global x = a >> b;\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_shift_with_a_comment_between_its_two_tokens() {
+        let src = "global x = a < // shift\n< b;";
+        let expected = "global x = a
+    < // shift
+    < b;
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
     fn format_long_infix_same_operator_1() {
         let src = "global x =  one + two + three;";
         let expected = "global x = one
@@ -1863,8 +1902,8 @@ global y = 1;
     }
 
     #[test]
-    fn format_dep_call() {
-        let src = "global x =  dep :: foo :: bar ( 1, 2 )  ;";
+    fn format_absolute_call() {
+        let src = "global x =   :: foo :: bar ( 1, 2 )  ;";
         let expected = "global x = ::foo::bar(1, 2);\n";
         assert_format(src, expected);
     }
@@ -2714,6 +2753,47 @@ let     x   =    1   +    2 ;
     1;
     2
 };
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_lambda_with_comment_between_parameters_and_body() {
+        // Regression test for https://github.com/noir-lang/noir-claude/issues/1646:
+        // the comment's terminating newline was dropped, so the lambda body was
+        // swallowed into the comment while the program still compiled.
+        let src = "fn main(x: Field, y: Field) {
+    let check = |v| // every checked value must equal y
+{ assert(v == y); };
+    check(x);
+}
+";
+        let expected = "fn main(x: Field, y: Field) {
+    let check = |v| // every checked value must equal y
+    { assert(v == y); };
+    check(x);
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_lambda_as_last_call_argument_with_comment_between_parameters_and_body() {
+        // Regression test for https://github.com/noir-lang/noir-claude/issues/1646.
+        // A lambda as the last call argument is formatted through a fast path that
+        // writes the group in one line, which is a separate way for the comment's
+        // terminating newline to be lost.
+        let src = "fn main() {
+    foo(1, |x| // doubles the input
+    {
+        x * 2
+    });
+}
+";
+        let expected = "fn main() {
+    foo(1, |x| // doubles the input
+    x * 2);
+}
 ";
         assert_format(src, expected);
     }

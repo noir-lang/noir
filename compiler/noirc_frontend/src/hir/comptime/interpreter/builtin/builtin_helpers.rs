@@ -25,10 +25,7 @@ use crate::parser::{Parser, ParserError};
 use crate::token::{Keyword, LocatedToken, SecondaryAttributeKind};
 use crate::{
     QuotedType, Type,
-    ast::{
-        BlockExpression, ExpressionKind, Ident, IntegerBitSize, LValue, Pattern, StatementKind,
-        UnresolvedTypeData,
-    },
+    ast::{BlockExpression, ExpressionKind, Ident, IntegerBitSize, LValue, Pattern, StatementKind},
     hir::{
         comptime::{
             Interpreter, InterpreterError, Value,
@@ -186,7 +183,7 @@ pub(crate) fn check_arguments<const N: usize>(
 
 pub(crate) fn get_array(
     (value, location): (Value, Location),
-) -> IResult<(im::Vector<Value>, Type)> {
+) -> IResult<(imbl::Vector<Value>, Type)> {
     match value {
         Value::Array(values, typ) => Ok((values, typ)),
         value => {
@@ -239,7 +236,7 @@ pub(crate) fn get_bool((value, location): (Value, Location)) -> IResult<bool> {
 
 pub(crate) fn get_vector(
     (value, location): (Value, Location),
-) -> IResult<(im::Vector<Value>, Type)> {
+) -> IResult<(imbl::Vector<Value>, Type)> {
     match value {
         Value::Vector(values, typ) => Ok((values, typ)),
         value => {
@@ -440,23 +437,6 @@ pub(crate) fn get_quoted((value, location): (Value, Location)) -> IResult<Rc<Vec
     match value {
         Value::Quoted(tokens) => Ok(tokens),
         value => type_mismatch(value, Type::Quoted(QuotedType::Quoted), location),
-    }
-}
-
-pub(crate) fn get_unresolved_type(
-    interner: &NodeInterner,
-    (value, location): (Value, Location),
-) -> IResult<UnresolvedTypeData> {
-    match value {
-        Value::UnresolvedType(typ) => {
-            if let UnresolvedTypeData::Interned(id) = typ {
-                let typ = interner.get_unresolved_type_data(id).clone();
-                Ok(typ)
-            } else {
-                Ok(typ)
-            }
-        }
-        value => type_mismatch(value, Type::Quoted(QuotedType::UnresolvedType), location),
     }
 }
 
@@ -986,7 +966,7 @@ mod tests {
 
     use siphasher::sip::SipHasher13;
 
-    use im::Vector;
+    use imbl::Vector;
     use noirc_errors::Location;
 
     use super::DeterministicHasher;

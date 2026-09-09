@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(arr: [u8; 2], c1: bool, c2: bool) -> pub u8 {
+    let v: [u8] = arr.as_vector();
+    let v1: [u8] = v.push_front(9_u8);
+    if c1 {
+        let w: [u8] = v1.push_front(8_u8);
+        w[0_u32]
+    } else if c2 {
+        let w: [u8] = v1.push_front(8_u8);
+        w[0_u32]
+    } else {
+        v1[0_u32]
+    }
+}

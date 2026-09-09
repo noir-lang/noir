@@ -1,0 +1,153 @@
+name: Dispatch ClaudeBox
+description: Post an alert to Slack and start a ClaudeBox session in its thread.
+
+inputs:
+  claudebox-url:
+    description: Base URL of the ClaudeBox service.
+    required: true
+  claudebox-api-secret:
+    description: Bearer secret accepted by the ClaudeBox run endpoint.
+    required: true
+  prompt:
+    description: Complete instructions for the ClaudeBox session.
+    required: true
+  repo:
+    description: Repository the ClaudeBox session should work in.
+    required: true
+  run-url:
+    description: URL of the workflow run that triggered the session.
+    required: true
+  user:
+    description: User recorded as the ClaudeBox session initiator.
+    required: false
+    default: github-actions
+  mode:
+    description: ClaudeBox repository-access mode.
+    required: false
+    default: public
+  target-ref:
+    description: Git ref the ClaudeBox session should use as its base.
+    required: false
+  link:
+    description: Context link attached to the ClaudeBox session.
+    required: false
+  slack-bot-token:
+    description: Bot token used to create the Slack thread.
+    required: true
+  slack-channel:
+    description: Slack channel ID where the alert and session thread are created.
+    required: true
+  slack-alert:
+    description: Text for the Slack thread's root message.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Validate inputs
+      shell: bash
+      env:
+        CLAUDEBOX_URL: ${{ inputs.claudebox-url }}
+        CLAUDEBOX_API_SECRET: ${{ inputs.claudebox-api-secret }}
+        CLAUDEBOX_PROMPT: ${{ inputs.prompt }}
+        CLAUDEBOX_REPO: ${{ inputs.repo }}
+        CLAUDEBOX_RUN_URL: ${{ inputs.run-url }}
+        SLACK_BOT_TOKEN: ${{ inputs.slack-bot-token }}
+        SLACK_CHANNEL: ${{ inputs.slack-channel }}
+        SLACK_ALERT: ${{ inputs.slack-alert }}
+      run: |
+        set -uo pipefail
+
+        missing=()
+        [ -n "${CLAUDEBOX_URL:-}" ] || missing+=(CLAUDEBOX_URL)
+        [ -n "${CLAUDEBOX_API_SECRET:-}" ] || missing+=(CLAUDEBOX_API_SECRET)
+        [ -n "${CLAUDEBOX_PROMPT:-}" ] || missing+=(CLAUDEBOX_PROMPT)
+        [ -n "${CLAUDEBOX_REPO:-}" ] || missing+=(CLAUDEBOX_REPO)
+        [ -n "${CLAUDEBOX_RUN_URL:-}" ] || missing+=(CLAUDEBOX_RUN_URL)
+        [ -n "${SLACK_BOT_TOKEN:-}" ] || missing+=(SLACK_BOT_TOKEN)
+        [ -n "${SLACK_CHANNEL:-}" ] || missing+=(SLACK_CHANNEL)
+        [ -n "${SLACK_ALERT:-}" ] || missing+=(SLACK_ALERT)
+        if [ ${#missing[@]} -gt 0 ]; then
+          echo "::error::${missing[*]} not configured; ClaudeBox cannot be dispatched"
+          exit 1
+        fi
+
+    - name: Create Slack thread
+      id: slack
+      shell: bash
+      env:
+        SLACK_BOT_TOKEN: ${{ inputs.slack-bot-token }}
+        SLACK_CHANNEL: ${{ inputs.slack-channel }}
+        SLACK_ALERT: ${{ inputs.slack-alert }}
+      run: |
+        set -uo pipefail
+
+        slack_response=$(curl -sS --max-time 30 -X POST https://slack.com/api/chat.postMessage \
+          -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+          -H 'Content-Type: application/json' \
+          -d "$(jq -n --arg channel "$SLACK_CHANNEL" --arg text "$SLACK_ALERT" \
+            '{channel: $channel, text: $text}')" || true)
+        thread_ts=$(printf '%s' "$slack_response" | jq -r '.ts // empty')
+        channel_id=$(printf '%s' "$slack_response" | jq -r '.channel // empty')
+        if [ -z "$thread_ts" ] || [ -z "$channel_id" ]; then
+          echo "::error::Slack bot alert failed: $slack_response"
+          exit 1
+        fi
+
+        echo "channel_id=$channel_id" >> "$GITHUB_OUTPUT"
+        echo "thread_ts=$thread_ts" >> "$GITHUB_OUTPUT"
+
+    - name: Dispatch ClaudeBox
+      shell: bash
+      env:
+        CLAUDEBOX_URL: ${{ inputs.claudebox-url }}
+        CLAUDEBOX_API_SECRET: ${{ inputs.claudebox-api-secret }}
+        CLAUDEBOX_PROMPT: ${{ inputs.prompt }}
+        CLAUDEBOX_REPO: ${{ inputs.repo }}
+        CLAUDEBOX_RUN_URL: ${{ inputs.run-url }}
+        CLAUDEBOX_USER: ${{ inputs.user }}
+        CLAUDEBOX_MODE: ${{ inputs.mode }}
+        CLAUDEBOX_TARGET_REF: ${{ inputs.target-ref }}
+        CLAUDEBOX_LINK: ${{ inputs.link }}
+        SLACK_CHANNEL_ID: ${{ steps.slack.outputs.channel_id }}
+        SLACK_THREAD_TS: ${{ steps.slack.outputs.thread_ts }}
+      run: |
+        set -uo pipefail
+
+        prompt="$CLAUDEBOX_PROMPT"
+        if [ -n "${CLAUDEBOX_TARGET_REF:-}" ]; then
+          prompt="$prompt
+
+        Work against git ref: $CLAUDEBOX_TARGET_REF. Fetch it and base your branch on it."
+        fi
+
+        payload=$(jq -n \
+          --arg prompt "$prompt" \
+          --arg user "$CLAUDEBOX_USER" \
+          --arg repo "$CLAUDEBOX_REPO" \
+          --arg run_url "$CLAUDEBOX_RUN_URL" \
+          --arg link "$CLAUDEBOX_LINK" \
+          --arg slack_channel "$SLACK_CHANNEL_ID" \
+          --arg slack_thread_ts "$SLACK_THREAD_TS" \
+          --arg mode "$CLAUDEBOX_MODE" \
+          '{prompt: $prompt, user: $user, repo: $repo, run_url: $run_url,
+            link: $link, slack_channel: $slack_channel,
+            slack_thread_ts: $slack_thread_ts, mode: $mode}')
+
+        response=$(curl -sS --max-time 30 -w '\n%{http_code}' \
+          -H "Authorization: Bearer ${CLAUDEBOX_API_SECRET}" \
+          -H 'Content-Type: application/json' \
+          -d "$payload" "${CLAUDEBOX_URL%/}/run" || true)
+        http_code=$(printf '%s' "$response" | tail -1)
+        body=$(printf '%s' "$response" | sed '$d')
+
+        case "$http_code" in
+          2??)
+            session_id=$(printf '%s' "$body" | jq -r '.session_id // empty')
+            echo "ClaudeBox session dispatched: $session_id"
+            ;;
+          *)
+            echo "::error::ClaudeBox dispatch returned HTTP '${http_code}': ${body}"
+            exit 1
+            ;;
+        esac

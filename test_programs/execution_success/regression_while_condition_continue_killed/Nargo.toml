@@ -1,0 +1,6 @@
+[package]
+name = "regression_while_condition_continue_killed"
+type = "bin"
+authors = [""]
+
+[dependencies]
