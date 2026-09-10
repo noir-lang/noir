@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789039783675,
+  "lastUpdate": 1789039786519,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -26528,105 +26528,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "139e93f38d8347872525678dc8761b17e814bd30",
-          "message": "chore(ssa): make `two_brillig_calls_read_the_same_global` actually compile to two Brillig calls (#13570)",
-          "timestamp": "2026-08-26T17:09:40Z",
-          "tree_id": "6afbec51d333eb8e31813a1ef3859cb41f2d8305",
-          "url": "https://github.com/noir-lang/noir/commit/139e93f38d8347872525678dc8761b17e814bd30"
-        },
-        "date": 1787766422605,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.31,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 0.799,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 1.284,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 2.206,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 2.01,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 2.5,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 1.834,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 2.3,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 2.2,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 2.232,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 2.3,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 2.2,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 1.46,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.286,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.261,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -28826,6 +28727,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 0.246,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "45ce1511412b3b2073f6b8df0d209e02c3f87397",
+          "message": "fix(frontend): check that the program monomorphization produces holds together (#13644)",
+          "timestamp": "2026-09-10T11:04:28Z",
+          "tree_id": "3c5af00c32de6c1f957de2239093e580d763a906",
+          "url": "https://github.com/noir-lang/noir/commit/45ce1511412b3b2073f6b8df0d209e02c3f87397"
+        },
+        "date": 1789039692829,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.275,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.245,
             "unit": "s"
           }
         ]
