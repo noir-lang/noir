@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789040138677,
+  "lastUpdate": 1789054588311,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -13306,48 +13306,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "478f23c037ed39f5804e5413796d3f625708f7c6",
-          "message": "chore(deps): bump the cargo-minor-and-patch group with 6 updates (#13578)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-09-01T10:50:35Z",
-          "tree_id": "b53cc539bef3e92aa814d3155f20baeff86d9323",
-          "url": "https://github.com/noir-lang/noir/commit/478f23c037ed39f5804e5413796d3f625708f7c6"
-        },
-        "date": 1788261301093,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 127456,
-            "range": "± 2444",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 96621,
-            "range": "± 1065",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 1748608,
-            "range": "± 42819",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "e3fefb5a5435a6c9ed3161938b9bee076f8084b7",
           "message": "chore(deps-dev): bump vite from 8.2.1 to 8.2.2 in the npm-minor-and-patch group (#13577)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
           "timestamp": "2026-09-01T10:51:51Z",
@@ -15389,6 +15347,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2028240,
             "range": "± 7456",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "2e3caacfd2031529fb85ae0fee3281cc47ae58e1",
+          "message": "feat(ssa): predicate trivial conditionals instead of leaving them to flattening (#13643)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
+          "timestamp": "2026-09-10T15:13:20Z",
+          "tree_id": "87db7021fdb196d11dfeb40fd2694a3e1da072d5",
+          "url": "https://github.com/noir-lang/noir/commit/2e3caacfd2031529fb85ae0fee3281cc47ae58e1"
+        },
+        "date": 1789054501755,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 127259,
+            "range": "± 519",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 113029,
+            "range": "± 2687",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3040380,
+            "range": "± 9636",
             "unit": "ns/iter"
           }
         ]
