@@ -121,6 +121,13 @@ fn assert_monomorphization_is_order_independent(src: &str) {
     }
 }
 
+/// Assert that monomorphizing the `#[test]` functions in `src` is pure.
+///
+/// A third check runs from inside `monomorphize` itself, which panics if it left the context
+/// different to how it found it, so every case here exercises that as well. It is the broader of
+/// the three — it sees a write to any type variable, not only the ones instantiation bindings are
+/// stored for — but it is compiled out of a release build without
+/// `NOIR_CHECK_MONOMORPHIZATION_PURITY`, where these two still run.
 fn assert_monomorphization_is_pure(src: &str) {
     assert_monomorphization_restores_bindings(src);
     assert_monomorphization_is_order_independent(src);
