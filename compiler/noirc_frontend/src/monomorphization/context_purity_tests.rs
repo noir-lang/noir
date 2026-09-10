@@ -244,3 +244,65 @@ fn a_trait_associated_constant_at_two_impls_is_order_independent() {
     "#;
     assert_monomorphization_is_pure(src);
 }
+
+/// A trait method reached through a `where` clause on a generic struct's method, so the impl is
+/// only settled once monomorphization searches for it. That search unifies the object type
+/// against the candidates and produces bindings, which have to be undone once the impl's method
+/// has been compiled.
+#[test]
+fn resolving_an_assumed_impl_is_pure() {
+    let src = r#"
+        trait MyHasher {
+            fn finish_hash(self) -> Field;
+        }
+
+        trait MyDefault {
+            fn my_default() -> Self;
+        }
+
+        trait BuildMyHasher<H> where H: MyHasher {
+            fn build(self) -> H;
+        }
+
+        struct DefaultBuilder<H> {}
+
+        impl<H> BuildMyHasher<H> for DefaultBuilder<H> where H: MyHasher + MyDefault {
+            fn build(self) -> H {
+                H::my_default()
+            }
+        }
+
+        struct Holder<B> {
+            builder: B,
+        }
+
+        impl<B> Holder<B> {
+            fn compute<H>(self) -> Field where B: BuildMyHasher<H>, H: MyHasher {
+                self.builder.build().finish_hash()
+            }
+        }
+
+        struct Concrete {}
+
+        impl MyDefault for Concrete {
+            fn my_default() -> Self { Concrete {} }
+        }
+
+        impl MyHasher for Concrete {
+            fn finish_hash(self) -> Field { 7 }
+        }
+
+        #[test]
+        fn hashes_through_a_where_clause() {
+            let holder = Holder { builder: DefaultBuilder::<Concrete> {} };
+            assert_eq(holder.compute(), 7);
+        }
+
+        #[test]
+        fn hashes_through_a_where_clause_again() {
+            let holder = Holder { builder: DefaultBuilder::<Concrete> {} };
+            assert_eq(holder.compute(), 7);
+        }
+    "#;
+    assert_monomorphization_is_pure(src);
+}

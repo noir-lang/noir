@@ -52,7 +52,9 @@ use crate::ast::{FunctionKind, ItemVisibility, UnaryOp};
 use crate::hir::comptime::{InterpreterError, bigint_to_field};
 use crate::hir::type_check::NoMatchingImplFoundError;
 use crate::lint::Lint;
-use crate::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind, TraitItemId};
+use crate::node_interner::{
+    ExprId, GlobalValue, ImplSearchErrorKind, TraitItemId, TraitLookupMode,
+};
 use crate::recursion::TypeRecursionContext;
 use crate::shared::{Builtin, ForeignCall, Visibility};
 use crate::token::FunctionAttributeKind;
@@ -2269,8 +2271,11 @@ impl<'interner> Monomorphizer<'interner> {
         trait_item_id: TraitItemId,
         use_current_runtime: bool,
     ) -> Result<ast::Expression, MonomorphizationError> {
-        let item = resolve_trait_item(self.interner, trait_item_id, expr_id)
-            .map_err(MonomorphizationError::InterpreterError)?;
+        // Held for the rest of this function: the impl search's bindings have to stay applied
+        // while the impl's method is compiled, and are undone once it has been.
+        let (item, _impl_search_bindings) =
+            resolve_trait_item(self.interner, trait_item_id, expr_id)
+                .map_err(MonomorphizationError::InterpreterError)?;
 
         let func_id = match item {
             TraitItem::Method(func_id) => func_id,
@@ -3387,11 +3392,17 @@ pub fn compute_impl_bindings(
 }
 
 /// Resolve a trait item to a particular impl, returning the ID of that impl or an error on failure.
+///
+/// Searching for an impl unifies the object type against the candidates, and the bindings that
+/// search produces have to stay applied while the impl's method is compiled — references to the
+/// trait's generics inside it resolve through them. They are returned as a guard rather than
+/// committed so the caller decides how long they live; see [`BoundTypeVariables::commit`] for
+/// when keeping them is the right answer.
 fn resolve_trait_item_impl(
     interner: &mut NodeInterner,
     method_id: TraitItemId,
     expr_id: ExprId,
-) -> Result<node_interner::TraitImplId, InterpreterError> {
+) -> Result<(node_interner::TraitImplId, BoundTypeVariables), InterpreterError> {
     let trait_impl = interner.get_selected_impl_for_expression(expr_id).ok_or_else(|| {
         let location = interner.expr_location(&expr_id);
         InterpreterError::NoImpl { location }
@@ -3406,7 +3417,7 @@ fn resolve_trait_item_impl(
                 expr_id,
                 TypeBindings::default(),
             );
-            Ok(impl_id)
+            Ok((impl_id, BoundTypeVariables::none()))
         }
         TraitImplKind::Prepared { .. } => {
             unreachable!("ICE: Prepared trait impl should have been replaced by a Normal one")
@@ -3414,13 +3425,16 @@ fn resolve_trait_item_impl(
         TraitImplKind::Assumed { object_type, trait_generics } => {
             let location = interner.expr_location(&expr_id);
 
-            match interner.lookup_trait_implementation(
+            match interner.try_lookup_trait_implementation(
                 &object_type,
                 method_id.trait_id,
                 &trait_generics.ordered,
                 &trait_generics.named,
+                TraitLookupMode::Default,
             ) {
-                Ok((TraitImplKind::Normal(impl_id), instantiation_bindings)) => {
+                Ok((TraitImplKind::Normal(impl_id), bindings, instantiation_bindings)) => {
+                    let guard = BoundTypeVariables::apply(&bindings);
+
                     // The extra bindings come from impl lookup, similar to what's done when
                     // solving trait constraints in the frontend (see `check_trait_constraints`).
                     record_impl_instantiation_bindings(
@@ -3430,12 +3444,12 @@ fn resolve_trait_item_impl(
                         expr_id,
                         instantiation_bindings,
                     );
-                    Ok(impl_id)
+                    Ok((impl_id, guard))
                 }
-                Ok((TraitImplKind::Assumed { .. }, _instantiation_bindings)) => {
+                Ok((TraitImplKind::Assumed { .. }, ..)) => {
                     Err(InterpreterError::NoImpl { location })
                 }
-                Ok((TraitImplKind::Prepared { .. }, _)) => {
+                Ok((TraitImplKind::Prepared { .. }, ..)) => {
                     unreachable!(
                         "ICE: Prepared trait impl should have been replaced by a Normal one"
                     )
@@ -3618,8 +3632,8 @@ pub(crate) fn resolve_trait_item(
     interner: &mut NodeInterner,
     method_id: TraitItemId,
     expr_id: ExprId,
-) -> Result<TraitItem, InterpreterError> {
-    let impl_id = resolve_trait_item_impl(interner, method_id, expr_id)?;
+) -> Result<(TraitItem, BoundTypeVariables), InterpreterError> {
+    let (impl_id, impl_search_bindings) = resolve_trait_item_impl(interner, method_id, expr_id)?;
 
     let name = interner.definition_name(method_id.item_id);
     let impl_ = interner.get_trait_implementation(impl_id);
@@ -3627,7 +3641,7 @@ pub(crate) fn resolve_trait_item(
 
     for method in &impl_.methods {
         if interner.function_name(method) == name {
-            return Ok(TraitItem::Method(*method));
+            return Ok((TraitItem::Method(*method), impl_search_bindings));
         }
     }
 
@@ -3647,7 +3661,10 @@ pub(crate) fn resolve_trait_item(
                     item.typ.clone()
                 };
 
-                return Ok(TraitItem::Constant { id, expected_type, value });
+                return Ok((
+                    TraitItem::Constant { id, expected_type, value },
+                    impl_search_bindings,
+                ));
             }
         }
     }

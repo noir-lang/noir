@@ -892,7 +892,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         id: ExprId,
     ) -> Result<crate::monomorphization::TraitItem, InterpreterError> {
         self.elaborator.resolve_trait_method_metas_for(item.trait_id);
-        resolve_trait_item(self.elaborator.interner, item, id)
+        let (item, impl_search_bindings) = resolve_trait_item(self.elaborator.interner, item, id)?;
+        // The interpreter runs during elaboration, where solving a trait constraint is supposed
+        // to commit the inference variables it resolved — the same thing `check_trait_constraints`
+        // does for a constraint solved by the type checker.
+        impl_search_bindings.commit();
+        Ok(item)
     }
 
     fn evaluate_trait_item(&mut self, item: TraitItemId, id: ExprId) -> IResult<Value> {
