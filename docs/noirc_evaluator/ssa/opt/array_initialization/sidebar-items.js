@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"constant":["MIN_COLLAPSE_WORK"],"fn":["array_initialization_post_check","array_initialization_pre_check","chain_ending_at","collapsed_array","collapsible_chains","collect_links","count_uses"],"struct":["Collapse","Link"]};
