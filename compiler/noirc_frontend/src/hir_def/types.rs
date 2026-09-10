@@ -27,6 +27,7 @@ use crate::shared::Signedness;
 use crate::{ast::Ident, node_interner::TypeId};
 
 use super::traits::NamedType;
+use super::type_variable_writes;
 
 mod arithmetic;
 pub(crate) mod recursion;
@@ -1054,6 +1055,7 @@ impl TypeVariable {
         };
 
         assert!(!typ.occurs(id), "{self:?} occurs within {typ:?}");
+        type_variable_writes::record(self);
         *self.1.borrow_mut() = TypeBinding::Bound(typ);
     }
 
@@ -1081,6 +1083,7 @@ impl TypeVariable {
         if binding.occurs(id) {
             Err(TypeCheckError::CyclicType { location, typ: binding })
         } else {
+            type_variable_writes::record(self);
             *self.1.borrow_mut() = TypeBinding::Bound(binding);
             Ok(())
         }
@@ -1105,11 +1108,13 @@ impl TypeVariable {
         if typ.occurs(self.id()) {
             return None;
         }
+        type_variable_writes::record(self);
         Some(std::mem::replace(&mut *self.1.borrow_mut(), TypeBinding::Bound(typ)))
     }
 
     /// Put back contents previously taken by [`Self::replace`].
     fn restore(&self, previous: TypeBinding) {
+        type_variable_writes::record(self);
         *self.1.borrow_mut() = previous;
     }
 

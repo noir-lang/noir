@@ -1386,7 +1386,9 @@ pub mod test_utils {
         output: Rc<RefCell<W>>,
     ) -> Result<crate::monomorphization::ast::Expression, ElaboratorError> {
         use crate::elaborator::ElaboratorOptions;
-        use crate::monomorphization::{Monomorphizer, debug_types::DebugTypeTracker};
+        use crate::monomorphization::{
+            Monomorphizer, debug_types::DebugTypeTracker, purity::PurityCheck,
+        };
         use crate::parse_program;
         use crate::{
             elaborator::Elaborator,
@@ -1482,6 +1484,10 @@ pub mod test_utils {
                 .map_err(ElaboratorError::HIRConvert),
         })?;
 
+        // Driving a `Monomorphizer` directly bypasses `monomorphize`, so open the check here as
+        // well: this is the one other place the monomorphiser runs, and leaving it unwatched is
+        // how the next leak would go unnoticed.
+        let check = PurityCheck::begin(elaborator.interner);
         let mut monomorphizer = Monomorphizer::new(
             elaborator.interner,
             elaborator.files,
@@ -1489,6 +1495,9 @@ pub mod test_utils {
             None,
             false,
         );
-        Ok(monomorphizer.expr(expr_id).expect("monomorphization error while converting interpreter execution result, should not be possible"))
+        let expr = monomorphizer.expr(expr_id).expect("monomorphization error while converting interpreter execution result, should not be possible");
+        drop(monomorphizer);
+        check.assert_context_unchanged(elaborator.interner);
+        Ok(expr)
     }
 }
