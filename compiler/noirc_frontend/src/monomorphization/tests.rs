@@ -1,7 +1,11 @@
 #![cfg(test)]
+use noirc_errors::Location;
+
 use crate::{
     elaborator::UnstableFeature,
-    monomorphization::errors::MonomorphizationError,
+    hir::comptime::Integer,
+    hir_def::types::{BinaryTypeOperator, Kind, Type, TypeVariable, TypeVariableId},
+    monomorphization::{Monomorphizer, errors::MonomorphizationError},
     test_utils::{
         GetProgramOptions, get_monomorphized, get_monomorphized_with_options,
         get_monomorphized_with_stdlib, stdlib_src,
@@ -117,6 +121,58 @@ fn numeric_generic_checked_cast_in_instantiation_bindings() {
     }
     "#;
     assert!(get_monomorphized(src).is_ok());
+}
+
+fn unbound_u32_variable(id: usize) -> TypeVariable {
+    TypeVariable::unbound(TypeVariableId(id), Kind::Numeric(Box::new(Type::u32())))
+}
+
+/// Check the cast `from -> to`, asserting that it is accepted and that `variable`, which one of
+/// the two sides mentions, is still unbound afterwards.
+///
+/// `check_checked_cast` validates a cast that is already part of the elaborated program, and the
+/// type variables it meets are shared with that program: a binding it left behind would outlive
+/// monomorphization and be seen by every later compilation against the same context. The cast
+/// must still be accepted, which requires both sides to be evaluated under the bindings that
+/// unifying them found.
+fn assert_checked_cast_accepted_without_binding(from: &Type, to: &Type, variable: &TypeVariable) {
+    let result = Monomorphizer::check_checked_cast(from, to, Location::dummy());
+    assert!(result.is_ok(), "checking `{from} -> {to}` failed: {result:?}");
+    assert!(
+        variable.borrow().is_unbound(),
+        "checking `{from} -> {to}` left type variable {} as {:?}",
+        variable.id().0,
+        *variable.borrow()
+    );
+}
+
+#[test]
+fn check_checked_cast_does_not_bind_a_variable_in_its_source() {
+    let variable = unbound_u32_variable(0);
+    let from = Type::TypeVariable(variable.clone());
+    let to = Type::Constant(Integer::U32(1));
+    assert_checked_cast_accepted_without_binding(&from, &to, &variable);
+}
+
+#[test]
+fn check_checked_cast_does_not_bind_a_variable_in_its_destination() {
+    let variable = unbound_u32_variable(1);
+    let from = Type::Constant(Integer::U32(1));
+    let to = Type::TypeVariable(variable.clone());
+    assert_checked_cast_accepted_without_binding(&from, &to, &variable);
+}
+
+#[test]
+fn check_checked_cast_does_not_bind_a_variable_inside_arithmetic() {
+    let variable = unbound_u32_variable(2);
+    let from = Type::InfixExpr(
+        Box::new(Type::TypeVariable(variable.clone())),
+        BinaryTypeOperator::Addition,
+        Box::new(Type::Constant(Integer::U32(1))),
+        false,
+    );
+    let to = Type::Constant(Integer::U32(3));
+    assert_checked_cast_accepted_without_binding(&from, &to, &variable);
 }
 
 #[test]
