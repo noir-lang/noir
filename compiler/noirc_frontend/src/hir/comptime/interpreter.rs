@@ -173,6 +173,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         self.elaborator.push_interpreter_call_stack(location)?;
 
+        let depth = self.bound_generics_depth();
         self.unbind_generics_from_previous_function();
         perform_instantiation_bindings(&instantiation_bindings);
 
@@ -184,6 +185,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     self.elaborator.pop_interpreter_call_stack();
                     undo_instantiation_bindings(instantiation_bindings);
                     self.rebind_generics_from_previous_function();
+                    debug_assert_eq!(self.bound_generics_depth(), depth);
                     return Err(error);
                 }
             };
@@ -200,6 +202,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         undo_instantiation_bindings(impl_bindings);
         undo_instantiation_bindings(instantiation_bindings);
         self.rebind_generics_from_previous_function();
+        debug_assert_eq!(self.bound_generics_depth(), depth);
         result
     }
 
@@ -372,6 +375,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let old_module = self.elaborator.replace_module(closure.module_scope);
         let old_function = std::mem::replace(&mut self.current_function, closure.function_scope);
 
+        let depth = self.bound_generics_depth();
         self.unbind_generics_from_previous_function();
         perform_bindings(&closure.bindings);
 
@@ -383,6 +387,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         undo_bindings(&closure.bindings);
         self.rebind_generics_from_previous_function();
+        debug_assert_eq!(self.bound_generics_depth(), depth);
 
         self.current_function = old_function;
         self.elaborator.restore_module(old_module);
@@ -477,6 +482,17 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn current_scope_mut(&mut self) -> &mut HashMap<DefinitionId, Value> {
         // the global scope is always at index zero, so this is always Some
         self.elaborator.interner.comptime_scopes.last_mut().unwrap()
+    }
+
+    /// How deep the interpreter is in nested calls, as far as generic bindings are concerned.
+    ///
+    /// A call takes the frame below out of force on the way in and puts it back on the way out,
+    /// so a call that returned without doing the second half would leave its caller's generics
+    /// unbound for the rest of the evaluation — every `Self` and `T` in the caller resolving to
+    /// nothing. The two halves are far apart and there are early returns between them, so it is
+    /// worth asserting rather than reading.
+    fn bound_generics_depth(&self) -> usize {
+        self.bound_generics.len()
     }
 
     /// Unbinds all of the generics at the top of `self.bound_generics`, then push
