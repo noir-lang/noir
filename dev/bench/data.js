@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789055460011,
+  "lastUpdate": 1789055532401,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -13045,48 +13045,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "b2d9352a124752c7724a0091659a4d8514fb10bf",
-          "message": "feat: version ABI and artifact schemas (#13572)",
-          "timestamp": "2026-09-01T10:56:16Z",
-          "tree_id": "b6d80d415866ab6aff49b01fdae3e6939544ba06",
-          "url": "https://github.com/noir-lang/noir/commit/b2d9352a124752c7724a0091659a4d8514fb10bf"
-        },
-        "date": 1788261699277,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 168831,
-            "range": "± 2364",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 136609,
-            "range": "± 601",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2652960,
-            "range": "± 2871",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "786bd471a1be0eef3ca382db26dcee5043e0eadf",
           "message": "chore: better way to ignore debugger tests (#13574)",
@@ -15129,6 +15087,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2356430,
             "range": "± 1280",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "e40b371879fb74e93b461279036b02891cc96d0b",
+          "message": "chore(frontend): make raw type variable writes private to their module (#13640)",
+          "timestamp": "2026-09-10T15:28:46Z",
+          "tree_id": "016cdf73f22641d2639418eea5013757bda9bc0a",
+          "url": "https://github.com/noir-lang/noir/commit/e40b371879fb74e93b461279036b02891cc96d0b"
+        },
+        "date": 1789055443300,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 127551,
+            "range": "± 369",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 113752,
+            "range": "± 2176",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3043038,
+            "range": "± 4522",
             "unit": "ns/iter"
           }
         ]
