@@ -17,18 +17,14 @@ pub fn read_inputs_from_file(
     use CliError::FilesystemError;
 
     let has_params = !abi.parameters.is_empty();
-    let has_return = abi.return_type.is_some();
     let has_file = file_path.exists();
 
-    if !has_params && !has_return {
-        return Ok((BTreeMap::new(), None));
-    }
     if !has_params && !has_file {
         // Reading a return value from the `Prover.toml` is optional,
         // so if the ABI has no parameters we can skip reading the file if it doesn't exist.
         return Ok((BTreeMap::new(), None));
     }
-    if has_params && !has_file {
+    if !has_file {
         return Err(FilesystemError(MissingInputFile(file_path.to_path_buf())));
     }
 
@@ -94,4 +90,42 @@ fn format_from_file_path(file_path: &Path) -> Result<Format, CliError> {
     };
 
     Ok(format)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::read_inputs_from_file;
+
+    use crate::errors::CliError;
+    use noirc_abi::{Abi, errors::InputParserError};
+    use std::{
+        fs,
+        path::PathBuf,
+        time::{SystemTime, UNIX_EPOCH},
+    };
+
+    fn temp_input_path() -> PathBuf {
+        let suffix = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system time should be after unix epoch")
+            .as_nanos();
+        std::env::temp_dir().join(format!("noir-artifact-cli-inputs-test-{suffix}.toml"))
+    }
+
+    #[test]
+    fn rejects_unexpected_keys_in_existing_file_for_empty_abi() {
+        let path = temp_input_path();
+        fs::write(&path, "extra = \"1\"").unwrap();
+
+        let abi =
+            Abi { parameters: Vec::new(), return_type: None, error_types: Default::default() };
+        let err = read_inputs_from_file(&path, &abi).unwrap_err();
+        fs::remove_file(path).unwrap();
+
+        assert!(matches!(
+            err,
+            CliError::InputDeserializationError(InputParserError::UnexpectedArguments(keys))
+                if keys == vec!["extra".to_string()]
+        ));
+    }
 }
