@@ -69,6 +69,18 @@ pub fn change_all_functions_into_unconstrained(mut program: Program) -> Program 
         }
         // Modify the function.
         f.unconstrained = true;
+        // `#[fold]` and `#[no_predicates]` mean something different, or nothing at all,
+        // once the function is unconstrained, and the SSA derives a function's runtime
+        // from its inline type: a `Brillig(Fold)` function counts as an entry point for
+        // `remove_unreachable_functions` but not for the Brillig entry point analysis,
+        // so a dead one survives into `to_brillig` with no global allocation. This is
+        // the same normalization `Monomorphizer::function` applies under
+        // `force_unconstrained`.
+        f.inline_type = f.inline_type.into_unconstrained();
+        // Only a constrained function is compiled into its own ACIR circuit, so an
+        // unconstrained one is an entry point only if it is `main`. This mirrors the
+        // `force_unconstrained` arm of `Monomorphizer::into_program`.
+        f.is_entry_point = f.id == Program::main_id();
         // Modify any function pointers it takes.
         for (_, _, _, typ, _) in &mut f.parameters {
             types::unref_mut_rc(typ, |unref_mut_typ| {

@@ -230,9 +230,12 @@ mod tests {
         let scope1 = &stack.0[1];
 
         assert_eq!(scope0.variable_ids().len(), 1);
-        assert_eq!(scope0.types_produced().len(), 5 + 2); // What we see plus upcasts from u32 to u64 and u128
+        // What we see (the tuple, `Field`, `bool`, `[u32; 4]` and `u32`), plus upcasts from
+        // u32 to u64 and u128, plus the `[u32]` the array converts into.
+        assert_eq!(scope0.types_produced().len(), 5 + 2 + 1);
         assert_eq!(scope1.variable_ids().len(), 2);
-        assert_eq!(scope1.types_produced().len(), 5 + 2 + 1);
+        // The above plus `str<10>` and the `[u8; 10]` it converts into.
+        assert_eq!(scope1.types_produced().len(), 5 + 2 + 1 + 2);
 
         stack.exit();
         assert_eq!(stack.0.len(), 1);
