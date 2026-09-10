@@ -1089,6 +1089,14 @@ impl TypeVariable {
         }
     }
 
+    /// Whether `other` is a handle on the same binding as this one, so that writing through
+    /// either is visible through both.
+    ///
+    /// Compares the allocation rather than the contents, which `PartialEq` does.
+    pub(crate) fn shares_binding_with(&self, other: &TypeVariable) -> bool {
+        self.1.as_ptr() == other.1.as_ptr()
+    }
+
     /// Borrows this `TypeVariable` to (e.g.) manually match on the inner `TypeBinding`.
     pub fn borrow(&self) -> std::cell::Ref<TypeBinding> {
         self.1.borrow()

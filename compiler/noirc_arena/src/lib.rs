@@ -72,6 +72,14 @@ impl<T> Arena<T> {
         self.vec.get_mut(index.0)
     }
 
+    pub fn len(&self) -> usize {
+        self.vec.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.vec.is_empty()
+    }
+
     pub fn iter(&self) -> impl Iterator<Item = (Index, &T)> {
         self.vec.iter().enumerate().map(|(index, item)| (Index(index), item))
     }

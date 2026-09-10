@@ -44,7 +44,17 @@ pub(super) fn record(var: &TypeVariable) {
         let Some(frame) = frames.last_mut() else {
             return;
         };
-        frame.entry(var.id()).or_insert_with(|| (var.clone(), var.borrow().clone()));
+
+        let entry = frame.entry(var.id()).or_insert_with(|| (var.clone(), var.borrow().clone()));
+
+        // A frame is keyed by id, so an id has to name one cell. If two variables shared an id
+        // and not a cell, this would compare the second one's writes against the first one's
+        // contents and report a difference nobody made — or miss one somebody did.
+        debug_assert!(
+            entry.0.shares_binding_with(var),
+            "two type variables share id {} but not their binding",
+            var.id().0
+        );
     });
 }
 
@@ -266,5 +276,15 @@ mod tests {
         let check = begin();
         assert_eq!(recorded_cells(), 0, "a write made with no check open was recorded");
         drop(finish(check));
+    }
+
+    /// The frames are keyed by variable id, so the check leans on an id naming one cell. A clone
+    /// of a variable is a second handle on the same cell; a variable made separately is not.
+    #[test]
+    fn a_clone_shares_its_binding_and_a_fresh_variable_does_not() {
+        let var = unbound_variable(7);
+
+        assert!(var.shares_binding_with(&var.clone()));
+        assert!(!var.shares_binding_with(&unbound_variable(7)));
     }
 }
