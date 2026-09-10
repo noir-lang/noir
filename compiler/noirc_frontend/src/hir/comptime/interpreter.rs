@@ -49,11 +49,8 @@ use crate::hir::Context;
 use crate::hir::comptime::Integer;
 use crate::hir::comptime::value::FormatStringFragment;
 use crate::hir::def_map::ModuleId;
-use crate::hir_def::types::resolve_type_bindings;
-use crate::monomorphization::{
-    perform_impl_bindings, perform_instantiation_bindings, resolve_trait_item,
-    undo_instantiation_bindings,
-};
+use crate::hir_def::types::{BoundTypeVariables, resolve_type_bindings};
+use crate::monomorphization::{compute_impl_bindings, resolve_trait_item};
 use crate::node_interner::GlobalValue;
 use crate::shared::{Builtin, ForeignCall, Signedness};
 use crate::token::{FmtStrFragment, Tokens};
@@ -175,20 +172,21 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         let depth = self.bound_generics_depth();
         self.unbind_generics_from_previous_function();
-        perform_instantiation_bindings(&instantiation_bindings);
+        let instantiation_guard = BoundTypeVariables::apply(&instantiation_bindings);
 
         let impl_bindings =
-            match perform_impl_bindings(self.elaborator.interner, trait_method, function, location)
+            match compute_impl_bindings(self.elaborator.interner, trait_method, function, location)
             {
                 Ok(impl_bindings) => impl_bindings,
                 Err(error) => {
                     self.elaborator.pop_interpreter_call_stack();
-                    undo_instantiation_bindings(instantiation_bindings);
+                    drop(instantiation_guard);
                     self.rebind_generics_from_previous_function();
                     debug_assert_eq!(self.bound_generics_depth(), depth);
                     return Err(error);
                 }
             };
+        let impl_guard = BoundTypeVariables::apply(&impl_bindings);
 
         self.remember_function_bindings(&instantiation_bindings, &impl_bindings);
 
@@ -199,8 +197,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let result = self.call_function_inner(function, arguments, location);
 
         self.elaborator.pop_interpreter_call_stack();
-        undo_instantiation_bindings(impl_bindings);
-        undo_instantiation_bindings(instantiation_bindings);
+        drop(impl_guard);
+        drop(instantiation_guard);
         self.rebind_generics_from_previous_function();
         debug_assert_eq!(self.bound_generics_depth(), depth);
         result

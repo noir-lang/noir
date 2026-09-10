@@ -1104,6 +1104,28 @@ impl TypeVariable {
         }
     }
 
+    /// Bind this type variable to `typ`, returning the contents that were replaced so that
+    /// they can later be handed back to [`Self::restore`].
+    ///
+    /// Returns `None` when the occurs check rejects `typ` and nothing was written, so that a
+    /// caller recording an undo log records an entry exactly when a write happened.
+    ///
+    /// Private to this module, which is the whole point: a `TypeVariable`'s binding is shared
+    /// with every `Type` that mentions it, so an unrestored write is visible to the whole
+    /// program. The guards defined below are the only way the rest of the compiler can write a
+    /// binding it means to take back, and each says in its name how long the write lasts.
+    fn replace(&self, typ: Type) -> Option<TypeBinding> {
+        if typ.occurs(self.id()) {
+            return None;
+        }
+        Some(std::mem::replace(&mut *self.1.borrow_mut(), TypeBinding::Bound(typ)))
+    }
+
+    /// Put back contents previously taken by [`Self::replace`].
+    fn restore(&self, previous: TypeBinding) {
+        *self.1.borrow_mut() = previous;
+    }
+
     pub fn kind(&self) -> Kind {
         match &*self.borrow() {
             TypeBinding::Bound(binding) => binding.kind(),
@@ -1216,6 +1238,61 @@ impl TypeBinding {
 /// A unique ID used to differentiate different type variables
 #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct TypeVariableId(pub usize);
+
+/// A set of type variable bindings applied to the shared HIR, undone when this guard is dropped.
+///
+/// A `TypeVariable` holds its binding in an `Rc<RefCell<_>>` shared with every `Type` that
+/// mentions it, including the types held by the `NodeInterner`. Binding one is therefore a
+/// mutation of the elaborated program that a shared reference to the interner does nothing to
+/// prevent, and a binding left behind is visible to every later compilation against that same
+/// interner.
+///
+/// This guard restores the contents each cell held before it was written, rather than reverting
+/// to `Unbound`, so a variable that some outer scope had already bound is put back the way it
+/// was. Bindings are undone in reverse order, matching the order guards in the same scope are
+/// dropped in, so nesting guards is correct without any bookkeeping at the call site.
+///
+/// Note that `let _ = BoundTypeVariables::apply(..)` drops the guard immediately and so undoes
+/// the bindings before the following statement runs. Bind it to a named local (`let _guard = ..`)
+/// to hold the bindings for the rest of the scope.
+#[must_use = "dropping this guard immediately undoes the bindings it applied"]
+pub struct BoundTypeVariables {
+    /// Each cell written, paired with the contents it held beforehand, in the order written.
+    saved: Vec<(TypeVariable, TypeBinding)>,
+}
+
+impl BoundTypeVariables {
+    /// Apply every binding in `bindings` to the shared HIR.
+    pub fn apply(bindings: &TypeBindings) -> Self {
+        let saved = bindings
+            .values()
+            .filter_map(|(var, _kind, binding)| {
+                var.replace(binding.clone()).map(|previous| (var.clone(), previous))
+            })
+            .collect();
+        Self { saved }
+    }
+
+    /// Bind a single type variable to `typ`.
+    pub fn bind(var: &TypeVariable, typ: Type) -> Self {
+        let saved = var.replace(typ).map(|previous| (var.clone(), previous));
+        Self { saved: saved.into_iter().collect() }
+    }
+
+    /// A guard holding no bindings, for the branches of a call site where there is nothing to
+    /// bind but the guard still has to be held to the end of the scope.
+    pub fn none() -> Self {
+        Self { saved: Vec::new() }
+    }
+}
+
+impl Drop for BoundTypeVariables {
+    fn drop(&mut self) {
+        for (var, previous) in self.saved.drain(..).rev() {
+            var.restore(previous);
+        }
+    }
+}
 
 impl std::fmt::Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

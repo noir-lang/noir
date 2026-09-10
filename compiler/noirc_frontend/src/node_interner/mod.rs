@@ -1004,12 +1004,37 @@ impl NodeInterner {
         self.instantiation_bindings.insert(expr_id, instantiation_bindings);
     }
 
+    /// Put back the [`TypeBindings`] an expression held before they were overwritten, removing
+    /// the entry entirely when the expression had none. `previous` is what
+    /// [`Self::try_get_instantiation_bindings`] returned beforehand.
+    pub fn restore_instantiation_bindings(
+        &mut self,
+        expr_id: ExprId,
+        previous: Option<TypeBindings>,
+    ) {
+        match previous {
+            Some(bindings) => {
+                self.instantiation_bindings.insert(expr_id, bindings);
+            }
+            None => {
+                self.instantiation_bindings.remove(&expr_id);
+            }
+        }
+    }
+
     pub fn get_instantiation_bindings(&self, expr_id: ExprId) -> &TypeBindings {
         &self.instantiation_bindings[&expr_id]
     }
 
     pub fn try_get_instantiation_bindings(&self, expr_id: ExprId) -> Option<&TypeBindings> {
         self.instantiation_bindings.get(&expr_id)
+    }
+
+    /// Every expression that has instantiation bindings stored against it, paired with them.
+    pub fn all_instantiation_bindings(
+        &self,
+    ) -> impl Iterator<Item = (ExprId, &TypeBindings)> + use<'_> {
+        self.instantiation_bindings.iter().map(|(expr_id, bindings)| (*expr_id, bindings))
     }
 
     pub fn get_field_index(&self, expr_id: ExprId) -> usize {
