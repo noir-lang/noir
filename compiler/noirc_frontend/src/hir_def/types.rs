@@ -1040,7 +1040,12 @@ impl TypeVariable {
     /// Panics if this `TypeVariable` is already Bound.
     /// Also Panics if the ID of this `TypeVariable` occurs within the given
     /// binding, as that would cause an infinitely recursive type.
-    pub fn bind(&self, typ: Type) {
+    ///
+    /// This is type checking's binding: it commits, and it refuses to overwrite a binding that is
+    /// already there, which is what makes it unable to produce the kind of write a later pass has
+    /// to undo. A pass that does need to bind over an existing binding goes through
+    /// [`BoundTypeVariables`] or [`BoundGenerics`], which are the only other way in.
+    pub(crate) fn bind(&self, typ: Type) {
         let id = match &*self.1.borrow() {
             TypeBinding::Bound(binding) => {
                 unreachable!("TypeVariable::bind, cannot bind bound var {} to {}", binding, typ)
@@ -1052,7 +1057,7 @@ impl TypeVariable {
         *self.1.borrow_mut() = TypeBinding::Bound(typ);
     }
 
-    pub fn try_bind(
+    pub(crate) fn try_bind(
         &self,
         binding: Type,
         kind: &Kind,
@@ -1084,24 +1089,6 @@ impl TypeVariable {
     /// Borrows this `TypeVariable` to (e.g.) manually match on the inner `TypeBinding`.
     pub fn borrow(&self) -> std::cell::Ref<TypeBinding> {
         self.1.borrow()
-    }
-
-    /// Unbind this type variable, setting it to Unbound(id).
-    ///
-    /// This is generally a logic error to use outside of monomorphization.
-    pub fn unbind(&self, id: TypeVariableId, type_var_kind: Kind) {
-        *self.1.borrow_mut() = TypeBinding::Unbound(id, type_var_kind);
-    }
-
-    /// Forcibly bind a type variable to a new type - even if the type
-    /// variable is already bound to a different type. This generally
-    /// a logic error to use outside of monomorphization.
-    ///
-    /// Asserts that the given type is compatible with the given Kind
-    pub fn force_bind(&self, typ: Type) {
-        if !typ.occurs(self.id()) {
-            *self.1.borrow_mut() = TypeBinding::Bound(typ);
-        }
     }
 
     /// Bind this type variable to `typ`, returning the contents that were replaced so that
@@ -1255,6 +1242,7 @@ pub struct TypeVariableId(pub usize);
 /// Note that `let _ = BoundTypeVariables::apply(..)` drops the guard immediately and so undoes
 /// the bindings before the following statement runs. Bind it to a named local (`let _guard = ..`)
 /// to hold the bindings for the rest of the scope.
+#[derive(Debug)]
 #[must_use = "dropping this guard immediately undoes the bindings it applied"]
 pub struct BoundTypeVariables {
     /// Each cell written, paired with the contents it held beforehand, in the order written.
@@ -1290,6 +1278,61 @@ impl Drop for BoundTypeVariables {
     fn drop(&mut self) {
         for (var, previous) in self.saved.drain(..).rev() {
             var.restore(previous);
+        }
+    }
+}
+
+/// Type variable bindings that are applied and taken back at points that are not a scope.
+///
+/// The comptime interpreter binds a function's generics for the length of a call, and a nested
+/// call to the same generic function binds those same variables to its own instantiation — so it
+/// keeps a stack of these and takes the frame below out of force while an inner one is live. It
+/// also copies the set in force into every closure it builds, because a closure called later has
+/// to reinstate the bindings it was created under.
+///
+/// [`BoundTypeVariables`] is the right thing wherever the bindings last exactly as long as a
+/// scope: it restores what it overwrote when it is dropped, so nothing has to be paired up by
+/// hand. That does not fit here. A set copied into a closure is applied somewhere unrelated to
+/// where it was built, and there is no earlier state to go back to, so [`Self::remove`] returns
+/// each variable to unbound. Sound only because whatever else had those variables bound was taken
+/// out of force first, which is what the interpreter's stack is for.
+///
+/// The two of them exist so that the writes themselves stay private to this module: a caller
+/// picks between a guard that undoes itself and a set that says in its name it is the interpreter
+/// call-frame one, rather than reaching for a bare setter.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct BoundGenerics {
+    bindings: HashMap<TypeVariable, (Type, Kind)>,
+}
+
+impl BoundGenerics {
+    /// Record `var` as bound to `typ`, resolved through whatever bindings are in force now.
+    ///
+    /// Recording does not apply the binding. The interpreter applies a call's bindings through a
+    /// [`BoundTypeVariables`] guard and records them here as well, so that a nested call can take
+    /// them out of force and put them back.
+    pub(crate) fn remember(&mut self, var: &TypeVariable, typ: &Type, kind: &Kind) {
+        self.bindings.insert(var.clone(), (typ.follow_bindings(), kind.clone()));
+    }
+
+    /// Record everything `other` holds, each resolved through the bindings in force now.
+    pub(crate) fn remember_all(&mut self, other: &BoundGenerics) {
+        for (var, (typ, kind)) in &other.bindings {
+            self.remember(var, typ, kind);
+        }
+    }
+
+    /// Put every binding in this set into force.
+    pub(crate) fn apply(&self) {
+        for (var, (typ, _kind)) in &self.bindings {
+            var.replace(typ.clone());
+        }
+    }
+
+    /// Take every binding in this set out of force, returning each variable to unbound.
+    pub(crate) fn remove(&self) {
+        for (var, (_typ, kind)) in &self.bindings {
+            var.restore(TypeBinding::Unbound(var.id(), kind.clone()));
         }
     }
 }
@@ -2597,6 +2640,11 @@ impl Type {
 
     /// Apply the given type bindings, making them permanently visible for each
     /// clone of each type variable bound.
+    ///
+    /// Permanently is the operative word: this is for type checking, where solving a constraint
+    /// commits the inference variables it resolved and the elaborated program is meant to carry
+    /// that. A pass reading an already-elaborated program wants [`BoundTypeVariables`] instead, so
+    /// that the bindings last only as long as it needs them.
     pub fn apply_type_bindings(bindings: TypeBindings) {
         for (type_variable, _kind, binding) in bindings.into_values() {
             type_variable.bind(binding);
