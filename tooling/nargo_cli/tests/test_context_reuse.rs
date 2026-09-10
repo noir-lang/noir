@@ -1,13 +1,13 @@
 //! Integration tests for `nargo test` sharing one elaborated `Context` between the tests a worker
 //! thread runs.
 //!
-//! Sharing is only sound while every test leaves the context as it found it, and monomorphization
-//! does not: it force-binds type variables that live in the shared `NodeInterner` and unbinds them
-//! only after walking the function it is compiling all the way through. A test whose compilation
-//! fails therefore hands on a context with generics still bound to its own instantiation.
+//! Sharing is only sound while every test leaves the context as it found it. Monomorphization is
+//! what compiling a test writes to a shared `NodeInterner` through, and it restores those writes
+//! on every path out; `noirc_frontend::monomorphization::context_purity_tests` asserts that at
+//! the level of the interner, against a monomorphizer called directly.
 //!
-//! The invariant asserted here is the one that has to hold whatever the compiler does internally:
-//! a test's result must not depend on which tests ran before it on the same thread. Each case
+//! Asserted here is the property the runner actually depends on, through the runner itself: a
+//! test's result must not depend on which tests ran before it on the same thread. Each case
 //! compares a whole suite run on a single thread against the same tests run one process at a time.
 
 use std::collections::BTreeMap;
@@ -20,9 +20,10 @@ use assert_fs::prelude::{FileWriteStr, PathChild};
 
 /// `a_transmute_mismatch` fails inside the generic `transmute_pair`, so the failure is raised part
 /// way through monomorphizing it, while `transmute_pair`'s generics are bound to that call's
-/// instantiation. `#[test(should_fail)]` with no expected message reports the failure as a pass,
-/// which is what makes this shape worth pinning: the suite is all green either way, so a
-/// difference can only be seen by comparing against the isolated runs.
+/// instantiation — the shape where the bindings a compilation made have furthest to travel to be
+/// restored. `#[test(should_fail)]` with no expected message reports the failure as a pass, which
+/// is what makes this worth pinning through the runner: the suite is all green whatever the
+/// context carries between tests, so a difference is only visible against the isolated runs.
 const COMPILE_FAILURE_BETWEEN_TESTS: &str = r#"
 fn main() {}
 
@@ -60,8 +61,8 @@ fn e_transmute_field_again() {
 "#;
 
 /// A suite whose tests only differ in which impl of a trait they drive. Monomorphizing a call site
-/// writes the instantiation bindings it worked out back into the interner, so the second test
-/// reaches a call site that the first has already written to.
+/// rewrites the instantiation bindings the interner holds for it, so each test after the first
+/// reaches a call site an earlier one has already written to and restored.
 const SHARED_TRAIT_CALL_SITE: &str = r#"
 fn main() {}
 

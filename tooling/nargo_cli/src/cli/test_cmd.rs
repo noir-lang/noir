@@ -24,7 +24,7 @@ use nargo::{
     errors::CompileError,
     foreign_calls::{DefaultForeignCallBuilder, OracleResolverUrl},
     insert_all_files_for_workspace_into_file_manager,
-    ops::{ContextState, FuzzConfig, TestStatus, report_errors},
+    ops::{FuzzConfig, TestStatus, report_errors},
     package::Package,
     parse_all, prepare_package,
     workspace::Workspace,
@@ -212,16 +212,28 @@ struct Test<'a> {
 /// produces the same result for every test in that package, so a worker holds onto the context it
 /// built and reuses it for the next test from the same package.
 ///
-/// A context is kept only while the tests compiled against it report [`ContextState::Clean`], which
-/// covers the ways a compilation is known to leave the interner mutated. It does not cover
-/// monomorphization's writes on the success path — `record_impl_instantiation_bindings` merges each
-/// call site's instantiation bindings into whatever the interner already holds for that call site —
-/// so a context does drift from its elaborated state as it compiles more tests, with nothing
-/// reporting that drift. `--no-context-reuse` is the way to rule that out for a given run.
+/// Reuse rests on monomorphization leaving the context exactly as it found it, which the frontend
+/// guarantees and asserts in `noirc_frontend::monomorphization::context_purity_tests`: the type
+/// variables it binds and the instantiation bindings it rewrites are restored on every path out,
+/// success or error. A context is dropped when a test unwinds, which escapes those restores, and
+/// `--no-context-reuse` turns sharing off for a whole run.
 struct CachedContext<'a> {
     package: &'a Package,
     context: Context<'a, 'a>,
     crate_id: CrateId,
+}
+
+/// Whether a test left the context it compiled against fit for the next test to compile against.
+///
+/// Whether the test passed does not decide this, and neither does whether it compiled:
+/// monomorphization restores the bindings it made on every path out, so a compilation that failed
+/// leaves the context no worse off than one that succeeded. What is [`Self::Spent`] is the
+/// `--force-comptime` and `--coverage` path, which runs the comptime interpreter over the context
+/// instead of monomorphizing, and hands the context's evaluation tracker to the coverage report.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ContextState {
+    Clean,
+    Spent,
 }
 
 pub(crate) struct TestResult {
@@ -379,9 +391,9 @@ impl<'a> TestRunner<'a> {
 
             let time_before_test = std::time::Instant::now();
 
-            // A skipped test compiles nothing, so it needs no context and dirties none. Checking
-            // before the context is built keeps `--only-fuzz`, `--no-fuzz` and `--force-comptime`
-            // from elaborating a package they then never touch.
+            // A skipped test compiles nothing, so it needs no context. Checking before the
+            // context is built keeps `--only-fuzz`, `--no-fuzz` and `--force-comptime` from
+            // elaborating a package they then never touch.
             let (status, output, test_coverage) = if self.is_filtered_out(&test) {
                 (TestStatus::Skipped, String::new(), None)
             } else {
@@ -393,11 +405,8 @@ impl<'a> TestRunner<'a> {
                 });
                 let unwound = catch_unwind(run);
 
-                // Only a test that both finished and left the context fit to compile against may
-                // hand it on. A test that unwound may have left type variables bound or the
-                // interner half-updated; a test whose compilation failed definitely has, and that
-                // case does not show up in the status, since `#[test(should_fail)]` reports a pass
-                // when compilation fails.
+                // Monomorphization's restores are unwound past rather than run by a panic, so a
+                // test that did not finish gives up its context however far it got.
                 let reusable = matches!(unwound, Ok((_, _, _, ContextState::Clean)))
                     && !self.args.no_context_reuse;
                 if !reusable {
@@ -802,23 +811,17 @@ impl<'a> TestRunner<'a> {
         let (_, test_function) = test_functions.first().expect("Test function should exist");
 
         if self.args.no_run {
-            let (status, context_state) = match noirc_driver::compile_no_check(
+            let status = match noirc_driver::compile_no_check(
                 context,
                 &self.args.compile_options,
                 test_function.id,
                 None,
                 false,
             ) {
-                Ok(_) => (TestStatus::Skipped, ContextState::Clean),
-                Err(err) => {
-                    let context_state = nargo::ops::context_state_after_compile_error(&err);
-                    (
-                        nargo::ops::test_status_program_compile_fail(err, test_function),
-                        context_state,
-                    )
-                }
+                Ok(_) => TestStatus::Skipped,
+                Err(err) => nargo::ops::test_status_program_compile_fail(err, test_function),
             };
-            return (status, String::new(), None, context_state);
+            return (status, String::new(), None, ContextState::Clean);
         }
 
         if self.args.force_comptime || self.args.coverage && !test.has_arguments {
@@ -836,9 +839,10 @@ impl<'a> TestRunner<'a> {
                 coverage::tracker_to_report(&tracker, test_function.id, fn_name, context)
             });
 
-            // The interpreter walked the whole function against this context and the coverage
-            // report took ownership of the evaluation tracker, which the next test needs rebuilt.
-            return (status, output, report, ContextState::Dirty);
+            // The coverage report takes ownership of the evaluation tracker, which the next test
+            // needs rebuilt, and the purity the reuse rests on is monomorphization's rather than
+            // the interpreter's.
+            return (status, output, report, ContextState::Spent);
         }
 
         let blackbox_solver = S::default();
@@ -858,7 +862,7 @@ impl<'a> TestRunner<'a> {
             },
         };
 
-        let (test_status, context_state) = nargo::ops::run_or_fuzz_test(
+        let test_status = nargo::ops::run_or_fuzz_test(
             &blackbox_solver,
             context,
             test_function,
@@ -881,7 +885,7 @@ impl<'a> TestRunner<'a> {
         let output_string =
             String::from_utf8(output_buffer).expect("output buffer should contain valid utf8");
 
-        (test_status, output_string, None, context_state)
+        (test_status, output_string, None, ContextState::Clean)
     }
 
     /// Display the status of a single test

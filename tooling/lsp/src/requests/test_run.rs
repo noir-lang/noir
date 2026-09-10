@@ -80,7 +80,7 @@ fn on_test_run_request_inner(
                 )
             })?;
 
-            let (test_result, _context_state) = run_test(
+            let test_result = run_test(
                 &state.solver,
                 &mut context,
                 &test_function,

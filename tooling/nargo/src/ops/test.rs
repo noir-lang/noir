@@ -47,45 +47,12 @@ impl TestStatus {
     }
 }
 
-/// Whether a test left the [`Context`] it compiled against fit for another test to compile against.
-///
-/// Monomorphization force-binds type variables that live in the shared `NodeInterner`, and unbinds
-/// them only once it has walked the function it is compiling all the way through. A monomorphization
-/// that fails part-way therefore leaves generics bound to the failing test's instantiation, and
-/// every later compilation against that `Context` sees those bindings. A caller that runs several
-/// tests against one `Context` must throw it away as soon as this comes back `Dirty`.
-///
-/// This is not derivable from [`TestStatus`]: `#[test(should_fail)]` reports [`TestStatus::Pass`]
-/// when compilation fails, which is precisely the case that must not be reused.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ContextState {
-    Clean,
-    Dirty,
-}
-
-/// Whether `error` was raised while the interner was in a state the compilation had not yet
-/// unwound.
-///
-/// Only monomorphization mutates the `Context` it compiles from. Everything that raises
-/// [`CompileError::RuntimeError`] runs after `monomorphize` has returned successfully — meaning it
-/// drained its queue and undid every binding it made — and works on the monomorphized program
-/// rather than on the interner. A test whose assertion the SSA pipeline proves unsatisfiable is
-/// the common case here, and it leaves nothing behind.
-pub fn context_state_after_compile_error(error: &CompileError) -> ContextState {
-    match error {
-        CompileError::MonomorphizationError(_) => ContextState::Dirty,
-        CompileError::RuntimeError(_) => ContextState::Clean,
-    }
-}
-
 pub struct FuzzConfig {
     pub folder_config: FuzzFolderConfig,
     pub execution_config: FuzzExecutionConfig,
 }
 
 /// Runs a test function. This will either run the test or fuzz it, depending on whether the function has arguments.
-///
-/// Also reports whether `context` is still fit to compile another test; see [`ContextState`].
 #[allow(clippy::too_many_arguments)]
 pub fn run_or_fuzz_test<'a, W, B, F, E>(
     blackbox_solver: &B,
@@ -96,7 +63,7 @@ pub fn run_or_fuzz_test<'a, W, B, F, E>(
     config: &CompileOptions,
     fuzz_config: FuzzConfig,
     build_foreign_call_executor: F,
-) -> (TestStatus, ContextState)
+) -> TestStatus
 where
     W: std::io::Write + 'a,
     B: BlackBoxFunctionSolver<FieldElement> + Default,
@@ -126,8 +93,6 @@ where
 }
 
 /// Runs a test function. This assumes the function has no arguments.
-///
-/// Also reports whether `context` is still fit to compile another test; see [`ContextState`].
 pub fn run_test<'a, W, B, F, E>(
     blackbox_solver: &B,
     context: &mut Context,
@@ -135,7 +100,7 @@ pub fn run_test<'a, W, B, F, E>(
     output: W,
     config: &CompileOptions,
     build_foreign_call_executor: F,
-) -> (TestStatus, ContextState)
+) -> TestStatus
 where
     W: std::io::Write + 'a,
     B: BlackBoxFunctionSolver<FieldElement>,
@@ -143,20 +108,14 @@ where
     E: ForeignCallExecutor<FieldElement>,
 {
     match compile_no_check(context, config, test_function.id, None, false) {
-        Ok(compiled_program) => (
-            run_test_impl(
-                blackbox_solver,
-                compiled_program,
-                test_function,
-                output,
-                build_foreign_call_executor,
-            ),
-            ContextState::Clean,
+        Ok(compiled_program) => run_test_impl(
+            blackbox_solver,
+            compiled_program,
+            test_function,
+            output,
+            build_foreign_call_executor,
         ),
-        Err(err) => {
-            let context_state = context_state_after_compile_error(&err);
-            (test_status_program_compile_fail(err, test_function), context_state)
-        }
+        Err(err) => test_status_program_compile_fail(err, test_function),
     }
 }
 
@@ -225,8 +184,6 @@ where
 }
 
 /// Runs the fuzzer on a test function. This assumes the function has arguments.
-///
-/// Also reports whether `context` is still fit to compile another test; see [`ContextState`].
 pub fn fuzz_test<'a, W, B, F, E>(
     context: &mut Context,
     test_function: &TestFunction,
@@ -235,7 +192,7 @@ pub fn fuzz_test<'a, W, B, F, E>(
     config: &CompileOptions,
     fuzz_config: FuzzConfig,
     build_foreign_call_executor: F,
-) -> (TestStatus, ContextState)
+) -> TestStatus
 where
     W: std::io::Write + 'a,
     B: BlackBoxFunctionSolver<FieldElement> + Default,
@@ -252,10 +209,7 @@ where
             fuzz_config,
             build_foreign_call_executor,
         ),
-        Err(err) => {
-            let context_state = context_state_after_compile_error(&err);
-            (test_status_program_compile_fail(err, test_function), context_state)
-        }
+        Err(err) => test_status_program_compile_fail(err, test_function),
     }
 }
 
@@ -267,7 +221,7 @@ fn fuzz_test_impl<'a, W, B, F, E>(
     config: &CompileOptions,
     fuzz_config: FuzzConfig,
     build_foreign_call_executor: F,
-) -> (TestStatus, ContextState)
+) -> TestStatus
 where
     W: std::io::Write + 'a,
     B: BlackBoxFunctionSolver<FieldElement> + Default,
@@ -327,41 +281,33 @@ where
         let _ = std::fs::remove_dir_all(temporary_dir_to_delete);
     }
 
-    // `run_fuzzing_harness` compiles the harness again for both the ACIR and the Brillig
-    // configuration, so it, not just the compilation above, decides whether `context` survived.
     match fuzz_result {
-        FuzzingRunStatus::ExecutionPass | FuzzingRunStatus::MinimizationPass => {
-            (TestStatus::Pass, ContextState::Clean)
-        }
+        FuzzingRunStatus::ExecutionPass | FuzzingRunStatus::MinimizationPass => TestStatus::Pass,
         FuzzingRunStatus::CorpusFailure { message } => {
             let message = format!("Corpus failure: {message}");
-            (TestStatus::Fail { message, error_diagnostic: None }, ContextState::Clean)
+            TestStatus::Fail { message, error_diagnostic: None }
         }
         FuzzingRunStatus::ExecutionFailure { message, counterexample, error_diagnostic } => {
             let message = format!("Execution failed: {message}");
-            let status = if let Some((input_map, abi)) = &counterexample {
+            if let Some((input_map, abi)) = &counterexample {
                 let input =
                     serialize_to_json(input_map, abi).expect("Couldn't serialize input to JSON");
                 let message = format!("{message}\nFailing input: {input}");
                 TestStatus::Fail { message, error_diagnostic }
             } else {
                 TestStatus::Fail { message, error_diagnostic }
-            };
-            (status, ContextState::Clean)
+            }
         }
         FuzzingRunStatus::MinimizationFailure { message } => {
             let message = format!("Minimization failed: {message}");
-            (TestStatus::Fail { message, error_diagnostic: None }, ContextState::Clean)
+            TestStatus::Fail { message, error_diagnostic: None }
         }
         FuzzingRunStatus::ForeignCallFailure { message } => {
             let message = format!("Foreign call failed: {message}");
-            (TestStatus::Fail { message, error_diagnostic: None }, ContextState::Clean)
+            TestStatus::Fail { message, error_diagnostic: None }
         }
-        // `FuzzingRunStatus` keeps only the rendered diagnostic, so which stage failed is no
-        // longer visible here and the context has to be assumed spent. Fuzzing a harness costs
-        // orders of magnitude more than the elaboration this gives up.
         FuzzingRunStatus::CompileError(custom_diagnostic) => {
-            (TestStatus::CompileError(custom_diagnostic), ContextState::Dirty)
+            TestStatus::CompileError(custom_diagnostic)
         }
     }
 }

@@ -124,7 +124,7 @@ fn run_stdlib_tests(force: Force, inliner_aggressiveness: i64) {
                         )
                     });
                     match result {
-                        Ok((status, _context_state)) => status,
+                        Ok(status) => status,
                         Err(_panic_cause) => TestStatus::Fail {
                             message: "panicked; see details in the end summary".to_string(),
                             error_diagnostic: None,
