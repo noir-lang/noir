@@ -336,6 +336,19 @@ pub struct NodeInterner {
     pub(crate) macro_call_expression_bindings: HashMap<ExprId, BoundTypeVariables>,
 }
 
+/// Whether a pass that is only reading the interner may leave a piece of its state larger than it
+/// found it.
+///
+/// [`Growth::AppendOnly`] is for state keyed by an id the pass itself created — an expression it
+/// pushed while lowering a comptime value, say. Those entries are reachable only from the node
+/// they belong to, so a compilation that never sees that node cannot be affected by them, which
+/// is not true of anything that was already there. Everything else is [`Growth::Fixed`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Growth {
+    Fixed,
+    AppendOnly,
+}
+
 /// A trait implementation is either a normal implementation that is present in the source
 /// program via an `impl` block, or it is assumed to exist from a `where` clause or similar.
 #[derive(Debug, Clone)]
@@ -1032,6 +1045,145 @@ impl NodeInterner {
 
     pub fn try_get_instantiation_bindings(&self, expr_id: ExprId) -> Option<&TypeBindings> {
         self.instantiation_bindings.get(&expr_id)
+    }
+
+    /// The size of every piece of state the interner holds, in a fixed order, each labelled with
+    /// whether a pass reading the interner is allowed to make it grow.
+    ///
+    /// Used to check that a pass which is only supposed to read the interner did not quietly
+    /// insert into or remove from something. It is a coarse check — replacing an entry in place
+    /// leaves the size alone — but it is cheap enough to run on every compilation, and it covers
+    /// every field rather than the two a reader thought to look at.
+    ///
+    /// The destructuring below deliberately has no `..`: adding a field to `NodeInterner` should
+    /// stop this compiling, so that whoever adds it decides which of the two it is rather than
+    /// inheriting an answer nobody chose.
+    pub(crate) fn state_sizes(&self) -> Vec<(&'static str, Growth, usize)> {
+        let NodeInterner {
+            nodes,
+            func_meta,
+            function_definition_ids,
+            function_modifiers,
+            function_modules,
+            module_attributes,
+            dependency_graph,
+            dependency_graph_indices,
+            id_to_location,
+            definitions,
+            id_to_type,
+            definition_to_type,
+            data_types,
+            type_attributes,
+            type_aliases,
+            trait_associated_types,
+            traits,
+            trait_implementations,
+            trait_implementations_by_trait_id,
+            next_trait_implementation_id,
+            trait_impl_generic_types,
+            trait_impl_associated_constants,
+            impls,
+            next_impl_id,
+            trait_implementation_map,
+            selected_trait_implementations,
+            infix_operator_traits,
+            prefix_operator_traits,
+            ordering_type,
+            instantiation_bindings,
+            field_indices,
+            globals,
+            global_attributes,
+            next_type_variable_id,
+            methods,
+            func_id_to_trait,
+            type_alias_ref,
+            type_ref_locations,
+            quoted_types,
+            interned_expression_kinds,
+            interned_statement_kinds,
+            interned_unresolved_type_data,
+            interned_patterns,
+            lsp_mode,
+            reference_graph,
+            reference_graph_indices,
+            location_indices,
+            auto_import_names,
+            comptime_scopes,
+            comptime_scope_floor,
+            doc_comments,
+            reexports,
+            primitive_docs,
+            exprs_with_errors,
+            stmts_with_errors,
+            macro_call_expression_bindings,
+        } = self;
+
+        vec![
+            ("nodes", Growth::AppendOnly, nodes.len()),
+            ("func_meta", Growth::Fixed, func_meta.len()),
+            ("function_definition_ids", Growth::Fixed, function_definition_ids.len()),
+            ("function_modifiers", Growth::Fixed, function_modifiers.len()),
+            ("function_modules", Growth::Fixed, function_modules.len()),
+            ("module_attributes", Growth::Fixed, module_attributes.len()),
+            ("dependency_graph", Growth::Fixed, dependency_graph.node_count()),
+            ("dependency_graph_indices", Growth::Fixed, dependency_graph_indices.len()),
+            ("id_to_location", Growth::AppendOnly, id_to_location.len()),
+            ("definitions", Growth::Fixed, definitions.len()),
+            ("id_to_type", Growth::AppendOnly, id_to_type.len()),
+            ("definition_to_type", Growth::Fixed, definition_to_type.len()),
+            ("data_types", Growth::Fixed, data_types.len()),
+            ("type_attributes", Growth::Fixed, type_attributes.len()),
+            ("type_aliases", Growth::Fixed, type_aliases.len()),
+            ("trait_associated_types", Growth::Fixed, trait_associated_types.len()),
+            ("traits", Growth::Fixed, traits.len()),
+            ("trait_implementations", Growth::Fixed, trait_implementations.len()),
+            (
+                "trait_implementations_by_trait_id",
+                Growth::Fixed,
+                trait_implementations_by_trait_id.len(),
+            ),
+            ("next_trait_implementation_id", Growth::Fixed, *next_trait_implementation_id),
+            ("trait_impl_generic_types", Growth::Fixed, trait_impl_generic_types.len()),
+            (
+                "trait_impl_associated_constants",
+                Growth::Fixed,
+                trait_impl_associated_constants.len(),
+            ),
+            ("impls", Growth::Fixed, impls.len()),
+            ("next_impl_id", Growth::Fixed, *next_impl_id),
+            ("trait_implementation_map", Growth::Fixed, trait_implementation_map.len()),
+            ("selected_trait_implementations", Growth::Fixed, selected_trait_implementations.len()),
+            ("infix_operator_traits", Growth::Fixed, infix_operator_traits.len()),
+            ("prefix_operator_traits", Growth::Fixed, prefix_operator_traits.len()),
+            ("ordering_type", Growth::Fixed, usize::from(ordering_type.is_some())),
+            ("instantiation_bindings", Growth::AppendOnly, instantiation_bindings.len()),
+            ("field_indices", Growth::Fixed, field_indices.len()),
+            ("globals", Growth::Fixed, globals.len()),
+            ("global_attributes", Growth::Fixed, global_attributes.len()),
+            ("next_type_variable_id", Growth::AppendOnly, next_type_variable_id.get()),
+            ("methods", Growth::Fixed, methods.len()),
+            ("func_id_to_trait", Growth::Fixed, func_id_to_trait.len()),
+            ("type_alias_ref", Growth::Fixed, type_alias_ref.len()),
+            ("type_ref_locations", Growth::Fixed, type_ref_locations.len()),
+            ("quoted_types", Growth::Fixed, quoted_types.len()),
+            ("interned_expression_kinds", Growth::Fixed, interned_expression_kinds.len()),
+            ("interned_statement_kinds", Growth::Fixed, interned_statement_kinds.len()),
+            ("interned_unresolved_type_data", Growth::Fixed, interned_unresolved_type_data.len()),
+            ("interned_patterns", Growth::Fixed, interned_patterns.len()),
+            ("lsp_mode", Growth::Fixed, usize::from(lsp_mode.is_some())),
+            ("reference_graph", Growth::Fixed, reference_graph.node_count()),
+            ("reference_graph_indices", Growth::Fixed, reference_graph_indices.len()),
+            ("location_indices", Growth::Fixed, location_indices.len()),
+            ("auto_import_names", Growth::Fixed, auto_import_names.len()),
+            ("comptime_scopes", Growth::Fixed, comptime_scopes.len()),
+            ("comptime_scope_floor", Growth::Fixed, *comptime_scope_floor),
+            ("doc_comments", Growth::Fixed, doc_comments.len()),
+            ("reexports", Growth::Fixed, reexports.len()),
+            ("primitive_docs", Growth::Fixed, primitive_docs.len()),
+            ("exprs_with_errors", Growth::Fixed, exprs_with_errors.len()),
+            ("stmts_with_errors", Growth::Fixed, stmts_with_errors.len()),
+            ("macro_call_expression_bindings", Growth::Fixed, macro_call_expression_bindings.len()),
+        ]
     }
 
     /// Every expression that has instantiation bindings stored against it, paired with them.

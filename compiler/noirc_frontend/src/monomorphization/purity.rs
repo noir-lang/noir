@@ -22,7 +22,7 @@ use std::sync::OnceLock;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::hir_def::type_variable_writes::{self, WriteCheck};
-use crate::node_interner::{ExprId, NodeInterner};
+use crate::node_interner::{ExprId, Growth, NodeInterner};
 
 /// Whether monomorphization checks its own purity.
 ///
@@ -46,6 +46,7 @@ pub(crate) struct PurityCheck {
 struct State {
     writes: WriteCheck,
     bindings: HashMap<ExprId, u64>,
+    sizes: Vec<(&'static str, Growth, usize)>,
 }
 
 impl PurityCheck {
@@ -57,6 +58,7 @@ impl PurityCheck {
             state: Some(State {
                 writes: type_variable_writes::begin(),
                 bindings: fingerprint(interner),
+                sizes: interner.state_sizes(),
             }),
         }
     }
@@ -83,6 +85,7 @@ impl PurityCheck {
 
         let mut differences = type_variable_writes::finish(state.writes);
         differences.extend(describe_bindings_drift(&state.bindings, interner));
+        differences.extend(describe_size_drift(&state.sizes, interner));
         differences
     }
 }
@@ -142,6 +145,31 @@ fn describe_bindings_drift(before: &HashMap<ExprId, u64>, interner: &NodeInterne
     drift
 }
 
+/// Describe every piece of interner state whose size changed in a way it is not allowed to.
+///
+/// Coarser than the two checks above and much broader: it covers every field of the interner
+/// rather than the two channels monomorphization is known to write, so a pass that starts
+/// inserting somewhere new is caught without anyone having had to think of that field in
+/// advance. Nothing may shrink; only state keyed by an id the pass created may grow.
+fn describe_size_drift(
+    before: &[(&'static str, Growth, usize)],
+    interner: &NodeInterner,
+) -> Vec<String> {
+    before
+        .iter()
+        .zip(interner.state_sizes())
+        .filter_map(|((name, growth, was), (_, _, now))| match growth {
+            Growth::Fixed if *was != now => {
+                Some(format!("`{name}` went from {was} to {now}, and that is state a pass reading the interner may not change"))
+            }
+            Growth::AppendOnly if now < *was => {
+                Some(format!("`{name}` went from {was} to {now}, losing entries that were already there"))
+            }
+            _ => None,
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -190,9 +218,17 @@ mod tests {
         let check = PurityCheck::begin(interner);
         interner.restore_instantiation_bindings(expr_id, None);
 
-        assert_eq!(
-            check.differences(interner),
-            vec![format!("the instantiation bindings of {expr_id:?} have been removed")]
+        // Caught twice over: by name, and as `instantiation_bindings` losing an entry.
+        let differences = check.differences(interner);
+        assert_eq!(differences.len(), 2, "{differences:?}");
+        assert!(
+            differences
+                .contains(&format!("the instantiation bindings of {expr_id:?} have been removed")),
+            "{differences:?}"
+        );
+        assert!(
+            differences.iter().any(|difference| difference.contains("losing entries")),
+            "{differences:?}"
         );
     }
 
@@ -241,5 +277,21 @@ mod tests {
         let differences = check.differences(interner);
         assert_eq!(differences.len(), 1, "{differences:?}");
         assert!(differences[0].contains("is bound to `Field` now"), "{differences:?}");
+    }
+
+    /// Growth in state that is not keyed by something the pass just created is reported, whatever
+    /// the field is — nobody has to have thought of it in advance.
+    #[test]
+    fn reports_an_insertion_into_state_that_is_not_append_only() {
+        let (mut context, expr_id) = context_with_instantiation_bindings();
+        let interner = &mut context.def_interner;
+
+        let check = PurityCheck::begin(interner);
+        interner.exprs_with_errors.insert(expr_id);
+
+        let differences = check.differences(interner);
+        assert_eq!(differences.len(), 1, "{differences:?}");
+        assert!(differences[0].contains("`exprs_with_errors`"), "{differences:?}");
+        assert!(differences[0].contains("may not change"), "{differences:?}");
     }
 }
