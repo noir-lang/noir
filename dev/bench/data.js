@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789055679584,
+  "lastUpdate": 1789055691577,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -6677,95 +6677,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "e3fefb5a5435a6c9ed3161938b9bee076f8084b7",
-          "message": "chore(deps-dev): bump vite from 8.2.1 to 8.2.2 in the npm-minor-and-patch group (#13577)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-09-01T10:51:51Z",
-          "tree_id": "3ad73df95d5d84b74daabd433b20501527595b84",
-          "url": "https://github.com/noir-lang/noir/commit/e3fefb5a5435a6c9ed3161938b9bee076f8084b7"
-        },
-        "date": 1788262664095,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 294.21,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 335.24,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 321.54,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 362.55,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 362.71,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 1280,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 1280,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 362.94,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 468.32,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 480.68,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 362.19,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 84.1,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 77.92,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -9020,6 +8931,40 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/2e3caacfd2031529fb85ae0fee3281cc47ae58e1"
         },
         "date": 1789054690083,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore_depth_10",
+            "value": 85.57,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 79.11,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "8dcefea164758707ea3afabb35400bd178177641",
+          "message": "fix(frontend): restore type variable bindings on every path out of monomorphization (#13637)",
+          "timestamp": "2026-09-10T15:28:46Z",
+          "tree_id": "d90abf70d140603b8508dab2a9a69f1001f19d9b",
+          "url": "https://github.com/noir-lang/noir/commit/8dcefea164758707ea3afabb35400bd178177641"
+        },
+        "date": 1789055619103,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
