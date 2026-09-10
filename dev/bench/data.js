@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789055696314,
+  "lastUpdate": 1789055699472,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19056,105 +19056,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "b2d9352a124752c7724a0091659a4d8514fb10bf",
-          "message": "feat: version ABI and artifact schemas (#13572)",
-          "timestamp": "2026-09-01T10:56:16Z",
-          "tree_id": "b6d80d415866ab6aff49b01fdae3e6939544ba06",
-          "url": "https://github.com/noir-lang/noir/commit/b2d9352a124752c7724a0091659a4d8514fb10bf"
-        },
-        "date": 1788262248294,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.814,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 2.43,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 1.974,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 2.536,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 2.51,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 2.09,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 2.136,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 3.98,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 4.31,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 2.566,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 2.838,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 1.992,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 2.582,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.427,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.389,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "786bd471a1be0eef3ca382db26dcee5043e0eadf",
           "message": "chore: better way to ignore debugger tests (#13574)",
@@ -21085,6 +20986,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 0.328,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "e40b371879fb74e93b461279036b02891cc96d0b",
+          "message": "chore(frontend): make raw type variable writes private to their module (#13640)",
+          "timestamp": "2026-09-10T15:28:46Z",
+          "tree_id": "016cdf73f22641d2639418eea5013757bda9bc0a",
+          "url": "https://github.com/noir-lang/noir/commit/e40b371879fb74e93b461279036b02891cc96d0b"
+        },
+        "date": 1789055610388,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.421,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.431,
             "unit": "s"
           }
         ]
