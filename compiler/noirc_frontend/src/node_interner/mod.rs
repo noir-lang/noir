@@ -35,7 +35,7 @@ use crate::ResolvedGenerics;
 use crate::TraitAssociatedType;
 use crate::ast::{BinaryOpKind, ItemVisibility};
 use crate::hir_def::traits::{Impl, Trait, TraitConstraint, TraitImpl};
-use crate::hir_def::types::{DataType, Kind, Type};
+use crate::hir_def::types::{BoundTypeVariables, DataType, Kind, Type};
 use crate::hir_def::{
     expr::HirExpression,
     function::{FuncMeta, HirFunction},
@@ -208,7 +208,11 @@ pub struct NodeInterner {
     /// Map from `ExprId` (referring to a Function/Method call) to its corresponding `TypeBindings`,
     /// filled out during type checking from instantiated variables. Used during monomorphization
     /// to map call site types back onto function parameter types, and undo this binding as needed.
-    pub instantiation_bindings: HashMap<ExprId, TypeBindings>,
+    ///
+    /// Private so that every write goes through [`Self::store_instantiation_bindings`] or
+    /// [`Self::restore_instantiation_bindings`], which is what makes the set of writers
+    /// enumerable.
+    instantiation_bindings: HashMap<ExprId, TypeBindings>,
 
     /// Remembers the field index a given `HirMemberAccess` expression was resolved to during type
     /// checking.
@@ -329,7 +333,7 @@ pub struct NodeInterner {
     /// with the expected type at the callsite.
     /// Since a single macro call expression might end up having different types across loop
     /// iterations, before unifying its type we undo bindings from the last time we unified it.
-    pub(crate) macro_call_expression_bindings: HashMap<ExprId, TypeBindings>,
+    pub(crate) macro_call_expression_bindings: HashMap<ExprId, BoundTypeVariables>,
 }
 
 /// A trait implementation is either a normal implementation that is present in the source
