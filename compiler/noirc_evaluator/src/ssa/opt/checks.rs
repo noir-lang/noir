@@ -56,6 +56,14 @@ pub(super) fn assert_cfg_is_flattened(function: &Function) {
     assert_eq!(blocks.len(), 1, "CFG contains more than 1 block");
 }
 
+/// Asserts that constant array indices have not been shifted past the in-memory array header yet.
+///
+/// `brillig_array_get_and_set` applies that shift once, at the end of the pipeline. Before it runs
+/// a constant index names the slot it reads or writes directly; afterwards it does not.
+pub(super) fn assert_no_brillig_array_offsets(function: &Function) {
+    assert!(!function.dfg.brillig_arrays_offset, "Brillig array indices have already been offset");
+}
+
 /// Asserts that no reachable block has a `JmpIf` with a constant condition.
 ///
 /// A constant-condition `JmpIf` should have been folded into an unconditional
