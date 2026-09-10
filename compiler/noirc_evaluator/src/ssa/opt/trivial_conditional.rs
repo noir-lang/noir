@@ -260,7 +260,7 @@ impl Function {
 
 #[cfg(test)]
 mod tests {
-    use crate::assert_ssa_snapshot;
+    use crate::{assert_ssa_snapshot, ssa::opt::assert_ssa_does_not_change};
 
     use super::Ssa;
 
@@ -350,20 +350,7 @@ mod tests {
             return
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.flatten_trivial_conditionals();
-        assert_ssa_snapshot!(ssa, @r#"
-        acir(inline) fn main f0 {
-          b0(v0: [Field; 4], v1: u1, v2: u32):
-            jmpif v1 then: b1(), else: b2()
-          b1():
-            v3 = array_get v0, index v2 -> Field
-            constrain v3 == Field 0, "nonzero"
-            jmp b2()
-          b2():
-            return
-        }
-        "#);
+        assert_ssa_does_not_change(src, Ssa::flatten_trivial_conditionals);
     }
 
     /// A store is a side effect flattening has to merge, not something to hoist.
@@ -383,22 +370,7 @@ mod tests {
             return v3
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.flatten_trivial_conditionals();
-        assert_ssa_snapshot!(ssa, @"
-        acir(inline) fn main f0 {
-          b0(v0: u1):
-            v1 = allocate -> &mut Field
-            store Field 0 at v1
-            jmpif v0 then: b1(), else: b2()
-          b1():
-            store Field 1 at v1
-            jmp b2()
-          b2():
-            v4 = load v1 -> Field
-            return v4
-        }
-        ");
+        assert_ssa_does_not_change(src, Ssa::flatten_trivial_conditionals);
     }
 
     /// A conditional with a real else branch is not a diamond this pass can collapse.
@@ -420,24 +392,7 @@ mod tests {
             return
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.flatten_trivial_conditionals();
-        assert_ssa_snapshot!(ssa, @r#"
-        acir(inline) fn main f0 {
-          b0(v0: [Field; 4], v1: u1):
-            jmpif v1 then: b1(), else: b2()
-          b1():
-            v3 = array_get v0, index u32 0 -> Field
-            constrain v3 == Field 0, "then"
-            jmp b3()
-          b2():
-            v6 = array_get v0, index u32 1 -> Field
-            constrain v6 == Field 0, "else"
-            jmp b3()
-          b3():
-            return
-        }
-        "#);
+        assert_ssa_does_not_change(src, Ssa::flatten_trivial_conditionals);
     }
 
     /// Brillig branches are executed, so there is no predicate to fold in.
@@ -455,19 +410,6 @@ mod tests {
             return
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.flatten_trivial_conditionals();
-        assert_ssa_snapshot!(ssa, @r#"
-        brillig(inline) fn main f0 {
-          b0(v0: [Field; 4], v1: u1):
-            jmpif v1 then: b1(), else: b2()
-          b1():
-            v3 = array_get v0, index u32 0 -> Field
-            constrain v3 == Field 0, "nonzero"
-            jmp b2()
-          b2():
-            return
-        }
-        "#);
+        assert_ssa_does_not_change(src, Ssa::flatten_trivial_conditionals);
     }
 }
