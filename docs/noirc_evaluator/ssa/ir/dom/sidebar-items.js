@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["DominatorTree","DominatorTreeNode"]};
+window.SIDEBAR_ITEMS = {"enum":["DominanceQueries"],"struct":["DfsInterval","DominatorTree","DominatorTreeNode"]};
