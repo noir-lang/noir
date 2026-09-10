@@ -1272,6 +1272,16 @@ impl BoundTypeVariables {
     pub fn none() -> Self {
         Self { saved: Vec::new() }
     }
+
+    /// Keep these bindings: give up the ability to undo them and leave them in the shared HIR.
+    ///
+    /// This is what type checking wants — solving a trait constraint commits the inference
+    /// variables it resolved, and the elaborated program is supposed to carry that. It is not
+    /// what a pass reading an already-elaborated program wants, so committing should be a
+    /// deliberate, visible choice rather than the default.
+    pub fn commit(mut self) {
+        self.saved.clear();
+    }
 }
 
 impl Drop for BoundTypeVariables {

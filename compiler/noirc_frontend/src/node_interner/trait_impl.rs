@@ -413,6 +413,11 @@ impl NodeInterner {
     /// If this list of failing constraints is empty, this means type annotations are required.
     /// Returns the list of instantiation bindings as well, which should be stored on the
     /// expression.
+    ///
+    /// The bindings the search itself produced are committed to the shared HIR, which is what
+    /// type checking wants and what a pass over an already-elaborated program does not. Such a
+    /// pass should call [`Self::try_lookup_trait_implementation`], which hands those bindings back
+    /// instead, and apply them under a `BoundTypeVariables` guard.
     pub(crate) fn lookup_trait_implementation(
         &self,
         object_type: &Type,
