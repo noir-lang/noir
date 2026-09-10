@@ -98,6 +98,7 @@ pub mod printer;
 pub mod proxies;
 pub mod tests;
 pub mod visitor;
+mod well_formed;
 
 struct LambdaContext {
     env_ident: ast::Ident,
@@ -278,9 +279,21 @@ pub fn monomorphize_debug(
         force_unconstrained,
     );
     monomorphizer.compile_main(main)?;
-
     monomorphizer.process_queue()?;
-    Ok(monomorphizer.into_program())
+
+    // Returning `Ok` with jobs still queued would silently drop whatever is in them: the
+    // functions would be missing from the program while the calls to them remain.
+    assert!(
+        !monomorphizer.has_pending_jobs(),
+        "monomorphization returned with {} function(s) still queued",
+        monomorphizer.queue.len(),
+    );
+
+    let mut program = monomorphizer.into_program();
+    if cfg!(debug_assertions) {
+        well_formed::assert_program_is_well_formed(&mut program);
+    }
+    Ok(program)
 }
 
 impl<'interner> Monomorphizer<'interner> {
