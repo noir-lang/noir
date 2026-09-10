@@ -9,7 +9,7 @@ use noirc_frontend::hir_def::expr::Constructor;
 use noirc_frontend::token::FmtStrFragment;
 pub use program::Ssa;
 
-use context::{Loop, SharedContext};
+use context::{FunctionQueueState, Loop, SharedContext};
 use iter_extended::{try_vecmap, vecmap};
 use itertools::Itertools;
 use noirc_errors::Location;
@@ -66,14 +66,21 @@ pub fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
 
     // Queue the main function for compilation; the `FunctionContext` constructor below pops
     // it back off the queue.
-    context.get_or_queue_function(main_id);
+    let mut function_queue = FunctionQueueState::default();
+    function_queue.get_or_queue_function(main_id);
     let main_runtime = if main.unconstrained {
         RuntimeType::Brillig(main.inline_type)
     } else {
         RuntimeType::Acir(main.inline_type)
     };
-    let mut function_context =
-        FunctionContext::new(main.name.clone(), &main.parameters, main_runtime, &context, globals);
+    let mut function_context = FunctionContext::new(
+        main.name.clone(),
+        &main.parameters,
+        main_runtime,
+        &context,
+        function_queue,
+        globals,
+    );
     function_context.builder.current_function.dfg.allow_constant_return =
         main.allow_constant_return;
 
@@ -87,7 +94,7 @@ pub fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     //   of the order in which calls to them are first encountered.
     for function in &context.program.functions {
         if function.is_entry_point && function.id != main_id {
-            context.get_or_queue_function(function.id);
+            function_context.function_queue.get_or_queue_function(function.id);
         }
     }
 
@@ -144,7 +151,9 @@ pub fn generate_ssa(program: Program) -> Result<Ssa, RuntimeError> {
     // function queue as they were found in codegen_ident. This queueing will happen each time a
     // previously-unseen function is found so we need now only continue popping from this queue
     // to generate SSA for each function used within the program.
-    while let Some((src_function_id, dest_id)) = context.pop_next_function_in_queue() {
+    while let Some((src_function_id, dest_id)) =
+        function_context.function_queue.pop_next_function_in_queue()
+    {
         let function = &context.program[src_function_id];
         function_context.new_function(dest_id, function);
         function_context.codegen_function_body(&function.body)?;

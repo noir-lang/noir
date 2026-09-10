@@ -303,6 +303,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             "Unrolling",
         ),
         SsaPass::new(Ssa::lower_array_initializations, "Array initialization lowering"),
+        SsaPass::new(Ssa::flatten_trivial_conditionals, "Trivial conditional flattening"),
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
         SsaPass::new(Ssa::mem2reg, "Mem2Reg")
             .and_then(Ssa::load_store_forwarding)

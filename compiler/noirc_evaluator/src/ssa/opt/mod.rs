@@ -49,6 +49,7 @@ mod remove_unreachable_instructions;
 mod remove_unused_instructions;
 mod simple_optimization;
 mod simplify_cfg;
+mod trivial_conditional;
 mod unrolling;
 
 pub(crate) use array_get::{

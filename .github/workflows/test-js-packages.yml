@@ -39,7 +39,7 @@ jobs:
         id: get_critical_libraries
         run: |
           set -euo pipefail
-          LIBRARIES=$(yq ./EXTERNAL_NOIR_LIBRARIES.yml -o json | jq -c '.libraries | map({ repo, ref, path: (.path // ""), timeout:(.timeout // 2), nargo_args })')
+          LIBRARIES=$(yq ./EXTERNAL_NOIR_LIBRARIES.yml -o json | jq -c '.libraries | map({ repo, ref, path: (.path // ""), timeout:(.timeout // 5), nargo_args })')
           if [ -z "$LIBRARIES" ] || [ "$LIBRARIES" = "null" ]; then
             echo "::error::Failed to parse EXTERNAL_NOIR_LIBRARIES.yml — got empty or null library list"
             exit 1

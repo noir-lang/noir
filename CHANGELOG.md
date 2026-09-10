@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.0.0-rc.1](https://github.com/noir-lang/noir/compare/v1.0.0-rc.0...v1.0.0-rc.1) (2026-09-09)
+
+
+### Features
+
+* **cli:** Let `noir-execute` accept a witness file as input ([#13592](https://github.com/noir-lang/noir/issues/13592)) ([c184d40](https://github.com/noir-lang/noir/commit/c184d40159a9cb9dfb92f41843b929d5035e0e38))
+* Ship noir-execute in release tarballs ([#13589](https://github.com/noir-lang/noir/issues/13589)) ([4fd0f35](https://github.com/noir-lang/noir/commit/4fd0f35a5a1a4e98fe9cecabbc27c894ceecdea3))
+* **wasm:** Export `deserializeWitness` and `deserializeWitnessStack` from `noirc_abi_wasm` ([#13590](https://github.com/noir-lang/noir/issues/13590)) ([aead1b5](https://github.com/noir-lang/noir/commit/aead1b59cc7330dae9f529ce73b3dc2151326f1c))
+
+
+### Bug Fixes
+
+* Pin legacy ABI/artifact schema default to a fixed V1 ([#13584](https://github.com/noir-lang/noir/issues/13584)) ([c4e14b4](https://github.com/noir-lang/noir/commit/c4e14b4fc3add00bbd1d46c7d250ecd767547215))
+* Resolve trait impl function metas before comptime operator evaluation ([#13587](https://github.com/noir-lang/noir/issues/13587)) ([a195103](https://github.com/noir-lang/noir/commit/a195103dbe8cadc7ddd9f750d9d96bcd78738f75))
+
 ## [1.0.0-rc.0](https://github.com/noir-lang/noir/compare/v1.0.0-beta.26...v1.0.0-rc.0) (2026-09-07)
 
 

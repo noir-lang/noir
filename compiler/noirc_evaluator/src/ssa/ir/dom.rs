@@ -4,7 +4,6 @@
 //! Dominator trees are useful for tasks such as identifying back-edges in loop analysis or
 //! calculating dominance frontiers.
 
-use std::cell::RefCell;
 use std::cmp::Ordering;
 
 #[cfg(test)]
@@ -22,6 +21,31 @@ struct DominatorTreeNode {
     ///
     /// This will be None for the entry block, which has no immediate dominator.
     immediate_dominator: Option<BasicBlockId>,
+}
+
+/// The entry and exit time of a block in a depth-first walk of the dominator tree.
+///
+/// Together they bracket the block's whole dominator subtree, which is what makes
+/// [`DominatorTree::dominates`] a pair of integer comparisons: `a` dominates `b` exactly when
+/// `b`'s interval nests inside `a`'s.
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct DfsInterval {
+    entry: u32,
+    exit: u32,
+}
+
+impl DfsInterval {
+    /// The interval of a block that has no place in the dominator tree, either because it is
+    /// unreachable or because the tree was built without dominance queries.
+    ///
+    /// It is empty rather than merely out of range, so no pair of real intervals can be confused
+    /// with it, and [`DominatorTree::dfs_interval`] rejects it before any comparison is made.
+    const ABSENT: Self = Self { entry: u32::MAX, exit: 0 };
+
+    /// Does this interval nest `other` inside itself?
+    fn contains(self, other: Self) -> bool {
+        self.entry <= other.entry && other.exit <= self.exit
+    }
 }
 
 impl DominatorTreeNode {
@@ -48,11 +72,24 @@ pub(crate) struct DominatorTree {
     /// reachable block, and no nodes for unreachable blocks.
     nodes: HashMap<BasicBlockId, DominatorTreeNode>,
 
-    /// Subsequent calls to `dominates` are cached to speed up access.
+    /// The depth-first interval of each block, indexed by `BasicBlockId::to_u32`.
     ///
-    /// Wrapped in a `RefCell` so that `dominates` can memoize behind a shared `&self` reference,
-    /// keeping it a logically-pure query that callers don't need to hold a `&mut` borrow to use.
-    cache: RefCell<HashMap<(BasicBlockId, BasicBlockId), bool>>,
+    /// Block ids are dense, so a flat array keeps `dominates` down to two loads and two integer
+    /// comparisons; reaching the intervals through `nodes` would put a hash lookup on either side
+    /// of that. Blocks with no place in the tree hold [`DfsInterval::ABSENT`], and the array is
+    /// empty when the tree was built with [`DominanceQueries::Disabled`].
+    dfs_intervals: Vec<DfsInterval>,
+}
+
+/// Whether a [`DominatorTree`] should be able to answer [`DominatorTree::dominates`].
+///
+/// The intervals that make that query cheap are a linear pass over the tree at construction, and
+/// several callers only ever ask for [`DominatorTree::immediate_dominator`] or
+/// [`DominatorTree::common_dominator`], which the tree answers without them.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum DominanceQueries {
+    Enabled,
+    Disabled,
 }
 
 /// Methods for querying the dominator tree.
@@ -99,35 +136,28 @@ impl DominatorTree {
     ///
     /// A block is considered to dominate itself.
     pub(crate) fn dominates(&self, block_a_id: BasicBlockId, block_b_id: BasicBlockId) -> bool {
-        if let Some(res) = self.cache.borrow().get(&(block_a_id, block_b_id)) {
-            return *res;
-        }
-
-        let result = self.dominates_helper(block_a_id, block_b_id);
-        self.cache.borrow_mut().insert((block_a_id, block_b_id), result);
-        result
+        // `a` dominates `b` exactly when `b` sits in `a`'s subtree of the dominator tree, and a
+        // depth-first walk brackets each subtree in a contiguous interval, so subtree membership
+        // is interval containment. Reflexive because a block's own interval contains itself.
+        self.dfs_interval(block_a_id).contains(self.dfs_interval(block_b_id))
     }
 
-    pub(crate) fn dominates_helper(
-        &self,
-        block_a_id: BasicBlockId,
-        mut block_b_id: BasicBlockId,
-    ) -> bool {
-        // Walk up the dominator tree from "b" until we encounter or pass "a". Doing the
-        // comparison on the reverse post-order may allow to test whether we have passed "a"
-        // without waiting until we reach the root of the tree.
-        loop {
-            match self.reverse_post_order_cmp(block_a_id, block_b_id) {
-                Ordering::Less => {
-                    block_b_id = match self.immediate_dominator(block_b_id) {
-                        Some(immediate_dominator) => immediate_dominator,
-                        None => return false, // a is unreachable, so we climbed past the entry
-                    }
-                }
-                Ordering::Greater => return false,
-                Ordering::Equal => return true,
-            }
+    fn dfs_interval(&self, block_id: BasicBlockId) -> DfsInterval {
+        match self.dfs_intervals.get(block_id.to_u32() as usize) {
+            Some(&interval) if interval != DfsInterval::ABSENT => interval,
+            _ => self.no_dfs_interval(block_id),
         }
+    }
+
+    /// Panics with whichever of the two reasons a block can have no interval applies here.
+    #[cold]
+    #[inline(never)]
+    fn no_dfs_interval(&self, block_id: BasicBlockId) -> ! {
+        assert!(
+            !self.dfs_intervals.is_empty() || self.nodes.is_empty(),
+            "`dominates` needs a dominator tree built with `DominanceQueries::Enabled`"
+        );
+        panic!("Dominance for unreachable block {block_id} is undefined");
     }
 
     /// Walk up the dominator tree until we find a block for which `f` returns `Some` value.
@@ -155,9 +185,13 @@ impl DominatorTree {
     ///
     /// This method should be used for when we want to compute a post-dominator tree.
     /// A post-dominator tree just expects the control flow graph to be reversed.
-    pub(crate) fn with_cfg_and_post_order(cfg: &ControlFlowGraph, post_order: &PostOrder) -> Self {
-        let mut dom_tree = DominatorTree { nodes: HashMap::default(), cache: RefCell::default() };
-        dom_tree.compute_dominator_tree(cfg, post_order);
+    pub(crate) fn with_cfg_and_post_order(
+        cfg: &ControlFlowGraph,
+        post_order: &PostOrder,
+        queries: DominanceQueries,
+    ) -> Self {
+        let mut dom_tree = DominatorTree::default();
+        dom_tree.compute_dominator_tree(cfg, post_order, queries);
         dom_tree
     }
 
@@ -170,7 +204,7 @@ impl DominatorTree {
     pub(crate) fn with_function(func: &Function) -> Self {
         let cfg = ControlFlowGraph::with_function(func);
         let post_order = PostOrder::with_cfg(&cfg);
-        Self::with_cfg_and_post_order(&cfg, &post_order)
+        Self::with_cfg_and_post_order(&cfg, &post_order, DominanceQueries::Enabled)
     }
 
     /// Allocate and compute a post-dominator tree for the given function.
@@ -182,12 +216,17 @@ impl DominatorTree {
     pub(crate) fn with_function_post_dom(func: &Function) -> Self {
         let reversed_cfg = ControlFlowGraph::with_function(func).reverse();
         let post_order = PostOrder::with_cfg(&reversed_cfg);
-        Self::with_cfg_and_post_order(&reversed_cfg, &post_order)
+        Self::with_cfg_and_post_order(&reversed_cfg, &post_order, DominanceQueries::Enabled)
     }
 
     /// Build a dominator tree from a control flow graph using Keith D. Cooper's
     /// "Simple, Fast Dominator Algorithm."
-    fn compute_dominator_tree(&mut self, cfg: &ControlFlowGraph, post_order: &PostOrder) {
+    fn compute_dominator_tree(
+        &mut self,
+        cfg: &ControlFlowGraph,
+        post_order: &PostOrder,
+        queries: DominanceQueries,
+    ) {
         // We'll be iterating over a reverse post-order of the CFG, skipping the entry block.
         let Some((entry_block_id, entry_free_post_order)) = post_order.as_slice().split_last()
         else {
@@ -232,6 +271,89 @@ impl DominatorTree {
                     .update_estimate(immediate_dominator);
             }
         }
+
+        if queries == DominanceQueries::Enabled {
+            self.compute_dfs_intervals(*entry_block_id);
+        }
+    }
+
+    /// Number every node with the entry and exit time of a depth-first walk of the dominator tree,
+    /// so that dominance is interval containment rather than a walk up the tree.
+    ///
+    /// The walk is never actually performed. A block's immediate dominator always precedes it in
+    /// the reverse post-order, so one descending pass over that order accumulates subtree sizes
+    /// into parents, and one ascending pass hands each node the next free slot in its parent's
+    /// interval — which is the depth-first numbering, in two linear scans of a flat array.
+    fn compute_dfs_intervals(&mut self, entry_block: BasicBlockId) {
+        let num_nodes = self.nodes.len();
+        debug_assert_eq!(self.reverse_post_order_idx(entry_block), Some(0));
+
+        // Most functions are a single block, which is its own whole subtree. Saying so here keeps
+        // the scratch buffers below off the common path entirely.
+        if num_nodes == 1 {
+            self.dfs_intervals = vec![DfsInterval::ABSENT; entry_block.to_u32() as usize + 1];
+            self.dfs_intervals[entry_block.to_u32() as usize] = DfsInterval { entry: 0, exit: 0 };
+            return;
+        }
+
+        // The blocks in reverse post-order, and the reverse post-order index of each one's
+        // immediate dominator. The entry block's parent slot is unused.
+        let mut blocks = vec![entry_block; num_nodes];
+        let mut parents = vec![0u32; num_nodes];
+        for (&block_id, node) in &self.nodes {
+            let idx = node.reverse_post_order_idx as usize;
+            blocks[idx] = block_id;
+            if let Some(immediate_dominator) = node.immediate_dominator {
+                parents[idx] = self
+                    .reverse_post_order_idx(immediate_dominator)
+                    .expect("Immediate dominator is a reachable block");
+            }
+        }
+        debug_assert_eq!(
+            blocks.iter().collect::<HashSet<_>>().len(),
+            num_nodes,
+            "reverse post-order indices must be a permutation of 0..n"
+        );
+
+        // Children precede their parents here, so every subtree is complete before it is counted
+        // into the subtree above it.
+        let mut subtree_sizes = vec![1u32; num_nodes];
+        for idx in (1..num_nodes).rev() {
+            let parent = parents[idx] as usize;
+            debug_assert!(
+                parent < idx,
+                "a block's immediate dominator must precede it in the reverse post-order: both \
+                 scans below read their parents' slots before writing their own, so a parent that \
+                 sorted after its child silently corrupts the numbering for the whole function"
+            );
+            subtree_sizes[parent] += subtree_sizes[idx];
+        }
+
+        // And parents precede their children here, so each node's interval is already open when
+        // its children come to claim slots inside it.
+        let capacity = blocks.iter().map(|block| block.to_u32() as usize + 1).max().unwrap_or(0);
+        self.dfs_intervals = vec![DfsInterval::ABSENT; capacity];
+        let mut next_free_slot = vec![0u32; num_nodes];
+        next_free_slot[0] = 1;
+        self.dfs_intervals[entry_block.to_u32() as usize] =
+            DfsInterval { entry: 0, exit: num_nodes as u32 - 1 };
+        for idx in 1..num_nodes {
+            let parent = parents[idx] as usize;
+            let entry = next_free_slot[parent];
+            next_free_slot[parent] += subtree_sizes[idx];
+            next_free_slot[idx] = entry + 1;
+            self.dfs_intervals[blocks[idx].to_u32() as usize] =
+                DfsInterval { entry, exit: entry + subtree_sizes[idx] - 1 };
+        }
+
+        // Every node handed out exactly as many slots as its subtree has members, so the
+        // intervals nest and the root's spans them all. This catches any slip in the arithmetic
+        // above, where a wrong subtree size stays a perfectly plausible-looking interval.
+        debug_assert!((0..num_nodes).all(|idx| {
+            let interval = self.dfs_intervals[blocks[idx].to_u32() as usize];
+            next_free_slot[idx] == interval.entry + subtree_sizes[idx]
+                && interval.exit == interval.entry + subtree_sizes[idx] - 1
+        }));
     }
 
     // Compute the immediate dominator for `block_id` using the pre-calculate immediate dominators
@@ -403,7 +525,7 @@ mod tests {
         ir::{
             basic_block::{BasicBlock, BasicBlockId},
             cfg::ControlFlowGraph,
-            dom::DominatorTree,
+            dom::{DominanceQueries, DominatorTree},
             function::Function,
             instruction::TerminatorInstruction,
             map::Id,
@@ -757,7 +879,11 @@ mod tests {
         let reversed_cfg = cfg.reverse();
         let post_order = PostOrder::with_cfg(&reversed_cfg);
 
-        let post_dom = DominatorTree::with_cfg_and_post_order(&reversed_cfg, &post_order);
+        let post_dom = DominatorTree::with_cfg_and_post_order(
+            &reversed_cfg,
+            &post_order,
+            DominanceQueries::Enabled,
+        );
 
         let blocks = vecmap(0..6, Id::<BasicBlock>::test_new);
 
@@ -804,7 +930,8 @@ mod tests {
         let cfg = ControlFlowGraph::with_function(main);
         let post_order = PostOrder::with_cfg(&cfg);
 
-        let dt = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
+        let dt =
+            DominatorTree::with_cfg_and_post_order(&cfg, &post_order, DominanceQueries::Enabled);
         let dom_frontiers = dt.compute_dominance_frontiers(&cfg);
 
         let blocks = vecmap(0..6, Id::<BasicBlock>::test_new);
@@ -848,7 +975,8 @@ mod tests {
         let cfg = ControlFlowGraph::with_function(main);
         let post_order = PostOrder::with_cfg(&cfg);
 
-        let dt = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
+        let dt =
+            DominatorTree::with_cfg_and_post_order(&cfg, &post_order, DominanceQueries::Enabled);
         let dom_frontiers = dt.compute_dominance_frontiers(&cfg);
 
         assert!(dom_frontiers.is_empty());
@@ -863,7 +991,11 @@ mod tests {
         let reversed_cfg = cfg.reverse();
         let post_order = PostOrder::with_cfg(&reversed_cfg);
 
-        let post_dom = DominatorTree::with_cfg_and_post_order(&reversed_cfg, &post_order);
+        let post_dom = DominatorTree::with_cfg_and_post_order(
+            &reversed_cfg,
+            &post_order,
+            DominanceQueries::Enabled,
+        );
         let post_dom_frontiers = post_dom.compute_dominance_frontiers(&reversed_cfg);
 
         let blocks = vecmap(0..6, Id::<BasicBlock>::test_new);
@@ -908,5 +1040,501 @@ mod tests {
             dt.find_map_dominator(b1, |b| if b == b1 { Some("not part of tree") } else { None }),
             None
         );
+    }
+}
+
+/// Differential and stress tests for the dominance query, kept separate from the hand-written
+/// cases above: these build randomised control flow graphs and check every dominance answer
+/// against dominator sets computed by a straightforward iterative dataflow fixpoint.
+#[cfg(test)]
+mod differential_tests {
+    use std::cmp::Ordering;
+
+    use rustc_hash::FxHashMap as HashMap;
+
+    use super::{DominanceQueries, DominatorTree};
+    use crate::ssa::{
+        function_builder::FunctionBuilder,
+        ir::{
+            basic_block::BasicBlockId, cfg::ControlFlowGraph, function::Function, map::Id,
+            post_order::PostOrder, types::NumericType,
+        },
+        ssa_gen::Ssa,
+    };
+
+    /// Deterministic xorshift so a failure reproduces from its seed alone.
+    struct Rng(u64);
+
+    impl Rng {
+        fn next_u64(&mut self) -> u64 {
+            let mut x = self.0;
+            x ^= x << 13;
+            x ^= x >> 7;
+            x ^= x << 17;
+            self.0 = x;
+            x
+        }
+
+        fn below(&mut self, n: usize) -> usize {
+            (self.next_u64() % n as u64) as usize
+        }
+    }
+
+    /// Build a function whose control flow graph is arbitrary: any block may jump to any block,
+    /// which produces self loops, irreducible loops, multiple exits and unreachable blocks.
+    fn random_function(seed: u64, num_blocks: usize) -> Ssa {
+        let mut rng = Rng(seed);
+        let mut builder = FunctionBuilder::new("func".into(), Id::test_new(0));
+
+        let mut blocks = vec![builder.current_block()];
+        for _ in 1..num_blocks {
+            blocks.push(builder.insert_block());
+        }
+
+        // Targets are drawn from the non-entry blocks: a jump back to the entry leaves the
+        // post-order empty and the dominator tree unpopulated, which tests nothing.
+        let targets = &blocks[1..];
+        let condition = builder.numeric_constant(1u128, NumericType::bool());
+        for &block in &blocks {
+            builder.switch_to_block(block);
+            match rng.below(10) {
+                0..=1 => builder.terminate_with_return(vec![]),
+                2..=4 => {
+                    let target = targets[rng.below(targets.len())];
+                    builder.terminate_with_jmp(target, vec![]);
+                }
+                _ => {
+                    let then_target = targets[rng.below(targets.len())];
+                    let else_target = targets[rng.below(targets.len())];
+                    builder.terminate_with_jmpif_no_args(condition, then_target, else_target);
+                }
+            }
+        }
+
+        builder.finish()
+    }
+
+    /// Dominator sets by iterative dataflow: `dom(entry) = {entry}` and
+    /// `dom(b) = {b} + intersection of dom(p) over p in preds(b)`, iterated to a fixpoint.
+    ///
+    /// Restricted to the node set the dominator tree itself covers (the post-order), so that both
+    /// sides are answering the same question on the same graph.
+    fn reference_dominator_sets(
+        cfg: &ControlFlowGraph,
+        post_order: &[BasicBlockId],
+    ) -> HashMap<BasicBlockId, Vec<bool>> {
+        let index_of: HashMap<BasicBlockId, usize> =
+            post_order.iter().enumerate().map(|(i, &b)| (b, i)).collect();
+        let num_nodes = post_order.len();
+        let entry = *post_order.last().expect("non-empty post-order");
+
+        let mut dominators: HashMap<BasicBlockId, Vec<bool>> =
+            post_order.iter().map(|&b| (b, vec![true; num_nodes])).collect();
+        let mut entry_set = vec![false; num_nodes];
+        entry_set[index_of[&entry]] = true;
+        dominators.insert(entry, entry_set);
+
+        let mut changed = true;
+        while changed {
+            changed = false;
+            // Reverse post-order, entry first, so information propagates fast.
+            for &block in post_order.iter().rev() {
+                if block == entry {
+                    continue;
+                }
+                let mut new_set: Option<Vec<bool>> = None;
+                for predecessor in cfg.predecessors(block) {
+                    let Some(predecessor_set) = dominators.get(&predecessor) else {
+                        continue; // Not covered by the post-order.
+                    };
+                    match &mut new_set {
+                        None => new_set = Some(predecessor_set.clone()),
+                        Some(set) => {
+                            for (slot, dominated) in set.iter_mut().zip(predecessor_set) {
+                                *slot &= *dominated;
+                            }
+                        }
+                    }
+                }
+                let mut new_set = new_set.unwrap_or_else(|| vec![false; num_nodes]);
+                new_set[index_of[&block]] = true;
+                if dominators[&block] != new_set {
+                    dominators.insert(block, new_set);
+                    changed = true;
+                }
+            }
+        }
+
+        dominators
+    }
+
+    /// The dominance query as it was before the depth-first interval numbering: walk up the
+    /// dominator tree from `b` until we meet or pass `a` in the reverse post-order.
+    fn dominates_by_walking(
+        tree: &DominatorTree,
+        block_a_id: BasicBlockId,
+        mut block_b_id: BasicBlockId,
+    ) -> bool {
+        loop {
+            match tree.reverse_post_order_cmp(block_a_id, block_b_id) {
+                Ordering::Less => {
+                    block_b_id = match tree.immediate_dominator(block_b_id) {
+                        Some(immediate_dominator) => immediate_dominator,
+                        None => return false,
+                    }
+                }
+                Ordering::Greater => return false,
+                Ordering::Equal => return true,
+            }
+        }
+    }
+
+    fn check_tree_against_reference(
+        tree: &DominatorTree,
+        cfg: &ControlFlowGraph,
+        post_order: &[BasicBlockId],
+        context: &str,
+    ) {
+        let index_of: HashMap<BasicBlockId, usize> =
+            post_order.iter().enumerate().map(|(i, &b)| (b, i)).collect();
+        let dominators = reference_dominator_sets(cfg, post_order);
+
+        for &b in post_order {
+            for &a in post_order {
+                let expected = dominators[&b][index_of[&a]];
+                assert_eq!(
+                    tree.dominates(a, b),
+                    expected,
+                    "{context}: dominates({a}, {b}) disagrees with the reference dominator sets"
+                );
+                assert_eq!(
+                    dominates_by_walking(tree, a, b),
+                    expected,
+                    "{context}: the reference dominator sets disagree with the tree walk for \
+                     ({a}, {b}), so the reference itself is suspect"
+                );
+            }
+
+            // The immediate dominator is the strict dominator dominated by every other strict
+            // dominator of the block.
+            let strict_dominators: Vec<_> = post_order
+                .iter()
+                .copied()
+                .filter(|&a| a != b && dominators[&b][index_of[&a]])
+                .collect();
+            let expected_immediate = strict_dominators
+                .iter()
+                .copied()
+                .find(|&a| strict_dominators.iter().all(|&other| dominators[&a][index_of[&other]]));
+            assert_eq!(
+                tree.immediate_dominator(b),
+                expected_immediate,
+                "{context}: immediate_dominator({b}) is wrong"
+            );
+        }
+    }
+
+    #[test]
+    fn random_control_flow_graphs_agree_with_reference_dominator_sets() {
+        let mut checked = 0usize;
+        let mut with_irreducible = 0usize;
+        let mut pairs = 0usize;
+        for seed in 1..2000u64 {
+            for num_blocks in [2usize, 3, 5, 8, 13, 21, 34] {
+                let ssa = random_function(seed, num_blocks);
+                let func = ssa.main();
+                let cfg = ControlFlowGraph::with_function(func);
+                let post_order = PostOrder::with_cfg(&cfg);
+                if post_order.as_slice().is_empty() {
+                    continue;
+                }
+                let tree = DominatorTree::with_cfg_and_post_order(
+                    &cfg,
+                    &post_order,
+                    DominanceQueries::Enabled,
+                );
+                check_tree_against_reference(
+                    &tree,
+                    &cfg,
+                    post_order.as_slice(),
+                    &format!("seed {seed}, {num_blocks} blocks"),
+                );
+                checked += 1;
+                pairs += post_order.as_slice().len().pow(2);
+                if is_irreducible(&cfg, post_order.as_slice()) {
+                    with_irreducible += 1;
+                }
+            }
+        }
+        // The corpus is only worth what it covers, so state the floor rather than trusting that
+        // the generator above still produces interesting graphs.
+        assert!(checked > 10_000, "coverage too thin: only {checked} graphs checked");
+        assert!(pairs > 500_000, "coverage too thin: only {pairs} dominance pairs checked");
+        assert!(with_irreducible > 1000, "no irreducible control flow exercised");
+    }
+
+    /// A CFG is irreducible when some loop has more than one entry, which shows up as a
+    /// back edge whose target does not dominate its source.
+    fn is_irreducible(cfg: &ControlFlowGraph, post_order: &[BasicBlockId]) -> bool {
+        let index_of: HashMap<BasicBlockId, usize> =
+            post_order.iter().rev().enumerate().map(|(i, &b)| (b, i)).collect();
+        let dominators = reference_dominator_sets(cfg, post_order);
+        let forward_index: HashMap<BasicBlockId, usize> =
+            post_order.iter().enumerate().map(|(i, &b)| (b, i)).collect();
+        for (&block, &block_index) in &index_of {
+            for predecessor in cfg.predecessors(block) {
+                let Some(&predecessor_index) = index_of.get(&predecessor) else { continue };
+                // A back edge in the reverse post-order whose target does not dominate its source.
+                if predecessor_index >= block_index
+                    && !dominators[&predecessor][forward_index[&block]]
+                {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
+    /// The other construction path in the tree: the post-dominator tree that `loop_invariant`
+    /// builds over the extended reversed CFG, whose root is the (possibly synthesised) exit node.
+    #[test]
+    fn random_post_dominator_trees_agree_with_reference_dominator_sets() {
+        let mut checked = 0usize;
+        let mut synthesised_exit = 0usize;
+        for seed in 1..2000u64 {
+            for num_blocks in [2usize, 3, 5, 8, 13, 21] {
+                let mut ssa = random_function(seed, num_blocks);
+                let func = ssa.main_mut();
+                let (would_ice, needs_exit) = extended_reverse_shape(func);
+                if would_ice {
+                    continue;
+                }
+                if needs_exit {
+                    synthesised_exit += 1;
+                }
+                let reversed_cfg = ControlFlowGraph::extended_reverse(func);
+                let post_order = PostOrder::with_cfg(&reversed_cfg);
+                if post_order.as_slice().is_empty() {
+                    continue;
+                }
+                let tree = DominatorTree::with_cfg_and_post_order(
+                    &reversed_cfg,
+                    &post_order,
+                    DominanceQueries::Enabled,
+                );
+                check_tree_against_reference(
+                    &tree,
+                    &reversed_cfg,
+                    post_order.as_slice(),
+                    &format!("post-dom seed {seed}, {num_blocks} blocks"),
+                );
+                checked += 1;
+            }
+        }
+        assert!(checked > 9000, "coverage too thin: only {checked} post-dominator trees checked");
+        assert!(synthesised_exit > 1000, "the synthesised exit node was barely exercised");
+    }
+
+    /// `ControlFlowGraph::extended_reverse` wires every block that cannot reach an exit into a
+    /// synthesised exit node, and asserts on the way that no block gains a third successor. A
+    /// block sitting in an infinite loop behind a conditional branch already has two, so these
+    /// graphs are excluded here rather than tripping an assertion unrelated to dominance.
+    fn extended_reverse_shape(func: &Function) -> (bool, bool) {
+        let cfg = ControlFlowGraph::with_function(func);
+        let exits: Vec<_> = func
+            .reachable_blocks()
+            .into_iter()
+            .filter(|&block| cfg.successors(block).len() == 0)
+            .collect();
+        let reverse = cfg.reverse();
+        let reaches_an_exit: std::collections::HashSet<_> =
+            PostOrder::with_cfg(&reverse).into_vec().into_iter().collect();
+        let dead: Vec<_> = func
+            .reachable_blocks()
+            .into_iter()
+            .filter(|block| !reaches_an_exit.contains(block))
+            .collect();
+        let needs_exit = exits.len() > 1 || !dead.is_empty();
+        let would_ice = needs_exit && dead.iter().any(|&block| cfg.successors(block).len() >= 2);
+        (would_ice, needs_exit)
+    }
+
+    #[test]
+    fn dominance_is_a_partial_order_on_random_graphs() {
+        for seed in 1..200u64 {
+            let ssa = random_function(seed, 10);
+            let func = ssa.main();
+            let cfg = ControlFlowGraph::with_function(func);
+            let post_order = PostOrder::with_cfg(&cfg);
+            if post_order.as_slice().is_empty() {
+                continue;
+            }
+            let tree = DominatorTree::with_cfg_and_post_order(
+                &cfg,
+                &post_order,
+                DominanceQueries::Enabled,
+            );
+            let blocks = post_order.as_slice();
+
+            for &a in blocks {
+                assert!(tree.dominates(a, a), "seed {seed}: dominance is not reflexive at {a}");
+                for &b in blocks {
+                    if a != b && tree.dominates(a, b) {
+                        assert!(
+                            !tree.dominates(b, a),
+                            "seed {seed}: {a} and {b} dominate each other"
+                        );
+                    }
+                    for &c in blocks {
+                        if tree.dominates(a, b) && tree.dominates(b, c) {
+                            assert!(
+                                tree.dominates(a, c),
+                                "seed {seed}: dominance is not transitive for {a}, {b}, {c}"
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Every node's immediate dominator must come earlier in the reverse post-order: the
+    /// two-scan interval numbering reads its parents' slots before writing its own, so a parent
+    /// that sorted after its child would silently corrupt the numbering for the whole function
+    /// rather than for one pair.
+    #[test]
+    fn immediate_dominators_precede_their_children_in_the_reverse_post_order() {
+        for seed in 1..400u64 {
+            for num_blocks in [2usize, 3, 5, 8, 13, 21] {
+                let ssa = random_function(seed, num_blocks);
+                let func = ssa.main();
+                let cfg = ControlFlowGraph::with_function(func);
+                let post_order = PostOrder::with_cfg(&cfg);
+                if post_order.as_slice().is_empty() {
+                    continue;
+                }
+                let tree = DominatorTree::with_cfg_and_post_order(
+                    &cfg,
+                    &post_order,
+                    DominanceQueries::Enabled,
+                );
+                for &block in post_order.as_slice() {
+                    let Some(immediate_dominator) = tree.immediate_dominator(block) else {
+                        continue;
+                    };
+                    assert_eq!(
+                        tree.reverse_post_order_cmp(immediate_dominator, block),
+                        Ordering::Less,
+                        "seed {seed}, {num_blocks} blocks: immediate dominator {immediate_dominator} \
+                         of {block} does not precede it in the reverse post-order"
+                    );
+                }
+            }
+        }
+    }
+
+    /// A tree built without dominance queries still answers everything that does not need the
+    /// depth-first intervals, which is what `mem2reg` builds one for.
+    #[test]
+    fn tree_without_dominance_queries_still_answers_immediate_dominators() {
+        for seed in 1..200u64 {
+            let ssa = random_function(seed, 10);
+            let func = ssa.main();
+            let cfg = ControlFlowGraph::with_function(func);
+            let post_order = PostOrder::with_cfg(&cfg);
+            let enabled = DominatorTree::with_cfg_and_post_order(
+                &cfg,
+                &post_order,
+                DominanceQueries::Enabled,
+            );
+            let disabled = DominatorTree::with_cfg_and_post_order(
+                &cfg,
+                &post_order,
+                DominanceQueries::Disabled,
+            );
+            for &block in post_order.as_slice() {
+                assert_eq!(disabled.immediate_dominator(block), enabled.immediate_dominator(block));
+                assert_eq!(
+                    disabled.reverse_post_order_idx(block),
+                    enabled.reverse_post_order_idx(block)
+                );
+                assert!(disabled.is_reachable(block));
+            }
+            assert_eq!(
+                disabled.compute_dominance_frontiers_with_back_edges(&cfg).len(),
+                enabled.compute_dominance_frontiers_with_back_edges(&cfg).len()
+            );
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "needs a dominator tree built with `DominanceQueries::Enabled`")]
+    fn dominates_on_a_tree_without_dominance_queries_panics() {
+        let ssa = random_function(1, 4);
+        let func = ssa.main();
+        let cfg = ControlFlowGraph::with_function(func);
+        let post_order = PostOrder::with_cfg(&cfg);
+        let tree =
+            DominatorTree::with_cfg_and_post_order(&cfg, &post_order, DominanceQueries::Disabled);
+        let entry = *post_order.as_slice().last().unwrap();
+        tree.dominates(entry, entry);
+    }
+
+    #[test]
+    #[ignore = "benchmark, run explicitly with --ignored --nocapture --release"]
+    fn bench_dominance_query() {
+        use std::time::Instant;
+
+        for num_blocks in [8usize, 32, 128, 512] {
+            let ssa = random_function(12345, num_blocks);
+            let func = ssa.main();
+            let cfg = ControlFlowGraph::with_function(func);
+            let post_order = PostOrder::with_cfg(&cfg);
+            let tree = DominatorTree::with_cfg_and_post_order(
+                &cfg,
+                &post_order,
+                DominanceQueries::Enabled,
+            );
+            let blocks: Vec<_> = post_order.as_slice().to_vec();
+            let pairs: Vec<_> = blocks
+                .iter()
+                .flat_map(|&a| blocks.iter().map(move |&b| (a, b)))
+                .cycle()
+                .take(2_000_000)
+                .collect();
+
+            let start = Instant::now();
+            let mut accumulator = 0usize;
+            for &(a, b) in &pairs {
+                accumulator += usize::from(tree.dominates(a, b));
+            }
+            let queries = start.elapsed();
+            std::hint::black_box(accumulator);
+
+            let time = |queries| {
+                let start = Instant::now();
+                for _ in 0..1000 {
+                    std::hint::black_box(DominatorTree::with_cfg_and_post_order(
+                        &cfg,
+                        &post_order,
+                        queries,
+                    ));
+                }
+                start.elapsed()
+            };
+            let with_intervals = time(DominanceQueries::Enabled);
+            let without_intervals = time(DominanceQueries::Disabled);
+
+            println!(
+                "{:>4} reachable blocks | {} queries in {:>9.3?} ({:>5.2} ns each) | 1000 \
+                 constructions: {:>9.3?} with intervals, {:>9.3?} without",
+                blocks.len(),
+                pairs.len(),
+                queries,
+                queries.as_nanos() as f64 / pairs.len() as f64,
+                with_intervals,
+                without_intervals,
+            );
+        }
     }
 }

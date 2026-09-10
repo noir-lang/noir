@@ -52,7 +52,9 @@ use crate::ast::{FunctionKind, ItemVisibility, UnaryOp};
 use crate::hir::comptime::{InterpreterError, bigint_to_field};
 use crate::hir::type_check::NoMatchingImplFoundError;
 use crate::lint::Lint;
-use crate::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind, TraitItemId};
+use crate::node_interner::{
+    ExprId, GlobalValue, ImplSearchErrorKind, TraitItemId, TraitLookupMode,
+};
 use crate::recursion::TypeRecursionContext;
 use crate::shared::{Builtin, ForeignCall, Visibility};
 use crate::token::FunctionAttributeKind;
@@ -63,7 +65,7 @@ use crate::{
         expr::*,
         function::Parameters,
         stmt::{HirAssignStatement, HirLValue, HirLetStatement, HirPattern, HirStatement},
-        types::resolve_type_bindings,
+        types::{BoundTypeVariables, resolve_type_bindings},
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitImplKind},
 };
@@ -91,6 +93,7 @@ use self::{
 
 pub mod ast;
 mod builtin;
+mod context_purity_tests;
 mod debug;
 pub mod debug_types;
 pub mod errors;
@@ -98,6 +101,7 @@ pub mod printer;
 pub mod proxies;
 pub mod tests;
 pub mod visitor;
+mod well_formed;
 
 struct LambdaContext {
     env_ident: ast::Ident,
@@ -278,9 +282,21 @@ pub fn monomorphize_debug(
         force_unconstrained,
     );
     monomorphizer.compile_main(main)?;
-
     monomorphizer.process_queue()?;
-    Ok(monomorphizer.into_program())
+
+    // Returning `Ok` with jobs still queued would silently drop whatever is in them: the
+    // functions would be missing from the program while the calls to them remain.
+    assert!(
+        !monomorphizer.has_pending_jobs(),
+        "monomorphization returned with {} function(s) still queued",
+        monomorphizer.queue.len(),
+    );
+
+    let mut program = monomorphizer.into_program();
+    if cfg!(debug_assertions) {
+        well_formed::assert_program_is_well_formed(&mut program);
+    }
+    Ok(program)
 }
 
 impl<'interner> Monomorphizer<'interner> {
@@ -333,14 +349,16 @@ impl<'interner> Monomorphizer<'interner> {
         self.locals.clear();
         self.in_unconstrained_function = is_unconstrained;
 
-        perform_instantiation_bindings(&bindings);
-        let interner = &self.interner;
-        let impl_bindings = perform_impl_bindings(interner, trait_method, next_fn_id, location)
-            .map_err(MonomorphizationError::InterpreterError)?;
+        // Both guards are undone on every exit from this function, including the `?`s below.
+        // `_impl_bindings` is declared second and so is dropped first, undoing the two sets of
+        // bindings in the reverse of the order they were applied.
+        let _bindings = BoundTypeVariables::apply(&bindings);
+        let impl_bindings =
+            compute_impl_bindings(self.interner, trait_method, next_fn_id, location)
+                .map_err(MonomorphizationError::InterpreterError)?;
+        let _impl_bindings = BoundTypeVariables::apply(&impl_bindings);
 
         self.function(next_fn_id, new_id, location)?;
-        undo_instantiation_bindings(impl_bindings);
-        undo_instantiation_bindings(bindings);
 
         Ok(true)
     }
@@ -603,17 +621,17 @@ impl<'interner> Monomorphizer<'interner> {
         Ok(())
     }
 
-    /// If `f` is a trait method, force-bind the trait's `Self` type variable to the impl's
-    /// self type and return a guard that unbinds it again when dropped.
+    /// If `f` is a trait method, bind the trait's `Self` type variable to the impl's self type
+    /// and return a guard that restores it when dropped.
     ///
-    /// Returns `None` for functions that are not trait methods, in which case there is nothing
-    /// to bind or unbind.
-    fn bind_function_trait_self(&self, f: &node_interner::FuncId) -> Option<TraitSelfBindingGuard> {
-        let (self_type, trait_id) = self.interner.get_function_trait(f)?;
+    /// Returns an empty guard for functions that are not trait methods, in which case there is
+    /// nothing to bind.
+    fn bind_function_trait_self(&self, f: &node_interner::FuncId) -> BoundTypeVariables {
+        let Some((self_type, trait_id)) = self.interner.get_function_trait(f) else {
+            return BoundTypeVariables::none();
+        };
         let self_type_typevar = self.interner.get_trait(trait_id).self_type_typevar.clone();
-        let kind = self_type_typevar.kind();
-        self_type_typevar.force_bind(self_type);
-        Some(TraitSelfBindingGuard { self_type_typevar, kind })
+        BoundTypeVariables::bind(&self_type_typevar, self_type)
     }
 
     /// Monomorphizes the given function.
@@ -1585,15 +1603,10 @@ impl<'interner> Monomorphizer<'interner> {
                 // instantiation type via `follow_bindings`. Same mechanism `process_next_job`
                 // uses for generic function calls.
                 let bindings = self.interner.try_get_instantiation_bindings(expr_id).cloned();
-                if let Some(bindings) = &bindings {
-                    perform_instantiation_bindings(bindings);
-                }
-                let result =
-                    self.global_ident(*global_id, definition.name.clone(), &typ, ident.location);
-                if let Some(bindings) = bindings {
-                    undo_instantiation_bindings(bindings);
-                }
-                result
+                let _bindings = bindings
+                    .as_ref()
+                    .map_or_else(BoundTypeVariables::none, BoundTypeVariables::apply);
+                self.global_ident(*global_id, definition.name.clone(), &typ, ident.location)
             }
             DefinitionKind::Local(_) => match self.lookup_captured_expr(ident.id) {
                 Some(expr) => Ok(expr),
@@ -2232,10 +2245,37 @@ impl<'interner> Monomorphizer<'interner> {
         // bindings would otherwise inherit impl-specific entries from the
         // first visit. Snapshot and restore here so each visit starts from
         // the elaboration-time bindings.
+        //
+        // The restore has to happen on every path out of the resolution below, not just the one
+        // that reaches the end of it: `resolve_trait_item` writes the extended bindings before it
+        // can go on to fail with `NoTraitItemInImpl`, and the associated-constant case returns
+        // early on success. Doing the work in a separate call keeps both of those inside the
+        // snapshot.
         let saved_bindings = self.interner.try_get_instantiation_bindings(expr_id).cloned();
+        let result = self.resolve_trait_item_expr_with_impl_bindings(
+            expr_id,
+            function_type,
+            trait_item_id,
+            use_current_runtime,
+        );
+        self.interner.restore_instantiation_bindings(expr_id, saved_bindings);
+        result
+    }
 
-        let item = resolve_trait_item(self.interner, trait_item_id, expr_id)
-            .map_err(MonomorphizationError::InterpreterError)?;
+    /// The body of [`Self::resolve_trait_item_expr`], which runs with the call expression's
+    /// instantiation bindings extended by the resolved impl's.
+    fn resolve_trait_item_expr_with_impl_bindings(
+        &mut self,
+        expr_id: ExprId,
+        function_type: HirType,
+        trait_item_id: TraitItemId,
+        use_current_runtime: bool,
+    ) -> Result<ast::Expression, MonomorphizationError> {
+        // Held for the rest of this function: the impl search's bindings have to stay applied
+        // while the impl's method is compiled, and are undone once it has been.
+        let (item, _impl_search_bindings) =
+            resolve_trait_item(self.interner, trait_item_id, expr_id)
+                .map_err(MonomorphizationError::InterpreterError)?;
 
         let func_id = match item {
             TraitItem::Method(func_id) => func_id,
@@ -2247,17 +2287,11 @@ impl<'interner> Monomorphizer<'interner> {
         };
 
         // Functions are represented as (constrained, unconstrained) pairs
-        let result = self.monomorphize_constrained_and_unconstrained(
+        self.monomorphize_constrained_and_unconstrained(
             use_current_runtime,
             self.force_unconstrained,
             |this| this.resolve_trait_method_expr(func_id, expr_id, function_type, trait_item_id),
-        );
-
-        if let Some(saved) = saved_bindings {
-            self.interner.store_instantiation_bindings(expr_id, saved);
-        }
-
-        result
+        )
     }
 
     /// Look up the definition of a function (enqueue it for monomorphization if this is the first time),
@@ -3315,37 +3349,16 @@ fn unwrap_enum_type(
     }
 }
 
-/// Unbinds a trait's `Self` type variable once a trait method is done being monomorphized,
-/// restoring the unbound state it had beforehand. See [`Monomorphizer::bind_function_trait_self`].
-struct TraitSelfBindingGuard {
-    self_type_typevar: TypeVariable,
-    kind: Kind,
-}
-
-impl Drop for TraitSelfBindingGuard {
-    fn drop(&mut self) {
-        self.self_type_typevar.unbind(self.self_type_typevar.id(), self.kind.clone());
-    }
-}
-
-pub fn perform_instantiation_bindings(bindings: &TypeBindings) {
-    for (var, _kind, binding) in bindings.values() {
-        var.force_bind(binding.clone());
-    }
-}
-
-pub fn undo_instantiation_bindings(bindings: TypeBindings) {
-    for (id, (var, kind, _)) in bindings {
-        var.unbind(id, kind);
-    }
-}
-
 /// Call sites are instantiated against the trait method, but when an impl is later selected,
-/// the corresponding method in the impl will have a different set of generics. `perform_impl_bindings`
-/// is needed to apply the generics from the trait method to the impl method. Without this,
-/// static method references to generic impls (e.g. `Eq::eq` for `[T; N]`) will fail to re-apply
-/// the correct type bindings during monomorphization.
-pub fn perform_impl_bindings(
+/// the corresponding method in the impl will have a different set of generics.
+/// `compute_impl_bindings` works out the bindings that carry the generics of the trait method
+/// over to the impl method. Without applying these, static method references to generic impls
+/// (e.g. `Eq::eq` for `[T; N]`) will fail to re-apply the correct type bindings during
+/// monomorphization.
+///
+/// The bindings are returned rather than applied; apply them with
+/// [`BoundTypeVariables::apply`], which undoes them again when its guard is dropped.
+pub fn compute_impl_bindings(
     interner: &NodeInterner,
     trait_method: Option<TraitItemId>,
     impl_method: node_interner::FuncId,
@@ -3373,19 +3386,23 @@ pub fn perform_impl_bindings(
         })?;
 
         resolve_type_bindings(&mut bindings);
-
-        perform_instantiation_bindings(&bindings);
     }
 
     Ok(bindings)
 }
 
 /// Resolve a trait item to a particular impl, returning the ID of that impl or an error on failure.
+///
+/// Searching for an impl unifies the object type against the candidates, and the bindings that
+/// search produces have to stay applied while the impl's method is compiled — references to the
+/// trait's generics inside it resolve through them. They are returned as a guard rather than
+/// committed so the caller decides how long they live; see [`BoundTypeVariables::commit`] for
+/// when keeping them is the right answer.
 fn resolve_trait_item_impl(
     interner: &mut NodeInterner,
     method_id: TraitItemId,
     expr_id: ExprId,
-) -> Result<node_interner::TraitImplId, InterpreterError> {
+) -> Result<(node_interner::TraitImplId, BoundTypeVariables), InterpreterError> {
     let trait_impl = interner.get_selected_impl_for_expression(expr_id).ok_or_else(|| {
         let location = interner.expr_location(&expr_id);
         InterpreterError::NoImpl { location }
@@ -3400,7 +3417,7 @@ fn resolve_trait_item_impl(
                 expr_id,
                 TypeBindings::default(),
             );
-            Ok(impl_id)
+            Ok((impl_id, BoundTypeVariables::none()))
         }
         TraitImplKind::Prepared { .. } => {
             unreachable!("ICE: Prepared trait impl should have been replaced by a Normal one")
@@ -3408,13 +3425,16 @@ fn resolve_trait_item_impl(
         TraitImplKind::Assumed { object_type, trait_generics } => {
             let location = interner.expr_location(&expr_id);
 
-            match interner.lookup_trait_implementation(
+            match interner.try_lookup_trait_implementation(
                 &object_type,
                 method_id.trait_id,
                 &trait_generics.ordered,
                 &trait_generics.named,
+                TraitLookupMode::Default,
             ) {
-                Ok((TraitImplKind::Normal(impl_id), instantiation_bindings)) => {
+                Ok((TraitImplKind::Normal(impl_id), bindings, instantiation_bindings)) => {
+                    let guard = BoundTypeVariables::apply(&bindings);
+
                     // The extra bindings come from impl lookup, similar to what's done when
                     // solving trait constraints in the frontend (see `check_trait_constraints`).
                     record_impl_instantiation_bindings(
@@ -3424,12 +3444,12 @@ fn resolve_trait_item_impl(
                         expr_id,
                         instantiation_bindings,
                     );
-                    Ok(impl_id)
+                    Ok((impl_id, guard))
                 }
-                Ok((TraitImplKind::Assumed { .. }, _instantiation_bindings)) => {
+                Ok((TraitImplKind::Assumed { .. }, ..)) => {
                     Err(InterpreterError::NoImpl { location })
                 }
-                Ok((TraitImplKind::Prepared { .. }, _)) => {
+                Ok((TraitImplKind::Prepared { .. }, ..)) => {
                     unreachable!(
                         "ICE: Prepared trait impl should have been replaced by a Normal one"
                     )
@@ -3612,8 +3632,8 @@ pub(crate) fn resolve_trait_item(
     interner: &mut NodeInterner,
     method_id: TraitItemId,
     expr_id: ExprId,
-) -> Result<TraitItem, InterpreterError> {
-    let impl_id = resolve_trait_item_impl(interner, method_id, expr_id)?;
+) -> Result<(TraitItem, BoundTypeVariables), InterpreterError> {
+    let (impl_id, impl_search_bindings) = resolve_trait_item_impl(interner, method_id, expr_id)?;
 
     let name = interner.definition_name(method_id.item_id);
     let impl_ = interner.get_trait_implementation(impl_id);
@@ -3621,7 +3641,7 @@ pub(crate) fn resolve_trait_item(
 
     for method in &impl_.methods {
         if interner.function_name(method) == name {
-            return Ok(TraitItem::Method(*method));
+            return Ok((TraitItem::Method(*method), impl_search_bindings));
         }
     }
 
@@ -3641,7 +3661,10 @@ pub(crate) fn resolve_trait_item(
                     item.typ.clone()
                 };
 
-                return Ok(TraitItem::Constant { id, expected_type, value });
+                return Ok((
+                    TraitItem::Constant { id, expected_type, value },
+                    impl_search_bindings,
+                ));
             }
         }
     }
