@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["assert_program_is_well_formed","function_ids_match_their_positions","problems","references_resolve"]};
