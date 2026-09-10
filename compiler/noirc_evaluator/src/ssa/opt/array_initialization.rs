@@ -274,7 +274,7 @@ fn collapsed_array(
 }
 #[cfg(test)]
 mod tests {
-    use crate::assert_ssa_snapshot;
+    use crate::{assert_ssa_snapshot, ssa::opt::assert_ssa_does_not_change};
 
     use super::Ssa;
 
@@ -370,18 +370,7 @@ mod tests {
             return v6
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.lower_array_initializations_saving_at_least(8);
-        assert_ssa_snapshot!(ssa, @"
-        acir(inline) fn main f0 {
-          b0(v0: Field, v1: Field, v2: Field):
-            v4 = make_array [Field 0, Field 0, Field 0] : [Field; 3]
-            v6 = array_set v4, index u32 0, value v0
-            v8 = array_set v6, index u32 1, value v1
-            v10 = array_set v8, index u32 2, value v2
-            return v10
-        }
-        ");
+        assert_ssa_does_not_change(src, |ssa| ssa.lower_array_initializations_saving_at_least(8));
     }
 
     /// If anything reads an intermediate array the chain is abandoned: the walk stops at that array,
@@ -400,20 +389,7 @@ mod tests {
             return v8, v9
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.lower_array_initializations_saving_at_least(8);
-        assert_ssa_snapshot!(ssa, @"
-        acir(inline) fn main f0 {
-          b0(v0: Field, v1: Field, v2: Field, v3: Field):
-            v5 = make_array [Field 0, Field 0, Field 0, Field 0] : [Field; 4]
-            v7 = array_set v5, index u32 0, value v0
-            v9 = array_set v7, index u32 1, value v1
-            v11 = array_set v9, index u32 2, value v2
-            v13 = array_set v11, index u32 3, value v3
-            v14 = array_get v9, index u32 0 -> Field
-            return v13, v14
-        }
-        ");
+        assert_ssa_does_not_change(src, |ssa| ssa.lower_array_initializations_saving_at_least(8));
     }
 
     /// A non-constant index could hit any element, so the resulting array is not known.
@@ -430,19 +406,7 @@ mod tests {
             return v9
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.lower_array_initializations_saving_at_least(8);
-        assert_ssa_snapshot!(ssa, @"
-        acir(inline) fn main f0 {
-          b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: u32):
-            v6 = make_array [Field 0, Field 0, Field 0, Field 0] : [Field; 4]
-            v8 = array_set v6, index u32 0, value v0
-            v10 = array_set v8, index u32 1, value v1
-            v11 = array_set v10, index v4, value v2
-            v13 = array_set v11, index u32 3, value v3
-            return v13
-        }
-        ");
+        assert_ssa_does_not_change(src, |ssa| ssa.lower_array_initializations_saving_at_least(8));
     }
 
     /// Writes under a predicate are conditional, so the pass requires flattening not to have run
@@ -577,19 +541,7 @@ mod tests {
             return v8
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.lower_array_initializations();
-        assert_ssa_snapshot!(ssa, @"
-        acir(inline) fn main f0 {
-          b0(v0: Field, v1: Field, v2: Field, v3: Field):
-            v5 = make_array [Field 0, Field 0, Field 0, Field 0] : [Field; 4]
-            v7 = array_set v5, index u32 0, value v0
-            v9 = array_set v7, index u32 1, value v1
-            v11 = array_set v9, index u32 2, value v2
-            v13 = array_set v11, index u32 3, value v3
-            return v13
-        }
-        ");
+        assert_ssa_does_not_change(src, Ssa::lower_array_initializations);
     }
 
     /// Without a `make_array` root the untouched elements are unknown.
@@ -605,17 +557,6 @@ mod tests {
             return v8
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.lower_array_initializations_saving_at_least(8);
-        assert_ssa_snapshot!(ssa, @"
-        acir(inline) fn main f0 {
-          b0(v0: [Field; 4], v1: Field, v2: Field, v3: Field, v4: Field):
-            v6 = array_set v0, index u32 0, value v1
-            v8 = array_set v6, index u32 1, value v2
-            v10 = array_set v8, index u32 2, value v3
-            v12 = array_set v10, index u32 3, value v4
-            return v12
-        }
-        ");
+        assert_ssa_does_not_change(src, |ssa| ssa.lower_array_initializations_saving_at_least(8));
     }
 }
