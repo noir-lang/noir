@@ -1007,13 +1007,15 @@ prop_compose! {
         -> (Vec<ConstantOrWitness>, Vec<ConstantOrWitness>) {
         let (_size, patch_location, patch_value) = size_and_patch;
         let (inputs, distinct_inputs) = inputs_distinct_inputs;
-        let modulus = if let Some(max_input_bits) = max_input_bits {
-            1u128 << max_input_bits
-        } else {
-            1
-        };
-        let to_input = |(x, use_constant)| {
-            (FieldElement::from(x % modulus), use_constant)
+        // `None` means the operation puts no bound on its inputs, so they are drawn from the whole
+        // `u128` range. Reducing them modulo 1 instead would make every generated input 0.
+        let modulus = max_input_bits.map(|max_input_bits| 1u128 << max_input_bits);
+        let to_input = |(x, use_constant): (u128, bool)| {
+            let x = match modulus {
+                Some(modulus) => x % modulus,
+                None => x,
+            };
+            (FieldElement::from(x), use_constant)
         };
         let inputs: Vec<_> = inputs.into_iter().map(to_input).collect();
         let mut distinct_inputs: Vec<_> = distinct_inputs.into_iter().map(to_input).collect();
@@ -1027,7 +1029,11 @@ prop_compose! {
                 let patched_input = BigUint::from_bytes_be(
                     &(*previous_input + FieldElement::from(positive_patch_value)).to_be_bytes(),
                 );
-                *previous_input = FieldElement::from_be_bytes_reduce(&(patched_input % BigUint::from(modulus)).to_bytes_be());
+                let patched_input = match modulus {
+                    Some(modulus) => patched_input % BigUint::from(modulus),
+                    None => patched_input,
+                };
+                *previous_input = FieldElement::from_be_bytes_reduce(&patched_input.to_bytes_be());
             } else {
                 distinct_inputs.push((FieldElement::zero(), true));
             }
@@ -1035,6 +1041,42 @@ prop_compose! {
 
         (inputs, distinct_inputs)
     }
+}
+
+/// The injectivity properties below are only meaningful if the generator actually produces varied
+/// inputs. Reducing an input modulo `2^max_input_bits` with no `max_input_bits` set is a modulo 1,
+/// which pins every input to zero and makes those properties hold vacuously.
+#[test]
+fn any_distinct_inputs_draws_varied_inputs() {
+    use proptest::strategy::{Strategy, ValueTree};
+    use proptest::test_runner::TestRunner;
+
+    fn draw(
+        max_input_bits: Option<usize>,
+        size: usize,
+    ) -> Vec<(Vec<ConstantOrWitness>, Vec<ConstantOrWitness>)> {
+        let strategy = any_distinct_inputs(max_input_bits, size, size);
+        let mut runner = TestRunner::deterministic();
+        (0..16).map(|_| strategy.new_tree(&mut runner).unwrap().current()).collect()
+    }
+
+    let unbounded = draw(None, 24);
+    assert!(
+        unbounded.iter().any(|(inputs, _)| inputs.iter().any(|(x, _)| !x.is_zero())),
+        "every generated input was zero"
+    );
+
+    // A bound is still respected: `keccakf1600_injective` relies on it to stay within `u64`.
+    let bounded = draw(Some(8), 25);
+    for (inputs, distinct_inputs) in &bounded {
+        for (x, _) in inputs.iter().chain(distinct_inputs) {
+            assert!(x.num_bits() <= 8, "{x} does not fit in 8 bits");
+        }
+    }
+    assert!(
+        bounded.iter().any(|(inputs, _)| inputs.iter().any(|(x, _)| !x.is_zero())),
+        "every generated input was zero"
+    );
 }
 
 #[test]
@@ -1277,7 +1319,7 @@ proptest! {
 
 
     #[test]
-    fn sha256_compression_injective(inputs_distinct_inputs in any_distinct_inputs(None, 24, 24)) {
+    fn sha256_compression_injective(inputs_distinct_inputs in any_distinct_inputs(Some(32), 24, 24)) {
         let (inputs, distinct_inputs) = inputs_distinct_inputs;
         if inputs.len() == 24 && distinct_inputs.len() == 24 {
                         let (result, message) = prop_assert_injective(inputs, distinct_inputs, 8, None, sha256_compression_op);
@@ -1286,14 +1328,14 @@ proptest! {
     }
 
     #[test]
-    fn blake2s_injective(inputs_distinct_inputs in any_distinct_inputs(None, 0, 32)) {
+    fn blake2s_injective(inputs_distinct_inputs in any_distinct_inputs(Some(8), 0, 32)) {
         let (inputs, distinct_inputs) = inputs_distinct_inputs;
                 let (result, message) = prop_assert_injective(inputs, distinct_inputs, 32, None, blake2s_op);
         prop_assert!(result, "{}", message);
     }
 
     #[test]
-    fn blake3_injective(inputs_distinct_inputs in any_distinct_inputs(None, 0, 32)) {
+    fn blake3_injective(inputs_distinct_inputs in any_distinct_inputs(Some(8), 0, 32)) {
         let (inputs, distinct_inputs) = inputs_distinct_inputs;
                 let (result, message) = prop_assert_injective(inputs, distinct_inputs, 32, None, blake3_op);
         prop_assert!(result, "{}", message);
