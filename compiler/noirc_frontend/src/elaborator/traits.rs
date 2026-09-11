@@ -869,8 +869,10 @@ impl Elaborator<'_> {
                     ));
                 }
             }
-            Err(ImplSearchErrorKind::RecursionLimitReached) => {
+            Err(ImplSearchErrorKind::RecursionLimitReached(constraint)) => {
+                let constraint = self.interner.display_trait_constraint(&constraint);
                 self.push_err(InterpreterError::TraitImplResolutionRecursionLimitReached {
+                    constraint,
                     location,
                 });
                 return;

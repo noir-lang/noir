@@ -117,7 +117,10 @@ impl NodeInterner {
             TraitLookupMode::Default,
         );
         match existing {
+            // A `where` clause is a hypothesis, so an inconclusive search - no impl found, or one
+            // which overflowed before it could decide - is registered as assumed all the same.
             Err(ImplSearchErrorKind::NoMatching(_))
+            | Err(ImplSearchErrorKind::RecursionLimitReached(_))
             | Err(ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType) => {
                 // The incoming bound may describe an associated type inherited from a parent (or
                 // grandparent) trait, supplied as a fresh variable that does not unify with the
@@ -157,8 +160,7 @@ impl NodeInterner {
             }
             Err(
                 error @ (ImplSearchErrorKind::NoImplFound(_)
-                | ImplSearchErrorKind::MultipleMatching(_)
-                | ImplSearchErrorKind::RecursionLimitReached),
+                | ImplSearchErrorKind::MultipleMatching(_)),
             ) => Err(error),
         }
     }
@@ -532,7 +534,7 @@ impl NodeInterner {
 
         // Prevent infinite recursion when looking for impls
         if recursion_limit == 0 {
-            return Err(ImplSearchErrorKind::RecursionLimitReached);
+            return Err(ImplSearchErrorKind::RecursionLimitReached(make_constraint()));
         }
 
         // If the object type isn't known, just return an error saying type annotations are needed.
@@ -667,6 +669,16 @@ impl NodeInterner {
         } else if is_bindable && !matches!(mode, TraitLookupMode::Overlapping) {
             Err(ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType)
         } else if matching_impls.is_empty() {
+            // An overflow is reported as such rather than as "no impl found": the search ran out
+            // of depth, so whether an impl exists is unknown. It is reported against the
+            // constraint the user's code asked for, which is this call's own, since each level
+            // replaces the one below it as the error travels back out.
+            if matches!(
+                where_clause_error,
+                Some((_, ImplSearchErrorKind::RecursionLimitReached(_)))
+            ) {
+                return Err(ImplSearchErrorKind::RecursionLimitReached(make_constraint()));
+            }
             let mut errors = match where_clause_error {
                 Some((_, ImplSearchErrorKind::NoImplFound(errors))) => errors,
                 Some((constraint, _other)) => vec![constraint],
@@ -754,6 +766,16 @@ impl NodeInterner {
         }
 
         Ok(())
+    }
+
+    /// Renders `constraint` the way it is written in source, e.g. `Bar: Foo<u32>`. Returns `None`
+    /// when the trait was never declared, matching [`NoMatchingImplFoundError::new`].
+    pub fn display_trait_constraint(&self, constraint: &TraitConstraint) -> Option<String> {
+        let the_trait = self.try_get_trait(constraint.trait_bound.trait_id)?;
+        Some(format!(
+            "{}: {}{}",
+            constraint.typ, the_trait.name, constraint.trait_bound.trait_generics
+        ))
     }
 
     pub(crate) fn trait_constraint_string(
