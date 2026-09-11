@@ -515,7 +515,7 @@ fn self_with_associated_type_method_call_turbofish_type_mismatch() {
     check_errors(src);
 }
 
-/// TODO(https://github.com/noir-lang/noir/issues/10435): Improve error message
+/// Regression test for https://github.com/noir-lang/noir/issues/10435.
 #[test]
 fn self_with_non_associated_item_access() {
     let src = r#"
@@ -536,7 +536,8 @@ fn self_with_non_associated_item_access() {
     impl MyTrait for Outer {
         fn test() -> u32 {
             Self::inner::method()
-                  ^^^^^ Could not resolve 'inner' in path
+                  ^^^^^ no associated item named `inner` found for `Outer`
+                  ~~~~~ `inner` is a field of `Outer`; a path can only name an associated type, constant or function
         }
     }
 
