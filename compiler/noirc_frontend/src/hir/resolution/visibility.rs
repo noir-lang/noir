@@ -204,7 +204,13 @@ pub fn method_call_is_visible(
 
             // A private method defined on `Foo<i32>` should be visible when calling
             // it from an impl on `Foo<i64>`, even though the generics are different.
+            //
+            // This only applies to methods defined in the current crate. Matching the receiver
+            // type says nothing about the caller's crate: structural types such as `Field` or
+            // `[T; N]` compare equal across crates, and a trait impl's `self_type` may be a type
+            // from another crate. Methods from other crates fall through to the checks below.
             if let Some(self_type) = self_type
+                && func_meta.source_crate == current_module.krate
                 && is_same_type_regardless_generics(self_type, object_type)
             {
                 if modifiers.visibility.is_private() {
@@ -213,7 +219,7 @@ pub fn method_call_is_visible(
                     // block in a different module, extending the type with new methods, then
                     // we should only access public parts defined in other modules, or private
                     // ones defined in the same extension.
-                    let def_map = &def_maps[&current_module.krate];
+                    let def_map = &def_maps[&func_meta.source_crate];
                     // Cannot call `type_member_is_visible` because it goes up to the parent;
                     // the `func_meta.source_module` already seems to be the parent.
                     return module_is_descendant_of_target(
@@ -222,8 +228,7 @@ pub fn method_call_is_visible(
                         func_meta.source_module,
                     );
                 } else {
-                    // If visibility is PublicCrate, then we are good, because is_same_type_regardless_generics
-                    // already checked that the types are the same, so we are in the same crate.
+                    // `PublicCrate` methods are visible anywhere in the crate that defines them.
                     return true;
                 }
             }
