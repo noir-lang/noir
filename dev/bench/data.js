@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789141160042,
+  "lastUpdate": 1789141479629,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -7183,55 +7183,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "63074a4366c9a360c00b75a1e92216b171eac3ec",
-          "message": "chore(ci): derive the Playwright version from yarn.lock instead of pinning it in four places (#13564)",
-          "timestamp": "2026-08-26T13:25:43Z",
-          "tree_id": "166004594a538924d79d010b1f9a1028e13e3534",
-          "url": "https://github.com/noir-lang/noir/commit/63074a4366c9a360c00b75a1e92216b171eac3ec"
-        },
-        "date": 1787752518488,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "test_report_noir-lang_noir_json_parser_",
-            "value": 16,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_noir-lang_sha256_",
-            "value": 35,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_noir-lang_sha512_",
-            "value": 13,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_zkpassport_noir-ecdsa_",
-            "value": 5,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_zkpassport_noir_rsa_",
-            "value": 3,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "ead45a52af7d89c28fb00fca3cd254782e153df9",
           "message": "fix(ssa): never mutate a global's storage in place in the SSA interpreter (#13553)",
@@ -10967,6 +10918,80 @@ window.BENCHMARK_DATA = {
           {
             "name": "test_report_zkpassport_noir_rsa_",
             "value": 2,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "072bae81fac1453b4b473668fab5269c1bd98f16",
+          "message": "chore: speed up stdlib test (#13653)",
+          "timestamp": "2026-09-11T15:13:59Z",
+          "tree_id": "8aa2249eafd289936ab191f9eb7d3f53f38fff06",
+          "url": "https://github.com/noir-lang/noir/commit/072bae81fac1453b4b473668fab5269c1bd98f16"
+        },
+        "date": 1789141390171,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_fnd_noir-protocol-circuits_crates_blob",
+            "value": 3,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_fnd_noir-protocol-circuits_crates_private-kernel-lib",
+            "value": 3,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_fnd_noir-protocol-circuits_crates_types",
+            "value": 3,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_noir-lang_noir-bignum_",
+            "value": 74,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_noir-lang_noir_bigcurve_",
+            "value": 304,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_noir-lang_noir_json_parser_",
+            "value": 9,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_noir-lang_sha256_",
+            "value": 24,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_noir-lang_sha512_",
+            "value": 11,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_zkpassport_noir-ecdsa_",
+            "value": 4,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_zkpassport_noir_rsa_",
+            "value": 3,
             "unit": "s"
           }
         ]
