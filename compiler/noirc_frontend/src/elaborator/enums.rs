@@ -12,7 +12,7 @@ use crate::{
     DataType, EnumVariant as HirEnumVariant, Kind, Shared, Type,
     ast::{
         ConstructorExpression, EnumVariant, Expression, ExpressionKind, FunctionKind, Ident,
-        ItemVisibility, Literal, NoirEnumeration, Path, StatementKind, UnresolvedType,
+        ItemVisibility, Literal, MatchRule, NoirEnumeration, Path, StatementKind, UnresolvedType,
         UnresolvedTypeData,
     },
     elaborator::{
@@ -507,19 +507,26 @@ impl Elaborator<'_> {
     pub(super) fn elaborate_match_rules(
         &mut self,
         variable_to_match: DefinitionId,
-        rules: Vec<(Expression, Expression)>,
+        rules: Vec<MatchRule>,
     ) -> (Vec<Row>, Type) {
         let result_type = self.interner.next_type_variable();
         let expected_pattern_type = self.interner.definition_type(variable_to_match);
 
-        let rows = vecmap(rules, |(pattern, branch)| {
+        let rows = vecmap(rules, |MatchRule { pattern, guard, branch }| {
             self.push_scope();
             let pattern_location = pattern.location;
             let pattern =
                 self.expression_to_pattern(pattern, &expected_pattern_type, &mut Vec::new());
             let columns = vec![Column::new(variable_to_match, pattern)];
 
-            let guard = None;
+            // The guard is elaborated in the arm's scope, so it can read the pattern's variables.
+            let guard = guard.map(|guard| {
+                let guard_location = guard.type_location();
+                let (guard, guard_type) = self.elaborate_expression(guard);
+                self.unify_or_type_mismatch(&guard_type, &Type::Bool, guard_location);
+                guard
+            });
+
             let body_location = branch.type_location();
             let (body, body_type) = self.elaborate_expression(branch);
 
@@ -1154,6 +1161,9 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
                     HirMatch::Success(row.body)
                 }
                 Some(cond) => {
+                    // The arm is reached whenever its pattern matches, whether or not the guard
+                    // then holds, so it is not redundant with the arms before it.
+                    self.unreachable_cases.remove(&row.original_body);
                     let remaining = self.compile_rows(rows)?;
                     HirMatch::Guard { cond, body: row.body, otherwise: Box::new(remaining) }
                 }
@@ -1484,6 +1494,11 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
         for row in rows {
             row.columns.retain(|col| {
                 if let Pattern::Binding(variable) = col.pattern {
+                    // The guard needs the same bindings as the body: it is a separate expression
+                    // which reads the pattern's variables and is evaluated before the body.
+                    row.guard = row
+                        .guard
+                        .map(|guard| self.let_binding(variable, col.variable_to_match, guard));
                     row.body = self.let_binding(variable, col.variable_to_match, row.body);
                     false
                 } else {

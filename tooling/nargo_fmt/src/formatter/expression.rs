@@ -3,7 +3,8 @@ use noirc_frontend::{
         ArrayLiteral, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
         ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
         IfExpression, IndexExpression, InfixExpression, Lambda, Literal, MatchExpression,
-        MemberAccessExpression, MethodCallExpression, PrefixExpression, TypePath, UnaryOp,
+        MatchRule, MemberAccessExpression, MethodCallExpression, PrefixExpression, TypePath,
+        UnaryOp,
     },
     token::{Keyword, Token, TokenKind},
 };
@@ -1028,9 +1029,17 @@ impl ChunkFormatter<'_, '_> {
         }));
 
         group.increase_indentation();
-        for (pattern, branch) in match_expression.rules {
+        for MatchRule { pattern, guard, branch } in match_expression.rules {
             group.line();
             self.format_expression(pattern, &mut group);
+            if let Some(guard) = guard {
+                group.text(self.chunk(|formatter| {
+                    formatter.write_space();
+                    formatter.write_keyword(Keyword::If);
+                    formatter.write_space();
+                }));
+                self.format_expression(guard, &mut group);
+            }
             group.text(self.chunk(|formatter| {
                 formatter.write_space();
                 formatter.write_token(Token::FatArrow);
@@ -2962,6 +2971,18 @@ let     x   =    1   +    2 ;
         A => B,
         C => { D },
         E => (),
+    }
+}\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_match_with_guards() {
+        let src = "fn main() {  match  x  {  A  if  y==1  =>B  ,  _=>()  ,  } }";
+        let expected = "fn main() {
+    match x {
+        A if y == 1 => B,
+        _ => (),
     }
 }\n";
         assert_format(src, expected);
