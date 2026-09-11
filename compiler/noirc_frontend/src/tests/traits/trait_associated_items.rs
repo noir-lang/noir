@@ -714,8 +714,22 @@ fn associated_type_mismatch_across_traits() {
 }
 
 #[test]
+fn associated_constants_of_one_trait_at_two_generic_arguments_are_distinguished() {
+    let src = r#"
+        pub trait Tr<let X: u32> { let N: u32; }
+
+        pub fn g<T>(xs: [Field; <T as Tr<1>>::N]) where T: Tr<1>, T: Tr<2> {
+            let _ys: [Field; <T as Tr<2>>::N] = xs;
+                                                ^^ Expected type [Field; <T as Tr<2>>::N], found type [Field; <T as Tr<1>>::N]
+        }
+
+        fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn associated_type_mismatch_across_modules() {
-    // Error message is confusing here but it is an improvement over no error
     let src = r#"
         pub mod one {
             pub trait Eggs {
@@ -733,7 +747,7 @@ fn associated_type_mismatch_across_modules() {
 
         pub fn mix<T: one::Eggs + two::Eggs>() {
             T::take(T::give());
-                    ^^^^^^^^^ Expected type <T as Eggs>::Item, found type <T as Eggs>::Item
+                    ^^^^^^^^^ Expected type <T as two::Eggs>::Item, found type <T as one::Eggs>::Item
         }
 
         fn main() {}
