@@ -305,6 +305,21 @@ fn numeric_generic_u16_array_size() {
 }
 
 #[test]
+fn numeric_generic_field_larger_than_u32() {
+    // Regression test for https://github.com/noir-lang/noir/issues/6125
+    let src = r#"
+        global A: Field = 4294967297;
+
+        fn foo<let A: Field>() { }
+
+        fn main() {
+            let _ = foo::<A>();
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn numeric_generic_field_arithmetic_larger_than_u32() {
     let src = r#"
         struct Foo<let F: Field> {}

@@ -245,21 +245,6 @@ fn arithmetic_generics_field_division_by_zero() {
 }
 
 #[test]
-fn global_numeric_generic_larger_than_u32() {
-    // Regression test for https://github.com/noir-lang/noir/issues/6125
-    let source = r#"
-    global A: Field = 4294967297;
-    
-    fn foo<let A: Field>() { }
-    
-    fn main() {
-        let _ = foo::<A>();
-    }
-    "#;
-    assert_no_errors(source);
-}
-
-#[test]
 fn global_arithmetic_generic_larger_than_u32() {
     // Regression test for https://github.com/noir-lang/noir/issues/6126
     let source = r#"
