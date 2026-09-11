@@ -85,6 +85,9 @@ fn format_merged_import(segment: Segment, import_tree: ImportTree) -> ChunkGroup
     group.text(TextChunk::new(segment.to_string()));
 
     if import_tree.tree.is_empty() {
+        if import_tree.empty_list {
+            group.text(TextChunk::new("::{}".to_string()));
+        }
         return group;
     }
 
@@ -204,18 +207,22 @@ impl Ord for Segment {
 #[derive(Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 struct ImportTree {
     tree: BTreeMap<Segment, Box<ImportTree>>,
+    /// Whether this segment was written with an explicit empty list, as in `use foo::{};`.
+    /// A leaf import (`use foo;`) also ends up with no children, and the two are different
+    /// statements: the first imports nothing, the second imports `foo`.
+    empty_list: bool,
 }
 
 impl ImportTree {
     fn new() -> Self {
-        Self { tree: BTreeMap::new() }
+        Self { tree: BTreeMap::new(), empty_list: false }
     }
 
     /// Creates an import tree that has `segment` as the only element with `tree` as its value.
     fn single(segment: Segment, tree: ImportTree) -> Self {
         let mut tree_map = BTreeMap::new();
         tree_map.insert(segment, Box::new(tree));
-        Self { tree: tree_map }
+        Self { tree: tree_map, empty_list: false }
     }
 
     /// Inserts a segment to the tree, creating the necessary empty children if they don't exist yet.
@@ -239,7 +246,7 @@ impl ImportTree {
     ///     "`foo::bar`" => {"baz", "qux"}
     /// }
     fn simplify(self) -> ImportTree {
-        let mut new_tree = ImportTree::new();
+        let mut new_tree = ImportTree { tree: BTreeMap::new(), empty_list: self.empty_list };
         for (segment, tree) in self.tree {
             let mut tree = tree.simplify();
             if tree.tree.len() == 1 {
@@ -294,7 +301,11 @@ fn merge_imports_in_tree(imports: Vec<UseTree>, mut tree: &mut ImportTree) {
                 }
             }
             UseTreeKind::List(trees) => {
-                merge_imports_in_tree(trees, tree);
+                if trees.is_empty() {
+                    tree.empty_list = true;
+                } else {
+                    merge_imports_in_tree(trees, tree);
+                }
             }
         }
     }
@@ -646,6 +657,32 @@ use std::merkle::compute_merkle_root;
     fn format_use_absolute() {
         let src = " use  :: foo :: bar;  ";
         let expected = "use ::foo::bar;\n";
+        assert_format(src, expected);
+    }
+
+    /// `use foo::{};` imports nothing and `use foo;` imports `foo`, so an empty list has to survive
+    /// formatting. It cannot be represented by an empty subtree, which is what a leaf import
+    /// becomes once its `self` segment is folded into the path.
+    #[test]
+    fn keeps_empty_use_list() {
+        let src = "use std::collections::{};\n";
+        assert_format_preserving_granularity(src, src);
+        assert_format(src, src);
+    }
+
+    #[test]
+    fn keeps_empty_use_list_on_a_path_kind() {
+        let src = "use crate::{};\n";
+        assert_format_preserving_granularity(src, src);
+        assert_format(src, src);
+    }
+
+    /// Merging an empty list into a sibling that imports something loses nothing, so the merged
+    /// import is written the plain way.
+    #[test]
+    fn merges_empty_use_list_into_a_sibling_import() {
+        let src = "use std::collections::{};\nuse std::collections::bounded_vec::BoundedVec;\n";
+        let expected = "use std::collections::bounded_vec::BoundedVec;\n";
         assert_format(src, expected);
     }
 }
