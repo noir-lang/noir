@@ -1289,12 +1289,19 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let bindings = unwrap_rc(bindings);
                 let mut result = self.call_function(function_id, arguments, bindings, location)?;
                 if call.is_macro_call {
-                    let expr = result.into_expression(self.elaborator, location)?;
+                    let macro_name =
+                        self.elaborator.interner.function_name(&function_id).to_string();
+
+                    let expr = result
+                        .into_expression(self.elaborator, location)
+                        .map_err(|error| Self::error_in_macro_call(error, &macro_name, location))?;
                     let expr =
                         self.elaborate_in_function(self.current_function, None, |elaborator| {
                             elaborator.elaborate_expression(expr).0
                         });
-                    result = self.evaluate(expr)?;
+                    result = self
+                        .evaluate(expr)
+                        .map_err(|error| Self::error_in_macro_call(error, &macro_name, location))?;
 
                     self.unify_macro_call_result_with_expected_type(id, location, &result);
                 }
@@ -1305,6 +1312,25 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let typ = value.get_type().into_owned();
                 Err(InterpreterError::NonFunctionCalled { typ, location })
             }
+        }
+    }
+
+    /// Attribute `location` (the macro call site) to `error` so its diagnostic also points at the
+    /// macro which generated the failing code. Control-flow signals (`Break`, `Continue`) and
+    /// errors which are never displayed pass through untouched: they have no diagnostic to add a
+    /// label to, and no location of their own.
+    fn error_in_macro_call(
+        error: InterpreterError,
+        macro_name: &str,
+        location: Location,
+    ) -> InterpreterError {
+        if error.should_be_filtered() {
+            return error;
+        }
+        InterpreterError::ErrorInMacroCall {
+            error: Box::new(error),
+            macro_name: macro_name.to_string(),
+            location,
         }
     }
 
