@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789152112651,
+  "lastUpdate": 1789152115053,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14530,40 +14530,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "54a3e6747e29dd4b23f9479d663983c02cbd0839",
-          "message": "chore: remove the bytecode-size comparison scripts (#13606)",
-          "timestamp": "2026-09-07T12:58:37+01:00",
-          "tree_id": "558ba7c3b9fcc9025472379a5b9aa7bca6076f69",
-          "url": "https://github.com/noir-lang/noir/commit/54a3e6747e29dd4b23f9479d663983c02cbd0839"
-        },
-        "date": 1788782672588,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 5699,
-            "unit": "opcodes"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 13173,
-            "unit": "opcodes"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "b77647e0cb0dd264f840e273ba41bc74fc7cb42c",
           "message": "chore(ci): drop the aztec-packages benchmark reports and the noir-contracts compile job (#13605)",
           "timestamp": "2026-09-07T13:02:46+01:00",
@@ -16203,6 +16169,40 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/8ed48f7bda8980ce914ad6b8cd4dd4a0e610e11d"
         },
         "date": 1789150189528,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 5699,
+            "unit": "opcodes"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 13173,
+            "unit": "opcodes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "af183ad9d244d00205ba7c35279df8f987af1d3d",
+          "message": "chore(frontend): un-`should_panic` `supertrait_associated_type_in_impl` (#13657)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-09-11T18:16:00Z",
+          "tree_id": "5b518d6cd0bceabf9fa621f322e03a4df3b91439",
+          "url": "https://github.com/noir-lang/noir/commit/af183ad9d244d00205ba7c35279df8f987af1d3d"
+        },
+        "date": 1789152028826,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
