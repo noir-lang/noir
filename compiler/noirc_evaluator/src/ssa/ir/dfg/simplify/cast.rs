@@ -69,15 +69,22 @@ pub(super) fn simplify_cast(
                     return None;
                 }
 
-                // Field/Unsigned -> signed
-                // We could only simplify to signed when we are below the maximum integer of the destination type.
-                // However, we expect that overflow constraints have been generated appropriately that enforce correctness.
-                let integer_constant = IntegerConstant::from_numeric_constant(constant, dst_typ);
-                if integer_constant.is_some() {
-                    SimplifiedTo(dfg.make_constant(constant, dst_typ))
-                } else {
-                    None
-                }
+                // Field/Unsigned/Signed -> signed.
+                // We could only simplify to signed when we are below the maximum integer of the
+                // destination type. However, we expect that overflow constraints have been
+                // generated appropriately that enforce correctness.
+                //
+                // `from_numeric_constant` reads the source constant as the destination type's bit
+                // pattern, truncating and sign-extending it; converting back yields the in-range
+                // field element for that value. Reusing `constant` directly instead would store an
+                // out-of-range constant, e.g. `cast i16 256 as i8` as `i8 256` rather than `i8 0`.
+                let Some(integer_constant) =
+                    IntegerConstant::from_numeric_constant(constant, dst_typ)
+                else {
+                    return None;
+                };
+                let (constant, dst_typ) = integer_constant.into_numeric_constant();
+                SimplifiedTo(dfg.make_constant(constant, dst_typ))
             }
             (NumericType::NativeField, NumericType::NativeField) => {
                 unreachable!("This should be covered in previous if-branch")
@@ -183,6 +190,86 @@ mod tests {
             v2 = unchecked_add v0, v1
             v3 = cast v2 as i64
             return v2
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_cast_from_i16_256_to_i8() {
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0():
+            v0 = cast i16 256 as i8
+            return v0
+        }
+        ";
+
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) pure fn main f0 {
+          b0():
+            return i8 0
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_cast_from_i32_384_to_i8() {
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0():
+            v0 = cast i32 384 as i8
+            return v0
+        }
+        ";
+
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) pure fn main f0 {
+          b0():
+            return i8 -128
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_cast_from_i16_minus_one_to_i8() {
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0():
+            v0 = cast i16 -1 as i8
+            return v0
+        }
+        ";
+
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) pure fn main f0 {
+          b0():
+            return i8 -1
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_cast_from_u16_300_to_i8() {
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0():
+            v0 = cast u16 300 as i8
+            return v0
+        }
+        ";
+
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @"
+        acir(inline) pure fn main f0 {
+          b0():
+            return i8 44
         }
         ");
     }
