@@ -1436,6 +1436,13 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
         ) in trait_fn_meta.direct_generics.iter().zip(&meta.direct_generics)
         {
             let trait_fn_kind = trait_fn_generic.kind();
+            // A binding records the trait generic's kind next to the impl generic that replaces
+            // it, and substitution asserts the two agree, so a pair whose kinds differ is left
+            // unbound. The mismatch itself is reported when the impl method's generics are
+            // resolved against the trait's.
+            if !trait_fn_kind.unifies(&impl_fn_generic.kind()) {
+                continue;
+            }
             let arg = impl_fn_generic.clone().into_named_generic(name, None);
             bindings.insert(trait_fn_generic.id(), (trait_fn_generic.clone(), trait_fn_kind, arg));
         }

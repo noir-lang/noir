@@ -625,6 +625,97 @@ fn does_not_crash_when_trait_impl_is_defined_multiple_times() {
 }
 
 #[test]
+fn trait_impl_method_numeric_generic_for_bounded_type_parameter() {
+    // The trait method bounds its generic, so the trait-to-impl generic bindings are applied to
+    // that bound while the impl is checked.
+    let src = r#"
+    trait Marker {}
+    trait MyTrait {
+        fn f<T>(self, x: T)
+           ~ definition of `f` from trait
+        where
+            T: Marker;
+    }
+    impl MyTrait for Field {
+        fn f<let Q: u32>(_self: Self, _x: Field)
+           ^ Expected type fn(Field, _) -> (), found type fn(Field, Field) -> ()
+                 ^^^^^^ Type provided when a numeric generic was expected
+                 ~~~~~~ the numeric generic is not of type `u32`
+        where
+            Q: Marker,
+            ^ Expected type, found numeric generic
+            ~ not a type
+               ^^^^^^ impl has stricter requirements than trait
+               ~~~~~~ impl has extra requirement `error: Marker`
+        {}
+    }
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn trait_impl_method_type_parameter_for_numeric_generic() {
+    let src = r#"
+    trait MyTrait {
+        fn f<let N: u32>(self) -> [Field; N];
+    }
+    impl MyTrait for Field {
+        fn f<T>(_self: Self) -> [Field; 1] {
+           ^ Expected type fn(Field) -> [Field; _], found type fn(Field) -> [Field; 1]
+             ^ Expected type, found numeric generic
+             ~ not a type
+            [0]
+        }
+    }
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn trait_impl_method_numeric_generic_of_different_type() {
+    let src = r#"
+    trait MyTrait {
+        fn f<let N: u32>(self) -> Field;
+    }
+    impl MyTrait for Field {
+        fn f<let N: u64>(_self: Self) -> Field {
+                 ^^^^^^ The numeric generic is not of type `u64`
+                 ~~~~~~ expected `u64`, found `u32`
+            0
+        }
+    }
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn trait_impl_method_generic_kinds_that_match_are_accepted() {
+    let src = r#"
+    trait Marker {}
+    impl Marker for Field {}
+    trait MyTrait {
+        fn f<T, let N: u32>(self, x: [T; N])
+        where
+            T: Marker;
+    }
+    struct Foo {}
+    impl MyTrait for Foo {
+        fn f<U, let M: u32>(_self: Self, _x: [U; M])
+        where
+            U: Marker,
+        {}
+    }
+    fn main() {
+        Foo {}.f([1, 2]);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn does_not_crash_on_broken_impl_header() {
     // Regression test: a truncated `impl` header used to crash the compiler.
     let src = "impl< Foo for";
