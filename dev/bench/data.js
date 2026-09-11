@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789136785735,
+  "lastUpdate": 1789136789735,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -5472,80 +5472,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "47a8f232968def43700577252c619b870f611700",
-          "message": "chore(deps): bump the actions-minor-and-patch group with 2 updates (#13601)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-09-07T09:03:47Z",
-          "tree_id": "86e90e312b849277998a96994c8b79cfac892678",
-          "url": "https://github.com/noir-lang/noir/commit/47a8f232968def43700577252c619b870f611700"
-        },
-        "date": 1788773808750,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "rollup-block-root",
-            "value": 358.03,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 358.03,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 358.03,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 358.03,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 358.03,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 358.03,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 358.03,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 358.03,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 85.59,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 79.12,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "d7a91ec6529f7ffb48d25f9b39b67a3ef30bb85c",
           "message": "chore(deps): bump fast-uri from 3.1.4 to 3.1.6 in /docs (#13593)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
           "timestamp": "2026-09-07T12:50:06+01:00",
@@ -7425,6 +7351,40 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/d3738fdfcbf070b6f8f3863db2c616d01b5dc725"
         },
         "date": 1789136242815,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore_depth_10",
+            "value": 85.57,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 79.11,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b1624788c42a91dda33546cf6dfce9b6e4e72d6a",
+          "message": "fix(frontend): only apply the `self_type` method visibility shortcut to methods from the current crate (#13649)",
+          "timestamp": "2026-09-11T14:01:09Z",
+          "tree_id": "4754ea12b2dcba1425a8104bbbe3f4c55b734373",
+          "url": "https://github.com/noir-lang/noir/commit/b1624788c42a91dda33546cf6dfce9b6e4e72d6a"
+        },
+        "date": 1789136718090,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
