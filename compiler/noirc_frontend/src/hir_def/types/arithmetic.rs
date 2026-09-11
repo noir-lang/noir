@@ -350,10 +350,14 @@ impl Type {
                 Some(Type::infix_expr(l_type, l_op, Box::new(constant)))
             }
             (Multiplication, Division) => {
-                // We ensure the result divides evenly to preserve integer division semantics
-                // TODO(https://github.com/noir-lang/noir/issues/11013): do the division simplification
-                // also in case of Field elements
-                let divides_evenly = (l_const % r_const).is_some_and(|rem| rem.is_zero());
+                // We ensure the result divides evenly to preserve integer division semantics.
+                // `Field` has no remainder operation and needs none: every non-zero field
+                // element is invertible, so `(N * C1) / C2` is exactly `N * (C1 / C2)`.
+                let divides_evenly = if matches!(l_const, Integer::Field(_)) {
+                    matches!(r_const, Integer::Field(_))
+                } else {
+                    (l_const % r_const).is_some_and(|rem| rem.is_zero())
+                };
 
                 // If op is a division we need to ensure it divides evenly
                 if op == Division && (r_const.is_zero() || !divides_evenly) {
@@ -937,10 +941,9 @@ mod proptests {
     }
 
     #[test]
-    fn try_simplify_partial_constants_does_not_simplify_large_field_elements() {
-        // TODO(https://github.com/noir-lang/noir/issues/11013): This test demonstrates that
-        // try_simplify_partial_constants() does not simplify expressions with FieldElements
-        // that don't fit in 128 bits, although this case should be handled.
+    fn try_simplify_partial_constants_simplifies_large_field_elements() {
+        // Field division is exact, so `(N * C1) / C2` folds to `N * (C1 / C2)` for any
+        // non-zero `C2`, including constants too large to fit in 128 bits.
         use crate::TypeVariableId;
         use acvm::FieldElement;
 
@@ -951,21 +954,44 @@ mod proptests {
         let var_n = TypeVariable::unbound(TypeVariableId(0), kind);
         let n = Type::TypeVariable(var_n);
 
-        // large_field ≈ 2^200
+        // large_field = 2^200
         let large_field = FieldElement::from_be_bytes_reduce(&[
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00,
         ]);
+        // half_large_field = 2^199
+        let half_large_field = FieldElement::from_be_bytes_reduce(&[
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+        ]);
 
-        let mul_expr = n * Type::constant_field(large_field);
+        let mul_expr = n.clone() * Type::constant_field(large_field);
         let div_expr = mul_expr / Type::constant_field(2u32.into());
 
-        // Canonicalize the expression
         let canonicalized = div_expr.canonicalize();
 
-        // The expression should remain unchanged because try_simplify_partial_constants
-        // cannot simplify it when field elements don't fit in 128 bits
-        assert_eq!(canonicalized, div_expr);
+        assert_eq!(canonicalized, n * Type::constant_field(half_large_field));
+    }
+
+    #[test]
+    fn field_division_by_a_non_divisor_is_still_simplified() {
+        // `3` does not divide `1` in the integers, but it does in the field: the result
+        // is the field inverse of 3, and multiplying it back by 3 recovers `N`.
+        use crate::TypeVariableId;
+        use acvm::FieldElement;
+
+        let kind = Kind::numeric(Type::FieldElement);
+        let var_n = TypeVariable::unbound(TypeVariableId(0), kind);
+        let n = Type::TypeVariable(var_n);
+
+        let two = FieldElement::from(2u32);
+        let three = FieldElement::from(3u32);
+        let div_expr = (n.clone() * Type::constant_field(two)) / Type::constant_field(three);
+
+        let canonicalized = div_expr.canonicalize();
+
+        assert_eq!(canonicalized, n * Type::constant_field(two / three));
     }
 }
