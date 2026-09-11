@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789143007356,
+  "lastUpdate": 1789143162664,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -13113,40 +13113,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "d6eb45b1d6aeb7f8ab60f612b8e35df01bd605f6",
-          "message": "chore(deps): bump browserslist from 4.26.3 to 4.28.8 in /docs (#13585)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-09-07T12:49:54+01:00",
-          "tree_id": "c4437670b5801ece4391aee7f3a049cb69819f90",
-          "url": "https://github.com/noir-lang/noir/commit/d6eb45b1d6aeb7f8ab60f612b8e35df01bd605f6"
-        },
-        "date": 1788782134766,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 502.9,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 450,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "0e7c996de544aac9de41cb26a8e4c95de391e75e",
           "message": "chore(deps): bump @humanfs/node from 0.16.6 to 0.16.8 (#13594)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
           "timestamp": "2026-09-07T12:50:18+01:00",
@@ -14786,6 +14752,40 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/072bae81fac1453b4b473668fab5269c1bd98f16"
         },
         "date": 1789141050479,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 502.9,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 450,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "165e63f4df8450d8349123adde9adb7557256e00",
+          "message": "fix(frontend): qualify the trait in an associated item's generic name (#13651)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-09-11T15:48:42Z",
+          "tree_id": "616359cd836240944d5ef430d347e21d3138472c",
+          "url": "https://github.com/noir-lang/noir/commit/165e63f4df8450d8349123adde9adb7557256e00"
+        },
+        "date": 1789143100639,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
