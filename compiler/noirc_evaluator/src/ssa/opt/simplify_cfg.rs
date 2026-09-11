@@ -599,6 +599,13 @@ fn try_inline_into_predecessor(
     block: BasicBlockId,
     predecessor: BasicBlockId,
 ) -> bool {
+    // A block whose only predecessor is itself satisfies the checks below, but `inline_block(b, b)`
+    // takes that block's instructions and terminator out and puts them straight back, so it changes
+    // nothing. Reporting that as progress makes `simplify_current_block` loop forever.
+    if block == predecessor {
+        return false;
+    }
+
     let mut successors = cfg.successors(predecessor);
     if successors.len() == 1 && successors.next() == Some(block) {
         drop(successors);
@@ -1529,6 +1536,42 @@ mod tests {
             jmpif v0 then: b1(Field 1), else: b1(Field 2)
           b1(v1: Field):
             return v1
+        }
+        ");
+    }
+
+    /// `b3` ends up as a self-loop whose only remaining predecessor is itself: `b4` absorbs the
+    /// empty `b2`, the other rewrites re-point `b3`'s `jmpif` so that both arms name `b3`, and the
+    /// worklist then drops `b4`'s outgoing edge once `b4` is unreachable. Merging `b3` into itself
+    /// changes nothing, so reporting it as progress makes the pass spin forever.
+    #[test]
+    fn self_looping_block_with_no_other_predecessor() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            jmp b1(u1 0)
+          b1(v1: u1):
+            jmpif v1 then: b4(), else: b5()
+          b2():
+            jmp b3()
+          b3():
+            jmpif u1 0 then: b3(), else: b4()
+          b4():
+            jmp b2()
+          b5():
+            jmpif u1 1 then: b6(), else: b1(v0)
+          b6():
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.simplify_cfg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            return
         }
         ");
     }
