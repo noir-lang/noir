@@ -400,8 +400,8 @@ pub enum ImplSearchErrorKind {
     /// When no matching impl's were found
     NoMatching(Vec<TraitConstraint>),
     /// When the recursion limit for `NodeInterner::lookup_trait_implementation`
-    /// was reached
-    RecursionLimitReached,
+    /// was reached. Carries the constraint whose search overflowed.
+    RecursionLimitReached(TraitConstraint),
 }
 
 /// All the information from a function that is filled out during definition collection rather than
