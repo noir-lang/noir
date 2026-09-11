@@ -1224,8 +1224,13 @@ impl Elaborator<'_> {
 /// but they are distinct type variables, so the two constraint sets only compare equal once
 /// the pairs are bound together.
 ///
-/// Only two placeholders are ever paired. An override that pins the associated item down to a
-/// concrete type genuinely is a stricter requirement and must still be reported.
+/// Only two placeholders are ever paired, and only when the override's placeholder was
+/// desugared for the very constraint being matched. An override that pins the associated item
+/// down to a concrete type genuinely is a stricter requirement and must still be reported. So
+/// is one that pins it to another bound's placeholder: in `where B: Bar, C: Bar<N = <B as
+/// Bar>::N>` the second constraint names the placeholder of the first, and pairing the
+/// declaration's independent placeholder for `C::N` with it would hide the equation the
+/// override adds.
 fn pair_implicit_associated_generics(
     declaration_constraints: &[TraitConstraint],
     override_constraints: &[TraitConstraint],
@@ -1240,6 +1245,20 @@ fn pair_implicit_associated_generics(
         _ => None,
     };
 
+    // The index of the override constraint each override placeholder was desugared for.
+    //
+    // A projection like `<B as Bar>::N` only resolves once `B: Bar` has been resolved and
+    // assumed, so the first constraint in clause order to name a placeholder is the one that
+    // introduced it and every later mention is one the author wrote.
+    let mut placeholder_home = HashMap::default();
+    for (index, constraint) in override_constraints.iter().enumerate() {
+        for named in &constraint.trait_bound.trait_generics.named {
+            if let Some(type_var) = implicit_placeholder(&named.typ) {
+                placeholder_home.entry(type_var.id()).or_insert(index);
+            }
+        }
+    }
+
     let mut pairs = TypeBindings::default();
 
     for declaration in declaration_constraints {
@@ -1248,11 +1267,13 @@ fn pair_implicit_associated_generics(
             generic.substitute(bindings)
         });
 
-        let Some(override_constraint) = override_constraints.iter().find(|override_constraint| {
-            override_constraint.trait_bound.trait_id == declaration.trait_bound.trait_id
-                && override_constraint.typ.follow_bindings() == object_type
-                && override_constraint.trait_bound.trait_generics.ordered == ordered
-        }) else {
+        let Some((override_index, override_constraint)) =
+            override_constraints.iter().enumerate().find(|(_, override_constraint)| {
+                override_constraint.trait_bound.trait_id == declaration.trait_bound.trait_id
+                    && override_constraint.typ.follow_bindings() == object_type
+                    && override_constraint.trait_bound.trait_generics.ordered == ordered
+            })
+        else {
             continue;
         };
 
@@ -1260,6 +1281,11 @@ fn pair_implicit_associated_generics(
             let Some(type_var) = implicit_placeholder(&named.typ) else {
                 continue;
             };
+            // A declaration placeholder the trait's clause itself mentions in several bounds
+            // keeps its first pairing, so a mismatch is reported at the later bound.
+            if pairs.contains_key(&type_var.id()) {
+                continue;
+            }
             let Some(override_named) = override_constraint
                 .trait_bound
                 .trait_generics
@@ -1269,7 +1295,10 @@ fn pair_implicit_associated_generics(
             else {
                 continue;
             };
-            if implicit_placeholder(&override_named.typ).is_none() {
+            let Some(override_type_var) = implicit_placeholder(&override_named.typ) else {
+                continue;
+            };
+            if placeholder_home.get(&override_type_var.id()) != Some(&override_index) {
                 continue;
             }
 

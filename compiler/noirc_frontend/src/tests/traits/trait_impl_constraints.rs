@@ -464,3 +464,115 @@ fn placeholder_not_allowed_in_trait_bound_generic() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn impl_stricter_than_trait_equating_associated_constants_of_two_bounds() {
+    // The trait leaves `B::N` and `C::N` independent; the override requires them to be equal.
+    let src = r#"
+    trait Bar {
+        let N: u32;
+    }
+
+    trait Foo {
+        fn foo<B, C>() where B: Bar, C: Bar;
+           ~~~ definition of `foo` from trait
+    }
+
+    impl Foo for Field {
+        fn foo<B, C>() where B: Bar, C: Bar<N = <B as Bar>::N> {}
+                                        ^^^ impl has stricter requirements than trait
+                                        ~~~ impl has extra requirement `C: Bar<N = <B as Bar>::N>`
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn impl_stricter_than_trait_equating_associated_types_of_two_bounds() {
+    let src = r#"
+    trait Bar {
+        type T;
+    }
+
+    trait Foo {
+        fn foo<B, C>(b: B, c: C) where B: Bar, C: Bar;
+           ~~~ definition of `foo` from trait
+    }
+
+    impl Foo for Field {
+        fn foo<B, C>(_: B, _: C) where B: Bar, C: Bar<T = <B as Bar>::T> {}
+                                                  ^^^ impl has stricter requirements than trait
+                                                  ~~~ impl has extra requirement `C: Bar<T = <B as Bar>::T>`
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn impl_equating_associated_constants_the_trait_also_equates_is_not_stricter() {
+    let src = r#"
+    trait Bar {
+        let N: u32;
+    }
+
+    trait Foo {
+        fn foo<B, C>() where B: Bar, C: Bar<N = <B as Bar>::N>;
+    }
+
+    impl Foo for Field {
+        fn foo<B, C>() where B: Bar, C: Bar<N = <B as Bar>::N> {}
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn impl_with_two_independent_associated_constant_bounds_is_not_stricter() {
+    let src = r#"
+    trait Bar {
+        let N: u32;
+    }
+
+    trait Foo {
+        fn foo<B, C>() where B: Bar, C: Bar;
+    }
+
+    impl Foo for Field {
+        fn foo<B, C>() where B: Bar, C: Bar {}
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn impl_stricter_than_trait_equating_associated_constants_with_bounds_reordered() {
+    // The trait lists its bounds in the opposite order to the override; the error still lands
+    // on the bound that adds the equation, not on the one it borrows its placeholder from.
+    let src = r#"
+    trait Bar {
+        let N: u32;
+    }
+
+    trait Foo {
+        fn foo<B, C>() where C: Bar, B: Bar;
+           ~~~ definition of `foo` from trait
+    }
+
+    impl Foo for Field {
+        fn foo<B, C>() where B: Bar, C: Bar<N = <B as Bar>::N> {}
+                                        ^^^ impl has stricter requirements than trait
+                                        ~~~ impl has extra requirement `C: Bar<N = <B as Bar>::N>`
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
