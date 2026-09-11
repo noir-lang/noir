@@ -1,7 +1,7 @@
 ---
 title: Using the REPL Debugger
 description:
-  Step-by-step guide on how to debug your Noir circuits with the REPL Debugger.
+  Step-by-step guide on how to debug your Noir programs with the REPL Debugger.
 keywords:
   [
     Nargo,
@@ -19,152 +19,146 @@ import Experimental from '@site/src/components/Notes/_experimental.mdx';
 
 In order to use the REPL debugger, first you need to install recent enough versions of Nargo.
 
-## Debugging a simple circuit
+## Debugging a simple program
 
-Let's debug a simple circuit:
+Let's debug a simple program:
 
 ```rust
-fn main(x : Field, y : pub Field) {
-    assert(x != y);
+fn main(x: Field, y: pub Field) {
+    let z = double(x);
+    assert(z != y);
+}
+
+fn double(x: Field) -> Field {
+    let two = 2;
+    x * two
 }
 ```
 
-To start the REPL debugger, using a terminal, go to a Noir circuit's home directory. Then:
+with a `Prover.toml` of:
+
+```toml
+x = "3"
+y = "2"
+```
+
+To start the REPL debugger, using a terminal, go to the Noir project's home directory. Then:
 
 `$ nargo debug`
 
 You should be seeing this in your terminal:
 
 ```
-[main] Starting debugger
-At ~/noir-examples/recursion/circuits/main/src/main.nr:1:9
-  1 -> fn main(x : Field, y : pub Field) {
-  2        assert(x != y);
-  3    }
->
+Debugger started. Type 'help' for commands.
+At src/main.nr:2 in main
+      1 | fn main(x: Field, y: pub Field) {
+->    2 |     let z = double(x);
+      3 |     assert(z != y);
+      4 | }
+debug>
 ```
 
-The debugger displays the current Noir code location, and it is now waiting for us to drive it.
+The debugger displays the current Noir code location, with `->` marking the statement that is about to run, and it is now waiting for us to drive it.
 
 Let's first take a look at the available commands. For that we'll use the `help` command.
 
 ```
-> help
-Available commands:
-
-  opcodes                          display ACIR opcodes
-  into                             step into to the next opcode
-  next                             step until a new source location is reached
-  out                              step until a new source location is reached
-                                   and the current stack frame is finished
-  break LOCATION:OpcodeLocation    add a breakpoint at an opcode location
-  over                             step until a new source location is reached
-                                   without diving into function calls
-  restart                          restart the debugging session
-  delete LOCATION:OpcodeLocation   delete breakpoint at an opcode location
-  witness                          show witness map
-  witness index:u32                display a single witness from the witness map
-  witness index:u32 value:String   update a witness with the given value
-  memset index:usize value:String  update a memory cell with the given
-                                   value
-  continue                         continue execution until the end of the
-                                   program
-  vars                             show variable values available at this point
-                                   in execution
-  stacktrace                       display the current stack trace
-  memory                           show memory (valid when executing unconstrained code)
-  step                             step to the next ACIR opcode
-
-Other commands:
-
-  help  Show this help message
-  quit  Quit repl
-
+debug> help
+Commands:
+  s, step         Step into next statement
+  n, next         Step over (skip function calls)
+  o, out          Step out of current function
+  c, continue     Continue until breakpoint
+  v, vars         Show local variables
+  bt, stacktrace  Show call stack
+  b, break <N>    Set breakpoint at line N
+  d, delete <N>   Delete breakpoint at line N
+  bp, breakpoints List all breakpoints
+  r, restart      Restart debugging from the beginning
+  q, quit         Stop debugging
+  h, help         Show this help
 ```
 
-Some commands operate only for unconstrained functions, such as `memory` and `memset`. If you try to use them while execution is paused at an ACIR opcode, the debugger will simply inform you that you are not executing unconstrained code:
+We can inspect the current state of local variables with the `vars` command. At the entry point of the program the only variables in scope are the arguments to `main`, whose values come from `Prover.toml`:
 
 ```
-> memory
-Unconstrained VM memory not available
->
+debug> vars
+  x: Field = 0x03
+  y: Field = 0x02
 ```
 
-Before continuing, we can take a look at the initial witness map:
+The statement we are stopped at calls `double`. Let's use `step` to follow the call into that function:
 
 ```
-> witness
-_0 = 1
-_1 = 2
->
+debug> step
+At src/main.nr:7 in double
+      4 | }
+      5 |
+      6 | fn double(x: Field) -> Field {
+->    7 |     let two = 2;
+      8 |     x * two
+      9 | }
 ```
 
-Cool, since `x==1`, `y==2`, and we want to check that `x != y`, our circuit should succeed. At this point we could intervene and use the witness setter command to change one of the witnesses. Let's set `y=3`, then back to 2, so we don't affect the expected result:
+`stacktrace` shows how we got here:
 
 ```
-> witness
-_0 = 1
-_1 = 2
-> witness 1 3
-_1 = 3
-> witness
-_0 = 1
-_1 = 3
-> witness 1 2
-_1 = 2
-> witness
-_0 = 1
-_1 = 2
->
+debug> stacktrace
+#0  double at src/main.nr:7:5
+#1  main at src/main.nr:2:13
 ```
 
-Now we can inspect the current state of local variables. For that we use the `vars` command.
+Now `next` executes the current statement and stops at the following one in the same function. Stepping once brings `two` into scope:
 
 ```
-> vars
->
+debug> next
+At src/main.nr:8 in double
+->    8 |     x * two
+debug> vars
+  two: Field = 0x02
+  x: Field = 0x03
 ```
 
-We currently have no vars in context, since we are at the entry point of the program. Let's use `next` to execute until the next point in the program.
+We have seen enough of `double`; `out` runs until it returns and stops back in `main`, where its result is now bound to `z`:
 
 ```
-> vars
-> next
-At ~/noir-examples/recursion/circuits/main/src/main.nr:1:20
-  1 -> fn main(x : Field, y : pub Field) {
-  2        assert(x != y);
-  3    }
-> vars
-x:Field = 0x01
+debug> out
+At src/main.nr:3 in main
+      1 | fn main(x: Field, y: pub Field) {
+      2 |     let z = double(x);
+->    3 |     assert(z != y);
+      4 | }
+debug> vars
+  x: Field = 0x03
+  y: Field = 0x02
+  z: Field = 0x06
 ```
 
-As a result of stepping, the variable `x`, whose initial value comes from the witness map, is now in context and returned by `vars`.
+Since `z == 6` and `y == 2`, the assertion should succeed. Let's continue to the end:
 
 ```
-> next
-  1    fn main(x : Field, y : pub Field) {
-  2 ->     assert(x != y);
-  3    }
-> vars
-y:Field = 0x02
-x:Field = 0x01
+debug> continue
+Program completed. Return value: ()
 ```
 
-Stepping again we can finally see both variables and their values. And now we can see that the next assertion should succeed.
-
-Let's continue to the end:
-
-```
-> continue
-(Continuing execution...)
-Finished execution
-> q
-[main] Circuit witness successfully solved
-```
-
-Upon quitting the debugger after a solved circuit, the resulting circuit witness gets saved, equivalent to what would happen if we had run the same circuit with `nargo execute`.
+Had the assertion failed, the debugger would have printed the failure along with its location and call stack instead.
 
 We just went through the basics of debugging using Noir REPL debugger. For a comprehensive reference, check out [the reference page](../../tooling/debugger/debugger_repl.mdx).
+
+## Breakpoints
+
+Rather than stepping one statement at a time, you can set a breakpoint on a line of the current file and `continue` up to it:
+
+```
+debug> break 3
+Breakpoint set at src/main.nr:3
+debug> continue
+Breakpoint hit.
+At src/main.nr:3 in main
+->    3 |     assert(z != y);
+```
+
+`breakpoints` lists the breakpoints you have set and `delete 3` removes this one.
 
 ## Debugging a test function
 
@@ -189,16 +183,13 @@ After that, the debugger has started and works the same as debugging a main func
 
 ### Test result
 
-The debugger does not end the session automatically. Once you finish debugging the execution of the test function you will notice that the debugger remains in the `Execution finished` state. When you are done debugging the test function you can exit the debugger by using the `quit` command. Once you finish the debugging session you should see the test result.
+Once the test function finishes (or you `quit` the session), the test result is printed:
 
 ```text
 $ nargo debug --test-name test_simple_equal
-[simple_noir_project] Starting debugger
-At opcode 0:0 :: BRILLIG CALL func 0: inputs: [], outputs: []
-> continue
-(Continuing execution...)
-Finished execution
-> quit
-[simple_noir_project] Circuit witness successfully solved
-[simple_noir_project] Testing test_simple_equal... ok
+Debugger started. Type 'help' for commands.
+At src/main.nr:13 in test_simple_equal
+->   13 |     let x = 2;
+debug> continue
+[simple_noir_project] Testing test_simple_equal ... ok
 ```

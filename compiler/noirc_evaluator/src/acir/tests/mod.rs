@@ -70,13 +70,7 @@ pub(crate) fn try_ssa_to_acir(
 
     let artifacts =
         ArtifactsAndWarnings((acir_functions, brillig_functions, BTreeMap::default()), vec![]);
-    let program_artifact = combine_artifacts(
-        artifacts,
-        &arg_size_and_visibilities,
-        BTreeMap::default(),
-        BTreeMap::default(),
-        BTreeMap::default(),
-    );
+    let program_artifact = combine_artifacts(artifacts, &arg_size_and_visibilities);
     let program = program_artifact.program;
     let debug = program_artifact.debug;
     Ok((program, debug))

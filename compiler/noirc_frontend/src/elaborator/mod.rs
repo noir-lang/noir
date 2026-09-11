@@ -1407,7 +1407,7 @@ pub mod test_utils {
         output: Rc<RefCell<W>>,
     ) -> Result<crate::monomorphization::ast::Expression, ElaboratorError> {
         use crate::elaborator::ElaboratorOptions;
-        use crate::monomorphization::{Monomorphizer, debug_types::DebugTypeTracker};
+        use crate::monomorphization::Monomorphizer;
         use crate::parse_program;
         use crate::{
             elaborator::Elaborator,
@@ -1503,13 +1503,7 @@ pub mod test_utils {
                 .map_err(ElaboratorError::HIRConvert),
         })?;
 
-        let mut monomorphizer = Monomorphizer::new(
-            elaborator.interner,
-            elaborator.files,
-            DebugTypeTracker::default(),
-            None,
-            false,
-        );
+        let mut monomorphizer = Monomorphizer::new(elaborator.interner, elaborator.files, false);
         Ok(monomorphizer.expr(expr_id).expect("monomorphization error while converting interpreter execution result, should not be possible"))
     }
 }

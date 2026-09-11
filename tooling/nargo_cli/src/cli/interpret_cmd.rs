@@ -21,10 +21,9 @@ use noirc_evaluator::ssa::interpreter::value::Value;
 use noirc_evaluator::ssa::ir::types::{NumericType, Type};
 use noirc_evaluator::ssa::ssa_gen::{Ssa, generate_ssa, validate_ssa_or_err};
 use noirc_evaluator::ssa::{SsaEvaluatorOptions, SsaLogging, primary_passes};
-use noirc_frontend::debug::DebugInstrumenter;
 use noirc_frontend::hir::ParsedFiles;
 use noirc_frontend::monomorphization::ast::Program;
-use noirc_frontend::monomorphization::{monomorphize, monomorphize_debug};
+use noirc_frontend::monomorphization::monomorphize;
 
 use crate::errors::CliError;
 
@@ -251,9 +250,7 @@ fn compile_into_program(
     options: &CompileOptions,
 ) -> CompilationResult<(Program, Abi)> {
     let (mut context, crate_id) = nargo::prepare_package(file_manager, parsed_files, package);
-    context.debug_instrumenter = DebugInstrumenter::default();
     context.package_build_path = workspace.package_build_path(package);
-    noirc_driver::link_to_debug_crate(&mut context, crate_id);
     let (_, warnings) = noirc_driver::check_crate(&mut context, crate_id, options)?;
 
     let main_id = context.get_main_function(&crate_id).ok_or_else(|| {
@@ -266,23 +263,12 @@ fn compile_into_program(
 
     let force_unconstrained = options.force_brillig || options.minimal_ssa;
 
-    let monomorphize_result = if options.instrument_debug {
-        monomorphize_debug(
-            main_id,
-            &mut context.def_interner,
-            context.file_manager.as_file_map(),
-            &context.debug_instrumenter,
-            context.debug_crate_id,
-            force_unconstrained,
-        )
-    } else {
-        monomorphize(
-            main_id,
-            &mut context.def_interner,
-            context.file_manager.as_file_map(),
-            force_unconstrained,
-        )
-    };
+    let monomorphize_result = monomorphize(
+        main_id,
+        &mut context.def_interner,
+        context.file_manager.as_file_map(),
+        force_unconstrained,
+    );
 
     let program = monomorphize_result.map_err(|error| vec![CustomDiagnostic::from(error)])?;
 

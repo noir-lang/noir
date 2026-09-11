@@ -3,7 +3,6 @@ use std::{borrow::Cow, collections::BTreeMap, fmt::Display};
 
 use acvm::FieldElement;
 use iter_extended::vecmap;
-use noirc_artifacts::debug::{DebugFunctions, DebugTypes, DebugVariables};
 use noirc_errors::Location;
 use strum_macros::EnumIter;
 
@@ -658,29 +657,15 @@ pub struct Program {
     pub functions: Vec<Function>,
     pub return_location: Option<Location>,
     pub globals: BTreeMap<GlobalId, (String, Type, Expression)>,
-    pub debug_variables: DebugVariables,
-    pub debug_functions: DebugFunctions,
-    pub debug_types: DebugTypes,
 }
 
 impl Program {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         functions: Vec<Function>,
         return_location: Option<Location>,
         globals: BTreeMap<GlobalId, (String, Type, Expression)>,
-        debug_variables: DebugVariables,
-        debug_functions: DebugFunctions,
-        debug_types: DebugTypes,
     ) -> Program {
-        Program {
-            functions,
-            return_location,
-            globals,
-            debug_variables,
-            debug_functions,
-            debug_types,
-        }
+        Program { functions, return_location, globals }
     }
 
     pub fn main(&self) -> &Function {

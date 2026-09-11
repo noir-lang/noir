@@ -404,9 +404,6 @@ mod tests {
             opcode_locations,
             location_tree,
             BTreeMap::default(),
-            BTreeMap::default(),
-            BTreeMap::default(),
-            BTreeMap::default(),
         );
 
         let samples: Vec<CompilationSample> = vec![

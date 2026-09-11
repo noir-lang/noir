@@ -7,7 +7,6 @@ pub mod scope;
 pub mod type_check;
 
 use crate::ast::{IdentOrQuotedType, UnresolvedGenerics};
-use crate::debug::DebugInstrumenter;
 use crate::elaborator::UnstableFeature;
 use crate::graph::{CrateGraph, CrateId};
 use crate::hir::comptime::EvaluationTracker;
@@ -45,12 +44,6 @@ pub struct Context<'file_manager, 'parsed_files> {
     // which is why this needs to be a Cow. In all use-cases, the file manager
     // is read-only however, once it has been passed to the Context.
     pub file_manager: Cow<'file_manager, FileManager>,
-
-    pub debug_instrumenter: DebugInstrumenter,
-
-    /// The `CrateId` of the `__debug` crate, if it has been linked.
-    /// Used to identify debug functions during monomorphization.
-    pub debug_crate_id: Option<CrateId>,
 
     /// A map of each file that already has been visited from a prior `mod foo;` declaration.
     /// This is used to issue an error if a second `mod foo;` is declared to the same file.
@@ -105,8 +98,6 @@ impl Context<'_, '_> {
             visited_files: BTreeMap::new(),
             crate_graph: CrateGraph::default(),
             file_manager: Cow::Owned(file_manager),
-            debug_instrumenter: DebugInstrumenter::default(),
-            debug_crate_id: None,
             parsed_files: Cow::Owned(parsed_files),
             package_build_path: PathBuf::default(),
             count_array_copies: false,
@@ -128,8 +119,6 @@ impl Context<'_, '_> {
             visited_files: BTreeMap::new(),
             crate_graph: CrateGraph::default(),
             file_manager: Cow::Borrowed(file_manager),
-            debug_instrumenter: DebugInstrumenter::default(),
-            debug_crate_id: None,
             parsed_files: Cow::Borrowed(parsed_files),
             package_build_path: PathBuf::default(),
             count_array_copies: false,
@@ -156,8 +145,6 @@ impl Context<'_, '_> {
             visited_files: BTreeMap::new(),
             crate_graph,
             file_manager: Cow::Borrowed(file_manager),
-            debug_instrumenter: DebugInstrumenter::default(),
-            debug_crate_id: None,
             parsed_files: Cow::Borrowed(parsed_files),
             package_build_path: PathBuf::default(),
             count_array_copies: false,

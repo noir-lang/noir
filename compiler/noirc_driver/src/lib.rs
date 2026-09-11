@@ -38,9 +38,7 @@ use noirc_frontend::elaborator::{FrontendOptions, UnstableFeature};
 use noirc_frontend::error_reporting::function_locations_in_parsed_module;
 use noirc_frontend::hir::def_map::{CrateDefMap, ModuleDefId, ModuleId};
 use noirc_frontend::hir::{Context, ParsedFiles};
-use noirc_frontend::monomorphization::{
-    errors::MonomorphizationError, monomorphize, monomorphize_debug,
-};
+use noirc_frontend::monomorphization::{errors::MonomorphizationError, monomorphize};
 use noirc_frontend::node_interner::{FuncId, GlobalId, GlobalValue, TypeId};
 use noirc_frontend::token::SecondaryAttributeKind;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
@@ -52,7 +50,7 @@ mod crate_graph;
 mod file_manager;
 
 pub use abi_gen::gen_abi;
-pub use crate_graph::{add_dep, link_to_debug_crate, prepare_crate, prepare_dependency};
+pub use crate_graph::{add_dep, prepare_crate, prepare_dependency};
 pub use file_manager::{
     file_manager_with_stdlib, stdlib_disk_path, stdlib_nargo_toml_source, stdlib_paths_with_source,
 };
@@ -170,10 +168,6 @@ pub struct CompileOptions {
     /// Outputs the monomorphized IR to stdout for debugging
     #[arg(long, hide = true)]
     pub show_monomorphized: bool,
-
-    /// Insert debug symbols to inspect variables
-    #[arg(long, hide = true)]
-    pub instrument_debug: bool,
 
     /// Force Brillig output (for step debugging)
     #[arg(long, hide = true)]
@@ -320,7 +314,6 @@ impl Default for CompileOptions {
             deny_warnings: false,
             silence_warnings: false,
             show_monomorphized: false,
-            instrument_debug: false,
             force_brillig: false,
             debug_comptime_in_file: None,
             show_artifact_paths: false,
@@ -871,23 +864,12 @@ pub fn compile_no_check(
 ) -> Result<CompiledProgram, CompileError> {
     let force_unconstrained = options.force_brillig || options.minimal_ssa;
 
-    let program = if options.instrument_debug {
-        monomorphize_debug(
-            main_function,
-            &mut context.def_interner,
-            context.file_manager.as_file_map(),
-            &context.debug_instrumenter,
-            context.debug_crate_id,
-            force_unconstrained,
-        )?
-    } else {
-        monomorphize(
-            main_function,
-            &mut context.def_interner,
-            context.file_manager.as_file_map(),
-            force_unconstrained,
-        )?
-    };
+    let program = monomorphize(
+        main_function,
+        &mut context.def_interner,
+        context.file_manager.as_file_map(),
+        force_unconstrained,
+    )?;
 
     if options.show_monomorphized {
         println!("{program}");

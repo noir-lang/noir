@@ -8,7 +8,7 @@ use nargo::ops::report_errors;
 use nargo::prepare_package;
 use nargo::workspace::Workspace;
 use nargo_toml::PackageSelection;
-use noirc_driver::{CompileOptions, compile_main, link_to_debug_crate};
+use noirc_driver::{CompileOptions, compile_main};
 
 use super::compile_cmd::{compile_workspace_full, parse_workspace};
 use super::{LockType, PackageOptions, WorkspaceCommand};
@@ -115,7 +115,6 @@ fn execute_without_artifacts(args: ExecuteCommand, workspace: Workspace) -> Resu
 
     for package in workspace.into_iter().filter(|package| package.is_binary()) {
         let (mut context, crate_id) = prepare_package(&file_manager, &parsed_files, package);
-        link_to_debug_crate(&mut context, crate_id);
         context.package_build_path = workspace.package_build_path(package);
         context.count_array_copies = true;
 

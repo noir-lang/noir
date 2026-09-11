@@ -317,8 +317,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 
     /// Calls a builtin, foreign, or oracle function (not all oracles are supported).
-    ///
-    /// This will ignore any oracles starting with "__debug"
     fn call_special(
         &mut self,
         function: FuncId,
@@ -345,9 +343,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         } else if let Some(oracle) = func_attrs.oracle() {
             if let Some(ForeignCall::Print) = ForeignCall::lookup(oracle) {
                 self.print_oracle(&arguments)
-            // Ignore debugger functions
-            } else if oracle.starts_with("__debug") {
-                Ok(Value::Unit)
             } else if let Some(mut executor) = self.elaborator.comptime_oracle_executor.take() {
                 let args = arguments.into_iter().map(|(v, _)| v).collect();
                 let result = executor.execute_oracle(oracle, args, &return_type, location);

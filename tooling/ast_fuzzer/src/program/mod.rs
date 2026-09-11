@@ -412,14 +412,7 @@ impl Context {
         let functions = self.functions.into_values().collect::<Vec<_>>();
         let globals = self.globals.into_iter().collect();
 
-        let program = Program {
-            functions,
-            return_location: None,
-            globals,
-            debug_variables: Default::default(),
-            debug_functions: Default::default(),
-            debug_types: Default::default(),
-        };
+        let program = Program { functions, return_location: None, globals };
 
         // Carry out the "ownership analysis" here, so the returned program is ready to be turned into SSA.
         // If we carry out changes that need that analysis to be performed again, we have to make sure
