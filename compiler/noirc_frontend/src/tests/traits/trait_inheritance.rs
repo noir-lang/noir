@@ -453,12 +453,6 @@ fn trait_inheritance_with_generic_impl_and_base_call() {
 /// Regression test for <https://github.com/noir-lang/noir/issues/11547>.
 /// A subtrait may name an associated type declared on its supertrait via the `Self::Key`
 /// shorthand, both in the trait's method signature and in the implementing method.
-///
-/// Do not use a binary operator in this program. `assert_no_errors` elaborates without the
-/// stdlib, so the operator traits come from `NodeInterner::populate_dummy_operator_traits`
-/// and have no impls: any `==` or `+` here fails the test with "No matching impl found for
-/// `Field: PopulateDummyOperatorTraitsTrait`" regardless of whether associated type
-/// resolution works.
 #[test]
 fn supertrait_associated_type_in_impl() {
     let src = r#"
