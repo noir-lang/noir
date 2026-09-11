@@ -563,3 +563,102 @@ fn arithmetic_generics_modulo_by_zero_in_array_length() {
     assert_eq!(*lhs, Integer::U32(0));
     assert_eq!(*rhs, Integer::U32(0));
 }
+
+#[test]
+fn does_not_cancel_associated_constants_of_two_distinct_traits() {
+    // `<T as a::Tr>::N` and `<T as b::Tr>::N` are different unknowns, so
+    // `(M + <T as a::Tr>::N) - <T as b::Tr>::N` must not simplify to `M`.
+    let src = r#"
+        mod a { pub trait Tr { let N: u32; } }
+        mod b { pub trait Tr { let N: u32; } }
+
+        pub fn g<T, let M: u32>(xs: [Field; M])
+        where
+            T: a::Tr,
+            T: b::Tr,
+        {
+            let _ys: [Field; (M + <T as a::Tr>::N) - <T as b::Tr>::N] = xs;
+                                                                        ^^ Expected type [Field; ((M + <T as Tr>::N) - <T as Tr>::N)], found type [Field; M]
+        }
+
+        fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn does_not_cancel_associated_constants_of_two_distinct_traits_on_the_right() {
+    // The mirrored cancellation rule, `N + (M - N) -> M`.
+    let src = r#"
+        mod a { pub trait Tr { let N: u32; } }
+        mod b { pub trait Tr { let N: u32; } }
+
+        pub fn g<T, let M: u32>(xs: [Field; M])
+        where
+            T: a::Tr,
+            T: b::Tr,
+        {
+            let _ys: [Field; <T as a::Tr>::N + (M - <T as b::Tr>::N)] = xs;
+                                                                        ^^ Expected type [Field; (<T as Tr>::N + (M - <T as Tr>::N))], found type [Field; M]
+        }
+
+        fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn cancels_the_associated_constant_of_a_single_trait_bound() {
+    // The two occurrences really are the same unknown here, so the cancellation
+    // rules still apply and `(M + N) - N` simplifies to `M`.
+    let src = r#"
+        mod a { pub trait Tr { let N: u32; } }
+
+        pub fn g<T, let M: u32>(xs: [Field; M]) -> [Field; M]
+        where
+            T: a::Tr,
+        {
+            let ys: [Field; (M + <T as a::Tr>::N) - <T as a::Tr>::N] = xs;
+            ys
+        }
+
+        fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn does_not_infer_a_numeric_generic_by_cancelling_two_distinct_associated_constants() {
+    // `W<L + <T as b::Tr>::N> = W<M + <T as a::Tr>::N>` is solved by isolating `L`,
+    // which binds it to the canonical form of `(M + <T as a::Tr>::N) - <T as b::Tr>::N`.
+    // That binding carries no `CheckedCast`, so cancelling the two associated constants
+    // here would silently give `L` the wrong value rather than raising an error.
+    let src = r#"
+        mod a { pub trait Tr { let N: u32; } }
+        mod b { pub trait Tr { let N: u32; } }
+
+        struct W<let N: u32> {}
+
+        fn mk<let L: u32, let K: u32>() -> W<L + K> {
+            W {}
+        }
+
+        fn ident<let L: u32>(_w: W<L>) -> [Field; L] {
+            [0; L]
+        }
+
+        pub fn caller<T, let M: u32>()
+        where
+            T: a::Tr,
+            T: b::Tr,
+        {
+            let w = mk::<_, <T as b::Tr>::N>();
+            let _c: W<M + <T as a::Tr>::N> = w;
+            let _bad: [Field; M] = ident(w);
+                                   ^^^^^^^^ Expected type [Field; M], found type [Field; (((M + <T as Tr>::N) - <T as Tr>::N) + <T as Tr>::N)]
+        }
+
+        fn main() {}
+    "#;
+    check_errors(src);
+}
