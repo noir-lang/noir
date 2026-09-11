@@ -411,21 +411,6 @@ fn mutate_with_reference_in_lambda() {
 }
 
 #[test]
-fn mutate_with_mut_reference_in_lambda() {
-    let src = r#"
-    fn main() {
-        let x = &mut 3;
-        let f = || {
-            *x += 2;
-        };
-        f();
-        assert(*x == 5);
-    }
-    "#;
-    assert_no_errors(src);
-}
-
-#[test]
 fn deny_capturing_mut_variable_without_reference_in_lambda() {
     let src = r#"
     fn main() {

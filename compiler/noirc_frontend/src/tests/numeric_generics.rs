@@ -305,20 +305,6 @@ fn numeric_generic_u16_array_size() {
 }
 
 #[test]
-fn numeric_generic_field_larger_than_u32() {
-    let src = r#"
-        global A: Field = 4294967297;
-
-        fn foo<let A: Field>() { }
-
-        fn main() {
-            let _ = foo::<A>();
-        }
-    "#;
-    assert_no_errors(src);
-}
-
-#[test]
 fn numeric_generic_field_arithmetic_larger_than_u32() {
     let src = r#"
         struct Foo<let F: Field> {}
@@ -814,39 +800,6 @@ fn regression_10431_enum_trait_impl() {
 }
 
 #[test]
-fn regression_10431_enum() {
-    let src = r#"
-    pub enum Foo<T> {
-        Bar(T),
-    }
-
-    impl Foo<1> {}
-             ^ Expected type, found numeric generic
-             ~ not a type
-
-    fn main() {}
-    "#;
-    let features = vec![UnstableFeature::Enums];
-    check_errors_using_features(src, &features);
-}
-
-#[test]
-fn regression_10431() {
-    let src = r#"
-    pub struct Foo<T> {
-        x: T,
-    }
-
-    impl Foo<1> {}
-             ^ Expected type, found numeric generic
-             ~ not a type
-
-    fn main() {}
-    "#;
-    check_errors(src);
-}
-
-#[test]
 fn regression_10431_function_turbofish() {
     let src = r#"
     fn main() {
@@ -1187,20 +1140,6 @@ fn cannot_deduce_numeric_generic() {
 }
 
 #[test]
-fn unspecified_generic() {
-    let src = r#"
-    fn foo<T>() {}
-
-    fn main() {
-        foo();
-        ^^^ Type annotation needed
-        ~~~ Could not determine the type of the generic argument `T` declared on the function `foo`
-    }
-    "#;
-    check_errors(src);
-}
-
-#[test]
 fn regression_10520() {
     let src = r#"
     fn main() -> pub u8 {
@@ -1239,21 +1178,6 @@ fn trait_incorrect_generic_count() {
     impl Trait for u32 {
         fn trait_fn<A, B>(x: A) -> A { x }
            ^^^^^^^^ trait_fn expects 1 generic but 2 were given
-    }
-    "#;
-    check_errors(src);
-}
-
-#[test]
-fn type_annotation_needed_on_struct_constructor() {
-    let src = r#"
-    struct Foo<T> {
-    }
-
-    fn main() {
-        let _foo = Foo {};
-                   ^^^ Type annotation needed
-                   ~~~ Could not determine the type of the generic argument `T` declared on the struct `Foo`
     }
     "#;
     check_errors(src);

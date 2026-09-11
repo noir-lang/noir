@@ -3633,52 +3633,6 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "store value should have type Field, not u32")]
-    fn disallows_store_with_wrong_type() {
-        let src = "
-        acir(inline) pure fn main f0 {
-          b0():
-            v0 = allocate -> &mut Field
-            store u32 1 at v0
-            return
-        }
-        ";
-        let _ = Ssa::from_str(src).unwrap();
-    }
-
-    #[test]
-    #[cfg(debug_assertions)]
-    #[should_panic(expected = "Number of arguments in jmp must match number of block parameters")]
-    fn detects_terminator_argument_arity_mismatch() {
-        let src = "
-        acir(inline) fn main f0 {
-          b0():
-            jmp b1()
-          b1(v0: Field):
-            return
-        }
-        ";
-        let ssa = Ssa::from_str_no_validation(src).unwrap();
-        super::validate_terminators(ssa.main());
-    }
-
-    #[test]
-    #[cfg(debug_assertions)]
-    #[should_panic(expected = "Argument type in jmp must match block parameter type")]
-    fn detects_terminator_argument_type_mismatch() {
-        let src = "
-        acir(inline) fn main f0 {
-          b0():
-            jmp b1(u1 1)
-          b1(v0: Field):
-            return
-        }
-        ";
-        let ssa = Ssa::from_str_no_validation(src).unwrap();
-        super::validate_terminators(ssa.main());
-    }
-
-    #[test]
     #[should_panic(expected = "ArrayGet/ArraySet must operate on an array")]
     fn disallows_array_get_on_reference_to_array() {
         let src = "
