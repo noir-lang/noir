@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789140936101,
+  "lastUpdate": 1789141114131,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -16582,40 +16582,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "0e7c996de544aac9de41cb26a8e4c95de391e75e",
-          "message": "chore(deps): bump @humanfs/node from 0.16.6 to 0.16.8 (#13594)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-09-07T12:50:18+01:00",
-          "tree_id": "6fb558771deecb463a7e7596a8e6aae128b5dcf1",
-          "url": "https://github.com/noir-lang/noir/commit/0e7c996de544aac9de41cb26a8e4c95de391e75e"
-        },
-        "date": 1788782158943,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.429,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.412,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "d6eb45b1d6aeb7f8ab60f612b8e35df01bd605f6",
           "message": "chore(deps): bump browserslist from 4.26.3 to 4.28.8 in /docs (#13585)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
           "timestamp": "2026-09-07T12:49:54+01:00",
@@ -18265,6 +18231,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 0.404,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "072bae81fac1453b4b473668fab5269c1bd98f16",
+          "message": "chore: speed up stdlib test (#13653)",
+          "timestamp": "2026-09-11T15:13:59Z",
+          "tree_id": "8aa2249eafd289936ab191f9eb7d3f53f38fff06",
+          "url": "https://github.com/noir-lang/noir/commit/072bae81fac1453b4b473668fab5269c1bd98f16"
+        },
+        "date": 1789141052385,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.445,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.397,
             "unit": "s"
           }
         ]
