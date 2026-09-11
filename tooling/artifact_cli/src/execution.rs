@@ -12,7 +12,7 @@ use crate::{
     errors::CliError,
     fs::{
         inputs::{read_inputs_from_file, write_inputs_to_file},
-        witness::{load_witness_from_file, save_witness_to_dir},
+        witness::{load_initial_witness_from_file, save_witness_to_dir},
     },
 };
 
@@ -50,10 +50,7 @@ where
             (initial_witness, expected_return)
         }
         InputSource::WitnessFile(witness_path) => {
-            let mut witness_stack = load_witness_from_file(witness_path)?;
-            let witness =
-                witness_stack.pop().expect("Should have at least one witness on the stack").witness;
-            (witness, None)
+            (load_initial_witness_from_file(witness_path)?, None)
         }
     };
 

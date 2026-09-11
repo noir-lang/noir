@@ -16,6 +16,11 @@ pub enum FilesystemError {
     #[error("Failed to parse input file '{0}': {1}")]
     InvalidInputFile(PathBuf, String),
 
+    #[error(
+        "Witness file '{0}' holds an empty witness stack, so there is no witness to execute with"
+    )]
+    EmptyWitnessFile(PathBuf),
+
     #[error("Cannot find bytecode file '{0}'")]
     MissingBytecodeFile(PathBuf),
 
