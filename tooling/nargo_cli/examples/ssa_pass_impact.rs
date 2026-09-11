@@ -29,7 +29,6 @@ use noirc_evaluator::{
     ssa::{SsaPass, primary_passes, ssa_gen},
 };
 use noirc_frontend::{
-    debug::DebugInstrumenter,
     elaborator::UnstableFeature,
     hir::ParsedFiles,
     monomorphization::{ast::Program, monomorphize},
@@ -242,7 +241,6 @@ fn compile_into_program(
 ) -> CompilationResult<Option<Program>> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
     context.disable_comptime_printing();
-    context.debug_instrumenter = DebugInstrumenter::default();
     context.package_build_path = workspace.package_build_path(package);
     let (_, warnings) = check_crate(&mut context, crate_id, options)?;
     let Some(main) = context.get_main_function(&crate_id) else {

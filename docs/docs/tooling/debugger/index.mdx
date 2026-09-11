@@ -13,10 +13,9 @@ There are currently two ways of debugging Noir programs:
 1. From VS Code, via the [vscode-noir](https://github.com/noir-lang/vscode-noir) extension. You can install it via the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=noir-lang.vscode-noir).
 2. Via the REPL debugger, which ships with Nargo.
 
-In order to use either version of the debugger, you will need to install recent enough versions of Noir, [Nargo](../../installation.md) and vscode-noir:
+Both run your program through the Noir interpreter, the same engine that evaluates `comptime` code during compilation. The interpreter walks the type-checked source directly, so you step through your code as you wrote it: no circuit is generated, and the program is not rewritten to make it debuggable.
 
-- Noir & Nargo ≥0.28.0
-- Noir's VS Code extension ≥0.0.11
+In order to use either version of the debugger, you will need to install recent enough versions of Noir, [Nargo](../../installation.md) and vscode-noir.
 
 We cover the VS Code Noir debugger more in depth in [its VS Code debugger how-to guide](../../guides/debugging/debugging_with_vs_code.mdx) and [the reference](./debugger_vscode.mdx).
 

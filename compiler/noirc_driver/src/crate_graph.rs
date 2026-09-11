@@ -5,8 +5,6 @@ use noirc_frontend::{
     hir::Context,
 };
 
-use crate::file_manager::DEBUG_CRATE_NAME;
-
 pub(super) const STD_CRATE_NAME: &str = "std";
 
 /// Adds the file from the file system at `Path` to the crate graph as a root file
@@ -30,13 +28,6 @@ pub fn prepare_crate(context: &mut Context, file_name: &Path) -> CrateId {
     } else {
         context.crate_graph.add_crate_root_and_stdlib(root_file_id)
     }
-}
-
-pub fn link_to_debug_crate(context: &mut Context, root_crate_id: CrateId) {
-    let path_to_debug_lib_file = Path::new(DEBUG_CRATE_NAME).join("lib.nr");
-    let debug_crate_id = prepare_dependency(context, &path_to_debug_lib_file);
-    add_dep(context, root_crate_id, debug_crate_id, DEBUG_CRATE_NAME.parse().unwrap());
-    context.debug_crate_id = Some(debug_crate_id);
 }
 
 // Adds the file from the file system at `Path` to the crate graph

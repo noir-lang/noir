@@ -12,7 +12,6 @@ use noirc_errors::{
     call_stack::{CallStack, CallStackHelper, CallStackId},
     function_locations::FunctionLocations,
 };
-use noirc_printable_type::PrintableType;
 use serde::Deserializer;
 use serde::Serializer;
 use serde::{
@@ -29,7 +28,6 @@ use std::{
 
 use crate::{contract::CompiledContract, program::CompiledProgram};
 
-pub use super::debug_vars::{DebugVars, StackFrame};
 use super::{contract::ContractArtifact, program::ProgramArtifact};
 use fm::{FileId, FileManager, PathString};
 
@@ -322,9 +320,6 @@ pub struct DebugInfo {
     pub location_tree: LocationTree,
     /// Map opcode index of an ACIR circuit into the source code location
     pub acir_locations: BTreeMap<AcirOpcodeLocation, CallStackId>,
-    pub variables: DebugVariables,
-    pub functions: DebugFunctions,
-    pub types: DebugTypes,
     /// This a map per brillig function representing the range of opcodes where a procedure is activated.
     pub brillig_procedure_locs:
         BTreeMap<BrilligFunctionId, BTreeMap<ProcedureDebugId, (usize, usize)>>,
@@ -338,9 +333,6 @@ impl DebugInfo {
         >,
         location_map: BTreeMap<AcirOpcodeLocation, CallStackId>,
         location_tree: LocationTree,
-        variables: DebugVariables,
-        functions: DebugFunctions,
-        types: DebugTypes,
         brillig_procedure_locs: BTreeMap<
             BrilligFunctionId,
             BTreeMap<ProcedureDebugId, (usize, usize)>,
@@ -350,9 +342,6 @@ impl DebugInfo {
             brillig_locations,
             acir_locations: location_map,
             location_tree,
-            variables,
-            functions,
-            types,
             brillig_procedure_locs,
         }
     }
@@ -450,31 +439,6 @@ pub struct FunctionLocation {
     pub name: String,
 }
 
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, PartialOrd, Ord, Deserialize, Serialize)]
-pub struct DebugVarId(pub u32);
-
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, PartialOrd, Ord, Deserialize, Serialize)]
-pub struct DebugFnId(pub u32);
-
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, PartialOrd, Ord, Deserialize, Serialize)]
-pub struct DebugTypeId(pub u32);
-
-#[derive(Debug, Clone, Hash, Deserialize, Serialize)]
-pub struct DebugVariable {
-    pub name: String,
-    pub debug_type_id: DebugTypeId,
-}
-
-#[derive(Debug, Clone, Hash, Deserialize, Serialize)]
-pub struct DebugFunction {
-    pub name: String,
-    pub arg_names: Vec<String>,
-}
-
-pub type DebugVariables = BTreeMap<DebugVarId, DebugVariable>;
-pub type DebugFunctions = BTreeMap<DebugFnId, DebugFunction>;
-pub type DebugTypes = BTreeMap<DebugTypeId, PrintableType>;
-
 #[cfg(test)]
 mod tests {
     use crate::debug::{DebugArtifact, DebugInfo, LocationNodeDebugInfo, LocationTree};
@@ -546,9 +510,6 @@ mod tests {
             BTreeMap::default(),
             opcode_locations,
             location_tree,
-            BTreeMap::default(),
-            BTreeMap::default(),
-            BTreeMap::default(),
             BTreeMap::default(),
         )];
         let debug_artifact = DebugArtifact::new(debug_symbols, &fm);
