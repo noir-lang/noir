@@ -30,6 +30,28 @@ When a `CheckedCast` is evaluated to a constant (`Type::evaluate_to_integer_help
   `from = (M + N) - M`, `to = N` with `M` unbound), and because canonicalization itself
   evaluates subexpressions speculatively while variables are still unbound.
 
+## Solver-synthesized expressions carry the same obligation
+
+The elaborator is not the only source of arithmetic-generic expressions. Type unification
+*derives* them too: when a numeric generic is not pinned down by any argument, it is solved by
+rearranging the equation it appears in. `try_unify_by_isolating_an_unbound_type_variable_in_self`
+in `compiler/noirc_frontend/src/hir_def/types/unification.rs` turns `A + rhs = other` into
+`A = other - rhs` (and the three mirrored shapes), canonicalizes the right-hand side, and binds
+`A` to it.
+
+That rearrangement is subject to exactly the hazard above — canonicalizing it runs the same
+simplifications, including the cancellation rules, on operands the solver chose rather than ones
+a programmer wrote. So the binding is wrapped in a `CheckedCast` the same way, with `to` the
+canonical form everything downstream reasons with and `from` the rearrangement as derived. Both
+readings reach evaluation, and a disagreement between them is an error at the instantiation.
+
+This matters because nothing else re-derives the equation. A numeric generic bound to a bare
+`InfixExpr` is accepted by monomorphization unconditionally — `check_type_helper` tolerates any
+type-level numeric value it cannot lower — so a simplification that changed the value would be
+committed with nothing downstream in a position to notice, and the generic would reach codegen
+holding a number the source program does not determine. Wrapping the binding is what puts it
+back under the from/to comparison.
+
 The monomorphizer's `check_checked_cast` performs a similar (stricter) check for
 `CheckedCast`s it encounters structurally (e.g. in struct generic arguments), but array/string
 lengths never reach it: length types are resolved directly via `evaluate_to_u32`, so the
