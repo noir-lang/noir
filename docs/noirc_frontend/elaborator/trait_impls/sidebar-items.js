@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["constraints_unify"],"struct":["TraitImplScopeState"]};
+window.SIDEBAR_ITEMS = {"fn":["constraints_unify","pair_implicit_associated_generics"],"struct":["TraitImplScopeState"]};
