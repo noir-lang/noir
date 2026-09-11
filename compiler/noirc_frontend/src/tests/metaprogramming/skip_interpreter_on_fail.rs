@@ -822,7 +822,7 @@ fn regression_10832() {
 
 /// Regression for issue #10855 (<https://github.com/noir-lang/noir/issues/10855>)
 #[test]
-fn regression_10855() {
+fn access_non_existent_struct_field() {
     // We expect a single error. If we were to run the interpreter we would have duplicated errors.
     let src = "
     struct Foo {
