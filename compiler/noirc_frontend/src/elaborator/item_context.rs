@@ -11,6 +11,8 @@
 //! and reinstates the previous one afterwards. Since the state lives in one struct that is swapped
 //! as a unit, a field added here is saved and restored by construction.
 
+use std::collections::BTreeSet;
+
 use crate::{
     Type,
     hir::def_map::{LocalModuleId, ModuleId},
@@ -70,6 +72,16 @@ pub(super) struct ItemContext {
 
     /// Each constraint in the `where` clause of the function currently being resolved.
     pub(super) trait_bounds: Vec<TraitConstraint>,
+
+    /// Every `(object type, trait)` pair brought into scope by implication rather than by a
+    /// `where` clause naming it: a bound declared on an associated type, or a parent trait.
+    ///
+    /// A written bound which duplicates one of these is not reported as unnecessary. The two can
+    /// be registered in either order - the implication may come from a later clause in the same
+    /// `where` list - so remembering the implied pairs is what makes the diagnostic independent of
+    /// that order. Emptied together with the assumed impls by
+    /// [`Elaborator::remove_trait_constraints_from_scope`].
+    pub(super) implied_trait_bounds: BTreeSet<(Type, TraitId)>,
 
     /// When resolving lambda expressions, we need to keep track of the variables
     /// that are captured. We do this in order to create the hidden environment

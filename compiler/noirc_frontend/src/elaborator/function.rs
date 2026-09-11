@@ -7,7 +7,7 @@
 //! - Second stage elaboration strategy of function bodies and their return type.
 //!   - Shared strategy for all types of functions (standalone, impl, trait impl)
 
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 
 use iter_extended::vecmap;
 use itertools::Itertools;
@@ -354,7 +354,7 @@ impl Elaborator<'_> {
         // Setup trait constraints
         for (extra_constraint, location) in extra_trait_constraints {
             let bound = &extra_constraint.trait_bound;
-            self.add_trait_bound_to_scope(*location, &extra_constraint.typ, bound);
+            self.add_implied_trait_bound_to_scope(*location, &extra_constraint.typ, bound);
         }
 
         let mut trait_constraints =
@@ -498,7 +498,7 @@ impl Elaborator<'_> {
             for bound in desugared.bounds {
                 let typ = desugared.named_generic.clone();
                 let location = desugared.generic.location;
-                self.add_trait_bound_to_scope(location, &typ, &bound);
+                self.add_implied_trait_bound_to_scope(location, &typ, &bound);
                 associated_generics_trait_constraints
                     .push(TraitConstraint { typ, trait_bound: bound });
             }
@@ -724,6 +724,7 @@ impl Elaborator<'_> {
             // Set by `introduce_generics_into_scope`, which also declares the numeric generics.
             generics: Vec::new(),
             trait_bounds: func_meta.all_trait_constraints().cloned().collect(),
+            implied_trait_bounds: BTreeSet::new(),
             lambda_stack: Vec::new(),
             current_loop: None,
             unsafe_block_status: UnsafeBlockStatus::NotInUnsafeBlock,
