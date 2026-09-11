@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.0.0-rc.2](https://github.com/noir-lang/noir/compare/v1.0.0-rc.1...v1.0.0-rc.2) (2026-09-11)
+
+
+### Features
+
+* **nargo:** Reuse the elaborated context across tests in `nargo test` ([#13633](https://github.com/noir-lang/noir/issues/13633)) ([73f7ff0](https://github.com/noir-lang/noir/commit/73f7ff0d14e6dd3003c56bc92397504115e04141))
+* **ssa:** Lower array-initialisation `array_set` chains to `make_array` ([#13635](https://github.com/noir-lang/noir/issues/13635)) ([db43075](https://github.com/noir-lang/noir/commit/db430759c5864fc276bc7887192960c902a85d2f))
+* **ssa:** Predicate trivial conditionals instead of leaving them to flattening ([#13643](https://github.com/noir-lang/noir/issues/13643)) ([2e3caac](https://github.com/noir-lang/noir/commit/2e3caacfd2031529fb85ae0fee3281cc47ae58e1))
+
+
+### Bug Fixes
+
+* Compare implicit named generics by type variable, not by printed name ([#13648](https://github.com/noir-lang/noir/issues/13648)) ([d3738fd](https://github.com/noir-lang/noir/commit/d3738fdfcbf070b6f8f3863db2c616d01b5dc725))
+* **fmt:** Keep `Safety:` marker lines at paragraph start when reflowing comments ([#13650](https://github.com/noir-lang/noir/issues/13650)) ([9232ef7](https://github.com/noir-lang/noir/commit/9232ef76db55fe5535c6769602607490f968ffd3))
+* **frontend:** Check `CheckedCast`s in monomorphization without binding their type variables ([#13647](https://github.com/noir-lang/noir/issues/13647)) ([e626290](https://github.com/noir-lang/noir/commit/e626290c0d5b08be10eb649d74cb601c1eacf685))
+* **frontend:** Check that monomorphization leaves every piece of interner state the right size ([#13642](https://github.com/noir-lang/noir/issues/13642)) ([14852a8](https://github.com/noir-lang/noir/commit/14852a8982c1b395ed467e99305c7ca0ccf41727))
+* **frontend:** Check that monomorphization left the elaborated context as it found it ([#13639](https://github.com/noir-lang/noir/issues/13639)) ([d86fd0a](https://github.com/noir-lang/noir/commit/d86fd0afc744fc7d905a2b10bd4dc6496f31f53b))
+* **frontend:** Check that the program monomorphization produces holds together ([#13644](https://github.com/noir-lang/noir/issues/13644)) ([45ce151](https://github.com/noir-lang/noir/commit/45ce1511412b3b2073f6b8df0d209e02c3f87397))
+* **frontend:** Only apply the `self_type` method visibility shortcut to methods from the current crate ([#13649](https://github.com/noir-lang/noir/issues/13649)) ([b162478](https://github.com/noir-lang/noir/commit/b1624788c42a91dda33546cf6dfce9b6e4e72d6a))
+* **frontend:** Qualify the trait in an associated item's generic name ([#13651](https://github.com/noir-lang/noir/issues/13651)) ([165e63f](https://github.com/noir-lang/noir/commit/165e63f4df8450d8349123adde9adb7557256e00))
+* **frontend:** Report an impl method that equates two bounds' associated items as stricter than the trait ([#13655](https://github.com/noir-lang/noir/issues/13655)) ([f6ee621](https://github.com/noir-lang/noir/commit/f6ee62123b5fd1964e34554fd91b96119d3ac333))
+* **frontend:** Restore type variable bindings on every path out of monomorphization ([#13637](https://github.com/noir-lang/noir/issues/13637)) ([8dcefea](https://github.com/noir-lang/noir/commit/8dcefea164758707ea3afabb35400bd178177641))
+* **frontend:** Undo the bindings an impl search makes while monomorphizing a trait method ([#13638](https://github.com/noir-lang/noir/issues/13638)) ([7b5ea19](https://github.com/noir-lang/noir/commit/7b5ea19d53a00c562b2a6e2cff243e7c01fce7fd))
+
 ## [1.0.0-rc.1](https://github.com/noir-lang/noir/compare/v1.0.0-rc.0...v1.0.0-rc.1) (2026-09-09)
 
 
