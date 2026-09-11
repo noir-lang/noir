@@ -302,6 +302,16 @@ pub struct Elaborator<'context> {
     /// Each constraint in the `where` clause of the function currently being resolved.
     trait_bounds: Vec<TraitConstraint>,
 
+    /// Every `(object type, trait)` pair brought into scope by implication rather than by a
+    /// `where` clause naming it: the named trait's own `where` clause, or a parent trait.
+    ///
+    /// A written bound which duplicates one of these is not reported as unnecessary. The two can
+    /// be registered in either order - the implication may come from a later clause in the same
+    /// `where` list - so remembering the implied pairs is what makes the diagnostic independent of
+    /// that order. An object type carries the id of its own type variable, so a pair identifies
+    /// one bound of one item and stays meaningful for the whole elaboration.
+    implied_trait_bounds: BTreeSet<(Type, TraitId)>,
+
     /// This is a stack of function contexts. Most of the time, for each function we
     /// expect this to be of length one, containing each type variable and trait constraint
     /// used in the function. This is also pushed to when a `comptime {}` block is used within
@@ -506,6 +516,7 @@ impl<'context> Elaborator<'context> {
             crate_id,
             resolving_ids: BTreeSet::new(),
             trait_bounds: Vec::new(),
+            implied_trait_bounds: BTreeSet::new(),
             function_context: vec![FunctionContext::default()],
             current_trait_impl: None,
             current_impl: None,
