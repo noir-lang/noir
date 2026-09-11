@@ -3633,80 +3633,34 @@
 <a href=#3633 id=3633 data-nosnippet>3633</a>    }
 <a href=#3634 id=3634 data-nosnippet>3634</a>
 <a href=#3635 id=3635 data-nosnippet>3635</a>    <span class="attr">#[test]
-<a href=#3636 id=3636 data-nosnippet>3636</a>    #[should_panic(expected = <span class="string">"store value should have type Field, not u32"</span>)]
-<a href=#3637 id=3637 data-nosnippet>3637</a>    </span><span class="kw">fn </span>disallows_store_with_wrong_type() {
+<a href=#3636 id=3636 data-nosnippet>3636</a>    #[should_panic(expected = <span class="string">"ArrayGet/ArraySet must operate on an array"</span>)]
+<a href=#3637 id=3637 data-nosnippet>3637</a>    </span><span class="kw">fn </span>disallows_array_get_on_reference_to_array() {
 <a href=#3638 id=3638 data-nosnippet>3638</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#3639 id=3639 data-nosnippet>3639</a>        acir(inline) pure fn main f0 {
+<a href=#3639 id=3639 data-nosnippet>3639</a>        brillig(inline) fn main f0 {
 <a href=#3640 id=3640 data-nosnippet>3640</a>          b0():
-<a href=#3641 id=3641 data-nosnippet>3641</a>            v0 = allocate -&gt; &amp;mut Field
-<a href=#3642 id=3642 data-nosnippet>3642</a>            store u32 1 at v0
-<a href=#3643 id=3643 data-nosnippet>3643</a>            return
-<a href=#3644 id=3644 data-nosnippet>3644</a>        }
-<a href=#3645 id=3645 data-nosnippet>3645</a>        "</span>;
-<a href=#3646 id=3646 data-nosnippet>3646</a>        <span class="kw">let _ </span>= Ssa::from_str(src).unwrap();
-<a href=#3647 id=3647 data-nosnippet>3647</a>    }
-<a href=#3648 id=3648 data-nosnippet>3648</a>
-<a href=#3649 id=3649 data-nosnippet>3649</a>    <span class="attr">#[test]
-<a href=#3650 id=3650 data-nosnippet>3650</a>    #[cfg(debug_assertions)]
-<a href=#3651 id=3651 data-nosnippet>3651</a>    #[should_panic(expected = <span class="string">"Number of arguments in jmp must match number of block parameters"</span>)]
-<a href=#3652 id=3652 data-nosnippet>3652</a>    </span><span class="kw">fn </span>detects_terminator_argument_arity_mismatch() {
-<a href=#3653 id=3653 data-nosnippet>3653</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#3654 id=3654 data-nosnippet>3654</a>        acir(inline) fn main f0 {
-<a href=#3655 id=3655 data-nosnippet>3655</a>          b0():
-<a href=#3656 id=3656 data-nosnippet>3656</a>            jmp b1()
-<a href=#3657 id=3657 data-nosnippet>3657</a>          b1(v0: Field):
-<a href=#3658 id=3658 data-nosnippet>3658</a>            return
-<a href=#3659 id=3659 data-nosnippet>3659</a>        }
-<a href=#3660 id=3660 data-nosnippet>3660</a>        "</span>;
-<a href=#3661 id=3661 data-nosnippet>3661</a>        <span class="kw">let </span>ssa = Ssa::from_str_no_validation(src).unwrap();
-<a href=#3662 id=3662 data-nosnippet>3662</a>        <span class="kw">super</span>::validate_terminators(ssa.main());
-<a href=#3663 id=3663 data-nosnippet>3663</a>    }
-<a href=#3664 id=3664 data-nosnippet>3664</a>
-<a href=#3665 id=3665 data-nosnippet>3665</a>    <span class="attr">#[test]
-<a href=#3666 id=3666 data-nosnippet>3666</a>    #[cfg(debug_assertions)]
-<a href=#3667 id=3667 data-nosnippet>3667</a>    #[should_panic(expected = <span class="string">"Argument type in jmp must match block parameter type"</span>)]
-<a href=#3668 id=3668 data-nosnippet>3668</a>    </span><span class="kw">fn </span>detects_terminator_argument_type_mismatch() {
-<a href=#3669 id=3669 data-nosnippet>3669</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#3670 id=3670 data-nosnippet>3670</a>        acir(inline) fn main f0 {
-<a href=#3671 id=3671 data-nosnippet>3671</a>          b0():
-<a href=#3672 id=3672 data-nosnippet>3672</a>            jmp b1(u1 1)
-<a href=#3673 id=3673 data-nosnippet>3673</a>          b1(v0: Field):
-<a href=#3674 id=3674 data-nosnippet>3674</a>            return
-<a href=#3675 id=3675 data-nosnippet>3675</a>        }
-<a href=#3676 id=3676 data-nosnippet>3676</a>        "</span>;
-<a href=#3677 id=3677 data-nosnippet>3677</a>        <span class="kw">let </span>ssa = Ssa::from_str_no_validation(src).unwrap();
-<a href=#3678 id=3678 data-nosnippet>3678</a>        <span class="kw">super</span>::validate_terminators(ssa.main());
-<a href=#3679 id=3679 data-nosnippet>3679</a>    }
-<a href=#3680 id=3680 data-nosnippet>3680</a>
-<a href=#3681 id=3681 data-nosnippet>3681</a>    <span class="attr">#[test]
-<a href=#3682 id=3682 data-nosnippet>3682</a>    #[should_panic(expected = <span class="string">"ArrayGet/ArraySet must operate on an array"</span>)]
-<a href=#3683 id=3683 data-nosnippet>3683</a>    </span><span class="kw">fn </span>disallows_array_get_on_reference_to_array() {
-<a href=#3684 id=3684 data-nosnippet>3684</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#3685 id=3685 data-nosnippet>3685</a>        brillig(inline) fn main f0 {
-<a href=#3686 id=3686 data-nosnippet>3686</a>          b0():
-<a href=#3687 id=3687 data-nosnippet>3687</a>            v1 = make_array [Field 11, Field 22, Field 33] : [Field; 3]
-<a href=#3688 id=3688 data-nosnippet>3688</a>            v2 = allocate -&gt; &amp;mut [Field; 3]
-<a href=#3689 id=3689 data-nosnippet>3689</a>            store v1 at v2
-<a href=#3690 id=3690 data-nosnippet>3690</a>            v3 = array_get v2, index u32 0 -&gt; Field // v2 is &amp;mut [Field; 3]
-<a href=#3691 id=3691 data-nosnippet>3691</a>            return v3
-<a href=#3692 id=3692 data-nosnippet>3692</a>        }
-<a href=#3693 id=3693 data-nosnippet>3693</a>        "</span>;
-<a href=#3694 id=3694 data-nosnippet>3694</a>        <span class="kw">let _ </span>= Ssa::from_str(src).unwrap();
-<a href=#3695 id=3695 data-nosnippet>3695</a>    }
-<a href=#3696 id=3696 data-nosnippet>3696</a>
-<a href=#3697 id=3697 data-nosnippet>3697</a>    <span class="attr">#[test]
-<a href=#3698 id=3698 data-nosnippet>3698</a>    #[should_panic(expected = <span class="string">"ArrayGet/ArraySet must operate on an array"</span>)]
-<a href=#3699 id=3699 data-nosnippet>3699</a>    </span><span class="kw">fn </span>disallows_array_set_on_reference_to_array() {
-<a href=#3700 id=3700 data-nosnippet>3700</a>        <span class="kw">let </span>src = <span class="string">"
-<a href=#3701 id=3701 data-nosnippet>3701</a>        brillig(inline) fn main f0 {
-<a href=#3702 id=3702 data-nosnippet>3702</a>          b0():
-<a href=#3703 id=3703 data-nosnippet>3703</a>            v1 = make_array [Field 11, Field 22, Field 33] : [Field; 3]
-<a href=#3704 id=3704 data-nosnippet>3704</a>            v2 = allocate -&gt; &amp;mut [Field; 3]
-<a href=#3705 id=3705 data-nosnippet>3705</a>            store v1 at v2
-<a href=#3706 id=3706 data-nosnippet>3706</a>            v3 = array_set v2, index u32 0, value Field 44 // v2 is &amp;mut [Field; 3]
-<a href=#3707 id=3707 data-nosnippet>3707</a>            return v3
-<a href=#3708 id=3708 data-nosnippet>3708</a>        }
-<a href=#3709 id=3709 data-nosnippet>3709</a>        "</span>;
-<a href=#3710 id=3710 data-nosnippet>3710</a>        <span class="kw">let _ </span>= Ssa::from_str(src).unwrap();
-<a href=#3711 id=3711 data-nosnippet>3711</a>    }
-<a href=#3712 id=3712 data-nosnippet>3712</a>}</code></pre></div></section></main></body></html>
+<a href=#3641 id=3641 data-nosnippet>3641</a>            v1 = make_array [Field 11, Field 22, Field 33] : [Field; 3]
+<a href=#3642 id=3642 data-nosnippet>3642</a>            v2 = allocate -&gt; &amp;mut [Field; 3]
+<a href=#3643 id=3643 data-nosnippet>3643</a>            store v1 at v2
+<a href=#3644 id=3644 data-nosnippet>3644</a>            v3 = array_get v2, index u32 0 -&gt; Field // v2 is &amp;mut [Field; 3]
+<a href=#3645 id=3645 data-nosnippet>3645</a>            return v3
+<a href=#3646 id=3646 data-nosnippet>3646</a>        }
+<a href=#3647 id=3647 data-nosnippet>3647</a>        "</span>;
+<a href=#3648 id=3648 data-nosnippet>3648</a>        <span class="kw">let _ </span>= Ssa::from_str(src).unwrap();
+<a href=#3649 id=3649 data-nosnippet>3649</a>    }
+<a href=#3650 id=3650 data-nosnippet>3650</a>
+<a href=#3651 id=3651 data-nosnippet>3651</a>    <span class="attr">#[test]
+<a href=#3652 id=3652 data-nosnippet>3652</a>    #[should_panic(expected = <span class="string">"ArrayGet/ArraySet must operate on an array"</span>)]
+<a href=#3653 id=3653 data-nosnippet>3653</a>    </span><span class="kw">fn </span>disallows_array_set_on_reference_to_array() {
+<a href=#3654 id=3654 data-nosnippet>3654</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#3655 id=3655 data-nosnippet>3655</a>        brillig(inline) fn main f0 {
+<a href=#3656 id=3656 data-nosnippet>3656</a>          b0():
+<a href=#3657 id=3657 data-nosnippet>3657</a>            v1 = make_array [Field 11, Field 22, Field 33] : [Field; 3]
+<a href=#3658 id=3658 data-nosnippet>3658</a>            v2 = allocate -&gt; &amp;mut [Field; 3]
+<a href=#3659 id=3659 data-nosnippet>3659</a>            store v1 at v2
+<a href=#3660 id=3660 data-nosnippet>3660</a>            v3 = array_set v2, index u32 0, value Field 44 // v2 is &amp;mut [Field; 3]
+<a href=#3661 id=3661 data-nosnippet>3661</a>            return v3
+<a href=#3662 id=3662 data-nosnippet>3662</a>        }
+<a href=#3663 id=3663 data-nosnippet>3663</a>        "</span>;
+<a href=#3664 id=3664 data-nosnippet>3664</a>        <span class="kw">let _ </span>= Ssa::from_str(src).unwrap();
+<a href=#3665 id=3665 data-nosnippet>3665</a>    }
+<a href=#3666 id=3666 data-nosnippet>3666</a>}</code></pre></div></section></main></body></html>
