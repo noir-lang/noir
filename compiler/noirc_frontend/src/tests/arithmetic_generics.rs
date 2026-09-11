@@ -662,3 +662,37 @@ fn does_not_infer_a_numeric_generic_by_cancelling_two_distinct_associated_consta
     "#;
     check_errors(src);
 }
+
+#[test]
+fn does_not_solve_a_numeric_generic_by_cancelling_the_repeated_term_of_n_minus_m_plus_n() {
+    // Solving `X - B = Y + X` for `B` rearranges it to `B = X - (Y + X)`, whose value is `-Y`.
+    // Over `u32` that equation has no solution unless `Y` is zero, so instantiating it must be
+    // an error rather than a circuit in which `w` and `t` are the same value at two different
+    // lengths.
+    let source = r#"
+        struct W<let N: u32> {}
+
+        fn val<let N: u32>(_w: W<N>) -> u32 {
+            N
+        }
+
+        fn f<let X: u32, let B: u32>(_x: W<X>) -> W<X - B> {
+            W {}
+        }
+
+        fn caller<let Y: u32, let X: u32>(x: W<X>) -> (u32, u32) {
+            let w = f(x);
+            let t: W<Y + X> = w;
+            (val(w), val(t))
+        }
+
+        fn main() -> pub (u32, u32) {
+            let x: W<4> = W {};
+            caller::<3, 4>(x)
+        }
+    "#;
+    assert!(
+        get_monomorphized(source).is_err(),
+        "instantiating an unsatisfiable numeric generic equation must not compile"
+    );
+}
