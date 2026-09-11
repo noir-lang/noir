@@ -1246,6 +1246,20 @@ impl HTMLCreator {
         }
     }
 
+    /// Wraps a nested arithmetic expression in parentheses so the rendered type keeps the grouping
+    /// the source wrote: without them `[Field; (N + M) * 2]` and `[Field; N + (M * 2)]` both render
+    /// as `[Field; N + M * 2]`, which is one of them and not the other.
+    fn render_infix_operand(&mut self, operand: &Type) {
+        let parenthesize = matches!(operand, Type::InfixExpr { .. });
+        if parenthesize {
+            self.output.push('(');
+        }
+        self.render_type(operand);
+        if parenthesize {
+            self.output.push(')');
+        }
+    }
+
     fn render_type(&mut self, typ: &Type) {
         if let Some(self_type) = &self.self_type
             && self_type == typ
@@ -1363,11 +1377,11 @@ impl HTMLCreator {
                 self.output.push_str(&escape_html(name));
             }
             Type::InfixExpr { lhs, operator, rhs } => {
-                self.render_type(lhs);
+                self.render_infix_operand(lhs);
                 self.output.push(' ');
                 self.output.push_str(operator);
                 self.output.push(' ');
-                self.render_type(rhs);
+                self.render_infix_operand(rhs);
             }
             Type::TraitAsType { trait_id, trait_name, ordered_generics, named_generics } => {
                 self.output.push_str("impl ");
@@ -1920,9 +1934,9 @@ fn type_to_string(typ: &Type, self_type: Option<&Type>) -> String {
         Type::InfixExpr { lhs, operator, rhs } => {
             format!(
                 "{}{}{}",
-                type_to_string(lhs, self_type),
+                infix_operand_to_string(lhs, self_type),
                 operator,
-                type_to_string(rhs, self_type)
+                infix_operand_to_string(rhs, self_type)
             )
         }
         Type::TraitAsType { trait_name, ordered_generics, named_generics, trait_id: _ } => {
@@ -1955,6 +1969,18 @@ fn type_to_string(typ: &Type, self_type: Option<&Type>) -> String {
     }
 }
 
+/// Wraps a nested arithmetic expression in parentheses so the rendered type keeps the grouping the
+/// source wrote: without them `[Field; (N + M) * 2]` and `[Field; N + (M * 2)]` both render as
+/// `[Field; N + M * 2]`, which is one of them and not the other.
+fn infix_operand_to_string(operand: &Type, self_type: Option<&Type>) -> String {
+    let operand_string = type_to_string(operand, self_type);
+    if matches!(operand, Type::InfixExpr { .. }) {
+        format!("({operand_string})")
+    } else {
+        operand_string
+    }
+}
+
 fn is_self_param(param: &FunctionParam, self_type: Option<&Type>) -> bool {
     if param.name != "self" {
         return false;
@@ -1979,4 +2005,60 @@ fn is_self_param(param: &FunctionParam, self_type: Option<&Type>) -> bool {
 
 pub(super) fn escape_html(input: &str) -> String {
     input.replace('<', "&lt;").replace('>', "&gt;")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn generic(name: &str) -> Type {
+        Type::Generic(name.to_string())
+    }
+
+    fn infix(lhs: Type, operator: &str, rhs: Type) -> Type {
+        Type::InfixExpr { lhs: Box::new(lhs), operator: operator.to_string(), rhs: Box::new(rhs) }
+    }
+
+    fn render_type_to_html(typ: &Type) -> String {
+        let mut creator = HTMLCreator {
+            output: String::new(),
+            files: Vec::new(),
+            current_path: Vec::new(),
+            current_crate_version: None,
+            workspace_name: String::new(),
+            id_to_info: HashMap::new(),
+            all_trait_impls: HashMap::new(),
+            self_type: None,
+        };
+        creator.render_type(typ);
+        creator.output
+    }
+
+    /// `(N + M) * 2` and `N + (M * 2)` are different lengths, so they have to render differently.
+    /// The two renderers space their operators differently, which is why the expectations do too.
+    #[track_caller]
+    fn assert_renders_as(typ: Type, expected_html: &str, expected_string: &str) {
+        assert_eq!(render_type_to_html(&typ), expected_html);
+        assert_eq!(type_to_string(&typ, None), expected_string);
+    }
+
+    #[test]
+    fn renders_grouped_left_operand() {
+        let typ =
+            infix(infix(generic("N"), "+", generic("M")), "*", Type::Constant("2".to_string()));
+        assert_renders_as(typ, "(N + M) * 2", "(N+M)*2");
+    }
+
+    #[test]
+    fn renders_grouped_right_operand() {
+        let typ =
+            infix(generic("N"), "+", infix(generic("M"), "*", Type::Constant("2".to_string())));
+        assert_renders_as(typ, "N + (M * 2)", "N+(M*2)");
+    }
+
+    #[test]
+    fn renders_ungrouped_expression_without_parentheses() {
+        let typ = infix(generic("N"), "+", generic("M"));
+        assert_renders_as(typ, "N + M", "N+M");
+    }
 }
