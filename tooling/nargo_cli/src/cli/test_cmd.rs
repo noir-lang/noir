@@ -221,19 +221,9 @@ struct CachedContext<'a> {
     package: &'a Package,
     context: Context<'a, 'a>,
     crate_id: CrateId,
-}
-
-/// Whether a test left the context it compiled against fit for the next test to compile against.
-///
-/// Whether the test passed does not decide this, and neither does whether it compiled:
-/// monomorphization restores the bindings it made on every path out, so a compilation that failed
-/// leaves the context no worse off than one that succeeded. What is [`Self::Spent`] is the
-/// `--force-comptime` and `--coverage` path, which runs the comptime interpreter over the context
-/// instead of monomorphizing, and hands the context's evaluation tracker to the coverage report.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ContextState {
-    Clean,
-    Spent,
+    /// Post-elaboration snapshot of the evaluation tracker, cloned back into
+    /// the context before each coverage test so the tracker is not consumed.
+    tracker_after_elaboration: Option<EvaluationTracker>,
 }
 
 pub(crate) struct TestResult {
@@ -407,14 +397,12 @@ impl<'a> TestRunner<'a> {
 
                 // Monomorphization's restores are unwound past rather than run by a panic, so a
                 // test that did not finish gives up its context however far it got.
-                let reusable = matches!(unwound, Ok((_, _, _, ContextState::Clean)))
-                    && !self.args.no_context_reuse;
-                if !reusable {
+                if unwound.is_err() || self.args.no_context_reuse {
                     cached = None;
                 }
 
                 match unwound {
-                    Ok((status, output, test_coverage, _)) => (status, output, test_coverage),
+                    Ok((status, output, test_coverage)) => (status, output, test_coverage),
                     Err(err) => (
                         TestStatus::Fail {
                             message:
@@ -789,7 +777,13 @@ impl<'a> TestRunner<'a> {
             let (context, crate_id) = self
                 .prepare_package_and_check_crate(test.package, false)
                 .expect("Any errors should have occurred when collecting test functions");
-            *cached = Some(CachedContext { package: test.package, context, crate_id });
+            let tracker_after_elaboration = context.evaluation_tracker.clone();
+            *cached = Some(CachedContext {
+                package: test.package,
+                context,
+                crate_id,
+                tracker_after_elaboration,
+            });
         }
         cached.as_mut().expect("just populated")
     }
@@ -802,7 +796,7 @@ impl<'a> TestRunner<'a> {
         &'a self,
         cached: &mut CachedContext<'a>,
         test: &Test<'a>,
-    ) -> (TestStatus, String, Option<lcov::Report>, ContextState) {
+    ) -> (TestStatus, String, Option<lcov::Report>) {
         let CachedContext { context, crate_id, .. } = cached;
         let fn_name = test.name.as_str();
 
@@ -821,7 +815,7 @@ impl<'a> TestRunner<'a> {
                 Ok(_) => TestStatus::Skipped,
                 Err(err) => nargo::ops::test_status_program_compile_fail(err, test_function),
             };
-            return (status, String::new(), None, ContextState::Clean);
+            return (status, String::new(), None);
         }
 
         if self.args.force_comptime || self.args.coverage && !test.has_arguments {
@@ -839,10 +833,10 @@ impl<'a> TestRunner<'a> {
                 coverage::tracker_to_report(&tracker, test_function.id, fn_name, context)
             });
 
-            // The coverage report takes ownership of the evaluation tracker, which the next test
-            // needs rebuilt, and the purity the reuse rests on is monomorphization's rather than
-            // the interpreter's.
-            return (status, output, report, ContextState::Spent);
+            // Restore the post-elaboration tracker so the next test starts with a fresh copy
+            // rather than forcing a full re-elaboration.
+            context.evaluation_tracker = cached.tracker_after_elaboration.clone();
+            return (status, output, report);
         }
 
         let blackbox_solver = S::default();
@@ -885,7 +879,7 @@ impl<'a> TestRunner<'a> {
         let output_string =
             String::from_utf8(output_buffer).expect("output buffer should contain valid utf8");
 
-        (test_status, output_string, None, ContextState::Clean)
+        (test_status, output_string, None)
     }
 
     /// Display the status of a single test
