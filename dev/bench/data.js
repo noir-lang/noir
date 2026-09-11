@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789139651335,
+  "lastUpdate": 1789139654916,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -16667,40 +16667,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "d7a91ec6529f7ffb48d25f9b39b67a3ef30bb85c",
-          "message": "chore(deps): bump fast-uri from 3.1.4 to 3.1.6 in /docs (#13593)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-09-07T12:50:06+01:00",
-          "tree_id": "0dfd77f37ee723ed1ec4d6904352827f9b260de5",
-          "url": "https://github.com/noir-lang/noir/commit/d7a91ec6529f7ffb48d25f9b39b67a3ef30bb85c"
-        },
-        "date": 1788782097609,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.336,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.396,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "0e7c996de544aac9de41cb26a8e4c95de391e75e",
           "message": "chore(deps): bump @humanfs/node from 0.16.6 to 0.16.8 (#13594)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
           "timestamp": "2026-09-07T12:50:18+01:00",
@@ -18345,6 +18311,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore-depth-10",
             "value": 0.37,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.404,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9232ef76db55fe5535c6769602607490f968ffd3",
+          "message": "fix(fmt): keep `Safety:` marker lines at paragraph start when reflowing comments (#13650)",
+          "timestamp": "2026-09-11T14:51:33Z",
+          "tree_id": "803224d64079f53a740e9af9cf9ce6760cd8f2e4",
+          "url": "https://github.com/noir-lang/noir/commit/9232ef76db55fe5535c6769602607490f968ffd3"
+        },
+        "date": 1789139601222,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.445,
             "unit": "s"
           },
           {
