@@ -105,6 +105,14 @@ pub enum TypeCheckError {
     AssertionParameterCountMismatch { kind: ConstrainKind, found: usize, location: Location },
     #[error("{item} expects {expected} generics but {found} were given")]
     GenericCountMismatch { item: String, expected: usize, found: usize, location: Location },
+    #[error("{item} declares its generic `{generic}` as {found} but the trait declares {expected}")]
+    GenericKindMismatch {
+        item: String,
+        generic: String,
+        expected: String,
+        found: String,
+        location: Location,
+    },
     #[error("{item} has incompatible `unconstrained`")]
     UnconstrainedMismatch { item: String, expected: bool, location: Location },
     #[error("Only integer and Field types may be casted to")]
@@ -344,6 +352,7 @@ impl TypeCheckError {
             | TypeCheckError::ParameterCountMismatch { location, .. }
             | TypeCheckError::AssertionParameterCountMismatch { location, .. }
             | TypeCheckError::GenericCountMismatch { location, .. }
+            | TypeCheckError::GenericKindMismatch { location, .. }
             | TypeCheckError::UnconstrainedMismatch { location, .. }
             | TypeCheckError::UnsupportedCast { location }
             | TypeCheckError::UnsupportedFieldCast { location }
@@ -561,6 +570,12 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 let empty_or_s = if *expected == 1 { "" } else { "s" };
                 let was_or_were = if *found == 1 { "was" } else { "were" };
                 let msg = format!("{item} expects {expected} generic{empty_or_s} but {found} {was_or_were} given");
+                Diagnostic::simple_error(msg, String::new(), *location)
+            }
+            TypeCheckError::GenericKindMismatch { item, generic, expected, found, location } => {
+                let msg = format!(
+                    "{item} declares its generic `{generic}` as {found} but the trait declares {expected}"
+                );
                 Diagnostic::simple_error(msg, String::new(), *location)
             }
             TypeCheckError::UnconstrainedMismatch { item, expected, location } => {

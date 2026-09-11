@@ -1357,12 +1357,35 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
         // Substitute each generic on the trait function with the corresponding generic on the impl function
         for (
             ResolvedGeneric { type_var: trait_fn_generic, .. },
-            ResolvedGeneric { name, type_var: impl_fn_generic, .. },
+            ResolvedGeneric { name, type_var: impl_fn_generic, location: impl_fn_generic_location },
             // Use zip (not zip_eq) since the impl may have a different number of
             // generics than the trait method (error pushed above).
         ) in trait_fn_meta.direct_generics.iter().zip(&meta.direct_generics)
         {
             let trait_fn_kind = trait_fn_generic.kind();
+            let impl_fn_kind = impl_fn_generic.kind();
+            // A binding records the trait generic's kind next to the impl generic that replaces
+            // it, and substitution asserts the two agree, so a pair whose kinds differ is left
+            // unbound. Two numeric generics of different types are already reported when the
+            // impl method's generics are resolved; a type parameter paired with a numeric
+            // generic is reported here.
+            if !trait_fn_kind.unifies(&impl_fn_kind) {
+                if !matches!((&trait_fn_kind, &impl_fn_kind), (Kind::Numeric(_), Kind::Numeric(_)))
+                {
+                    let describe = |kind: &Kind| match kind {
+                        Kind::Numeric(typ) => format!("a numeric generic of type `{typ}`"),
+                        _ => "a type parameter".to_string(),
+                    };
+                    errors.push(TypeCheckError::GenericKindMismatch {
+                        item: method_name.to_string(),
+                        generic: name.to_string(),
+                        expected: describe(&trait_fn_kind),
+                        found: describe(&impl_fn_kind),
+                        location: *impl_fn_generic_location,
+                    });
+                }
+                continue;
+            }
             let arg = impl_fn_generic.clone().into_named_generic(name, None);
             bindings.insert(trait_fn_generic.id(), (trait_fn_generic.clone(), trait_fn_kind, arg));
         }

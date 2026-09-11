@@ -1,6 +1,7 @@
 //! Tests for trait implementation validation.
 //! Validates duplicate impls, impl target correctness, missing associated items, and generic counts.
 
+use crate::hir::{def_collector::dc_crate::CompilationError, type_check::TypeCheckError};
 use crate::tests::{assert_no_errors, check_errors};
 
 #[test]
@@ -622,6 +623,116 @@ fn does_not_crash_when_trait_impl_is_defined_multiple_times() {
     }
     "#;
     check_errors(src);
+}
+
+/// The messages of every `GenericKindMismatch` error the program produces. Collecting the
+/// errors at all shows that elaboration finished instead of aborting on a kind mismatch.
+fn generic_kind_mismatches(src: &str) -> Vec<String> {
+    crate::tests::get_program_errors(src)
+        .into_iter()
+        .filter_map(|error| match error {
+            CompilationError::TypeError(error @ TypeCheckError::GenericKindMismatch { .. }) => {
+                Some(error.to_string())
+            }
+            _ => None,
+        })
+        .collect()
+}
+
+#[test]
+fn trait_impl_method_numeric_generic_for_bounded_type_parameter() {
+    // The trait method bounds its generic, so the trait-to-impl generic bindings are applied to
+    // that bound while the impl is checked.
+    let src = r#"
+    trait Marker {}
+    trait MyTrait {
+        fn f<T>(self, x: T)
+        where
+            T: Marker;
+    }
+    struct Foo {
+        x: Field,
+    }
+    impl MyTrait for Foo {
+        fn f<let Q: u32>(_self: Self, _x: Field)
+        where
+            Q: Marker,
+        {}
+    }
+    fn main() {}
+    "#;
+    assert_eq!(
+        generic_kind_mismatches(src),
+        [
+            "f declares its generic `Q` as a numeric generic of type `u32` but the trait declares a type parameter"
+        ]
+    );
+}
+
+#[test]
+fn trait_impl_method_type_parameter_for_numeric_generic() {
+    let src = r#"
+    trait MyTrait {
+        fn f<let N: u32>(self) -> [Field; N];
+    }
+    struct Foo {}
+    impl MyTrait for Foo {
+        fn f<T>(_self: Self) -> [Field; 1] {
+            [0]
+        }
+    }
+    fn main() {}
+    "#;
+    assert_eq!(
+        generic_kind_mismatches(src),
+        [
+            "f declares its generic `T` as a type parameter but the trait declares a numeric generic of type `u32`"
+        ]
+    );
+}
+
+#[test]
+fn trait_impl_method_numeric_generic_of_different_type() {
+    // A numeric generic of the wrong type is reported once, by generic resolution, and not
+    // again as a kind mismatch.
+    let src = r#"
+    trait MyTrait {
+        fn f<let N: u32>(self) -> Field;
+    }
+    struct Foo {}
+    impl MyTrait for Foo {
+        fn f<let N: u64>(_self: Self) -> Field {
+            0
+        }
+    }
+    fn main() {}
+    "#;
+    assert!(!crate::tests::get_program_errors(src).is_empty());
+    assert!(generic_kind_mismatches(src).is_empty());
+}
+
+#[test]
+fn trait_impl_method_generic_kinds_that_match_are_accepted() {
+    let src = r#"
+    trait Marker {}
+    impl Marker for Field {}
+    trait MyTrait {
+        fn f<T, let N: u32>(self, x: [T; N])
+        where
+            T: Marker;
+    }
+    struct Foo {}
+    impl MyTrait for Foo {
+        fn f<U, let M: u32>(_self: Self, _x: [U; M])
+        where
+            U: Marker,
+        {}
+    }
+    fn main() {
+        Foo {}.f([1, 2]);
+    }
+    "#;
+    assert_no_errors(src);
 }
 
 #[test]
