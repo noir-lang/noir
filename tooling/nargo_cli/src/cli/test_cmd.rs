@@ -221,6 +221,9 @@ struct CachedContext<'a> {
     package: &'a Package,
     context: Context<'a, 'a>,
     crate_id: CrateId,
+    /// Post-elaboration snapshot of the evaluation tracker, cloned back into
+    /// the context before each coverage test so the tracker is not consumed.
+    tracker_after_elaboration: Option<EvaluationTracker>,
 }
 
 pub(crate) struct TestResult {
@@ -392,10 +395,9 @@ impl<'a> TestRunner<'a> {
                 });
                 let unwound = catch_unwind(run);
 
-                // Compiling a test only reads the context, so whether it passed or even compiled
-                // leaves the context fit for the next test. Interpreting one does not: see
-                // `Self::interprets`. A test that did not finish gives up its context too.
-                if self.args.no_context_reuse || self.interprets(&test) || unwound.is_err() {
+                // Whether a test passed or even compiled leaves the context fit for the next test.
+                // A test that did not finish gives up its context however far it got.
+                if self.args.no_context_reuse || unwound.is_err() {
                     cached = None;
                 }
 
@@ -762,10 +764,6 @@ impl<'a> TestRunner<'a> {
     }
 
     /// Whether `test` runs through the comptime interpreter rather than being compiled.
-    ///
-    /// The interpreter runs as part of elaboration, so it can change what the context holds, and
-    /// the coverage report takes ownership of the context's evaluation tracker. Either way the
-    /// context is not fit for the next test.
     fn interprets(&self, test: &Test<'a>) -> bool {
         !self.args.no_run && (self.args.force_comptime || self.args.coverage && !test.has_arguments)
     }
@@ -784,7 +782,13 @@ impl<'a> TestRunner<'a> {
             let (context, crate_id) = self
                 .prepare_package_and_check_crate(test.package, false)
                 .expect("Any errors should have occurred when collecting test functions");
-            *cached = Some(CachedContext { package: test.package, context, crate_id });
+            let tracker_after_elaboration = context.evaluation_tracker.clone();
+            *cached = Some(CachedContext {
+                package: test.package,
+                context,
+                crate_id,
+                tracker_after_elaboration,
+            });
         }
         cached.as_mut().expect("just populated")
     }
@@ -798,14 +802,14 @@ impl<'a> TestRunner<'a> {
         cached: &mut CachedContext<'a>,
         test: &Test<'a>,
     ) -> (TestStatus, String, Option<lcov::Report>) {
-        let CachedContext { context, crate_id, .. } = cached;
+        let CachedContext { context, crate_id, tracker_after_elaboration, .. } = cached;
 
         let pattern = FunctionNameMatch::Exact(vec![test.name.to_string()]);
         let test_functions = context.get_all_test_functions_in_crate_matching(crate_id, &pattern);
         let (_, test_function) = test_functions.first().expect("Test function should exist");
 
         if self.interprets(test) {
-            self.run_interpreted_test(context, test, test_function)
+            self.run_interpreted_test(context, tracker_after_elaboration, test, test_function)
         } else {
             let (status, output) = self.run_compiled_test::<S>(context, test, test_function);
             (status, output, None)
@@ -816,6 +820,7 @@ impl<'a> TestRunner<'a> {
     fn run_interpreted_test(
         &'a self,
         context: &mut Context<'a, 'a>,
+        tracker_after_elaboration: &Option<EvaluationTracker>,
         test: &Test<'a>,
         test_function: &TestFunction,
     ) -> (TestStatus, String, Option<lcov::Report>) {
@@ -833,6 +838,9 @@ impl<'a> TestRunner<'a> {
             coverage::tracker_to_report(&tracker, test_function.id, test.name.as_str(), context)
         });
 
+        // Restore the post-elaboration tracker so the next test starts with a fresh copy
+        // rather than forcing a full re-elaboration.
+        context.evaluation_tracker = tracker_after_elaboration.clone();
         (status, output, report)
     }
 
