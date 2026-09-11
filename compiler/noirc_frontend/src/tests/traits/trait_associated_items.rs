@@ -1375,7 +1375,7 @@ fn associated_type_accessed_through_self_in_trait_impl_method() {
     check_errors(src);
 }
 
-/// TODO(https://github.com/noir-lang/noir/issues/11376): Switch to assert no errors once resolved
+/// Regression test for https://github.com/noir-lang/noir/issues/11376.
 #[test]
 fn fully_qualified_nested_associated_type() {
     let src = "
@@ -1385,12 +1385,10 @@ fn fully_qualified_nested_associated_type() {
 
     impl<T> Result for T where T: Foo {
         type Output = <T::Bar as HasQux>::Qux;
-                                 ^^^^^^ No matching impl found for `<T as Foo>::Bar: HasQux<Qux = _>`
-                                 ~~~~~~ No impl for `<T as Foo>::Bar: HasQux<Qux = _>`
     }
     fn main() {}
     ";
-    check_errors(src);
+    assert_no_errors(src);
 }
 
 #[test]
