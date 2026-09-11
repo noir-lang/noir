@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789136313455,
+  "lastUpdate": 1789136315782,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -13503,40 +13503,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "7001b28397a7df48f38f9d6ff7a11fa5e80de4a8",
-          "message": "feat(stdlib): wrap comptime tuple-returning APIs in named structs (#13550)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>\nCo-authored-by: Claude Opus 4.6 <noreply@anthropic.com>",
-          "timestamp": "2026-09-03T14:34:26Z",
-          "tree_id": "2d35b4bc4c61e041d755eb89c3f2661a812e4f5a",
-          "url": "https://github.com/noir-lang/noir/commit/7001b28397a7df48f38f9d6ff7a11fa5e80de4a8"
-        },
-        "date": 1788447652365,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 502.9,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 450,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -15186,6 +15152,40 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/73f7ff0d14e6dd3003c56bc92397504115e04141"
         },
         "date": 1789134344913,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 502.9,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 450,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "d3738fdfcbf070b6f8f3863db2c616d01b5dc725",
+          "message": "fix: compare implicit named generics by type variable, not by printed name (#13648)",
+          "timestamp": "2026-09-11T13:51:44Z",
+          "tree_id": "b646e12dcc72ab9bba863ed7b3f7173cec0d0307",
+          "url": "https://github.com/noir-lang/noir/commit/d3738fdfcbf070b6f8f3863db2c616d01b5dc725"
+        },
+        "date": 1789136222942,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
