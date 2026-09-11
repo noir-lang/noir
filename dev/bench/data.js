@@ -1,92 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789143197851,
+  "lastUpdate": 1789143204344,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "5e6bd2302cd1f5218dcacaa19defe6b774c4b9ce",
-          "message": "chore(deps): bump browserslist from 4.28.1 to 4.28.8 (#13586)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-09-07T12:49:43+01:00",
-          "tree_id": "79fe8b680e61f15516b3d33555ce454f224a59d3",
-          "url": "https://github.com/noir-lang/noir/commit/5e6bd2302cd1f5218dcacaa19defe6b774c4b9ce"
-        },
-        "date": 1788782173189,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 358.03,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 358.03,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 358.03,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 358.03,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 358.03,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 358.03,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 358.03,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 358.03,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 358.03,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 358.03,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 106.83,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 150.54,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -1899,6 +1815,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512_100_bytes",
             "value": 151.86,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "165e63f4df8450d8349123adde9adb7557256e00",
+          "message": "fix(frontend): qualify the trait in an associated item's generic name (#13651)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-09-11T15:48:42Z",
+          "tree_id": "616359cd836240944d5ef430d347e21d3138472c",
+          "url": "https://github.com/noir-lang/noir/commit/165e63f4df8450d8349123adde9adb7557256e00"
+        },
+        "date": 1789143117947,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore_depth_10",
+            "value": 106.81,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 151.83,
             "unit": "MB"
           }
         ]
