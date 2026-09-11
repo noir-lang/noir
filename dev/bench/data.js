@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789136086249,
+  "lastUpdate": 1789136308204,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18619,90 +18619,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "dc6a363547d544f638e6ea64ec0f5e6f22e01256",
-          "message": "chore: remove the `ssa_verification` crate (#13591)",
-          "timestamp": "2026-09-02T17:51:38Z",
-          "tree_id": "4cb9dcf2b8a6aa1fca50e2c51868f13e676913af",
-          "url": "https://github.com/noir-lang/noir/commit/dc6a363547d544f638e6ea64ec0f5e6f22e01256"
-        },
-        "date": 1788373434459,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "rollup-block-root-first-empty-tx",
-            "value": 324.8,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 328.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 390.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 312.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 690.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 731.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 489.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 691.3,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 854.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 244.6,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 2073.7,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 151.5,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "7001b28397a7df48f38f9d6ff7a11fa5e80de4a8",
           "message": "feat(stdlib): wrap comptime tuple-returning APIs in named structs (#13550)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>\nCo-authored-by: Claude Opus 4.6 <noreply@anthropic.com>",
           "timestamp": "2026-09-03T14:34:26Z",
@@ -20342,6 +20258,40 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/73f7ff0d14e6dd3003c56bc92397504115e04141"
         },
         "date": 1789134338568,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 2073.7,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 151.5,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "d3738fdfcbf070b6f8f3863db2c616d01b5dc725",
+          "message": "fix: compare implicit named generics by type variable, not by printed name (#13648)",
+          "timestamp": "2026-09-11T13:51:44Z",
+          "tree_id": "b646e12dcc72ab9bba863ed7b3f7173cec0d0307",
+          "url": "https://github.com/noir-lang/noir/commit/d3738fdfcbf070b6f8f3863db2c616d01b5dc725"
+        },
+        "date": 1789136222529,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
