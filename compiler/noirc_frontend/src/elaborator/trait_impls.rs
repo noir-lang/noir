@@ -580,6 +580,12 @@ impl Elaborator<'_> {
             }
         }
 
+        bindings.extend(pair_implicit_associated_generics(
+            &method.trait_constraints,
+            &override_meta.trait_constraints,
+            &bindings,
+        ));
+
         let mut substituted_method_ids = HashSet::default();
         for method_constraint in &method.trait_constraints {
             let substituted_constraint_type =
@@ -1208,6 +1214,71 @@ impl Elaborator<'_> {
             wildcard_allowed,
         )
     }
+}
+
+/// Bind each anonymous generic that a trait method's `where` clause desugared for an
+/// unspecified associated item to the one its override desugared for the same item.
+///
+/// `where B: Bar` on a trait method and on its override each expand to `where B: Bar<N = _>`
+/// with their own fresh type variable standing in for `_`. Both denote the same projection,
+/// but they are distinct type variables, so the two constraint sets only compare equal once
+/// the pairs are bound together.
+///
+/// Only two placeholders are ever paired. An override that pins the associated item down to a
+/// concrete type genuinely is a stricter requirement and must still be reported.
+fn pair_implicit_associated_generics(
+    declaration_constraints: &[TraitConstraint],
+    override_constraints: &[TraitConstraint],
+    bindings: &TypeBindings,
+) -> TypeBindings {
+    let implicit_placeholder = |typ: &Type| match typ {
+        Type::NamedGeneric(generic)
+            if generic.implicit && generic.type_var.borrow().is_unbound() =>
+        {
+            Some(generic.type_var.clone())
+        }
+        _ => None,
+    };
+
+    let mut pairs = TypeBindings::default();
+
+    for declaration in declaration_constraints {
+        let object_type = declaration.typ.substitute(bindings).follow_bindings();
+        let ordered = vecmap(&declaration.trait_bound.trait_generics.ordered, |generic| {
+            generic.substitute(bindings)
+        });
+
+        let Some(override_constraint) = override_constraints.iter().find(|override_constraint| {
+            override_constraint.trait_bound.trait_id == declaration.trait_bound.trait_id
+                && override_constraint.typ.follow_bindings() == object_type
+                && override_constraint.trait_bound.trait_generics.ordered == ordered
+        }) else {
+            continue;
+        };
+
+        for named in &declaration.trait_bound.trait_generics.named {
+            let Some(type_var) = implicit_placeholder(&named.typ) else {
+                continue;
+            };
+            let Some(override_named) = override_constraint
+                .trait_bound
+                .trait_generics
+                .named
+                .iter()
+                .find(|override_named| override_named.name.as_str() == named.name.as_str())
+            else {
+                continue;
+            };
+            if implicit_placeholder(&override_named.typ).is_none() {
+                continue;
+            }
+
+            let kind = type_var.kind();
+            pairs.insert(type_var.id(), (type_var, kind, override_named.typ.clone()));
+        }
+    }
+
+    pairs
 }
 
 /// Returns true if the impl-level `where` constraint and the method-level

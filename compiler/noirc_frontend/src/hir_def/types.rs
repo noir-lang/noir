@@ -3832,13 +3832,6 @@ impl std::hash::Hash for Type {
                 alias.hash(state);
                 args.hash(state);
             }
-            Type::NamedGeneric(NamedGeneric { type_var, implicit: true, .. }) => {
-                // An implicitly added unbound named generic's hash must be the same as any other
-                // implicitly added unbound named generic's hash.
-                if !type_var.borrow().is_unbound() {
-                    type_var.hash(state);
-                }
-            }
             Type::TypeVariable(var) | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) => {
                 var.hash(state);
             }
@@ -3935,26 +3928,6 @@ impl PartialEq for Type {
             (InfixExpr(l_lhs, l_op, l_rhs, _), InfixExpr(r_lhs, r_op, r_rhs, _)) => {
                 l_lhs == r_lhs && l_op == r_op && l_rhs == r_rhs
             }
-            // Two implicitly added unbound named generics are equal
-            (
-                NamedGeneric(types::NamedGeneric {
-                    type_var: lhs_var,
-                    implicit: true,
-                    name: lhs_name,
-                    ..
-                }),
-                NamedGeneric(types::NamedGeneric {
-                    type_var: rhs_var,
-                    implicit: true,
-                    name: rhs_name,
-                    ..
-                }),
-            ) => {
-                lhs_var.borrow().is_unbound()
-                    && rhs_var.borrow().is_unbound()
-                    && lhs_name == rhs_name
-                    || lhs_var.id() == rhs_var.id()
-            }
             // Special case: we consider unbound named generics and type variables to be equal to each
             // other if their type variable ids match. This is important for some corner cases in
             // monomorphization where we call `replace_named_generics_with_type_variables` but
@@ -4041,5 +4014,35 @@ mod tests {
         // Depth 100 hits the limit
         let typ = create_nested_array(TYPE_RECURSION_LIMIT as usize);
         let _ = typ.follow_bindings();
+    }
+
+    #[test]
+    fn implicit_named_generics_with_the_same_name_are_distinct() {
+        // The name of an implicit named generic is a diagnostic label: `where T: a::Tr, T: b::Tr`
+        // gives both of the associated constants it desugars the name `<T as Tr>::N`. They are
+        // separate unknowns, and equality (and so hashing) must go by type variable instead,
+        // or the arithmetic simplifier cancels one against the other.
+        let name = Rc::new("N".to_owned());
+        let as_trait = Some(("T", "Tr"));
+        let associated_constant = TypeVariableId(0);
+
+        let make = |id| {
+            TypeVariable::unbound(TypeVariableId(id), Kind::u32()).into_implicit_named_generic(
+                &name,
+                as_trait,
+                associated_constant,
+            )
+        };
+        let first = make(1);
+        let second = make(2);
+
+        assert_eq!(first.to_string(), second.to_string());
+        assert_ne!(first, second);
+        assert_eq!(first, make(1));
+
+        let mut map = HashMap::default();
+        map.insert(first, "a::Tr");
+        map.insert(second, "b::Tr");
+        assert_eq!(map.len(), 2);
     }
 }
