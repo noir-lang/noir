@@ -460,7 +460,17 @@ pub struct IfExpression {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct MatchExpression {
     pub expression: Expression,
-    pub rules: Vec<(/*pattern*/ Expression, /*branch*/ Expression)>,
+    pub rules: Vec<MatchRule>,
+}
+
+/// One arm of a `match`: `pattern if guard => branch`.
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct MatchRule {
+    pub pattern: Expression,
+    /// The arm's guard, if it has one. A guarded arm matches only when its pattern matches and
+    /// the guard evaluates to true; otherwise the following arms are tried.
+    pub guard: Option<Expression>,
+    pub branch: Expression,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -791,8 +801,11 @@ impl Display for IfExpression {
 impl Display for MatchExpression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "match {} {{", self.expression)?;
-        for (pattern, branch) in &self.rules {
-            writeln!(f, "    {pattern} => {branch},")?;
+        for MatchRule { pattern, guard, branch } in &self.rules {
+            match guard {
+                Some(guard) => writeln!(f, "    {pattern} if {guard} => {branch},")?,
+                None => writeln!(f, "    {pattern} => {branch},")?,
+            }
         }
         write!(f, "}}")
     }
