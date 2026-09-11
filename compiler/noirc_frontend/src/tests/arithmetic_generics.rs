@@ -578,7 +578,7 @@ fn does_not_cancel_associated_constants_of_two_distinct_traits() {
             T: b::Tr,
         {
             let _ys: [Field; (M + <T as a::Tr>::N) - <T as b::Tr>::N] = xs;
-                                                                        ^^ Expected type [Field; ((M + <T as Tr>::N) - <T as Tr>::N)], found type [Field; M]
+                                                                        ^^ Expected type [Field; ((M + <T as a::Tr>::N) - <T as b::Tr>::N)], found type [Field; M]
         }
 
         fn main() {}
@@ -599,7 +599,7 @@ fn does_not_cancel_associated_constants_of_two_distinct_traits_on_the_right() {
             T: b::Tr,
         {
             let _ys: [Field; <T as a::Tr>::N + (M - <T as b::Tr>::N)] = xs;
-                                                                        ^^ Expected type [Field; (<T as Tr>::N + (M - <T as Tr>::N))], found type [Field; M]
+                                                                        ^^ Expected type [Field; (<T as a::Tr>::N + (M - <T as b::Tr>::N))], found type [Field; M]
         }
 
         fn main() {}
@@ -655,7 +655,7 @@ fn does_not_infer_a_numeric_generic_by_cancelling_two_distinct_associated_consta
             let w = mk::<_, <T as b::Tr>::N>();
             let _c: W<M + <T as a::Tr>::N> = w;
             let _bad: [Field; M] = ident(w);
-                                   ^^^^^^^^ Expected type [Field; M], found type [Field; (((M + <T as Tr>::N) - <T as Tr>::N) + <T as Tr>::N)]
+                                   ^^^^^^^^ Expected type [Field; M], found type [Field; (((M + <T as a::Tr>::N) - <T as b::Tr>::N) + <T as b::Tr>::N)]
         }
 
         fn main() {}

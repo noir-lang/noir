@@ -412,6 +412,28 @@ impl Elaborator<'_> {
             .collect()
     }
 
+    /// The trait half of the `<{object} as {trait}>::{item}` label given to the anonymous
+    /// generic that stands for an associated item a trait bound leaves unspecified.
+    ///
+    /// The label has to name the bound it projects from precisely enough to tell two bounds on
+    /// one type parameter apart, so it carries the trait's full path and its generic arguments.
+    /// A bare `Tr` labels both bounds of `where T: a::Tr, T: b::Tr` `<T as Tr>::N`, and both
+    /// bounds of `where T: Tr<1>, T: Tr<2>` likewise, which makes a type error read
+    /// `Expected type [Field; <T as Tr>::N], found type [Field; <T as Tr>::N]`.
+    fn projection_trait_name<T: std::fmt::Display>(
+        &self,
+        trait_id: TraitId,
+        ordered_generics: &[T],
+    ) -> String {
+        let path = self.fully_qualified_trait_path_by_id(trait_id);
+        if ordered_generics.is_empty() {
+            path
+        } else {
+            let generics = vecmap(ordered_generics, ToString::to_string).join(", ");
+            format!("{path}<{generics}>")
+        }
+    }
+
     /// For each associated type that isn't mentioned in a trait bound, this adds
     /// the type as an implicit generic to the where clause and returns the newly
     /// created generics in a vector to add to the function/trait/impl later.
@@ -443,8 +465,8 @@ impl Elaborator<'_> {
             return Vec::new();
         };
 
+        let trait_name = self.projection_trait_name(trait_id, &bound.trait_generics.ordered_args);
         let the_trait = self.get_trait(trait_id);
-        let trait_name = the_trait.name.to_string();
         let object_name = self.unresolved_type_name(object);
         let associated_type_bounds = the_trait.associated_type_bounds.clone();
 
@@ -738,8 +760,11 @@ impl Elaborator<'_> {
             if has_named && !already_has {
                 // Replace the named (associated) type variables with fresh per-function
                 // ones so they can be included in Type::Forall and freshened at call sites.
+                let parent_trait_name = self.projection_trait_name(
+                    instantiated.trait_id,
+                    &instantiated.trait_generics.ordered,
+                );
                 let parent_trait = self.interner.get_trait(instantiated.trait_id);
-                let parent_trait_name = parent_trait.name.to_string();
                 let object_name = object_type.to_string();
 
                 let named = vecmap(&instantiated.trait_generics.named, |named_type| {
