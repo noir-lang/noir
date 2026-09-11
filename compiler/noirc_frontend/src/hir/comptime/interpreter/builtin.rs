@@ -149,7 +149,9 @@ impl Interpreter<'_, '_> {
                 // way it's treated in ACIR and Brillig. Usually unconstrained code is faster and that's why
                 // in non-coverage mode we want to go through the fastest path, but in coverage mode it's fine
                 // if it's slower so more code is covered by tests.
-                if self.elaborator.evaluation_tracker.is_some() {
+                if self.elaborator.evaluation_tracker.is_some()
+                    || self.elaborator.comptime_debugger.is_some()
+                {
                     Ok(Value::Bool(self.in_unconstrained))
                 } else {
                     Ok(Value::Bool(true))
