@@ -1157,8 +1157,10 @@ impl HTMLCreator {
                 self.output.push('\n');
                 self.output.push_str(&" ".repeat(4 * (indent + 1)));
             }
-            if param.mut_ref {
-                self.output.push_str("&mut ");
+            match param.self_reference {
+                Some(true) => self.output.push_str("&mut "),
+                Some(false) => self.output.push('&'),
+                None => (),
             }
             self.output.push_str(&param.name);
 
@@ -1809,8 +1811,10 @@ fn function_signature_to_string(function: &Function, self_type: Option<&Type>) -
         if index > 0 {
             string.push_str(", ");
         }
-        if param.mut_ref {
-            string.push_str("&mut ");
+        match param.self_reference {
+            Some(true) => string.push_str("&mut "),
+            Some(false) => string.push('&'),
+            None => (),
         }
         string.push_str(&param.name);
         if !is_self_param(param, self_type) {
@@ -1960,23 +1964,148 @@ fn is_self_param(param: &FunctionParam, self_type: Option<&Type>) -> bool {
         return false;
     }
 
-    let Some(self_type) = self_type else {
-        if let Type::Generic(generic) = &param.r#type {
-            return generic == "Self";
-        }
-        return false;
-    };
-
-    if param.mut_ref {
-        let Type::Reference { r#type, mutable: true } = &param.r#type else {
+    // A receiver taken by reference is `Reference { .. }` around the type the shorthand stands for,
+    // and the reference's mutability has to be the one the receiver was written with.
+    let mut typ = &param.r#type;
+    if let Some(mutable) = param.self_reference {
+        let Type::Reference { r#type, mutable: type_mutable } = typ else {
             return false;
         };
-        r#type.as_ref() == self_type
-    } else {
-        &param.r#type == self_type
+        if *type_mutable != mutable {
+            return false;
+        }
+        typ = r#type;
+    }
+
+    match self_type {
+        // In a trait declaration there is no concrete self type, only the `Self` generic.
+        None => matches!(typ, Type::Generic(generic) if generic == "Self"),
+        Some(self_type) => typ == self_type,
     }
 }
 
 pub(super) fn escape_html(input: &str) -> String {
     input.replace('<', "&lt;").replace('>', "&gt;")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::items::ItemKind;
+
+    /// Builds the `self`-taking method `fn method(<receiver>)` as the doc model represents it.
+    fn method_with_receiver(receiver: FunctionParam) -> Function {
+        Function {
+            id: ItemId {
+                location: noirc_errors::Location::dummy(),
+                kind: ItemKind::Function,
+                name: "method".to_string(),
+            },
+            unconstrained: false,
+            comptime: false,
+            name: "method".to_string(),
+            generics: Vec::new(),
+            params: vec![receiver],
+            return_type: Type::Unit,
+            where_clause: Vec::new(),
+            comments: None,
+            deprecated: None,
+        }
+    }
+
+    fn self_type() -> Type {
+        Type::Generic("T".to_string())
+    }
+
+    fn reference(r#type: Type, mutable: bool) -> Type {
+        Type::Reference { r#type: Box::new(r#type), mutable }
+    }
+
+    /// Renders through the HTML signature renderer, with the markup stripped so the assertions
+    /// read as the signatures a reader sees.
+    fn render_html_signature(function: &Function, self_type: Option<Type>) -> String {
+        let mut creator = HTMLCreator {
+            output: String::new(),
+            files: Vec::new(),
+            current_path: Vec::new(),
+            current_crate_version: None,
+            workspace_name: String::new(),
+            id_to_info: HashMap::new(),
+            all_trait_impls: HashMap::new(),
+            self_type,
+        };
+        creator.render_function_signature_inner(function, false, false, 0);
+        creator.output
+    }
+
+    /// Both signature renderers must print a receiver the way the source spells it. `&mut self: &T`
+    /// is not valid Noir, and it tells a reader that an immutable read requires mutable access.
+    #[track_caller]
+    fn assert_receiver_renders_as(
+        receiver: FunctionParam,
+        self_type: Option<Type>,
+        expected: &str,
+    ) {
+        let function = method_with_receiver(receiver);
+        let expected = format!("pub fn method({expected})");
+
+        assert_eq!(render_html_signature(&function, self_type.clone()), expected);
+        assert_eq!(function_signature_to_string(&function, self_type.as_ref()), expected);
+    }
+
+    #[test]
+    fn renders_immutable_reference_receiver() {
+        let receiver = FunctionParam {
+            name: "self".to_string(),
+            r#type: reference(self_type(), false),
+            self_reference: Some(false),
+        };
+        assert_receiver_renders_as(receiver, Some(self_type()), "&self");
+    }
+
+    #[test]
+    fn renders_mutable_reference_receiver() {
+        let receiver = FunctionParam {
+            name: "self".to_string(),
+            r#type: reference(self_type(), true),
+            self_reference: Some(true),
+        };
+        assert_receiver_renders_as(receiver, Some(self_type()), "&mut self");
+    }
+
+    #[test]
+    fn renders_by_value_receiver() {
+        let receiver =
+            FunctionParam { name: "self".to_string(), r#type: self_type(), self_reference: None };
+        assert_receiver_renders_as(receiver, Some(self_type()), "self");
+    }
+
+    /// A method declared in a trait has no concrete self type, only the `Self` generic.
+    #[test]
+    fn renders_trait_declaration_receivers() {
+        let immutable = FunctionParam {
+            name: "self".to_string(),
+            r#type: reference(Type::Generic("Self".to_string()), false),
+            self_reference: Some(false),
+        };
+        assert_receiver_renders_as(immutable, None, "&self");
+
+        let mutable = FunctionParam {
+            name: "self".to_string(),
+            r#type: reference(Type::Generic("Self".to_string()), true),
+            self_reference: Some(true),
+        };
+        assert_receiver_renders_as(mutable, None, "&mut self");
+    }
+
+    /// A reference parameter that is not the receiver keeps its name and its type annotation.
+    #[test]
+    fn renders_non_receiver_reference_parameter() {
+        let param = FunctionParam {
+            name: "x".to_string(),
+            r#type: reference(self_type(), false),
+            self_reference: None,
+        };
+        assert_receiver_renders_as(param, Some(self_type()), "x: &Self");
+    }
 }
