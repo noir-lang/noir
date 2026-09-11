@@ -450,13 +450,17 @@ fn trait_inheritance_with_generic_impl_and_base_call() {
     assert_no_errors(src);
 }
 
-// Known bug: Self::A from grandparent trait not accessible in impl
-
-/// TODO(https://github.com/noir-lang/noir/issues/11547): remove `should_panic` once fixed
+/// Regression test for <https://github.com/noir-lang/noir/issues/11547>.
+/// A subtrait may name an associated type declared on its supertrait via the `Self::Key`
+/// shorthand, both in the trait's method signature and in the implementing method.
+///
+/// Do not use a binary operator in this program. `assert_no_errors` elaborates without the
+/// stdlib, so the operator traits come from `NodeInterner::populate_dummy_operator_traits`
+/// and have no impls: any `==` or `+` here fails the test with "No matching impl found for
+/// `Field: PopulateDummyOperatorTraitsTrait`" regardless of whether associated type
+/// resolution works.
 #[test]
-#[should_panic(expected = "Expected no errors")]
 fn supertrait_associated_type_in_impl() {
-    // Bug: Self::Key from supertrait KeyType not resolved in Lookup impl
     let src = r#"
     trait KeyType {
         type Key;
@@ -477,13 +481,15 @@ fn supertrait_associated_type_in_impl() {
 
     impl Lookup for Map {
         fn lookup(self, key: Self::Key) -> Field {
-            if self.key == key { self.value } else { 0 }
+            let _ = self.key;
+            let _ = self.value;
+            key
         }
     }
 
     fn main() {
         let m = Map { key: 1, value: 42 };
-        assert(m.lookup(1) == 42);
+        let _ = m.lookup(1);
     }
     "#;
     assert_no_errors(src);
