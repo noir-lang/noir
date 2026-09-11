@@ -3,7 +3,6 @@ use std::io::{BufRead, BufReader, BufWriter, Read, Write};
 use std::path::Path;
 
 use clap::Args;
-use dap::errors::ServerError;
 use dap::events::OutputEventBody;
 use dap::prelude::Event;
 use dap::requests::Command;
@@ -11,33 +10,22 @@ use dap::responses::ResponseBody;
 use dap::server::Server;
 use dap::types::{Capabilities, OutputEventCategory};
 use nargo::constants::PROVER_INPUT_FILE;
-use nargo::ops::debug::{
-    TestDefinition, compile_bin_package_for_debugging, compile_options_for_debugging,
-    compile_test_fn_for_debugging, get_test_function_for_debug, load_workspace_files,
-    prepare_package_for_debug,
-};
-use nargo::ops::{TestStatus, check_crate_and_report_errors, test_status_program_compile_pass};
-use nargo::package::Package;
+use nargo::foreign_calls::OracleResolverUrl;
+use nargo::ops::debug::load_workspace_files;
 use nargo::workspace::Workspace;
 use nargo_toml::{PackageSelection, get_package_manifest, resolve_workspace_from_toml};
-use noir_artifact_cli::fs::inputs::read_inputs_from_file;
-use noir_debugger::{DebugExecutionResult, DebugProject, RunParams};
-use noirc_abi::Abi;
-use noirc_artifacts::debug::DebugInfo;
-use noirc_artifacts::program::CompiledProgram;
 use noirc_driver::{CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::graph::CrateName;
 use serde_json::Value;
 
 use crate::cli::comptime_debugger::{ComptimeDapDebugger, SteppingMode};
-use crate::cli::execute_cmd::interpret::input_values_to_comptime_values;
-use crate::errors::CliError;
+use crate::cli::comptime_oracle::ComptimeForeignCallExecutor;
+use crate::cli::debug_cmd::{DebugSession, prepare_debug_session};
+use crate::errors::{CliError, DapError};
 
 /// Command variants (with camelCase renaming) that are unit types and take no arguments.
 /// Some DAP clients send `"arguments": {}` for these, which serde rejects.
 const UNIT_COMMANDS: &[&str] = &["configurationDone", "loadedSources", "threads"];
-
-use noir_debugger::errors::{DapError, LoadError};
 
 #[derive(Debug, Clone, Args)]
 pub(crate) struct DapCommand {
@@ -54,13 +42,17 @@ pub(crate) struct DapCommand {
     preflight_prover_name: Option<String>,
 
     #[clap(long)]
-    preflight_generate_acir: bool,
-
-    #[clap(long)]
-    preflight_skip_instrumentation: bool,
-
-    #[clap(long)]
     preflight_test_name: Option<String>,
+}
+
+/// What a DAP client asks us to debug, as sent in the `launch` request or the
+/// preflight flags.
+struct LaunchParams {
+    project_folder: String,
+    package: Option<String>,
+    prover_name: String,
+    test_name: Option<String>,
+    oracle_resolver_url: Option<String>,
 }
 
 fn find_workspace(project_folder: &str, package: Option<&str>) -> Option<Workspace> {
@@ -92,84 +84,6 @@ fn workspace_not_found_error_msg(project_folder: &str, package: Option<&str>) ->
     }
 }
 
-fn compile_main(
-    workspace: &Workspace,
-    package: &Package,
-    compile_options: &CompileOptions,
-) -> Result<CompiledProgram, LoadError> {
-    compile_bin_package_for_debugging(workspace, package, compile_options)
-        .map_err(|_| LoadError::Generic("Failed to compile project".into()))
-}
-
-fn compile_test(
-    workspace: &Workspace,
-    package: &Package,
-    compile_options: CompileOptions,
-    test_name: String,
-) -> Result<(CompiledProgram, TestDefinition), LoadError> {
-    let (file_manager, mut parsed_files) = load_workspace_files(workspace);
-
-    let (mut context, crate_id) =
-        prepare_package_for_debug(&file_manager, &mut parsed_files, package, workspace);
-
-    check_crate_and_report_errors(&mut context, crate_id, &compile_options)
-        .map_err(|_| LoadError::Generic("Failed to compile project".into()))?;
-
-    let test = get_test_function_for_debug(crate_id, &context, &test_name)
-        .map_err(|_| LoadError::Generic("Failed to compile project".into()))?;
-
-    let program = compile_test_fn_for_debugging(&test, &mut context, compile_options)
-        .map_err(|_| LoadError::Generic("Failed to compile project".into()))?;
-    Ok((program, test))
-}
-
-fn load_and_compile_project(
-    project_folder: &str,
-    package: Option<&str>,
-    prover_name: &str,
-    compile_options: CompileOptions,
-    test_name: Option<String>,
-) -> Result<(DebugProject, Option<TestDefinition>), LoadError> {
-    let workspace = find_workspace(project_folder, package)
-        .ok_or(LoadError::Generic(workspace_not_found_error_msg(project_folder, package)))?;
-    let package = workspace
-        .into_iter()
-        .find(|p| p.is_binary() || p.is_contract())
-        .ok_or(LoadError::Generic("No matching binary or contract packages found in workspace. Only these packages can be debugged.".into()))?;
-
-    let (compiled_program, test_def) = match test_name {
-        None => {
-            let program = compile_main(&workspace, package, &compile_options)?;
-            Ok((program, None))
-        }
-        Some(test_name) => {
-            let (program, test_def) =
-                compile_test(&workspace, package, compile_options, test_name)?;
-            Ok((program, Some(test_def)))
-        }
-    }?;
-
-    let (inputs_map, _) = read_inputs_from_file(
-        &package.root_dir.join(prover_name).with_extension("toml"),
-        &compiled_program.abi,
-    )
-    .map_err(|e| {
-        LoadError::Generic(format!("Failed to read program inputs from {prover_name}: {e}"))
-    })?;
-    let initial_witness = compiled_program
-        .abi
-        .encode(&inputs_map, None)
-        .map_err(|_| LoadError::Generic("Failed to encode inputs".into()))?;
-
-    let project = DebugProject {
-        compiled_program,
-        initial_witness,
-        root_dir: workspace.root_dir.clone(),
-        package_name: package.name.to_string(),
-    };
-    Ok((project, test_def))
-}
-
 fn loop_uninitialized_dap<R: Read, W: Write>(mut server: Server<R, W>) -> Result<(), DapError> {
     while let Some(req) = server.poll_request()? {
         match req.command {
@@ -196,83 +110,37 @@ fn loop_uninitialized_dap<R: Read, W: Write>(mut server: Server<R, W>) -> Result
 
                 // Clone all values from launch arguments into owned Strings
                 // so we can release the borrow on `req` for `ack()`.
-                let project_folder = project_folder.clone();
-                let package: Option<String> =
-                    additional_data.get("package").and_then(|v| v.as_str()).map(String::from);
-                let prover_name = additional_data
-                    .get("proverName")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or(PROVER_INPUT_FILE)
-                    .to_string();
-                let test_name =
-                    additional_data.get("testName").and_then(|v| v.as_str()).map(String::from);
-                let debug_mode = additional_data
-                    .get("debugMode")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("comptime")
-                    .to_string();
-                let generate_acir = debug_mode == "acir";
-                let skip_instrumentation = generate_acir;
-                let oracle_resolver_url = additional_data
-                    .get("oracleResolver")
-                    .and_then(|v| v.as_str())
-                    .map(String::from);
+                let params = LaunchParams {
+                    project_folder: project_folder.clone(),
+                    package: additional_data
+                        .get("package")
+                        .and_then(|v| v.as_str())
+                        .map(String::from),
+                    prover_name: additional_data
+                        .get("proverName")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or(PROVER_INPUT_FILE)
+                        .to_string(),
+                    test_name: additional_data
+                        .get("testName")
+                        .and_then(|v| v.as_str())
+                        .map(String::from),
+                    oracle_resolver_url: additional_data
+                        .get("oracleResolver")
+                        .and_then(|v| v.as_str())
+                        .map(String::from),
+                };
 
-                eprintln!("Project folder: {project_folder}");
-                eprintln!("Package: {}", package.as_deref().unwrap_or("(default)"));
-                eprintln!("Prover name: {prover_name}");
-                eprintln!("Debug mode: {debug_mode}");
+                eprintln!("Project folder: {}", params.project_folder);
+                eprintln!("Package: {}", params.package.as_deref().unwrap_or("(default)"));
+                eprintln!("Prover name: {}", params.prover_name);
 
                 server.respond(req.ack()?)?;
 
-                if debug_mode == "comptime" {
-                    if let Err(e) = run_comptime_dap_loop(
-                        &mut server,
-                        &project_folder,
-                        package.as_deref(),
-                        &prover_name,
-                        test_name,
-                    ) {
-                        eprintln!("Comptime debugger error: {e}");
-                    }
-                    break;
+                if let Err(e) = run_dap_loop(&mut server, &params) {
+                    eprintln!("Debugger error: {e}");
                 }
-
-                // Legacy ACIR/Brillig debug mode
-                let compile_options = compile_options_for_debugging(
-                    generate_acir,
-                    skip_instrumentation,
-                    CompileOptions::default(),
-                );
-
-                match load_and_compile_project(
-                    &project_folder,
-                    package.as_deref(),
-                    &prover_name,
-                    compile_options,
-                    test_name,
-                ) {
-                    Ok((project, test)) => {
-                        let abi = project.compiled_program.abi.clone();
-                        let debug = project.compiled_program.debug.clone();
-
-                        let result = noir_debugger::run_dap_loop(
-                            &mut server,
-                            project,
-                            RunParams { oracle_resolver_url, raw_source_printing: None },
-                        )?;
-
-                        if let Some(test) = test {
-                            analyze_test_result(&mut server, result, test, abi, debug)?;
-                        }
-                        break;
-                    }
-                    Err(LoadError::Generic(message)) => {
-                        eprintln!("Load error: {message}");
-                        server.send_event(Event::Terminated(None))?;
-                        break;
-                    }
-                }
+                break;
             }
 
             Command::Disconnect(_) => {
@@ -289,19 +157,15 @@ fn loop_uninitialized_dap<R: Read, W: Write>(mut server: Server<R, W>) -> Result
     Ok(())
 }
 
-fn run_comptime_dap_loop<R: Read, W: Write>(
+fn run_dap_loop<R: Read, W: Write>(
     server: &mut Server<R, W>,
-    project_folder: &str,
-    package_name: Option<&str>,
-    prover_name: &str,
-    test_name: Option<String>,
+    params: &LaunchParams,
 ) -> Result<(), DapError> {
     // Send Initialized immediately so VS Code shows the debug panel.
     // All errors after this point are reported via DAP Output events.
     server.send_event(Event::Initialized)?;
 
-    let result =
-        run_comptime_dap_loop_inner(server, project_folder, package_name, prover_name, test_name);
+    let result = run_dap_loop_inner(server, params);
 
     if let Err(ref e) = result {
         send_error_to_dap(server, &format!("{e}"));
@@ -321,144 +185,94 @@ fn send_error_to_dap<R: Read, W: Write>(server: &mut Server<R, W>, message: &str
     }));
 }
 
-fn run_comptime_dap_loop_inner<R: Read, W: Write>(
+fn run_dap_loop_inner<R: Read, W: Write>(
     server: &mut Server<R, W>,
-    project_folder: &str,
-    package_name: Option<&str>,
-    prover_name: &str,
-    test_name: Option<String>,
+    params: &LaunchParams,
 ) -> Result<(), DapError> {
-    // Set up workspace and package
-    let workspace = find_workspace(project_folder, package_name).ok_or_else(|| {
-        DapError::LoadError(LoadError::Generic(workspace_not_found_error_msg(
-            project_folder,
-            package_name,
-        )))
-    })?;
-    let package =
-        workspace.into_iter().find(|p| p.is_binary() || p.is_contract()).ok_or_else(|| {
-            DapError::LoadError(LoadError::Generic(
-                "No matching binary or contract packages found in workspace".into(),
+    let workspace =
+        find_workspace(&params.project_folder, params.package.as_deref()).ok_or_else(|| {
+            DapError::Load(workspace_not_found_error_msg(
+                &params.project_folder,
+                params.package.as_deref(),
             ))
         })?;
-
-    // Prepare and type-check (no ACIR/Brillig compilation needed)
-    let (file_manager, parsed_files) = load_workspace_files(&workspace);
-    let (mut context, crate_id) = nargo::prepare_package(&file_manager, &parsed_files, package);
-    context.package_build_path = workspace.package_build_path(package);
-
-    let compile_options = CompileOptions::default();
-    check_crate_and_report_errors(&mut context, crate_id, &compile_options)
-        .map_err(|_| DapError::LoadError(LoadError::Generic("Failed to compile project".into())))?;
-
-    // Find function to debug and prepare arguments
-    let (func_id, func_args) = if let Some(test_name) = test_name {
-        let test = get_test_function_for_debug(crate_id, &context, &test_name)
-            .map_err(|e| DapError::LoadError(LoadError::Generic(e)))?;
-        (test.function.id, vec![])
-    } else {
-        let main_id = context.get_main_function(&crate_id).ok_or_else(|| {
-            DapError::LoadError(LoadError::Generic("Could not find main function".into()))
+    let package =
+        workspace.into_iter().find(|p| p.is_binary() || p.is_contract()).ok_or_else(|| {
+            DapError::Load("No matching binary or contract packages found in workspace".into())
         })?;
 
-        let func_meta = context.def_interner.function_meta(&main_id);
-        let error_types = std::collections::BTreeMap::default();
-        let abi =
-            noirc_driver::gen_abi(&context, &main_id, func_meta.return_visibility, error_types);
-        let (prover_input, _) =
-            read_inputs_from_file(&package.root_dir.join(prover_name).with_extension("toml"), &abi)
-                .map_err(|e| {
-                    DapError::LoadError(LoadError::Generic(format!(
-                        "Failed to read inputs from {prover_name}: {e}"
-                    )))
-                })?;
+    let (file_manager, parsed_files) = load_workspace_files(&workspace);
+    let DebugSession { mut context, func_id, func_args, test: _ } = prepare_debug_session(
+        &file_manager,
+        &parsed_files,
+        &workspace,
+        package,
+        &CompileOptions::default(),
+        &params.prover_name,
+        params.test_name.as_deref(),
+    )
+    .map_err(|e| DapError::Load(e.to_string()))?;
 
-        let func_args =
-            input_values_to_comptime_values(&prover_input, func_meta, &context.def_interner);
-        (main_id, func_args)
-    };
+    let oracle_resolver: Option<OracleResolverUrl> = params
+        .oracle_resolver_url
+        .as_deref()
+        .map(str::parse)
+        .transpose()
+        .map_err(|e| DapError::Load(format!("Invalid oracle resolver URL: {e}")))?;
+    let oracle_executor = ComptimeForeignCallExecutor::new(
+        oracle_resolver.as_ref(),
+        Some(workspace.root_dir.clone()),
+        Some(package.name.to_string()),
+    );
 
     // Run interpreter with debugger.
     // The debugger stops at the first statement (StepIn mode) and enters a DAP sub-loop
     // that handles all requests: SetBreakpoints, ConfigurationDone, StackTrace, Variables, etc.
-    {
-        let breakpoints = HashMap::new();
-        let debugger = ComptimeDapDebugger::new(server, breakpoints, SteppingMode::StepIn);
+    let breakpoints = HashMap::new();
+    let debugger = ComptimeDapDebugger::new(server, breakpoints, SteppingMode::StepIn);
 
-        let result =
-            context.interpret_function_with_debugger(func_id, func_args, Box::new(debugger), None);
+    let result = context.interpret_function_with_debugger(
+        func_id,
+        func_args,
+        Box::new(debugger),
+        Some(Box::new(oracle_executor)),
+    );
 
-        if let Err(err) = result {
-            eprintln!("Interpreter error: {err:?}");
-        }
+    if let Err(err) = result {
+        eprintln!("Interpreter error: {err:?}");
     }
 
     Ok(())
 }
 
-fn analyze_test_result<R: Read, W: Write>(
-    server: &mut Server<R, W>,
-    result: DebugExecutionResult,
-    test: TestDefinition,
-    abi: Abi,
-    debug: Vec<DebugInfo>,
-) -> Result<(), ServerError> {
-    let test_status = match result {
-        DebugExecutionResult::Solved(result) => {
-            test_status_program_compile_pass(&test.function, &abi, &debug, &Ok(result))
-        }
-        // Test execution failed
-        DebugExecutionResult::Error(error) => {
-            test_status_program_compile_pass(&test.function, &abi, &debug, &Err(error))
-        }
-        // Execution didn't complete
-        DebugExecutionResult::Incomplete => {
-            TestStatus::Fail { message: "Execution halted".into(), error_diagnostic: None }
-        }
-    };
-
-    let test_result_message = match test_status {
-        TestStatus::Pass => "✓ Test passed".into(),
-        TestStatus::Fail { message, error_diagnostic } => {
-            let basic_message = format!("x Test failed: {message}");
-            match error_diagnostic {
-                Some(diagnostic) => format!("{basic_message}.\n{diagnostic:#?}"),
-                None => basic_message,
-            }
-        }
-        TestStatus::CompileError(diagnostic) => format!("x Test failed.\n{diagnostic:#?}"),
-        TestStatus::Skipped => "* Test skipped".into(),
-    };
-
-    server.send_event(Event::Output(OutputEventBody {
-        category: Some(OutputEventCategory::Console),
-        output: test_result_message,
-        ..OutputEventBody::default()
-    }))
-}
-
 fn run_preflight_check(args: DapCommand) -> Result<(), DapError> {
     let Some(project_folder) = args.preflight_project_folder else {
-        return Err(DapError::PreFlightGenericError("Noir Debugger could not initialize because the IDE (for example, VS Code) did not specify a project folder to debug.".into()));
+        return Err(DapError::PreFlight("Noir Debugger could not initialize because the IDE (for example, VS Code) did not specify a project folder to debug.".into()));
     };
 
     let package = args.preflight_package.as_deref();
-    let test_name = args.preflight_test_name;
     let prover_name = args.preflight_prover_name.as_deref().unwrap_or(PROVER_INPUT_FILE);
 
-    let compile_options: CompileOptions = compile_options_for_debugging(
-        args.preflight_generate_acir,
-        args.preflight_skip_instrumentation,
-        CompileOptions::default(),
-    );
+    let workspace = find_workspace(&project_folder, package)
+        .ok_or_else(|| DapError::Load(workspace_not_found_error_msg(&project_folder, package)))?;
+    let package =
+        workspace.into_iter().find(|p| p.is_binary() || p.is_contract()).ok_or_else(|| {
+            DapError::Load(
+                "No matching binary or contract packages found in workspace. Only these packages can be debugged.".into(),
+            )
+        })?;
 
-    let _ = load_and_compile_project(
-        project_folder.as_str(),
+    let (file_manager, parsed_files) = load_workspace_files(&workspace);
+    prepare_debug_session(
+        &file_manager,
+        &parsed_files,
+        &workspace,
         package,
+        &CompileOptions::default(),
         prover_name,
-        compile_options,
-        test_name,
-    )?;
+        args.preflight_test_name.as_deref(),
+    )
+    .map_err(|e| DapError::Load(e.to_string()))?;
 
     Ok(())
 }

@@ -40,7 +40,7 @@ use ir::instruction::ErrorType;
 use iter_extended::vecmap;
 use itertools::Itertools;
 use noirc_artifacts::{
-    debug::{DebugFunctions, DebugInfo, DebugTypes, DebugVariables, LocationTree},
+    debug::{DebugInfo, LocationTree},
     ssa::SsaReport,
 };
 use noirc_errors::call_stack::CallStackId;
@@ -590,23 +590,13 @@ pub fn create_program_with_passes(
     passes: &[SsaPass],
     files: Option<&fm::FileManager>,
 ) -> Result<SsaProgramArtifact, RuntimeError> {
-    let debug_variables = program.debug_variables.clone();
-    let debug_types = program.debug_types.clone();
-    let debug_functions = program.debug_functions.clone();
-
     let entry_points = program.functions.iter().filter(|function| function.is_entry_point);
     let arg_size_and_visibilities = vecmap(entry_points, resolve_function_signature);
 
     let artifacts = optimize_into_acir(program, options, passes, files)?;
 
     let combined = time("Combine artifacts", options.print_codegen_timings, || {
-        combine_artifacts(
-            artifacts,
-            &arg_size_and_visibilities,
-            debug_variables,
-            debug_functions,
-            debug_types,
-        )
+        combine_artifacts(artifacts, &arg_size_and_visibilities)
     });
 
     Ok(combined)
@@ -615,9 +605,6 @@ pub fn create_program_with_passes(
 pub fn combine_artifacts(
     artifacts: ArtifactsAndWarnings,
     arg_size_and_visibilities: &[Vec<(u32, Visibility)>],
-    debug_variables: DebugVariables,
-    debug_functions: DebugFunctions,
-    debug_types: DebugTypes,
 ) -> SsaProgramArtifact {
     let ArtifactsAndWarnings((generated_acirs, generated_brillig, error_types), ssa_level_warnings) =
         artifacts;
@@ -641,10 +628,6 @@ pub fn combine_artifacts(
                 acir,
                 arg_size_and_visibility,
                 &brillig_side_effects,
-                // TODO: get rid of these clones
-                debug_variables.clone(),
-                debug_functions.clone(),
-                debug_types.clone(),
             )
         })
         .collect();
@@ -693,9 +676,6 @@ pub fn convert_generated_acir_into_circuit(
     mut generated_acir: GeneratedAcir<FieldElement>,
     arg_size_and_visibility: &[(u32, Visibility)],
     brillig_side_effects: &BTreeMap<BrilligFunctionId, bool>,
-    debug_variables: DebugVariables,
-    debug_functions: DebugFunctions,
-    debug_types: DebugTypes,
 ) -> SsaCircuitArtifact {
     let opcodes = generated_acir.take_opcodes();
 
@@ -733,15 +713,8 @@ pub fn convert_generated_acir_into_circuit(
         })
         .collect();
     let location_tree = LocationTree::from(&generated_acir.call_stacks);
-    let mut debug_info = DebugInfo::new(
-        brillig_locations,
-        acir_location_map,
-        location_tree,
-        debug_variables,
-        debug_functions,
-        debug_types,
-        brillig_procedure_locs,
-    );
+    let mut debug_info =
+        DebugInfo::new(brillig_locations, acir_location_map, location_tree, brillig_procedure_locs);
 
     // Perform any ACIR-level optimizations
     let (optimized_circuit, transformation_map) =

@@ -1,7 +1,6 @@
 use acvm::FieldElement;
 use nargo::{NargoError, errors::CompileError};
 use nargo_toml::ManifestError;
-use noir_debugger::errors::DapError;
 use noirc_abi::errors::AbiError;
 use std::path::PathBuf;
 use thiserror::Error;
@@ -63,4 +62,18 @@ pub enum CliError {
     /// Error from the compilation pipeline
     #[error(transparent)]
     CompileError(#[from] CompileError),
+}
+
+/// Errors raised by `nargo dap`, both in preflight-check mode and while serving the
+/// Debug Adapter Protocol.
+#[derive(Debug, Error)]
+pub enum DapError {
+    #[error("{0}")]
+    PreFlight(String),
+
+    #[error("{0}")]
+    Load(String),
+
+    #[error(transparent)]
+    Server(#[from] dap::errors::ServerError),
 }

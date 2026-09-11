@@ -1683,9 +1683,6 @@ mod tests {
                 circuit,
                 &[(1, Visibility::Private)],
                 &BTreeMap::default(),
-                BTreeMap::default(),
-                BTreeMap::default(),
-                BTreeMap::default(),
             )
             .circuit;
 
@@ -1739,9 +1736,6 @@ mod tests {
             circuit,
             &[(1, Visibility::Private)],
             &BTreeMap::default(),
-            BTreeMap::default(),
-            BTreeMap::default(),
-            BTreeMap::default(),
         )
         .circuit;
 

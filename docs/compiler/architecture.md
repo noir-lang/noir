@@ -201,9 +201,11 @@ a prettier output string.
 
 ## Debugger
 
-The debugger for Noir code can be found in [tooling/debugger](/tooling/debugger). The debugger works by inserting extra
-instrumentation in the form of function calls (see `compile_program_with_debug_instrumenter`) then
-executing the resulting ACIR & Brillig code itself.
+The debugger for Noir code lives in [tooling/nargo_cli](/tooling/nargo_cli) (`nargo debug` for the REPL and
+`nargo dap` for the Debug Adapter Protocol server used by the VS Code extension). It runs the program through the
+comptime interpreter, which walks the type-checked HIR of the original source and reports back to the debugger
+before each statement (see `interpret_function_with_debugger`). Because the interpreter works on the source-level
+representation, no ACIR or Brillig is generated and no instrumentation is inserted into the program being debugged.
 
 ## Fuzzer
 

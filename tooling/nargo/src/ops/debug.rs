@@ -1,21 +1,10 @@
 use std::path::Path;
 
 use fm::FileManager;
-use noirc_artifacts::program::CompiledProgram;
-use noirc_driver::{
-    CompileOptions, CrateId, compile_no_check, file_manager_with_stdlib, link_to_debug_crate,
-};
-use noirc_frontend::{
-    debug::DebugInstrumenter,
-    hir::{Context, FunctionNameMatch, ParsedFiles, def_map::TestFunction},
-};
+use noirc_driver::{CrateId, file_manager_with_stdlib};
+use noirc_frontend::hir::{Context, FunctionNameMatch, ParsedFiles, def_map::TestFunction};
 
-use crate::{
-    errors::CompileError, insert_all_files_for_workspace_into_file_manager, package::Package,
-    parse_all, prepare_package, workspace::Workspace,
-};
-
-use super::{compile_program, compile_program_with_debug_instrumenter, report_errors};
+use crate::{insert_all_files_for_workspace_into_file_manager, parse_all, workspace::Workspace};
 
 pub struct TestDefinition {
     pub name: String,
@@ -64,125 +53,10 @@ pub fn get_test_function_for_debug(
     Ok(TestDefinition { name: test_name, function: test_function })
 }
 
-pub fn compile_test_fn_for_debugging(
-    test_def: &TestDefinition,
-    context: &mut Context,
-    compile_options: CompileOptions,
-) -> Result<CompiledProgram, noirc_driver::CompileError> {
-    let compiled_program =
-        compile_no_check(context, &compile_options, test_def.function.id, None, false)?;
-    Ok(compiled_program)
-}
-
-pub fn compile_bin_package_for_debugging(
-    workspace: &Workspace,
-    package: &Package,
-    compile_options: &CompileOptions,
-) -> Result<CompiledProgram, CompileError> {
-    let (workspace_file_manager, mut parsed_files) = load_workspace_files(workspace);
-
-    let compilation_result = if compile_options.instrument_debug {
-        let debug_state =
-            instrument_package_files(&mut parsed_files, &workspace_file_manager, package);
-
-        compile_program_with_debug_instrumenter(
-            &workspace_file_manager,
-            &parsed_files,
-            workspace,
-            package,
-            compile_options,
-            None,
-            debug_state,
-        )
-    } else {
-        compile_program(
-            &workspace_file_manager,
-            &parsed_files,
-            workspace,
-            package,
-            compile_options,
-            None,
-        )
-    };
-
-    report_errors(
-        compilation_result,
-        &workspace_file_manager,
-        &parsed_files,
-        compile_options.deny_warnings,
-        compile_options.silence_warnings,
-    )
-}
-
-pub fn compile_options_for_debugging(
-    acir_mode: bool,
-    skip_instrumentation: bool,
-    compile_options: CompileOptions,
-) -> CompileOptions {
-    CompileOptions {
-        // Compilation warnings are disabled when
-        // compiling for debugging
-        //
-        // For instrumenting the program the debugger
-        // will import functions that may not be used,
-        // which would generate compilation warnings
-        silence_warnings: true,
-        deny_warnings: false,
-        instrument_debug: !skip_instrumentation,
-        force_brillig: !acir_mode,
-        ..compile_options
-    }
-}
-
-pub fn prepare_package_for_debug<'a>(
-    file_manager: &'a FileManager,
-    parsed_files: &'a mut ParsedFiles,
-    package: &'a Package,
-    workspace: &Workspace,
-) -> (Context<'a, 'a>, CrateId) {
-    let debug_instrumenter = instrument_package_files(parsed_files, file_manager, package);
-
-    // -- This :down: is from nargo::ops(compile).compile_program_with_debug_instrumenter
-    let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
-    link_to_debug_crate(&mut context, crate_id);
-    context.debug_instrumenter = debug_instrumenter;
-    context.package_build_path = workspace.package_build_path(package);
-    (context, crate_id)
-}
-
 pub fn load_workspace_files(workspace: &Workspace) -> (FileManager, ParsedFiles) {
     let mut file_manager = file_manager_with_stdlib(Path::new(""));
     insert_all_files_for_workspace_into_file_manager(workspace, &mut file_manager);
 
     let parsed_files = parse_all(&file_manager);
     (file_manager, parsed_files)
-}
-
-/// Add debugging instrumentation to all parsed files belonging to the package
-/// being compiled
-fn instrument_package_files(
-    parsed_files: &mut ParsedFiles,
-    file_manager: &FileManager,
-    package: &Package,
-) -> DebugInstrumenter {
-    // Start off at the entry path and read all files in the parent directory.
-    let entry_path_parent = package
-        .entry_path
-        .parent()
-        .unwrap_or_else(|| panic!("The entry path is expected to be a single file within a directory and so should have a parent {}", package.entry_path.display()));
-
-    let mut debug_instrumenter = DebugInstrumenter::default();
-
-    for (file_id, parsed_file) in parsed_files.iter_mut() {
-        let file_path =
-            file_manager.path(*file_id).expect("Parsed file ID not found in file manager");
-        for ancestor in file_path.ancestors() {
-            if ancestor == entry_path_parent {
-                // file is in package
-                debug_instrumenter.instrument_module(&mut parsed_file.0);
-            }
-        }
-    }
-
-    debug_instrumenter
 }

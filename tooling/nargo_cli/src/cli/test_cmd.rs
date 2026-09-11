@@ -207,18 +207,6 @@ pub(crate) struct TestResult {
     time_to_run: Duration,
 }
 
-impl TestResult {
-    pub(crate) fn new(
-        name: TestName,
-        package_name: PackageName,
-        status: TestStatus,
-        output: String,
-        time_to_run: Duration,
-    ) -> Self {
-        TestResult { name, package_name, status, output, time_to_run }
-    }
-}
-
 const STACK_SIZE: usize = 4 * 1024 * 1024;
 
 pub(crate) fn run(args: TestCommand, workspace: Workspace) -> Result<(), CliError> {

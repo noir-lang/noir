@@ -1,3 +1,0 @@
-test_assert_message_preserved_during_optimization
-test_sort
-test_sort_comptime
