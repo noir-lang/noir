@@ -54,3 +54,12 @@ sides with those bindings substituted in, without ever applying them. The type v
 program as it found it (see `compiler/noirc_frontend/src/monomorphization/purity.rs`): a binding
 committed here would be visible to every later compilation against the same context. An unbound
 variable on either side is therefore resolved for the purpose of the check only.
+
+## `X * 0` folds only when `X` is a variable
+
+`Type::canonicalize` folds `X * 0` to `0` only when `X` is a type variable or named generic. A
+variable evaluates to whatever constant it is eventually bound to, so nothing can go wrong inside
+it. Any larger `X` can fail on its own — an intermediate over/underflow, or a `CheckedCast` whose
+`from` side carries the validation obligation described above — and folding it away would report
+that program as valid. The comptime interpreter is strict here (it evaluates both operands of `*`),
+and the `compare_to_comptime` proptest holds canonicalization to the interpreter's answer.
