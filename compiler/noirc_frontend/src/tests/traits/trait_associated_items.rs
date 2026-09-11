@@ -2647,16 +2647,11 @@ fn explicit_type_mismatch_at_trait_method_call_with_non_unit_associated_constant
 
 /// Regression test for https://github.com/noir-lang/noir/issues/9430.
 /// Variant where the leaf impl's associated constant is `0`. Eager resolution
-/// binds `<T as Serialize>::N` to `0`, so the impl method's instantiated
-/// return type contains `(N * 0)` rather than the unbound-`_assoc * N` shape
-/// the original bug exposed. The user's `[u32; 0]` annotation does not
-/// simplify against `[u32; (N * 0)]` (the canonicalizer does not currently
-/// reduce `X * 0` to `0`), but the error is precise about which factor came
-/// from the impl, which is the property we want to lock in: a wrong but
-/// associated-constant-aware error rather than a silent acceptance based on
-/// guessing `<T as Serialize>::N = 1`.
+/// binds `<T as Serialize>::N` to `0`, so the impl method's instantiated return
+/// type is `[u32; (N * 0)]`, which the canonicalizer reduces to `[u32; 0]` and
+/// unifies with the user's `[u32; 0]` annotation.
 #[test]
-fn explicit_type_mismatch_at_trait_method_call_with_zero_associated_constant() {
+fn explicit_type_at_trait_method_call_with_zero_associated_constant() {
     let src = r#"
     trait Serialize {
         let N: u32;
@@ -2689,14 +2684,13 @@ fn explicit_type_mismatch_at_trait_method_call_with_zero_associated_constant() {
 
         fn serialize(self) -> [u32; Self::N] {
             let _: [u32; 0] = self.value.serialize();
-                              ^^^^^^^^^^^^^^^^^^^^^^ Expected type [u32; 0], found type [u32; (N * 0)]
             [0; Self::N]
         }
     }
 
     fn main() {}
     "#;
-    check_errors(src);
+    assert_no_errors(src);
 }
 
 #[test]

@@ -107,6 +107,20 @@ impl Type {
                     return lhs;
                 }
 
+                // See if this is `X * 0`, in which case we can simplify it to `0`.
+                // `X` is restricted to a variable because any larger expression may itself
+                // fail to evaluate - an overflowing subexpression, or a `CheckedCast` whose
+                // `from` side carries a validation obligation - and folding the product away
+                // would silently discard that failure. A variable always evaluates to the
+                // constant it is eventually bound to, so multiplying it by zero gives zero.
+                if matches!(op, BinaryTypeOperator::Multiplication)
+                    && matches!(lhs, Type::TypeVariable(_) | Type::NamedGeneric(_))
+                    && let Ok(rhs_value) = rhs_evaluated
+                    && rhs_value.is_zero()
+                {
+                    return Type::Constant(rhs_value);
+                }
+
                 if !run_simplifications {
                     return Type::InfixExpr(Box::new(lhs), *op, Box::new(rhs), *inversion);
                 }
@@ -409,6 +423,16 @@ mod tests {
         fn div(self, rhs: Type) -> Self::Output {
             Type::infix_expr(Box::new(self), BinaryTypeOperator::Division, Box::new(rhs))
         }
+    }
+
+    #[test]
+    fn multiplication_by_zero_is_simplified_to_zero() {
+        let var_n = TypeVariable::unbound(TypeVariableId(0), Kind::u32());
+        let n = Type::TypeVariable(var_n);
+
+        let zero = Type::constant_u32(0);
+        assert_eq!((n.clone() * zero.clone()).canonicalize(), zero);
+        assert_eq!((zero.clone() * n).canonicalize(), zero);
     }
 
     #[test]
