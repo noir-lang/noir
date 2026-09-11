@@ -412,14 +412,19 @@ fn mutate_with_reference_in_lambda() {
 
 #[test]
 fn mutate_with_mut_reference_in_lambda() {
+    // `x` itself is a `mut` binding holding a `&mut`; the lambda only writes through the
+    // reference, so capturing it is allowed. The reassignment afterwards is what makes the
+    // `mut` on `x` necessary.
     let src = r#"
     fn main() {
-        let x = &mut 3;
+        let mut x = &mut 3;
         let f = || {
             *x += 2;
         };
         f();
         assert(*x == 5);
+        x = &mut 10;
+        assert(*x == 10);
     }
     "#;
     assert_no_errors(src);

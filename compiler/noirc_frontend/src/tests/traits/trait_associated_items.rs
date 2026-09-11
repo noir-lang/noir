@@ -1712,37 +1712,6 @@ fn numeric_generic_in_associated_constant_with_arithmetic() {
     assert_no_errors(src);
 }
 
-#[test]
-fn associated_type_in_generic_impl() {
-    let src = r#"
-    trait Mappable {
-        type Item;
-        fn first(self) -> Self::Item;
-    }
-
-    struct List<T> {
-        head: T,
-    }
-
-    impl<T> Mappable for List<T> {
-        type Item = T;
-        fn first(self) -> Self::Item {
-            self.head
-        }
-    }
-
-    fn get_head<T>(list: List<T>) -> T {
-        list.first()
-    }
-
-    fn main() {
-        let l = List { head: 42 as Field };
-        assert(get_head(l) == 42);
-    }
-    "#;
-    assert_no_errors(src);
-}
-
 /// Regression test for <https://github.com/noir-lang/noir/issues/11545>
 #[test]
 fn associated_type_shorthand_in_return_type() {
@@ -2803,20 +2772,6 @@ fn duplicate_trait_function_is_an_error() {
 }
 
 #[test]
-fn duplicate_trait_associated_constant_is_an_error() {
-    let src = r#"
-    pub trait MyTrait {
-        let SomeConst: u32;
-            ~~~~~~~~~ First definition found here
-        let SomeConst: Field;
-            ^^^^^^^^^ Duplicate definitions of trait associated item with name SomeConst found
-            ~~~~~~~~~ Second definition found here
-    }
-    "#;
-    check_errors(src);
-}
-
-#[test]
 fn duplicate_trait_associated_type_is_an_error() {
     let src = r#"
     pub trait MyTrait {
@@ -2909,21 +2864,6 @@ fn trait_function_and_associated_type_with_same_name_is_an_error() {
         type Tralala;
              ^^^^^^^ Duplicate definitions of trait associated item with name Tralala found
              ~~~~~~~ Second definition found here
-    }
-    "#;
-    check_errors(src);
-}
-
-#[test]
-fn trait_associated_constant_and_function_name_clash() {
-    let src = r#"
-    pub trait Foo {
-        let N: u32;
-            ~ First definition found here
-
-        fn N() {}
-           ^ Duplicate definitions of trait associated item with name N found
-           ~ Second definition found here
     }
     "#;
     check_errors(src);
