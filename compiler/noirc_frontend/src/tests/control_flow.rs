@@ -367,10 +367,44 @@ fn errors_if_loop_body_type_is_not_unit() {
     let src = r#"
     unconstrained fn main() {
         loop {
-            if false { break; }
+            if true { break; }
 
             1
             ^ Expected type (), found type Field
+        }
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_on_loop_with_break_only_in_false_if() {
+    let src = r#"
+    unconstrained fn main() {
+        loop {
+        ^^^^ `loop` must have at least one `break` in it
+        ~~~~ Infinite loops are disallowed
+            if false {
+                break;
+            }
+        }
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_on_loop_with_break_only_in_true_if_alternative() {
+    let src = r#"
+    unconstrained fn main() {
+        loop {
+        ^^^^ `loop` must have at least one `break` in it
+        ~~~~ Infinite loops are disallowed
+            if true {
+                continue;
+            } else {
+                break;
+            }
         }
     }
     "#;
