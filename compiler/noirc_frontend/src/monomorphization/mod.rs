@@ -2171,18 +2171,26 @@ impl<'interner> Monomorphizer<'interner> {
     /// Check that the 'from' and 'to' sides of a `CheckedCast` unify, that the 'to' side
     /// evaluates to an integer without failing (e.g. with a division by zero), and that
     /// the 'from' side evaluates to that same integer.
+    ///
+    /// Both sides are evaluated under the bindings that unifying them found, but those bindings
+    /// are never applied: the type variables in a `CheckedCast` are shared with the elaborated
+    /// program, which monomorphization has to leave as it found it.
     fn check_checked_cast(
         from: &Type,
         to: &Type,
         location: Location,
     ) -> Result<(), MonomorphizationError> {
-        if from.unify(to).is_err() {
+        let mut bindings = TypeBindings::default();
+        if from.try_unify(to, &mut bindings).is_err() {
             return Err(MonomorphizationError::CheckedCastFailed {
                 actual: to.to_string(),
                 expected: from.clone(),
                 location,
             });
         }
+        let from = from.substitute(&bindings);
+        let to = to.substitute(&bindings);
+
         let to_value = match to.evaluate_to_integer(&to.kind(), location) {
             Ok(to_value) => to_value,
             // A destination that is not yet a constant (it still contains an unbound,
@@ -2203,7 +2211,7 @@ impl<'interner> Monomorphizer<'interner> {
         if from_value.is_err() || from_value.unwrap() != to_value {
             return Err(MonomorphizationError::CheckedCastFailed {
                 actual: to_value.to_string(),
-                expected: from.clone(),
+                expected: from,
                 location,
             });
         }

@@ -47,3 +47,10 @@ from/to comparison and compile, as long as the value was never forced elsewhere 
 an array length or a runtime value). The single exception is `NonConstantEvaluated`: the `to`
 side may still contain an unbound-but-defaultable generic, which the surrounding
 `convert_type`/`check_type` recursion will default or reject with `NoDefaultType`.
+
+`check_checked_cast` unifies `from` with `to` into a local set of bindings and evaluates both
+sides with those bindings substituted in, without ever applying them. The type variables in a
+`CheckedCast` are shared with the elaborated program, and monomorphization must leave that
+program as it found it (see `compiler/noirc_frontend/src/monomorphization/purity.rs`): a binding
+committed here would be visible to every later compilation against the same context. An unbound
+variable on either side is therefore resolved for the purpose of the check only.
