@@ -1240,3 +1240,72 @@ fn errors_on_turbofish_on_both_type_and_variant_in_match_pattern() {
     let features = vec![UnstableFeature::Enums];
     check_errors_using_features(src, &features);
 }
+
+#[test]
+fn match_guard_reads_pattern_variables() {
+    assert_no_errors(
+        r#"
+        fn main() {
+            let x = 3;
+            let _ = match Opt::Some(x) {
+                Opt::Some(y) if y == 0 => 1,
+                Opt::Some(y) => y,
+                Opt::None => 0,
+            };
+        }
+
+        enum Opt<T> {
+            None,
+            Some(T),
+        }
+    "#,
+    );
+}
+
+#[test]
+fn match_guard_must_be_a_bool() {
+    check_errors(
+        r#"
+        fn main() {
+            match 1 {
+                x if x => (),
+                     ^ Expected type bool, found type Field
+                _ => (),
+            }
+        }
+    "#,
+    );
+}
+
+#[test]
+fn guarded_match_all_does_not_make_a_match_exhaustive() {
+    check_errors(
+        r#"
+        fn main() {
+            let x: i8 = 3;
+            match x {
+                  ^ Missing cases: `i8` is non-empty
+                  ~ Try adding a match-all pattern: `_`
+                y if y == 0 => (),
+            }
+        }
+    "#,
+    );
+}
+
+#[test]
+fn a_case_after_a_guarded_one_with_the_same_pattern_is_reachable() {
+    // The guard may fail, so the second case is the one that runs then. Without the guard the
+    // second case would be flagged as redundant with the first.
+    assert_no_errors(
+        r#"
+        fn main() {
+            let x: i8 = 3;
+            let _ = match x {
+                y if y == 0 => 1,
+                _ => 2,
+            };
+        }
+    "#,
+    );
+}

@@ -793,6 +793,81 @@ impl Elaborator<'_> {
         }
     }
 
+    /// The constraints a trait's own `where` clause implies wherever that trait is named:
+    /// `U: Qux<T>`, declared as `trait Qux<T>: Bar where T: Baz`, implies `T: Baz`. The clause is
+    /// instantiated with the bound's generics, so the `T` in the result is the caller's.
+    ///
+    /// Entries keyed on `Self` are the trait's parent bounds, which are reached through
+    /// [`Trait::parent_bounds`] instead and are excluded here.
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(super) fn trait_where_clause_implications(
+        &self,
+        trait_bound: &ResolvedTraitBound,
+    ) -> Vec<TraitConstraint> {
+        let Some(the_trait) = self.interner.try_get_trait(trait_bound.trait_id) else {
+            return Vec::new();
+        };
+
+        let self_id = the_trait.self_type_typevar.id();
+        let where_clause: Vec<_> = the_trait
+            .where_clause
+            .iter()
+            .filter(|constraint| {
+                !matches!(&constraint.typ, Type::TypeVariable(var) if var.id() == self_id)
+            })
+            .cloned()
+            .collect();
+
+        if where_clause.is_empty() {
+            return Vec::new();
+        }
+
+        let mut bindings = TypeBindings::default();
+        self.bind_generics_from_trait_bound(trait_bound, &mut bindings);
+
+        vecmap(where_clause, |constraint| TraitConstraint {
+            typ: constraint.typ.substitute(&bindings),
+            trait_bound: ResolvedTraitBound {
+                trait_generics: constraint
+                    .trait_bound
+                    .trait_generics
+                    .map(|generic| generic.substitute(&bindings)),
+                ..constraint.trait_bound
+            },
+        })
+    }
+
+    /// The transitive closure of [`Self::trait_where_clause_implications`] over `constraints`,
+    /// excluding the constraints themselves. Each result is also pushed to [`Self::trait_bounds`]
+    /// so `T::Assoc` syntax can reach it while the item is elaborated.
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(super) fn implied_where_clause_constraints(
+        &mut self,
+        constraints: &[TraitConstraint],
+    ) -> Vec<TraitConstraint> {
+        let mut visited: BTreeSet<(Type, TraitId)> = constraints
+            .iter()
+            .map(|constraint| (constraint.typ.clone(), constraint.trait_bound.trait_id))
+            .collect();
+
+        let mut queue: Vec<_> = constraints.to_vec();
+        let mut implied = Vec::new();
+
+        while let Some(constraint) = queue.pop() {
+            for implication in self.trait_where_clause_implications(&constraint.trait_bound) {
+                let key = (implication.typ.clone(), implication.trait_bound.trait_id);
+                if !visited.insert(key) {
+                    continue;
+                }
+                self.trait_bounds.push(implication.clone());
+                queue.push(implication.clone());
+                implied.push(implication);
+            }
+        }
+
+        implied
+    }
+
     /// Adds an assumed trait implementation for the given object type and trait bound.
     ///
     /// This also recursively adds assumed implementations for any parent traits,
@@ -806,23 +881,54 @@ impl Elaborator<'_> {
         object: &Type,
         trait_bound: &ResolvedTraitBound,
     ) {
-        let mut visited = BTreeSet::from([trait_bound.trait_id]);
-        self.add_trait_bound_to_scope_inner(location, object, trait_bound, &mut visited);
+        let mut visited = BTreeSet::from([(object.clone(), trait_bound.trait_id)]);
+        let written = true;
+        self.add_trait_bound_to_scope_inner(location, object, trait_bound, written, &mut visited);
     }
 
+    /// [`Self::add_trait_bound_to_scope`] for a bound the user did not write but which another
+    /// bound implies: one declared on an associated type of a trait named in a where clause, or
+    /// one inherited from the enclosing trait or impl. An implied bound is never reported as a
+    /// redundant constraint, since there is no written constraint to remove.
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(super) fn add_implied_trait_bound_to_scope(
+        &mut self,
+        location: Location,
+        object: &Type,
+        trait_bound: &ResolvedTraitBound,
+    ) {
+        let mut visited = BTreeSet::from([(object.clone(), trait_bound.trait_id)]);
+        let written = false;
+        self.add_trait_bound_to_scope_inner(location, object, trait_bound, written, &mut visited);
+    }
+
+    /// `written` distinguishes the bound the user wrote from the ones it implies: the trait's own
+    /// where clause, a bound on one of its associated types, or a parent trait. Only a written
+    /// bound can be redundant. An implied bound duplicating one already in scope is how
+    /// implication works, and a written bound duplicating an implied one is redundant only in the
+    /// sense that the user spelled out something that already holds, which is not worth a warning
+    /// - hence [`Self::implied_trait_bounds`], which makes that answer independent of the order
+    /// the two are registered in.
     #[tracing::instrument(level = "trace", skip_all)]
     fn add_trait_bound_to_scope_inner(
         &mut self,
         location: Location,
         object: &Type,
         trait_bound: &ResolvedTraitBound,
-        visited: &mut BTreeSet<TraitId>,
+        written: bool,
+        visited: &mut BTreeSet<(Type, TraitId)>,
     ) {
         let trait_id = trait_bound.trait_id;
         let generics = trait_bound.trait_generics.clone();
 
+        if !written {
+            self.implied_trait_bounds.insert((object.clone(), trait_id));
+        }
+        let written = written && !self.implied_trait_bounds.contains(&(object.clone(), trait_id));
+
         match self.interner.add_assumed_trait_implementation(object.clone(), trait_id, generics) {
             Ok(true) => (),
+            Ok(false) if !written => (),
             Ok(false) => {
                 if let Some(the_trait) = self.interner.try_get_trait(trait_id) {
                     let trait_name = the_trait.name.to_string();
@@ -844,8 +950,10 @@ impl Elaborator<'_> {
                     ));
                 }
             }
-            Err(ImplSearchErrorKind::RecursionLimitReached) => {
+            Err(ImplSearchErrorKind::RecursionLimitReached(constraint)) => {
+                let constraint = self.interner.display_trait_constraint(&constraint);
                 self.push_err(InterpreterError::TraitImplResolutionRecursionLimitReached {
+                    constraint,
                     location,
                 });
                 return;
@@ -871,6 +979,55 @@ impl Elaborator<'_> {
             return;
         }
 
+        for constraint in self.trait_where_clause_implications(trait_bound) {
+            // Avoid looping forever in case there are cycles
+            if !visited.insert((constraint.typ.clone(), constraint.trait_bound.trait_id)) {
+                continue;
+            }
+
+            let written = false;
+            self.add_trait_bound_to_scope_inner(
+                location,
+                &constraint.typ,
+                &constraint.trait_bound,
+                written,
+                visited,
+            );
+        }
+
+        // A bound declared on an associated type (`trait Foo { type Bar: HasQux; }`) is implied
+        // by the bound naming it, so `T: Foo<Bar = X>` also brings `X: HasQux` into scope. Without
+        // it, nothing links `X` to `HasQux` and `<X as HasQux>::Qux` resolves to no impl.
+        let associated_bounds = match self.interner.try_get_trait(trait_id) {
+            Some(the_trait) => trait_bound
+                .trait_generics
+                .named
+                .iter()
+                .flat_map(|named| {
+                    let bounds = the_trait.associated_type_bounds.get(named.name.as_str());
+                    let bounds = bounds.map(Vec::as_slice).unwrap_or_default();
+                    bounds.iter().map(|bound| (named.typ.clone(), bound.clone()))
+                })
+                .collect::<Vec<_>>(),
+            None => Vec::new(),
+        };
+
+        for (associated_type, bound) in associated_bounds {
+            // Avoid looping forever in case there are cycles
+            if !visited.insert((associated_type.clone(), bound.trait_id)) {
+                continue;
+            }
+
+            let written = false;
+            self.add_trait_bound_to_scope_inner(
+                location,
+                &associated_type,
+                &bound,
+                written,
+                visited,
+            );
+        }
+
         // Also add assumed implementations for the parent traits, if any
         if let Some(trait_bounds) = self
             .interner
@@ -879,13 +1036,20 @@ impl Elaborator<'_> {
         {
             for parent_trait_bound in trait_bounds {
                 // Avoid looping forever in case there are cycles
-                if !visited.insert(parent_trait_bound.trait_id) {
+                if !visited.insert((object.clone(), parent_trait_bound.trait_id)) {
                     continue;
                 }
 
                 let parent_trait_bound =
                     self.instantiate_parent_trait_bound(trait_bound, &parent_trait_bound);
-                self.add_trait_bound_to_scope_inner(location, object, &parent_trait_bound, visited);
+                let written = false;
+                self.add_trait_bound_to_scope_inner(
+                    location,
+                    object,
+                    &parent_trait_bound,
+                    written,
+                    visited,
+                );
             }
         }
     }

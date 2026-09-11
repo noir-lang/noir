@@ -54,3 +54,20 @@ sides with those bindings substituted in, without ever applying them. The type v
 program as it found it (see `compiler/noirc_frontend/src/monomorphization/purity.rs`): a binding
 committed here would be visible to every later compilation against the same context. An unbound
 variable on either side is therefore resolved for the purpose of the check only.
+
+## Which simplifications are allowed to discard an operand
+
+Two of `Type::canonicalize`'s rewrites drop a subexpression, so each one has to answer what
+happens to a failure inside the part it discards.
+
+`X * 0` folds to `0` only when `X` is a type variable or named generic. A variable evaluates to
+whatever constant it is eventually bound to, so nothing can go wrong inside it. Any larger `X`
+can fail on its own — an intermediate over/underflow, or a `CheckedCast` whose `from` side
+carries the validation obligation described above — and folding it away would report that
+program as valid. The comptime interpreter is strict here (it evaluates both operands of `*`),
+and the `compare_to_comptime` proptest holds canonicalization to the interpreter's answer.
+
+`(N * C1) / C2` folds to `N * (C1 / C2)` when the constants combine. For an integer kind that
+requires `C1 % C2 == 0`, since integer division truncates and `(N * 6) / 4` is not `N * 1`.
+`Field` has no remainder operation and needs none: every non-zero field element is invertible,
+so the fold is exact for any non-zero `C2`, including constants too large to fit in 128 bits.

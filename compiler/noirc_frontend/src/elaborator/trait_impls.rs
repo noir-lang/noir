@@ -1122,7 +1122,7 @@ impl Elaborator<'_> {
             for bound in desugared.bounds {
                 let typ = desugared.named_generic.clone();
                 let location = desugared.generic.location;
-                self.add_trait_bound_to_scope(location, &typ, &bound);
+                self.add_implied_trait_bound_to_scope(location, &typ, &bound);
                 new_generics_trait_constraints
                     .push((TraitConstraint { typ, trait_bound: bound }, location));
             }

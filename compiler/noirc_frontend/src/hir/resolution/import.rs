@@ -76,6 +76,8 @@ pub enum PathResolutionError {
     MultipleApplicableMethods { ident: Ident, impl_types: Vec<String> },
     #[error("associated item `{ident}` not found for `{type_name}`")]
     AssociatedItemNotImplemented { ident: Ident, type_name: String, traits: Vec<String> },
+    #[error("no associated item named `{ident}` found for `{type_name}`")]
+    NoSuchAssociatedItem { ident: Ident, type_name: String, is_field: bool },
     #[error("associated type `{ident}` cannot be accessed directly")]
     AssociatedTypeNotAccessibleDirectly { ident: Ident, type_name: String, traits: Vec<String> },
 }
@@ -95,6 +97,7 @@ impl PathResolutionError {
             | PathResolutionError::UnresolvedWithPossibleTraitsToImport { ident, .. }
             | PathResolutionError::MultipleApplicableMethods { ident, .. }
             | PathResolutionError::AssociatedItemNotImplemented { ident, .. }
+            | PathResolutionError::NoSuchAssociatedItem { ident, .. }
             | PathResolutionError::AssociatedTypeNotAccessibleDirectly { ident, .. }
             | PathResolutionError::UnresolvedMethodForType { ident, .. } => ident.location(),
         }
@@ -205,6 +208,18 @@ impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
                     ),
                     ident.location(),
                 )
+            }
+            PathResolutionError::NoSuchAssociatedItem { ident, type_name, is_field } => {
+                let secondary = if *is_field {
+                    format!(
+                        "`{ident}` is a field of `{type_name}`; a path can only name an associated type, constant or function"
+                    )
+                } else {
+                    format!(
+                        "a path can only name an associated type, constant or function of `{type_name}`"
+                    )
+                };
+                CustomDiagnostic::simple_error(error.to_string(), secondary, ident.location())
             }
             PathResolutionError::AssociatedTypeNotAccessibleDirectly {
                 ident,

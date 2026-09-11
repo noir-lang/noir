@@ -360,7 +360,7 @@ impl Elaborator<'_> {
         // Setup trait constraints
         for (extra_constraint, location) in extra_trait_constraints {
             let bound = &extra_constraint.trait_bound;
-            self.add_trait_bound_to_scope(*location, &extra_constraint.typ, bound);
+            self.add_implied_trait_bound_to_scope(*location, &extra_constraint.typ, bound);
         }
 
         let mut trait_constraints =
@@ -375,6 +375,11 @@ impl Elaborator<'_> {
         let mut extra_trait_constraints =
             vecmap(extra_trait_constraints, |(constraint, _)| constraint.clone());
         extra_trait_constraints.extend(associated_generics_trait_constraints);
+
+        // A trait named in a constraint brings its own `where` clause with it.
+        let mut all_constraints = trait_constraints.clone();
+        all_constraints.extend(extra_trait_constraints.iter().cloned());
+        extra_trait_constraints.extend(self.implied_where_clause_constraints(&all_constraints));
 
         // Resolve parameters
         let (parameters, parameter_types, parameter_idents) =
@@ -502,7 +507,7 @@ impl Elaborator<'_> {
             for bound in desugared.bounds {
                 let typ = desugared.named_generic.clone();
                 let location = desugared.generic.location;
-                self.add_trait_bound_to_scope(location, &typ, &bound);
+                self.add_implied_trait_bound_to_scope(location, &typ, &bound);
                 associated_generics_trait_constraints
                     .push(TraitConstraint { typ, trait_bound: bound });
             }
