@@ -1,0 +1,14 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use std::embedded_curve_ops::{embedded_curve_add, EmbeddedCurvePoint};
+
+fn main(x1: Field, y1: Field, x2: Field, y2: Field, active: bool) {
+    if active {
+        let point1: EmbeddedCurvePoint = EmbeddedCurvePoint { x: x1, y: y1 };
+        let point2: EmbeddedCurvePoint = EmbeddedCurvePoint { x: x2, y: y2 };
+        let result: EmbeddedCurvePoint = embedded_curve_add(point1, point2);
+        assert(!result.is_infinite());
+    }
+}

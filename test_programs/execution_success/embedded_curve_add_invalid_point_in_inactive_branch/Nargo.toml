@@ -1,0 +1,7 @@
+[package]
+name = "embedded_curve_add_invalid_point_in_inactive_branch"
+description = "embedded_curve_add on off-curve points inside a branch which is never taken"
+type = "bin"
+authors = [""]
+
+[dependencies]

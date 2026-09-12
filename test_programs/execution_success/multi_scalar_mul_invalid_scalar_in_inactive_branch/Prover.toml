@@ -1,0 +1,10 @@
+# hi = 2^128, which is out of range for a scalar limb
+over_limb_lo = "0"
+over_limb_hi = "340282366920938463463374607431768211456"
+
+# 0x30644e72e131a029b85045b68181585d97816a916871ca8d3c208c16d87cfd47,
+# the embedded curve's scalar modulus, split into 128-bit limbs
+over_order_lo = "0x97816a916871ca8d3c208c16d87cfd47"
+over_order_hi = "0x30644e72e131a029b85045b68181585d"
+
+active = false

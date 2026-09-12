@@ -1,0 +1,7 @@
+[package]
+name = "multi_scalar_mul_invalid_point_in_inactive_branch"
+description = "multi_scalar_mul over an off-curve point inside a branch which is never taken"
+type = "bin"
+authors = [""]
+
+[dependencies]
