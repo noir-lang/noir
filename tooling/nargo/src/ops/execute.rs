@@ -104,6 +104,9 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
         &mut self,
         initial_witness: WitnessMap<F>,
     ) -> Result<(WitnessMap<F>, ProfilingSamples), NargoError<F>> {
+        // Frames below this belong to a caller that is still executing.
+        let entry_call_stack_depth = self.call_stack.len();
+
         let circuit = &self.functions[self.current_function_index];
         let mut acvm = ACVM::new(
             self.blackbox_solver,
@@ -195,6 +198,8 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
 
                     // Set tracking index back to the parent function after ACIR call execution
                     self.current_function_index = acir_function_caller;
+                    // The callee returned, so the frame that entered it is no longer live.
+                    self.call_stack.pop();
 
                     let mut call_resolved_outputs = Vec::new();
                     for return_witness_index in acir_to_call.return_values.indices() {
@@ -215,10 +220,10 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>, E: ForeignCallExecutor<F>>
                 }
             }
         }
-        // Clear the call stack if we have succeeded in executing the circuit.
-        // This needs to be done or else all successful ACIR call stacks will also be
-        // included in a failure case.
-        self.call_stack.clear();
+        // Drop the frames this circuit added. Clearing the whole stack instead would also drop
+        // the caller frames of an enclosing circuit that is still executing, so a later failure in
+        // the caller would be reported without the frames that led to it.
+        self.call_stack.truncate(entry_call_stack_depth);
 
         let profiling_samples = acvm.take_profiling_samples();
         self.last_fuzzing_trace = acvm.get_brillig_fuzzing_trace();
