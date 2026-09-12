@@ -28,8 +28,21 @@ impl<W: Write> Interpreter<'_, W> {
             Intrinsic::ArrayLen => {
                 check_argument_count(args, 1, intrinsic)?;
                 let array = self.lookup_array_or_vector(args[0], "call to array_len")?;
-                let length = array.elements.borrow().len();
-                Ok(vec![Value::u32(length as u32)])
+                // `elements` holds the flattened slots, so a composite element type occupies more
+                // than one of them. `array_len` is the number of elements: that is what
+                // `simplify_call` folds `array_len` of an array to, and what `as_vector` reports
+                // for the same array.
+                let length = match array.length {
+                    Some(length) => length.0,
+                    // A vector does not carry its length in its storage; the two-argument form of
+                    // the intrinsic supplies it. Recover it from the slot count instead.
+                    None => {
+                        let element_types = array.element_types.len();
+                        let slots = array.elements.borrow().len();
+                        if element_types == 0 { 0 } else { (slots / element_types) as u32 }
+                    }
+                };
+                Ok(vec![Value::u32(length)])
             }
             Intrinsic::ArrayAsStrUnchecked => {
                 check_argument_count(args, 1, intrinsic)?;
