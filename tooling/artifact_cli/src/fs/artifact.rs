@@ -10,9 +10,16 @@ use noirc_driver::CrateName;
 use serde::de::Error;
 
 impl Artifact {
-    /// Try to parse an artifact as a binary program or a contract
+    /// Try to parse an artifact as a binary program or a contract.
+    ///
+    /// The `.json` extension may be left off the path, but an extension that *is* given is the
+    /// one that gets read: rewriting it would read a different file than the caller named.
     pub fn read_from_file(path: &Path) -> Result<Self, CliError> {
-        let file = path.with_extension("json");
+        let file = if path.extension().is_none() {
+            path.with_extension("json")
+        } else {
+            path.to_path_buf()
+        };
         let json = std::fs::read(&file)
             .map_err(|err| FilesystemError::FailedToReadFile(file.clone(), err))?;
 
@@ -94,4 +101,44 @@ pub fn write_to_file(bytes: &[u8], path: &Path) -> Result<(), FilesystemError> {
     std::fs::write(path, bytes)
         .map_err(|err| FilesystemError::FailedToWriteFile(path.to_path_buf(), err))?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Neither file parses as an artifact, so the error variant says which file was read.
+    fn read_error(path: &Path) -> CliError {
+        Artifact::read_from_file(path).err().expect("reading a non-artifact should fail")
+    }
+
+    /// Rewriting the extension reads a file the caller never named — and silently succeeds when a
+    /// same-stem `.json` happens to sit next to the one they asked for.
+    #[test]
+    fn reads_the_file_the_caller_named() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("circuit.json"), b"{}").unwrap();
+
+        let error = read_error(&dir.path().join("circuit.bin"));
+
+        assert!(
+            matches!(&error, CliError::FilesystemError(FilesystemError::FailedToReadFile(path, _))
+                if path == &dir.path().join("circuit.bin")),
+            "unexpected error: {error}"
+        );
+    }
+
+    /// The `.json` extension can still be left off.
+    #[test]
+    fn appends_json_to_an_extensionless_path() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("circuit.json"), b"{}").unwrap();
+
+        let error = read_error(&dir.path().join("circuit"));
+
+        assert!(
+            matches!(error, CliError::ArtifactDeserializationError(_)),
+            "expected `circuit.json` to be read and rejected as an artifact, got: {error}"
+        );
+    }
 }
