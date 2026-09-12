@@ -159,6 +159,10 @@ pub(crate) enum SsaError {
     VariableAlreadyDefined(Identifier),
     #[error("Global '{0}' already defined")]
     GlobalAlreadyDefined(Identifier),
+    #[error("Function '{0}' already defined")]
+    FunctionAlreadyDefined(Identifier),
+    #[error("Block '{0}' already defined")]
+    BlockAlreadyDefined(Identifier),
     #[error("Illegal use of offset in non-Brillig function '{0:?}'")]
     IllegalOffset(Identifier, ArrayOffset),
     #[error(
@@ -178,6 +182,8 @@ impl SsaError {
             | SsaError::UnknownBlock(identifier)
             | SsaError::VariableAlreadyDefined(identifier)
             | SsaError::GlobalAlreadyDefined(identifier)
+            | SsaError::FunctionAlreadyDefined(identifier)
+            | SsaError::BlockAlreadyDefined(identifier)
             | SsaError::UnknownFunction(identifier)
             | SsaError::PureModifierOnNonForeignFunction(identifier)
             | SsaError::IllegalOffset(identifier, _) => identifier.span,
@@ -246,6 +252,7 @@ impl<'a> Parser<'a> {
         self.eat_or_error(Token::Keyword(Keyword::Fn))?;
 
         let external_name = self.eat_ident_or_keyword_or_error()?;
+        let internal_name_span = self.token.span();
         let internal_name = self.eat_ident_or_error()?;
 
         self.eat_or_error(Token::LeftBrace)?;
@@ -261,6 +268,7 @@ impl<'a> Parser<'a> {
             purity_span: purity.map(|(_, span)| span),
             external_name,
             internal_name,
+            internal_name_span,
             data_bus,
             blocks,
         })
@@ -409,6 +417,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_block(&mut self) -> ParseResult<ParsedBlock> {
+        let name_span = self.token.span();
         let name = self.eat_ident_or_error()?;
         self.eat_or_error(Token::LeftParen)?;
 
@@ -425,7 +434,7 @@ impl<'a> Parser<'a> {
 
         let instructions = self.parse_instructions()?;
         let terminator = self.parse_terminator()?;
-        Ok(ParsedBlock { name, parameters, instructions, terminator })
+        Ok(ParsedBlock { name, name_span, parameters, instructions, terminator })
     }
 
     fn parse_parameter(&mut self) -> ParseResult<ParsedParameter> {

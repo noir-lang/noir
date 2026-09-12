@@ -149,7 +149,14 @@ impl Translator {
             // Function ID 0 is reserved for `main`, which is inserted above.
             let function_id = FunctionId::new(index as u32 + 1);
 
-            functions.insert(function.internal_name.clone(), function_id);
+            if functions.insert(function.internal_name.clone(), function_id).is_some() {
+                // The map is what resolves a call, so a repeated id makes every call to the name
+                // reach the last function declared under it and leaves the earlier one unreachable.
+                return Err(SsaError::FunctionAlreadyDefined(Identifier::new(
+                    function.internal_name.clone(),
+                    function.internal_name_span,
+                )));
+            }
 
             if let Some(purity) = function.purity {
                 purities.insert_purity(function_id, purity);
@@ -226,7 +233,15 @@ impl Translator {
                 self.builder.insert_block()
             };
             let blocks = self.blocks.entry(self.current_function_id()).or_default();
-            blocks.insert(block.name.clone(), block_id);
+            if blocks.insert(block.name.clone(), block_id).is_some() {
+                // Blocks are keyed by name here and by id below, so a repeated label collapses two
+                // parsed blocks onto one id and one of them is dropped without ever being
+                // translated.
+                return Err(SsaError::BlockAlreadyDefined(Identifier::new(
+                    block.name.clone(),
+                    block.name_span,
+                )));
+            }
         }
 
         let entry_block_id = self.blocks[&self.current_function_id()][&function.blocks[0].name];
