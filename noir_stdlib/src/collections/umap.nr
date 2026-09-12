@@ -314,7 +314,7 @@ impl<K, V, B> UHashMap<K, V, B> {
 
         let hash = self.hash(key);
         let mut insert_index: u32 = 0;
-        let mut increment_length = false;
+        let mut key_exists = false;
         let mut found_deleted_candidate = false;
 
         for attempt in 0..self._table.len() {
@@ -325,6 +325,7 @@ impl<K, V, B> UHashMap<K, V, B> {
                 if slot._key == key {
                     // Key exists: update in place without changing length.
                     insert_index = index;
+                    key_exists = true;
                     break;
                 }
             } else if slot._is_deleted {
@@ -339,7 +340,6 @@ impl<K, V, B> UHashMap<K, V, B> {
                 if !found_deleted_candidate {
                     insert_index = index;
                 }
-                increment_length = true;
                 break;
             }
         }
@@ -348,6 +348,10 @@ impl<K, V, B> UHashMap<K, V, B> {
         s.set(key, value);
         self._table[insert_index] = s;
 
+        // Anything that is not an update of an existing entry adds one. Deriving this from the
+        // empty slot instead would miss a new key written into a remembered deleted slot when the
+        // probe never reaches an empty one, which is the state a table of tombstones is in.
+        let increment_length = !key_exists;
         if increment_length {
             self._len += 1;
         }
@@ -565,6 +569,32 @@ mod test {
         let mut m: UHashMap<Field, Field, BuildHasherDefault<Poseidon2Hasher>> =
             UHashMap::with_hasher_and_capacity(BuildHasherDefault::<Poseidon2Hasher> {}, 0);
         let _ = m.insert(1, 1); // This used to produce an index out of bounds
+    }
+
+    /// Removing an entry leaves a tombstone behind, and only an insert that reaches an *empty*
+    /// slot resizes the table, so repeated insert/remove churn can leave a table with no empty
+    /// slot at all while `len()` stays well under the resize threshold. A new key then lands in a
+    /// remembered tombstone, which is still one more entry than the map had.
+    #[test]
+    unconstrained fn test_length_tracks_entries_across_insert_remove_churn() {
+        let mut map = UHashMap::<Field, Field, BuildHasherDefault<Poseidon2Hasher>>::with_hasher_and_capacity(
+            BuildHasherDefault::<Poseidon2Hasher> {},
+            8,
+        );
+
+        // The map never holds more than one entry, so it never resizes and the tombstones left by
+        // `remove` accumulate until every slot in the table has held something.
+        for i in 0..16 {
+            let key = i as Field;
+
+            assert(map.insert(key, key), "inserting a fresh key reports a new entry");
+            assert_eq(map.len(), 1);
+            assert_eq(map.entries().len(), 1);
+
+            map.remove(key);
+            assert_eq(map.len(), 0);
+            assert_eq(map.entries().len(), 0);
+        }
     }
 
     struct MaxHasher {
