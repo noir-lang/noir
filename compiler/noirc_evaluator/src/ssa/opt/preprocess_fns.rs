@@ -100,14 +100,14 @@ mod tests {
         // If it's run in isolation on a single function (e.g., during preprocessing),
         // it may leave dangling block parameters.
         //
-        // We need to call f0 from an entry point as inline targets are not preprocessed.
+        // We need to call `foo` from an entry point as inline targets are not preprocessed.
         let src = r#"
         acir(inline) fn main f0 {
           b0():
-            call f0(u32 1, Field 2)
+            call f1(u32 1, Field 2)
             return
         }
-        acir(inline) fn foo f0 {
+        acir(inline) fn foo f1 {
           b0(v0: u32, v1: Field):
             v2 = eq v0, u32 1
             jmpif v2 then: b1(), else: b2()

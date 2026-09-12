@@ -34,6 +34,58 @@ fn functionless_input_errors_instead_of_panicking() {
     }
 }
 
+/// Blocks are keyed by label while they are being defined and by id afterwards, so a repeated
+/// label collapses two parsed blocks onto one id: one of them is dropped without ever being
+/// translated, and the SSA that comes out is not the SSA that went in.
+#[test]
+fn duplicate_block_label_errors() {
+    let src = "
+        acir(inline) fn main f0 {
+          b0():
+            jmp b1()
+          b1():
+            v0 = add u32 1, u32 2
+            jmp b2()
+          b1():
+            return
+          b2():
+            return
+        }
+        ";
+    let error = Ssa::from_str(src).err().expect("expected an error, not a silently dropped block");
+    assert!(
+        format!("{error:?}").contains("Block 'b1' already defined"),
+        "unexpected error: {error:?}"
+    );
+}
+
+/// Calls are resolved through a name-to-id map, so a repeated internal id sends every call to the
+/// last function declared under it and leaves the earlier one unreachable.
+#[test]
+fn duplicate_function_id_errors() {
+    let src = "
+        acir(inline) fn main f0 {
+          b0():
+            call f1()
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0():
+            return
+        }
+        acir(inline) fn bar f1 {
+          b0():
+            return
+        }
+        ";
+    let error =
+        Ssa::from_str(src).err().expect("expected an error, not a silently shadowed function");
+    assert!(
+        format!("{error:?}").contains("Function 'f1' already defined"),
+        "unexpected error: {error:?}"
+    );
+}
+
 #[test]
 fn test_empty_acir_function() {
     let src = "
