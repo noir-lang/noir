@@ -23,14 +23,14 @@ impl Add<SemanticLength> for SemanticLength {
 
     /// Computes the sum of two semantic lengths.
     fn add(self, rhs: SemanticLength) -> Self::Output {
-        SemanticLength(self.0 + rhs.0)
+        SemanticLength(checked_add(self.0, rhs.0))
     }
 }
 
 impl AddAssign for SemanticLength {
     /// Adds another semantic length to this one.
     fn add_assign(&mut self, rhs: Self) {
-        self.0 += rhs.0;
+        self.0 = checked_add(self.0, rhs.0);
     }
 }
 
@@ -40,7 +40,7 @@ impl Mul<ElementTypesLength> for SemanticLength {
     /// Computes the semi-flattened length by multiplying the semantic length
     /// by the element types length.
     fn mul(self, rhs: ElementTypesLength) -> Self::Output {
-        SemiFlattenedLength(self.0 * rhs.0)
+        SemiFlattenedLength(checked_mul(self.0, rhs.0))
     }
 }
 
@@ -71,7 +71,7 @@ impl Mul<SemanticLength> for ElementTypesLength {
     /// Computes the semi-flattened length by multiplying the semantic length
     /// by the element types length.
     fn mul(self, rhs: SemanticLength) -> Self::Output {
-        SemiFlattenedLength(self.0 * rhs.0)
+        SemiFlattenedLength(checked_mul(self.0, rhs.0))
     }
 }
 
@@ -81,7 +81,7 @@ impl Mul<ElementsFlattenedLength> for SemanticLength {
     /// Computes the flattened length by multiplying the semantic length
     /// by the elements flattened length.
     fn mul(self, rhs: ElementsFlattenedLength) -> Self::Output {
-        FlattenedLength(self.0 * rhs.0)
+        FlattenedLength(checked_mul(self.0, rhs.0))
     }
 }
 
@@ -162,7 +162,7 @@ impl Mul<SemanticLength> for ElementsFlattenedLength {
     /// Computes the flattened length by multiplying the semantic length
     /// by the elements flattened length.
     fn mul(self, rhs: SemanticLength) -> Self::Output {
-        FlattenedLength(self.0 * rhs.0)
+        FlattenedLength(checked_mul(self.0, rhs.0))
     }
 }
 
@@ -194,13 +194,13 @@ impl Add for FlattenedLength {
     type Output = FlattenedLength;
 
     fn add(self, rhs: Self) -> Self::Output {
-        FlattenedLength(self.0 + rhs.0)
+        FlattenedLength(checked_add(self.0, rhs.0))
     }
 }
 
 impl AddAssign for FlattenedLength {
     fn add_assign(&mut self, rhs: Self) {
-        self.0 += rhs.0;
+        self.0 = checked_add(self.0, rhs.0);
     }
 }
 
@@ -225,6 +225,20 @@ impl Div<ElementsFlattenedLength> for FlattenedLength {
     }
 }
 
+/// Multiplies two lengths, panicking rather than wrapping.
+///
+/// A length describes how many slots a value occupies. Wrapping produces a length with no relation
+/// to the type it was derived from — `[[u8; 65536]; 65536]` becomes a zero-length array — which the
+/// consumers of these types have no way to detect.
+fn checked_mul(lhs: u32, rhs: u32) -> u32 {
+    lhs.checked_mul(rhs).unwrap_or_else(|| panic!("Length overflow multiplying {lhs} by {rhs}"))
+}
+
+/// Adds two lengths, panicking rather than wrapping. See [`checked_mul`].
+fn checked_add(lhs: u32, rhs: u32) -> u32 {
+    lhs.checked_add(rhs).unwrap_or_else(|| panic!("Length overflow adding {rhs} to {lhs}"))
+}
+
 /// Converts a u32 value to usize, panicking if the conversion fails.
 fn assert_usize(value: u32) -> usize {
     value.try_into().expect("Failed conversion from u32 to usize")
@@ -233,6 +247,29 @@ fn assert_usize(value: u32) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A wrapped length is a slot count with no relation to the type it came from:
+    /// `[[u8; 65536]; 65536]` needs 2^32 slots, which is 0 modulo 2^32, so the array looks empty.
+    #[test]
+    #[should_panic(expected = "Length overflow multiplying 65536 by 65536")]
+    fn multiplying_lengths_does_not_wrap() {
+        let _ = ElementsFlattenedLength(1 << 16) * SemanticLength(1 << 16);
+    }
+
+    #[test]
+    #[should_panic(expected = "Length overflow adding")]
+    fn adding_lengths_does_not_wrap() {
+        let _ = FlattenedLength(u32::MAX) + FlattenedLength(1);
+    }
+
+    #[test]
+    fn multiplying_lengths_in_range_is_unchanged() {
+        assert_eq!(
+            ElementsFlattenedLength(6) * SemanticLength(8),
+            FlattenedLength(48),
+            "[(u8, u16, [u32; 4]); 8] occupies 48 slots"
+        );
+    }
 
     #[test]
     fn flattened_length_divides_evenly_by_elements_flattened_length() {
