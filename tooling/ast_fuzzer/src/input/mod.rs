@@ -86,12 +86,12 @@ fn arb_value_from_abi_type(
             .prop_map(|bytes| InputValue::Field(FieldElement::from_be_bytes_reduce(&bytes)))
             .sboxed(),
         AbiType::Integer { width, sign } if sign == &Sign::Unsigned => {
-            // We've restricted the type system to only allow u64s as the maximum integer type.
-            let width = (*width).min(64);
-            UintStrategy::new(width as usize, dictionary)
+            UintStrategy::new(*width as usize, dictionary)
                 .prop_map(|uint| InputValue::Field(uint.into()))
                 .sboxed()
         }
+        // Noir's widest signed integer is `i64`, so the strategy's `i128` domain covers every
+        // signed width the ABI can name.
         AbiType::Integer { width, .. } => {
             let width = (*width).min(64);
             // Based on `FieldElement::to_i128`:
@@ -146,6 +146,44 @@ fn arb_value_from_abi_type(
             let fields: Vec<_> =
                 fields.iter().map(|typ| arb_value_from_abi_type(typ, dictionary)).collect();
             fields.prop_map(InputValue::Vec).sboxed()
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use proptest::strategy::ValueTree;
+
+    fn draw_unsigned(width: u32, draws: usize) -> Vec<FieldElement> {
+        let dictionary = BTreeSet::new();
+        let abi_type = AbiType::Integer { width, sign: Sign::Unsigned };
+        let strategy = arb_value_from_abi_type(&abi_type, &dictionary);
+        let mut runner = TestRunner::deterministic();
+
+        (0..draws)
+            .map(|_| match strategy.new_tree(&mut runner).unwrap().current() {
+                InputValue::Field(field) => field,
+                other => panic!("expected a field value, got {other:?}"),
+            })
+            .collect()
+    }
+
+    /// A `u128` parameter drawn from the `u64` domain aims every edge case at `u64::MAX` and leaves
+    /// the top half of the type untested.
+    #[test]
+    fn draws_u128_inputs_above_the_u64_range() {
+        let values = draw_unsigned(128, 64);
+        assert!(
+            values.iter().any(|value| value.num_bits() > 64),
+            "every generated u128 input fitted in 64 bits"
+        );
+    }
+
+    #[test]
+    fn draws_narrower_inputs_within_their_width() {
+        for value in draw_unsigned(32, 64) {
+            assert!(value.num_bits() <= 32, "{value} does not fit in 32 bits");
         }
     }
 }
