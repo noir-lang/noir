@@ -109,7 +109,7 @@ mod tests {
 
     /// Neither file parses as an artifact, so the error variant says which file was read.
     fn read_error(path: &Path) -> CliError {
-        Artifact::read_from_file(path).err().expect("reading a non-artifact should fail")
+        Artifact::read_from_file(path).expect_err("reading a non-artifact should fail")
     }
 
     /// Rewriting the extension reads a file the caller never named — and silently succeeds when a
