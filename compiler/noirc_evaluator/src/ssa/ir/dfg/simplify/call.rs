@@ -654,12 +654,17 @@ pub(crate) fn constant_to_radix(
     radix: u32,
     limb_count: u32,
 ) -> Option<Vec<FieldElement>> {
-    let bit_size = u32::BITS - (radix - 1).leading_zeros();
+    // The range check comes first: `radix - 1` underflows for a radix of `0`, which is a radix the
+    // check is there to decline.
     let radix_big = BigUint::from(radix);
     let radix_range = BigUint::from(2u128)..=BigUint::from(256u128);
-    if !radix_range.contains(&radix_big) || BigUint::from(2u128).pow(bit_size) != radix_big {
+    if !radix_range.contains(&radix_big) {
         // NOTE: expect an error to be thrown later in
         // acir::generated_acir::radix_le_decompose
+        return None;
+    }
+    let bit_size = u32::BITS - (radix - 1).leading_zeros();
+    if BigUint::from(2u128).pow(bit_size) != radix_big {
         return None;
     }
     // `BigUint::to_radix_le` represents zero as a single zero limb (`[0]`), which would make a
@@ -1071,6 +1076,34 @@ mod tests {
     fn constant_to_radix_rejects_non_zero_value_with_zero_limbs() {
         let limbs = constant_to_radix(Endian::Little, FieldElement::from(5u128), 256, 0);
         assert_eq!(limbs, None);
+    }
+
+    /// A radix outside `2..=256` is declined rather than decomposed. `0` is the interesting one:
+    /// the power-of-two check needs `radix - 1`, which underflows there.
+    #[test]
+    fn constant_to_radix_rejects_out_of_range_radix() {
+        for radix in [0, 1, 257] {
+            let limbs = constant_to_radix(Endian::Little, FieldElement::from(5u128), radix, 4);
+            assert_eq!(limbs, None, "radix {radix} should be declined");
+        }
+    }
+
+    /// `to_le_radix` with a radix of `0` reaches the interpreter as validator-accepted SSA, so the
+    /// interpreter has to report it rather than abort.
+    #[test]
+    fn interpret_to_radix_with_zero_radix_fails_gracefully() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = call to_le_radix(Field 5, u32 0) -> [u8; 4]
+            return v0
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let result = ssa.interpret(Vec::new());
+
+        assert!(result.is_err(), "expected an interpreter error, got {result:?}");
     }
 
     #[test]
