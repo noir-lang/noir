@@ -593,3 +593,23 @@ fn comptime_global_closure_cannot_be_inlined_into_runtime() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn self_is_not_in_scope_in_a_global() {
+    let src = r#"
+    struct Foo {}
+
+    impl Foo {
+        fn len() -> u32 { 3 }
+    }
+
+    global N: u32 = Self::len();
+                    ^^^^ Could not resolve 'Self' in path
+
+    fn main() {
+        let _n = N;
+        let _len = Foo::len();
+    }
+    "#;
+    check_errors(src);
+}
