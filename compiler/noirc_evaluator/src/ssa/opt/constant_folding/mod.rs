@@ -1267,6 +1267,29 @@ mod test {
         assert_ssa_does_not_change(&src, |ssa| ssa.fold_constants(MIN_ITER));
     }
 
+    // Regression for noir-claude#1829.
+    // A repeated array literal `[v; N]` lowers to a `make_array` holding one value in all N element
+    // positions, so invalidating the cache for a mutation of it enqueues that value N times. Every
+    // copy after the first is a duplicate the worklist has to skip, and skipping them must cost no
+    // stack, or a wide enough literal aborts the compiler with a stack overflow.
+    #[test]
+    fn array_mutation_invalidation_does_not_recurse_over_repeated_elements() {
+        const WIDTH: usize = 100_000;
+
+        let elements = vec!["v0"; WIDTH].join(", ");
+        let src = format!(
+            "brillig(inline) fn main f0 {{
+              b0(v0: Field, v1: u32):
+                v2 = make_array [{elements}] : [Field; {WIDTH}]
+                v3 = array_set v2, index v1, value v0
+                return v3
+            }}
+            "
+        );
+
+        assert_ssa_does_not_change(&src, |ssa| ssa.fold_constants(MIN_ITER));
+    }
+
     // Regression for noir-claude#1224.
     // A constant zero-sized-type array (empty `element_types`, e.g. `[(); 3]`) passed as a
     // constant argument to a brillig call reaches the constant-folding interpreter, which must
