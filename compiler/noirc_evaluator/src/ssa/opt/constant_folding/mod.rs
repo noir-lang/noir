@@ -1321,6 +1321,54 @@ mod test {
         assert_ssa_does_not_change(&src, |ssa| ssa.fold_constants(MIN_ITER));
     }
 
+    // A Call result that aliases its argument must be followed when walking the alias
+    // chain from a mutation back to the original producer. Here:
+    //   make_array → call identity() → vector_pop_front (mutation)
+    // The walk must go through `call` to evict the `make_array` from the cache,
+    // preventing the second identical `make_array` from being deduplicated.
+    #[test]
+    fn call_result_alias_prevents_make_array_dedup() {
+        let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            v1 = make_array [u32 100] : [u32]
+            v2, v3 = call f1(u32 1, v1) -> (u32, [u32])
+            v4, v5, v6 = call vector_pop_front(v2, v3) -> (u32, u32, [u32])
+            v7 = make_array [u32 100] : [u32]
+            return v7
+        }
+        brillig(inline_never) pure fn identity f1 {
+          b0(v0: u32, v1: [u32]):
+            return v0, v1
+        }
+        ";
+        assert_ssa_does_not_change(src, |ssa| ssa.fold_constants_using_constraints(MIN_ITER));
+    }
+
+    // An ArraySet in the alias chain between a mutation and the original producer must
+    // also be followed. Here:
+    //   make_array → array_set → call identity() → vector_pop_front (mutation)
+    // The walk must traverse call then array_set to reach and evict the make_array.
+    #[test]
+    fn array_set_in_alias_chain_prevents_make_array_dedup() {
+        let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            v1 = make_array [u32 100, u32 200] : [u32]
+            v2 = array_set v1, index u32 0, value u32 300
+            v3, v4 = call f1(u32 2, v2) -> (u32, [u32])
+            v5, v6, v7 = call vector_pop_front(v3, v4) -> (u32, u32, [u32])
+            v8 = make_array [u32 100, u32 200] : [u32]
+            return v8
+        }
+        brillig(inline_never) pure fn identity f1 {
+          b0(v0: u32, v1: [u32]):
+            return v0, v1
+        }
+        ";
+        assert_ssa_does_not_change(src, |ssa| ssa.fold_constants_using_constraints(MIN_ITER));
+    }
+
     // Regression for noir-claude#1224.
     // A constant zero-sized-type array (empty `element_types`, e.g. `[(); 3]`) passed as a
     // constant argument to a brillig call reaches the constant-folding interpreter, which must

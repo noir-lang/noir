@@ -183,19 +183,7 @@ impl InstructionResultCache {
         instruction: &Instruction,
         dfg: &DataFlowGraph,
     ) {
-        use Instruction::{ArraySet, Call, MakeArray, Store};
-
-        /// Whether a call to the callee referenced by `func` may return an array value that shares
-        /// storage with one of its arguments.
-        ///
-        /// A foreign call cannot: an oracle's results are copied across the boundary, so the arrays
-        /// it returns are freshly allocated. Every other callee may. A user-defined function can
-        /// return a parameter unchanged; `black_box` and the identity-shaped conversions lower to a
-        /// register move, so for an array operand the result is the operand's heap pointer; and the
-        /// vector mutators write through their operand and hand it back.
-        fn result_may_alias_an_argument(dfg: &DataFlowGraph, func: ValueId) -> bool {
-            !matches!(&dfg[func], Value::ForeignFunction { .. })
-        }
+        use Instruction::{ArraySet, Call, Store};
 
         // The values whose creating instructions must be removed from the cache. One value can
         // occupy many element positions (`[v; N]`, `[v, v]`) and be passed as several arguments,
@@ -274,24 +262,16 @@ impl InstructionResultCache {
                 }
             };
 
-            // Remove the creator instruction from the cache.
-            if matches!(instruction, MakeArray { .. } | Call { .. }) {
-                self.remove(instruction);
-            }
+            // Remove the creator instruction from the cache: any instruction in the
+            // alias chain whose result has been mutated downstream is stale.
+            self.remove(instruction);
 
-            match instruction {
-                // For arrays, we also want to invalidate the values, because multi-dimensional
-                // arrays can be passed around, and through them their sub-arrays might be modified.
-                MakeArray { elements, .. } => values.extend(elements.iter().copied()),
-                // A callee that hands back an alias of an array argument gives that argument's
-                // buffer a second name, so a mutation through the result is a mutation of the
-                // argument. The cached instruction that goes stale is then the one that produced
-                // the argument, not this call, and the arguments have to be followed to reach it.
-                Call { func, arguments } if result_may_alias_an_argument(dfg, *func) => {
-                    values.extend(arguments.iter().copied());
-                }
-                _ => {}
-            }
+            // Recurse into all operands so that multi-dimensional arrays and alias
+            // chains through Call/ArraySet/IfElse are fully invalidated. The
+            // `is_array()` guard above filters out non-array operands.
+            instruction.for_each_value(|operand| {
+                values.push_back(operand);
+            });
         }
     }
 }
