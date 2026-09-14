@@ -1242,6 +1242,60 @@ mod test {
         assert_ssa_does_not_change(src, |ssa| ssa.fold_constants_using_constraints(MIN_ITER));
     }
 
+    // Regression for noir-claude#1820.
+    // `f2` hands its array parameter straight back, so the vector `vector_push_front` mutates in
+    // place (RC == 1 in brillig, no protecting `inc_rc`) is the one `f1` allocated, not a fresh
+    // one. The instruction whose cached result goes stale is therefore the `f1` call that produced
+    // that buffer, reached through the `f2` call's arguments — so the second `f1` call must not be
+    // deduplicated against the first, or the trailing `array_get` reads 999 instead of `u32 100`.
+    #[test]
+    fn mutating_vector_intrinsic_prevents_dedup_of_call_returning_an_alias() {
+        let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            v1, v2 = call f1() -> (u32, [u32])
+            v3, v4 = call f2(v1, v2) -> (u32, [u32])
+            v5, v6 = call vector_push_front(v3, v4, u32 999) -> (u32, [u32])
+            v7, v8 = call f1() -> (u32, [u32])
+            v9 = array_get v8, index u32 0 -> u32
+            return v9
+        }
+        brillig(inline_never) pure fn get_vector f1 {
+          b0():
+            v1 = make_array [u32 100] : [u32]
+            return u32 1, v1
+        }
+        brillig(inline_never) pure fn alias f2 {
+          b0(v0: u32, v1: [u32]):
+            return v0, v1
+        }
+        ";
+        assert_ssa_does_not_change(src, |ssa| ssa.fold_constants_using_constraints(MIN_ITER));
+    }
+
+    // Regression for noir-claude#1798.
+    // `black_box` is lowered in brillig as a register move, so for an array operand the value it
+    // returns is the operand's heap buffer under a second name. The `array_set` against that result
+    // therefore writes the buffer `v3` names, and the second, identical `make_array` must not be
+    // deduplicated against `v3` — doing so makes the trailing `array_get` read 99 instead of `v0`.
+    #[test]
+    fn mutation_through_black_box_result_prevents_make_array_dedup() {
+        let src = "
+        brillig(inline) impure fn main f0 {
+          b0(v0: Field, v1: u32, v2: u32):
+            v3 = make_array [v0, v0, v0] : [Field; 3]
+            v4 = call black_box(v3) -> [Field; 3]
+            v5 = array_set v4, index v1, value Field 99
+            v6 = make_array [v0, v0, v0] : [Field; 3]
+            v7 = array_get v5, index u32 0 -> Field
+            v8 = array_get v6, index v2 -> Field
+            v9 = make_array [v7, v8] : [Field; 2]
+            return v9
+        }
+        ";
+        assert_ssa_does_not_change(src, |ssa| ssa.fold_constants_using_constraints(MIN_ITER));
+    }
+
     // Regression for noir-claude#1690.
     // Each level of this array puts the level below it in both of its element positions, so the
     // values reachable from the mutated array form a DAG with `DEPTH + 1` values but 2^DEPTH routes

@@ -185,6 +185,18 @@ impl InstructionResultCache {
     ) {
         use Instruction::{ArraySet, Call, MakeArray, Store};
 
+        /// Whether a call to the callee referenced by `func` may return an array value that shares
+        /// storage with one of its arguments.
+        ///
+        /// A foreign call cannot: an oracle's results are copied across the boundary, so the arrays
+        /// it returns are freshly allocated. Every other callee may. A user-defined function can
+        /// return a parameter unchanged; `black_box` and the identity-shaped conversions lower to a
+        /// register move, so for an array operand the result is the operand's heap pointer; and the
+        /// vector mutators write through their operand and hand it back.
+        fn result_may_alias_an_argument(dfg: &DataFlowGraph, func: ValueId) -> bool {
+            !matches!(&dfg[func], Value::ForeignFunction { .. })
+        }
+
         // The values whose creating instructions must be removed from the cache. One value can
         // occupy many element positions (`[v; N]`, `[v, v]`) and be passed as several arguments,
         // so the values reachable from a mutation form a DAG rather than a tree: walking every
@@ -267,10 +279,18 @@ impl InstructionResultCache {
                 self.remove(instruction);
             }
 
-            // For arrays, we also want to invalidate the values, because multi-dimensional arrays
-            // can be passed around, and through them their sub-arrays might be modified.
-            if let MakeArray { elements, .. } = instruction {
-                values.extend(elements.iter().copied());
+            match instruction {
+                // For arrays, we also want to invalidate the values, because multi-dimensional
+                // arrays can be passed around, and through them their sub-arrays might be modified.
+                MakeArray { elements, .. } => values.extend(elements.iter().copied()),
+                // A callee that hands back an alias of an array argument gives that argument's
+                // buffer a second name, so a mutation through the result is a mutation of the
+                // argument. The cached instruction that goes stale is then the one that produced
+                // the argument, not this call, and the arguments have to be followed to reach it.
+                Call { func, arguments } if result_may_alias_an_argument(dfg, *func) => {
+                    values.extend(arguments.iter().copied());
+                }
+                _ => {}
             }
         }
     }
