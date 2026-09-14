@@ -17,7 +17,8 @@ use crate::{
 use noirc_errors::CustomDiagnostic;
 
 use crate::tests::{
-    assert_no_errors, assert_no_errors_and_to_string, check_errors, get_program_errors,
+    assert_no_errors, assert_no_errors_and_to_string, check_errors,
+    check_errors_with_stdlib_using_features, get_program_errors,
 };
 
 // Regression for #5388
@@ -3745,4 +3746,75 @@ fn comptime_resolve_first_segment_visibility() {
     }
     "#;
     check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
+
+/// The meta API needed to reach a trait impl's methods from comptime code.
+const TRAIT_IMPL_META_API_STDLIB: &str = r#"
+    impl Quoted {
+        #[builtin(quoted_as_type)]
+        pub comptime fn as_type(self) -> Type {}
+
+        #[builtin(quoted_as_trait_constraint)]
+        pub comptime fn as_trait_constraint(self) -> TraitConstraint {}
+    }
+
+    impl Type {
+        #[builtin(type_get_trait_impl)]
+        pub comptime fn get_trait_impl(self, _constraint: TraitConstraint) -> Option<TraitImpl> {}
+    }
+
+    impl TraitImpl {
+        #[builtin(trait_impl_methods)]
+        pub comptime fn methods(self) -> [FunctionDefinition] {}
+    }
+"#;
+
+#[test]
+fn lazily_elaborated_impl_trait_callee_does_not_inherit_callers_trait_impl() {
+    let src = r#"
+    trait Marker {}
+
+    trait HasAssoc {
+        type Assoc;
+        fn call() -> u32;
+    }
+
+    struct Foo {}
+    struct Bar {}
+    impl Marker for Bar {}
+
+    impl HasAssoc for Foo {
+        type Assoc = u32;
+        fn call() -> u32 {
+            1
+        }
+    }
+
+    // `hidden` is elaborated on demand while resolving the call in the attribute, from an
+    // elaborator set up for the trait impl method `Foo::call`.
+    #[resolve_hidden_in_call]
+    fn main() {
+        let _ = Foo::call();
+        let _hidden = hidden();
+    }
+
+    comptime fn resolve_hidden_in_call(_f: FunctionDefinition) {
+        let constraint = quote { HasAssoc }.as_trait_constraint();
+        let call = quote { Foo }.as_type().get_trait_impl(constraint).unwrap().methods()[0];
+        let _ = quote { hidden() }.as_expr().unwrap().resolve(Option::some(call));
+                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ While evaluating `Expr::resolve`
+    }
+
+    fn hidden() -> impl Marker {
+        let x: Self::Assoc = 1;
+               ^^^^ Could not resolve 'Self' in path
+        let _ = x;
+        Bar {}
+    }
+    "#;
+    check_errors_with_stdlib_using_features(
+        src,
+        [META_API_STDLIB, TRAIT_IMPL_META_API_STDLIB],
+        &[UnstableFeature::TraitAsType],
+    );
 }
