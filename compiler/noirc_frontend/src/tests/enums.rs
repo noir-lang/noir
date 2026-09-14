@@ -1267,3 +1267,31 @@ fn empty_match_on_enum_with_pending_variants() {
     "#;
     check_errors_using_features(src, &[UnstableFeature::Enums]);
 }
+
+#[test]
+fn lazily_resolved_enum_variants_do_not_inherit_callers_self_type() {
+    let src = r#"
+    pub struct Foo {}
+
+    pub enum Bar {
+        Inner(Self),
+              ^^^^ Could not resolve 'Self' in path
+    }
+
+    #[add_method]
+    ~~~~~~~~~~~~~ While running this function attribute
+    fn main() {}
+
+    // The generated method's body is elaborated while `Bar`'s variants are still pending, so
+    // they are resolved on demand from inside an impl of `Foo`.
+    comptime fn add_method(_f: FunctionDefinition) -> Quoted {
+        quote {
+            impl Foo {
+                pub fn unwrap_bar(bar: Bar) { match bar {} }
+                                                    ^^^ Missing case: `Inner`
+            }
+        }
+    }
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::Enums]);
+}
