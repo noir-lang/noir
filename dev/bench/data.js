@@ -1,42 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789388864548,
+  "lastUpdate": 1789388867459,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "e33da6ba7e46081281ea8717ac9df896d1a732f0",
-          "message": "chore: remove an orphaned CI script and three unreferenced docs images (#13616)",
-          "timestamp": "2026-09-07T18:11:19Z",
-          "tree_id": "c5e518c855236b247d7415ee1ad8fe42c46153ba",
-          "url": "https://github.com/noir-lang/noir/commit/e33da6ba7e46081281ea8717ac9df896d1a732f0"
-        },
-        "date": 1788806131007,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 106.81,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 150.52,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -1699,6 +1665,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512_100_bytes",
             "value": 151.89,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "ad4f96e11d1bd3029b46c811c344de956c5003b7",
+          "message": "fix(ssa): don't inline a block into itself in `simplify_cfg` (#13672)",
+          "timestamp": "2026-09-14T12:01:41Z",
+          "tree_id": "f350866521c4567c578f5daf971ae1eecf7c55b7",
+          "url": "https://github.com/noir-lang/noir/commit/ad4f96e11d1bd3029b46c811c344de956c5003b7"
+        },
+        "date": 1789388783266,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore_depth_10",
+            "value": 106.82,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 151.86,
             "unit": "MB"
           }
         ]
