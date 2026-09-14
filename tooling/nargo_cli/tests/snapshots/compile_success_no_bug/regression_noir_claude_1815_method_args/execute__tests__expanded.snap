@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn batch_invert(_x: [Field; 2]) {}
+
+fn main(x: Field) -> pub Field {
+    let arr: [Field; 2] = [x, x];
+    // Safety: comment added by `nargo expand`
+    unsafe { batch_invert(arr.map(|v: Field| -> Field { v + 1_Field })); };
+    x
+}

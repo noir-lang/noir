@@ -999,8 +999,12 @@ impl Elaborator<'_> {
 
         let function_id = self.intern_expr_type(function_id, func_type.clone());
 
-        let func_arg_types =
-            if let Type::Function(args, _, _, _) = &func_type { Some(args) } else { None };
+        let (func_arg_types, unconstrained) =
+            if let Type::Function(args, _, _, unconstrained) = &func_type {
+                (Some(args), *unconstrained)
+            } else {
+                (None, false)
+            };
 
         // Try to unify the object type with the first argument of the function.
         // The reason to do this is that many methods that take a lambda will yield `self` or part of `self`
@@ -1038,6 +1042,12 @@ impl Elaborator<'_> {
 
         let is_macro_call = method_call.is_macro_call;
 
+        // As in `elaborate_call_inner`: when calling an unconstrained function, we can elaborate
+        // lambda arguments to be unconstrained. A method call is a call, so the flag is managed
+        // over the same span here -- the argument list and the type check that follows it.
+        let was_in_unconstrained_args =
+            std::mem::replace(&mut self.in_unconstrained_args, unconstrained);
+
         for (arg_index, arg) in method_call.arguments.into_iter().enumerate() {
             let location = arg.location;
             // The argument types also contain the object type as the first argument.
@@ -1064,6 +1074,9 @@ impl Elaborator<'_> {
         // Type check the new call now that it has been changed from a method call
         // to a function call. This way we avoid duplicating code.
         let typ = self.type_check_call(&function_call, func_type, function_args, location);
+
+        // Restore the old one after type checking.
+        self.in_unconstrained_args = was_in_unconstrained_args;
 
         // Argument unification may have made some constraints pushed by `type_check_variable`
         // concrete. Resolve those now so any associated-type variables they bind are
