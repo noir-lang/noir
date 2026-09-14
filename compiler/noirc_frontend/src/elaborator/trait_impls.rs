@@ -34,30 +34,6 @@ use rustc_hash::FxHashSet as HashSet;
 
 use super::{Elaborator, item_context::ItemContext};
 
-impl ItemContext {
-    /// Swaps the impl's resolved generics into scope, returning the previous generics to be
-    /// passed to [`Self::exit_trait_impl_generics_scope`] on exit.
-    ///
-    /// This replaces the whole generics vec (rather than truncating generics added within
-    /// the scope, as [`Self::enter_generics_scope`] does), preserving the trait-impl
-    /// collection's historical semantics.
-    #[must_use]
-    pub(super) fn enter_trait_impl_generics_scope(
-        &mut self,
-        resolved_generics: &[ResolvedGeneric],
-    ) -> Vec<ResolvedGeneric> {
-        std::mem::replace(&mut self.generics, resolved_generics.to_vec())
-    }
-
-    /// Restores the generics saved by [`Self::enter_trait_impl_generics_scope`].
-    pub(super) fn exit_trait_impl_generics_scope(
-        &mut self,
-        previous_generics: Vec<ResolvedGeneric>,
-    ) {
-        self.generics = previous_generics;
-    }
-}
-
 impl Elaborator<'_> {
     /// Collects and validates a trait implementation.
     ///
@@ -149,8 +125,7 @@ impl Elaborator<'_> {
         );
 
         if let Some(trait_id) = trait_impl.trait_id {
-            let previous_generics =
-                self.item.enter_trait_impl_generics_scope(&trait_impl.resolved_generics);
+            self.item.generics.clone_from(&trait_impl.resolved_generics);
 
             let where_clause =
                 self.resolve_trait_constraints_and_add_to_scope(&trait_impl.where_clause);
@@ -319,8 +294,6 @@ impl Elaborator<'_> {
                     });
                 }
             }
-
-            self.item.exit_trait_impl_generics_scope(previous_generics);
         }
     }
 
