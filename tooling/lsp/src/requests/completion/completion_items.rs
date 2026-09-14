@@ -613,10 +613,10 @@ fn func_meta_type_to_string(func_meta: &FuncMeta, name: &str, has_self_type: boo
 }
 
 fn type_to_self_string(typ: &Type, string: &mut String) {
-    if let Type::Reference(..) = typ {
-        string.push_str("&mut self");
-    } else {
-        string.push_str("self");
+    match typ {
+        Type::Reference(_, true) => string.push_str("&mut self"),
+        Type::Reference(_, false) => string.push_str("&self"),
+        _ => string.push_str("self"),
     }
 }
 
