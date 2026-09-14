@@ -46,6 +46,7 @@ use crate::{
 
 use super::{
     Elaborator, TypedPathSegment,
+    item_context::ItemContext,
     path_resolution::{PathResolutionTarget, TypedPath},
 };
 
@@ -189,16 +190,29 @@ impl Elaborator<'_> {
         module_id: LocalModuleId,
         enum_def: &NoirEnumeration,
     ) {
-        let previous_local_module = self.item.replace_local_module(module_id);
-        let previous_current_item = self.item.current_item.replace(DependencyId::DataType(type_id));
+        // Enum variants are resolved at the module level. This can run on demand from the
+        // middle of another item (e.g. an impl method that matches on the enum), so the enum
+        // gets a context of its own: the item's generics and `Self` type would otherwise be
+        // visible to the variant types.
+        let context = ItemContext {
+            local_module: Some(module_id),
+            current_item: Some(DependencyId::DataType(type_id)),
+            in_comptime_context: enum_def.comptime,
+            ..Default::default()
+        };
+        self.with_item_context(context, |this| {
+            this.resolve_one_enum_variants_in_context(type_id, enum_def);
+        });
+    }
 
-        let previous_in_comptime_context =
-            std::mem::replace(&mut self.item.in_comptime_context, enum_def.comptime);
-
-        // Enum variants are resolved at the module level: clear any generics
-        // that an outer caller may have in scope.
-        let previous_generics = std::mem::take(&mut self.item.generics);
-
+    /// Does the work of [`Self::resolve_one_enum_variants`].
+    ///
+    /// Expects the enum's own [`ItemContext`] to be installed.
+    fn resolve_one_enum_variants_in_context(
+        &mut self,
+        type_id: TypeId,
+        enum_def: &NoirEnumeration,
+    ) {
         let datatype = self.interner.get_type(type_id);
         let datatype_ref = datatype.borrow();
         let generics = datatype_ref.generic_types();
@@ -252,11 +266,6 @@ impl Elaborator<'_> {
         self.impl_trait_is_disallowed = previous_impl_trait_context;
 
         self.resolving_ids.remove(&type_id);
-
-        self.item.generics = previous_generics;
-        self.item.in_comptime_context = previous_in_comptime_context;
-        self.item.current_item = previous_current_item;
-        self.item.local_module = previous_local_module;
     }
 
     /// Defines the value of an enum variant that we resolve an enum
@@ -1563,7 +1572,10 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
     fn issue_missing_cases_error_for_type(&mut self, type_matched_on: &Type, location: Location) {
         let typ = type_matched_on.follow_bindings_shallow();
         if let Type::DataType(shared, _) = typ.as_ref() {
-            self.elaborator.define_enum_variants_if_undefined(shared.borrow().id);
+            // Resolving the variants borrows the type mutably, so the borrow taken to read the
+            // id must not be alive during the call.
+            let type_id = shared.borrow().id;
+            self.elaborator.define_enum_variants_if_undefined(type_id);
         }
         if let Type::DataType(shared, generics) = typ.as_ref()
             && let Some(variants) = shared.borrow().get_variants(generics)
