@@ -99,6 +99,7 @@ mod function_context;
 mod generics;
 mod globals;
 mod impls;
+mod item_context;
 mod lints;
 mod options;
 mod path_resolution;

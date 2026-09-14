@@ -44,7 +44,7 @@ use crate::{
     shared::Visibility,
 };
 
-use super::Elaborator;
+use super::{Elaborator, UnsafeBlockStatus, item_context::ItemContext};
 
 type ResolvedParametersInfo = (Vec<(HirPattern, Type, Visibility)>, Vec<Type>, Vec<HirIdent>);
 
@@ -715,16 +715,44 @@ impl Elaborator<'_> {
             "Functions in other crates should be already elaborated"
         );
 
-        let previous_local_module = self.replace_local_module(func_meta.source_module);
-        self.self_type = func_meta.self_type.clone();
-        self.current_trait_impl = func_meta.trait_impl;
-        self.current_trait = func_meta.trait_id;
-        self.reset_lvalue_index_counter();
+        // This can run in the middle of another item's body (see the `item_context` module), so
+        // the function gets a context of its own rather than whatever the caller had installed.
+        let context = ItemContext {
+            local_module: Some(func_meta.source_module),
+            current_item: Some(DependencyId::Function(id)),
+            self_type: func_meta.self_type.clone(),
+            current_trait: func_meta.trait_id,
+            current_trait_impl: func_meta.trait_impl,
+            current_impl: func_meta.impl_id,
+            // Set by `introduce_generics_into_scope`, which also declares the numeric generics.
+            generics: Vec::new(),
+            trait_bounds: func_meta.all_trait_constraints().cloned().collect(),
+            lambda_stack: Vec::new(),
+            current_loop: None,
+            unsafe_block_status: UnsafeBlockStatus::NotInUnsafeBlock,
+            in_comptime_context: false,
+            in_unconstrained_args: false,
+            silence_field_visibility_errors: 0,
+            lvalue_index_counter: 0,
+        };
+        self.with_item_context(context, |this| {
+            this.elaborate_function_body(id, func_meta, kind, body, body_location);
+        });
+    }
 
+    /// Elaborates and type checks the body of `id`, then stores it as the function's HIR body.
+    ///
+    /// Expects the function's own [`ItemContext`] to be installed, as done by
+    /// [`Self::elaborate_function`].
+    fn elaborate_function_body(
+        &mut self,
+        id: FuncId,
+        func_meta: FuncMeta,
+        kind: FunctionKind,
+        body: BlockExpression,
+        body_location: Location,
+    ) {
         self.scopes.start_function();
-        let old_item = self.current_item.replace(DependencyId::Function(id));
-
-        self.trait_bounds = func_meta.all_trait_constraints().cloned().collect();
         self.push_function_context();
 
         // Lints and visibility must be separately from function meta resolution as comptime attribute
@@ -831,10 +859,7 @@ impl Elaborator<'_> {
 
         meta.function_body = FunctionBody::Resolved;
 
-        self.trait_bounds.clear();
         self.interner.update_fn(id, hir_func);
-        self.current_item = old_item;
-        self.local_module = previous_local_module;
     }
 }
 
