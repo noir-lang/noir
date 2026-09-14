@@ -27,20 +27,20 @@ pub(super) struct GenericsState {
 
 impl Elaborator<'_> {
     /// Saves the current generics state to be restored later with [`Self::exit_generics_scope`].
-    /// Note that all of `self.generics` will still be in scope after this call. This will only save the
+    /// Note that all of `self.item.generics` will still be in scope after this call. This will only save the
     /// position of the current generics so that any generics added afterward can later be discarded
     /// via a call to [`Self::exit_generics_scope`].
     pub(super) fn enter_generics_scope(&self) -> GenericsState {
-        GenericsState { generics_count: self.generics.len() }
+        GenericsState { generics_count: self.item.generics.len() }
     }
 
     /// Restores the generics state saved by `enter_generics_scope`.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn exit_generics_scope(&mut self, state: GenericsState) {
-        self.generics.truncate(state.generics_count);
+        self.item.generics.truncate(state.generics_count);
     }
 
-    /// Runs `f` and if it modifies `self.generics`, `self.generics` is truncated
+    /// Runs `f` and if it modifies `self.item.generics`, `self.item.generics` is truncated
     /// back to the previous length.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn recover_generics<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
@@ -83,7 +83,7 @@ impl Elaborator<'_> {
                         second_location: location,
                     });
                 } else {
-                    self.generics.push(resolved_generic.clone());
+                    self.item.generics.push(resolved_generic.clone());
                 }
             }
 
@@ -121,14 +121,14 @@ impl Elaborator<'_> {
                     second_location: location,
                 });
             } else {
-                self.generics.push(resolved_generic.clone());
+                self.item.generics.push(resolved_generic.clone());
             }
         }
     }
 
     /// Find a generic variable among the generics of the current struct or function.
     pub(super) fn find_generic(&self, target_name: &str) -> Option<&ResolvedGeneric> {
-        self.generics.iter().find(|generic| generic.name.as_ref() == target_name)
+        self.item.generics.iter().find(|generic| generic.name.as_ref() == target_name)
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
@@ -266,7 +266,7 @@ impl Elaborator<'_> {
             }
         }
 
-        self.generics = all_generics;
+        self.item.generics = all_generics;
     }
 }
 

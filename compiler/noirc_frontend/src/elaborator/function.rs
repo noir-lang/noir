@@ -175,7 +175,7 @@ impl Elaborator<'_> {
                 },
             );
 
-            let outer_generics = self.generics.clone();
+            let outer_generics = self.item.generics.clone();
             for (method_module, id, func) in &unresolved_impl.methods.functions {
                 self.unresolved_function_metas.insert(
                     *id,
@@ -195,10 +195,10 @@ impl Elaborator<'_> {
             // The assumed impls added while resolving the where clause are only needed to
             // resolve the where clause itself; method bodies re-add them when they elaborate.
             self.remove_trait_constraints_from_scope(resolved_where_clause.iter());
-            self.generics.clear();
+            self.item.generics.clear();
         }
 
-        self.local_module = previous_local_module;
+        self.item.local_module = previous_local_module;
     }
 
     /// Registers each trait impl method as an unresolved meta, capturing the trait
@@ -296,18 +296,18 @@ impl Elaborator<'_> {
             extra_trait_constraints,
         } = info;
 
-        let prev_local_module = self.local_module;
-        let prev_self_type = self.self_type.take();
-        let prev_generics = std::mem::replace(&mut self.generics, outer_generics);
-        let prev_current_trait = self.current_trait.take();
-        let prev_current_trait_impl = self.current_trait_impl.take();
-        let prev_current_impl = self.current_impl.take();
+        let prev_local_module = self.item.local_module;
+        let prev_self_type = self.item.self_type.take();
+        let prev_generics = std::mem::replace(&mut self.item.generics, outer_generics);
+        let prev_current_trait = self.item.current_trait.take();
+        let prev_current_trait_impl = self.item.current_trait_impl.take();
+        let prev_current_impl = self.item.current_impl.take();
 
-        self.local_module = Some(local_module);
-        self.self_type = self_type;
-        self.current_trait = current_trait;
-        self.current_trait_impl = current_trait_impl;
-        self.current_impl = current_impl;
+        self.item.local_module = Some(local_module);
+        self.item.self_type = self_type;
+        self.item.current_trait = current_trait;
+        self.item.current_trait_impl = current_trait_impl;
+        self.item.current_impl = current_impl;
 
         // The `trait_id` argument to `define_function_meta` represents the trait
         // that *defines* this method (set for trait method declarations,
@@ -319,12 +319,12 @@ impl Elaborator<'_> {
             this.define_function_meta(&mut func, func_id, defining_trait, &extra_trait_constraints);
         });
 
-        self.local_module = prev_local_module;
-        self.self_type = prev_self_type;
-        self.generics = prev_generics;
-        self.current_trait = prev_current_trait;
-        self.current_trait_impl = prev_current_trait_impl;
-        self.current_impl = prev_current_impl;
+        self.item.local_module = prev_local_module;
+        self.item.self_type = prev_self_type;
+        self.item.generics = prev_generics;
+        self.item.current_trait = prev_current_trait;
+        self.item.current_trait_impl = prev_current_trait_impl;
+        self.item.current_impl = prev_current_impl;
     }
 
     /// Extracts and stores metadata from a function definition.
@@ -345,9 +345,9 @@ impl Elaborator<'_> {
     ) {
         self.scopes.start_function();
 
-        let previous_current_item = self.current_item.replace(DependencyId::Function(func_id));
+        let previous_current_item = self.item.current_item.replace(DependencyId::Function(func_id));
         let old_comptime_value =
-            std::mem::replace(&mut self.in_comptime_context, func.def.is_comptime);
+            std::mem::replace(&mut self.item.in_comptime_context, func.def.is_comptime);
 
         let location = func.name_ident().location();
         let id = self.interner.function_definition_id(func_id);
@@ -434,7 +434,7 @@ impl Elaborator<'_> {
         let statements = std::mem::take(&mut func.def.body.statements);
         let body = BlockExpression { statements };
 
-        let struct_id = if let Some(Type::DataType(struct_type, _)) = &self.self_type {
+        let struct_id = if let Some(Type::DataType(struct_type, _)) = &self.item.self_type {
             Some(struct_type.borrow().id)
         } else {
             None
@@ -451,11 +451,11 @@ impl Elaborator<'_> {
             location,
             typ,
             direct_generics,
-            all_generics: self.generics.clone(),
+            all_generics: self.item.generics.clone(),
             type_id: struct_id,
             trait_id,
-            trait_impl: self.current_trait_impl,
-            impl_id: self.current_impl,
+            trait_impl: self.item.current_trait_impl,
+            impl_id: self.item.current_impl,
             enum_variant_index: None,
             parameters: parameters.into(),
             parameter_idents,
@@ -469,14 +469,14 @@ impl Elaborator<'_> {
             source_crate: self.crate_id,
             source_module: self.local_module(),
             function_body: FunctionBody::Unresolved(func.kind, body, func.def.location),
-            self_type: self.self_type.clone(),
+            self_type: self.item.self_type.clone(),
             source_file: location.file,
         };
 
         self.interner.push_fn_meta(meta, func_id);
         self.scopes.end_function();
-        self.current_item = previous_current_item;
-        self.in_comptime_context = old_comptime_value;
+        self.item.current_item = previous_current_item;
+        self.item.in_comptime_context = old_comptime_value;
     }
 
     /// Adds function generics and associated generics (from where clause) to scope.
@@ -491,7 +491,7 @@ impl Elaborator<'_> {
     ) -> (Vec<TypeVariable>, Vec<TraitConstraint>) {
         self.add_generics(func_generics);
 
-        let func_generics = vecmap(&self.generics, |generic| generic.type_var.clone());
+        let func_generics = vecmap(&self.item.generics, |generic| generic.type_var.clone());
 
         let associated_generics = self.desugar_trait_constraints(where_clause);
 
@@ -518,7 +518,7 @@ impl Elaborator<'_> {
     }
 
     fn is_function_in_contract(&self) -> bool {
-        if self.self_type.is_some() {
+        if self.item.self_type.is_some() {
             // Without this, impl methods can accidentally be placed in contracts.
             // See: https://github.com/noir-lang/noir/issues/3254
             false

@@ -136,13 +136,13 @@ impl Elaborator<'_> {
         let_stmt: LetStatement,
         global_id: Option<GlobalId>,
     ) -> (HirLetStatement, Type) {
-        let previous_in_comptime_context = self.in_comptime_context;
+        let previous_in_comptime_context = self.item.in_comptime_context;
 
         // If this is a global we need to evaluate its type and value in a new function context.
         // Also, if it's a comptime global we check the type in a comptime context (so Quoted
         // and other comptime-only types are allowed).
         if let Some(global_id) = global_id {
-            self.in_comptime_context = self.interner.get_global_definition(global_id).comptime;
+            self.item.in_comptime_context = self.interner.get_global_definition(global_id).comptime;
             self.push_function_context();
         }
 
@@ -166,7 +166,7 @@ impl Elaborator<'_> {
         // is allowed in global values, even in non-comptime globals, as long as these comptime-only
         // values do not survive until runtime (if they do survive, the monomorphizer will catch this).
         if global_id.is_some() {
-            self.in_comptime_context = true;
+            self.item.in_comptime_context = true;
         }
 
         let pattern_location = let_stmt.pattern.location();
@@ -244,7 +244,7 @@ impl Elaborator<'_> {
 
         if global_id.is_some() {
             self.check_and_pop_function_context();
-            self.in_comptime_context = previous_in_comptime_context;
+            self.item.in_comptime_context = previous_in_comptime_context;
         }
 
         (let_, Type::Unit)
@@ -482,9 +482,9 @@ impl Elaborator<'_> {
         let (end_range, end_range_type) = self.elaborate_expression(end);
         let (identifier, block) = (for_loop.identifier, for_loop.block);
 
-        let old_loop = std::mem::take(&mut self.current_loop);
+        let old_loop = std::mem::take(&mut self.item.current_loop);
 
-        self.current_loop = Some(Loop { is_for: true, has_break: false });
+        self.item.current_loop = Some(Loop { is_for: true, has_break: false });
         self.push_scope();
 
         let kind = DefinitionKind::Local(None);
@@ -515,7 +515,7 @@ impl Elaborator<'_> {
         self.unify_or_type_mismatch(&block_type, &Type::Unit, block_location);
 
         self.pop_scope();
-        self.current_loop = old_loop;
+        self.item.current_loop = old_loop;
 
         let statement = HirStatement::For(HirForStatement {
             start_range,
@@ -536,8 +536,8 @@ impl Elaborator<'_> {
             self.push_err(ResolverError::LoopInConstrainedFn { location });
         }
 
-        let old_loop = std::mem::take(&mut self.current_loop);
-        self.current_loop = Some(Loop { is_for: false, has_break: false });
+        let old_loop = std::mem::take(&mut self.item.current_loop);
+        self.item.current_loop = Some(Loop { is_for: false, has_break: false });
         self.push_scope();
 
         let block_location = block.type_location();
@@ -548,7 +548,7 @@ impl Elaborator<'_> {
         self.pop_scope();
 
         let last_loop =
-            std::mem::replace(&mut self.current_loop, old_loop).expect("Expected a loop");
+            std::mem::replace(&mut self.item.current_loop, old_loop).expect("Expected a loop");
         if !last_loop.has_break {
             self.push_err(ResolverError::LoopWithoutBreak { location });
         }
@@ -573,8 +573,8 @@ impl Elaborator<'_> {
         let (condition, cond_type) = self.elaborate_expression(while_.condition);
         self.unify_or_type_mismatch(&cond_type, &Type::Bool, location);
 
-        let old_loop = std::mem::take(&mut self.current_loop);
-        self.current_loop = Some(Loop { is_for: false, has_break: false });
+        let old_loop = std::mem::take(&mut self.item.current_loop);
+        self.item.current_loop = Some(Loop { is_for: false, has_break: false });
         self.push_scope();
 
         let block_location = while_.body.type_location();
@@ -584,7 +584,7 @@ impl Elaborator<'_> {
 
         self.pop_scope();
 
-        std::mem::replace(&mut self.current_loop, old_loop).expect("Expected a loop");
+        std::mem::replace(&mut self.item.current_loop, old_loop).expect("Expected a loop");
 
         let statement = HirStatement::While(condition, block);
 
@@ -599,7 +599,7 @@ impl Elaborator<'_> {
             self.push_err(ResolverError::JumpInConstrainedFn { is_break, location });
         }
 
-        if let Some(current_loop) = &mut self.current_loop {
+        if let Some(current_loop) = &mut self.item.current_loop {
             if is_break {
                 current_loop.has_break = true;
             }

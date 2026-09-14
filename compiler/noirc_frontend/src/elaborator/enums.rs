@@ -157,7 +157,7 @@ impl Elaborator<'_> {
                 );
             }
         }
-        self.generics.clear();
+        self.item.generics.clear();
     }
 
     /// If `type_id` was registered for deferred variant resolution, resolve it
@@ -190,14 +190,14 @@ impl Elaborator<'_> {
         enum_def: &NoirEnumeration,
     ) {
         let previous_local_module = self.replace_local_module(module_id);
-        let previous_current_item = self.current_item.replace(DependencyId::DataType(type_id));
+        let previous_current_item = self.item.current_item.replace(DependencyId::DataType(type_id));
 
         let previous_in_comptime_context =
-            std::mem::replace(&mut self.in_comptime_context, enum_def.comptime);
+            std::mem::replace(&mut self.item.in_comptime_context, enum_def.comptime);
 
         // Enum variants are resolved at the module level: clear any generics
         // that an outer caller may have in scope.
-        let previous_generics = std::mem::take(&mut self.generics);
+        let previous_generics = std::mem::take(&mut self.item.generics);
 
         let datatype = self.interner.get_type(type_id);
         let datatype_ref = datatype.borrow();
@@ -253,10 +253,10 @@ impl Elaborator<'_> {
 
         self.resolving_ids.remove(&type_id);
 
-        self.generics = previous_generics;
-        self.in_comptime_context = previous_in_comptime_context;
-        self.current_item = previous_current_item;
-        self.local_module = previous_local_module;
+        self.item.generics = previous_generics;
+        self.item.in_comptime_context = previous_in_comptime_context;
+        self.item.current_item = previous_current_item;
+        self.item.local_module = previous_local_module;
     }
 
     /// Defines the value of an enum variant that we resolve an enum

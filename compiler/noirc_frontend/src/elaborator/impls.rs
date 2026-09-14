@@ -128,7 +128,7 @@ impl Elaborator<'_> {
             });
         }
 
-        self.local_module = previous_local_module;
+        self.item.local_module = previous_local_module;
     }
 
     /// Declares methods in the appropriate module and registers them in the interner.

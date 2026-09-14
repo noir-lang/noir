@@ -70,10 +70,10 @@ impl Elaborator<'_> {
         // Set up the elaboration context for this global. We need to ensure that name resolution
         // happens in the module where the global was defined, not where it's being referenced.
         let old_module = self.replace_local_module(global.module_id);
-        let old_item = self.current_item.take();
+        let old_item = self.item.current_item.take();
 
         let global_id = global.global_id;
-        self.current_item = Some(DependencyId::Global(global_id));
+        self.item.current_item = Some(DependencyId::Global(global_id));
         let let_stmt = global.stmt_def;
 
         // In LSP mode, we need to register the global's name for IDE features like
@@ -145,8 +145,8 @@ impl Elaborator<'_> {
         }
 
         // Restore the previous elaboration context.
-        self.local_module = old_module;
-        self.current_item = old_item;
+        self.item.local_module = old_module;
+        self.item.current_item = old_item;
     }
 
     /// Evaluates the global's initializer expression at compile time and stores the resulting value.

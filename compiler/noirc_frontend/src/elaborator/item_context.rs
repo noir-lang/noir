@@ -8,8 +8,8 @@
 //! resolving `Self`, generics, trait bounds, loops and `unsafe` blocks as if it were the callee.
 //!
 //! [`Elaborator::with_item_context`] installs a whole [`ItemContext`] for the duration of a closure
-//! and reinstates the previous one afterwards, so an entry point cannot restore some of these
-//! fields and forget others.
+//! and reinstates the previous one afterwards. Since the state lives in one struct that is swapped
+//! as a unit, a field added here is saved and restored by construction.
 
 use crate::{
     Type,
@@ -20,94 +20,99 @@ use crate::{
 
 use super::{Elaborator, LambdaContext, Loop, UnsafeBlockStatus};
 
-/// Per-item elaborator state. Each field mirrors the [`Elaborator`] field of the same name.
+/// The elaborator state describing one item's elaboration.
+///
+/// This is the state that belongs to an item rather than to the crate being elaborated: anything
+/// here is expected to start fresh for an item and to be irrelevant once that item is done. State
+/// shared by the whole elaboration - the interner, the collected errors, the recursion depth - stays
+/// on the [`Elaborator`] itself.
+#[derive(Default)]
 pub(super) struct ItemContext {
+    /// The current module this elaborator is in.
+    /// Initially None, it is set whenever a new top-level item is resolved.
     pub(super) local_module: Option<LocalModuleId>,
+
+    /// The current dependency item we're resolving.
+    /// Used to link items to their dependencies in the dependency graph
     pub(super) current_item: Option<DependencyId>,
+
+    /// Set to the current type if we're resolving an impl
     pub(super) self_type: Option<Type>,
+
+    /// The trait we're currently resolving or implementing, if any.
+    /// Set during both trait definitions (`trait Foo { ... }`) and
+    /// trait impl elaboration (`impl Foo for Bar { ... }`).
     pub(super) current_trait: Option<TraitId>,
+
+    /// If we're currently resolving methods within a trait impl, this will be set
+    /// to the corresponding trait impl ID.
     pub(super) current_trait_impl: Option<TraitImplId>,
+
+    /// If we're currently resolving methods within an inherent (non-trait) impl,
+    /// this will be set to the corresponding impl ID.
     pub(super) current_impl: Option<ImplId>,
+
+    /// Contains a mapping of the current struct or functions's generics to
+    /// unique type variables if we're resolving a struct. Empty otherwise.
+    /// This is a Vec rather than a map to preserve the order a functions generics
+    /// were declared in.
     pub(super) generics: Vec<ResolvedGeneric>,
+
+    /// Each constraint in the `where` clause of the function currently being resolved.
     pub(super) trait_bounds: Vec<TraitConstraint>,
+
+    /// When resolving lambda expressions, we need to keep track of the variables
+    /// that are captured. We do this in order to create the hidden environment
+    /// parameter for the lambda function.
     pub(super) lambda_stack: Vec<LambdaContext>,
+
     pub(super) current_loop: Option<Loop>,
+
     pub(super) unsafe_block_status: UnsafeBlockStatus,
+
+    /// True if we're elaborating a comptime item such as a comptime function,
+    /// block, global, or attribute.
     pub(super) in_comptime_context: bool,
+
+    /// True if we are elaborating arguments of a function call to an unconstrained function.
     pub(super) in_unconstrained_args: bool,
+
+    /// If greater than 0, field visibility errors won't be reported.
+    /// This is used when elaborating a comptime expression that is a struct constructor
+    /// like `Foo { inner: 5 }`: in that case we already elaborated the code that led to
+    /// that comptime value and any visibility errors were already reported.
     pub(super) silence_field_visibility_errors: usize,
+
+    /// Counter used to define temporary variables for non-simple indexes in l-values.
+    ///
+    /// For example, this expression:
+    ///
+    /// ```noir
+    /// array[x + y] = 10;
+    /// ```
+    ///
+    /// is transformed into:
+    ///
+    /// ```noir
+    /// let i_0 = x + y;
+    /// array[i_0] = 10;
+    /// ```
     pub(super) lvalue_index_counter: usize,
 }
 
 impl Elaborator<'_> {
     /// Runs `f` with `context` installed, then reinstates the context that was active before.
     ///
-    /// Whatever `f` leaves in these fields is discarded, so an entry point that elaborates
-    /// another item through this helper cannot leak that item's state back to its caller.
+    /// Whatever `f` leaves in the context is discarded, so an entry point that elaborates another
+    /// item through this helper cannot leak that item's state back to its caller.
     pub(super) fn with_item_context<T>(
         &mut self,
         context: ItemContext,
         f: impl FnOnce(&mut Self) -> T,
     ) -> T {
-        let outer = self.replace_item_context(context);
+        let outer = std::mem::replace(&mut self.item, context);
         let result = f(self);
-        self.replace_item_context(outer);
+        self.item = outer;
         result
-    }
-
-    /// Installs `context` and returns the context it replaced.
-    fn replace_item_context(&mut self, context: ItemContext) -> ItemContext {
-        // Destructuring without `..` makes adding a field to `ItemContext` a compile error here
-        // until the new field is swapped as well.
-        let ItemContext {
-            local_module,
-            current_item,
-            self_type,
-            current_trait,
-            current_trait_impl,
-            current_impl,
-            generics,
-            trait_bounds,
-            lambda_stack,
-            current_loop,
-            unsafe_block_status,
-            in_comptime_context,
-            in_unconstrained_args,
-            silence_field_visibility_errors,
-            lvalue_index_counter,
-        } = context;
-
-        ItemContext {
-            local_module: std::mem::replace(&mut self.local_module, local_module),
-            current_item: std::mem::replace(&mut self.current_item, current_item),
-            self_type: std::mem::replace(&mut self.self_type, self_type),
-            current_trait: std::mem::replace(&mut self.current_trait, current_trait),
-            current_trait_impl: std::mem::replace(&mut self.current_trait_impl, current_trait_impl),
-            current_impl: std::mem::replace(&mut self.current_impl, current_impl),
-            generics: std::mem::replace(&mut self.generics, generics),
-            trait_bounds: std::mem::replace(&mut self.trait_bounds, trait_bounds),
-            lambda_stack: std::mem::replace(&mut self.lambda_stack, lambda_stack),
-            current_loop: std::mem::replace(&mut self.current_loop, current_loop),
-            unsafe_block_status: std::mem::replace(
-                &mut self.unsafe_block_status,
-                unsafe_block_status,
-            ),
-            in_comptime_context: std::mem::replace(
-                &mut self.in_comptime_context,
-                in_comptime_context,
-            ),
-            in_unconstrained_args: std::mem::replace(
-                &mut self.in_unconstrained_args,
-                in_unconstrained_args,
-            ),
-            silence_field_visibility_errors: std::mem::replace(
-                &mut self.silence_field_visibility_errors,
-                silence_field_visibility_errors,
-            ),
-            lvalue_index_counter: std::mem::replace(
-                &mut self.lvalue_index_counter,
-                lvalue_index_counter,
-            ),
-        }
     }
 }

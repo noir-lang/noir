@@ -154,7 +154,7 @@ impl Elaborator<'_> {
             }
             ExpressionKind::Quote(quote) => self.elaborate_quote(quote, expr.location),
             ExpressionKind::Comptime(block, _) => {
-                if self.in_comptime_context {
+                if self.item.in_comptime_context {
                     // Treat a nested comptime block as a regular block. Nested comptime blocks
                     // can happen as a result of macro expansion so it wouldn't be good to produce
                     // a warning in that case.
@@ -360,7 +360,7 @@ impl Elaborator<'_> {
     ) -> (HirExpression, Type) {
         use UnsafeBlockStatus::*;
         // Before entering the block we cache the old value of the unsafe block status, so it can be restored.
-        let old_in_unsafe_block = self.unsafe_block_status;
+        let old_in_unsafe_block = self.item.unsafe_block_status;
         let is_nested_unsafe_block = !matches!(old_in_unsafe_block, NotInUnsafeBlock);
 
         if is_nested_unsafe_block {
@@ -369,13 +369,13 @@ impl Elaborator<'_> {
             });
         }
 
-        self.unsafe_block_status = InUnsafeBlockWithoutUnconstrainedCalls;
+        self.item.unsafe_block_status = InUnsafeBlockWithoutUnconstrainedCalls;
 
         let (hir_block_expression, typ) =
             self.elaborate_block_expression(unsafe_expression.block, target_type);
 
         let has_unconstrained_call =
-            matches!(self.unsafe_block_status, InUnsafeBlockWithUnconstrainedCalls);
+            matches!(self.item.unsafe_block_status, InUnsafeBlockWithUnconstrainedCalls);
 
         if !has_unconstrained_call {
             self.push_err(TypeCheckError::UnnecessaryUnsafeBlock {
@@ -387,7 +387,7 @@ impl Elaborator<'_> {
         // unless we are in a nested block and we have found an unconstrained call,
         // in which case we should consider the outer block as having that call as well.
         if !is_nested_unsafe_block || !has_unconstrained_call {
-            self.unsafe_block_status = old_in_unsafe_block;
+            self.item.unsafe_block_status = old_in_unsafe_block;
         }
 
         (HirExpression::Unsafe(hir_block_expression), typ)
@@ -701,7 +701,7 @@ impl Elaborator<'_> {
         name: String,
         location: Location,
     ) {
-        if let Some(lambda_context) = self.lambda_stack.last() {
+        if let Some(lambda_context) = self.item.lambda_stack.last() {
             let typ = self.interner.definition_type(id);
             if !typ.is_mutable_ref() && lambda_context.captures.iter().any(|var| var.ident.id == id)
             {
@@ -865,7 +865,7 @@ impl Elaborator<'_> {
 
         // When calling an unconstrained function, we can elaborate lambda arguments to be unconstrained.
         let was_in_unconstrained_args =
-            std::mem::replace(&mut self.in_unconstrained_args, unconstrained);
+            std::mem::replace(&mut self.item.in_unconstrained_args, unconstrained);
 
         let mut arguments = Vec::with_capacity(call.arguments.len());
         let args = vecmap(call.arguments.into_iter().enumerate(), |(arg_index, arg)| {
@@ -882,7 +882,7 @@ impl Elaborator<'_> {
         let typ = self.type_check_call(&hir_call, func_type, args, location);
 
         // Restore the old one after type checking.
-        self.in_unconstrained_args = was_in_unconstrained_args;
+        self.item.in_unconstrained_args = was_in_unconstrained_args;
 
         (hir_call, typ)
     }
@@ -1735,7 +1735,7 @@ impl Elaborator<'_> {
             self.elaborate_lambda_with_parameter_type_hints(
                 lambda,
                 Some(&args),
-                unconstrained || self.in_unconstrained_args,
+                unconstrained || self.item.in_unconstrained_args,
             )
         } else {
             self.elaborate_lambda_with_parameter_type_hints(lambda, None, false)
@@ -1758,7 +1758,11 @@ impl Elaborator<'_> {
         self.push_scope();
         let scope_index = self.scopes.current_scope_index();
 
-        self.lambda_stack.push(LambdaContext { captures: Vec::new(), scope_index, unconstrained });
+        self.item.lambda_stack.push(LambdaContext {
+            captures: Vec::new(),
+            scope_index,
+            unconstrained,
+        });
 
         let mut arg_types = Vec::with_capacity(lambda.parameters.len());
         let mut parameter_names_in_list = HashMap::default();
@@ -1800,7 +1804,7 @@ impl Elaborator<'_> {
         let body_location = lambda.body.location;
         let (body, body_type) = self.elaborate_expression(lambda.body);
 
-        let lambda_context = self.lambda_stack.pop().unwrap();
+        let lambda_context = self.item.lambda_stack.pop().unwrap();
         self.pop_scope();
 
         self.unify_or_type_mismatch(&body_type, &return_type, body_location);
@@ -1899,11 +1903,11 @@ impl Elaborator<'_> {
                 // here (they could if we have `Foo { inner: 5 }` and `inner` is not
                 // accessible from where this expression is being elaborated).
                 if !from_macro_call {
-                    self.silence_field_visibility_errors += 1;
+                    self.item.silence_field_visibility_errors += 1;
                 }
                 let value = self.elaborate_expression(new_expr);
                 if !from_macro_call {
-                    self.silence_field_visibility_errors -= 1;
+                    self.item.silence_field_visibility_errors -= 1;
                 }
                 value
             }
@@ -2133,11 +2137,11 @@ impl Elaborator<'_> {
                 // Mirror `elaborate_unsafe_block`: an unconstrained call inside the block crosses
                 // the runtime boundary legally, so the boundary check must see that we are inside an
                 // unsafe block rather than reporting a spurious error.
-                let old_status = self.unsafe_block_status;
-                self.unsafe_block_status =
+                let old_status = self.item.unsafe_block_status;
+                self.item.unsafe_block_status =
                     UnsafeBlockStatus::InUnsafeBlockWithoutUnconstrainedCalls;
                 self.revalidate_resolved_block(&block);
-                self.unsafe_block_status = old_status;
+                self.item.unsafe_block_status = old_status;
             }
             HirExpression::Prefix(prefix) => {
                 self.revalidate_resolved_expression(prefix.rhs);
@@ -2187,13 +2191,13 @@ impl Elaborator<'_> {
             HirExpression::Lambda(lambda) => {
                 // A lambda body has its own runtime mode, so re-run the checks with that mode in
                 // effect rather than the enclosing function's.
-                self.lambda_stack.push(LambdaContext {
+                self.item.lambda_stack.push(LambdaContext {
                     captures: Vec::new(),
                     scope_index: 0,
                     unconstrained: lambda.unconstrained,
                 });
                 self.revalidate_resolved_expression(lambda.body);
-                self.lambda_stack.pop();
+                self.item.lambda_stack.pop();
             }
             HirExpression::Match(match_expr) => {
                 self.revalidate_resolved_match(&match_expr);

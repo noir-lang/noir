@@ -78,11 +78,10 @@ use crate::{
     hir_def::{
         expr::{HirCapturedVar, HirIdent},
         traits::TraitConstraint,
-        types::{Kind, ResolvedGeneric},
+        types::Kind,
     },
     node_interner::{
-        DependencyId, FuncId, GlobalId, ImplId, NodeInterner, TraitId, TraitImplId, TypeAliasId,
-        TypeId,
+        DependencyId, FuncId, GlobalId, NodeInterner, TraitId, TraitImplId, TypeAliasId, TypeId,
     },
     parser::{ParserError, ParserErrorReason},
     recursion::TypeRecursionContext,
@@ -119,6 +118,7 @@ use self::traits::check_trait_impl_method_matches_declaration;
 use self::variable::VariableResolution;
 use fm::FileMap;
 use function_context::FunctionContext;
+use item_context::ItemContext;
 use noirc_errors::Location;
 pub(crate) use options::ElaboratorOptions;
 pub use options::{FrontendOptions, UnstableFeature};
@@ -189,8 +189,9 @@ pub struct LambdaContext {
 /// Determines whether we are in an unsafe block and, if so, whether
 /// any unconstrained calls were found in it (because if not we'll warn
 /// that the unsafe block is not needed).
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 enum UnsafeBlockStatus {
+    #[default]
     NotInUnsafeBlock,
     InUnsafeBlockWithoutUnconstrainedCalls,
     InUnsafeBlockWithUnconstrainedCalls,
@@ -251,39 +252,9 @@ pub struct Elaborator<'context> {
     /// they are elaborated (e.g. in a function's type or another global's RHS).
     unresolved_globals: &'context mut BTreeMap<GlobalId, UnresolvedGlobal>,
 
-    unsafe_block_status: UnsafeBlockStatus,
-    current_loop: Option<Loop>,
-
-    /// Contains a mapping of the current struct or functions's generics to
-    /// unique type variables if we're resolving a struct. Empty otherwise.
-    /// This is a Vec rather than a map to preserve the order a functions generics
-    /// were declared in.
-    generics: Vec<ResolvedGeneric>,
-
-    /// When resolving lambda expressions, we need to keep track of the variables
-    /// that are captured. We do this in order to create the hidden environment
-    /// parameter for the lambda function.
-    lambda_stack: Vec<LambdaContext>,
-
-    /// Set to the current type if we're resolving an impl
-    self_type: Option<Type>,
-
-    /// The current dependency item we're resolving.
-    /// Used to link items to their dependencies in the dependency graph
-    current_item: Option<DependencyId>,
-
-    /// If we're currently resolving methods within a trait impl, this will be set
-    /// to the corresponding trait impl ID.
-    current_trait_impl: Option<TraitImplId>,
-
-    /// If we're currently resolving methods within an inherent (non-trait) impl,
-    /// this will be set to the corresponding impl ID.
-    current_impl: Option<ImplId>,
-
-    /// The trait we're currently resolving or implementing, if any.
-    /// Set during both trait definitions (`trait Foo { ... }`) and
-    /// trait impl elaboration (`impl Foo for Bar { ... }`).
-    current_trait: Option<TraitId>,
+    /// State describing the item currently being elaborated. Swapped as a unit by
+    /// [`Elaborator::with_item_context`] so that elaborating one item cannot disturb another's.
+    item: ItemContext,
 
     /// In-resolution names
     ///
@@ -300,9 +271,6 @@ pub struct Elaborator<'context> {
     /// ```
     resolving_ids: BTreeSet<TypeId>,
 
-    /// Each constraint in the `where` clause of the function currently being resolved.
-    trait_bounds: Vec<TraitConstraint>,
-
     /// This is a stack of function contexts. Most of the time, for each function we
     /// expect this to be of length one, containing each type variable and trait constraint
     /// used in the function. This is also pushed to when a `comptime {}` block is used within
@@ -312,26 +280,9 @@ pub struct Elaborator<'context> {
     /// that were made within this block as well so that we can solve these traits.
     function_context: Vec<FunctionContext>,
 
-    /// The current module this elaborator is in.
-    /// Initially None, it is set whenever a new top-level item is resolved.
-    local_module: Option<LocalModuleId>,
-
-    /// True if we're elaborating a comptime item such as a comptime function,
-    /// block, global, or attribute.
-    in_comptime_context: bool,
-
-    /// True if we are elaborating arguments of a function call to an unconstrained function.
-    in_unconstrained_args: bool,
-
     crate_id: CrateId,
 
     interpreter_call_stack: imbl::Vector<Location>,
-
-    /// If greater than 0, field visibility errors won't be reported.
-    /// This is used when elaborating a comptime expression that is a struct constructor
-    /// like `Foo { inner: 5 }`: in that case we already elaborated the code that led to
-    /// that comptime value and any visibility errors were already reported.
-    silence_field_visibility_errors: usize,
 
     /// When set, visibility checks during path resolution use this module
     /// instead of the default importing module.
@@ -353,22 +304,6 @@ pub struct Elaborator<'context> {
     /// when an attribute generates code that triggers further attribute expansion.
     /// This is a global counter that catches both single-function and mutual recursion.
     pub(crate) macro_expansion_depth: usize,
-
-    /// Counter used to define temporary variables for non-simple indexes in l-values.
-    ///
-    /// For example, this expression:
-    ///
-    /// ```noir
-    /// array[x + y] = 10;
-    /// ```
-    ///
-    /// is transformed into:
-    ///
-    /// ```noir
-    /// let i_0 = x + y;
-    /// array[i_0] = 10;
-    /// ```
-    lvalue_index_counter: usize,
 
     /// Current recursion depth.
     recursion_depth: usize,
@@ -497,30 +432,16 @@ impl<'context> Elaborator<'context> {
             evaluation_tracker,
             required_unstable_features,
             unresolved_globals,
-            unsafe_block_status: UnsafeBlockStatus::NotInUnsafeBlock,
-            current_loop: None,
-            generics: Vec::new(),
-            lambda_stack: Vec::new(),
-            self_type: None,
-            current_item: None,
-            local_module: None,
+            item: ItemContext::default(),
             crate_id,
             resolving_ids: BTreeSet::new(),
-            trait_bounds: Vec::new(),
             function_context: vec![FunctionContext::default()],
-            current_trait_impl: None,
-            current_impl: None,
-            current_trait: None,
             interpreter_call_stack,
-            in_comptime_context: false,
-            in_unconstrained_args: false,
-            silence_field_visibility_errors: 0,
             caller_module: None,
             options,
             elaborate_reasons,
             comptime_evaluation_halted: false,
             macro_expansion_depth: 0,
-            lvalue_index_counter: 0,
             recursion_depth: 0,
             impl_trait_is_disallowed: None,
             parent_runtime_variables: rustc_hash::FxHashSet::default(),
@@ -532,16 +453,16 @@ impl<'context> Elaborator<'context> {
     }
 
     pub(crate) fn local_module(&self) -> LocalModuleId {
-        self.local_module.expect("local_module is unset")
+        self.item.local_module.expect("local_module is unset")
     }
 
     /// Returns `true` if the current local module is the crate root,
     /// and we are not inside an impl or trait impl.
     pub(crate) fn is_at_crate_root(&self) -> bool {
-        self.self_type.is_none()
-            && self.current_trait.is_none()
-            && self.current_trait_impl.is_none()
-            && self.local_module.is_some_and(|id| id == self.def_maps[&self.crate_id].root())
+        self.item.self_type.is_none()
+            && self.item.current_trait.is_none()
+            && self.item.current_trait_impl.is_none()
+            && self.item.local_module.is_some_and(|id| id == self.def_maps[&self.crate_id].root())
     }
 
     pub fn from_context(
@@ -745,8 +666,8 @@ impl<'context> Elaborator<'context> {
             self.elaborate_function(id);
         }
 
-        self.generics.clear();
-        self.self_type = None;
+        self.item.generics.clear();
+        self.item.self_type = None;
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
@@ -1106,10 +1027,10 @@ impl<'context> Elaborator<'context> {
     #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_traits(&mut self, traits: BTreeMap<TraitId, UnresolvedTrait>) {
         for (trait_id, unresolved_trait) in traits {
-            self.current_trait = Some(trait_id);
+            self.item.current_trait = Some(trait_id);
             self.elaborate_functions(unresolved_trait.fns_with_default_impl);
         }
-        self.current_trait = None;
+        self.item.current_trait = None;
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
@@ -1123,9 +1044,9 @@ impl<'context> Elaborator<'context> {
     fn elaborate_trait_impl(&mut self, trait_impl: UnresolvedTraitImpl) {
         let previous_local_module = self.replace_local_module(trait_impl.module_id);
 
-        self.generics.clone_from(&trait_impl.resolved_generics);
-        self.current_trait_impl = trait_impl.impl_id;
-        self.current_trait = trait_impl.trait_id;
+        self.item.generics.clone_from(&trait_impl.resolved_generics);
+        self.item.current_trait_impl = trait_impl.impl_id;
+        self.item.current_trait = trait_impl.trait_id;
 
         self.add_trait_impl_assumed_trait_implementations(trait_impl.impl_id);
         self.check_trait_impl_where_clause_matches_trait_where_clause(&trait_impl);
@@ -1141,7 +1062,7 @@ impl<'context> Elaborator<'context> {
             let previous_method_module = self.replace_local_module(*module);
             let errors =
                 check_trait_impl_method_matches_declaration(self, *function, noir_function);
-            self.local_module = previous_method_module;
+            self.item.local_module = previous_method_module;
             self.push_errors(errors);
         }
 
@@ -1151,13 +1072,13 @@ impl<'context> Elaborator<'context> {
             }
             self.elaborate_function(*id);
         }
-        self.generics.clear();
+        self.item.generics.clear();
 
-        self.self_type = None;
-        self.current_trait_impl = None;
-        self.current_trait = None;
-        self.generics.clear();
-        self.local_module = previous_local_module;
+        self.item.self_type = None;
+        self.item.current_trait_impl = None;
+        self.item.current_trait = None;
+        self.item.generics.clear();
+        self.item.local_module = previous_local_module;
     }
 
     pub fn get_module(&self, module: ModuleId) -> &ModuleData {
@@ -1176,14 +1097,14 @@ impl<'context> Elaborator<'context> {
         let previous_local_module = self.replace_local_module(alias.module_id);
 
         let previous_in_comptime_context =
-            std::mem::replace(&mut self.in_comptime_context, alias.type_alias_def.comptime);
+            std::mem::replace(&mut self.item.in_comptime_context, alias.type_alias_def.comptime);
 
         let name = &alias.type_alias_def.name;
         let visibility = alias.type_alias_def.visibility;
         let location = alias.type_alias_def.location;
 
         let generics = self.add_generics(&alias.type_alias_def.generics);
-        self.current_item = Some(DependencyId::Alias(alias_id));
+        self.item.current_item = Some(DependencyId::Alias(alias_id));
         let wildcard_allowed = types::WildcardAllowed::No(WildcardDisallowedContext::TypeAlias);
         let previous_impl_trait_context =
             self.impl_trait_is_disallowed.replace(types::ImplTraitDisallowedContext::TypeAlias);
@@ -1228,11 +1149,11 @@ impl<'context> Elaborator<'context> {
             self.check_type_is_not_more_private_then_item(name, visibility, &typ, location);
         }
         self.interner.set_type_alias(alias_id, typ, generics, num_expr);
-        self.generics.clear();
+        self.item.generics.clear();
 
-        self.current_item = None;
-        self.in_comptime_context = previous_in_comptime_context;
-        self.local_module = previous_local_module;
+        self.item.current_item = None;
+        self.item.in_comptime_context = previous_in_comptime_context;
+        self.item.local_module = previous_local_module;
     }
 
     /// True if we're currently within a constrained function or lambda.
@@ -1242,7 +1163,7 @@ impl<'context> Elaborator<'context> {
             return false;
         }
 
-        let in_unconstrained_function = self.current_item.is_some_and(|id| {
+        let in_unconstrained_function = self.item.current_item.is_some_and(|id| {
             if let DependencyId::Function(id) = id {
                 self.interner.function_meta(&id).is_unconstrained()
             } else {
@@ -1250,7 +1171,8 @@ impl<'context> Elaborator<'context> {
             }
         });
 
-        let in_unconstrained_lambda = self.lambda_stack.last().is_some_and(|ctx| ctx.unconstrained);
+        let in_unconstrained_lambda =
+            self.item.lambda_stack.last().is_some_and(|ctx| ctx.unconstrained);
 
         !in_unconstrained_function && !in_unconstrained_lambda
     }
@@ -1328,13 +1250,13 @@ impl<'context> Elaborator<'context> {
 
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn reset_lvalue_index_counter(&mut self) {
-        self.lvalue_index_counter = 0;
+        self.item.lvalue_index_counter = 0;
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn next_lvalue_index_counter(&mut self) -> usize {
-        let lvalue_index_counter = self.lvalue_index_counter;
-        self.lvalue_index_counter += 1;
+        let lvalue_index_counter = self.item.lvalue_index_counter;
+        self.item.lvalue_index_counter += 1;
         lvalue_index_counter
     }
 

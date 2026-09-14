@@ -96,17 +96,17 @@ impl Elaborator<'_> {
         struct_def: &NoirStruct,
     ) {
         let previous_local_module = self.replace_local_module(module_id);
-        let previous_current_item = self.current_item.take();
-        self.current_item = Some(DependencyId::DataType(type_id));
+        let previous_current_item = self.item.current_item.take();
+        self.item.current_item = Some(DependencyId::DataType(type_id));
 
         let previous_in_comptime_context =
-            std::mem::replace(&mut self.in_comptime_context, struct_def.comptime);
+            std::mem::replace(&mut self.item.in_comptime_context, struct_def.comptime);
 
         // Struct fields are resolved at the module level: clear any generics
         // that an outer caller may have in scope (e.g. when lazy resolution
         // is triggered from inside an impl method, the impl's generics would
         // otherwise collide with the struct's via `add_existing_generics`).
-        let previous_generics = std::mem::take(&mut self.generics);
+        let previous_generics = std::mem::take(&mut self.item.generics);
 
         let fields = self.resolve_struct_fields(struct_def, type_id);
 
@@ -134,10 +134,10 @@ impl Elaborator<'_> {
             struct_def_in_interner.set_fields(fields);
         });
 
-        self.generics = previous_generics;
-        self.in_comptime_context = previous_in_comptime_context;
-        self.current_item = previous_current_item;
-        self.local_module = previous_local_module;
+        self.item.generics = previous_generics;
+        self.item.in_comptime_context = previous_in_comptime_context;
+        self.item.current_item = previous_current_item;
+        self.item.local_module = previous_local_module;
     }
 
     /// Resolves the field types for a single struct definition.
@@ -155,7 +155,7 @@ impl Elaborator<'_> {
         struct_id: TypeId,
     ) -> Vec<StructField> {
         self.recover_generics(|this| {
-            let previous_item = this.current_item.replace(DependencyId::DataType(struct_id));
+            let previous_item = this.item.current_item.replace(DependencyId::DataType(struct_id));
 
             this.resolving_ids.insert(struct_id);
 
@@ -180,7 +180,7 @@ impl Elaborator<'_> {
 
             this.resolving_ids.remove(&struct_id);
 
-            this.current_item = previous_item;
+            this.item.current_item = previous_item;
 
             fields
         })
