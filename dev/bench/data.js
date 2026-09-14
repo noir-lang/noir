@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789383701794,
+  "lastUpdate": 1789383758392,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -10586,48 +10586,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "454bcb487e8fb75aaf7cc7d4c0c1c6d22f2aeb44",
-          "message": "chore(docs): prune docs snapshots that are never built, and bound the directory (#13608)",
-          "timestamp": "2026-09-07T13:33:48+01:00",
-          "tree_id": "864efcdf676868ab38b2f6df1e46d75c3e922367",
-          "url": "https://github.com/noir-lang/noir/commit/454bcb487e8fb75aaf7cc7d4c0c1c6d22f2aeb44"
-        },
-        "date": 1788784582764,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 163504,
-            "range": "± 453",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 135407,
-            "range": "± 10928",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2124223,
-            "range": "± 4002",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -12679,6 +12637,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2651802,
             "range": "± 1994",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "ba20062c9e6928ca25f4e4443b5414ead3b10a24",
+          "message": "fix(noirc_abi): don't let `AbiType::field_count` wrap (#13684)",
+          "timestamp": "2026-09-14T10:41:05Z",
+          "tree_id": "dca9a90ace6d37a92428ad4a6b9afe0c02a44ab8",
+          "url": "https://github.com/noir-lang/noir/commit/ba20062c9e6928ca25f4e4443b5414ead3b10a24"
+        },
+        "date": 1789383671941,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 170013,
+            "range": "± 346",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 137405,
+            "range": "± 1808",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2655643,
+            "range": "± 2158",
             "unit": "ns/iter"
           }
         ]
