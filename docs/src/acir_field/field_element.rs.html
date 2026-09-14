@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `acvm-repo/acir_field/src/field_element.rs`."><title>field_element.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-84e720fa.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="acir_field" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0 (29483883e 2025-08-04)" data-channel="1.89.0" data-search-js="search-92309212.js" data-settings-js="settings-5514c975.js" ><script src="../../static.files/storage-4e99c027.js"></script><script defer src="../../static.files/src-script-813739b1.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-fd3af306.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">acir_field/</div>field_element.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="kw">use </span>ark_ff::BigInteger;
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `acvm-repo/acir_field/src/field_element.rs`."><title>field_element.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-84e720fa.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="acir_field" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0 (29483883e 2025-08-04)" data-channel="1.89.0" data-search-js="search-92309212.js" data-settings-js="settings-5514c975.js" ><script src="../../static.files/storage-4e99c027.js"></script><script defer src="../../static.files/src-script-813739b1.js"></script><script defer src="../../src-files.js"></script><script defer src="../../static.files/main-fd3af306.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">acir_field/</div>field_element.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-4"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="kw">use </span>ark_ff::BigInteger;
 <a href=#2 id=2 data-nosnippet>2</a><span class="kw">use </span>ark_ff::PrimeField;
 <a href=#3 id=3 data-nosnippet>3</a><span class="kw">use </span>ark_ff::Zero;
 <a href=#4 id=4 data-nosnippet>4</a><span class="kw">use </span>msgpack_tagged::MsgpackTagged;
@@ -637,7 +637,7 @@
 <a href=#637 id=637 data-nosnippet>637</a>
 <a href=#638 id=638 data-nosnippet>638</a><span class="attr">#[cfg(test)]
 <a href=#639 id=639 data-nosnippet>639</a></span><span class="kw">mod </span>tests {
-<a href=#640 id=640 data-nosnippet>640</a>    <span class="kw">use super</span>::{AcirField, FieldElement};
+<a href=#640 id=640 data-nosnippet>640</a>    <span class="kw">use super</span>::{AcirField, BigUint, FieldElement};
 <a href=#641 id=641 data-nosnippet>641</a>    <span class="kw">use </span>proptest::prelude::<span class="kw-2">*</span>;
 <a href=#642 id=642 data-nosnippet>642</a>    <span class="kw">use </span>std::ops::Neg;
 <a href=#643 id=643 data-nosnippet>643</a>
@@ -913,73 +913,90 @@
 <a href=#913 id=913 data-nosnippet>913</a>    }
 <a href=#914 id=914 data-nosnippet>914</a>
 <a href=#915 id=915 data-nosnippet>915</a>    <span class="macro">proptest!</span> {
-<a href=#916 id=916 data-nosnippet>916</a>        <span class="comment">// This currently panics due to the fact that we allow inputs which are greater than the field modulus,
-<a href=#917 id=917 data-nosnippet>917</a>        // automatically reducing them to fit within the canonical range.
-<a href=#918 id=918 data-nosnippet>918</a>        </span><span class="attr">#[test]
-<a href=#919 id=919 data-nosnippet>919</a>        #[should_panic(expected = <span class="string">"serialized field element is not equal to input"</span>)]
-<a href=#920 id=920 data-nosnippet>920</a>        </span><span class="kw">fn </span>recovers_original_hex_string(hex <span class="kw">in </span><span class="string">"[0-9a-f]{64}"</span>) {
-<a href=#921 id=921 data-nosnippet>921</a>            <span class="kw">let </span>fe: FieldElement::&lt;ark_bn254::Fr&gt; = FieldElement::from_hex(<span class="kw-2">&amp;</span>hex).expect(<span class="string">"should accept any 32 byte hex string"</span>);
-<a href=#922 id=922 data-nosnippet>922</a>            <span class="kw">let </span>output_hex = fe.to_hex();
-<a href=#923 id=923 data-nosnippet>923</a>
-<a href=#924 id=924 data-nosnippet>924</a>            <span class="macro">prop_assert_eq!</span>(hex, output_hex, <span class="string">"serialized field element is not equal to input"</span>);
-<a href=#925 id=925 data-nosnippet>925</a>        }
+<a href=#916 id=916 data-nosnippet>916</a>        <span class="comment">// `from_hex` accepts any 32 byte hex string and reduces it modulo the field, so a string
+<a href=#917 id=917 data-nosnippet>917</a>        // only comes back out of `to_hex` unchanged when it is already the canonical representation
+<a href=#918 id=918 data-nosnippet>918</a>        // of a field element. Draw the canonical form so this tests the round trip rather than the
+<a href=#919 id=919 data-nosnippet>919</a>        // reduction, which `reduces_out_of_range_hex_string` covers.
+<a href=#920 id=920 data-nosnippet>920</a>        </span><span class="attr">#[test]
+<a href=#921 id=921 data-nosnippet>921</a>        </span><span class="kw">fn </span>recovers_original_hex_string(bytes <span class="kw">in </span>proptest::array::uniform32(any::&lt;u8&gt;())) {
+<a href=#922 id=922 data-nosnippet>922</a>            <span class="kw">let </span>fe = FieldElement::&lt;ark_bn254::Fr&gt;::from_be_bytes_reduce(<span class="kw-2">&amp;</span>bytes);
+<a href=#923 id=923 data-nosnippet>923</a>            <span class="kw">let </span>hex = fe.to_hex();
+<a href=#924 id=924 data-nosnippet>924</a>
+<a href=#925 id=925 data-nosnippet>925</a>            <span class="kw">let </span>recovered: FieldElement::&lt;ark_bn254::Fr&gt; = FieldElement::from_hex(<span class="kw-2">&amp;</span>hex).expect(<span class="string">"should accept any 32 byte hex string"</span>);
 <a href=#926 id=926 data-nosnippet>926</a>
-<a href=#927 id=927 data-nosnippet>927</a>        <span class="attr">#[test]
-<a href=#928 id=928 data-nosnippet>928</a>        </span><span class="kw">fn </span>accepts_odd_length_hex_strings(hex <span class="kw">in </span><span class="string">"(?:0x)[0-9a-fA-F]+"</span>) {
-<a href=#929 id=929 data-nosnippet>929</a>            <span class="comment">// Here we inject a "0" immediately after the "0x" (if it exists) to construct an equivalent
-<a href=#930 id=930 data-nosnippet>930</a>            // hex string with the opposite parity length.
-<a href=#931 id=931 data-nosnippet>931</a>            </span><span class="kw">let </span>insert_index = <span class="kw">if </span>hex.starts_with(<span class="string">"0x"</span>) { <span class="number">2 </span>} <span class="kw">else </span>{ <span class="number">0 </span>};
-<a href=#932 id=932 data-nosnippet>932</a>            <span class="kw">let </span><span class="kw-2">mut </span>opposite_parity_string = hex.clone();
-<a href=#933 id=933 data-nosnippet>933</a>            opposite_parity_string.insert(insert_index, <span class="string">'0'</span>);
-<a href=#934 id=934 data-nosnippet>934</a>
-<a href=#935 id=935 data-nosnippet>935</a>            <span class="kw">let </span>fe_1: FieldElement::&lt;ark_bn254::Fr&gt; = FieldElement::from_hex(<span class="kw-2">&amp;</span>hex).unwrap();
-<a href=#936 id=936 data-nosnippet>936</a>            <span class="kw">let </span>fe_2: FieldElement::&lt;ark_bn254::Fr&gt; = FieldElement::from_hex(<span class="kw-2">&amp;</span>opposite_parity_string).unwrap();
+<a href=#927 id=927 data-nosnippet>927</a>            <span class="macro">prop_assert_eq!</span>(fe, recovered, <span class="string">"field element did not survive a to_hex/from_hex round trip"</span>);
+<a href=#928 id=928 data-nosnippet>928</a>            <span class="macro">prop_assert_eq!</span>(hex, recovered.to_hex(), <span class="string">"serialized field element is not equal to input"</span>);
+<a href=#929 id=929 data-nosnippet>929</a>        }
+<a href=#930 id=930 data-nosnippet>930</a>
+<a href=#931 id=931 data-nosnippet>931</a>        <span class="comment">// The counterpart to the above: a hex string above the modulus is accepted and reduced, so
+<a href=#932 id=932 data-nosnippet>932</a>        // it is the reduced value that `to_hex` returns.
+<a href=#933 id=933 data-nosnippet>933</a>        </span><span class="attr">#[test]
+<a href=#934 id=934 data-nosnippet>934</a>        </span><span class="kw">fn </span>reduces_out_of_range_hex_string(offset <span class="kw">in </span><span class="number">0u128</span>..<span class="number">1000</span>) {
+<a href=#935 id=935 data-nosnippet>935</a>            <span class="kw">let </span>out_of_range = FieldElement::&lt;ark_bn254::Fr&gt;::modulus() + BigUint::from(offset);
+<a href=#936 id=936 data-nosnippet>936</a>            <span class="kw">let </span>hex = <span class="macro">format!</span>(<span class="string">"{out_of_range:064x}"</span>);
 <a href=#937 id=937 data-nosnippet>937</a>
-<a href=#938 id=938 data-nosnippet>938</a>            <span class="macro">prop_assert_eq!</span>(fe_1, fe_2, <span class="string">"equivalent hex strings with opposite parity deserialized to different values"</span>);
-<a href=#939 id=939 data-nosnippet>939</a>        }
-<a href=#940 id=940 data-nosnippet>940</a>    }
-<a href=#941 id=941 data-nosnippet>941</a>
-<a href=#942 id=942 data-nosnippet>942</a>    <span class="attr">#[test]
-<a href=#943 id=943 data-nosnippet>943</a>    </span><span class="kw">fn </span>test_to_hex() {
-<a href=#944 id=944 data-nosnippet>944</a>        <span class="kw">type </span>F = FieldElement&lt;ark_bn254::Fr&gt;;
-<a href=#945 id=945 data-nosnippet>945</a>        <span class="macro">assert_eq!</span>(
-<a href=#946 id=946 data-nosnippet>946</a>            F::zero().to_hex(),
-<a href=#947 id=947 data-nosnippet>947</a>            <span class="string">"0000000000000000000000000000000000000000000000000000000000000000"
-<a href=#948 id=948 data-nosnippet>948</a>        </span>);
-<a href=#949 id=949 data-nosnippet>949</a>        <span class="macro">assert_eq!</span>(
-<a href=#950 id=950 data-nosnippet>950</a>            F::one().to_hex(),
-<a href=#951 id=951 data-nosnippet>951</a>            <span class="string">"0000000000000000000000000000000000000000000000000000000000000001"
-<a href=#952 id=952 data-nosnippet>952</a>        </span>);
-<a href=#953 id=953 data-nosnippet>953</a>        <span class="macro">assert_eq!</span>(
-<a href=#954 id=954 data-nosnippet>954</a>            F::from(<span class="number">0x123_u128</span>).to_hex(),
-<a href=#955 id=955 data-nosnippet>955</a>            <span class="string">"0000000000000000000000000000000000000000000000000000000000000123"
-<a href=#956 id=956 data-nosnippet>956</a>        </span>);
-<a href=#957 id=957 data-nosnippet>957</a>        <span class="macro">assert_eq!</span>(
-<a href=#958 id=958 data-nosnippet>958</a>            F::from(<span class="number">0x1234_u128</span>).to_hex(),
-<a href=#959 id=959 data-nosnippet>959</a>            <span class="string">"0000000000000000000000000000000000000000000000000000000000001234"
-<a href=#960 id=960 data-nosnippet>960</a>        </span>);
-<a href=#961 id=961 data-nosnippet>961</a>    }
-<a href=#962 id=962 data-nosnippet>962</a>
-<a href=#963 id=963 data-nosnippet>963</a>    <span class="attr">#[test]
-<a href=#964 id=964 data-nosnippet>964</a>    </span><span class="kw">fn </span>test_to_short_hex() {
-<a href=#965 id=965 data-nosnippet>965</a>        <span class="kw">type </span>F = FieldElement&lt;ark_bn254::Fr&gt;;
-<a href=#966 id=966 data-nosnippet>966</a>        <span class="macro">assert_eq!</span>(F::zero().to_short_hex(), <span class="string">"0x00"</span>);
-<a href=#967 id=967 data-nosnippet>967</a>        <span class="macro">assert_eq!</span>(F::one().to_short_hex(), <span class="string">"0x01"</span>);
-<a href=#968 id=968 data-nosnippet>968</a>        <span class="macro">assert_eq!</span>(F::from(<span class="number">0x123_u128</span>).to_short_hex(), <span class="string">"0x0123"</span>);
-<a href=#969 id=969 data-nosnippet>969</a>        <span class="macro">assert_eq!</span>(F::from(<span class="number">0x1234_u128</span>).to_short_hex(), <span class="string">"0x1234"</span>);
-<a href=#970 id=970 data-nosnippet>970</a>    }
-<a href=#971 id=971 data-nosnippet>971</a>
-<a href=#972 id=972 data-nosnippet>972</a>    <span class="attr">#[test]
-<a href=#973 id=973 data-nosnippet>973</a>    </span><span class="kw">fn </span>to_string_as_signed_integer() {
-<a href=#974 id=974 data-nosnippet>974</a>        <span class="kw">type </span>F = FieldElement&lt;ark_bn254::Fr&gt;;
-<a href=#975 id=975 data-nosnippet>975</a>        <span class="macro">assert_eq!</span>(F::zero().to_string_as_signed_integer(<span class="number">8</span>), <span class="string">"0"</span>);
-<a href=#976 id=976 data-nosnippet>976</a>        <span class="macro">assert_eq!</span>(F::one().to_string_as_signed_integer(<span class="number">8</span>), <span class="string">"1"</span>);
-<a href=#977 id=977 data-nosnippet>977</a>        <span class="macro">assert_eq!</span>(F::from(<span class="number">127_u128</span>).to_string_as_signed_integer(<span class="number">8</span>), <span class="string">"127"</span>);
-<a href=#978 id=978 data-nosnippet>978</a>        <span class="macro">assert_eq!</span>(F::from(<span class="number">128_u128</span>).to_string_as_signed_integer(<span class="number">8</span>), <span class="string">"-128"</span>);
-<a href=#979 id=979 data-nosnippet>979</a>        <span class="macro">assert_eq!</span>(F::from(<span class="number">129_u128</span>).to_string_as_signed_integer(<span class="number">8</span>), <span class="string">"-127"</span>);
-<a href=#980 id=980 data-nosnippet>980</a>        <span class="macro">assert_eq!</span>(F::from(<span class="number">255_u128</span>).to_string_as_signed_integer(<span class="number">8</span>), <span class="string">"-1"</span>);
-<a href=#981 id=981 data-nosnippet>981</a>        <span class="macro">assert_eq!</span>(F::from(<span class="number">32767_u128</span>).to_string_as_signed_integer(<span class="number">16</span>), <span class="string">"32767"</span>);
-<a href=#982 id=982 data-nosnippet>982</a>        <span class="macro">assert_eq!</span>(F::from(<span class="number">32768_u128</span>).to_string_as_signed_integer(<span class="number">16</span>), <span class="string">"-32768"</span>);
-<a href=#983 id=983 data-nosnippet>983</a>        <span class="macro">assert_eq!</span>(F::from(<span class="number">65535_u128</span>).to_string_as_signed_integer(<span class="number">16</span>), <span class="string">"-1"</span>);
-<a href=#984 id=984 data-nosnippet>984</a>    }
-<a href=#985 id=985 data-nosnippet>985</a>}</code></pre></div></section></main></body></html>
+<a href=#938 id=938 data-nosnippet>938</a>            <span class="kw">let </span>fe: FieldElement::&lt;ark_bn254::Fr&gt; = FieldElement::from_hex(<span class="kw-2">&amp;</span>hex).expect(<span class="string">"should accept any 32 byte hex string"</span>);
+<a href=#939 id=939 data-nosnippet>939</a>
+<a href=#940 id=940 data-nosnippet>940</a>            <span class="macro">prop_assert_eq!</span>(fe, FieldElement::&lt;ark_bn254::Fr&gt;::from(offset));
+<a href=#941 id=941 data-nosnippet>941</a>            <span class="macro">prop_assert_ne!</span>(fe.to_hex(), hex);
+<a href=#942 id=942 data-nosnippet>942</a>        }
+<a href=#943 id=943 data-nosnippet>943</a>
+<a href=#944 id=944 data-nosnippet>944</a>        <span class="attr">#[test]
+<a href=#945 id=945 data-nosnippet>945</a>        </span><span class="kw">fn </span>accepts_odd_length_hex_strings(hex <span class="kw">in </span><span class="string">"(?:0x)[0-9a-fA-F]+"</span>) {
+<a href=#946 id=946 data-nosnippet>946</a>            <span class="comment">// Here we inject a "0" immediately after the "0x" (if it exists) to construct an equivalent
+<a href=#947 id=947 data-nosnippet>947</a>            // hex string with the opposite parity length.
+<a href=#948 id=948 data-nosnippet>948</a>            </span><span class="kw">let </span>insert_index = <span class="kw">if </span>hex.starts_with(<span class="string">"0x"</span>) { <span class="number">2 </span>} <span class="kw">else </span>{ <span class="number">0 </span>};
+<a href=#949 id=949 data-nosnippet>949</a>            <span class="kw">let </span><span class="kw-2">mut </span>opposite_parity_string = hex.clone();
+<a href=#950 id=950 data-nosnippet>950</a>            opposite_parity_string.insert(insert_index, <span class="string">'0'</span>);
+<a href=#951 id=951 data-nosnippet>951</a>
+<a href=#952 id=952 data-nosnippet>952</a>            <span class="kw">let </span>fe_1: FieldElement::&lt;ark_bn254::Fr&gt; = FieldElement::from_hex(<span class="kw-2">&amp;</span>hex).unwrap();
+<a href=#953 id=953 data-nosnippet>953</a>            <span class="kw">let </span>fe_2: FieldElement::&lt;ark_bn254::Fr&gt; = FieldElement::from_hex(<span class="kw-2">&amp;</span>opposite_parity_string).unwrap();
+<a href=#954 id=954 data-nosnippet>954</a>
+<a href=#955 id=955 data-nosnippet>955</a>            <span class="macro">prop_assert_eq!</span>(fe_1, fe_2, <span class="string">"equivalent hex strings with opposite parity deserialized to different values"</span>);
+<a href=#956 id=956 data-nosnippet>956</a>        }
+<a href=#957 id=957 data-nosnippet>957</a>    }
+<a href=#958 id=958 data-nosnippet>958</a>
+<a href=#959 id=959 data-nosnippet>959</a>    <span class="attr">#[test]
+<a href=#960 id=960 data-nosnippet>960</a>    </span><span class="kw">fn </span>test_to_hex() {
+<a href=#961 id=961 data-nosnippet>961</a>        <span class="kw">type </span>F = FieldElement&lt;ark_bn254::Fr&gt;;
+<a href=#962 id=962 data-nosnippet>962</a>        <span class="macro">assert_eq!</span>(
+<a href=#963 id=963 data-nosnippet>963</a>            F::zero().to_hex(),
+<a href=#964 id=964 data-nosnippet>964</a>            <span class="string">"0000000000000000000000000000000000000000000000000000000000000000"
+<a href=#965 id=965 data-nosnippet>965</a>        </span>);
+<a href=#966 id=966 data-nosnippet>966</a>        <span class="macro">assert_eq!</span>(
+<a href=#967 id=967 data-nosnippet>967</a>            F::one().to_hex(),
+<a href=#968 id=968 data-nosnippet>968</a>            <span class="string">"0000000000000000000000000000000000000000000000000000000000000001"
+<a href=#969 id=969 data-nosnippet>969</a>        </span>);
+<a href=#970 id=970 data-nosnippet>970</a>        <span class="macro">assert_eq!</span>(
+<a href=#971 id=971 data-nosnippet>971</a>            F::from(<span class="number">0x123_u128</span>).to_hex(),
+<a href=#972 id=972 data-nosnippet>972</a>            <span class="string">"0000000000000000000000000000000000000000000000000000000000000123"
+<a href=#973 id=973 data-nosnippet>973</a>        </span>);
+<a href=#974 id=974 data-nosnippet>974</a>        <span class="macro">assert_eq!</span>(
+<a href=#975 id=975 data-nosnippet>975</a>            F::from(<span class="number">0x1234_u128</span>).to_hex(),
+<a href=#976 id=976 data-nosnippet>976</a>            <span class="string">"0000000000000000000000000000000000000000000000000000000000001234"
+<a href=#977 id=977 data-nosnippet>977</a>        </span>);
+<a href=#978 id=978 data-nosnippet>978</a>    }
+<a href=#979 id=979 data-nosnippet>979</a>
+<a href=#980 id=980 data-nosnippet>980</a>    <span class="attr">#[test]
+<a href=#981 id=981 data-nosnippet>981</a>    </span><span class="kw">fn </span>test_to_short_hex() {
+<a href=#982 id=982 data-nosnippet>982</a>        <span class="kw">type </span>F = FieldElement&lt;ark_bn254::Fr&gt;;
+<a href=#983 id=983 data-nosnippet>983</a>        <span class="macro">assert_eq!</span>(F::zero().to_short_hex(), <span class="string">"0x00"</span>);
+<a href=#984 id=984 data-nosnippet>984</a>        <span class="macro">assert_eq!</span>(F::one().to_short_hex(), <span class="string">"0x01"</span>);
+<a href=#985 id=985 data-nosnippet>985</a>        <span class="macro">assert_eq!</span>(F::from(<span class="number">0x123_u128</span>).to_short_hex(), <span class="string">"0x0123"</span>);
+<a href=#986 id=986 data-nosnippet>986</a>        <span class="macro">assert_eq!</span>(F::from(<span class="number">0x1234_u128</span>).to_short_hex(), <span class="string">"0x1234"</span>);
+<a href=#987 id=987 data-nosnippet>987</a>    }
+<a href=#988 id=988 data-nosnippet>988</a>
+<a href=#989 id=989 data-nosnippet>989</a>    <span class="attr">#[test]
+<a href=#990 id=990 data-nosnippet>990</a>    </span><span class="kw">fn </span>to_string_as_signed_integer() {
+<a href=#991 id=991 data-nosnippet>991</a>        <span class="kw">type </span>F = FieldElement&lt;ark_bn254::Fr&gt;;
+<a href=#992 id=992 data-nosnippet>992</a>        <span class="macro">assert_eq!</span>(F::zero().to_string_as_signed_integer(<span class="number">8</span>), <span class="string">"0"</span>);
+<a href=#993 id=993 data-nosnippet>993</a>        <span class="macro">assert_eq!</span>(F::one().to_string_as_signed_integer(<span class="number">8</span>), <span class="string">"1"</span>);
+<a href=#994 id=994 data-nosnippet>994</a>        <span class="macro">assert_eq!</span>(F::from(<span class="number">127_u128</span>).to_string_as_signed_integer(<span class="number">8</span>), <span class="string">"127"</span>);
+<a href=#995 id=995 data-nosnippet>995</a>        <span class="macro">assert_eq!</span>(F::from(<span class="number">128_u128</span>).to_string_as_signed_integer(<span class="number">8</span>), <span class="string">"-128"</span>);
+<a href=#996 id=996 data-nosnippet>996</a>        <span class="macro">assert_eq!</span>(F::from(<span class="number">129_u128</span>).to_string_as_signed_integer(<span class="number">8</span>), <span class="string">"-127"</span>);
+<a href=#997 id=997 data-nosnippet>997</a>        <span class="macro">assert_eq!</span>(F::from(<span class="number">255_u128</span>).to_string_as_signed_integer(<span class="number">8</span>), <span class="string">"-1"</span>);
+<a href=#998 id=998 data-nosnippet>998</a>        <span class="macro">assert_eq!</span>(F::from(<span class="number">32767_u128</span>).to_string_as_signed_integer(<span class="number">16</span>), <span class="string">"32767"</span>);
+<a href=#999 id=999 data-nosnippet>999</a>        <span class="macro">assert_eq!</span>(F::from(<span class="number">32768_u128</span>).to_string_as_signed_integer(<span class="number">16</span>), <span class="string">"-32768"</span>);
+<a href=#1000 id=1000 data-nosnippet>1000</a>        <span class="macro">assert_eq!</span>(F::from(<span class="number">65535_u128</span>).to_string_as_signed_integer(<span class="number">16</span>), <span class="string">"-1"</span>);
+<a href=#1001 id=1001 data-nosnippet>1001</a>    }
+<a href=#1002 id=1002 data-nosnippet>1002</a>}</code></pre></div></section></main></body></html>
