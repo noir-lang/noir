@@ -1019,11 +1019,9 @@ impl<'context> Elaborator<'context> {
 
     #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_traits(&mut self, traits: BTreeMap<TraitId, UnresolvedTrait>) {
-        for (trait_id, unresolved_trait) in traits {
-            self.item.current_trait = Some(trait_id);
+        for unresolved_trait in traits.into_values() {
             self.elaborate_functions(unresolved_trait.fns_with_default_impl);
         }
-        self.item.current_trait = None;
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
