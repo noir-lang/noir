@@ -157,8 +157,6 @@ impl Elaborator<'_> {
         struct_id: TypeId,
     ) -> Vec<StructField> {
         self.recover_generics(|this| {
-            let previous_item = this.item.current_item.replace(DependencyId::DataType(struct_id));
-
             this.resolving_ids.insert(struct_id);
 
             let struct_def = this.interner.get_type(struct_id);
@@ -181,8 +179,6 @@ impl Elaborator<'_> {
             this.impl_trait_is_disallowed = previous_impl_trait_context;
 
             this.resolving_ids.remove(&struct_id);
-
-            this.item.current_item = previous_item;
 
             fields
         })
