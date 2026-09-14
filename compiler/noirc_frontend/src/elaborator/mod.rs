@@ -661,9 +661,6 @@ impl<'context> Elaborator<'context> {
         for (_, id, _) in functions.functions {
             self.elaborate_function(id);
         }
-
-        self.item.generics.clear();
-        self.item.self_type = None;
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
@@ -1022,11 +1019,9 @@ impl<'context> Elaborator<'context> {
 
     #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_traits(&mut self, traits: BTreeMap<TraitId, UnresolvedTrait>) {
-        for (trait_id, unresolved_trait) in traits {
-            self.item.current_trait = Some(trait_id);
+        for unresolved_trait in traits.into_values() {
             self.elaborate_functions(unresolved_trait.fns_with_default_impl);
         }
-        self.item.current_trait = None;
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
@@ -1038,43 +1033,39 @@ impl<'context> Elaborator<'context> {
 
     #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_trait_impl(&mut self, trait_impl: UnresolvedTraitImpl) {
-        let previous_local_module = self.item.replace_local_module(trait_impl.module_id);
+        let context = ItemContext {
+            local_module: Some(trait_impl.module_id),
+            current_trait_impl: trait_impl.impl_id,
+            current_trait: trait_impl.trait_id,
+            generics: trait_impl.resolved_generics.clone(),
+            ..Default::default()
+        };
+        self.with_item_context(context, |this| {
+            this.add_trait_impl_assumed_trait_implementations(trait_impl.impl_id);
+            this.check_trait_impl_where_clause_matches_trait_where_clause(&trait_impl);
+            this.remove_trait_impl_assumed_trait_implementations(trait_impl.impl_id);
 
-        self.item.generics.clone_from(&trait_impl.resolved_generics);
-        self.item.current_trait_impl = trait_impl.impl_id;
-        self.item.current_trait = trait_impl.trait_id;
-
-        self.add_trait_impl_assumed_trait_implementations(trait_impl.impl_id);
-        self.check_trait_impl_where_clause_matches_trait_where_clause(&trait_impl);
-        self.remove_trait_impl_assumed_trait_implementations(trait_impl.impl_id);
-
-        // Inherited defaults are typed once at the trait definition; their bodies match the
-        // declaration by construction and re-elaborating them per impl would duplicate
-        // diagnostics (and waste work).
-        for (module, function, noir_function) in &trait_impl.methods.functions {
-            if trait_impl.inherited_default_method_func_ids.contains(function) {
-                continue;
+            // Inherited defaults are typed once at the trait definition; their bodies match the
+            // declaration by construction and re-elaborating them per impl would duplicate
+            // diagnostics (and waste work).
+            for (module, function, noir_function) in &trait_impl.methods.functions {
+                if trait_impl.inherited_default_method_func_ids.contains(function) {
+                    continue;
+                }
+                let previous_method_module = this.item.replace_local_module(*module);
+                let errors =
+                    check_trait_impl_method_matches_declaration(this, *function, noir_function);
+                this.item.local_module = previous_method_module;
+                this.push_errors(errors);
             }
-            let previous_method_module = self.item.replace_local_module(*module);
-            let errors =
-                check_trait_impl_method_matches_declaration(self, *function, noir_function);
-            self.item.local_module = previous_method_module;
-            self.push_errors(errors);
-        }
 
-        for (_, id, _) in &trait_impl.methods.functions {
-            if trait_impl.inherited_default_method_func_ids.contains(id) {
-                continue;
+            for (_, id, _) in &trait_impl.methods.functions {
+                if trait_impl.inherited_default_method_func_ids.contains(id) {
+                    continue;
+                }
+                this.elaborate_function(*id);
             }
-            self.elaborate_function(*id);
-        }
-        self.item.generics.clear();
-
-        self.item.self_type = None;
-        self.item.current_trait_impl = None;
-        self.item.current_trait = None;
-        self.item.generics.clear();
-        self.item.local_module = previous_local_module;
+        });
     }
 
     pub fn get_module(&self, module: ModuleId) -> &ModuleData {
@@ -1090,17 +1081,25 @@ impl<'context> Elaborator<'context> {
 
     #[tracing::instrument(level = "trace", skip_all)]
     fn define_type_alias(&mut self, alias_id: TypeAliasId, alias: UnresolvedTypeAlias) {
-        let previous_local_module = self.item.replace_local_module(alias.module_id);
+        let context = ItemContext {
+            local_module: Some(alias.module_id),
+            current_item: Some(DependencyId::Alias(alias_id)),
+            in_comptime_context: alias.type_alias_def.comptime,
+            ..Default::default()
+        };
+        self.with_item_context(context, |this| this.define_type_alias_in_context(alias_id, alias));
+    }
 
-        let previous_in_comptime_context =
-            std::mem::replace(&mut self.item.in_comptime_context, alias.type_alias_def.comptime);
-
+    /// Resolves the aliased type and records it on the interner.
+    ///
+    /// Expects the alias's own [`ItemContext`] to be installed, as done by
+    /// [`Self::define_type_alias`].
+    fn define_type_alias_in_context(&mut self, alias_id: TypeAliasId, alias: UnresolvedTypeAlias) {
         let name = &alias.type_alias_def.name;
         let visibility = alias.type_alias_def.visibility;
         let location = alias.type_alias_def.location;
 
         let generics = self.add_generics(&alias.type_alias_def.generics);
-        self.item.current_item = Some(DependencyId::Alias(alias_id));
         let wildcard_allowed = types::WildcardAllowed::No(WildcardDisallowedContext::TypeAlias);
         let previous_impl_trait_context =
             self.impl_trait_is_disallowed.replace(types::ImplTraitDisallowedContext::TypeAlias);
@@ -1145,11 +1144,6 @@ impl<'context> Elaborator<'context> {
             self.check_type_is_not_more_private_then_item(name, visibility, &typ, location);
         }
         self.interner.set_type_alias(alias_id, typ, generics, num_expr);
-        self.item.generics.clear();
-
-        self.item.current_item = None;
-        self.item.in_comptime_context = previous_in_comptime_context;
-        self.item.local_module = previous_local_module;
     }
 
     /// True if we're currently within a constrained function or lambda.
