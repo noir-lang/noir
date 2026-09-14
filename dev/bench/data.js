@@ -1,42 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789376908851,
+  "lastUpdate": 1789376947098,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "b77647e0cb0dd264f840e273ba41bc74fc7cb42c",
-          "message": "chore(ci): drop the aztec-packages benchmark reports and the noir-contracts compile job (#13605)",
-          "timestamp": "2026-09-07T13:02:46+01:00",
-          "tree_id": "86b21d46862e7203ab5f373a561e7bfe6be0b82f",
-          "url": "https://github.com/noir-lang/noir/commit/b77647e0cb0dd264f840e273ba41bc74fc7cb42c"
-        },
-        "date": 1788782903120,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 106.83,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 150.54,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -1699,6 +1665,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512_100_bytes",
             "value": 151.86,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "091fd9e4258d2030c110ad7daf64a32ff6c732a0",
+          "message": "fix(ssa): reject `not` on a field in the SSA validator (#13685)",
+          "timestamp": "2026-09-14T08:42:00Z",
+          "tree_id": "33274e7fdb322cabb6ecf293b8e9dbeaa06ad9c6",
+          "url": "https://github.com/noir-lang/noir/commit/091fd9e4258d2030c110ad7daf64a32ff6c732a0"
+        },
+        "date": 1789376850345,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore_depth_10",
+            "value": 106.81,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 151.88,
             "unit": "MB"
           }
         ]
