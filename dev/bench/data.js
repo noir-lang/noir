@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789392124844,
+  "lastUpdate": 1789392128363,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18274,40 +18274,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "de151dabaa5fa5cfa9422b2341048baac26b2173",
-          "message": "chore: drop eleven unused dependencies and close the lint gaps that hid them (#13624)",
-          "timestamp": "2026-09-08T10:58:14Z",
-          "tree_id": "68e58ce67f278300a183433811b6df6665e8ca71",
-          "url": "https://github.com/noir-lang/noir/commit/de151dabaa5fa5cfa9422b2341048baac26b2173"
-        },
-        "date": 1788866627714,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 2073.7,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 151.5,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -19957,6 +19923,105 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/9878753d961715079464d3688b0ddbe62abad8c5"
         },
         "date": 1789391158423,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 821.7,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 904.1,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 666.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-no-txs",
+            "value": 374.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 394.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 493,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 314.6,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 750.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 788.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 494.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 771.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 934.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 283.8,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 2073.7,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 151.5,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "80e295e769b0d0d0da0b96a42b4b23774308af98",
+          "message": "fix(ssa): visit each value once when invalidating constant folding's array cache (#13695)",
+          "timestamp": "2026-09-14T12:51:02Z",
+          "tree_id": "d1b43bec96e6dad78feb62455342928bb4afa6ad",
+          "url": "https://github.com/noir-lang/noir/commit/80e295e769b0d0d0da0b96a42b4b23774308af98"
+        },
+        "date": 1789392050048,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
