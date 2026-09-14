@@ -100,6 +100,20 @@ pub(super) struct ItemContext {
     pub(super) lvalue_index_counter: usize,
 }
 
+impl ItemContext {
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(super) fn reset_lvalue_index_counter(&mut self) {
+        self.lvalue_index_counter = 0;
+    }
+
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(super) fn next_lvalue_index_counter(&mut self) -> usize {
+        let lvalue_index_counter = self.lvalue_index_counter;
+        self.lvalue_index_counter += 1;
+        lvalue_index_counter
+    }
+}
+
 impl Elaborator<'_> {
     /// Runs `f` with `context` installed, then reinstates the context that was active before.
     ///

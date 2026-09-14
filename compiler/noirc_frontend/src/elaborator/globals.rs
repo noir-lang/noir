@@ -69,7 +69,7 @@ impl Elaborator<'_> {
     fn elaborate_global(&mut self, global: UnresolvedGlobal) {
         // Set up the elaboration context for this global. We need to ensure that name resolution
         // happens in the module where the global was defined, not where it's being referenced.
-        let old_module = self.replace_local_module(global.module_id);
+        let old_module = self.item.replace_local_module(global.module_id);
         let old_item = self.item.current_item.take();
 
         let global_id = global.global_id;
@@ -109,7 +109,7 @@ impl Elaborator<'_> {
             self.push_err(ResolverError::MutableGlobal { location });
         }
 
-        self.reset_lvalue_index_counter();
+        self.item.reset_lvalue_index_counter();
         let (let_statement, _typ) = self.elaborate_let(let_stmt, Some(global_id));
 
         // References cannot be stored in globals because they would outlive their referents.
