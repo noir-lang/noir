@@ -645,17 +645,18 @@ impl DocItemBuilder<'_> {
         let params = vecmap(func_meta.parameters.iter(), |(pattern, typ, _visibility)| {
             let is_self = pattern.is_self(self.interner);
 
-            // `&mut self` is represented as a mutable reference type, not as a mutable pattern
-            let mut mut_ref = false;
-            let name = if is_self && matches!(typ, noirc_frontend::Type::Reference(..)) {
-                mut_ref = true;
+            // `&self` and `&mut self` are represented as a reference type, not as a mutable
+            // pattern, so the reference's own mutability is what tells the two apart.
+            let mut self_reference = None;
+            let name = if is_self && let noirc_frontend::Type::Reference(_, mutable) = typ {
+                self_reference = Some(*mutable);
                 "self".to_string()
             } else {
                 self.pattern_to_string(pattern)
             };
 
             let r#type = self.convert_type(typ);
-            FunctionParam { name, r#type, mut_ref }
+            FunctionParam { name, r#type, self_reference }
         });
         let return_type = self.convert_type(func_meta.return_type());
         let trait_constraints = func_meta.trait_constraints.clone();

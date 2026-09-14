@@ -69,19 +69,19 @@
 <pre><code>pub trait Hasher {
     <span class="comment">// Required methods</span>
     pub fn <a href="#finish" class="fn">finish</a>(self) -> <a href="../../std/primitive.Field.html" class="primitive">Field</a>;
-    pub fn <a href="#write" class="fn">write</a>(&mut self: &mut Self, input: <a href="../../std/primitive.Field.html" class="primitive">Field</a>);
+    pub fn <a href="#write" class="fn">write</a>(&mut self, input: <a href="../../std/primitive.Field.html" class="primitive">Field</a>);
 
     <span class="comment">// Provided methods</span>
-    pub fn <a href="#finish_ref" class="fn">finish_ref</a>(&mut self: &Self) -> <a href="../../std/primitive.Field.html" class="primitive">Field</a> { ... }
+    pub fn <a href="#finish_ref" class="fn">finish_ref</a>(&self) -> <a href="../../std/primitive.Field.html" class="primitive">Field</a> { ... }
 }</code></pre>
 
 <h2>Required methods</h2>
 <div class="padded-methods"><code id="finish" class="code-header">pub fn <a href="#finish" class="fn">finish</a>(self) -> <a href="../../std/primitive.Field.html" class="primitive">Field</a></code>
 
-<code id="write" class="code-header">pub fn <a href="#write" class="fn">write</a>(&mut self: &mut Self, input: <a href="../../std/primitive.Field.html" class="primitive">Field</a>)</code>
+<code id="write" class="code-header">pub fn <a href="#write" class="fn">write</a>(&mut self, input: <a href="../../std/primitive.Field.html" class="primitive">Field</a>)</code>
 
 </div><h2>Provided methods</h2>
-<div class="padded-methods"><code id="finish_ref" class="code-header">pub fn <a href="#finish_ref" class="fn">finish_ref</a>(&mut self: &Self) -> <a href="../../std/primitive.Field.html" class="primitive">Field</a></code>
+<div class="padded-methods"><code id="finish_ref" class="code-header">pub fn <a href="#finish_ref" class="fn">finish_ref</a>(&self) -> <a href="../../std/primitive.Field.html" class="primitive">Field</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns the hash value without consuming the hasher.
