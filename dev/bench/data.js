@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789389255988,
+  "lastUpdate": 1789389259111,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14330,40 +14330,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "aef4fc70bd052d02e057140b88b0b80a00e7d3ae",
-          "message": "chore: fix spelling mistakes and normalize British spellings (#13617)",
-          "timestamp": "2026-09-07T21:31:13Z",
-          "tree_id": "2830c7e332c46eb4f443d722222d7d7cf8bda563",
-          "url": "https://github.com/noir-lang/noir/commit/aef4fc70bd052d02e057140b88b0b80a00e7d3ae"
-        },
-        "date": 1788818162490,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 5699,
-            "unit": "opcodes"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 13173,
-            "unit": "opcodes"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -16013,6 +15979,40 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/1aaf1e4c920f7c1bbbc58b56e9129f7c9a2b16ea"
         },
         "date": 1789388807786,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 5699,
+            "unit": "opcodes"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 13173,
+            "unit": "opcodes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "921850027871ded176c35987fd585bd685df7342",
+          "message": "fix(brillig): don't let array length arithmetic wrap (#13690)",
+          "timestamp": "2026-09-14T12:04:24Z",
+          "tree_id": "75b8880a2ad9616a1b7f6292aab469943fbb9d41",
+          "url": "https://github.com/noir-lang/noir/commit/921850027871ded176c35987fd585bd685df7342"
+        },
+        "date": 1789389172096,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
