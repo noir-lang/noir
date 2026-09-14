@@ -1,42 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789383332325,
+  "lastUpdate": 1789383360050,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "454bcb487e8fb75aaf7cc7d4c0c1c6d22f2aeb44",
-          "message": "chore(docs): prune docs snapshots that are never built, and bound the directory (#13608)",
-          "timestamp": "2026-09-07T13:33:48+01:00",
-          "tree_id": "864efcdf676868ab38b2f6df1e46d75c3e922367",
-          "url": "https://github.com/noir-lang/noir/commit/454bcb487e8fb75aaf7cc7d4c0c1c6d22f2aeb44"
-        },
-        "date": 1788784819147,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 106.81,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 150.52,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -1689,6 +1655,40 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/689753e8cf87caa7c96bbc0bf3c6fcdc35955460"
         },
         "date": 1789382855873,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore_depth_10",
+            "value": 106.81,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 151.86,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "8c78b458a0a5cd31ebfcce60e5f4a5ff6c4e5085",
+          "message": "fix(acir_field): make `recovers_original_hex_string` test the hex round trip (#13681)",
+          "timestamp": "2026-09-14T10:28:34Z",
+          "tree_id": "b72702230b65a0183a1e490d0ba5c0a209fc150a",
+          "url": "https://github.com/noir-lang/noir/commit/8c78b458a0a5cd31ebfcce60e5f4a5ff6c4e5085"
+        },
+        "date": 1789383274873,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
