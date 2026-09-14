@@ -637,7 +637,7 @@ impl<F: PrimeField> MsgpackTagged for FieldElement<F> {
 
 #[cfg(test)]
 mod tests {
-    use super::{AcirField, FieldElement};
+    use super::{AcirField, BigUint, FieldElement};
     use proptest::prelude::*;
     use std::ops::Neg;
 
@@ -913,15 +913,32 @@ mod tests {
     }
 
     proptest! {
-        // This currently panics due to the fact that we allow inputs which are greater than the field modulus,
-        // automatically reducing them to fit within the canonical range.
+        // `from_hex` accepts any 32 byte hex string and reduces it modulo the field, so a string
+        // only comes back out of `to_hex` unchanged when it is already the canonical representation
+        // of a field element. Draw the canonical form so this tests the round trip rather than the
+        // reduction, which `reduces_out_of_range_hex_string` covers.
         #[test]
-        #[should_panic(expected = "serialized field element is not equal to input")]
-        fn recovers_original_hex_string(hex in "[0-9a-f]{64}") {
-            let fe: FieldElement::<ark_bn254::Fr> = FieldElement::from_hex(&hex).expect("should accept any 32 byte hex string");
-            let output_hex = fe.to_hex();
+        fn recovers_original_hex_string(bytes in proptest::array::uniform32(any::<u8>())) {
+            let fe = FieldElement::<ark_bn254::Fr>::from_be_bytes_reduce(&bytes);
+            let hex = fe.to_hex();
 
-            prop_assert_eq!(hex, output_hex, "serialized field element is not equal to input");
+            let recovered: FieldElement::<ark_bn254::Fr> = FieldElement::from_hex(&hex).expect("should accept any 32 byte hex string");
+
+            prop_assert_eq!(fe, recovered, "field element did not survive a to_hex/from_hex round trip");
+            prop_assert_eq!(hex, recovered.to_hex(), "serialized field element is not equal to input");
+        }
+
+        // The counterpart to the above: a hex string above the modulus is accepted and reduced, so
+        // it is the reduced value that `to_hex` returns.
+        #[test]
+        fn reduces_out_of_range_hex_string(offset in 0u128..1000) {
+            let out_of_range = FieldElement::<ark_bn254::Fr>::modulus() + BigUint::from(offset);
+            let hex = format!("{out_of_range:064x}");
+
+            let fe: FieldElement::<ark_bn254::Fr> = FieldElement::from_hex(&hex).expect("should accept any 32 byte hex string");
+
+            prop_assert_eq!(fe, FieldElement::<ark_bn254::Fr>::from(offset));
+            prop_assert_ne!(fe.to_hex(), hex);
         }
 
         #[test]
