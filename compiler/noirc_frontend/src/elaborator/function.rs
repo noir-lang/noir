@@ -140,7 +140,7 @@ impl Elaborator<'_> {
         local_module: LocalModuleId,
         impls: &mut Vec<UnresolvedImpl>,
     ) {
-        let previous_local_module = self.replace_local_module(local_module);
+        let previous_local_module = self.item.replace_local_module(local_module);
 
         for unresolved_impl in impls {
             let impl_id = unresolved_impl.impl_id;
@@ -308,11 +308,13 @@ impl Elaborator<'_> {
         // registered rather than whatever the caller had installed.
         let context = ItemContext {
             local_module: Some(local_module),
+            current_item: Some(DependencyId::Function(func_id)),
             self_type,
             current_trait,
             current_trait_impl,
             current_impl,
             generics: outer_generics,
+            in_comptime_context: func.def.is_comptime,
             ..Default::default()
         };
         self.with_item_context(context, |this| {
@@ -328,6 +330,9 @@ impl Elaborator<'_> {
     ///
     /// Prerequisite: any implicit generics from enclosing impls have already been added
     /// to scope via [`Self::add_generics`].
+    ///
+    /// Expects the function's own [`ItemContext`] to be installed, with `current_item` naming
+    /// the function and `in_comptime_context` reflecting whether it is a comptime function.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn define_function_meta(
         &mut self,
@@ -337,10 +342,6 @@ impl Elaborator<'_> {
         extra_trait_constraints: &[(TraitConstraint, Location)],
     ) {
         self.scopes.start_function();
-
-        let previous_current_item = self.item.current_item.replace(DependencyId::Function(func_id));
-        let old_comptime_value =
-            std::mem::replace(&mut self.item.in_comptime_context, func.def.is_comptime);
 
         let location = func.name_ident().location();
         let id = self.interner.function_definition_id(func_id);
@@ -464,7 +465,7 @@ impl Elaborator<'_> {
             is_entry_point,
             has_inline_attribute: func.has_inline_attribute(),
             source_crate: self.crate_id,
-            source_module: self.local_module(),
+            source_module: self.item.local_module(),
             function_body: FunctionBody::Unresolved(func.kind, body, func.def.location),
             self_type: self.item.self_type.clone(),
             source_file: location.file,
@@ -472,8 +473,6 @@ impl Elaborator<'_> {
 
         self.interner.push_fn_meta(meta, func_id);
         self.scopes.end_function();
-        self.item.current_item = previous_current_item;
-        self.item.in_comptime_context = old_comptime_value;
     }
 
     /// Adds function generics and associated generics (from where clause) to scope.

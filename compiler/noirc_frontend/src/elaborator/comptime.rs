@@ -373,6 +373,10 @@ impl<'context> Elaborator<'context> {
         impl_target: Option<&AttributeImplTarget>,
         attributes_to_run: &mut CollectedAttributes,
     ) {
+        // Each set carries the `Self` of the impl it came from; restore the caller's afterwards so
+        // that items elaborated later do not resolve `Self` against the last impl visited here.
+        let previous_self_type = self.item.self_type.take();
+
         for function_set in function_sets {
             self.item.self_type = function_set.self_type.clone();
 
@@ -389,6 +393,8 @@ impl<'context> Elaborator<'context> {
                 );
             }
         }
+
+        self.item.self_type = previous_self_type;
     }
 
     /// Collect all comptime attributes from an item's attribute list.
@@ -723,7 +729,7 @@ impl<'context> Elaborator<'context> {
         generated_items: &mut CollectedItems,
         location: Location,
     ) {
-        let local_module = self.local_module();
+        let local_module = self.item.local_module();
 
         match item.kind {
             ItemKind::Function(function) if impl_target.is_some() => {

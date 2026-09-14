@@ -30,7 +30,7 @@ use crate::{
     token::SecondaryAttributeKind,
 };
 
-use super::Elaborator;
+use super::{Elaborator, item_context::ItemContext};
 
 impl Elaborator<'_> {
     /// Order the set of unresolved globals by their [`GlobalId`].
@@ -67,13 +67,23 @@ impl Elaborator<'_> {
     /// See the [module-level documentation][self] for more details.
     #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_global(&mut self, global: UnresolvedGlobal) {
-        // Set up the elaboration context for this global. We need to ensure that name resolution
-        // happens in the module where the global was defined, not where it's being referenced.
-        let old_module = self.replace_local_module(global.module_id);
-        let old_item = self.item.current_item.take();
+        // A global can be elaborated on demand from the middle of another item, such as a
+        // function body that mentions it. It gets a context of its own so that name resolution
+        // happens in the module where the global was defined, and so that nothing of the item
+        // that mentioned it, such as its `Self` type or generics, is visible to the initializer.
+        let context = ItemContext {
+            local_module: Some(global.module_id),
+            current_item: Some(DependencyId::Global(global.global_id)),
+            ..Default::default()
+        };
+        self.with_item_context(context, |this| this.elaborate_global_in_context(global));
+    }
 
+    /// Does the work of [`Self::elaborate_global`].
+    ///
+    /// Expects the global's own [`ItemContext`] to be installed.
+    fn elaborate_global_in_context(&mut self, global: UnresolvedGlobal) {
         let global_id = global.global_id;
-        self.item.current_item = Some(DependencyId::Global(global_id));
         let let_stmt = global.stmt_def;
 
         // In LSP mode, we need to register the global's name for IDE features like
@@ -109,7 +119,6 @@ impl Elaborator<'_> {
             self.push_err(ResolverError::MutableGlobal { location });
         }
 
-        self.reset_lvalue_index_counter();
         let (let_statement, _typ) = self.elaborate_let(let_stmt, Some(global_id));
 
         // References cannot be stored in globals because they would outlive their referents.
@@ -143,10 +152,6 @@ impl Elaborator<'_> {
         if let Some(name) = name {
             self.interner.register_global(global_id, name, location, global.visibility);
         }
-
-        // Restore the previous elaboration context.
-        self.item.local_module = old_module;
-        self.item.current_item = old_item;
     }
 
     /// Evaluates the global's initializer expression at compile time and stores the resulting value.
