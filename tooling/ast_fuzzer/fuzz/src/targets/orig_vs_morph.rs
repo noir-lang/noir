@@ -7,6 +7,7 @@ use crate::targets::default_config;
 use crate::{compare_results_compiled, compile_into_circuit_or_die, default_ssa_options};
 use arbitrary::{Arbitrary, Unstructured};
 use color_eyre::eyre;
+use noir_ast_fuzzer::Config;
 use noir_ast_fuzzer::compare::{CompareMorph, CompareOptions};
 use noir_ast_fuzzer::rewrite;
 use noir_ast_fuzzer::scope::ScopeStack;
@@ -17,7 +18,10 @@ use noirc_frontend::monomorphization::ast::{
 use noirc_frontend::monomorphization::visitor::{visit_expr, visit_expr_be_mut};
 
 pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
-    let config = default_config(u)?;
+    // This target asserts that a program and its value-preserving morph agree, but a morph
+    // may change the predicate structure around a call, which changes what a
+    // `#[no_predicates]` callee executes by design: see [`Config::avoid_no_predicates`].
+    let config = Config { avoid_no_predicates: true, ..default_config(u)? };
     let rules = rules::collect(&config);
     let max_rewrites = 10;
     let inputs = CompareMorph::arb(

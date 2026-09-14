@@ -27,6 +27,16 @@
 //! As a result, any optimization on `requires_acir_gen_predicate` done after
 //! flattening is ensured to be sound.
 //!
+//! The arguments of a call to a `#[no_predicates]` function are the one exception. There
+//! flattening pins the predicate to `1` so the callee's body runs unpredicated, which is
+//! what the attribute asks for, while the arguments are still whatever the enclosing
+//! predicate produced. Requiring them to be guarded would reject the SSA flattening itself
+//! emits for `np(1 / d)` inside an `if`. The hazard that remains — a body that runs anyway,
+//! on a disabled-branch value — is the one the attribute is documented to carry, and is
+//! invisible to this pass anyway, since it is identical when the argument is a plain
+//! parameter. The call's *results* are still tracked under the argument's predicate, so
+//! nothing is laundered through it.
+//!
 //! This is a post-flattening check, so each ACIR function is a single block. The
 //! pass asserts this rather than assuming it, which makes the validation a simple
 //! iteration over the instructions:
@@ -44,7 +54,7 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         dfg::DataFlowGraph,
-        function::Function,
+        function::{Function, FunctionId},
         instruction::{Binary, BinaryOp, Instruction, TerminatorInstruction},
         types::Type,
         value::{Value, ValueId},
@@ -53,13 +63,16 @@ use crate::ssa::{
 };
 
 pub(crate) fn verify_side_effect_predicates(ssa: &Ssa) -> RtResult<()> {
+    let no_predicates: HashSet<FunctionId> =
+        ssa.functions.values().filter(|f| f.is_no_predicates()).map(|f| f.id()).collect();
+
     for function in ssa.functions.values() {
-        verify_function(function)?;
+        verify_function(function, &no_predicates)?;
     }
     Ok(())
 }
 
-fn verify_function(function: &Function) -> RtResult<()> {
+fn verify_function(function: &Function, no_predicates: &HashSet<FunctionId>) -> RtResult<()> {
     // Brillig functions do not have `enable_side_effects` instructions
     if function.runtime().is_brillig() {
         return Ok(());
@@ -101,6 +114,18 @@ fn verify_function(function: &Function) -> RtResult<()> {
             continue;
         }
 
+        // Flattening pins the predicate to `1` around a call to a `#[no_predicates]`
+        // function, which is the whole point of the attribute: the callee's body runs
+        // unpredicated. Its arguments are still whatever the enclosing predicate produced,
+        // so requiring them to be guarded would reject the SSA flattening itself emits for
+        // `np(1 / d)` inside an `if`. Passing a disabled-branch value to a body that runs
+        // anyway is the hazard the attribute is documented to carry ("unsafe and can cause
+        // a function whose logic relies on predicates from the flattening pass to fail"),
+        // and it is not one this pass can see: it applies equally when the argument is a
+        // plain parameter, which no version of this check flags. The results stay tracked
+        // below, so the call cannot launder a predicated value into an unguarded one.
+        let call_to_no_predicates = is_call_to_no_predicates(dfg, instruction, no_predicates);
+
         // Match instructions for
         // - using predicated operands
         // - using predicate operands outside enable-side-effect context
@@ -118,7 +143,7 @@ fn verify_function(function: &Function) -> RtResult<()> {
             } else {
                 // Propagate the predicate to the current instruction
                 use_a_predicated_value.get_or_insert(p);
-                if current.is_none() {
+                if current.is_none() && !call_to_no_predicates {
                     // The `predicated_value` operand is not used under a predicate,
                     // flag it as an error.
                     violation.get_or_insert(operand);
@@ -361,6 +386,16 @@ fn is_one(function: &Function, value: ValueId) -> bool {
     function.dfg.get_numeric_constant(value).is_some_and(|c| c.is_one())
 }
 
+/// Whether the instruction is a call to one of the `no_predicates` functions.
+fn is_call_to_no_predicates(
+    dfg: &DataFlowGraph,
+    instruction: &Instruction,
+    no_predicates: &HashSet<FunctionId>,
+) -> bool {
+    matches!(instruction, Instruction::Call { func, .. }
+        if matches!(&dfg[*func], Value::Function(id) if no_predicates.contains(id)))
+}
+
 fn is_div_or_mod_by_nonzero_constant(dfg: &DataFlowGraph, instruction: &Instruction) -> bool {
     let Instruction::Binary(Binary { rhs, operator: BinaryOp::Div | BinaryOp::Mod, .. }) =
         instruction
@@ -427,6 +462,82 @@ mod tests {
             v3 = add v2, u32 1
             enable_side_effects u1 1
             return v3
+        }
+        ";
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
+        assert!(verify_side_effect_predicates(&ssa).is_err());
+    }
+
+    #[test]
+    fn accepts_predicated_argument_to_a_no_predicates_call() {
+        // The shape flattening emits for a call to a `#[no_predicates]` function: the
+        // predicate is pinned to `1` so the callee's body is not predicated, and restored
+        // straight after. `v4` is computed under `v0` and is an argument of that call, but
+        // the call site is still inside the `v0` region — the pin is about the callee.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u16):
+            enable_side_effects v0
+            v3 = cast v1 as u32
+            v4 = add v3, u32 1
+            enable_side_effects u1 1
+            call f1(v4)
+            enable_side_effects v0
+            return
+        }
+        acir(no_predicates) fn np f1 {
+          b0(v0: u32):
+            return
+        }
+        ";
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
+        assert!(verify_side_effect_predicates(&ssa).is_ok());
+    }
+
+    #[test]
+    fn a_no_predicates_call_does_not_launder_its_argument() {
+        // The exemption covers the call's arguments, not what comes out of it: `v5`
+        // carries `v4`'s predicate `v0`, so returning it unguarded is still an escape.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u16):
+            enable_side_effects v0
+            v3 = cast v1 as u32
+            v4 = add v3, u32 1
+            enable_side_effects u1 1
+            v5 = call f1(v4) -> u32
+            enable_side_effects v0
+            enable_side_effects u1 1
+            return v5
+        }
+        acir(no_predicates) fn np f1 {
+          b0(v0: u32):
+            return u32 0
+        }
+        ";
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
+        assert!(verify_side_effect_predicates(&ssa).is_err());
+    }
+
+    #[test]
+    fn rejects_predicated_argument_to_an_ordinary_call() {
+        // The exemption is keyed on the callee being `#[no_predicates]`. An ordinary
+        // function reached at predicate `1` is predicated through its own call, so a
+        // value from the `v0` region escaping into it is still a violation.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u16):
+            enable_side_effects v0
+            v3 = cast v1 as u32
+            v4 = add v3, u32 1
+            enable_side_effects u1 1
+            call f1(v4)
+            enable_side_effects v0
+            return
+        }
+        acir(inline) fn ordinary f1 {
+          b0(v0: u32):
+            return
         }
         ";
         let ssa = Ssa::from_str_no_validation(src).unwrap();
