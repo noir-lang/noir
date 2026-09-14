@@ -1033,43 +1033,39 @@ impl<'context> Elaborator<'context> {
 
     #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_trait_impl(&mut self, trait_impl: UnresolvedTraitImpl) {
-        let previous_local_module = self.item.replace_local_module(trait_impl.module_id);
+        let context = ItemContext {
+            local_module: Some(trait_impl.module_id),
+            current_trait_impl: trait_impl.impl_id,
+            current_trait: trait_impl.trait_id,
+            generics: trait_impl.resolved_generics.clone(),
+            ..Default::default()
+        };
+        self.with_item_context(context, |this| {
+            this.add_trait_impl_assumed_trait_implementations(trait_impl.impl_id);
+            this.check_trait_impl_where_clause_matches_trait_where_clause(&trait_impl);
+            this.remove_trait_impl_assumed_trait_implementations(trait_impl.impl_id);
 
-        self.item.generics.clone_from(&trait_impl.resolved_generics);
-        self.item.current_trait_impl = trait_impl.impl_id;
-        self.item.current_trait = trait_impl.trait_id;
-
-        self.add_trait_impl_assumed_trait_implementations(trait_impl.impl_id);
-        self.check_trait_impl_where_clause_matches_trait_where_clause(&trait_impl);
-        self.remove_trait_impl_assumed_trait_implementations(trait_impl.impl_id);
-
-        // Inherited defaults are typed once at the trait definition; their bodies match the
-        // declaration by construction and re-elaborating them per impl would duplicate
-        // diagnostics (and waste work).
-        for (module, function, noir_function) in &trait_impl.methods.functions {
-            if trait_impl.inherited_default_method_func_ids.contains(function) {
-                continue;
+            // Inherited defaults are typed once at the trait definition; their bodies match the
+            // declaration by construction and re-elaborating them per impl would duplicate
+            // diagnostics (and waste work).
+            for (module, function, noir_function) in &trait_impl.methods.functions {
+                if trait_impl.inherited_default_method_func_ids.contains(function) {
+                    continue;
+                }
+                let previous_method_module = this.item.replace_local_module(*module);
+                let errors =
+                    check_trait_impl_method_matches_declaration(this, *function, noir_function);
+                this.item.local_module = previous_method_module;
+                this.push_errors(errors);
             }
-            let previous_method_module = self.item.replace_local_module(*module);
-            let errors =
-                check_trait_impl_method_matches_declaration(self, *function, noir_function);
-            self.item.local_module = previous_method_module;
-            self.push_errors(errors);
-        }
 
-        for (_, id, _) in &trait_impl.methods.functions {
-            if trait_impl.inherited_default_method_func_ids.contains(id) {
-                continue;
+            for (_, id, _) in &trait_impl.methods.functions {
+                if trait_impl.inherited_default_method_func_ids.contains(id) {
+                    continue;
+                }
+                this.elaborate_function(*id);
             }
-            self.elaborate_function(*id);
-        }
-        self.item.generics.clear();
-
-        self.item.self_type = None;
-        self.item.current_trait_impl = None;
-        self.item.current_trait = None;
-        self.item.generics.clear();
-        self.item.local_module = previous_local_module;
+        });
     }
 
     pub fn get_module(&self, module: ModuleId) -> &ModuleData {
