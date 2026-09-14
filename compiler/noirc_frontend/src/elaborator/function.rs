@@ -728,6 +728,7 @@ impl Elaborator<'_> {
             unsafe_block_status: UnsafeBlockStatus::NotInUnsafeBlock,
             in_comptime_context: false,
             in_unconstrained_args: false,
+            impl_trait_is_disallowed: None,
             silence_field_visibility_errors: 0,
             lvalue_index_counter: 0,
         };
