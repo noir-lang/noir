@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789391497936,
+  "lastUpdate": 1789391610859,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -10621,48 +10621,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "de151dabaa5fa5cfa9422b2341048baac26b2173",
-          "message": "chore: drop eleven unused dependencies and close the lint gaps that hid them (#13624)",
-          "timestamp": "2026-09-08T10:58:14Z",
-          "tree_id": "68e58ce67f278300a183433811b6df6665e8ca71",
-          "url": "https://github.com/noir-lang/noir/commit/de151dabaa5fa5cfa9422b2341048baac26b2173"
-        },
-        "date": 1788866433313,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 168880,
-            "range": "± 216",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 138146,
-            "range": "± 4104",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2655961,
-            "range": "± 2788",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -12714,6 +12672,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 1723915,
             "range": "± 43764",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "80e295e769b0d0d0da0b96a42b4b23774308af98",
+          "message": "fix(ssa): visit each value once when invalidating constant folding's array cache (#13695)",
+          "timestamp": "2026-09-14T12:51:02Z",
+          "tree_id": "d1b43bec96e6dad78feb62455342928bb4afa6ad",
+          "url": "https://github.com/noir-lang/noir/commit/80e295e769b0d0d0da0b96a42b4b23774308af98"
+        },
+        "date": 1789391535556,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 107800,
+            "range": "± 763",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 96627,
+            "range": "± 1380",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2565878,
+            "range": "± 14321",
             "unit": "ns/iter"
           }
         ]
