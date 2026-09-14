@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789383916401,
+  "lastUpdate": 1789383928571,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -10586,48 +10586,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "163862677+noirwhal@users.noreply.github.com",
-            "name": "noirwhal",
-            "username": "noirwhal"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "fae3abca7e51c2720ceb42aa1bf650d6d2a514de",
-          "message": "chore: Release Noir(1.0.0-rc.0) (#13437)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
-          "timestamp": "2026-09-07T13:12:06Z",
-          "tree_id": "8145e6f5c487b6a5362ddf0ae62330087c4dc740",
-          "url": "https://github.com/noir-lang/noir/commit/fae3abca7e51c2720ceb42aa1bf650d6d2a514de"
-        },
-        "date": 1788788124336,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 170606,
-            "range": "± 993",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 136117,
-            "range": "± 389",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2654518,
-            "range": "± 22058",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -12679,6 +12637,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2655643,
             "range": "± 2158",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "3cb916c3fdba200bc024fe471fe5c048a508db20",
+          "message": "fix(acvm): stop the blackbox injectivity proptests generating all-zero inputs (#13680)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-09-14T10:42:47Z",
+          "tree_id": "6c5b11f6230ff6a08f72d72780e425b2bc3e36a4",
+          "url": "https://github.com/noir-lang/noir/commit/3cb916c3fdba200bc024fe471fe5c048a508db20"
+        },
+        "date": 1789383842594,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 127349,
+            "range": "± 365",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 113137,
+            "range": "± 2415",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3040504,
+            "range": "± 15597",
             "unit": "ns/iter"
           }
         ]
