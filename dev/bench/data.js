@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789388522954,
+  "lastUpdate": 1789388660775,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -10556,48 +10556,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "e33da6ba7e46081281ea8717ac9df896d1a732f0",
-          "message": "chore: remove an orphaned CI script and three unreferenced docs images (#13616)",
-          "timestamp": "2026-09-07T18:11:19Z",
-          "tree_id": "c5e518c855236b247d7415ee1ad8fe42c46153ba",
-          "url": "https://github.com/noir-lang/noir/commit/e33da6ba7e46081281ea8717ac9df896d1a732f0"
-        },
-        "date": 1788805900165,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 126787,
-            "range": "± 546",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 112622,
-            "range": "± 1789",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3042722,
-            "range": "± 4520",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "5e0051297d7133571ddd2bcaf2b7963f84f7d1bc",
           "message": "chore: drop cspell allowlist entries for words that no longer appear in the repo (#13615)",
           "timestamp": "2026-09-07T21:31:13Z",
@@ -12639,6 +12597,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2657221,
             "range": "± 2408",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "ad4f96e11d1bd3029b46c811c344de956c5003b7",
+          "message": "fix(ssa): don't inline a block into itself in `simplify_cfg` (#13672)",
+          "timestamp": "2026-09-14T12:01:41Z",
+          "tree_id": "f350866521c4567c578f5daf971ae1eecf7c55b7",
+          "url": "https://github.com/noir-lang/noir/commit/ad4f96e11d1bd3029b46c811c344de956c5003b7"
+        },
+        "date": 1789388575038,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 169803,
+            "range": "± 651",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 137627,
+            "range": "± 796",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2655176,
+            "range": "± 8333",
             "unit": "ns/iter"
           }
         ]
