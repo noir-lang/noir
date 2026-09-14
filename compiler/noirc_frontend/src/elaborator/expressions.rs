@@ -84,6 +84,18 @@ impl ItemContext {
         }
         has_unconstrained_call
     }
+
+    /// Enters the arguments of a call to a function that is unconstrained or not, returning the
+    /// enclosing call's status so it can be handed back to [`Self::exit_call_arguments`].
+    #[must_use]
+    pub(super) fn enter_call_arguments(&mut self, unconstrained: bool) -> bool {
+        std::mem::replace(&mut self.in_unconstrained_args, unconstrained)
+    }
+
+    /// Leaves a call's arguments, reinstating the enclosing call's status.
+    pub(super) fn exit_call_arguments(&mut self, enclosing_unconstrained: bool) {
+        self.in_unconstrained_args = enclosing_unconstrained;
+    }
 }
 
 impl Elaborator<'_> {
@@ -881,8 +893,7 @@ impl Elaborator<'_> {
             };
 
         // When calling an unconstrained function, we can elaborate lambda arguments to be unconstrained.
-        let was_in_unconstrained_args =
-            std::mem::replace(&mut self.item.in_unconstrained_args, unconstrained);
+        let enclosing_unconstrained_args = self.item.enter_call_arguments(unconstrained);
 
         let mut arguments = Vec::with_capacity(call.arguments.len());
         let args = vecmap(call.arguments.into_iter().enumerate(), |(arg_index, arg)| {
@@ -898,8 +909,7 @@ impl Elaborator<'_> {
         let hir_call = HirCallExpression { func, arguments, location, is_macro_call };
         let typ = self.type_check_call(&hir_call, func_type, args, location);
 
-        // Restore the old one after type checking.
-        self.item.in_unconstrained_args = was_in_unconstrained_args;
+        self.item.exit_call_arguments(enclosing_unconstrained_args);
 
         (hir_call, typ)
     }
