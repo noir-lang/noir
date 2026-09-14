@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789384637161,
+  "lastUpdate": 1789384640063,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -5112,40 +5112,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "319f094853fb48e23c1907ee34e41ffd31cded96",
-          "message": "chore: derive `CompileOptions::default` from clap, and name the test-only SSA options (#13609)",
-          "timestamp": "2026-09-07T14:46:08Z",
-          "tree_id": "852c7283ff9bbc4872fb314012dea19fbd75df74",
-          "url": "https://github.com/noir-lang/noir/commit/319f094853fb48e23c1907ee34e41ffd31cded96"
-        },
-        "date": 1788793842296,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 85.57,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 79.11,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -6795,6 +6761,40 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/3cb916c3fdba200bc024fe471fe5c048a508db20"
         },
         "date": 1789384064396,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore_depth_10",
+            "value": 85.57,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 79.11,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b56d72286b24a0990a71a8bd0c2ac98b10c57afd",
+          "message": "fix(ssa): reject duplicate block labels and function ids in the SSA parser (#13688)",
+          "timestamp": "2026-09-14T10:51:27Z",
+          "tree_id": "7ba1aebff786bbc7e0494d6d7337b841ac79b8f5",
+          "url": "https://github.com/noir-lang/noir/commit/b56d72286b24a0990a71a8bd0c2ac98b10c57afd"
+        },
+        "date": 1789384580312,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
