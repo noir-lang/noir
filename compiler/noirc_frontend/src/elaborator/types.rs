@@ -2294,9 +2294,32 @@ impl Elaborator<'_> {
     ) {
         let mut errors = Vec::new();
         actual.unify_with_coercions(expected, expression, location, self, &mut errors, make_error);
+        self.push_errors(errors);
+    }
 
-        // When passing lambdas to unconstrained functions that don't explicitly state
-        // that they expect unconstrained lambdas, ignore the coercion.
+    /// [`Self::unify_with_coercions`] for a call argument checked against the callee's declared
+    /// parameter type.
+    ///
+    /// Inside the argument list of a call to an unconstrained function the elaborator makes
+    /// lambdas unconstrained, whether or not the parameter they are checked against says so
+    /// (see `elaborate_lambda_with_target_type`). That is a mismatch the compiler creates itself,
+    /// so `UnsafeFn` is dropped here under the same condition that creates it.
+    ///
+    /// Do not extend this to other unifications reached while elaborating the argument list. An
+    /// argument is consumed by the callee, but a `let`, an assignment, a struct field or a return
+    /// nested inside the argument's syntax writes a slot that outlives the call, and an
+    /// unconstrained function reaching such a slot is the mismatch `UnsafeFn` exists to report.
+    pub(super) fn unify_call_argument_with_coercions(
+        &mut self,
+        actual: &Type,
+        expected: &Type,
+        expression: ExprId,
+        location: Location,
+        make_error: impl FnOnce(&Elaborator) -> CompilationError,
+    ) {
+        let mut errors = Vec::new();
+        actual.unify_with_coercions(expected, expression, location, self, &mut errors, make_error);
+
         if self.item.body.in_unconstrained_args() {
             errors.retain(|err| {
                 !matches!(err, CompilationError::TypeError(TypeCheckError::UnsafeFn { .. }))
@@ -2481,13 +2504,19 @@ impl Elaborator<'_> {
         }
 
         for (param, (arg, arg_expr_id, arg_location)) in fn_params.iter().zip_eq(callsite_args) {
-            self.unify_with_coercions(arg, param, *arg_expr_id, *arg_location, |elaborator| {
-                CompilationError::TypeError(elaborator.new_type_mismatch_error(
-                    arg,
-                    param,
-                    *arg_location,
-                ))
-            });
+            self.unify_call_argument_with_coercions(
+                arg,
+                param,
+                *arg_expr_id,
+                *arg_location,
+                |elaborator| {
+                    CompilationError::TypeError(elaborator.new_type_mismatch_error(
+                        arg,
+                        param,
+                        *arg_location,
+                    ))
+                },
+            );
         }
 
         fn_ret.clone()
