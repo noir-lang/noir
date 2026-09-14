@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789383320120,
+  "lastUpdate": 1789383322650,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -16097,40 +16097,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "d91f1b37ef87c263b072272de8973f35f00986f1",
-          "message": "chore: remove the `nargo_cli` library target and the unused AFL fuzz target (#13607)",
-          "timestamp": "2026-09-07T13:33:21+01:00",
-          "tree_id": "5a164ced9f56fd0423c974e6981cec40c28f5f3d",
-          "url": "https://github.com/noir-lang/noir/commit/d91f1b37ef87c263b072272de8973f35f00986f1"
-        },
-        "date": 1788784770036,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.453,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.392,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "454bcb487e8fb75aaf7cc7d4c0c1c6d22f2aeb44",
           "message": "chore(docs): prune docs snapshots that are never built, and bound the directory (#13608)",
           "timestamp": "2026-09-07T13:33:48+01:00",
@@ -17780,6 +17746,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 0.306,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "8c78b458a0a5cd31ebfcce60e5f4a5ff6c4e5085",
+          "message": "fix(acir_field): make `recovers_original_hex_string` test the hex round trip (#13681)",
+          "timestamp": "2026-09-14T10:28:34Z",
+          "tree_id": "b72702230b65a0183a1e490d0ba5c0a209fc150a",
+          "url": "https://github.com/noir-lang/noir/commit/8c78b458a0a5cd31ebfcce60e5f4a5ff6c4e5085"
+        },
+        "date": 1789383229700,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.335,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.324,
             "unit": "s"
           }
         ]
