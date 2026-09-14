@@ -250,7 +250,7 @@ impl Elaborator<'_> {
         module_id: crate::hir::def_map::LocalModuleId,
     ) -> TraitScopeState {
         let previous_state = TraitScopeState {
-            generics: self.enter_generics_scope(),
+            generics: self.item.enter_generics_scope(),
             current_trait: self.item.current_trait,
             self_type: self.item.self_type.clone(),
             local_module: self.item.local_module,
@@ -269,7 +269,7 @@ impl Elaborator<'_> {
     /// Restores the elaborator state after processing a trait.
     #[tracing::instrument(level = "trace", skip_all)]
     fn exit_trait_scope(&mut self, state: TraitScopeState) {
-        self.exit_generics_scope(state.generics);
+        self.item.exit_generics_scope(state.generics);
         self.item.current_trait = state.current_trait;
         self.item.self_type = state.self_type;
         self.item.local_module = state.local_module;

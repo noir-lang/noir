@@ -427,7 +427,11 @@ impl Elaborator<'_> {
         let direct_generics = func.def.generics.iter();
         let direct_generics = direct_generics
             .filter_map(|generic| {
-                generic.ident().ident().and_then(|name| self.find_generic(name.as_str())).cloned()
+                generic
+                    .ident()
+                    .ident()
+                    .and_then(|name| self.item.find_generic(name.as_str()))
+                    .cloned()
             })
             .collect();
 

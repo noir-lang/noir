@@ -208,7 +208,7 @@ impl Elaborator<'_> {
             if let Type::NamedGeneric(named) = typ
                 && !named.is_associated()
                 && let TypeBinding::Unbound(id, kind) = &*named.type_var.borrow()
-                && let Some(generic) = self.find_generic(named.name.as_str())
+                && let Some(generic) = self.item.find_generic(named.name.as_str())
                 && generic.type_var.id() != *id
             {
                 let replacement = generic.clone().into_named_generic(None);
@@ -547,7 +547,7 @@ impl Elaborator<'_> {
         let assoc_name = path.last_name();
 
         // Check if first segment is a generic parameter
-        self.find_generic(type_name)?;
+        self.item.find_generic(type_name)?;
 
         // Search trait bounds for this generic to find the associated type directly.
         // Parent associated types are expected to be in `self.item.trait_bounds` already,
@@ -1012,7 +1012,7 @@ impl Elaborator<'_> {
     ) -> Option<Type> {
         if path.segments.len() == 1 {
             let name = path.last_name();
-            if let Some(generic) = self.find_generic(name) {
+            if let Some(generic) = self.item.find_generic(name) {
                 let generic = generic.clone();
                 // A generic type parameter cannot take generic arguments since we don't support
                 // higher-kinded types, so reject any that were given (in either `T<..>` or the
