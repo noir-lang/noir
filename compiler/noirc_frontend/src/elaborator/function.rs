@@ -296,35 +296,28 @@ impl Elaborator<'_> {
             extra_trait_constraints,
         } = info;
 
-        let prev_local_module = self.item.local_module;
-        let prev_self_type = self.item.self_type.take();
-        let prev_generics = std::mem::replace(&mut self.item.generics, outer_generics);
-        let prev_current_trait = self.item.current_trait.take();
-        let prev_current_trait_impl = self.item.current_trait_impl.take();
-        let prev_current_impl = self.item.current_impl.take();
-
-        self.item.local_module = Some(local_module);
-        self.item.self_type = self_type;
-        self.item.current_trait = current_trait;
-        self.item.current_trait_impl = current_trait_impl;
-        self.item.current_impl = current_impl;
-
         // The `trait_id` argument to `define_function_meta` represents the trait
         // that *defines* this method (set for trait method declarations,
         // recorded as `meta.trait_id`). Trait impl methods record their impl on
         // `meta.trait_impl` and use `current_trait` purely for context — they
         // must pass `None` here so `meta.trait_id` stays None.
         let defining_trait = if current_trait_impl.is_some() { None } else { current_trait };
-        self.recover_generics(|this| {
+
+        // This can run in the middle of another item's elaboration (see the `item_context`
+        // module), so the signature is resolved under the context captured when the meta was
+        // registered rather than whatever the caller had installed.
+        let context = ItemContext {
+            local_module: Some(local_module),
+            self_type,
+            current_trait,
+            current_trait_impl,
+            current_impl,
+            generics: outer_generics,
+            ..Default::default()
+        };
+        self.with_item_context(context, |this| {
             this.define_function_meta(&mut func, func_id, defining_trait, &extra_trait_constraints);
         });
-
-        self.item.local_module = prev_local_module;
-        self.item.self_type = prev_self_type;
-        self.item.generics = prev_generics;
-        self.item.current_trait = prev_current_trait;
-        self.item.current_trait_impl = prev_current_trait_impl;
-        self.item.current_impl = prev_current_impl;
     }
 
     /// Extracts and stores metadata from a function definition.
