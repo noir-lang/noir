@@ -613,3 +613,36 @@ fn self_is_not_in_scope_in_a_global() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn lazily_elaborated_global_does_not_inherit_callers_self_type() {
+    let src = r#"
+    struct Foo {}
+
+    impl Foo {
+        fn len() -> u32 { 3 }
+    }
+
+    global N: u32 = Self::len();
+                    ^^^^ Could not resolve 'Self' in path
+
+    #[add_method]
+    ~~~~~~~~~~~~~ While running this function attribute
+    fn main() {
+        let _n = N;
+        let _len = Foo::len();
+        let _m = Foo::uses_global();
+    }
+
+    // The generated method's body is elaborated while `N` is still pending, so `N` is elaborated
+    // on demand from inside an impl of `Foo`.
+    comptime fn add_method(_f: FunctionDefinition) -> Quoted {
+        quote {
+            impl Foo {
+                fn uses_global() -> u32 { N }
+            }
+        }
+    }
+    "#;
+    check_errors(src);
+}
