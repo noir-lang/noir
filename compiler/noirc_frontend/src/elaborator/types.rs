@@ -2305,8 +2305,8 @@ impl Elaborator<'_> {
     ///
     /// Inside the argument list of a call to an unconstrained function the elaborator makes
     /// lambdas unconstrained, whether or not the parameter they are checked against says so
-    /// (see `elaborate_lambda_with_target_type`). That is a mismatch the compiler creates itself,
-    /// so `UnsafeFn` is dropped here under the same condition that creates it.
+    /// (see `elaborate_lambda_with_target_type`). The unconstrained-to-constrained coercion is
+    /// therefore permitted here, under the same condition that creates it.
     ///
     /// Do not extend this to other unifications reached while elaborating the argument list. An
     /// argument is consumed by the callee, but a `let`, an assignment, a struct field or a return
@@ -2321,12 +2321,25 @@ impl Elaborator<'_> {
         make_error: impl FnOnce(&Elaborator) -> CompilationError,
     ) {
         let mut errors = Vec::new();
-        actual.unify_with_coercions(expected, expression, location, self, &mut errors, make_error);
 
         if self.item.in_unconstrained_args {
-            errors.retain(|err| {
-                !matches!(err, CompilationError::TypeError(TypeCheckError::UnsafeFn { .. }))
-            });
+            actual.unify_with_coercions_allowing_unconstrained_fn(
+                expected,
+                expression,
+                location,
+                self,
+                &mut errors,
+                make_error,
+            );
+        } else {
+            actual.unify_with_coercions(
+                expected,
+                expression,
+                location,
+                self,
+                &mut errors,
+                make_error,
+            );
         }
 
         self.push_errors(errors);
