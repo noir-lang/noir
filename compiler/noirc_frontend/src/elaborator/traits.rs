@@ -199,7 +199,10 @@ use crate::{
     node_interner::{DependencyId, FuncId, ImplSearchErrorKind, ReferenceId, TraitId},
 };
 
-use super::{Elaborator, function::UnresolvedFunctionMeta, generics::GenericsState};
+use super::{
+    Elaborator, function::UnresolvedFunctionMeta, generics::GenericsState,
+    item_context::ItemContext,
+};
 
 /// State saved when entering a trait scope, used to restore state on exit.
 struct TraitScopeState {
@@ -1118,25 +1121,44 @@ impl Elaborator<'_> {
         def: FunctionDefinition,
         has_body: bool,
     ) {
-        let generics_state = self.item.enter_generics_scope();
-        self.scopes.start_function();
+        // The method is resolved in a context of its own, nested in the trait's: it sees the
+        // trait's module, `Self` and generics, and whatever it adds is discarded on exit.
+        let context = ItemContext {
+            local_module: self.item.local_module,
+            current_item: Some(DependencyId::Function(func_id)),
+            self_type: self.item.self_type.clone(),
+            current_trait: self.item.current_trait,
+            generics: self.item.generics.clone(),
+            in_comptime_context: def.is_comptime,
+            ..Default::default()
+        };
+        self.with_item_context(context, |this| {
+            this.scopes.start_function();
 
-        let kind =
-            if has_body { FunctionKind::Normal } else { FunctionKind::TraitFunctionWithoutBody };
-        let mut function = NoirFunction { kind, def };
-        // Assume the bounds implied by the trait's own where clause on associated types
-        // (e.g. `<T as Foo>::E: Bar`) while elaborating this method. See issue #8601.
-        let extra_trait_constraints =
-            self.interner.get_trait(trait_id).implicit_associated_type_constraints.clone();
-        self.define_function_meta(&mut function, func_id, Some(trait_id), &extra_trait_constraints);
+            let kind = if has_body {
+                FunctionKind::Normal
+            } else {
+                FunctionKind::TraitFunctionWithoutBody
+            };
+            let mut function = NoirFunction { kind, def };
+            // Assume the bounds implied by the trait's own where clause on associated types
+            // (e.g. `<T as Foo>::E: Bar`) while elaborating this method. See issue #8601.
+            let extra_trait_constraints =
+                this.interner.get_trait(trait_id).implicit_associated_type_constraints.clone();
+            this.define_function_meta(
+                &mut function,
+                func_id,
+                Some(trait_id),
+                &extra_trait_constraints,
+            );
 
-        if !has_body {
-            self.elaborate_function(func_id);
-        }
+            if !has_body {
+                this.elaborate_function(func_id);
+            }
 
-        let _ = self.scopes.end_function();
-        // Don't check the scope tree for unused variables, they can't be used in a declaration anyway.
-        self.item.exit_generics_scope(generics_state);
+            // Don't check the scope tree for unused variables, they can't be used in a declaration anyway.
+            let _ = this.scopes.end_function();
+        });
     }
 
     /// Compute the `(typ, trait_constraints, direct_generics)` tuple for a
