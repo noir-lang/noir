@@ -189,7 +189,7 @@ impl Elaborator<'_> {
         module_id: LocalModuleId,
         enum_def: &NoirEnumeration,
     ) {
-        let previous_local_module = self.replace_local_module(module_id);
+        let previous_local_module = self.item.replace_local_module(module_id);
         let previous_current_item = self.item.current_item.replace(DependencyId::DataType(type_id));
 
         let previous_in_comptime_context =

@@ -140,7 +140,7 @@ impl Elaborator<'_> {
         local_module: LocalModuleId,
         impls: &mut Vec<UnresolvedImpl>,
     ) {
-        let previous_local_module = self.replace_local_module(local_module);
+        let previous_local_module = self.item.replace_local_module(local_module);
 
         for unresolved_impl in impls {
             let impl_id = unresolved_impl.impl_id;
@@ -464,7 +464,7 @@ impl Elaborator<'_> {
             is_entry_point,
             has_inline_attribute: func.has_inline_attribute(),
             source_crate: self.crate_id,
-            source_module: self.local_module(),
+            source_module: self.item.local_module(),
             function_body: FunctionBody::Unresolved(func.kind, body, func.def.location),
             self_type: self.item.self_type.clone(),
             source_file: location.file,

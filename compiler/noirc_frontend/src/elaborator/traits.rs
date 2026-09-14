@@ -1118,7 +1118,7 @@ impl Elaborator<'_> {
         def: FunctionDefinition,
         has_body: bool,
     ) {
-        let old_generic_count = self.item.generics.len();
+        let generics_state = self.item.enter_generics_scope();
         self.scopes.start_function();
 
         let kind =
@@ -1136,7 +1136,7 @@ impl Elaborator<'_> {
 
         let _ = self.scopes.end_function();
         // Don't check the scope tree for unused variables, they can't be used in a declaration anyway.
-        self.item.generics.truncate(old_generic_count);
+        self.item.exit_generics_scope(generics_state);
     }
 
     /// Compute the `(typ, trait_constraints, direct_generics)` tuple for a

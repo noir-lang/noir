@@ -86,7 +86,7 @@ impl Elaborator<'_> {
         self_type: Type,
     ) -> TraitImplScopeState {
         TraitImplScopeState {
-            local_module: self.replace_local_module(trait_impl.module_id),
+            local_module: self.item.replace_local_module(trait_impl.module_id),
             current_trait_impl: std::mem::replace(
                 &mut self.item.current_trait_impl,
                 trait_impl.impl_id,
@@ -358,7 +358,7 @@ impl Elaborator<'_> {
         trait_impl: &mut UnresolvedTraitImpl,
         trait_impl_where_clause: &[TraitConstraint],
     ) {
-        let previous_local_module = self.replace_local_module(trait_impl.module_id);
+        let previous_local_module = self.item.replace_local_module(trait_impl.module_id);
 
         let impl_id = trait_impl.impl_id.expect("impl_id should be set in define_function_metas");
 
@@ -526,7 +526,7 @@ impl Elaborator<'_> {
 
             let impl_self_type =
                 self.interner.get_trait_implementation(check.impl_id).borrow().typ.clone();
-            let prev_local_module = self.replace_local_module(check.module_id);
+            let prev_local_module = self.item.replace_local_module(check.module_id);
             let prev_current_trait_impl = self.item.current_trait_impl.replace(check.impl_id);
             let prev_current_trait = self.item.current_trait.replace(check.trait_id);
             let prev_self_type = self.item.self_type.replace(impl_self_type);
@@ -711,7 +711,7 @@ impl Elaborator<'_> {
         trait_id: TraitId,
         trait_impl: &UnresolvedTraitImpl,
     ) {
-        let previous_local_module = self.replace_local_module(trait_impl.module_id);
+        let previous_local_module = self.item.replace_local_module(trait_impl.module_id);
 
         let object_crate = match &trait_impl.resolved_object_type {
             Some(Type::DataType(struct_or_enum_type, _)) => {
@@ -969,7 +969,7 @@ impl Elaborator<'_> {
         &mut self,
         trait_impl: &mut UnresolvedTraitImpl,
     ) -> (Vec<(TraitConstraint, Location)>, Vec<ResolvedGeneric>) {
-        let previous_local_module = self.replace_local_module(trait_impl.module_id);
+        let previous_local_module = self.item.replace_local_module(trait_impl.module_id);
         // Clear any previous item, so when we resolve the self-type we don't register any dependencies.
         self.item.current_item = None;
 

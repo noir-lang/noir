@@ -21,15 +21,26 @@ use crate::{Type, TypeAlias};
 use super::path_resolution::{
     PathResolutionItem, PathResolutionMode, Turbofish, TypedPath, TypedPathSegment,
 };
-use super::{Elaborator, PathResolutionTarget, ResolverMeta};
+use super::{Elaborator, PathResolutionTarget, ResolverMeta, item_context::ItemContext};
 
 type ScopeTree = GenericScopeTree<String, ResolverMeta>;
 
 pub(crate) struct ReplacedModule(CrateId, Option<LocalModuleId>);
 
+impl ItemContext {
+    pub(super) fn local_module(&self) -> LocalModuleId {
+        self.local_module.expect("local_module is unset")
+    }
+
+    #[must_use]
+    pub(super) fn replace_local_module(&mut self, module: LocalModuleId) -> Option<LocalModuleId> {
+        self.local_module.replace(module)
+    }
+}
+
 impl Elaborator<'_> {
     pub fn module_id(&self) -> ModuleId {
-        ModuleId { krate: self.crate_id, local_id: self.local_module() }
+        ModuleId { krate: self.crate_id, local_id: self.item.local_module() }
     }
 
     #[must_use]
@@ -59,15 +70,10 @@ impl Elaborator<'_> {
         module: LocalModuleId,
         f: impl FnOnce(&mut Self) -> T,
     ) -> T {
-        let previous = self.replace_local_module(module);
+        let previous = self.item.replace_local_module(module);
         let result = f(self);
         self.item.local_module = previous;
         result
-    }
-
-    #[must_use]
-    pub(super) fn replace_local_module(&mut self, module: LocalModuleId) -> Option<LocalModuleId> {
-        self.item.local_module.replace(module)
     }
 
     pub(super) fn get_type(&self, type_id: TypeId) -> Shared<DataType> {

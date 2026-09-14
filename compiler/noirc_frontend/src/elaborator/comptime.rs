@@ -723,7 +723,7 @@ impl<'context> Elaborator<'context> {
         generated_items: &mut CollectedItems,
         location: Location,
     ) {
-        let local_module = self.local_module();
+        let local_module = self.item.local_module();
 
         match item.kind {
             ItemKind::Function(function) if impl_target.is_some() => {

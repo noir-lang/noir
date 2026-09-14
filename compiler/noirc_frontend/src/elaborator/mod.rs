@@ -452,10 +452,6 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    pub(crate) fn local_module(&self) -> LocalModuleId {
-        self.item.local_module.expect("local_module is unset")
-    }
-
     /// Returns `true` if the current local module is the crate root,
     /// and we are not inside an impl or trait impl.
     pub(crate) fn is_at_crate_root(&self) -> bool {
@@ -1042,7 +1038,7 @@ impl<'context> Elaborator<'context> {
 
     #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_trait_impl(&mut self, trait_impl: UnresolvedTraitImpl) {
-        let previous_local_module = self.replace_local_module(trait_impl.module_id);
+        let previous_local_module = self.item.replace_local_module(trait_impl.module_id);
 
         self.item.generics.clone_from(&trait_impl.resolved_generics);
         self.item.current_trait_impl = trait_impl.impl_id;
@@ -1059,7 +1055,7 @@ impl<'context> Elaborator<'context> {
             if trait_impl.inherited_default_method_func_ids.contains(function) {
                 continue;
             }
-            let previous_method_module = self.replace_local_module(*module);
+            let previous_method_module = self.item.replace_local_module(*module);
             let errors =
                 check_trait_impl_method_matches_declaration(self, *function, noir_function);
             self.item.local_module = previous_method_module;
@@ -1094,7 +1090,7 @@ impl<'context> Elaborator<'context> {
 
     #[tracing::instrument(level = "trace", skip_all)]
     fn define_type_alias(&mut self, alias_id: TypeAliasId, alias: UnresolvedTypeAlias) {
-        let previous_local_module = self.replace_local_module(alias.module_id);
+        let previous_local_module = self.item.replace_local_module(alias.module_id);
 
         let previous_in_comptime_context =
             std::mem::replace(&mut self.item.in_comptime_context, alias.type_alias_def.comptime);
@@ -1246,18 +1242,6 @@ impl<'context> Elaborator<'context> {
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn interpreter_call_stack(&self) -> &imbl::Vector<Location> {
         &self.interpreter_call_stack
-    }
-
-    #[tracing::instrument(level = "trace", skip_all)]
-    pub(crate) fn reset_lvalue_index_counter(&mut self) {
-        self.item.lvalue_index_counter = 0;
-    }
-
-    #[tracing::instrument(level = "trace", skip_all)]
-    pub(crate) fn next_lvalue_index_counter(&mut self) -> usize {
-        let lvalue_index_counter = self.item.lvalue_index_counter;
-        self.item.lvalue_index_counter += 1;
-        lvalue_index_counter
     }
 
     /// Check the current recursion depth. if the limit has been reached,
