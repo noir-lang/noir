@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789383938686,
+  "lastUpdate": 1789383941569,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -1708,40 +1708,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "454bcb487e8fb75aaf7cc7d4c0c1c6d22f2aeb44",
-          "message": "chore(docs): prune docs snapshots that are never built, and bound the directory (#13608)",
-          "timestamp": "2026-09-07T13:33:48+01:00",
-          "tree_id": "864efcdf676868ab38b2f6df1e46d75c3e922367",
-          "url": "https://github.com/noir-lang/noir/commit/454bcb487e8fb75aaf7cc7d4c0c1c6d22f2aeb44"
-        },
-        "date": 1788784773872,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.977,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.54,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -3401,6 +3367,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.4,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "ba20062c9e6928ca25f4e4443b5414ead3b10a24",
+          "message": "fix(noirc_abi): don't let `AbiType::field_count` wrap (#13684)",
+          "timestamp": "2026-09-14T10:41:05Z",
+          "tree_id": "dca9a90ace6d37a92428ad4a6b9afe0c02a44ab8",
+          "url": "https://github.com/noir-lang/noir/commit/ba20062c9e6928ca25f4e4443b5414ead3b10a24"
+        },
+        "date": 1789383851900,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.91,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.629,
             "unit": "s"
           }
         ]
