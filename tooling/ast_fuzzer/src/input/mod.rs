@@ -86,12 +86,12 @@ fn arb_value_from_abi_type(
             .prop_map(|bytes| InputValue::Field(FieldElement::from_be_bytes_reduce(&bytes)))
             .sboxed(),
         AbiType::Integer { width, sign } if sign == &Sign::Unsigned => {
-            // We've restricted the type system to only allow u64s as the maximum integer type.
-            let width = (*width).min(64);
-            UintStrategy::new(width as usize, dictionary)
+            UintStrategy::new(*width as usize, dictionary)
                 .prop_map(|uint| InputValue::Field(uint.into()))
                 .sboxed()
         }
+        // Noir's widest signed integer is `i64`, so the strategy's `i128` domain covers every
+        // signed width the ABI can name.
         AbiType::Integer { width, .. } => {
             let width = (*width).min(64);
             // Based on `FieldElement::to_i128`:
