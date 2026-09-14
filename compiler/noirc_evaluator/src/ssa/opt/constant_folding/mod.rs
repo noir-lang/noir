@@ -1345,29 +1345,7 @@ mod test {
             return v9
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let inputs = vec![
-            Value::field(5_u32.into()),
-            Value::from_constant(0_u32.into(), NumericType::unsigned(32)).unwrap(),
-            Value::from_constant(0_u32.into(), NumericType::unsigned(32)).unwrap(),
-        ];
-        let (ssa, result) = assert_pass_does_not_affect_execution(ssa, inputs, |ssa| {
-            ssa.fold_constants_using_constraints(MIN_ITER)
-        });
-        assert!(result.is_ok(), "the program should still execute: {result:?}");
-        assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) impure fn main f0 {
-          b0(v0: Field, v1: u32, v2: u32):
-            v3 = make_array [v0, v0, v0] : [Field; 3]
-            v5 = call black_box(v3) -> [Field; 3]
-            v7 = array_set v5, index v1, value Field 99
-            v8 = make_array [v0, v0, v0] : [Field; 3]
-            v10 = array_get v7, index u32 0 -> Field
-            v11 = array_get v8, index v2 -> Field
-            v12 = make_array [v10, v11] : [Field; 2]
-            return v12
-        }
-        ");
+        assert_ssa_does_not_change(src, |ssa| ssa.fold_constants_using_constraints(MIN_ITER));
     }
 
     #[test]
