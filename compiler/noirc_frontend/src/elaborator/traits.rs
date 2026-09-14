@@ -631,6 +631,8 @@ impl Elaborator<'_> {
         if let Some(trait_id) = self.item.current_trait {
             self.interner.remove_assumed_trait_implementations_for_trait(trait_id);
         }
+
+        self.item.implied_trait_bounds.clear();
     }
 
     /// Resolve the given trait constraints and add them to scope as we go.
