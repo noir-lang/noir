@@ -24,11 +24,10 @@ use crate::{
         ir::{
             basic_block::BasicBlockId,
             function::{Function, FunctionId},
-            instruction::{Instruction, InstructionId, Intrinsic, TerminatorInstruction},
+            instruction::{Instruction, InstructionId, TerminatorInstruction},
             types::Type,
             value::{Value, ValueId},
         },
-        opt::pure::Purity,
         ssa_gen::Ssa,
     },
 };
@@ -276,18 +275,10 @@ fn callee_needs_arg_check(
 ) -> bool {
     match &function.dfg[func] {
         Value::Function(callee) => needs_check(*callee),
-        Value::Intrinsic(intrinsic) => intrinsic_may_mutate_args(*intrinsic),
+        Value::Intrinsic(intrinsic) => intrinsic.may_mutate_or_alias_array_arguments_in_brillig(),
         Value::ForeignFunction { .. } => false,
         _ => true,
     }
-}
-
-/// Whether a call to `intrinsic` may mutate an array argument in place,
-/// mirroring `is_pure_builtin_func` in `ssa_gen`: a pure intrinsic that is safe
-/// for clone elision in Brillig cannot, everything else conservatively can.
-fn intrinsic_may_mutate_args(intrinsic: Intrinsic) -> bool {
-    intrinsic.unsafe_for_clone_elision_in_brillig()
-        || !matches!(intrinsic.purity(), Purity::Pure | Purity::PureWithPredicate)
 }
 
 /// Populate per-function state with `init`, then run `update` over every
@@ -360,7 +351,7 @@ fn compute_may_mutate_args(ssa: &Ssa) -> HashMap<FunctionId, bool> {
                         Instruction::Call { func, .. } => match &function.dfg[*func] {
                             Value::Function(callee) => calls.push(*callee),
                             Value::Intrinsic(intrinsic) => {
-                                base |= intrinsic_may_mutate_args(*intrinsic);
+                                base |= intrinsic.may_mutate_or_alias_array_arguments_in_brillig();
                             }
                             // Foreign calls only read their inputs.
                             Value::ForeignFunction { .. } => {}
@@ -520,7 +511,8 @@ fn function_returns_arg_alias(
                     // `array_as_str_unchecked`) return an alias of their input —
                     // but we deliberately don't trace through them here: calling
                     // one already makes the function `may_mutate`
-                    // (`intrinsic_may_mutate_args`), so `needs_check` flags it
+                    // (`may_mutate_or_alias_array_arguments_in_brillig`), so
+                    // `needs_check` flags it
                     // via that summary. This pass only has to cover the gap
                     // `may_mutate` misses: a non-mutating function that passes an
                     // input straight back.
