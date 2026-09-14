@@ -1563,7 +1563,10 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
     fn issue_missing_cases_error_for_type(&mut self, type_matched_on: &Type, location: Location) {
         let typ = type_matched_on.follow_bindings_shallow();
         if let Type::DataType(shared, _) = typ.as_ref() {
-            self.elaborator.define_enum_variants_if_undefined(shared.borrow().id);
+            // Resolving the variants borrows the type mutably, so the borrow taken to read the
+            // id must not be alive during the call.
+            let type_id = shared.borrow().id;
+            self.elaborator.define_enum_variants_if_undefined(type_id);
         }
         if let Type::DataType(shared, generics) = typ.as_ref()
             && let Some(variants) = shared.borrow().get_variants(generics)

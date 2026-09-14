@@ -1240,3 +1240,30 @@ fn errors_on_turbofish_on_both_type_and_variant_in_match_pattern() {
     let features = vec![UnstableFeature::Enums];
     check_errors_using_features(src, &features);
 }
+
+#[test]
+fn empty_match_on_enum_with_pending_variants() {
+    let src = r#"
+    pub struct Foo {}
+
+    pub enum Bar {
+        Inner(Foo),
+    }
+
+    #[add_method]
+    ~~~~~~~~~~~~~ While running this function attribute
+    fn main() {}
+
+    // The generated method's body is elaborated while `Bar`'s variants are still pending, so
+    // they are resolved on demand while checking the match for missing cases.
+    comptime fn add_method(_f: FunctionDefinition) -> Quoted {
+        quote {
+            impl Foo {
+                pub fn unwrap_bar(bar: Bar) { match bar {} }
+                                                    ^^^ Missing case: `Inner`
+            }
+        }
+    }
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::Enums]);
+}
