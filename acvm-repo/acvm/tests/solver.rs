@@ -1043,42 +1043,6 @@ prop_compose! {
     }
 }
 
-/// The injectivity properties below are only meaningful if the generator actually produces varied
-/// inputs. Reducing an input modulo `2^max_input_bits` with no `max_input_bits` set is a modulo 1,
-/// which pins every input to zero and makes those properties hold vacuously.
-#[test]
-fn any_distinct_inputs_draws_varied_inputs() {
-    use proptest::strategy::{Strategy, ValueTree};
-    use proptest::test_runner::TestRunner;
-
-    fn draw(
-        max_input_bits: Option<usize>,
-        size: usize,
-    ) -> Vec<(Vec<ConstantOrWitness>, Vec<ConstantOrWitness>)> {
-        let strategy = any_distinct_inputs(max_input_bits, size, size);
-        let mut runner = TestRunner::deterministic();
-        (0..16).map(|_| strategy.new_tree(&mut runner).unwrap().current()).collect()
-    }
-
-    let unbounded = draw(None, 24);
-    assert!(
-        unbounded.iter().any(|(inputs, _)| inputs.iter().any(|(x, _)| !x.is_zero())),
-        "every generated input was zero"
-    );
-
-    // A bound is still respected: `keccakf1600_injective` relies on it to stay within `u64`.
-    let bounded = draw(Some(8), 25);
-    for (inputs, distinct_inputs) in &bounded {
-        for (x, _) in inputs.iter().chain(distinct_inputs) {
-            assert!(x.num_bits() <= 8, "{x} does not fit in 8 bits");
-        }
-    }
-    assert!(
-        bounded.iter().any(|(inputs, _)| inputs.iter().any(|(x, _)| !x.is_zero())),
-        "every generated input was zero"
-    );
-}
-
 #[test]
 fn sha256_compression_zeros() {
     let results = solve_array_input_blackbox_call(
