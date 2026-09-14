@@ -1,42 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789384138518,
+  "lastUpdate": 1789384141748,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "c4e14b4fc3add00bbd1d46c7d250ecd767547215",
-          "message": "fix: pin legacy ABI/artifact schema default to a fixed V1 (#13584)",
-          "timestamp": "2026-09-07T13:20:33Z",
-          "tree_id": "2c44dfb29a4c691d368deb66a20e39bcffbf82e9",
-          "url": "https://github.com/noir-lang/noir/commit/c4e14b4fc3add00bbd1d46c7d250ecd767547215"
-        },
-        "date": 1788788748118,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 106.81,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 150.52,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -1699,6 +1665,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512_100_bytes",
             "value": 151.85,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "3cb916c3fdba200bc024fe471fe5c048a508db20",
+          "message": "fix(acvm): stop the blackbox injectivity proptests generating all-zero inputs (#13680)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-09-14T10:42:47Z",
+          "tree_id": "6c5b11f6230ff6a08f72d72780e425b2bc3e36a4",
+          "url": "https://github.com/noir-lang/noir/commit/3cb916c3fdba200bc024fe471fe5c048a508db20"
+        },
+        "date": 1789384058209,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore_depth_10",
+            "value": 106.81,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 151.87,
             "unit": "MB"
           }
         ]
