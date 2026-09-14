@@ -1127,7 +1127,7 @@ fn associated_constant_direct_access_no_impl_multiple_traits() {
 }
 
 #[test]
-fn nonexistent_associated_item_still_unresolved() {
+fn nonexistent_associated_item_errors() {
     let src = r#"
     trait MyTrait {
         let N: u32;
@@ -1138,7 +1138,8 @@ fn nonexistent_associated_item_still_unresolved() {
     }
     fn main() {
         let _: u32 = Foo::DoesNotExist;
-                          ^^^^^^^^^^^^ Could not resolve 'DoesNotExist' in path
+                          ^^^^^^^^^^^^ no associated item named `DoesNotExist` found for `Foo`
+                          ~~~~~~~~~~~~ a path can only name an associated type, constant or function of `Foo`
     }
     "#;
     check_errors(src);
