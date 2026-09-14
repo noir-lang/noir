@@ -143,19 +143,16 @@ impl Translator {
         // Map function names to their IDs so calls can be resolved
         let mut functions = HashMap::new();
 
-        functions.insert(main_function.internal_name.clone(), main_id);
+        functions.insert(main_function.internal_name.name.clone(), main_id);
 
         for (index, function) in parsed_ssa.functions.iter().enumerate() {
             // Function ID 0 is reserved for `main`, which is inserted above.
             let function_id = FunctionId::new(index as u32 + 1);
 
-            if functions.insert(function.internal_name.clone(), function_id).is_some() {
+            if functions.insert(function.internal_name.name.clone(), function_id).is_some() {
                 // The map is what resolves a call, so a repeated id makes every call to the name
                 // reach the last function declared under it and leaves the earlier one unreachable.
-                return Err(SsaError::FunctionAlreadyDefined(Identifier::new(
-                    function.internal_name.clone(),
-                    function.internal_name_span,
-                )));
+                return Err(SsaError::FunctionAlreadyDefined(function.internal_name.clone()));
             }
 
             if let Some(purity) = function.purity {
@@ -196,7 +193,7 @@ impl Translator {
     }
 
     fn translate_non_main_function(&mut self, function: ParsedFunction) -> Result<(), SsaError> {
-        let function_id = self.functions[&function.internal_name];
+        let function_id = self.functions[&function.internal_name.name];
         let external_name = function.external_name.clone();
 
         match function.runtime_type {
@@ -233,24 +230,22 @@ impl Translator {
                 self.builder.insert_block()
             };
             let blocks = self.blocks.entry(self.current_function_id()).or_default();
-            if blocks.insert(block.name.clone(), block_id).is_some() {
+            if blocks.insert(block.name.name.clone(), block_id).is_some() {
                 // Blocks are keyed by name here and by id below, so a repeated label collapses two
                 // parsed blocks onto one id and one of them is dropped without ever being
                 // translated.
-                return Err(SsaError::BlockAlreadyDefined(Identifier::new(
-                    block.name.clone(),
-                    block.name_span,
-                )));
+                return Err(SsaError::BlockAlreadyDefined(block.name.clone()));
             }
         }
 
-        let entry_block_id = self.blocks[&self.current_function_id()][&function.blocks[0].name];
+        let entry_block_id =
+            self.blocks[&self.current_function_id()][&function.blocks[0].name.name];
 
         let mut parsed_blocks_by_id = function
             .blocks
             .into_iter()
             .map(|block| {
-                let block_id = self.blocks[&self.current_function_id()][&block.name];
+                let block_id = self.blocks[&self.current_function_id()][&block.name.name];
                 (block_id, block)
             })
             .collect::<HashMap<_, _>>();
@@ -330,7 +325,7 @@ impl Translator {
     }
 
     fn translate_block(&mut self, block: ParsedBlock) -> Result<(), SsaError> {
-        let block_id = self.blocks[&self.current_function_id()][&block.name];
+        let block_id = self.blocks[&self.current_function_id()][&block.name.name];
         self.builder.switch_to_block(block_id);
 
         for parameter in block.parameters {

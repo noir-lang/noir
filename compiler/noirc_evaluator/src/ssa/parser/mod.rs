@@ -252,8 +252,7 @@ impl<'a> Parser<'a> {
         self.eat_or_error(Token::Keyword(Keyword::Fn))?;
 
         let external_name = self.eat_ident_or_keyword_or_error()?;
-        let internal_name_span = self.token.span();
-        let internal_name = self.eat_ident_or_error()?;
+        let internal_name = self.eat_identifier_or_error()?;
 
         self.eat_or_error(Token::LeftBrace)?;
 
@@ -268,7 +267,6 @@ impl<'a> Parser<'a> {
             purity_span: purity.map(|(_, span)| span),
             external_name,
             internal_name,
-            internal_name_span,
             data_bus,
             blocks,
         })
@@ -417,8 +415,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_block(&mut self) -> ParseResult<ParsedBlock> {
-        let name_span = self.token.span();
-        let name = self.eat_ident_or_error()?;
+        let name = self.eat_identifier_or_error()?;
         self.eat_or_error(Token::LeftParen)?;
 
         let mut parameters = Vec::new();
@@ -434,7 +431,7 @@ impl<'a> Parser<'a> {
 
         let instructions = self.parse_instructions()?;
         let terminator = self.parse_terminator()?;
-        Ok(ParsedBlock { name, name_span, parameters, instructions, terminator })
+        Ok(ParsedBlock { name, parameters, instructions, terminator })
     }
 
     fn parse_parameter(&mut self) -> ParseResult<ParsedParameter> {
@@ -1148,10 +1145,6 @@ impl<'a> Parser<'a> {
             Token::Ident(ident) => Ok(Some(ident)),
             _ => unreachable!(),
         }
-    }
-
-    fn eat_ident_or_error(&mut self) -> ParseResult<String> {
-        if let Some(ident) = self.eat_ident()? { Ok(ident) } else { self.expected_identifier() }
     }
 
     fn eat_ident_or_keyword_or_error(&mut self) -> ParseResult<String> {

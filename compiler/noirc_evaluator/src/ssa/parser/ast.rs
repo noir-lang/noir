@@ -44,9 +44,7 @@ pub(crate) struct ParsedFunction {
     /// validation errors at the offending annotation.
     pub(crate) purity_span: Option<Span>,
     pub(crate) external_name: String,
-    pub(crate) internal_name: String,
-    /// Span of `internal_name`, used to point a duplicate-id error at the offending function.
-    pub(crate) internal_name_span: Span,
+    pub(crate) internal_name: Identifier,
     pub(crate) data_bus: ParsedDataBus,
     pub(crate) blocks: Vec<ParsedBlock>,
 }
@@ -66,9 +64,7 @@ pub(crate) struct ParsedCallData {
 
 #[derive(Debug)]
 pub(crate) struct ParsedBlock {
-    pub(crate) name: String,
-    /// Span of `name`, used to point a duplicate-label error at the offending block.
-    pub(crate) name_span: Span,
+    pub(crate) name: Identifier,
     pub(crate) parameters: Vec<ParsedParameter>,
     pub(crate) instructions: Vec<ParsedInstruction>,
     pub(crate) terminator: ParsedTerminator,
