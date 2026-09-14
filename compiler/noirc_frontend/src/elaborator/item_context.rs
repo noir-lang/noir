@@ -13,7 +13,7 @@
 
 use crate::{
     Type,
-    hir::def_map::LocalModuleId,
+    hir::def_map::{LocalModuleId, ModuleId},
     hir_def::{traits::TraitConstraint, types::ResolvedGeneric},
     node_interner::{DependencyId, ImplId, TraitId, TraitImplId},
 };
@@ -35,6 +35,14 @@ pub(super) struct ItemContext {
     /// The current dependency item we're resolving.
     /// Used to link items to their dependencies in the dependency graph
     pub(super) current_item: Option<DependencyId>,
+
+    /// When set, visibility checks during path resolution use this module
+    /// instead of the default importing module.
+    ///
+    /// Set when resolving an expression on behalf of comptime code from another module (see
+    /// `Expr::resolve`), so that the item resolved that way is held to the caller's visibility
+    /// rather than to that of the scope it is resolved in.
+    pub(super) caller_module: Option<ModuleId>,
 
     /// Set to the current type if we're resolving an impl
     pub(super) self_type: Option<Type>,

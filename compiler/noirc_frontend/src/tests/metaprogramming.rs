@@ -3770,6 +3770,43 @@ const TRAIT_IMPL_META_API_STDLIB: &str = r#"
 "#;
 
 #[test]
+fn lazily_elaborated_impl_trait_callee_does_not_inherit_expr_resolve_caller_module() {
+    let src = r#"
+    // `hidden` is elaborated on demand while resolving the call in the attribute, from an
+    // elaborator whose visibility checks are made from this module. Its own body must still see
+    // `victim`'s private items.
+    #[resolve_hidden_in_victim]
+    fn main() {
+        let _hidden = victim::hidden();
+    }
+
+    comptime fn resolve_hidden_in_victim(_f: FunctionDefinition) {
+        let victim_module = quote { victim }.as_module().unwrap();
+        let _ = quote { hidden() }.as_expr().unwrap().resolve(Option::some(victim_module.functions()[0]));
+    }
+
+    mod victim {
+        pub trait Marker {}
+        pub struct Bar {}
+        impl Marker for Bar {}
+
+        fn secret() -> Bar {
+            Bar {}
+        }
+
+        pub fn hidden() -> impl Marker {
+            crate::victim::secret()
+        }
+    }
+    "#;
+    check_errors_with_stdlib_using_features(
+        src,
+        [META_API_STDLIB],
+        &[UnstableFeature::TraitAsType],
+    );
+}
+
+#[test]
 fn lazily_elaborated_impl_trait_callee_does_not_inherit_callers_trait_impl() {
     let src = r#"
     trait Marker {}

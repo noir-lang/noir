@@ -646,7 +646,7 @@ impl Elaborator<'_> {
 
         // The module to use for visibility check.
         // Use the caller's module if set, else the module the lookup started in.
-        let visibility_module = self.caller_module.unwrap_or(self.module_id());
+        let visibility_module = self.item.caller_module.unwrap_or(self.module_id());
 
         // The first segment's visibility is computed with the same module the rest of
         // the path's visibility is checked against (`visibility_module`). When resolving on behalf
@@ -864,7 +864,7 @@ impl Elaborator<'_> {
         errors: &mut Vec<PathResolutionError>,
     ) -> PathResolutionItem {
         // Use the caller's module if set, else the module the lookup started in.
-        let visibility_module = self.caller_module.unwrap_or(self.module_id());
+        let visibility_module = self.item.caller_module.unwrap_or(self.module_id());
         self.mark_segment(mode, current_module_id, &path.last_ident(), scope.id.namespace());
         self.per_ns_item_to_path_resolution_item(
             path,

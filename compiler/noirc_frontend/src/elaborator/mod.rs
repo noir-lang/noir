@@ -284,10 +284,6 @@ pub struct Elaborator<'context> {
 
     interpreter_call_stack: imbl::Vector<Location>,
 
-    /// When set, visibility checks during path resolution use this module
-    /// instead of the default importing module.
-    pub(crate) caller_module: Option<ModuleId>,
-
     /// Options from the nargo cli
     options: ElaboratorOptions<'context>,
 
@@ -437,7 +433,6 @@ impl<'context> Elaborator<'context> {
             resolving_ids: BTreeSet::new(),
             function_context: vec![FunctionContext::default()],
             interpreter_call_stack,
-            caller_module: None,
             options,
             elaborate_reasons,
             comptime_evaluation_halted: false,
@@ -664,6 +659,12 @@ impl<'context> Elaborator<'context> {
 
         self.item.generics.clear();
         self.item.self_type = None;
+    }
+
+    /// Makes visibility checks during path resolution use `caller_module` instead of the module
+    /// the current item is in, for the rest of the current item's elaboration.
+    pub(crate) fn set_caller_module(&mut self, caller_module: Option<ModuleId>) {
+        self.item.caller_module = caller_module;
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
