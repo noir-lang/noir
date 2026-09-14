@@ -5,8 +5,9 @@ use crate::{
     ast::{
         ArrayLiteral, BlockExpression, CallExpression, CastExpression, ConstrainExpression,
         ConstrainKind, ConstructorExpression, Expression, ExpressionKind, Ident, IfExpression,
-        IndexExpression, Literal, MatchExpression, MemberAccessExpression, MethodCallExpression,
-        Statement, TypePath, UnaryOp, UnresolvedType, UnresolvedTypeData, UnsafeExpression,
+        IndexExpression, Literal, MatchExpression, MatchRule, MemberAccessExpression,
+        MethodCallExpression, Statement, TypePath, UnaryOp, UnresolvedType, UnresolvedTypeData,
+        UnsafeExpression,
     },
     parser::{ParserErrorReason, labels::ParsingRuleLabel, parser::parse_many::separated_by_comma},
     token::{Keyword, Token, TokenKind},
@@ -731,9 +732,17 @@ impl Parser<'_> {
         Some(ExpressionKind::Match(Box::new(MatchExpression { expression, rules })))
     }
 
-    /// `MatchRule` = Expression '=>' (Block ','?) | (Expression ',')
-    fn parse_match_rule(&mut self) -> Option<(Expression, Expression)> {
+    /// `MatchRule` = Expression `MatchGuard`? '=>' (Block ','?) | (Expression ',')
+    /// `MatchGuard` = 'if' ExpressionExceptConstructor
+    fn parse_match_rule(&mut self) -> Option<MatchRule> {
         let pattern = self.parse_expression()?;
+
+        // A guard's condition excludes constructor literals for the same reason an `if`
+        // condition does: `Foo { .. }` would be read as the start of the arm's block.
+        let guard = self
+            .eat_keyword(Keyword::If)
+            .then(|| self.parse_expression_except_constructor_or_error());
+
         self.eat_or_error(Token::FatArrow);
 
         let start_location = self.current_token_location;
@@ -750,7 +759,7 @@ impl Parser<'_> {
                 branch
             }
         };
-        Some((pattern, branch))
+        Some(MatchRule { pattern, guard, branch })
     }
 
     /// `ComptimeExpression` = 'comptime' Block

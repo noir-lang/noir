@@ -11,9 +11,9 @@ use crate::{
         CallExpression, CastExpression, ConstrainExpression, ConstructorExpression, Expression,
         ExpressionKind, ForBounds, ForLoopStatement, ForRange, GenericTypeArgs, IfExpression,
         IndexExpression, InfixExpression, LValue, Lambda, LetStatement, Literal, LoopStatement,
-        MatchExpression, MemberAccessExpression, MethodCallExpression, Pattern, PrefixExpression,
-        Statement, StatementKind, UnresolvedType, UnresolvedTypeData, UnsafeExpression,
-        WhileStatement,
+        MatchExpression, MatchRule, MemberAccessExpression, MethodCallExpression, Pattern,
+        PrefixExpression, Statement, StatementKind, UnresolvedType, UnresolvedTypeData,
+        UnsafeExpression, WhileStatement,
     },
     hir::comptime::interpreter::builtin_helpers::fragments_to_bytes,
     hir_def::traits::TraitConstraint,
@@ -782,10 +782,10 @@ fn remove_interned_in_expression_kind(
         })),
         ExpressionKind::Match(match_expr) => ExpressionKind::Match(Box::new(MatchExpression {
             expression: remove_interned_in_expression(interner, match_expr.expression),
-            rules: vecmap(match_expr.rules, |(pattern, branch)| {
-                let pattern = remove_interned_in_expression(interner, pattern);
-                let branch = remove_interned_in_expression(interner, branch);
-                (pattern, branch)
+            rules: vecmap(match_expr.rules, |rule| MatchRule {
+                pattern: remove_interned_in_expression(interner, rule.pattern),
+                guard: rule.guard.map(|guard| remove_interned_in_expression(interner, guard)),
+                branch: remove_interned_in_expression(interner, rule.branch),
             }),
         })),
         ExpressionKind::Variable(_) => expr,

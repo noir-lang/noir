@@ -1196,11 +1196,9 @@ fn match_tuple_becomes_multiple_matches() {
     ");
 }
 
-// Placeholder: code exists in the monomorphizer to handle `HirExpression::Guard`,
-// but it looks like a guard is never constructed at the moment.
-// When it is implemented, we should complete this test.
+/// A guarded arm lowers to an `if` whose else branch is the rest of the match, so a failing
+/// guard falls through to the arms below it.
 #[test]
-#[should_panic(expected = "ParseError")]
 fn match_guard_becomes_if_then_else() {
     let src = r#"
     fn main(xy: (u32, u32)) -> pub u32 {
@@ -1213,7 +1211,34 @@ fn match_guard_becomes_if_then_else() {
 
     let program = get_monomorphized(src).unwrap();
 
-    insta::assert_snapshot!(program, @r"???");
+    insta::assert_snapshot!(program, @r"
+    fn main$f0(xy$l0: (u32, u32)) -> pub u32 {
+        {
+            let internal variable$l1 = xy$l0;
+            match $1 {
+                ($2, $3) => if {
+                    let y$l4 = internal_match_variable_1$l3;
+                    {
+                        let x$l5 = internal_match_variable_0$l2;
+                        (x$l5 == 0)
+                    }
+                } {
+                    let y$l6 = internal_match_variable_1$l3;
+                    {
+                        let x$l7 = internal_match_variable_0$l2;
+                        y$l6
+                    }
+                } else {
+                    let _$l8 = internal_match_variable_1$l3;
+                    {
+                        let x$l9 = internal_match_variable_0$l2;
+                        x$l9
+                    }
+                },
+            }
+        }
+    }
+    ");
 }
 
 #[test]

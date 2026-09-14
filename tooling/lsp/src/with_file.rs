@@ -9,7 +9,7 @@ use noirc_frontend::{
         EnumVariant, Expression, ExpressionKind, ForBounds, ForLoopStatement, ForRange,
         FunctionDefinition, FunctionReturnType, GenericTypeArgs, Ident, IdentOrQuotedType,
         IfExpression, IndexExpression, InfixExpression, LValue, Lambda, LetStatement, Literal,
-        LoopStatement, MatchExpression, MemberAccessExpression, MethodCallExpression,
+        LoopStatement, MatchExpression, MatchRule, MemberAccessExpression, MethodCallExpression,
         ModuleDeclaration, NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
         Param, Path, PathSegment, Pattern, PrefixExpression, Statement, StatementKind, StructField,
         TraitBound, TraitImplItem, TraitImplItemKind, TraitItem, TypeAlias, TypeImpl, TypePath,
@@ -767,8 +767,10 @@ fn lambda_with_file(lambda: Lambda, file: FileId) -> Lambda {
 fn match_expression_with_file(expr: MatchExpression, file: FileId) -> MatchExpression {
     MatchExpression {
         expression: expression_with_file(expr.expression, file),
-        rules: vecmap(expr.rules, |(condition, body)| {
-            (expression_with_file(condition, file), expression_with_file(body, file))
+        rules: vecmap(expr.rules, |rule| MatchRule {
+            pattern: expression_with_file(rule.pattern, file),
+            guard: rule.guard.map(|guard| expression_with_file(guard, file)),
+            branch: expression_with_file(rule.branch, file),
         }),
     }
 }

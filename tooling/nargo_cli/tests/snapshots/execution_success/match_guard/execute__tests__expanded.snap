@@ -1,0 +1,66 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+enum Opt {
+    None,
+    Some(u32),
+}
+
+fn classify(o: Opt, limit: u32) -> u32 {
+    {
+        let internal___variable: Opt = o;
+        match internal___variable {
+            Opt::None => 4_u32,
+            Opt::Some(internal_match_variable_0) => if {
+                let v: u32 = internal_match_variable_0;
+                v > limit
+            } {
+                let v: u32 = internal_match_variable_0;
+                1_u32
+            } else if {
+                let v: u32 = internal_match_variable_0;
+                v == limit
+            } {
+                let v: u32 = internal_match_variable_0;
+                2_u32
+            } else {
+                let _: u32 = internal_match_variable_0;
+                3_u32
+            },
+        }
+    }
+}
+
+fn main(x: u32, y: u32) {
+    assert(classify(Opt::Some(y), x) == 1_u32);
+    assert(classify(Opt::Some(x), x) == 2_u32);
+    assert(classify(Opt::Some(x), y) == 3_u32);
+    assert(classify(Opt::None, x) == 4_u32);
+    let pair: (u32, u32) = (x, y);
+    let sum: u32 = {
+        let internal___variable: (u32, u32) = pair;
+        match internal___variable {
+            (internal_match_variable_0, internal_match_variable_1) => if {
+                let b: u32 = internal_match_variable_1;
+                {
+                    let a: u32 = internal_match_variable_0;
+                    a == b
+                }
+            } {
+                let b: u32 = internal_match_variable_1;
+                {
+                    let a: u32 = internal_match_variable_0;
+                    0_u32
+                }
+            } else {
+                let b: u32 = internal_match_variable_1;
+                {
+                    let a: u32 = internal_match_variable_0;
+                    a + b
+                }
+            },
+        }
+    };
+    assert(sum == (x + y));
+}

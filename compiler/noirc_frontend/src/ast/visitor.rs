@@ -24,7 +24,7 @@ use crate::{
 };
 
 use super::{
-    ForBounds, FunctionReturnType, GenericTypeArgs, ItemVisibility, MatchExpression,
+    ForBounds, FunctionReturnType, GenericTypeArgs, ItemVisibility, MatchExpression, MatchRule,
     NoirEnumeration, Pattern, TraitBound, TraitImplItemKind, TypeAlias, TypePath,
     UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
     UnresolvedTypeExpression, UnsafeExpression,
@@ -1167,8 +1167,11 @@ impl MatchExpression {
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
         self.expression.accept(visitor);
-        for (pattern, branch) in &self.rules {
+        for MatchRule { pattern, guard, branch } in &self.rules {
             pattern.accept(visitor);
+            if let Some(guard) = guard {
+                guard.accept(visitor);
+            }
             branch.accept(visitor);
         }
     }

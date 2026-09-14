@@ -7,8 +7,9 @@ use crate::ast::{
     ArrayLiteral, AssignStatement, BlockExpression, CallExpression, CastExpression, ConstrainKind,
     ConstructorExpression, ExpressionKind, ForLoopStatement, ForRange, GenericTypeArgs, Ident,
     IfExpression, IndexExpression, InfixExpression, LValue, Lambda, Literal, LoopStatement,
-    MatchExpression, MemberAccessExpression, Path, PathSegment, Pattern, PrefixExpression,
-    UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression, WhileStatement,
+    MatchExpression, MatchRule, MemberAccessExpression, Path, PathSegment, Pattern,
+    PrefixExpression, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
+    UnsafeExpression, WhileStatement,
 };
 use crate::ast::{ConstrainExpression, Expression, Statement, StatementKind};
 use crate::hir::comptime::field_to_signed_bigint;
@@ -251,7 +252,11 @@ impl HirMatch {
                     let constructor = case.constructor.to_display_ast(args);
                     let constructor = Expression::new(constructor, location);
                     let branch = case.body.to_display_ast(interner, location);
-                    (constructor, Expression::new(branch, location))
+                    MatchRule {
+                        pattern: constructor,
+                        guard: None,
+                        branch: Expression::new(branch, location),
+                    }
                 });
 
                 if let Some(case) = default {
@@ -259,7 +264,7 @@ impl HirMatch {
                         ExpressionKind::Variable(Path::from_single("_".to_string(), location));
                     let pattern = Expression::new(kind, location);
                     let branch = Expression::new(case.to_display_ast(interner, location), location);
-                    rules.push((pattern, branch));
+                    rules.push(MatchRule { pattern, guard: None, branch });
                 }
 
                 ExpressionKind::Match(Box::new(MatchExpression { expression, rules }))
