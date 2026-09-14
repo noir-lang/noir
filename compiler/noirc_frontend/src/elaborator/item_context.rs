@@ -18,7 +18,9 @@ use crate::{
     node_interner::{DependencyId, ImplId, TraitId, TraitImplId},
 };
 
-use super::{Elaborator, LambdaContext, Loop, UnsafeBlockStatus};
+use super::{
+    Elaborator, LambdaContext, Loop, UnsafeBlockStatus, types::ImplTraitDisallowedContext,
+};
 
 /// The elaborator state describing one item's elaboration.
 ///
@@ -76,6 +78,14 @@ pub(super) struct ItemContext {
 
     /// True if we are elaborating arguments of a function call to an unconstrained function.
     pub(super) in_unconstrained_args: bool,
+
+    /// Set when resolving types in positions where `impl Trait` is not allowed
+    /// (e.g., struct fields, globals, type aliases, enum variants).
+    /// `impl Trait` is only valid in function parameter and return type positions.
+    ///
+    /// This is stored as a field rather than checked at the call site so that it
+    /// propagates through recursive `resolve_type` calls.
+    pub(super) impl_trait_is_disallowed: Option<ImplTraitDisallowedContext>,
 
     /// If greater than 0, field visibility errors won't be reported.
     /// This is used when elaborating a comptime expression that is a struct constructor

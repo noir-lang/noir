@@ -82,7 +82,7 @@ pub enum WildcardAllowed {
 /// Context for positions where `impl Trait` is not allowed as a type.
 /// `impl Trait` is only meaningful in function signatures (parameters and return types).
 ///
-/// This context is stored on the `Elaborator` and checked in the `TraitAsType` arm of
+/// This context is stored on the elaborator's `ItemContext` and checked in the `TraitAsType` arm of
 /// type resolution. The variant is used to produce a position-specific error message.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ImplTraitDisallowedContext {
@@ -285,7 +285,7 @@ impl Elaborator<'_> {
                 self.resolve_named_type(path, args, mode, wildcard_allowed)
             }
             TraitAsType(path, args) => {
-                if let Some(context) = self.impl_trait_is_disallowed {
+                if let Some(context) = self.item.impl_trait_is_disallowed {
                     self.push_err(ResolverError::ImplTraitTypeDisallowed {
                         location: path.location,
                         context,
