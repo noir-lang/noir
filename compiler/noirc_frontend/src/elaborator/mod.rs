@@ -1081,17 +1081,25 @@ impl<'context> Elaborator<'context> {
 
     #[tracing::instrument(level = "trace", skip_all)]
     fn define_type_alias(&mut self, alias_id: TypeAliasId, alias: UnresolvedTypeAlias) {
-        let previous_local_module = self.item.replace_local_module(alias.module_id);
+        let context = ItemContext {
+            local_module: Some(alias.module_id),
+            current_item: Some(DependencyId::Alias(alias_id)),
+            in_comptime_context: alias.type_alias_def.comptime,
+            ..Default::default()
+        };
+        self.with_item_context(context, |this| this.define_type_alias_in_context(alias_id, alias));
+    }
 
-        let previous_in_comptime_context =
-            std::mem::replace(&mut self.item.in_comptime_context, alias.type_alias_def.comptime);
-
+    /// Resolves the aliased type and records it on the interner.
+    ///
+    /// Expects the alias's own [`ItemContext`] to be installed, as done by
+    /// [`Self::define_type_alias`].
+    fn define_type_alias_in_context(&mut self, alias_id: TypeAliasId, alias: UnresolvedTypeAlias) {
         let name = &alias.type_alias_def.name;
         let visibility = alias.type_alias_def.visibility;
         let location = alias.type_alias_def.location;
 
         let generics = self.add_generics(&alias.type_alias_def.generics);
-        self.item.current_item = Some(DependencyId::Alias(alias_id));
         let wildcard_allowed = types::WildcardAllowed::No(WildcardDisallowedContext::TypeAlias);
         let previous_impl_trait_context =
             self.impl_trait_is_disallowed.replace(types::ImplTraitDisallowedContext::TypeAlias);
@@ -1136,11 +1144,6 @@ impl<'context> Elaborator<'context> {
             self.check_type_is_not_more_private_then_item(name, visibility, &typ, location);
         }
         self.interner.set_type_alias(alias_id, typ, generics, num_expr);
-        self.item.generics.clear();
-
-        self.item.current_item = None;
-        self.item.in_comptime_context = previous_in_comptime_context;
-        self.item.local_module = previous_local_module;
     }
 
     /// True if we're currently within a constrained function or lambda.
