@@ -661,12 +661,6 @@ impl<'context> Elaborator<'context> {
         self.item.self_type = None;
     }
 
-    /// Makes visibility checks during path resolution use `caller_module` instead of the module
-    /// the current item is in, for the rest of the current item's elaboration.
-    pub(crate) fn set_caller_module(&mut self, caller_module: Option<ModuleId>) {
-        self.item.caller_module = caller_module;
-    }
-
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn push_err(&mut self, error: impl Into<CompilationError>) {
         self.errors.push(error);
