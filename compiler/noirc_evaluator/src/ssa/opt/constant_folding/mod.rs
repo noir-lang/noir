@@ -1242,6 +1242,31 @@ mod test {
         assert_ssa_does_not_change(src, |ssa| ssa.fold_constants_using_constraints(MIN_ITER));
     }
 
+    // Regression for noir-claude#1690.
+    // Each level of this array puts the level below it in both of its element positions, so the
+    // values reachable from the mutated array form a DAG with `DEPTH + 1` values but 2^DEPTH routes
+    // from the top to the bottom. Invalidating the cache for the `array_set` has to visit each
+    // value once; visiting it once per route would not finish.
+    #[test]
+    fn array_mutation_invalidation_is_linear_in_the_size_of_the_value_graph() {
+        const DEPTH: usize = 64;
+
+        let mut src = "brillig(inline) fn main f0 {\n  b0(v0: Field, v1: u32):\n".to_string();
+        let mut typ = "Field".to_string();
+        src += "    v2 = make_array [v0] : [Field; 1]\n";
+        typ = format!("[{typ}; 1]");
+        for level in 0..DEPTH {
+            let (inner, outer) = (level + 2, level + 3);
+            typ = format!("[{typ}; 2]");
+            src += &format!("    v{outer} = make_array [v{inner}, v{inner}] : {typ}\n");
+        }
+        let (top, below_top) = (DEPTH + 2, DEPTH + 1);
+        src += &format!("    v{} = array_set v{top}, index v1, value v{below_top}\n", top + 1);
+        src += &format!("    return v{}\n}}\n", top + 1);
+
+        assert_ssa_does_not_change(&src, |ssa| ssa.fold_constants(MIN_ITER));
+    }
+
     // Regression for noir-claude#1224.
     // A constant zero-sized-type array (empty `element_types`, e.g. `[(); 3]`) passed as a
     // constant argument to a brillig call reaches the constant-folding interpreter, which must
