@@ -25,14 +25,25 @@ impl<T: Hash + Eq + Copy> VisitOnceDeque<T> {
         self.block_queue.extend(items);
     }
 
+    /// Skipping already-visited items is done with a loop rather than a recursive call: the queue
+    /// can hold an arbitrarily long run of duplicates (a `[v; N]` array literal enqueues one value
+    /// N times), and one stack frame per skipped item overflows the stack on large N.
     pub(crate) fn pop_front(&mut self) -> Option<T> {
-        let item = self.block_queue.pop_front()?;
-        if self.visited_blocks.insert(item) { Some(item) } else { self.pop_front() }
+        while let Some(item) = self.block_queue.pop_front() {
+            if self.visited_blocks.insert(item) {
+                return Some(item);
+            }
+        }
+        None
     }
 
     pub(crate) fn pop_back(&mut self) -> Option<T> {
-        let item = self.block_queue.pop_back()?;
-        if self.visited_blocks.insert(item) { Some(item) } else { self.pop_back() }
+        while let Some(item) = self.block_queue.pop_back() {
+            if self.visited_blocks.insert(item) {
+                return Some(item);
+            }
+        }
+        None
     }
 }
 
@@ -56,5 +67,14 @@ mod tests {
         assert_eq!(deque.pop_front(), Some(2));
         assert_eq!(deque.pop_front(), None);
         assert_eq!(deque.pop_back(), None);
+    }
+
+    #[test]
+    fn draining_a_long_run_of_duplicates_does_not_consume_stack() {
+        let mut deque = VisitOnceDeque::default();
+        deque.extend(std::iter::repeat_n(7u32, 1_000_000));
+
+        assert_eq!(deque.pop_front(), Some(7));
+        assert_eq!(deque.pop_front(), None);
     }
 }

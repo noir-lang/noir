@@ -392,7 +392,7 @@ impl WrappingAdd for Field {
 pub trait WrappingSub {
     fn wrapping_sub(self, y: Self) -> Self;
 }
-// docs:start:wrapping-sub-trait
+// docs:end:wrapping-sub-trait
 
 impl WrappingSub for u8 {
     fn wrapping_sub(self: u8, y: u8) -> u8 {
@@ -458,7 +458,7 @@ impl WrappingSub for Field {
 pub trait WrappingMul {
     fn wrapping_mul(self, y: Self) -> Self;
 }
-// docs:start:wrapping-mul-trait
+// docs:end:wrapping-mul-trait
 
 impl WrappingMul for u8 {
     fn wrapping_mul(self: u8, y: u8) -> u8 {

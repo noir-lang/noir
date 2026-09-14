@@ -924,7 +924,12 @@ impl DataFlowGraph {
     /// The source block afterward will be left in a valid but emptied state. The
     /// destination block will also have its terminator overwritten with that of the
     /// source block.
+    ///
+    /// The two blocks must be distinct: moving a block into itself empties and refills it, which
+    /// leaves it unchanged rather than merging anything.
     pub(crate) fn inline_block(&mut self, source: BasicBlockId, destination: BasicBlockId) {
+        debug_assert_ne!(source, destination, "cannot inline a block into itself");
+
         let source = &mut self.blocks[source];
         let mut instructions = source.take_instructions();
         let terminator = source.take_terminator();

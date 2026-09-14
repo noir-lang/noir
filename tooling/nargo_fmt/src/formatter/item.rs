@@ -18,9 +18,16 @@ impl Formatter<'_> {
             // Format the next import group, if there is one.
             let import_group = self.next_import_group(&mut items);
             if let Some(import_group) = import_group {
-                self.merge_and_format_imports(import_group.imports, import_group.visibility);
+                let wrote_imports =
+                    self.merge_and_format_imports(import_group.imports, import_group.visibility);
                 self.skip_past_span_end_without_formatting(import_group.span_end);
-                self.write_line();
+                if wrote_imports {
+                    self.write_line();
+                } else {
+                    // Every import in the group imported nothing and was removed, so the blank
+                    // space it was sitting in goes with it and whatever follows moves up.
+                    self.skip_whitespace();
+                }
                 ignore_next = self.ignore_next;
 
                 // Continue from the top because the next thing that comes might be another import group

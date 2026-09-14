@@ -1,0 +1,6 @@
+[package]
+name = "vector_mutator_on_call_returned_alias"
+type = "bin"
+authors = [""]
+
+[dependencies]

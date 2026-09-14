@@ -12,6 +12,7 @@ use crate::ssa::{
         value::{Value, ValueId},
     },
     opt::pure::Purity,
+    visit_once_deque::VisitOnceDeque,
 };
 use rustc_hash::FxHashMap as HashMap;
 
@@ -184,51 +185,25 @@ impl InstructionResultCache {
     ) {
         use Instruction::{ArraySet, Call, MakeArray, Store};
 
-        /// Recursively remove from the cache any array values.
-        fn go(
-            dfg: &DataFlowGraph,
-            cached_instruction_results: &mut InstructionResultCache,
-            value: &ValueId,
-        ) {
-            // We expect globals to be immutable, so we can cache those results indefinitely.
-            if dfg.is_global(*value) {
-                return;
-            }
-
-            let value_type = dfg.type_of_value(*value);
-
-            // We only care about arrays and vectors. (`Store` can act on non-array values as well)
-            if !value_type.is_array() {
-                return;
-            }
-
-            // Look up the original instruction that created the value, which is the cache key.
-            let instruction = match &dfg[*value] {
-                Value::Instruction { instruction, .. } => &dfg[*instruction],
-                _ => {
-                    // If we can't trace back to a creating instruction (e.g. block parameters),
-                    // conservatively remove all cached MakeArrays of the same type since any
-                    // of them could be the source of this value.
-                    cached_instruction_results.remove_make_arrays_of_type(&value_type);
-                    return;
-                }
-            };
-
-            // Remove the creator instruction from the cache.
-            if matches!(instruction, MakeArray { .. } | Call { .. }) {
-                cached_instruction_results.remove(instruction);
-            }
-
-            // For arrays, we also want to invalidate the values, because multi-dimensional arrays
-            // can be passed around, and through them their sub-arrays might be modified.
-            if let MakeArray { elements, .. } = instruction {
-                for elem in elements {
-                    go(dfg, cached_instruction_results, elem);
-                }
-            }
+        /// Whether a call to the callee referenced by `func` may return an array value that shares
+        /// storage with one of its arguments.
+        ///
+        /// A foreign call cannot: an oracle's results are copied across the boundary, so the arrays
+        /// it returns are freshly allocated. Every other callee may. A user-defined function can
+        /// return a parameter unchanged; `black_box` and the identity-shaped conversions lower to a
+        /// register move, so for an array operand the result is the operand's heap pointer; and the
+        /// vector mutators write through their operand and hand it back.
+        fn result_may_alias_an_argument(dfg: &DataFlowGraph, func: ValueId) -> bool {
+            !matches!(&dfg[func], Value::ForeignFunction { .. })
         }
 
-        let mut remove_if_array = |value| go(dfg, self, value);
+        // The values whose creating instructions must be removed from the cache. One value can
+        // occupy many element positions (`[v; N]`, `[v, v]`) and be passed as several arguments,
+        // so the values reachable from a mutation form a DAG rather than a tree: walking every
+        // route through it is exponential in its depth. Removing a value's cache entries a second
+        // time is a no-op, so each value only needs visiting once.
+        let mut values = VisitOnceDeque::<ValueId>::default();
+        let mut remove_if_array = |value: &ValueId| values.push_back(*value);
 
         match instruction {
             // A mutable `array_set` writes through its input array's backing store in place rather
@@ -272,6 +247,51 @@ impl InstructionResultCache {
                 }
             }
             _ => {}
+        }
+
+        while let Some(value) = values.pop_front() {
+            // We expect globals to be immutable, so we can cache those results indefinitely.
+            if dfg.is_global(value) {
+                continue;
+            }
+
+            let value_type = dfg.type_of_value(value);
+
+            // We only care about arrays and vectors. (`Store` can act on non-array values as well)
+            if !value_type.is_array() {
+                continue;
+            }
+
+            // Look up the original instruction that created the value, which is the cache key.
+            let instruction = match &dfg[value] {
+                Value::Instruction { instruction, .. } => &dfg[*instruction],
+                _ => {
+                    // If we can't trace back to a creating instruction (e.g. block parameters),
+                    // conservatively remove all cached MakeArrays of the same type since any
+                    // of them could be the source of this value.
+                    self.remove_make_arrays_of_type(&value_type);
+                    continue;
+                }
+            };
+
+            // Remove the creator instruction from the cache.
+            if matches!(instruction, MakeArray { .. } | Call { .. }) {
+                self.remove(instruction);
+            }
+
+            match instruction {
+                // For arrays, we also want to invalidate the values, because multi-dimensional
+                // arrays can be passed around, and through them their sub-arrays might be modified.
+                MakeArray { elements, .. } => values.extend(elements.iter().copied()),
+                // A callee that hands back an alias of an array argument gives that argument's
+                // buffer a second name, so a mutation through the result is a mutation of the
+                // argument. The cached instruction that goes stale is then the one that produced
+                // the argument, not this call, and the arguments have to be followed to reach it.
+                Call { func, arguments } if result_may_alias_an_argument(dfg, *func) => {
+                    values.extend(arguments.iter().copied());
+                }
+                _ => {}
+            }
         }
     }
 }

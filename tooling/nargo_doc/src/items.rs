@@ -311,7 +311,10 @@ impl ItemProperties for Function {
 pub struct FunctionParam {
     pub name: String,
     pub r#type: Type,
-    pub mut_ref: bool,
+    /// `Some(mutable)` when this parameter is a `self` receiver taken by reference: `Some(false)`
+    /// for `&self` and `Some(true)` for `&mut self`. `None` for every other parameter, including a
+    /// by-value `self`.
+    pub self_reference: Option<bool>,
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
