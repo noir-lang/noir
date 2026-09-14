@@ -296,6 +296,18 @@ impl<'f> Validator<'f> {
                     );
                 }
             }
+            Instruction::Not(value) => {
+                let value_type = dfg.type_of_value(*value);
+                if *value_type == Type::field() {
+                    // ACIR lowers `not` as `2^bit_size - 1 - x`, and a field's bit size is the
+                    // modulus' — there is no such constant. The frontend, the SSA interpreter and
+                    // Brillig all decline `!` on a field for the same reason.
+                    panic!("Cannot use `not` with field elements");
+                }
+                if !value_type.is_numeric() {
+                    panic!("Not operand must be numeric, got {value_type}");
+                }
+            }
             Instruction::ArrayGet { array, index, .. }
             | Instruction::ArraySet { array, index, .. } => {
                 let index_type = dfg.type_of_value(*index);
@@ -2959,6 +2971,34 @@ mod tests {
           b0(v0: Field, v1: Field):
             v2 = and v0, v1
             return v2
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    /// ACIR lowers `not` as `2^bit_size - 1 - x`; for a field that constant does not exist, and
+    /// building it aborts the compiler in `power_of_two`. The frontend, the SSA interpreter and
+    /// Brillig all decline `!` on a field, so the validator has to as well.
+    #[test]
+    #[should_panic(expected = "Cannot use `not` with field elements")]
+    fn not_on_field_has_incorrect_type() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = not v0
+            return v1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn not_on_integer_is_accepted() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u8):
+            v1 = not v0
+            return v1
         }
         ";
         let _ = Ssa::from_str(src).unwrap();

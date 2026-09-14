@@ -553,7 +553,7 @@ fn test_truncate() {
 fn test_not() {
     let src = "
         acir(inline) fn main f0 {
-          b0(v0: Field):
+          b0(v0: u8):
             v1 = not v0
             return
         }
