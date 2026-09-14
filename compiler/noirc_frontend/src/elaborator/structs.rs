@@ -164,6 +164,7 @@ impl Elaborator<'_> {
 
             let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::StructField);
             let previous_impl_trait_context = this
+                .item
                 .impl_trait_is_disallowed
                 .replace(super::types::ImplTraitDisallowedContext::StructField);
             let fields = vecmap(&unresolved.fields, |field| {
@@ -176,7 +177,7 @@ impl Elaborator<'_> {
                 let typ = this.use_type(field.item.typ.clone(), wildcard_allowed);
                 StructField { visibility, name, typ }
             });
-            this.impl_trait_is_disallowed = previous_impl_trait_context;
+            this.item.impl_trait_is_disallowed = previous_impl_trait_context;
 
             this.resolving_ids.remove(&struct_id);
 

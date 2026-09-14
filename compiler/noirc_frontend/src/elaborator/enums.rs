@@ -218,6 +218,7 @@ impl Elaborator<'_> {
 
         let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::EnumVariant);
         let previous_impl_trait_context = self
+            .item
             .impl_trait_is_disallowed
             .replace(super::types::ImplTraitDisallowedContext::EnumVariant);
         for (i, variant) in enum_def.variants.iter().enumerate() {
@@ -249,7 +250,7 @@ impl Elaborator<'_> {
             self.interner.add_definition_location(reference_id, location);
         }
 
-        self.impl_trait_is_disallowed = previous_impl_trait_context;
+        self.item.impl_trait_is_disallowed = previous_impl_trait_context;
 
         self.resolving_ids.remove(&type_id);
 
