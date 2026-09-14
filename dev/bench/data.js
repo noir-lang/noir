@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789383949780,
+  "lastUpdate": 1789383952864,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14390,40 +14390,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "d91f1b37ef87c263b072272de8973f35f00986f1",
-          "message": "chore: remove the `nargo_cli` library target and the unused AFL fuzz target (#13607)",
-          "timestamp": "2026-09-07T13:33:21+01:00",
-          "tree_id": "5a164ced9f56fd0423c974e6981cec40c28f5f3d",
-          "url": "https://github.com/noir-lang/noir/commit/d91f1b37ef87c263b072272de8973f35f00986f1"
-        },
-        "date": 1788784768652,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 5699,
-            "unit": "opcodes"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 13173,
-            "unit": "opcodes"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -16073,6 +16039,40 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/8c78b458a0a5cd31ebfcce60e5f4a5ff6c4e5085"
         },
         "date": 1789383230485,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 5699,
+            "unit": "opcodes"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 13173,
+            "unit": "opcodes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "ba20062c9e6928ca25f4e4443b5414ead3b10a24",
+          "message": "fix(noirc_abi): don't let `AbiType::field_count` wrap (#13684)",
+          "timestamp": "2026-09-14T10:41:05Z",
+          "tree_id": "dca9a90ace6d37a92428ad4a6b9afe0c02a44ab8",
+          "url": "https://github.com/noir-lang/noir/commit/ba20062c9e6928ca25f4e4443b5414ead3b10a24"
+        },
+        "date": 1789383850677,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
