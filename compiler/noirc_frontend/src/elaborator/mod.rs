@@ -1027,7 +1027,7 @@ impl<'context> Elaborator<'context> {
     #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_impls(&mut self, impls: Vec<UnresolvedImpl>) {
         for unresolved_impl in impls {
-            self.recover_generics(|this| this.elaborate_functions(unresolved_impl.methods));
+            self.elaborate_functions(unresolved_impl.methods);
         }
     }
 
