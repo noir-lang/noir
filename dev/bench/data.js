@@ -1,42 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789389270292,
+  "lastUpdate": 1789389273506,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "aef4fc70bd052d02e057140b88b0b80a00e7d3ae",
-          "message": "chore: fix spelling mistakes and normalize British spellings (#13617)",
-          "timestamp": "2026-09-07T21:31:13Z",
-          "tree_id": "2830c7e332c46eb4f443d722222d7d7cf8bda563",
-          "url": "https://github.com/noir-lang/noir/commit/aef4fc70bd052d02e057140b88b0b80a00e7d3ae"
-        },
-        "date": 1788818219832,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 106.81,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 150.52,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -1699,6 +1665,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512_100_bytes",
             "value": 151.83,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "921850027871ded176c35987fd585bd685df7342",
+          "message": "fix(brillig): don't let array length arithmetic wrap (#13690)",
+          "timestamp": "2026-09-14T12:04:24Z",
+          "tree_id": "75b8880a2ad9616a1b7f6292aab469943fbb9d41",
+          "url": "https://github.com/noir-lang/noir/commit/921850027871ded176c35987fd585bd685df7342"
+        },
+        "date": 1789389182743,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore_depth_10",
+            "value": 106.81,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 151.86,
             "unit": "MB"
           }
         ]
