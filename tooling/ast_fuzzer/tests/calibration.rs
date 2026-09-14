@@ -64,10 +64,14 @@ fn arb_program_freqs_in_expected_range() {
         }
     }
 
-    // Sum of frequencies normalized to 100, as it appears in the printout above.
+    // Combined frequency of a set of labels, as a percentage of their group. Sum the counts
+    // before dividing: rounding each label to a whole percent and adding those up loses almost
+    // a percent per label, which for a multi-label sum is a large fraction of the ranges below.
     let freq_100 = |unconstrained, group: &str, keys: &[&str]| {
-        let total = counts[&unconstrained][group].values().sum::<usize>();
-        keys.iter().map(|key| counts[&unconstrained][group][key] * 100 / total).sum::<usize>()
+        let counts = &counts[&unconstrained][group];
+        let total = counts.values().sum::<usize>();
+        let hits = keys.iter().map(|key| counts[key]).sum::<usize>();
+        hits * 100 / total
     };
 
     let assert_both = |group: &str, key: &str, range: RangeInclusive<usize>| {
