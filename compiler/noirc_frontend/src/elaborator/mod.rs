@@ -661,9 +661,6 @@ impl<'context> Elaborator<'context> {
         for (_, id, _) in functions.functions {
             self.elaborate_function(id);
         }
-
-        self.item.generics.clear();
-        self.item.self_type = None;
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
