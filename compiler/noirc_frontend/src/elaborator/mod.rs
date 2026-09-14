@@ -1033,6 +1033,10 @@ impl<'context> Elaborator<'context> {
 
     #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_trait_impl(&mut self, trait_impl: UnresolvedTraitImpl) {
+        // The impl's where clause and its methods' signatures are resolved against the impl
+        // header, so the checks below run with its generics and trait ids in scope. The method
+        // bodies are elaborated outside that context: `elaborate_function` installs one of its
+        // own from each method's `FuncMeta`, and reads nothing from the context it is called in.
         let context = ItemContext {
             local_module: Some(trait_impl.module_id),
             current_trait_impl: trait_impl.impl_id,
@@ -1058,14 +1062,14 @@ impl<'context> Elaborator<'context> {
                 this.item.local_module = previous_method_module;
                 this.push_errors(errors);
             }
-
-            for (_, id, _) in &trait_impl.methods.functions {
-                if trait_impl.inherited_default_method_func_ids.contains(id) {
-                    continue;
-                }
-                this.elaborate_function(*id);
-            }
         });
+
+        for (_, id, _) in &trait_impl.methods.functions {
+            if trait_impl.inherited_default_method_func_ids.contains(id) {
+                continue;
+            }
+            self.elaborate_function(*id);
+        }
     }
 
     pub fn get_module(&self, module: ModuleId) -> &ModuleData {
