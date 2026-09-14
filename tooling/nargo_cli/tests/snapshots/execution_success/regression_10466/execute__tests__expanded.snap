@@ -9,7 +9,7 @@ pub trait Serialize {
 }
 
 impl Serialize for Field {
-    let N: u32 = 1;
+    let N: u32 = 1_u32;
 
     fn serialize(self) {}
 }
@@ -21,10 +21,10 @@ where
     let N: u32 = M * <T as Serialize>::N;
 
     fn serialize(self) {
-        println(N);
+        println(Self::N);
         println(T::N);
         println(M);
-        assert((T::N * M) == N);
+        assert((T::N * M) == Self::N);
     }
 }
 

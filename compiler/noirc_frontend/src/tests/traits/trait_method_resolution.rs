@@ -2,7 +2,9 @@
 //! Validates that trait methods are correctly resolved based on imports, handles ambiguity, and suggests missing imports.
 
 use crate::test_utils::stdlib_src;
-use crate::tests::{assert_no_errors, check_errors, check_errors_with_stdlib};
+use crate::tests::{
+    assert_no_errors, check_errors, check_errors_with_stdlib, check_monomorphization_error,
+};
 
 #[test]
 fn calls_trait_method_if_it_is_in_scope_with_multiple_candidates_but_only_one_decided_by_generics()
@@ -297,6 +299,56 @@ fn errors_if_multiple_trait_methods_are_in_scope_for_function_call() {
 }
 
 #[test]
+fn multiple_traits_in_scope_diagnostic_lists_only_in_scope_traits() {
+    let src = r#"
+    use private_mod::Foo;
+    use private_mod::Foo2;
+
+    fn main() {
+        let _ = Bar::foo();
+                     ^^^ Multiple applicable items in scope
+                     ~~~ Multiple traits which provide `foo` are implemented and in scope: `private_mod::Foo2`, `private_mod::Foo`
+    }
+
+    pub struct Bar {
+    }
+
+    mod private_mod {
+        pub trait Foo {
+            fn foo() -> i32;
+        }
+
+        impl Foo for super::Bar {
+            fn foo() -> i32 {
+                42
+            }
+        }
+
+        pub trait Foo2 {
+            fn foo() -> i32;
+        }
+
+        impl Foo2 for super::Bar {
+            fn foo() -> i32 {
+                42
+            }
+        }
+
+        pub trait Foo3 {
+            fn foo() -> i32;
+        }
+
+        impl Foo3 for super::Bar {
+            fn foo() -> i32 {
+                42
+            }
+        }
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn warns_if_trait_is_not_in_scope_for_method_call_and_there_is_only_one_trait_method() {
     let src = r#"
     fn main() {
@@ -525,6 +577,42 @@ fn calls_trait_method_using_struct_name_when_multiple_impls_exist() {
     fn main() {
         let _ = U60Repr::from2([1, 2, 3]);
         let _ = U60Repr::from2(1);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression test for <https://github.com/noir-lang/noir/issues/8963>
+///
+/// When a path-based trait call like `U60Repr::from2(x)` has multiple candidate
+/// impls, only one of which is compatible with the argument type, the trait
+/// solver must run before integer-literal defaulting — otherwise the array's
+/// element type defaults to `Field` and the only matching impl (`From2<[i32; 3]>`)
+/// is no longer reachable.
+#[test]
+fn calls_trait_method_using_struct_name_picks_impl_before_defaulting_integers() {
+    let src = r#"
+    trait From2<T> {
+        fn from2(input: T) -> Self;
+    }
+
+    struct U60Repr {}
+
+    impl From2<[i32; 3]> for U60Repr {
+        fn from2(_: [i32; 3]) -> Self {
+            U60Repr {}
+        }
+    }
+
+    impl From2<i32> for U60Repr {
+        fn from2(_: i32) -> Self {
+            U60Repr {}
+        }
+    }
+
+    fn main() {
+        let x = [1, 2, 3];
+        let _ = U60Repr::from2(x);
     }
     "#;
     assert_no_errors(src);
@@ -899,9 +987,8 @@ fn two_traits_same_method_name_disambiguated_by_constraint() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir/issues/11540
+/// Regression test for <https://github.com/noir-lang/noir/issues/11540>
 #[test]
-#[should_panic(expected = "Expected no errors")]
 fn trait_method_resolved_with_multiple_impls_different_type_params() {
     let src = r#"
     pub struct Foo<let Y: u32, A> {}
@@ -927,4 +1014,168 @@ fn trait_method_resolved_with_multiple_impls_different_type_params() {
     }
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn type_path_generic_struct_method() {
+    let src = r#"
+    pub trait Deserialize {
+        fn deserialize();
+    }
+
+    struct Gen<T> {}
+
+    impl<T> Deserialize for Gen<T> {
+        fn deserialize() {}
+    }
+
+    fn main() {
+        let _ = <Gen<Field>>::deserialize;
+    }
+    "#;
+    check_monomorphization_error(src);
+}
+
+#[test]
+fn type_path_generic_array_method_1() {
+    let src = r#"
+    pub trait Deserialize {
+        fn deserialize();
+    }
+
+    impl<T, let M: u32> Deserialize for [T; M] {
+        fn deserialize() {
+            let _: u32 = M;
+        }
+    }
+
+    fn main() {
+        let _ = <[Field; 3]>::deserialize;
+    }
+    "#;
+    check_monomorphization_error(src);
+}
+
+#[test]
+fn type_path_generic_array_method_2() {
+    let src = r#"
+    pub trait Deserialize {
+        fn deserialize();
+    }
+
+    impl<let M: u32, T> Deserialize for [T; M] {
+        fn deserialize() {
+            let _: u32 = M;
+        }
+    }
+
+    fn main() {
+        let _ = <[Field; 3]>::deserialize;
+    }
+    "#;
+    check_monomorphization_error(src);
+}
+
+#[test]
+fn type_path_generic_array_method_3() {
+    let src = r#"
+    pub trait Deserialize {
+        fn deserialize<U>(x: U) -> U;
+    }
+
+    impl<let M: u32, T> Deserialize for [T; M] {
+        fn deserialize<U>(x: U) -> U {
+            let _: u32 = M;
+            x
+        }
+    }
+
+    fn main() {
+        let _: u32 = <[Field; 3]>::deserialize::<u64>(0);
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ Expected type u32, found type u64
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn type_path_generic_tuple_method() {
+    let src = r#"
+    pub trait Deserialize {
+        fn deserialize();
+    }
+
+    impl<A, B> Deserialize for (A, B) {
+        fn deserialize() {}
+    }
+
+    fn main() {
+        let _ = <(u32, i32)>::deserialize;
+    }
+    "#;
+    check_monomorphization_error(src);
+}
+
+#[test]
+fn trait_method_and_struct_method_with_same_name() {
+    let src = r#"
+    pub struct MyStruct {}
+    impl MyStruct {
+        fn foo() -> i32 {
+            0
+        }
+    }
+
+    pub trait MyTrait {
+        fn foo();
+    }
+
+    impl MyTrait for MyStruct {
+        fn foo() {
+            // This method should resolve to the impl method, not the trait method,
+            // and we verify this by checking that the return type is correct (i32, not ()).
+            let _: i32 = MyStruct::foo();
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn trait_method_and_struct_method_with_same_name_and_turbofish() {
+    let src = r#"
+    pub struct MyStruct<T> {}
+    impl<T> MyStruct<T> {
+        fn foo() -> i32 {
+            0
+        }
+    }
+
+    pub trait MyTrait<T> {
+        fn foo();
+    }
+
+    impl<T> MyTrait<T> for MyStruct<T> {
+        fn foo() {
+            // This method should resolve to the impl method, not the trait method,
+            // and we verify this by checking that the return type is correct (i32, not ()).
+            let _: i32 = MyStruct::<T>::foo();
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn no_eq_impl_for_struct_in_assert_eq() {
+    let src = r#"
+    struct myStruct {}
+
+    fn main(x: myStruct, y: pub myStruct) {
+        assert_eq(x, y);
+                  ^^^^ No matching impl found for `myStruct: Eq`
+                  ~~~~ No impl for `myStruct: Eq`
+    }
+    "#;
+    check_errors_with_stdlib(src, [stdlib_src::EQ]);
 }

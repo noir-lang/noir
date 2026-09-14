@@ -1,7 +1,0 @@
-[package]
-name = "global_without_a_type_used_as_array_length"
-type = "bin"
-authors = [""]
-compiler_version = ">=0.33.0"
-
-[dependencies]

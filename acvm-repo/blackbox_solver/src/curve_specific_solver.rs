@@ -13,19 +13,17 @@ pub trait BlackBoxFunctionSolver<F> {
         scalars_lo: &[F],
         scalars_hi: &[F],
         predicate: bool,
-    ) -> Result<(F, F, F), BlackBoxResolutionError>;
+    ) -> Result<(F, F), BlackBoxResolutionError>;
 
-    #[allow(clippy::too_many_arguments)]
     fn ec_add(
         &self,
         input1_x: &F,
         input1_y: &F,
-        input1_infinite: &F,
         input2_x: &F,
         input2_y: &F,
-        input2_infinite: &F,
         predicate: bool,
-    ) -> Result<(F, F, F), BlackBoxResolutionError>;
+    ) -> Result<(F, F), BlackBoxResolutionError>;
+
     fn poseidon2_permutation(&self, inputs: &[F]) -> Result<Vec<F>, BlackBoxResolutionError>;
 }
 pub struct StubbedBlackBoxSolver;
@@ -46,19 +44,17 @@ impl<F> BlackBoxFunctionSolver<F> for StubbedBlackBoxSolver {
         _scalars_lo: &[F],
         _scalars_hi: &[F],
         _predicate: bool,
-    ) -> Result<(F, F, F), BlackBoxResolutionError> {
+    ) -> Result<(F, F), BlackBoxResolutionError> {
         Err(Self::fail(BlackBoxFunc::MultiScalarMul))
     }
     fn ec_add(
         &self,
         _input1_x: &F,
         _input1_y: &F,
-        _input1_infinite: &F,
         _input2_x: &F,
         _input2_y: &F,
-        _input2_infinite: &F,
         _predicate: bool,
-    ) -> Result<(F, F, F), BlackBoxResolutionError> {
+    ) -> Result<(F, F), BlackBoxResolutionError> {
         Err(Self::fail(BlackBoxFunc::EmbeddedCurveAdd))
     }
     fn poseidon2_permutation(&self, _inputs: &[F]) -> Result<Vec<F>, BlackBoxResolutionError> {

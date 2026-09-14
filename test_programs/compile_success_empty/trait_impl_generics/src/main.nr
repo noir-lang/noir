@@ -19,12 +19,10 @@ impl Foo for Empty<u64> {
 fn main() {
     let x: Empty<u32> = Empty {};
     let y: Empty<u64> = Empty {};
-    let z = Empty {};
+    let z: Empty<u32> = Empty {};
 
     assert(x.foo() == 32);
     assert(y.foo() == 64);
-    // Types matching multiple impls will currently choose
-    // the first matching one instead of erroring
     assert(z.foo() == 32);
 
     call_impl_with_generic_struct();

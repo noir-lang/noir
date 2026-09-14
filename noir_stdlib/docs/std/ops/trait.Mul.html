@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <link rel="stylesheet" href="../../styles.css">
+<script>window.docRoot = "../../";</script>
+<script defer src="../../search-index.js"></script>
 <script defer src="../../nargo_doc.js"></script>
+<script defer src="../../search.js"></script>
 <title>Trait Mul documentation</title>
 </head>
 <body>
@@ -16,7 +19,7 @@
 <h1><a href="../../index.html">noir_stdlib</a></h1>
 <div><a href="../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../index.html">std</a></h2>
-<div id="crate-version">1.0.0-beta.14</div>
+<div id="crate-version">1.0.0-rc.1</div>
 <h2><a href="#trait">Trait Mul</a></h2>
 <h3>Required methods</h3>
 <ul class="sidebar-list">
@@ -29,7 +32,6 @@
 <li><a href="#impl-Mul-for-i32">i32</a></li>
 <li><a href="#impl-Mul-for-i64">i64</a></li>
 <li><a href="#impl-Mul-for-i8">i8</a></li>
-<li><a href="#impl-Mul-for-u1">u1</a></li>
 <li><a href="#impl-Mul-for-u128">u128</a></li>
 <li><a href="#impl-Mul-for-u16">u16</a></li>
 <li><a href="#impl-Mul-for-u32">u32</a></li>
@@ -57,14 +59,20 @@
 </nav>
 <main>
 <div><a href="../../index.html">noir_stdlib</a> - <a href="../index.html">std</a>::<a href="index.html">ops</a></div>
-<h1>Trait <span id="trait" class="trait">Mul</span></h1>
+<div class="heading-row">
+<h1 class="heading-content">Trait <span id="trait" class="trait">Mul</span></h1>
+<button id="search-toggle" type="button">Search</button>
+</div>
+<input id="search-input" type="search" placeholder="Type 's' or '/' to search" autocomplete="off" spellcheck="false" aria-label="Search" hidden>
+<div id="search-results" hidden></div>
+<div id="page-content">
 <pre><code>pub trait Mul {
     <span class="comment">// Required methods</span>
-    pub fn <a href="#mul"><span class="fn">mul</span></a>(self, other: Self) -> Self;
+    pub fn <a href="#mul" class="fn">mul</a>(self, other: Self) -> Self;
 }</code></pre>
 
 <h2>Required methods</h2>
-<div class="padded-methods"><code id="mul" class="code-header">pub fn <a href="#mul"><span class="fn">mul</span></a>(self, other: Self) -> Self</code>
+<div class="padded-methods"><code id="mul" class="code-header">pub fn <a href="#mul" class="fn">mul</a>(self, other: Self) -> Self</code>
 
 </div><h2>Implementors</h2>
 <h3 id="impl-Mul-for-Field"><code class="code-header">impl <a href="../../std/ops/trait.Mul.html" class="trait">Mul</a> for <a href="../../std/primitive.Field.html" class="primitive">Field</a></code></h3>
@@ -77,8 +85,6 @@
 
 <h3 id="impl-Mul-for-i8"><code class="code-header">impl <a href="../../std/ops/trait.Mul.html" class="trait">Mul</a> for <a href="../../std/primitive.i8.html" class="primitive">i8</a></code></h3>
 
-<h3 id="impl-Mul-for-u1"><code class="code-header">impl <a href="../../std/ops/trait.Mul.html" class="trait">Mul</a> for <a href="../../std/primitive.u1.html" class="primitive">u1</a></code></h3>
-
 <h3 id="impl-Mul-for-u128"><code class="code-header">impl <a href="../../std/ops/trait.Mul.html" class="trait">Mul</a> for <a href="../../std/primitive.u128.html" class="primitive">u128</a></code></h3>
 
 <h3 id="impl-Mul-for-u16"><code class="code-header">impl <a href="../../std/ops/trait.Mul.html" class="trait">Mul</a> for <a href="../../std/primitive.u16.html" class="primitive">u16</a></code></h3>
@@ -89,6 +95,7 @@
 
 <h3 id="impl-Mul-for-u8"><code class="code-header">impl <a href="../../std/ops/trait.Mul.html" class="trait">Mul</a> for <a href="../../std/primitive.u8.html" class="primitive">u8</a></code></h3>
 
+</div>
 </main>
 </span>
 </body>

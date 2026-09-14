@@ -10,7 +10,8 @@ use crate::ast::{IdentOrQuotedType, UnresolvedGenerics};
 use crate::debug::DebugInstrumenter;
 use crate::elaborator::UnstableFeature;
 use crate::graph::{CrateGraph, CrateId};
-use crate::hir::def_collector::dc_crate::UnresolvedGlobal;
+use crate::hir::comptime::EvaluationTracker;
+use crate::hir::def_collector::dc_crate::{CompilationErrors, UnresolvedGlobal};
 use crate::hir::def_map::DefMaps;
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir_def::function::FuncMeta;
@@ -18,7 +19,6 @@ use crate::node_interner::{FuncId, GlobalId, NodeInterner, TypeId};
 use crate::parser::ParserError;
 use crate::usage_tracker::UsageTracker;
 use crate::{Kind, ParsedModule, ResolvedGeneric, ResolvedGenerics, Type, TypeVariable};
-use def_collector::dc_crate::CompilationError;
 use def_map::{CrateDefMap, FuzzingHarness, fully_qualified_module_path};
 use fm::{FileId, FileManager};
 use iter_extended::vecmap;
@@ -35,7 +35,7 @@ pub type ParsedFiles = HashMap<FileId, (ParsedModule, Vec<ParserError>)>;
 
 /// Helper object which groups together several useful context objects used
 /// during name resolution. Once name resolution is finished, only the
-/// def_interner is required for type inference and monomorphization.
+/// `def_interner` is required for type inference and monomorphization.
 pub struct Context<'file_manager, 'parsed_files> {
     pub def_interner: NodeInterner,
     pub crate_graph: CrateGraph,
@@ -48,6 +48,10 @@ pub struct Context<'file_manager, 'parsed_files> {
 
     pub debug_instrumenter: DebugInstrumenter,
 
+    /// The `CrateId` of the `__debug` crate, if it has been linked.
+    /// Used to identify debug functions during monomorphization.
+    pub debug_crate_id: Option<CrateId>,
+
     /// A map of each file that already has been visited from a prior `mod foo;` declaration.
     /// This is used to issue an error if a second `mod foo;` is declared to the same file.
     pub visited_files: BTreeMap<FileId, Location>,
@@ -59,8 +63,16 @@ pub struct Context<'file_manager, 'parsed_files> {
 
     pub package_build_path: PathBuf,
 
+    /// Instrument the compiled Brillig to count array/vector copies per source location.
+    /// Set only by `nargo execute --count-array-copies`, which compiles in memory so the
+    /// instrumented artifact is never persisted.
+    pub count_array_copies: bool,
+
     /// Writer for comptime prints.
     pub interpreter_output: Option<Rc<RefCell<dyn std::io::Write>>>,
+
+    /// Tracks comptime expression locations to facilitate code coverage.
+    pub evaluation_tracker: Option<EvaluationTracker>,
 
     /// Any unstable features required by the current package or its dependencies.
     pub required_unstable_features: BTreeMap<CrateId, Vec<UnstableFeature>>,
@@ -76,6 +88,14 @@ pub enum FunctionNameMatch {
     Contains(Vec<String>),
 }
 
+#[derive(Debug)]
+pub enum LspMode {
+    // In full mode all files are type-checked, and errors are published and shown to the user.
+    Full,
+    // In single file mode only a single file is type-checked and errors are not shown to the user.
+    SingleFile,
+}
+
 impl Context<'_, '_> {
     pub fn new(file_manager: FileManager, parsed_files: ParsedFiles) -> Context<'static, 'static> {
         Context {
@@ -86,11 +106,14 @@ impl Context<'_, '_> {
             crate_graph: CrateGraph::default(),
             file_manager: Cow::Owned(file_manager),
             debug_instrumenter: DebugInstrumenter::default(),
+            debug_crate_id: None,
             parsed_files: Cow::Owned(parsed_files),
             package_build_path: PathBuf::default(),
+            count_array_copies: false,
             interpreter_output: Some(Rc::new(RefCell::new(std::io::stdout()))),
             required_unstable_features: BTreeMap::new(),
             unresolved_globals: BTreeMap::new(),
+            evaluation_tracker: None,
         }
     }
 
@@ -106,11 +129,14 @@ impl Context<'_, '_> {
             crate_graph: CrateGraph::default(),
             file_manager: Cow::Borrowed(file_manager),
             debug_instrumenter: DebugInstrumenter::default(),
+            debug_crate_id: None,
             parsed_files: Cow::Borrowed(parsed_files),
             package_build_path: PathBuf::default(),
+            count_array_copies: false,
             interpreter_output: Some(Rc::new(RefCell::new(std::io::stdout()))),
             required_unstable_features: BTreeMap::new(),
             unresolved_globals: BTreeMap::new(),
+            evaluation_tracker: None,
         }
     }
 
@@ -131,11 +157,14 @@ impl Context<'_, '_> {
             crate_graph,
             file_manager: Cow::Borrowed(file_manager),
             debug_instrumenter: DebugInstrumenter::default(),
+            debug_crate_id: None,
             parsed_files: Cow::Borrowed(parsed_files),
             package_build_path: PathBuf::default(),
+            count_array_copies: false,
             interpreter_output: Some(Rc::new(RefCell::new(std::io::stdout()))),
             required_unstable_features: BTreeMap::new(),
             unresolved_globals: BTreeMap::new(),
+            evaluation_tracker: None,
         }
     }
 
@@ -143,9 +172,9 @@ impl Context<'_, '_> {
         self.parsed_files.get(&file_id).expect("noir file wasn't parsed").clone()
     }
 
-    /// Returns the CrateDefMap for a given CrateId.
+    /// Returns the `CrateDefMap` for a given `CrateId`.
     /// It is perfectly valid for the compiler to look
-    /// up a CrateDefMap and it is not available.
+    /// up a `CrateDefMap` and it is not available.
     /// This is how the compiler knows to compile a Crate.
     pub fn def_map(&self, crate_id: &CrateId) -> Option<&CrateDefMap> {
         self.def_maps.get(crate_id)
@@ -155,7 +184,7 @@ impl Context<'_, '_> {
         self.def_maps.get_mut(crate_id)
     }
 
-    /// Return the CrateId for each crate that has been compiled
+    /// Return the `CrateId` for each crate that has been compiled
     /// successfully
     pub fn crates(&self) -> impl Iterator<Item = CrateId> + '_ {
         self.crate_graph.iter_keys()
@@ -178,7 +207,7 @@ impl Context<'_, '_> {
         fully_qualified_function_name(*crate_id, *id, &self.def_interner, &self.def_maps)
     }
 
-    /// Returns a fully-qualified path to the given [TypeId] from the given [CrateId]. This function also
+    /// Returns a fully-qualified path to the given [`TypeId`] from the given [`CrateId`]. This function also
     /// account for the crate names of dependencies.
     ///
     /// For example, if you project contains a `main.nr` and `foo.nr` and you provide the `main_crate_id` and the
@@ -191,8 +220,8 @@ impl Context<'_, '_> {
         self.def_interner.function_meta(func_id)
     }
 
-    /// Returns the FuncId of the 'main' function in a crate.
-    /// - Expects check_crate to be called beforehand
+    /// Returns the `FuncId` of the 'main' function in a crate.
+    /// - Expects `check_crate` to be called beforehand
     /// - Panics if no main function is found
     pub fn get_main_function(&self, crate_id: &CrateId) -> Option<FuncId> {
         // Find the local crate, one should always be present
@@ -274,14 +303,14 @@ impl Context<'_, '_> {
     pub(crate) fn resolve_generics(
         interner: &NodeInterner,
         generics: &UnresolvedGenerics,
-        errors: &mut Vec<CompilationError>,
+        errors: &mut CompilationErrors,
     ) -> ResolvedGenerics {
         vecmap(generics, |generic| {
             // Map the generic to a fresh type variable
             let id = interner.next_type_variable_id();
 
             let type_var_kind = generic.kind().unwrap_or_else(|err| {
-                errors.push(err.into());
+                errors.push(err);
                 // When there's an error, unify with any other kinds
                 Kind::Any
             });
@@ -292,10 +321,10 @@ impl Context<'_, '_> {
             if let IdentOrQuotedType::Quoted(quoted_type_id, _) = ident {
                 let typ = interner.get_quoted_type(*quoted_type_id).follow_bindings();
                 if !matches!(typ, Type::NamedGeneric(..)) {
-                    errors.push(
-                        ResolverError::MacroResultInGenericsListNotAGeneric { location, typ }
-                            .into(),
-                    );
+                    errors.push(ResolverError::MacroResultInGenericsListNotAGeneric {
+                        location,
+                        typ,
+                    });
                 }
             }
 
@@ -311,8 +340,8 @@ impl Context<'_, '_> {
     }
 
     /// Activates LSP mode, which will track references for all definitions.
-    pub fn activate_lsp_mode(&mut self) {
-        self.def_interner.lsp_mode = true;
+    pub fn activate_lsp_mode(&mut self, mode: LspMode) {
+        self.def_interner.lsp_mode = Some(mode);
     }
 
     pub fn disable_comptime_printing(&mut self) {

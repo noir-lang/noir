@@ -229,16 +229,16 @@ fn get_truncate_strategies() -> Vec<(u32, BoxedStrategy<SnippetInputOutput>)> {
     vec![(16, strategy_u16), (32, strategy_u32), (64, strategy_u64), (128, strategy_u128)]
 }
 
-/// The tests fuzz_zero_extend(), fuzz_signed_unsigned_same_size(), fuzz_sign_extend() and fuzz_truncate()
+/// The tests `fuzz_zero_extend()`, `fuzz_signed_unsigned_same_size()`, `fuzz_sign_extend()` and `fuzz_truncate()`
 /// ensure that casting between integer types is correct, assuming casting to Field is correct.
-/// Casting to Field is validated with the fuzz_field_cast() test.
+/// Casting to Field is validated with the `fuzz_field_cast()` test.
 /// Any casting between integer types will use a combination of: no-op, zero extension, sign extension, or truncation.
 /// Testing these 4 primitives should be enough to guarantee that casting between any integer types is correct.
 ///
 /// Check that casting to Field is a no-op
 #[test]
 fn fuzz_field_cast() {
-    for (size, strategy) in get_truncate_strategies().iter() {
+    for (size, strategy) in &get_truncate_strategies() {
         if *size < 128 {
             let signed_i = make_field_cast_test(*size, true);
             run_snippet_proptest(signed_i.clone(), false, strategy.clone());
@@ -264,8 +264,8 @@ fn make_zero_extend_test(in_size: u32, out_size: u32) -> String {
 fn fuzz_zero_extend() {
     let strategies = get_unsigned_strategies();
     // zero extend 8, 16, 32, 64, 128 bits
-    for (size, strategy) in strategies.iter() {
-        for i in [8, 16, 32, 64, 128].iter() {
+    for (size, strategy) in &strategies {
+        for i in &[8, 16, 32, 64, 128] {
             if *i >= *size {
                 let unsigned_j_i = make_zero_extend_test(*size, *i);
                 run_snippet_proptest(unsigned_j_i.clone(), false, strategy.clone());
@@ -291,7 +291,7 @@ fn make_sign_unsigned_test(size: u32) -> String {
 fn fuzz_signed_unsigned_same_size() {
     let strategies = get_unsigned_strategies();
 
-    for (size, strategy) in strategies.iter() {
+    for (size, strategy) in &strategies {
         if *size < 128 {
             let signed_unsigned_i_i = make_sign_unsigned_test(*size);
             run_snippet_proptest(signed_unsigned_i_i.clone(), false, strategy.clone());
@@ -313,7 +313,7 @@ fn make_sign_extend_test(in_size: u32, out_size: u32) -> String {
 #[test]
 // Test sign extension
 fn fuzz_sign_extend() {
-    for (size, strategy) in get_signed_strategies().iter() {
+    for (size, strategy) in &get_signed_strategies() {
         for i in [16, 32, 64] {
             if i > *size {
                 // sign extend
@@ -339,7 +339,7 @@ fn make_truncate_test(size: u32, truncate: u32) -> String {
 /// Check that truncation between unsigned types is correct
 #[test]
 fn fuzz_truncate() {
-    for (size, strategy) in get_truncate_strategies().iter() {
+    for (size, strategy) in &get_truncate_strategies() {
         for i in [8, 16, 32, 64] {
             if i < *size {
                 let unsigned_j_i = make_truncate_test(*size, i);

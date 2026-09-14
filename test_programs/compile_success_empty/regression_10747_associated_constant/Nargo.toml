@@ -1,0 +1,6 @@
+[package]
+name = "regression_10747_associated_constant"
+type = "bin"
+authors = [""]
+
+[dependencies]

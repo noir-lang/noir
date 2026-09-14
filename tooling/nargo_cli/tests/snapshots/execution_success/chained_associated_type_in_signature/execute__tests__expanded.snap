@@ -1,0 +1,79 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+trait Mappable {
+    type Target;
+
+    fn map_to(self) -> Self::Target;
+}
+
+impl Mappable for Field {
+    type Target = bool;
+
+    fn map_to(self) -> bool {
+        self != 0_Field
+    }
+}
+
+impl Mappable for bool {
+    type Target = u32;
+
+    fn map_to(self) -> u32 {
+        if self {
+            1_u32
+        } else {
+            0_u32
+        }
+    }
+}
+
+trait Chainable: Mappable<Target = bool> {
+    fn chain(self) -> <Self::Target as Mappable>::Target
+    where
+        Self::Target: Mappable,
+        Self: Mappable;
+}
+
+impl Chainable for Field {
+    fn chain(self) -> u32
+    where
+        bool: Mappable,
+    {
+        self.map_to().map_to()
+    }
+}
+
+struct Wrapper<T> {
+    val: T,
+}
+
+impl<U> Mappable for Wrapper<U> {
+    type Target = U;
+
+    fn map_to(self) -> U {
+        self.val
+    }
+}
+
+impl<T> Unwrappable for Wrapper<T> {
+    fn unwrap(self) -> T
+    where
+        Self: Mappable,
+    {
+        self.map_to()
+    }
+}
+
+trait Unwrappable {
+    fn unwrap(self) -> Self::Target
+    where
+        Self: Mappable;
+}
+
+fn main(x: Field) {
+    let result: u32 = x.chain();
+    assert(result == 1_u32);
+    let wrapped: Wrapper<Field> = Wrapper::<Field> { val: x };
+    assert(wrapped.unwrap() == x);
+}

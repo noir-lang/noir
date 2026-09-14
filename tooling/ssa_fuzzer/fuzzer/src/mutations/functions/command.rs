@@ -1,4 +1,4 @@
-//! This file contains mechanisms for deterministically mutating a given [FuzzerFunctionCommand](crate::fuzz_lib::function_context::FuzzerFunctionCommand) value
+//! This file contains mechanisms for deterministically mutating a given [`FuzzerFunctionCommand`](crate::fuzz_lib::function_context::FuzzerFunctionCommand) value
 
 use crate::fuzz_lib::function_context::FuzzerFunctionCommand;
 use crate::mutations::{
@@ -11,7 +11,7 @@ use crate::mutations::{
         InsertJmpIfBlockMutationOptions,
     },
 };
-use rand::Rng;
+use rand::RngExt;
 use rand::rngs::StdRng;
 
 pub(crate) fn mutate_fuzzer_function_command(

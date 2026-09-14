@@ -25,7 +25,7 @@
 //!     3. Multiplication
 //!
 //! There are configurations for determining probability of each top-level and low-level mutation
-//! Currently, the configurations are constant and "new" methods aren't used, but the architecture is prepared for easier introduction of MOpt (Mutation Optimization) technique in the future
+//! Currently, the configurations are constant and "new" methods aren't used, but the architecture is prepared for easier introduction of `MOpt` (Mutation Optimization) technique in the future
 
 use std::sync::OnceLock;
 
@@ -40,7 +40,7 @@ use super::configurations::{
 };
 use acvm::{AcirField, FieldElement};
 use noirc_abi::input_parser::InputValue;
-use rand::{Rng, seq::IndexedRandom};
+use rand::{RngExt, seq::IndexedRandom};
 use rand_xorshift::XorShiftRng;
 
 const SMALL_VALUE_MAX: u64 = 0xff;

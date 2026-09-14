@@ -16,15 +16,13 @@ impl Formatter<'_> {
                 self.write_token(Token::DoubleColon);
             }
             PathKind::Absolute => {
-                // Deprecated `dep::` paths still exist. We'll change them to `::`.
-                if self.is_at_keyword(Keyword::Dep) {
-                    self.bump();
-                }
                 self.write_token(Token::DoubleColon);
             }
-            PathKind::Super => {
-                self.write_keyword(Keyword::Super);
-                self.write_token(Token::DoubleColon);
+            PathKind::Super(extras) => {
+                for _ in 0..=extras {
+                    self.write_keyword(Keyword::Super);
+                    self.write_token(Token::DoubleColon);
+                }
             }
             PathKind::Resolved(_) => unreachable!("$crate should be unreachable here"),
         }

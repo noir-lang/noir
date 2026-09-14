@@ -1,0 +1,11 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+pub struct Foo<let N: u32, T> {
+    a: [T; N],
+}
+
+fn main() {
+    ()
+}

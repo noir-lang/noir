@@ -72,4 +72,10 @@ fn main(x: Field, y: Field) {
     assert(six == 6);
 
     let Animal { legs: _, eyes: _ } = get_dog();
+
+    // Mutable pattern
+    let mut Nested { a, b } = Nested { a: 1, b: 2 };
+    b = b * 2;
+    a = a + b;
+    assert_eq(a, 5);
 }

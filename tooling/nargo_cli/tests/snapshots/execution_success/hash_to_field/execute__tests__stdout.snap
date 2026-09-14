@@ -1,5 +1,0 @@
----
-source: tooling/nargo_cli/tests/execute.rs
-expression: stdout
----
-[hash_to_field] Circuit output: Field(-4787398321776941716514698552361990282816311612231918974756115344546878653992)

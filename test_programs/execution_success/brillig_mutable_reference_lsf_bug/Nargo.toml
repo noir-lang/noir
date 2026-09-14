@@ -1,0 +1,6 @@
+[package]
+name = "brillig_mutable_reference_lsf_bug"
+type = "bin"
+authors = [""]
+
+[dependencies]

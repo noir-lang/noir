@@ -1,0 +1,29 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+warning: unused variable removed_vector
+   ┌─ src/main.nr:10:10
+   │
+10 │     let (removed_vector, removed_elem) = vector.remove(10);
+   │          -------------- unused variable
+   │
+
+warning: unused variable removed_elem
+   ┌─ src/main.nr:10:26
+   │
+10 │     let (removed_vector, removed_elem) = vector.remove(10);
+   │                          ------------ unused variable
+   │
+
+error: Assertion failed: Index out of bounds
+   ┌─ src/main.nr:10:42
+   │
+10 │     let (removed_vector, removed_elem) = vector.remove(10);
+   │                                          -------------
+   │
+   = Call stack:
+     1: main
+             at src/main.nr:10:42
+
+Failed assertion

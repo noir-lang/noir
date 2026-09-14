@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn main(flag: bool) {
+    let mut idx: u32 = 0_u32;
+    while !flag {
+        if idx == 1_u32 { break; };
+        idx = idx + 1_u32;
+    }
+    assert(idx == 1_u32);
+}

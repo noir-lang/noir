@@ -1,0 +1,6 @@
+[package]
+name = "regression_oob_constant_tuple_array_get"
+type = "bin"
+authors = [""]
+
+[dependencies]

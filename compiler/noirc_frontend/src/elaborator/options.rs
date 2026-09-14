@@ -5,7 +5,6 @@ use std::str::FromStr;
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum UnstableFeature {
     Enums,
-    Ownership,
     TraitAsType,
 }
 
@@ -13,7 +12,6 @@ impl std::fmt::Display for UnstableFeature {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
             Self::Enums => write!(f, "enums"),
-            Self::Ownership => write!(f, "ownership"),
             Self::TraitAsType => write!(f, "trait_as_type"),
         }
     }
@@ -25,16 +23,15 @@ impl FromStr for UnstableFeature {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "enums" => Ok(Self::Enums),
-            "ownership" => Ok(Self::Ownership),
             "trait_as_type" => Ok(Self::TraitAsType),
             other => Err(format!("Unknown unstable feature '{other}'")),
         }
     }
 }
 
-/// Generic options struct meant to resolve to ElaboratorOptions below when
+/// Generic options struct meant to resolve to `ElaboratorOptions` below when
 /// we can resolve a file path to a file id later. This generic struct is used
-/// so that FrontendOptions doesn't need to duplicate fields and methods with ElaboratorOptions.
+/// so that `FrontendOptions` doesn't need to duplicate fields and methods with `ElaboratorOptions`.
 #[derive(Copy, Clone, Debug)]
 pub struct GenericOptions<'a, T> {
     /// The scope of --debug-comptime, or None if unset
@@ -48,7 +45,7 @@ pub struct GenericOptions<'a, T> {
     pub disable_required_unstable_features: bool,
 }
 
-/// Options from nargo_cli that need to be passed down to the elaborator
+/// Options from `nargo_cli` that need to be passed down to the elaborator
 pub(crate) type ElaboratorOptions<'a> = GenericOptions<'a, fm::FileId>;
 
 /// This is the unresolved version of `ElaboratorOptions`

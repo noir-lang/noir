@@ -2,6 +2,6 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-fn main(a: bool) {
-    if a { 1_Field / [][0_u32]; };
+fn main(a: bool, x: u32) {
+    if a { 1_Field / [][x]; };
 }

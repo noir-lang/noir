@@ -1,0 +1,8 @@
+error: `#[tagged(reserved(...))]` on a unit or newtype variant has no effect — the payload has no field tag space to reserve into
+  --> tests/compile_fail/duplicate_variant_reserved.rs:9:5
+   |
+9  | /     #[tag(0)]
+10 | |     #[tagged(reserved(2))]
+11 | |     #[tagged(reserved(3))]
+12 | |     First,
+   | |_________^

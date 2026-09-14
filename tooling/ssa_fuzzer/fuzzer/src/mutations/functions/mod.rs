@@ -10,7 +10,7 @@ use crate::mutations::{
     functions::commands_mutator::generate_random_fuzzer_function_command,
     functions::function::mutate_function,
 };
-use rand::{Rng, rngs::StdRng};
+use rand::{RngExt, rngs::StdRng};
 
 fn generate_random_function_data(rng: &mut StdRng) -> FunctionData {
     FunctionData {

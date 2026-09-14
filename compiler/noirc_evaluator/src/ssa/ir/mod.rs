@@ -10,6 +10,8 @@ pub(crate) mod integer;
 pub mod map;
 pub(crate) mod post_order;
 pub(crate) mod printer;
+pub(crate) mod target_cost;
 pub mod types;
+pub(crate) mod union_find;
 pub mod value;
 pub use printer::is_printable_byte;

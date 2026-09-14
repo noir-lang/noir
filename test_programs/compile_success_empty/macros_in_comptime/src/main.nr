@@ -33,7 +33,11 @@ comptime fn foo<let N: Field>(x: Field) {
         break;
     }
 
-    let loop_ = quote { for _ in 0..0 { break; } };
+    let loop_ = quote {
+        for _ in 0..0 {
+            break;
+        }
+    };
     unquote!(loop_);
 }
 

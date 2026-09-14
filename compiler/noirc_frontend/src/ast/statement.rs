@@ -1,14 +1,14 @@
 use std::fmt::Display;
 
-use acvm::FieldElement;
-use acvm::acir::AcirField;
 use iter_extended::vecmap;
 use noirc_errors::{Located, Location, Span};
+use num_bigint::BigInt;
 
 use super::{
     BlockExpression, ConstructorExpression, Expression, ExpressionKind, GenericTypeArgs,
     IndexExpression, ItemVisibility, MemberAccessExpression, MethodCallExpression, UnresolvedType,
 };
+use crate::ast::BinaryOpKind;
 use crate::elaborator::types::SELF_TYPE_NAME;
 use crate::graph::CrateId;
 use crate::node_interner::{
@@ -24,7 +24,7 @@ use crate::token::{LocatedToken, SecondaryAttribute, Token};
 /// for an identifier that already failed to parse.
 pub const ERROR_IDENT: &str = "$error";
 
-/// This is used to represent an UnresolvedTypeData::Unspecified in a Path
+/// This is used to represent an `UnresolvedTypeData::Unspecified` in a Path
 pub const WILDCARD_TYPE: &str = "_";
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -41,12 +41,13 @@ impl Display for Statement {
 
 /// Ast node for statements in noir. Statements are always within a block { }
 /// of some kind and are terminated via a Semicolon, except if the statement
-/// ends in a block, such as a Statement::Expression containing an if expression.
+/// ends in a block, such as a `Statement::Expression` containing an if expression.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum StatementKind {
     Let(LetStatement),
     Expression(Expression),
     Assign(AssignStatement),
+    AssignOp(AssignOpStatement),
     For(ForLoopStatement),
     Loop(LoopStatement),
     While(WhileStatement),
@@ -56,8 +57,8 @@ pub enum StatementKind {
     Comptime(Box<Statement>),
     /// This is an expression with a trailing semi-colon
     Semi(Expression),
-    /// This is an interned StatementKind during comptime code.
-    /// The actual StatementKind can be retrieved with a NodeInterner.
+    /// This is an interned `StatementKind` during comptime code.
+    /// The actual `StatementKind` can be retrieved with a `NodeInterner`.
     Interned(InternedStatementKind),
     /// This statement is the result of a recovered parse error.
     /// To avoid issuing multiple errors in later steps, it should
@@ -84,6 +85,7 @@ impl Statement {
             StatementKind::Comptime(statement) => statement.type_location(),
             StatementKind::Let(..)
             | StatementKind::Assign(..)
+            | StatementKind::AssignOp(..)
             | StatementKind::For(..)
             | StatementKind::Loop(..)
             | StatementKind::While(..)
@@ -117,6 +119,7 @@ impl StatementKind {
                 self
             }
             StatementKind::Assign(_)
+            | StatementKind::AssignOp(_)
             | StatementKind::Semi(_)
             | StatementKind::Break
             | StatementKind::Continue
@@ -128,6 +131,20 @@ impl StatementKind {
                 self
             }
             StatementKind::Comptime(mut statement) => {
+                // `comptime { expr };` => `Semi(comptime { expr })`
+                if semi.is_some()
+                    && let StatementKind::Expression(Expression {
+                        kind: ExpressionKind::Block(block),
+                        ..
+                    }) = statement.kind
+                {
+                    let comptime_expr = Expression {
+                        kind: ExpressionKind::Comptime(block, statement.location),
+                        location,
+                    };
+                    return StatementKind::Semi(comptime_expr);
+                }
+
                 *statement =
                     statement.add_semicolon(semi, location, last_statement_in_block, emit_error);
                 StatementKind::Comptime(statement)
@@ -321,7 +338,10 @@ pub enum PathKind {
     Crate,
     Absolute,
     Plain,
-    Super,
+    /// One or more stacked `super` qualifiers. The payload is the number of *extra* `super`s
+    /// beyond the first, so `super::` is `Super(0)` and `super::super::` is `Super(1)`. Every
+    /// `usize` is therefore a valid value.
+    Super(usize),
     /// This path is a Crate or Dep path which always points to the given crate.
     /// This is used to implement `$crate::<path-in-macro-crate>` imports for macros, similar to Rust.
     Resolved(CrateId),
@@ -413,6 +433,10 @@ pub struct AsTraitPath {
     pub trait_generics: GenericTypeArgs,
     /// The `ident` in the path.
     pub impl_item: Ident,
+    /// Any turbofish generics applied to `impl_item`, e.g. `::<T>` in
+    /// `<Ty as Trait>::method::<T>()`. Only meaningful when `impl_item` refers
+    /// to a generic function; always `None` when this path is used as a type.
+    pub turbofish: Option<GenericTypeArgs>,
 }
 
 /// A special kind of path in the form `Type::ident::<turbofish>`
@@ -448,13 +472,13 @@ impl Path {
         self
     }
 
-    /// Construct a [PathKind::Plain] from a single identifier name.
+    /// Construct a [`PathKind::Plain`] from a single identifier name.
     pub fn from_single(name: String, location: Location) -> Path {
         let segment = Ident::from(Located::from(location, name));
         Path::from_ident(segment)
     }
 
-    /// Construct a [PathKind::Plain] from a single [Ident].
+    /// Construct a [`PathKind::Plain`] from a single [Ident].
     pub fn from_ident(name: Ident) -> Path {
         let location = name.location();
         Path::plain(vec![PathSegment::from(name)], location)
@@ -577,13 +601,59 @@ pub struct AssignStatement {
     pub expression: Expression,
 }
 
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub struct AssignOpStatement {
+    pub lvalue: LValue,
+    pub op: AssignOp,
+    pub expression: Expression,
+}
+
+pub type AssignOp = Located<AssignOpKind>;
+
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+pub enum AssignOpKind {
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+    And,
+    Or,
+    Xor,
+    ShiftRight,
+    ShiftLeft,
+    Modulo,
+}
+
+impl AssignOpKind {
+    pub fn to_binary_op_kind(&self) -> BinaryOpKind {
+        match self {
+            AssignOpKind::Add => BinaryOpKind::Add,
+            AssignOpKind::Subtract => BinaryOpKind::Subtract,
+            AssignOpKind::Multiply => BinaryOpKind::Multiply,
+            AssignOpKind::Divide => BinaryOpKind::Divide,
+            AssignOpKind::And => BinaryOpKind::And,
+            AssignOpKind::Or => BinaryOpKind::Or,
+            AssignOpKind::Xor => BinaryOpKind::Xor,
+            AssignOpKind::ShiftRight => BinaryOpKind::ShiftRight,
+            AssignOpKind::ShiftLeft => BinaryOpKind::ShiftLeft,
+            AssignOpKind::Modulo => BinaryOpKind::Modulo,
+        }
+    }
+}
+
 /// Represents an Ast form that can be assigned to
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum LValue {
+    /// A path like `foo::bar`
     Path(Path),
+    /// `object.field_name`
     MemberAccess { object: Box<LValue>, field_name: Ident, location: Location },
+    /// `array[index]`
     Index { array: Box<LValue>, index: Expression, location: Location },
-    Dereference(Box<LValue>, Location),
+    /// A dereference `*expression`. Its target can be any expression.
+    /// However, during elaboration we check that its type is a mutable reference.
+    Dereference(Box<Expression>, Location),
+    /// An `LValue` wrapping an interned expression.
     Interned(InternedExpressionKind, Location),
 }
 
@@ -671,10 +741,10 @@ impl LValue {
                     index: index.clone(),
                 }))
             }
-            LValue::Dereference(lvalue, _span) => {
+            LValue::Dereference(expr, _span) => {
                 ExpressionKind::Prefix(Box::new(crate::ast::PrefixExpression {
                     operator: crate::ast::UnaryOp::Dereference { implicitly_added: false },
-                    rhs: lvalue.as_expression(),
+                    rhs: expr.as_ref().clone(),
                 }))
             }
             LValue::Interned(id, _) => ExpressionKind::Interned(*id),
@@ -704,10 +774,7 @@ impl LValue {
                     prefix.operator,
                     crate::ast::UnaryOp::Dereference { implicitly_added: false }
                 ) {
-                    Some(LValue::Dereference(
-                        Box::new(LValue::from_expression(prefix.rhs)?),
-                        location,
-                    ))
+                    Some(LValue::Dereference(Box::new(prefix.rhs), location))
                 } else {
                     None
                 }
@@ -773,6 +840,13 @@ impl ForRange {
         // Counter used to generate unique names when desugaring
         // code in the parser requires the creation of fresh variables.
         let mut unique_name_counter: u32 = 0;
+        // Allocate a fresh, collision-free variable name. Wrapped in a closure so that any
+        // desugaring added here obtains a distinct name without manual counter bookkeeping.
+        let mut fresh_name = || {
+            let name = format!("$i{unique_name_counter}");
+            unique_name_counter += 1;
+            name
+        };
 
         match self {
             ForRange::Range(..) => {
@@ -780,12 +854,10 @@ impl ForRange {
             }
             ForRange::Array(array) => {
                 let array_location = array.location;
-                let start_range = ExpressionKind::integer(FieldElement::zero(), None);
+                let start_range = ExpressionKind::integer(BigInt::ZERO, None);
                 let start_range = Expression::new(start_range, array_location);
 
-                let next_unique_id = unique_name_counter;
-                unique_name_counter += 1;
-                let array_name = format!("$i{next_unique_id}");
+                let array_name = fresh_name();
                 let array_location = array.location;
                 let array_ident = Ident::new(array_name, array_location);
 
@@ -813,8 +885,7 @@ impl ForRange {
                 }));
                 let end_range = Expression::new(end_range, array_location);
 
-                let next_unique_id = unique_name_counter;
-                let index_name = format!("$i{next_unique_id}");
+                let index_name = fresh_name();
                 let fresh_identifier = Ident::new(index_name.clone(), array_location);
 
                 // array[i]
@@ -897,6 +968,7 @@ impl Display for StatementKind {
             StatementKind::Let(let_statement) => let_statement.fmt(f),
             StatementKind::Expression(expression) => expression.fmt(f),
             StatementKind::Assign(assign) => assign.fmt(f),
+            StatementKind::AssignOp(assign_op) => assign_op.fmt(f),
             StatementKind::For(for_loop) => for_loop.fmt(f),
             StatementKind::Loop(loop_) => write!(f, "loop {}", loop_.body),
             StatementKind::While(while_) => {
@@ -925,6 +997,29 @@ impl Display for LetStatement {
 impl Display for AssignStatement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{} = {}", self.lvalue, self.expression)
+    }
+}
+
+impl Display for AssignOpStatement {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} {}= {}", self.lvalue, self.op.contents, self.expression)
+    }
+}
+
+impl Display for AssignOpKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AssignOpKind::Add => write!(f, "+"),
+            AssignOpKind::Subtract => write!(f, "-"),
+            AssignOpKind::Multiply => write!(f, "*"),
+            AssignOpKind::Divide => write!(f, "/"),
+            AssignOpKind::And => write!(f, "&"),
+            AssignOpKind::Or => write!(f, "|"),
+            AssignOpKind::Xor => write!(f, "^"),
+            AssignOpKind::ShiftRight => write!(f, ">>"),
+            AssignOpKind::ShiftLeft => write!(f, "<<"),
+            AssignOpKind::Modulo => write!(f, "%"),
+        }
     }
 }
 
@@ -958,7 +1053,15 @@ impl Display for PathKind {
         match self {
             PathKind::Crate => write!(f, "crate"),
             PathKind::Absolute => write!(f, ""),
-            PathKind::Super => write!(f, "super"),
+            PathKind::Super(extras) => {
+                for i in 0..=*extras {
+                    if i > 0 {
+                        write!(f, "::")?;
+                    }
+                    write!(f, "super")?;
+                }
+                Ok(())
+            }
             PathKind::Plain => write!(f, "plain"),
             PathKind::Resolved(_) => write!(f, "$crate"),
         }

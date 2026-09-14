@@ -4,6 +4,7 @@ use std::collections::{BTreeMap, HashSet};
 use thiserror::Error;
 
 use acvm::{AcirField, FieldElement};
+use itertools::Itertools;
 use serde::Serialize;
 
 use crate::errors::InputParserError;
@@ -13,8 +14,8 @@ pub mod json;
 mod toml;
 
 /// This is what all formats eventually transform into
-/// For example, a toml file will parse into TomlTypes
-/// and those TomlTypes will be mapped to Value
+/// For example, a toml file will parse into `TomlTypes`
+/// and those `TomlTypes` will be mapped to Value
 #[derive(Debug, Clone, Serialize, PartialEq)]
 pub enum InputValue {
     Field(FieldElement),
@@ -62,7 +63,7 @@ impl InputTypecheckingError {
 }
 
 impl InputValue {
-    /// Checks whether the ABI type matches the InputValue type
+    /// Checks whether the ABI type matches the `InputValue` type
     pub(crate) fn find_type_mismatch(
         &self,
         abi_param: &AbiType,
@@ -136,7 +137,7 @@ impl InputValue {
                     } else {
                         return Err(InputTypecheckingError::MissingField {
                             path,
-                            expected_field: field_name.to_string(),
+                            expected_field: field_name.clone(),
                             found_fields: map.keys().cloned().collect(),
                         });
                     }
@@ -144,12 +145,12 @@ impl InputValue {
 
                 if map.len() > fields.len() {
                     let expected_fields: HashSet<String> =
-                        fields.iter().map(|(field, _)| field.to_string()).collect();
+                        fields.iter().map(|(field, _)| field.clone()).collect();
                     let extra_field = map.keys().find(|&key| !expected_fields.contains(key)).cloned().expect("`map` is larger than the expected type's `fields` so it must contain an unexpected field");
                     return Err(InputTypecheckingError::UnexpectedField {
                         path,
                         typ: abi_param.clone(),
-                        extra_field: extra_field.to_string(),
+                        extra_field,
                     });
                 }
 
@@ -167,7 +168,7 @@ impl InputValue {
                     });
                 }
                 // Check that all of the array's elements' values match the ABI as well.
-                for (i, (element, expected_typ)) in vec_elements.iter().zip(fields).enumerate() {
+                for (i, (element, expected_typ)) in vec_elements.iter().zip_eq(fields).enumerate() {
                     let mut path = path.clone();
                     path.push_str(&format!(".{i}"));
                     element.find_type_mismatch(expected_typ, path)?;
@@ -184,7 +185,7 @@ impl InputValue {
         }
     }
 
-    /// Checks whether the ABI type matches the InputValue type.
+    /// Checks whether the ABI type matches the `InputValue` type.
     pub fn matches_abi(&self, abi_param: &AbiType) -> bool {
         self.find_type_mismatch(abi_param, String::new()).is_ok()
     }
@@ -257,6 +258,7 @@ mod serialization_tests {
     #[test]
     fn serialization_round_trip() {
         let abi = Abi {
+            abi_version: crate::ABI_VERSION,
             parameters: vec![
                 AbiParameter {
                     name: "foo".into(),

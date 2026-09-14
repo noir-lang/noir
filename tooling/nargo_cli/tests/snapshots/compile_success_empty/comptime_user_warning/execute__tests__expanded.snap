@@ -1,0 +1,34 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use std::meta::warn;
+
+fn target() {}
+
+fn other() {}
+
+comptime fn notice(f: FunctionDefinition) {
+    warn(
+        f"This is a `warn` test with no secondary on `{f}`",
+        Option::<fmtstr<_, _>>::none(),
+        f.location(),
+    );
+}
+
+comptime fn notice_with_hint(f: FunctionDefinition) {
+    warn(
+        f"This is a `warn` test with a secondary on `{f}`",
+        Option::<fmtstr<27, (FunctionDefinition,)>>::some(f"I am the secondary on `{f}`"),
+        f.location(),
+    );
+}
+
+struct IGiveLocations {}
+
+fn main() {
+    target();
+    other();
+    ();
+    ()
+}

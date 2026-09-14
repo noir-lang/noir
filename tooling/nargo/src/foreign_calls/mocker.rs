@@ -75,7 +75,7 @@ impl<F: AcirField> MockForeignCallExecutor<F> {
     }
 
     fn parse_string(param: &ForeignCallParam<F>) -> String {
-        let fields: Vec<_> = param.fields().to_vec();
+        let fields: Vec<_> = param.fields();
         decode_string_value(&fields)
     }
 }
@@ -207,7 +207,7 @@ impl<F> ForeignCallExecutor<F> for DisabledMockForeignCallExecutor {
         ) = ForeignCall::lookup(foreign_call_name)
         {
             // Returning an error instead of panicking so this can be tested.
-            return Err(ForeignCallError::Disabled(foreign_call.function.to_string()));
+            return Err(ForeignCallError::Disabled(foreign_call.function.clone()));
         }
         Err(ForeignCallError::NoHandler(foreign_call.function.clone()))
     }

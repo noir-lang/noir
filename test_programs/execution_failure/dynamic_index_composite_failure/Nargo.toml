@@ -1,0 +1,6 @@
+[package]
+name = "dynamic_index_composite_failure"
+type = "bin"
+authors = [""]
+
+[dependencies]

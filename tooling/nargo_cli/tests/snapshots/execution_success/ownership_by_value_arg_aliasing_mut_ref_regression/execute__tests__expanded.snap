@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn f(r: &mut [Field; 3], v: [Field; 3], i: u32) -> ([Field; 3], [Field; 3]) {
+    (*r)[i] = 99_Field;
+    (v, *r)
+}
+
+unconstrained fn main(a: Field, b: Field, c: Field, i: u32) {
+    let mut x: [Field; 3] = [a, b, c];
+    let (v, r): ([Field; 3], [Field; 3]) = f(&mut x, x, i);
+    assert(v[i] == a);
+    assert(r[i] == 99_Field);
+}

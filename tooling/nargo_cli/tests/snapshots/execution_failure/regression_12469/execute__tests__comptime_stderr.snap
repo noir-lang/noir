@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Attempt to calculate the remainder with overflow
+  ┌─ src/main.nr:2:5
+  │
+2 │     a % b
+  │     -----
+  │
+
+Error interpreting main function

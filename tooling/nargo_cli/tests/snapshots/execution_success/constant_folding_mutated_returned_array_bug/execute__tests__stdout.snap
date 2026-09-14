@@ -1,0 +1,5 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+[constant_folding_mutated_returned_array_bug] Circuit output: [true]

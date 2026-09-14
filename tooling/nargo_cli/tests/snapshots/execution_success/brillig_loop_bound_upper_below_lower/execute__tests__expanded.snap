@@ -1,0 +1,14 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use std::ops::WrappingAdd;
+
+unconstrained fn main() {
+    let mut i: u8 = 10_u8;
+    loop {
+        if i == 8_u8 { break; };
+        i = i.wrapping_add(3_u8);
+    }
+    assert(i == 8_u8);
+}

@@ -19,13 +19,9 @@ impl MyDefault for Foo {
     fn my_default(x: Field, y: Field) -> Self {
         Self { bar: x, array: [x, y] }
     }
-
-    fn method2(x: Field) -> Field {
-        x
-    }
 }
 
 fn main(x: Field) {
-    let first: Field = Foo::method2(x);
+    let first: Field = <Foo as MyDefault>::method2(x);
     assert(first == x);
 }

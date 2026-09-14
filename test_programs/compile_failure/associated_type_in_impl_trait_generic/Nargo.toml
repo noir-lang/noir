@@ -1,7 +1,0 @@
-[package]
-name = "associated_type_in_impl_trait_generic"
-type = "bin"
-authors = [""]
-compiler_version = ">=0.33.0"
-
-[dependencies]

@@ -1,0 +1,28 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn main(cond: bool) -> pub [Field; 2] {
+    let mut x: [Field; 2] = [1_Field, 2_Field];
+    let mut z: [Field; 2] = [0_Field, 0_Field];
+    let mut i: u32 = 0_u32;
+    while i <= 3_u32 {
+        x = if cond {
+            let mut y: [Field; 2] = x;
+            y[0_u32] = 10_Field;
+            z = y;
+            let mut j: u32 = 0_u32;
+            while {
+                break;
+                j < 3_u32
+            } {
+                j = j + 1_u32;
+            }
+            [4_Field, 5_Field]
+        } else {
+            x
+        };
+        i = i + 1_u32;
+    }
+    [x[0_u32], z[0_u32]]
+}

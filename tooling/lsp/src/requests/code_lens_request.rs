@@ -1,5 +1,3 @@
-use std::future::{self, Future};
-
 use async_lsp::{
     ResponseError,
     lsp_types::{Position, TextDocumentPositionParams},
@@ -54,8 +52,8 @@ fn package_selection_args(workspace: &Workspace, package: &Package) -> Vec<serde
 pub(crate) fn on_code_lens_request(
     state: &mut LspState,
     params: CodeLensParams,
-) -> impl Future<Output = Result<CodeLensResult, ResponseError>> + use<> {
-    future::ready(on_code_lens_request_inner(state, params))
+) -> Result<CodeLensResult, ResponseError> {
+    on_code_lens_request_inner(state, params)
 }
 
 fn on_code_lens_request_inner(
@@ -287,32 +285,16 @@ fn debug_test_lens(
 mod tests {
 
     use async_lsp::lsp_types::{
-        CodeLensParams, DidOpenTextDocumentParams, PartialResultParams, TextDocumentIdentifier,
-        TextDocumentItem, WorkDoneProgressParams,
+        CodeLensParams, PartialResultParams, TextDocumentIdentifier, WorkDoneProgressParams,
     };
     use iter_extended::vecmap;
     use serde_json::Value;
-    use tokio::test;
 
-    use crate::{
-        notifications::on_did_open_text_document, requests::on_code_lens_request, test_utils,
-        types::CodeLensResult,
-    };
+    use crate::{requests::on_code_lens_request, test_utils, types::CodeLensResult};
 
-    async fn get_code_lens(src: &str, directory: &str) -> CodeLensResult {
-        let (mut state, noir_text_document) = test_utils::init_lsp_server(directory).await;
-
-        let _ = on_did_open_text_document(
-            &mut state,
-            DidOpenTextDocumentParams {
-                text_document: TextDocumentItem {
-                    uri: noir_text_document.clone(),
-                    language_id: "noir".to_string(),
-                    version: 0,
-                    text: src.to_string(),
-                },
-            },
-        );
+    fn get_code_lens(src: &str, directory: &str) -> CodeLensResult {
+        let (mut state, noir_text_document) =
+            test_utils::init_lsp_server_with_inline_source(directory, "src/main.nr", src);
 
         on_code_lens_request(
             &mut state,
@@ -322,37 +304,36 @@ mod tests {
                 partial_result_params: PartialResultParams { partial_result_token: None },
             },
         )
-        .await
         .expect("Could not execute on_code_lens_request")
     }
 
     #[test]
-    async fn test_no_code_lens() {
+    fn test_no_code_lens() {
         let src = r#"
         fn foo() {}
         "#;
 
-        let code_lens = get_code_lens(src, "document_symbol").await;
+        let code_lens = get_code_lens(src, "document_symbol");
         assert!(code_lens.is_none());
     }
 
     #[test]
-    async fn test_no_code_lens_on_nested_main() {
+    fn test_no_code_lens_on_nested_main() {
         let src = r#"
         mod moo {
             fn main() {}
         }
         "#;
 
-        let code_lens = get_code_lens(src, "document_symbol").await;
+        let code_lens = get_code_lens(src, "document_symbol");
         assert!(code_lens.is_none());
     }
 
     #[test]
-    async fn test_main_code_lens() {
+    fn test_main_code_lens() {
         let src = r#"fn main() {}"#;
 
-        let code_lens = get_code_lens(src, "document_symbol").await.unwrap();
+        let code_lens = get_code_lens(src, "document_symbol").unwrap();
         assert_eq!(code_lens.len(), 4);
 
         for lens in &code_lens {
@@ -371,10 +352,10 @@ mod tests {
     }
 
     #[test]
-    async fn test_test_code_lens() {
+    fn test_test_code_lens() {
         let src = r#"#[test] fn some_test() {}"#;
 
-        let code_lens = get_code_lens(src, "document_symbol").await.unwrap();
+        let code_lens = get_code_lens(src, "document_symbol").unwrap();
         assert_eq!(code_lens.len(), 2);
 
         for lens in &code_lens {
@@ -395,10 +376,10 @@ mod tests {
     }
 
     #[test]
-    async fn test_nested_test_code_lens() {
+    fn test_nested_test_code_lens() {
         let src = r#"mod moo { #[test] fn some_test() {} }"#;
 
-        let code_lens = get_code_lens(src, "document_symbol").await.unwrap();
+        let code_lens = get_code_lens(src, "document_symbol").unwrap();
         assert_eq!(code_lens.len(), 2);
 
         for lens in &code_lens {
@@ -419,10 +400,10 @@ mod tests {
     }
 
     #[test]
-    async fn test_contract_code_lens() {
+    fn test_contract_code_lens() {
         let src = r#"contract SomeContract {}"#;
 
-        let code_lens = get_code_lens(src, "test_contract").await.unwrap();
+        let code_lens = get_code_lens(src, "test_contract").unwrap();
         assert_eq!(code_lens.len(), 2);
 
         for lens in &code_lens {

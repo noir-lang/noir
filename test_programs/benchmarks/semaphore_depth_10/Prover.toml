@@ -12,6 +12,6 @@ hash_path = [
 ]
 hashed_message = 43
 hashed_scope = 32
-index_bits = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+index_bits = [true, true, true, true, true, true, true, true, true, true]
 merkle_proof_length = 10
 secret_key = "2736030358979909402780800718157159386076813972158567259200215660948447373040"

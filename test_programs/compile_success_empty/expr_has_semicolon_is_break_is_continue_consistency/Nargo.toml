@@ -1,0 +1,6 @@
+[package]
+name = "expr_has_semicolon_is_break_is_continue_consistency"
+type = "bin"
+authors = [""]
+
+[dependencies]

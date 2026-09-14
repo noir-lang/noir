@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn one(_r: &Field) -> Field {
+    1_Field
+}
+
+unconstrained fn two(_r: &Field) -> Field {
+    2_Field
+}
+
+fn main(condition: bool, x: Field) {
+    let f: unconstrained fn(&Field) -> Field = if condition { one } else { two };
+    // Safety: comment added by `nargo expand`
+    let y: Field = unsafe { f(&x) };
+    let expected: Field = if condition { 1_Field } else { 2_Field };
+    assert(y == expected);
+}

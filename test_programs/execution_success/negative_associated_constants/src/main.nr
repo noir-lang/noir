@@ -12,8 +12,8 @@ trait Foo {
 }
 
 impl Foo for i32 {
-    let N: i32 = -12345;
-    let M: i32 = 12345 - 20000;
+    let N: i32 = -12345i32;
+    let M: i32 = 12345i32 - 20000i32;
 }
 
 fn main() {

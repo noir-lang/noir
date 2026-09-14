@@ -22,13 +22,13 @@ impl<F: AcirField> AcirContext<F> {
         outputs: Vec<AcirType>,
     ) -> Result<Vec<AcirValue>, RuntimeError> {
         let stdlib_func_bytecode = &self.brillig_stdlib.get_code(brillig_stdlib_func).clone();
-        let safe_return_values = false;
+        let skip_output_range_checks = false;
         self.brillig_call(
             predicate,
             stdlib_func_bytecode,
             inputs,
             outputs,
-            safe_return_values,
+            skip_output_range_checks,
             PLACEHOLDER_BRILLIG_INDEX,
             Some(brillig_stdlib_func),
         )
@@ -41,7 +41,7 @@ impl<F: AcirField> AcirContext<F> {
         generated_brillig: &GeneratedBrillig<F>,
         inputs: Vec<AcirValue>,
         outputs: Vec<AcirType>,
-        unsafe_return_values: bool,
+        skip_output_range_checks: bool,
         brillig_function_index: BrilligFunctionId,
         brillig_stdlib_func: Option<BrilligStdlibFunc>,
     ) -> Result<Vec<AcirValue>, RuntimeError> {
@@ -76,8 +76,20 @@ impl<F: AcirField> AcirContext<F> {
                         }
                         Ok(BrilligInputs::Array(var_expressions))
                     }
-                    AcirValue::DynamicArray(AcirDynamicArray { block_id, .. }) => {
-                        Ok(BrilligInputs::MemoryArray(block_id))
+                    AcirValue::DynamicArray(AcirDynamicArray { block_id, len, .. }) => {
+                        if len.to_usize() == 0 {
+                            // A zero-length dynamic array has no backing `MemoryInit` opcode:
+                            // zero-length blocks are recorded as initialized but emit no memory
+                            // operations, per the "Zero-Length Arrays" rule in `acir/arrays.rs`.
+                            // Referencing such a block as a `MemoryArray` input yields an orphan
+                            // block id that has no `MemoryInit`, which later panics
+                            // `MergeExpressionsOptimizer` with "Unknown block id" (and fails raw
+                            // ACVM with `MissingMemoryBlock`). An empty block carries no calldata
+                            // cells, so lower it inline as an empty array instead.
+                            Ok(BrilligInputs::Array(Vec::new()))
+                        } else {
+                            Ok(BrilligInputs::MemoryArray(block_id))
+                        }
                     }
                 }
             })?;
@@ -139,7 +151,7 @@ impl<F: AcirField> AcirContext<F> {
 
         // This is a hack to ensure that if we're compiling a brillig entrypoint function then
         // we don't also add a number of range constraints.
-        if !unsafe_return_values {
+        if !skip_output_range_checks {
             for output_var in &outputs_var {
                 range_constraint_value(self, output_var)?;
             }
@@ -183,7 +195,7 @@ impl<F: AcirField> AcirContext<F> {
         element_types: &[AcirType],
         size: SemanticLength,
     ) -> AcirValue {
-        let mut array_values = im::Vector::new();
+        let mut array_values = imbl::Vector::new();
         for _ in 0..size.0 {
             for element_type in element_types {
                 match element_type {
@@ -210,7 +222,7 @@ impl<F: AcirField> AcirContext<F> {
         size: SemanticLength,
     ) -> (AcirValue, Vec<Witness>) {
         let mut witnesses = Vec::new();
-        let mut array_values = im::Vector::new();
+        let mut array_values = imbl::Vector::new();
         for _ in 0..size.0 {
             for element_type in element_types {
                 match element_type {

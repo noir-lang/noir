@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
-use std::{collections::HashMap, future::Future};
 
 use crate::notifications::fake_stdlib_workspace;
 use crate::{PackageCacheData, insert_all_files_for_workspace_into_file_manager, parse_diff};
@@ -42,11 +42,8 @@ use crate::{
 pub(crate) use workspace_symbol::WorkspaceSymbolCache;
 
 // Handlers
-// The handlers for `request` are not `async` because it compiles down to lifetimes that can't be added to
-// the router. To return a future that fits the trait, it is easiest wrap your implementations in an `async {}`
-// block but you can also use `std::future::ready`.
-//
-// Additionally, the handlers for `notification` aren't async at all.
+// Request and notification handlers are synchronous functions over `&mut LspState`: the router
+// adapts them to the `Future`-returning signature it needs (see `NargoLspService::new`).
 //
 // They are not attached to the `NargoLspService` struct so they can be unit tested with only `LspState`
 // and params passed in.
@@ -84,7 +81,7 @@ pub(crate) use {
 };
 
 /// LSP client will send initialization request after the server has started.
-/// [InitializeParams].`initialization_options` will contain the options sent from the client.
+/// [`InitializeParams`].`initialization_options` will contain the options sent from the client.
 #[derive(Debug, Deserialize, Serialize, Copy, Clone)]
 pub(crate) struct LspInitializationOptions {
     /// Controls whether code lens is enabled by the server
@@ -260,7 +257,7 @@ impl Default for LspInitializationOptions {
 pub(crate) fn on_initialize(
     state: &mut LspState,
     params: InitializeParams,
-) -> impl Future<Output = Result<InitializeResult, ResponseError>> + use<> {
+) -> Result<InitializeResult, ResponseError> {
     state.root_path = params.root_uri.and_then(|root_uri| root_uri.to_file_path().ok());
     let initialization_options: LspInitializationOptions = params
         .initialization_options
@@ -281,7 +278,7 @@ pub(crate) fn on_initialize(
     let enable_semantic_tokens = !initialization_options.enable_lightweight_mode
         && initialization_options.enable_semantic_tokens;
 
-    async move {
+    {
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
                 text_document_sync: Some(TextDocumentSyncCapability::Kind(
@@ -414,15 +411,12 @@ pub(crate) fn semantic_token_types_map() -> HashMap<SemanticTokenType, usize> {
     semantic_token_types().iter().enumerate().map(|(i, typ)| (typ.clone(), i)).collect()
 }
 
+/// Unlike the other handlers, formatting takes the open documents' current texts instead of
+/// `LspState`: it needs no compiler state, so the main loop answers it directly from its own
+/// text mirror rather than queueing it behind type-checking (with format-on-save enabled,
+/// the editor's save waits on this request).
 pub(crate) fn on_formatting(
-    state: &mut LspState,
-    params: lsp_types::DocumentFormattingParams,
-) -> impl Future<Output = Result<Option<Vec<lsp_types::TextEdit>>, ResponseError>> + use<> {
-    std::future::ready(on_formatting_inner(state, params))
-}
-
-fn on_formatting_inner(
-    state: &LspState,
+    input_files: &HashMap<String, String>,
     params: lsp_types::DocumentFormattingParams,
 ) -> Result<Option<Vec<lsp_types::TextEdit>>, ResponseError> {
     // The file_path might be Err/None if the action runs against an unsaved file
@@ -431,7 +425,7 @@ fn on_formatting_inner(
 
     let path = params.text_document.uri.to_string();
 
-    if let Some(source) = state.input_files.get(&path) {
+    if let Some(source) = input_files.get(&path) {
         let (module, errors) = noirc_frontend::parse_program_with_dummy_file(source);
         let is_all_warnings = errors.iter().all(ParserError::is_warning);
         if !is_all_warnings {
@@ -496,21 +490,16 @@ fn position_to_location(
     files: &FileMap,
     file_path: &PathString,
     position: &Position,
-) -> Result<noirc_errors::Location, ResponseError> {
-    let file_id = file_path_to_file_id(files, file_path)?;
-    let byte_index = position_to_byte_index(files, file_id, position).map_err(|err| {
-        ResponseError::new(
-            ErrorCode::REQUEST_FAILED,
-            format!("Could not convert position to byte index. Error: {err:?}"),
-        )
-    })?;
+) -> Option<noirc_errors::Location> {
+    let file_id = file_path_to_file_id(files, file_path).ok()?;
+    let byte_index = position_to_byte_index(files, file_id, position).ok()?;
 
     let location = noirc_errors::Location {
         file: file_id,
         span: noirc_errors::Span::single_char(byte_index as u32),
     };
 
-    Ok(location)
+    Some(location)
 }
 
 pub(crate) fn file_path_to_file_id(
@@ -558,17 +547,29 @@ pub(crate) fn to_lsp_location(
     if let Ok(uri) = Url::from_file_path(path.clone()) {
         Some(Location { uri, range })
     } else if path.starts_with("std/") {
-        Some(Location { uri: Url::from_str(&format!("noir-std://{path}")).unwrap(), range })
+        Some(Location { uri: stdlib_path_to_uri(&path), range })
     } else {
         None
     }
 }
 
-pub(crate) fn on_shutdown(
-    _state: &mut LspState,
-    _params: (),
-) -> impl Future<Output = Result<(), ResponseError>> + use<> {
-    async { Ok(()) }
+/// Map a canonical stdlib path (e.g. `std/array.nr`) to a URI for the LSP client.
+/// When the stdlib source is reachable on disk (debug builds compiled from the
+/// monorepo), emits a `file://` URI so editors open the real file and edits land
+/// on disk. Otherwise falls back to `noir-std://`, which the client resolves
+/// through the `nargo/stdSourceCode` custom request into a read-only document.
+pub(crate) fn stdlib_path_to_uri(stdlib_path: &str) -> Url {
+    if let Some(rest) = stdlib_path.strip_prefix("std/")
+        && let Some(disk_root) = noirc_driver::stdlib_disk_path()
+    {
+        let resolved = disk_root.join(rest);
+        if resolved.is_file()
+            && let Ok(uri) = Url::from_file_path(&resolved)
+        {
+            return uri;
+        }
+    }
+    Url::from_str(&format!("noir-std://{stdlib_path}")).unwrap()
 }
 
 pub(crate) struct ProcessRequestCallbackArgs<'a> {
@@ -598,13 +599,20 @@ pub(crate) fn process_request<F, T>(
 ) -> Result<T, ResponseError>
 where
     F: FnOnce(ProcessRequestCallbackArgs) -> T,
+    T: Default,
 {
     let uri = text_document_position_params.text_document.uri.clone();
     let file_path = uri_to_file_path(&uri)?;
     let workspace = if uri.scheme() == "noir-std" {
         fake_stdlib_workspace()
     } else {
-        resolve_workspace_for_source_path(file_path.as_path()).unwrap()
+        match resolve_workspace_for_source_path(file_path.as_path()) {
+            Ok(workspace) => workspace,
+            Err(crate::LspError::ManifestError(..)) => return Ok(T::default()),
+            Err(e) => {
+                return Err(ResponseError::new(ErrorCode::REQUEST_FAILED, e.to_string()));
+            }
+        }
     };
 
     let package = crate::workspace_package_for_file(&workspace, &file_path).ok_or_else(|| {
@@ -633,11 +641,13 @@ where
 
     let files = file_manager.as_file_map();
 
-    let location = position_to_location(
+    let Some(location) = position_to_location(
         files,
         &PathString::from(file_path),
         &text_document_position_params.position,
-    )?;
+    ) else {
+        return Ok(T::default());
+    };
 
     Ok(callback(ProcessRequestCallbackArgs {
         location,
@@ -661,13 +671,18 @@ pub(crate) fn process_request_no_workspace_cache<F, T>(
 ) -> Result<T, ResponseError>
 where
     F: FnOnce(ProcessRequestCallbackArgs) -> T,
+    T: Default,
 {
     let file_path =
         text_document_position_params.text_document.uri.to_file_path().map_err(|_| {
             ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
         })?;
 
-    let workspace = resolve_workspace_for_source_path(file_path.as_path()).unwrap();
+    let workspace = match resolve_workspace_for_source_path(file_path.as_path()) {
+        Ok(workspace) => workspace,
+        Err(crate::LspError::ManifestError(..)) => return Ok(T::default()),
+        Err(e) => return Err(ResponseError::new(ErrorCode::REQUEST_FAILED, e.to_string())),
+    };
     let package = crate::workspace_package_for_file(&workspace, &file_path).ok_or_else(|| {
         ResponseError::new(ErrorCode::REQUEST_FAILED, "Could not find package for file")
     })?;
@@ -700,11 +715,13 @@ where
 
     let files = workspace_file_manager.as_file_map();
 
-    let location = position_to_location(
+    let Some(location) = position_to_location(
         files,
         &PathString::from(file_path),
         &text_document_position_params.position,
-    )?;
+    ) else {
+        return Ok(T::default());
+    };
 
     Ok(callback(ProcessRequestCallbackArgs {
         location,
@@ -854,16 +871,15 @@ mod initialization {
     use async_lsp::lsp_types::{
         CodeLensOptions, InitializeParams, TextDocumentSyncCapability, TextDocumentSyncKind,
     };
-    use tokio::test;
 
     use crate::{LspState, requests::on_initialize, types::ServerCapabilities};
 
     #[test]
-    async fn test_on_initialize() {
+    fn test_on_initialize() {
         let client = ClientSocket::new_closed();
         let mut state = LspState::new(&client, StubbedBlackBoxSolver);
         let params = InitializeParams::default();
-        let response = on_initialize(&mut state, params).await.unwrap();
+        let response = on_initialize(&mut state, params).unwrap();
         assert!(matches!(
             response.capabilities,
             ServerCapabilities {

@@ -11,11 +11,11 @@ pub(crate) struct Poseidon2Config {
     /// State width (or state size, number of field elements in the permutation state).
     pub(crate) t: u32,
 
-    /// Number of full rounds (also called R_F).
+    /// Number of full rounds (also called `R_F`).
     /// In full rounds, the S-box is applied to all state elements.
     pub(crate) rounds_f: u32,
 
-    /// Number of partial rounds (also called R_P).
+    /// Number of partial rounds (also called `R_P`).
     /// In partial rounds, the S-box is applied only to the first state element.
     pub(crate) rounds_p: u32,
 

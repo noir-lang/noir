@@ -17,6 +17,7 @@ on:
   merge_group:
   pull_request:
 
+permissions: {}
 
 jobs:
   build-apple-darwin:
@@ -36,7 +37,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.tag || env.GITHUB_REF }}
 
@@ -45,12 +46,6 @@ jobs:
         uses: dtolnay/rust-toolchain@1.89.0
         with:
           targets: ${{ matrix.target }}
-
-      - uses: Swatinem/rust-cache@v2
-        with:
-          key: ${{ matrix.target }}
-          cache-on-failure: true
-          save-if: ${{ github.event_name != 'merge_group' }}
 
       - uses: taiki-e/install-action@just
 
@@ -61,31 +56,20 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Noir binaries artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: noir-${{ matrix.target }}
           path: ./dist/*
           retention-days: 3
 
-      - name: Upload nargo binary to release tag
-        uses: svenstaro/upload-release-action@v2
-        if: ${{ inputs.publish || github.event_name == 'schedule' }}
-        with:
-          repo_name: noir-lang/noir
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ./nargo-${{ matrix.target }}.tar.gz
-          asset_name: nargo-${{ matrix.target }}.tar.gz
-          overwrite: true
-          tag: ${{ inputs.tag || 'nightly' }} # This will fail if `inputs.tag` is not a tag (e.g. testing a branch)
-
       - name: Generate noir binaries attestation
         if: ${{ inputs.publish || github.event_name == 'schedule' }}
-        uses: actions/attest-build-provenance@v3
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: ./noir-${{ matrix.target }}.tar.gz
 
       - name: Upload Noir binaries to release tag
-        uses: svenstaro/upload-release-action@v2
+        uses: svenstaro/upload-release-action@29e53e917877a24fad85510ded594ab3c9ca12de # v2
         if: ${{ inputs.publish || github.event_name == 'schedule' }}
         with:
           repo_name: noir-lang/noir
@@ -100,21 +84,8 @@ jobs:
         if: ${{ inputs.tag == '' && inputs.publish || github.event_name == 'schedule' }}
         run: echo "date=$(date '+%Y-%m-%d')" >> $GITHUB_OUTPUT
 
-      - name: Upload nargo binary to release with date tag
-        uses: svenstaro/upload-release-action@v2
-        if: ${{ inputs.tag == '' && inputs.publish || github.event_name == 'schedule' }}
-        with:
-          repo_name: noir-lang/noir
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ./nargo-${{ matrix.target }}.tar.gz
-          asset_name: nargo-${{ matrix.target }}.tar.gz
-          prerelease: true
-          make_latest: false
-          overwrite: true
-          tag: ${{ format('{0}-{1}', 'nightly', steps.date.outputs.date) }}
-
       - name: Upload Noir binaries to release with date tag
-        uses: svenstaro/upload-release-action@v2
+        uses: svenstaro/upload-release-action@29e53e917877a24fad85510ded594ab3c9ca12de # v2
         if: ${{ inputs.tag == '' && inputs.publish || github.event_name == 'schedule' }}
         with:
           repo_name: noir-lang/noir
@@ -144,7 +115,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.tag || env.GITHUB_REF }}
 
@@ -152,12 +123,6 @@ jobs:
         uses: dtolnay/rust-toolchain@1.89.0
         with:
           targets: ${{ matrix.target }}
-
-      - uses: Swatinem/rust-cache@v2
-        with:
-          key: ${{ matrix.target }}
-          cache-on-failure: true
-          save-if: ${{ github.event_name != 'merge_group' }}
 
       - uses: taiki-e/install-action@just
 
@@ -169,32 +134,20 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Noir binaries artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: noir-${{ matrix.target }}
           path: ./dist/*
           retention-days: 3
 
-      - name: Upload nargo binary to release tag
-        uses: svenstaro/upload-release-action@v2
-        if: ${{ inputs.publish }}
-        with:
-          repo_name: noir-lang/noir
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ./nargo-${{ matrix.target }}.tar.gz
-          asset_name: nargo-${{ matrix.target }}.tar.gz
-          prerelease: true
-          overwrite: true
-          tag: ${{ inputs.tag || 'nightly' }} # This will fail if `inputs.tag` is not a tag (e.g. testing a branch)
-
       - name: Generate noir binaries attestation
         if: ${{ inputs.publish || github.event_name == 'schedule' }}
-        uses: actions/attest-build-provenance@v3
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-path: ./noir-${{ matrix.target }}.tar.gz
 
       - name: Upload Noir binaries to release tag
-        uses: svenstaro/upload-release-action@v2
+        uses: svenstaro/upload-release-action@29e53e917877a24fad85510ded594ab3c9ca12de # v2
         if: ${{ inputs.publish }}
         with:
           repo_name: noir-lang/noir
@@ -210,21 +163,8 @@ jobs:
         if: ${{ env.NIGHTLY_RELEASE && inputs.publish }}
         run: echo "date=$(date '+%Y-%m-%d')" >> $GITHUB_OUTPUT
 
-      - name: Upload nargo binary to release with date tag
-        uses: svenstaro/upload-release-action@v2
-        if: ${{ env.NIGHTLY_RELEASE && inputs.publish }}
-        with:
-          repo_name: noir-lang/noir
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ./nargo-${{ matrix.target }}.tar.gz
-          asset_name: nargo-${{ matrix.target }}.tar.gz
-          prerelease: true
-          make_latest: false
-          overwrite: true
-          tag: ${{ format('{0}-{1}', 'nightly', steps.date.outputs.date) }}
-
       - name: Upload Noir binaries to release with date tag
-        uses: svenstaro/upload-release-action@v2
+        uses: svenstaro/upload-release-action@29e53e917877a24fad85510ded594ab3c9ca12de # v2
         if: ${{ env.NIGHTLY_RELEASE && inputs.publish }}
         with:
           repo_name: noir-lang/noir

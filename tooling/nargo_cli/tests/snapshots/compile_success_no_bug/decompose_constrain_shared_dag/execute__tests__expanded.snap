@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(a: bool, b: bool) {
+    let mut x: bool = a & b;
+    let mut y: bool = b & a;
+    for _ in 0_u32..24_u32 {
+        let nx: bool = x & y;
+        let ny: bool = y & x;
+        x = nx;
+        y = ny;
+    }
+    assert(x);
+}

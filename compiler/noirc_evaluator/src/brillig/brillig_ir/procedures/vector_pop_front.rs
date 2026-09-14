@@ -10,7 +10,7 @@ use crate::brillig::brillig_ir::{
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
-    /// Copy arguments to [ScratchSpace] and call [ProcedureId::VectorPopFront].
+    /// Copy arguments to [`ScratchSpace`] and call [`ProcedureId::VectorPopFront`].
     ///
     /// Pops items from the front of a vector, returning the new vector.
     /// The procedure assumes that there are constraints to prevent 0 size vectors from being popped.
@@ -38,7 +38,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     }
 }
 
-/// Compile [ProcedureId::VectorPopFront].
+/// Compile [`ProcedureId::VectorPopFront`].
 pub(super) fn compile_vector_pop_front_procedure<F: AcirField + DebugToString>(
     brillig_context: &mut BrilligContext<F, ScratchSpace>,
 ) {

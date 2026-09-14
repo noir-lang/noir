@@ -8,7 +8,7 @@ use crate::{
 use super::Interpreter;
 
 impl Interpreter<'_, '_> {
-    /// Evaluates any expressions within UnquoteMarkers in the given token list
+    /// Evaluates any expressions within `UnquoteMarkers` in the given token list
     /// and replaces the expression held by the marker with the evaluated value
     /// in expression form.
     pub(super) fn substitute_unquoted_values_into_tokens(
@@ -23,7 +23,11 @@ impl Interpreter<'_, '_> {
             match token.into_token() {
                 Token::UnquoteMarker(id) => {
                     let value = self.evaluate(id)?;
-                    let tokens = value.into_tokens(self.elaborator.interner, location)?;
+                    let tokens = value.into_tokens(
+                        self.elaborator.interner,
+                        self.elaborator.files,
+                        location,
+                    )?;
                     new_tokens.extend(tokens);
                 }
                 Token::Quote(tokens) => {

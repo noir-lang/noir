@@ -9,9 +9,9 @@ struct Signature {
     signature: [u8; 64],
 }
 
-fn main(invalid_signatures: [Signature; 3]) {
+fn main(invalid_signatures: [Signature; 9]) {
     {
-        let ___i0: [Signature; 3] = invalid_signatures;
+        let ___i0: [Signature; 9] = invalid_signatures;
         for ___i1 in 0_u32..___i0.len() {
             let signature: Signature = ___i0[___i1];
             {

@@ -1,0 +1,7 @@
+[package]
+name = "ref_in_unconstrained_function_pointer"
+version = "0.1.0"
+type = "bin"
+authors = [""]
+
+[dependencies]

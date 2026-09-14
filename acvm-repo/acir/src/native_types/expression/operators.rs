@@ -80,6 +80,20 @@ impl<F: AcirField> Mul<F> for &Expression<F> {
     }
 }
 
+impl<F: AcirField> Mul<F> for Expression<F> {
+    type Output = Expression<F>;
+    fn mul(mut self, rhs: F) -> Self::Output {
+        for (q_m, _, _) in &mut self.mul_terms {
+            *q_m = *q_m * rhs;
+        }
+        for (q_l, _) in &mut self.linear_combinations {
+            *q_l = *q_l * rhs;
+        }
+        self.q_c = self.q_c * rhs;
+        self
+    }
+}
+
 // Witness
 
 impl<F: AcirField> Add<Witness> for &Expression<F> {

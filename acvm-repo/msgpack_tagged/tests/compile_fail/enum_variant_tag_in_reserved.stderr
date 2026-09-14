@@ -1,0 +1,5 @@
+error: tag 1 is in the type's `#[tagged(reserved(...))]` list — pick a different tag, or remove it from the reserved list
+  --> tests/compile_fail/enum_variant_tag_in_reserved.rs:12:5
+   |
+12 |     #[tag(1)]
+   |     ^^^^^^^^^

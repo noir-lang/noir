@@ -1,15 +1,55 @@
+use crate::meta::item_visibility::ItemVisibility;
 use crate::option::Option;
 
-impl TypeDefinition {
-    #[builtin(type_def_add_attribute)]
-    // docs:start:add_attribute
-    pub comptime fn add_attribute<let N: u32>(self, attribute: str<N>) {}
-    // docs:end:add_attribute
+/// A generic parameter of a [`TypeDefinition`], returned from
+/// [`TypeDefinition::generics`].
+pub comptime struct TypeGeneric {
+    typ: Type,
+    numeric_type: Option<Type>,
+}
 
-    #[builtin(type_def_add_generic)]
-    // docs:start:add_generic
-    pub comptime fn add_generic<let N: u32>(self, generic_name: str<N>) -> Type {}
-    // docs:end:add_generic
+impl TypeGeneric {
+    /// The generic's type variable.
+    pub comptime fn typ(self) -> Type {
+        self.typ
+    }
+
+    /// If this generic is numeric, the numeric type; otherwise `None`.
+    pub comptime fn numeric_type(self) -> Option<Type> {
+        self.numeric_type
+    }
+}
+
+/// A field of a [`TypeDefinition`], returned from
+/// [`TypeDefinition::fields`] and [`TypeDefinition::fields_as_written`].
+pub comptime struct StructField {
+    name: Quoted,
+    typ: Type,
+    visibility: ItemVisibility,
+}
+
+impl StructField {
+    /// The field's declared name, as a [`Quoted`] identifier.
+    pub comptime fn name(self) -> Quoted {
+        self.name
+    }
+
+    /// The field's declared type.
+    pub comptime fn typ(self) -> Type {
+        self.typ
+    }
+
+    /// The field's declared visibility.
+    pub comptime fn visibility(self) -> ItemVisibility {
+        self.visibility
+    }
+}
+
+impl TypeDefinition {
+    #[builtin(type_def_add_abi)]
+    // docs:start:add_abi
+    pub comptime fn add_abi(self, abi_argument: CtString) {}
+    // docs:end:add_abi
 
     /// Return a syntactic version of this type definition as a type.
     /// For example, `type Foo<A, B> { ... })` would return `Foo<A, B>` when called with this method.
@@ -34,29 +74,58 @@ impl TypeDefinition {
     pub comptime fn has_named_attribute<let N: u32>(self, name: str<N>) -> bool {}
     // docs:end:has_named_attribute
 
-    /// Return (type, option<type>) pairs of each generic in this type definition.
-    /// If a generic is numeric, the second element of the pair will contain the numeric type.
-    #[builtin(type_def_generics)]
+    #[builtin(type_def_named_attribute_args)]
+    // docs:start:named_attribute_args
+    pub comptime fn named_attribute_args<let N: u32>(self, name: str<N>) -> [[Quoted]] {}
+    // docs:end:named_attribute_args
+
+    #[builtin(type_def_has_builtin_attribute)]
+    // docs:start:has_builtin_attribute
+    pub comptime fn has_builtin_attribute<let N: u32>(self, name: str<N>) -> bool {}
+    // docs:end:has_builtin_attribute
+    #[builtin(type_def_location)]
+    // docs:start:location
+    pub comptime fn location(self) -> Location {}
+    // docs:end:location
+
+    /// Return each generic in this type definition.
     // docs:start:generics
-    pub comptime fn generics(self) -> [(Type, Option<Type>)] {}
-    // docs:end:generics
+    pub comptime fn generics(self) -> [TypeGeneric] {
+        // docs:end:generics
+        self.generics_raw().map(|g: (Type, Option<Type>)| {
+            TypeGeneric { typ: g.0, numeric_type: g.1 }
+        })
+    }
 
-    /// Returns (name, type, visibility) tuples of each field in this type.
-    /// Any generic types used in each field type is automatically substituted with the
-    /// provided generic arguments.
-    #[builtin(type_def_fields)]
+    #[builtin(type_def_generics)]
+    comptime fn generics_raw(self) -> [(Type, Option<Type>)] {}
+
+    /// Returns each field in this type. Any generic types used in each field type is
+    /// automatically substituted with the provided generic arguments.
     // docs:start:fields
-    pub comptime fn fields(self, generic_args: [Type]) -> [(Quoted, Type, Quoted)] {}
-    // docs:end:fields
+    pub comptime fn fields(self, generic_args: [Type]) -> [StructField] {
+        // docs:end:fields
+        self.fields_raw(generic_args).map(|f: (Quoted, Type, Quoted)| {
+            StructField { name: f.0, typ: f.1, visibility: ItemVisibility::from_quoted(f.2) }
+        })
+    }
 
-    /// Returns (name, type, visibility) tuples of each field in this type. Each type is as-is
-    /// with any generic arguments unchanged. Unless the field types are not needed,
-    /// users should generally prefer to use [`TypeDefinition::fields`][Self::fields] over this
-    /// function if possible.
-    #[builtin(type_def_fields_as_written)]
+    #[builtin(type_def_fields)]
+    comptime fn fields_raw(self, generic_args: [Type]) -> [(Quoted, Type, Quoted)] {}
+
+    /// Returns each field in this type. Each type is as-is with any generic arguments
+    /// unchanged. Unless the field types are not needed, users should generally prefer
+    /// to use [`TypeDefinition::fields`][Self::fields] over this function if possible.
     // docs:start:fields_as_written
-    pub comptime fn fields_as_written(self) -> [(Quoted, Type, Quoted)] {}
-    // docs:end:fields_as_written
+    pub comptime fn fields_as_written(self) -> [StructField] {
+        // docs:end:fields_as_written
+        self.fields_as_written_raw().map(|f: (Quoted, Type, Quoted)| {
+            StructField { name: f.0, typ: f.1, visibility: ItemVisibility::from_quoted(f.2) }
+        })
+    }
+
+    #[builtin(type_def_fields_as_written)]
+    comptime fn fields_as_written_raw(self) -> [(Quoted, Type, Quoted)] {}
 
     #[builtin(type_def_module)]
     // docs:start:module
@@ -67,15 +136,6 @@ impl TypeDefinition {
     // docs:start:name
     pub comptime fn name(self) -> Quoted {}
     // docs:end:name
-
-    /// Sets the fields of this type to the given fields vector.
-    /// All existing fields of the type will be overridden with the given fields.
-    /// Each element of the fields vector corresponds to the name and type of a field.
-    /// Each name is expected to be a single identifier.
-    #[builtin(type_def_set_fields)]
-    // docs:start:set_fields
-    pub comptime fn set_fields(self, new_fields: [(Quoted, Type, Quoted)]) {}
-    // docs:end:set_fields
 }
 
 impl crate::hash::Hash for TypeDefinition {
@@ -88,13 +148,9 @@ impl crate::hash::Hash for TypeDefinition {
 }
 
 impl crate::cmp::Eq for TypeDefinition {
-    comptime fn eq(self, other: Self) -> bool {
-        type_def_eq(self, other)
-    }
+    #[builtin(type_def_eq)]
+    comptime fn eq(self, other: Self) -> bool {}
 }
-
-#[builtin(type_def_eq)]
-comptime fn type_def_eq(_first: TypeDefinition, _second: TypeDefinition) -> bool {}
 
 #[builtin(type_def_hash)]
 comptime fn type_def_hash(_type: TypeDefinition) -> Field {}

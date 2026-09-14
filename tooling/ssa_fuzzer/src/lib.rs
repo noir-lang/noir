@@ -15,7 +15,7 @@ mod tests {
     use noirc_artifacts::program::CompiledProgram;
     use noirc_driver::CompileOptions;
     use noirc_evaluator::ssa::ir::instruction::BinaryOp;
-    use rand::Rng;
+    use rand::RngExt;
 
     struct TestHelper {
         acir_builder: FuzzerBuilder,
@@ -383,12 +383,12 @@ mod tests {
             acir_builder.compile(CompileOptions { show_ssa: true, ..CompileOptions::default() });
         check_expected_validation_error(
             acir_result,
-            "Invalid cast from Field, not preceded by valid truncation or known safe value",
+            "Invalid narrowing cast from Field to u64: the value being cast is not preceded by a valid truncation or range check",
         );
         let brillig_result = brillig_builder.compile(CompileOptions::default());
         check_expected_validation_error(
             brillig_result,
-            "Invalid cast from Field, not preceded by valid truncation or known safe value",
+            "Invalid narrowing cast from Field to u64: the value being cast is not preceded by a valid truncation or range check",
         );
     }
 }

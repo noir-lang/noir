@@ -1,19 +1,18 @@
 use std::fmt::Display;
-use std::rc::Rc;
 
 use crate::{
     Type,
-    ast::{Ident, TraitBound},
+    ast::TraitBound,
     hir::{
         def_collector::dc_crate::CompilationError,
-        type_check::{NoMatchingImplFoundError, TypeCheckError},
+        type_check::{ExpectingOtherError, NoMatchingImplFoundError, TypeCheckError},
     },
     parser::ParserError,
-    signed_field::SignedField,
     token::Token,
 };
 use acvm::BlackBoxResolutionError;
-use noirc_errors::{CustomDiagnostic, Location};
+use noirc_errors::{CustomDiagnostic, Location, call_stack::CallStack};
+use num_bigint::BigInt;
 
 /// The possible errors that can halt the interpreter.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -40,7 +39,7 @@ pub enum InterpreterError {
         location: Location,
     },
     IntegerOutOfRangeForType {
-        value: SignedField,
+        value: BigInt,
         typ: Type,
         location: Location,
     },
@@ -66,7 +65,7 @@ pub enum InterpreterError {
     FailingConstraint {
         message: Option<String>,
         location: Location,
-        call_stack: im::Vector<Location>,
+        call_stack: imbl::Vector<Location>,
     },
     NonIntegerUsedInLoop {
         typ: Type,
@@ -86,14 +85,6 @@ pub enum InterpreterError {
         location: Location,
     },
     NonArrayIndexed {
-        typ: Type,
-        location: Location,
-    },
-    NonIntegerUsedAsIndex {
-        typ: Type,
-        location: Location,
-    },
-    NonIntegerIntegerLiteral {
         typ: Type,
         location: Location,
     },
@@ -190,6 +181,10 @@ pub enum InterpreterError {
     NoImpl {
         location: Location,
     },
+    NoTraitItemInImpl {
+        item_name: String,
+        location: Location,
+    },
     NoMatchingImplFound {
         error: NoMatchingImplFoundError,
     },
@@ -215,6 +210,12 @@ pub enum InterpreterError {
     FailedToResolveTraitDefinition {
         location: Location,
     },
+    FunctionDefinitionMustBeAPath {
+        location: Location,
+    },
+    FailedToResolveFunctionDefinition {
+        location: Location,
+    },
     FunctionAlreadyResolved {
         location: Location,
     },
@@ -235,30 +236,7 @@ pub enum InterpreterError {
     TypeAnnotationsNeededForMethodCall {
         location: Location,
     },
-    ExpectedIdentForStructField {
-        value: String,
-        index: usize,
-        location: Location,
-    },
-    InvalidAttribute {
-        attribute: String,
-        location: Location,
-    },
-    GenericNameShouldBeAnIdent {
-        name: Rc<String>,
-        location: Location,
-    },
-    DuplicateGeneric {
-        name: Rc<String>,
-        struct_name: String,
-        duplicate_location: Location,
-        existing_location: Location,
-    },
     CannotResolveExpression {
-        location: Location,
-        expression: String,
-    },
-    CannotSetFunctionBody {
         location: Location,
         expression: String,
     },
@@ -279,11 +257,6 @@ pub enum InterpreterError {
     LoopHaltedForUiResponsiveness {
         location: Location,
     },
-    DuplicateStructFieldInSetFields {
-        name: Ident,
-        index: usize,
-        previous_index: usize,
-    },
     CheckedTransmuteFailed {
         actual: Type,
         expected: Type,
@@ -291,11 +264,11 @@ pub enum InterpreterError {
     },
     StackOverflow {
         location: Location,
-        call_stack: im::Vector<Location>,
+        call_stack: imbl::Vector<Location>,
     },
     EvaluationDepthOverflow {
         location: Location,
-        call_stack: im::Vector<Location>,
+        call_stack: imbl::Vector<Location>,
     },
     AttributeRecursionLimitExceeded {
         location: Location,
@@ -305,6 +278,31 @@ pub enum InterpreterError {
         location: Location,
     },
     TraitImplResolutionRecursionLimitReached {
+        location: Location,
+    },
+    ExpectingOtherError(ExpectingOtherError),
+    CannotModifyExternalItem {
+        item: String,
+        module: String,
+        location: Location,
+    },
+    FunctionNotVisible {
+        name: String,
+        defining_module: String,
+        location: Location,
+    },
+    CannotCastNumericToBool {
+        typ: Type,
+        location: Location,
+    },
+    UserDefinedError {
+        message: String,
+        secondary: Option<String>,
+        location: Location,
+    },
+    UserDefinedWarning {
+        message: String,
+        secondary: Option<String>,
         location: Location,
     },
 
@@ -356,8 +354,6 @@ impl InterpreterError {
             | InterpreterError::NonPointerDereferenced { location, .. }
             | InterpreterError::NonTupleOrStructInMemberAccess { location, .. }
             | InterpreterError::NonArrayIndexed { location, .. }
-            | InterpreterError::NonIntegerUsedAsIndex { location, .. }
-            | InterpreterError::NonIntegerIntegerLiteral { location, .. }
             | InterpreterError::InvalidArrayLength { location, .. }
             | InterpreterError::InvalidAssociatedConstant { location, .. }
             | InterpreterError::InvalidNumericGeneric { location, .. }
@@ -380,6 +376,7 @@ impl InterpreterError {
             | InterpreterError::Unimplemented { location, .. }
             | InterpreterError::InvalidInComptimeContext { location, .. }
             | InterpreterError::NoImpl { location, .. }
+            | InterpreterError::NoTraitItemInImpl { location, .. }
             | InterpreterError::ImplMethodTypeMismatch { location, .. }
             | InterpreterError::DebugEvaluateComptime { location, .. }
             | InterpreterError::BlackBoxError(_, location)
@@ -387,16 +384,13 @@ impl InterpreterError {
             | InterpreterError::ContinueNotInLoop { location, .. }
             | InterpreterError::TraitDefinitionMustBeAPath { location }
             | InterpreterError::FailedToResolveTraitDefinition { location }
+            | InterpreterError::FunctionDefinitionMustBeAPath { location }
+            | InterpreterError::FailedToResolveFunctionDefinition { location }
             | InterpreterError::FailedToResolveTraitBound { location, .. }
             | InterpreterError::FunctionAlreadyResolved { location, .. }
             | InterpreterError::MultipleMatchingImpls { location, .. }
-            | InterpreterError::ExpectedIdentForStructField { location, .. }
-            | InterpreterError::InvalidAttribute { location, .. }
-            | InterpreterError::GenericNameShouldBeAnIdent { location, .. }
-            | InterpreterError::DuplicateGeneric { duplicate_location: location, .. }
             | InterpreterError::TypeAnnotationsNeededForMethodCall { location }
             | InterpreterError::CannotResolveExpression { location, .. }
-            | InterpreterError::CannotSetFunctionBody { location, .. }
             | InterpreterError::UnknownArrayLength { location, .. }
             | InterpreterError::CannotInterpretFormatStringWithErrors { location }
             | InterpreterError::GlobalsDependencyCycle { location }
@@ -407,10 +401,15 @@ impl InterpreterError {
             | InterpreterError::CheckedTransmuteFailed { location, .. }
             | InterpreterError::UnexpectedEscapedTokenInQuote { location, .. }
             | InterpreterError::TraitImplResolutionRecursionLimitReached { location }
-            | InterpreterError::AttributeRecursionLimitExceeded { location } => *location,
+            | InterpreterError::AttributeRecursionLimitExceeded { location }
+            | InterpreterError::CannotCastNumericToBool { location, .. }
+            | InterpreterError::CannotModifyExternalItem { location, .. }
+            | InterpreterError::FunctionNotVisible { location, .. } => *location,
+            InterpreterError::UserDefinedError { location, .. }
+            | InterpreterError::UserDefinedWarning { location, .. } => *location,
+            InterpreterError::ExpectingOtherError(error) => error.location,
             InterpreterError::FailedToParseMacro { error, .. } => error.location(),
             InterpreterError::NoMatchingImplFound { error } => error.location,
-            InterpreterError::DuplicateStructFieldInSetFields { name, .. } => name.location(),
             InterpreterError::Break
             | InterpreterError::Continue
             | InterpreterError::SkippedDueToEarlierErrors => {
@@ -431,6 +430,17 @@ impl InterpreterError {
             location,
         );
         InterpreterError::DebugEvaluateComptime { diagnostic, location }
+    }
+
+    /// An error which is only shown to the user if there are no other errors emitted.
+    pub(crate) fn expecting_other_error<S: Into<String>>(
+        message: S,
+        location: Location,
+    ) -> InterpreterError {
+        InterpreterError::ExpectingOtherError(ExpectingOtherError {
+            message: message.into(),
+            location,
+        })
     }
 }
 
@@ -505,7 +515,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 };
                 let diagnostic = CustomDiagnostic::simple_error(primary, secondary, *location);
 
-                diagnostic.with_call_stack(call_stack.into_iter().copied().collect())
+                diagnostic.with_call_stack(CallStack::new(call_stack.into_iter().copied().collect()))
             }
             InterpreterError::NonIntegerUsedInLoop { typ, location } => {
                 let msg = format!("Non-integer type `{typ}` used in for loop");
@@ -535,17 +545,6 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let secondary = "Only arrays or vectors may be indexed".into();
                 CustomDiagnostic::simple_error(msg, secondary, *location)
             }
-            InterpreterError::NonIntegerUsedAsIndex { typ, location } => {
-                let msg = format!("Expected an integer but found a(n) {typ}");
-                let secondary =
-                    "Only integers may be indexed. Note that this excludes `field`s".into();
-                CustomDiagnostic::simple_error(msg, secondary, *location)
-            }
-            InterpreterError::NonIntegerIntegerLiteral { typ, location } => {
-                let msg = format!("This integer literal somehow has the type `{typ}`");
-                let secondary = "This is likely a bug".into();
-                CustomDiagnostic::simple_error(msg, secondary, *location)
-            }
             InterpreterError::InvalidArrayLength { err, location } => {
                 let msg = "Invalid array length".to_string();
                 let secondary = err.to_string();
@@ -567,7 +566,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 CustomDiagnostic::simple_error(msg, secondary, *location)
             }
             InterpreterError::IndexOutOfBounds { index, length, location } => {
-                let msg = format!("{index} is out of bounds for the array of length {length}");
+                let msg = format!("Index out of bounds: {index} is out of bounds for the array of length {length}");
                 CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::ExpectedStructToHaveField { typ, field_name, location } => {
@@ -598,6 +597,8 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                     "+" => "add",
                     "-" => "subtract",
                     "*" => "multiply",
+                    "/" => "divide",
+                    "%" => "calculate the remainder",
                     ">>" | "<<" => "bit-shift",
                     _ => operator,
                 };
@@ -693,6 +694,10 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let msg = "No impl found due to prior type error".into();
                 CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
+            InterpreterError::NoTraitItemInImpl { item_name, location } => {
+                let msg = format!("No method or constant named `{item_name}` found in impl due to prior type error");
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
+            }
             InterpreterError::ImplMethodTypeMismatch { expected, actual, location } => {
                 let msg = format!(
                     "Impl method type {actual} does not unify with trait method type {expected}"
@@ -715,6 +720,14 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             }
             InterpreterError::FailedToResolveTraitDefinition { location } => {
                 let msg = "Failed to resolve to a trait definition".to_string();
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
+            }
+            InterpreterError::FunctionDefinitionMustBeAPath { location } => {
+                let msg = "Function definition arguments must be a variable or path".to_string();
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
+            }
+            InterpreterError::FailedToResolveFunctionDefinition { location } => {
+                let msg = "Failed to resolve to a function definition".to_string();
                 CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::FunctionAlreadyResolved { location } => {
@@ -744,45 +757,8 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 error.add_note(message.to_string());
                 error
             }
-            InterpreterError::ExpectedIdentForStructField { value, index, location } => {
-                let msg = format!(
-                    "Quoted value in index {index} of this vector is not a valid field name"
-                );
-                let secondary = format!("`{value}` is not a valid field name for `set_fields`");
-                CustomDiagnostic::simple_error(msg, secondary, *location)
-            }
-            InterpreterError::InvalidAttribute { attribute, location } => {
-                let msg = format!("`{attribute}` is not a valid attribute");
-                let secondary = "Note that this method expects attribute contents, without the leading `#[` or trailing `]`".to_string();
-                CustomDiagnostic::simple_error(msg, secondary, *location)
-            }
-            InterpreterError::GenericNameShouldBeAnIdent { name, location } => {
-                let msg =
-                            "Generic name needs to be a valid identifier (one word beginning with a letter)"
-                                .to_string();
-                let secondary = format!("`{name}` is not a valid identifier");
-                CustomDiagnostic::simple_error(msg, secondary, *location)
-            }
-            InterpreterError::DuplicateGeneric {
-                name,
-                struct_name,
-                duplicate_location,
-                existing_location,
-            } => {
-                let msg = format!("`{struct_name}` already has a generic named `{name}`");
-                let secondary = format!("`{name}` added here a second time");
-                let mut error = CustomDiagnostic::simple_error(msg, secondary, *duplicate_location);
-
-                let existing_msg = format!("`{name}` was previously defined here");
-                error.add_secondary(existing_msg, *existing_location);
-                error
-            }
             InterpreterError::CannotResolveExpression { location, expression } => {
                 let msg = format!("Cannot resolve expression `{expression}`");
-                CustomDiagnostic::simple_error(msg, String::new(), *location)
-            }
-            InterpreterError::CannotSetFunctionBody { location, expression } => {
-                let msg = format!("`{expression}` is not a valid function body");
                 CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::UnknownArrayLength { length, err, location } => {
@@ -818,15 +794,6 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                     "SkippedDueToTypeErrors should be handled internally like Break/Continue"
                 )
             }
-            InterpreterError::DuplicateStructFieldInSetFields { name, index, previous_index } => {
-                let msg = "Duplicate field name in call to `set_fields`".to_string();
-                let secondary = format!(
-                    "`{name}` first used as field {} then again as field {}",
-                    previous_index + 1,
-                    index + 1
-                );
-                CustomDiagnostic::simple_error(msg, secondary, name.location())
-            }
             InterpreterError::CheckedTransmuteFailed { actual, expected, location } => {
                 let msg = format!("Checked transmute failed: `{actual:?}` != `{expected:?}`");
                 let secondary = String::new();
@@ -838,7 +805,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                     "Exceeded the recursion limit".to_string(),
                     *location,
                 );
-                diagnostic.with_call_stack(call_stack.into_iter().copied().collect())
+                diagnostic.with_call_stack(CallStack::new(call_stack.into_iter().copied().collect()))
             }
             InterpreterError::EvaluationDepthOverflow { location, call_stack } => {
                 let diagnostic = CustomDiagnostic::simple_error(
@@ -847,7 +814,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                         .to_string(),
                     *location,
                 );
-                diagnostic.with_call_stack(call_stack.into_iter().copied().collect())
+                diagnostic.with_call_stack(CallStack::new(call_stack.into_iter().copied().collect()))
             }
             InterpreterError::AttributeRecursionLimitExceeded { location } => {
                 CustomDiagnostic::simple_error(
@@ -869,6 +836,30 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let secondary = String::new();
                 CustomDiagnostic::simple_warning(primary, secondary, *location)
             }
+            InterpreterError::ExpectingOtherError(error) => error.into(),
+            InterpreterError::CannotModifyExternalItem { item, module, location } => {
+                let primary = "Cannot mutate something from an external crate".to_string();
+                let secondary = format!("`{item}` was declared in `{module}`");
+                CustomDiagnostic::simple_error(primary, secondary, *location)
+            }
+            InterpreterError::FunctionNotVisible { name, defining_module, location } => {
+                let primary = format!("Function `{name}` is private");
+                let secondary = format!("`{name}` is declared in `{defining_module}`");
+                CustomDiagnostic::simple_error(primary, secondary, *location)
+            }
+            InterpreterError::CannotCastNumericToBool { typ, location } => {
+                let primary = format!("Cannot cast `{typ}` as `bool`");
+                let secondary = "Compare with zero instead: ` != 0`".to_string();
+                CustomDiagnostic::simple_error(primary, secondary, *location)
+            }
+            InterpreterError::UserDefinedError { message, secondary, location } => {
+                let secondary = secondary.clone().unwrap_or_default();
+                CustomDiagnostic::simple_error(message.clone(), secondary, *location)
+            }
+            InterpreterError::UserDefinedWarning { message, secondary, location } => {
+                let secondary = secondary.clone().unwrap_or_default();
+                CustomDiagnostic::simple_warning(message.clone(), secondary, *location)
+            },
         }
     }
 }

@@ -1,0 +1,30 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+pub struct U<let N: u32> {
+    limbs: [Field; N],
+}
+
+impl<let N: u32> std::ops::Add for U<N> {
+    fn add(self, other: Self) -> Self {
+        let mut r: [Field; N] = [0_Field; N];
+        for i in 0_u32..N {
+            r[i] = self.limbs[i] + other.limbs[i];
+        }
+        Self { limbs: r }
+    }
+}
+
+fn build<let N: u32>(a: [Field; N]) -> [Field; N] {
+    let u: U<N> = U::<N> { limbs: a };
+    (u + u).limbs
+}
+
+global G: [Field; 2] = [0x02, 0x04];
+
+fn main(x: Field) {
+    assert(G[0_u32] == 2_Field);
+    assert(G[1_u32] == 4_Field);
+    assert(x == 1_Field);
+}

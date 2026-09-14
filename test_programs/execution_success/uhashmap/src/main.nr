@@ -26,7 +26,7 @@ unconstrained fn main(input: [Entry; HASHMAP_LEN]) {
     test_sequential(input[0].key, input[0].value);
     test_multiple_equal_insert(input[1].key, input[1].value);
     test_value_override(input[2].key, input[2].value, input[3].value);
-    test_insert_and_methods(input);
+    test_insert_and_methods(&input);
     test_hashmaps_equality(input);
     test_retain();
     test_iterators();
@@ -91,7 +91,7 @@ unconstrained fn test_value_override(key: K, value: V, new_value: V) {
 }
 
 // Insert several distinct pairs and test auxiliary methods.
-unconstrained fn test_insert_and_methods(input: [Entry; HASHMAP_LEN]) {
+unconstrained fn test_insert_and_methods(input: &[Entry; HASHMAP_LEN]) {
     let mut hashmap = ALLOCATE_HASHMAP();
     assert(hashmap.is_empty(), "New UHashMap should be empty.");
 
@@ -139,7 +139,7 @@ unconstrained fn test_hashmaps_equality(input: [Entry; HASHMAP_LEN]) {
     let mut hashmap_1 = ALLOCATE_HASHMAP();
     let mut hashmap_2 = ALLOCATE_HASHMAP();
 
-    for entry in input {
+    for entry in &input {
         hashmap_1.insert(entry.key, entry.value);
         hashmap_2.insert(entry.key, entry.value);
     }
@@ -217,7 +217,7 @@ unconstrained fn doc_tests() {
     map.insert(12, 42);
     assert(map.len() == 1);
     // docs:end:insert_example
-    get_example(map);
+    get_example(&map);
 
     // docs:start:remove_example
     map.remove(12);
@@ -271,7 +271,7 @@ unconstrained fn doc_tests() {
         println("No value for key 7!");
     }
     // docs:end:contains_key_example
-    entries_examples(map);
+    entries_examples(&map);
     iter_examples(map);
 
     // docs:start:retain_example
@@ -292,9 +292,8 @@ unconstrained fn doc_tests() {
 }
 
 // docs:start:get_example
-fn get_example(map: UHashMap<Field, Field, BuildHasherDefault<Poseidon2Hasher>>) {
-    // Safety: testing context
-    let x = unsafe { map.get(12) };
+unconstrained fn get_example(map: &UHashMap<Field, Field, BuildHasherDefault<Poseidon2Hasher>>) {
+    let x = map.get(12);
 
     if x.is_some() {
         assert(x.unwrap() == 42);
@@ -302,7 +301,9 @@ fn get_example(map: UHashMap<Field, Field, BuildHasherDefault<Poseidon2Hasher>>)
 }
 // docs:end:get_example
 
-fn entries_examples(map: UHashMap<Field, Field, BuildHasherDefault<Poseidon2Hasher>>) {
+unconstrained fn entries_examples(
+    map: &UHashMap<Field, Field, BuildHasherDefault<Poseidon2Hasher>>,
+) {
     // docs:start:entries_example
     let entries = map.entries();
 
@@ -319,8 +320,7 @@ fn entries_examples(map: UHashMap<Field, Field, BuildHasherDefault<Poseidon2Hash
     let keys = map.keys();
 
     for key in keys {
-        // Safety: testing context
-        let value = unsafe { map.get(key) }.unwrap_unchecked();
+        let value = map.get(key).unwrap_unchecked();
         println(f"{key} -> {value}");
     }
     // docs:end:keys_example

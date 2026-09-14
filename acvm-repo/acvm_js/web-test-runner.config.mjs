@@ -1,7 +1,11 @@
 import { esbuildPlugin } from '@web/dev-server-esbuild';
 import { playwrightLauncher } from '@web/test-runner-playwright';
 
+const isCI = process.env.CI === 'true' || process.env.CI === '1';
+const ciBrowserConfig = isCI ? { concurrentBrowsers: 1, concurrency: 1 } : {};
+
 export default {
+  ...ciBrowserConfig,
   browsers: [
     playwrightLauncher({ product: 'chromium' }),
     playwrightLauncher({ product: 'webkit' }),

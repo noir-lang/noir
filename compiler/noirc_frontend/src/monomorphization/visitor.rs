@@ -29,7 +29,7 @@ where
 ///
 /// Gets mutable references so it can manipulate the expressions if needed.
 ///
-/// Compared to [visit_expr_mut], this version allows the caller to maintain
+/// Compared to [`visit_expr_mut`], this version allows the caller to maintain
 /// scopes and context, facilitated by a _token_ passed between _begin_ and _end_.
 ///
 /// It also takes a function to modify [Ident]s, which can be located in
@@ -48,12 +48,12 @@ where
         Expression::Ident(ident) => i(ident),
         Expression::Literal(literal) => match literal {
             Literal::Array(array_literal) => {
-                for expr in array_literal.contents.iter_mut() {
+                for expr in &mut array_literal.contents {
                     visit_expr_be_mut(expr, b, e, i);
                 }
             }
             Literal::Vector(array_literal) => {
-                for expr in array_literal.contents.iter_mut() {
+                for expr in &mut array_literal.contents {
                     visit_expr_be_mut(expr, b, e, i);
                 }
             }
@@ -104,7 +104,7 @@ where
             }
         }
         Expression::Match(match_) => {
-            for case in match_.cases.iter_mut() {
+            for case in &mut match_.cases {
                 visit_expr_be_mut(&mut case.branch, b, e, i);
             }
             if let Some(ref mut case) = match_.default_case {
@@ -121,15 +121,18 @@ where
         }
         Expression::Call(call) => {
             visit_expr_be_mut(&mut call.func, b, e, i);
-            for arg in call.arguments.iter_mut() {
+            for arg in &mut call.arguments {
                 visit_expr_be_mut(arg, b, e, i);
             }
         }
         Expression::Let(let_) => {
             visit_expr_be_mut(&mut let_.expression, b, e, i);
         }
-        Expression::Constrain(expr, _, _) => {
+        Expression::Constrain(expr, _, message) => {
             visit_expr_be_mut(expr, b, e, i);
+            if let Some(message) = message {
+                visit_expr_be_mut(&mut message.as_mut().0, b, e, i);
+            }
         }
         Expression::Assign(assign) => {
             visit_lvalue_mut(&mut assign.lvalue, b, e, i);
@@ -180,7 +183,7 @@ where
 /// The `bool` returned indicates whether we want to visit the children
 /// of the visited expression.
 ///
-/// This is a read-only version of [visit_expr_mut], for cases where
+/// This is a read-only version of [`visit_expr_mut`], for cases where
 /// we don't have/need a mutable reference to the AST.
 pub fn visit_expr<V>(expr: &Expression, v: &mut V)
 where
@@ -195,10 +198,10 @@ where
 /// The `bool` returned by _begin_ indicates whether we want to
 /// visit the children of the visited expression.
 ///
-/// This is a read-only version [visit_expr_be_mut], for cases where
+/// This is a read-only version [`visit_expr_be_mut`], for cases where
 /// we don't have/need a mutable reference to the AST.
 ///
-/// Compared to [visit_expr], this version allows the caller to maintain
+/// Compared to [`visit_expr`], this version allows the caller to maintain
 /// scopes and context, facilitated by a _token_ passed between _begin_ and _end_.
 pub fn visit_expr_be<B, E, T, I>(expr: &Expression, b: &mut B, e: &mut E, i: &mut I)
 where
@@ -296,8 +299,11 @@ where
         Expression::Let(let_) => {
             visit_expr_be(&let_.expression, b, e, i);
         }
-        Expression::Constrain(expr, _, _) => {
+        Expression::Constrain(expr, _location, message) => {
             visit_expr_be(expr, b, e, i);
+            if let Some(message) = message {
+                visit_expr_be(&message.as_ref().0, b, e, i);
+            }
         }
         Expression::Assign(assign) => {
             visit_lvalue(&assign.lvalue, b, e, i);

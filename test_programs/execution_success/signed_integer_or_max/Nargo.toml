@@ -1,0 +1,6 @@
+[package]
+name = "signed_integer_or_max"
+type = "bin"
+authors = [""]
+
+[dependencies]

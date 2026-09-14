@@ -10,6 +10,7 @@ use acvm::FieldElement;
 use noir_ssa_fuzzer::typed_value::{NumericType, Type};
 use std::sync::Arc;
 
+/// ```noir
 /// fn main(a: Field) -> pub Field {
 ///   let mut t = a;
 ///   func(&mut t);
@@ -19,8 +20,9 @@ use std::sync::Arc;
 /// fn func(a: &mut Field) {
 ///   *a += 1;
 /// }
+/// ```
 /// "a" = 0
-/// [nargo_tests] Circuit output: 0x01
+/// [`nargo_tests`] Circuit output: 0x01
 #[test]
 fn test_other_function_mutates_reference() {
     let _ = env_logger::try_init();
@@ -60,7 +62,7 @@ fn test_other_function_mutates_reference() {
     };
     let func_function = FunctionData {
         input_types: vec![
-            Type::Reference(Arc::new(Type::Numeric(NumericType::Field))),
+            Type::Reference(Arc::new(Type::Numeric(NumericType::Field)), true),
             Type::Numeric(NumericType::Field),
         ],
         commands: func_commands,
@@ -85,10 +87,13 @@ fn test_other_function_mutates_reference() {
     }
 }
 
+/// ```noir
 /// let t = &mut(&mut a);
 /// *t = &mut b;
 /// return **t;
+/// ```
 /// This test is compiled into
+/// ```text
 /// fn main f0 {
 ///   b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: u1, v6: u1):
 ///     v7 = allocate -> &mut Field
@@ -105,17 +110,18 @@ fn test_other_function_mutates_reference() {
 ///     store v8 at v9 // dummy
 ///     return v11
 ///   }
+/// ```
 #[test]
 fn test_reference_to_reference() {
     let arg_0 = Argument { index: 0, value_type: Type::Numeric(NumericType::Field) };
     let arg_1 = Argument { index: 1, value_type: Type::Numeric(NumericType::Field) };
     let typed_memory_0 = Argument {
         index: 0,
-        value_type: Type::Reference(Arc::new(Type::Numeric(NumericType::Field))),
+        value_type: Type::Reference(Arc::new(Type::Numeric(NumericType::Field)), true),
     };
     let typed_memory_1 = Argument {
         index: 1,
-        value_type: Type::Reference(Arc::new(Type::Numeric(NumericType::Field))),
+        value_type: Type::Reference(Arc::new(Type::Numeric(NumericType::Field)), true),
     };
     let add_to_memory_block = InstructionBlock {
         instructions: vec![
@@ -133,7 +139,7 @@ fn test_reference_to_reference() {
 
     let reference_arg_0 = Argument {
         index: 0,
-        value_type: Type::Reference(Arc::new(Type::Numeric(NumericType::Field))),
+        value_type: Type::Reference(Arc::new(Type::Numeric(NumericType::Field)), true),
     };
     let typed_memory_2 = Argument { index: 2, value_type: Type::Numeric(NumericType::Field) };
     let load_block = InstructionBlock {

@@ -1,7 +1,4 @@
-use std::{
-    collections::HashMap,
-    future::{self, Future},
-};
+use std::collections::HashMap;
 
 use async_lsp::ResponseError;
 use async_lsp::lsp_types;
@@ -17,8 +14,8 @@ use super::{find_all_references_in_workspace, process_request};
 pub(crate) fn on_prepare_rename_request(
     state: &mut LspState,
     params: TextDocumentPositionParams,
-) -> impl Future<Output = Result<Option<PrepareRenameResponse>, ResponseError>> + use<> {
-    let result = process_request(state, params, |args| {
+) -> Result<Option<PrepareRenameResponse>, ResponseError> {
+    process_request(state, params, |args| {
         let reference_id = args.interner.reference_at_location(args.location);
         let rename_possible = match reference_id {
             // Rename shouldn't be possible when triggered on top of "Self"
@@ -27,15 +24,14 @@ pub(crate) fn on_prepare_rename_request(
             None => false,
         };
         Some(PrepareRenameResponse::DefaultBehavior { default_behavior: rename_possible })
-    });
-    future::ready(result)
+    })
 }
 
 pub(crate) fn on_rename_request(
     state: &mut LspState,
     params: RenameParams,
-) -> impl Future<Output = Result<Option<WorkspaceEdit>, ResponseError>> + use<> {
-    let result = process_request(state, params.text_document_position, |args| {
+) -> Result<Option<WorkspaceEdit>, ResponseError> {
+    process_request(state, params.text_document_position, |args| {
         let rename_changes = find_all_references_in_workspace(
             args.location,
             args.interner,
@@ -63,24 +59,22 @@ pub(crate) fn on_rename_request(
         };
 
         Some(response)
-    });
-    future::ready(result)
+    })
 }
 
 #[cfg(test)]
 mod rename_tests {
     use super::*;
-    use crate::test_utils::{self, search_in_file};
+    use crate::test_utils::{self, search_in_text};
     use async_lsp::lsp_types::{Range, WorkDoneProgressParams};
-    use tokio::test;
 
-    async fn check_rename_succeeds(directory: &str, name: &str) {
-        let (mut state, noir_text_document) = test_utils::init_lsp_server(directory).await;
-
-        // First we find out all of the occurrences of `name` in the main.nr file.
-        // Note that this only works if that name doesn't show up in other places where we don't
-        // expect a rename, but we craft our tests to avoid that.
-        let ranges = search_in_file(noir_text_document.path(), name);
+    /// Rename every occurrence of `name` in `src` and assert the LSP returns rename edits at
+    /// the exact same set of ranges — once per occurrence, since the rename should be
+    /// triggerable from any of them.
+    fn check_rename_succeeds(src: &str, name: &str) {
+        let ranges = search_in_text(src, name);
+        let (mut state, noir_text_document) =
+            test_utils::init_lsp_server_with_inline_source("document_symbol", "src/main.nr", src);
 
         // Test renaming works on any instance of the symbol.
         for target_range in &ranges {
@@ -98,7 +92,6 @@ mod rename_tests {
             };
 
             let response = on_rename_request(&mut state, params)
-                .await
                 .expect("Could not execute on_prepare_rename_request")
                 .unwrap();
 
@@ -119,17 +112,20 @@ mod rename_tests {
         }
     }
 
-    #[test]
-    async fn test_on_prepare_rename_request_cannot_be_applied_if_there_are_no_matches() {
-        let (mut state, noir_text_document) = test_utils::init_lsp_server("rename_function").await;
+    fn check_prepare_rename_is_not_applicable(src: &str) {
+        let (mut state, noir_text_document, position, _src) =
+            test_utils::init_lsp_server_with_inline_source_and_cursor(
+                "document_symbol",
+                "src/main.nr",
+                src,
+            );
 
         let params = TextDocumentPositionParams {
             text_document: lsp_types::TextDocumentIdentifier { uri: noir_text_document },
-            position: lsp_types::Position { line: 0, character: 0 }, // This is at the "f" of an "fn" keyword
+            position,
         };
 
         let response = on_prepare_rename_request(&mut state, params)
-            .await
             .expect("Could not execute on_prepare_rename_request");
 
         assert_eq!(
@@ -139,71 +135,177 @@ mod rename_tests {
     }
 
     #[test]
-    async fn test_on_prepare_rename_request_cannot_be_applied_on_self_type_name() {
-        let (mut state, noir_text_document) = test_utils::init_lsp_server("rename_struct").await;
+    fn test_on_prepare_rename_request_cannot_be_applied_if_there_are_no_matches() {
+        check_prepare_rename_is_not_applicable(">|<\nfn another_function() {}\n");
+    }
 
-        let params = TextDocumentPositionParams {
-            text_document: lsp_types::TextDocumentIdentifier { uri: noir_text_document },
-            position: lsp_types::Position { line: 11, character: 24 }, // At "Self"
-        };
+    #[test]
+    fn test_on_prepare_rename_request_cannot_be_applied_on_self_type_name() {
+        check_prepare_rename_is_not_applicable(
+            r#"struct Foo {}
 
-        let response = on_prepare_rename_request(&mut state, params)
-            .await
-            .expect("Could not execute on_prepare_rename_request");
-
-        assert_eq!(
-            response,
-            Some(PrepareRenameResponse::DefaultBehavior { default_behavior: false })
+impl Foo {
+    fn new() -> Self {
+        >|<Self {}
+    }
+}
+"#,
         );
     }
 
     #[test]
-    async fn test_rename_function() {
-        check_rename_succeeds("rename_function", "another_function").await;
+    fn test_rename_function() {
+        check_rename_succeeds(
+            r#"fn another_function() -> Field {
+    1
+}
+
+fn main() {
+    another_function();
+    another_function();
+}
+"#,
+            "another_function",
+        );
     }
 
     #[test]
-    async fn test_rename_qualified_function() {
-        check_rename_succeeds("rename_qualified_function", "bar").await;
+    fn test_rename_qualified_function() {
+        check_rename_succeeds(
+            r#"mod foo {
+    pub fn bar() {}
+}
+
+fn main() {
+    foo::bar();
+    foo::bar();
+}
+"#,
+            "bar",
+        );
     }
 
     #[test]
-    async fn test_rename_function_in_use_statement() {
-        check_rename_succeeds("rename_function_use", "some_function").await;
+    fn test_rename_function_in_use_statement() {
+        check_rename_succeeds(
+            r#"mod foo {
+    pub fn some_function() {}
+}
+
+use foo::some_function;
+
+fn main() {
+    some_function();
+}
+"#,
+            "some_function",
+        );
     }
 
     #[test]
-    async fn test_rename_method() {
-        check_rename_succeeds("rename_function", "some_method").await;
+    fn test_rename_method() {
+        check_rename_succeeds(
+            r#"struct Foo {}
+
+impl Foo {
+    fn some_method(self) {}
+}
+
+fn main() {
+    let foo = Foo {};
+    foo.some_method();
+    foo.some_method();
+}
+"#,
+            "some_method",
+        );
     }
 
     #[test]
-    async fn test_rename_struct() {
-        check_rename_succeeds("rename_struct", "Foo").await;
+    fn test_rename_struct() {
+        check_rename_succeeds(
+            r#"struct Foo {}
+
+impl Foo {
+    fn new() -> Self {
+        Foo {}
+    }
+}
+
+fn make_foo() -> Foo {
+    Foo::new()
+}
+"#,
+            "Foo",
+        );
     }
 
     #[test]
-    async fn test_rename_trait() {
-        check_rename_succeeds("rename_trait", "Foo").await;
+    fn test_rename_trait() {
+        check_rename_succeeds(
+            r#"trait Foo {
+    fn foo(self);
+}
+
+impl Foo for Field {
+    fn foo(self) {}
+}
+"#,
+            "Foo",
+        );
     }
 
     #[test]
-    async fn test_rename_type_alias() {
-        check_rename_succeeds("rename_type_alias", "Bar").await;
+    fn test_rename_type_alias() {
+        check_rename_succeeds(
+            r#"type Bar = Field;
+
+fn make() -> Bar {
+    1
+}
+"#,
+            "Bar",
+        );
     }
 
     #[test]
-    async fn test_rename_global() {
-        check_rename_succeeds("rename_global", "FOO").await;
+    fn test_rename_global() {
+        check_rename_succeeds(
+            r#"global FOO: Field = 1;
+
+fn main() -> Field {
+    FOO + FOO
+}
+"#,
+            "FOO",
+        );
     }
 
     #[test]
-    async fn test_rename_local_variable() {
-        check_rename_succeeds("local_variable", "some_var").await;
+    fn test_rename_local_variable() {
+        check_rename_succeeds(
+            r#"fn main() {
+    let some_var = 1;
+    let _ = some_var + some_var;
+}
+"#,
+            "some_var",
+        );
     }
 
     #[test]
-    async fn test_rename_struct_member() {
-        check_rename_succeeds("struct_member", "some_member").await;
+    fn test_rename_struct_member() {
+        check_rename_succeeds(
+            r#"struct Foo {
+    some_member: Field,
+}
+
+fn main() {
+    let foo = Foo { some_member: 1 };
+    let _ = foo.some_member;
+}
+"#,
+            "some_member",
+        );
     }
 }

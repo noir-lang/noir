@@ -26,7 +26,7 @@ pub enum RuntimeType {
 
 impl RuntimeType {
     /// Returns whether the runtime type represents an entry point.
-    /// We return `false` for InlineType::Inline on default, which is true
+    /// We return `false` for `InlineType::Inline` on default, which is true
     /// in all cases except for main. `main` should be supported with special
     /// handling in any places where this function determines logic.
     ///
@@ -85,7 +85,7 @@ impl Default for RuntimeType {
 /// These instructions are further grouped into Basic blocks
 ///
 /// All functions outside of the current function are seen as external.
-/// To reference external functions its FunctionId can be used but this
+/// To reference external functions its `FunctionId` can be used but this
 /// cannot be checked for correctness until inlining is performed.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Function {
@@ -97,7 +97,7 @@ pub struct Function {
 
     id: Option<FunctionId>,
 
-    /// The DataFlowGraph holds the majority of data pertaining to the function
+    /// The `DataFlowGraph` holds the majority of data pertaining to the function
     /// including its blocks, instructions, and values.
     pub(crate) dfg: DataFlowGraph,
 }
@@ -134,6 +134,7 @@ impl Function {
         new_function.set_globals(another.dfg.globals.clone());
         new_function.dfg.set_function_purities(another.dfg.function_purities.clone());
         new_function.dfg.brillig_arrays_offset = another.dfg.brillig_arrays_offset;
+        new_function.dfg.allow_constant_return = another.dfg.allow_constant_return;
         new_function
     }
 
@@ -203,7 +204,7 @@ impl Function {
 
     /// Collects all the reachable blocks of this function.
     ///
-    /// Note that self.dfg.basic_blocks_iter() iterates over all blocks,
+    /// Note that `self.dfg.basic_blocks_iter()` iterates over all blocks,
     /// whether reachable or not. This function should be used if you
     /// want to iterate only reachable blocks.
     pub(crate) fn reachable_blocks(&self) -> BTreeSet<BasicBlockId> {
@@ -219,10 +220,11 @@ impl Function {
     }
 
     pub(crate) fn signature(&self) -> Signature {
-        let params = vecmap(self.parameters(), |param| self.dfg.type_of_value(*param));
-        let returns =
-            vecmap(self.returns().unwrap_or_default(), |ret| self.dfg.type_of_value(*ret));
-        Signature { params, returns }
+        let params = vecmap(self.parameters(), |param| self.dfg.type_of_value(*param).into_owned());
+        let returns = vecmap(self.returns().unwrap_or_default(), |ret| {
+            self.dfg.type_of_value(*ret).into_owned()
+        });
+        Signature::new(params, returns)
     }
 
     /// Finds the block of the function with the Return instruction
@@ -249,6 +251,28 @@ impl Function {
 
     pub fn view(&self) -> FunctionView {
         FunctionView(self)
+    }
+
+    /// Re-insert all instructions through the DFG simplification path.                                                                                                                                                              
+    ///                                                                                                                                                                                                                              
+    /// This creates a [`FunctionInserter`][crate::ssa::ir::function_inserter::FunctionInserter], iterates every reachable block in RPO,                                                                                                                                                    
+    /// takes each instruction and re-inserts it via `push_instruction` (which                                                                                                                                                       
+    /// resolves value mappings and triggers DFG simplification such as constant                                                                                                                                                     
+    /// folding of binary ops), then remaps terminators and the data bus.                                                                                                                                                            
+    pub(crate) fn simplify_instructions(&mut self) {
+        use crate::ssa::ir::function_inserter::FunctionInserter;
+
+        let mut inserter = FunctionInserter::new(self);
+        let blocks = PostOrder::with_function(inserter.function).into_vec_reverse();
+
+        for &block in &blocks {
+            let instructions = inserter.function.dfg[block].take_instructions();
+            for instruction_id in &instructions {
+                inserter.push_instruction(*instruction_id, block, true);
+            }
+            inserter.map_terminator_in_place(block);
+        }
+        inserter.map_data_bus_in_place();
     }
 }
 
@@ -325,16 +349,16 @@ impl<'a> FunctionView<'a> {
 
     /// Return the types of the function parameters.
     pub fn parameter_types(&self) -> Vec<Type> {
-        vecmap(self.0.parameters(), |p| self.0.dfg.type_of_value(*p))
+        vecmap(self.0.parameters(), |p| self.0.dfg.type_of_value(*p).into_owned())
     }
 
     /// Return the types of the returned values, if there are any.
     pub fn return_types(&self) -> Option<Vec<Type>> {
-        self.0.returns().map(|rs| vecmap(rs, |p| self.0.dfg.type_of_value(*p)))
+        self.0.returns().map(|rs| vecmap(rs, |p| self.0.dfg.type_of_value(*p).into_owned()))
     }
 }
 
-/// FunctionId is a reference for a function
+/// `FunctionId` is a reference for a function
 ///
 /// This Id is how each function refers to other functions
 /// within Call instructions.
@@ -344,6 +368,17 @@ pub(crate) type FunctionId = Id<Function>;
 pub(crate) struct Signature {
     pub(crate) params: Vec<Type>,
     pub(crate) returns: Vec<Type>,
+}
+
+impl Signature {
+    /// Construct a [Signature] with the exact parameter and return types given,
+    /// including reference mutability. Two signatures differing only in
+    /// reference mutability are distinct: dispatching over them requires
+    /// directional compatibility (see `dispatch_compatible` in defunctionalize),
+    /// not equality.
+    pub(crate) fn new(params: Vec<Type>, returns: Vec<Type>) -> Self {
+        Self { params, returns }
+    }
 }
 
 #[test]

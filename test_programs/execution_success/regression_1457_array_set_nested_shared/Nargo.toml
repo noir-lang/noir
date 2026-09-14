@@ -1,0 +1,6 @@
+[package]
+name = "regression_1457_array_set_nested_shared"
+type = "bin"
+authors = [""]
+
+[dependencies]

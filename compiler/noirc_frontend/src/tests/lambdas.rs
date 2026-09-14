@@ -274,7 +274,7 @@ fn get_program_captures(src: &str) -> Vec<Vec<String>> {
 }
 
 fn find_lambda_captures(stmts: &[StmtId], interner: &NodeInterner, result: &mut Vec<Vec<String>>) {
-    for stmt_id in stmts.iter() {
+    for stmt_id in stmts {
         let hir_stmt = interner.statement(stmt_id);
         let expr_id = match hir_stmt {
             HirStatement::Expression(expr_id) => expr_id,
@@ -285,6 +285,9 @@ fn find_lambda_captures(stmts: &[StmtId], interner: &NodeInterner, result: &mut 
             HirStatement::Loop(block) => block,
             HirStatement::While(_, block) => block,
             HirStatement::Error => panic!("Invalid HirStatement!"),
+            HirStatement::TraitAssociatedConstant => {
+                panic!("Unexpected trait associated constant placeholder")
+            }
             HirStatement::Break => panic!("Unexpected break"),
             HirStatement::Continue => panic!("Unexpected continue"),
             HirStatement::Comptime(_) => panic!("Unexpected comptime"),
@@ -303,7 +306,7 @@ fn get_lambda_captures(
     if let HirExpression::Lambda(lambda_expr) = expr {
         let mut cur_capture = Vec::new();
 
-        for capture in lambda_expr.captures.iter() {
+        for capture in &lambda_expr.captures {
             cur_capture.push(interner.definition(capture.ident.id).name.clone());
         }
         result.push(cur_capture);
@@ -408,7 +411,10 @@ fn mutate_with_reference_in_lambda() {
 }
 
 #[test]
-fn mutate_with_reference_marked_mutable_in_lambda() {
+fn mutate_with_mut_reference_in_lambda() {
+    // `x` itself is a `mut` binding holding a `&mut`; the lambda only writes through the
+    // reference, so capturing it is allowed. The reassignment afterwards is what makes the
+    // `mut` on `x` necessary.
     let src = r#"
     fn main() {
         let mut x = &mut 3;
@@ -417,6 +423,8 @@ fn mutate_with_reference_marked_mutable_in_lambda() {
         };
         f();
         assert(*x == 5);
+        x = &mut 10;
+        assert(*x == 10);
     }
     "#;
     assert_no_errors(src);
@@ -464,12 +472,13 @@ fn allow_capturing_mut_variable_only_used_immutably() {
     let src = r#"
     fn main() {
         let mut x = 3;
+                ^ variable does not need to be mutable
         let f = || x;
         let _x2 = f();
         assert(x == 3);
     }
     "#;
-    assert_no_errors(src);
+    check_errors(src);
 }
 
 #[test]
@@ -587,4 +596,57 @@ fn lambda_refers_to_numeric_generic() {
     }
     "#;
     check_monomorphization_error(src);
+}
+
+#[test]
+fn nested_lambda_does_not_underflow_on_comptime_local_capture() {
+    let src = r#"
+    fn main() {
+        comptime let x = 1;
+
+        let f = || {
+            let g = || x;
+            g()
+        };
+
+        let _ = f();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn global_captured_closure_cannot_be_inlined() {
+    let src = r#"
+    global ADD_ONE: fn[(Field,)](Field) -> Field = {
+           ^^^^^^^ Cannot inline values of type `fn[(Field,)](Field) -> Field` into this position
+           ~~~~~~~ Cannot inline value `(closure)`
+        let offset = 1;
+        |x: Field| x + offset
+    };
+
+    fn main(x: Field) -> pub Field {
+        ADD_ONE(x)
+    }
+    "#;
+    check_monomorphization_error(src);
+}
+
+#[test]
+fn macro_unquote_captured_closure_cannot_be_inlined() {
+    let src = r#"
+    comptime fn make_adder() -> Quoted {
+        let offset = 1;
+        let f = |x: Field| x + offset;
+        quote { $f }
+                 ^ Cannot inline values of type `fn[(Field,)](Field) -> Field` into this position
+                 ~ Cannot inline value `(closure)`
+    }
+
+    fn main(x: Field) -> pub Field {
+        let f = make_adder!();
+        f(x)
+    }
+    "#;
+    check_errors(src);
 }

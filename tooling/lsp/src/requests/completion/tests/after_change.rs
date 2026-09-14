@@ -1,31 +1,21 @@
 #[cfg(test)]
 mod tests {
     use crate::{
-        notifications::on_did_open_text_document, on_did_change_text_document,
-        requests::on_completion_request, test_utils, utils::get_cursor_line_and_column,
+        notifications::on_did_change_text_document, requests::on_completion_request, test_utils,
+        utils::get_cursor_line_and_column,
     };
 
     use async_lsp::lsp_types::{
         CompletionItem, CompletionParams, CompletionResponse, DidChangeTextDocumentParams,
-        DidOpenTextDocumentParams, PartialResultParams, Position, TextDocumentContentChangeEvent,
-        TextDocumentIdentifier, TextDocumentItem, TextDocumentPositionParams,
-        VersionedTextDocumentIdentifier, WorkDoneProgressParams,
+        PartialResultParams, Position, TextDocumentContentChangeEvent, TextDocumentIdentifier,
+        TextDocumentPositionParams, VersionedTextDocumentIdentifier, WorkDoneProgressParams,
     };
-    use tokio::test;
 
-    async fn get_completions_after_change(before: &str, after: &str) -> Vec<CompletionItem> {
-        let (mut state, noir_text_document) = test_utils::init_lsp_server("document_symbol").await;
-
-        let _ = on_did_open_text_document(
-            &mut state,
-            DidOpenTextDocumentParams {
-                text_document: TextDocumentItem {
-                    uri: noir_text_document.clone(),
-                    language_id: "noir".to_string(),
-                    version: 0,
-                    text: before.to_string(),
-                },
-            },
+    fn get_completions_after_change(before: &str, after: &str) -> Vec<CompletionItem> {
+        let (mut state, noir_text_document) = test_utils::init_lsp_server_with_inline_source(
+            "document_symbol",
+            "src/main.nr",
+            before,
         );
 
         let (line, column, after) = get_cursor_line_and_column(after);
@@ -57,14 +47,13 @@ mod tests {
                 context: None,
             },
         )
-        .await
         .expect("Could not execute on_completion_request");
 
         if let Some(CompletionResponse::Array(items)) = response { items } else { vec![] }
     }
 
     #[test]
-    async fn completes_top_level_function_after_change() {
+    fn completes_top_level_function_after_change() {
         let before = r#"
         fn hello() {}
         "#;
@@ -75,13 +64,13 @@ mod tests {
         fn main() { hel>|< }
         "#;
 
-        let items = get_completions_after_change(before, after).await;
+        let items = get_completions_after_change(before, after);
         assert_eq!(items.len(), 1);
         assert_eq!(items[0].label, "hello_world()");
     }
 
     #[test]
-    async fn completes_impl_function_after_change() {
+    fn completes_impl_function_after_change() {
         let before = r#"
         struct Foo {}
 
@@ -100,13 +89,13 @@ mod tests {
         fn main() { Foo::hel>|< }
         "#;
 
-        let items = get_completions_after_change(before, after).await;
+        let items = get_completions_after_change(before, after);
         assert_eq!(items.len(), 1);
         assert_eq!(items[0].label, "hello_world()");
     }
 
     #[test]
-    async fn completes_impl_method_after_change() {
+    fn completes_impl_method_after_change() {
         let before = r#"
         struct Foo {}
 
@@ -128,13 +117,13 @@ mod tests {
         }
         "#;
 
-        let items = get_completions_after_change(before, after).await;
+        let items = get_completions_after_change(before, after);
         assert_eq!(items.len(), 1);
         assert_eq!(items[0].label, "hello_world()");
     }
 
     #[test]
-    async fn completes_nested_top_level_function_after_change() {
+    fn completes_nested_top_level_function_after_change() {
         let before = r#"
         mod moo {
             pub fn hello() {}
@@ -149,13 +138,13 @@ mod tests {
         fn main() { moo::hel>|< }
         "#;
 
-        let items = get_completions_after_change(before, after).await;
+        let items = get_completions_after_change(before, after);
         assert_eq!(items.len(), 1);
         assert_eq!(items[0].label, "hello_world()");
     }
 
     #[test]
-    async fn completes_trait_method_after_change() {
+    fn completes_trait_method_after_change() {
         let before = r#"
         trait Trait {
              fn hello(self);
@@ -181,7 +170,7 @@ mod tests {
         }
         "#;
 
-        let items = get_completions_after_change(before, after).await;
+        let items = get_completions_after_change(before, after);
         assert_eq!(items.len(), 1);
         assert_eq!(items[0].label, "hello_world()");
     }

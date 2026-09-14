@@ -2,6 +2,8 @@ use crate::cmp::{Eq, Ord, Ordering};
 use crate::default::Default;
 use crate::hash::{Hash, Hasher};
 
+/// Represents a value of type T or its absence.
+/// Use `Option::some(value)` to construct a value or `Option::none()` to record the absence of one.
 pub struct Option<T> {
     _is_some: bool,
     _value: T,
@@ -19,12 +21,12 @@ impl<T> Option<T> {
     }
 
     /// True if this Option is None
-    pub fn is_none(self) -> bool {
+    pub fn is_none(&self) -> bool {
         !self._is_some
     }
 
     /// True if this Option is Some
-    pub fn is_some(self) -> bool {
+    pub fn is_some(&self) -> bool {
         self._is_some
     }
 
@@ -228,5 +230,152 @@ where
         } else {
             Ordering::equal()
         }
+    }
+}
+
+mod tests {
+    use crate::cmp::Ord;
+    use crate::cmp::Ordering;
+    use crate::default::Default as _;
+    use super::Option;
+
+    #[test]
+    fn some_and_none() {
+        assert(Option::<u8>::none().is_none());
+        assert(!Option::<u8>::none().is_some());
+        assert(Option::some(1).is_some());
+        assert(!Option::some(1).is_none());
+    }
+
+    #[test]
+    fn unwrap_succeeds() {
+        assert_eq(Option::some(1).unwrap(), 1);
+    }
+
+    #[test(should_fail)]
+    fn unwrap_fails() {
+        let _ = Option::<u8>::none().unwrap();
+    }
+
+    #[test]
+    fn unwrap_or() {
+        assert_eq(Option::some(1).unwrap_or(2), 1);
+        assert_eq(Option::none().unwrap_or(2), 2);
+    }
+
+    #[test]
+    fn unwrap_or_else() {
+        assert_eq(Option::some(1).unwrap_or_else(|| 2), 1);
+        assert_eq(Option::none().unwrap_or_else(|| 2), 2);
+    }
+
+    #[test]
+    fn expect_succeeds() {
+        assert_eq(Option::some(1).expect(f"Should be there"), 1);
+    }
+
+    #[test(should_fail_with = "Should be there")]
+    fn expect_fails() {
+        let _ = Option::<u8>::none().expect(f"Should be there");
+    }
+
+    #[test]
+    fn map() {
+        assert(Option::<u8>::none().map(|x| x + 1).is_none());
+        assert_eq(Option::some(1).map(|x| x + 1), Option::some(2));
+    }
+
+    #[test]
+    fn map_or() {
+        assert_eq(Option::<u8>::none().map_or(0, |x| x + 1), 0);
+        assert_eq(Option::some(1).map_or(0, |x| x + 1), 2);
+    }
+
+    #[test]
+    fn map_or_else() {
+        assert_eq(Option::<u8>::none().map_or_else(|| 0, |x| x + 1), 0);
+        assert_eq(Option::some(1).map_or_else(|| 0, |x| x + 1), 2);
+    }
+
+    #[test]
+    fn and() {
+        assert_eq(Option::<u8>::none().and(Option::none()), Option::none());
+        assert_eq(Option::<u8>::none().and(Option::some(1)), Option::none());
+        assert_eq(Option::some(1).and(Option::some(2)), Option::some(2));
+        assert_eq(Option::some(1).and(Option::none()), Option::none());
+    }
+
+    #[test]
+    fn and_then() {
+        assert_eq(Option::<u8>::none().and_then(|_| Option::<u8>::none()), Option::none());
+        assert_eq(Option::<u8>::none().and_then(|_| Option::some(1)), Option::none());
+        assert_eq(Option::some(1).and_then(|x| Option::some(x + 1)), Option::some(2));
+        assert_eq(Option::some(1).and_then(|_| Option::<u8>::none()), Option::none());
+    }
+
+    #[test]
+    fn or() {
+        assert_eq(Option::<u8>::none().or(Option::none()), Option::none());
+        assert_eq(Option::<u8>::none().or(Option::some(1)), Option::some(1));
+        assert_eq(Option::some(1).or(Option::some(2)), Option::some(1));
+        assert_eq(Option::some(1).or(Option::none()), Option::some(1));
+    }
+
+    #[test]
+    fn or_else() {
+        assert_eq(Option::<u8>::none().or_else(|| Option::none()), Option::none());
+        assert_eq(Option::<u8>::none().or_else(|| Option::some(1)), Option::some(1));
+        assert_eq(Option::some(1).or_else(|| Option::some(2)), Option::some(1));
+        assert_eq(Option::some(1).or_else(|| Option::none()), Option::some(1));
+    }
+
+    #[test]
+    fn xor() {
+        assert_eq(Option::<u8>::none().xor(Option::none()), Option::none());
+        assert_eq(Option::<u8>::none().xor(Option::some(1)), Option::some(1));
+        assert_eq(Option::some(1).xor(Option::some(2)), Option::none());
+        assert_eq(Option::some(1).xor(Option::none()), Option::some(1));
+    }
+
+    #[test]
+    fn filter() {
+        assert_eq(Option::<u8>::none().filter(|_| true), Option::none());
+        assert_eq(Option::some(1).filter(|x| x == 1), Option::some(1));
+        assert_eq(Option::some(1).filter(|x| x == 2), Option::none());
+        assert_eq(Option::some(1).filter(|x| x == 2), Option::none());
+    }
+
+    #[test]
+    fn flatten() {
+        assert_eq(Option::<Option<u8>>::none().flatten(), Option::none());
+        assert_eq(Option::some(Option::<u8>::none()).flatten(), Option::none());
+        assert_eq(Option::some(Option::some(1)).flatten(), Option::some(1));
+    }
+
+    #[test]
+    fn default() {
+        assert_eq(Option::<u8>::default(), Option::none());
+    }
+
+    #[test]
+    fn eq() {
+        assert(Option::<u8>::none() == Option::none());
+        assert(Option::<u8>::some(1) != Option::none());
+        assert(Option::<u8>::none() != Option::some(1));
+        assert(Option::<u8>::some(1) == Option::some(1));
+        assert(Option::<u8>::some(1) != Option::some(2));
+    }
+
+    #[test]
+    fn cmp() {
+        let none = Option::<u8>::none();
+        let one = Option::<u8>::some(1);
+        let two = Option::<u8>::some(2);
+        assert_eq(none.cmp(none), Ordering::equal());
+        assert_eq(none.cmp(one), Ordering::less());
+        assert_eq(one.cmp(none), Ordering::greater());
+        assert_eq(one.cmp(one), Ordering::equal());
+        assert_eq(one.cmp(two), Ordering::less());
+        assert_eq(two.cmp(one), Ordering::greater());
     }
 }

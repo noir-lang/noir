@@ -33,6 +33,7 @@ pub struct Methods {
 }
 
 impl Methods {
+    /// Adds a method to this collection, without checking for overlaps.
     pub(super) fn add_method(&mut self, method: FuncId, typ: Type, trait_id: Option<TraitId>) {
         if let Some(trait_id) = trait_id {
             let trait_impl_method = TraitImplMethod { typ, method, trait_id };
@@ -41,6 +42,39 @@ impl Methods {
             let impl_method = ImplMethod { typ, method };
             self.direct.push(impl_method);
         }
+    }
+
+    /// Finds an existing direct (inherent) method whose type overlaps with the given type.
+    /// Returns `Some((method_id, method_type))` if an overlap is found.
+    ///
+    /// Two types overlap if there exist concrete types that could match both.
+    /// For example:
+    /// - `Foo<T>` and `Foo<U>` overlap
+    /// - `Foo<T>` and `Foo<i32>` overlap (T can be i32)
+    /// - `Foo<i32>` and `Foo<u64>` don't overlap
+    pub(super) fn find_overlapping_method(
+        &self,
+        method_id: &FuncId,
+        typ: &Type,
+        interner: &NodeInterner,
+    ) -> Option<(FuncId, Type)> {
+        if self.direct.is_empty() {
+            return None;
+        }
+        let instantiate_typ = interner.function_meta(method_id).instantiate(typ, interner);
+        for existing in &self.direct {
+            // Check if two types overlap, by instantiating both types (replacing NamedGenerics
+            // with fresh TypeVariables) and then checking if they can unify.
+            let existing_func_meta = interner.function_meta(&existing.method);
+            let instantiate_existing = existing_func_meta.instantiate(&existing.typ, interner);
+            let mut bindings = TypeBindings::default();
+            let types_can_unify =
+                instantiate_existing.try_unify(&instantiate_typ, &mut bindings).is_ok();
+            if types_can_unify {
+                return Some((existing.method, existing.typ.clone()));
+            }
+        }
+        None
     }
 
     pub(super) fn find_direct_method(
@@ -58,12 +92,33 @@ impl Methods {
         None
     }
 
+    /// Returns the self types of every direct (inherent) method that matches `typ`.
+    ///
+    /// Unlike keying by `typ`'s method key, this matches each impl's self type against `typ`, so it
+    /// distinguishes `Foo<i32>` and `Foo<u64>` (both match `Foo<_>`) from `u8` and `u16` (only `u8`
+    /// matches `u8`) — even though same-key types like the integers share a single `Methods` entry.
+    /// Used to detect when `TypeName::method` is ambiguous (more than one applies).
+    pub(super) fn matching_direct_method_types(
+        &self,
+        typ: &Type,
+        check_self_param: bool,
+        interner: &NodeInterner,
+    ) -> Vec<Type> {
+        self.direct
+            .iter()
+            .filter(|method| {
+                Self::method_matches(typ, check_self_param, method.method, &method.typ, interner)
+            })
+            .map(|method| method.typ.clone())
+            .collect()
+    }
+
     pub(super) fn find_trait_methods(
         &self,
         typ: &Type,
         has_self_param: bool,
         interner: &NodeInterner,
-    ) -> Vec<(FuncId, TraitId)> {
+    ) -> Vec<(FuncId, TraitId, Type)> {
         let mut results = Vec::new();
 
         for trait_impl_method in &self.trait_impl_methods {
@@ -72,7 +127,7 @@ impl Methods {
             let trait_id = trait_impl_method.trait_id;
 
             if Self::method_matches(typ, has_self_param, method, method_type, interner) {
-                results.push((method, trait_id));
+                results.push((method, trait_id, method_type.clone()));
             }
         }
 
@@ -102,13 +157,6 @@ impl Methods {
         direct.chain(trait_impl_methods)
     }
 
-    /// Check if the types can unify without binding any type variables.
-    /// This is important because method lookup should not have side effects on type variables.
-    fn types_can_unify(a: &Type, b: &Type) -> bool {
-        let mut bindings = TypeBindings::default();
-        a.try_unify(b, &mut bindings).is_ok()
-    }
-
     fn method_matches(
         typ: &Type,
         check_self_param: bool,
@@ -116,33 +164,33 @@ impl Methods {
         method_type: &Type,
         interner: &NodeInterner,
     ) -> bool {
-        match interner.function_meta(&method).typ.instantiate(interner).0 {
+        let func_meta = interner.function_meta(&method);
+        let function_typ = &func_meta.typ;
+        match function_typ.instantiate(interner).0 {
             Type::Function(args, _, _, _) => {
                 if check_self_param {
                     if let Some(object) = args.first() {
-                        if object.unify(typ).is_ok() {
+                        if object.try_unify_with_default_bindings(typ).is_ok() {
                             return true;
                         }
 
                         // Handle auto-dereferencing `&T` and `&mut T` into `T`
                         if let Type::Reference(object, _mutable) = object
-                            && object.unify(typ).is_ok()
+                            && object.try_unify_with_default_bindings(typ).is_ok()
                         {
                             return true;
                         }
                     }
                 } else {
-                    // When check_self_param is false, we do not bind unification because
-                    // `method_type` might contain NamedGenerics from the impl definition,
-                    // and we don't want to bind type variables in `typ` to those NamedGenerics.
-                    // This prevents side effects on the caller's type variables.
-                    if Self::types_can_unify(method_type, typ) {
+                    let method_type = func_meta.instantiate(method_type, interner);
+
+                    if method_type.try_unify_with_default_bindings(typ).is_ok() {
                         return true;
                     }
 
                     // Handle auto-dereferencing `&T` and `&mut T` into `T`
-                    if let Type::Reference(method_type, _mutable) = method_type
-                        && Self::types_can_unify(method_type, typ)
+                    if let Type::Reference(method_type, _mutable) = method_type.as_ref()
+                        && method_type.try_unify_with_default_bindings(typ).is_ok()
                     {
                         return true;
                     }

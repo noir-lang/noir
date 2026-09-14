@@ -76,6 +76,8 @@ export interface NoirFunctionEntry {
  * The compilation result of an Noir contract.
  */
 export interface ContractArtifact {
+  /** Version of the serialized artifact schema. */
+  artifact_version: 1;
   /** The name of the contract. */
   name: string;
   /** Version of noir used for the build. */
@@ -95,6 +97,8 @@ export interface ContractArtifact {
  * The compilation result of an Noir contract.
  */
 export interface ProgramArtifact {
+  /** Version of the serialized artifact schema. */
+  artifact_version: 1;
   /** Version of noir used for the build. */
   noir_version: string;
   /** The hash of the circuit. */
@@ -192,8 +196,20 @@ export type DebugFileMap = Record<
      * The path of the file.
      */
     path: string;
+    /**
+     * The range each function occupies in the file.
+     */
+    function_locations: FunctionLocation[];
   }
 >;
+
+/** The range a function occupies in a file. */
+export type FunctionLocation = {
+  /** The byte where the function starts. */
+  start: number;
+  /** The name of the function. */
+  name: string;
+};
 
 /** Compilation warning */
 export type Warning = unknown;

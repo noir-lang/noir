@@ -32,6 +32,12 @@ pub(crate) struct InfoCommand {
     #[clap(long, hide = true)]
     json: bool,
 
+    /// Compile and execute the program in the Brillig VM, reporting the number of Brillig opcodes
+    /// executed at runtime rather than the static opcode count of the compiled circuit.
+    /// Useful for analyzing the runtime cost of unconstrained functions and identifying execution
+    /// bottlenecks. It implies `--force-brillig`: a constrained circuit has fully flattened control
+    /// flow (e.g. loops and conditionals), so execution profiling is only meaningful for
+    /// unconstrained code.
     #[clap(long)]
     profile_execution: bool,
 
@@ -106,7 +112,7 @@ fn profile_brillig_execution(
     prover_name: &str,
 ) -> Result<Vec<ProgramInfo>, CliError> {
     let mut program_info = Vec::new();
-    for (package, program_artifact) in binary_packages.iter() {
+    for (package, program_artifact) in &binary_packages {
         // Parse the initial witness values from Prover.toml or Prover.json
         let (inputs_map, _) = read_inputs_from_file(
             &package.root_dir.join(prover_name).with_extension("toml"),

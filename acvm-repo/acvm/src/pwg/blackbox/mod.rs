@@ -4,11 +4,15 @@ use acir::{
     native_types::{Witness, WitnessMap},
 };
 use acvm_blackbox_solver::{blake2s, blake3, keccakf1600};
+use itertools::Itertools;
 
 use self::{aes128::solve_aes128_encryption_opcode, hash::solve_poseidon2_permutation_opcode};
 
 use super::{OpcodeNotSolvable, OpcodeResolutionError, insert_value};
-use crate::{BlackBoxFunctionSolver, pwg::input_to_value};
+use crate::{
+    BlackBoxFunctionSolver,
+    pwg::{check_bit_size, input_to_value},
+};
 
 pub(crate) mod aes128;
 pub(crate) mod embedded_curve_ops;
@@ -61,7 +65,7 @@ fn contains_all_inputs<F>(
 /// Our black box solver uses the standard rust implementation for the function if it is available.
 /// However, some functions depend on the backend, such as embedded curve operations, which depend on the
 /// elliptic curve used by the proving system. This is why the 'solve' functions takes a blackbox solver trait.
-/// The 'AcvmBigIntSolver' is also a blackbox solver, but dedicated to the BigInteger blackbox functions.
+/// The '`AcvmBigIntSolver`' is also a blackbox solver, but dedicated to the `BigInteger` blackbox functions.
 pub(crate) fn solve<F: AcirField>(
     backend: &impl BlackBoxFunctionSolver<F>,
     initial_witness: &mut WitnessMap<F>,
@@ -72,7 +76,7 @@ pub(crate) fn solve<F: AcirField>(
         let unassigned_witness = first_missing_assignment(initial_witness, &inputs)
             .expect("Some assignments must be missing because it does not contains all inputs");
         return Err(OpcodeResolutionError::OpcodeNotSolvable(
-            OpcodeNotSolvable::MissingAssignment(unassigned_witness.0),
+            OpcodeNotSolvable::MissingAssignment(unassigned_witness.witness_index()),
         ));
     }
 
@@ -99,13 +103,15 @@ pub(crate) fn solve<F: AcirField>(
         }
         BlackBoxFuncCall::Keccakf1600 { inputs, outputs } => {
             let mut state = [0; 25];
-            for (it, input) in state.iter_mut().zip(inputs.as_ref()) {
+            for (it, input) in state.iter_mut().zip_eq(inputs.as_ref()) {
                 let witness_assignment = input_to_value(initial_witness, *input)?;
-                let lane = witness_assignment.try_to_u64();
-                *it = lane.unwrap();
+                check_bit_size(witness_assignment, 64)?;
+                *it = witness_assignment
+                    .try_to_u64()
+                    .expect("value was just checked to fit in 64 bits");
             }
             let output_state = keccakf1600(state)?;
-            for (output_witness, value) in outputs.iter().zip(output_state.into_iter()) {
+            for (output_witness, value) in outputs.iter().zip_eq(output_state) {
                 insert_value(output_witness, F::from(u128::from(value)), initial_witness)?;
             }
             Ok(())

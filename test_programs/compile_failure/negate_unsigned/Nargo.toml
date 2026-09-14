@@ -1,6 +1,0 @@
-[package]
-name = "negate_unsigned"
-type = "bin"
-authors = [""]
-
-[dependencies]

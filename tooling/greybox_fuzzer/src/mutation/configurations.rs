@@ -1,5 +1,5 @@
 //! This file contains configurations for selecting particular behaviors during mutations
-use rand::Rng;
+use rand::RngExt;
 use rand_xorshift::XorShiftRng;
 
 pub struct WeightedSelectionConfig<T, const N: usize> {

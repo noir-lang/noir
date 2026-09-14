@@ -3,7 +3,7 @@
   "bump-minor-pre-major": true,
   "bump-patch-for-minor-pre-major": true,
   "prerelease": true,
-  "prerelease-type": "beta",
+  "prerelease-type": "rc",
   "pull-request-title-pattern": "chore: Release Noir(${version})",
   "group-pull-request-title-pattern": "chore: Release Noir(${version})",
   "packages": {
@@ -15,6 +15,7 @@
       "include-component-in-tag": false,
       "extra-files": [
         "Cargo.toml",
+        "noir_stdlib/Nargo.toml",
         "acvm-repo/acir/Cargo.toml",
         "acvm-repo/acir_field/Cargo.toml",
         "acvm-repo/acvm/Cargo.toml",
@@ -23,6 +24,8 @@
         "acvm-repo/bn254_blackbox_solver/Cargo.toml",
         "acvm-repo/brillig/Cargo.toml",
         "acvm-repo/brillig_vm/Cargo.toml",
+        "acvm-repo/msgpack_tagged/Cargo.toml",
+        "acvm-repo/msgpack_tagged_derive/Cargo.toml",
         {
           "type": "json",
           "path": "acvm-repo/acvm_js/package.json",

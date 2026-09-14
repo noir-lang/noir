@@ -73,7 +73,7 @@ fn comptime_check_field_expression(
 
         let inputs: BTreeMap<String, InputValue> = inputs.into_iter().map(|(k, v)| (k.to_string(), v)).collect();
 
-        let return_value = run_snippet(program.to_string(), inputs, force_brillig);
+        let return_value = run_snippet(program, inputs, force_brillig);
         prop_assert_eq!(return_value, InputValue::Field(1u32.into()));
     });
 }

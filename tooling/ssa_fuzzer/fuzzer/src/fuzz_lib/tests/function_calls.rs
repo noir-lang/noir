@@ -13,6 +13,7 @@ use acvm::AcirField;
 use acvm::FieldElement;
 use noir_ssa_fuzzer::typed_value::{NumericType, Type};
 
+/// ```text
 /// brillig(inline) fn main f0 {
 ///    b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: u1, v6: u1):
 ///      v8 = call f1(v0, v1, v2, v3, v4, v5, v6) -> Field
@@ -23,7 +24,7 @@ use noir_ssa_fuzzer::typed_value::{NumericType, Type};
 ///      v7 = add v2, v2
 ///      return v7
 ///  }
-///  
+/// ```
 #[test]
 fn simple_function_call() {
     let _ = env_logger::try_init();
@@ -66,10 +67,13 @@ fn simple_function_call() {
     }
 }
 
+/// ```text
 /// main() { f1() + f2() } -> 8 + 4 => 12
 /// f1() { let var = f2(); var + var } -> 4 + 4 => 8
 /// f2(v2) { v2 + v2 } -> 2 + 2 => 4
+/// ```
 ///
+/// ```text
 ///   brillig(inline) fn main f0 {
 ///     b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: u1, v6: u1):
 ///       v8 = call f1(v0, v1, v2, v3, v4, v5, v6) -> Field
@@ -88,6 +92,7 @@ fn simple_function_call() {
 ///       v7 = add v2, v2
 ///       return v7
 ///   }
+/// ```
 #[test]
 fn several_functions_several_calls() {
     let dummy_var = NumericArgument { index: 2, numeric_type: NumericType::I64 };
@@ -150,11 +155,12 @@ fn several_functions_several_calls() {
     }
 }
 
+/// ```text
 ///   brillig(inline) fn main f0 {
 ///     b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: u1, v6: u1):
 ///       v7 = allocate -> &mut Field
 ///       store v0 at v7
-///       jmpif v6 then: b1, else: b2
+///       jmpif v6 then: b1(), else: b2()
 ///     b1():
 ///       v11 = call f1(v0, v1, v2, v3, v4, v5, v6) -> Field
 ///       store v11 at v7
@@ -177,6 +183,7 @@ fn several_functions_several_calls() {
 ///       v7 = add v2, v2
 ///       return v7
 ///   }
+/// ```
 #[test]
 fn call_in_if_else() {
     let _ = env_logger::try_init();
@@ -266,7 +273,7 @@ fn call_in_if_else() {
     };
 
     // use the same commands, but add boolean block at the beginning
-    let mut commands = commands_for_main.clone();
+    let mut commands = commands_for_main;
     commands.insert(
         0,
         FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 4 },
@@ -389,7 +396,7 @@ fn test_does_not_insert_too_many_instructions_with_function_calls() {
     // with max 1000 instructions both functions should be executed
     // and the result should be the output of the first function
     let options = FuzzerOptions { max_instructions_num: 1000, ..FuzzerOptions::default() };
-    let result = fuzz_target(data.clone(), default_runtimes(), options);
+    let result = fuzz_target(data, default_runtimes(), options);
     match result.get_return_witnesses().is_empty() {
         true => {
             panic!("Program failed to execute");

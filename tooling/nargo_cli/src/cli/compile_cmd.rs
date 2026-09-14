@@ -18,8 +18,8 @@ use noirc_driver::{CompilationResult, CompileOptions};
 
 use clap::Args;
 use noirc_frontend::hir::ParsedFiles;
-use notify::{EventKind, RecursiveMode, Watcher};
 use notify_debouncer_full::new_debouncer;
+use notify_debouncer_full::notify::{EventKind, RecursiveMode};
 
 use crate::errors::CliError;
 
@@ -65,7 +65,10 @@ pub(crate) fn run(args: CompileCommand, workspace: Workspace) -> Result<(), CliE
 }
 
 /// Continuously recompile the workspace on any Noir file change event.
-fn watch_workspace(workspace: &Workspace, compile_options: &CompileOptions) -> notify::Result<()> {
+fn watch_workspace(
+    workspace: &Workspace,
+    compile_options: &CompileOptions,
+) -> notify_debouncer_full::notify::Result<()> {
     let (tx, rx) = std::sync::mpsc::channel();
 
     // No specific tickrate, max debounce time 1 seconds
@@ -73,7 +76,7 @@ fn watch_workspace(workspace: &Workspace, compile_options: &CompileOptions) -> n
 
     // Add a path to be watched. All files and directories at that path and
     // below will be monitored for changes.
-    debouncer.watcher().watch(&workspace.root_dir, RecursiveMode::Recursive)?;
+    debouncer.watch(&workspace.root_dir, RecursiveMode::Recursive)?;
 
     let mut screen = std::io::stdout();
     write!(screen, "{}", termion::cursor::Save).unwrap();
@@ -150,6 +153,7 @@ pub fn compile_workspace_full(
     report_errors(
         compiled_workspace,
         &workspace_file_manager,
+        &parsed_files,
         compile_options.deny_warnings,
         compile_options.silence_warnings,
     )?;
@@ -232,18 +236,15 @@ fn compile_programs(
             cached_program,
         ) {
             Ok((program, warnings)) => {
-                // If the compiled program is the same as the cached one, we don't apply transformations again, unless the target width has changed.
-                // The transformations might not be idempotent, which would risk creating witnesses that don't work with earlier versions,
-                // based on which we might have generated a verifier already.
+                // The program is fully optimized during compilation, so if it matches the cached
+                // artifact there is nothing new to save.
                 if cached_hash == Some(rustc_hash::FxBuildHasher.hash_one(&program)) {
                     return Ok(Ok(((), warnings)));
                 }
-                // Run ACVM optimizations.
-                let program = nargo::ops::optimize_program(program);
                 // Check solvability.
                 match nargo::ops::check_program(&program) {
                     Ok(()) => {
-                        // Overwrite the build artifacts with the final circuit, which includes the backend specific transformations.
+                        // Overwrite the build artifacts with the final, optimized circuit.
                         let _ = save_program_to_file(
                             &program.into(),
                             &package.name,
@@ -287,7 +288,6 @@ fn compile_contracts(
         .map(|package| -> Result<CompilationResult<()>, CliError> {
             match compile_contract(file_manager, parsed_files, package, compile_options) {
                 Ok((contract, warnings)) => {
-                    let contract = nargo::ops::optimize_contract(contract);
                     save_contract(
                         contract,
                         package,

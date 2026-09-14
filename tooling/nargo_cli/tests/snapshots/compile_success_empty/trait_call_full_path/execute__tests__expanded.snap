@@ -1,8 +1,9 @@
 ---
 source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 432
 expression: expanded_code
 ---
-use foo::Trait::{self, me};
+use foo::Trait;
 
 mod foo {
     pub trait Trait {
@@ -17,7 +18,6 @@ mod foo {
 }
 
 fn main(x: Field) {
-    let _: Field = x.me();
     let _: Field = x.me();
     let _: Field = x.me();
 }

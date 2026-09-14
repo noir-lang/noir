@@ -1,6 +1,11 @@
 #![forbid(unsafe_code)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
+//! Types for Noir's serialized ABI format.
+//!
+//! The serialized format is the compatibility boundary. This crate's Rust API is an internal
+//! implementation detail and may change between Noir releases.
+
 use acvm::{
     AcirField, FieldElement,
     acir::{
@@ -11,11 +16,12 @@ use acvm::{
 use errors::AbiError;
 use input_parser::InputValue;
 use iter_extended::{try_btree_map, try_vecmap};
+use itertools::Itertools;
 use noirc_printable_type::{
     PrintableType, PrintableValue, PrintableValueDisplay, decode_printable_value,
     decode_string_value,
 };
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::borrow::Borrow;
 use std::{collections::BTreeMap, str};
 // This is the ABI used to bridge the different TOML formats for the initial
@@ -34,6 +40,31 @@ mod serialization;
 pub type InputMap = BTreeMap<String, InputValue>;
 
 pub const MAIN_RETURN_NAME: &str = "return";
+
+/// The version of the ABI schema emitted by this version of Noir.
+pub const ABI_VERSION: u32 = 1;
+
+/// The schema version of ABI JSON written before `ABI_VERSION` existed. This is a historical
+/// fact about those files and must not change when `ABI_VERSION` is incremented.
+const LEGACY_ABI_VERSION: u32 = 1;
+
+const fn default_abi_version() -> u32 {
+    LEGACY_ABI_VERSION
+}
+
+fn deserialize_abi_version<'de, D>(deserializer: D) -> Result<u32, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let version = u32::deserialize(deserializer)?;
+    if version == ABI_VERSION {
+        Ok(version)
+    } else {
+        Err(serde::de::Error::custom(format!(
+            "unsupported ABI schema version {version}; expected {ABI_VERSION}"
+        )))
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "lowercase")]
@@ -170,14 +201,29 @@ pub struct AbiReturnType {
     pub visibility: AbiVisibility,
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize, Hash)]
+#[derive(Clone, Debug, Serialize, Deserialize, Hash)]
 #[cfg_attr(test, derive(arbitrary::Arbitrary))]
 pub struct Abi {
+    /// The version of the serialized ABI schema.
+    #[serde(default = "default_abi_version", deserialize_with = "deserialize_abi_version")]
+    #[cfg_attr(test, proptest(strategy = "proptest::prelude::Just(ABI_VERSION)"))]
+    pub abi_version: u32,
     /// An ordered list of the arguments to the program's `main` function, specifying their types and visibility.
     pub parameters: Vec<AbiParameter>,
     pub return_type: Option<AbiReturnType>,
     #[cfg_attr(test, proptest(strategy = "proptest::prelude::Just(BTreeMap::from([]))"))]
     pub error_types: BTreeMap<ErrorSelector, AbiErrorType>,
+}
+
+impl Default for Abi {
+    fn default() -> Self {
+        Self {
+            abi_version: ABI_VERSION,
+            parameters: Vec::new(),
+            return_type: None,
+            error_types: BTreeMap::new(),
+        }
+    }
 }
 
 impl Abi {
@@ -211,7 +257,7 @@ impl Abi {
 
     pub fn to_btree_map(&self) -> BTreeMap<String, AbiType> {
         let mut map = BTreeMap::new();
-        for param in self.parameters.iter() {
+        for param in &self.parameters {
             map.insert(param.name.clone(), param.typ.clone());
         }
         map
@@ -302,7 +348,7 @@ impl Abi {
                 }
             }
             (InputValue::Vec(vec_elements), AbiType::Tuple { fields }) => {
-                for (value, typ) in vec_elements.into_iter().zip(fields) {
+                for (value, typ) in vec_elements.into_iter().zip_eq(fields) {
                     encoded_value.extend(Self::encode_value(value, typ)?);
                 }
             }
@@ -332,7 +378,7 @@ impl Abi {
                 })?;
                 pointer += num_fields;
 
-                decode_value(&mut param_witness_values.into_iter(), &typ)
+                decode_value(&mut param_witness_values.into_iter(), &typ, &name)
                     .map(|input_value| (name.clone(), input_value))
             })?;
 
@@ -350,7 +396,11 @@ impl Abi {
                         .copied()
                 })
             {
-                Some(decode_value(&mut return_witness_values.into_iter(), &return_type.abi_type)?)
+                Some(decode_value(
+                    &mut return_witness_values.into_iter(),
+                    &return_type.abi_type,
+                    MAIN_RETURN_NAME,
+                )?)
             } else {
                 // Unlike for the circuit inputs, we tolerate not being able to find the witness values for the return value.
                 // This is because the user may be decoding a partial witness map for which is hasn't been calculated yet.
@@ -368,20 +418,27 @@ impl Abi {
 pub fn decode_value(
     field_iterator: &mut impl Iterator<Item = FieldElement>,
     value_type: &AbiType,
+    name: &str,
 ) -> Result<InputValue, AbiError> {
     // This function assumes that `field_iterator` contains enough `FieldElement`s in order to decode a `value_type`
     // `Abi.decode` enforces that the encoded inputs matches the expected length defined by the ABI so this is safe.
     let value = match value_type {
         AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean => {
-            let field_element = field_iterator.next().unwrap();
+            let field_element =
+                field_iterator.next().ok_or_else(|| AbiError::MissingParam(name.to_string()))?;
 
-            InputValue::Field(field_element)
+            // Validate the decoded leaf against its declared type so that decode stays symmetric
+            // with encode, which rejects out-of-range integers and non-`{0,1}` booleans.
+            let input_value = InputValue::Field(field_element);
+            input_value.find_type_mismatch(value_type, name.to_string())?;
+            input_value
         }
         AbiType::Array { length, typ } => {
             let length = *length as usize;
             let mut array_elements = Vec::with_capacity(length);
-            for _ in 0..length {
-                array_elements.push(decode_value(field_iterator, typ)?);
+            for i in 0..length {
+                let indexed_name = format!("{name}[{i}]");
+                array_elements.push(decode_value(field_iterator, typ, &indexed_name)?);
             }
 
             InputValue::Vec(array_elements)
@@ -389,13 +446,25 @@ pub fn decode_value(
         AbiType::String { length } => {
             let field_elements: Vec<FieldElement> = field_iterator.take(*length as usize).collect();
 
+            // Each string character is a single byte, so reject any witness field that does not fit
+            // in `0..=255` rather than letting `decode_string_value` panic on a non-byte field.
+            for field_element in &field_elements {
+                if field_element.num_bits() > 8 {
+                    return Err(AbiError::StringValueOutsideByteRange {
+                        name: name.to_string(),
+                        value: *field_element,
+                    });
+                }
+            }
+
             InputValue::String(decode_string_value(&field_elements))
         }
         AbiType::Struct { fields, .. } => {
             let mut struct_map = BTreeMap::new();
 
             for (field_key, param_type) in fields {
-                let field_value = decode_value(field_iterator, param_type)?;
+                let struct_name = format!("{name}.{field_key}");
+                let field_value = decode_value(field_iterator, param_type, &struct_name)?;
 
                 struct_map.insert(field_key.to_owned(), field_value);
             }
@@ -404,8 +473,9 @@ pub fn decode_value(
         }
         AbiType::Tuple { fields } => {
             let mut tuple_elements = Vec::with_capacity(fields.len());
-            for field_typ in fields {
-                tuple_elements.push(decode_value(field_iterator, field_typ)?);
+            for (i, field_typ) in fields.iter().enumerate() {
+                let indexed_name = format!("{name}.{i}");
+                tuple_elements.push(decode_value(field_iterator, field_typ, &indexed_name)?);
             }
 
             InputValue::Vec(tuple_elements)
@@ -444,6 +514,12 @@ pub enum AbiValue {
     Tuple {
         fields: Vec<AbiValue>,
     },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AbiNamedValue {
+    pub name: String,
+    pub value: AbiValue,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash)]
@@ -496,9 +572,18 @@ pub fn display_abi_error<F: AcirField>(
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
+    use acvm::{
+        FieldElement,
+        acir::native_types::{Witness, WitnessMap},
+    };
     use proptest::prelude::*;
 
-    use crate::arbitrary::arb_abi_and_input_map;
+    use crate::{
+        ABI_VERSION, Abi, AbiParameter, AbiType, AbiVisibility, Sign,
+        arbitrary::arb_abi_and_input_map,
+    };
 
     proptest! {
         #[test]
@@ -509,5 +594,63 @@ mod tests {
             prop_assert_eq!(decoded_inputs, input_map);
             prop_assert_eq!(return_value, None);
         }
+    }
+
+    fn abi_with_single_param(typ: AbiType) -> Abi {
+        Abi {
+            abi_version: ABI_VERSION,
+            parameters: vec![AbiParameter {
+                name: "x".to_string(),
+                typ,
+                visibility: AbiVisibility::Private,
+            }],
+            return_type: None,
+            error_types: BTreeMap::new(),
+        }
+    }
+
+    fn witness_map_with_single_value(value: u128) -> WitnessMap<FieldElement> {
+        WitnessMap::from(BTreeMap::from([(Witness(0), FieldElement::from(value))]))
+    }
+
+    #[test]
+    fn decode_rejects_out_of_range_boolean() {
+        let abi = abi_with_single_param(AbiType::Boolean);
+        assert!(abi.decode(&witness_map_with_single_value(2)).is_err());
+    }
+
+    #[test]
+    fn decode_rejects_out_of_range_unsigned_integer() {
+        let abi = abi_with_single_param(AbiType::Integer { sign: Sign::Unsigned, width: 8 });
+        assert!(abi.decode(&witness_map_with_single_value(256)).is_err());
+    }
+
+    #[test]
+    fn decode_rejects_out_of_range_signed_integer() {
+        let abi = abi_with_single_param(AbiType::Integer { sign: Sign::Signed, width: 8 });
+        assert!(abi.decode(&witness_map_with_single_value(256)).is_err());
+    }
+
+    #[test]
+    fn decode_rejects_non_byte_string_field() {
+        let abi = abi_with_single_param(AbiType::String { length: 1 });
+        // `256` does not fit in a single byte, so it is not a valid string character.
+        assert!(abi.decode(&witness_map_with_single_value(256)).is_err());
+    }
+
+    #[test]
+    fn decode_accepts_in_range_values() {
+        let bool_abi = abi_with_single_param(AbiType::Boolean);
+        assert!(bool_abi.decode(&witness_map_with_single_value(1)).is_ok());
+
+        let u8_abi = abi_with_single_param(AbiType::Integer { sign: Sign::Unsigned, width: 8 });
+        assert!(u8_abi.decode(&witness_map_with_single_value(255)).is_ok());
+
+        // `-1: i8` is stored as its in-range two's-complement representation (255).
+        let i8_abi = abi_with_single_param(AbiType::Integer { sign: Sign::Signed, width: 8 });
+        assert!(i8_abi.decode(&witness_map_with_single_value(255)).is_ok());
+
+        let string_abi = abi_with_single_param(AbiType::String { length: 1 });
+        assert!(string_abi.decode(&witness_map_with_single_value(u128::from(b'a'))).is_ok());
     }
 }

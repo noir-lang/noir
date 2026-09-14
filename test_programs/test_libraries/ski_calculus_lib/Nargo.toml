@@ -1,0 +1,7 @@
+[package]
+name = "ski_calculus_lib"
+type = "lib"
+authors = [""]
+compiler_unstable_features = ["enums"]
+
+[dependencies]

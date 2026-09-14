@@ -2,8 +2,8 @@ use noirc_errors::{Located, Location};
 
 use crate::{
     ast::{
-        AssignStatement, BinaryOp, BinaryOpKind, Expression, ExpressionKind, ForBounds,
-        ForLoopStatement, ForRange, Ident, InfixExpression, LValue, LetStatement, LoopStatement,
+        AssignOp, AssignOpKind, AssignOpStatement, AssignStatement, Expression, ExpressionKind,
+        ForBounds, ForLoopStatement, ForRange, Ident, LValue, LetStatement, LoopStatement,
         Statement, StatementKind, WhileStatement,
     },
     parser::{ParserErrorReason, labels::ParsingRuleLabel},
@@ -25,7 +25,7 @@ impl Parser<'_> {
         }
     }
 
-    /// Statement = Attributes StatementKind ';'?
+    /// Statement = Attributes `StatementKind` ';'?
     pub(crate) fn parse_statement(&mut self) -> Option<(Statement, (Option<Token>, Location))> {
         loop {
             // Like in Rust, we allow parsing doc comments on top of a statement but they always produce a warning.
@@ -42,7 +42,7 @@ impl Parser<'_> {
             let kind = self.parse_statement_kind(attributes);
             self.statement_comments = None;
 
-            let (semicolon_token, semicolon_location) = if self.at(Token::Semicolon) {
+            let (semicolon_token, semicolon_location) = if self.at(&Token::Semicolon) {
                 let token = self.token.clone();
                 self.bump();
                 let location = token.location();
@@ -61,7 +61,7 @@ impl Parser<'_> {
 
             self.expected_label(ParsingRuleLabel::Statement);
 
-            if semicolon_token.is_some() || self.at(Token::RightBrace) || self.at_eof() {
+            if semicolon_token.is_some() || self.at(&Token::RightBrace) || self.at_eof() {
                 return None;
             } else {
                 self.bump();
@@ -69,40 +69,40 @@ impl Parser<'_> {
         }
     }
 
-    /// StatementKind
-    ///     = BreakStatement
-    ///     | ContinueStatement
-    ///     | ReturnStatement
-    ///     | LetStatement
-    ///     | ComptimeStatement
-    ///     | ForStatement
-    ///     | LoopStatement
-    ///     | WhileStatement
-    ///     | IfStatement
-    ///     | BlockStatement
-    ///     | AssignStatement
-    ///     | ExpressionStatement
+    /// `StatementKind`
+    ///     = `BreakStatement`
+    ///     | `ContinueStatement`
+    ///     | `ReturnStatement`
+    ///     | `LetStatement`
+    ///     | `ComptimeStatement`
+    ///     | `ForStatement`
+    ///     | `LoopStatement`
+    ///     | `WhileStatement`
+    ///     | `IfStatement`
+    ///     | `BlockStatement`
+    ///     | `AssignStatement`
+    ///     | `ExpressionStatement`
     ///
-    /// BreakStatement = 'break'
+    /// `BreakStatement` = 'break'
     ///
-    /// ContinueStatement = 'continue'
+    /// `ContinueStatement` = 'continue'
     ///
-    /// ReturnStatement = 'return' Expression?
+    /// `ReturnStatement` = 'return' Expression?
     ///
-    /// IfStatement = IfExpression
+    /// `IfStatement` = `IfExpression`
     ///
-    /// BlockStatement = Block
+    /// `BlockStatement` = Block
     ///
-    /// AssignStatement = Expression '=' Expression
+    /// `AssignStatement` = Expression '=' Expression
     ///
-    /// ExpressionStatement = Expression
+    /// `ExpressionStatement` = Expression
     fn parse_statement_kind(
         &mut self,
         attributes: Vec<(Attribute, Location)>,
     ) -> Option<StatementKind> {
         let start_location = self.current_token_location;
 
-        if let Some(token) = self.eat_kind(TokenKind::InternedStatement) {
+        if let Some(token) = self.eat_kind(&TokenKind::InternedStatement) {
             match token.into_token() {
                 Token::InternedStatement(statement) => {
                     return Some(StatementKind::Interned(statement));
@@ -154,7 +154,7 @@ impl Parser<'_> {
             return Some(StatementKind::Expression(expression));
         }
 
-        if let Some(token) = self.eat_kind(TokenKind::InternedLValue) {
+        if let Some(token) = self.eat_kind(&TokenKind::InternedLValue) {
             match token.into_token() {
                 Token::InternedLValue(lvalue) => {
                     let lvalue = LValue::Interned(lvalue, self.location_since(start_location));
@@ -168,10 +168,19 @@ impl Parser<'_> {
 
         let expression = self.parse_expression()?;
 
+        Some(self.parse_assignment_or_expression_statement(expression))
+    }
+
+    /// Given an already-parsed left-hand expression, parses an assignment (`= rhs`),
+    /// a compound assignment (`+= rhs`, etc.) or, if neither follows, an expression statement.
+    pub(super) fn parse_assignment_or_expression_statement(
+        &mut self,
+        expression: Expression,
+    ) -> StatementKind {
         if self.eat_assign() {
             if let Some(lvalue) = LValue::from_expression(expression.clone()) {
                 let expression = self.parse_expression_or_error();
-                return Some(StatementKind::Assign(AssignStatement { lvalue, expression }));
+                return StatementKind::Assign(AssignStatement { lvalue, expression });
             } else {
                 self.push_error(
                     ParserErrorReason::InvalidLeftHandSideOfAssignment,
@@ -180,20 +189,10 @@ impl Parser<'_> {
             }
         }
 
-        if let Some(operator) = self.next_is_op_assign() {
+        if let Some(op) = self.next_is_op_assign() {
             if let Some(lvalue) = LValue::from_expression(expression.clone()) {
-                // Desugar `a <op>= b` to `a = a <op> b`. This relies on the evaluation of `a` having no side effects,
-                // which is currently enforced by the restricted syntax of LValues.
-                let infix = InfixExpression {
-                    lhs: expression,
-                    operator,
-                    rhs: self.parse_expression_or_error(),
-                };
-                let expression = Expression::new(
-                    ExpressionKind::Infix(Box::new(infix)),
-                    self.location_since(start_location),
-                );
-                return Some(StatementKind::Assign(AssignStatement { lvalue, expression }));
+                let expression = self.parse_expression_or_error();
+                return StatementKind::AssignOp(AssignOpStatement { lvalue, op, expression });
             } else {
                 self.push_error(
                     ParserErrorReason::InvalidLeftHandSideOfAssignment,
@@ -202,7 +201,7 @@ impl Parser<'_> {
             }
         }
 
-        Some(StatementKind::Expression(expression))
+        StatementKind::Expression(expression)
     }
 
     /// Parses an expression that looks like a block (ends with '}'):
@@ -223,24 +222,26 @@ impl Parser<'_> {
         None
     }
 
-    fn next_is_op_assign(&mut self) -> Option<BinaryOp> {
+    fn next_is_op_assign(&mut self) -> Option<AssignOp> {
         let start_location = self.current_token_location;
-        let operator = if self.next_is(Token::Assign) {
+        let operator = if self.next_is(&Token::Assign) {
             match self.token.token() {
-                Token::Plus => Some(BinaryOpKind::Add),
-                Token::Minus => Some(BinaryOpKind::Subtract),
-                Token::Star => Some(BinaryOpKind::Multiply),
-                Token::Slash => Some(BinaryOpKind::Divide),
-                Token::Percent => Some(BinaryOpKind::Modulo),
-                Token::Ampersand => Some(BinaryOpKind::And),
-                Token::Caret => Some(BinaryOpKind::Xor),
-                Token::ShiftLeft => Some(BinaryOpKind::ShiftLeft),
-                Token::Pipe => Some(BinaryOpKind::Or),
+                Token::Plus => Some(AssignOpKind::Add),
+                Token::Minus => Some(AssignOpKind::Subtract),
+                Token::Star => Some(AssignOpKind::Multiply),
+                Token::Slash => Some(AssignOpKind::Divide),
+                Token::Percent => Some(AssignOpKind::Modulo),
+                Token::Ampersand => Some(AssignOpKind::And),
+                Token::Caret => Some(AssignOpKind::Xor),
+                Token::Pipe => Some(AssignOpKind::Or),
                 _ => None,
             }
-        } else if self.at(Token::Greater) && self.next_is(Token::GreaterEqual) {
+        } else if self.at(&Token::Greater) && self.next_is(&Token::GreaterEqual) {
             // >>=
-            Some(BinaryOpKind::ShiftRight)
+            Some(AssignOpKind::ShiftRight)
+        } else if self.at(&Token::Less) && self.next_is(&Token::LessEqual) {
+            // <<=
+            Some(AssignOpKind::ShiftLeft)
         } else {
             None
         };
@@ -254,7 +255,7 @@ impl Parser<'_> {
         }
     }
 
-    /// ForStatement = 'for' identifier 'in' ForRange Block
+    /// `ForStatement` = 'for' identifier 'in' `ForRange` Block
     fn parse_for(&mut self) -> Option<ForLoopStatement> {
         let start_location = self.current_token_location;
 
@@ -297,7 +298,7 @@ impl Parser<'_> {
         })
     }
 
-    /// LoopStatement = 'loop' Block
+    /// `LoopStatement` = 'loop' Block
     fn parse_loop(&mut self) -> Option<LoopStatement> {
         let start_location = self.current_token_location;
         if !self.eat_keyword(Keyword::Loop) {
@@ -321,7 +322,7 @@ impl Parser<'_> {
         Some(LoopStatement { body: block, loop_keyword_location: start_location })
     }
 
-    /// WhileStatement = 'while' ExpressionExceptConstructor Block
+    /// `WhileStatement` = 'while' `ExpressionExceptConstructor` Block
     fn parse_while(&mut self) -> Option<WhileStatement> {
         let start_location = self.current_token_location;
         if !self.eat_keyword(Keyword::While) {
@@ -347,16 +348,16 @@ impl Parser<'_> {
         Some(WhileStatement { condition, body: block, while_keyword_location: start_location })
     }
 
-    /// ForRange
-    ///     = ExpressionExceptConstructor
-    ///     | ExpressionExceptConstructor '..' ExpressionExceptConstructor
+    /// `ForRange`
+    ///     = `ExpressionExceptConstructor`
+    ///     | `ExpressionExceptConstructor` '..' `ExpressionExceptConstructor`
     fn parse_for_range(&mut self) -> ForRange {
         let expr = self.parse_expression_except_constructor_or_error();
 
-        if self.eat(Token::DoubleDot) {
+        if self.eat(&Token::DoubleDot) {
             let end = self.parse_expression_except_constructor_or_error();
             ForRange::Range(ForBounds { start: expr, end, inclusive: false })
-        } else if self.eat(Token::DoubleDotEqual) {
+        } else if self.eat(&Token::DoubleDotEqual) {
             let end = self.parse_expression_except_constructor_or_error();
             ForRange::Range(ForBounds { start: expr, end, inclusive: true })
         } else {
@@ -374,16 +375,16 @@ impl Parser<'_> {
         }
     }
 
-    /// ComptimeStatement
-    ///     = ComptimeBlock
-    ///     | ComptimeLet
-    ///     | ComptimeFor
+    /// `ComptimeStatement`
+    ///     = `ComptimeBlock`
+    ///     | `ComptimeLet`
+    ///     | `ComptimeFor`
     ///
-    /// ComptimeBlock = 'comptime' Block
+    /// `ComptimeBlock` = 'comptime' Block
     ///
-    /// ComptimeLet = 'comptime' LetStatement
+    /// `ComptimeLet` = 'comptime' `LetStatement`
     ///
-    /// ComptimeFor = 'comptime' ForStatement
+    /// `ComptimeFor` = 'comptime' `ForStatement`
     fn parse_comptime_statement(
         &mut self,
         attributes: Vec<(Attribute, Location)>,
@@ -434,7 +435,7 @@ impl Parser<'_> {
         None
     }
 
-    /// LetStatement = 'let' pattern OptionalTypeAnnotation '=' Expression
+    /// `LetStatement` = 'let' pattern `OptionalTypeAnnotation` '=' Expression
     fn parse_let_statement(
         &mut self,
         attributes: Vec<(Attribute, Location)>,
@@ -446,6 +447,23 @@ impl Parser<'_> {
         let attributes = self.validate_secondary_attributes(attributes);
         let pattern = self.parse_pattern_or_error();
         let r#type = self.parse_optional_type_annotation();
+        let r#type = if r#type.is_none()
+            && !self.at(&Token::Assign)
+            && !self.at(&Token::Semicolon)
+            && !self.at_eof()
+        {
+            if let Some(typ) = self.parse_type_allowing_generics(true) {
+                self.push_error(
+                    ParserErrorReason::MissingColonInLetStatement,
+                    pattern.location().merge(typ.location),
+                );
+                Some(typ)
+            } else {
+                None
+            }
+        } else {
+            r#type
+        };
         let expression = if self.eat_assign() {
             self.parse_expression_or_error()
         } else {
@@ -466,16 +484,11 @@ impl Parser<'_> {
 
 #[cfg(test)]
 mod tests {
-    use insta::assert_snapshot;
-
     use crate::{
         ast::{ExpressionKind, ForRange, LValue, LoopStatement, Statement, StatementKind},
         parser::{
-            Parser, ParserErrorReason,
-            parser::tests::{
-                expect_no_errors, get_single_error, get_single_error_reason,
-                get_source_with_error_span,
-            },
+            Parser,
+            parser::tests::{check_errors, expect_no_errors},
         },
     };
 
@@ -569,11 +582,9 @@ mod tests {
     fn parses_let_statement_with_two_mut() {
         let src = "
         let mut mut x = 1;
-                ^^^
+                ^^^ `mut` on a binding cannot be repeated
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let statement = parser.parse_statement().unwrap().0;
+        let (statement, _) = check_errors(src, |parser| parser.parse_statement()).unwrap();
         let StatementKind::Let(let_statement) = statement.kind else {
             panic!("Expected let statement");
         };
@@ -581,9 +592,21 @@ mod tests {
         assert!(let_statement.r#type.is_none());
         assert_eq!(let_statement.expression.to_string(), "1");
         assert!(!let_statement.comptime);
+    }
 
-        let reason = get_single_error_reason(&parser.errors, span);
-        assert!(matches!(reason, ParserErrorReason::MutOnABindingCannotBeRepeated));
+    #[test]
+    fn recovers_on_missing_colon_in_let_binding() {
+        let src = "
+        let x u64 = 2;
+            ^^^^^ Expected a `:` between the variable name and its type
+        ";
+        let (statement, _) = check_errors(src, |parser| parser.parse_statement()).unwrap();
+        let StatementKind::Let(let_statement) = statement.kind else {
+            panic!("Expected let statement");
+        };
+        assert_eq!(let_statement.pattern.to_string(), "x");
+        assert_eq!(let_statement.r#type.unwrap().to_string(), "u64");
+        assert_eq!(let_statement.expression.to_string(), "2");
     }
 
     #[test]
@@ -729,20 +752,20 @@ mod tests {
     fn parses_op_assignment() {
         let src = "x += 1";
         let statement = parse_statement_no_errors(src);
-        let StatementKind::Assign(assign) = statement.kind else {
-            panic!("Expected assign");
+        let StatementKind::AssignOp(assign_op) = statement.kind else {
+            panic!("Expected AssignOp");
         };
-        assert_eq!(assign.to_string(), "x = (x + 1)");
+        assert_eq!(assign_op.to_string(), "x += 1");
     }
 
     #[test]
     fn parses_op_assignment_with_shift_right() {
         let src = "x >>= 1";
         let statement = parse_statement_no_errors(src);
-        let StatementKind::Assign(assign) = statement.kind else {
-            panic!("Expected assign");
+        let StatementKind::AssignOp(assign_op) = statement.kind else {
+            panic!("Expected AssignOp");
         };
-        assert_eq!(assign.to_string(), "x = (x >> 1)");
+        assert_eq!(assign_op.to_string(), "x >>= 1");
     }
 
     #[test]
@@ -750,8 +773,8 @@ mod tests {
         let src = "// Safety: comment
         x += unsafe { 1 }";
         let statement = parse_statement_no_errors(src);
-        let StatementKind::Assign(_) = statement.kind else {
-            panic!("Expected assign");
+        let StatementKind::AssignOp(_) = statement.kind else {
+            panic!("Expected AssignOp");
         };
     }
 
@@ -788,28 +811,20 @@ mod tests {
         // This shouldn't be parsed as a call
         let src = "
         return 1
-        ^^^^^^^^
+        ^^^^^^^^ Early 'return' is unsupported
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let statement = parser.parse_statement_or_error();
+        let statement = check_errors(src, |parser| parser.parse_statement_or_error());
         assert!(matches!(statement.kind, StatementKind::Error));
-        let reason = get_single_error_reason(&parser.errors, span);
-        assert!(matches!(reason, ParserErrorReason::EarlyReturn));
     }
 
     #[test]
     fn recovers_on_unknown_statement_followed_by_actual_statement() {
         let src = "
         ] let x = 1;
-        ^
+        ^ Expected a statement but found ']'
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        let statement = parser.parse_statement_or_error();
+        let statement = check_errors(src, |parser| parser.parse_statement_or_error());
         assert!(matches!(statement.kind, StatementKind::Let(..)));
-        let error = get_single_error(&parser.errors, span);
-        assert_snapshot!(error.to_string(), @"Expected a statement but found ']'");
     }
 
     #[test]

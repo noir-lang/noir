@@ -198,6 +198,43 @@ fn call_with_predicate() {
 }
 
 #[test]
+fn call_with_zero_predicate_resolves_without_call_opcode() {
+    // The call is guarded by a side-effects predicate pinned to a compile-time zero, so the branch
+    // is statically dead. ACIR gen must resolve it to a don't-care (zeroed) output and emit no
+    // `Call` opcode, upholding the `acir_post_check` invariant.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: Field):
+        enable_side_effects u1 0
+        v2 = call f1(v0) -> Field
+        enable_side_effects u1 1
+        return v2
+    }
+
+    acir(fold) fn one f1 {
+      b0(v0: Field):
+        v1 = add v0, Field 1
+        return v1
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0]
+    public parameters: []
+    return values: [w1]
+    ASSERT w1 = 0
+
+    func 1
+    private parameters: [w0]
+    public parameters: []
+    return values: [w1]
+    ASSERT w1 = w0 + 1
+    ");
+}
+
+#[test]
 fn call_with_expression_predicate() {
     let src = "
     g0 = u32 2

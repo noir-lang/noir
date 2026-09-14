@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "ignoreDeprecations": "6.0",
     "composite": true,
     "declaration": true,
     "module": "esnext",
@@ -7,6 +8,7 @@
     "outDir": "lib/esm",
     "target": "ES2020",
     "rootDir": "./src",
+    "skipLibCheck": true,
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules"]

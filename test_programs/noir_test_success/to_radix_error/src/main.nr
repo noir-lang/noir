@@ -27,3 +27,16 @@ fn test_brillig() {
     // Safety: testing context
     let _ = unsafe { brillig_le_decompose(0x100000000000000000000000000000000) };
 }
+
+#[test]
+fn test_be_and_le_bits_infix() {
+    let (be, le) = to_bits::<1, 3>(13);
+    assert_eq(be, [true, true, false, true]);
+    assert_eq(le, [true, false, true, true]);
+}
+
+fn to_bits<let N: u32, let M: u32>(x: Field) -> ([bool; N + M], [bool; N + M]) {
+    let be = x.to_be_bits::<N + M>();
+    let le = x.to_le_bits::<M + N>();
+    (be, le)
+}

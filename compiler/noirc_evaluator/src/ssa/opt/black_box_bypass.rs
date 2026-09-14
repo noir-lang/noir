@@ -15,6 +15,7 @@
 //! outright reject the code.
 
 use iter_extended::vecmap;
+use itertools::Itertools;
 
 use crate::ssa::{
     ir::{
@@ -62,7 +63,7 @@ impl Function {
                 return;
             }
 
-            let arg_types = vecmap(arguments, |arg| context.dfg.type_of_value(*arg));
+            let arg_types = vecmap(arguments, |arg| context.dfg.type_of_value(*arg).into_owned());
 
             if !arg_types.iter().any(black_box_should_ignore) {
                 return;
@@ -103,11 +104,9 @@ impl Function {
             else {
                 unreachable!("black_box should not be simplified");
             };
-            assert_eq!(old_results.len(), new_results.len(), "black_box remaining results");
-
             // Redirect the old results to equal the new ones, which still go through the black box.
             let new_results = Vec::from(new_results);
-            for (old_result, new_result) in old_results.into_iter().zip(new_results) {
+            for (old_result, new_result) in old_results.into_iter().zip_eq(new_results) {
                 context.replace_value(old_result, new_result);
             }
         });

@@ -5,7 +5,6 @@ use crate::{
         UnresolvedTypeExpression,
     },
     parser::{ParserError, labels::ParsingRuleLabel},
-    signed_field::SignedField,
     token::Token,
 };
 
@@ -14,7 +13,7 @@ use noirc_errors::Location;
 use super::{Parser, parse_many::separated_by_comma_until_right_paren};
 
 impl Parser<'_> {
-    /// TypeExpression= AddOrSubtractTypeExpression
+    /// `TypeExpression`= `AddOrSubtractTypeExpression`
     pub(crate) fn parse_type_expression(
         &mut self,
     ) -> Result<UnresolvedTypeExpression, ParserError> {
@@ -24,8 +23,8 @@ impl Parser<'_> {
         }
     }
 
-    /// AddOrSubtractTypeExpression
-    ///     = MultiplyOrDivideOrModuloTypeExpression ( ( '+' | '-' ) MultiplyOrDivideOrModuloTypeExpression )*
+    /// `AddOrSubtractTypeExpression`
+    ///     = `MultiplyOrDivideOrModuloTypeExpression` ( ( '+' | '-' ) `MultiplyOrDivideOrModuloTypeExpression` )*
     fn parse_add_or_subtract_type_expression(&mut self) -> Option<UnresolvedTypeExpression> {
         let start_location = self.current_token_location;
         let lhs = self.parse_multiply_or_divide_or_modulo_type_expression()?;
@@ -38,9 +37,9 @@ impl Parser<'_> {
         start_location: Location,
     ) -> UnresolvedTypeExpression {
         loop {
-            let operator = if self.eat(Token::Plus) {
+            let operator = if self.eat(&Token::Plus) {
                 BinaryTypeOperator::Addition
-            } else if self.eat(Token::Minus) {
+            } else if self.eat(&Token::Minus) {
                 BinaryTypeOperator::Subtraction
             } else {
                 break;
@@ -65,8 +64,8 @@ impl Parser<'_> {
         lhs
     }
 
-    /// MultiplyOrDivideOrModuloTypeExpression
-    ///     = TermTypeExpression ( ( '*' | '/' | '%' ) TermTypeExpression )*
+    /// `MultiplyOrDivideOrModuloTypeExpression`
+    ///     = `TermTypeExpression` ( ( '*' | '/' | '%' ) `TermTypeExpression` )*
     fn parse_multiply_or_divide_or_modulo_type_expression(
         &mut self,
     ) -> Option<UnresolvedTypeExpression> {
@@ -81,11 +80,11 @@ impl Parser<'_> {
         start_location: Location,
     ) -> UnresolvedTypeExpression {
         loop {
-            let operator = if self.eat(Token::Star) {
+            let operator = if self.eat(&Token::Star) {
                 BinaryTypeOperator::Multiplication
-            } else if self.eat(Token::Slash) {
+            } else if self.eat(&Token::Slash) {
                 BinaryTypeOperator::Division
-            } else if self.eat(Token::Percent) {
+            } else if self.eat(&Token::Percent) {
                 BinaryTypeOperator::Modulo
             } else {
                 break;
@@ -111,27 +110,16 @@ impl Parser<'_> {
         lhs
     }
 
-    /// TermTypeExpression
-    ///    = '- TermTypeExpression
-    ///    | AtomTypeExpression
+    /// `TermTypeExpression`
+    ///    = '- `TermTypeExpression`
+    ///    | `AtomTypeExpression`
     fn parse_term_type_expression(&mut self) -> Option<UnresolvedTypeExpression> {
         let start_location = self.current_token_location;
-        if self.eat(Token::Minus) {
+        if self.eat(&Token::Minus) {
             return match self.parse_term_type_expression() {
                 Some(rhs) => {
-                    let lhs = UnresolvedTypeExpression::Constant(
-                        SignedField::zero(),
-                        None,
-                        start_location,
-                    );
-                    let op = BinaryTypeOperator::Subtraction;
                     let location = self.location_since(start_location);
-                    Some(UnresolvedTypeExpression::BinaryOperation(
-                        Box::new(lhs),
-                        op,
-                        Box::new(rhs),
-                        location,
-                    ))
+                    Some(UnresolvedTypeExpression::Negation(Box::new(rhs), location))
                 }
                 None => {
                     self.push_expected_expression();
@@ -143,11 +131,11 @@ impl Parser<'_> {
         self.parse_atom_type_expression()
     }
 
-    /// AtomTypeExpression
-    ///     = ConstantTypeExpression
-    ///     | VariableTypeExpression
-    ///     | AsTraitPathTypeExpression
-    ///     | ParenthesizedTypeExpression
+    /// `AtomTypeExpression`
+    ///     = `ConstantTypeExpression`
+    ///     | `VariableTypeExpression`
+    ///     | `AsTraitPathTypeExpression`
+    ///     | `ParenthesizedTypeExpression`
     fn parse_atom_type_expression(&mut self) -> Option<UnresolvedTypeExpression> {
         if let Some(type_expr) = self.parse_constant_type_expression() {
             return Some(type_expr);
@@ -168,23 +156,22 @@ impl Parser<'_> {
         None
     }
 
-    /// ConstantTypeExpression = int
+    /// `ConstantTypeExpression` = int
     fn parse_constant_type_expression(&mut self) -> Option<UnresolvedTypeExpression> {
         let (int, suffix) = self.eat_int()?;
-        let signed_field = SignedField::positive(int);
-        Some(UnresolvedTypeExpression::Constant(signed_field, suffix, self.previous_token_location))
+        Some(UnresolvedTypeExpression::Constant(int, suffix, self.previous_token_location))
     }
 
-    /// VariableTypeExpression = Path
+    /// `VariableTypeExpression` = Path
     fn parse_variable_type_expression(&mut self) -> Option<UnresolvedTypeExpression> {
         let path = self.parse_path()?;
         Some(UnresolvedTypeExpression::Variable(path))
     }
 
-    /// ParenthesizedTypeExpression = '(' TypeExpression ')'
+    /// `ParenthesizedTypeExpression` = '(' `TypeExpression` ')'
     fn parse_parenthesized_type_expression(&mut self) -> Option<UnresolvedTypeExpression> {
         // Make sure not to parse `()` as a parenthesized expression
-        if self.at(Token::LeftParen) && !self.next_is(Token::RightParen) {
+        if self.at(&Token::LeftParen) && !self.next_is(&Token::RightParen) {
             self.bump();
             match self.parse_type_expression() {
                 Ok(type_expr) => {
@@ -202,41 +189,56 @@ impl Parser<'_> {
         }
     }
 
-    /// TypeOrTypeExpression = Type | TypeExpression
+    /// `TypeOrTypeExpression` = Type | `TypeExpression`
     pub(crate) fn parse_type_or_type_expression(&mut self) -> Option<UnresolvedType> {
-        let typ = self.parse_add_or_subtract_type_or_type_expression()?;
-        let span = typ.location;
+        self.with_max_recursion_depth_guard(|this| {
+            let typ = this.parse_add_or_subtract_type_or_type_expression()?;
+            let span = typ.location;
 
-        // If we end up with a Variable type expression, make it a Named type (they are equivalent),
-        // but for testing purposes and simplicity we default to types instead of type expressions.
-        Some(
-            if let UnresolvedTypeData::Expression(UnresolvedTypeExpression::Variable(mut path)) =
-                typ.typ
-            {
-                let generics = std::mem::take(&mut path.segments.last_mut().unwrap().generics);
-                let mut generic_type_args = GenericTypeArgs::default();
-                if let Some(generics) = generics {
-                    generic_type_args.ordered_args = generics;
-                    for _ in 0..generic_type_args.ordered_args.len() {
-                        generic_type_args.kinds.push(GenericTypeArgKind::Ordered);
+            Some(match typ.typ {
+                // If we end up with a Variable type expression, make it a Named type (they are equivalent),
+                // but for testing purposes and simplicity we default to types instead of type expressions.
+                UnresolvedTypeData::Expression(UnresolvedTypeExpression::Variable(mut path)) => {
+                    let generics = std::mem::take(&mut path.segments.last_mut().unwrap().generics);
+                    let mut generic_type_args = GenericTypeArgs::default();
+                    if let Some(generics) = generics {
+                        generic_type_args.ordered_args = generics;
+                        for _ in 0..generic_type_args.ordered_args.len() {
+                            generic_type_args.kinds.push(GenericTypeArgKind::Ordered);
+                        }
+                    }
+
+                    UnresolvedType {
+                        typ: UnresolvedTypeData::Named(path, generic_type_args, false),
+                        location: span,
                     }
                 }
-
-                UnresolvedType {
-                    typ: UnresolvedTypeData::Named(path, generic_type_args, false),
+                // Similarly, convert a standalone AsTraitPath expression back to the AsTraitPath type
+                // so it isn't mistakenly rejected as a type expression in type aliases.
+                UnresolvedTypeData::Expression(UnresolvedTypeExpression::AsTraitPath(
+                    as_trait_path,
+                )) => UnresolvedType {
+                    typ: UnresolvedTypeData::AsTraitPath(as_trait_path),
                     location: span,
-                }
-            } else {
-                typ
-            },
-        )
+                },
+                _ => typ,
+            })
+        })
     }
 
     fn parse_add_or_subtract_type_or_type_expression(&mut self) -> Option<UnresolvedType> {
         let start_location = self.current_token_location;
         let lhs = self.parse_multiply_or_divide_or_modulo_type_or_type_expression()?;
 
-        // If lhs is a type then no operator can follow, so we stop right away
+        // If no add/subtract operator follows, return the type as-is. This preserves
+        // types that are not type expressions (e.g. a parenthesized type `(Field)`)
+        // instead of normalizing them into type expressions.
+        if !self.at(&Token::Plus) && !self.at(&Token::Minus) {
+            return Some(lhs);
+        }
+
+        // An operator follows, so lhs must be usable as a type expression to continue.
+        // If it isn't, return it and let the caller report the dangling operator.
         if !type_is_type_expr(&lhs) {
             return Some(lhs);
         }
@@ -252,7 +254,15 @@ impl Parser<'_> {
         let start_location = self.current_token_location;
         let lhs = self.parse_term_type_or_type_expression()?;
 
-        // If lhs is a type then no operator can follow, so we stop right away
+        // If no multiply/divide/modulo operator follows, return the type as-is. This
+        // preserves types that are not type expressions (e.g. a parenthesized type
+        // `(Field)`) instead of normalizing them into type expressions.
+        if !self.at(&Token::Star) && !self.at(&Token::Slash) && !self.at(&Token::Percent) {
+            return Some(lhs);
+        }
+
+        // An operator follows, so lhs must be usable as a type expression to continue.
+        // If it isn't, return it and let the caller report the dangling operator.
         if !type_is_type_expr(&lhs) {
             return Some(lhs);
         }
@@ -265,23 +275,12 @@ impl Parser<'_> {
 
     fn parse_term_type_or_type_expression(&mut self) -> Option<UnresolvedType> {
         let start_location = self.current_token_location;
-        if self.eat(Token::Minus) {
+        if self.eat(&Token::Minus) {
             // If we ate '-' what follows must be a type expression, never a type
             return match self.parse_term_type_expression() {
                 Some(rhs) => {
-                    let lhs = UnresolvedTypeExpression::Constant(
-                        SignedField::zero(),
-                        None,
-                        start_location,
-                    );
-                    let op = BinaryTypeOperator::Subtraction;
                     let location = self.location_since(start_location);
-                    let type_expr = UnresolvedTypeExpression::BinaryOperation(
-                        Box::new(lhs),
-                        op,
-                        Box::new(rhs),
-                        location,
-                    );
+                    let type_expr = UnresolvedTypeExpression::Negation(Box::new(rhs), location);
                     let typ = UnresolvedTypeData::Expression(type_expr);
                     Some(UnresolvedType { typ, location })
                 }
@@ -397,7 +396,14 @@ fn type_to_type_expr(typ: UnresolvedType) -> Option<UnresolvedTypeExpression> {
                 None
             }
         }
+        UnresolvedTypeData::AsTraitPath(as_trait_path) => {
+            Some(UnresolvedTypeExpression::AsTraitPath(as_trait_path))
+        }
         UnresolvedTypeData::Expression(type_expr) => Some(type_expr),
+        // A parenthesized type can be used as a type expression when its inner type can.
+        // The parentheses are redundant once we're parsing a type expression, so we unwrap
+        // them and reuse the inner expression (e.g. `(N) + 1` parses like `N + 1`).
+        UnresolvedTypeData::Parenthesized(inner) => type_to_type_expr(*inner),
         _ => None,
     }
 }
@@ -405,7 +411,9 @@ fn type_to_type_expr(typ: UnresolvedType) -> Option<UnresolvedTypeExpression> {
 fn type_is_type_expr(typ: &UnresolvedType) -> bool {
     match &typ.typ {
         UnresolvedTypeData::Named(_, generics, _) => generics.named_args.is_empty(),
+        UnresolvedTypeData::AsTraitPath(..) => true,
         UnresolvedTypeData::Expression(..) => true,
+        UnresolvedTypeData::Parenthesized(inner) => type_is_type_expr(inner),
         _ => false,
     }
 }
@@ -423,12 +431,9 @@ mod tests {
         BinaryTypeOperator,
         ast::{UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
         parser::{
-            Parser, ParserErrorReason,
-            parser::tests::{
-                expect_no_errors, get_single_error_reason, get_source_with_error_span,
-            },
+            Parser,
+            parser::tests::{check_errors, expect_no_errors},
         },
-        token::Token,
     };
 
     fn parse_type_expression_no_errors(src: &str) -> UnresolvedTypeExpression {
@@ -491,7 +496,7 @@ mod tests {
     fn parses_minus_type_expression() {
         let src = "-N";
         let expr = parse_type_expression_no_errors(src);
-        assert_eq!(expr.to_string(), "(0 - N)");
+        assert_eq!(expr.to_string(), "-N");
     }
 
     #[test]
@@ -552,7 +557,7 @@ mod tests {
         let UnresolvedTypeData::Expression(expr) = typ.typ else {
             panic!("Expected expression");
         };
-        assert_eq!(expr.to_string(), "(0 - N)");
+        assert_eq!(expr.to_string(), "-N");
     }
 
     #[test]
@@ -599,19 +604,9 @@ mod tests {
     fn parses_type_or_type_expression_tuple_type_missing_comma() {
         let src = "
         (Field bool)
-               ^^^^
+               ^^^^ Expected a `,` separating these two tuple items
         ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-
-        let typ = parser.parse_type_or_type_expression().unwrap();
-
-        let reason = get_single_error_reason(&parser.errors, span);
-        let ParserErrorReason::ExpectedTokenSeparatingTwoItems { token, items } = reason else {
-            panic!("Expected a different error");
-        };
-        assert_eq!(token, &Token::Comma);
-        assert_eq!(*items, "tuple items");
+        let typ = check_errors(src, |parser| parser.parse_type_or_type_expression().unwrap());
 
         let UnresolvedTypeData::Tuple(types) = typ.typ else {
             panic!("Expected tuple type");
@@ -641,5 +636,65 @@ mod tests {
             panic!("Expected expression type");
         };
         assert_eq!(expr.to_string(), "(N - 1)");
+    }
+
+    #[test]
+    fn parses_type_or_type_expression_parenthesized_variable_addition() {
+        let src = "(N) + 1";
+        let typ = parse_type_or_type_expression_no_errors(src);
+        let UnresolvedTypeData::Expression(expr) = typ.typ else {
+            panic!("Expected expression type");
+        };
+        let UnresolvedTypeExpression::BinaryOperation(lhs, operator, rhs, _) = expr else {
+            panic!("Expected binary operation");
+        };
+        assert_eq!(operator, BinaryTypeOperator::Addition);
+        assert_eq!(lhs.to_string(), "N");
+        assert_eq!(rhs.to_string(), "1");
+    }
+
+    #[test]
+    fn parses_type_or_type_expression_parenthesized_variable_multiplication() {
+        let src = "(N) * 2";
+        let typ = parse_type_or_type_expression_no_errors(src);
+        let UnresolvedTypeData::Expression(expr) = typ.typ else {
+            panic!("Expected expression type");
+        };
+        let UnresolvedTypeExpression::BinaryOperation(lhs, operator, rhs, _) = expr else {
+            panic!("Expected binary operation");
+        };
+        assert_eq!(operator, BinaryTypeOperator::Multiplication);
+        assert_eq!(lhs.to_string(), "N");
+        assert_eq!(rhs.to_string(), "2");
+    }
+
+    #[test]
+    fn parses_type_or_type_expression_parenthesized_as_trait_path_addition() {
+        let src = "(<Foo as MyTrait>::N) + 1";
+        let typ = parse_type_or_type_expression_no_errors(src);
+        let UnresolvedTypeData::Expression(expr) = typ.typ else {
+            panic!("Expected expression type");
+        };
+        let UnresolvedTypeExpression::BinaryOperation(lhs, operator, rhs, _) = expr else {
+            panic!("Expected binary operation");
+        };
+        assert_eq!(operator, BinaryTypeOperator::Addition);
+        assert_eq!(lhs.to_string(), "<Foo as MyTrait>::N");
+        assert_eq!(rhs.to_string(), "1");
+    }
+
+    #[test]
+    fn parses_type_or_type_expression_as_trait_path_addition() {
+        let src = "<Foo as MyTrait>::N + <Bar as MyTrait>::N";
+        let typ = parse_type_or_type_expression_no_errors(src);
+        let UnresolvedTypeData::Expression(expr) = typ.typ else {
+            panic!("Expected expression type");
+        };
+        let UnresolvedTypeExpression::BinaryOperation(lhs, operator, rhs, _) = expr else {
+            panic!("Expected binary operation");
+        };
+        assert_eq!(operator, BinaryTypeOperator::Addition);
+        assert_eq!(lhs.to_string(), "<Foo as MyTrait>::N");
+        assert_eq!(rhs.to_string(), "<Bar as MyTrait>::N");
     }
 }

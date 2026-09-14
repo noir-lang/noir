@@ -1,0 +1,35 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn producer(x: Field, n: u32) -> [Field] {
+    if n == 0_u32 {
+        [x].as_vector()
+    } else {
+        let v: [Field] = producer(x, n - 1_u32);
+        v.push_back(x)
+    }
+}
+
+unconstrained fn wrap(v: [Field], d: u32) -> u32 {
+    if d == 0_u32 {
+        v.push_front(999_Field).len()
+    } else {
+        wrap(v, d - 1_u32)
+    }
+}
+
+unconstrained fn compute(x: Field, n: u32) -> (Field, u32) {
+    let a: [Field] = producer(x, n);
+    let k: u32 = wrap(a, 0_u32);
+    let b: [Field] = producer(x, n);
+    (b[0_u32], k)
+}
+
+fn main(x: Field, n: u32) -> pub u32 {
+    // Safety: comment added by `nargo expand`
+    let (first, k): (Field, u32) = unsafe { compute(x, n) };
+    assert(first == x, "producer must return a fresh vector unaffected by wrap");
+    assert(k == (n + 2_u32));
+    k
+}

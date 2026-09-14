@@ -1,5 +1,5 @@
 use acvm::{FieldElement, acir::circuit::Program};
-use noirc_abi::{Abi, AbiType, AbiValue};
+use noirc_abi::{Abi, AbiNamedValue, AbiType};
 use serde::{Deserialize, Serialize};
 
 use std::collections::{BTreeMap, HashMap};
@@ -12,12 +12,14 @@ use crate::{
     ssa::SsaReport,
 };
 
-use super::{deserialize_hash, serialize_hash};
+use super::{
+    default_artifact_version, deserialize_artifact_version, deserialize_hash, serialize_hash,
+};
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct ContractOutputsArtifact {
     pub structs: HashMap<String, Vec<AbiType>>,
-    pub globals: HashMap<String, Vec<AbiValue>>,
+    pub globals: HashMap<String, Vec<AbiNamedValue>>,
 }
 
 impl From<CompiledContractOutputs> for ContractOutputsArtifact {
@@ -28,6 +30,13 @@ impl From<CompiledContractOutputs> for ContractOutputsArtifact {
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct ContractArtifact {
+    /// Version of the serialized artifact schema.
+    #[serde(
+        default = "default_artifact_version",
+        deserialize_with = "deserialize_artifact_version"
+    )]
+    pub artifact_version: u32,
+
     /// Version of noir used to compile this contract
     pub noir_version: String,
     /// The name of the contract.
@@ -43,6 +52,7 @@ pub struct ContractArtifact {
 impl From<CompiledContract> for ContractArtifact {
     fn from(contract: CompiledContract) -> Self {
         ContractArtifact {
+            artifact_version: super::ARTIFACT_VERSION,
             noir_version: contract.noir_version,
             name: contract.name,
             functions: contract.functions.into_iter().map(ContractFunctionArtifact::from).collect(),
@@ -127,7 +137,7 @@ impl From<ContractFunction> for ContractFunctionArtifact {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CompiledContractOutputs {
     pub structs: HashMap<String, Vec<AbiType>>,
-    pub globals: HashMap<String, Vec<AbiValue>>,
+    pub globals: HashMap<String, Vec<AbiNamedValue>>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

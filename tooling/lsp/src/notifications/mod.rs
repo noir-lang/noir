@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::collections::{BTreeMap, HashSet};
-use std::ops::ControlFlow;
 use std::path::{Path, PathBuf};
 use std::str::FromStr as _;
 
@@ -9,9 +8,14 @@ use crate::{
     PackageCacheData, WorkspaceCacheData, insert_all_files_for_workspace_into_file_manager,
 };
 use async_lsp::lsp_types;
-use async_lsp::lsp_types::{DiagnosticRelatedInformation, DiagnosticTag, Url};
+use async_lsp::lsp_types::{
+    DiagnosticRelatedInformation, DiagnosticTag, DidChangeWatchedFilesParams,
+    DidChangeWatchedFilesRegistrationOptions, FileChangeType, FileSystemWatcher, GlobPattern,
+    Position, Range, Registration, RegistrationParams, Url, WatchKind,
+};
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
 use fm::{FileId, FileManager, FileMap, PathString};
+use nargo::constants::PKG_FILE;
 use nargo::package::{Package, PackageType};
 use nargo::workspace::Workspace;
 use noirc_driver::check_crate;
@@ -19,9 +23,9 @@ use noirc_driver::{CrateName, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_errors::reporter::CustomLabel;
 use noirc_errors::{CustomDiagnostic, DiagnosticKind, Location};
 use noirc_frontend::elaborator::{FrontendOptions, UnstableFeature};
-use noirc_frontend::hir::Context;
-use noirc_frontend::hir::def_collector::dc_crate::DefCollector;
+use noirc_frontend::hir::def_collector::dc_crate::{CompilationErrors, DefCollector};
 use noirc_frontend::hir::def_map::{CrateDefMap, LocalModuleId};
+use noirc_frontend::hir::{Context, LspMode};
 use noirc_frontend::parse_program;
 
 use crate::types::{
@@ -31,89 +35,146 @@ use crate::types::{
 };
 
 use crate::{
-    LspState, byte_span_to_range, get_package_tests_in_crate, parse_diff,
+    LspError, LspState, byte_span_to_range, get_package_tests_in_crate, parse_diff,
     resolve_workspace_for_source_path,
 };
 
 pub(super) fn on_initialized(
-    _state: &mut LspState,
+    state: &mut LspState,
     _params: InitializedParams,
-) -> ControlFlow<Result<(), async_lsp::Error>> {
-    ControlFlow::Continue(())
+) -> Result<(), async_lsp::Error> {
+    // Register a file watcher for Nargo.toml so we get notified when it changes.
+    let registration = Registration {
+        id: "nargo-toml-watcher".to_string(),
+        method: "workspace/didChangeWatchedFiles".to_string(),
+        register_options: Some(
+            serde_json::to_value(DidChangeWatchedFilesRegistrationOptions {
+                watchers: vec![FileSystemWatcher {
+                    glob_pattern: GlobPattern::String("**/Nargo.toml".to_string()),
+                    kind: Some(WatchKind::all()),
+                }],
+            })
+            .expect("serialization of DidChangeWatchedFilesRegistrationOptions should not fail"),
+        ),
+    };
+    drop(
+        state.client.register_capability(RegistrationParams { registrations: vec![registration] }),
+    );
+    Ok(())
+}
+
+pub(super) fn on_did_change_watched_files(
+    state: &mut LspState,
+    params: DidChangeWatchedFilesParams,
+) -> Result<(), async_lsp::Error> {
+    for change in params.changes {
+        if change.typ == FileChangeType::DELETED {
+            // If a Nargo.toml was deleted, clear any diagnostics on it.
+            if state.toml_files_with_errors.remove(&change.uri) {
+                let _ = state.client.publish_diagnostics(PublishDiagnosticsParams {
+                    uri: change.uri,
+                    version: None,
+                    diagnostics: vec![],
+                });
+            }
+            continue;
+        }
+
+        // For created or changed Nargo.toml files, find a source file in that workspace
+        // and reprocess it. We do this by finding any open file that belongs to the workspace.
+        let Ok(toml_path) = change.uri.to_file_path() else {
+            continue;
+        };
+        let Some(parent) = toml_path.parent() else {
+            continue;
+        };
+        let workspace_root = parent.to_path_buf();
+
+        // Invalidate any cached data for this workspace so it's reprocessed fresh.
+        state.workspace_cache.remove(&workspace_root);
+        state.package_cache.remove(&workspace_root);
+
+        // Find an open file that lives under this workspace root and trigger reprocessing.
+        let open_file_uri = state.input_files.keys().find(|uri| {
+            uri.strip_prefix("file://")
+                .is_some_and(|path| path.starts_with(workspace_root.to_string_lossy().as_ref()))
+        });
+
+        if let Some(uri_string) = open_file_uri
+            && let Ok(uri) = Url::parse(uri_string)
+        {
+            // Errors are surfaced as diagnostics on Nargo.toml
+            let _ = handle_text_document_open_or_close_notification(state, uri);
+        }
+    }
+    Ok(())
 }
 
 pub(super) fn on_did_change_configuration(
     _state: &mut LspState,
     _params: DidChangeConfigurationParams,
-) -> ControlFlow<Result<(), async_lsp::Error>> {
-    ControlFlow::Continue(())
+) -> Result<(), async_lsp::Error> {
+    Ok(())
 }
 
 pub(crate) fn on_did_open_text_document(
     state: &mut LspState,
     params: DidOpenTextDocumentParams,
-) -> ControlFlow<Result<(), async_lsp::Error>> {
+) -> Result<(), async_lsp::Error> {
     state.input_files.insert(params.text_document.uri.to_string(), params.text_document.text);
 
     let document_uri = params.text_document.uri;
 
-    match handle_text_document_open_or_close_notification(state, document_uri) {
-        Ok(_) => ControlFlow::Continue(()),
-        Err(err) => ControlFlow::Break(Err(err)),
-    }
+    handle_text_document_open_or_close_notification(state, document_uri)
 }
 
 pub(super) fn on_did_change_text_document(
     state: &mut LspState,
     params: DidChangeTextDocumentParams,
-) -> ControlFlow<Result<(), async_lsp::Error>> {
-    let text = params.content_changes.into_iter().next().unwrap().text;
+) -> Result<(), async_lsp::Error> {
+    let Some(content_change) = params.content_changes.into_iter().next() else {
+        return Ok(());
+    };
+    let text = content_change.text;
     state.input_files.insert(params.text_document.uri.to_string(), text.clone());
     state.workspace_symbol_cache.reprocess_uri(&params.text_document.uri);
 
     let document_uri = params.text_document.uri;
 
-    match handle_on_did_change_text_document_notification(state, document_uri, &text) {
-        Ok(_) => ControlFlow::Continue(()),
-        Err(err) => ControlFlow::Break(Err(err)),
-    }
+    handle_on_did_change_text_document_notification(state, document_uri, &text)
 }
 
 pub(super) fn on_did_close_text_document(
     state: &mut LspState,
     params: DidCloseTextDocumentParams,
-) -> ControlFlow<Result<(), async_lsp::Error>> {
+) -> Result<(), async_lsp::Error> {
     state.input_files.remove(&params.text_document.uri.to_string());
     state.workspace_symbol_cache.reprocess_uri(&params.text_document.uri);
 
     let document_uri = params.text_document.uri;
 
-    match handle_text_document_open_or_close_notification(state, document_uri) {
-        Ok(_) => ControlFlow::Continue(()),
-        Err(err) => ControlFlow::Break(Err(err)),
-    }
+    handle_text_document_open_or_close_notification(state, document_uri)
 }
 
 pub(super) fn on_did_save_text_document(
     state: &mut LspState,
     params: DidSaveTextDocumentParams,
-) -> ControlFlow<Result<(), async_lsp::Error>> {
-    let workspace = match workspace_from_document_uri(params.text_document.uri) {
-        Ok(workspace) => workspace,
-        Err(err) => return ControlFlow::Break(Err(err)),
+) -> Result<(), async_lsp::Error> {
+    let Some(workspace) = workspace_from_document_uri(state, params.text_document.uri)? else {
+        return Ok(());
     };
 
-    match process_workspace(state, &workspace) {
-        Ok(_) => ControlFlow::Continue(()),
-        Err(err) => ControlFlow::Break(Err(err)),
-    }
+    process_workspace(state, &workspace)?;
+    Ok(())
 }
 
 fn handle_text_document_open_or_close_notification(
     state: &mut LspState,
     document_uri: Url,
 ) -> Result<(), async_lsp::Error> {
-    let workspace = workspace_from_document_uri(document_uri.clone())?;
+    let Some(workspace) = workspace_from_document_uri(state, document_uri)? else {
+        return Ok(());
+    };
 
     if state.package_cache.contains_key(&workspace.root_dir) {
         Ok(())
@@ -129,7 +190,9 @@ fn handle_on_did_change_text_document_notification(
     document_uri: Url,
     text: &str,
 ) -> Result<(), async_lsp::Error> {
-    let workspace = workspace_from_document_uri(document_uri.clone())?;
+    let Some(workspace) = workspace_from_document_uri(state, document_uri.clone())? else {
+        return Ok(());
+    };
 
     if state.package_cache.contains_key(&workspace.root_dir) {
         process_workspace_for_single_file_change(state, &workspace, document_uri, text)
@@ -141,21 +204,97 @@ fn handle_on_did_change_text_document_notification(
 }
 
 pub(crate) fn workspace_from_document_uri(
+    state: &mut LspState,
     document_uri: Url,
-) -> Result<Workspace, async_lsp::Error> {
+) -> Result<Option<Workspace>, async_lsp::Error> {
     if document_uri.scheme() == "noir-std" {
-        Ok(fake_stdlib_workspace())
-    } else {
-        let file_path = document_uri.to_file_path().map_err(|_| {
-            ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
-        })?;
-
-        let workspace = resolve_workspace_for_source_path(&file_path).map_err(|lsp_error| {
-            ResponseError::new(ErrorCode::REQUEST_FAILED, lsp_error.to_string())
-        })?;
-
-        Ok(workspace)
+        return Ok(Some(fake_stdlib_workspace()));
     }
+
+    let file_path = document_uri.to_file_path().map_err(|_| {
+        ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
+    })?;
+
+    match resolve_workspace_for_source_path(&file_path) {
+        Ok(workspace) => {
+            // If this workspace's Nargo.toml previously had errors, clear them now.
+            if let Ok(toml_uri) = Url::from_file_path(workspace.root_dir.join(PKG_FILE))
+                && state.toml_files_with_errors.remove(&toml_uri)
+            {
+                let _ = state.client.publish_diagnostics(PublishDiagnosticsParams {
+                    uri: toml_uri,
+                    version: None,
+                    diagnostics: vec![],
+                });
+            }
+            Ok(Some(workspace))
+        }
+        Err(LspError::ManifestError(toml_path, error)) => {
+            publish_nargo_toml_error(state, &toml_path, &error);
+            Ok(None)
+        }
+        Err(lsp_error) => {
+            Err(ResponseError::new(ErrorCode::REQUEST_FAILED, lsp_error.to_string()).into())
+        }
+    }
+}
+
+/// Publishes a diagnostic on the Nargo.toml file and sends a `window/showMessage` notification.
+fn publish_nargo_toml_error(
+    state: &mut LspState,
+    toml_path: &Path,
+    error: &nargo_toml::ManifestError,
+) {
+    let Ok(toml_uri) = Url::from_file_path(toml_path) else {
+        return;
+    };
+
+    // Compute the diagnostic range. For TOML parse errors we have a byte-offset span;
+    // for everything else we highlight the beginning of the file.
+    let range = if let nargo_toml::ManifestError::MalformedFile(toml_error) = error {
+        if let Some(span) = toml_error.span()
+            && let Ok(content) = std::fs::read_to_string(toml_path)
+        {
+            let start = byte_offset_to_position(&content, span.start);
+            let end = byte_offset_to_position(&content, span.end);
+            Range { start, end }
+        } else {
+            Range::default()
+        }
+    } else {
+        Range::default()
+    };
+
+    let diagnostic = Diagnostic {
+        range,
+        severity: Some(DiagnosticSeverity::ERROR),
+        message: error.to_string(),
+        ..Default::default()
+    };
+
+    let _ = state.client.publish_diagnostics(PublishDiagnosticsParams {
+        uri: toml_uri.clone(),
+        version: None,
+        diagnostics: vec![diagnostic],
+    });
+    state.toml_files_with_errors.insert(toml_uri);
+}
+
+fn byte_offset_to_position(content: &str, offset: usize) -> Position {
+    let mut line = 0u32;
+    let mut character = 0u32;
+    for (i, ch) in content.char_indices() {
+        if i >= offset {
+            break;
+        }
+        if ch == '\n' {
+            line += 1;
+            character = 0;
+        } else {
+            character += 1;
+        }
+    }
+    Position { line, character }
 }
 
 // Given a Noir document, find the workspace it's contained in (an assumed workspace is created if
@@ -180,7 +319,7 @@ pub(crate) fn process_workspace(
 
     let parsed_files = parse_diff(&workspace_file_manager, state);
 
-    for package in workspace.into_iter() {
+    for package in workspace {
         let (mut context, crate_id) =
             crate::prepare_package(&workspace_file_manager, &parsed_files, package);
 
@@ -222,7 +361,7 @@ pub(crate) fn process_workspace(
 }
 
 /// Type-checks a single file that changed by using existing cached data for the workspace/package,
-/// such as the cached NodeInterner, CrateGraph and DefMaps.
+/// such as the cached `NodeInterner`, `CrateGraph` and `DefMaps`.
 ///
 /// This greatly improves the responsiveness of the LSP server when editing files. However,
 /// the cost is a slight decrease in autocompletion accuracy. For example, if a struct is removed
@@ -289,22 +428,19 @@ pub(crate) fn process_workspace_for_single_file_change(
     let def_collector = DefCollector::new(crate_def_map);
     let mut context =
         Context::from_existing(&file_manager, &parsed_files, node_interner, def_maps, crate_graph);
+    context.activate_lsp_mode(LspMode::SingleFile);
 
     // Here we enable all options because we won't show errors to users, so it's easier to
     // assume all unstable features are enabled.
     let options = FrontendOptions {
         debug_comptime_in_file: None,
-        enabled_unstable_features: &[
-            UnstableFeature::Enums,
-            UnstableFeature::Ownership,
-            UnstableFeature::TraitAsType,
-        ],
+        enabled_unstable_features: &[UnstableFeature::Enums, UnstableFeature::TraitAsType],
         disable_required_unstable_features: false,
     };
 
     // This is when the type-checking of this single file happens
     let reuse_existing_module_declarations = true;
-    let mut errors = Vec::new();
+    let mut errors = CompilationErrors::default();
     DefCollector::collect_defs_and_elaborate(
         sorted_module,
         file_id,
@@ -376,7 +512,7 @@ fn publish_diagnostics(
     let files = fm.as_file_map();
     let mut diagnostics_per_url: HashMap<Url, Vec<Diagnostic>> = HashMap::default();
 
-    for custom_diagnostic in custom_diagnostics.into_iter() {
+    for custom_diagnostic in custom_diagnostics {
         let file = custom_diagnostic.file;
         let path = fm.path(file).expect("file must exist to have emitted diagnostic");
         if let Some(uri) = uri_from_path(path)
@@ -486,7 +622,7 @@ fn uri_from_path(path: &Path) -> Option<Url> {
     if let Ok(uri) = Url::from_file_path(path) {
         Some(uri)
     } else if path.starts_with("std") {
-        Some(Url::parse(&format!("noir-std://{}", path.to_string_lossy())).unwrap())
+        Some(crate::requests::stdlib_path_to_uri(&path.to_string_lossy()))
     } else {
         None
     }
@@ -506,13 +642,6 @@ fn call_stack_frame_to_related_information(
     })
 }
 
-pub(super) fn on_exit(
-    _state: &mut LspState,
-    _params: (),
-) -> ControlFlow<Result<(), async_lsp::Error>> {
-    ControlFlow::Continue(())
-}
-
 #[cfg(test)]
 mod notification_tests {
     use crate::test_utils;
@@ -520,29 +649,37 @@ mod notification_tests {
     use super::*;
     use async_lsp::lsp_types::{
         InlayHintLabel, InlayHintParams, Position, Range, TextDocumentContentChangeEvent,
-        TextDocumentIdentifier, TextDocumentItem, VersionedTextDocumentIdentifier,
-        WorkDoneProgressParams,
+        TextDocumentIdentifier, VersionedTextDocumentIdentifier, WorkDoneProgressParams,
     };
-    use tokio::test;
 
     #[test]
-    async fn test_caches_open_files() {
-        let (mut state, noir_text_document) = test_utils::init_lsp_server("inlay_hints").await;
+    fn test_did_change_with_empty_content_changes_is_ignored() {
+        let src = "fn main() {}";
+        let (mut state, noir_text_document) =
+            test_utils::init_lsp_server_with_inline_source("inlay_hints", "src/main.nr", src);
 
-        // Open the document, fake the text to be empty
-        let _ = on_did_open_text_document(
+        let result = on_did_change_text_document(
             &mut state,
-            DidOpenTextDocumentParams {
-                text_document: TextDocumentItem {
-                    uri: noir_text_document.clone(),
-                    language_id: "noir".to_string(),
-                    version: 0,
-                    text: "".to_string(),
+            DidChangeTextDocumentParams {
+                text_document: VersionedTextDocumentIdentifier {
+                    uri: noir_text_document,
+                    version: 1,
                 },
+                content_changes: vec![],
             },
         );
 
-        // Fake the text to change to "global a = 1;"
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_caches_open_files() {
+        // Open the document with empty text.
+        let (mut state, noir_text_document) =
+            test_utils::init_lsp_server_with_inline_source("inlay_hints", "src/main.nr", "");
+
+        // Then change the in-memory text to "global a = true;" and verify subsequent requests
+        // see the new content, not what's on disk.
         let _ = on_did_change_text_document(
             &mut state,
             DidChangeTextDocumentParams {
@@ -572,7 +709,6 @@ mod notification_tests {
                 },
             },
         )
-        .await
         .expect("Could not execute on_inlay_hint_request")
         .unwrap();
 

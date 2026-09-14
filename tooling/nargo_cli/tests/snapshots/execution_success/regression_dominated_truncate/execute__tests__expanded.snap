@@ -1,0 +1,18 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn helper(cond: bool, x: Field) -> Field {
+    if cond {
+        (x as u8) as Field
+    } else {
+        x.assert_max_bit_size::<8>();
+        0_Field
+    }
+}
+
+fn main(cond: bool, x: pub Field) {
+    // Safety: comment added by `nargo expand`
+    let y: Field = unsafe { helper(cond, x) };
+    assert(y != x);
+}

@@ -5,7 +5,7 @@
 //!   be colorized as a function reference (only if such function actually exists).
 //! - code blocks inside doc comments. If these are Noir or Rust code blocks, a Lexer
 //!   will be used to colorize keywords and such.
-use std::{collections::HashMap, future};
+use std::collections::HashMap;
 
 use async_lsp::{
     ResponseError,
@@ -41,13 +41,13 @@ use crate::{
 pub(crate) fn on_semantic_tokens_full_request(
     state: &mut LspState,
     params: SemanticTokensParams,
-) -> impl Future<Output = Result<Option<SemanticTokensResult>, ResponseError>> + use<> {
+) -> Result<Option<SemanticTokensResult>, ResponseError> {
     let text_document_position_params = TextDocumentPositionParams {
-        text_document: params.text_document.clone(),
+        text_document: params.text_document,
         position: Position { line: 0, character: 0 },
     };
 
-    let result = process_request(state, text_document_position_params, |args| {
+    process_request(state, text_document_position_params, |args| {
         let file_id = args.location.file;
         let file = args.files.get_file(file_id).unwrap();
         let source = file.source();
@@ -56,8 +56,7 @@ pub(crate) fn on_semantic_tokens_full_request(
         let mut collector = SemanticTokenCollector::new(source, file_id, &args);
         let tokens = collector.collect(&parsed_module);
         Some(SemanticTokensResult::Tokens(SemanticTokens { result_id: None, data: tokens }))
-    });
-    future::ready(result)
+    })
 }
 
 struct SemanticTokenCollector<'args> {
@@ -121,7 +120,7 @@ impl<'args> SemanticTokenCollector<'args> {
         std::mem::take(&mut self.tokens)
     }
 
-    /// Checks doc comments on the given ReferenceId. Semantic tokens are produced for any links found,
+    /// Checks doc comments on the given `ReferenceId`. Semantic tokens are produced for any links found,
     /// so that they can be colorized in the editor.
     fn process_reference_id(&mut self, id: ReferenceId) {
         let Some(doc_comments) = self.args.interner.doc_comments(id) else {
@@ -391,7 +390,6 @@ impl<'args> SemanticTokenCollector<'args> {
             | Token::Bang
             | Token::DollarSign
             | Token::At
-            | Token::DeprecatedVectorStart
             | Token::EOF
             | Token::Whitespace(_)
             | Token::UnquoteMarker(_)
@@ -476,7 +474,7 @@ impl Visitor for SemanticTokenCollector<'_> {
             self.process_reference_id(reference);
         }
 
-        for field in noir_struct.fields.iter() {
+        for field in &noir_struct.fields {
             let field_name_location = field.item.name.location();
             if let Some(reference) = self.args.interner.reference_at_location(field_name_location) {
                 self.process_reference_id(reference);
@@ -492,7 +490,7 @@ impl Visitor for SemanticTokenCollector<'_> {
             self.process_reference_id(reference);
         }
 
-        for variant in noir_enum.variants.iter() {
+        for variant in &noir_enum.variants {
             let variant_name_location = variant.item.name.location();
             if let Some(reference) = self.args.interner.reference_at_location(variant_name_location)
             {
@@ -509,7 +507,7 @@ impl Visitor for SemanticTokenCollector<'_> {
             self.process_reference_id(reference);
         }
 
-        for item in noir_trait.items.iter() {
+        for item in &noir_trait.items {
             if let TraitItem::Function { name, .. } = &item.item {
                 let func_name_location = name.location();
                 if let Some(reference) =
@@ -543,31 +541,16 @@ impl Visitor for SemanticTokenCollector<'_> {
 #[cfg(test)]
 mod tests {
     use async_lsp::lsp_types::{
-        DidOpenTextDocumentParams, PartialResultParams, SemanticToken, SemanticTokensParams,
-        SemanticTokensResult, TextDocumentIdentifier, TextDocumentItem, WorkDoneProgressParams,
+        PartialResultParams, SemanticToken, SemanticTokensParams, SemanticTokensResult,
+        TextDocumentIdentifier, WorkDoneProgressParams,
     };
     use insta::assert_snapshot;
-    use tokio::test;
 
-    use crate::{
-        notifications::on_did_open_text_document, requests::on_semantic_tokens_full_request,
-        test_utils,
-    };
+    use crate::{requests::on_semantic_tokens_full_request, test_utils};
 
-    async fn get_semantic_tokens(src: &str) -> Vec<SemanticToken> {
-        let (mut state, noir_text_document) = test_utils::init_lsp_server("document_symbol").await;
-
-        let _ = on_did_open_text_document(
-            &mut state,
-            DidOpenTextDocumentParams {
-                text_document: TextDocumentItem {
-                    uri: noir_text_document.clone(),
-                    language_id: "noir".to_string(),
-                    version: 0,
-                    text: src.to_string(),
-                },
-            },
-        );
+    fn get_semantic_tokens(src: &str) -> Vec<SemanticToken> {
+        let (mut state, noir_text_document) =
+            test_utils::init_lsp_server_with_inline_source("document_symbol", "src/main.nr", src);
 
         let response = on_semantic_tokens_full_request(
             &mut state,
@@ -577,7 +560,6 @@ mod tests {
                 partial_result_params: PartialResultParams { partial_result_token: None },
             },
         )
-        .await
         .expect("Could not execute on_semantic_tokens_full_request");
 
         let SemanticTokensResult::Tokens(tokens) = response.unwrap() else {
@@ -587,7 +569,7 @@ mod tests {
     }
 
     #[test]
-    async fn test_doc_comments() {
+    fn test_doc_comments() {
         // This is mainly a regression test. You can check the snapshot to match
         // highlighted tokens with their positions in the source code.
         let src = "
@@ -615,7 +597,7 @@ mod tests {
         }
         ";
 
-        let tokens = get_semantic_tokens(src).await;
+        let tokens = get_semantic_tokens(src);
         let tokens = format!("{tokens:#?}");
         assert_snapshot!(tokens, @r"
         [

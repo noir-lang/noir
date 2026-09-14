@@ -13,4 +13,10 @@ impl TypedExpr {
     // docs:start:get_type
     pub comptime fn get_type(self) -> Option<Type> {}
     // docs:end:get_type
+
+    /// Returns the source location of this expression.
+    #[builtin(typed_expr_location)]
+    // docs:start:location
+    pub comptime fn location(self) -> Location {}
+    // docs:end:location
 }

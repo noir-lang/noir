@@ -43,7 +43,8 @@ impl CodeActionFinder<'_> {
 
         let trait_methods =
             self.interner.lookup_trait_methods(typ, method_call.method_name.as_str(), true);
-        let trait_ids: HashSet<_> = trait_methods.iter().map(|(_, trait_id)| *trait_id).collect();
+        let trait_ids: HashSet<_> =
+            trait_methods.iter().map(|(_, trait_id, _)| *trait_id).collect();
 
         for trait_id in trait_ids {
             self.import_trait(trait_id);
@@ -83,7 +84,7 @@ impl CodeActionFinder<'_> {
                     module_id: reexport.module_id,
                     name: trait_.name.clone(),
                 });
-                intermediate_name = Some(reexport.name.clone());
+                intermediate_name = Some(reexport.name);
             } else {
                 return;
             }
@@ -139,12 +140,11 @@ impl CodeActionFinder<'_> {
 
 #[cfg(test)]
 mod tests {
-    use tokio::test;
 
     use crate::requests::code_action::tests::assert_code_action;
 
     #[test]
-    async fn test_import_trait_in_method_call_when_one_option_but_not_in_scope() {
+    fn test_import_trait_in_method_call_when_one_option_but_not_in_scope() {
         let title = "Import moo::Foo";
 
         let src = r#"mod moo {
@@ -179,11 +179,11 @@ fn main() {
     x.foobar();
 }"#;
 
-        assert_code_action(title, src, expected).await;
+        assert_code_action(title, src, expected);
     }
 
     #[test]
-    async fn test_import_trait_in_method_call_when_multiple_options_1() {
+    fn test_import_trait_in_method_call_when_multiple_options_1() {
         let title = "Import moo::Foo";
 
         let src = r#"mod moo {
@@ -234,11 +234,11 @@ fn main() {
     x.foobar();
 }"#;
 
-        assert_code_action(title, src, expected).await;
+        assert_code_action(title, src, expected);
     }
 
     #[test]
-    async fn test_import_trait_in_method_call_when_multiple_options_2() {
+    fn test_import_trait_in_method_call_when_multiple_options_2() {
         let title = "Import moo::Bar";
 
         let src = r#"mod moo {
@@ -289,11 +289,11 @@ fn main() {
     x.foobar();
 }"#;
 
-        assert_code_action(title, src, expected).await;
+        assert_code_action(title, src, expected);
     }
 
     #[test]
-    async fn test_import_trait_in_method_call_when_one_option_but_not_in_scope_via_reexport() {
+    fn test_import_trait_in_method_call_when_one_option_but_not_in_scope_via_reexport() {
         let title = "Import moo::Bar";
 
         let src = r#"mod moo {
@@ -336,11 +336,11 @@ fn main() {
     x.foobar();
 }"#;
 
-        assert_code_action(title, src, expected).await;
+        assert_code_action(title, src, expected);
     }
 
     #[test]
-    async fn test_import_trait_in_method_call_when_multiple_via_reexport() {
+    fn test_import_trait_in_method_call_when_multiple_via_reexport() {
         let title = "Import moo::Baz";
 
         let src = r#"mod moo {
@@ -401,11 +401,11 @@ fn main() {
     x.foobar();
 }"#;
 
-        assert_code_action(title, src, expected).await;
+        assert_code_action(title, src, expected);
     }
 
     #[test]
-    async fn test_import_trait_via_module_reexport() {
+    fn test_import_trait_via_module_reexport() {
         let title = "Import moo::another::Foo";
 
         let src = r#"mod moo {
@@ -452,6 +452,6 @@ fn main() {
     x.foobar();
 }"#;
 
-        assert_code_action(title, src, expected).await;
+        assert_code_action(title, src, expected);
     }
 }

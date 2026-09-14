@@ -15,7 +15,10 @@ use nargo_doc::{
 use nargo_toml::{PackageConfig, PackageSelection};
 use noirc_driver::{CompileOptions, CrateId, stdlib_nargo_toml_source};
 use noirc_errors::CustomDiagnostic;
-use noirc_frontend::hir::{Context, ParsedFiles};
+use noirc_frontend::{
+    error_reporting::report_all,
+    hir::{Context, ParsedFiles},
+};
 
 use crate::errors::CliError;
 
@@ -77,8 +80,9 @@ pub(crate) fn run(args: DocCommand, workspace: Workspace) -> Result<(), CliError
     // Report broken links
     let diagnostics = vecmap(&broken_links, CustomDiagnostic::from);
     let deny_warnings = args.compile_options.deny_warnings || args.check;
-    noirc_errors::reporter::report_all(
-        workspace_file_manager.as_file_map(),
+    report_all(
+        &workspace_file_manager,
+        &parsed_files,
         &diagnostics,
         deny_warnings,
         args.compile_options.silence_warnings,
@@ -126,7 +130,7 @@ pub(crate) fn run(args: DocCommand, workspace: Workspace) -> Result<(), CliError
 }
 
 /// Returns the Crate item for the given package, together with all of
-/// its dependencies in a HashMap that maps a dependency's root file to
+/// its dependencies in a `HashMap` that maps a dependency's root file to
 /// its crate.
 fn package_crate(
     file_manager: &FileManager,

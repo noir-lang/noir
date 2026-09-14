@@ -32,7 +32,7 @@ fn test2(z: Field, t: u32) {
 
 fn pow(base: Field, exponent: Field) -> Field {
     let mut r: Field = 1_Field as Field;
-    let b: [u1; 32] = exponent.to_le_bits();
+    let b: [bool; 32] = exponent.to_le_bits();
     for i in 1_u32..33_u32 {
         r = r * r;
         r = ((b[32_u32 - i] as Field) * (r * base)) + ((1_Field - (b[32_u32 - i] as Field)) * r);

@@ -1,0 +1,5 @@
+error: tag 2 is in the surrounding `#[tagged(reserved(...))]` list — pick a different tag, or remove it from the reserved list
+  --> tests/compile_fail/variant_field_tag_in_variant_reserved.rs:15:9
+   |
+15 |         #[tag(2)]
+   |         ^^^^^^^^^

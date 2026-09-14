@@ -110,7 +110,7 @@ impl TomlTypes {
                 TomlTypes::Array(array)
             }
 
-            (InputValue::String(s), AbiType::String { .. }) => TomlTypes::String(s.to_string()),
+            (InputValue::String(s), AbiType::String { .. }) => TomlTypes::String(s.clone()),
 
             (InputValue::Struct(map), AbiType::Struct { fields, .. }) => {
                 let map_with_toml_types = try_btree_map(fields, |(key, field_type)| {
@@ -166,8 +166,36 @@ impl InputValue {
 
             (
                 TomlTypes::Integer(integer),
-                AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean,
+                AbiType::Integer { sign: crate::Sign::Unsigned, width },
             ) => {
+                let integer = i128::from(integer);
+                if integer < 0 {
+                    return Err(InputParserError::InputUnderflowsMinimum {
+                        arg_name: arg_name.into(),
+                        value: integer.to_string(),
+                        min: "0".into(),
+                    });
+                }
+                if *width <= 64 {
+                    let max: i128 = (1i128 << width) - 1;
+                    if integer > max {
+                        return Err(InputParserError::InputOverflowsMaximum {
+                            arg_name: arg_name.into(),
+                            value: integer.to_string(),
+                            max: max.to_string(),
+                        });
+                    }
+                } else {
+                    let int_bit_size = i128::BITS - integer.leading_zeros();
+                    assert!(
+                        int_bit_size <= 64,
+                        "u{width} values larger than u64 must be provided as strings"
+                    );
+                }
+                InputValue::Field(FieldElement::from(integer))
+            }
+
+            (TomlTypes::Integer(integer), AbiType::Field | AbiType::Boolean) => {
                 let new_value = FieldElement::from(i128::from(integer));
 
                 InputValue::Field(new_value)
@@ -194,7 +222,7 @@ impl InputValue {
                         .get(field_name)
                         .ok_or_else(|| InputParserError::MissingArgument(field_id.clone()))?;
                     InputValue::try_from_toml(value.clone(), abi_type, &field_id)
-                        .map(|input_value| (field_name.to_string(), input_value))
+                        .map(|input_value| (field_name.clone(), input_value))
                 })?;
 
                 InputValue::Struct(native_table)
@@ -248,7 +276,7 @@ mod tests {
         #[test]
         fn signed_integer_serialization_roundtrip((typ, value) in arb_signed_integer_type_and_value()) {
             let string_input = TomlTypes::String(value.to_string());
-            let input_value = InputValue::try_from_toml(string_input.clone(), &typ, "foo").expect("should be parsable");
+            let input_value = InputValue::try_from_toml(string_input, &typ, "foo").expect("should be parsable");
             let TomlTypes::String(output_string) = TomlTypes::try_from_input_value(&input_value, &typ).expect("should be serializable") else {
                 panic!("wrong type output");
             };
@@ -287,6 +315,7 @@ mod tests {
     fn suggests_wrapping_large_numbers_in_double_quotes() {
         let typ = AbiType::Field;
         let abi = Abi {
+            abi_version: crate::ABI_VERSION,
             parameters: vec![AbiParameter {
                 name: "input".to_string(),
                 typ,
@@ -304,6 +333,7 @@ mod tests {
     fn suggests_wrapping_large_hex_numbers_in_double_quotes() {
         let typ = AbiType::Field;
         let abi = Abi {
+            abi_version: crate::ABI_VERSION,
             parameters: vec![AbiParameter {
                 name: "input".to_string(),
                 typ,
@@ -315,5 +345,32 @@ mod tests {
         let toml = "input = 0x19223372036854775807";
         let err = parse_toml(toml, &abi).unwrap_err();
         assert!(err.to_string().contains("note: large Field numbers can be written by wrapping them in double quotes (that is, using strings)"));
+    }
+
+    #[test]
+    fn try_from_toml_tuple_array_length_mismatch() {
+        let typ = AbiType::Tuple { fields: vec![AbiType::Field, AbiType::Field] };
+        let abi = Abi {
+            abi_version: crate::ABI_VERSION,
+            parameters: vec![AbiParameter {
+                name: "input".to_string(),
+                typ,
+                visibility: AbiVisibility::Private,
+            }],
+            return_type: None,
+            error_types: Default::default(),
+        };
+        let toml = "input = [0]";
+        let input = parse_toml(toml, &abi).unwrap();
+        let value = &input["input"];
+        assert!(matches!(value, InputValue::Vec(vec) if vec.len() == 1));
+    }
+
+    #[test]
+    fn try_from_input_value_toml_array_length_mismatch() {
+        let value = InputValue::Vec(vec![InputValue::Field(0.into())]);
+        let abi_type = AbiType::Tuple { fields: vec![AbiType::Field, AbiType::Field] };
+        let result = TomlTypes::try_from_input_value(&value, &abi_type).unwrap();
+        assert!(matches!(result, TomlTypes::Array(array) if array.len() == 1));
     }
 }

@@ -1,0 +1,5 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+[predicated_vector_constant_index_truncate] Circuit output: 0

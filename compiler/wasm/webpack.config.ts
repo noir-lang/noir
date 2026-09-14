@@ -80,11 +80,19 @@ const webConfig: webpack.Configuration = {
         test: /\.wasm$/,
         type: 'asset/inline',
       },
+      {
+        test: /\.m?js$/,
+        resolve: { fullySpecified: false },
+      },
     ],
   },
   devServer: devServerConfig,
   resolve: {
     ...config.resolve,
+    fallback: {
+      ...config.resolve?.fallback,
+      worker_threads: false,
+    },
     alias: {
       fs: 'memfs',
     },

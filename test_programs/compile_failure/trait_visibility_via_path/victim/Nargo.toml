@@ -1,0 +1,5 @@
+[package]
+name = "victim"
+type = "lib"
+authors = [""]
+compiler_version = ">=0.33.0"

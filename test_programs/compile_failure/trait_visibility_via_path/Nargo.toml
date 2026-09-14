@@ -1,0 +1,8 @@
+[package]
+name = "trait_visibility_via_path"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.33.0"
+
+[dependencies]
+victim = { path = "./victim" }

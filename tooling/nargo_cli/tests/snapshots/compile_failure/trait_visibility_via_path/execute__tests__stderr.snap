@@ -1,0 +1,13 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 340
+expression: stderr
+---
+error: trait `victim::Secret` which provides `set_secret` is implemented but not in scope, please import it
+  ┌─ src/main.nr:8:41
+  │
+8 │     let hijacked_vault = victim::Vault::set_secret(original_vault, 31337);
+  │                                         ----------
+  │
+
+Aborting due to 1 previous error

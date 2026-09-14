@@ -22,14 +22,16 @@ fn main(x: Field) {
     }
 }
 
+// `black_box` keeps each body from being recognized as a pure pass-through, so the
+// ACIR→Brillig call survives optimization and the round-trip is actually exercised.
 unconstrained fn identity(x: Field) -> Field {
-    x
+    std::hint::black_box(x)
 }
 
 unconstrained fn identity_array(arr: [Field; 2]) -> [Field; 2] {
-    arr
+    std::hint::black_box(arr)
 }
 
 unconstrained fn identity_struct(s: myStruct) -> myStruct {
-    s
+    std::hint::black_box(s)
 }

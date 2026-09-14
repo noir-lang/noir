@@ -3,6 +3,7 @@ use noirc_errors::Location;
 use crate::{
     Type,
     ast::{FunctionDefinition, ItemVisibility},
+    hir::comptime::InterpreterError,
     hir::def_map::ModuleId,
     hir_def::{
         expr::{HirExpression, HirIdent},
@@ -31,9 +32,8 @@ impl NodeInterner {
         let def =
             self.nodes.get_mut(func_id.0).expect("ice: all function ids should have definitions");
 
-        let func = match def {
-            Node::Function(func) => func,
-            _ => panic!("ice: all function ids should correspond to a function in the interner"),
+        let Node::Function(func) = def else {
+            panic!("ice: all function ids should correspond to a function in the interner");
         };
         *func = hir_func;
     }
@@ -47,8 +47,8 @@ impl NodeInterner {
 
     ///Interns a function's metadata.
     ///
-    /// Note that the FuncId has been created already.
-    /// See ModCollector for it's usage.
+    /// Note that the `FuncId` has been created already.
+    /// See `ModCollector` for it's usage.
     pub fn push_fn_meta(&mut self, func_data: FuncMeta, func_id: FuncId) {
         self.func_meta.insert(func_id, func_data);
     }
@@ -104,7 +104,7 @@ impl NodeInterner {
 
     /// Returns the visibility of the given function.
     ///
-    /// The underlying function_visibilities map is populated during def collection,
+    /// The underlying `function_visibilities` map is populated during def collection,
     /// so this function can be called anytime afterward.
     pub fn function_visibility(&self, func: FuncId) -> ItemVisibility {
         self.function_modifiers[&func].visibility
@@ -116,32 +116,46 @@ impl NodeInterner {
     }
 
     /// Returns the [`FuncId`] corresponding to the function referred to by `expr_id`,
-    /// _iff_ the expression is an [HirExpression::Ident] with a `Function` definition,
+    /// _iff_ the expression is an [`HirExpression::Ident`] with a `Function` definition,
     /// or an immutable `Local` or `Global` definition which ultimately points at a `Function`.
     ///
     /// Returns `None` for all other cases (tuples, array, mutable variables, etc.).
-    pub(crate) fn lookup_function_from_expr(&self, expr: &ExprId) -> Option<FuncId> {
+    pub(crate) fn lookup_function_from_expr(
+        &self,
+        expr: &ExprId,
+        location: Location,
+    ) -> Result<Option<FuncId>, InterpreterError> {
         if let HirExpression::Ident(HirIdent { id, .. }, _) = self.expression(expr) {
-            match self.definition(id).kind {
-                DefinitionKind::Function(func_id) => Some(func_id),
-                DefinitionKind::Local(Some(expr_id)) => self.lookup_function_from_expr(&expr_id),
+            let Some(definition) = self.try_definition(id) else {
+                return Ok(None);
+            };
+            match definition.kind {
+                DefinitionKind::Function(func_id) => Ok(Some(func_id)),
+                DefinitionKind::Local(Some(expr_id)) => {
+                    self.lookup_function_from_expr(&expr_id, location)
+                }
                 DefinitionKind::Global(global_id) => {
                     let info = self.get_global(global_id);
                     let expression = match self.statement(&info.let_statement) {
                         HirStatement::Let(HirLetStatement { expression, .. })
                         | HirStatement::Expression(expression) => expression,
-                        other => unreachable!(
-                            "Expected global to be a let statement or expression but found: {other:?}"
-                        ),
+                        other => {
+                            return Err(InterpreterError::expecting_other_error(
+                                format!(
+                                    "Expected global to be a let statement or expression but found: {other:?}"
+                                ),
+                                location,
+                            ));
+                        }
                     };
-                    self.lookup_function_from_expr(&expression)
+                    self.lookup_function_from_expr(&expression, location)
                 }
                 DefinitionKind::Local(None)
                 | DefinitionKind::AssociatedConstant(..)
-                | DefinitionKind::NumericGeneric(..) => None,
+                | DefinitionKind::NumericGeneric(..) => Ok(None),
             }
         } else {
-            None
+            Ok(None)
         }
     }
 
@@ -176,9 +190,8 @@ impl NodeInterner {
     }
 
     pub fn function_ident(&self, func_id: &FuncId) -> crate::ast::Ident {
-        let name = self.function_name(func_id).to_owned();
-        let location = self.function_meta(func_id).name.location;
-        crate::ast::Ident::new(name, location)
+        let modifiers = &self.function_modifiers[func_id];
+        crate::ast::Ident::new(modifiers.name.clone(), modifiers.name_location)
     }
 
     pub fn function_name(&self, func_id: &FuncId) -> &str {

@@ -1,6 +1,6 @@
 //! This is a debugging pass which re-inserts each instruction
-//! and block in a fresh DFG context for each function so that ValueIds,
-//! BasicBlockIds, and FunctionIds are always identical for the same SSA code.
+//! and block in a fresh DFG context for each function so that `ValueIds`,
+//! `BasicBlockIds`, and `FunctionIds` are always identical for the same SSA code.
 //!
 //! During normal compilation this is often not the case since prior passes
 //! may increase the ID counter so that later passes start at different offsets,
@@ -16,14 +16,16 @@ use crate::ssa::{
         post_order::PostOrder,
         value::{Value, ValueId},
     },
+    opt::pure::{FunctionPurities, Purity},
     ssa_gen::Ssa,
 };
 use iter_extended::vecmap;
+use itertools::Itertools;
 use rustc_hash::FxHashMap as HashMap;
 
 impl Ssa {
     /// Re-inserts each instruction and block in a fresh DFG context for each function so that
-    /// ValueIds, BasicBlockIds, and FunctionIds are always identical for the same SSA code.
+    /// `ValueIds`, `BasicBlockIds`, and `FunctionIds` are always identical for the same SSA code.
     pub fn normalize_ids(&mut self) {
         let mut context = Context::default();
         context.populate_functions(&self.functions);
@@ -60,22 +62,31 @@ struct IdMaps {
 
 impl Context {
     fn populate_functions(&mut self, functions: &BTreeMap<FunctionId, Function>) {
-        let Some(old_purities) = &functions.iter().next().map(|f| &f.1.dfg.function_purities)
+        let Some(old_purities) = functions.iter().next().map(|f| f.1.dfg.function_purities.clone())
         else {
             return;
         };
-        let mut new_purities = HashMap::default();
+        let mut new_purities = FunctionPurities::default();
+        let old_intrinsic: HashMap<FunctionId, Purity> =
+            old_purities.intrinsic_purities().map(|(id, purity)| (*id, *purity)).collect();
 
         for (id, function) in functions {
             self.functions.insert_with_id(|new_id| {
                 self.new_ids.function_ids.insert(*id, new_id);
 
-                if let Some(purity) = old_purities.get(id) {
-                    new_purities.insert(new_id, *purity);
+                if let Some(purity) = old_intrinsic.get(id) {
+                    new_purities.insert_purity(new_id, *purity);
                 }
 
                 Function::clone_signature(new_id, function)
             });
+        }
+
+        // Remap the set of Brillig functions onto the new ids.
+        for old_id in old_purities.brillig_function_ids() {
+            if let Some(new_id) = self.new_ids.function_ids.get(old_id) {
+                new_purities.insert_brillig_function(*new_id);
+            }
         }
 
         let new_purities = Arc::new(new_purities);
@@ -98,7 +109,10 @@ impl Context {
         let reachable_blocks = old_function.reachable_blocks();
         self.new_ids.populate_blocks(reachable_blocks, old_function, new_function);
 
-        let reverse_post_order = PostOrder::with_function(old_function).into_vec_reverse();
+        // Root at the entry block, not the CFG's source blocks: an entry that is itself a
+        // back-edge target has a predecessor, so source-rooting finds no roots (#9431).
+        let reverse_post_order =
+            PostOrder::with_function_from_entry(old_function).into_vec_reverse();
 
         // Map each parameter, instruction, and terminator
         for old_block_id in reverse_post_order {
@@ -115,9 +129,11 @@ impl Context {
                     new_function.dfg.call_stack_data.get_or_insert_locations(&locations);
                 let old_results = old_function.dfg.instruction_results(old_instruction_id);
 
-                let ctrl_typevars = instruction
-                    .requires_ctrl_typevars()
-                    .then(|| vecmap(old_results, |result| old_function.dfg.type_of_value(*result)));
+                let ctrl_typevars = instruction.requires_ctrl_typevars().then(|| {
+                    vecmap(old_results, |result| {
+                        old_function.dfg.type_of_value(*result).into_owned()
+                    })
+                });
 
                 let new_results =
                     new_function.dfg.insert_instruction_and_results_without_simplification(
@@ -127,8 +143,8 @@ impl Context {
                         new_call_stack,
                     );
 
-                assert_eq!(old_results.len(), new_results.len());
-                for (old_result, new_result) in old_results.iter().zip(new_results.results().iter())
+                for (old_result, new_result) in
+                    old_results.iter().zip_eq(new_results.results().iter())
                 {
                     let old_result = *old_result;
                     self.new_ids.values.insert(old_result, *new_result);
@@ -174,7 +190,7 @@ impl IdMaps {
             let new_id = self.blocks[&old_id];
             let old_block = &mut old_function.dfg[old_id];
             for old_parameter in old_block.take_parameters() {
-                let typ = old_function.dfg.type_of_value(old_parameter);
+                let typ = old_function.dfg.type_of_value(old_parameter).into_owned();
                 let new_parameter = new_function.dfg.add_block_parameter(new_id, typ);
                 self.values.insert(old_parameter, new_parameter);
             }
@@ -217,10 +233,54 @@ impl IdMaps {
                 new_function.dfg.make_constant(*constant, *typ)
             }
             Value::Intrinsic(intrinsic) => new_function.dfg.import_intrinsic(*intrinsic),
-            Value::ForeignFunction(name) => new_function.dfg.import_foreign_function(name),
+            Value::ForeignFunction { name, pure } => {
+                new_function.dfg.import_foreign_function(name, *pure)
+            }
             Value::Global(_) => {
                 unreachable!("Should have handled the global case already");
             },
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{assert_ssa_snapshot, ssa::ssa_gen::Ssa};
+
+    /// Regression test for <https://github.com/noir-lang/noir/issues/9431>: normalizing a
+    /// function whose entry block is a back-edge target must preserve its structure rather
+    /// than collapse it to a terminator-less entry block.
+    #[test]
+    fn preserves_blocks_when_entry_is_a_jump_target() {
+        // An entry block used as a jump target is not valid SSA, so skip validation on parse.
+        let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            v1 = eq v0, u32 5
+            jmpif v1 then: b1(), else: b3()
+          b1():
+            jmp b2()
+          b2():
+            v2 = add v0, u32 1
+            jmp b0(v2)
+          b3():
+            return
+        }
+        ";
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            v2 = eq v0, u32 5
+            jmpif v2 then: b1(), else: b3()
+          b1():
+            jmp b2()
+          b2():
+            v4 = add v0, u32 1
+            jmp b0(v4)
+          b3():
+            return
+        }
+        ");
     }
 }

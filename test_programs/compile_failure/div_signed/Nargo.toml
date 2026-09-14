@@ -1,6 +1,0 @@
-[package]
-name = "div_signed"
-type = "bin"
-authors = [""]
-
-[dependencies]

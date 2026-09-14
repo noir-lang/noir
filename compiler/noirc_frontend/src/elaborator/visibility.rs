@@ -5,12 +5,19 @@ use noirc_errors::{Located, Location};
 use crate::{
     DataType, StructField, Type,
     ast::{Ident, ItemVisibility, NoirStruct},
-    hir::resolution::{
-        errors::ResolverError,
-        import::PathResolutionError,
-        visibility::{method_call_is_visible, struct_member_is_visible},
+    hir::{
+        def_map::ModuleDefId,
+        resolution::{
+            errors::ResolverError,
+            import::PathResolutionError,
+            visibility::{method_call_is_visible, struct_member_is_visible},
+        },
     },
     hir_def::function::FuncMeta,
+    modules::{
+        get_ancestor_module_reexport_ignoring_dependencies,
+        module_def_id_is_visible_ignoring_dependencies,
+    },
     node_interner::{FuncId, FunctionModifiers},
 };
 
@@ -20,30 +27,38 @@ impl Elaborator<'_> {
     /// Checks whether calling the method `func_id` on an object of type `object_type` is allowed
     /// from the current location. If not, a visibility error is pushed to the error list.
     /// The passed `name` is used for error reporting.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn check_method_call_visibility(
         &mut self,
         func_id: FuncId,
         object_type: &Type,
         name: &Ident,
     ) {
-        if !method_call_is_visible(
-            self.self_type.as_ref(),
-            object_type,
-            func_id,
-            self.module_id(),
-            self.interner,
-            self.def_maps,
-        ) {
+        if !self.method_call_is_visible(func_id, object_type) {
             self.push_err(ResolverError::PathResolutionError(PathResolutionError::Private(
                 name.clone(),
             )));
         }
     }
 
+    /// Returns whether calling the method `func_id` on an object of type `object_type` is
+    /// allowed from the current location, without reporting any error.
+    pub(super) fn method_call_is_visible(&self, func_id: FuncId, object_type: &Type) -> bool {
+        method_call_is_visible(
+            self.self_type.as_ref(),
+            object_type,
+            func_id,
+            self.module_id(),
+            self.interner,
+            self.def_maps,
+        )
+    }
+
     /// Checks that a public struct does not have fields with more private types.
     ///
     /// For example, a public struct cannot have a public field of a private type,
     /// as this would allow external code to access the private type through the public struct.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn check_struct_field_type_visibility(
         &mut self,
         struct_def: &NoirStruct,
@@ -68,6 +83,7 @@ impl Elaborator<'_> {
     /// Checks whether accessing the struct field `field_name` of type `struct_type`, that has
     /// the given `visibility`, is allowed from the current location. If not, a visibility
     /// error is pushed to the error list.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn check_struct_field_visibility(
         &mut self,
         struct_type: &DataType,
@@ -91,11 +107,48 @@ impl Elaborator<'_> {
         let parent_module_id = struct_type.id.parent_module_id(self.def_maps);
         let parent_module_data = self.get_module(parent_module_id);
         let per_ns = parent_module_data.find_name(&struct_type.name);
-        let (_, visibility, _) =
-            per_ns.types.expect("Expected to find struct in its parent module");
-        visibility
+        per_ns.types.expect("Expected to find struct in its parent module").visibility
     }
 
+    /// Whether a foreign data type's visibility is public enough to be exposed from the current
+    /// module: the type itself (and its enclosing modules) is visible, the type is `pub use`
+    /// re-exported, or one of its ancestor modules is re-exported.
+    ///
+    /// Unlike path resolution, this ignores whether the defining crate is a direct dependency. A
+    /// maximally-public type reached from a transitive dependency (e.g. by a macro reflecting over
+    /// an accessible value's field) is part of the public API surface and is not "more private"
+    /// than the item it is spliced into, even though it could not be named by an explicit path.
+    fn foreign_type_is_visible(&self, struct_type: &DataType) -> bool {
+        let module_def_id = ModuleDefId::TypeId(struct_type.id);
+        let visibility = struct_type.visibility;
+
+        module_def_id_is_visible_ignoring_dependencies(
+            module_def_id,
+            self.module_id(),
+            visibility,
+            None,
+            self.interner,
+            self.def_maps,
+        ) || self.interner.get_reexports(module_def_id).iter().any(|reexport| {
+            module_def_id_is_visible_ignoring_dependencies(
+                module_def_id,
+                self.module_id(),
+                reexport.visibility,
+                Some(reexport.module_id),
+                self.interner,
+                self.def_maps,
+            )
+        }) || get_ancestor_module_reexport_ignoring_dependencies(
+            module_def_id,
+            visibility,
+            self.module_id(),
+            self.interner,
+            self.def_maps,
+        )
+        .is_some()
+    }
+
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn check_function_visibility(
         &mut self,
         func_meta: &FuncMeta,
@@ -150,6 +203,7 @@ impl Elaborator<'_> {
     }
 
     /// Check that an item such as a struct field or type alias is not more visible than the type it refers to.
+    #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn check_type_is_not_more_private_then_item(
         &mut self,
         name: &Ident,
@@ -162,9 +216,6 @@ impl Elaborator<'_> {
                 let struct_type = struct_type.borrow();
                 let struct_module_id = struct_type.id.module_id();
 
-                // We only check this in types in the same crate. If it's in a different crate
-                // then it's either accessible (all good) or it's not, in which case a different
-                // error will happen somewhere else, but no need to error again here.
                 if struct_module_id.krate == self.crate_id {
                     let aliased_visibility = self.find_struct_visibility(&struct_type);
                     if aliased_visibility < visibility {
@@ -174,6 +225,15 @@ impl Elaborator<'_> {
                             location,
                         });
                     }
+                } else if !self.foreign_type_is_visible(&struct_type) {
+                    // A foreign type written by hand would be rejected by the path resolver if it
+                    // weren't accessible. A macro can splice in a resolved type that never goes
+                    // through path resolution, so the same accessibility check is enforced here.
+                    self.push_err(ResolverError::TypeIsMorePrivateThenItem {
+                        typ: struct_type.name.to_string(),
+                        item: name.to_string(),
+                        location,
+                    });
                 }
 
                 for generic in generics {
@@ -211,7 +271,7 @@ impl Elaborator<'_> {
                 );
                 self.check_type_is_not_more_private_then_item(name, visibility, env, location);
             }
-            Type::Reference(typ, _) | Type::Array(_, typ) | Type::Vector(typ) => {
+            Type::Reference(typ, _) | Type::Array(typ, _) | Type::Vector(typ) => {
                 self.check_type_is_not_more_private_then_item(name, visibility, typ, location);
             }
             Type::InfixExpr(left, _op, right, _) => {

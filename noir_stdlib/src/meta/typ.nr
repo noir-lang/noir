@@ -58,24 +58,87 @@ use crate::option::Option;
 pub comptime fn fresh_type_variable() -> Type {}
 // docs:end:fresh_type_variable
 
+/// An array type decomposed by [`Type::as_array`] into its element and length
+/// components.
+pub comptime struct ArrayType {
+    element_type: Type,
+    length_type: Type,
+}
+
+impl ArrayType {
+    /// The type of each element the array holds.
+    pub comptime fn element_type(self) -> Type {
+        self.element_type
+    }
+
+    /// The type describing the array's length (a numeric-constant type).
+    pub comptime fn length_type(self) -> Type {
+        self.length_type
+    }
+}
+
+/// An integer type decomposed by [`Type::as_integer`] into its signedness and
+/// bit width.
+pub comptime struct IntegerType {
+    is_signed: bool,
+    bits: u8,
+}
+
+impl IntegerType {
+    /// `true` if the integer type is signed.
+    pub comptime fn is_signed(self) -> bool {
+        self.is_signed
+    }
+
+    /// The bit width of the integer type.
+    pub comptime fn bits(self) -> u8 {
+        self.bits
+    }
+}
+
+/// A struct or enum type decomposed by [`Type::as_data_type`] into its
+/// [`TypeDefinition`] and its concrete generic arguments.
+pub comptime struct DataType {
+    definition: TypeDefinition,
+    generics: [Type],
+}
+
+impl DataType {
+    /// The [`TypeDefinition`] for this type.
+    pub comptime fn definition(self) -> TypeDefinition {
+        self.definition
+    }
+
+    /// The concrete generic arguments applied to the definition, in source order.
+    pub comptime fn generics(self) -> [Type] {
+        self.generics
+    }
+}
+
 impl Type {
-    /// If this type is an array, return a pair of (element type, size type).
+    /// If this type is an array, return its element and length types.
     ///
     /// Example:
     ///
     /// ```noir
     /// comptime {
     ///     let array_type = quote { [Field; 3] }.as_type();
-    ///     let (field_type, three_type) = array_type.as_array().unwrap();
+    ///     let array = array_type.as_array().unwrap();
     ///
-    ///     assert(field_type.is_field());
-    ///     assert_eq(three_type.as_constant().unwrap(), 3);
+    ///     assert(array.element_type().is_field());
+    ///     assert_eq(array.length_type().as_constant().unwrap(), 3);
     /// }
     /// ```
-    #[builtin(type_as_array)]
     // docs:start:as_array
-    pub comptime fn as_array(self) -> Option<(Type, Type)> {}
-    // docs:end:as_array
+    pub comptime fn as_array(self) -> Option<ArrayType> {
+        // docs:end:as_array
+        self.as_array_raw().map(|pair: (Type, Type)| {
+            ArrayType { element_type: pair.0, length_type: pair.1 }
+        })
+    }
+
+    #[builtin(type_as_array)]
+    comptime fn as_array_raw(self) -> Option<(Type, Type)> {}
 
     /// If this type is a constant integer (such as the `3` in the array type `[Field; 3]`),
     /// return the numeric constant.
@@ -84,12 +147,15 @@ impl Type {
     pub comptime fn as_constant(self) -> Option<u32> {}
     // docs:end:as_constant
 
-    /// If this is an integer type, return a boolean which is `true`
-    /// if the type is signed, as well as the number of bits of this integer type.
-    #[builtin(type_as_integer)]
+    /// If this is an integer type, return its signedness and bit width.
     // docs:start:as_integer
-    pub comptime fn as_integer(self) -> Option<(bool, u8)> {}
-    // docs:end:as_integer
+    pub comptime fn as_integer(self) -> Option<IntegerType> {
+        // docs:end:as_integer
+        self.as_integer_raw().map(|pair: (bool, u8)| IntegerType { is_signed: pair.0, bits: pair.1 })
+    }
+
+    #[builtin(type_as_integer)]
+    comptime fn as_integer_raw(self) -> Option<(bool, u8)> {}
 
     /// If this is a mutable reference type `&mut T`, returns the mutable type `T`.
     #[builtin(type_as_mutable_reference)]
@@ -103,27 +169,24 @@ impl Type {
     pub comptime fn as_vector(self) -> Option<Type> {}
     // docs:end:as_vector
 
-    /// If this is a vector type, return the element type of the vector.
-    #[builtin(type_as_vector)]
-    #[deprecated("This method has been renamed to `as_vector`")]
-    pub comptime fn as_slice(self) -> Option<Type> {}
-
     /// If this is a `str<N>` type, returns the length `N` as a type.
     #[builtin(type_as_str)]
     // docs:start:as_str
     pub comptime fn as_str(self) -> Option<Type> {}
     // docs:end:as_str
 
-    #[deprecated("This method has been renamed to `as_data_type`")]
-    pub comptime fn as_struct(self) -> Option<(TypeDefinition, [Type])> {
-        self.as_data_type()
+    /// If this is a struct or enum type, returns its [`TypeDefinition`] and
+    /// generic arguments.
+    // docs:start:as_data_type
+    pub comptime fn as_data_type(self) -> Option<DataType> {
+        // docs:end:as_data_type
+        self.as_data_type_raw().map(|pair: (TypeDefinition, [Type])| {
+            DataType { definition: pair.0, generics: pair.1 }
+        })
     }
 
-    /// If this is a struct or enum type, returns the type in addition to any generic arguments on this type.
     #[builtin(type_as_data_type)]
-    // docs:start:as_data_type
-    pub comptime fn as_data_type(self) -> Option<(TypeDefinition, [Type])> {}
-    // docs:end:as_data_type
+    comptime fn as_data_type_raw(self) -> Option<(TypeDefinition, [Type])> {}
 
     /// If this is a tuple type, returns each element type of the tuple.
     #[builtin(type_as_tuple)]
@@ -200,9 +263,8 @@ impl Eq for Type {
     /// Note that this is syntactic equality, this is not the same as whether two types will type check
     /// to be the same type. Unless type inference or generics are being used however, users should not
     /// typically have to worry about this distinction.
-    comptime fn eq(self, other: Self) -> bool {
-        type_eq(self, other)
-    }
+    #[builtin(type_eq)]
+    comptime fn eq(self, other: Self) -> bool {}
 }
 
 impl crate::hash::Hash for Type {
@@ -213,9 +275,6 @@ impl crate::hash::Hash for Type {
         state.write(type_hash(self))
     }
 }
-
-#[builtin(type_eq)]
-comptime fn type_eq(_first: Type, _second: Type) -> bool {}
 
 #[builtin(type_hash)]
 comptime fn type_hash(_typ: Type) -> Field {}

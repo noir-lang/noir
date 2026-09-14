@@ -1,18 +1,23 @@
+use std::rc::Rc;
 use std::{borrow::Cow, collections::BTreeMap, fmt::Display};
 
+use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_artifacts::debug::{DebugFunctions, DebugTypes, DebugVariables};
 use noirc_errors::Location;
+use strum_macros::EnumIter;
 
 use crate::token::FmtStrFragment;
 use crate::{
     ast::{BinaryOpKind, IntegerBitSize},
     hir_def::expr::Constructor,
     shared::Signedness,
-    signed_field::SignedField,
     token::Attributes,
 };
-use crate::{shared::Visibility, token::FunctionAttributeKind};
+use crate::{
+    shared::{Builtin, Visibility},
+    token::FunctionAttributeKind,
+};
 use serde::{Deserialize, Serialize};
 
 use super::HirType;
@@ -75,11 +80,15 @@ impl Expression {
                 Literal::Bool(_) => borrowed(&Type::Bool),
                 Literal::Unit => borrowed(&Type::Unit),
                 Literal::Str(s) => owned(Type::String(s.len() as u32)),
-                Literal::FmtStr(_, size, expr) => expr.return_type().and_then(|typ| {
-                    owned(Type::FmtString(*size as u32, Box::new(typ.into_owned())))
-                }),
+                Literal::FmtStr(_, size, expr) => {
+                    let typ = expr.return_type()?;
+                    owned(Type::FmtString(*size as u32, Rc::new(typ.into_owned())))
+                }
             },
-            Expression::Block(xs) => xs.last().and_then(|x| x.return_type()),
+            Expression::Block(xs) => {
+                let x = xs.last()?;
+                x.return_type()
+            }
             Expression::Unary(unary) => borrowed(&unary.result_type),
             Expression::Binary(binary) => {
                 if binary.operator.is_comparator() {
@@ -97,7 +106,13 @@ impl Expression {
                     xs[*idx].return_type()
                 }
                 x => {
-                    let typ = x.return_type()?;
+                    let mut typ = x.return_type()?;
+
+                    // Unwrap reference types to get the underlying tuple type
+                    while let Type::Reference(reference_type, _) = typ.as_ref() {
+                        typ = Cow::Owned(reference_type.as_ref().clone());
+                    }
+
                     let Type::Tuple(types) = typ.as_ref() else {
                         unreachable!("unexpected type for tuple field extraction: {typ}");
                     };
@@ -146,10 +161,9 @@ impl Expression {
         match self {
             Expression::Literal(_) => true,
 
-            Expression::Block(expressions) => expressions
-                .last()
-                .map(|x| x.needs_type_inference_from_literal())
-                .unwrap_or_default(),
+            Expression::Block(expressions) => {
+                expressions.last().is_some_and(|x| x.needs_type_inference_from_literal())
+            }
 
             Expression::Unary(unary) => unary.rhs.needs_type_inference_from_literal(),
 
@@ -165,8 +179,7 @@ impl Expression {
                     && if_
                         .alternative
                         .as_ref()
-                        .map(|x| x.needs_type_inference_from_literal())
-                        .unwrap_or_default()
+                        .is_some_and(|x| x.needs_type_inference_from_literal())
             }
             Expression::Match(m) => {
                 m.cases.iter().all(|c| c.branch.needs_type_inference_from_literal())
@@ -204,10 +217,16 @@ pub enum Definition {
     Local(LocalId),
     Global(GlobalId),
     Function(FuncId),
-    Builtin(String),
-    LowLevel(String),
-    // used as a foreign/externally defined unconstrained function
-    Oracle(String),
+    Builtin(Builtin),
+    LowLevel(Builtin),
+    /// A foreign/externally-defined unconstrained function.
+    ///
+    /// `pure` is `true` when the user marked the oracle declaration with
+    /// `#[pure]`.
+    Oracle {
+        name: String,
+        pure: bool,
+    },
 }
 
 /// ID of a local definition, e.g. from a let binding or
@@ -241,7 +260,7 @@ pub struct Ident {
     pub definition: Definition,
     pub mutable: bool,
     pub name: String,
-    pub typ: Type,
+    pub typ: Rc<Type>,
     pub id: IdentId,
 }
 
@@ -278,10 +297,10 @@ pub enum Literal {
         is_vector: bool,
         typ: Type,
     },
-    Integer(SignedField, Type, Location),
+    Integer(FieldElement, Type, Location),
     Bool(bool),
     Unit,
-    Str(String),
+    Str(Vec<u8>),
     FmtStr(
         Vec<FmtStrFragment>,
         /* Number of variables in the format string. */ u64,
@@ -365,7 +384,7 @@ pub struct Index {
 }
 
 /// Rather than a Pattern containing possibly several variables, Let now
-/// defines a single variable with the given LocalId. By the time this
+/// defines a single variable with the given `LocalId`. By the time this
 /// is produced in monomorphization, let-statements with tuple and struct patterns:
 /// ```nr
 /// let MyStruct { field1, field2 } = get_struct();
@@ -382,6 +401,11 @@ pub struct Let {
     pub mutable: bool,
     pub name: String,
     pub expression: Box<Expression>,
+    /// The declared type of the binding. For mutable bindings this determines
+    /// the element type of the allocated cell, which can differ from the
+    /// initializer value's type in reference mutability (e.g. a borrow of a
+    /// mutable variable is `&mut T`-typed while the binding declares `&T`).
+    pub typ: Type,
 }
 
 #[derive(Debug, Clone, Hash)]
@@ -415,18 +439,17 @@ pub enum LValue {
         reference: Box<LValue>,
         element_type: Type,
     },
-    /// Analogous to Expression::Clone. Clone the resulting lvalue after evaluating it.
+    /// Analogous to `Expression::Clone`. Clone the resulting lvalue after evaluating it.
     Clone(Box<LValue>),
 }
 
 pub type Parameters =
-    Vec<(LocalId, /*mutable:*/ bool, /*name:*/ String, Type, Visibility)>;
+    Vec<(LocalId, /*mutable:*/ bool, /*name:*/ String, Rc<Type>, Visibility)>;
 
 /// Represents how an Acir function should be inlined.
 /// This type is only relevant for ACIR functions as we do not inline any Brillig functions
-#[derive(
-    Default, Clone, Copy, PartialEq, Eq, Debug, Hash, Serialize, Deserialize, PartialOrd, Ord,
-)]
+#[derive(Default, Clone, Copy, PartialEq, Eq, Debug, Hash, PartialOrd, Ord, EnumIter)]
+#[derive(Serialize, Deserialize)]
 pub enum InlineType {
     /// The most basic entry point can expect all its functions to be inlined.
     /// All function calls are expected to be inlined into a single ACIR.
@@ -527,39 +550,72 @@ pub struct Function {
     pub unconstrained: bool,
     pub inline_type: InlineType,
     pub is_entry_point: bool,
+
+    /// True if the source function was annotated with `#[allow(constant_return)]`,
+    /// which silences the `constant_return` warning raised during ACIR generation
+    /// when this function is an ACIR entry point whose return value is constant.
+    pub allow_constant_return: bool,
 }
 
-/// Compared to hir_def::types::Type, this monomorphized Type has:
+/// Compared to `hir_def::types::Type`, this monomorphized Type has:
 /// - All type variables and generics removed
 /// - Concrete lengths for each array and string
-/// - Several other variants removed (such as Type::Constant)
+/// - Several other variants removed (such as `Type::Constant`)
 /// - All structs replaced with tuples
 #[derive(Debug, PartialEq, Eq, Clone, Hash, PartialOrd, Ord)]
 pub enum Type {
     Field,
-    Array(/*len:*/ u32, Box<Type>), // Array(4, Field) = [Field; 4]
+    Array(/*len:*/ u32, Rc<Type>), // Array(4, Field) = [Field; 4]
     Integer(Signedness, /*bits:*/ IntegerBitSize), // u32 = Integer(unsigned, ThirtyTwo)
     Bool,
     String(/*len:*/ u32), // String(4) = str[4]
-    FmtString(/*len:*/ u32, Box<Type>),
+    FmtString(/*len:*/ u32, Rc<Type>),
     Unit,
     Tuple(Vec<Type>),
-    Vector(Box<Type>),
-    Reference(Box<Type>, /*mutable:*/ bool),
+    Vector(Rc<Type>),
+    Reference(Rc<Type>, /*mutable:*/ bool),
     /// `(args, ret, env, unconstrained)`
     Function(
         /*args:*/ Vec<Type>,
-        /*ret:*/ Box<Type>,
-        /*env:*/ Box<Type>,
+        /*ret:*/ Rc<Type>,
+        /*env:*/ Rc<Type>,
         /*unconstrained:*/ bool,
     ),
 }
+
+/// Maximum number of flattened field elements allowed at an entry point boundary,
+/// i.e. for a parameter or a return value.
+///
+/// This limit prevents hangs or out-of-memory issues when dealing with very large arrays:
+/// flattened sizes approaching `u32::MAX` cannot be represented, since Brillig arrays are
+/// heap-allocated using `u32` addressing and ACIR/data-bus construction reserves one witness
+/// per flattened element.
+///
+/// 2^24 = 16,777,216 witnesses. In practice the number of witnesses is limited by the CRS size,
+/// which is usually around 2^20, so this limit should not interfere with real use cases.
+pub const MAX_ELEMENTS: usize = 1 << 24;
 
 impl Type {
     pub fn flatten(&self) -> Vec<Type> {
         match self {
             Type::Tuple(fields) => fields.iter().flat_map(|field| field.flatten()).collect(),
             _ => vec![self.clone()],
+        }
+    }
+
+    /// Returns true if this type is, or transitively contains, a reference.
+    pub fn contains_reference(&self) -> bool {
+        match self {
+            Type::Reference(..) => true,
+            Type::Array(_, element) | Type::Vector(element) => element.contains_reference(),
+            Type::Tuple(fields) => fields.iter().any(Type::contains_reference),
+            Type::FmtString(_, fields) => fields.contains_reference(),
+            Type::Field
+            | Type::Integer(..)
+            | Type::Bool
+            | Type::String(_)
+            | Type::Unit
+            | Type::Function(..) => false,
         }
     }
 

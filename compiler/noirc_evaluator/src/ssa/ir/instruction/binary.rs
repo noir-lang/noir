@@ -384,8 +384,8 @@ impl BinaryOp {
             BinaryOp::Xor => |x, y| Some(x ^ y),
             BinaryOp::Eq => |x, y| Some(u128::from(x == y)),
             BinaryOp::Lt => |x, y| Some(u128::from(x < y)),
-            BinaryOp::Shl => |x, y| y.to_u32().and_then(|y| x.checked_shl(y)),
-            BinaryOp::Shr => |x, y| y.to_u32().and_then(|y| x.checked_shr(y)),
+            BinaryOp::Shl => |x, y| x.checked_shl(y.to_u32()?),
+            BinaryOp::Shr => |x, y| x.checked_shr(y.to_u32()?),
         }
     }
 
@@ -401,8 +401,8 @@ impl BinaryOp {
             BinaryOp::Xor => |x, y| Some(x ^ y),
             BinaryOp::Eq => |x, y| Some(i128::from(x == y)),
             BinaryOp::Lt => |x, y| Some(i128::from(x < y)),
-            BinaryOp::Shl => |x, y| y.to_u32().and_then(|y| x.checked_shl(y)),
-            BinaryOp::Shr => |x, y| y.to_u32().and_then(|y| x.checked_shr(y)),
+            BinaryOp::Shl => |x, y| x.checked_shl(y.to_u32()?),
+            BinaryOp::Shr => |x, y| x.checked_shr(y.to_u32()?),
         }
     }
 

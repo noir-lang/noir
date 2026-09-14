@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-global global1: (fn(), Field) = (|| {}, 0);
+global global1: (fn(), Field) = (|| {}, 0x00);
 
 fn main() {
     (global1.0)();

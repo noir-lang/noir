@@ -84,13 +84,14 @@ impl Formatter<'_> {
         }
 
         match attribute.kind {
-            SecondaryAttributeKind::Deprecated(message) => {
-                self.format_deprecated_attribute(message);
+            SecondaryAttributeKind::Deprecated(deny, message) => {
+                self.format_deprecated_attribute(deny, message);
             }
             SecondaryAttributeKind::ContractLibraryMethod
             | SecondaryAttributeKind::Export
             | SecondaryAttributeKind::Varargs
-            | SecondaryAttributeKind::UseCallersScope => {
+            | SecondaryAttributeKind::UseCallersScope
+            | SecondaryAttributeKind::Pure => {
                 self.format_no_args_attribute();
             }
             SecondaryAttributeKind::Field(_)
@@ -112,15 +113,25 @@ impl Formatter<'_> {
         self.write_line();
     }
 
-    fn format_deprecated_attribute(&mut self, message: Option<String>) {
+    fn format_deprecated_attribute(&mut self, deny: bool, message: Option<String>) {
         self.write_current_token_and_bump(); // #[
         self.skip_comments_and_whitespace();
-        if message.is_some() {
+        if deny || message.is_some() {
             self.write_current_token_and_bump(); // deprecated
             self.write_left_paren(); // (
-            self.skip_comments_and_whitespace(); // message
-            self.write_current_token_and_bump(); // )
-            self.write_right_paren();
+            self.skip_comments_and_whitespace();
+
+            if deny {
+                self.write_current_token_and_bump(); // deny
+            }
+            if deny && message.is_some() {
+                self.write_comma(); // ,
+            }
+            if message.is_some() {
+                self.write_current_token_and_bump(); // message
+            }
+
+            self.write_right_paren(); // )
         } else {
             self.write_current_token_and_bump();
         }

@@ -1,9 +1,10 @@
 //! This file contains tests for hash operations.
 //! 1) blake2s
 //! 2) blake3
-//! 3) aes128_encrypt
+//! 3) `aes128_encrypt`
 //! 4) keccakf1600
-//! 5) sha256_compression
+//! 5) `sha256_compression`
+//! 6) `poseidon2_permutation`
 use crate::function_context::{FunctionData, FuzzerFunctionCommand};
 use crate::fuzz_target_lib::fuzz_target;
 use crate::fuzzer::FuzzerData;
@@ -14,14 +15,16 @@ use acvm::FieldElement;
 use noir_ssa_fuzzer::typed_value::NumericType;
 use noir_ssa_fuzzer::typed_value::Type;
 
-/// blake2s(to_le_radix(0, 256, 32)) == blake2s computed with noir
+/// `blake2s(to_le_radix(0, 256, 32))` == blake2s computed with noir
 ///
+/// ```noir
 /// fn main(x: u8) -> pub Field {
 ///     let x = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 ///     let hash = std::hash::blake2s(x);
 ///     Field::from_le_bytes::<32>(hash)
 /// }
-/// [nargo_tests] Circuit output: Field(-9211429028062209127175291049466917975585300944217240748738694765619842249938)
+/// ```
+/// [`nargo_tests`] Circuit output: Field(-9211429028062209127175291049466917975585300944217240748738694765619842249938)
 #[test]
 fn smoke_test_blake2s_hash() {
     let _ = env_logger::try_init();
@@ -58,14 +61,16 @@ fn smoke_test_blake2s_hash() {
     }
 }
 
-/// blake3(to_le_radix(0, 256, 32)) == blake3 computed with noir
+/// `blake3(to_le_radix(0, 256, 32))` == blake3 computed with noir
 ///
+/// ```noir
 /// fn main(x: u8) -> pub Field {
 ///     let x = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 ///     let hash = std::hash::blake3(x);
 ///     Field::from_le_bytes::<32>(hash)
 /// }
-/// [nargo_tests] Circuit output: Field(11496696481601359239189947342432058980836600577383371976100559912527609453094)
+/// ```
+/// [`nargo_tests`] Circuit output: Field(11496696481601359239189947342432058980836600577383371976100559912527609453094)
 #[test]
 fn smoke_test_blake3_hash() {
     let _ = env_logger::try_init();
@@ -102,6 +107,7 @@ fn smoke_test_blake3_hash() {
     }
 }
 
+/// ```noir
 /// fn main() -> pub Field {
 ///     let input: [u8; 16] = b.to_le_radix(256);
 ///     let iv: [u8; 16] = b.to_le_radix(256);
@@ -110,8 +116,9 @@ fn smoke_test_blake3_hash() {
 ///     // so output size equals input size (16 bytes).
 ///     Field::from_le_bytes(aes128_encrypt(input, iv, key))
 /// }
+/// ```
 ///
-/// [nargo_tests] Circuit output: Field(61368827288258104251737371505591052646)
+/// [`nargo_tests`] Circuit output: Field(61368827288258104251737371505591052646)
 #[test]
 fn smoke_test_aes128_encrypt() {
     let _ = env_logger::try_init();
@@ -150,12 +157,14 @@ fn smoke_test_aes128_encrypt() {
     }
 }
 
+/// ```noir
 /// fn main(a: Field, b: Field) -> pub u64 {
 ///     let input: [u64; 25] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 ///     std::hash::keccakf1600(input)[24]
 /// }
+/// ```
 ///
-/// [nargo_tests] Circuit output: Field(16929593379567477321)
+/// [`nargo_tests`] Circuit output: Field(16929593379567477321)
 #[test]
 fn smoke_test_keccakf1600() {
     let _ = env_logger::try_init();
@@ -201,13 +210,15 @@ fn smoke_test_keccakf1600() {
     }
 }
 
+/// ```noir
 /// fn main(a: Field, b: Field) -> pub u32 {
 ///     let input: [u32; 16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 ///     let state: [u32; 8] = [0, 0, 0, 0, 0, 0, 0, 0];
 ///     std::hash::sha256_compression(input, state)[7]
 /// }
+/// ```
 ///
-/// [nargo_tests] Circuit output: Field(3205228454)
+/// [`nargo_tests`] Circuit output: Field(3205228454)
 #[test]
 fn smoke_test_sha256_compression() {
     let _ = env_logger::try_init();
@@ -243,6 +254,53 @@ fn smoke_test_sha256_compression() {
         }
         false => {
             assert_eq!(result.get_return_witnesses()[0], FieldElement::from(3205228454_u32));
+        }
+    }
+}
+
+/// ```noir
+/// fn main(a: Field, b: Field) -> pub Field {
+///     let input: [Field; 4] = [0, 0, 0, 0];
+///     std::hash::poseidon2_permutation(input, 4)[3]
+/// }
+/// ```
+///
+/// [`bn254_blackbox_solver`] Circuit output: Field(11146950474414891597227044764052461669681231042712299889367802215497079123309)
+#[test]
+fn smoke_test_poseidon2_permutation() {
+    let _ = env_logger::try_init();
+    let poseidon2_permutation_block = InstructionBlock {
+        instructions: vec![Instruction::Poseidon2Permutation {
+            field_indices: [0; 4],
+            load_elements_of_array: true,
+        }],
+    };
+    let instructions_blocks = vec![poseidon2_permutation_block];
+    let commands = vec![];
+    let main_func = FunctionData {
+        input_types: default_input_types(),
+        commands,
+        return_instruction_block_idx: 0,
+        return_type: Type::Numeric(NumericType::Field),
+    };
+    let fuzzer_data = FuzzerData {
+        instruction_blocks: instructions_blocks,
+        functions: vec![main_func],
+        initial_witness: default_witness(),
+    };
+    let result = fuzz_target(fuzzer_data, default_runtimes(), FuzzerOptions::default());
+    match result.get_return_witnesses().is_empty() {
+        true => {
+            panic!("Program failed to execute");
+        }
+        false => {
+            assert_eq!(
+                result.get_return_witnesses()[0],
+                FieldElement::try_from_str(
+                    "11146950474414891597227044764052461669681231042712299889367802215497079123309"
+                )
+                .unwrap()
+            );
         }
     }
 }

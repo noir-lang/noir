@@ -37,7 +37,7 @@ pub fn prepare_dependencies(
     parent_crate: CrateId,
     dependencies: &BTreeMap<CrateName, Dependency>,
 ) {
-    for (dep_name, dep) in dependencies.iter() {
+    for (dep_name, dep) in dependencies {
         match dep {
             Dependency::Remote { package } | Dependency::Local { package } => {
                 let crate_id = prepare_dependency(context, &package.entry_path);
@@ -75,7 +75,7 @@ pub fn insert_all_files_for_workspace_into_file_manager_with_overrides(
     // doesn't exist in the filesystem.
     let mut filenames = Vec::new();
     let mut seen_filenames = HashSet::new();
-    for package in workspace.clone().into_iter() {
+    for package in &workspace.clone() {
         collect_all_files_in_package(
             package,
             &mut filenames,
@@ -170,7 +170,7 @@ fn collect_all_files_in_packages_dependencies(
     seen_filenames: &mut HashSet<PathBuf>,
     processed_entry_paths: &mut HashSet<PathBuf>,
 ) {
-    for (_, dep) in package.dependencies.iter() {
+    for dep in package.dependencies.values() {
         match dep {
             Dependency::Local { package } | Dependency::Remote { package } => {
                 collect_all_files_in_package(

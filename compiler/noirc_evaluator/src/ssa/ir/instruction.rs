@@ -9,6 +9,7 @@ use acvm::{
 };
 use iter_extended::vecmap;
 use noirc_frontend::hir_def::types::Type as HirType;
+use noirc_frontend::shared::Builtin;
 
 use crate::ssa::{ir::integer::IntegerConstant, opt::pure::Purity};
 
@@ -26,7 +27,7 @@ pub use binary::{Binary, BinaryOp};
 
 /// Reference to an instruction
 ///
-/// Note that InstructionIds are not unique. That is, two InstructionIds
+/// Note that `InstructionIds` are not unique. That is, two `InstructionIds`
 /// may refer to the same Instruction data. This is because, although
 /// identical, instructions may have different results based on their
 /// placement within a block.
@@ -35,60 +36,68 @@ pub(crate) type InstructionId = Id<Instruction>;
 /// These are similar to built-ins in other languages.
 /// These can be classified under two categories:
 /// - Opcodes which the IR knows the target machine has
-///   special support for. (LowLevel)
+///   special support for. (`LowLevel`)
 /// - Opcodes which have no function definition in the
 ///   source code and must be processed by the IR.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Intrinsic {
-    /// ArrayLen - returns the length of the input array
+    /// `ArrayLen` - returns the length of the input array
     /// argument: array (value id)
     /// result: length of the array, panic if the input is not an array
     ArrayLen,
-    /// ArrayAsStrUnchecked - Converts a byte array of type `[u8; N]` to a string
+    /// `ArrayAsStrUnchecked` - Converts a byte array of type `[u8; N]` to a string
     /// argument: array (value id)
     /// result: str
     ArrayAsStrUnchecked,
-    /// AsVector
+    /// `AsVector`
     /// argument: value id
     /// result: a vector containing the elements of the argument. Panic if the value id does not correspond to an `array` type
     AsVector,
-    /// AssertConstant - Enforce the argument to be a constant value, at compile time.
+    /// `AssertConstant` - Enforce the argument to be a constant value, at compile time.
     /// argument: value id
     /// result: (), panic if the argument does not resolve to a constant value
     AssertConstant,
-    /// StaticAssert - Enforce the first argument to be true, at compile time
+    /// `StaticAssert` - Enforce the first argument to be true, at compile time
     /// arguments: boolean (value id), ...message. The message can be a `format string` of several arguments
     /// result: (), panic if the arguments do not resolve to constant values or if the first one is false.
     StaticAssert,
-    /// VectorPushBack - Add elements at the end of a vector
-    /// arguments:  vector length, vector contents, ...elements_to_push
+    /// `VectorPushBack` - Add elements at the end of a vector
+    /// arguments:  vector length, vector contents, ...`elements_to_push`
     /// result: a vector containing `vector contents,..elements_to_push`
     VectorPushBack,
-    /// VectorPushFront - Add elements at the start of a vector
-    /// arguments:  vector length, vector contents, ...elements_to_push
+    /// `VectorPushFront` - Add elements at the start of a vector
+    /// arguments:  vector length, vector contents, ...`elements_to_push`
     /// result: a vector containing `..elements_to_push, vector contents`
     VectorPushFront,
-    /// VectorPopBack - Removes the last element of a vector
+    /// `VectorPopBack` - Removes the last element of a vector. Checking if the vector is non-empty
+    /// is the responsibility of this intrinsic, but only in ACIR. In Brillig it's expected
+    /// that a previous check has been inserted.
     /// arguments: vector length, vector contents
     /// result: a vector without the last element of `vector contents`
     VectorPopBack,
-    /// VectorPopFront - Removes the first element of a vector
+    /// `VectorPopFront` - Removes the first element of a vector. Checking if the vector is non-empty
+    /// is the responsibility of this intrinsic, but only in ACIR. In Brillig it's expected
+    /// that a previous check has been inserted.
     /// arguments: vector length, vector contents
     /// result: a vector without the first element of `vector contents`
     VectorPopFront,
-    /// VectorInsert - Insert elements inside a vector.
-    /// arguments: vector length, vector contents, insert index, ...elements_to_insert
-    /// result: a vector with ...elements_to_insert inserted at the `insert index`
+    /// `VectorInsert` - Insert elements inside a vector. Checking if the index is in bounds
+    /// is not the responsibility of this intrinsic. Instead, a previous check is expected to
+    /// have been inserted.
+    /// arguments: vector length, vector contents, insert index, ...`elements_to_insert`
+    /// result: a vector with ...`elements_to_insert` inserted at the `insert index`
     VectorInsert,
-    /// VectorRemove - Removes an element from a vector
+    /// `VectorRemove` - Removes an element from a vector. Checking if the index is in bounds
+    /// is not the responsibility of this intrinsic. Instead, a previous check is expected to
+    /// have been inserted.
     /// arguments: vector length, vector contents, remove index
     /// result: a vector with without the element at `remove index`
     VectorRemove,
-    /// ApplyRangeConstraint - Enforces the `bit size` of the first argument via a range check.
+    /// `ApplyRangeConstraint` - Enforces the `bit size` of the first argument via a range check.
     /// arguments: value id, bit size (constant)
-    /// result: applies a range check constraint to the input. It is replaced by a RangeCheck instruction during simplification.
+    /// result: applies a range check constraint to the input. It is replaced by a `RangeCheck` instruction during simplification.
     ApplyRangeConstraint,
-    /// StrAsBytes - Convert a `str` into a byte array of type `[u8; N]`
+    /// `StrAsBytes` - Convert a `str` into a byte array of type `[u8; N]`
     /// arguments: value id
     /// result: the argument. Internally a `str` is a byte array.
     StrAsBytes,
@@ -102,35 +111,35 @@ pub enum Intrinsic {
     /// result: an array whose elements are the decomposition of the argument into the `radix` base, in the endian order depending on the chosen variant.
     /// The type of the result gives the number of limbs to use for the decomposition.
     ToRadix(Endian),
-    /// BlackBox(BlackBoxFunc) - Calls a blackbox function. More details can be found here: [acvm-repo::acir::::circuit::opcodes::BlackBoxFuncCall]
+    /// BlackBox(BlackBoxFunc) - Calls a blackbox function. More details can be found here: [`acvm-repo::acir::::circuit::opcodes::BlackBoxFuncCall`]
     BlackBox(BlackBoxFunc),
     /// Hint(Hint) - Avoid its arguments to be removed by DIE.
     /// arguments: ... value id
     /// result: the arguments. Hint does not layout any constraint but avoid its arguments to be simplified out during SSA transformations
     Hint(Hint),
-    /// AsWitness - Adds a new witness constrained to be equal to the argument
+    /// `AsWitness` - Adds a new witness constrained to be equal to the argument
     /// arguments: value id
     /// result: the argument
     AsWitness,
-    /// IsUnconstrained - Indicates if the execution context is constrained or unconstrained
+    /// `IsUnconstrained` - Indicates if the execution context is constrained or unconstrained
     /// argument: ()
     /// result: true if execution is under unconstrained context, false else.
     IsUnconstrained,
-    /// DerivePedersenGenerators - Computes the Pedersen generators
-    /// arguments: domain_separator_string (constant string), starting_index (constant)
+    /// `DerivePedersenGenerators` - Computes the Pedersen generators
+    /// arguments: `domain_separator_string` (constant string), `starting_index` (constant)
     /// result: array of elliptic curve points (Grumpkin) containing the generators.
     /// The type of the result gives the number of generators to compute.
     DerivePedersenGenerators,
-    /// FieldLessThan - Compare the arguments: `lhs` < `rhs`
+    /// `FieldLessThan` - Compare the arguments: `lhs` < `rhs`
     /// arguments: lhs, rhs. Field elements
     /// result: true if `lhs` mod p < `rhs` mod p (p being the field characteristic), false else
     FieldLessThan,
-    /// ArrayRefCount - Gives the reference count of the array
+    /// `ArrayRefCount` - Gives the reference count of the array
     /// argument: array (value id)
     /// result: reference count of `array`. In unconstrained context, the reference count is stored alongside the array.
     /// in constrained context, it will be 0.
     ArrayRefCount,
-    /// VectorRefCount - Gives the reference count of the vector
+    /// `VectorRefCount` - Gives the reference count of the vector
     /// arguments: vector length, vector contents (value id)
     /// result: reference count of `vector`. In unconstrained context, the reference count is stored alongside the vector.
     /// in constrained context, it will be 0.
@@ -191,13 +200,14 @@ impl Intrinsic {
             Intrinsic::ToBits(_) | Intrinsic::ToRadix(_) => true,
 
             // These imply a check that the vector is non-empty and should fail otherwise.
-            Intrinsic::VectorPopBack | Intrinsic::VectorPopFront | Intrinsic::VectorRemove | Intrinsic::VectorInsert => true,
+            Intrinsic::VectorPopBack | Intrinsic::VectorPopFront | Intrinsic::VectorRemove => true,
 
             Intrinsic::ArrayLen
             | Intrinsic::ArrayAsStrUnchecked
             | Intrinsic::AsVector
             | Intrinsic::VectorPushBack
             | Intrinsic::VectorPushFront
+            | Intrinsic::VectorInsert
             | Intrinsic::StrAsBytes
             | Intrinsic::IsUnconstrained
             | Intrinsic::DerivePedersenGenerators
@@ -209,6 +219,47 @@ impl Intrinsic {
             // Some black box functions have side-effects
             Intrinsic::BlackBox(func) => func.has_side_effects(),
         }
+    }
+
+    /// Returns true if eliding the ownership pass's `Clone` around this intrinsic's
+    /// argument would be unsafe in Brillig, even though the intrinsic is otherwise
+    /// "pure" (no observable side effects). Two cases qualify:
+    ///
+    /// * Vector mutators (`push`/`pop`/`insert`/`remove`) can write through the input
+    ///   pointer when the copy-on-write reference count is 1.
+    /// * `StrAsBytes` and `ArrayAsStrUnchecked` simplify to their input value, so the
+    ///   returned array aliases the source. A later `array_set` against the result
+    ///   would, under RC=1 COW, mutate the source as well.
+    pub(crate) fn unsafe_for_clone_elision_in_brillig(&self) -> bool {
+        matches!(
+            self,
+            Intrinsic::VectorPushBack
+                | Intrinsic::VectorPushFront
+                | Intrinsic::VectorPopBack
+                | Intrinsic::VectorPopFront
+                | Intrinsic::VectorInsert
+                | Intrinsic::VectorRemove
+                | Intrinsic::StrAsBytes
+                | Intrinsic::ArrayAsStrUnchecked
+        )
+    }
+
+    /// Returns true if this intrinsic may write through its vector operand in place in Brillig,
+    /// i.e. when that operand's copy-on-write reference count is 1.
+    ///
+    /// This is the subset of [`Self::unsafe_for_clone_elision_in_brillig`] that actually mutates:
+    /// `StrAsBytes` and `ArrayAsStrUnchecked` are unsafe to elide a clone around because their
+    /// result aliases their operand, not because they write to it.
+    pub(crate) fn mutates_array_operand_in_brillig(&self) -> bool {
+        matches!(
+            self,
+            Intrinsic::VectorPushBack
+                | Intrinsic::VectorPushFront
+                | Intrinsic::VectorPopBack
+                | Intrinsic::VectorPopFront
+                | Intrinsic::VectorInsert
+                | Intrinsic::VectorRemove
+        )
     }
 
     pub(crate) fn purity(&self) -> Purity {
@@ -225,56 +276,105 @@ impl Intrinsic {
 
             // Operations that remove items from a vector don't modify the vector, they just assert it's non-empty.
             // Vector insert also reads from its input vector, thus needing to assert that it is non-empty.
+            // Vector push back's ACIR lowering multiplies the write index by the side-effects predicate,
+            // so deduplicating two pushes across different `enable_side_effects` predicates is unsound.
             Intrinsic::VectorPopBack
             | Intrinsic::VectorPopFront
             | Intrinsic::VectorRemove
-            | Intrinsic::VectorInsert => Purity::PureWithPredicate,
+            | Intrinsic::VectorInsert
+            | Intrinsic::VectorPushBack => Purity::PureWithPredicate,
+
+            // Unlike the vector operations above, `vector_push_front` needs no
+            // non-emptiness assertion and its ACIR lowering does not read the
+            // side-effects variable. It still must not be fully `Pure`: in Brillig it
+            // may write through its vector argument in place when the argument's
+            // runtime reference count is 1, so a pass that moves `Pure` calls freely
+            // (e.g. loop-invariant code motion) could separate it from the `inc_rc`
+            // that makes the mutation unobservable, or execute it on a path where the
+            // source program never runs it. Note that this purity only covers moving
+            // or deduplicating the intrinsic call itself: a Brillig function calling a
+            // vector mutator on its own array parameter can mutate a buffer its caller
+            // still holds, so `Function::is_pure` classifies such a wrapper `Impure`.
+            Intrinsic::VectorPushFront => Purity::PureWithPredicate,
 
             Intrinsic::AssertConstant
             | Intrinsic::StaticAssert
             | Intrinsic::ApplyRangeConstraint
             | Intrinsic::AsWitness => Purity::PureWithPredicate,
 
-            _ if self.has_side_effects() => Purity::Impure,
-            _ => Purity::Pure,
+            // Reference counts are runtime state stored next to the array contents:
+            // reading one is ordering-dependent on the rc traffic around it, so these
+            // calls cannot be moved or deduplicated.
+            Intrinsic::ArrayRefCount | Intrinsic::VectorRefCount => Purity::Impure,
+
+            // Deliberately opaque to the optimizer.
+            Intrinsic::Hint(Hint::BlackBox) => Purity::Impure,
+
+            Intrinsic::ArrayLen
+            | Intrinsic::ArrayAsStrUnchecked
+            | Intrinsic::AsVector
+            | Intrinsic::StrAsBytes
+            | Intrinsic::IsUnconstrained
+            | Intrinsic::DerivePedersenGenerators
+            | Intrinsic::FieldLessThan
+            | Intrinsic::BlackBox(_) => Purity::Pure,
         }
     }
 
     /// Lookup an Intrinsic by name and return it if found.
     /// If there is no such intrinsic by that name, None is returned.
+    ///
+    /// This is only used where a name arrives as text (e.g. the SSA parser); the
+    /// compilation pipeline resolves names to [`Builtin`] once, in the frontend,
+    /// and maps them here via [`Self::from_builtin`].
     pub(crate) fn lookup(name: &str) -> Option<Intrinsic> {
-        match name {
-            "array_len" => Some(Intrinsic::ArrayLen),
-            "array_as_str_unchecked" => Some(Intrinsic::ArrayAsStrUnchecked),
-            "as_vector" => Some(Intrinsic::AsVector),
-            "assert_constant" => Some(Intrinsic::AssertConstant),
-            "static_assert" => Some(Intrinsic::StaticAssert),
-            "apply_range_constraint" => Some(Intrinsic::ApplyRangeConstraint),
-            "vector_push_back" => Some(Intrinsic::VectorPushBack),
-            "vector_push_front" => Some(Intrinsic::VectorPushFront),
-            "vector_pop_back" => Some(Intrinsic::VectorPopBack),
-            "vector_pop_front" => Some(Intrinsic::VectorPopFront),
-            "vector_insert" => Some(Intrinsic::VectorInsert),
-            "vector_remove" => Some(Intrinsic::VectorRemove),
-            "str_as_bytes" => Some(Intrinsic::StrAsBytes),
-            "to_le_radix" => Some(Intrinsic::ToRadix(Endian::Little)),
-            "to_be_radix" => Some(Intrinsic::ToRadix(Endian::Big)),
-            "to_le_bits" => Some(Intrinsic::ToBits(Endian::Little)),
-            "to_be_bits" => Some(Intrinsic::ToBits(Endian::Big)),
-            "as_witness" => Some(Intrinsic::AsWitness),
-            "is_unconstrained" => Some(Intrinsic::IsUnconstrained),
-            "derive_pedersen_generators" => Some(Intrinsic::DerivePedersenGenerators),
-            "field_less_than" => Some(Intrinsic::FieldLessThan),
-            "black_box" => Some(Intrinsic::Hint(Hint::BlackBox)),
-            "array_refcount" => Some(Intrinsic::ArrayRefCount),
-            "vector_refcount" => Some(Intrinsic::VectorRefCount),
+        Builtin::lookup(name).and_then(Self::from_builtin)
+    }
 
-            other => BlackBoxFunc::lookup(other).map(Intrinsic::BlackBox),
+    /// Map a frontend [`Builtin`] to the [`Intrinsic`] implementing it, or `None`
+    /// for builtins that never reach SSA (comptime-only builtins, and those the
+    /// monomorphizer evaluates away).
+    ///
+    /// `noirc_frontend::ownership::builtin_supports_clone_elision` keeps its own
+    /// clone-elision classification of these builtins (it cannot depend on this
+    /// crate). When adding or reclassifying a builtin here, update it as well;
+    /// `ownership_clone_elision_list_matches_intrinsic_purity` in `ssa_gen::tests`
+    /// checks the two agree.
+    pub(crate) fn from_builtin(builtin: Builtin) -> Option<Intrinsic> {
+        match builtin {
+            Builtin::ArrayLen => Some(Intrinsic::ArrayLen),
+            Builtin::ArrayAsStrUnchecked => Some(Intrinsic::ArrayAsStrUnchecked),
+            Builtin::AsVector => Some(Intrinsic::AsVector),
+            Builtin::AssertConstant => Some(Intrinsic::AssertConstant),
+            Builtin::StaticAssert => Some(Intrinsic::StaticAssert),
+            Builtin::ApplyRangeConstraint => Some(Intrinsic::ApplyRangeConstraint),
+            Builtin::VectorPushBack => Some(Intrinsic::VectorPushBack),
+            Builtin::VectorPushFront => Some(Intrinsic::VectorPushFront),
+            Builtin::VectorPopBack => Some(Intrinsic::VectorPopBack),
+            Builtin::VectorPopFront => Some(Intrinsic::VectorPopFront),
+            Builtin::VectorInsert => Some(Intrinsic::VectorInsert),
+            Builtin::VectorRemove => Some(Intrinsic::VectorRemove),
+            Builtin::StrAsBytes => Some(Intrinsic::StrAsBytes),
+            Builtin::ToLeRadix => Some(Intrinsic::ToRadix(Endian::Little)),
+            Builtin::ToBeRadix => Some(Intrinsic::ToRadix(Endian::Big)),
+            Builtin::ToLeBits => Some(Intrinsic::ToBits(Endian::Little)),
+            Builtin::ToBeBits => Some(Intrinsic::ToBits(Endian::Big)),
+            Builtin::AsWitness => Some(Intrinsic::AsWitness),
+            Builtin::IsUnconstrained => Some(Intrinsic::IsUnconstrained),
+            Builtin::DerivePedersenGenerators => Some(Intrinsic::DerivePedersenGenerators),
+            Builtin::FieldLessThan => Some(Intrinsic::FieldLessThan),
+            Builtin::BlackBoxHint => Some(Intrinsic::Hint(Hint::BlackBox)),
+            Builtin::ArrayRefcount => Some(Intrinsic::ArrayRefCount),
+            Builtin::VectorRefcount => Some(Intrinsic::VectorRefCount),
+
+            Builtin::BlackBox(func) => Some(Intrinsic::BlackBox(func)),
+
+            _ => None,
         }
     }
 }
 
-/// The endian-ness of bits when encoding values as bits in e.g. ToBits or ToRadix
+/// The endian-ness of bits when encoding values as bits in e.g. `ToBits` or `ToRadix`
 #[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Endian {
     Big,
@@ -359,22 +459,24 @@ pub enum Instruction {
     ArrayGet { array: ValueId, index: ValueId },
 
     /// Creates a new array with the new value at the given index. All other elements are identical
-    /// to those in the given array. This will not modify the original array unless `mutable` is
+    /// to those in the given array.
+    /// In ACIR this will not modify the original array unless `mutable` is
     /// set. This flag is off by default and only enabled when optimizations determine it is safe.
+    /// In Brillig, this might modify the original array if the array's reference count is 1.
     ArraySet { array: ValueId, index: ValueId, value: ValueId, mutable: bool },
 
     /// An instruction to increment the reference count of a value.
     ///
     /// This currently only has an effect in Brillig code where array sharing and copy on write is
-    /// implemented via reference counting. In ACIR code this is done with im::Vector and these
-    /// IncrementRc instructions are ignored.
+    /// implemented via reference counting. In ACIR code this is done with `imbl::Vector` and these
+    /// `IncrementRc` instructions are ignored.
     IncrementRc { value: ValueId },
 
     /// An instruction to decrement the reference count of a value.
     ///
     /// This currently only has an effect in Brillig code where array sharing and copy on write is
-    /// implemented via reference counting. In ACIR code this is done with im::Vector and these
-    /// DecrementRc instructions are ignored.
+    /// implemented via reference counting. In ACIR code this is done with `imbl::Vector` and these
+    /// `DecrementRc` instructions are ignored.
     DecrementRc { value: ValueId },
 
     /// Merge two values returned from opposite branches of a conditional into one.
@@ -397,12 +499,12 @@ pub enum Instruction {
     ///
     /// `typ` should be an array or vector type with an element type
     /// matching each of the `elements` values' types.
-    MakeArray { elements: im::Vector<ValueId>, typ: Type },
+    MakeArray { elements: imbl::Vector<ValueId>, typ: Type },
 
     /// A No-op instruction. These are intended to replace other instructions in a block's
     /// instructions vector without having to move each instruction afterward.
     ///
-    /// A No-op has no results and is always removed when Instruction::simplify is called.
+    /// A No-op has no results and is always removed when `Instruction::simplify` is called.
     /// When replacing another instruction, the instruction's results should always be mapped to a
     /// new value since they will not be able to refer to their original instruction value any more.
     Noop,
@@ -442,7 +544,7 @@ impl Instruction {
     }
 
     /// True if this instruction requires specifying the control type variables when
-    /// inserting this instruction into a DataFlowGraph.
+    /// inserting this instruction into a `DataFlowGraph`.
     pub(crate) fn requires_ctrl_typevars(&self) -> bool {
         matches!(self.result_type(), InstructionResultType::Unknown)
     }
@@ -468,19 +570,28 @@ impl Instruction {
             | Instruction::ConstrainNotEqual(..) => true,
 
             Instruction::Call { func, .. } => match dfg[*func] {
-                Value::Function(id) => !matches!(dfg.purity_of(id), Some(Purity::Pure)),
+                // All user-defined function calls are predicated during ACIR generation
+                // (both ACIR and Brillig calls unconditionally pass the side effects predicate),
+                // so this must return true regardless of purity.
+                Value::Function(_) => true,
                 Value::Intrinsic(intrinsic) => {
                     match intrinsic {
                         // These utilize `noirc_evaluator::acir::Context::get_flattened_index` internally
                         // which uses the side effects predicate.
                         Intrinsic::VectorInsert | Intrinsic::VectorRemove => true,
-                        // Technically these don't use the side effects predicate, but they fail on empty vectors,
-                        // and by pretending that they require the predicate, we can preserve any current side
-                        // effect variable in the SSA and use it to optimize out memory operations that we know
-                        // would fail, but they shouldn't because they might be disabled.
+                        // The heterogeneous vector path in ACIR lowering uses
+                        // `get_flattened_index` which reads the side-effects predicate
+                        // to guard the element-type-sizes memory lookup.
+                        Intrinsic::VectorPushBack => true,
+                        // These consult the side effects predicate during ACIR gen: a pop from a
+                        // vector whose backing store is empty asserts the predicate is false, and
+                        // a pop of a non-constant length predicates its emptiness assertion and
+                        // gates the decremented index. Reporting `true` also preserves the current
+                        // side effect variable in the SSA, which is used to optimize out memory
+                        // operations that would fail but shouldn't because they might be disabled.
                         Intrinsic::VectorPopFront | Intrinsic::VectorPopBack => true,
                         // RecursiveAggregation's predicate is injected implicitly from
-                        // `current_side_effects_enabled_var` during ACIR generation, so we
+                        // the side-effects predicate during ACIR generation, so we
                         // must preserve the EnableSideEffectsIf that sets it.
                         Intrinsic::BlackBox(BlackBoxFunc::RecursiveAggregation) => true,
                         _ => false,
@@ -537,7 +648,7 @@ impl Instruction {
                 | BinaryOp::Sub { unchecked: false }
                 | BinaryOp::Mul { unchecked: false } => {
                     let typ = dfg.type_of_value(binary.lhs);
-                    !matches!(typ, Type::Numeric(NumericType::NativeField))
+                    !matches!(*typ, Type::Numeric(NumericType::NativeField))
                 }
                 BinaryOp::Div | BinaryOp::Mod => {
                     // If we don't know rhs at compile time, it might be zero or -1
@@ -600,15 +711,26 @@ impl Instruction {
     }
 
     /// Replaces values present in this instruction with other values according to the given mapping.
-    pub(crate) fn replace_values(&mut self, mapping: &ValueMapping) {
-        if !mapping.is_empty() {
-            self.map_values_mut(|value_id| mapping.get(value_id));
+    ///
+    /// Returns `true` if any value was actually replaced.
+    pub(crate) fn replace_values(&mut self, mapping: &ValueMapping) -> bool {
+        if mapping.is_empty() {
+            return false;
         }
+        let mut changed = false;
+        self.map_values_mut(|value_id| {
+            let new_value = mapping.get(value_id);
+            if new_value != value_id {
+                changed = true;
+            }
+            new_value
+        });
+        changed
     }
 
-    /// Maps each ValueId inside this instruction to a new ValueId, returning the new instruction.
-    /// Note that the returned instruction is fresh and will not have an assigned InstructionId
-    /// until it is manually inserted in a DataFlowGraph later.
+    /// Maps each `ValueId` inside this instruction to a new `ValueId`, returning the new instruction.
+    /// Note that the returned instruction is fresh and will not have an assigned `InstructionId`
+    /// until it is manually inserted in a `DataFlowGraph` later.
     pub(crate) fn map_values(&self, mut f: impl FnMut(ValueId) -> ValueId) -> Instruction {
         match self {
             Instruction::Binary(binary) => Instruction::Binary(Binary {
@@ -635,7 +757,7 @@ impl Instruction {
                             payload_values.iter().map(|&value| f(value)).collect(),
                         )
                     }
-                    _ => error.clone(),
+                    ConstrainError::StaticString(_) => error.clone(),
                 });
                 Instruction::Constrain(lhs, rhs, assert_message)
             }
@@ -651,7 +773,7 @@ impl Instruction {
                             payload_values.iter().map(|&value| f(value)).collect(),
                         )
                     }
-                    _ => error.clone(),
+                    ConstrainError::StaticString(_) => error.clone(),
                 });
                 Instruction::ConstrainNotEqual(lhs, rhs, assert_message)
             }
@@ -702,7 +824,7 @@ impl Instruction {
         }
     }
 
-    /// Maps each ValueId inside this instruction to a new ValueId in place.
+    /// Maps each `ValueId` inside this instruction to a new `ValueId` in place.
     pub(crate) fn map_values_mut(&mut self, mut f: impl FnMut(ValueId) -> ValueId) {
         match self {
             Instruction::Binary(binary) => {
@@ -749,9 +871,7 @@ impl Instruction {
                 *value = f(*value);
             }
             Instruction::IncrementRc { value } => *value = f(*value),
-            Instruction::DecrementRc { value } => {
-                *value = f(*value);
-            }
+            Instruction::DecrementRc { value } => *value = f(*value),
             Instruction::RangeCheck { value, max_bit_size: _, assert_message: _ } => {
                 *value = f(*value);
             }
@@ -834,9 +954,16 @@ impl Instruction {
             Instruction::Noop => (),
         }
     }
+
+    /// Returns true if any value in this instruction satisfies the predicate.
+    pub(crate) fn any_value(&self, mut f: impl FnMut(ValueId) -> bool) -> bool {
+        let mut found = false;
+        self.for_each_value(|v| found |= f(v));
+        found
+    }
 }
 
-/// Determines whether an ArrayGet or ArraySet index has been shifted by a given value.
+/// Determines whether an `ArrayGet` or `ArraySet` index has been shifted by a given value.
 /// Offsets are set during `crate::ssa::opt::brillig_array_gets` for brillig arrays
 /// and vectors with constant indices.
 #[derive(Debug, PartialEq, Eq, Hash, Copy, Clone, Serialize, Deserialize)]
@@ -875,12 +1002,9 @@ impl Binary {
             | BinaryOp::Mul { unchecked: false } => {
                 match dfg.type_of_value(self.rhs).unwrap_numeric() {
                     NumericType::NativeField => false,
-                    // Some binary math can overflow or underflow for non-field types.
-                    NumericType::Unsigned { .. } => true,
-                    // However, we assume that signed types should have already been expanded using unsigned operations.
-                    NumericType::Signed { .. } => {
-                        unreachable!("signed instructions should have been already expanded")
-                    }
+                    // Non-field integer arithmetic can overflow or underflow, so it needs a
+                    // predicate to guard the side effect.
+                    NumericType::Unsigned { .. } | NumericType::Signed { .. } => true,
                 }
             }
             BinaryOp::Shl | BinaryOp::Shr => {
@@ -952,7 +1076,7 @@ impl From<String> for Box<ConstrainError> {
     }
 }
 
-/// The possible return values for Instruction::return_types
+/// The possible return values for `Instruction::return_types`
 pub(crate) enum InstructionResultType {
     /// The result type of this instruction matches that of this operand
     Operand(ValueId),
@@ -985,14 +1109,16 @@ pub(crate) enum TerminatorInstruction {
     JmpIf {
         condition: ValueId,
         then_destination: BasicBlockId,
+        then_arguments: Vec<ValueId>,
         else_destination: BasicBlockId,
+        else_arguments: Vec<ValueId>,
         call_stack: CallStackId,
     },
 
     /// Unconditional Jump
     ///
     /// Jumps to specified `destination` with `arguments`.
-    /// The CallStack here is expected to be used to issue an error when the start range of
+    /// The `CallStack` here is expected to be used to issue an error when the start range of
     /// a for loop cannot be deduced at compile-time.
     Jmp { destination: BasicBlockId, arguments: Vec<ValueId>, call_stack: CallStackId },
 
@@ -1011,12 +1137,18 @@ pub(crate) enum TerminatorInstruction {
 }
 
 impl TerminatorInstruction {
-    /// Mutate each ValueId to a new ValueId using the given mapping function
+    /// Mutate each `ValueId` to a new `ValueId` using the given mapping function
     pub(crate) fn map_values_mut(&mut self, mut f: impl FnMut(ValueId) -> ValueId) {
         use TerminatorInstruction::*;
         match self {
-            JmpIf { condition, .. } => {
+            JmpIf { condition, then_arguments, else_arguments, .. } => {
                 *condition = f(*condition);
+                for argument in then_arguments {
+                    *argument = f(*argument);
+                }
+                for argument in else_arguments {
+                    *argument = f(*argument);
+                }
             }
             Jmp { arguments, .. } => {
                 for argument in arguments {
@@ -1036,8 +1168,14 @@ impl TerminatorInstruction {
     pub(crate) fn for_each_value<T>(&self, mut f: impl FnMut(ValueId) -> T) {
         use TerminatorInstruction::*;
         match self {
-            JmpIf { condition, .. } => {
+            JmpIf { condition, then_arguments, else_arguments, .. } => {
                 f(*condition);
+                for argument in then_arguments {
+                    f(*argument);
+                }
+                for argument in else_arguments {
+                    f(*argument);
+                }
             }
             Jmp { arguments, .. } => {
                 for argument in arguments {
@@ -1053,28 +1191,14 @@ impl TerminatorInstruction {
         }
     }
 
-    /// Apply a function to each value along with its index
-    pub(crate) fn for_eachi_value<T>(&self, mut f: impl FnMut(usize, ValueId) -> T) {
-        use TerminatorInstruction::*;
-        match self {
-            JmpIf { condition, .. } => {
-                f(0, *condition);
-            }
-            Jmp { arguments, .. } => {
-                for (index, argument) in arguments.iter().enumerate() {
-                    f(index, *argument);
-                }
-            }
-            Return { return_values, .. } => {
-                for (index, return_value) in return_values.iter().enumerate() {
-                    f(index, *return_value);
-                }
-            }
-            Unreachable { .. } => (),
-        }
+    /// Returns true if any value in this terminator satisfies the predicate.
+    pub(crate) fn any_value(&self, mut f: impl FnMut(ValueId) -> bool) -> bool {
+        let mut found = false;
+        self.for_each_value(|v| found |= f(v));
+        found
     }
 
-    /// Mutate each BlockId to a new BlockId specified by the given mapping function.
+    /// Mutate each `BlockId` to a new `BlockId` specified by the given mapping function.
     pub(crate) fn mutate_blocks(&mut self, mut f: impl FnMut(BasicBlockId) -> BasicBlockId) {
         use TerminatorInstruction::*;
         match self {
@@ -1111,7 +1235,7 @@ impl TerminatorInstruction {
 /// Try to avoid mutation until we know something changed, to take advantage of
 /// structural sharing, and avoid needlessly calling `Arc::make_mut` which clones
 /// the content and increases memory use by allocating more pointers on the heap.
-fn im_vec_map_values_mut<T, F>(xs: &mut im::Vector<T>, mut f: F)
+fn im_vec_map_values_mut<T, F>(xs: &mut imbl::Vector<T>, mut f: F)
 where
     T: Copy + PartialEq,
     F: FnMut(T) -> T,
@@ -1136,5 +1260,58 @@ where
     let mut focus = xs.focus_mut();
     for (i, y) in changes {
         focus.set(i, y);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use acvm::acir::brillig::lengths::SemanticLength;
+
+    #[test]
+    fn replace_values_returns_true_only_when_a_value_changes() {
+        let v0 = ValueId::test_new(0);
+        let v1 = ValueId::test_new(1);
+        let v2 = ValueId::test_new(2);
+
+        let mut mapping = ValueMapping::default();
+        mapping.insert(v1, v2);
+
+        let mut instruction_using_v1 = Instruction::Cast(v1, NumericType::NativeField);
+        assert!(instruction_using_v1.replace_values(&mapping));
+        assert!(matches!(instruction_using_v1, Instruction::Cast(v, _) if v == v2));
+
+        let mut instruction_using_v0 = Instruction::Cast(v0, NumericType::NativeField);
+        assert!(!instruction_using_v0.replace_values(&mapping));
+        assert!(matches!(instruction_using_v0, Instruction::Cast(v, _) if v == v0));
+
+        let empty_mapping = ValueMapping::default();
+        let mut instruction = Instruction::Cast(v1, NumericType::NativeField);
+        assert!(!instruction.replace_values(&empty_mapping));
+    }
+
+    #[test]
+    fn replace_values_returns_true_when_a_make_array_element_changes() {
+        let v0 = ValueId::test_new(0);
+        let v1 = ValueId::test_new(1);
+        let v2 = ValueId::test_new(2);
+
+        let mut mapping = ValueMapping::default();
+        mapping.insert(v1, v2);
+
+        let typ = Type::Array(std::sync::Arc::new(vec![Type::field()]), SemanticLength(2));
+        let mut instruction =
+            Instruction::MakeArray { elements: imbl::Vector::from(vec![v0, v1]), typ: typ.clone() };
+        assert!(instruction.replace_values(&mapping));
+        let Instruction::MakeArray { elements, .. } = instruction else { unreachable!() };
+        assert_eq!(elements[0], v0);
+        assert_eq!(elements[1], v2);
+
+        let mut unrelated =
+            Instruction::MakeArray { elements: imbl::Vector::from(vec![v0, v0]), typ };
+        assert!(!unrelated.replace_values(&mapping));
+        let Instruction::MakeArray { elements, .. } = unrelated else { unreachable!() };
+        assert_eq!(elements[0], v0);
+        assert_eq!(elements[1], v0);
     }
 }

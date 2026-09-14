@@ -1,10 +1,11 @@
-use acvm::FieldElement;
 use noirc_errors::{Located, Location, Position, Span, Spanned};
+use num_bigint::BigInt;
 use std::fmt::{self, Display};
 
 use crate::{
     ast::{Expression, Path},
     graph::CrateId,
+    lint::Lint,
     node_interner::{
         ExprId, InternedExpressionKind, InternedPattern, InternedStatementKind,
         InternedUnresolvedTypeData, QuotedTypeId,
@@ -17,7 +18,6 @@ pub enum IntegerTypeSuffix {
     I16,
     I32,
     I64,
-    U1,
     U8,
     U16,
     U32,
@@ -32,8 +32,7 @@ impl IntegerTypeSuffix {
     ///
     /// An integer value like `3u32` has type `u32` but when used in a type `[Field; 3u32]`,
     /// `3u32` will have the type `Type::Constant(3, Kind::Numeric(u32))`. As a result, using
-    /// this method for any kind checks on integer types will result in a kind error! For those
-    /// cases, use [IntegerTypeSuffix::as_kind] instead.
+    /// this method for any kind checks on integer types will result in a kind error!
     pub(crate) fn as_type(self) -> crate::Type {
         use crate::{Type::Integer, ast::IntegerBitSize::*, shared::Signedness::*};
         match self {
@@ -41,7 +40,6 @@ impl IntegerTypeSuffix {
             IntegerTypeSuffix::I16 => Integer(Signed, Sixteen),
             IntegerTypeSuffix::I32 => Integer(Signed, ThirtyTwo),
             IntegerTypeSuffix::I64 => Integer(Signed, SixtyFour),
-            IntegerTypeSuffix::U1 => Integer(Unsigned, One),
             IntegerTypeSuffix::U8 => Integer(Unsigned, Eight),
             IntegerTypeSuffix::U16 => Integer(Unsigned, Sixteen),
             IntegerTypeSuffix::U32 => Integer(Unsigned, ThirtyTwo),
@@ -50,24 +48,12 @@ impl IntegerTypeSuffix {
             IntegerTypeSuffix::Field => crate::Type::FieldElement,
         }
     }
-
-    /// Returns the kind of this integer constant when used in a type position.
-    /// For example, when used as `[Field; 3u32]`, this [IntegerTypeSuffix::U32]
-    /// will return `Kind::Numeric(Type::U32)`.
-    ///
-    /// This method should generally be used whenever an integer is used in a type position.
-    /// [IntegerTypeSuffix::as_type] would return a raw `u32` type which is not the actual
-    /// type of an integer in a type position - that'd be `Type::Constant(3, Kind::Numeric(u32))`
-    /// for `3u32`.
-    pub(crate) fn as_kind(self) -> crate::Kind {
-        crate::Kind::Numeric(Box::new(self.as_type()))
-    }
 }
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub enum Token {
     Ident(String),
-    Int(FieldElement, Option<IntegerTypeSuffix>),
+    Int(BigInt, Option<IntegerTypeSuffix>),
     Bool(bool),
     Str(String),
     /// the u8 is the number of hashes, i.e. r###..
@@ -125,8 +111,6 @@ pub enum Token {
     Percent,
     /// &
     Ampersand,
-    /// &
-    DeprecatedVectorStart,
     /// @
     At,
     /// ^
@@ -183,7 +167,7 @@ pub enum Token {
     Whitespace(String),
 
     /// This is an implementation detail on how macros are implemented by quoting token streams.
-    /// This token marks where an unquote operation is performed. The ExprId argument is the
+    /// This token marks where an unquote operation is performed. The `ExprId` argument is the
     /// resolved variable which is being unquoted at this position in the token stream.
     UnquoteMarker(ExprId),
 
@@ -342,8 +326,8 @@ impl Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Token::Ident(ref s) => write!(f, "{s}"),
-            Token::Int(n, Some(suffix)) => write!(f, "{n}_{suffix}"),
-            Token::Int(n, None) => write!(f, "{n}"),
+            Token::Int(ref n, Some(suffix)) => write!(f, "{n}_{suffix}"),
+            Token::Int(ref n, None) => write!(f, "{n}"),
             Token::Bool(b) => write!(f, "{b}"),
             Token::Str(ref b) => write!(f, "{b:?}"),
             Token::FmtStr(ref b, _length) => write!(f, "f{b:?}"),
@@ -375,7 +359,7 @@ impl Display for Token {
             },
             Token::Quote(ref stream) => {
                 write!(f, "quote {{")?;
-                for token in stream.0.iter() {
+                for token in &stream.0 {
                     write!(f, " {token}")?;
                 }
                 write!(f, "}}")
@@ -403,7 +387,6 @@ impl Display for Token {
             Token::Backslash => write!(f, "\\"),
             Token::Percent => write!(f, "%"),
             Token::Ampersand => write!(f, "&"),
-            Token::DeprecatedVectorStart => write!(f, "&"),
             Token::At => write!(f, "@"),
             Token::Caret => write!(f, "^"),
             Token::ShiftLeft => write!(f, "<<"),
@@ -444,7 +427,6 @@ impl Display for IntegerTypeSuffix {
             IntegerTypeSuffix::I16 => write!(f, "i16"),
             IntegerTypeSuffix::I32 => write!(f, "i32"),
             IntegerTypeSuffix::I64 => write!(f, "i64"),
-            IntegerTypeSuffix::U1 => write!(f, "u1"),
             IntegerTypeSuffix::U8 => write!(f, "u8"),
             IntegerTypeSuffix::U16 => write!(f, "u16"),
             IntegerTypeSuffix::U32 => write!(f, "u32"),
@@ -604,9 +586,8 @@ impl IntType {
 
         // Word start with 'u' or 'i'. Check if the latter is an integer
 
-        let str_as_u32 = match word[1..].parse::<u32>() {
-            Ok(str_as_u32) => str_as_u32,
-            Err(_) => return None,
+        let Ok(str_as_u32) = word[1..].parse::<u32>() else {
+            return None;
         };
 
         if is_signed {
@@ -617,14 +598,14 @@ impl IntType {
     }
 }
 
-/// TestScope is used to specify additional annotations for test functions
+/// `TestScope` is used to specify additional annotations for test functions
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub enum TestScope {
-    /// If a test has a scope of ShouldFailWith, then it can only pass
+    /// If a test has a scope of `ShouldFailWith`, then it can only pass
     /// if it fails with the specified reason. If the reason is None, then
     /// the test must unconditionally fail
     ShouldFailWith { reason: Option<String> },
-    /// If a test has a scope of OnlyFailWith, then it can only fail
+    /// If a test has a scope of `OnlyFailWith`, then it can only fail
     /// if it fails with the specified reason.
     OnlyFailWith { reason: String },
     /// No scope is applied and so the test must pass
@@ -646,16 +627,16 @@ impl Display for TestScope {
     }
 }
 
-/// FuzzingScope is used to specify additional annotations for fuzzing harnesses
+/// `FuzzingScope` is used to specify additional annotations for fuzzing harnesses
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub enum FuzzingScope {
-    /// If the fuzzing harness has a scope of ShouldFailWith, then it should only pass
+    /// If the fuzzing harness has a scope of `ShouldFailWith`, then it should only pass
     /// if it fails with the specified reason. If the reason is None, then
     /// the harness must unconditionally fail
     ShouldFailWith {
         reason: Option<String>,
     },
-    /// If a fuzzing harness has a scope of OnlyFailWith, then it will only detect an assert
+    /// If a fuzzing harness has a scope of `OnlyFailWith`, then it will only detect an assert
     /// if it fails with the specified reason.
     OnlyFailWith {
         reason: String,
@@ -744,10 +725,12 @@ impl Attributes {
             && !self.is_fuzzing_harness()
     }
 
-    /// Returns note if a deprecated secondary attribute is found
-    pub fn get_deprecated_note(&self) -> Option<Option<String>> {
+    /// If there is a deprecated attribute, return a tuple of (deny, message)
+    /// from the attribute's arguments. If neither argument is specified, deny
+    /// defaults to false while message defaults to None.
+    pub fn get_deprecated(&self) -> Option<(bool, Option<String>)> {
         self.secondary.iter().find_map(|attr| match &attr.kind {
-            SecondaryAttributeKind::Deprecated(note) => Some(note.clone()),
+            SecondaryAttributeKind::Deprecated(deny, note) => Some((*deny, note.clone())),
             _ => None,
         })
     }
@@ -782,13 +765,18 @@ impl Attributes {
         self.has_secondary_attr(&SecondaryAttributeKind::Export)
     }
 
-    pub fn has_allow(&self, name: &'static str) -> bool {
-        self.secondary.iter().any(|attr| attr.kind.is_allow(name))
+    pub fn has_allow(&self, lint: Lint) -> bool {
+        self.secondary.iter().any(|attr| attr.kind.is_allow(lint))
     }
 
     /// Check if secondary attributes contain a specific instance.
     pub fn has_secondary_attr(&self, kind: &SecondaryAttributeKind) -> bool {
         self.secondary.iter().any(|attr| &attr.kind == kind)
+    }
+
+    /// True if the function is marked with `#[pure]`.
+    pub fn is_pure(&self) -> bool {
+        self.has_secondary_attr(&SecondaryAttributeKind::Pure)
     }
 }
 
@@ -811,7 +799,7 @@ impl Display for Attribute {
 }
 
 /// Primary Attributes are those which a function can only have one of.
-/// They change the FunctionKind and thus have direct impact on the IR output
+/// They change the `FunctionKind` and thus have direct impact on the IR output
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub struct FunctionAttribute {
     pub kind: FunctionAttributeKind,
@@ -819,7 +807,7 @@ pub struct FunctionAttribute {
 }
 
 /// Primary Attributes are those which a function can only have one of.
-/// They change the FunctionKind and thus have direct impact on the IR output
+/// They change the `FunctionKind` and thus have direct impact on the IR output
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub enum FunctionAttributeKind {
     Foreign(String),
@@ -922,7 +910,14 @@ pub struct SecondaryAttribute {
 
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum SecondaryAttributeKind {
-    Deprecated(Option<String>),
+    /// Marks whether a function is deprecated or not.
+    ///
+    /// - The first parameter is `true` if this should be a hard error, or `false` for a warning.
+    ///   In source code, not specifying "deny" will default this to a warning.
+    /// - The second parameter is the optional error message. If provided, this becomes the primary
+    ///   error message.
+    Deprecated(bool, Option<String>),
+
     // This is an attribute to specify that a function
     // is a helper method for a contract and should not be seen as
     // the entry point.
@@ -936,6 +931,14 @@ pub enum SecondaryAttributeKind {
     /// An attribute expected to run a comptime function of the same name: `#[foo]`
     Meta(MetaAttribute),
 
+    /// Tags a struct or global inside a `contract` block for inclusion in the
+    /// compiled contract artifact. The string is the tag name used as a key in
+    /// the compiled contract artifact: tagged structs go into a `structs` map and
+    /// tagged globals go into a `globals` map, both keyed by tag.
+    ///
+    /// Only valid inside `contract` blocks (enforced during elaboration).
+    ///
+    /// Example: `#[abi(my_tag)]`
     Abi(String),
 
     /// A variable-argument comptime function.
@@ -954,12 +957,19 @@ pub enum SecondaryAttributeKind {
     /// Instead, `#[must_use]` in Noir promotes this warning to a hard error, with
     /// an optional message for the error.
     MustUse(Option<String>),
+
+    /// Asserts that an `#[oracle]` function is pure and that
+    /// the call has no observable side effects on the program.
+    ///
+    /// Only valid on `unconstrained` functions also marked `#[oracle(...)]`.
+    /// For other functions, purity is deduced from their implementation.
+    Pure,
 }
 
 impl SecondaryAttributeKind {
-    pub(crate) fn is_allow(&self, name: &'static str) -> bool {
+    pub(crate) fn is_allow(&self, lint: Lint) -> bool {
         match self {
-            SecondaryAttributeKind::Allow(string) => string == name,
+            SecondaryAttributeKind::Allow(string) => string == lint.slug(),
             _ => false,
         }
     }
@@ -970,9 +980,11 @@ impl SecondaryAttributeKind {
 
     pub(crate) fn contents(&self) -> String {
         match self {
-            SecondaryAttributeKind::Deprecated(None) => "deprecated".to_string(),
-            SecondaryAttributeKind::Deprecated(Some(note)) => {
-                format!("deprecated({note:?})")
+            SecondaryAttributeKind::Deprecated(false, None) => "deprecated".to_string(),
+            SecondaryAttributeKind::Deprecated(true, None) => "deprecated(deny)".to_string(),
+            SecondaryAttributeKind::Deprecated(deny, Some(note)) => {
+                let deny = if *deny { "deny, " } else { "" };
+                format!("deprecated({deny}{note:?})")
             }
             SecondaryAttributeKind::Tag(contents) => format!("'{contents}"),
             SecondaryAttributeKind::Meta(meta) => meta.to_string(),
@@ -985,6 +997,7 @@ impl SecondaryAttributeKind {
             SecondaryAttributeKind::Allow(k) => format!("allow({k})"),
             SecondaryAttributeKind::MustUse(None) => "must_use".to_string(),
             SecondaryAttributeKind::MustUse(Some(msg)) => format!("must_use = \"{msg}\""),
+            SecondaryAttributeKind::Pure => "pure".to_string(),
         }
     }
 
@@ -1056,12 +1069,10 @@ pub enum Keyword {
     Break,
     CallData,
     Comptime,
-    Constrain,
     Constrained,
     Continue,
     Contract,
     Crate,
-    Dep,
     Dual,
     Else,
     Enum,
@@ -1100,12 +1111,10 @@ impl Display for Keyword {
             Keyword::Break => write!(f, "break"),
             Keyword::CallData => write!(f, "call_data"),
             Keyword::Comptime => write!(f, "comptime"),
-            Keyword::Constrain => write!(f, "constrain"),
             Keyword::Constrained => write!(f, "constrained"),
             Keyword::Continue => write!(f, "continue"),
             Keyword::Contract => write!(f, "contract"),
             Keyword::Crate => write!(f, "crate"),
-            Keyword::Dep => write!(f, "dep"),
             Keyword::Dual => write!(f, "dual"),
             Keyword::Else => write!(f, "else"),
             Keyword::Enum => write!(f, "enum"),
@@ -1147,12 +1156,10 @@ impl Keyword {
             "break" => Keyword::Break,
             "call_data" => Keyword::CallData,
             "comptime" => Keyword::Comptime,
-            "constrain" => Keyword::Constrain,
             "constrained" => Keyword::Constrained,
             "continue" => Keyword::Continue,
             "contract" => Keyword::Contract,
             "crate" => Keyword::Crate,
-            "dep" => Keyword::Dep,
             "dual" => Keyword::Dual,
             "else" => Keyword::Else,
             "enum" => Keyword::Enum,

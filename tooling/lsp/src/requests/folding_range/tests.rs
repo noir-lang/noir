@@ -1,42 +1,26 @@
-use crate::{notifications::on_did_open_text_document, test_utils};
-
 use super::*;
 use async_lsp::lsp_types::{
-    DidOpenTextDocumentParams, FoldingRangeKind, PartialResultParams, TextDocumentIdentifier,
-    TextDocumentItem, WorkDoneProgressParams,
+    FoldingRangeKind, PartialResultParams, TextDocumentIdentifier, Url, WorkDoneProgressParams,
 };
-use tokio::test;
 
-async fn get_folding_ranges(src: &str) -> Vec<FoldingRange> {
-    let (mut state, noir_text_document) = test_utils::init_lsp_server("document_symbol").await;
-
-    let _ = on_did_open_text_document(
-        &mut state,
-        DidOpenTextDocumentParams {
-            text_document: TextDocumentItem {
-                uri: noir_text_document.clone(),
-                language_id: "noir".to_string(),
-                version: 0,
-                text: src.to_string(),
-            },
-        },
-    );
+fn get_folding_ranges(src: &str) -> Vec<FoldingRange> {
+    let uri = Url::parse("file:///main.nr").unwrap();
+    let input_files = HashMap::from([(uri.to_string(), src.to_string())]);
 
     on_folding_range_request(
-        &mut state,
+        &input_files,
         FoldingRangeParams {
-            text_document: TextDocumentIdentifier { uri: noir_text_document },
+            text_document: TextDocumentIdentifier { uri },
             work_done_progress_params: WorkDoneProgressParams { work_done_token: None },
             partial_result_params: PartialResultParams { partial_result_token: None },
         },
     )
-    .await
     .expect("Could not execute on_folding_range_request")
     .unwrap()
 }
 
 #[test]
-async fn test_block_comment() {
+fn test_block_comment() {
     let src = "
         fn foo() {}
 
@@ -46,7 +30,7 @@ async fn test_block_comment() {
 
         fn bar() {}
         ";
-    let ranges = get_folding_ranges(src).await;
+    let ranges = get_folding_ranges(src);
     assert_eq!(ranges.len(), 1);
 
     let range = &ranges[0];
@@ -56,7 +40,7 @@ async fn test_block_comment() {
 }
 
 #[test]
-async fn test_line_comment() {
+fn test_line_comment() {
     let src = "
         fn foo() {}
 
@@ -69,7 +53,7 @@ async fn test_line_comment() {
 
         fn bar() {}
         ";
-    let ranges = get_folding_ranges(src).await;
+    let ranges = get_folding_ranges(src);
     assert_eq!(ranges.len(), 2);
 
     let range = &ranges[0];
@@ -84,7 +68,7 @@ async fn test_line_comment() {
 }
 
 #[test]
-async fn test_does_not_mix_different_styles() {
+fn test_does_not_mix_different_styles() {
     let src = "
         //! This should not
         //! be mixed with the next comment
@@ -92,7 +76,7 @@ async fn test_does_not_mix_different_styles() {
         // series of
         // consecutive comments
         ";
-    let ranges = get_folding_ranges(src).await;
+    let ranges = get_folding_ranges(src);
     assert_eq!(ranges.len(), 2);
 
     let range = &ranges[0];
@@ -107,7 +91,7 @@ async fn test_does_not_mix_different_styles() {
 }
 
 #[test]
-async fn test_series_of_mod() {
+fn test_series_of_mod() {
     let src = "
         mod one;
         mod two;
@@ -116,7 +100,7 @@ async fn test_series_of_mod() {
         mod four;
         mod five;
         ";
-    let ranges = get_folding_ranges(src).await;
+    let ranges = get_folding_ranges(src);
     assert_eq!(ranges.len(), 2);
 
     let range = &ranges[0];
@@ -131,7 +115,7 @@ async fn test_series_of_mod() {
 }
 
 #[test]
-async fn test_series_of_use() {
+fn test_series_of_use() {
     let src = "
         use one;
         use two;
@@ -140,7 +124,7 @@ async fn test_series_of_use() {
         use four;
         use five;
         ";
-    let ranges = get_folding_ranges(src).await;
+    let ranges = get_folding_ranges(src);
     assert_eq!(ranges.len(), 2);
 
     let range = &ranges[0];
@@ -155,7 +139,7 @@ async fn test_series_of_use() {
 }
 
 #[test]
-async fn test_use_list() {
+fn test_use_list() {
     let src = "
         use one::{
             two::{
@@ -164,7 +148,7 @@ async fn test_use_list() {
             },
         };
         ";
-    let ranges = get_folding_ranges(src).await;
+    let ranges = get_folding_ranges(src);
 
     assert_eq!(ranges.len(), 2);
 
@@ -180,14 +164,14 @@ async fn test_use_list() {
 }
 
 #[test]
-async fn test_series_of_use_when_there_is_a_list() {
+fn test_series_of_use_when_there_is_a_list() {
     let src = "
         use one;
         use two::{
           three,
         };
         ";
-    let ranges = get_folding_ranges(src).await;
+    let ranges = get_folding_ranges(src);
     assert_eq!(ranges.len(), 2);
 
     let range = &ranges[0];

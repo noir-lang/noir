@@ -8,14 +8,13 @@ use acvm::{
     },
 };
 use iter_extended::vecmap;
-use noirc_frontend::signed_field::SignedField;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 use crate::{brillig::assert_u32, ssa::ssa_gen::SSA_WORD_SIZE};
 
 /// A numeric type in the Intermediate representation
-/// Note: we class NativeField as a numeric type
+/// Note: we class `NativeField` as a numeric type
 /// though we also apply limitations to it, such as not
 /// being able to compare two native fields, whereas this is
 /// something that you can do with a signed/unsigned integer.
@@ -38,12 +37,12 @@ impl NumericType {
         }
     }
 
-    /// Creates a NumericType::Signed type
+    /// Creates a `NumericType::Signed` type
     pub(crate) fn signed(bit_size: u32) -> NumericType {
         NumericType::Signed { bit_size }
     }
 
-    /// Creates a NumericType::Unsigned type
+    /// Creates a `NumericType::Unsigned` type
     pub(crate) fn unsigned(bit_size: u32) -> NumericType {
         NumericType::Unsigned { bit_size }
     }
@@ -64,22 +63,18 @@ impl NumericType {
     }
 
     /// Returns None if the given Field value is within the numeric limits
-    /// for the current NumericType. Otherwise returns a string describing
+    /// for the current `NumericType`. Otherwise returns a string describing
     /// the limits, as a range.
-    pub(crate) fn value_is_outside_limits(self, value: SignedField) -> Option<String> {
+    pub(crate) fn value_is_outside_limits(self, value: FieldElement) -> Option<String> {
         match self {
             NumericType::Unsigned { bit_size } => {
                 let max = if bit_size == 128 { u128::MAX } else { 2u128.pow(bit_size) - 1 };
-                if value.is_negative() || value > SignedField::positive(max) {
-                    Some(format!("0..={max}"))
-                } else {
-                    None
-                }
+                if value > max.into() { Some(format!("0..={max}")) } else { None }
             }
             NumericType::Signed { bit_size } => {
                 let min = 2u128.pow(bit_size - 1);
                 let max = 2u128.pow(bit_size - 1) - 1;
-                if value > SignedField::positive(max) || value < SignedField::negative(min) {
+                if value > max.into() && value < -FieldElement::from(min) {
                     Some(format!("-{min}..={max}"))
                 } else {
                     None
@@ -111,7 +106,13 @@ impl NumericType {
                 128 => Ok(FieldElement::from(u128::MAX)),
                 _ => Ok(FieldElement::from(2u128.pow(*bit_size) - 1)),
             },
-            other => Err(format!("Cannot get max value for type: {other}")),
+            NumericType::Signed { bit_size } => {
+                assert!(*bit_size <= 128);
+                Ok(FieldElement::from(2u128.pow(*bit_size - 1) - 1))
+            }
+            NumericType::NativeField => {
+                Err("Cannot get max value for type: NativeField".to_string())
+            }
         }
     }
 }
@@ -148,8 +149,9 @@ pub enum Type {
     /// Represents numeric types in the IR, including field elements
     Numeric(NumericType),
 
-    /// A reference to some value, such as an array
-    Reference(Arc<Type>),
+    /// A reference to some value, such as an array.
+    /// The bool indicates whether this is a mutable reference (`true` = `&mut`, `false` = `&`).
+    Reference(Arc<Type>, /* mutable */ bool),
 
     /// An immutable array value with the given element type and length
     Array(Arc<CompositeType>, SemanticLength),
@@ -212,7 +214,7 @@ impl Type {
         matches!(self, Type::Numeric(_))
     }
 
-    /// Returns the inner NumericType if this is one, or panics otherwise
+    /// Returns the inner `NumericType` if this is one, or panics otherwise
     pub(crate) fn unwrap_numeric(&self) -> NumericType {
         match self {
             Type::Numeric(numeric) => *numeric,
@@ -266,16 +268,18 @@ impl Type {
             }
             Type::Vector(_) => true,
             Type::Numeric(_) => false,
-            Type::Reference(element) => element.contains_vector_element(),
+            Type::Reference(element, _) => element.contains_vector_element(),
             Type::Function => false,
         }
     }
 
-    /// Returns the flattened size of a Type.
+    /// Returns the flattened size of a [Type].
     ///
-    /// The flattened type is mostly useful in ACIR, where nested arrays are also flattened,
+    /// The flattened size is mostly useful in ACIR, where nested arrays are also flattened,
     /// as opposed to SSA, where only tuples get flattened into the array they are in,
     /// but nested arrays appear as a value ID.
+    ///
+    /// Panics if called on a [`Type::Vector`], since its value cannot be known based on its type.
     pub(crate) fn flattened_size(&self) -> FlattenedLength {
         match self {
             Type::Array(elements, len) => {
@@ -308,22 +312,14 @@ impl Type {
         match self {
             Type::Numeric(_) | Type::Function => false,
             Type::Array(_, _) | Type::Vector(_) => true,
-            Type::Reference(element) => element.contains_an_array(),
-        }
-    }
-
-    pub(crate) fn first(&self) -> Type {
-        match self {
-            Type::Numeric(_) | Type::Function => self.clone(),
-            Type::Reference(typ) => typ.first(),
-            Type::Vector(element_types) | Type::Array(element_types, _) => element_types[0].first(),
+            Type::Reference(element, _) => element.contains_an_array(),
         }
     }
 
     /// True if this is a reference type or if it is a composite type which contains a reference.
     pub(crate) fn contains_reference(&self) -> bool {
         match self {
-            Type::Reference(_) => true,
+            Type::Reference(..) => true,
             Type::Numeric(_) | Type::Function => false,
             Type::Array(elements, _) | Type::Vector(elements) => {
                 elements.iter().any(|elem| elem.contains_reference())
@@ -331,15 +327,128 @@ impl Type {
         }
     }
 
+    /// True if this is a mutable reference type or
+    /// if it is a composite type which contains a mutable reference.
+    pub(crate) fn contains_mutable_reference(&self) -> bool {
+        match self {
+            Type::Reference(element, mutable) => *mutable || element.contains_mutable_reference(),
+            Type::Numeric(_) | Type::Function => false,
+            Type::Array(elements, _) | Type::Vector(elements) => {
+                elements.iter().any(|elem| elem.contains_mutable_reference())
+            }
+        }
+    }
+
     /// True if this is a function type or if it is a composite type which contains a function.
     pub(crate) fn contains_function(&self) -> bool {
         match self {
-            Type::Reference(element_type) => element_type.contains_function(),
+            Type::Reference(element_type, _) => element_type.contains_function(),
             Type::Function => true,
             Type::Numeric(_) => false,
             Type::Array(elements, _) | Type::Vector(elements) => {
                 elements.iter().any(|elem| elem.contains_function())
             }
+        }
+    }
+
+    /// If this is a reference type, return the type it references.
+    pub(crate) fn reference_element_type(&self) -> Option<&Type> {
+        match self {
+            Type::Reference(element_type, _) => Some(element_type.as_ref()),
+            _ => None,
+        }
+    }
+
+    /// Recursively rewrite every [`Type::Reference`] inside `self` to be immutable.
+    ///
+    /// This deliberately erases the reference-mutability distinction that the
+    /// SSA validator otherwise enforces (see [`Type::can_be_used_as`]). It is
+    /// only appropriate for analyses where collapsing mutability is
+    /// conservative, e.g. alias-analysis grouping, where treating `&T` and
+    /// `&mut T` as the same type can only report more aliasing, never less.
+    pub(crate) fn canonicalize(&mut self) {
+        match self {
+            Type::Reference(element, mutable) => {
+                *mutable = false;
+                let mut new_element = (**element).clone();
+                new_element.canonicalize();
+                *element = Arc::new(new_element);
+            }
+            Type::Array(elements, _) | Type::Vector(elements) => {
+                let mut new_elements = (**elements).clone();
+                for inner in &mut new_elements {
+                    inner.canonicalize();
+                }
+                *elements = Arc::new(new_elements);
+            }
+            Type::Numeric(_) | Type::Function => (),
+        }
+    }
+
+    /// Owned counterpart to [`Type::canonicalize`] — returns a clone with all
+    /// reference mutability stripped.
+    pub(crate) fn canonicalized(&self) -> Self {
+        let mut clone = self.clone();
+        clone.canonicalize();
+        clone
+    }
+
+    /// Compares two types, treating mutable and immutable references as equivalent.
+    ///
+    /// Equivalent to `self.canonicalized() == other.canonicalized()` but walks
+    /// both types in lockstep instead of allocating cloned trees.
+    ///
+    /// Like [`Type::canonicalize`], this erases the mutability distinction and
+    /// is only appropriate where that is conservative (alias analysis). Typed
+    /// boundaries — calls, jumps, stores, loads — are checked with the
+    /// directional [`Type::can_be_used_as`] instead.
+    pub(crate) fn canonical_eq(&self, other: &Type) -> bool {
+        let all_eq = |a: &[Type], b: &[Type]| {
+            a.len() == b.len() && a.iter().zip(b).all(|(a, b)| a.canonical_eq(b))
+        };
+
+        match (self, other) {
+            (Type::Reference(a_elem, _), Type::Reference(b_elem, _)) => a_elem.canonical_eq(b_elem),
+            (Type::Array(a_elems, a_len), Type::Array(b_elems, b_len)) => {
+                a_len == b_len && all_eq(a_elems, b_elems)
+            }
+            (Type::Vector(a_elems), Type::Vector(b_elems)) => all_eq(a_elems, b_elems),
+            _ => self == other,
+        }
+    }
+
+    /// Whether a value of type `self` may be used where a value of type `target`
+    /// is expected, applying standard variance rules to reference mutability:
+    ///
+    /// - `&mut T` may be used as `&T` (weakening), never the reverse.
+    /// - A mutable target reference is invariant in its pointee: `&mut &mut T`
+    ///   must not be usable as `&mut &T`, since a `&T` could then be stored
+    ///   through the weaker view and loaded back as `&mut T` through an alias.
+    /// - An immutable target reference is covariant in its pointee.
+    /// - Arrays and vectors are covariant in their element types: they are
+    ///   semantically immutable values (`array_set` produces a new array), so
+    ///   an element can only be weakened, never written back at a stronger type.
+    pub(crate) fn can_be_used_as(&self, target: &Type) -> bool {
+        let all_can = |a: &[Type], b: &[Type]| {
+            a.len() == b.len() && a.iter().zip(b).all(|(a, b)| a.can_be_used_as(b))
+        };
+
+        match (self, target) {
+            (
+                Type::Reference(self_elem, self_mutable),
+                Type::Reference(target_elem, target_mutable),
+            ) => {
+                if *target_mutable {
+                    *self_mutable && self_elem == target_elem
+                } else {
+                    self_elem.can_be_used_as(target_elem)
+                }
+            }
+            (Type::Array(a_elems, a_len), Type::Array(b_elems, b_len)) => {
+                a_len == b_len && all_can(a_elems, b_elems)
+            }
+            (Type::Vector(a_elems), Type::Vector(b_elems)) => all_can(a_elems, b_elems),
+            _ => self == target,
         }
     }
 }
@@ -353,7 +462,8 @@ impl std::fmt::Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Type::Numeric(numeric) => numeric.fmt(f),
-            Type::Reference(element) => write!(f, "&mut {element}"),
+            Type::Reference(element, true) => write!(f, "&mut {element}"),
+            Type::Reference(element, false) => write!(f, "&{element}"),
             Type::Array(element, length) => {
                 let elements = vecmap(element.iter(), |element| element.to_string());
                 if elements.len() == 1 {
@@ -393,20 +503,20 @@ mod tests {
     #[test]
     fn test_u8_value_is_outside_limits() {
         let u8 = NumericType::Unsigned { bit_size: 8 };
-        assert!(u8.value_is_outside_limits(SignedField::negative(1_i128)).is_some());
-        assert!(u8.value_is_outside_limits(SignedField::positive(0_i128)).is_none());
-        assert!(u8.value_is_outside_limits(SignedField::positive(255_i128)).is_none());
-        assert!(u8.value_is_outside_limits(SignedField::positive(256_i128)).is_some());
+        assert!(u8.value_is_outside_limits(-FieldElement::from(1_i128)).is_some());
+        assert!(u8.value_is_outside_limits(0_i128.into()).is_none());
+        assert!(u8.value_is_outside_limits(255_i128.into()).is_none());
+        assert!(u8.value_is_outside_limits(256_i128.into()).is_some());
     }
 
     #[test]
     fn test_i8_value_is_outside_limits() {
         let i8 = NumericType::Signed { bit_size: 8 };
-        assert!(i8.value_is_outside_limits(SignedField::negative(129_i128)).is_some());
-        assert!(i8.value_is_outside_limits(SignedField::negative(128_i128)).is_none());
-        assert!(i8.value_is_outside_limits(SignedField::positive(0_i128)).is_none());
-        assert!(i8.value_is_outside_limits(SignedField::positive(127_i128)).is_none());
-        assert!(i8.value_is_outside_limits(SignedField::positive(128_i128)).is_some());
+        assert!(i8.value_is_outside_limits(-FieldElement::from(129_i128)).is_some());
+        assert!(i8.value_is_outside_limits(-FieldElement::from(128_i128)).is_none());
+        assert!(i8.value_is_outside_limits(0_i128.into()).is_none());
+        assert!(i8.value_is_outside_limits(127_i128.into()).is_none());
+        assert!(i8.value_is_outside_limits(128_i128.into()).is_some());
     }
 
     proptest! {
@@ -414,7 +524,7 @@ mod tests {
         fn test_max_value_is_in_limits(input: NumericType) {
             let max_value = input.max_value();
             if let Ok(max_value) = max_value {
-                prop_assert!(input.value_is_outside_limits(SignedField::from(max_value)).is_none());
+                prop_assert!(input.value_is_outside_limits(max_value).is_none());
             }
         }
     }

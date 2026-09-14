@@ -1,10 +1,10 @@
 fn main() {
     let mut x = 100;
-    let mut xref = &mut x;
+    let xref = &mut x;
     increment(xref);
     assert(*xref == 101);
 
-    let mut x_three_refs = &mut &mut &mut x;
+    let x_three_refs = &mut &mut &mut x;
     increment_deeper_ref(x_three_refs);
     assert(***x_three_refs == 102);
 
@@ -24,10 +24,10 @@ fn main() {
     assert(5 == struct_field_refs_across_blocks(MyStruct { a: 5, b: 10 })[0]);
 }
 
-fn increment(mut r: &mut Field) {
+fn increment(r: &mut Field) {
     *r = *r + 1;
 }
-fn increment_deeper_ref(mut r: &mut &mut &mut Field) {
+fn increment_deeper_ref(r: &mut &mut &mut Field) {
     ***r = ***r + 1;
 }
 // If aliasing within arrays and constant folding within the mem2reg pass aren't
@@ -36,7 +36,7 @@ fn regression_2445() {
     let mut var = 0;
     let ref = &mut &mut var;
 
-    let mut array = [ref, ref];
+    let array = [ref, ref];
 
     **array[0] = 1;
     **array[1] = 2;
@@ -51,7 +51,7 @@ fn regression_2445_deeper_ref() {
     let mut var = 0;
     let ref = &mut &mut &mut var;
 
-    let mut array = [ref, ref];
+    let array = [ref, ref];
 
     ***array[0] = 1;
     ***array[1] = 2;
@@ -70,7 +70,7 @@ fn struct_alias_in_array() {
     let mut var = Foo { inner: 0 };
     let ref = &mut &mut var;
 
-    let mut array = [ref, ref];
+    let array = [ref, ref];
     assert((**array[0]).inner == 0);
 
     (**array[0]).inner = 1;
@@ -245,7 +245,7 @@ fn nested_struct_aliases_in_array() {
 
     let ref = &mut &mut &mut var;
 
-    let mut array = [ref, ref];
+    let array = [ref, ref];
 
     // Update the same inner field `a` through both deep aliases
     (**array[0]).inner.a += 5;
@@ -259,7 +259,7 @@ fn nested_struct_aliases_in_array() {
     assert(var.inner.b == 0);
 }
 
-fn struct_field_refs_across_blocks(mut my_struct: MyStruct) -> [Field; 1] {
+fn struct_field_refs_across_blocks(my_struct: MyStruct) -> [Field; 1] {
     [compute_dummy_hash(my_struct.a, my_struct.b, 20)]
 }
 

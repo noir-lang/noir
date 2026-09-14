@@ -2,14 +2,14 @@ use iter_extended::vecmap;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::ResolvedGeneric;
-use crate::ast::{Ident, ItemVisibility, NoirFunction};
+use crate::ast::{DocComment, Ident, ItemVisibility, NoirFunction};
 use crate::elaborator::types::SELF_TYPE_NAME;
 use crate::hir::type_check::generics::TraitGenerics;
 use crate::node_interner::{
     DefinitionId, ImplSearchErrorKind, NodeInterner, TraitImplKind, TraitLookupMode,
 };
 use crate::{
-    ResolvedGenerics, Type, TypeBindings, TypeVariable,
+    NamedGeneric, ResolvedGenerics, Type, TypeBindings, TypeVariable,
     graph::CrateId,
     node_interner::{FuncId, TraitId},
 };
@@ -47,7 +47,7 @@ impl std::fmt::Display for NamedType {
 }
 
 /// Represents a trait in the type system. Each instance of this struct
-/// will be shared across all Type::Trait variants that represent
+/// will be shared across all `Type::Trait` variants that represent
 /// the same trait.
 #[derive(Debug, Eq)]
 pub struct Trait {
@@ -59,10 +59,10 @@ pub struct Trait {
 
     pub methods: Vec<TraitFunction>,
 
-    /// Maps method_name -> method id.
-    /// This map is separate from methods since TraitFunction ids
+    /// Maps `method_name` -> method id.
+    /// This map is separate from methods since `TraitFunction` ids
     /// are created during collection where we don't yet have all
-    /// the information needed to create the full TraitFunction.
+    /// the information needed to create the full `TraitFunction`.
     pub method_ids: HashMap<String, FuncId>,
 
     /// Named generics of the trait.
@@ -76,26 +76,34 @@ pub struct Trait {
     pub visibility: ItemVisibility,
 
     /// When resolving the types of Trait elements, all references to `Self` resolve
-    /// to this TypeVariable. Then when we check if the types of trait impl elements
-    /// match the definition in the trait, we bind this TypeVariable to whatever
+    /// to this `TypeVariable`. Then when we check if the types of trait impl elements
+    /// match the definition in the trait, we bind this `TypeVariable` to whatever
     /// the correct Self type is for that particular impl block.
     pub self_type_typevar: TypeVariable,
 
-    /// The resolved trait bounds (for example in `trait Foo: Bar + Baz`, this would be `Bar + Baz`)
-    pub trait_bounds: Vec<ResolvedTraitBound>,
-
+    /// The trait's where clause. Super-trait bounds (`trait Foo: Bar`) are lowered into
+    /// this list as `TraitConstraint { typ: Self, trait_bound: Bar }` so that parent
+    /// bounds and where-clause constraints share a single representation. Use
+    /// [`Trait::parent_bounds`] to extract just the parent-trait bounds.
     pub where_clause: Vec<TraitConstraint>,
+
+    /// Bounds implied on associated types reached through this trait's own where clause.
+    /// E.g. for `trait Baz<T> where T: Foo` with `trait Foo { type E: Bar; }`, this holds
+    /// the constraint `<T as Foo>::E: Bar`. These are assumed when elaborating the trait's
+    /// default method bodies, but are deliberately kept out of `where_clause` so they do not
+    /// participate in trait-impl where-clause matching or trait-method signature matching.
+    pub implicit_associated_type_constraints: Vec<(TraitConstraint, Location)>,
 
     pub all_generics: ResolvedGenerics,
 
-    /// Map from each associated constant's name to a unique DefinitionId for that constant.
+    /// Map from each associated constant's name to a unique `DefinitionId` for that constant.
     pub associated_constant_ids: HashMap<String, DefinitionId>,
 }
 
 /// A completed trait implementation.
 ///
 /// Note that ordered generics and named arguments (associated types) are stored separately
-/// in the NodeInterner. This is because they're required to resolve types before the impl
+/// in the `NodeInterner`. This is because they're required to resolve types before the impl
 /// as a whole is finished resolving.
 #[derive(Debug)]
 pub struct TraitImpl {
@@ -113,6 +121,30 @@ pub struct TraitImpl {
     /// `where_clause` would contain the one `T: Eq` constraint. If there is no where clause,
     /// this Vec is empty.
     pub where_clause: Vec<TraitConstraint>,
+}
+
+/// A completed inherent `impl` block, i.e. one that does not implement a trait,
+/// such as `impl<T> Foo<T> where T: Bar { ... }`.
+#[derive(Debug)]
+pub struct Impl {
+    pub location: Location,
+    pub typ: Type,
+
+    pub file: FileId,
+    pub crate_id: CrateId,
+    pub module_id: crate::hir::def_map::ModuleId,
+
+    /// The generics introduced by the impl block, in declaration order
+    /// (e.g. `T` in `impl<T> Foo<T>`).
+    pub generics: ResolvedGenerics,
+
+    pub methods: Vec<FuncId>,
+
+    /// The impl's where clause. Empty if there is no where clause.
+    pub where_clause: Vec<TraitConstraint>,
+
+    /// The doc comments written on top of the impl block. Empty if there are none.
+    pub doc_comments: Vec<DocComment>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -136,6 +168,45 @@ impl TraitConstraint {
             &self.trait_bound.trait_generics.ordered,
             &self.trait_bound.trait_generics.named,
         )
+    }
+
+    /// Whether `self` and `other` denote the same bound, treating an unspecified associated
+    /// type as matching any other unspecified one.
+    ///
+    /// This is weaker than equality, for comparing a constraint against a copy of it that was
+    /// resolved independently — e.g. an inherent impl's where clause copied onto a method, or a
+    /// trait's supertrait bound propagated onto a method. Each resolution fills in any
+    /// associated type the bound leaves unspecified with a *fresh* type variable, so the copies
+    /// aren't `==` even though they're the same bound. Associated types the user bound to a
+    /// concrete type (`Foo<Bar = u32>`) are still compared, so those bounds aren't conflated.
+    pub fn matches_ignoring_unspecified_associated_types(&self, other: &TraitConstraint) -> bool {
+        if self.typ != other.typ
+            || self.trait_bound.trait_id != other.trait_bound.trait_id
+            || self.trait_bound.trait_generics.ordered != other.trait_bound.trait_generics.ordered
+        {
+            return false;
+        }
+
+        let self_named = &self.trait_bound.trait_generics.named;
+        let other_named = &other.trait_bound.trait_generics.named;
+        if self_named.len() != other_named.len() {
+            return false;
+        }
+
+        // An associated type the bound leaves unspecified is filled in with a fresh type
+        // variable each time the bound is resolved, so two copies of the same bound carry
+        // different ones there. Depending on the resolution path that filler is a bare type
+        // variable or a named generic, so accept either (when unbound) as matching, while still
+        // comparing associated types the user bound to a concrete type (e.g. `Foo<Bar = u32>`).
+        let is_unbound = |typ: &Type| match typ {
+            Type::TypeVariable(var) | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) => {
+                var.borrow().is_unbound()
+            }
+            _ => false,
+        };
+        self_named.iter().zip(other_named).all(|(a, b)| {
+            a.name == b.name && (a.typ == b.typ || (is_unbound(&a.typ) && is_unbound(&b.typ)))
+        })
     }
 
     /// Looks up a trait implementation which satisfies this constraint and returns it.
@@ -180,7 +251,7 @@ pub struct ResolvedTraitBound {
 }
 
 impl ResolvedTraitBound {
-    /// Update all [Type]s in the bound generics by substituting some [TypeBindings] onto them.
+    /// Update all [Type]s in the bound generics by substituting some [`TypeBindings`] onto them.
     pub fn apply_bindings(&mut self, type_bindings: &TypeBindings) {
         for typ in &mut self.trait_generics.ordered {
             *typ = typ.substitute(type_bindings);
@@ -216,12 +287,20 @@ impl Trait {
         self.methods = methods;
     }
 
-    pub fn set_trait_bounds(&mut self, trait_bounds: Vec<ResolvedTraitBound>) {
-        self.trait_bounds = trait_bounds;
-    }
-
     pub fn set_where_clause(&mut self, where_clause: Vec<TraitConstraint>) {
         self.where_clause = where_clause;
+    }
+
+    /// The parent-trait bounds of this trait (the `Bar` in `trait Foo: Bar`).
+    ///
+    /// Parent bounds are stored in `where_clause` as constraints whose `typ` is this
+    /// trait's `Self` type variable; this accessor filters them back out.
+    pub fn parent_bounds(&self) -> impl Iterator<Item = &ResolvedTraitBound> {
+        let self_id = self.self_type_typevar.id();
+        self.where_clause.iter().filter_map(move |c| match &c.typ {
+            Type::TypeVariable(v) if v.id() == self_id => Some(&c.trait_bound),
+            _ => None,
+        })
     }
 
     pub fn set_visibility(&mut self, visibility: ItemVisibility) {
@@ -240,7 +319,7 @@ impl Trait {
     }
 
     pub fn find_method(&self, name: &str, interner: &NodeInterner) -> Option<DefinitionId> {
-        for method in self.methods.iter() {
+        for method in &self.methods {
             if &method.name == name {
                 let id = *self.method_ids.get(name).unwrap();
                 return Some(interner.function_definition_id(id));
@@ -289,7 +368,7 @@ impl Trait {
         TraitGenerics { ordered, named }
     }
 
-    /// Returns a TraitConstraint for this trait using Self as the object
+    /// Returns a `TraitConstraint` for this trait using Self as the object
     /// type and the uninstantiated generics for any trait generics.
     pub fn as_constraint(&self, location: Location) -> TraitConstraint {
         let trait_generics = self.get_trait_generics(location);

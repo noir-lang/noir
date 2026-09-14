@@ -1,5 +1,4 @@
 use noirc_errors::call_stack::CallStackId;
-use rustc_hash::FxHashMap as HashMap;
 use std::{collections::VecDeque, sync::Arc};
 
 use acvm::{
@@ -17,8 +16,8 @@ use crate::{
     brillig::assert_u32,
     ssa::ir::{
         basic_block::BasicBlockId,
-        dfg::{DataFlowGraph, simplify::value_merger::ValueMerger},
-        instruction::{Binary, BinaryOp, Endian, Hint, Instruction, Intrinsic},
+        dfg::DataFlowGraph,
+        instruction::{Binary, BinaryOp, ConstrainError, Endian, Hint, Instruction, Intrinsic},
         integer::IntegerConstant,
         types::{NumericType, Type},
         value::{Value, ValueId},
@@ -26,6 +25,7 @@ use crate::{
 };
 
 use super::SimplifyResult;
+use super::bail_malformed;
 
 mod blackbox;
 
@@ -41,7 +41,7 @@ pub(super) fn simplify_call(
     arguments: &[ValueId],
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
-    ctrl_typevars: Option<Vec<Type>>,
+    ctrl_typevars: Option<&[Type]>,
     call_stack: CallStackId,
 ) -> SimplifyResult {
     let intrinsic = match &dfg[func] {
@@ -49,7 +49,7 @@ pub(super) fn simplify_call(
         _ => return SimplifyResult::None,
     };
 
-    let return_type = ctrl_typevars.and_then(|return_types| return_types.first().cloned());
+    let return_type = ctrl_typevars.and_then(|return_types| return_types.first());
 
     let constant_args: Option<Vec<_>> =
         arguments.iter().map(|value_id| dfg.get_numeric_constant(*value_id)).collect();
@@ -57,11 +57,9 @@ pub(super) fn simplify_call(
     let simplified_result = match intrinsic {
         Intrinsic::ToBits(endian) => {
             // TODO: simplify to a range constraint if `limb_count == 1`
-            if let (Some(constant_args), Some(return_type)) = (constant_args, return_type.clone()) {
+            if let (Some(constant_args), Some(return_type)) = (constant_args, return_type) {
                 let field = constant_args[0];
-                let limb_count = if let Type::Array(_, array_len) = return_type {
-                    array_len
-                } else {
+                let Type::Array(_, limb_count) = return_type else {
                     unreachable!("ICE: Intrinsic::ToRadix return type must be array")
                 };
                 simplify_constant_to_radix(endian, field, 2, limb_count.0, |values| {
@@ -79,12 +77,10 @@ pub(super) fn simplify_call(
         }
         Intrinsic::ToRadix(endian) => {
             // TODO: simplify to a range constraint if `limb_count == 1`
-            if let (Some(constant_args), Some(return_type)) = (constant_args, return_type.clone()) {
+            if let (Some(constant_args), Some(return_type)) = (constant_args, return_type) {
                 let field = constant_args[0];
                 let radix = constant_args[1].to_u128() as u32;
-                let limb_count = if let Type::Array(_, array_len) = return_type {
-                    array_len
-                } else {
+                let Type::Array(_, limb_count) = return_type else {
                     unreachable!("ICE: Intrinsic::ToRadix return type must be array")
                 };
                 simplify_constant_to_radix(endian, field, radix, limb_count.0, |values| {
@@ -101,26 +97,47 @@ pub(super) fn simplify_call(
             }
         }
         Intrinsic::ArrayLen => {
-            let length = match dfg.type_of_value(arguments[0]) {
+            let length = match *dfg.type_of_value(arguments[0]) {
                 Type::Array(_, length) => {
                     dfg.make_constant(FieldElement::from(length.0), NumericType::length_type())
                 }
                 Type::Numeric(NumericType::Unsigned { bit_size: 32 }) => {
-                    assert!(matches!(dfg.type_of_value(arguments[1]), Type::Vector(_)));
+                    if !matches!(*dfg.type_of_value(arguments[1]), Type::Vector(_)) {
+                        bail_malformed!(
+                            dfg,
+                            "ArrayLen of a u32 length expects a vector second argument, got {:?}",
+                            dfg.type_of_value(arguments[1])
+                        );
+                    }
                     arguments[0]
                 }
-                _ => panic!("First argument to ArrayLen must be an array or a vector length"),
+                _ => bail_malformed!(
+                    dfg,
+                    "ArrayLen first argument must be an array or a vector length, got {:?}",
+                    dfg.type_of_value(arguments[0])
+                ),
             };
             SimplifyResult::SimplifiedTo(length)
         }
         // Strings are already arrays of bytes in SSA
         Intrinsic::ArrayAsStrUnchecked => SimplifyResult::SimplifiedTo(arguments[0]),
         Intrinsic::AsVector => {
-            let array = dfg.get_array_constant(arguments[0]);
-            if let Some((array, array_type)) = array {
+            if let Some(result) =
+                simplify_as_vector_for_zero_sized_vector(arguments, dfg, block, call_stack)
+            {
+                return result;
+            }
+
+            if let Some((array, array_type)) = dfg.get_array_constant(arguments[0]) {
                 // Compute the resulting vector length
                 let inner_element_types = array_type.element_types();
-                let vector_length_value = dfg.try_get_vector_capacity(arguments[0]).unwrap();
+                let Some(vector_length_value) = dfg.try_get_vector_capacity(arguments[0]) else {
+                    bail_malformed!(
+                        dfg,
+                        "AsVector argument has no vector capacity, got {:?}",
+                        dfg.type_of_value(arguments[0])
+                    );
+                };
                 let vector_length =
                     dfg.make_constant(vector_length_value.0.into(), NumericType::length_type());
                 let new_vector =
@@ -131,44 +148,54 @@ pub(super) fn simplify_call(
             }
         }
         Intrinsic::VectorPushBack => {
+            if let Some(result) = simplify_vector_push_back_or_front_for_zero_sized_vector(
+                arguments, dfg, block, call_stack,
+            ) {
+                return result;
+            }
+
             let vector = dfg.get_array_constant(arguments[1]);
-            if let Some((mut vector, element_type)) = vector {
-                // TODO(#2752): We need to handle the element_type size to appropriately handle vectors of complex types.
-                // This is reliant on dynamic indices of non-homogenous vectors also being implemented.
-                if element_type.element_size() != ElementTypesLength(1) {
-                    if let Some(IntegerConstant::Unsigned { value: vector_len, .. }) =
-                        dfg.get_integer_constant(arguments[0])
-                    {
-                        // This simplification, which push back directly on the vector, only works if the real vector_len is the
-                        // the length of the vector.
-                        if vector_len as usize == vector.len() {
-                            // Old code before implementing multiple vector mergers
-                            for elem in &arguments[2..] {
-                                vector.push_back(*elem);
-                            }
+            if let Some((mut vector, vector_type)) = vector {
+                if let Some(IntegerConstant::Unsigned { value: vector_len, .. }) =
+                    dfg.get_integer_constant(arguments[0])
+                {
+                    let elements_size = vector_type.element_size();
+                    let semi_flattened_vector_len =
+                        SemanticLength(vector_len as u32) * elements_size;
 
-                            let new_vector_length =
-                                increment_vector_length(arguments[0], dfg, block, call_stack);
-
-                            let new_vector =
-                                make_array(dfg, vector, element_type, block, call_stack);
-                            return SimplifyResult::SimplifiedToMultiple(vec![
-                                new_vector_length,
-                                new_vector,
-                            ]);
+                    // This simplification, which push back directly on the vector, only works if the real vector_len is the
+                    // the length of the vector (taking the elements size into account).
+                    if semi_flattened_vector_len == SemiFlattenedLength(vector.len() as u32) {
+                        // Old code before implementing multiple vector mergers
+                        for elem in &arguments[2..] {
+                            vector.push_back(*elem);
                         }
+
+                        let new_vector_length =
+                            increment_vector_length(arguments[0], dfg, block, call_stack);
+
+                        let new_vector = make_array(dfg, vector, vector_type, block, call_stack);
+                        return SimplifyResult::SimplifiedToMultiple(vec![
+                            new_vector_length,
+                            new_vector,
+                        ]);
                     }
-                    return SimplifyResult::None;
                 }
 
-                simplify_vector_push_back(vector, element_type, arguments, dfg, block, call_stack)
+                simplify_vector_push_back(vector, vector_type, arguments, dfg, block, call_stack)
             } else {
                 SimplifyResult::None
             }
         }
         Intrinsic::VectorPushFront => {
+            if let Some(result) = simplify_vector_push_back_or_front_for_zero_sized_vector(
+                arguments, dfg, block, call_stack,
+            ) {
+                return result;
+            }
+
             let vector = dfg.get_array_constant(arguments[1]);
-            if let Some((mut vector, element_type)) = vector {
+            if let Some((mut vector, vector_type)) = vector {
                 for elem in arguments[2..].iter().rev() {
                     vector.push_front(*elem);
                 }
@@ -176,13 +203,19 @@ pub(super) fn simplify_call(
                 let new_vector_length =
                     increment_vector_length(arguments[0], dfg, block, call_stack);
 
-                let new_vector = make_array(dfg, vector, element_type, block, call_stack);
+                let new_vector = make_array(dfg, vector, vector_type, block, call_stack);
                 SimplifyResult::SimplifiedToMultiple(vec![new_vector_length, new_vector])
             } else {
                 SimplifyResult::None
             }
         }
         Intrinsic::VectorPopBack => {
+            if let Some(result) = simplify_vector_pop_back_or_front_for_zero_sized_vector(
+                arguments, dfg, block, call_stack,
+            ) {
+                return result;
+            }
+
             let length = dfg.get_numeric_constant(arguments[0]);
             if length.is_none_or(|length| length.is_zero()) {
                 // If the length is zero then we're trying to pop the last element from an empty vector.
@@ -198,6 +231,12 @@ pub(super) fn simplify_call(
             }
         }
         Intrinsic::VectorPopFront => {
+            if let Some(result) = simplify_vector_pop_back_or_front_for_zero_sized_vector(
+                arguments, dfg, block, call_stack,
+            ) {
+                return result;
+            }
+
             let length = dfg.get_numeric_constant(arguments[0]);
             if length.is_none_or(|length| length.is_zero()) {
                 // If the length is zero then we're trying to pop the first element from an empty vector.
@@ -209,9 +248,18 @@ pub(super) fn simplify_call(
             if let Some((mut vector, typ)) = vector {
                 let element_count = typ.element_size();
 
+                if vector.len() < element_count.to_usize() {
+                    bail_malformed!(
+                        dfg,
+                        "VectorPopFront: vector has {} elements, fewer than its element size {}",
+                        vector.len(),
+                        element_count.to_usize()
+                    );
+                }
+
                 // We must pop multiple elements in the case of a vector of tuples
                 let mut results = vecmap(0..element_count.to_usize(), |_| {
-                    vector.pop_front().expect("There are no elements in this vector to be removed")
+                    vector.pop_front().expect("vector length checked against element size above")
                 });
 
                 let new_vector_length =
@@ -229,23 +277,28 @@ pub(super) fn simplify_call(
             }
         }
         Intrinsic::VectorInsert => {
+            if let Some(result) =
+                simplify_vector_insert_for_zero_sized_vector(arguments, dfg, block, call_stack)
+            {
+                return result;
+            }
+
             let vector = dfg.get_array_constant(arguments[1]);
             let index = dfg.get_numeric_constant(arguments[2]);
             if let (Some((mut vector, typ)), Some(index)) = (vector, index) {
                 let elements = &arguments[3..];
-                let mut index = index.to_u128() as usize * elements.len();
+                let start = index.to_u128() as usize * elements.len();
 
-                // Do not simplify the index is greater than the vector capacity
-                // or else we will panic inside of the im::Vector insert method
+                // Do not simplify if the index is greater than the vector capacity
+                // or else we will panic inside of the imbl::Vector insert method
                 // Constraints should be generated during SSA gen to tell the user
                 // they are attempting to insert at too large of an index
-                if index > vector.len() {
+                if start > vector.len() {
                     return SimplifyResult::None;
                 }
 
-                for elem in &arguments[3..] {
-                    vector.insert(index, *elem);
-                    index += 1;
+                for (offset, elem) in elements.iter().enumerate() {
+                    vector.insert(start + offset, *elem);
                 }
 
                 let new_vector_length =
@@ -258,6 +311,12 @@ pub(super) fn simplify_call(
             }
         }
         Intrinsic::VectorRemove => {
+            if let Some(result) =
+                simplify_vector_remove_for_zero_sized_vector(arguments, dfg, block, call_stack)
+            {
+                return result;
+            }
+
             let length = dfg.get_numeric_constant(arguments[0]);
             if length.is_none_or(|length| length.is_zero()) {
                 // If the length is zero then we're trying to remove an element from an empty vector.
@@ -273,7 +332,7 @@ pub(super) fn simplify_call(
                 let index = index.to_u128() as usize * element_count;
 
                 // Do not simplify if the index is not less than the vector capacity
-                // or else we will panic inside of the im::Vector remove method.
+                // or else we will panic inside of the imbl::Vector remove method.
                 // Constraints should be generated during SSA gen to tell the user
                 // they are attempting to remove at too large of an index.
                 if index >= vector.len() {
@@ -310,7 +369,11 @@ pub(super) fn simplify_call(
         }
         Intrinsic::StaticAssert => {
             if arguments.len() < 2 {
-                panic!("ICE: static_assert called with wrong number of arguments")
+                bail_malformed!(
+                    dfg,
+                    "static_assert expects at least 2 arguments, got {}",
+                    arguments.len()
+                );
             }
 
             // Arguments at positions `1..` form the message and they must all be constant.
@@ -326,21 +389,19 @@ pub(super) fn simplify_call(
         }
         Intrinsic::ApplyRangeConstraint => {
             let value = arguments[0];
-            let max_bit_size = dfg.get_numeric_constant(arguments[1]);
-            if let Some(max_bit_size) = max_bit_size {
-                let max_bit_size = max_bit_size.to_u128() as u32;
-                let max_potential_bits = dfg.get_value_max_num_bits(value);
-                if max_potential_bits < max_bit_size {
-                    SimplifyResult::Remove
-                } else {
-                    SimplifyResult::SimplifiedToInstruction(Instruction::RangeCheck {
-                        value,
-                        max_bit_size,
-                        assert_message: Some("call to assert_max_bit_size".to_owned()),
-                    })
-                }
+            let Some(max_bit_size) = dfg.get_numeric_constant(arguments[1]) else {
+                bail_malformed!(dfg, "ApplyRangeConstraint bit-size must be a numeric constant");
+            };
+            let max_bit_size = max_bit_size.to_u128() as u32;
+            let max_potential_bits = dfg.get_value_max_num_bits(value);
+            if max_potential_bits < max_bit_size {
+                SimplifyResult::Remove
             } else {
-                SimplifyResult::None
+                SimplifyResult::SimplifiedToInstruction(Instruction::RangeCheck {
+                    value,
+                    max_bit_size,
+                    assert_message: Some("call to assert_max_bit_size".to_owned()),
+                })
             }
         }
         Intrinsic::Hint(Hint::BlackBox) => SimplifyResult::None,
@@ -353,7 +414,7 @@ pub(super) fn simplify_call(
             SimplifyResult::SimplifiedTo(dfg.make_constant(result, NumericType::bool()))
         }
         Intrinsic::DerivePedersenGenerators => {
-            if let Some(Type::Array(_, len)) = return_type.clone() {
+            if let Some(Type::Array(_, len)) = return_type {
                 simplify_derive_generators(dfg, arguments, len.0, block, call_stack)
             } else {
                 unreachable!("Derive Pedersen Generators must return an array");
@@ -384,13 +445,193 @@ pub(super) fn simplify_call(
         (return_type, &simplified_result)
     {
         assert_eq!(
-            dfg.type_of_value(*result),
+            dfg.type_of_value(*result).as_ref(),
             expected_types,
             "Simplification should not alter return type"
         );
     }
 
     simplified_result
+}
+
+fn simplify_as_vector_for_zero_sized_vector(
+    arguments: &[ValueId],
+    dfg: &mut DataFlowGraph,
+    block: BasicBlockId,
+    call_stack: CallStackId,
+) -> Option<SimplifyResult> {
+    let array_type = dfg.type_of_value(arguments[0]);
+    let Type::Array(element_types, length) = array_type.as_ref() else {
+        bail_malformed!(
+            @ret Some(SimplifyResult::None);
+            dfg,
+            "AsVector expects an array argument, got {array_type:?}"
+        );
+    };
+    if !element_types.is_empty() {
+        return None;
+    }
+    // If this is a zero-sized arrays it can never have values in it, so we can always simplify
+    // it to (length, @[])
+    let element_types = element_types.clone();
+    let vector_length = dfg.make_constant(length.0.into(), NumericType::length_type());
+    let new_vector =
+        make_array(dfg, imbl::Vector::new(), Type::Vector(element_types), block, call_stack);
+    Some(SimplifyResult::SimplifiedToMultiple(vec![vector_length, new_vector]))
+}
+
+/// Guard for the `*_for_zero_sized_vector` simplifications: succeeds only when the vector argument
+/// has zero-sized elements (e.g. `[()]`), the case those simplifications handle.
+///
+/// Vector intrinsics take the length as `arguments[0]` and the vector as `arguments[1]`; on success
+/// those two values are returned as `(length, vector)`. Returns `None` to defer to the general
+/// handling when the elements are not zero-sized. Bails as malformed if the argument is not a
+/// vector type at all, which cannot arise from well-formed SSA.
+fn zero_sized_vector_length_and_value(
+    arguments: &[ValueId],
+    dfg: &DataFlowGraph,
+) -> Option<(ValueId, ValueId)> {
+    let length = arguments[0];
+    let vector = arguments[1];
+    let vector_type = dfg.type_of_value(vector);
+    let Type::Vector(element_types) = vector_type.as_ref() else {
+        bail_malformed!(
+            @ret None;
+            dfg,
+            "vector intrinsic expects a vector argument, got {vector_type:?}"
+        );
+    };
+    element_types.is_empty().then_some((length, vector))
+}
+
+/// Simplify a push back/front on a vector whose elements are zero-sized (e.g. `[()]`).
+///
+/// Zero-sized elements carry no data, so the backing array is always empty and the push only needs
+/// to increment the semantic length. Returns `None` (deferring to the general handling) if the
+/// element type is not zero-sized.
+fn simplify_vector_push_back_or_front_for_zero_sized_vector(
+    arguments: &[ValueId],
+    dfg: &mut DataFlowGraph,
+    block: BasicBlockId,
+    call_stack: CallStackId,
+) -> Option<SimplifyResult> {
+    let (length, vector) = zero_sized_vector_length_and_value(arguments, dfg)?;
+
+    // If this is a zero-sized vector then it can never have values in it, so we can just
+    // return an incremented length and return the same vector.
+    let new_vector_length = increment_vector_length(length, dfg, block, call_stack);
+    Some(SimplifyResult::SimplifiedToMultiple(vec![new_vector_length, vector]))
+}
+
+/// Insert `constrain length != 0`, failing with `message`, so that a subsequent unchecked decrement
+/// of a zero-sized vector's length cannot underflow into a wrapped value.
+fn constrain_vector_not_empty(
+    length: ValueId,
+    message: &str,
+    dfg: &mut DataFlowGraph,
+    block: BasicBlockId,
+    call_stack: CallStackId,
+) {
+    let zero_u32 = dfg.make_constant(FieldElement::zero(), NumericType::length_type());
+    let length_eq_zero = dfg
+        .insert_instruction_and_results(
+            Instruction::Binary(Binary { lhs: length, operator: BinaryOp::Eq, rhs: zero_u32 }),
+            block,
+            None,
+            call_stack,
+        )
+        .first();
+    let false_value = dfg.make_constant(FieldElement::zero(), NumericType::bool());
+    let message = Some(ConstrainError::StaticString(message.into()));
+    dfg.insert_instruction_and_results(
+        Instruction::Constrain(length_eq_zero, false_value, message),
+        block,
+        None,
+        call_stack,
+    );
+}
+
+/// Decrement a zero-sized vector's length, returning the `[new_length, vector]` results.
+///
+/// When the length is a statically-known zero the caller's empty-vector guard always fails, so the
+/// decrement is skipped to avoid emitting an underflowing `unchecked_sub`; the returned length is
+/// irrelevant on that trapping path.
+fn decrement_zero_sized_vector_length(
+    length: ValueId,
+    vector: ValueId,
+    dfg: &mut DataFlowGraph,
+    block: BasicBlockId,
+    call_stack: CallStackId,
+) -> SimplifyResult {
+    let new_length = if dfg.get_numeric_constant(length).is_some_and(|len| len.is_zero()) {
+        length
+    } else {
+        decrement_vector_length(length, dfg, block, call_stack)
+    };
+    SimplifyResult::SimplifiedToMultiple(vec![new_length, vector])
+}
+
+/// Simplify a pop back/front on a vector whose elements are zero-sized (e.g. `[()]`).
+///
+/// The backing array is always empty, so the pop only changes the semantic length. A guard against
+/// popping from an empty vector is inserted so the unchecked length decrement cannot wrap; we emit
+/// it here rather than relying on a check inserted elsewhere, so the simplification is self-contained
+/// for any well-typed SSA. Returns `None` (deferring to the general handling) if the element type is
+/// not zero-sized.
+fn simplify_vector_pop_back_or_front_for_zero_sized_vector(
+    arguments: &[ValueId],
+    dfg: &mut DataFlowGraph,
+    block: BasicBlockId,
+    call_stack: CallStackId,
+) -> Option<SimplifyResult> {
+    let (length, vector) = zero_sized_vector_length_and_value(arguments, dfg)?;
+    constrain_vector_not_empty(length, "Cannot pop from an empty vector", dfg, block, call_stack);
+    Some(decrement_zero_sized_vector_length(length, vector, dfg, block, call_stack))
+}
+
+/// Simplify a `vector_insert` on a vector whose elements are zero-sized (e.g. `[()]`).
+///
+/// The backing array is always empty, so the insert only increments the semantic length (the
+/// in-bounds check is already emitted in `FunctionContext::codegen_intrinsic_call_checks`). Returns
+/// `None` (deferring to the general handling) if the element type is not zero-sized.
+fn simplify_vector_insert_for_zero_sized_vector(
+    arguments: &[ValueId],
+    dfg: &mut DataFlowGraph,
+    block: BasicBlockId,
+    call_stack: CallStackId,
+) -> Option<SimplifyResult> {
+    let (length, vector) = zero_sized_vector_length_and_value(arguments, dfg)?;
+
+    // If this is a zero-sized vector we would need to check if the index is in bounds.
+    // However, this was already done in FunctionContext::codegen_intrinsic_call_checks so there's
+    // no need to repeat that here.
+    let new_vector_length = increment_vector_length(length, dfg, block, call_stack);
+
+    Some(SimplifyResult::SimplifiedToMultiple(vec![new_vector_length, vector]))
+}
+
+/// Simplify a `vector_remove` on a vector whose elements are zero-sized (e.g. `[()]`).
+///
+/// The backing array is always empty, so the remove only changes the semantic length. A guard
+/// against removing from an empty vector is inserted so the unchecked length decrement cannot wrap;
+/// we emit it here rather than relying on the frontend's access check, which is absent from
+/// directly-constructed SSA. Returns `None` (deferring to the general handling) if the element type
+/// is not zero-sized.
+fn simplify_vector_remove_for_zero_sized_vector(
+    arguments: &[ValueId],
+    dfg: &mut DataFlowGraph,
+    block: BasicBlockId,
+    call_stack: CallStackId,
+) -> Option<SimplifyResult> {
+    let (length, vector) = zero_sized_vector_length_and_value(arguments, dfg)?;
+    constrain_vector_not_empty(
+        length,
+        "Cannot remove from an empty vector",
+        dfg,
+        block,
+        call_stack,
+    );
+    Some(decrement_zero_sized_vector_length(length, vector, dfg, block, call_stack))
 }
 
 /// Returns a vector (represented by a tuple (len, vector)) of constants corresponding to the limbs of the radix decomposition.
@@ -421,10 +662,16 @@ pub(crate) fn constant_to_radix(
         // acir::generated_acir::radix_le_decompose
         return None;
     }
-    let big_integer = BigUint::from_bytes_be(&field.to_be_bytes());
-
-    // Decompose the integer into its radix digits in little endian form.
-    let decomposed_integer = big_integer.to_radix_le(radix);
+    // `BigUint::to_radix_le` represents zero as a single zero limb (`[0]`), which would make a
+    // zero value appear to require one limb. Decomposing zero requires no significant limbs, so
+    // treat it as an empty decomposition (zero-padded up to `limb_count`).
+    let decomposed_integer = if field.is_zero() {
+        Vec::new()
+    } else {
+        let big_integer = BigUint::from_bytes_be(&field.to_be_bytes());
+        // Decompose the integer into its radix digits in little endian form.
+        big_integer.to_radix_le(radix)
+    };
     if limb_count < decomposed_integer.len() as u32 {
         // `field` cannot be represented as `limb_count` bits.
         // defer error to acir_gen.
@@ -448,7 +695,7 @@ fn make_constant_array(
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> ValueId {
-    let result_constants: im::Vector<_> =
+    let result_constants: imbl::Vector<_> =
         results.map(|element| dfg.make_constant(element, typ)).collect();
 
     let typ = Type::Array(
@@ -460,7 +707,7 @@ fn make_constant_array(
 
 fn make_array(
     dfg: &mut DataFlowGraph,
-    elements: im::Vector<ValueId>,
+    elements: imbl::Vector<ValueId>,
     typ: Type,
     block: BasicBlockId,
     call_stack: CallStackId,
@@ -503,73 +750,70 @@ fn decrement_vector_length(
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> ValueId {
-    // Simplifications only run if the length is a known non-zero constant, so the subtraction should never overflow.
+    // The subtraction is unchecked because every caller reaches this point only once the length is
+    // known to be non-zero: either it is a known non-zero constant (`simplify_vector_pop_back`), or
+    // a bounds check guaranteeing a non-empty vector has already been emitted (the zero-sized
+    // pop/remove paths, which run for dynamic lengths too). In well-formed SSA it cannot underflow.
     update_vector_length(vector_len, dfg, BinaryOp::Sub { unchecked: true }, block, call_stack)
 }
 
+/// Simplify a vector push back when the length is not known to equal capacity, ie. we don't
+/// know whether we to push new items and grow the capacity of the vector, or overwrite the
+/// next padding item.
+///
+/// The strategy is to:
+/// 1. Create a new vector where the new item is pushed to the end, extending its capacity
+/// 2. Set the item at the original semantic length as well
+///
+/// There result is that the vector will physically always be extended by 1, with the pushed
+/// item appearing at the end, and potentially in the middle of the vector if we weren't at capacity.
 fn simplify_vector_push_back(
-    mut vector: im::Vector<ValueId>,
+    mut vector: imbl::Vector<ValueId>,
     element_type: Type,
     arguments: &[ValueId],
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
     call_stack: CallStackId,
 ) -> SimplifyResult {
-    // The capacity must be an integer so that we can compare it against the vector length
-    let capacity = dfg.make_constant((vector.len() as u128).into(), NumericType::length_type());
-    let len_equals_capacity_instr =
-        Instruction::Binary(Binary { lhs: arguments[0], operator: BinaryOp::Eq, rhs: capacity });
-    let len_equals_capacity = dfg
-        .insert_instruction_and_results(len_equals_capacity_instr, block, None, call_stack)
-        .first();
-    let len_not_equals_capacity_instr = Instruction::Not(len_equals_capacity);
-    let len_not_equals_capacity = dfg
-        .insert_instruction_and_results(len_not_equals_capacity_instr, block, None, call_stack)
-        .first();
+    // TODO(#2752): We need to handle the element_type size to appropriately handle vectors of complex types.
+    // This is reliant on dynamic indices of non-homogenous vectors also being implemented.
+    if element_type.element_size() != ElementTypesLength(1) {
+        return SimplifyResult::None;
+    }
+    if arguments.len() != 3 {
+        bail_malformed!(dfg, "vector push expects 3 arguments, got {}", arguments.len());
+    }
 
     let new_vector_length = increment_vector_length(arguments[0], dfg, block, call_stack);
 
-    for elem in &arguments[2..] {
-        vector.push_back(*elem);
-    }
-    let vector_size = SemiFlattenedLength(assert_u32(vector.len()));
-    let element_size = element_type.element_size();
-    let new_vector = make_array(dfg, vector, element_type, block, call_stack);
+    vector.push_back(arguments[2]);
 
-    let set_last_vector_value_instr = Instruction::ArraySet {
-        array: new_vector,
+    let extended_vector = make_array(dfg, vector, element_type, block, call_stack);
+
+    // Set the value at the semantic length: if the vector had extra capacity, this will set the first
+    // padding to the item we wanted to push. By doing this on the extended vector, we guarantee that
+    // there will be extra capacity. If we tried to do this on the original, we could get Index OOB if
+    // the capacity and the size were the same.
+    let set_last_vector_instr = Instruction::ArraySet {
+        array: extended_vector,
         index: arguments[0],
         value: arguments[2],
         mutable: false,
     };
 
-    let set_last_vector_value = dfg
-        .insert_instruction_and_results(set_last_vector_value_instr, block, None, call_stack)
-        .first();
+    let set_last_vector =
+        dfg.insert_instruction_and_results(set_last_vector_instr, block, None, call_stack).first();
 
-    let mut vector_sizes = HashMap::default();
-    vector_sizes.insert(set_last_vector_value, vector_size / element_size);
-    vector_sizes.insert(new_vector, vector_size / element_size);
-
-    let mut value_merger = ValueMerger::new(dfg, block, &vector_sizes, call_stack);
-
-    let Ok(new_vector) = value_merger.merge_values(
-        len_not_equals_capacity,
-        len_equals_capacity,
-        set_last_vector_value,
-        new_vector,
-    ) else {
-        // If we were to percolate up the error here, it'd get to insert_instruction and eventually
-        // all of ssa. Instead we just choose not to simplify the vector call since this should
-        // be a rare case.
-        return SimplifyResult::None;
-    };
-
-    SimplifyResult::SimplifiedToMultiple(vec![new_vector_length, new_vector])
+    SimplifyResult::SimplifiedToMultiple(vec![new_vector_length, set_last_vector])
 }
 
+/// Simplify a `vector_pop_back` whose backing array is a known constant.
+///
+/// Decrements the semantic length and reads the popped element(s) off the end of the flattened
+/// array, returning `[new_length, new_vector, popped_elements..]`. A vector of tuples pops several
+/// flattened slots per element, so the elements are read in reverse from the tail.
 fn simplify_vector_pop_back(
-    mut vector: im::Vector<ValueId>,
+    mut vector: imbl::Vector<ValueId>,
     vector_type: Type,
     arguments: &[ValueId],
     dfg: &mut DataFlowGraph,
@@ -657,10 +901,16 @@ fn simplify_black_box_func(
                         })
                         .collect();
 
-                    let state = acvm::blackbox_solver::keccakf1600(
-                        const_input.try_into().expect("Keccakf1600 input should have length of 25"),
-                    )
-                    .expect("Rust solvable black box function should not fail");
+                    let input: [u64; 25] = match const_input.try_into() {
+                        Ok(input) => input,
+                        Err(input) => bail_malformed!(
+                            dfg,
+                            "keccakf1600 input: expected length 25, got {}",
+                            input.len()
+                        ),
+                    };
+                    let state = acvm::blackbox_solver::keccakf1600(input)
+                        .expect("Rust solvable black box function should not fail");
                     let state_values = state.iter().map(|x| FieldElement::from(u128::from(*x)));
                     let result_array = make_constant_array(
                         dfg,
@@ -718,7 +968,7 @@ fn simplify_black_box_func(
     }
 }
 
-fn to_u8_vec(dfg: &DataFlowGraph, values: im::Vector<ValueId>) -> Vec<u8> {
+fn to_u8_vec(dfg: &DataFlowGraph, values: imbl::Vector<ValueId>) -> Vec<u8> {
     values
         .iter()
         .map(|id| {
@@ -730,7 +980,7 @@ fn to_u8_vec(dfg: &DataFlowGraph, values: im::Vector<ValueId>) -> Vec<u8> {
         .collect()
 }
 
-fn array_is_constant(dfg: &DataFlowGraph, values: &im::Vector<ValueId>) -> bool {
+fn array_is_constant(dfg: &DataFlowGraph, values: &imbl::Vector<ValueId>) -> bool {
     values.iter().all(|value| dfg.get_numeric_constant(*value).is_some())
 }
 
@@ -755,49 +1005,73 @@ fn simplify_derive_generators(
         if let (Some(domain_separator_string), Some(starting_index)) =
             (domain_separator_string, starting_index)
         {
-            let domain_separator_bytes = domain_separator_string
+            let Some(domain_separator_bytes): Option<Vec<u8>> = domain_separator_string
                 .0
                 .iter()
-                .map(|&x| dfg.get_numeric_constant(x).unwrap().to_u128() as u8)
-                .collect::<Vec<u8>>();
-            let generators = derive_generators(
-                &domain_separator_bytes,
-                num_generators,
-                starting_index.try_to_u32().expect("argument is declared as u32"),
-            );
-            let is_infinite = dfg.make_constant(FieldElement::zero(), NumericType::bool());
+                .map(|&x| dfg.get_numeric_constant(x).map(|c| c.to_u128() as u8))
+                .collect()
+            else {
+                bail_malformed!(dfg, "derive_generators domain separator must be constant bytes");
+            };
+            let Some(starting_index) = starting_index.try_to_u32() else {
+                bail_malformed!(dfg, "derive_generators starting_index must fit in a u32");
+            };
+            let generators =
+                derive_generators(&domain_separator_bytes, num_generators, starting_index);
             let mut results = Vec::new();
             for generator in generators {
-                let x_big: BigUint = generator.x.into();
-                let x = FieldElement::from_be_bytes_reduce(&x_big.to_bytes_be());
-                let y_big: BigUint = generator.y.into();
-                let y = FieldElement::from_be_bytes_reduce(&y_big.to_bytes_be());
+                let x = FieldElement::from_repr(generator.x);
+                let y = FieldElement::from_repr(generator.y);
                 results.push(dfg.make_constant(x, NumericType::NativeField));
                 results.push(dfg.make_constant(y, NumericType::NativeField));
-                results.push(is_infinite);
             }
             let len = results.len() as u32;
             assert!(
-                len % 3 == 0,
-                "The number of results from derive_generators must be a multiple of 3"
+                len.is_multiple_of(2),
+                "The number of results from derive_generators must be a multiple of 2"
             );
-            let typ = Type::Array(
-                vec![Type::field(), Type::field(), Type::unsigned(1)].into(),
-                SemanticLength(len / 3),
-            );
+            let typ =
+                Type::Array(vec![Type::field(), Type::field()].into(), SemanticLength(len / 2));
             let result = make_array(dfg, results.into(), typ, block, call_stack);
             SimplifyResult::SimplifiedTo(result)
         } else {
             SimplifyResult::None
         }
     } else {
-        unreachable!("Unexpected number of arguments to derive_generators");
+        bail_malformed!(dfg, "derive_generators expects 2 arguments, got {}", arguments.len());
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{assert_ssa_snapshot, ssa::Ssa};
+    use acvm::{AcirField, FieldElement};
+
+    use crate::ssa::ir::instruction::Endian;
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{
+            Ssa, ir::dfg::simplify::call::constant_to_radix,
+            opt::assert_ssa_does_not_change_after_simplifying,
+        },
+    };
+
+    #[test]
+    fn constant_to_radix_decomposes_zero_into_zero_limbs() {
+        let limbs = constant_to_radix(Endian::Little, FieldElement::zero(), 256, 0);
+        assert_eq!(limbs, Some(Vec::new()));
+    }
+
+    #[test]
+    fn constant_to_radix_zero_pads_zero_value() {
+        let limbs = constant_to_radix(Endian::Little, FieldElement::zero(), 256, 3);
+        assert_eq!(limbs, Some(vec![FieldElement::zero(); 3]));
+    }
+
+    #[test]
+    fn constant_to_radix_rejects_non_zero_value_with_zero_limbs() {
+        let limbs = constant_to_radix(Endian::Little, FieldElement::from(5u128), 256, 0);
+        assert_eq!(limbs, None);
+    }
 
     #[test]
     fn simplify_derive_generators_has_correct_type() {
@@ -807,7 +1081,7 @@ mod tests {
                 separator = make_array b"DEFAULT_DOMAIN_SEPARATOR"
 
                 // This call was previously incorrectly simplified to something that returned `[Field; 3]`
-                result = call derive_pedersen_generators(separator, u32 0) -> [(Field, Field, u1); 1]
+                result = call derive_pedersen_generators(separator, u32 0) -> [(Field, Field); 1]
 
                 return result
             }
@@ -818,10 +1092,50 @@ mod tests {
         brillig(inline) fn main f0 {
           b0():
             v15 = make_array b"DEFAULT_DOMAIN_SEPARATOR"
-            v19 = make_array [Field 3728882899078719075161482178784387565366481897740339799480980287259621149274, Field -9903063709032878667290627648209915537972247634463802596148419711785767431332, u1 0] : [(Field, Field, u1); 1]
-            return v19
+            v18 = make_array [Field 3728882899078719075161482178784387565366481897740339799480980287259621149274, Field -9903063709032878667290627648209915537972247634463802596148419711785767431332] : [(Field, Field); 1]
+            return v18
         }
         "#);
+    }
+
+    // `keccakf1600` operates on a fixed `[u64; 25]` state; an all-constant call with a different
+    // length is malformed SSA, which panics under the default strict simplification.
+    #[test]
+    #[should_panic(expected = "malformed SSA reached simplify")]
+    fn wrong_sized_keccakf1600_panics_under_strict_simplify() {
+        let state = vec!["u64 0"; 24].join(", ");
+        let src = format!(
+            r#"
+            acir(inline) fn main f0 {{
+              b0():
+                v0 = make_array [{state}] : [u64; 24]
+                v1 = call keccakf1600(v0) -> [u64; 25]
+                return v1
+            }}"#
+        );
+        let _ = Ssa::from_str_simplifying(&src);
+    }
+
+    // With `allow_malformed_simplify` enabled (as the `ssa_fuzzer` does), the same malformed call is
+    // left intact rather than panicking. Validation is skipped because it would reject the length too.
+    #[test]
+    fn wrong_sized_keccakf1600_is_left_intact_when_malformed_allowed() {
+        let state = vec!["u64 0"; 24].join(", ");
+        let src = format!(
+            r#"
+            acir(inline) fn main f0 {{
+              b0():
+                v0 = make_array [{state}] : [u64; 24]
+                v1 = call keccakf1600(v0) -> [u64; 25]
+                return v1
+            }}"#
+        );
+        let ssa = Ssa::from_str_impl(&src, true, false, true).unwrap();
+        let lowered = ssa.to_string();
+        assert!(
+            lowered.contains("call keccakf1600"),
+            "a malformed call must be left intact under allow_malformed_simplify, got:\n{lowered}"
+        );
     }
 
     #[test]
@@ -940,7 +1254,9 @@ mod tests {
         ");
     }
 
-    #[should_panic(expected = "First argument to ArrayLen must be an array or a vector length")]
+    #[should_panic(
+        expected = "malformed SSA reached simplify: ArrayLen first argument must be an array or a vector length"
+    )]
     #[test]
     fn panics_on_array_len_with_wrong_type() {
         let src = r#"
@@ -973,5 +1289,392 @@ mod tests {
             return
         }
         ");
+    }
+
+    #[test]
+    fn simplifies_vector_push_back_from_make_array_simple() {
+        let src = r#"
+        acir(inline) fn main func {
+          b0():
+            v0 = make_array [Field 1, Field 2] : [Field]
+            v2, v3 = call vector_push_back(u32 2, v0, Field 3) -> (u32, [Field])
+            return v2, v3
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v2 = make_array [Field 1, Field 2] : [Field]
+            v4 = make_array [Field 1, Field 2, Field 3] : [Field]
+            return u32 3, v4
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_vector_push_back_from_make_array_complex() {
+        let src = r#"
+        acir(inline) fn main func {
+          b0():
+            v0 = make_array [Field 1, Field 2, Field 3, Field 4] : [(Field, Field)]
+            v2, v3 = call vector_push_back(u32 2, v0, Field 5, Field 6) -> (u32, [(Field, Field)])
+            return v2, v3
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v4 = make_array [Field 1, Field 2, Field 3, Field 4] : [(Field, Field)]
+            v7 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6] : [(Field, Field)]
+            return u32 3, v7
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_simplify_vector_push_back_from_make_array_if_length_different_from_capacity_and_complex()
+     {
+        // Here the semantic length is different from the vector capacity.
+        // A situation like this is possible when we merge vectors of different length across different branches,
+        // which results in the ValueMerger allocating elements to hold the longer one, and the semantic length
+        // becoming a formula. Then, if constant folding with Brillig optimizes out the condition, the semantic
+        // length can become a known constant.
+        // At the moment the only handling for complex type is the pushing to the last position.
+        let src = r#"
+        acir(inline) fn main func {
+          b0():
+            v0 = make_array [Field 1, Field 2, Field 3, Field 4] : [(Field, Field)]
+            v2, v3 = call vector_push_back(u32 1, v0, Field 5, Field 6) -> (u32, [(Field, Field)])
+            return v2, v3
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v4 = make_array [Field 1, Field 2, Field 3, Field 4] : [(Field, Field)]
+            v9, v10 = call vector_push_back(u32 1, v4, Field 5, Field 6) -> (u32, [(Field, Field)])
+            return v9, v10
+        }
+        ");
+    }
+
+    #[test]
+    fn simplify_vector_push_back_from_make_array_if_length_different_from_capacity_and_simple() {
+        // Here the semantic length is different from the vector capacity, but the elements are simple.
+        // In this case we can do a merge strategy.
+        let src = r#"
+        acir(inline) fn main func {
+          b0():
+            v0 = make_array [Field 1, Field 2, Field 3] : [Field]
+            v2, v3 = call vector_push_back(u32 1, v0, Field 5) -> (u32, [(Field, Field)])
+            return v2, v3
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v3 = make_array [Field 1, Field 2, Field 3] : [Field]
+            v5 = make_array [Field 1, Field 2, Field 3, Field 5] : [Field]
+            v7 = array_set v5, index u32 1, value Field 5
+            return u32 2, v7
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_vector_push_back_with_unknown_length() {
+        let src = r#"
+        acir(inline) fn main func {
+          b0(v0: u32):
+            v1 = make_array [Field 3, Field 4] : [Field]
+            v2, v3 = call vector_push_back(v0, v1, Field 5) -> (u32, [Field])
+            return v2, v3
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        // We can see how we start with a `make_array` that pushed `Field 5` to the end of the
+        // original `make_array`, sets the element at `v0` to `Field 5` (which can result in
+        // one of `[5, 4, 5]`, `[3, 5, 5]` or `[3, 4, 5]` depending on the value of `v0`),
+        // and then merge that new array with `[3, 4, 5]`.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v3 = make_array [Field 3, Field 4] : [Field]
+            v5 = add v0, u32 1
+            v7 = make_array [Field 3, Field 4, Field 5] : [Field]
+            v8 = array_set v7, index v0, value Field 5
+            return v5, v8
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_vector_insert_on_make_array_and_known_middle_index() {
+        let src = r#"
+        acir(inline) fn main func {
+          b0(v0: u32):
+            v1 = make_array [Field 3, Field 4] : [Field]
+            v10, v11 = call vector_insert(u32 2, v1, u32 1, Field 2) -> (u32, [Field])
+            return v10, v11
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v3 = make_array [Field 3, Field 4] : [Field]
+            v5 = make_array [Field 3, Field 2, Field 4] : [Field]
+            return u32 3, v5
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_vector_insert_on_make_array_and_known_index_right_past_end() {
+        let src = r#"
+        acir(inline) fn main func {
+          b0(v0: u32):
+            v1 = make_array [Field 3, Field 4] : [Field]
+            v10, v11 = call vector_insert(u32 2, v1, u32 2, Field 2) -> (u32, [Field])
+            return v10, v11
+        }
+        "#;
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v3 = make_array [Field 3, Field 4] : [Field]
+            v5 = make_array [Field 3, Field 4, Field 2] : [Field]
+            return u32 3, v5
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_simplify_vector_insert_on_make_array_and_known_index_past_end() {
+        let src = r#"
+        acir(inline) fn main func {
+          b0(v0: u32):
+            v1 = make_array [Field 3, Field 4] : [Field]
+            v10, v11 = call vector_insert(u32 2, v1, u32 3, Field 2) -> (u32, [Field])
+            return v10, v11
+        }
+        "#;
+        assert_ssa_does_not_change_after_simplifying(src);
+    }
+
+    #[test]
+    fn simplifies_as_vector_for_zero_sized_array() {
+        let src = r"
+        acir(inline) fn main func {
+          b0(v0: [(); 3]):
+            v1, v2 = call as_vector(v0) -> [()]
+            return v1, v2
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: [(); 3]):
+            v1 = make_array [] : [()]
+            return u32 3, v1
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_vector_insert_for_zero_sized_array() {
+        let src = r"
+        acir(inline) fn main func {
+          b0(v0: u32, v1: [()], v2: u32):
+            v3, v4 = call vector_insert(v0, v1, v2) -> (u32, [()])
+            return v3, v4
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: [()], v2: u32):
+            v4 = add v0, u32 1
+            return v4, v1
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_vector_remove_for_zero_sized_array() {
+        let src = r"
+        acir(inline) fn main func {
+          b0(v0: u32, v1: [()], v2: u32):
+            v3, v4 = call vector_remove(v0, v1, v2) -> (u32, [()])
+            return v3, v4
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: [()], v2: u32):
+            v4 = eq v0, u32 0
+            constrain v4 == u1 0, "Cannot remove from an empty vector"
+            v7 = unchecked_sub v0, u32 1
+            return v7, v1
+        }
+        "#);
+    }
+
+    #[test]
+    fn simplifies_vector_remove_for_empty_zero_sized_array() {
+        // Removing from a statically-empty zero-sized vector must not produce a wrapping length:
+        // see https://github.com/noir-lang/noir/issues/1394.
+        let src = r"
+        acir(inline) fn main func {
+          b0():
+            v0 = make_array [] : [()]
+            v1, v2 = call vector_remove(u32 0, v0, u32 0) -> (u32, [()])
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) fn main f0 {
+          b0():
+            v0 = make_array [] : [()]
+            constrain u1 1 == u1 0, "Cannot remove from an empty vector"
+            return u32 0
+        }
+        "#);
+    }
+
+    #[test]
+    fn simplifies_vector_push_back_for_zero_sized_array() {
+        let src = r"
+        acir(inline) fn main func {
+          b0(v0: u32, v1: [()]):
+            v2, v3 = call vector_push_back(v0, v1) -> (u32, [()])
+            return v2, v3
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: [()]):
+            v3 = add v0, u32 1
+            return v3, v1
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_vector_push_front_for_zero_sized_array() {
+        let src = r"
+        acir(inline) fn main func {
+          b0(v0: u32, v1: [()]):
+            v2, v3 = call vector_push_front(v0, v1) -> (u32, [()])
+            return v2, v3
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: [()]):
+            v3 = add v0, u32 1
+            return v3, v1
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_vector_pop_front_for_zero_sized_array_in_acir() {
+        let src = r"
+        acir(inline) fn main func {
+          b0(v0: u32, v1: [()]):
+            v2, v3 = call vector_pop_front(v0, v1) -> (u32, [()])
+            return v2, v3
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: [()]):
+            v3 = eq v0, u32 0
+            constrain v3 == u1 0, "Cannot pop from an empty vector"
+            v6 = unchecked_sub v0, u32 1
+            return v6, v1
+        }
+        "#);
+    }
+
+    #[test]
+    fn simplifies_vector_pop_back_for_zero_sized_array_in_acir() {
+        let src = r"
+        acir(inline) fn main func {
+          b0(v0: u32, v1: [()]):
+            v2, v3 = call vector_pop_back(v0, v1) -> (u32, [()])
+            return v2, v3
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: [()]):
+            v3 = eq v0, u32 0
+            constrain v3 == u1 0, "Cannot pop from an empty vector"
+            v6 = unchecked_sub v0, u32 1
+            return v6, v1
+        }
+        "#);
+    }
+
+    #[test]
+    fn simplifies_vector_pop_front_for_zero_sized_array_in_brillig() {
+        let src = r"
+        brillig(inline) fn main func {
+          b0(v0: u32, v1: [()]):
+            v2, v3 = call vector_pop_front(v0, v1) -> (u32, [()])
+            return v2, v3
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r#"
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: [()]):
+            v3 = eq v0, u32 0
+            constrain v3 == u1 0, "Cannot pop from an empty vector"
+            v6 = unchecked_sub v0, u32 1
+            return v6, v1
+        }
+        "#);
+    }
+
+    #[test]
+    fn simplifies_vector_pop_back_for_zero_sized_array_in_brillig() {
+        let src = r"
+        brillig(inline) fn main func {
+          b0(v0: u32, v1: [()]):
+            v2, v3 = call vector_pop_back(v0, v1) -> (u32, [()])
+            return v2, v3
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r#"
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: [()]):
+            v3 = eq v0, u32 0
+            constrain v3 == u1 0, "Cannot pop from an empty vector"
+            v6 = unchecked_sub v0, u32 1
+            return v6, v1
+        }
+        "#);
     }
 }

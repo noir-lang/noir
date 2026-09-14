@@ -8,7 +8,7 @@ use crate::brillig::brillig_ir::{
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
-    /// Copy the arguments to the scratch space and call [ProcedureId::ArrayReverse].
+    /// Copy the arguments to the scratch space and call [`ProcedureId::ArrayReverse`].
     ///
     /// Reverses the `size` number of items pointed to by `pointer` in-place.
     pub(crate) fn call_array_reverse_procedure(
@@ -25,7 +25,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     }
 }
 
-/// Compile [ProcedureId::ArrayReverse].
+/// Compile [`ProcedureId::ArrayReverse`].
 pub(super) fn compile_array_reverse_procedure<F: AcirField + DebugToString>(
     brillig_context: &mut BrilligContext<F, ScratchSpace>,
 ) {

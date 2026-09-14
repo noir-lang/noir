@@ -1,6 +1,5 @@
 use std::{
     collections::{HashMap, HashSet},
-    future::{self, Future},
     path::PathBuf,
 };
 
@@ -28,9 +27,9 @@ use super::to_lsp_location;
 pub(crate) fn on_workspace_symbol_request(
     state: &mut LspState,
     params: WorkspaceSymbolParams,
-) -> impl Future<Output = Result<Option<WorkspaceSymbolResponse>, ResponseError>> + use<> {
+) -> Result<Option<WorkspaceSymbolResponse>, ResponseError> {
     let Some(root_path) = state.root_path.clone() else {
-        return future::ready(Ok(None));
+        return Ok(None);
     };
 
     let overrides = source_code_overrides(&state.input_files);
@@ -93,7 +92,7 @@ pub(crate) fn on_workspace_symbol_request(
         })
         .collect::<Vec<_>>();
 
-    future::ready(Ok(Some(WorkspaceSymbolResponse::Nested(symbols))))
+    Ok(Some(WorkspaceSymbolResponse::Nested(symbols)))
 }
 
 #[derive(Default)]
@@ -238,16 +237,15 @@ impl Visitor for WorkspaceSymbolGatherer<'_> {
 #[cfg(test)]
 mod tests {
     use async_lsp::lsp_types::{
-        PartialResultParams, SymbolKind, WorkDoneProgressParams, WorkspaceSymbolParams,
-        WorkspaceSymbolResponse,
+        PartialResultParams, SymbolKind, WorkDoneProgressParams, WorkspaceSymbol,
+        WorkspaceSymbolParams, WorkspaceSymbolResponse,
     };
-    use tokio::test;
 
     use crate::{on_workspace_symbol_request, test_utils};
 
-    #[test]
-    async fn test_workspace_symbol() {
-        let (mut state, _) = test_utils::init_lsp_server("document_symbol").await;
+    fn get_workspace_symbols(src: &str) -> Vec<WorkspaceSymbol> {
+        let (mut state, _) =
+            test_utils::init_lsp_server_with_inline_source("document_symbol", "src/main.nr", src);
 
         let response = on_workspace_symbol_request(
             &mut state,
@@ -257,46 +255,110 @@ mod tests {
                 work_done_progress_params: WorkDoneProgressParams::default(),
             },
         )
-        .await
-        .expect("Could not execute on_document_symbol_request")
+        .expect("Could not execute on_workspace_symbol_request")
         .unwrap();
 
         let WorkspaceSymbolResponse::Nested(symbols) = response else {
             panic!("Expected Nested response, got {response:?}");
         };
+        symbols
+    }
 
-        assert_eq!(symbols.len(), 8);
-
+    #[test]
+    fn test_workspace_symbol_for_function() {
+        let symbols = get_workspace_symbols("fn foo(_x: i32) {}\n");
+        assert_eq!(symbols.len(), 1);
         assert_eq!(&symbols[0].name, "foo");
         assert_eq!(symbols[0].kind, SymbolKind::FUNCTION);
         assert!(symbols[0].container_name.is_none());
+    }
 
-        assert_eq!(&symbols[1].name, "SomeStruct");
-        assert_eq!(symbols[1].kind, SymbolKind::STRUCT);
-        assert!(symbols[1].container_name.is_none());
+    #[test]
+    fn test_workspace_symbol_for_struct() {
+        let symbols = get_workspace_symbols("struct SomeStruct { field: i32 }\n");
+        assert_eq!(symbols.len(), 1);
+        assert_eq!(&symbols[0].name, "SomeStruct");
+        assert_eq!(symbols[0].kind, SymbolKind::STRUCT);
+        assert!(symbols[0].container_name.is_none());
+    }
 
-        assert_eq!(&symbols[2].name, "new");
-        assert_eq!(symbols[2].kind, SymbolKind::FUNCTION);
-        assert_eq!(symbols[2].container_name.as_ref().unwrap(), "SomeStruct");
+    #[test]
+    fn test_workspace_symbol_for_inherent_impl_method_uses_struct_as_container() {
+        let src = r#"struct SomeStruct {}
 
-        assert_eq!(&symbols[3].name, "SomeTrait");
-        assert_eq!(symbols[3].kind, SymbolKind::INTERFACE);
-        assert!(symbols[3].container_name.is_none());
+impl SomeStruct {
+    fn new() -> SomeStruct { SomeStruct {} }
+}
+"#;
+        let symbols = get_workspace_symbols(src);
+        let new_method =
+            symbols.iter().find(|s| s.name == "new").expect("Expected to find `new` method");
+        assert_eq!(new_method.kind, SymbolKind::FUNCTION);
+        assert_eq!(new_method.container_name.as_deref(), Some("SomeStruct"));
+    }
 
-        assert_eq!(&symbols[4].name, "some_method");
-        assert_eq!(symbols[4].kind, SymbolKind::FUNCTION);
-        assert_eq!(symbols[4].container_name.as_ref().unwrap(), "SomeTrait");
+    #[test]
+    fn test_workspace_symbol_for_trait() {
+        let symbols = get_workspace_symbols("trait SomeTrait<U> { fn some_method(x: U); }\n");
+        let trait_symbol =
+            symbols.iter().find(|s| s.name == "SomeTrait").expect("Expected to find `SomeTrait`");
+        assert_eq!(trait_symbol.kind, SymbolKind::INTERFACE);
+        assert!(trait_symbol.container_name.is_none());
+    }
 
-        assert_eq!(&symbols[5].name, "some_method");
-        assert_eq!(symbols[5].kind, SymbolKind::FUNCTION);
-        assert_eq!(symbols[5].container_name.as_ref().unwrap(), "SomeStruct");
+    #[test]
+    fn test_workspace_symbol_for_trait_method_uses_trait_as_container() {
+        let src = "trait SomeTrait<U> { fn some_method(x: U); }\n";
+        let symbols = get_workspace_symbols(src);
+        let method = symbols
+            .iter()
+            .find(|s| s.name == "some_method")
+            .expect("Expected to find `some_method`");
+        assert_eq!(method.kind, SymbolKind::FUNCTION);
+        assert_eq!(method.container_name.as_deref(), Some("SomeTrait"));
+    }
 
-        assert_eq!(&symbols[6].name, "submodule");
-        assert_eq!(symbols[6].kind, SymbolKind::MODULE);
-        assert!(symbols[6].container_name.is_none());
+    #[test]
+    fn test_workspace_symbol_for_trait_impl_method_uses_target_type_as_container() {
+        let src = r#"struct SomeStruct {}
 
-        assert_eq!(&symbols[7].name, "SOME_GLOBAL");
-        assert_eq!(symbols[7].kind, SymbolKind::CONSTANT);
-        assert!(symbols[7].container_name.is_none());
+trait SomeTrait<U> {
+    fn some_method(x: U);
+}
+
+impl SomeTrait<i32> for SomeStruct {
+    fn some_method(_x: i32) {}
+}
+"#;
+        let symbols = get_workspace_symbols(src);
+        let impl_methods: Vec<_> = symbols
+            .iter()
+            .filter(|s| {
+                s.name == "some_method" && s.container_name.as_deref() == Some("SomeStruct")
+            })
+            .collect();
+        assert_eq!(impl_methods.len(), 1);
+        assert_eq!(impl_methods[0].kind, SymbolKind::FUNCTION);
+    }
+
+    #[test]
+    fn test_workspace_symbol_for_module() {
+        let symbols = get_workspace_symbols("mod submodule { global SOME_GLOBAL = 1; }\n");
+        let module =
+            symbols.iter().find(|s| s.name == "submodule").expect("Expected to find `submodule`");
+        assert_eq!(module.kind, SymbolKind::MODULE);
+        assert!(module.container_name.is_none());
+    }
+
+    #[test]
+    fn test_workspace_symbol_for_global() {
+        let symbols = get_workspace_symbols("mod submodule { global SOME_GLOBAL = 1; }\n");
+        let global = symbols
+            .iter()
+            .find(|s| s.name == "SOME_GLOBAL")
+            .expect("Expected to find `SOME_GLOBAL`");
+        assert_eq!(global.kind, SymbolKind::CONSTANT);
+        // Globals are reported at the top level even when declared inside a module.
+        assert!(global.container_name.is_none());
     }
 }

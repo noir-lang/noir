@@ -1,23 +1,42 @@
 //! The goal of the "remove enable side effects" optimization pass is to delay any
-//! [Instruction::EnableSideEffectsIf] instructions in ACIR functions such that they cover
+//! [`Instruction::EnableSideEffectsIf`] instructions in ACIR functions such that they cover
 //! the minimum number of instructions possible.
 //!
 //! The pass works as follows:
-//! - Insert instructions until an [Instruction::EnableSideEffectsIf] is encountered, save this
-//!   [InstructionId][crate::ssa::ir::instruction::InstructionId].
+//! - Insert instructions until an [`Instruction::EnableSideEffectsIf`] is encountered, save this
+//!   [`InstructionId`][crate::ssa::ir::instruction::InstructionId].
 //! - Continue inserting instructions until either
-//!     - Another [Instruction::EnableSideEffectsIf] is encountered, if so then drop the previous
-//!       [InstructionId][crate::ssa::ir::instruction::InstructionId] in favour of this one.
+//!     - Another [`Instruction::EnableSideEffectsIf`] is encountered, if so then drop the previous
+//!       [`InstructionId`][crate::ssa::ir::instruction::InstructionId] in favor of this one.
 //!     - An [Instruction] that is affected by the side-effects variable is encountered, if so
-//!       then insert the currently saved [Instruction::EnableSideEffectsIf] before the
+//!       then insert the currently saved [`Instruction::EnableSideEffectsIf`] before the
 //!       [Instruction]. Continue inserting instructions until the next
-//!       [Instruction::EnableSideEffectsIf] is encountered.
+//!       [`Instruction::EnableSideEffectsIf`] is encountered.
 //!
-//! The pass will also remove redundant [Instruction::EnableSideEffectsIf] instructions,
-//! for example if two consecutive [Instruction::EnableSideEffectsIf] instructions have the same
+//! The pass will also remove redundant [`Instruction::EnableSideEffectsIf`] instructions,
+//! for example if two consecutive [`Instruction::EnableSideEffectsIf`] instructions have the same
 //! condition.
 //!
-//! This pass doesn't run in Brillig functions as [Instruction::EnableSideEffectsIf] is not allowed
+//! ## Dropping `EnableSideEffectsIf` instructions which have no effect
+//!
+//! An [`Instruction::EnableSideEffectsIf`] only influences the generated circuit through the
+//! instructions which read the side-effects predicate during ACIR generation: those for which
+//! [`requires_acir_gen_predicate`][crate::ssa::ir::instruction::Instruction::requires_acir_gen_predicate]
+//! returns `true`, along with [`Instruction::Constrain`].
+//!
+//! When a deferred [`Instruction::EnableSideEffectsIf`] (one whose condition is not the constant
+//! `u1 1`) is not followed by any such instruction before the end of the block — or before another
+//! [`Instruction::EnableSideEffectsIf`] supersedes it — then it is dropped entirely rather than
+//! re-inserted. This is expected behavior and is safe: if no instruction is affected by an
+//! `enable_side_effects` instruction then removing it does not change the behavior of the circuit.
+//! In particular a trailing `enable_side_effects` sitting immediately before the `return`
+//! terminator is always removed, as `return` does not consume the side-effects predicate.
+//!
+//! This safety relies on the precondition below that ACIR functions consist of a single block after
+//! flattening, so there is no successor block whose instructions could observe the dropped
+//! predicate.
+//!
+//! This pass doesn't run in Brillig functions as [`Instruction::EnableSideEffectsIf`] is not allowed
 //! in Brillig functions.
 //!
 //! ## Preconditions:
@@ -124,7 +143,7 @@ fn should_insert_side_effects_before_instruction(
     instruction.requires_acir_gen_predicate(dfg)
 }
 
-/// Pre-check condition for remove_enable_side_effects.
+/// Pre-check condition for `remove_enable_side_effects`.
 ///
 /// Panics if:
 ///   - The CFG has not been flattened for ACIR functions.
@@ -255,7 +274,7 @@ mod tests {
             enable_side_effects u1 1
             return v12
         }
-        brillig(inline) predicate_pure fn func_1 f1 {
+        brillig(inline) pure fn func_1 f1 {
           b0(v0: [u16; 3], v1: u1):
             v3 = make_array [u1 0] : [u1; 1]
             return v3
@@ -287,29 +306,21 @@ mod tests {
             v7 = make_array [Field 1, Field 2, Field 3] : [Field]
             v9 = array_set v7, index v2, value Field 4
 
-            // this instruction should be removed
+            // this instruction should be preserved (vector_push_back uses the predicate
+            // in ACIR lowering via get_flattened_index)
             enable_side_effects v1
 
             v13, v14 = call vector_push_back(u32 3, v9, Field 5) -> (u32, [Field])
             return
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_enable_side_effects();
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) predicate_pure fn main f0 {
-          b0(v0: [u32; 3], v1: u1, v2: u32):
-            v4 = array_get v0, index u32 0 -> u32
-            v8 = make_array [Field 1, Field 2, Field 3] : [Field]
-            v10 = array_set v8, index v2, value Field 4
-            v14, v15 = call vector_push_back(u32 3, v10, Field 5) -> (u32, [Field])
-            return
-        }
-        ");
+        assert_ssa_does_not_change(src, Ssa::remove_enable_side_effects);
     }
 
     #[test]
     fn remove_enable_side_effects_for_vector_push_front() {
+        // vector_push_front does not use the side-effects predicate in ACIR lowering,
+        // so enable_side_effects should be removed here.
         let src = "
         acir(inline) predicate_pure fn main f0 {
           b0(v0: [u32; 3], v1: u1, v2: u32):
@@ -537,8 +548,30 @@ mod tests {
     }
 
     #[test]
+    fn keep_enable_side_effects_before_pure_function_call() {
+        // All user-defined function calls are predicated during ACIR generation,
+        // regardless of purity. The EnableSideEffectsIf before a pure call must
+        // be preserved so that ACIR gen receives the correct predicate.
+        let src = r#"
+        acir(inline) pure fn main f0 {
+          b0(v0: u1, v1: Field):
+            enable_side_effects v0
+            v2 = call f1(v1) -> Field
+            enable_side_effects u1 1
+            return v2
+        }
+        acir(inline) pure fn my_pure_fn f1 {
+          b0(v0: Field):
+            v1 = add v0, Field 1
+            return v1
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::remove_enable_side_effects);
+    }
+
+    #[test]
     fn keep_enable_side_effects_for_recursive_aggregation() {
-        // RecursiveAggregation uses the `current_side_effects_enabled_var` as its predicate
+        // RecursiveAggregation uses the current side-effects predicate
         // during ACIR generation. If `remove_enable_side_effects` drops the `EnableSideEffectsIf`
         // before a recursive_aggregation call, ACIR gen injects a stale predicate, which can
         // silently disable recursive verification constraints.
@@ -555,5 +588,65 @@ mod tests {
         }
         "#;
         assert_ssa_does_not_change(src, Ssa::remove_enable_side_effects);
+    }
+
+    /// Regression test: the heterogeneous `vector_push_back` path in ACIR lowering multiplies
+    /// `vector_length` by the side-effects predicate to compute the write offset.
+    /// `remove_enable_side_effects` must preserve the `EnableSideEffectsIf` before these calls.
+    ///
+    /// This test uses ACVM execution (not the SSA interpreter) because the bug is in how
+    /// ACIR lowering consumes the side-effects predicate.
+    #[test]
+    fn vector_push_back_heterogeneous_predicate_preserved_in_acir() {
+        use acvm::pwg::ACVMStatus;
+        use acvm::{
+            AcirField, FieldElement,
+            acir::native_types::{Witness, WitnessMap},
+        };
+        use std::collections::BTreeMap;
+
+        use crate::acir::tests::execute_ssa;
+
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1, v1: u32):
+            v2_arr = make_array [u32 22, u32 33] : [u32; 2]
+            v2 = make_array [u32 11, v2_arr] : [(u32, [u32; 2])]
+            v3 = make_array [u32 44, u32 55] : [u32; 2]
+            v4 = not v0
+            enable_side_effects v0
+            constrain Field 1 != Field 0, ""
+            enable_side_effects v4
+            v7, v8 = call vector_push_back(v1, v2, u32 99, v3) -> (u32, [(u32, [u32; 2])])
+            enable_side_effects u1 1
+            v9 = array_get v8, index u32 2 -> u32
+            return v9
+        }
+        "#;
+
+        let initial_witness = WitnessMap::from(BTreeMap::from([
+            (Witness(0), FieldElement::one()),
+            (Witness(1), FieldElement::one()),
+        ]));
+        let return_witness = Witness(2);
+
+        let (status_before, out_before) = execute_ssa(
+            Ssa::from_str(src).unwrap(),
+            initial_witness.clone(),
+            Some(&return_witness),
+        );
+        assert_eq!(status_before, ACVMStatus::Solved);
+
+        let (status_after, out_after) = execute_ssa(
+            Ssa::from_str(src).unwrap().remove_enable_side_effects(),
+            initial_witness,
+            Some(&return_witness),
+        );
+        assert_eq!(status_after, ACVMStatus::Solved);
+
+        assert_eq!(
+            out_before, out_after,
+            "remove_enable_side_effects changed the witness output from {out_before:?} to {out_after:?}"
+        );
     }
 }

@@ -4,17 +4,21 @@ use std::rc::Rc;
 use acvm::FieldElement;
 use iter_extended::vecmap;
 use noirc_errors::CustomDiagnostic as Diagnostic;
+use noirc_errors::DiagnosticKind;
 use noirc_errors::Location;
+use num_bigint::BigInt;
 use thiserror::Error;
 
+use crate::Kind;
 use crate::ast::BinaryOpKind;
 use crate::ast::{ConstrainKind, FunctionReturnType, Ident, IntegerBitSize};
+use crate::elaborator::types::SimilarlyNamedType;
+use crate::hir::comptime::Integer;
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir_def::traits::TraitConstraint;
-use crate::hir_def::types::{BinaryTypeOperator, Kind, Type};
+use crate::hir_def::types::{BinaryTypeOperator, Type};
 use crate::node_interner::NodeInterner;
 use crate::shared::Signedness;
-use crate::signed_field::SignedField;
 use crate::validity::InvalidType;
 
 /// Rust also only shows 3 maximum, even for short patterns.
@@ -35,50 +39,50 @@ pub enum Source {
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum TypeCheckError {
     #[error("Division by zero: {lhs} / {rhs}")]
-    DivisionByZero { lhs: SignedField, rhs: SignedField, location: Location },
+    DivisionByZero { lhs: Integer, rhs: Integer, location: Location },
     #[error("Modulo on Field elements: {lhs} % {rhs}")]
-    ModuloOnFields { lhs: SignedField, rhs: SignedField, location: Location },
+    ModuloOnFields { lhs: FieldElement, rhs: FieldElement, location: Location },
+    #[error("Modulo by zero: {lhs} % {rhs}")]
+    ModuloByZero { lhs: Integer, rhs: Integer, location: Location },
     #[error("The value `{expr}` cannot fit into `{ty}` which has range `{range}`")]
-    IntegerLiteralDoesNotFitItsType {
-        expr: SignedField,
-        ty: Type,
-        range: String,
-        location: Location,
-    },
+    IntegerLiteralDoesNotFitItsType { expr: BigInt, ty: Type, range: String, location: Location },
     #[error(
-        "The value `{value}` cannot fit into `{kind}` which has a maximum size of `{maximum_size}`"
+        "The value `{value}` cannot fit into `{kind}` which has a range of {minimum_size}..={maximum_size}"
     )]
     OverflowingConstant {
-        value: SignedField,
+        value: Integer,
         kind: Kind,
-        maximum_size: FieldElement,
+        minimum_size: i128,
+        maximum_size: u128,
         location: Location,
     },
-    #[error(
-        "The value `{value}` cannot fit into `{kind}` which has a minimum size of `{minimum_size}`"
-    )]
-    UnderflowingConstant {
-        value: SignedField,
-        kind: Kind,
-        minimum_size: SignedField,
-        location: Location,
-    },
-    #[error("Evaluating `{op}` on `{lhs}`, `{rhs}` failed")]
-    FailingBinaryOp { op: BinaryTypeOperator, lhs: String, rhs: String, location: Location },
+    #[error("`{lhs} {op} {rhs}` in the arithmetic generics here would overflow the bounds of a(n) `{}`", lhs.get_type())]
+    OverflowingBinaryOp { op: BinaryTypeOperator, lhs: Integer, rhs: Integer, location: Location },
     #[error("Type {typ:?} cannot be used in a {place:?}")]
     TypeCannotBeUsed { typ: Type, place: &'static str, location: Location },
     #[error("Expected type {expected_typ:?} is not the same as {expr_typ:?}")]
-    TypeMismatch { expected_typ: String, expr_typ: String, expr_location: Location },
+    TypeMismatch {
+        expected_typ: String,
+        expr_typ: String,
+        expr_location: Location,
+        similarly_named_types: Vec<(SimilarlyNamedType, SimilarlyNamedType)>,
+    },
     #[error("Expected type {expected} is not the same as {actual}")]
-    TypeMismatchWithSource { expected: Type, actual: Type, location: Location, source: Source },
+    TypeMismatchWithSource {
+        expected: String,
+        actual: String,
+        location: Location,
+        source: Source,
+        similarly_named_types: Vec<(SimilarlyNamedType, SimilarlyNamedType)>,
+    },
     #[error("Expected type {expected_kind:?} is not the same as {expr_kind:?}")]
     TypeKindMismatch { expected_kind: Kind, expr_kind: Kind, expr_location: Location },
     #[error("Evaluating {to} resulted in {to_value}, but {from_value} was expected")]
     TypeCanonicalizationMismatch {
         to: Type,
         from: Type,
-        to_value: SignedField,
-        from_value: SignedField,
+        to_value: Integer,
+        from_value: Integer,
         location: Location,
     },
     #[error("Expected {expected:?} found {found:?}")]
@@ -87,6 +91,8 @@ pub enum TypeCheckError {
     InvalidCast { from: Type, location: Location, reason: String },
     #[error("Casting value of type {from} to a smaller type ({to})")]
     DownsizingCast { from: Type, to: Type, location: Location, reason: String },
+    #[error("Negative Field literal `{value}` cast to `{to}` evaluates to `{result}`")]
+    NegativeLiteralCastToInteger { value: BigInt, result: String, to: Type, location: Location },
     #[error("Cannot cast `{typ}` as `bool`")]
     CannotCastNumericToBool { typ: Type, location: Location },
     #[error("Expected a function, but found a(n) {found}")]
@@ -107,14 +113,22 @@ pub enum TypeCheckError {
     UnsupportedFieldCast { location: Location },
     #[error("Index {index} is out of bounds for this tuple {lhs_type} of length {length}")]
     TupleIndexOutOfBounds { index: usize, lhs_type: Type, length: usize, location: Location },
+    #[error("Index {index} is out of bounds for this array of length {array_length}")]
+    ArrayIndexOutOfBounds { index: u32, array_length: u32, location: Location },
     #[error("Variable `{name}` must be mutable to be assigned to")]
     VariableMustBeMutable { name: String, location: Location },
+    #[error("`{name}` is a `&` reference, so it cannot be written to")]
+    CannotAssignToReference { name: String, location: Location },
+    #[error("Cannot assign to `{lvalue}`, which is behind a `&` reference")]
+    CannotAssignToLValueBehindReference { lvalue: String, location: Location },
     #[error("Cannot mutate immutable variable `{name}`")]
     CannotMutateImmutableVariable { name: String, location: Location },
     #[error("Variable {name} captured in lambda must be a mutable reference")]
     MutableCaptureWithoutRef { name: String, location: Location },
     #[error("Mutable references to array indices are unsupported")]
     MutableReferenceToArrayElement { location: Location },
+    #[error("Cannot take a mutable reference to a value behind a `&` reference")]
+    MutableReferenceBehindImmutableReference { location: Location },
     #[error("No method named '{method_name}' found for type '{object_type}'")]
     UnresolvedMethodCall { method_name: String, object_type: Type, location: Location },
     #[error("Cannot invoke function field '{method_name}' on type '{object_type}' as a method")]
@@ -139,10 +153,6 @@ pub enum TypeCheckError {
     FieldNot { location: Location },
     #[error("Fields cannot be compared, try casting to an integer first")]
     FieldComparison { location: Location },
-    #[error(
-        "The bit count in a bit-shift operation must fit in a u8, try casting the right hand side into a u8 first"
-    )]
-    InvalidShiftSize { location: Location },
     #[error("Cannot `bool {op} bool`")]
     InvalidBoolInfixOp { op: BinaryOpKind, location: Location },
     #[error("Error with additional context")]
@@ -162,8 +172,8 @@ pub enum TypeCheckError {
     TypeAnnotationsNeededForFieldAccess { location: Location },
     #[error("Multiple trait impls may apply to this object type")]
     MultipleMatchingImpls { object_type: Type, candidates: Vec<String>, location: Location },
-    #[error("use of deprecated function {name}")]
-    CallDeprecated { name: String, note: Option<String>, location: Location },
+    #[error("Use of deprecated function {name}")]
+    CallDeprecated { name: String, note: Option<String>, deny: bool, location: Location },
     #[error("{0}")]
     ResolverError(ResolverError),
     #[error("Unused expression result of type {expr_type}")]
@@ -196,14 +206,14 @@ pub enum TypeCheckError {
         "Cannot pass a mutable reference from a constrained runtime to an unconstrained runtime"
     )]
     ConstrainedReferenceToUnconstrained { location: Location },
-    #[error(
-        "Cannot pass a mutable reference from a unconstrained runtime to an constrained runtime"
-    )]
+    #[error("Cannot pass a reference from an unconstrained runtime to an constrained runtime")]
     UnconstrainedReferenceToConstrained { location: Location },
     #[error("Vectors cannot be returned from an unconstrained runtime to a constrained runtime")]
     UnconstrainedVectorReturnToConstrained { location: Location },
     #[error("Functions cannot be returned from an unconstrained runtime to a constrained runtime")]
     UnconstrainedFunctionReturnToConstrained { location: Location },
+    #[error("Enums cannot be returned from an unconstrained runtime to a constrained runtime")]
+    UnconstrainedEnumReturnToConstrained { location: Location },
     #[error(
         "Call to unconstrained function from constrained function is unsafe and must be in an unconstrained function or unsafe block"
     )]
@@ -214,6 +224,8 @@ pub enum TypeCheckError {
     NonConstantEvaluated { typ: Type, location: Location },
     #[error("Only sized types may be used in the entry point to a program")]
     InvalidTypeForEntryPoint { invalid_type: InvalidType, location: Location },
+    #[error("Entry point parameter must use a simple identifier pattern")]
+    InvalidPatternForEntryPoint { location: Location },
     #[error("Mismatched number of parameters in trait implementation")]
     MismatchTraitImplNumParameters {
         actual_num_parameters: usize,
@@ -232,8 +244,6 @@ pub enum TypeCheckError {
     NoSuchNamedTypeArg { name: Ident, item: String },
     #[error("`{item}` is missing the associated type `{name}`")]
     MissingNamedTypeArg { name: Rc<String>, item: String, location: Location },
-    #[error("Internal compiler error: type unspecified for value")]
-    UnspecifiedType { location: Location },
     #[error("Binding `{typ}` here to the `_` inside would create a cyclic type")]
     CyclicType { typ: Type, location: Location },
     #[error("Type annotations required before indexing this array or vector")]
@@ -261,10 +271,26 @@ pub enum TypeCheckError {
     },
     #[error("Type annotation needed on array literal")]
     TypeAnnotationNeededOnArrayLiteral { is_array: bool, location: Location },
-    #[error("Expecting another error: {message}")]
-    ExpectingOtherError { message: String, location: Location },
+    #[error("Expecting another error: {}", (.0).message)]
+    ExpectingOtherError(ExpectingOtherError),
     #[error("Cannot call `std::verify_proof_with_type` in unconstrained context")]
     VerifyProofWithTypeInBrillig { location: Location },
+    #[error("Cannot use struct pattern syntax `{{ }}` on enum variant `{path}`")]
+    StructPatternOnEnumVariant { path: String, location: Location },
+}
+
+/// An error which is only shown to the user if there are no other errors emitted.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ExpectingOtherError {
+    pub message: String,
+    pub location: Location,
+}
+
+impl<'a> From<&'a ExpectingOtherError> for Diagnostic {
+    fn from(error: &'a ExpectingOtherError) -> Self {
+        let secondary = "".to_string();
+        Diagnostic::simple_error(error.message.clone(), secondary, error.location)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -282,14 +308,27 @@ impl TypeCheckError {
         matches!(self, TypeCheckError::NonConstantEvaluated { .. })
     }
 
+    /// True for errors describing an arithmetic failure on constant operands
+    /// (the closed set of errors producible by [`BinaryTypeOperator::function`]),
+    /// as opposed to errors meaning an expression could not be reduced to a constant.
+    pub(crate) fn is_constant_arithmetic_failure(&self) -> bool {
+        matches!(
+            self,
+            TypeCheckError::OverflowingBinaryOp { .. }
+                | TypeCheckError::DivisionByZero { .. }
+                | TypeCheckError::ModuloOnFields { .. }
+                | TypeCheckError::ModuloByZero { .. }
+        )
+    }
+
     pub fn location(&self) -> Location {
         match self {
             TypeCheckError::DivisionByZero { location, .. }
             | TypeCheckError::ModuloOnFields { location, .. }
+            | TypeCheckError::ModuloByZero { location, .. }
             | TypeCheckError::IntegerLiteralDoesNotFitItsType { location, .. }
             | TypeCheckError::OverflowingConstant { location, .. }
-            | TypeCheckError::UnderflowingConstant { location, .. }
-            | TypeCheckError::FailingBinaryOp { location, .. }
+            | TypeCheckError::OverflowingBinaryOp { location, .. }
             | TypeCheckError::TypeCannotBeUsed { location, .. }
             | TypeCheckError::TypeMismatch { expr_location: location, .. }
             | TypeCheckError::TypeMismatchWithSource { location, .. }
@@ -298,6 +337,7 @@ impl TypeCheckError {
             | TypeCheckError::ArityMisMatch { location, .. }
             | TypeCheckError::InvalidCast { location, .. }
             | TypeCheckError::DownsizingCast { location, .. }
+            | TypeCheckError::NegativeLiteralCastToInteger { location, .. }
             | TypeCheckError::CannotCastNumericToBool { location, .. }
             | TypeCheckError::ExpectedFunction { location, .. }
             | TypeCheckError::AccessUnknownMember { location, .. }
@@ -308,10 +348,14 @@ impl TypeCheckError {
             | TypeCheckError::UnsupportedCast { location }
             | TypeCheckError::UnsupportedFieldCast { location }
             | TypeCheckError::TupleIndexOutOfBounds { location, .. }
+            | TypeCheckError::ArrayIndexOutOfBounds { location, .. }
             | TypeCheckError::VariableMustBeMutable { location, .. }
+            | TypeCheckError::CannotAssignToReference { location, .. }
+            | TypeCheckError::CannotAssignToLValueBehindReference { location, .. }
             | TypeCheckError::CannotMutateImmutableVariable { location, .. }
             | TypeCheckError::MutableCaptureWithoutRef { location, .. }
             | TypeCheckError::MutableReferenceToArrayElement { location }
+            | TypeCheckError::MutableReferenceBehindImmutableReference { location }
             | TypeCheckError::UnresolvedMethodCall { location, .. }
             | TypeCheckError::CannotInvokeStructFieldFunctionType { location, .. }
             | TypeCheckError::IntegerSignedness { location, .. }
@@ -321,7 +365,6 @@ impl TypeCheckError {
             | TypeCheckError::FieldModulo { location }
             | TypeCheckError::FieldNot { location }
             | TypeCheckError::FieldComparison { location }
-            | TypeCheckError::InvalidShiftSize { location }
             | TypeCheckError::InvalidBoolInfixOp { location, .. }
             | TypeCheckError::NonHomogeneousArray { first_location: location, .. }
             | TypeCheckError::TypeAnnotationsNeededForMethodCall { location }
@@ -340,15 +383,16 @@ impl TypeCheckError {
             | TypeCheckError::UnconstrainedReferenceToConstrained { location }
             | TypeCheckError::UnconstrainedVectorReturnToConstrained { location }
             | TypeCheckError::UnconstrainedFunctionReturnToConstrained { location }
+            | TypeCheckError::UnconstrainedEnumReturnToConstrained { location }
             | TypeCheckError::Unsafe { location }
             | TypeCheckError::UnsafeFn { location }
             | TypeCheckError::NonConstantEvaluated { location, .. }
             | TypeCheckError::InvalidTypeForEntryPoint { location, .. }
+            | TypeCheckError::InvalidPatternForEntryPoint { location }
             | TypeCheckError::MismatchTraitImplNumParameters { location, .. }
             | TypeCheckError::StringIndexAssign { location }
             | TypeCheckError::MacroReturningNonExpr { location, .. }
             | TypeCheckError::MissingNamedTypeArg { location, .. }
-            | TypeCheckError::UnspecifiedType { location }
             | TypeCheckError::CyclicType { location, .. }
             | TypeCheckError::TypeAnnotationsNeededForIndex { location }
             | TypeCheckError::UnnecessaryUnsafeBlock { location }
@@ -359,8 +403,9 @@ impl TypeCheckError {
             | TypeCheckError::TupleMismatch { location, .. }
             | TypeCheckError::TypeAnnotationNeededOnItem { location, .. }
             | TypeCheckError::TypeAnnotationNeededOnArrayLiteral { location, .. }
-            | TypeCheckError::ExpectingOtherError { location, .. }
-            | TypeCheckError::VerifyProofWithTypeInBrillig { location } => *location,
+            | TypeCheckError::VerifyProofWithTypeInBrillig { location }
+            | TypeCheckError::StructPatternOnEnumVariant { location, .. } => *location,
+            TypeCheckError::ExpectingOtherError(error) => error.location,
             TypeCheckError::DuplicateNamedTypeArg { name: ident, .. }
             | TypeCheckError::NoSuchNamedTypeArg { name: ident, .. } => ident.location(),
 
@@ -371,13 +416,24 @@ impl TypeCheckError {
             TypeCheckError::ResolverError(resolver_error) => resolver_error.location(),
         }
     }
+
+    /// An error which is only shown to the user if there are no other errors emitted.
+    pub(crate) fn expecting_other_error<S: Into<String>>(
+        message: S,
+        location: Location,
+    ) -> TypeCheckError {
+        TypeCheckError::ExpectingOtherError(ExpectingOtherError {
+            message: message.into(),
+            location,
+        })
+    }
 }
 
 impl<'a> From<&'a TypeCheckError> for Diagnostic {
     fn from(error: &'a TypeCheckError) -> Diagnostic {
         match error {
             TypeCheckError::TypeCannotBeUsed { typ, place, location } => Diagnostic::simple_error(
-                format!("The type {} cannot be used in a {}", &typ, place),
+                format!("The type {typ} cannot be used in a {place}"),
                 String::new(),
                 *location,
             ),
@@ -396,12 +452,27 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 String::new(),
                 *location,
             ),
-            TypeCheckError::TypeMismatch { expected_typ, expr_typ, expr_location } => {
-                Diagnostic::simple_error(
+            TypeCheckError::TypeMismatch { expected_typ, expr_typ, expr_location, similarly_named_types: similar_types } => {
+                let mut diagnostic = Diagnostic::simple_error(
                     format!("Expected type {expected_typ}, found type {expr_typ}"),
                     String::new(),
                     *expr_location,
-                )
+                );
+                for (type1, type2) in similar_types {
+                    let name1 = &type1.name;
+                    let name2 = &type2.name;
+                    diagnostic.add_secondary(format!("Note: `{name1}` and `{name2}` have similar names, but are actually distinct types"), *expr_location);
+
+                    for typ in [&type1, &type2] {
+                        let name = &typ.name;
+                        let crate_name = match &typ.external_crate {
+                            Some(crate_name) => format!("crate `{crate_name}`"),
+                            None => "the current crate".to_string(),
+                        };
+                        diagnostic.add_secondary(format!("Note: `{name}` is defined in {crate_name}"), typ.location);
+                    }
+                }
+                diagnostic
             }
             TypeCheckError::TypeKindMismatch { expected_kind, expr_kind, expr_location } => {
                 // Try to improve the error message for some kind combinations
@@ -506,8 +577,14 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             TypeCheckError::DownsizingCast { location, reason, .. } => {
                 Diagnostic::simple_warning(error.to_string(), reason.clone(), *location)
             }
+            TypeCheckError::NegativeLiteralCastToInteger { value, to, location, .. } => {
+                let secondary = format!(
+                    "If this isn't desired, try `{value}{to}` instead or bind to a variable first to silence this warning"
+                );
+                Diagnostic::simple_warning(error.to_string(), secondary, *location)
+            }
             TypeCheckError::CannotCastNumericToBool { typ: _, location } => {
-                let secondary = "compare with zero instead: ` != 0`".to_string();
+                let secondary = "Compare with zero instead: ` != 0`".to_string();
                 Diagnostic::simple_error(error.to_string(), secondary, *location)
             }
 
@@ -516,7 +593,10 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::UnsupportedCast { location }
             | TypeCheckError::UnsupportedFieldCast { location }
             | TypeCheckError::TupleIndexOutOfBounds { location, .. }
+            | TypeCheckError::ArrayIndexOutOfBounds { location, .. }
             | TypeCheckError::VariableMustBeMutable { location, .. }
+            | TypeCheckError::CannotAssignToReference { location, .. }
+            | TypeCheckError::CannotAssignToLValueBehindReference { location, .. }
             | TypeCheckError::CannotMutateImmutableVariable { location, .. }
             | TypeCheckError::UnresolvedMethodCall { location, .. }
             | TypeCheckError::IntegerSignedness { location, .. }
@@ -526,17 +606,17 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::FieldComparison { location, .. }
             | TypeCheckError::IntegerLiteralDoesNotFitItsType { location, .. }
             | TypeCheckError::OverflowingConstant { location, .. }
-            | TypeCheckError::UnderflowingConstant { location, .. }
-            | TypeCheckError::FailingBinaryOp { location, .. }
+            | TypeCheckError::OverflowingBinaryOp { location, .. }
+            | TypeCheckError::ModuloByZero { location, .. }
             | TypeCheckError::FieldModulo { location }
             | TypeCheckError::FieldNot { location }
             | TypeCheckError::ConstrainedReferenceToUnconstrained { location }
             | TypeCheckError::UnconstrainedReferenceToConstrained { location }
             | TypeCheckError::UnconstrainedVectorReturnToConstrained { location }
             | TypeCheckError::UnconstrainedFunctionReturnToConstrained { location }
+            | TypeCheckError::UnconstrainedEnumReturnToConstrained { location }
             | TypeCheckError::NonConstantEvaluated { location, .. }
             | TypeCheckError::StringIndexAssign { location }
-            | TypeCheckError::InvalidShiftSize { location }
             | TypeCheckError::VerifyProofWithTypeInBrillig { location } => {
                 Diagnostic::simple_error(error.to_string(), String::new(), *location)
             }
@@ -569,6 +649,9 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             TypeCheckError::MutableReferenceToArrayElement { location } => {
                 Diagnostic::simple_error("Mutable references to array elements are currently unsupported".into(), "Try storing the element in a fresh variable first".into(), *location)
             },
+            TypeCheckError::MutableReferenceBehindImmutableReference { location } => {
+                Diagnostic::simple_error(error.to_string(), "A `&` reference grants read-only access to the value behind it".into(), *location)
+            },
             TypeCheckError::TypeAnnotationsNeededForMethodCall { location } => {
                 let mut error = Diagnostic::simple_error(
                     "Object type is unknown in method call".to_string(),
@@ -597,7 +680,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 error
             },
             TypeCheckError::ResolverError(error) => error.into(),
-            TypeCheckError::TypeMismatchWithSource { expected, actual, location, source } => {
+            TypeCheckError::TypeMismatchWithSource { expected, actual, location, source, similarly_named_types: similar_types } => {
                 let message = match source {
                     Source::Binary => format!("Types in a binary operation should match, but found {expected} and {actual}"),
                     Source::Assignment => {
@@ -622,13 +705,34 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                     Source::ArrayIndex => format!("Indexing arrays and vectors must be done with `{expected}`, not `{actual}`"),
                 };
 
-                Diagnostic::simple_error(message, String::new(), *location)
-            }
-            TypeCheckError::CallDeprecated { location,  note, .. } => {
-                let primary_message = error.to_string();
-                let secondary_message = note.clone().unwrap_or_default();
+                let mut diagnostic = Diagnostic::simple_error(message, String::new(), *location);
+                for (type1, type2) in similar_types {
+                    let name1 = &type1.name;
+                    let name2 = &type2.name;
+                    diagnostic.add_secondary(format!("Note: `{name1}` and `{name2}` have similar names, but are actually distinct types"), *location);
 
-                let mut diagnostic = Diagnostic::simple_warning(primary_message, secondary_message, *location);
+                    for typ in [&type1, &type2] {
+                        let name = &typ.name;
+                        let crate_name = match &typ.external_crate {
+                            Some(crate_name) => format!("crate `{crate_name}`"),
+                            None => "the current crate".to_string(),
+                        };
+                        diagnostic.add_secondary(format!("Note: `{name}` is defined in {crate_name}"), typ.location);
+                    }
+                }
+                diagnostic
+
+            }
+            TypeCheckError::CallDeprecated { location, note, deny, name } => {
+                let default_primary = format!("`{name}` has been deprecated");
+
+                let (primary, secondary) = match note {
+                    Some(note) => (note.clone(), default_primary),
+                    None => (default_primary, String::new()),
+                };
+
+                let kind = if *deny { DiagnosticKind::Error } else { DiagnosticKind::Warning };
+                let mut diagnostic = Diagnostic::simple_with_kind(primary, secondary, *location, kind);
                 diagnostic.deprecated = true;
                 diagnostic
             }
@@ -662,6 +766,11 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 invalid_type.add_to_diagnostic(*location, &mut diagnostic);
                 diagnostic
             },
+            TypeCheckError::InvalidPatternForEntryPoint { location } => {
+                let primary = "Entry point parameter must use a simple identifier pattern".to_string();
+                let secondary = "Destructuring patterns are not allowed here; bind to a name and destructure inside the body".to_string();
+                Diagnostic::simple_error(primary, secondary, *location)
+            },
             TypeCheckError::MismatchTraitImplNumParameters {
                 expected_num_parameters,
                 actual_num_parameters,
@@ -691,25 +800,22 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             },
             TypeCheckError::DuplicateNamedTypeArg { name, prev_location } => {
                 let msg = format!("`{name}` has already been specified");
-                let mut error = Diagnostic::simple_error(msg.to_string(), "".to_string(), name.location());
+                let mut error = Diagnostic::simple_error(msg, "".to_string(), name.location());
                 error.add_secondary(format!("`{name}` previously specified here"), *prev_location);
                 error
             },
             TypeCheckError::NoSuchNamedTypeArg { name, item } => {
                 let msg = format!("`{item}` has no associated type named `{name}`");
-                Diagnostic::simple_error(msg.to_string(), "".to_string(), name.location())
+                Diagnostic::simple_error(msg, "".to_string(), name.location())
             },
             TypeCheckError::MissingNamedTypeArg { name, item, location } => {
                 let msg = format!("`{item}` is missing the associated type `{name}`");
-                Diagnostic::simple_error(msg.to_string(), "".to_string(), *location)
+                Diagnostic::simple_error(msg, "".to_string(), *location)
             },
             TypeCheckError::Unsafe { location } => {
                 Diagnostic::simple_error(error.to_string(), String::new(), *location)
             }
             TypeCheckError::UnsafeFn { location } => {
-                Diagnostic::simple_error(error.to_string(), String::new(), *location)
-            }
-            TypeCheckError::UnspecifiedType { location } => {
                 Diagnostic::simple_error(error.to_string(), String::new(), *location)
             }
             TypeCheckError::CyclicType { typ: _, location } => {
@@ -802,9 +908,13 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 let secondary = format!("Could not determine the type of the {array_or_vector}");
                 Diagnostic::simple_error(message, secondary, *location)
             }
-            TypeCheckError::ExpectingOtherError { message, location } => {
-                let secondary = "".to_string();
-                Diagnostic::simple_error(message.to_string(), secondary, *location)
+            TypeCheckError::ExpectingOtherError(error) => error.into(),
+            TypeCheckError::StructPatternOnEnumVariant { path, location } => {
+                Diagnostic::simple_error(
+                    format!("Cannot use `{{ }}` pattern syntax on enum variant `{path}`"),
+                    "Use parentheses `()` for enum variants with fields, or no arguments for fieldless variants".to_string(),
+                    *location,
+                )
             }
         }
     }

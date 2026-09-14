@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use rustc_hash::FxHashMap as HashMap;
 use std::borrow::Cow;
 
@@ -40,7 +41,7 @@ pub enum Value {
     NumericConstant { constant: FieldElement, typ: NumericType },
 
     /// This Value refers to a function in the IR.
-    /// Functions always have the type Type::Function.
+    /// Functions always have the type `Type::Function`.
     /// If the argument or return types are needed, users should retrieve
     /// their types via the Call instruction's arguments or the Call instruction's
     /// result types respectively.
@@ -51,9 +52,11 @@ pub enum Value {
     Intrinsic(Intrinsic),
 
     /// This Value refers to an external function in the IR.
-    /// ForeignFunction's always have the type Type::Function and have similar semantics to Function,
+    /// `ForeignFunction`'s always have the type `Type::Function` and have similar semantics to Function,
     /// other than generating different backend operations and being only accessible through Brillig.
-    ForeignFunction(String),
+    ///
+    /// `pure` is `true` when the user marked the oracle declaration with `#[pure]`.
+    ForeignFunction { name: String, pure: bool },
 
     /// This Value indicates we have a reserved slot that needs to be accessed in a separate global context
     Global(Type),
@@ -75,7 +78,7 @@ impl Value {
 
 /// Like `HashMap<ValueId, ValueId>` but handles:
 /// 1. recursion (if v0 -> v1 and v1 -> v2, then v0 -> v2)
-/// 2. self-mapping values (a value mapped to itself won't be inserted into the HashMap)
+/// 2. self-mapping values (a value mapped to itself won't be inserted into the `HashMap`)
 #[derive(Default, Debug)]
 pub(crate) struct ValueMapping {
     map: HashMap<ValueId, ValueId>,
@@ -93,26 +96,44 @@ impl ValueMapping {
     }
 
     pub(crate) fn batch_insert(&mut self, from: &[ValueId], to: &[ValueId]) {
-        assert_eq!(from.len(), to.len(), "Lengths of arrays of values being mapped must match");
-        for (from_value, to_value) in from.iter().zip(to) {
+        for (from_value, to_value) in from.iter().zip_eq(to) {
             self.insert(*from_value, *to_value);
         }
     }
 
-    pub(crate) fn get(&self, value: ValueId) -> ValueId {
-        if let Some(replacement) = self.map.get(&value) { self.get(*replacement) } else { value }
+    pub(crate) fn get(&self, mut value: ValueId) -> ValueId {
+        // Follow the replacement chain iteratively. A recursive walk would use one stack
+        // frame per link, and on large programs the chain can be thousands deep — enough
+        // to overflow the (smaller) wasm stack.
+        while let Some(replacement) = self.map.get(&value) {
+            value = *replacement;
+        }
+        value
     }
 
     pub(crate) fn is_empty(&self) -> bool {
         self.map.is_empty()
     }
 
-    /// Returns true if all [`ValueId`]s are mapped to a [`ValueId`] of the same type.
+    pub(crate) fn extend(&mut self, other: ValueMapping) {
+        for (from, to) in other.map {
+            self.insert(from, to);
+        }
+    }
+
+    /// Returns true if every replacement value may be used wherever the value it replaces
+    /// was expected.
     ///
-    /// Mapping a [`ValueId`] to one of a different type implies a compilation error.
+    /// This is the directional [`Type::can_be_used_as`] rather than type equality, because a
+    /// borrow is always allocated as `&mut T` even when the borrow is declared `&T` (see the
+    /// `UnaryOp::Reference` arm of `codegen_unary`). A `&T`-typed read of such a cell can
+    /// therefore be replaced by the `&mut T` cell itself, which is a weakening and sound;
+    /// the reverse would hand a mutable view to code that only proved an immutable one.
     #[must_use]
     #[cfg(debug_assertions)]
     pub(crate) fn value_types_are_consistent(&self, dfg: &super::dfg::DataFlowGraph) -> bool {
-        self.map.iter().all(|(from, to)| dfg.type_of_value(*from) == dfg.type_of_value(*to))
+        self.map
+            .iter()
+            .all(|(from, to)| dfg.type_of_value(*to).can_be_used_as(&dfg.type_of_value(*from)))
     }
 }

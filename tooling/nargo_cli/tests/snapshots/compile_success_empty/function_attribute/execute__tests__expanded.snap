@@ -16,9 +16,7 @@ comptime fn function_attr(_f: FunctionDefinition) -> Quoted {
     quote {
         impl Default for Foo {
             fn default() -> Foo {
-                Foo {
-                    
-                }
+                Foo {}
             }
         }
     }

@@ -23,7 +23,7 @@ impl Modifiers {
 }
 
 impl Parser<'_> {
-    /// Modifiers = ItemVisibility 'unconstrained'? 'comptime'? 'mut'?
+    /// Modifiers = `ItemVisibility` 'unconstrained'? 'comptime'? 'mut'?
     ///
     /// NOTE: we also allow `unconstrained` before the visibility for backwards compatibility.
     /// The formatter will put it after the visibility.

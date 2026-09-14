@@ -45,6 +45,31 @@ pub fn item_in_module_is_visible(
     }
 }
 
+/// Returns true if `module` and every one of its ancestor modules (up to, but not including,
+/// the crate root) are visible from `current_module`.
+///
+/// This mimics the behavior of path resolution, which checks the visibility of each module
+/// segment as it walks a path.
+pub fn module_is_visible(
+    module: ModuleId,
+    current_module: ModuleId,
+    interner: &NodeInterner,
+    def_maps: &DefMaps,
+) -> bool {
+    // Each module's visibility is declared in its parent, so we check it against the parent just
+    // as path resolution checks a segment's visibility against the module it lives in. The crate
+    // root has no parent and is always reachable (it is entered via the extern prelude).
+    let mut module = module;
+    while let Some(parent) = module.parent(def_maps) {
+        let visibility = module_def_id_visibility(ModuleDefId::ModuleId(module), interner);
+        if !item_in_module_is_visible(def_maps, current_module, parent, visibility) {
+            return false;
+        }
+        module = parent;
+    }
+    true
+}
+
 /// Returns true if `current` is a (potentially nested) child module of `target`.
 /// This is also true if `current == target`.
 fn module_is_descendant_of_target(
@@ -89,6 +114,28 @@ pub fn trait_member_is_visible(
     def_maps: &DefMaps,
 ) -> bool {
     type_member_is_visible(trait_id.0, visibility, current_module_id, def_maps)
+}
+
+/// Returns true if the trait that `func_id` belongs to (as a trait declaration or trait impl)
+/// is visible from `current_module`. Returns true if `func_id` is not a trait method, or if
+/// its function meta has not been registered yet (in which case there's nothing to check).
+pub fn trait_visibility_for_method_is_satisfied(
+    func_id: FuncId,
+    current_module: ModuleId,
+    interner: &NodeInterner,
+    def_maps: &DefMaps,
+) -> bool {
+    let Some(func_meta) = interner.try_function_meta(&func_id) else { return true };
+    let visibility = interner.function_modifiers(&func_id).visibility;
+
+    if let Some(trait_id) = func_meta.trait_id {
+        return trait_member_is_visible(trait_id, visibility, current_module, def_maps);
+    }
+    if let Some(trait_impl_id) = func_meta.trait_impl {
+        let trait_id = interner.get_trait_implementation(trait_impl_id).borrow().trait_id;
+        return trait_member_is_visible(trait_id, visibility, current_module, def_maps);
+    }
+    true
 }
 
 /// Returns whether a struct or trait member with the given visibility is visible from `current_module_id`.
@@ -146,28 +193,24 @@ pub fn method_call_is_visible(
         ItemVisibility::PublicCrate | ItemVisibility::Private => {
             let func_meta = interner.function_meta(&func_id);
 
-            if let Some(trait_id) = func_meta.trait_id {
-                return trait_member_is_visible(
-                    trait_id,
-                    modifiers.visibility,
+            if func_meta.trait_id.is_some() || func_meta.trait_impl.is_some() {
+                return trait_visibility_for_method_is_satisfied(
+                    func_id,
                     current_module,
-                    def_maps,
-                );
-            }
-
-            if let Some(trait_impl_id) = func_meta.trait_impl {
-                let trait_impl = interner.get_trait_implementation(trait_impl_id);
-                return trait_member_is_visible(
-                    trait_impl.borrow().trait_id,
-                    modifiers.visibility,
-                    current_module,
+                    interner,
                     def_maps,
                 );
             }
 
             // A private method defined on `Foo<i32>` should be visible when calling
             // it from an impl on `Foo<i64>`, even though the generics are different.
+            //
+            // This only applies to methods defined in the current crate. Matching the receiver
+            // type says nothing about the caller's crate: structural types such as `Field` or
+            // `[T; N]` compare equal across crates, and a trait impl's `self_type` may be a type
+            // from another crate. Methods from other crates fall through to the checks below.
             if let Some(self_type) = self_type
+                && func_meta.source_crate == current_module.krate
                 && is_same_type_regardless_generics(self_type, object_type)
             {
                 if modifiers.visibility.is_private() {
@@ -176,7 +219,7 @@ pub fn method_call_is_visible(
                     // block in a different module, extending the type with new methods, then
                     // we should only access public parts defined in other modules, or private
                     // ones defined in the same extension.
-                    let def_map = &def_maps[&current_module.krate];
+                    let def_map = &def_maps[&func_meta.source_crate];
                     // Cannot call `type_member_is_visible` because it goes up to the parent;
                     // the `func_meta.source_module` already seems to be the parent.
                     return module_is_descendant_of_target(
@@ -185,13 +228,32 @@ pub fn method_call_is_visible(
                         func_meta.source_module,
                     );
                 } else {
-                    // If visibility is PublicCrate, then we are good, because is_same_type_regardless_generics
-                    // already checked that the types are the same, so we are in the same crate.
+                    // `PublicCrate` methods are visible anywhere in the crate that defines them.
                     return true;
                 }
             }
 
             if let Some(struct_id) = func_meta.type_id {
+                // For inherent impl methods, check visibility against the impl's
+                // defining module (source_module). This prevents private methods defined
+                // in `impl super::S` inside `mod private` from being callable outside
+                // `mod private` via `s.method()`.
+                if func_meta.trait_impl.is_none() {
+                    let source_module = ModuleId {
+                        krate: func_meta.source_crate,
+                        local_id: func_meta.source_module,
+                    };
+                    let type_module = struct_id.module_id();
+                    if source_module != type_module {
+                        return item_in_module_is_visible(
+                            def_maps,
+                            current_module,
+                            source_module,
+                            modifiers.visibility,
+                        );
+                    }
+                }
+
                 return struct_member_is_visible(
                     struct_id,
                     modifiers.visibility,
@@ -222,12 +284,6 @@ fn is_same_type_regardless_generics(type1: &Type, type2: &Type) -> bool {
     }
 
     match (type1.follow_bindings(), type2.follow_bindings()) {
-        (Type::Array(..), Type::Array(..)) => true,
-        (Type::Vector(..), Type::Vector(..)) => true,
-        (Type::String(..), Type::String(..)) => true,
-        (Type::FmtString(..), Type::FmtString(..)) => true,
-        (Type::Tuple(..), Type::Tuple(..)) => true,
-        (Type::Function(..), Type::Function(..)) => true,
         (Type::DataType(data_type1, ..), Type::DataType(data_type2, ..)) => {
             data_type1.borrow().id == data_type2.borrow().id
         }
@@ -264,5 +320,44 @@ pub fn module_def_id_visibility(
             let global_info = interner.get_global(global_id);
             global_info.visibility
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn array_type(element: Type, length: u32) -> Type {
+        Type::Array(Box::new(element), Box::new(Type::constant_u32(length)))
+    }
+
+    #[test]
+    fn composite_primitive_types_must_match_exactly_for_visibility() {
+        let array_u32_4 = array_type(Type::u32(), 4);
+        let array_u32_8 = array_type(Type::u32(), 8);
+        let array_bool_4 = array_type(Type::Bool, 4);
+
+        assert!(is_same_type_regardless_generics(&array_u32_4, &array_u32_4));
+        assert!(!is_same_type_regardless_generics(&array_u32_4, &array_u32_8));
+        assert!(!is_same_type_regardless_generics(&array_u32_4, &array_bool_4));
+
+        let tuple_u32 = Type::Tuple(vec![Type::u32()]);
+        let tuple_bool = Type::Tuple(vec![Type::Bool]);
+        assert!(!is_same_type_regardless_generics(&tuple_u32, &tuple_bool));
+
+        let function_u32 =
+            Type::Function(vec![Type::u32()], Box::new(Type::u32()), Box::new(Type::Unit), false);
+        let function_bool =
+            Type::Function(vec![Type::Bool], Box::new(Type::u32()), Box::new(Type::Unit), false);
+        assert!(!is_same_type_regardless_generics(&function_u32, &function_bool));
+    }
+
+    #[test]
+    fn references_still_compare_by_inner_type_for_visibility() {
+        let array = array_type(Type::u32(), 4);
+        let reference = Type::Reference(Box::new(array.clone()), false);
+
+        assert!(is_same_type_regardless_generics(&reference, &array));
+        assert!(is_same_type_regardless_generics(&array, &reference));
     }
 }

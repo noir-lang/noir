@@ -16,7 +16,10 @@ use crate::{
 };
 use rustc_hash::FxHashMap as HashMap;
 
-use super::{constant_allocation::ConstantAllocation, variable_liveness::VariableLiveness};
+use super::{
+    coalescing::CoalescingMap, constant_allocation::ConstantAllocation,
+    spill_manager::SpillManager, variable_liveness::VariableLiveness,
+};
 
 /// Information required to compile an SSA [Function] into Brillig bytecode.
 ///
@@ -26,7 +29,7 @@ use super::{constant_allocation::ConstantAllocation, variable_liveness::Variable
 #[derive(Default)]
 pub(crate) struct FunctionContext {
     /// A `FunctionContext` is necessary for using a Brillig block's code gen, but sometimes
-    /// such as with globals, we are not within a function and do not have a [FunctionId].
+    /// such as with globals, we are not within a function and do not have a [`FunctionId`].
     function_id: Option<FunctionId>,
     /// Map from SSA values its allocation. Since values can be only defined once in SSA form,
     /// we insert them here on when we allocate them at their definition.
@@ -41,33 +44,81 @@ pub(crate) struct FunctionContext {
     /// allocator for each block we process, and something that is allocated in e.g. block 1
     /// might be deallocated in block 2, so it has to be done manually.
     pub(crate) ssa_value_allocations: HashMap<ValueId, BrilligVariable>,
-    /// The block ids of the function in Reverse Post Order.
+    /// The block ids of the function in Post Order.
     blocks: Vec<BasicBlockId>,
     /// Liveness information for each variable in the function.
     pub(crate) liveness: VariableLiveness,
     /// Information on where to allocate constants
     pub(crate) constant_allocation: ConstantAllocation,
-    /// True if this function is a brillig entry point
-    pub(crate) is_entry_point: bool,
+    /// Manages spilling of register values to the heap spill region when register pressure
+    /// exceeds the stack frame limit. Persists across blocks so spill state is not lost.
+    /// Present only when the function may need spilling (based on liveness analysis).
+    pub(crate) spill_manager: Option<SpillManager>,
+    /// Coalescing map for jmp argument → block parameter register sharing.
+    pub(crate) coalescing: CoalescingMap,
 }
 
 impl FunctionContext {
     /// Creates a new function context. It will allocate parameters for all blocks and compute the liveness of every variable.
-    pub(crate) fn new(function: &Function, is_entry_point: bool) -> Self {
+    /// Safety margin added to `max_live_count` when deciding whether a function needs
+    /// spill infrastructure.
+    ///
+    /// Margin that account for temporary registers added by the code-gen on top
+    /// of the registers corresponding to SSA values.
+    /// This allows use to estimate conservatively the maximum number of live registers,
+    /// by using `max_live_count` with a margin.
+    /// `max_live_count` account for the SSA values, but also the additional ones
+    /// required by various instructions.
+    /// However some registers are not taken into account, such as parallel-move at block boundaries
+    /// or on-demand constants. So `max_live_count` is a lower bound on actual Brillig register pressure.
+    /// These registers are typically a few, so the margin is conservative and comfortable, so that
+    /// functions close to the frame limit still get spill support.
+    /// It can be tuned if it proves too aggressive or too conservative in practice.
+    const SPILL_MARGIN: usize = 32;
+
+    pub(crate) fn new(function: &Function, max_stack_frame_size: usize) -> Self {
         let id = function.id();
 
-        let reverse_post_order = PostOrder::with_function(function).into_vec_reverse();
+        let post_order = PostOrder::with_function(function).into_vec();
         let constants = ConstantAllocation::from_function(function);
         let liveness = VariableLiveness::from_function(function, &constants);
+        let needs_spill_support =
+            liveness.max_live_count + Self::SPILL_MARGIN >= max_stack_frame_size;
+
+        let spill_manager = if needs_spill_support { Some(SpillManager::new()) } else { None };
+
+        // Disable coalescing when spilling is enabled.
+        // Shared registers currently conflicts with the spill eviction mechanism.
+        let coalescing = if spill_manager.is_some() {
+            CoalescingMap::default()
+        } else {
+            CoalescingMap::from_function(function, &liveness)
+        };
 
         Self {
             function_id: Some(id),
             ssa_value_allocations: HashMap::default(),
-            blocks: reverse_post_order,
+            blocks: post_order,
             liveness,
-            is_entry_point,
             constant_allocation: constants,
+            spill_manager,
+            coalescing,
         }
+    }
+
+    /// Whether this function has spill infrastructure enabled.
+    pub(crate) fn spill_enabled(&self) -> bool {
+        self.spill_manager.is_some()
+    }
+
+    /// Whether any block in this function actually spilled a value.
+    pub(crate) fn did_spill(&self) -> bool {
+        self.max_spill_offset() > 0
+    }
+
+    /// The number of spill slots needed (0 if no spilling occurred).
+    pub(crate) fn max_spill_offset(&self) -> usize {
+        self.spill_manager.as_ref().map_or(0, |sm| sm.max_spill_offset())
     }
 
     /// Get the ID of the function this context was created for.
@@ -90,7 +141,7 @@ impl FunctionContext {
             .collect()
     }
 
-    /// Converts an SSA [Type] into a corresponding [BrilligParameter].
+    /// Converts an SSA [Type] into a corresponding [`BrilligParameter`].
     ///
     /// This conversion defines the calling convention for Brillig functions,
     /// ensuring that SSA values are correctly mapped to memory layouts understood by the VM.
@@ -99,7 +150,7 @@ impl FunctionContext {
     /// Panics if called with a vector type, as a vector's memory layout cannot be inferred without runtime data.
     pub(crate) fn ssa_type_to_parameter(typ: &Type) -> BrilligParameter {
         match typ {
-            Type::Numeric(_) | Type::Reference(_) => {
+            Type::Numeric(_) | Type::Reference(..) | Type::Function => {
                 BrilligParameter::SingleAddr(get_bit_size_from_ssa_type(typ))
             }
             Type::Array(item_type, size) => BrilligParameter::Array(
@@ -109,20 +160,16 @@ impl FunctionContext {
             Type::Vector(_) => {
                 panic!("ICE: Vector parameters cannot be derived from type information")
             }
-            // Treat functions as field values
-            Type::Function => {
-                BrilligParameter::SingleAddr(get_bit_size_from_ssa_type(&Type::field()))
-            }
         }
     }
 
     /// Iterate blocks in Post Order.
     pub(crate) fn post_order(&self) -> impl ExactSizeIterator<Item = BasicBlockId> {
-        self.blocks.iter().copied().rev()
+        self.blocks.iter().copied()
     }
 
     /// Iterate blocks in Reverse Post Order.
     pub(crate) fn reverse_post_order(&self) -> impl ExactSizeIterator<Item = BasicBlockId> {
-        self.blocks.iter().copied()
+        self.blocks.iter().copied().rev()
     }
 }

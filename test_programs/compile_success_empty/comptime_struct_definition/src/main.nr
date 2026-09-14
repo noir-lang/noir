@@ -4,9 +4,10 @@ pub struct MyType<A, B, C> {
     field2: (B, C),
 }
 
-#[mutate_struct_fields]
+#[check_struct_fields]
 pub struct I32AndField {
-    z: i8,
+    pub x: i32,
+    pub(crate) y: Field,
 }
 
 comptime fn my_comptime_fn(typ: TypeDefinition) {
@@ -16,21 +17,14 @@ comptime fn my_comptime_fn(typ: TypeDefinition) {
     assert_eq(typ.name(), quote { MyType });
 }
 
-comptime fn mutate_struct_fields(s: TypeDefinition) {
-    let fields = [
-        (quote {x}, quote {i32}.as_type(), quote { pub }),
-        (quote {y}, quote {Field}.as_type(), quote { pub(crate) }),
-    ]
-        .as_vector();
-    s.set_fields(fields);
-
+comptime fn check_struct_fields(s: TypeDefinition) {
     let fields = s.fields([]);
-    assert_eq(fields[0].2, quote { pub });
-    assert_eq(fields[1].2, quote { pub(crate) });
+    assert(fields[0].visibility().is_public());
+    assert(fields[1].visibility().is_public_crate());
 
     let fields = s.fields_as_written();
-    assert_eq(fields[0].2, quote { pub });
-    assert_eq(fields[1].2, quote { pub(crate) });
+    assert_eq(fields[0].visibility().as_quoted(), quote { pub });
+    assert_eq(fields[1].visibility().as_quoted(), quote { pub(crate) });
 }
 
 mod foo {
@@ -40,47 +34,32 @@ mod foo {
     comptime fn attr(s: TypeDefinition) {
         assert_eq(s.module().name(), quote { foo });
     }
-
-    #[add_generic]
-    pub struct Bar {}
-
-    // docs:start:add-generic-example
-    comptime fn add_generic(s: TypeDefinition) {
-        assert_eq(s.generics().len(), 0);
-        let new_generic = s.add_generic("T");
-
-        let generics = s.generics();
-        assert_eq(generics.len(), 1);
-        let (typ, numeric) = generics[0];
-        assert_eq(typ, new_generic);
-        assert(numeric.is_none());
-    }
-    // docs:end:add-generic-example
 }
 
 fn main() {
     comptime {
         let typ = quote { MyType<i8, i16, i32> }.as_type();
-        let (struct_def, generics) = typ.as_data_type().unwrap();
+        let data_type = typ.as_data_type().unwrap();
+        let struct_def = data_type.definition();
 
-        let fields = struct_def.fields(generics);
+        let fields = struct_def.fields(data_type.generics());
         assert_eq(fields.len(), 2);
 
-        let (field1_name, field1_type, visibility1) = fields[0];
-        let (field2_name, field2_type, visibility2) = fields[1];
+        let field1 = fields[0];
+        let field2 = fields[1];
 
-        assert_eq(field1_name, quote { field1 });
-        assert_eq(field2_name, quote { field2 });
+        assert_eq(field1.name(), quote { field1 });
+        assert_eq(field2.name(), quote { field2 });
 
         // Ensure .fields(generics) actually performs substitutions on generics
-        assert_eq(field1_type, quote { [i8; 10] }.as_type());
-        assert_eq(field2_type, quote { (i16, i32) }.as_type());
+        assert_eq(field1.typ(), quote { [i8; 10] }.as_type());
+        assert_eq(field2.typ(), quote { (i16, i32) }.as_type());
 
-        assert_eq(visibility1, quote {});
-        assert_eq(visibility2, quote {});
+        assert(field1.visibility().is_private());
+        assert(field2.visibility().is_private());
 
         // Test TypeDefinition::as_type_with_generics
-        let i32_type = quote [i32].as_type();
+        let i32_type = quote [ i32 ].as_type();
 
         let applied = struct_def.as_type_with_generics([i32_type, i32_type, i32_type].as_vector());
         let invalid = struct_def.as_type_with_generics([i32_type, i32_type].as_vector()); // invalid generic count

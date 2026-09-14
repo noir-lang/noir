@@ -1,0 +1,5 @@
+[package]
+name = "comptime_mutated_global"
+type = "bin"
+authors = [""]
+[dependencies]

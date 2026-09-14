@@ -1,0 +1,51 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+struct Point {
+    y: u8,
+    x: u8,
+}
+
+fn main(a: u8, b: u8) {
+    let point: Point = Point { y: a, x: b };
+    let matched: bool = {
+        let internal___variable: Point = point;
+        match internal___variable {
+            Point { y: internal_match_variable_0, x: internal_match_variable_1 } => match internal_match_variable_1 {
+                2 => match internal_match_variable_0 {
+                    1 => true,
+                    _ => {
+                        let _: Point = internal___variable;
+                        false
+                    },
+                },
+                _ => {
+                    let _: Point = internal___variable;
+                    false
+                },
+            },
+        }
+    };
+    assert(matched);
+    let swapped_point: Point = Point { y: b, x: a };
+    let swapped: bool = {
+        let internal___variable: Point = swapped_point;
+        match internal___variable {
+            Point { y: internal_match_variable_0, x: internal_match_variable_1 } => match internal_match_variable_1 {
+                2 => match internal_match_variable_0 {
+                    1 => true,
+                    _ => {
+                        let _: Point = internal___variable;
+                        false
+                    },
+                },
+                _ => {
+                    let _: Point = internal___variable;
+                    false
+                },
+            },
+        }
+    };
+    assert(!swapped);
+}

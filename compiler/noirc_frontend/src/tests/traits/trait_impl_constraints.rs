@@ -41,7 +41,7 @@ fn impl_stricter_than_trait_no_trait_method_constraints() {
     }
 
     impl<T> MyType<T> {
-        fn do_thing_with_serialization_with_extra_steps(self) -> Field {
+        pub fn do_thing_with_serialization_with_extra_steps(self) -> Field {
             process_array(serialize_thing(self))
         }
     }
@@ -314,6 +314,91 @@ fn non_equivalent_generic_positions() {
 }
 
 #[test]
+fn impl_stricter_than_trait_type_alias_in_constraint_typ() {
+    // The impl-level where clause uses a type alias that expands to `A`.
+    // The method-level constraint uses `A` directly. The two are equivalent,
+    // so the method constraint should be recognized as covered by the impl
+    // constraint (i.e. no "impl has stricter requirements than trait" error).
+    //
+    // An "unnecessary trait constraint" warning is emitted at each site because
+    // the method-level constraint is semantically redundant with the impl-level
+    // constraint — that is exactly the condition under which the shortcut we
+    // are testing should apply.
+    let src = r#"
+    trait Bar {}
+
+    type Alias<T> = T;
+
+    trait MyTrait<T> {
+        fn foo<U>();
+    }
+
+    impl<A> MyTrait<A> for () where Alias<A>: Bar {
+                                              ^^^ Constraint for `Alias<A>: Bar` is not needed, another matching impl is already in scope
+                                              ~~~ Unnecessary trait constraint in where clause
+        fn foo<B>() where A: Bar {}
+           ^^^ Constraint for `Alias<A>: Bar` is not needed, another matching impl is already in scope
+           ~~~ Unnecessary trait constraint in where clause
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn impl_stricter_than_trait_type_alias_in_trait_generics() {
+    // The impl-level constraint uses a type alias inside the trait generics
+    // (`A: Bar<Alias<A>>`), while the method uses the expanded form
+    // (`A: Bar<A>`). They are equivalent after alias resolution.
+    let src = r#"
+    trait Bar<T> {}
+
+    type Alias<T> = T;
+
+    trait MyTrait<T> {
+        fn foo<U>();
+    }
+
+    impl<A> MyTrait<A> for () where A: Bar<Alias<A>> {
+                                       ^^^ Constraint for `A: Bar` is not needed, another matching impl is already in scope
+                                       ~~~ Unnecessary trait constraint in where clause
+        fn foo<B>() where A: Bar<A> {}
+           ^^^ Constraint for `A: Bar` is not needed, another matching impl is already in scope
+           ~~~ Unnecessary trait constraint in where clause
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn impl_stricter_than_trait_reordered_named_trait_generics() {
+    // The impl-level constraint lists the named (associated type) generics in
+    // one order while the method-level constraint lists them in a different
+    // order. These are equivalent and the method constraint should be
+    // recognized as covered by the impl constraint.
+    let src = r#"
+    trait HasTwoAssoc {
+        type First;
+        type Second;
+    }
+
+    trait MyTrait<T> {
+        fn foo<U>();
+    }
+
+    impl<A> MyTrait<A> for () where A: HasTwoAssoc<First = Field, Second = u32> {
+        fn foo<B>() where A: HasTwoAssoc<Second = u32, First = Field> {}
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn impl_block_with_cross_trait_where_clause() {
     let src = r#"
     trait Validate {
@@ -344,4 +429,150 @@ fn impl_block_with_cross_trait_where_clause() {
     }
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn placeholder_not_allowed_in_trait_constraint_and_bound() {
+    let src = r#"
+    pub struct Gen<T> {}
+    pub trait Trait2<T> {}
+
+    pub fn bar<T>()
+    where
+        Gen<_>: Trait2<T>,
+            ^ The placeholder `_` is not allowed in trait constraints
+    {}
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn placeholder_not_allowed_in_trait_bound_generic() {
+    let src = r#"
+    pub struct Gen<T> {}
+    pub trait Trait2<T> {}
+
+    pub fn bar<T>()
+    where
+        Gen<T>: Trait2<_>,
+                       ^ The placeholder `_` is not allowed in trait bounds
+    {}
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn impl_stricter_than_trait_equating_associated_constants_of_two_bounds() {
+    // The trait leaves `B::N` and `C::N` independent; the override requires them to be equal.
+    let src = r#"
+    trait Bar {
+        let N: u32;
+    }
+
+    trait Foo {
+        fn foo<B, C>() where B: Bar, C: Bar;
+           ~~~ definition of `foo` from trait
+    }
+
+    impl Foo for Field {
+        fn foo<B, C>() where B: Bar, C: Bar<N = <B as Bar>::N> {}
+                                        ^^^ impl has stricter requirements than trait
+                                        ~~~ impl has extra requirement `C: Bar<N = <B as Bar>::N>`
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn impl_stricter_than_trait_equating_associated_types_of_two_bounds() {
+    let src = r#"
+    trait Bar {
+        type T;
+    }
+
+    trait Foo {
+        fn foo<B, C>(b: B, c: C) where B: Bar, C: Bar;
+           ~~~ definition of `foo` from trait
+    }
+
+    impl Foo for Field {
+        fn foo<B, C>(_: B, _: C) where B: Bar, C: Bar<T = <B as Bar>::T> {}
+                                                  ^^^ impl has stricter requirements than trait
+                                                  ~~~ impl has extra requirement `C: Bar<T = <B as Bar>::T>`
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn impl_equating_associated_constants_the_trait_also_equates_is_not_stricter() {
+    let src = r#"
+    trait Bar {
+        let N: u32;
+    }
+
+    trait Foo {
+        fn foo<B, C>() where B: Bar, C: Bar<N = <B as Bar>::N>;
+    }
+
+    impl Foo for Field {
+        fn foo<B, C>() where B: Bar, C: Bar<N = <B as Bar>::N> {}
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn impl_with_two_independent_associated_constant_bounds_is_not_stricter() {
+    let src = r#"
+    trait Bar {
+        let N: u32;
+    }
+
+    trait Foo {
+        fn foo<B, C>() where B: Bar, C: Bar;
+    }
+
+    impl Foo for Field {
+        fn foo<B, C>() where B: Bar, C: Bar {}
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn impl_stricter_than_trait_equating_associated_constants_with_bounds_reordered() {
+    // The trait lists its bounds in the opposite order to the override; the error still lands
+    // on the bound that adds the equation, not on the one it borrows its placeholder from.
+    let src = r#"
+    trait Bar {
+        let N: u32;
+    }
+
+    trait Foo {
+        fn foo<B, C>() where C: Bar, B: Bar;
+           ~~~ definition of `foo` from trait
+    }
+
+    impl Foo for Field {
+        fn foo<B, C>() where B: Bar, C: Bar<N = <B as Bar>::N> {}
+                                        ^^^ impl has stricter requirements than trait
+                                        ~~~ impl has extra requirement `C: Bar<N = <B as Bar>::N>`
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
 }

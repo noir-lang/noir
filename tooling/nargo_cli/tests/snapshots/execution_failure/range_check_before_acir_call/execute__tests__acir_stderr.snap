@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Assertion failed: call to assert_max_bit_size
+   ┌─ std/field/mod.nr:17:9
+   │
+17 │         __assert_max_bit_size(self, BIT_SIZE);
+   │         -------------------------------------
+   │
+   = Call stack:
+     1: main
+             at src/main.nr:5:5
+     2: Field::assert_max_bit_size
+             at std/field/mod.nr:17:9
+
+Failed assertion

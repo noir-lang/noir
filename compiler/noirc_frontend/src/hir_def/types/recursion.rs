@@ -4,15 +4,21 @@ use crate::{
 };
 
 /// A type to prevent infinite recursion while traversing types recursively.
+///
+/// Designed to be cloned at branching (e.g. when visiting fields of tuples, or recursing),
+/// so that types at the same level are counted separately. The only type recursion we want
+/// to prevent is cycles.
 #[derive(Clone, Default)]
 pub(crate) struct TypeRecursionContext {
     depth: u32,
-    data_types: im::HashSet<(TypeId, Vec<Type>)>,
-    aliases: im::HashSet<(TypeAliasId, Vec<Type>)>,
+    data_types: imbl::HashSet<(TypeId, Vec<Type>)>,
+    aliases: imbl::HashSet<(TypeAliasId, Vec<Type>)>,
 }
 
 impl TypeRecursionContext {
     /// Increases the recursion depth.
+    ///
+    /// Panics if it would go beyond [`TYPE_RECURSION_LIMIT`].
     pub(crate) fn recur(mut self) -> Self {
         if self.depth >= TYPE_RECURSION_LIMIT {
             panic!("Type recursion limit reached - types are too large");

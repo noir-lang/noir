@@ -1,11 +1,13 @@
+use std::rc::Rc;
+
 use arbitrary::Unstructured;
 use nargo::errors::Location;
 use noirc_evaluator::{assert_ssa_snapshot, ssa::ssa_gen};
 use noirc_frontend::{
     ast::IntegerBitSize,
     monomorphization::ast::{
-        Call, Definition, Expression, For, FuncId, Function, Ident, IdentId, InlineType, LocalId,
-        Program, Type,
+        Call, Definition, Expression, For, FuncId, Function, Ident, IdentId, InlineType, LValue,
+        Literal, LocalId, Program, Type,
     },
     shared::Visibility,
 };
@@ -37,6 +39,7 @@ fn generate_ssa_from_body(body: Expression) -> ssa_gen::Ssa {
         unconstrained: false,
         inline_type: InlineType::Inline,
         is_entry_point: false,
+        allow_constant_return: false,
     };
 
     let program = Program {
@@ -61,9 +64,9 @@ fn test_modulo_of_negative_literals_in_range() {
         Type::Integer(noirc_frontend::shared::Signedness::Signed, IntegerBitSize::SixtyFour);
 
     let start_range =
-        range_modulo(int_literal(9u64, true, index_type.clone()), index_type.clone(), max_size);
+        range_modulo(int_literal(-9i64, index_type.clone()), index_type.clone(), max_size);
     let end_range =
-        range_modulo(int_literal(1u64, true, index_type.clone()), index_type.clone(), max_size);
+        range_modulo(int_literal(-1i64, index_type.clone()), index_type.clone(), max_size);
 
     let body = Expression::For(For {
         index_variable: LocalId(0),
@@ -87,7 +90,7 @@ fn test_modulo_of_negative_literals_in_range() {
         jmp b1(i64 -4)
       b1(v0: i64):
         v3 = lt v0, i64 -1
-        jmpif v3 then: b2, else: b3
+        jmpif v3 then: b2(), else: b3()
       b2():
         jmp b3()
       b3():
@@ -122,12 +125,12 @@ fn test_recursion_limit_rewrite() {
                         definition: Definition::Function(*callee_id),
                         mutable: false,
                         name: callee_name,
-                        typ: Type::Function(
+                        typ: Rc::new(Type::Function(
                             vec![],
-                            Box::new(Type::Unit),
-                            Box::new(Type::Unit),
+                            Rc::new(Type::Unit),
+                            Rc::new(Type::Unit),
                             callee_unconstrained,
-                        ),
+                        )),
                         id: ident_id,
                     })),
                     arguments: vec![],
@@ -147,6 +150,7 @@ fn test_recursion_limit_rewrite() {
             unconstrained,
             inline_type: InlineType::InlineAlways,
             is_entry_point: false,
+            allow_constant_return: false,
         };
 
         ctx.function_declarations.insert(
@@ -240,4 +244,213 @@ fn test_recursion_limit_rewrite() {
         bar((&mut ctx_limit))
     }
     ");
+}
+
+/// `assign_ref` must set `element_type` to the inner type (`u32`), not the
+/// full reference type (`&mut u32`). Otherwise nested lvalue codegen in SSA
+/// would produce `load ref -> &mut u32` which is invalid.
+#[test]
+fn test_assign_ref_element_type() {
+    use super::expr::assign_ref;
+
+    let ref_type = Type::Reference(Rc::new(crate::program::types::U32), true);
+    let ident = Ident {
+        location: None,
+        definition: Definition::Local(LocalId(0)),
+        mutable: false,
+        name: "r".to_string(),
+        typ: Rc::new(ref_type),
+        id: IdentId(0),
+    };
+
+    let rhs = Expression::Literal(Literal::Integer(
+        acir::FieldElement::from(0u32),
+        crate::program::types::U32,
+        Location::dummy(),
+    ));
+
+    let assign_expr = assign_ref(ident, rhs);
+    let Expression::Assign(assign) = assign_expr else {
+        panic!("expected Assign");
+    };
+
+    let LValue::Dereference { element_type, .. } = &assign.lvalue else {
+        panic!("expected LValue::Dereference, got {:?}", assign.lvalue);
+    };
+
+    // Before the fix, element_type was `&mut u32` instead of `u32`.
+    assert_eq!(
+        *element_type,
+        crate::program::types::U32,
+        "element_type should be the inner type (u32), not the reference type (&mut u32)"
+    );
+}
+
+/// The fuzzer's direct oracle print calls in ACIR functions must be wrapped
+/// in unconstrained wrapper functions, since ACIR code cannot call oracles
+/// directly. This matches nargo's `println` -> `print_unconstrained` -> oracle
+/// structure. Unconstrained functions are skipped since they can call oracles
+/// directly.
+#[test]
+fn test_wrap_oracle_prints_in_functions() {
+    use super::expr;
+    use super::rewrite::wrap_oracle_prints_in_functions;
+
+    let array_type = Type::Array(1, Rc::new(Type::Bool));
+
+    // Build: fn main() { let a = [true]; print_oracle(true, a, "...", false); }
+    let mut ctx = Context::new(Config::default());
+
+    let let_expr = Expression::Let(noirc_frontend::monomorphization::ast::Let {
+        id: LocalId(0),
+        mutable: false,
+        name: "a".to_string(),
+        expression: Box::new(Expression::Literal(Literal::Array(
+            noirc_frontend::monomorphization::ast::ArrayLiteral {
+                contents: vec![expr::lit_bool(true)],
+                typ: Type::Bool,
+            },
+        ))),
+        typ: array_type.clone(),
+    });
+
+    let value_ident = Ident {
+        location: None,
+        definition: Definition::Local(LocalId(0)),
+        mutable: false,
+        name: "a".to_string(),
+        typ: Rc::new(array_type.clone()),
+        id: IdentId(0),
+    };
+
+    let oracle_call = Expression::Call(Call {
+        func: Box::new(Expression::Ident(Ident {
+            location: None,
+            definition: Definition::Oracle { name: "print".to_string(), pure: false },
+            mutable: false,
+            name: "print_oracle".to_string(),
+            typ: Rc::new(Type::Function(
+                vec![Type::Bool, array_type],
+                Rc::new(Type::Unit),
+                Rc::new(Type::Unit),
+                true,
+            )),
+            id: IdentId(1),
+        })),
+        arguments: vec![
+            expr::lit_bool(true),
+            Expression::Ident(value_ident),
+            Expression::Literal(Literal::Str("type_info".to_string().into())),
+            expr::lit_bool(false),
+        ],
+        return_type: Type::Unit,
+        location: Location::dummy(),
+    });
+
+    let main_func = Function {
+        id: FuncId(0),
+        name: "main".to_string(),
+        parameters: vec![],
+        body: Expression::Block(vec![let_expr, oracle_call]),
+        return_type: Type::Unit,
+        return_visibility: Visibility::Private,
+        unconstrained: false,
+        inline_type: InlineType::default(),
+        is_entry_point: true,
+        allow_constant_return: false,
+    };
+
+    ctx.functions.insert(FuncId(0), main_func);
+
+    wrap_oracle_prints_in_functions(&mut ctx);
+    let program = ctx.finalize();
+    let code = format!("{}", DisplayAstAsNoir(&program));
+
+    // The oracle call should be replaced with a call to a wrapper function,
+    // and the wrapper function should contain the oracle call with hardcoded args.
+    insta::assert_snapshot!(code, @r"
+    fn main() -> () {
+        let a: bool = [true];
+        unsafe { print_wrapper_1(a) }
+    }
+    unconstrained fn print_wrapper_1(value: [bool; 1]) -> () {
+        println(value)
+    }
+    ");
+}
+
+/// Number of ACIR memory slots a type occupies once flattened.
+fn flattened_size(typ: &Type) -> u32 {
+    match typ {
+        Type::Unit => 0,
+        Type::String(n) => *n,
+        Type::Array(n, item) => n * flattened_size(item),
+        Type::Tuple(items) => items.iter().map(flattened_size).sum(),
+        _ => 1,
+    }
+}
+
+/// Does an array's element type mix member sizes, and does it do so because one of
+/// the members is itself a composite?
+///
+/// ACIR generation resolves a read on an array whose element members all occupy one
+/// flattened slot without ever consulting its non-homogeneous machinery: element type
+/// sizes, fallback offsets, and result predication all stay dormant. Only a mixed-size
+/// element reaches them.
+///
+/// The composite requirement is what makes this a test of type *depth*. A `str<N>`
+/// member also mixes sizes while being a leaf, so an array of tuples of scalars-and-
+/// strings is reachable at a lower depth; an array element holding a nested array or
+/// tuple is not.
+fn has_composite_mixed_size_element(typ: &Type) -> bool {
+    let Type::Array(_, elem) = typ else { return false };
+    let Type::Tuple(members) = elem.as_ref() else { return false };
+    let sizes = members.iter().map(flattened_size).collect::<Vec<_>>();
+    let mixes_sizes = sizes.iter().any(|size| *size != sizes[0]);
+    let has_composite =
+        members.iter().any(|m| matches!(m, Type::Array(_, _) | Type::Tuple(_) | Type::Vector(_)));
+    mixes_sizes && has_composite
+}
+
+/// The type generator must be able to produce arrays whose elements are structs with
+/// members of differing flattened size, such as `[(Field, [u8; 2]); 3]`.
+///
+/// This is the shape behind the whole non-homogeneous half of `acir/arrays.rs`, and it
+/// is idiomatic Noir — a struct with a scalar header and a small fixed-size array member.
+/// It needs a composite inside the array element, which is one level deeper than the
+/// expression nesting the fuzzer wants, hence [`Config::max_type_depth`].
+#[test]
+fn test_generates_non_homogeneous_array_types() {
+    // A deterministic byte source; the generator only needs entropy, not randomness.
+    let mut state = 0x2545_F491_4F6C_DD1Du64;
+    let mut data = vec![0u8; 1 << 16];
+    for byte in &mut data {
+        state ^= state << 13;
+        state ^= state >> 7;
+        state ^= state << 17;
+        *byte = state as u8;
+    }
+    let mut u = Unstructured::new(&data);
+
+    let config = Config::default();
+    let max_type_depth = config.max_type_depth;
+    let mut ctx = Context::new(config);
+
+    let mut found = 0;
+    let mut generated = 0;
+    while !u.is_empty() {
+        let Ok(typ) = ctx.gen_type(&mut u, max_type_depth, false, false, false, true) else {
+            break;
+        };
+        generated += 1;
+        if has_composite_mixed_size_element(&typ) {
+            found += 1;
+        }
+    }
+
+    assert!(
+        found > 0,
+        "generated {generated} types without a single array of mixed-size structs; \
+         ACIR's non-homogeneous array handling is unreachable from the fuzzer"
+    );
 }

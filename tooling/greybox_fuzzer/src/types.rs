@@ -16,8 +16,10 @@ pub struct ProgramFailureResult {
 #[derive(Debug)]
 /// The outcome of a fuzz test
 pub enum FuzzTestResult {
-    /// If the program has been executed properly and no failures have been found
-    Success,
+    /// If the program has been executed properly and no failures have been found.
+    /// Carries a representative passing input (when available) so a single execution's
+    /// output can be shown for `nargo test --show-output`.
+    Success(Option<InputMap>),
     /// If we've discovered a failing testcase
     ProgramFailure(ProgramFailureResult),
 

@@ -14,12 +14,12 @@ import {
 } from '../../src/noir/dependencies/github-dependency-resolver';
 import { GitDependencyConfig } from '../../src/types/noir_package_config';
 import Sinon, { SinonStub } from 'sinon';
-import chai, { expect } from 'chai';
+import { use, expect } from 'chai';
 import forEach from 'mocha-each';
 import chaiAsPromised from 'chai-as-promised';
 import AdmZip from 'adm-zip';
 
-chai.use(chaiAsPromised);
+use(chaiAsPromised);
 
 const fixtures = resolve(join(__dirname, '../fixtures'));
 
@@ -70,7 +70,7 @@ describe('GithubDependencyResolver', () => {
       zip.addLocalFile(filePath, dirname(filePath.replace(testLibPath, 'lib-c')));
     }
 
-    fetchStub?.onCall(0).returns(new Response(zip.toBuffer(), { status: 200 }));
+    fetchStub?.onCall(0).returns(new Response(zip.toBuffer() as unknown as BodyInit, { status: 200 }));
 
     const lib = await resolver.resolveDependency(pkg, libDependency);
     expect(lib).not.to.be.undefined;

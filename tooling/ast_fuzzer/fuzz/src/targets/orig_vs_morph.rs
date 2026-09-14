@@ -44,7 +44,7 @@ fn rewrite_program(
     rules: &[rules::Rule],
     max_rewrites: usize,
 ) {
-    for func in program.functions.iter_mut() {
+    for func in &mut program.functions {
         if func.name.ends_with("_proxy") {
             continue;
         }
@@ -87,11 +87,9 @@ impl VariableContext {
     fn new(func: &Function) -> Self {
         let (next_local_id, next_ident_id) = rewrite::next_local_and_ident_id(func);
 
-        let locals = ScopeStack::from_variables(
-            func.parameters
-                .iter()
-                .map(|(id, mutable, name, typ, _vis)| (*id, *mutable, name.clone(), typ.clone())),
-        );
+        let locals = ScopeStack::from_variables(func.parameters.iter().map(
+            |(id, mutable, name, typ, _vis)| (*id, *mutable, name.clone(), typ.as_ref().clone()),
+        ));
 
         Self { next_local_id, next_ident_id, locals }
     }
@@ -201,16 +199,18 @@ impl MorphContext<'_> {
                 // No need to visit children, we just visited them.
                 false
             }
-            Expression::Unary(
-                unary @ Unary { operator: UnaryOp::Reference { mutable: true }, .. },
-            ) => {
+            Expression::Unary(unary @ Unary { operator: UnaryOp::Reference { .. }, .. }) => {
+                // Both `&mut x` and `&x` alias what they point at, so rewriting the operand
+                // into an equal-valued expression changes the meaning: `&(x ^ (x ^ x))`
+                // references a temporary, and a later write to `x` is no longer observed
+                // through it.
                 let ctx = rules::Context { is_in_ref_mut: true, ..*ctx };
                 self.rewrite_expr(&ctx, u, &mut unary.rhs);
                 false
             }
             Expression::Call(call) if is_special_call(call) => {
                 let ctx = rules::Context { is_in_special_call: true, ..*ctx };
-                for arg in call.arguments.iter_mut() {
+                for arg in &mut call.arguments {
                     self.rewrite_expr(&ctx, u, arg);
                 }
                 false
@@ -288,7 +288,9 @@ fn is_special_call(call: &Call) -> bool {
     matches!(
         call.func.as_ref(),
         Expression::Ident(Ident {
-            definition: Definition::Oracle(_) | Definition::Builtin(_) | Definition::LowLevel(_),
+            definition: Definition::Oracle { .. }
+                | Definition::Builtin(_)
+                | Definition::LowLevel(_),
             ..
         })
     )
@@ -296,28 +298,30 @@ fn is_special_call(call: &Call) -> bool {
 
 /// Metamorphic transformation rules.
 mod rules {
+    use std::rc::Rc;
+
     use crate::targets::orig_vs_morph::{
         VariableContext,
         helpers::{has_side_effect, reassign_ids},
     };
 
     use super::helpers::gen_expr;
-    use acir::{AcirField, FieldElement};
     use arbitrary::Unstructured;
     use noir_ast_fuzzer::{Config, expr, types};
     use noirc_frontend::{
+        Type as HirType,
         ast::BinaryOpKind,
+        hir::comptime::Integer,
         monomorphization::ast::{Binary, Definition, Expression, Ident, Literal, Type},
-        signed_field::SignedField,
     };
 
     #[derive(Clone, Debug, Default)]
-    pub struct Context {
+    pub(super) struct Context {
         /// Is the function we're rewriting unconstrained?
         pub unconstrained: bool,
         /// Are we rewriting an expression which is a `start` or `end` of a `for` loop?
         pub is_in_range: bool,
-        /// Are we in an expression that we're just taking a mutable reference to?
+        /// Are we in an expression that we're taking a reference to, mutable or not?
         pub is_in_ref_mut: bool,
         /// Are we processing the arguments of an non-user function call, such as an oracle or built-in?
         pub is_in_special_call: bool,
@@ -330,13 +334,13 @@ mod rules {
         dyn Fn(&mut Unstructured, &mut VariableContext, &mut Expression) -> arbitrary::Result<()>;
 
     /// Metamorphic transformation rule.
-    pub struct Rule {
+    pub(super) struct Rule {
         pub matches: Box<MatchFn>,
         pub rewrite: Box<RewriteFn>,
     }
 
     impl Rule {
-        pub fn new(
+        pub(super) fn new(
             matches: impl Fn(&Context, &Expression) -> bool + 'static,
             rewrite: impl Fn(
                 &mut Unstructured,
@@ -349,12 +353,12 @@ mod rules {
         }
 
         /// Check if the rule can be applied on an expression.
-        pub fn matches(&self, ctx: &Context, expr: &Expression) -> bool {
+        pub(super) fn matches(&self, ctx: &Context, expr: &Expression) -> bool {
             (self.matches)(ctx, expr)
         }
 
         /// Apply the rule on an expression, mutating/replacing it in-place.
-        pub fn rewrite(
+        pub(super) fn rewrite(
             &self,
             u: &mut Unstructured,
             vars: &mut VariableContext,
@@ -365,7 +369,7 @@ mod rules {
     }
 
     /// Construct all rules that we can apply on a program.
-    pub fn collect(config: &Config) -> Vec<Rule> {
+    pub(super) fn collect(config: &Config) -> Vec<Rule> {
         let mut rules = vec![
             num_add_zero(),
             num_sub_zero(),
@@ -390,33 +394,33 @@ mod rules {
     fn num_op(op: BinaryOpKind, rhs: u32) -> Rule {
         Rule::new(num_rule_matches, move |_u, _locals, expr| {
             let typ = expr.return_type().expect("only called on matching type").into_owned();
-            expr::replace(expr, |expr| expr::binary(expr, op, expr::int_literal(rhs, false, typ)));
+            expr::replace(expr, |expr| expr::binary(expr, op, expr::int_literal(rhs, typ)));
             Ok(())
         })
     }
 
     /// Transform any numeric value `x` into `x+0`
-    pub fn num_add_zero() -> Rule {
+    pub(super) fn num_add_zero() -> Rule {
         num_op(BinaryOpKind::Add, 0)
     }
 
     /// Transform any numeric value `x` into `x-0`
-    pub fn num_sub_zero() -> Rule {
+    pub(super) fn num_sub_zero() -> Rule {
         num_op(BinaryOpKind::Subtract, 0)
     }
 
     /// Transform any numeric value `x` into `x*1`
-    pub fn num_mul_one() -> Rule {
+    pub(super) fn num_mul_one() -> Rule {
         num_op(BinaryOpKind::Multiply, 1)
     }
 
     /// Transform any numeric value `x` into `x/1`
-    pub fn num_div_one() -> Rule {
+    pub(super) fn num_div_one() -> Rule {
         num_op(BinaryOpKind::Divide, 1)
     }
 
     /// Break an integer literal `a` into `b + c`.
-    pub fn int_break_up() -> Rule {
+    pub(super) fn int_break_up() -> Rule {
         Rule::new(
             |ctx, expr| {
                 if ctx.is_in_range && !ctx.unconstrained || ctx.is_in_ref_mut {
@@ -433,31 +437,41 @@ mod rules {
                     unreachable!("generated a literal of the same type");
                 };
 
-                // Make them have the same sign, so they are on the same side of 0 and a single number
-                // can add up to them without overflow. (e.g. there is no x such that `i32::MIN + x == i32::MAX`)
-                if a.is_negative() && !b.is_negative() {
-                    *b = SignedField::negative(b.absolute_value());
-                } else if !a.is_negative() && b.is_negative() {
-                    *b = SignedField::positive(b.absolute_value() - FieldElement::one()); // -1 just to avoid the potential of going from e.g. i8 -128 to 128 where the maximum is 127.
-                }
+                let Type::Integer(sign, bits) = typ else {
+                    return Ok(());
+                };
+                let hir_type = HirType::Integer(*sign, *bits);
 
-                let (op, c) = if *a >= *b {
-                    (BinaryOpKind::Add, (*a - *b))
-                } else {
-                    (BinaryOpKind::Subtract, (*b - *a))
+                // Convert to Integer for correct signed/unsigned comparison.
+                // FieldElement ordering does not match signed integer ordering.
+                let Some(a_int) = Integer::try_from_type(*a, &hir_type) else {
+                    return Ok(());
+                };
+                let Some(b_int) = Integer::try_from_type(*b, &hir_type) else {
+                    return Ok(());
                 };
 
+                let (op, c) = if a_int >= b_int {
+                    (BinaryOpKind::Add, *a - *b)
+                } else {
+                    (BinaryOpKind::Subtract, *b - *a)
+                };
+
+                // Verify c fits in the type (modular subtraction can yield out-of-range values
+                // for signed integers, e.g. 100_i8 - (-28_i8) = 128 which overflows i8).
+                if Integer::try_from_type(c, &hir_type).is_none() {
+                    return Ok(());
+                }
+
                 let c_expr = Expression::Literal(Literal::Integer(c, typ.clone(), *loc));
-
                 *expr = expr::binary(b_expr, op, c_expr);
-
                 Ok(())
             },
         )
     }
 
     /// Transform boolean value `x` into `x | x`.
-    pub fn bool_or_self() -> Rule {
+    pub(super) fn bool_or_self() -> Rule {
         Rule::new(bool_rule_matches, |_u, _locals, expr| {
             expr::replace(expr, |expr| expr::binary(expr.clone(), BinaryOpKind::Or, expr));
             Ok(())
@@ -465,7 +479,7 @@ mod rules {
     }
 
     /// Transform boolean value `x` into `x ^ x ^ x`.
-    pub fn bool_xor_self() -> Rule {
+    pub(super) fn bool_xor_self() -> Rule {
         Rule::new(bool_rule_matches, |_u, _locals, expr| {
             expr::replace(expr, |expr| {
                 let rhs = expr::binary(expr.clone(), BinaryOpKind::Xor, expr.clone());
@@ -476,7 +490,7 @@ mod rules {
     }
 
     /// Transform boolean value `x` into `rnd ^ x ^ rnd`.
-    pub fn bool_xor_rand() -> Rule {
+    pub(super) fn bool_xor_rand() -> Rule {
         Rule::new(bool_rule_matches, |u, _locals, expr| {
             // This is where we could access the scope to look for a random bool variable.
             let rnd = expr::gen_literal(u, &Type::Bool, &Config::default())?;
@@ -491,7 +505,7 @@ mod rules {
     /// Transform commutative arithmetic operations:
     /// * `a + b` into `b + a`
     /// * `a * b` into `b * a`
-    pub fn num_commute() -> Rule {
+    pub(super) fn num_commute() -> Rule {
         Rule::new(
             |_ctx, expr| {
                 matches!(
@@ -517,7 +531,7 @@ mod rules {
     /// Transform any expression into an if-then-else with the itself
     /// repeated in the _then_ and _else_ branch:
     /// * `x` into `if c { x } else { x }`
-    pub fn any_inevitable() -> Rule {
+    pub(super) fn any_inevitable() -> Rule {
         Rule::new(
             |ctx, expr| {
                 !ctx.is_in_special_call
@@ -527,10 +541,10 @@ mod rules {
                     // `let x = 1;` transformed into `if true { let x = 1; } else { let x = 1; }` would leave `x` undefined.
                     && !matches!(expr, Expression::Let(_))
                     // We can't return references from an `if` statement
-                    && expr.return_type().map(|typ| !types::contains_reference(typ.as_ref())).unwrap_or(true)
+                    && expr.return_type().is_none_or(|typ| !types::contains_reference(typ.as_ref()))
             },
             |u, vars, expr| {
-                let typ = expr.return_type().map(|typ| typ.into_owned()).unwrap_or(Type::Unit);
+                let typ = expr.return_type().map_or(Type::Unit, |typ| typ.into_owned());
 
                 // Find a bool expression we can use. For simplicity just consider actual bool variables,
                 // not things that can produce variables, so we have less logic to repeat for the `FunctionContext`.
@@ -552,7 +566,7 @@ mod rules {
                         definition: Definition::Local(*id),
                         mutable: *mutable,
                         name: name.clone(),
-                        typ: typ.clone(),
+                        typ: Rc::new(typ.clone()),
                         id: vars.next_ident_id(),
                     })
                 };
@@ -621,7 +635,7 @@ mod rules {
 }
 
 mod helpers {
-    use std::{cell::RefCell, collections::HashMap, sync::OnceLock};
+    use std::{cell::RefCell, collections::HashMap};
 
     use arbitrary::Unstructured;
     use noir_ast_fuzzer::{Config, expr, types};
@@ -720,7 +734,56 @@ mod helpers {
         // Choose a random operation.
         let op = u.choose_iter(ops)?;
 
-        let type_options = TYPES.get_or_init(|| {
+        // let type_options = TYPES.get_or_init(|| {
+        //     let mut types = vec![Type::Bool, Type::Field];
+
+        //     for sign in [Signedness::Signed, Signedness::Unsigned] {
+        //         for size in IntegerBitSize::iter() {
+        //             if sign.is_signed() && size.bit_size() == 1 {
+        //                 continue;
+        //             }
+        //             // Avoid negative literals; the frontend makes them difficult to work with in expressions
+        //             // where no type inference information is available.
+        //             if sign.is_signed() {
+        //                 continue;
+        //             }
+        //             // Avoid large integers; frontend doesn't like them.
+        //             if size.bit_size() > 32 {
+        //                 continue;
+        //             }
+        //             types.push(Type::Integer(sign, size));
+        //         }
+        //     }
+        //     types
+        // });
+
+        TYPES.with(|types| {
+            // Select input types that can produce the output we want.
+            let type_options = types
+                .iter()
+                .filter(|input| types::can_binary_op_return_from_input(&op, input, typ))
+                .collect::<Vec<_>>();
+            // Choose a type for the LHS and RHS.
+            let lhs_type = u.choose_iter(type_options)?;
+
+            // Generate expressions for LHS and RHS.
+            let lhs_expr = gen_expr(u, lhs_type, max_depth.saturating_sub(1))?;
+            let rhs_expr = gen_expr(u, lhs_type, max_depth.saturating_sub(1))?;
+
+            let mut expr = expr::binary(lhs_expr, op, rhs_expr);
+
+            // If we have chosen e.g. u8 and need u32 we need to cast.
+            if !(lhs_type == typ || types::is_bool(typ) && op.is_comparator()) {
+                expr = expr::cast(expr, typ.clone());
+            }
+
+            Ok(Some(expr))
+        })
+    }
+
+    thread_local! {
+        /// Types we can consider using in this context.
+        static TYPES: Vec<Type> = {
             let mut types = vec![Type::Bool, Type::Field];
 
             for sign in [Signedness::Signed, Signedness::Unsigned] {
@@ -741,33 +804,8 @@ mod helpers {
                 }
             }
             types
-        });
-
-        // Select input types that can produce the output we want.
-        let type_options = type_options
-            .iter()
-            .filter(|input| types::can_binary_op_return_from_input(&op, input, typ))
-            .collect::<Vec<_>>();
-
-        // Choose a type for the LHS and RHS.
-        let lhs_type = u.choose_iter(type_options)?;
-
-        // Generate expressions for LHS and RHS.
-        let lhs_expr = gen_expr(u, lhs_type, max_depth.saturating_sub(1))?;
-        let rhs_expr = gen_expr(u, lhs_type, max_depth.saturating_sub(1))?;
-
-        let mut expr = expr::binary(lhs_expr, op, rhs_expr);
-
-        // If we have chosen e.g. u8 and need u32 we need to cast.
-        if !(lhs_type == typ || types::is_bool(typ) && op.is_comparator()) {
-            expr = expr::cast(expr, typ.clone());
-        }
-
-        Ok(Some(expr))
+        };
     }
-
-    /// Types we can consider using in this context.
-    static TYPES: OnceLock<Vec<Type>> = OnceLock::new();
 
     /// Assign new IDs to variables and identifiers created in the expression.
     pub(super) fn reassign_ids(vars: &mut VariableContext, expr: &mut Expression) {
@@ -793,7 +831,7 @@ mod helpers {
                         ident.id = vars.next_ident_id();
                     }
                     Expression::Let(let_) => {
-                        replace_local_id(vars, &mut replacements.borrow_mut(), &mut let_.id)
+                        replace_local_id(vars, &mut replacements.borrow_mut(), &mut let_.id);
                     }
                     Expression::For(for_) => replace_local_id(
                         vars,
@@ -805,8 +843,8 @@ mod helpers {
                         if let Some(replacement) = replacements.get(&match_.variable_to_match.0) {
                             match_.variable_to_match.0 = *replacement;
                         }
-                        for case in match_.cases.iter_mut() {
-                            for (arg, _) in case.arguments.iter_mut() {
+                        for case in &mut match_.cases {
+                            for (arg, _) in &mut case.arguments {
                                 replace_local_id(vars, &mut replacements, arg);
                             }
                         }

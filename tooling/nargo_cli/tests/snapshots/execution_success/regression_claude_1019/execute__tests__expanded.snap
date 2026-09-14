@@ -1,0 +1,29 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(x: pub Field) {
+    let _: [u8; 0] = x.to_le_bytes();
+    let _: [u8; 0] = x.to_be_bytes();
+    let _: [bool; 0] = x.to_le_bits();
+    let _: [bool; 0] = x.to_be_bits();
+    let _: [u8; 0] = (0_Field as Field).to_le_bytes();
+    let _: [u8; 0] = (0_Field as Field).to_be_bytes();
+    let _: [bool; 0] = (0_Field as Field).to_le_bits();
+    let _: [bool; 0] = (0_Field as Field).to_be_bits();
+    let _: [u8; 0] = [];
+    let _: [u8; 0] = [];
+    let _: [bool; 0] = [];
+    let _: [bool; 0] = [];
+    // Safety: comment added by `nargo expand`
+    unsafe {
+        unconstrained_decompose();
+    }
+}
+
+unconstrained fn unconstrained_decompose() {
+    let _: [u8; 0] = (0_Field as Field).to_le_bytes();
+    let _: [u8; 0] = (0_Field as Field).to_be_bytes();
+    let _: [bool; 0] = (0_Field as Field).to_le_bits();
+    let _: [bool; 0] = (0_Field as Field).to_be_bits();
+}

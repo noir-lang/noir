@@ -8,7 +8,7 @@ use crate::brillig::brillig_ir::{
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
-    /// Call [ProcedureId::CheckMaxStackDepth].
+    /// Call [`ProcedureId::CheckMaxStackDepth`].
     ///
     /// Ensures that the stack size does not grow beyond its boundaries, where it would encroach on the heap.
     pub(crate) fn call_check_max_stack_depth_procedure(&mut self) {
@@ -16,7 +16,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     }
 }
 
-/// Compile [ProcedureId::CheckMaxStackDepth].
+/// Compile [`ProcedureId::CheckMaxStackDepth`].
 ///
 /// The stack start should be computed earlier after allocating space for globals and the entry point.
 ///
@@ -38,7 +38,7 @@ pub(super) fn compile_check_max_stack_depth_procedure<F: AcirField + DebugToStri
     brillig_context.codegen_usize_op(
         ReservedRegisters::stack_pointer(),
         in_range.address,
-        BrilligBinaryOp::LessThan,
+        BrilligBinaryOp::LessThanEquals,
         last_possible_stack_start,
     );
     brillig_context.codegen_constrain(*in_range, Some("Stack too deep".to_string()));

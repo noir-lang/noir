@@ -1,0 +1,22 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Expected type Bar, found type Bar
+  ┌─ src/main.nr:1:12
+  │
+1 │ pub struct Bar {}
+  │            --- Note: `Bar` is defined in the current crate
+  ·
+4 │     some_lib::foo(Bar {});
+  │                   ------
+  │                   │
+  │                   Note: `Bar` and `some_lib::Bar` have similar names, but are actually distinct types
+  │
+  ┌─ some_lib/src/lib.nr:1:12
+  │
+1 │ pub struct Bar {}
+  │            --- Note: `some_lib::Bar` is defined in crate `some_lib`
+  │
+
+Aborting due to 1 previous error

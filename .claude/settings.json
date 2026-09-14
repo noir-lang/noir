@@ -1,5 +1,20 @@
 {
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "mcp__claudebox__create_pr|mcp__claudebox__update_pr",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash -c 'cd $(git rev-parse --show-toplevel) && ./.githooks/pre-commit'"
+          },
+          {
+            "type": "command",
+            "command": "bash -c 'cd $(git rev-parse --show-toplevel) && echo \"refs/heads/hook $(git rev-parse HEAD) refs/heads/hook 0000000000000000000000000000000000000000\" | ./.githooks/pre-push'"
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "Edit|Write",

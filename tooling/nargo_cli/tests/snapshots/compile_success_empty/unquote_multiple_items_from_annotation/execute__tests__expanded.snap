@@ -16,6 +16,6 @@ comptime fn foo(_: TypeDefinition) -> Quoted {
     }
 }
 
-global ONE: Field = 1;
+global ONE: Field = 0x01;
 
 global TWO: u32 = 2;

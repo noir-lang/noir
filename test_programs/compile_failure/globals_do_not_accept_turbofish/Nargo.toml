@@ -1,7 +1,0 @@
-[package]
-name = "globals_do_not_accept_turbofish"
-type = "bin"
-authors = [""]
-compiler_version = ">=0.33.0"
-
-[dependencies]

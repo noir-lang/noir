@@ -12,6 +12,7 @@ workspace = true
 [dependencies]
 iter-extended.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 noirc_driver.workspace = true
 noirc_frontend.workspace = true
 noirc_errors.workspace = true
@@ -21,3 +22,4 @@ regex.workspace = true
 
 [dev-dependencies]
 insta.workspace = true
+noirc_arena.workspace = true

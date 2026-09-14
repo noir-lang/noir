@@ -1,4 +1,4 @@
-//! This file contains mechanisms for deterministically mutating a given [WitnessValue](crate::fuzz_lib::fuzz_target_lib::WitnessValue) value
+//! This file contains mechanisms for deterministically mutating a given [`WitnessValue`](crate::fuzz_lib::fuzz_target_lib::WitnessValue) value
 //! Types of mutations applied:
 //! 1. Random (randomly select a new witness value)
 //! 2. Max value
@@ -11,7 +11,7 @@ use crate::mutations::configuration::{
     NumericWitnessMutationConfig, SIZE_OF_SMALL_ARBITRARY_BUFFER, WitnessMutationOptions,
 };
 use libfuzzer_sys::arbitrary::Unstructured;
-use rand::{Rng, rngs::StdRng};
+use rand::{RngExt, rngs::StdRng};
 
 pub(crate) fn generate_element_of_the_same_type(
     rng: &mut StdRng,

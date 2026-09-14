@@ -143,12 +143,11 @@ impl CodeActionFinder<'_> {
 
 #[cfg(test)]
 mod tests {
-    use tokio::test;
 
     use crate::requests::code_action::tests::assert_code_action;
 
     #[test]
-    async fn test_add_missing_impl_members_simple() {
+    fn test_add_missing_impl_members_simple() {
         let title = "Implement missing members";
 
         let src = r#"
@@ -176,16 +175,18 @@ impl Trait for Foo {
     }
 }"#;
 
-        assert_code_action(title, src, expected).await;
+        assert_code_action(title, src, expected);
     }
 
     #[test]
-    async fn test_add_missing_impl_members_multiple_with_self_type() {
+    fn test_add_missing_impl_members_multiple_with_self_type() {
         let title = "Implement missing members";
 
         let src = r#"
 trait Trait {
     fn bar(self) -> Self;
+    fn baz(&self) -> Self;
+    fn qux(&mut self) -> Self;
     fn foo(x: i32) -> i32;
 }
 
@@ -197,6 +198,8 @@ impl Tra>|<it for Foo {
         let expected = r#"
 trait Trait {
     fn bar(self) -> Self;
+    fn baz(&self) -> Self;
+    fn qux(&mut self) -> Self;
     fn foo(x: i32) -> i32;
 }
 
@@ -207,16 +210,24 @@ impl Trait for Foo {
         panic(f"Implement bar")
     }
 
+    fn baz(&self) -> Self {
+        panic(f"Implement baz")
+    }
+
     fn foo(x: i32) -> i32 {
         panic(f"Implement foo")
     }
+
+    fn qux(&mut self) -> Self {
+        panic(f"Implement qux")
+    }
 }"#;
 
-        assert_code_action(title, src, expected).await;
+        assert_code_action(title, src, expected);
     }
 
     #[test]
-    async fn test_add_missing_impl_members_qualify_type() {
+    fn test_add_missing_impl_members_qualify_type() {
         let title = "Implement missing members";
 
         let src = r#"
@@ -254,11 +265,11 @@ impl Trait for Foo {
     }
 }"#;
 
-        assert_code_action(title, src, expected).await;
+        assert_code_action(title, src, expected);
     }
 
     #[test]
-    async fn test_add_missing_impl_members_no_need_to_qualify_type() {
+    fn test_add_missing_impl_members_no_need_to_qualify_type() {
         let title = "Implement missing members";
 
         let src = r#"
@@ -298,11 +309,11 @@ impl Trait for Foo {
     }
 }"#;
 
-        assert_code_action(title, src, expected).await;
+        assert_code_action(title, src, expected);
     }
 
     #[test]
-    async fn test_add_missing_impl_members_generics() {
+    fn test_add_missing_impl_members_generics() {
         let title = "Implement missing members";
 
         let src = r#"
@@ -332,11 +343,11 @@ impl <U> Trait<[U]> for Foo {
     }
 }"#;
 
-        assert_code_action(title, src, expected).await;
+        assert_code_action(title, src, expected);
     }
 
     #[test]
-    async fn test_add_missing_impl_members_associated_types() {
+    fn test_add_missing_impl_members_associated_types() {
         let title = "Implement missing members";
 
         let src = r#"
@@ -368,11 +379,11 @@ impl Trait for Foo {
     }
 }"#;
 
-        assert_code_action(title, src, expected).await;
+        assert_code_action(title, src, expected);
     }
 
     #[test]
-    async fn test_add_missing_impl_members_associated_constant() {
+    fn test_add_missing_impl_members_associated_constant() {
         let title = "Implement missing members";
 
         let src = r#"
@@ -408,11 +419,11 @@ impl Trait for Foo {
     }
 }"#;
 
-        assert_code_action(title, src, expected).await;
+        assert_code_action(title, src, expected);
     }
 
     #[test]
-    async fn test_add_missing_impl_members_nested() {
+    fn test_add_missing_impl_members_nested() {
         let title = "Implement missing members";
 
         let src = r#"
@@ -448,11 +459,11 @@ mod moo {
     }
 }"#;
 
-        assert_code_action(title, src, expected).await;
+        assert_code_action(title, src, expected);
     }
 
     #[test]
-    async fn test_add_missing_impl_members_inline() {
+    fn test_add_missing_impl_members_inline() {
         let title = "Implement missing members";
 
         let src = r#"
@@ -483,6 +494,6 @@ impl Trait for Foo {
     }
 }"#;
 
-        assert_code_action(title, src, expected).await;
+        assert_code_action(title, src, expected);
     }
 }

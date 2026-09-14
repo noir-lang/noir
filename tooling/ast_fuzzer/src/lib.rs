@@ -9,7 +9,7 @@ mod input;
 mod program;
 
 pub use abi::program_abi;
-pub use compare::{input_value_to_ssa, input_values_to_ssa};
+pub use compare::encode_to_ssa;
 pub use input::arb_inputs;
 use program::freq::Freqs;
 pub use program::{
@@ -35,6 +35,16 @@ pub struct Config {
     pub max_block_size: usize,
     /// Maximum nesting depth for complex expressions.
     pub max_depth: usize,
+    /// Maximum nesting depth for generated types.
+    ///
+    /// This is separate from [`Config::max_depth`] because the two bound unrelated
+    /// things, and the interesting type shapes are deeper than the interesting
+    /// expression shapes. A depth of 2 only reaches an array of tuples of scalars,
+    /// whose members all occupy one flattened slot; ACIR generation has an entire
+    /// non-homogeneous code path (element type sizes, fallback offsets, result
+    /// predication) that only runs when an array element mixes member sizes, which
+    /// needs a composite inside the element and so a depth of 3.
+    pub max_type_depth: usize,
     /// Maximum number of fields for tuples.
     pub max_tuple_size: usize,
     /// Maximum size for arrays.
@@ -47,6 +57,8 @@ pub struct Config {
     pub max_recursive_calls: usize,
     /// Maximum number of match cases.
     pub max_match_cases: usize,
+    /// Frequency of replacing one conditional arm with a literal `assert(false)`.
+    pub doomed_branch_freqs: Freqs,
     /// Frequency of expressions, which produce a value.
     pub expr_freqs: Freqs,
     /// Frequency of statements in ACIR functions.
@@ -106,7 +118,8 @@ impl Default for Config {
             ("for", 37),
             ("let", 25),
             ("call", 5),
-            ("constrain", 4),
+            ("print", 10),
+            ("constrain", 8),
         ]);
         let stmt_freqs_brillig = Freqs::new(&[
             ("break", 45),
@@ -114,14 +127,15 @@ impl Default for Config {
             ("assign", 30),
             ("if", 10),
             ("match", 15),
-            ("for", 40),
-            ("loop", 40),
-            ("while", 40),
+            ("for", 45),
+            ("loop", 75),
+            ("while", 75),
             ("let", 20),
             ("call", 5),
             ("print", 15),
-            ("constrain", 15),
+            ("constrain", 25),
         ]);
+        let doomed_branch_freqs = Freqs::new(&[("doomed", 1), ("regular", 19)]);
         Self {
             max_globals: 3,
             min_functions: 0,
@@ -130,12 +144,14 @@ impl Default for Config {
             max_function_size: 25,
             max_block_size: 5,
             max_depth: 2,
+            max_type_depth: 3,
             max_tuple_size: 5,
             max_array_size: 4,
             max_loop_size: 10,
             vary_loop_size: true,
             max_recursive_calls: 25,
             max_match_cases: 3,
+            doomed_branch_freqs,
             expr_freqs,
             stmt_freqs_acir,
             stmt_freqs_brillig,

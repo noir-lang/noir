@@ -1,3 +1,4 @@
+/// Create a new `Self` value from the given `T` value
 // docs:start:from-trait
 pub trait From<T> {
     fn from(input: T) -> Self;
@@ -10,6 +11,7 @@ impl<T> From<T> for T {
     }
 }
 
+/// Convert a `Self` value into a `T` value
 // docs:start:into-trait
 pub trait Into<T> {
     fn into(self) -> T;
@@ -251,12 +253,12 @@ comptime fn generate_as_primitive_impls(_: FunctionDefinition) -> Quoted {
 
             impls = impls.push_back(
                 quote {
-                impl AsPrimitive<$type1> for $type2 {
-                    fn as_(self) -> $type1 {
-                        $body
+                    impl AsPrimitive<$type1> for $type2 {
+                        fn as_(self) -> $type1 {
+                            $body
+                        }
                     }
-                }
-            },
+                },
             );
         }
     }
@@ -297,4 +299,131 @@ comptime fn generate_as_primitive_impls(_: FunctionDefinition) -> Quoted {
     }
 
     impls.join(quote {})
+}
+
+mod tests {
+    use crate::meta::unquote;
+    use super::{From, Into};
+
+    #[test]
+    fn from_identity() {
+        let x: u32 = 42;
+        assert_eq(u32::from(x), 42);
+    }
+
+    #[test]
+    fn from_unsigned_widening() {
+        comptime {
+            let pairs = @[
+                (quote { u8 }, quote { u16 }),
+                (quote { u8 }, quote { u32 }),
+                (quote { u8 }, quote { u64 }),
+                (quote { u8 }, quote { u128 }),
+                (quote { u16 }, quote { u32 }),
+                (quote { u16 }, quote { u64 }),
+                (quote { u16 }, quote { u128 }),
+                (quote { u32 }, quote { u64 }),
+                (quote { u32 }, quote { u128 }),
+                (quote { u64 }, quote { u128 }),
+            ];
+            for pair in pairs {
+                let source = pair.0;
+                let target = pair.1;
+                let src_zero = f"0_{source}".quoted_contents();
+                let src_value = f"123_{source}".quoted_contents();
+                let dst_zero = f"0_{target}".quoted_contents();
+                let dst_value = f"123_{target}".quoted_contents();
+                unquote!(
+                    quote {
+                        assert_eq($target::from($src_zero), $dst_zero);
+                        assert_eq($target::from($src_value), $dst_value);
+                    },
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn from_unsigned_to_field() {
+        comptime {
+            for source in @[
+                quote { u8 },
+                quote { u16 },
+                quote { u32 },
+                quote { u64 },
+                quote { u128 },
+            ] {
+                let src_zero = f"0_{source}".quoted_contents();
+                let src_value = f"123_{source}".quoted_contents();
+                unquote!(
+                    quote {
+                        assert_eq(Field::from($src_zero), 0);
+                        assert_eq(Field::from($src_value), 123);
+                    },
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn from_signed_widening() {
+        comptime {
+            let pairs = @[
+                (quote { i8 }, quote { i16 }),
+                (quote { i8 }, quote { i32 }),
+                (quote { i8 }, quote { i64 }),
+                (quote { i16 }, quote { i32 }),
+                (quote { i16 }, quote { i64 }),
+                (quote { i32 }, quote { i64 }),
+            ];
+            for pair in pairs {
+                let source = pair.0;
+                let target = pair.1;
+                let src_pos = f"42_{source}".quoted_contents();
+                let dst_pos = f"42_{target}".quoted_contents();
+                let src_neg = f"-42_{source}".quoted_contents();
+                let dst_neg = f"-42_{target}".quoted_contents();
+                unquote!(
+                    quote {
+                        assert_eq($target::from($src_pos), $dst_pos);
+                        assert_eq($target::from($src_neg), $dst_neg);
+                    },
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn from_bool() {
+        comptime {
+            for target in @[
+                quote { u8 },
+                quote { u16 },
+                quote { u32 },
+                quote { u64 },
+                quote { u128 },
+                quote { i8 },
+                quote { i16 },
+                quote { i32 },
+                quote { i64 },
+                quote { Field },
+            ] {
+                let one = f"1_{target}".quoted_contents();
+                let zero = f"0_{target}".quoted_contents();
+                unquote!(
+                    quote {
+                        assert_eq($target::from(true), $one);
+                        assert_eq($target::from(false), $zero);
+                    },
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn into_widens_unsigned() {
+        let value: u8 = 7;
+        let widened: u32 = value.into();
+        assert_eq(widened, 7);
+    }
 }

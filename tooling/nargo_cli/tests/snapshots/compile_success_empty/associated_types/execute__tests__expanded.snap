@@ -22,10 +22,6 @@ impl<let N: u32, T> Collection for [T; N] {
             Option::<T>::none()
         }
     }
-
-    fn ctake(self, index: u32) -> T {
-        self.cget(index).unwrap()
-    }
 }
 
 fn main() {

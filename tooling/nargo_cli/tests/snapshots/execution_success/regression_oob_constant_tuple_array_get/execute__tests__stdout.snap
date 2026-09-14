@@ -1,0 +1,5 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+[regression_oob_constant_tuple_array_get] Circuit output: 0x00

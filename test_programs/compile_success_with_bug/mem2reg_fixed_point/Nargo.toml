@@ -1,0 +1,6 @@
+[package]
+name = "mem2reg_fixed_point"
+type = "bin"
+authors = [""]
+
+[dependencies]

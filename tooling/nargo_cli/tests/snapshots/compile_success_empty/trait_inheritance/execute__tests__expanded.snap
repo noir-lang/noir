@@ -7,16 +7,11 @@ trait Foo {
 }
 
 trait Bar: Foo {
-    fn bar(self) -> Field
-    where
-        Self: Foo,
-    {
+    fn bar(self) -> Field {
         self.foo() + 1_Field
     }
 
-    fn baz(self) -> Field
-    where
-        Self: Foo;
+    fn baz(self) -> Field;
 }
 
 struct Struct {
@@ -30,10 +25,6 @@ impl Foo for Struct {
 }
 
 impl Bar for Struct {
-    fn bar(self) -> Field {
-        self.foo() + 1_Field
-    }
-
     fn baz(self) -> Field {
         self.foo() + 2_Field
     }

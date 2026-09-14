@@ -1,0 +1,6 @@
+[package]
+name = "bounded_vec_extend_from_bounded_vec"
+type = "bin"
+authors = [""]
+
+[dependencies]

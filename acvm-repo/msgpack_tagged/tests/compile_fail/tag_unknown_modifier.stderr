@@ -1,0 +1,5 @@
+error: `#[tag(...)]` accepts a single integer tag literal
+ --> tests/compile_fail/tag_unknown_modifier.rs:9:12
+  |
+9 |     #[tag(0, foo)]
+  |            ^

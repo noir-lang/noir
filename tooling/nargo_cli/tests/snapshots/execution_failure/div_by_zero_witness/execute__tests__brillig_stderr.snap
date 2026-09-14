@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Assertion failed: 'Attempted to divide by zero'
+  ┌─ src/main.nr:3:20
+  │
+3 │     let a: Field = x / y;
+  │                    -----
+  │
+  = Call stack:
+    1: main
+            at src/main.nr:3:20
+
+Failed assertion

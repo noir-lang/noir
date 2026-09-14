@@ -58,7 +58,7 @@ impl From<&CrateName> for String {
     }
 }
 
-/// Creates a new CrateName rejecting any invalid crate name.
+/// Creates a new `CrateName` rejecting any invalid crate name.
 /// Valid crate names are ones that are also valid Noir identifiers:
 /// they must start with an ASCII alphabetic character or '_' (underscore),
 /// then continue with ASCII alphanumeric characters or '_' (underscore).
@@ -140,11 +140,11 @@ pub struct CrateGraph {
 
 impl CrateGraph {
     /// Tries to find the requested crate in the current one's dependencies,
-    /// otherwise walks down the crate dependency graph from crate_id until we reach it.
+    /// otherwise walks down the crate dependency graph from `crate_id` until we reach it.
     /// This is needed in case a library (`lib1`) re-export a structure defined in another library (`lib2`)
     /// In that case, we will get `[lib1,lib2]` when looking for a struct defined in lib2,
     /// re-exported by lib1 and used by the main crate.
-    /// Returns the path from crate_id to target_crate_id
+    /// Returns the path from `crate_id` to `target_crate_id`
     pub(crate) fn find_dependencies(
         &self,
         crate_id: &CrateId,
@@ -179,7 +179,7 @@ pub struct CrateData {
     pub dependencies: Vec<Dependency>,
 }
 
-/// A dependency is a crate name and a crate_id
+/// A dependency is a crate name and a `crate_id`
 /// This means that the same crate can be compiled once under different names
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Dependency {
@@ -209,7 +209,7 @@ impl CrateGraph {
     }
 
     pub fn add_crate_root(&mut self, file_id: FileId) -> CrateId {
-        for (crate_id, crate_data) in self.arena.iter() {
+        for (crate_id, crate_data) in &self.arena {
             if crate_id.is_root() {
                 panic!("ICE: Cannot add two crate roots to a graph - use `add_crate` instead");
             }
@@ -257,7 +257,7 @@ impl CrateGraph {
     }
 
     pub fn add_stdlib(&mut self, file_id: FileId) -> CrateId {
-        for (crate_id, crate_data) in self.arena.iter() {
+        for (crate_id, crate_data) in &self.arena {
             if crate_id.is_stdlib() {
                 panic!("ICE: Cannot add two stdlib crates to a graph - use `add_crate` instead");
             }
@@ -275,7 +275,7 @@ impl CrateGraph {
     }
 
     pub fn add_crate_root_and_stdlib(&mut self, file_id: FileId) -> CrateId {
-        for (crate_id, crate_data) in self.arena.iter() {
+        for (crate_id, crate_data) in &self.arena {
             if crate_id.is_root() {
                 panic!("ICE: Cannot add two crate roots to a graph - use `add_crate` instead");
             }
@@ -319,7 +319,7 @@ impl CrateGraph {
             if !visited.insert(source) {
                 return;
             }
-            for dep in graph[source].dependencies.iter() {
+            for dep in &graph[source].dependencies {
                 go(graph, visited, res, dep.crate_id);
             }
             res.push(source);

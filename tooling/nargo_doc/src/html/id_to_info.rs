@@ -17,7 +17,7 @@ pub(super) struct ItemInfo {
     pub(super) visibility: ItemVisibility,
 }
 
-/// Computes an ItemInfo for every item in the workspace, indexed by its Id.
+/// Computes an `ItemInfo` for every item in the workspace, indexed by its Id.
 pub(super) fn compute_id_to_info(workspace: &Workspace) -> HashMap<ItemId, ItemInfo> {
     let mut id_to_info = HashMap::new();
     let mut path = Vec::new();
@@ -29,7 +29,7 @@ pub(super) fn compute_id_to_info(workspace: &Workspace) -> HashMap<ItemId, ItemI
         let visibility = ItemVisibility::Public;
         id_to_info.insert(module.id.clone(), ItemInfo { path: Vec::new(), uri, class, visibility });
 
-        path.push(krate.name.to_string());
+        path.push(krate.name.clone());
 
         for (visibility, item) in &krate.root_module.items {
             compute_id_to_info_in_item(item, *visibility, &mut id_to_info, &mut path);

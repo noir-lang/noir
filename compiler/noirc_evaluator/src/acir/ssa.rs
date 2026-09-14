@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 
 use acvm::{
     FieldElement,
@@ -9,7 +9,13 @@ use noirc_frontend::Type as HirType;
 use crate::{
     brillig::{Brillig, BrilligOptions},
     errors::RuntimeError,
-    ssa::ssa_gen::Ssa,
+    ssa::{
+        ir::{
+            instruction::{ConstrainError, Instruction},
+            printer::try_to_extract_string_from_error_payload,
+        },
+        ssa_gen::Ssa,
+    },
 };
 
 use super::{Context, GeneratedAcir, SharedContext, acir_context::BrilligStdLib};
@@ -85,5 +91,39 @@ pub(super) fn codegen_acir(
         .map(|brillig| BrilligBytecode { function_name: brillig.name, bytecode: brillig.byte_code })
         .collect();
 
-    Ok((acirs, brillig_bytecode, ssa.error_selector_to_type))
+    // Dynamic error types are recorded speculatively during SSA generation, but a constant
+    // `str<N>` payload is folded into a static-string assertion during ACIR/Brillig lowering.
+    // Once folded, the dynamic selector is never emitted, so it must not survive into the ABI.
+    // Keep only the dynamic selectors that lowering actually emits as selector+payload data.
+    let used_selectors = used_dynamic_error_selectors(&ssa);
+    let mut error_selector_to_type = ssa.error_selector_to_type;
+    error_selector_to_type.retain(|selector, _| used_selectors.contains(selector));
+
+    Ok((acirs, brillig_bytecode, error_selector_to_type))
+}
+
+/// Collects the dynamic error selectors that ACIR/Brillig lowering emits as selector+payload data,
+/// i.e. those whose payload is *not* folded into a static string. This mirrors the fold decision in
+/// [`crate::acir::Context::convert_constrain_error`] and its Brillig counterpart so the two stay in sync.
+fn used_dynamic_error_selectors(ssa: &Ssa) -> HashSet<ErrorSelector> {
+    let mut used = HashSet::new();
+    for function in ssa.functions.values() {
+        let dfg = &function.dfg;
+        for block in function.reachable_blocks() {
+            for instruction in dfg[block].instructions() {
+                let (Instruction::Constrain(_, _, Some(error))
+                | Instruction::ConstrainNotEqual(_, _, Some(error))) = &dfg[*instruction]
+                else {
+                    continue;
+                };
+                if let ConstrainError::Dynamic(selector, is_string_type, values) = error
+                    && try_to_extract_string_from_error_payload(*is_string_type, values, dfg)
+                        .is_none()
+                {
+                    used.insert(*selector);
+                }
+            }
+        }
+    }
+    used
 }

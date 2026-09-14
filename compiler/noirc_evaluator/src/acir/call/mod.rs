@@ -5,6 +5,7 @@ use acvm::acir::brillig::lengths::{
 };
 use acvm::acir::circuit::opcodes::AcirFunctionId;
 use iter_extended::vecmap;
+use itertools::Itertools;
 use noirc_artifacts::ssa::SsaReport;
 
 use crate::acir::AcirVar;
@@ -24,7 +25,7 @@ use crate::ssa::ir::{
 use crate::ssa::ssa_gen::Ssa;
 
 use super::{
-    Context, arrays,
+    Context,
     types::{AcirDynamicArray, AcirType, AcirValue},
 };
 
@@ -70,10 +71,14 @@ impl Context<'_> {
                         let outputs = self
                             .convert_ssa_intrinsic_call(*intrinsic, arguments, dfg, result_ids)?;
 
-                        assert_eq!(result_ids.len(), outputs.len());
-                        self.handle_ssa_call_outputs(result_ids, outputs, dfg)?;
+                        assert_eq!(
+                            result_ids.len(),
+                            outputs.len(),
+                            "ICE: intrinsic call produced a different number of outputs than result ids"
+                        );
+                        self.handle_ssa_call_outputs(result_ids, outputs)?;
                     }
-                    Value::ForeignFunction(_) => unreachable!(
+                    Value::ForeignFunction { .. } => unreachable!(
                         "Frontend should remove any oracle calls from constrained functions"
                     ),
 
@@ -113,15 +118,16 @@ impl Context<'_> {
             );
         };
 
+        let predicate = self.predicate();
         let output_vars = self.acir_context.call_acir_function(
-            AcirFunctionId(acir_function_id),
+            AcirFunctionId::new(acir_function_id),
             inputs,
             output_count,
-            self.current_side_effects_enabled_var,
+            predicate,
         )?;
 
         let output_values = self.convert_vars_to_values(output_vars, dfg, result_ids);
-        self.handle_ssa_call_outputs(result_ids, output_values, dfg)
+        self.handle_ssa_call_outputs(result_ids, output_values)
     }
 
     fn handle_brillig_function_call(
@@ -135,34 +141,34 @@ impl Context<'_> {
         let inputs = vecmap(arguments, |arg| self.convert_value(*arg, dfg));
         let arguments = self.gen_brillig_parameters(arguments, dfg);
         let outputs: Vec<AcirType> =
-            vecmap(result_ids, |result_id| dfg.type_of_value(*result_id).into());
+            vecmap(result_ids, |result_id| dfg.type_of_value(*result_id).as_ref().into());
+        let predicate = self.predicate();
 
         // Reuse or generate Brillig code
         let output_values = if let Some(generated_pointer) =
             self.shared_context.generated_brillig_pointer(func.id(), arguments.clone())
         {
             let code = self.shared_context.generated_brillig(generated_pointer.as_usize());
-            let safe_return_values = false;
+            let skip_output_range_checks = false;
             self.acir_context.brillig_call(
-                self.current_side_effects_enabled_var,
+                predicate,
                 code,
                 inputs,
                 outputs,
-                safe_return_values,
+                skip_output_range_checks,
                 *generated_pointer,
                 None,
             )?
         } else {
-            let code =
-                gen_brillig_for(func, arguments.clone(), self.brillig, self.brillig_options)?;
+            let code = gen_brillig_for(func, &arguments, self.brillig, self.brillig_options)?;
             let generated_pointer = self.shared_context.new_generated_pointer();
-            let safe_return_values = false;
+            let skip_output_range_checks = false;
             let output_values = self.acir_context.brillig_call(
-                self.current_side_effects_enabled_var,
+                predicate,
                 &code,
                 inputs,
                 outputs,
-                safe_return_values,
+                skip_output_range_checks,
                 generated_pointer,
                 None,
             )?;
@@ -176,7 +182,7 @@ impl Context<'_> {
         };
 
         assert_eq!(result_ids.len(), output_values.len(), "Brillig output length mismatch");
-        self.handle_ssa_call_outputs(result_ids, output_values, dfg)
+        self.handle_ssa_call_outputs(result_ids, output_values)
     }
 
     pub(super) fn gen_brillig_parameters(
@@ -188,7 +194,7 @@ impl Context<'_> {
             .iter()
             .map(|&value_id| {
                 let typ = dfg.type_of_value(value_id);
-                if let Type::Vector(item_types) = typ {
+                if let Type::Vector(item_types) = &*typ {
                     let len = match self
                         .ssa_values
                         .get(&value_id)
@@ -216,7 +222,7 @@ impl Context<'_> {
                                 len / ElementTypesLength(assert_u32(item_types.len()))
                             }
                         }
-                        _ => unreachable!("ICE: Vector value is not an array"),
+                        AcirValue::Var(..) => unreachable!("ICE: Vector value is not an array"),
                     };
 
                     BrilligParameter::Vector(
@@ -234,23 +240,16 @@ impl Context<'_> {
         &mut self,
         result_ids: &[ValueId],
         output_values: Vec<AcirValue>,
-        dfg: &DataFlowGraph,
     ) -> Result<(), RuntimeError> {
-        for (result_id, output) in result_ids.iter().zip(output_values) {
-            if let AcirValue::Array(_) = &output {
-                let array_id = *result_id;
-                let block_id = self.block_id(array_id);
-                let array_typ = dfg.type_of_value(array_id);
-                let len = if matches!(array_typ, Type::Array(_, _)) {
-                    array_typ.flattened_size()
-                } else {
-                    arrays::flattened_value_size(&output)
-                };
-                self.initialize_array(block_id, len, Some(output.clone()))?;
-            }
-            // Do nothing for AcirValue::DynamicArray and AcirValue::Var
-            // A dynamic array returned from a function call should already be initialized
-            // and a single variable does not require any extra initialization.
+        for (result_id, output) in result_ids.iter().zip_eq(output_values) {
+            // An `AcirValue::Array` result is held inline, exactly as `make_array` does: its
+            // backing memory block is created lazily by `ensure_array_is_initialized` on the first
+            // memory operation that needs it. Initializing it eagerly here would emit a
+            // `MemoryInit` for a block that is never read/written when the result is only accessed
+            // at constant indices or is entirely unused.
+            //
+            // A returned `AcirValue::DynamicArray` is already backed by an initialized block, and an
+            // `AcirValue::Var` requires no initialization.
             self.ssa_values.insert(*result_id, output);
         }
         Ok(())
@@ -258,9 +257,9 @@ impl Context<'_> {
 
     /// Convert a `Vec<[AcirVar]>` into a `Vec<[AcirValue]>` using the given result ids.
     /// If the type of a result id is an array, several acir vars are collected into
-    /// a single [AcirValue::Array] of the same length.
+    /// a single [`AcirValue::Array`] of the same length.
     /// If the type of a result id is a vector, the vector length must precede it and we can
-    /// convert to an [AcirValue::Array] when the length is known (constant).
+    /// convert to an [`AcirValue::Array`] when the length is known (constant).
     fn convert_vars_to_values(
         &self,
         vars: Vec<AcirVar>,
@@ -271,11 +270,15 @@ impl Context<'_> {
         let mut values: Vec<AcirValue> = Vec::new();
         for result in result_ids {
             let result_type = dfg.type_of_value(*result);
-            if let Type::Vector(elements_type) = result_type {
+            if let Type::Vector(elements_type) = &*result_type {
                 let error = "ICE - cannot get vector length when converting vector to AcirValue";
                 let len = values.last().expect(error).borrow_var().expect(error);
-                let len = self.acir_context.constant(len).to_u128();
-                let mut element_values = im::Vector::new();
+                let len = self
+                    .acir_context
+                    .constant(&len, "len".to_string())
+                    .expect("ICE - expected the variable to be a constant value")
+                    .to_u128();
+                let mut element_values = imbl::Vector::new();
                 for _ in 0..len {
                     for element_type in elements_type.iter() {
                         let element = Self::convert_var_type_to_values(element_type, &mut vars);
@@ -287,20 +290,24 @@ impl Context<'_> {
                 values.push(Self::convert_var_type_to_values(&result_type, &mut vars));
             }
         }
+        assert!(
+            vars.next().is_none(),
+            "ICE: not all ACIR vars from a function call were consumed when converting to values"
+        );
         values
     }
 
-    /// Recursive helper for [Self::convert_vars_to_values].
-    /// If the given result_type is an array of length N, this will create an [AcirValue::Array] with
+    /// Recursive helper for [`Self::convert_vars_to_values`].
+    /// If the given `result_type` is an array of length N, this will create an [`AcirValue::Array`] with
     /// the first N elements of the given iterator. Otherwise, the result is a single
-    /// [AcirValue::Var] wrapping the first element of the iterator.
+    /// [`AcirValue::Var`] wrapping the first element of the iterator.
     fn convert_var_type_to_values(
         result_type: &Type,
         vars: &mut impl Iterator<Item = AcirVar>,
     ) -> AcirValue {
         match result_type {
             Type::Array(elements, size) => {
-                let mut element_values = im::Vector::new();
+                let mut element_values = imbl::Vector::new();
                 for _ in 0..size.0 {
                     for element_type in elements.iter() {
                         let element = Self::convert_var_type_to_values(element_type, vars);
@@ -310,12 +317,29 @@ impl Context<'_> {
                 AcirValue::Array(element_values)
             }
             Type::Numeric(numeric_type) => {
-                let var = vars.next().unwrap();
+                let var = vars
+                    .next()
+                    .expect("ICE: ran out of ACIR vars while converting call outputs to values");
                 AcirValue::Var(var, *numeric_type)
             }
             typ => {
                 panic!("Unexpected type {typ} in convert_var_type_to_values");
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Context;
+    use crate::acir::AcirVar;
+    use crate::ssa::ir::types::{NumericType, Type};
+
+    #[test]
+    #[should_panic(expected = "ICE: ran out of ACIR vars")]
+    fn convert_var_type_to_values_panics_on_exhausted_vars() {
+        let typ = Type::Numeric(NumericType::NativeField);
+        let mut vars = Vec::<AcirVar>::new().into_iter();
+        let _ = Context::convert_var_type_to_values(&typ, &mut vars);
     }
 }

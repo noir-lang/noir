@@ -1,33 +1,19 @@
 #[cfg(test)]
 mod signature_help_tests {
-    use crate::{
-        notifications::on_did_open_text_document, requests::on_signature_help_request, test_utils,
-        utils::get_cursor_line_and_column,
-    };
+    use crate::{requests::on_signature_help_request, test_utils};
 
     use async_lsp::lsp_types::{
-        DidOpenTextDocumentParams, ParameterLabel, Position, SignatureHelp, SignatureHelpParams,
-        TextDocumentIdentifier, TextDocumentItem, TextDocumentPositionParams,
-        WorkDoneProgressParams,
+        ParameterLabel, SignatureHelp, SignatureHelpParams, TextDocumentIdentifier,
+        TextDocumentPositionParams, WorkDoneProgressParams,
     };
-    use tokio::test;
 
-    async fn get_signature_help(src: &str) -> SignatureHelp {
-        let (mut state, noir_text_document) = test_utils::init_lsp_server("document_symbol").await;
-
-        let (line, column, src) = get_cursor_line_and_column(src);
-
-        let _ = on_did_open_text_document(
-            &mut state,
-            DidOpenTextDocumentParams {
-                text_document: TextDocumentItem {
-                    uri: noir_text_document.clone(),
-                    language_id: "noir".to_string(),
-                    version: 0,
-                    text: src.to_string(),
-                },
-            },
-        );
+    fn get_signature_help(src: &str) -> SignatureHelp {
+        let (mut state, noir_text_document, position, _src) =
+            test_utils::init_lsp_server_with_inline_source_and_cursor(
+                "document_symbol",
+                "src/main.nr",
+                src,
+            );
 
         on_signature_help_request(
             &mut state,
@@ -35,12 +21,11 @@ mod signature_help_tests {
                 context: None,
                 text_document_position_params: TextDocumentPositionParams {
                     text_document: TextDocumentIdentifier { uri: noir_text_document },
-                    position: Position { line: line as u32, character: column as u32 },
+                    position,
                 },
                 work_done_progress_params: WorkDoneProgressParams { work_done_token: None },
             },
         )
-        .await
         .expect("Could not execute on_signature_help_request")
         .unwrap()
     }
@@ -54,7 +39,7 @@ mod signature_help_tests {
     }
 
     #[test]
-    async fn test_signature_help_for_call_at_first_argument() {
+    fn test_signature_help_for_call_at_first_argument() {
         let src = r#"
             fn foo(x: i32, y: Field) -> u32 { 0 }
             fn wrapper(x: u32) {}
@@ -64,7 +49,7 @@ mod signature_help_tests {
             }
         "#;
 
-        let signature_help = get_signature_help(src).await;
+        let signature_help = get_signature_help(src);
         assert_eq!(signature_help.signatures.len(), 1);
 
         let signature = &signature_help.signatures[0];
@@ -80,7 +65,7 @@ mod signature_help_tests {
     }
 
     #[test]
-    async fn test_signature_help_for_call_between_arguments() {
+    fn test_signature_help_for_call_between_arguments() {
         let src = r#"
             fn foo(x: i32, y: Field) -> u32 { 0 }
 
@@ -89,7 +74,7 @@ mod signature_help_tests {
             }
         "#;
 
-        let signature_help = get_signature_help(src).await;
+        let signature_help = get_signature_help(src);
         assert_eq!(signature_help.signatures.len(), 1);
 
         let signature = &signature_help.signatures[0];
@@ -97,7 +82,7 @@ mod signature_help_tests {
     }
 
     #[test]
-    async fn test_signature_help_for_call_at_second_argument() {
+    fn test_signature_help_for_call_at_second_argument() {
         let src = r#"
             fn foo(x: i32, y: Field) -> u32 { 0 }
 
@@ -106,7 +91,7 @@ mod signature_help_tests {
             }
         "#;
 
-        let signature_help = get_signature_help(src).await;
+        let signature_help = get_signature_help(src);
         assert_eq!(signature_help.signatures.len(), 1);
 
         let signature = &signature_help.signatures[0];
@@ -114,7 +99,7 @@ mod signature_help_tests {
     }
 
     #[test]
-    async fn test_signature_help_for_call_past_last_argument() {
+    fn test_signature_help_for_call_past_last_argument() {
         let src = r#"
             fn foo(x: i32, y: Field) -> u32 { 0 }
 
@@ -123,7 +108,7 @@ mod signature_help_tests {
             }
         "#;
 
-        let signature_help = get_signature_help(src).await;
+        let signature_help = get_signature_help(src);
         assert_eq!(signature_help.signatures.len(), 1);
 
         let signature = &signature_help.signatures[0];
@@ -131,7 +116,7 @@ mod signature_help_tests {
     }
 
     #[test]
-    async fn test_signature_help_for_method_call() {
+    fn test_signature_help_for_method_call() {
         let src = r#"
             struct Foo {}
 
@@ -146,7 +131,7 @@ mod signature_help_tests {
             }
         "#;
 
-        let signature_help = get_signature_help(src).await;
+        let signature_help = get_signature_help(src);
         assert_eq!(signature_help.signatures.len(), 1);
 
         let signature = &signature_help.signatures[0];
@@ -162,7 +147,7 @@ mod signature_help_tests {
     }
 
     #[test]
-    async fn test_signature_help_for_fn_call() {
+    fn test_signature_help_for_fn_call() {
         let src = r#"
             fn foo(x: i32, y: Field) -> u32 { 0 }
 
@@ -172,7 +157,7 @@ mod signature_help_tests {
             }
         "#;
 
-        let signature_help = get_signature_help(src).await;
+        let signature_help = get_signature_help(src);
         assert_eq!(signature_help.signatures.len(), 1);
 
         let signature = &signature_help.signatures[0];
@@ -188,14 +173,14 @@ mod signature_help_tests {
     }
 
     #[test]
-    async fn test_signature_help_for_assert() {
+    fn test_signature_help_for_assert() {
         let src = r#"
             fn bar() {
                 assert(>|<1, "hello");
             }
         "#;
 
-        let signature_help = get_signature_help(src).await;
+        let signature_help = get_signature_help(src);
         assert_eq!(signature_help.signatures.len(), 1);
 
         let signature = &signature_help.signatures[0];
@@ -211,14 +196,14 @@ mod signature_help_tests {
     }
 
     #[test]
-    async fn test_signature_help_for_assert_eq() {
+    fn test_signature_help_for_assert_eq() {
         let src = r#"
             fn bar() {
                 assert_eq(>|<true, false, "oops");
             }
         "#;
 
-        let signature_help = get_signature_help(src).await;
+        let signature_help = get_signature_help(src);
         assert_eq!(signature_help.signatures.len(), 1);
 
         let signature = &signature_help.signatures[0];
@@ -235,7 +220,7 @@ mod signature_help_tests {
     }
 
     #[test]
-    async fn test_signature_help_for_enum_variant() {
+    fn test_signature_help_for_enum_variant() {
         let src = r#"
             enum Enum {
                 Variant(Field, i32)
@@ -246,7 +231,7 @@ mod signature_help_tests {
             }
         "#;
 
-        let signature_help = get_signature_help(src).await;
+        let signature_help = get_signature_help(src);
         assert_eq!(signature_help.signatures.len(), 1);
 
         let signature = &signature_help.signatures[0];
@@ -262,7 +247,7 @@ mod signature_help_tests {
     }
 
     #[test]
-    async fn test_signature_help_for_macro_attribute() {
+    fn test_signature_help_for_macro_attribute() {
         let src = r#"
             comptime fn foo(_: FunctionDefinition, x: i32, y: Field) { }
 
@@ -271,7 +256,7 @@ mod signature_help_tests {
             }
         "#;
 
-        let signature_help = get_signature_help(src).await;
+        let signature_help = get_signature_help(src);
         assert_eq!(signature_help.signatures.len(), 1);
 
         let signature = &signature_help.signatures[0];
@@ -287,7 +272,7 @@ mod signature_help_tests {
     }
 
     #[test]
-    async fn test_signature_help_for_varargs_macro_attribute() {
+    fn test_signature_help_for_varargs_macro_attribute() {
         let src = r#"
             #[varargs]
             comptime fn foo(_: FunctionDefinition, x: i32, y: [Field]) { }
@@ -297,7 +282,7 @@ mod signature_help_tests {
             }
         "#;
 
-        let signature_help = get_signature_help(src).await;
+        let signature_help = get_signature_help(src);
         assert_eq!(signature_help.signatures.len(), 1);
 
         let signature = &signature_help.signatures[0];
@@ -309,6 +294,22 @@ mod signature_help_tests {
         check_label(&signature.label, &params[0].label, "x: i32");
         check_label(&signature.label, &params[1].label, "y: [Field]");
 
+        assert_eq!(signature.active_parameter, Some(0));
+    }
+
+    #[test]
+    fn test_signature_help_for_incomplete_call_after_open_paren() {
+        let src = r#"
+        fn foo(x: i32, y: Field) -> u32 { 0 }
+
+        fn bar() {
+            foo(>|<
+        }
+        "#;
+
+        let signature_help = get_signature_help(src);
+        let signature = &signature_help.signatures[0];
+        assert_eq!(signature.label, "fn foo(x: i32, y: Field) -> u32");
         assert_eq!(signature.active_parameter, Some(0));
     }
 }

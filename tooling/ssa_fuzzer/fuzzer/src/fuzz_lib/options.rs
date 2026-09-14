@@ -34,6 +34,7 @@ pub(crate) struct InstructionOptions {
     pub(crate) field_to_bytes_to_field_enabled: bool,
     pub(crate) sha256_compression_enabled: bool,
     pub(crate) keccakf1600_hash_enabled: bool,
+    pub(crate) poseidon2_permutation_enabled: bool,
 }
 
 impl Default for InstructionOptions {
@@ -70,6 +71,7 @@ impl Default for InstructionOptions {
             field_to_bytes_to_field_enabled: true,
             sha256_compression_enabled: true,
             keccakf1600_hash_enabled: true,
+            poseidon2_permutation_enabled: true,
         }
     }
 }
@@ -116,7 +118,7 @@ impl From<FunctionContextOptions> for SsaBlockOptions {
 /// Options for the fuzzer commands that can be used in the program context
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct FuzzerCommandOptions {
-    /// If false, we don't insert jmp_if
+    /// If false, we don't insert `jmp_if`
     pub(crate) jmp_if_enabled: bool,
     /// If false, we don't insert jmp command
     pub(crate) jmp_block_enabled: bool,

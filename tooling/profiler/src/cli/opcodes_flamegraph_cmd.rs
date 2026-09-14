@@ -55,7 +55,7 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
         let function_name = if bytecode.functions.len() > 1 {
             format!("{}_{}", circuit.function_name.as_str(), func_idx)
         } else {
-            circuit.function_name.to_owned()
+            circuit.function_name.clone()
         };
 
         println!("Opcode count for {}: {}", function_name, circuit.opcodes.len());
@@ -78,8 +78,7 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
             &debug_artifact,
             artifact_path.to_str().unwrap(),
             &function_name,
-            &Path::new(&output_path)
-                .join(Path::new(&format!("{}_acir_opcodes.svg", &function_name))),
+            &Path::new(&output_path).join(Path::new(&format!("{function_name}_acir_opcodes.svg"))),
         )?;
     }
 
@@ -113,7 +112,7 @@ fn run_with_generator<Generator: FlamegraphGenerator>(
                     brillig_index,
                 }],
                 count: 1,
-                brillig_function_id: Some(BrilligFunctionId(brillig_fn_index as u32)),
+                brillig_function_id: Some(BrilligFunctionId::new(brillig_fn_index as u32)),
             })
             .collect();
 
@@ -196,6 +195,7 @@ mod tests {
         let artifact_path = temp_dir.path().join("test.json");
 
         let artifact = ProgramArtifact {
+            artifact_version: noirc_artifacts::ARTIFACT_VERSION,
             noir_version: "0.0.0".to_string(),
             hash: 27,
             abi: noirc_abi::Abi::default(),
@@ -232,19 +232,19 @@ mod tests {
 
         let acir: Vec<Opcode<FieldElement>> = vec![
             Opcode::BrilligCall {
-                id: BrilligFunctionId(0),
+                id: BrilligFunctionId::new(0),
                 inputs: vec![],
                 outputs: vec![],
                 predicate: Expression::one(),
             },
             Opcode::BrilligCall {
-                id: BrilligFunctionId(1),
+                id: BrilligFunctionId::new(1),
                 inputs: vec![],
                 outputs: vec![],
                 predicate: Expression::one(),
             },
             Opcode::BrilligCall {
-                id: BrilligFunctionId(2),
+                id: BrilligFunctionId::new(2),
                 inputs: vec![],
                 outputs: vec![],
                 predicate: Expression::one(),
@@ -252,6 +252,7 @@ mod tests {
         ];
 
         let artifact = ProgramArtifact {
+            artifact_version: noirc_artifacts::ARTIFACT_VERSION,
             noir_version: "0.0.0".to_string(),
             hash: 27,
             abi: noirc_abi::Abi::default(),

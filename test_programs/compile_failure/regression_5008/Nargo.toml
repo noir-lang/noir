@@ -1,7 +1,0 @@
-[package]
-name = "regression_5008"
-type = "bin"
-authors = [""]
-compiler_version = ">=0.28.0"
-
-[dependencies]

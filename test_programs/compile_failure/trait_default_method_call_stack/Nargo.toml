@@ -1,0 +1,7 @@
+[package]
+name = "trait_default_method_call_stack"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.31.0"
+
+[dependencies]

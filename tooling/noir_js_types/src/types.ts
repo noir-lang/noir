@@ -45,8 +45,18 @@ export type DebugFileMap = Record<
     source: string;
     /** The path of the file. */
     path: string;
+    /** The range each function occupies in the file. */
+    function_locations: FunctionLocation[];
   }
 >;
+
+/** The range a function occupies in a file. */
+export type FunctionLocation = {
+  /** The byte where the function starts. */
+  start: number;
+  /** The name of the function. */
+  name: string;
+};
 
 export type OpcodeLocation = string;
 
@@ -89,6 +99,7 @@ export interface DebugInfo {
 export type WitnessMap = Map<number, string>;
 
 export type Abi = {
+  abi_version: 1;
   parameters: AbiParameter[];
   return_type: { abi_type: AbiType; visibility: Visibility } | null;
   error_types: Partial<Record<string, AbiErrorType>>;

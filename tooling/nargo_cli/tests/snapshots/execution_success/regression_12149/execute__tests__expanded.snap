@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn main(i: u32, j: u32, x: u32) -> pub u32 {
+    let a: [u32; 3] = [10_u32, 20_u32, 0_u32];
+    foo(a)[bar(a, i, j, x)]
+}
+
+unconstrained fn foo(mut a: [u32; 3]) -> [u32; 3] {
+    a
+}
+
+unconstrained fn bar(mut a: [u32; 3], i: u32, j: u32, x: u32) -> u32 {
+    a[i] = x;
+    a[j]
+}

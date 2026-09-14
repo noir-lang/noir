@@ -1,6 +1,0 @@
-[package]
-name = "comptime_static_assert_failure"
-type = "bin"
-authors = [""]
-
-[dependencies]

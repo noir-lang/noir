@@ -3,6 +3,7 @@ use crate::fuzz_lib::fuzzer::FuzzerOutput;
 use acvm::acir::circuit::Program;
 use acvm::{AcirField, FieldElement};
 use base64::Engine;
+use itertools::Itertools;
 use sancov::Counters;
 use std::collections::HashMap;
 use std::sync::{Mutex, MutexGuard, OnceLock};
@@ -35,9 +36,9 @@ pub(crate) enum AbstractVMComparisonResult {
 
 /// Gets or initializes the counters
 ///
-/// The counters must be registered ONCE (if we reregister them, LibFuzzer will panic),
+/// The counters must be registered ONCE (if we reregister them, `LibFuzzer` will panic),
 /// so we use a `Mutex` to ensure this
-/// We cannot just register it in `init` closure of `fuzz_target!` macro https://github.com/rust-fuzz/libfuzzer/issues/135
+/// We cannot just register it in `init` closure of `fuzz_target!` macro <https://github.com/rust-fuzz/libfuzzer/issues/135>
 fn get_or_init_counters()
 -> Result<MutexGuard<'static, Option<&'static Counters<1_000_000>>>, String> {
     let mutex = COUNTERS_LOCK.get_or_init(|| Mutex::new(None));
@@ -134,7 +135,8 @@ pub(crate) fn compare_with_abstract_vm(
         return AbstractVMComparisonResult::Mismatch { brillig_outputs, abstract_vm_outputs };
     }
 
-    for (brillig_out, abstract_vm_out) in brillig_outputs.iter().zip(abstract_vm_outputs.iter()) {
+    for (brillig_out, abstract_vm_out) in brillig_outputs.iter().zip_eq(abstract_vm_outputs.iter())
+    {
         if *brillig_out != *abstract_vm_out {
             return AbstractVMComparisonResult::Mismatch { brillig_outputs, abstract_vm_outputs };
         }

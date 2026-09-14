@@ -15,6 +15,7 @@ use noirc_errors::CustomDiagnostic;
 use noirc_frontend::{
     hir::{
         Context,
+        comptime::{InterpreterError, Value},
         def_map::{FuzzingHarness, TestFunction},
     },
     token::{FuzzingScope, TestScope},
@@ -70,9 +71,10 @@ where
     E: ForeignCallExecutor<FieldElement>,
 {
     if test_function.has_arguments {
-        fuzz_test::<B, F, E>(
+        fuzz_test::<W, B, F, E>(
             context,
             test_function,
+            output,
             package_name,
             config,
             fuzz_config,
@@ -130,9 +132,6 @@ where
     F: Fn(Box<dyn std::io::Write + 'a>, layers::Unhandled) -> E,
     E: ForeignCallExecutor<FieldElement>,
 {
-    // Do the same optimizations as `compile_cmd`.
-    let compiled_program = crate::ops::optimize_program(compiled_program);
-
     let ignore_foreign_call_failures =
         std::env::var("NARGO_IGNORE_TEST_FAILURES_FROM_FOREIGN_CALLS")
             .is_ok_and(|var| &var == "true");
@@ -185,23 +184,26 @@ where
 }
 
 /// Runs the fuzzer on a test function. This assumes the function has arguments.
-pub fn fuzz_test<'a, B, F, E>(
+pub fn fuzz_test<'a, W, B, F, E>(
     context: &mut Context,
     test_function: &TestFunction,
+    output: W,
     package_name: String,
     config: &CompileOptions,
     fuzz_config: FuzzConfig,
     build_foreign_call_executor: F,
 ) -> TestStatus
 where
+    W: std::io::Write + 'a,
     B: BlackBoxFunctionSolver<FieldElement> + Default,
     F: Fn(Box<dyn std::io::Write + 'a>, layers::Unhandled) -> E + Sync,
     E: ForeignCallExecutor<FieldElement>,
 {
     match compile_no_check(context, config, test_function.id, None, false) {
-        Ok(_) => fuzz_test_impl::<B, F, E>(
+        Ok(_) => fuzz_test_impl::<W, B, F, E>(
             context,
             test_function,
+            output,
             package_name,
             config,
             fuzz_config,
@@ -211,15 +213,17 @@ where
     }
 }
 
-fn fuzz_test_impl<'a, B, F, E>(
+fn fuzz_test_impl<'a, W, B, F, E>(
     context: &mut Context,
     test_function: &TestFunction,
+    output: W,
     package_name: String,
     config: &CompileOptions,
     fuzz_config: FuzzConfig,
     build_foreign_call_executor: F,
 ) -> TestStatus
 where
+    W: std::io::Write + 'a,
     B: BlackBoxFunctionSolver<FieldElement> + Default,
     F: Fn(Box<dyn std::io::Write + 'a>, layers::Unhandled) -> E + Sync,
     E: ForeignCallExecutor<FieldElement>,
@@ -258,12 +262,13 @@ where
     };
     let fuzz_execution_config = fuzz_config.execution_config;
 
-    // TODO: show output?
-    let show_output = false;
     let fuzz_result = run_fuzzing_harness::<B, _, _>(
         context,
         &fuzzing_harness,
-        show_output,
+        // The many executions during fuzzing discard their output; only the single
+        // representative re-run inside `run_fuzzing_harness` writes to `output`.
+        false,
+        Box::new(output),
         package_name,
         config,
         &fuzz_folder_config,
@@ -306,6 +311,7 @@ where
         }
     }
 }
+
 /// Test function failed to compile
 ///
 /// Note: This could be because the compiler was able to deduce
@@ -334,19 +340,16 @@ pub fn test_status_program_compile_pass(
     debug: &[DebugInfo],
     circuit_execution: &Result<WitnessStack<FieldElement>, NargoError<FieldElement>>,
 ) -> TestStatus {
-    let circuit_execution_err = match circuit_execution {
+    let Err(circuit_execution_err) = circuit_execution else {
         // Circuit execution was successful; ie no errors or unsatisfied constraints
         // were encountered.
-        Ok(_) => {
-            if test_function.should_fail() {
-                return TestStatus::Fail {
-                    message: "error: Test passed when it should have failed".to_string(),
-                    error_diagnostic: None,
-                };
-            }
-            return TestStatus::Pass;
+        if test_function.should_fail() {
+            return TestStatus::Fail {
+                message: "error: Test passed when it should have failed".to_string(),
+                error_diagnostic: None,
+            };
         }
-        Err(err) => err,
+        return TestStatus::Pass;
     };
 
     // If we reach here, then the circuit execution failed.
@@ -368,6 +371,34 @@ pub fn test_status_program_compile_pass(
     )
 }
 
+pub fn test_status_comptime_interpret_result(
+    result: Result<Value, InterpreterError>,
+    test_function: &TestFunction,
+) -> TestStatus {
+    match result {
+        Err(
+            InterpreterError::Unimplemented { .. }
+            | InterpreterError::InvalidInComptimeContext { .. },
+        ) => {
+            // Most likely called an unknown oracle function.
+            TestStatus::Skipped
+        }
+        Err(error) if !test_function.should_fail() => {
+            TestStatus::CompileError(CustomDiagnostic::from(&error))
+        }
+        Err(error) => check_expected_failure_message(
+            test_function,
+            None,
+            Some(CustomDiagnostic::from(&error)),
+        ),
+        Ok(_) if test_function.should_fail() => TestStatus::Fail {
+            message: "error: Test passed when it should have failed".to_string(),
+            error_diagnostic: None,
+        },
+        Ok(_) => TestStatus::Pass,
+    }
+}
+
 pub fn check_expected_failure_message(
     test_function: &TestFunction,
     failed_assertion: Option<String>,
@@ -378,9 +409,8 @@ pub fn check_expected_failure_message(
     // #[test(should_fail)] will not produce any message
     // #[test(should_fail_with = "reason")] will produce a message
     //
-    let expected_failure_message = match test_function.failure_reason() {
-        Some(reason) => reason,
-        None => return TestStatus::Pass,
+    let Some(expected_failure_message) = test_function.failure_reason() else {
+        return TestStatus::Pass;
     };
 
     // Match the failure message that the user will see, i.e. the failed_assertion
@@ -389,8 +419,11 @@ pub fn check_expected_failure_message(
     let expected_failure_message_matches = failed_assertion
         .as_ref()
         .or_else(|| error_diagnostic.as_ref().map(|file_diagnostic| &file_diagnostic.message))
-        .map(|message| message.contains(expected_failure_message))
-        .unwrap_or(false);
+        .is_some_and(|message| {
+            let expected = expected_failure_message.to_lowercase();
+            message.to_lowercase().contains(&expected)
+        });
+
     if expected_failure_message_matches {
         return TestStatus::Pass;
     }

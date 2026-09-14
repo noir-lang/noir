@@ -1,0 +1,32 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+pub struct Percent {
+    value: u32,
+}
+
+comptime fn in_range(_s: TypeDefinition, _lo: u32, _hi: u32) {}
+
+comptime fn validate(s: TypeDefinition) -> Quoted {
+    let bounds: [Quoted] = s.named_attribute_args("in_range")[0_u32];
+    let lo: Quoted = bounds[0_u32];
+    let hi: Quoted = bounds[1_u32];
+    let typ: Type = s.as_type();
+    quote {
+        pub fn validate_percent(p: $typ) {
+            assert(p.value >= $lo);
+            assert(p.value <= $hi);
+        }
+    }
+}
+
+pub fn validate_percent(p: Percent) {
+    assert(p.value >= 0_u32);
+    assert(p.value <= 100_u32);
+}
+
+fn main(value: u32) {
+    let p: Percent = Percent { value: value };
+    validate_percent(p);
+}

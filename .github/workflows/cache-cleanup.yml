@@ -10,11 +10,13 @@ on:
     types:
       - closed
 
+permissions: {}
+
 jobs:
   cleanup:
     runs-on: ubuntu-22.04
     permissions:
-      contents: write
+      actions: write
     steps:
       - name: Cleanup
         run: |

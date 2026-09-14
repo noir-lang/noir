@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: failed to solve blackbox function: ecdsa_secp256k1, reason: Invalid public key provided for ECDSA verification
+   ┌─ std/ecdsa_secp256k1.nr:25:5
+   │
+25 │     _verify_signature(public_key_x, public_key_y, signature, message_hash, true)
+   │     ----------------------------------------------------------------------------
+   │
+
+Error interpreting main function

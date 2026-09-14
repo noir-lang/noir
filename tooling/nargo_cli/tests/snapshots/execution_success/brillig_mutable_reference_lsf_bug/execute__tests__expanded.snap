@@ -1,0 +1,22 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn foo(cond: bool) -> bool {
+    let mut b: bool = false;
+    let c: &mut bool = if cond { &mut b } else { &mut false };
+    b = !b;
+    b = *c;
+    b
+}
+
+fn main() -> pub bool {
+    let expected: bool = true;
+    // Safety: comment added by `nargo expand`
+    let result: bool = unsafe { foo(true) };
+    assert(result == expected);
+    // Safety: comment added by `nargo expand`
+    unsafe {
+        foo(true)
+    }
+}

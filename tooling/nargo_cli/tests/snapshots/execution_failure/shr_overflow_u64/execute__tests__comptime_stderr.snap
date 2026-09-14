@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Attempt to bit-shift with overflow
+  ┌─ src/main.nr:5:19
+  │
+5 │     let _result = x >> 100;
+  │                   --------
+  │
+
+Error interpreting main function

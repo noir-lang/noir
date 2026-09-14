@@ -1,7 +1,9 @@
 use std::borrow::Cow;
 
+use itertools::Itertools;
+
 use crate::{
-    NamedGeneric, Type, TypeBindings,
+    Kind, NamedGeneric, Type, TypeBinding, TypeBindings,
     ast::{ItemVisibility, UnaryOp},
     hir::def_map::ModuleDefId,
     hir_def::{
@@ -15,7 +17,7 @@ use crate::{
     token::FmtStrFragment,
 };
 
-use crate::hir::printer::ItemPrinter;
+use crate::hir::printer::{ItemPrinter, escape_format_string_fragment, escape_string_literal};
 
 impl ItemPrinter<'_, '_> {
     fn show_hir_expression_id(&mut self, expr_id: ExprId) {
@@ -112,7 +114,22 @@ impl ItemPrinter<'_, '_> {
                 self.show_hir_expression_id_maybe_inside_parens(hir_infix_expression.rhs);
             }
             HirExpression::Index(hir_index_expression) => {
-                self.show_hir_expression_id_maybe_inside_parens(hir_index_expression.collection);
+                let collection = self.interner.expression(&hir_index_expression.collection);
+
+                if let HirExpression::Prefix(HirPrefixExpression {
+                    operator: UnaryOp::Dereference { implicitly_added: false },
+                    ..
+                }) = collection
+                {
+                    // In general we don't need parentheses around dereferences, but here we do
+                    self.push('(');
+                    self.show_hir_expression(collection, hir_index_expression.collection);
+                    self.push(')');
+                } else {
+                    self.show_hir_expression_id_maybe_inside_parens(
+                        hir_index_expression.collection,
+                    );
+                }
                 self.push('[');
                 self.show_hir_expression_id(hir_index_expression.index);
                 self.push(']');
@@ -172,7 +189,8 @@ impl ItemPrinter<'_, '_> {
                 }
             }
             HirExpression::MemberAccess(hir_member_access) => {
-                let lhs_exp = self.interner.expression(&hir_member_access.lhs);
+                let lhs_exp = self.dereference_hir_expression_id(hir_member_access.lhs);
+                let lhs_exp = self.interner.expression(&lhs_exp);
 
                 if let HirExpression::Prefix(HirPrefixExpression {
                     operator: UnaryOp::Dereference { implicitly_added: false },
@@ -246,7 +264,7 @@ impl ItemPrinter<'_, '_> {
                 }
                 self.push(')');
             }
-            HirExpression::Lambda(hir_lambda) => self.show_hir_lambda(hir_lambda),
+            HirExpression::Lambda(hir_lambda) => self.show_hir_lambda(&hir_lambda),
             HirExpression::Quote(tokens) => {
                 self.show_quoted(&tokens.0);
             }
@@ -260,7 +278,7 @@ impl ItemPrinter<'_, '_> {
         }
     }
 
-    pub(crate) fn show_hir_lambda(&mut self, hir_lambda: HirLambda) {
+    pub(crate) fn show_hir_lambda(&mut self, hir_lambda: &HirLambda) {
         if hir_lambda.unconstrained {
             self.push_str("unconstrained ");
         }
@@ -310,7 +328,7 @@ impl ItemPrinter<'_, '_> {
                         if let Some(fields) = get_type_fields(&typ) {
                             self.push('{');
                             self.show_separated_by_comma(
-                                &case.arguments.into_iter().zip(fields).collect::<Vec<_>>(),
+                                &case.arguments.into_iter().zip_eq(fields).collect::<Vec<_>>(),
                                 |this, (argument, (name, _, _))| {
                                     this.push_str(name);
                                     this.push_str(": ");
@@ -406,23 +424,39 @@ impl ItemPrinter<'_, '_> {
 
         // Special case: assumed trait method
         if let ImplKind::TraitItem(trait_method) = &hir_ident.impl_kind {
-            let show_as_trait_as_path = if trait_method.assumed {
-                // Is this `self.foo()` where `self` is currently a trait?
-                // If so, show it as `self.foo()` instead of `Self::foo(self)`.
-                let method_on_trait_self =
-                    if let Type::NamedGeneric(NamedGeneric { name, .. }) =
-                        &trait_method.constraint.typ
-                    {
-                        name.to_string() == "Self"
-                    } else {
-                        false
-                    };
-                !method_on_trait_self
-            } else {
-                let trait_id = trait_method.constraint.trait_bound.trait_id;
-                let module_data = &self.def_maps[&self.module_id.krate][self.module_id.local_id];
-                module_data.find_trait_in_scope(trait_id).is_none()
+            // If the receiver type has an inherent method of the same name, neither the method-call
+            // sugar `foo.method()` nor the `Type::method(foo)` path form resolves back to this trait
+            // method — both prefer the inherent one. Only the fully-qualified `<Type as Trait>::method`
+            // form is faithful, so force it.
+            let shadowed_by_inherent = {
+                let instantiation_bindings =
+                    self.interner.get_instantiation_bindings(hir_call_expression.func);
+                let mut constraint = trait_method.constraint.clone();
+                constraint.apply_bindings(instantiation_bindings);
+                let self_type = constraint.typ.follow_bindings();
+                let method_name = self.interner.function_name(&func_id);
+                self.interner.lookup_direct_method(&self_type, method_name, false).is_some()
             };
+
+            let show_as_trait_as_path = shadowed_by_inherent
+                || if trait_method.assumed {
+                    // Is this `self.foo()` where `self` is currently a trait?
+                    // If so, show it as `self.foo()` instead of `Self::foo(self)`.
+                    let method_on_trait_self =
+                        if let Type::NamedGeneric(NamedGeneric { name, .. }) =
+                            &trait_method.constraint.typ
+                        {
+                            name.to_string() == "Self"
+                        } else {
+                            false
+                        };
+                    !method_on_trait_self
+                } else {
+                    let trait_id = trait_method.constraint.trait_bound.trait_id;
+                    let module_data =
+                        &self.def_maps[&self.module_id.krate][self.module_id.local_id];
+                    module_data.find_trait_in_scope(trait_id).is_none()
+                };
             if show_as_trait_as_path {
                 self.show_hir_call_as_trait_as_path(
                     hir_call_expression,
@@ -430,6 +464,7 @@ impl ItemPrinter<'_, '_> {
                     generics,
                     func_id,
                     trait_method,
+                    shadowed_by_inherent,
                 );
                 return true;
             }
@@ -465,9 +500,26 @@ impl ItemPrinter<'_, '_> {
         }
 
         let first_argument = self.dereference_hir_expression_id(arguments[0]);
-        self.show_hir_expression_id_maybe_inside_parens(first_argument);
+        let first_arg_exp = self.interner.expression(&first_argument);
+        if let HirExpression::Prefix(HirPrefixExpression {
+            operator: UnaryOp::Dereference { implicitly_added: false },
+            ..
+        }) = first_arg_exp
+        {
+            // In general we don't need parentheses around dereferences, but here we do
+            self.push('(');
+            self.show_hir_expression(first_arg_exp, first_argument);
+            self.push(')');
+        } else {
+            self.show_hir_expression_id_maybe_inside_parens(first_argument);
+        }
         self.push('.');
         self.push_str(self.interner.function_name(&func_id));
+
+        if hir_call_expression.is_macro_call {
+            self.push('!');
+        }
+
         if let Some(generics) = generics {
             let use_colons = true;
             self.show_generic_types(&generics, use_colons);
@@ -486,6 +538,7 @@ impl ItemPrinter<'_, '_> {
         generics: Option<Vec<Type>>,
         func_id: FuncId,
         trait_method: &TraitItem,
+        force_fully_qualified: bool,
     ) {
         let instantiation_bindings =
             self.interner.get_instantiation_bindings(hir_call_expression.func);
@@ -494,9 +547,11 @@ impl ItemPrinter<'_, '_> {
 
         let trait_id = trait_method.constraint.trait_bound.trait_id;
         let module_data = &self.def_maps[&self.module_id.krate][self.module_id.local_id];
-        if module_data.find_trait_in_scope(trait_id).is_none() {
-            // It can happen that the trait is not in scope, for example if this call
-            // was generated via macros using `get_trait_impl -> methods`.
+        if force_fully_qualified || module_data.find_trait_in_scope(trait_id).is_none() {
+            // Print `<Type as Trait>::method`. This is required when the trait is not in scope (for
+            // example if this call was generated via macros using `get_trait_impl -> methods`), and
+            // when an inherent method of the same name would otherwise capture the unqualified
+            // `Type::method` form.
             self.push('<');
             self.show_type(&constraint.typ);
             self.push_str(" as ");
@@ -614,6 +669,9 @@ impl ItemPrinter<'_, '_> {
             }
             HirStatement::Comptime(_) => unreachable!("comptime should not happen"),
             HirStatement::Error => unreachable!("error should not happen"),
+            HirStatement::TraitAssociatedConstant => {
+                unreachable!("trait associated constant placeholder should not appear in printer")
+            }
         }
     }
 
@@ -638,21 +696,18 @@ impl ItemPrinter<'_, '_> {
                 self.push_str("_");
                 self.push_str(&typ.to_string());
             }
-            HirLiteral::Str(string) => {
-                self.push_str(&format!("{string:?}"));
+            HirLiteral::Str(bytes) => {
+                let string = String::from_utf8_lossy(&bytes);
+                self.push('"');
+                self.push_str(&escape_string_literal(&string));
+                self.push('"');
             }
             HirLiteral::FmtStr(fmt_str_fragments, _expr_ids, _) => {
                 self.push_str("f\"");
                 for fragment in fmt_str_fragments {
                     match fragment {
                         FmtStrFragment::String(string) => {
-                            let string = string
-                                .replace('\\', "\\\\")
-                                .replace('\n', "\\n")
-                                .replace('\t', "\\t")
-                                .replace('{', "{{")
-                                .replace('}', "}}");
-                            self.push_str(&string);
+                            self.push_str(&escape_format_string_fragment(&string));
                         }
                         FmtStrFragment::Interpolation(string, _) => {
                             self.push('{');
@@ -703,7 +758,14 @@ impl ItemPrinter<'_, '_> {
             }
             HirLValue::Index { array, index, typ: _, location: _ } => {
                 let array = simplify_hir_lvalue(*array);
+                let array_is_dereference = matches!(array, HirLValue::Dereference { .. });
+                if array_is_dereference {
+                    self.push('(');
+                }
                 self.show_hir_lvalue(array);
+                if array_is_dereference {
+                    self.push(')');
+                }
                 self.push('[');
                 self.show_hir_expression_id(index);
                 self.push(']');
@@ -791,7 +853,15 @@ impl ItemPrinter<'_, '_> {
                 } else {
                     match &constraint.typ {
                         Type::TypeVariable(type_var) if type_var.borrow().is_unbound() => {
-                            // Don't show this as `AsTraitPath`
+                            // The trait's own `Self` type variable can only stay unbound inside
+                            // that trait's body, where the item is reachable as `Self::item`.
+                            if self.trait_self_typevar == Some(type_var.id()) {
+                                self.push_str("Self::");
+                                let name = self.interner.definition_name(trait_item.definition);
+                                self.push_str(name);
+                                return;
+                            }
+                            // Otherwise don't show this as `AsTraitPath`
                         }
                         _ => {
                             self.push('<');
@@ -884,9 +954,71 @@ impl ItemPrinter<'_, '_> {
                     use_import,
                 );
             }
-            DefinitionKind::Local(..)
-            | DefinitionKind::NumericGeneric(..)
-            | DefinitionKind::AssociatedConstant(..) => {
+            DefinitionKind::AssociatedConstant(trait_impl_id, ref name) => {
+                // The bare name only resolves inside the trait impl that defines the constant,
+                // so qualify it: `Self::N` within that impl, `<Type as Trait>::N` elsewhere.
+                let trait_impl = self.interner.get_trait_implementation(trait_impl_id);
+                let trait_impl = trait_impl.borrow();
+                if self.self_type.as_ref() == Some(&trait_impl.typ) {
+                    self.push_str("Self::");
+                } else {
+                    // The qualified form `<Type as Trait>::N` names the trait; when the trait
+                    // isn't visible from this module (e.g. the reference was spliced in by a
+                    // comptime `Expr::resolve` in another module's scope), print the constant's
+                    // compile-time value instead.
+                    let module_def_id = ModuleDefId::TraitId(trait_impl.trait_id);
+                    let trait_ = self.interner.get_trait(trait_impl.trait_id);
+                    let trait_is_visible = self
+                        .module_def_id_is_visible_or_reexported(module_def_id, trait_.visibility);
+                    if !trait_is_visible
+                        && let Some(named_type) = self
+                            .interner
+                            .get_associated_types_for_impl(trait_impl_id)
+                            .iter()
+                            .find(|named_type| named_type.name.as_str() == name)
+                        && let Type::Constant(constant) = named_type.typ.follow_bindings()
+                    {
+                        self.push_str(&constant.to_string());
+                        if let Kind::Numeric(numeric_type) = named_type.typ.kind() {
+                            self.push('_');
+                            self.show_type(&numeric_type);
+                        }
+                        return;
+                    }
+                    self.push('<');
+                    self.show_type(&trait_impl.typ);
+                    self.push_str(" as ");
+                    let trait_ = self.interner.get_trait(trait_impl.trait_id);
+                    self.show_reference_to_module_def_id(
+                        ModuleDefId::TraitId(trait_impl.trait_id),
+                        trait_.visibility,
+                        true,
+                    );
+                    let trait_generics = self.interner.get_trait_generics_for_impl(trait_impl_id);
+                    let use_colons = false;
+                    self.show_generic_types(&trait_generics.ordered, use_colons);
+                    self.push_str(">::");
+                }
+                self.push_str(name);
+            }
+            DefinitionKind::NumericGeneric(ref type_var, ref numeric_type) => {
+                // When a numeric type alias's parameter is used as a value (`AliasN::<1>`),
+                // the definition's type variable is bound to the resolved value and the bare
+                // name doesn't resolve at the use site (or worse, resolves to something else
+                // with the same name). Print the value instead, suffixed with its numeric
+                // type so it can't be inferred as a different one.
+                if let TypeBinding::Bound(binding) = &*type_var.borrow()
+                    && let Type::Constant(constant) = binding.follow_bindings()
+                {
+                    self.push_str(&constant.to_string());
+                    self.push('_');
+                    self.show_type(numeric_type);
+                    return;
+                }
+                let name = self.interner.definition_name(ident.id);
+                self.push_str(name);
+            }
+            DefinitionKind::Local(..) => {
                 let name = self.interner.definition_name(ident.id);
 
                 // The compiler uses '$' for some internal identifiers.
@@ -930,6 +1062,7 @@ impl ItemPrinter<'_, '_> {
             HirStatement::Semi(expr_id) => self.expression_id_has_unsafe(*expr_id),
             HirStatement::Comptime(stmt_id) => self.statement_id_has_unsafe(*stmt_id),
             HirStatement::Error => false,
+            HirStatement::TraitAssociatedConstant => false,
         }
     }
 

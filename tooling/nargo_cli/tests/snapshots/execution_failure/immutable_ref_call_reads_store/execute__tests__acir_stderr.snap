@@ -1,0 +1,33 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+bug: Assertion is always false
+   ┌─ src/main.nr:19:5
+   │
+19 │     assert_eq(v1, 0);
+   │     ---------------- As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution
+   │
+   = Call stack:
+     1: main
+             at src/main.nr:8:5
+     2: foo
+             at src/main.nr:13:5
+     3: reader
+             at src/main.nr:19:5
+
+error: Failed constraint
+   ┌─ src/main.nr:19:5
+   │
+19 │     assert_eq(v1, 0);
+   │     ----------------
+   │
+   = Call stack:
+     1: main
+             at src/main.nr:8:5
+     2: foo
+             at src/main.nr:13:5
+     3: reader
+             at src/main.nr:19:5
+
+Failed to solve program: 'Cannot satisfy constraint'

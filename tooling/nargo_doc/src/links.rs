@@ -175,8 +175,7 @@ fn find_links_in_markdown_line(line: &str, regex: &Regex) -> impl Iterator<Item 
         let link = captures
             .get(3)
             .or(captures.get(4))
-            .map(|capture| capture.as_str().to_string())
-            .unwrap_or_else(|| word.clone());
+            .map_or_else(|| word.clone(), |capture| capture.as_str().to_string());
 
         // If the left bracket it escaped (`\[`) then it's not a link.
         // There's no need to check the right bracket as `\` is not a valid path character.
@@ -380,16 +379,6 @@ fn path_to_link_target_searching_modules(
                 crate_graph,
             );
         }
-        if check_dependencies && *first_segment == "dep" {
-            segments.remove(0);
-            return path_to_link_target_searching_dependency(
-                crate_id,
-                segments,
-                interner,
-                def_maps,
-                crate_graph,
-            );
-        }
     }
 
     let mut current_module = &def_maps[&module_id.krate][module_id.local_id];
@@ -414,12 +403,12 @@ fn path_to_link_target_searching_modules(
 
         // We are at the last segment so we can return the item if it's public
         if index == segments.len() - 1 {
-            let (module_def_id, _, _) = per_ns.iter_items().next()?;
+            let module_def_id = per_ns.iter_items().next()?.id;
             return Some(LinkTarget::TopLevelItem(module_def_id));
         }
 
         // We are not at the last segment. Find a module, type or trait to continue.
-        let (module_def_id, _, _) = per_ns.types?;
+        let module_def_id = per_ns.types?.id;
         match module_def_id {
             ModuleDefId::ModuleId(module_id) => {
                 current_module = &def_maps[&module_id.krate][module_id.local_id];

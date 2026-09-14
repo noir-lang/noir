@@ -8,7 +8,7 @@ pub enum Visibility {
     // Constant,
     #[default]
     Private,
-    /// DataBus is public input handled as private input. We use the fact that return values are properly computed by the program to avoid having them as public inputs
+    /// `DataBus` is public input handled as private input. We use the fact that return values are properly computed by the program to avoid having them as public inputs
     /// it is useful for recursion and is handled by the proving system.
     /// The u32 value is used to group inputs having the same value.
     CallData(u32),

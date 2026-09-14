@@ -1,38 +1,23 @@
 #![cfg(test)]
 
-use crate::{
-    notifications::on_did_open_text_document, test_utils, tests::apply_text_edits,
-    utils::get_cursor_line_and_column,
-};
+use crate::{test_utils, tests::apply_text_edits};
 
 use async_lsp::lsp_types::{
     CodeActionContext, CodeActionOrCommand, CodeActionParams, CodeActionResponse,
-    DidOpenTextDocumentParams, PartialResultParams, Position, Range, TextDocumentIdentifier,
-    TextDocumentItem, WorkDoneProgressParams,
+    PartialResultParams, Range, TextDocumentIdentifier, WorkDoneProgressParams,
 };
 
 use super::on_code_action_request;
 
 /// Given a string with ">|<" (cursor) in it, returns all code actions that are available
 /// at that position together with the string with ">|<" removed.
-async fn get_code_action(src: &str) -> (CodeActionResponse, String) {
-    let (mut state, noir_text_document) = test_utils::init_lsp_server("document_symbol").await;
-
-    let (line, column, src) = get_cursor_line_and_column(src);
-
-    let _ = on_did_open_text_document(
-        &mut state,
-        DidOpenTextDocumentParams {
-            text_document: TextDocumentItem {
-                uri: noir_text_document.clone(),
-                language_id: "noir".to_string(),
-                version: 0,
-                text: src.to_string(),
-            },
-        },
-    );
-
-    let position = Position { line: line as u32, character: column as u32 };
+fn get_code_action(src: &str) -> (CodeActionResponse, String) {
+    let (mut state, noir_text_document, position, src) =
+        test_utils::init_lsp_server_with_inline_source_and_cursor(
+            "document_symbol",
+            "src/main.nr",
+            src,
+        );
 
     let response = on_code_action_request(
         &mut state,
@@ -44,14 +29,13 @@ async fn get_code_action(src: &str) -> (CodeActionResponse, String) {
             partial_result_params: PartialResultParams { partial_result_token: None },
         },
     )
-    .await
     .expect("Could not execute on_code_action_request")
     .expect("Expected to get a CodeActionResponse, got None");
     (response, src)
 }
 
-pub(crate) async fn assert_code_action(title: &str, src: &str, expected: &str) {
-    let (actions, src) = get_code_action(src).await;
+pub(crate) fn assert_code_action(title: &str, src: &str, expected: &str) {
+    let (actions, src) = get_code_action(src);
     let action = actions
         .iter()
         .filter_map(|action| {

@@ -11,7 +11,7 @@ struct Foo<T> {}
 
 // Ensure we call the Foo<Field> impl
 impl Foo<u32> {
-    fn do_nothing(_self: Self) {
+    pub fn do_nothing(_self: Self) {
         assert(false);
     }
 }

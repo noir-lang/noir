@@ -17,7 +17,7 @@ impl NodeInterner {
 
         // Note: we can modify this in the future to not do a linear
         // scan by storing a separate map of the spans or by sorting the locations.
-        for (index, interned_location) in self.id_to_location.iter() {
+        for (index, interned_location) in &self.id_to_location {
             if interned_location.contains(&location) {
                 if let Some(current_location) = location_candidate {
                     if interned_location.span.is_smaller(&current_location.1.span) {
@@ -36,13 +36,21 @@ impl NodeInterner {
         // This is similar to `find_location_index` except that we skip indexes for which there is no type
         let mut location_candidate: Option<(&Index, &Location, &Type)> = None;
 
-        for (index, interned_location) in self.id_to_location.iter() {
+        for (index, interned_location) in &self.id_to_location {
             if interned_location.contains(&location)
                 && let Some(typ) = self.try_id_type(*index)
             {
                 if let Some(current_location) = location_candidate {
                     if interned_location.span.is_smaller(&current_location.1.span) {
                         location_candidate = Some((index, interned_location, typ));
+                    } else if interned_location.span == current_location.1.span {
+                        // Two types might exist in the same location, for example when the compiler auto-dereferences
+                        // an expression, or because of reference coercion.
+                        // In this case, keep the type of the expression that came first, as that's the original
+                        // type of the expression in that location.
+                        if index < current_location.0 {
+                            location_candidate = Some((index, interned_location, typ));
+                        }
                     }
                 } else {
                     location_candidate = Some((index, interned_location, typ));
@@ -101,7 +109,7 @@ impl NodeInterner {
             Node::Expression(expression) => {
                 self.resolve_expression_location(expression, return_type_location_instead)
             }
-            _ => None,
+            Node::Statement(_) => None,
         }
     }
 
@@ -112,7 +120,7 @@ impl NodeInterner {
         }
     }
 
-    /// Resolves the [Location] of the definition for a given [HirExpression]
+    /// Resolves the [Location] of the definition for a given [`HirExpression`]
     ///
     /// Note: current the code returns None because some expressions are not yet implemented.
     fn resolve_expression_location(
@@ -148,7 +156,7 @@ impl NodeInterner {
         }
     }
 
-    /// Resolves the [Location] of the definition for a given [crate::hir_def::expr::HirMemberAccess]
+    /// Resolves the [Location] of the definition for a given [`crate::hir_def::expr::HirMemberAccess`]
     /// This is used to resolve the location of a struct member access.
     /// For example, in the expression `foo.bar` we want to resolve the location of `bar`
     /// to the location of the definition of `bar` in the struct `foo`.
@@ -159,9 +167,8 @@ impl NodeInterner {
         let expr_lhs = &expr_member_access.lhs;
         let expr_rhs = &expr_member_access.rhs;
 
-        let lhs_self_struct = match self.id_type(expr_lhs) {
-            Type::DataType(struct_type, _) => struct_type,
-            _ => return None,
+        let Type::DataType(lhs_self_struct, _) = self.id_type(expr_lhs) else {
+            return None;
         };
 
         let struct_type = lhs_self_struct.borrow();
@@ -172,7 +179,7 @@ impl NodeInterner {
         )
     }
 
-    /// Attempts to resolve [Location] of [Trait][crate::hir_def::traits::Trait] based on [Location] of [TraitImpl][crate::hir_def::traits::TraitImpl]
+    /// Attempts to resolve [Location] of [Trait][crate::hir_def::traits::Trait] based on [Location] of [`TraitImpl`][crate::hir_def::traits::TraitImpl]
     /// This is used by LSP to resolve the location of a trait based on the location of a trait impl.
     ///
     /// Example:
@@ -186,7 +193,7 @@ impl NodeInterner {
         self.traits.get(&trait_impl.trait_id).map(|trait_| trait_.location)
     }
 
-    /// Attempts to resolve [Location] of [Trait][crate::hir_def::traits::Trait]'s [TraitFunction][crate::hir_def::traits::TraitFunction] declaration based on the [Location] of a [TraitFunction][crate::hir_def::traits::TraitFunction] call.
+    /// Attempts to resolve [Location] of [Trait][crate::hir_def::traits::Trait]'s [`TraitFunction`][crate::hir_def::traits::TraitFunction] declaration based on the [Location] of a [`TraitFunction`][crate::hir_def::traits::TraitFunction] call.
     ///
     /// This is used by LSP to resolve the location.
     ///

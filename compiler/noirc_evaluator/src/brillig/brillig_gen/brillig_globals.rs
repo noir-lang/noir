@@ -85,7 +85,7 @@ impl BrilligGlobalsInit {
     /// * which globals are used by an entry point and its callees,
     /// * how many times each constant is used by an entry point and its callees.
     ///
-    /// The population of allocation related information is deferred to [Self::declare_globals].
+    /// The population of allocation related information is deferred to [`Self::declare_globals`].
     pub(crate) fn new(ssa: &Ssa, main_id: FunctionId) -> Self {
         let mut used_globals = ssa.used_globals_in_functions();
         let call_graph = CallGraph::from_ssa(ssa);
@@ -98,7 +98,7 @@ impl BrilligGlobalsInit {
 
         // Mark any globals used in a Brillig entry point.
         // Using the information collected we can determine which globals an entry point must initialize.
-        for (entry_point, entry_point_inner_calls) in brillig_entry_points.iter() {
+        for (entry_point, entry_point_inner_calls) in &brillig_entry_points {
             // Increment the use-count of local constants in this entry point.
             let entry_func = &ssa.functions[entry_point];
             Self::mark_globals_for_hoisting(
@@ -109,7 +109,7 @@ impl BrilligGlobalsInit {
             );
 
             // Increment the use-count of local constants in all functions called by the entry point.
-            for inner_call in entry_point_inner_calls.iter() {
+            for inner_call in entry_point_inner_calls {
                 let inner_func = &ssa.functions[inner_call];
                 Self::mark_globals_for_hoisting(
                     &mut constant_usage,
@@ -237,10 +237,6 @@ impl BrilligGlobals {
         BrilligGlobalsInit::new(ssa, main_id)
     }
 
-    /// Check whether a function is a Brillig entry point.
-    pub(crate) fn is_entry_point(&self, func_id: &FunctionId) -> bool {
-        self.call_map.entry_point_to_inner_calls.contains_key(func_id)
-    }
     /// Fetch the global allocations that can possibly be accessed
     /// by any given Brillig function (non-entry point or entry point).
     ///
@@ -487,7 +483,7 @@ mod tests {
               jmp b1(u32 0)
           b1(v7: u32):
               v11 = lt v7, u32 2
-              jmpif v11 then: b3, else: b2
+              jmpif v11 then: b3(), else: b2()
           b2():
               v12 = load v8 -> Field
               v13 = eq v12, Field 0

@@ -2,8 +2,10 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-global G_A: [[Field; 1]; 2] =
-    [[-244112236639376348452645045105852040922], [-86306352895169753536594521383676370518]];
+global G_A: [[Field; 1]; 2] = [
+    [0x30644e72e131a029b85045b68181585c708d99c8f11077432e5fa5ac0385b927],
+    [0x30644e72e131a029b85045b68181585ce745e88dbc752643ee281f22d398a1ab],
+];
 
 fn main() {
     if true {

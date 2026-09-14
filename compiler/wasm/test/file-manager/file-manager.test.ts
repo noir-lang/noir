@@ -69,23 +69,23 @@ forEach([
   });
 
   it(`saves files and correctly reads bytes back using ${name}`, async () => {
-    await fm.writeFile('test.txt', new Blob([testFileBytes]).stream());
+    await fm.writeFile('test.txt', new Blob([testFileBytes as BlobPart]).stream());
     expect(fm.readFile('test.txt')).to.eventually.eq(testFileBytes);
   });
 
   it(`saves files and correctly reads UTF-8 string back using ${name}`, async () => {
-    await fm.writeFile('test.txt', new Blob([testFileBytes]).stream());
+    await fm.writeFile('test.txt', new Blob([testFileBytes as BlobPart]).stream());
     expect(fm.readFile('test.txt', 'utf-8')).to.eventually.eq(testFileContent);
   });
 
   it(`correctly checks if file exists or not using ${name}`, async () => {
     expect(fm.hasFileSync('test.txt')).to.eq(false);
-    await fm.writeFile('test.txt', new Blob([testFileBytes]).stream());
+    await fm.writeFile('test.txt', new Blob([testFileBytes as BlobPart]).stream());
     expect(fm.hasFileSync('test.txt')).to.eq(true);
   });
 
   it(`moves files using ${name}`, async () => {
-    await fm.writeFile('test.txt.tmp', new Blob([testFileBytes]).stream());
+    await fm.writeFile('test.txt.tmp', new Blob([testFileBytes as BlobPart]).stream());
     expect(fm.hasFileSync('test.txt.tmp')).to.eq(true);
 
     await fm.moveFile('test.txt.tmp', 'test.txt');

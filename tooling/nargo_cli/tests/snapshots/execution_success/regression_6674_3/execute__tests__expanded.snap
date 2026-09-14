@@ -126,16 +126,18 @@ pub struct PrivateKernelCircuitPublicInputsComposer {
 
 impl PrivateKernelCircuitPublicInputsComposer {
     pub unconstrained fn sort_ordered_values(&mut self) {
-        self.public_inputs.end.l2_to_l1_msgs = BoundedVec::<Field, 4>::from_parts_unchecked(
+        self.public_inputs.end.l2_to_l1_msgs = BoundedVec::<Field, 4>::from_parts(
             sort_by_counter_desc(self.public_inputs.end.l2_to_l1_msgs.storage()),
             self.public_inputs.end.l2_to_l1_msgs.len(),
         );
-        self.public_inputs.end.public_call_requests = BoundedVec::<Counted<Field>, 4>::from_parts_unchecked(
+        self.public_inputs.end.public_call_requests = BoundedVec::<Counted<Field>, 4>::from_parts(
             sort_by_counter_desc(self.public_inputs.end.public_call_requests.storage()),
             self.public_inputs.end.public_call_requests.len(),
         );
     }
+}
 
+impl PrivateKernelCircuitPublicInputsComposer {
     pub fn new_from_previous_kernel(
         previous_kernel_public_inputs: PrivateKernelCircuitPublicInputs,
     ) -> Self {

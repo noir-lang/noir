@@ -23,7 +23,7 @@ impl SimplificationCache {
     /// Try to find a simplification in a visible block.
     pub(super) fn get(&self, block: BasicBlockId, dom: &DominatorTree) -> Option<ValueId> {
         // Deterministically walk up the dominator chain until we encounter a block that contains a simplification.
-        dom.find_map_dominator(block, |b| self.simplifications.get(&b).cloned())
+        dom.find_map_dominator(block, |b| self.simplifications.get(&b).copied())
     }
 
     /// Add a newly encountered simplification to the cache.
@@ -41,7 +41,7 @@ impl SimplificationCache {
     }
 }
 
-/// HashMap from `(side_effects_enabled_var, Instruction)` to a simplified expression that it can
+/// `HashMap` from `(side_effects_enabled_var, Instruction)` to a simplified expression that it can
 /// be replaced with based on constraints that testify to their equivalence, stored together
 /// with the set of blocks at which this constraint has been observed.
 ///

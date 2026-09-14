@@ -1,0 +1,7 @@
+error: multiple `#[tagged(on_reserved)]` variants on the same enum — only one fallback for retired tags is allowed (previous: "RetiredA")
+  --> tests/compile_fail/duplicate_on_reserved.rs:16:5
+   |
+16 | /     #[tag(9)]
+17 | |     #[tagged(on_reserved)]
+18 | |     RetiredB,
+   | |____________^

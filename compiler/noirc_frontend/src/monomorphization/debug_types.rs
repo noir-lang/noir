@@ -13,7 +13,7 @@ use std::collections::HashMap;
 /// structure. The `source_var_id` refers to the ID given by the debug
 /// instrumenter. This variable does not have a type yet and hence it
 /// can be instantiated for multiple types if it's in the context of a generic
-/// variable. The var_id refers to the ID of the instantiated variable which
+/// variable. The `var_id` refers to the ID of the instantiated variable which
 /// will have a valid type.
 #[derive(Debug, Clone, Default)]
 pub struct DebugTypeTracker {

@@ -1,12 +1,8 @@
-define: &AZ_COMMIT 20591b24def1971b3566625d489d38181f764cda
+define: &AZ_COMMIT d5b9e49bad0d52acbf5c0547237588295d0ba9bf
 libraries:
   noir_check_shuffle:
     repo: noir-lang/noir_check_shuffle
-    timeout: 2
-    critical: true
-  ec:
-    repo: noir-lang/ec
-    timeout: 2
+    timeout: 5
     critical: true
   eddsa:
     repo: noir-lang/eddsa
@@ -14,19 +10,19 @@ libraries:
     critical: true
   mimc:
     repo: noir-lang/mimc
-    timeout: 2
+    timeout: 5
     critical: true
   schnorr:
     repo: noir-lang/schnorr
-    timeout: 2
+    timeout: 5
     critical: true
   noir_sort:
     repo: noir-lang/noir_sort
-    timeout: 2
+    timeout: 5
     critical: true
   noir-edwards:
     repo: noir-lang/noir-edwards
-    timeout: 2
+    timeout: 5
     critical: true
   noir-bignum:
     repo: noir-lang/noir-bignum
@@ -34,7 +30,7 @@ libraries:
     critical: true
   noir_bigcurve:
     repo: noir-lang/noir_bigcurve
-    timeout: 500
+    timeout: 600
     critical: true
   noir_base64:
     repo: noir-lang/noir_base64
@@ -42,7 +38,7 @@ libraries:
     critical: true
   noir_string_search:
     repo: noir-lang/noir_string_search
-    timeout: 2
+    timeout: 5
     critical: true
   sparse_array:
     repo: noir-lang/sparse_array
@@ -50,11 +46,11 @@ libraries:
     critical: false
   noir_json_parser:
     repo: noir-lang/noir_json_parser
-    timeout: 15
+    timeout: 22
     critical: false
   sha256:
     repo: noir-lang/sha256
-    timeout: 25
+    timeout: 40
     critical: true
   sha512:
     repo: noir-lang/sha512
@@ -65,42 +61,30 @@ libraries:
     critical: true
   poseidon:
     repo: noir-lang/poseidon
-    timeout: 5
+    timeout: 8
     critical: true
-  aztec_nr:
-    repo: AztecProtocol/aztec-packages
-    ref: *AZ_COMMIT
-    path: noir-projects/aztec-nr
-    timeout: 250
-    critical: false
-  noir_contracts:
-    repo: AztecProtocol/aztec-packages
-    ref: *AZ_COMMIT
-    path: noir-projects/noir-contracts
-    timeout: 230
-    critical: false
   blob:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
-    path: noir-projects/noir-protocol-circuits/crates/blob
-    timeout: 600
+    path: noir-projects/fnd/noir-protocol-circuits/crates/blob
+    timeout: 800
     critical: false
   protocol_circuits_private_kernel_lib:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
-    path: noir-projects/noir-protocol-circuits/crates/private-kernel-lib
-    timeout: 450
+    path: noir-projects/fnd/noir-protocol-circuits/crates/private-kernel-lib
+    timeout: 1300
     critical: false
   protocol_circuits_types:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
-    path: noir-projects/noir-protocol-circuits/crates/types
+    path: noir-projects/fnd/noir-protocol-circuits/crates/types
     timeout: 180
     critical: false
   # protocol_circuits_rollup_lib:
   #   repo: AztecProtocol/aztec-packages
   #   ref: *AZ_COMMIT
-  #   path: noir-projects/noir-protocol-circuits/crates/rollup-lib
+  #   path: noir-projects/fnd/noir-protocol-circuits/crates/rollup-lib
   #   timeout: 900
   #   critical: false
   #   # Use 1 test threads for rollup-lib because each test requires a lot of memory, and multiple ones in parallel exceed the maximum memory limit.

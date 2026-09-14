@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Assertion failed: Field failed to decompose into specified 1 limbs
+    ┌─ std/field/mod.nr:175:9
+    │
+175 │         __to_be_radix(self, radix)
+    │         --------------------------
+    │
+    = Call stack:
+      1: main
+              at src/main.nr:3:5
+      2: Field::to_be_bytes
+              at std/field/mod.nr:138:21
+      3: Field::to_be_radix
+              at std/field/mod.nr:175:9
+
+Failed assertion

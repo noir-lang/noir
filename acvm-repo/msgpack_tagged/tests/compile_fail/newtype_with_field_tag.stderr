@@ -1,0 +1,5 @@
+error: newtype structs pass through to the inner type — `#[tag(...)]` on the inner field is not allowed
+ --> tests/compile_fail/newtype_with_field_tag.rs:7:16
+  |
+7 | struct Witness(#[tag(0)] u32);
+  |                ^^^^^^^^^

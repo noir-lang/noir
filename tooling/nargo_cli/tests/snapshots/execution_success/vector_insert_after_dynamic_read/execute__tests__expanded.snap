@@ -1,0 +1,16 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(x: u32, y: u32) {
+    let arr: [(Field, [Field; 2]); 3] = [
+        (1_Field, [2_Field, 3_Field]),
+        (4_Field, [5_Field, 6_Field]),
+        (7_Field, [8_Field, 9_Field]),
+    ];
+    let mut v: [(Field, [Field; 2])] = arr.as_vector();
+    let elem: (Field, [Field; 2]) = v[y];
+    v = v.insert(x, (10_Field, [11_Field, 12_Field]));
+    assert(v.len() == 4_u32);
+    assert(elem.0 != 999_Field);
+}

@@ -17,7 +17,8 @@
 //! clones arrays (increments their reference counts) in the following situations which roughly
 //! correspond to where a `Copy` variable in Rust would be copied:
 //! - Variables are copied on each use, except for the last use where they are moved.
-//!   - If a variable's last use is in a loop that it was not defined in, it is copied instead of moved.
+//!   - If a variable's last use is in a loop that it was not defined in, it is copied instead of moved,
+//!     except if the last use is also reassigning the variable, killing the reference to its previous value.
 //!   - The last use analysis isn't sophisticated on struct fields. It will count `a.b` and `a.c`
 //!     both as uses of `a`. Even if both could conceptually be moved, only the last usage will be
 //!     moved and the first (say `a.b`) will still be cloned.
@@ -36,16 +37,21 @@
 //! to find the last use of each local variable to identify where moves can occur.
 use crate::{
     ast::UnaryOp,
+    hir_def::expr::Constructor,
     monomorphization::ast::{
-        Definition, Expression, Function, Ident, IdentId, LValue, Literal, LocalId, Program, Type,
-        Unary,
+        Definition, Expression, FuncId, Function, Ident, IdentId, LValue, Literal, LocalId,
+        Program, Type, Unary,
     },
 };
 
-use rustc_hash::FxHashMap as HashMap;
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
+mod clone_elision;
 mod last_uses;
+mod suboptimal_cloning_tests;
 mod tests;
+
+pub use clone_elision::{builtin_supports_clone_elision, find_oracle_wrappers};
 
 impl Program {
     /// Perform "ownership analysis".
@@ -54,8 +60,9 @@ impl Program {
     ///
     /// This should only be called once, before converting to SSA.
     pub fn handle_ownership(mut self) -> Self {
-        for function in self.functions.iter_mut() {
-            function.handle_ownership();
+        let oracle_wrappers = find_oracle_wrappers(&self);
+        for function in &mut self.functions {
+            function.handle_ownership(&oracle_wrappers);
         }
         self
     }
@@ -67,18 +74,27 @@ impl Function {
     /// See [ownership](crate::ownership) for details.
     ///
     /// This should only be called on a function once.
-    pub fn handle_ownership(&mut self) {
-        let mut context = Context { variables_to_move: Default::default() };
+    ///
+    /// `oracle_wrappers` is the set of thin oracle-wrapper functions computed by
+    /// [`clone_elision::find_oracle_wrappers`]. When whole-program information is not
+    /// available, passing an empty set is always sound: it only disables the clone
+    /// elision for calls to those wrappers, keeping more clones than strictly needed.
+    pub fn handle_ownership(&mut self, oracle_wrappers: &HashSet<FuncId>) {
+        let mut context = Context { variables_to_move: Default::default(), oracle_wrappers };
         context.handle_ownership_in_function(self);
     }
 }
 
-struct Context {
+struct Context<'a> {
     /// This contains each instance of a variable we should move instead of cloning.
     variables_to_move: HashMap<LocalId, Vec<IdentId>>,
+
+    /// Functions that only forward their arguments to an oracle; calls to these
+    /// qualify for clone elision. See [`clone_elision`].
+    oracle_wrappers: &'a HashSet<FuncId>,
 }
 
-impl Context {
+impl Context<'_> {
     fn should_move(&self, definition: LocalId, variable: IdentId) -> bool {
         self.variables_to_move
             .get(&definition)
@@ -127,23 +143,20 @@ impl Context {
     }
 
     /// Handle the RHS of a `&expr` unary expression.
-    /// Variables and field accesses in these expressions are exempt from clones.
+    /// Variables and field accesses (i.e. place expressions) in these expressions are exempt
+    /// from clones — taking a reference to a place doesn't allocate a fresh value, so we
+    /// don't need a defensive copy at the reference site.
     ///
     /// Note that this also matches on dereference operations to exempt their LHS from clones,
     /// but their LHS is always exempt from clones so this is unchanged.
+    ///
+    /// Value-producing forms like `Block`, `If`, `Match`, `Call`, etc. fall through to
+    /// `handle_expression`. A block in particular materializes a fresh temporary, so its
+    /// contents must be processed in normal cloning context to keep refcounts honest when
+    /// the temporary is retained (e.g. by `&mut { ...; expr }`).
     fn handle_reference_expression(&mut self, expr: &mut Expression) {
         match expr {
             Expression::Ident(_) => (),
-            Expression::Block(exprs) => {
-                let len_minus_one = exprs.len().saturating_sub(1);
-                for expr in exprs.iter_mut().take(len_minus_one) {
-                    // In `&{ a; b; ...; z }` we're only taking the reference of `z`.
-                    self.handle_expression(expr);
-                }
-                if let Some(expr) = exprs.last_mut() {
-                    self.handle_reference_expression(expr);
-                }
-            }
             Expression::Unary(Unary { rhs, operator: UnaryOp::Dereference { .. }, .. }) => {
                 self.handle_reference_expression(rhs);
             }
@@ -160,7 +173,7 @@ impl Context {
         }
     }
 
-    /// Handle an [Expression::ExtractTupleField] by moving the cloning to limit its scope to the
+    /// Handle an [`Expression::ExtractTupleField`] by moving the cloning to limit its scope to the
     /// innermost item it needs to be applied to.
     ///
     /// Panics if called on a different kind of expression.
@@ -192,7 +205,7 @@ impl Context {
         match expr {
             Expression::Ident(ident) => {
                 let should_clone = self.should_clone_ident(ident);
-                Some((should_clone, ident.typ.clone()))
+                Some((should_clone, ident.typ.as_ref().clone()))
             }
             // Delay dereferences as well so we change `(*self).foo.bar` to `*(self.foo.bar)`
             Expression::Unary(Unary {
@@ -209,11 +222,23 @@ impl Context {
                 let mut elements = unwrap_tuple_type(typ)?;
                 Some((should_clone, elements.swap_remove(*index)))
             }
+            Expression::Index(index) => {
+                let (base_should_clone, _) =
+                    self.handle_extract_expression_rec(&mut index.collection)?;
+                self.handle_expression(&mut index.index);
+                // A dynamic index can extract an inner element whose reference count
+                // is not bumped by moving the outer collection. If the extracted type
+                // contains an array, the inner array may still alias the collection,
+                // so an outer extract site must clone regardless of last-use status.
+                let should_clone =
+                    base_should_clone || contains_array_or_str_type(&index.element_type);
+                Some((should_clone, index.element_type.clone()))
+            }
             _ => None,
         }
     }
 
-    /// Whenever an ident is used it is always cloned unless it is the last use of the ident (not in a loop).
+    /// Whenever an ident is used it is always cloned unless it is the last use of the ident (not in a loop, unless it's also reassigning the ident).
     fn should_clone_ident(&self, ident: &Ident) -> bool {
         match &ident.definition {
             Definition::Local(local_id) => {
@@ -243,7 +268,7 @@ impl Context {
             Literal::FmtStr(_, _, captures) => self.handle_expression(captures),
 
             Literal::Array(array) | Literal::Vector(array) => {
-                for element in array.contents.iter_mut() {
+                for element in &mut array.contents {
                     self.handle_expression(element);
                 }
             }
@@ -287,11 +312,18 @@ impl Context {
             panic!("handle_index given non-index expression: {index_expr}");
         };
 
-        // Don't clone the collection, cloning only the resulting element is cheaper.
-        self.handle_reference_expression(&mut index.collection);
-        self.handle_expression(&mut index.index);
-
-        // If the index collection is being borrowed we need to clone the result.
+        // A dynamic index can extract an inner array that still shares memory with
+        // the original collection. Even at the base's last use, moving only transfers
+        // the outer array's reference count -- the inner element's RC is not bumped.
+        // Whenever the extracted element contains an array we must clone it.
+        if self.handle_extract_expression_rec(&mut index.collection).is_some() {
+            self.handle_expression(&mut index.index);
+        } else {
+            // Collection is a complex expression (function call, block, etc.);
+            // sub-expressions are handled normally.
+            self.handle_reference_expression(&mut index.collection);
+            self.handle_expression(&mut index.index);
+        }
         if contains_array_or_str_type(&index.element_type) {
             clone_expr(index_expr);
         }
@@ -328,6 +360,26 @@ impl Context {
         // The match will only destructure the value; it doesn't "use" the variable in a way that
         // requires additional cloning beyond what the last-use analysis already handles.
         for case in &mut match_expr.cases {
+            // The constructors below all bind whole values out of the matched aggregate
+            // (enum/tuple/struct fields), whose uses are protected by the normal last-use
+            // clone analysis at their use sites, so destructuring needs no extra handling here.
+            //
+            // This exhaustive match is a deliberate tripwire: if a constructor that binds a
+            // value out of a *nested* aggregate is ever added (e.g. array/vector patterns like
+            // `[head, tail @ ..]`), this stops compiling and forces a decision. Such bindings
+            // can alias nested array storage the same way an indexed lvalue does, so they must
+            // replicate the nested-array clone handling in `handle_lvalue`'s `LValue::Index`
+            // case, or matched bindings will silently alias the source and observe incorrect
+            // mutations. Do not just add the new variant to this arm — extend the clone logic.
+            match &case.constructor {
+                Constructor::True
+                | Constructor::False
+                | Constructor::Unit
+                | Constructor::Int(_)
+                | Constructor::Tuple(_)
+                | Constructor::Variant(..)
+                | Constructor::Range(..) => {}
+            }
             self.handle_expression(&mut case.branch);
         }
 
@@ -347,6 +399,10 @@ impl Context {
         for arg in &mut call.arguments {
             self.handle_expression(arg);
         }
+
+        // If the callee is known not to modify its array arguments, the clones inserted
+        // around them above may be unnecessary. See [`clone_elision`] for the conditions.
+        clone_elision::elide_clones_in_call_arguments(call, self.oracle_wrappers);
     }
 
     fn handle_let(&mut self, let_expr: &mut crate::monomorphization::ast::Let) {
@@ -433,14 +489,14 @@ fn contains_array_or_str_type(typ: &Type) -> bool {
     }
 }
 
-/// Returns the element types of a [Type::Tuple], or a reference to a tuple.
+/// Returns the element types of a [`Type::Tuple`], or a reference to a tuple.
 ///
 /// Returns `None` for any other type.
 fn unwrap_tuple_type(typ: Type) -> Option<Vec<Type>> {
     match typ {
         Type::Tuple(elements) => Some(elements),
         // array accesses will automatically dereference so we do too
-        Type::Reference(element, _) => unwrap_tuple_type(*element),
+        Type::Reference(element, _) => unwrap_tuple_type(element.as_ref().clone()),
         _ => None,
     }
 }

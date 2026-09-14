@@ -1,0 +1,6 @@
+[package]
+name = "fold_unreachable_call"
+type = "bin"
+authors = [""]
+
+[dependencies]

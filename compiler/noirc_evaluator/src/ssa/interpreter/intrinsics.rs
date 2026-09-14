@@ -4,7 +4,6 @@ use acvm::{AcirField, BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElem
 use bn254_blackbox_solver::derive_generators;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_printable_type::{PrintableType, PrintableValueDisplay, decode_printable_value};
-use num_bigint::BigUint;
 
 use crate::ssa::ir::{
     dfg,
@@ -13,7 +12,10 @@ use crate::ssa::ir::{
     value::ValueId,
 };
 
-use super::{ArrayValue, IResult, IResults, InternalError, Interpreter, InterpreterError, Value};
+use super::{
+    ArrayValue, IResult, IResults, InternalError, Interpreter, InterpreterError, Value,
+    value::StorageIdentity,
+};
 
 impl<W: Write> Interpreter<'_, W> {
     pub(super) fn call_intrinsic(
@@ -36,11 +38,13 @@ impl<W: Write> Interpreter<'_, W> {
             Intrinsic::AsVector => {
                 check_argument_count(args, 1, intrinsic)?;
                 let array = self.lookup_array_or_vector(args[0], "call to as_vector")?;
-                let length = array.elements.borrow().len();
-                let length = Value::u32(length as u32);
-
+                let typ = array.get_type();
+                let Type::Array(_, length) = typ else {
+                    panic!("Expected array type for argument to as_vector intrinsic, got {typ}");
+                };
+                let length = Value::u32(length.0);
                 let elements = array.elements.borrow().to_vec();
-                let vector = Value::vector(elements, array.element_types.clone());
+                let vector = Value::vector(elements, array.element_types);
                 Ok(vec![length, vector])
             }
             Intrinsic::AssertConstant => {
@@ -262,18 +266,8 @@ impl<W: Write> Interpreter<'_, W> {
                     let input_points =
                         self.lookup_array_or_vector(args[0], "call to MultiScalarMul blackbox")?;
                     let mut points = Vec::new();
-                    for (i, v) in input_points.elements.borrow().iter().enumerate() {
-                        if i % 3 == 2 {
-                            points.push(u128::from(v.as_bool().ok_or(
-                                InterpreterError::Internal(InternalError::TypeError {
-                                    value_id: args[0],
-                                    value: v.to_string(),
-                                    expected_type: "bool",
-                                    instruction: "retrieving is_infinite in call to MultiScalarMul blackbox",
-                                })
-                            )?).into());
-                        } else {
-                            points.push(
+                    for v in input_points.elements.borrow().iter() {
+                        points.push(
                             v.as_field().ok_or(
                                 InterpreterError::Internal(InternalError::TypeError {
                                     value_id: args[0],
@@ -282,7 +276,6 @@ impl<W: Write> Interpreter<'_, W> {
                                     instruction: "retrieving ec points in call to MultiScalarMul blackbox",
                                 })
                             )?);
-                        }
                     }
                     let scalars =
                         self.lookup_array_or_vector(args[1], "call to MultiScalarMul blackbox")?;
@@ -317,8 +310,8 @@ impl<W: Write> Interpreter<'_, W> {
                     let solver = bn254_blackbox_solver::Bn254BlackBoxSolver;
                     let result =
                         solver.multi_scalar_mul(&points, &scalars_lo, &scalars_hi, predicate);
-                    let (x, y, is_infinite) = result.map_err(Self::convert_error)?;
-                    let result = new_embedded_curve_point(x, y, is_infinite)?;
+                    let (x, y) = result.map_err(Self::convert_error)?;
+                    let result = new_embedded_curve_point(x, y)?;
                     Ok(vec![result])
                 }
                 acvm::acir::BlackBoxFunc::Keccakf1600 => {
@@ -344,30 +337,20 @@ impl<W: Write> Interpreter<'_, W> {
                     Ok(vec![])
                 }
                 acvm::acir::BlackBoxFunc::EmbeddedCurveAdd => {
-                    check_argument_count(args, 7, intrinsic)?;
+                    check_argument_count(args, 5, intrinsic)?;
                     let solver = bn254_blackbox_solver::Bn254BlackBoxSolver;
                     let lhs = (
                         self.lookup_field(args[0], "call EmbeddedCurveAdd BlackBox")?,
                         self.lookup_field(args[1], "call EmbeddedCurveAdd BlackBox")?,
-                        self.lookup_bool(args[2], "call EmbeddedCurveAdd BlackBox")?,
                     );
                     let rhs = (
+                        self.lookup_field(args[2], "call EmbeddedCurveAdd BlackBox")?,
                         self.lookup_field(args[3], "call EmbeddedCurveAdd BlackBox")?,
-                        self.lookup_field(args[4], "call EmbeddedCurveAdd BlackBox")?,
-                        self.lookup_bool(args[5], "call EmbeddedCurveAdd BlackBox")?,
                     );
-                    let predicate = self.lookup_bool(args[6], "call EmbeddedCurveAdd BlackBox")?;
-                    let result = solver.ec_add(
-                        &lhs.0,
-                        &lhs.1,
-                        &lhs.2.into(),
-                        &rhs.0,
-                        &rhs.1,
-                        &rhs.2.into(),
-                        predicate,
-                    );
-                    let (x, y, is_infinite) = result.map_err(Self::convert_error)?;
-                    let result = new_embedded_curve_point(x, y, is_infinite)?;
+                    let predicate = self.lookup_bool(args[4], "call EmbeddedCurveAdd BlackBox")?;
+                    let result = solver.ec_add(&lhs.0, &lhs.1, &rhs.0, &rhs.1, predicate);
+                    let (x, y) = result.map_err(Self::convert_error)?;
+                    let result = new_embedded_curve_point(x, y)?;
                     Ok(vec![result])
                 }
 
@@ -438,7 +421,7 @@ impl<W: Write> Interpreter<'_, W> {
                 }
 
                 let result_type = self.dfg().type_of_value(results[0]);
-                let Type::Array(_, n) = result_type else {
+                let Type::Array(_, n) = &*result_type else {
                     return Err(InterpreterError::Internal(InternalError::UnexpectedResultType {
                         actual_type: result_type.to_string(),
                         expected_type: "array",
@@ -448,24 +431,17 @@ impl<W: Write> Interpreter<'_, W> {
 
                 let generators = derive_generators(&inputs, n.0, index);
                 let mut result = Vec::with_capacity(inputs.len());
-                for generator in generators.iter() {
-                    let x_big: BigUint = generator.x.into();
-                    let x = FieldElement::from_le_bytes_reduce(&x_big.to_bytes_le());
-                    let y_big: BigUint = generator.y.into();
-                    let y = FieldElement::from_le_bytes_reduce(&y_big.to_bytes_le());
+                for generator in &generators {
+                    let x = FieldElement::from_repr(generator.x);
+                    let y = FieldElement::from_repr(generator.y);
                     result.push(Value::from_constant(x, NumericType::NativeField)?);
                     result.push(Value::from_constant(y, NumericType::NativeField)?);
-                    result.push(Value::from_constant(
-                        generator.infinity.into(),
-                        NumericType::bool(),
-                    )?);
                 }
                 let results = Value::array(
                     result,
                     vec![
                         Type::Numeric(NumericType::NativeField),
                         Type::Numeric(NumericType::NativeField),
-                        Type::Numeric(NumericType::bool()),
                     ],
                 );
                 Ok(vec![results])
@@ -514,7 +490,7 @@ impl<W: Write> Interpreter<'_, W> {
         result: ValueId,
     ) -> IResults {
         let result_type = self.dfg().type_of_value(result);
-        let Type::Array(_, limb_count) = result_type else {
+        let Type::Array(_, limb_count) = &*result_type else {
             return Err(InterpreterError::Internal(InternalError::TypeError {
                 value_id: result,
                 value: result_type.to_string(),
@@ -532,25 +508,77 @@ impl<W: Write> Interpreter<'_, W> {
         Ok(vec![Value::array(elements, vec![Type::Numeric(element_type)])])
     }
 
+    /// Whether a vector mutator may write through the shared backing store instead of copying.
+    ///
+    /// In Brillig, vector operations reuse the input vector's allocation when its copy-on-write
+    /// reference count is 1, mutating it in place; otherwise they copy. We mirror that here so the
+    /// interpreter agrees with Brillig execution. In a constrained (ACIR) context reference counts
+    /// are not tracked, so we always copy.
+    fn vector_mutates_in_place(&self, vector: &ArrayValue) -> bool {
+        self.in_unconstrained_context()
+            && *vector.rc.borrow() == 1
+            && !self.is_global_storage(vector.elements.as_ptr() as StorageIdentity)
+    }
+
+    /// Apply `f` to a vector's backing elements, mutating them in place when
+    /// [`Self::vector_mutates_in_place`] allows it (matching Brillig's copy-on-write), or operating
+    /// on a fresh copy otherwise. Returns whatever `f` produces alongside the resulting vector.
+    ///
+    /// When mutating in place the returned vector shares its backing store with `vector`, so any
+    /// other handle to the same vector observes the mutation as well — exactly as in Brillig when
+    /// the reference count is 1 and the ownership pass did not insert a protecting `inc_rc`.
+    ///
+    /// `intrinsic` is the operation on whose behalf the mutation happens; it must declare
+    /// itself a mutator (see [check_intrinsic_mutation_label]).
+    fn update_vector_elements<R>(
+        &self,
+        intrinsic: Intrinsic,
+        vector: ArrayValue,
+        f: impl FnOnce(&mut Vec<Value>) -> IResult<R>,
+    ) -> IResult<(R, Value)> {
+        if self.vector_mutates_in_place(&vector) {
+            check_intrinsic_mutation_label(intrinsic)?;
+            self.check_purity_on_mutation(
+                vector.elements.as_ptr() as StorageIdentity,
+                "a vector intrinsic writing through its input vector",
+            )?;
+            let result = f(&mut vector.elements.borrow_mut())?;
+            Ok((result, Value::ArrayOrVector(vector)))
+        } else {
+            let mut elements = vector.elements.borrow().to_vec();
+            let result = f(&mut elements)?;
+            Ok((result, Value::vector(elements, vector.element_types)))
+        }
+    }
+
     /// (length, vector, elem...) -> (length, vector)
     fn vector_push_back(&self, args: &[ValueId]) -> IResults {
         let length = self.lookup_u32(args[0], "call to vector_push_back")?;
         let vector = self.lookup_array_or_vector(args[1], "call to vector_push_back")?;
+        let width = vector.element_types.len();
 
-        // The resulting vector should be cloned - should we check RC here to try mutating it?
-        // It'd need to be brillig-only if so since RC is always 1 in acir.
-        let mut new_elements = vector.elements.borrow().to_vec();
-        let element_types = vector.element_types.clone();
+        let new_values = try_vecmap(args.iter().skip(2), |arg| self.lookup(*arg))?;
 
-        // The vector might contain more elements than its length.
-        // We need to either insert before the extras, overwrite, or remove them.
-        new_elements.truncate(element_types.len() * length as usize);
-        for arg in args.iter().skip(2) {
-            new_elements.push(self.lookup(*arg)?);
-        }
+        let (_, new_vector) =
+            self.update_vector_elements(Intrinsic::VectorPushBack, vector, |elements| {
+                // The vector might contain more elements than its length.
+                // We need to either insert before the extras, overwrite, or remove them.
+                // We could remove any extras and then append:
+                //  elements.truncate(width * length as usize);
+                // But the way some SSA passes work is that they assume we *always* grow the vector capacity,
+                // so instead of truncating, we append as well as overwrite.
+                let end_index = width * (length as usize);
+                let push_only = end_index == elements.len();
+                for (i, value) in new_values.into_iter().enumerate() {
+                    if !push_only {
+                        elements[end_index + i] = value.clone();
+                    }
+                    elements.push(value);
+                }
+                Ok(())
+            })?;
 
         let new_length = Value::u32(length + 1);
-        let new_vector = Value::vector(new_elements, element_types);
         Ok(vec![new_length, new_vector])
     }
 
@@ -558,14 +586,18 @@ impl<W: Write> Interpreter<'_, W> {
     fn vector_push_front(&self, args: &[ValueId]) -> IResults {
         let length = self.lookup_u32(args[0], "call to vector_push_front")?;
         let vector = self.lookup_array_or_vector(args[1], "call to vector_push_front")?;
-        let vector_elements = vector.elements.clone();
-        let element_types = vector.element_types.clone();
 
-        let mut new_elements = try_vecmap(args.iter().skip(2), |arg| self.lookup(*arg))?;
-        new_elements.extend_from_slice(&vector_elements.borrow());
+        let new_values = try_vecmap(args.iter().skip(2), |arg| self.lookup(*arg))?;
+
+        let (_, new_vector) =
+            self.update_vector_elements(Intrinsic::VectorPushFront, vector, |elements| {
+                let mut prefixed = new_values;
+                prefixed.append(elements);
+                *elements = prefixed;
+                Ok(())
+            })?;
 
         let new_length = Value::u32(length + 1);
-        let new_vector = Value::vector(new_elements, element_types);
         Ok(vec![new_length, new_vector])
     }
 
@@ -574,25 +606,29 @@ impl<W: Write> Interpreter<'_, W> {
         let length = self.lookup_u32(args[0], "call to vector_pop_back")?;
         let vector = self.lookup_array_or_vector(args[1], "call to vector_pop_back")?;
 
-        let mut vector_elements = vector.elements.borrow().to_vec();
-        let element_types = vector.element_types.clone();
-
-        if vector_elements.is_empty() || length == 0 {
+        if vector.elements.borrow().is_empty() || length == 0 {
             let instruction = "vector_pop_back";
             return Err(InterpreterError::PoppedFromEmptyVector { vector: args[1], instruction });
         }
         check_vector_can_pop_all_element_types(args[1], &vector)?;
 
-        // The vector might contain more elements than its length.
-        // We want the last valid element, ignoring any extras following it.
-        // We don't ever access the extras, so we might as well remove any.
-        vector_elements.truncate(element_types.len() * length as usize);
-        let mut popped_elements =
-            vecmap(0..element_types.len(), |_| vector_elements.pop().unwrap());
-        popped_elements.reverse();
+        // The vector might contain more elements than its semantic length when it is the result of
+        // merging vectors of different lengths: its backing array is padded out to the larger
+        // capacity. The popped element lives at the semantic last index, but the backing capacity
+        // only shrinks by one element, matching how `vector_pop_front`/`vector_remove` and ACIR
+        // codegen keep the trailing capacity. Truncating to the semantic length here instead would
+        // make a later merge over-read this result when the semantic length is below the capacity.
+        let width = vector.element_types.len();
+        let last_index = width * (length as usize - 1);
+
+        let (popped_elements, new_vector) =
+            self.update_vector_elements(Intrinsic::VectorPopBack, vector, |elements| {
+                let popped = elements[last_index..last_index + width].to_vec();
+                elements.truncate(elements.len() - width);
+                Ok(popped)
+            })?;
 
         let new_length = Value::u32(length - 1);
-        let new_vector = Value::vector(vector_elements, element_types);
         let mut results = vec![new_length, new_vector];
         results.extend(popped_elements);
         Ok(results)
@@ -603,19 +639,20 @@ impl<W: Write> Interpreter<'_, W> {
         let length = self.lookup_u32(args[0], "call to vector_pop_front")?;
         let vector = self.lookup_array_or_vector(args[1], "call to vector_pop_front")?;
 
-        let mut vector_elements = vector.elements.borrow().to_vec();
-        let element_types = vector.element_types.clone();
-
-        if vector_elements.is_empty() || length == 0 {
+        if vector.elements.borrow().is_empty() || length == 0 {
             let instruction = "vector_pop_front";
             return Err(InterpreterError::PoppedFromEmptyVector { vector: args[1], instruction });
         }
         check_vector_can_pop_all_element_types(args[1], &vector)?;
 
-        let mut results = vector_elements.drain(0..element_types.len()).collect::<Vec<_>>();
+        let width = vector.element_types.len();
+
+        let (mut results, new_vector) =
+            self.update_vector_elements(Intrinsic::VectorPopFront, vector, |elements| {
+                Ok(elements.drain(0..width).collect::<Vec<_>>())
+            })?;
 
         let new_length = Value::u32(length - 1);
-        let new_vector = Value::vector(vector_elements, element_types);
         results.push(new_length);
         results.push(new_vector);
         Ok(results)
@@ -626,18 +663,20 @@ impl<W: Write> Interpreter<'_, W> {
         let length = self.lookup_u32(args[0], "call to vector_insert")?;
         let vector = self.lookup_array_or_vector(args[1], "call to vector_insert")?;
         let index = self.lookup_u32(args[2], "call to vector_insert")?;
+        let width = vector.element_types.len();
 
-        let mut vector_elements = vector.elements.borrow().to_vec();
-        let element_types = vector.element_types.clone();
+        let new_values = try_vecmap(args.iter().skip(3), |arg| self.lookup(*arg))?;
 
-        let mut index = index as usize * element_types.len();
-        for arg in args.iter().skip(3) {
-            vector_elements.insert(index, self.lookup(*arg)?);
-            index += 1;
-        }
+        let (_, new_vector) =
+            self.update_vector_elements(Intrinsic::VectorInsert, vector, |elements| {
+                let start = index as usize * width;
+                for (offset, value) in new_values.into_iter().enumerate() {
+                    elements.insert(start + offset, value);
+                }
+                Ok(())
+            })?;
 
         let new_length = Value::u32(length + 1);
-        let new_vector = Value::vector(vector_elements, element_types);
         Ok(vec![new_length, new_vector])
     }
 
@@ -647,20 +686,21 @@ impl<W: Write> Interpreter<'_, W> {
         let vector = self.lookup_array_or_vector(args[1], "call to vector_remove")?;
         let index = self.lookup_u32(args[2], "call to vector_remove")?;
 
-        let mut vector_elements = vector.elements.borrow().to_vec();
-        let element_types = vector.element_types.clone();
-
-        if vector_elements.is_empty() {
+        if vector.elements.borrow().is_empty() {
             let instruction = "vector_remove";
             return Err(InterpreterError::PoppedFromEmptyVector { vector: args[1], instruction });
         }
         check_vector_can_pop_all_element_types(args[1], &vector)?;
 
-        let index = index as usize * element_types.len();
-        let removed: Vec<_> = vector_elements.drain(index..index + element_types.len()).collect();
+        let width = vector.element_types.len();
+        let index = index as usize * width;
+
+        let (removed, new_vector) =
+            self.update_vector_elements(Intrinsic::VectorRemove, vector, |elements| {
+                Ok(elements.drain(index..index + width).collect::<Vec<_>>())
+            })?;
 
         let new_length = Value::u32(length - 1);
-        let new_vector = Value::vector(vector_elements, element_types);
         let mut results = vec![new_length, new_vector];
         results.extend(removed);
         Ok(results)
@@ -750,6 +790,21 @@ impl<W: Write> Interpreter<'_, W> {
     }
 }
 
+/// Checks that an intrinsic about to write through its input vector's backing store
+/// declares itself a mutator via [Intrinsic::mutates_array_operand_in_brillig].
+///
+/// Purity analysis uses that list to classify functions containing intrinsic calls,
+/// so an intrinsic that mutates without being listed silently poisons the recorded
+/// purity of every function it appears in. Checking at the moment of mutation keeps
+/// the list and the interpreter's (Brillig-mirroring) behavior from drifting apart.
+pub(super) fn check_intrinsic_mutation_label(intrinsic: Intrinsic) -> IResult<()> {
+    if intrinsic.mutates_array_operand_in_brillig() {
+        Ok(())
+    } else {
+        Err(InterpreterError::IntrinsicPurityViolation { intrinsic })
+    }
+}
+
 fn check_argument_count(
     args: &[ValueId],
     expected_count: usize,
@@ -796,25 +851,13 @@ fn check_vector_can_pop_all_element_types(vector_id: ValueId, vector: &ArrayValu
     }
 }
 
-fn new_embedded_curve_point(
-    x: FieldElement,
-    y: FieldElement,
-    is_infinite: FieldElement,
-) -> IResult<Value> {
+fn new_embedded_curve_point(x: FieldElement, y: FieldElement) -> IResult<Value> {
     let x = Value::from_constant(x, NumericType::NativeField)?;
     let y = Value::from_constant(y, NumericType::NativeField)?;
-    let is_infinite = Value::from_constant(is_infinite, NumericType::bool())?;
-    Ok(Value::array(
-        vec![x, y, is_infinite],
-        vec![
-            Type::Numeric(NumericType::NativeField),
-            Type::Numeric(NumericType::NativeField),
-            Type::Numeric(NumericType::bool()),
-        ],
-    ))
+    Ok(Value::array(vec![x, y], vec![Type::field(), Type::field()]))
 }
 
-/// Convert a vector of [Value] to a flattened vector of [FieldElement] for printing.
+/// Convert a vector of [Value] to a flattened vector of [`FieldElement`] for printing.
 ///
 /// It takes a vector, rather than individual values, so that it can try to
 /// pair up `u32` fields indicating the size of a `Vector` with its elements
@@ -827,7 +870,21 @@ fn values_to_fields(values: &[Value]) -> Vec<FieldElement> {
         let mut vector_length: Option<usize> = None;
         for value in values {
             match value {
-                Value::Numeric(numeric_value) => fields.push(numeric_value.convert_to_field()),
+                Value::Numeric(numeric_value) => {
+                    // In ACIR mode unchecked arithmetic leaves values unreduced, so a numeric
+                    // value's stored field may exceed its type's bit width. Observers such as
+                    // `print` must see the reduced (in-range) two's-complement bit pattern, not
+                    // the raw field, otherwise a logical `i8 0` computed via `unchecked_add`
+                    // prints as `256`.
+                    let field = match numeric_value.get_type() {
+                        NumericType::NativeField => numeric_value.to_field(),
+                        _ => crate::ssa::ir::instruction::binary::truncate_field(
+                            numeric_value.to_field(),
+                            numeric_value.bit_size(),
+                        ),
+                    };
+                    fields.push(field);
+                }
                 Value::Reference(reference_value) => {
                     if let Some(value) = reference_value.element.borrow().as_ref() {
                         go(std::iter::once(value), fields);
@@ -835,7 +892,7 @@ fn values_to_fields(values: &[Value]) -> Vec<FieldElement> {
                 }
                 Value::ArrayOrVector(array_value) => {
                     let length = match vector_length {
-                        Some(length) if array_value.is_vector => {
+                        Some(length) if array_value.is_vector() => {
                             length * array_value.element_types.len()
                         }
                         _ => array_value.elements.borrow().len(),
@@ -872,7 +929,7 @@ fn values_to_fields(values: &[Value]) -> Vec<FieldElement> {
     fields
 }
 
-/// Parse a [Value] as [PrintableType].
+/// Parse a [Value] as [`PrintableType`].
 fn value_to_printable_type(value: &Value) -> IResult<PrintableType> {
     let name = "type_metadata";
     let json = value_to_string(name, value)?;

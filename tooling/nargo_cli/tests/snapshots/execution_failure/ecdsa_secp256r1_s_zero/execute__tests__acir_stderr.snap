@@ -1,0 +1,5 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+Failed to solve program: 'Failed to solve blackbox function: ecdsa_secp256r1, reason: Signature provided for ECDSA verification is zero'

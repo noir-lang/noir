@@ -1,5 +1,0 @@
-[package]
-name = "multiple_primary_attributes_fail"
-type = "bin"
-authors = [""]
-[dependencies]

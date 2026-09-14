@@ -1,0 +1,4 @@
+# a = 2^127 + 12345 and b = ⌊p/a⌋ + 1 (p is the BN254 scalar field modulus): both fit in a
+# u128, but their true product exceeds p and its mod-p reduction lands back below 2^128.
+a = "170141183460469231731687303715884118073"
+b = "128647529226366354083724114970452069444"

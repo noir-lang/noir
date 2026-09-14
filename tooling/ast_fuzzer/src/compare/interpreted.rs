@@ -7,7 +7,8 @@ use acir::brillig::lengths::SemanticLength;
 use arbitrary::Unstructured;
 use color_eyre::eyre;
 use iter_extended::vecmap;
-use noirc_abi::{Abi, AbiType, InputMap, Sign, input_parser::InputValue};
+use itertools::Itertools;
+use noirc_abi::{Abi, AbiType, InputMap, Sign, errors::AbiError, input_parser::InputValue};
 use noirc_evaluator::ssa::{
     self,
     interpreter::{InterpreterOptions, value::Value},
@@ -147,7 +148,7 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
                 Internal(InternalError::ConstantDoesNotFitInType { constant, .. }),
             ) => {
                 // The value should be a `NumericValue` display format, which is `<type> <value>`.
-                let value = value.split_once(' ').map(|(_, value)| value).unwrap_or(value);
+                let value = value.split_once(' ').map_or(value.as_str(), |(_, value)| value);
                 value == constant.to_string()
             }
             (Internal(_), _) | (_, Internal(_)) => {
@@ -163,7 +164,7 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
                     (start < end).then(|| &s[start..=end])
                 }
                 fn details_or_sanitize(s: &str) -> String {
-                    details(s).map(|s| s.to_string()).unwrap_or_else(|| sanitize_ssa(s))
+                    details(s).map_or_else(|| sanitize_ssa(s), |s| s.to_string())
                 }
                 details_or_sanitize(i1) == details_or_sanitize(i2)
             }
@@ -180,6 +181,12 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
                     msg == "attempt to bit-shift with overflow"
                         || msg == "attempt to shift right with overflow"
                         || msg == "attempt to shift left with overflow"
+                }
+                // Signed division of `i_N::MIN / -1` overflows. The `expand_signed_math` pass and
+                // the constant-folding of binary ops produce the message with different casing.
+                BinaryOp::Div => msg.to_lowercase() == "attempt to divide with overflow",
+                BinaryOp::Mod => {
+                    msg.to_lowercase() == "attempt to calculate the remainder with overflow"
                 }
                 _ => false,
             },
@@ -217,7 +224,9 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
             }
             (PoppedFromEmptyVector { .. }, ConstrainEqFailed { msg, .. }) => {
                 // The removal of unreachable instructions can replace popping from an empty vector with an always-fail constraint.
-                msg.as_ref().is_some_and(|msg| msg == "Index out of bounds")
+                msg.as_ref().is_some_and(|msg| {
+                    msg == "Index out of bounds" || msg == "Attempt to pop from an empty vector"
+                })
             }
             (IndexOutOfBounds { .. }, ConstrainEqFailed { msg, .. }) => {
                 msg.as_ref().is_some_and(|msg| msg.contains("Index out of bounds"))
@@ -240,7 +249,7 @@ impl Comparable for Value {
                 // Ignore the RC
                 a.element_types == b.element_types
                     && Comparable::equivalent(&a.elements, &b.elements)
-                    && a.is_vector == b.is_vector
+                    && a.length == b.length
             }
             (Value::Reference(a), Value::Reference(b)) => {
                 // Ignore the original ID
@@ -251,8 +260,24 @@ impl Comparable for Value {
     }
 }
 
+pub fn encode_to_ssa(
+    abi: &Abi,
+    input_map: &InputMap,
+    return_value: Option<InputValue>,
+) -> Result<(Vec<Value>, Option<Vec<Value>>), AbiError> {
+    abi.encode(input_map, return_value.clone())?;
+    let ssa_args = input_values_to_ssa(abi, input_map);
+    let ssa_return =
+        if let (Some(return_value), Some(return_type)) = (return_value, abi.return_type.as_ref()) {
+            Some(input_value_to_ssa(&return_type.abi_type, &return_value))
+        } else {
+            None
+        };
+    Ok((ssa_args, ssa_return))
+}
+
 /// Convert the ABI encoded inputs to what the SSA interpreter expects.
-pub fn input_values_to_ssa(abi: &Abi, input_map: &InputMap) -> Vec<Value> {
+fn input_values_to_ssa(abi: &Abi, input_map: &InputMap) -> Vec<Value> {
     let mut inputs = Vec::new();
     for param in &abi.parameters {
         let input = &input_map
@@ -267,7 +292,7 @@ pub fn input_values_to_ssa(abi: &Abi, input_map: &InputMap) -> Vec<Value> {
 /// Convert one ABI encoded input to what the SSA interpreter expects.
 ///
 /// Tuple types and structs are flattened.
-pub fn input_value_to_ssa(typ: &AbiType, input: &InputValue) -> Vec<Value> {
+fn input_value_to_ssa(typ: &AbiType, input: &InputValue) -> Vec<Value> {
     let mut values = Vec::new();
     append_input_value_to_ssa(typ, input, &mut values);
     values
@@ -276,12 +301,12 @@ pub fn input_value_to_ssa(typ: &AbiType, input: &InputValue) -> Vec<Value> {
 fn append_input_value_to_ssa(typ: &AbiType, input: &InputValue, values: &mut Vec<Value>) {
     use ssa::interpreter::value::{ArrayValue, NumericValue, Value};
     use ssa::ir::types::Type;
-    let array_value = |elements: Vec<Value>, types: Vec<Type>| {
+    let array_value = |elements: Vec<Value>, types: Vec<Type>, length: SemanticLength| {
         Value::ArrayOrVector(ArrayValue {
             elements: Shared::new(elements),
             rc: Shared::new(1),
             element_types: Arc::new(types),
-            is_vector: false,
+            length: Some(length),
         })
     };
     match input {
@@ -300,8 +325,11 @@ fn append_input_value_to_ssa(typ: &AbiType, input: &InputValue, values: &mut Vec
             let num_val = NumericValue::from_constant(*f, num_typ).expect("cannot create constant");
             values.push(Value::Numeric(num_val));
         }
-        InputValue::String(s) => values
-            .push(array_value(vecmap(s.as_bytes(), |b| Value::u8(*b)), vec![Type::unsigned(8)])),
+        InputValue::String(s) => {
+            let bytes = s.bytes();
+            let length = SemanticLength(bytes.len() as u32);
+            values.push(array_value(vecmap(bytes, Value::u8), vec![Type::unsigned(8)], length));
+        }
         InputValue::Vec(input_values) => match typ {
             AbiType::Array { length, typ } => {
                 assert_eq!(*length as usize, input_values.len(), "array length != input length");
@@ -309,13 +337,13 @@ fn append_input_value_to_ssa(typ: &AbiType, input: &InputValue, values: &mut Vec
                 for input in input_values {
                     append_input_value_to_ssa(typ, input, &mut elements);
                 }
-                values.push(array_value(elements, input_type_to_ssa(typ)));
+                values.push(array_value(elements, input_type_to_ssa(typ), SemanticLength(*length)));
             }
             AbiType::Tuple { fields } => {
                 assert_eq!(fields.len(), input_values.len(), "tuple size != input length");
 
                 // Tuples are flattened
-                for (typ, input) in fields.iter().zip(input_values) {
+                for (typ, input) in fields.iter().zip_eq(input_values) {
                     append_input_value_to_ssa(typ, input, values);
                 }
             }
@@ -387,7 +415,82 @@ fn sanitize_ssa(ssa: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::sanitize_ssa;
+    use noirc_evaluator::ssa::{
+        interpreter::errors::InterpreterError, ir::instruction::BinaryOp, ir::map::Id,
+    };
+
+    use super::{Comparable, sanitize_ssa};
+
+    /// Build an `Overflow` error for the given binary operator, as produced by
+    /// the interpreter before the `expand_signed_math` pass.
+    fn overflow(operator: BinaryOp) -> InterpreterError {
+        InterpreterError::Overflow { operator, instruction: String::new() }
+    }
+
+    /// Build a `ConstrainEqFailed` error carrying `msg`, as produced by the
+    /// interpreter after `expand_signed_math` expands the checked operation.
+    fn constrain_eq_failed(msg: &str) -> InterpreterError {
+        InterpreterError::ConstrainEqFailed {
+            lhs: String::new(),
+            lhs_id: Id::new(0),
+            rhs: String::new(),
+            rhs_id: Id::new(1),
+            msg: Some(msg.to_string()),
+        }
+    }
+
+    /// A signed `i_N::MIN / -1` overflow turns from an `Overflow` into a
+    /// `ConstrainEqFailed` across `expand_signed_math`; the two must compare equal.
+    #[test]
+    fn div_overflow_matches_constrain_eq() {
+        assert!(Comparable::equivalent(
+            &overflow(BinaryOp::Div),
+            &constrain_eq_failed("attempt to divide with overflow"),
+        ));
+    }
+
+    /// Same as above for signed `i_N::MIN % -1`, which the interpreter reports
+    /// as a `Mod` overflow before the pass and a constraint failure after it.
+    #[test]
+    fn mod_overflow_matches_constrain_eq() {
+        // `expand_signed_math` produces a capitalized message, while constant
+        // folding produces a lowercase one; both must be accepted.
+        assert!(Comparable::equivalent(
+            &overflow(BinaryOp::Mod),
+            &constrain_eq_failed("attempt to calculate the remainder with overflow"),
+        ));
+        assert!(Comparable::equivalent(
+            &overflow(BinaryOp::Mod),
+            &constrain_eq_failed("Attempt to calculate the remainder with overflow"),
+        ));
+    }
+
+    /// A mismatched message must not be treated as equivalent.
+    #[test]
+    fn mod_overflow_rejects_unrelated_message() {
+        assert!(!Comparable::equivalent(
+            &overflow(BinaryOp::Mod),
+            &constrain_eq_failed("attempt to divide with overflow"),
+        ));
+    }
+
+    #[test]
+    fn empty_vector_pop_matches_its_lowered_constraint() {
+        let popped = InterpreterError::PoppedFromEmptyVector {
+            vector: Id::new(0),
+            instruction: "vector_pop_front",
+        };
+
+        assert!(Comparable::equivalent(
+            &popped,
+            &constrain_eq_failed("Attempt to pop from an empty vector"),
+        ));
+        assert!(Comparable::equivalent(&popped, &constrain_eq_failed("Index out of bounds"),));
+        assert!(!Comparable::equivalent(
+            &popped,
+            &constrain_eq_failed("attempt to divide by zero"),
+        ));
+    }
 
     #[test]
     fn test_sanitize_ssa() {
@@ -403,7 +506,7 @@ mod tests {
             v30 = cast v23 as i64
             v31 = lt v30, v19
             v32 = not v31
-            jmpif v32 then: b1, else: b2
+            jmpif v32 then: b1(), else: b2()
         "#;
 
         let ssa = sanitize_ssa(src);
@@ -422,7 +525,7 @@ mod tests {
             v_ = cast v_ as i64
             v_ = lt v_, v_
             v_ = not v_
-            jmpif v_ then: b_, else: b_
+            jmpif v_ then: b_(), else: b_()
         "#
         );
     }

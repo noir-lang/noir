@@ -185,34 +185,51 @@ fn jump_forward_and_backward() {
 
 #[test]
 fn stop() {
+    // Pretend we have some reserved memory slots.
+    let reserved_size: u32 = 3;
     // Create a vector in memory
     let vector_size: u32 = 100;
     let calldata: Vec<FieldElement> = (0..vector_size).map(FieldElement::from).collect();
 
-    let calldata_pointer = MemoryAddress::direct(calldata.len().try_into().unwrap());
+    // The pointers to the calldata will come after the calldata itself.
+    // An address in memory where we will copy the calldata to. Not zero to leave room for some reserved registers.
+    let calldata_dst_addr = MemoryAddress::direct(reserved_size);
+    // A pointer address to hold the calldata start address.
+    let calldata_dst_pointer = MemoryAddress::direct(reserved_size + vector_size);
+    // An address in memory to store where the calldata should come from.
+    let calldata_src_pointer = calldata_dst_pointer.offset(1);
+    // An address in memory to store how much calldata we want to copy.
+    let calldata_size_addr = calldata_src_pointer.offset(1);
 
     // Simply immediately return the call data
     let opcodes = vec![
-        // The pointer for the call data will come after the calldata itself
+        // Where we want to copy the calldata from: it starts at `VM::calldata[0]`.
         Opcode::Const {
-            destination: calldata_pointer,
+            destination: calldata_src_pointer,
             bit_size: BitSize::Integer(IntegerBitSize::U32),
-            value: FieldElement::from(0u32),
+            value: FieldElement::from(0),
         },
-        // Place the size register after all the call data
+        // How long the calldata is.
         Opcode::Const {
-            destination: calldata_pointer.offset(1),
+            destination: calldata_size_addr,
             bit_size: BitSize::Integer(IntegerBitSize::U32),
-            value: FieldElement::from(100u32),
+            value: FieldElement::from(vector_size),
         },
+        // Copy the data from the calldata buffer into the memory.
         Opcode::CalldataCopy {
-            destination_address: MemoryAddress::direct(0),
-            size_address: calldata_pointer.offset(1),
-            offset_address: calldata_pointer,
+            destination_address: calldata_dst_addr,
+            size_address: calldata_size_addr,
+            offset_address: calldata_src_pointer,
         },
-        // Stop and return the vector starting at memory[0]
+        // Stop needs a pointer to the data, not its direct address.
+        Opcode::Const {
+            destination: calldata_dst_pointer,
+            bit_size: BitSize::Integer(IntegerBitSize::U32),
+            value: FieldElement::from(calldata_dst_addr.to_u32()),
+        },
+        // Stop and return the vector that was written to memory.
         Opcode::Stop {
-            return_data: HeapVector { pointer: calldata_pointer, size: calldata_pointer.offset(1) },
+            return_data: HeapVector { pointer: calldata_dst_pointer, size: calldata_size_addr },
         },
     ];
 
@@ -224,8 +241,8 @@ fn stop() {
     };
 
     let memory = vm.take_memory();
-    let returned: Vec<_> = (return_data_offset..return_data_size)
-        .map(|i| memory.read(MemoryAddress::direct(i)).to_field())
+    let returned: Vec<_> = (0..return_data_size)
+        .map(|i| memory.read(MemoryAddress::direct(return_data_offset + i)).to_field())
         .collect();
     assert_eq!(returned, calldata);
 }
@@ -581,12 +598,14 @@ fn cmp_binary_ops() {
 #[test]
 fn store_opcode() {
     /// Brillig code for the following:
+    /// ```text
     ///     let mut i = 0;
     ///     let len = memory.len();
     ///     while i < len {
     ///         memory[i] = i as Value;
     ///         i += 1;
     ///     }
+    /// ```
     fn brillig_write_memory(item_count: usize) -> Vec<MemoryValue<FieldElement>> {
         let integer_bit_size = MEMORY_ADDRESSING_BIT_SIZE;
         let bit_size = BitSize::Integer(integer_bit_size);
@@ -683,6 +702,7 @@ fn iconst_opcode() {
 #[test]
 fn load_opcode() {
     /// Brillig code for the following:
+    /// ```text
     ///     let mut sum = 0;
     ///     let mut i = 0;
     ///     let len = memory.len();
@@ -690,6 +710,7 @@ fn load_opcode() {
     ///         sum += memory[i];
     ///         i += 1;
     ///     }
+    /// ```
     fn brillig_sum_memory(memory: Vec<FieldElement>) -> FieldElement {
         let bit_size = IntegerBitSize::U32;
         let r_i = MemoryAddress::direct(0);
@@ -801,6 +822,7 @@ fn load_opcode() {
 #[test]
 fn call_and_return_opcodes() {
     /// Brillig code for the following recursive function:
+    /// ```text
     ///     fn recursive_write(i: u128, len: u128) {
     ///         if len <= i {
     ///             return;
@@ -808,6 +830,7 @@ fn call_and_return_opcodes() {
     ///         memory[i as usize] = i as Value;
     ///         recursive_write(memory, i + 1, len);
     ///     }
+    /// ```
     /// Note we represent a 100% in-stack optimized form in brillig
     fn brillig_recursive_write_memory<F: AcirField>(size: usize) -> Vec<MemoryValue<F>> {
         let integer_bit_size = MEMORY_ADDRESSING_BIT_SIZE;

@@ -1,0 +1,6 @@
+[package]
+name = "regression_852_method_call_tail"
+type = "bin"
+authors = [""]
+
+[dependencies]

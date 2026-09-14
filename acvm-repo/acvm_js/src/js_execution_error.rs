@@ -37,7 +37,7 @@ extern "C" {
 
 impl JsExecutionError {
     /// Creates a new execution error with the given call stack.
-    /// Call stacks won't be optional in the future, after removing ErrorLocation in ACVM.
+    /// Call stacks won't be optional in the future, after removing `ErrorLocation` in ACVM.
     pub fn new(
         message: String,
         call_stack: Option<Vec<OpcodeLocation>>,

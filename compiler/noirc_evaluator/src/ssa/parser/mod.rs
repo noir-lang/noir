@@ -13,7 +13,7 @@ use super::{
     opt::pure::Purity,
 };
 
-use acvm::{FieldElement, acir::brillig::lengths::SemanticLength};
+use acvm::{AcirField, FieldElement, acir::brillig::lengths::SemanticLength};
 use ast::{
     AssertMessage, Identifier, ParsedBlock, ParsedFunction, ParsedGlobal, ParsedGlobalValue,
     ParsedInstruction, ParsedMakeArray, ParsedNumericConstant, ParsedParameter, ParsedSsa,
@@ -21,9 +21,7 @@ use ast::{
 };
 use lexer::{Lexer, LexerError};
 use noirc_errors::Span;
-use noirc_frontend::{
-    monomorphization::ast::InlineType, signed_field::SignedField, token::IntType,
-};
+use noirc_frontend::{monomorphization::ast::InlineType, token::IntType};
 use thiserror::Error;
 use token::{Keyword, SpannedToken, Token};
 
@@ -45,7 +43,7 @@ impl FromStr for Ssa {
     type Err = SsaErrorWithSource;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::from_str_impl(s, false, true)
+        Self::from_str_impl(s, false, true, false)
     }
 }
 
@@ -58,22 +56,36 @@ impl Ssa {
 
     /// Creates an Ssa object from the given string without running SSA validation
     pub fn from_str_no_validation(src: &str) -> Result<Ssa, SsaErrorWithSource> {
-        Self::from_str_impl(src, false, false)
+        Self::from_str_impl(src, false, false, false)
     }
 
     /// Creates an Ssa object from the given string but trying to simplify
     /// each parsed instruction as it's inserted into the final SSA.
-    pub fn from_str_simplifying(src: &str) -> Result<Ssa, SsaErrorWithSource> {
-        Self::from_str_impl(src, true, true)
+    ///
+    /// Only used in unit tests: simplification runs with the panic-on-malformed
+    /// behavior left enabled, so malformed input is surfaced loudly rather than
+    /// silently passed through.
+    #[cfg(test)]
+    pub(crate) fn from_str_simplifying(src: &str) -> Result<Ssa, SsaErrorWithSource> {
+        Self::from_str_impl(src, true, true, false)
     }
 
-    fn from_str_impl(src: &str, simplify: bool, validate: bool) -> Result<Ssa, SsaErrorWithSource> {
+    /// Parses the SSA, optionally simplifying each instruction as it's inserted, optionally running
+    /// validation, and optionally allowing the `simplify_*` routines to decline (rather than panic)
+    /// on malformed input. The `allow_malformed` path is only exercised by unit tests; see
+    /// [`bail_malformed!`][crate::ssa::ir::dfg::simplify::bail_malformed].
+    pub(crate) fn from_str_impl(
+        src: &str,
+        simplify: bool,
+        validate: bool,
+        allow_malformed: bool,
+    ) -> Result<Ssa, SsaErrorWithSource> {
         let mut parser =
             Parser::new(src).map_err(|err| SsaErrorWithSource::parse_error(err, src))?;
         let parsed_ssa =
             parser.parse_ssa().map_err(|err| SsaErrorWithSource::parse_error(err, src))?;
         parsed_ssa
-            .into_ssa(simplify, validate)
+            .into_ssa(simplify, validate, allow_malformed)
             .map_err(|error| SsaErrorWithSource { src: src.to_string(), error })
     }
 }
@@ -94,6 +106,7 @@ impl Debug for SsaErrorWithSource {
         let span = self.error.span();
 
         let mut byte: usize = 0;
+        let mut printed_error = false;
         for line in self.src.lines() {
             let has_error =
                 byte <= span.start() as usize && span.end() as usize <= byte + line.len();
@@ -110,10 +123,18 @@ impl Debug for SsaErrorWithSource {
                 write!(f, "{}", " ".repeat(offset))?;
                 writeln!(f, "{}", self.error)?;
                 writeln!(f)?;
+                printed_error = true;
             }
 
             byte += line.len() + 1; // "+ 1" for the newline
         }
+
+        // No source line covered the error span (e.g. empty or whitespace-only input); still
+        // surface the message so the failure isn't reported as a blank error.
+        if !printed_error {
+            writeln!(f, "{}", self.error)?;
+        }
+
         Ok(())
     }
 }
@@ -130,6 +151,8 @@ pub(crate) enum SsaError {
     UnknownBlock(Identifier),
     #[error("Unknown function '{0}'")]
     UnknownFunction(Identifier),
+    #[error("`pure` modifier is only allowed on foreign function calls, but '{0}' is not one")]
+    PureModifierOnNonForeignFunction(Identifier),
     #[error("Mismatched return values")]
     MismatchedReturnValues { returns: Vec<Identifier>, expected: usize },
     #[error("Variable '{0}' already defined")]
@@ -138,6 +161,12 @@ pub(crate) enum SsaError {
     GlobalAlreadyDefined(Identifier),
     #[error("Illegal use of offset in non-Brillig function '{0:?}'")]
     IllegalOffset(Identifier, ArrayOffset),
+    #[error(
+        "Function '{function_name}' is declared as `{stated}` but its instructions compute `{computed}`"
+    )]
+    PurityMismatch { function_name: String, stated: Purity, computed: Purity, span: Span },
+    #[error("The SSA has no functions; expected at least a `main` function")]
+    NoFunctions,
 }
 
 impl SsaError {
@@ -150,8 +179,11 @@ impl SsaError {
             | SsaError::VariableAlreadyDefined(identifier)
             | SsaError::GlobalAlreadyDefined(identifier)
             | SsaError::UnknownFunction(identifier)
+            | SsaError::PureModifierOnNonForeignFunction(identifier)
             | SsaError::IllegalOffset(identifier, _) => identifier.span,
             SsaError::MismatchedReturnValues { returns, expected: _ } => returns[0].span,
+            SsaError::PurityMismatch { span, .. } => *span,
+            SsaError::NoFunctions => Span::initial(),
         }
     }
 }
@@ -175,7 +207,7 @@ impl<'a> Parser<'a> {
         let globals = self.parse_globals()?;
 
         let mut functions = Vec::new();
-        while !self.at(Token::Eof) {
+        while !self.at(&Token::Eof) {
             let function = self.parse_function()?;
             functions.push(function);
         }
@@ -223,7 +255,15 @@ impl<'a> Parser<'a> {
 
         self.eat_or_error(Token::RightBrace)?;
 
-        Ok(ParsedFunction { runtime_type, purity, external_name, internal_name, data_bus, blocks })
+        Ok(ParsedFunction {
+            runtime_type,
+            purity: purity.map(|(purity, _)| purity),
+            purity_span: purity.map(|(_, span)| span),
+            external_name,
+            internal_name,
+            data_bus,
+            blocks,
+        })
     }
 
     fn parse_runtime_type(&mut self) -> ParseResult<RuntimeType> {
@@ -249,13 +289,14 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_purity(&mut self) -> ParseResult<Option<Purity>> {
+    fn parse_purity(&mut self) -> ParseResult<Option<(Purity, Span)>> {
+        let span = self.token.span();
         if self.eat_keyword(Keyword::Pure)? {
-            Ok(Some(Purity::Pure))
+            Ok(Some((Purity::Pure, span)))
         } else if self.eat_keyword(Keyword::PredicatePure)? {
-            Ok(Some(Purity::PureWithPredicate))
+            Ok(Some((Purity::PureWithPredicate, span)))
         } else if self.eat_keyword(Keyword::Impure)? {
-            Ok(Some(Purity::Impure))
+            Ok(Some((Purity::Impure, span)))
         } else {
             Ok(None)
         }
@@ -305,7 +346,7 @@ impl<'a> Parser<'a> {
         self.eat_or_error(Token::LeftParen)?;
         let call_data_id_span = self.token.span();
         let call_data_id = self.eat_int_or_error()?;
-        let Some(call_data_id) = call_data_id.try_to_unsigned::<u32>() else {
+        let Some(call_data_id) = call_data_id.try_to_u32() else {
             return Err(ParserError::ExpectedU32 { found: call_data_id, span: call_data_id_span });
         };
         self.eat_or_error(Token::RightParen)?;
@@ -324,18 +365,19 @@ impl<'a> Parser<'a> {
         self.eat_or_error(Token::Colon)?;
         self.eat_or_error(Token::LeftBracket)?;
 
-        if !self.eat(Token::RightBracket)? {
+        if !self.eat(&Token::RightBracket)? {
             loop {
                 let value = self.parse_value_or_error()?;
                 self.eat_or_error(Token::Colon)?;
                 let index_span = self.token.span();
                 let index = self.eat_int_or_error()?;
-                let Some(index) = index.try_to_unsigned::<usize>() else {
+                let Some(index) = index.try_into_u128().and_then(|x| usize::try_from(x).ok())
+                else {
                     return Err(ParserError::ExpectedUSize { found: index, span: index_span });
                 };
                 index_map.push((value, index));
 
-                if self.eat(Token::Comma)? {
+                if self.eat(&Token::Comma)? {
                     continue;
                 }
 
@@ -359,7 +401,7 @@ impl<'a> Parser<'a> {
 
     fn parse_blocks(&mut self) -> ParseResult<Vec<ParsedBlock>> {
         let mut blocks = Vec::new();
-        while !self.at(Token::RightBrace) {
+        while !self.at(&Token::RightBrace) {
             let block = self.parse_block()?;
             blocks.push(block);
         }
@@ -371,9 +413,9 @@ impl<'a> Parser<'a> {
         self.eat_or_error(Token::LeftParen)?;
 
         let mut parameters = Vec::new();
-        while !self.at(Token::RightParen) {
+        while !self.at(&Token::RightParen) {
             parameters.push(self.parse_parameter()?);
-            if !self.eat(Token::Comma)? {
+            if !self.eat(&Token::Comma)? {
                 break;
             }
         }
@@ -471,9 +513,16 @@ impl<'a> Parser<'a> {
             return Ok(None);
         }
 
+        let pure = self.eat_keyword(Keyword::Pure)?;
         let function = self.eat_identifier_or_error()?;
         let arguments = self.parse_arguments()?;
-        Ok(Some(ParsedInstruction::Call { targets: vec![], function, arguments, types: vec![] }))
+        Ok(Some(ParsedInstruction::Call {
+            targets: vec![],
+            function,
+            arguments,
+            types: vec![],
+            pure,
+        }))
     }
 
     fn parse_constrain(&mut self) -> ParseResult<Option<ParsedInstruction>> {
@@ -482,9 +531,9 @@ impl<'a> Parser<'a> {
         }
 
         let lhs = self.parse_value_or_error()?;
-        let equals = if self.eat(Token::Equal)? {
+        let equals = if self.eat(&Token::Equal)? {
             true
-        } else if self.eat(Token::NotEqual)? {
+        } else if self.eat(&Token::NotEqual)? {
             false
         } else {
             return self.expected_one_of_tokens(&[Token::Equal, Token::NotEqual]);
@@ -492,7 +541,7 @@ impl<'a> Parser<'a> {
 
         let rhs = self.parse_value_or_error()?;
 
-        let assert_message = if self.eat(Token::Comma)? {
+        let assert_message = if self.eat(&Token::Comma)? {
             if let Some(str) = self.eat_str()? {
                 Some(AssertMessage::Static(str))
             } else if self.eat_keyword(Keyword::Data)? {
@@ -541,16 +590,15 @@ impl<'a> Parser<'a> {
 
         let value = self.parse_value_or_error()?;
         self.eat_or_error(Token::Keyword(Keyword::To))?;
-        let max_bit_size = self.eat_int_or_error()?.try_to_unsigned::<u32>().ok_or(
-            ParserError::InvalidInteger {
+        let max_bit_size =
+            self.eat_int_or_error()?.try_to_u32().ok_or(ParserError::InvalidInteger {
                 found: self.token.token().clone(),
                 span: self.token.span(),
-            },
-        )?;
+            })?;
         self.eat_or_error(Token::Keyword(Keyword::Bits))?;
 
         let assert_message =
-            if self.eat(Token::Comma)? { Some(self.eat_str_or_error()?) } else { None };
+            if self.eat(&Token::Comma)? { Some(self.eat_str_or_error()?) } else { None };
 
         Ok(Some(ParsedInstruction::RangeCheck { value, max_bit_size, assert_message }))
     }
@@ -577,7 +625,7 @@ impl<'a> Parser<'a> {
     fn parse_assignment(&mut self, target: Identifier) -> ParseResult<ParsedInstruction> {
         let mut targets = vec![target];
 
-        while self.eat(Token::Comma)? {
+        while self.eat(&Token::Comma)? {
             let target = self.eat_identifier_or_error()?;
             targets.push(target);
         }
@@ -585,11 +633,12 @@ impl<'a> Parser<'a> {
         self.eat_or_error(Token::Assign)?;
 
         if self.eat_keyword(Keyword::Call)? {
+            let pure = self.eat_keyword(Keyword::Pure)?;
             let function = self.eat_identifier_or_error()?;
             let arguments = self.parse_arguments()?;
             self.eat_or_error(Token::Arrow)?;
             let types = self.parse_types()?;
-            return Ok(ParsedInstruction::Call { targets, function, arguments, types });
+            return Ok(ParsedInstruction::Call { targets, function, arguments, types, pure });
         }
 
         if targets.len() > 1 {
@@ -667,22 +716,20 @@ impl<'a> Parser<'a> {
         if self.eat_keyword(Keyword::Truncate)? {
             let value = self.parse_value_or_error()?;
             self.eat_or_error(Token::Keyword(Keyword::To))?;
-            let bit_size = self.eat_int_or_error()?.try_to_unsigned::<u32>().ok_or(
-                ParserError::InvalidInteger {
+            let bit_size =
+                self.eat_int_or_error()?.try_to_u32().ok_or(ParserError::InvalidInteger {
                     found: self.token.token().clone(),
                     span: self.token.span(),
-                },
-            )?;
+                })?;
             self.eat_or_error(Token::Keyword(Keyword::Bits))?;
             self.eat_or_error(Token::Comma)?;
             self.eat_or_error(Token::Keyword(Keyword::MaxBitSize))?;
             self.eat_or_error(Token::Colon)?;
-            let max_bit_size = self.eat_int_or_error()?.try_to_unsigned::<u32>().ok_or(
-                ParserError::InvalidInteger {
+            let max_bit_size =
+                self.eat_int_or_error()?.try_to_u32().ok_or(ParserError::InvalidInteger {
                     found: self.token.token().clone(),
                     span: self.token.span(),
-                },
-            )?;
+                })?;
             return Ok(ParsedInstruction::Truncate { target, value, bit_size, max_bit_size });
         }
 
@@ -720,7 +767,7 @@ impl<'a> Parser<'a> {
             let token = self.token.token().clone();
             let span = self.token.span();
             let field = self.eat_int_or_error()?;
-            if let Some(offset) = field.try_to_unsigned::<u32>().and_then(ArrayOffset::from_u32) {
+            if let Some(offset) = field.try_to_u32().and_then(ArrayOffset::from_u32) {
                 if offset == ArrayOffset::None {
                     self.unexpected_offset(token, span)
                 } else {
@@ -739,7 +786,7 @@ impl<'a> Parser<'a> {
             return Ok(None);
         }
 
-        let make_array = if self.eat(Token::Ampersand)? {
+        let make_array = if self.eat(&Token::Ampersand)? {
             let Some(string) = self.eat_byte_str()? else {
                 return self.expected_byte_string();
             };
@@ -843,12 +890,20 @@ impl<'a> Parser<'a> {
         self.eat_or_error(Token::Keyword(Keyword::Then))?;
         self.eat_or_error(Token::Colon)?;
         let then_block = self.eat_identifier_or_error()?;
+        let then_arguments = self.parse_arguments()?;
         self.eat_or_error(Token::Comma)?;
         self.eat_or_error(Token::Keyword(Keyword::Else))?;
         self.eat_or_error(Token::Colon)?;
         let else_block = self.eat_identifier_or_error()?;
+        let else_arguments = self.parse_arguments()?;
 
-        Ok(Some(ParsedTerminator::Jmpif { condition, then_block, else_block }))
+        Ok(Some(ParsedTerminator::Jmpif {
+            condition,
+            then_block,
+            then_arguments,
+            else_block,
+            else_arguments,
+        }))
     }
 
     fn parse_unreachable(&mut self) -> ParseResult<Option<ParsedTerminator>> {
@@ -870,7 +925,7 @@ impl<'a> Parser<'a> {
         let mut values = Vec::new();
         while let Some(value) = self.parse_value()? {
             values.push(value);
-            if !self.eat(Token::Comma)? {
+            if !self.eat(&Token::Comma)? {
                 break;
             }
         }
@@ -907,7 +962,7 @@ impl<'a> Parser<'a> {
 
     fn parse_field_value(&mut self) -> ParseResult<Option<ParsedNumericConstant>> {
         if self.eat_keyword(Keyword::Field)? {
-            let value = self.eat_int_or_error()?.to_field_element();
+            let value = self.eat_int_or_error()?;
             Ok(Some(ParsedNumericConstant { value, typ: Type::field() }))
         } else {
             Ok(None)
@@ -916,16 +971,30 @@ impl<'a> Parser<'a> {
 
     fn parse_int_value(&mut self) -> ParseResult<Option<ParsedNumericConstant>> {
         if let Some(int_type) = self.eat_int_type()? {
-            let value = self.eat_int_or_error()?;
+            let dash_span = self.token.span();
+            let negative = self.eat(&Token::Dash)?;
+            let magnitude = self.eat_int_or_error()?;
             let typ = match int_type {
                 IntType::Unsigned(bit_size) => Type::unsigned(bit_size),
                 IntType::Signed(bit_size) => Type::signed(bit_size),
             };
-            let value = if typ.is_signed() && value.is_negative() {
-                // 2-complement representation:
-                FieldElement::from(2u128.pow(typ.bit_size())) - value.absolute_value()
+
+            // The sign is taken from the literal's syntax, not inferred from the
+            // magnitude. The IR does not normalize numeric constants into their type's
+            // range, and the printer emits a signed value whose field representation is
+            // out of range verbatim as a positive literal (e.g. `i8 256`); re-parsing it
+            // must reproduce that field value rather than mistake it for a negative one.
+            let value = if negative && typ.is_signed() {
+                // Two's complement field value of `-magnitude`, computed exactly as the
+                // inverse of how the printer renders a negative signed integer
+                // (`2^bit_size - value`, in field arithmetic).
+                FieldElement::from(2u32).pow(&typ.bit_size().into()) - magnitude
+            } else if negative {
+                // The printer never emits a `-` for an unsigned type (it prints the raw
+                // field value), so a negative unsigned literal is not valid SSA.
+                return Err(ParserError::NegativeUnsignedLiteral { span: dash_span });
             } else {
-                value.absolute_value()
+                magnitude
             };
             Ok(Some(ParsedNumericConstant { value, typ }))
         } else {
@@ -934,8 +1003,8 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_types(&mut self) -> ParseResult<Vec<Type>> {
-        if self.eat(Token::LeftParen)? {
-            let types = if self.eat(Token::RightParen)? {
+        if self.eat(&Token::LeftParen)? {
+            let types = if self.eat(&Token::RightParen)? {
                 Vec::new()
             } else {
                 let types = self.parse_comma_separated_types()?;
@@ -953,7 +1022,7 @@ impl<'a> Parser<'a> {
         loop {
             let typ = self.parse_type()?;
             types.push(typ);
-            if !self.eat(Token::Comma)? {
+            if !self.eat(&Token::Comma)? {
                 break;
             }
         }
@@ -976,14 +1045,14 @@ impl<'a> Parser<'a> {
             });
         }
 
-        if self.eat(Token::LeftBracket)? {
+        if self.eat(&Token::LeftBracket)? {
             let element_types = self.parse_types()?;
-            if self.eat(Token::Semicolon)? {
+            if self.eat(&Token::Semicolon)? {
                 let length = self.eat_int_or_error()?;
                 self.eat_or_error(Token::RightBracket)?;
                 return Ok(Type::Array(
                     Arc::new(element_types),
-                    SemanticLength(length.try_to_unsigned().unwrap()),
+                    SemanticLength(length.try_to_u32().unwrap()),
                 ));
             } else {
                 self.eat_or_error(Token::RightBracket)?;
@@ -991,8 +1060,8 @@ impl<'a> Parser<'a> {
             }
         }
 
-        if let Some(typ) = self.parse_mutable_reference_type()? {
-            return Ok(Type::Reference(Arc::new(typ)));
+        if let Some((typ, mutable)) = self.parse_reference_type()? {
+            return Ok(Type::Reference(Arc::new(typ), mutable));
         }
 
         if self.eat_keyword(Keyword::Function)? {
@@ -1004,22 +1073,22 @@ impl<'a> Parser<'a> {
 
     /// Parses `&mut Type`, returns `Type` if `&mut` was found, errors otherwise.
     fn parse_mutable_reference_type_or_error(&mut self) -> ParseResult<Type> {
-        if let Some(typ) = self.parse_mutable_reference_type()? {
-            Ok(typ)
+        if let Some((typ, mutable)) = self.parse_reference_type()? {
+            Ok(Type::Reference(Arc::new(typ), mutable))
         } else {
             self.expected_token(Token::Ampersand)
         }
     }
 
-    /// Parses `&mut Type`, returns `Some(Type)` if `&mut` was found, `None` otherwise.
-    fn parse_mutable_reference_type(&mut self) -> ParseResult<Option<Type>> {
-        if !self.eat(Token::Ampersand)? {
+    /// Parses `&mut Type` or `&Type`, returns `Some((Type, mutable))` if `&` was found.
+    fn parse_reference_type(&mut self) -> ParseResult<Option<(Type, bool)>> {
+        if !self.eat(&Token::Ampersand)? {
             return Ok(None);
         }
 
-        self.eat_or_error(Token::Keyword(Keyword::Mut))?;
+        let mutable = self.eat_keyword(Keyword::Mut)?;
         let typ = self.parse_type()?;
-        Ok(Some(typ))
+        Ok(Some((typ, mutable)))
     }
 
     fn eat_identifier_or_error(&mut self) -> ParseResult<Identifier> {
@@ -1088,13 +1157,14 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn eat_int(&mut self) -> ParseResult<Option<SignedField>> {
-        let negative = self.eat(Token::Dash)?;
+    fn eat_int(&mut self) -> ParseResult<Option<FieldElement>> {
+        let negative = self.eat(&Token::Dash)?;
 
         if matches!(self.token.token(), Token::Int(..)) {
             let token = self.bump()?;
             match token.into_token() {
-                Token::Int(int) => Ok(Some(SignedField::new(int, negative))),
+                Token::Int(int) if negative => Ok(Some(-int)),
+                Token::Int(int) => Ok(Some(int)),
                 _ => unreachable!(),
             }
         } else {
@@ -1102,7 +1172,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn eat_int_or_error(&mut self) -> ParseResult<SignedField> {
+    fn eat_int_or_error(&mut self) -> ParseResult<FieldElement> {
         if let Some(int) = self.eat_int()? { Ok(int) } else { self.expected_int() }
     }
 
@@ -1147,8 +1217,8 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn eat(&mut self, token: Token) -> ParseResult<bool> {
-        if self.token.token() == &token {
+    fn eat(&mut self, token: &Token) -> ParseResult<bool> {
+        if self.token.token() == token {
             self.bump()?;
             Ok(true)
         } else {
@@ -1157,11 +1227,11 @@ impl<'a> Parser<'a> {
     }
 
     fn eat_or_error(&mut self, token: Token) -> ParseResult<()> {
-        if self.eat(token.clone())? { Ok(()) } else { self.expected_token(token) }
+        if self.eat(&token)? { Ok(()) } else { self.expected_token(token) }
     }
 
-    fn at(&self, token: Token) -> bool {
-        self.token.token() == &token
+    fn at(&self, token: &Token) -> bool {
+        self.token.token() == token
     }
 
     fn newline_follows(&self) -> bool {
@@ -1287,15 +1357,17 @@ pub(crate) enum ParserError {
     )]
     ExpectedGlobalValue { found: Token, span: Span },
     #[error("Expected a u32, found '{found}'")]
-    ExpectedU32 { found: SignedField, span: Span },
+    ExpectedU32 { found: FieldElement, span: Span },
     #[error("Expected a usize, found '{found}'")]
-    ExpectedUSize { found: SignedField, span: Span },
+    ExpectedUSize { found: FieldElement, span: Span },
     #[error("Multiple return values only allowed for call")]
     MultipleReturnValuesOnlyAllowedForCall { second_target: Identifier },
     #[error("Unexpected integer value for array_get offset")]
     UnexpectedOffset { found: Token, span: Span },
     #[error("Invalid integer value")]
     InvalidInteger { found: Token, span: Span },
+    #[error("Unsigned integers cannot be negative, but a negative literal was given")]
+    NegativeUnsignedLiteral { span: Span },
 }
 
 impl ParserError {
@@ -1316,7 +1388,8 @@ impl ParserError {
             | ParserError::ExpectedU32 { span, .. }
             | ParserError::ExpectedUSize { span, .. }
             | ParserError::UnexpectedOffset { span, .. }
-            | ParserError::InvalidInteger { span, .. } => *span,
+            | ParserError::InvalidInteger { span, .. }
+            | ParserError::NegativeUnsignedLiteral { span } => *span,
 
             ParserError::MultipleReturnValuesOnlyAllowedForCall { second_target, .. } => {
                 second_target.span

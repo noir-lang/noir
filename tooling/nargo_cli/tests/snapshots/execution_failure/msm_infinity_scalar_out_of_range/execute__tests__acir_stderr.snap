@@ -1,0 +1,5 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+Failed to solve program: 'Failed to solve blackbox function: multi_scalar_mul, reason: Limb 0000000000000000000000000000000100000000000000000000000000000000 is not less than 2^128'

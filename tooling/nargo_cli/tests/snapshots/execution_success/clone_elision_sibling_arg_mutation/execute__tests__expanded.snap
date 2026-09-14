@@ -1,0 +1,18 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn bump(x: &mut [u32; 16], i: u32) -> [u32; 8] {
+    (*x)[i] = 7_u32;
+    [1_u32, 2_u32, 3_u32, 4_u32, 5_u32, 6_u32, 7_u32, 8_u32]
+}
+
+fn core(i: u32) -> u64 {
+    let mut x: [u32; 16] = [i + 1_u32; 16];
+    let out: [u32; 8] = std::hash::sha256_compression(x, bump(&mut x, i));
+    (out[0_u32] as u64) + (x[i] as u64)
+}
+
+fn main(i: u32) -> pub u64 {
+    core(i)
+}

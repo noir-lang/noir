@@ -10,11 +10,11 @@ use noirc_frontend::modules::get_parent_module;
 use noirc_frontend::node_interner::{GlobalValue, TraitAssociatedTypeId};
 use noirc_frontend::shared::Visibility;
 use noirc_frontend::{
-    DataType, EnumVariant, ResolvedGenerics, Shared, StructField, Type, TypeAlias, TypeBinding,
+    DataType, EnumVariant, ResolvedGeneric, Shared, StructField, Type, TypeAlias, TypeBinding,
     TypeVariable,
     ast::ItemVisibility,
     hir::def_map::ModuleId,
-    hir_def::{function::FuncMeta, stmt::HirPattern, traits::Trait},
+    hir_def::{function::FuncMeta, stmt::HirPattern, traits::Trait, traits::TraitConstraint},
     modules::module_full_path,
     node_interner::{
         DefinitionId, DefinitionKind, FuncId, GlobalId, NodeInterner, ReferenceId, TraitId,
@@ -142,12 +142,23 @@ fn format_struct(
         string.push('\n');
     }
     string.push_str("    ");
+    if typ.visibility != ItemVisibility::Private {
+        string.push_str(&typ.visibility.to_string());
+        string.push(' ');
+    }
+    if typ.comptime {
+        string.push_str("comptime ");
+    }
     string.push_str("struct ");
     string.push_str(typ.name.as_str());
     format_generics(&typ.generics, &mut string);
     string.push_str(" {\n");
     for field in fields {
         string.push_str("        ");
+        if field.visibility != ItemVisibility::Private {
+            string.push_str(&field.visibility.to_string());
+            string.push(' ');
+        }
         string.push_str(field.name.as_str());
         string.push_str(": ");
         string.push_str(&format!("{}", field.typ));
@@ -170,6 +181,13 @@ fn format_enum(
         string.push('\n');
     }
     string.push_str("    ");
+    if typ.visibility != ItemVisibility::Private {
+        string.push_str(&typ.visibility.to_string());
+        string.push(' ');
+    }
+    if typ.comptime {
+        string.push_str("comptime ");
+    }
     string.push_str("enum ");
     string.push_str(typ.name.as_str());
     format_generics(&typ.generics, &mut string);
@@ -210,6 +228,10 @@ fn format_struct_member(
     string.push_str(struct_type.name.as_str());
     string.push('\n');
     string.push_str("    ");
+    if field.visibility != ItemVisibility::Private {
+        string.push_str(&field.visibility.to_string());
+        string.push(' ');
+    }
     string.push_str(field.name.as_str());
     string.push_str(": ");
     string.push_str(&format!("{}", field.typ));
@@ -247,7 +269,7 @@ fn format_enum_variant(
 
     append_doc_comments(ReferenceId::EnumVariant(id, field_index), &mut string, args);
 
-    for typ in variant.params.iter() {
+    for typ in &variant.params {
         string.push_str(&go_to_type_links(typ, args.interner, args.files));
     }
 
@@ -365,29 +387,9 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
 
         let ordered_generics = args.interner.get_ordered_generics_for_impl(trait_impl_id);
 
-        let generics = ordered_generics
-            .iter()
-            .filter_map(|generic| {
-                if let Type::NamedGeneric(generic) = generic {
-                    Some(generic.name.as_str())
-                } else {
-                    None
-                }
-            })
-            .collect::<Vec<_>>();
-
         string.push('\n');
         string.push_str("    impl");
-        if !generics.is_empty() {
-            string.push('<');
-            for (index, generic) in generics.into_iter().enumerate() {
-                if index > 0 {
-                    string.push_str(", ");
-                }
-                string.push_str(generic);
-            }
-            string.push('>');
-        }
+        format_generics(func_meta.impl_generics(), &mut string);
 
         string.push(' ');
         string.push_str(trait_.name.as_str());
@@ -426,17 +428,12 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
             string.push_str("    ");
             string.push_str("impl");
 
-            let impl_generics: Vec<_> = func_meta
-                .all_generics
-                .iter()
-                .take(func_meta.all_generics.len() - func_meta.direct_generics.len())
-                .cloned()
-                .collect();
-            format_generics(&impl_generics, &mut string);
+            let impl_generics = func_meta.impl_generics();
+            format_generics(impl_generics, &mut string);
 
             string.push(' ');
             string.push_str(data_type.name.as_str());
-            format_generic_names(&impl_generics, &mut string);
+            format_generic_names(impl_generics, &mut string);
         }
 
         true
@@ -472,11 +469,15 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
     string.push('(');
     let parameters = &func_meta.parameters;
     for (index, (pattern, typ, visibility)) in parameters.iter().enumerate() {
-        let is_self = pattern_is_self(pattern, args.interner);
+        let is_self = pattern.is_self(args.interner);
 
         // `&mut self` is represented as a mutable reference type, not as a mutable pattern
-        if is_self && matches!(typ, Type::Reference(..)) {
-            string.push_str("&mut ");
+        if is_self && let Type::Reference(_, mutable) = typ {
+            if *mutable {
+                string.push_str("&mut ");
+            } else {
+                string.push('&');
+            }
         }
 
         if enum_variant.is_some() {
@@ -508,6 +509,36 @@ fn format_function(id: FuncId, args: &ProcessRequestCallbackArgs) -> String {
             _ => {
                 string.push_str(" -> ");
                 string.push_str(&format!("{return_type}"));
+            }
+        }
+
+        // An inherent impl's where clause is copied onto each method's constraints during
+        // collection. Those belong to the impl, not the method, so exclude them here and show
+        // only the method's own constraints.
+        let impl_where_clause = func_meta
+            .impl_id
+            .map(|impl_id| args.interner.get_impl(impl_id).where_clause.clone())
+            .unwrap_or_default();
+        let is_from_impl = |constraint: &TraitConstraint| {
+            impl_where_clause
+                .iter()
+                .any(|parent| parent.matches_ignoring_unspecified_associated_types(constraint))
+        };
+
+        let trait_constraints: Vec<_> =
+            func_meta.trait_constraints.iter().filter(|c| !is_from_impl(c)).collect();
+        if !trait_constraints.is_empty() {
+            string.push_str(" where ");
+            for (index, constraint) in trait_constraints.iter().enumerate() {
+                if index > 0 {
+                    string.push_str(", ");
+                }
+                let constraint_type = &constraint.typ;
+                string.push_str(&format!("{constraint_type}"));
+                string.push_str(": ");
+                let trait_ = args.interner.get_trait(constraint.trait_bound.trait_id);
+                string.push_str(trait_.name.as_str());
+                string.push_str(&constraint.trait_bound.trait_generics.to_string());
             }
         }
     }
@@ -572,10 +603,17 @@ fn format_alias(id: TypeAliasId, args: &ProcessRequestCallbackArgs) -> String {
     format_parent_module(ModuleDefId::TypeAliasId(id), args, &mut string);
     string.push('\n');
     string.push_str("    ");
+    if type_alias.visibility != ItemVisibility::Private {
+        string.push_str(&type_alias.visibility.to_string());
+        string.push(' ');
+    }
+    if type_alias.comptime {
+        string.push_str("comptime ");
+    }
     string.push_str("type ");
     string.push_str(type_alias.name.as_str());
     string.push_str(" = ");
-    string.push_str(&format!("{}", &type_alias.typ));
+    string.push_str(&format!("{}", type_alias.typ));
 
     append_doc_comments(ReferenceId::Alias(id), &mut string, args);
 
@@ -584,55 +622,66 @@ fn format_alias(id: TypeAliasId, args: &ProcessRequestCallbackArgs) -> String {
 
 fn format_local(id: DefinitionId, args: &ProcessRequestCallbackArgs) -> String {
     let definition_info = args.interner.definition(id);
-    if let DefinitionKind::Global(global_id) = &definition_info.kind {
-        return format_global(*global_id, args);
-    }
 
-    let DefinitionKind::Local(expr_id) = definition_info.kind else {
-        panic!("Expected a local reference to reference a local definition")
-    };
-    let typ = args.interner.definition_type(id);
+    match &definition_info.kind {
+        DefinitionKind::Global(global_id) => format_global(*global_id, args),
+        DefinitionKind::Local(expr_id) => {
+            let typ = args.interner.definition_type(id);
 
-    let mut string = String::new();
-    string.push_str("    ");
-    if definition_info.comptime {
-        string.push_str("comptime ");
-    }
-    if expr_id.is_some() {
-        string.push_str("let ");
-    }
-    if definition_info.mutable {
-        if expr_id.is_none() {
-            string.push_str("let ");
+            let mut string = String::new();
+            string.push_str("    ");
+            if definition_info.comptime {
+                string.push_str("comptime ");
+            }
+            if expr_id.is_some() {
+                string.push_str("let ");
+            }
+            if definition_info.mutable {
+                if expr_id.is_none() {
+                    string.push_str("let ");
+                }
+                string.push_str("mut ");
+            }
+            string.push_str(&definition_info.name);
+            if !matches!(typ, Type::Error) {
+                string.push_str(": ");
+                string.push_str(&format!("{typ}"));
+            }
+
+            string.push_str(&go_to_type_links(&typ, args.interner, args.files));
+
+            string
         }
-        string.push_str("mut ");
+        DefinitionKind::NumericGeneric(_, typ) => {
+            let mut string = String::new();
+            string.push_str("    ");
+            string.push_str("let ");
+            string.push_str(&definition_info.name);
+            string.push_str(": ");
+            string.push_str(&typ.to_string());
+            string
+        }
+        other => {
+            panic!("Unexpected definition kind: {other:?}")
+        }
     }
-    string.push_str(&definition_info.name);
-    if !matches!(typ, Type::Error) {
-        string.push_str(": ");
-        string.push_str(&format!("{typ}"));
-    }
-
-    string.push_str(&go_to_type_links(&typ, args.interner, args.files));
-
-    string
 }
 
-fn format_generics(generics: &ResolvedGenerics, string: &mut String) {
+fn format_generics(generics: &[ResolvedGeneric], string: &mut String) {
     format_generics_impl(
         generics, false, // only show names
         string,
     );
 }
 
-fn format_generic_names(generics: &ResolvedGenerics, string: &mut String) {
+fn format_generic_names(generics: &[ResolvedGeneric], string: &mut String) {
     format_generics_impl(
         generics, true, // only show names
         string,
     );
 }
 
-fn format_generics_impl(generics: &ResolvedGenerics, only_show_names: bool, string: &mut String) {
+fn format_generics_impl(generics: &[ResolvedGeneric], only_show_names: bool, string: &mut String) {
     if generics.is_empty() {
         return;
     }
@@ -680,17 +729,6 @@ fn format_pattern(pattern: &HirPattern, interner: &NodeInterner, string: &mut St
         HirPattern::Tuple(..) | HirPattern::Struct(..) => {
             string.push('_');
         }
-    }
-}
-
-fn pattern_is_self(pattern: &HirPattern, interner: &NodeInterner) -> bool {
-    match pattern {
-        HirPattern::Identifier(ident) => {
-            let definition = interner.definition(ident.id);
-            definition.name == "self"
-        }
-        HirPattern::Mutable(pattern, _) => pattern_is_self(pattern, interner),
-        HirPattern::Tuple(..) | HirPattern::Struct(..) => false,
     }
 }
 
@@ -757,7 +795,7 @@ struct TypeLinksGatherer<'a> {
 impl TypeLinksGatherer<'_> {
     fn gather_type_links(&mut self, typ: &Type) {
         match typ {
-            Type::Array(typ, _) => self.gather_type_links(typ),
+            Type::Array(_, typ) => self.gather_type_links(typ),
             Type::Vector(typ) => self.gather_type_links(typ),
             Type::Tuple(types) => {
                 for typ in types {
@@ -926,7 +964,7 @@ fn process_doc_comments_links(
         let Some(location) = link_target_location(target, args) else {
             continue;
         };
-        let mut line = lines[link.line].to_string();
+        let mut line = lines[link.line].clone();
         let replacement = format_link(&link.name, location);
         line.replace_range(link.start..link.end, &replacement);
         lines[link.line] = line;
@@ -1006,18 +1044,10 @@ fn append_value_to_string(value: &Value, string: &mut String) -> Option<()> {
     match value {
         Value::Unit => string.push_str("()"),
         Value::Bool(value) => string.push_str(&value.to_string()),
-        Value::Field(field_element) => string.push_str(&field_element.to_string()),
-        Value::I8(value) => string.push_str(&value.to_string()),
-        Value::I16(value) => string.push_str(&value.to_string()),
-        Value::I32(value) => string.push_str(&value.to_string()),
-        Value::I64(value) => string.push_str(&value.to_string()),
-        Value::U1(value) => string.push_str(&value.to_string()),
-        Value::U8(value) => string.push_str(&value.to_string()),
-        Value::U16(value) => string.push_str(&value.to_string()),
-        Value::U32(value) => string.push_str(&value.to_string()),
-        Value::U64(value) => string.push_str(&value.to_string()),
-        Value::U128(value) => string.push_str(&value.to_string()),
-        Value::String(value) | Value::CtString(value) => string.push_str(&value.to_string()),
+        Value::Integer(value) => string.push_str(&value.to_string()),
+        Value::String(bytes) | Value::CtString(bytes) => {
+            string.push_str(&String::from_utf8_lossy(bytes));
+        }
         Value::Tuple(values) => {
             let len = values.iter().len();
             string.push('(');
@@ -1070,7 +1100,8 @@ fn append_value_to_string(value: &Value, string: &mut String) -> Option<()> {
         | Value::Zeroed(..)
         | Value::Expr(..)
         | Value::TypedExpr(..)
-        | Value::UnresolvedType(..) => return None,
+        | Value::UnresolvedType(..)
+        | Value::Location(..) => return None,
     }
 
     Some(())

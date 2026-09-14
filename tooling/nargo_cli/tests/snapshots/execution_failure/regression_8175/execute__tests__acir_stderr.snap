@@ -1,0 +1,25 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+bug: Assertion is always false: attempt to divide by zero
+  ┌─ src/main.nr:2:14
+  │
+2 │     let d = ((false as Field) / (false as Field));
+  │              ----------------------------------- As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution
+  │
+  = Call stack:
+    1: main
+            at src/main.nr:2:14
+
+error: Assertion failed: attempt to divide by zero
+  ┌─ src/main.nr:2:14
+  │
+2 │     let d = ((false as Field) / (false as Field));
+  │              -----------------------------------
+  │
+  = Call stack:
+    1: main
+            at src/main.nr:2:14
+
+Failed assertion

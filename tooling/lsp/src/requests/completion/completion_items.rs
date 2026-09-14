@@ -349,7 +349,7 @@ impl NodeFinder<'_> {
 
                 if insert_text.ends_with("()") {
                     let label =
-                        if skip_first_argument { name.to_string() } else { format!("{name}()") };
+                        if skip_first_argument { name.clone() } else { format!("{name}()") };
                     simple_completion_item(label, kind, Some(description.clone()))
                 } else {
                     has_arguments = true;

@@ -38,7 +38,7 @@ const BUILD_INFO: BuildInfo = BuildInfo {
 };
 
 /// Returns the `BuildInfo` object containing information about how the installed package was built.
-/// @returns {BuildInfo} - Information on how the installed package was built.
+/// @returns {`BuildInfo`} - Information on how the installed package was built.
 #[wasm_bindgen(js_name = buildInfo, skip_jsdoc)]
 pub fn build_info() -> JsBuildInfo {
     console_error_panic_hook::set_once();

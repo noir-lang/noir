@@ -1,0 +1,7 @@
+[package]
+name = "comptime_as_typed_expr_private_module_function"
+type = "bin"
+authors = [""]
+
+[dependencies]
+victim_lib = { path = "./victim_lib" }

@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Assertion failed: attempt to subtract with overflow
+   ┌─ src/main.nr:14:66
+   │
+14 │             if (if (!false) { 1061432097 } else { (b >> 41) } < (506440519 - 3531841762)) {
+   │                                                                  ----------------------
+   │
+   = Call stack:
+     1: main
+             at src/main.nr:3:29
+     2: func_3
+             at src/main.nr:14:66
+
+Failed assertion

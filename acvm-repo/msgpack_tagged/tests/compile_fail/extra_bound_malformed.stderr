@@ -1,0 +1,5 @@
+error: failed to parse `extra_bound` predicates: expected `:`
+ --> tests/compile_fail/extra_bound_malformed.rs:9:24
+  |
+9 | #[tagged(extra_bound = "this is not a valid where predicate")]
+  |                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

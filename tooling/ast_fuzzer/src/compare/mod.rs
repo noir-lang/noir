@@ -5,6 +5,7 @@ use std::{
 
 use arbitrary::{Arbitrary, Unstructured};
 use color_eyre::eyre::{self, bail};
+use itertools::Itertools;
 use noirc_evaluator::ssa::SsaEvaluatorOptions;
 use noirc_frontend::{Shared, monomorphization::ast::Program};
 
@@ -16,17 +17,14 @@ pub use compiled::{
     CompareArtifact, CompareCompiled, CompareCompiledResult, CompareMorph, ComparePipelines,
 };
 pub use comptime::CompareComptime;
-pub use interpreted::{
-    CompareInterpreted, CompareInterpretedResult, ComparePass, input_value_to_ssa,
-    input_values_to_ssa,
-};
+pub use interpreted::{CompareInterpreted, CompareInterpretedResult, ComparePass, encode_to_ssa};
 
 /// Help iterate over the program(s) in the comparable artifact.
 pub trait HasPrograms {
     fn programs(&self) -> Vec<&Program>;
 }
 
-/// Subset of [SsaEvaluatorOptions] that we want to vary.
+/// Subset of [`SsaEvaluatorOptions`] that we want to vary.
 ///
 /// It exists to reduce noise in the printed results, compared to showing the full `SsaEvaluatorOptions`.
 #[derive(Debug, Clone, Default)]
@@ -41,7 +39,7 @@ impl Arbitrary<'_> for CompareOptions {
 }
 
 impl CompareOptions {
-    /// Copy fields into an [SsaEvaluatorOptions] instance.
+    /// Copy fields into an [`SsaEvaluatorOptions`] instance.
     pub fn onto(&self, mut options: SsaEvaluatorOptions) -> SsaEvaluatorOptions {
         options.inliner_aggressiveness = self.inliner_aggressiveness;
         options
@@ -55,7 +53,7 @@ pub trait Comparable {
 
 impl<T: Comparable> Comparable for Vec<T> {
     fn equivalent(a: &Self, b: &Self) -> bool {
-        a.len() == b.len() && a.iter().zip(b).all(|(a, b)| Comparable::equivalent(a, b))
+        a.len() == b.len() && a.iter().zip_eq(b).all(|(a, b)| Comparable::equivalent(a, b))
     }
 }
 
@@ -96,7 +94,7 @@ pub struct FailedOutput<E> {
 
 /// Possible outcomes of the differential execution of two equivalent programs.
 ///
-/// Use [CompareResult::return_value_or_err] to do the final comparison between
+/// Use [`CompareResult::return_value_or_err`] to do the final comparison between
 /// the execution result.
 pub enum CompareResult<T, E> {
     BothFailed(FailedOutput<E>, FailedOutput<E>),

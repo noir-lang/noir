@@ -7,6 +7,8 @@ on:
     branches:
       - master
 
+permissions: {}
+
 # This will cancel previous runs when a branch or PR is updated
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref || github.run_id }}
@@ -22,7 +24,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.89.0
@@ -30,7 +32,7 @@ jobs:
           targets: x86_64-unknown-linux-gnu
           components: clippy, rustfmt
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           key: x86_64-unknown-linux-gnu
           cache-on-failure: true
@@ -52,7 +54,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.89.0
@@ -60,7 +62,7 @@ jobs:
           targets: x86_64-unknown-linux-gnu
           components: clippy, rustfmt
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           key: x86_64-unknown-linux-gnu
           cache-on-failure: true
@@ -80,7 +82,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.89.0
@@ -88,7 +90,7 @@ jobs:
           targets: x86_64-unknown-linux-gnu
           components: clippy, rustfmt
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           key: x86_64-unknown-linux-gnu
           cache-on-failure: true
@@ -110,7 +112,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - uses: taiki-e/install-action@just
 
@@ -128,12 +130,12 @@ jobs:
 
     steps:
       - name: Checkout Noir repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.89.0
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           key: x86_64-unknown-linux-gnu
           cache-on-failure: true
@@ -150,7 +152,7 @@ jobs:
           cp ./target/release/nargo ./dist/nargo
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: nargo
           path: ./dist/*
@@ -166,7 +168,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Download nargo binary
         uses: ./.github/actions/download-binary
@@ -181,6 +183,22 @@ jobs:
         working-directory: ./test_programs
         run: ./format.sh check
 
+  design-links:
+    name: design doc links
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: taiki-e/install-action@just
+
+      - name: Check design doc links
+        run: just check-design-links
+
   # This is a job which depends on all test jobs and reports the overall status.
   # This allows us to add/remove test jobs without having to update the required workflows.
   formatting-end:
@@ -194,6 +212,7 @@ jobs:
       - rustdoc
       - eslint
       - nargo_fmt
+      - design-links
     permissions:
       contents: read
 

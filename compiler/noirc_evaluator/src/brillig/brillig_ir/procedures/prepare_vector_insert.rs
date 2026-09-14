@@ -1,6 +1,9 @@
 use acvm::{AcirField, acir::brillig::MemoryAddress};
 
-use super::{ProcedureId, prepare_vector_push::reallocate_vector_for_insertion};
+use super::{
+    ProcedureId,
+    prepare_vector_push::{allocate_rc_copy_flag, reallocate_vector_for_insertion},
+};
 use crate::brillig::brillig_ir::{
     BrilligBinaryOp, BrilligContext,
     brillig_variable::{BrilligVector, SingleAddrVariable},
@@ -10,7 +13,7 @@ use crate::brillig::brillig_ir::{
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
-    /// Copy the arguments to the [ScratchSpace] and call [ProcedureId::PrepareVectorInsert].
+    /// Copy the arguments to the [`ScratchSpace`] and call [`ProcedureId::PrepareVectorInsert`].
     ///
     /// Prepares a the `source_vector` for a insert operation by making a copy to `destination_vector`,
     /// leaving an `item_count` hole at the `index` position, which is returned as the `write_pointer`.
@@ -28,6 +31,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             item_count_arg,
             destination_vector_pointer_return,
             write_pointer_return,
+            did_rc_copy_return,
         ] = self.make_scratch_registers();
 
         self.mov_instruction(source_vector_pointer_arg, source_vector.pointer);
@@ -38,10 +42,14 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
         self.mov_instruction(destination_vector.pointer, destination_vector_pointer_return);
         self.mov_instruction(write_pointer, write_pointer_return);
+
+        // Count only RC copies (not necessary reallocations) by using the flag returned by the
+        // procedure rather than comparing pointers, which would also fire for reallocations.
+        self.codegen_count_if_nonzero(did_rc_copy_return);
     }
 }
 
-/// Compile [ProcedureId::PrepareVectorInsert].
+/// Compile [`ProcedureId::PrepareVectorInsert`].
 pub(super) fn compile_prepare_vector_insert_procedure<F: AcirField + DebugToString>(
     brillig_context: &mut BrilligContext<F, ScratchSpace>,
 ) {
@@ -52,6 +60,8 @@ pub(super) fn compile_prepare_vector_insert_procedure<F: AcirField + DebugToStri
         destination_vector_pointer_return,
         write_pointer_return,
     ] = brillig_context.allocate_scratch_registers();
+
+    let did_rc_copy = allocate_rc_copy_flag(brillig_context);
 
     let source_vector = BrilligVector { pointer: source_vector_pointer_arg };
     let target_vector = BrilligVector { pointer: destination_vector_pointer_return };
@@ -81,6 +91,7 @@ pub(super) fn compile_prepare_vector_insert_procedure<F: AcirField + DebugToStri
         *source_capacity,
         target_vector,
         *target_size,
+        did_rc_copy,
     );
 
     let target_vector_items_pointer =

@@ -1,0 +1,16 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn id(x: [[Field; 0]; 1]) -> [[Field; 0]; 1] {
+    x
+}
+
+fn main(idx: u32) -> pub [[Field; 0]; 1] {
+    let mut arr: [[Field; 0]; 1] = [[]];
+    arr[idx] = [];
+    // Safety: comment added by `nargo expand`
+    unsafe {
+        id(arr)
+    }
+}

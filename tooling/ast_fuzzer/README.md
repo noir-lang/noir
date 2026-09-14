@@ -54,6 +54,32 @@ Upon failure they print a hexadecimal `seed`, which can be used with the `NOIR_A
 
 If the compiler crashes during the generation of the SSA artifacts, the problematic program will be printed during attempts to reproduce the issue using a seed. The printing of all inputs can be turned on by setting `RUST_LOG=debug`.
 
+## Reproducing a seed
+
+Given a hexadecimal `seed`, the quickest way to reproduce it is the `just` recipe from the repo root:
+
+```shell
+just fuzz-repro 0x6819c61400001000
+```
+
+It sets the env vars, runs each fuzz target in turn until one reproduces, and prints the failing AST (and, on a comparison failure, the ABI inputs). If you already know which target the seed came from, pass it to skip the search; set `OUT` to also write a runnable `nargo` project:
+
+```shell
+just fuzz-repro 0x6819c61400001000 acir_vs_brillig ./repro
+```
+
+Under the hood it drives `cargo test -p noir_ast_fuzzer_fuzz <target>` with these env vars, which can also be set by hand:
+
+| Env var | Effect |
+| --- | --- |
+| `NOIR_AST_FUZZER_SEED` | Hex seed to reproduce (lower 32 bits encode the input size). |
+| `NOIR_AST_FUZZER_EMIT_PROJECT` | Directory to write a `nargo` package into on failure (one per AST, under `ast_1`, `ast_2`, … when a target compares multiple programs). |
+| `NOIR_AST_FUZZER_SHOW_SSA` | Show every SSA pass during compilation. |
+| `NOIR_AST_FUZZER_BUDGET_SECS` | How long a non-deterministic (seedless) run lasts. |
+| `RUST_LOG=debug` | Print all inputs. |
+
+The emitted `src/main.nr` is the fuzzer's best-effort Noir rendering of the AST. For the `comptime_vs_brillig_*` targets it is the exact comptime source; for the other targets it is not guaranteed to parse back unchanged, but it is a starting point (the `Prover.toml` inputs are exact) rather than something reconstructed by hand.
+
 ## Minimizing Noir
 
 At the moment test failures end up with one or two Noir-like AST printed on the console, with the corresponding ABI formatted inputs.

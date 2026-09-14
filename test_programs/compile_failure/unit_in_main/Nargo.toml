@@ -1,7 +1,0 @@
-[package]
-name = "unit_in_main"
-type = "bin"
-authors = [""]
-compiler_version = ">=0.33.0"
-
-[dependencies]

@@ -1,7 +1,11 @@
 #![cfg(test)]
+use noirc_errors::Location;
+
 use crate::{
     elaborator::UnstableFeature,
-    monomorphization::errors::MonomorphizationError,
+    hir::comptime::Integer,
+    hir_def::types::{BinaryTypeOperator, Kind, Type, TypeVariable, TypeVariableId},
+    monomorphization::{Monomorphizer, errors::MonomorphizationError},
     test_utils::{
         GetProgramOptions, get_monomorphized, get_monomorphized_with_options,
         get_monomorphized_with_stdlib, stdlib_src,
@@ -16,7 +20,7 @@ fn bounded_recursive_type_errors() {
     let src = "
         fn main() {
             let _tree: Tree<Tree<Tree<()>>> = Tree::Branch(
-                                              ^^^^^^^^^^^^ Type `Tree<Tree<()>>` is recursive
+                                              ^^^^^^^^^^^^ Type `Tree<()>` is recursive
                                               ~~~~~~~~~~~~ All types in Noir must have a known size at compile-time
                 Tree::Branch(Tree::Leaf, Tree::Leaf),
                 Tree::Branch(Tree::Leaf, Tree::Leaf),
@@ -68,58 +72,107 @@ fn recursive_type_with_alias_errors() {
 }
 
 #[test]
-fn mutually_recursive_types_error() {
-    // cSpell:disable
-    let src = "
-        fn main() {
-            let _zero = Even::Zero;
-        }
-
-        enum Even {
-            Zero,
-            ^^^^ Type `Odd` is recursive
-            ~~~~ All types in Noir must have a known size at compile-time
-            Succ(Odd),
-        }
-
-        enum Odd {
-            One,
-            Succ(Even),
-        }
-        ";
-    // cSpell:enable
-    let features = vec![UnstableFeature::Enums];
-    check_monomorphization_error_using_features(src, &features, false);
+fn recursive_type_behind_unused_generic_errors() {
+    // A recursive type used only as an *unused* generic argument reaches monomorphization
+    // through `check_type` rather than `convert_type` (the argument is never lowered to a
+    // field). `check_type` must still detect the recursion, exactly as `convert_type` does for
+    // a used position. Recursive types cannot be declared (the resolver rejects them with a
+    // dependency-cycle error), so we let monomorphization run past that error to exercise the
+    // `check_type` path directly.
+    let src = r#"
+    struct Phantom<T> { x: Field }
+    struct A { b: B }
+    struct B { a: A }
+    fn main() {
+        let _p: Phantom<A> = Phantom { x: 1 };
+    }
+    "#;
+    let err = get_monomorphized_with_options(
+        src,
+        GetProgramOptions { allow_elaborator_errors: true, ..Default::default() },
+    )
+    .unwrap_err();
+    assert!(
+        matches!(&err, MonomorphizationError::RecursiveType { .. }),
+        "expected RecursiveType, got: {err:?}"
+    );
 }
 
 #[test]
-fn mutually_recursive_types_with_structs_error() {
-    // cSpell:disable
-    let src = "
-        fn main() {
-            let _zero = Even::Zero;
+fn numeric_generic_checked_cast_in_instantiation_bindings() {
+    // Chaining calls that return arithmetic-sized arrays instantiates a numeric generic to a
+    // `CheckedCast` over an `InfixExpr` (e.g. `M -> 3 + 1`). That binding is validated through
+    // `check_type`, which must not hand a type-level numeric value to `convert_type` — doing so
+    // hits `convert_type`'s `unreachable!` for non-value types. This is a valid program and must
+    // monomorphize successfully.
+    let src = r#"
+    fn make<let N: u32>(x: [Field; N]) -> [Field; N + 1] {
+        let mut r = [0; N + 1];
+        for i in 0..N {
+            r[i] = x[i];
         }
+        r
+    }
+    fn use_it<let M: u32>(x: [Field; M]) -> [Field; M + 2] {
+        make(make(x))
+    }
+    fn main() {
+        let _ = use_it([1, 2, 3]);
+    }
+    "#;
+    assert!(get_monomorphized(src).is_ok());
+}
 
-        enum Even {
-            Zero,
-            ^^^^ Type `EvenSucc` is recursive
-            ~~~~ All types in Noir must have a known size at compile-time
-            Succ(EvenSucc),
-        }
+fn unbound_u32_variable(id: usize) -> TypeVariable {
+    TypeVariable::unbound(TypeVariableId(id), Kind::Numeric(Box::new(Type::u32())))
+}
 
-        pub struct EvenSucc { inner: Odd }
+/// Check the cast `from -> to`, asserting that it is accepted and that `variable`, which one of
+/// the two sides mentions, is still unbound afterwards.
+///
+/// `check_checked_cast` validates a cast that is already part of the elaborated program, and the
+/// type variables it meets are shared with that program: a binding it left behind would outlive
+/// monomorphization and be seen by every later compilation against the same context. The cast
+/// must still be accepted, which requires both sides to be evaluated under the bindings that
+/// unifying them found.
+fn assert_checked_cast_accepted_without_binding(from: &Type, to: &Type, variable: &TypeVariable) {
+    let result = Monomorphizer::check_checked_cast(from, to, Location::dummy());
+    assert!(result.is_ok(), "checking `{from} -> {to}` failed: {result:?}");
+    assert!(
+        variable.borrow().is_unbound(),
+        "checking `{from} -> {to}` left type variable {} as {:?}",
+        variable.id().0,
+        *variable.borrow()
+    );
+}
 
-        enum Odd {
-            One,
-            Succ(OddSucc),
-        }
+#[test]
+fn check_checked_cast_does_not_bind_a_variable_in_its_source() {
+    let variable = unbound_u32_variable(0);
+    let from = Type::TypeVariable(variable.clone());
+    let to = Type::Constant(Integer::U32(1));
+    assert_checked_cast_accepted_without_binding(&from, &to, &variable);
+}
 
-        pub struct OddSucc { inner: Even }
-        ";
+#[test]
+fn check_checked_cast_does_not_bind_a_variable_in_its_destination() {
+    let variable = unbound_u32_variable(1);
+    let from = Type::Constant(Integer::U32(1));
+    let to = Type::TypeVariable(variable.clone());
+    assert_checked_cast_accepted_without_binding(&from, &to, &variable);
+}
 
-    // cSpell:enable
-    let features = vec![UnstableFeature::Enums];
-    check_monomorphization_error_using_features(src, &features, false);
+#[test]
+fn check_checked_cast_does_not_bind_a_variable_inside_arithmetic() {
+    let variable = unbound_u32_variable(2);
+    let from = Type::InfixExpr(
+        Box::new(Type::TypeVariable(variable.clone())),
+        BinaryTypeOperator::Addition,
+        Box::new(Type::Constant(Integer::U32(1))),
+        false,
+    );
+    let to = Type::Constant(Integer::U32(3));
+    assert_checked_cast_accepted_without_binding(&from, &to, &variable);
 }
 
 #[test]
@@ -457,6 +510,52 @@ fn multiple_trait_impls_with_different_instantiations() {
 }
 
 #[test]
+fn impl_generic_in_body_only_distinct_monomorphizations() {
+    // When an impl-level generic is referenced only in the method body (not
+    // in the signature, not in the method turbofish), the monomorphization
+    // cache must produce a distinct specialization per impl instantiation
+    // rather than aliasing all callsites to the first-queued body.
+    let src = r#"
+    trait Guard<let N: u32> {
+        fn check(x: Field);
+    }
+
+    struct S {}
+
+    impl<let N: u32> Guard<N> for S {
+        fn check(x: Field) {
+            for _ in 0..N {
+                assert(x == 0);
+            }
+        }
+    }
+
+    pub fn main(x: Field) {
+        <S as Guard<0>>::check(x);
+        <S as Guard<2>>::check(x);
+    }
+    "#;
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @"
+    fn main$f0(x$l0: Field) -> () {
+        check$f1(x$l0);;
+        check$f2(x$l0);
+    }
+    fn check$f1(x$l1: Field) -> () {
+        for _$l2 in 0 .. 0 {
+            assert((x$l1 == 0));
+        }
+    }
+    fn check$f2(x$l3: Field) -> () {
+        for _$l4 in 0 .. 2 {
+            assert((x$l3 == 0));
+        }
+    }
+    ");
+}
+
+#[test]
 #[should_panic(expected = "Type recursion limit reached - types are too large")]
 fn extreme_type_alias_chain_stack_overflow() {
     // Generate a chain of 2,000 type aliases programmatically
@@ -613,7 +712,12 @@ fn unused_str_const_generic_in_enum_inferred() {
     // The enum is represented as (<index>, <variant-1-fields>, <variant-2-fields>)
     // Note that a default character is `\0`, so even though it's `"\0\0\0"` it's printed as `""`.
     let program = get_monomorphized(src).unwrap();
-    insta::assert_snapshot!(program, @"\nglobal B$g0: (Field, (str<3>,), ()) = (1, (\"\0\0\0\"), ());\nfn main$f0() -> () {\n    let _f$l0 = B$g0\n}");
+    insta::assert_snapshot!(program, @"
+global B$g0: (Field, (str<3>,), ()) = (1, (\"\0\0\0\"), ());
+fn main$f0() -> () {
+    let _f$l0 = B$g0
+}
+");
 }
 
 #[test]
@@ -746,7 +850,7 @@ fn infix_trait_method() {
     }
     "#;
 
-    let program = get_monomorphized_with_stdlib(src, stdlib_src::EQ).unwrap();
+    let program = get_monomorphized_with_stdlib(src, &[stdlib_src::EQ]).unwrap();
 
     insta::assert_snapshot!(program, @r"
     fn main$f0() -> pub bool {
@@ -785,7 +889,7 @@ fn prefix_trait_method() {
     }
     "#;
 
-    let program = get_monomorphized_with_stdlib(src, stdlib_src::NEG).unwrap();
+    let program = get_monomorphized_with_stdlib(src, &[stdlib_src::NEG]).unwrap();
 
     insta::assert_snapshot!(program, @r"
     fn main$f0() -> () {
@@ -817,6 +921,7 @@ fn fail_to_call_enum_member_without_panic() {
         }
 
         fn main() {
+            foo(Foo::A);
             let foo: Foo = Foo::A;
             foo(foo);
             ^^^^^^^^ Expected a function, but found a(n) Foo
@@ -1112,7 +1217,50 @@ fn match_guard_becomes_if_then_else() {
 }
 
 #[test]
-fn pass_ref_from_constrained_to_unconstrained_via_closure() {
+fn direct_unconstrained_closure_call_rejects_captured_mutable_ref() {
+    // A local closure that captures a `&mut` from constrained code, coerced to
+    // `unconstrained fn[Env](..)` and called directly under `unsafe`, must be rejected.
+    // The captured reference lives in the closure's environment, which monomorphization
+    // inserts as a synthetic first argument after the boundary check, so the environment
+    // type must be validated explicitly.
+    let src = r#"
+    fn main() {
+        let mut x = 0;
+        let xr = &mut x;
+        let f: unconstrained fn[(&mut u32,)](u32) -> () = |y| {
+            *xr = y;
+        };
+        // safety: test
+        unsafe { f(7); }
+                 ^ Cannot pass mutable reference `(&mut u32,)` from a constrained runtime to an unconstrained runtime
+        assert(x == 0);
+    }
+    "#;
+    check_monomorphization_error_using_features(src, &[], true);
+}
+
+#[test]
+fn direct_unconstrained_closure_call_rejects_captured_immutable_ref() {
+    // Even a captured immutable reference is rejected: the closure environment is a
+    // container (a tuple), and only a direct immutable reference `&T` is supported across
+    // the boundary, not one embedded in a container.
+    let src = r#"
+    fn main() {
+        let x: u32 = 5;
+        let xr = &x;
+        let f: unconstrained fn[(&u32,)](u32) -> u32 = |y| {
+            *xr + y
+        };
+        // safety: test
+        let _z = unsafe { f(7) };
+                          ^ Cannot pass `(&u32,)` across the constrained/unconstrained boundary: only a direct immutable reference `&T` to a reference-free type is supported
+    }
+    "#;
+    check_monomorphization_error_using_features(src, &[], true);
+}
+
+#[test]
+fn direct_unconstrained_call_rejects_closure_with_mutable_ref() {
     let src = r#"
     fn main()  {
         let mut x = 0;
@@ -1120,6 +1268,7 @@ fn pass_ref_from_constrained_to_unconstrained_via_closure() {
         f(1_u32);
         // safety: test
         unsafe { bar(f, 2_u32) }
+                     ^ Cannot pass mutable reference `fn[(&mut u32,)](u32) -> ()` from a constrained runtime to an unconstrained runtime
     }
 
     fn foo(x: &mut u32) -> fn[(&mut u32,)](u32) -> () {
@@ -1130,14 +1279,32 @@ fn pass_ref_from_constrained_to_unconstrained_via_closure() {
         f(x);
     }
     "#;
+    check_monomorphization_error_using_features(src, &[], true);
+}
 
-    let err = get_monomorphized_with_options(
-        src,
-        GetProgramOptions { allow_elaborator_errors: true, ..Default::default() },
-    )
-    .expect_err("should fail to monomorphize");
+#[test]
+fn indirect_unconstrained_call_rejects_closure_with_mutable_ref() {
+    // When an unconstrained function is called indirectly through a local binding,
+    // the boundary check should still detect the reference crossing.
+    let src = r#"
+    fn main()  {
+        let mut x = 0;
+        let f = foo(&mut x);
+        let b = bar;
+        // safety: test
+        unsafe { b(f, 2_u32) }
+                   ^ Cannot pass mutable reference `fn[(&mut u32,)](u32) -> ()` from a constrained runtime to an unconstrained runtime
+    }
 
-    assert!(matches!(err, MonomorphizationError::ConstrainedReferenceToUnconstrained { .. }));
+    fn foo(x: &mut u32) -> fn[(&mut u32,)](u32) -> () {
+        |y| { *x = y; }
+    }
+
+    unconstrained fn bar<Env>(f: fn[Env](u32) -> (), x: u32) {
+        f(x);
+    }
+    "#;
+    check_monomorphization_error_using_features(src, &[], true);
 }
 
 #[test]
@@ -1146,18 +1313,13 @@ fn pass_ref_from_constrained_to_unconstrained_via_arg() {
     fn main()  {
         // safety: test
         unsafe { foo(&mut 0); }
+                     ^^^^^^ Cannot pass a mutable reference from a constrained runtime to an unconstrained runtime
+                     ^^^^^^ Cannot pass mutable reference `&mut u32` from a constrained runtime to an unconstrained runtime
     }
 
     unconstrained fn foo(_x: &mut u32) {}
     "#;
-
-    let err = get_monomorphized_with_options(
-        src,
-        GetProgramOptions { allow_elaborator_errors: true, ..Default::default() },
-    )
-    .expect_err("should fail to monomorphize");
-
-    assert!(matches!(err, MonomorphizationError::ConstrainedReferenceToUnconstrained { .. }));
+    check_monomorphization_error_using_features(src, &[], true);
 }
 
 #[test]
@@ -1167,6 +1329,8 @@ fn pass_ref_from_unconstrained_to_unconstrained_via_return() {
         // safety: test
         unsafe {
             let _x = foo();
+                     ^^^^^ Cannot pass a reference from an unconstrained runtime to an constrained runtime
+                     ^^^^^ Reference `&mut u32` cannot be returned from an unconstrained runtime to a constrained runtime
         }
     }
 
@@ -1174,14 +1338,34 @@ fn pass_ref_from_unconstrained_to_unconstrained_via_return() {
         &mut 0
     }
     "#;
+    check_monomorphization_error_using_features(src, &[], true);
+}
 
-    let err = get_monomorphized_with_options(
-        src,
-        GetProgramOptions { allow_elaborator_errors: true, ..Default::default() },
-    )
-    .expect_err("should fail to monomorphize");
+#[test]
+fn return_enum_from_unconstrained_to_constrained() {
+    // The elaborator rejects this first (see tests/enums.rs); this asserts the
+    // monomorphization defense-in-depth check also rejects an enum return, so the gap
+    // cannot reappear through a boundary-crossing call the elaborator did not lint.
+    let src = r#"
+    enum E {
+        A,
+        B,
+    }
 
-    assert!(matches!(err, MonomorphizationError::UnconstrainedReferenceReturnToConstrained { .. }));
+    fn main() {
+        // safety: test
+        unsafe {
+            let _e = choose();
+                     ^^^^^^^^ Enums cannot be returned from an unconstrained runtime to a constrained runtime
+                     ^^^^^^^^ Enum `E` cannot be returned from an unconstrained runtime to a constrained runtime
+        }
+    }
+
+    unconstrained fn choose() -> E {
+        E::A
+    }
+    "#;
+    check_monomorphization_error_using_features(src, &[UnstableFeature::Enums], true);
 }
 
 #[test]
@@ -1192,10 +1376,14 @@ fn evaluates_builtin_zeroed() {
     }
     "#;
 
-    let program = get_monomorphized_with_stdlib(src, stdlib_src::ZEROED).unwrap();
+    let program = get_monomorphized_with_stdlib(src, &[stdlib_src::ZEROED]).unwrap();
 
     // Note that the zeroed value of a `str<3>` is `"\0\0\0"`, which prints as "".
-    insta::assert_snapshot!(program, @"\nfn main$f0() -> () {\n    let _a$l0 = [(0, \"\0\0\0\"), (0, \"\0\0\0\")]\n}");
+    insta::assert_snapshot!(program, @"
+    fn main$f0() -> () {
+        let _a$l0 = [(0, \"\0\0\0\"); 2]
+    }
+    ");
 }
 
 #[test]
@@ -1206,17 +1394,45 @@ fn evaluates_builtin_zeroed_function() {
     }
     "#;
 
-    let program = get_monomorphized_with_stdlib(src, stdlib_src::ZEROED).unwrap();
+    let program = get_monomorphized_with_stdlib(src, &[stdlib_src::ZEROED]).unwrap();
 
     insta::assert_snapshot!(program, @r"
     fn main$f0() -> () {
         let _f$l4 = (zeroed_lambda$f1, zeroed_lambda$f2)
     }
     fn zeroed_lambda$f1(_$l0: u32, _$l1: str<3>) -> [Field; 2] {
-        [0, 0]
+        [0; 2]
     }
     unconstrained fn zeroed_lambda$f2(_$l2: u32, _$l3: str<3>) -> [Field; 2] {
-        [0, 0]
+        [0; 2]
+    }
+    ");
+}
+
+#[test]
+fn evaluates_builtin_zeroed_closure_type() {
+    let src = r#"
+    fn main(x: u32) {
+        let f: fn[(Field,)](u32) -> [Field; 2] = zeroed();
+        let _ = f(x);
+    }
+    "#;
+
+    let program = get_monomorphized_with_stdlib(src, &[stdlib_src::ZEROED]).unwrap();
+
+    insta::assert_snapshot!(program, @r"
+    fn main$f0(x$l0: u32) -> () {
+        let f$l5 = (((0), zeroed_lambda$f1), ((0), zeroed_lambda$f2));
+        let _$l7 = {
+            let tmp$l6 = f$l5.0;
+            tmp$l6.1(tmp$l6.0, x$l0)
+        }
+    }
+    fn zeroed_lambda$f1(mut env$l1: (Field,), _$l2: u32) -> [Field; 2] {
+        [0; 2]
+    }
+    unconstrained fn zeroed_lambda$f2(mut env$l3: (Field,), _$l4: u32) -> [Field; 2] {
+        [0; 2]
     }
     ");
 }
@@ -1233,7 +1449,7 @@ fn evaluates_builtin_checked_transmute() {
     }
     "#;
 
-    let program = get_monomorphized_with_stdlib(src, stdlib_src::CHECKED_TRANSMUTE).unwrap();
+    let program = get_monomorphized_with_stdlib(src, &[stdlib_src::CHECKED_TRANSMUTE]).unwrap();
 
     insta::assert_snapshot!(program, @r"
     fn main$f0() -> () {
@@ -1250,11 +1466,13 @@ fn wraps_aliased_builtin_functions() {
     let src = r#"
     fn main() {
         let f = modulus_num_bits;
+        let g = poseidon2_config_state_size;
         let _ = f();
     }
     "#;
 
-    let program = get_monomorphized_with_stdlib(src, stdlib_src::MODULUS).unwrap();
+    let program =
+        get_monomorphized_with_stdlib(src, &[stdlib_src::MODULUS, stdlib_src::POSEIDON2]).unwrap();
 
     // We are using `modulus_num_bits` as a function value.
     // The monomorphizer creates a function that returns a comptime value,
@@ -1262,7 +1480,8 @@ fn wraps_aliased_builtin_functions() {
     insta::assert_snapshot!(program, @r"
     fn main$f0() -> () {
         let f$l0 = (modulus_num_bits$f1, modulus_num_bits$f2);
-        let _$l1 = f$l0.0()
+        let g$l1 = (poseidon2_config_state_size$f3, poseidon2_config_state_size$f4);
+        let _$l2 = f$l0.0()
     }
     #[inline_always]
     fn modulus_num_bits$f1() -> u64 {
@@ -1271,6 +1490,14 @@ fn wraps_aliased_builtin_functions() {
     #[inline_always]
     unconstrained fn modulus_num_bits$f2() -> u64 {
         254
+    }
+    #[inline_always]
+    fn poseidon2_config_state_size$f3() -> u32 {
+        4
+    }
+    #[inline_always]
+    unconstrained fn poseidon2_config_state_size$f4() -> u32 {
+        4
     }
     ");
 }
@@ -1287,15 +1514,32 @@ fn evaluates_builtin_modulus_functions() {
     }
     "#;
 
-    let program = get_monomorphized_with_stdlib(src, stdlib_src::MODULUS).unwrap();
+    let program = get_monomorphized_with_stdlib(src, &[stdlib_src::MODULUS]).unwrap();
 
     insta::assert_snapshot!(program, @r"
     fn main$f0() -> () {
         let _$l0 = 254;
-        let _$l1 = @[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 1, 1, 1, 0, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 1];
-        let _$l2 = @[1, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1];
+        let _$l1 = @[true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true, true, true, true, true, true, false, false, true, false, false, true, true, false, true, false, true, true, true, true, true, false, false, false, false, true, true, true, true, true, false, false, false, false, true, false, true, false, false, false, true, false, false, true, false, false, false, false, true, true, true, false, true, false, false, true, true, true, false, true, true, false, false, true, true, true, true, false, false, false, false, true, false, false, true, false, false, false, false, true, false, true, true, true, true, true, false, false, true, true, false, false, false, false, false, true, false, true, false, false, true, false, true, true, true, false, true, false, false, false, false, true, true, false, true, false, true, false, false, false, false, false, false, true, true, false, false, false, false, false, false, true, false, true, true, false, true, true, false, true, true, false, true, false, false, false, true, false, false, false, false, false, true, false, true, false, false, false, false, true, true, true, false, true, true, false, false, true, false, true, false, false, false, false, false, false, false, true, false, true, true, false, false, false, true, true, false, false, true, false, false, false, false, true, true, true, false, true, false, false, true, true, true, false, false, true, true, true, false, false, true, false, false, false, true, false, false, true, true, false, false, false, false, false, true, true];
+        let _$l2 = @[true, true, false, false, false, false, false, true, true, false, false, true, false, false, false, true, false, false, true, true, true, false, false, true, true, true, false, false, true, false, true, true, true, false, false, false, false, true, false, false, true, true, false, false, false, true, true, false, true, false, false, false, false, false, false, false, true, false, true, false, false, true, true, false, true, true, true, false, false, false, false, true, false, true, false, false, false, false, false, true, false, false, false, true, false, true, true, false, true, true, false, true, true, false, true, false, false, false, false, false, false, true, true, false, false, false, false, false, false, true, false, true, false, true, true, false, false, false, false, true, false, true, true, true, false, true, false, false, true, false, true, false, false, false, false, false, true, true, false, false, true, true, true, true, true, false, true, false, false, false, false, true, false, false, true, false, false, false, false, true, true, true, true, false, false, true, true, false, true, true, true, false, false, true, false, true, true, true, false, false, false, false, true, false, false, true, false, false, false, true, false, true, false, false, false, false, true, true, true, true, true, false, false, false, false, true, true, true, true, true, false, true, false, true, true, false, false, true, false, false, true, true, true, true, true, true, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, false, true];
         let _$l3 = @[1, 0, 0, 240, 147, 245, 225, 67, 145, 112, 185, 121, 72, 232, 51, 40, 93, 88, 129, 129, 182, 69, 80, 184, 41, 160, 49, 225, 114, 78, 100, 48];
         let _$l4 = @[48, 100, 78, 114, 225, 49, 160, 41, 184, 80, 69, 182, 129, 129, 88, 93, 40, 51, 232, 72, 121, 185, 112, 145, 67, 225, 245, 147, 240, 0, 0, 1]
+    }
+    ");
+}
+
+#[test]
+fn evaluates_foreign_poseidon2_config_function() {
+    let src = r#"
+    fn main() {
+        let _ = poseidon2_config_state_size();
+    }
+    "#;
+
+    let program = get_monomorphized_with_stdlib(src, &[stdlib_src::POSEIDON2]).unwrap();
+
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> () {
+        let _$l0 = 4
     }
     ");
 }
@@ -1309,7 +1553,7 @@ fn does_not_evaluate_array_len() {
     }
     "#;
 
-    let program = get_monomorphized_with_stdlib(src, stdlib_src::ARRAY_LEN).unwrap();
+    let program = get_monomorphized_with_stdlib(src, &[stdlib_src::ARRAY_LEN]).unwrap();
 
     // The evaluation of array_len has been moved to the SSA in #1736
     insta::assert_snapshot!(program, @r"
@@ -1356,7 +1600,7 @@ fn out_of_order_globals() {
 fn very_large_array() {
     let src = r#"
     fn main() {
-        // 1.3 billion elements 
+        // 1.3 billion elements
         let _arr: [Field; 1294967295] = [0; 1294967295];
     }
     "#;
@@ -1468,4 +1712,361 @@ fn main() {{
         }
         Err(e) => panic!("Expected ComplexType error, but got {e:?}"),
     }
+}
+
+#[test]
+fn deref_of_ref_is_simplified() {
+    let src = "
+        unconstrained fn main() {
+            let mut x: Field = 5;
+            let y = *&mut x;
+            assert(y == 5);
+        }
+    ";
+    let program = get_monomorphized(src).unwrap();
+    // `*&mut x` should be simplified to just `x` during elaboration
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let mut x$l0 = 5;
+        let y$l1 = x$l0;
+        assert((y$l1 == 5));
+    }
+    ");
+}
+
+#[test]
+fn deref_of_immutable_ref_is_simplified() {
+    let src = "
+        unconstrained fn main() {
+            let x: Field = 5;
+            let y = *&x;
+            assert(y == 5);
+        }
+    ";
+    let program = get_monomorphized(src).unwrap();
+    // `*&x` should be simplified to just `x` during elaboration
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let x$l0 = 5;
+        let y$l1 = x$l0;
+        assert((y$l1 == 5));
+    }
+    ");
+}
+
+#[test]
+fn outer_immref_to_brillig_is_accepted() {
+    let src = "
+        fn main() {
+            let x: Field = 5;
+            // Safety:
+            let y = unsafe { foo(&x) };
+            assert(y == 5);
+        }
+
+        unconstrained fn foo(x: &Field) -> Field {
+            *x
+        }
+    ";
+    check_monomorphization_error_using_features(src, &[], true);
+}
+
+#[test]
+fn inner_immref_to_brillig_is_rejected() {
+    let src = "
+        fn main() {
+            let x: Field = 5;
+            // Safety:
+            let y = unsafe { foo(&&x) };
+                                 ^^^ Cannot pass `&&Field` across the constrained/unconstrained boundary: only a direct immutable reference `&T` to a reference-free type is supported
+            assert(y == 5);
+        }
+
+        unconstrained fn foo(x: &&Field) -> Field {
+            **x
+        }
+    ";
+    check_monomorphization_error_using_features(src, &[], true);
+}
+
+#[test]
+fn outer_immref_from_brillig_is_rejected() {
+    let src = "
+        fn main() {
+            // Safety:
+            let y = unsafe { foo(5) };
+                             ^^^^^^ Cannot pass a reference from an unconstrained runtime to an constrained runtime
+                             ^^^^^^ Reference `&Field` cannot be returned from an unconstrained runtime to a constrained runtime
+            assert(*y == 5);
+        }
+
+        unconstrained fn foo(x: Field) -> &Field {
+            &x
+        }
+    ";
+    check_monomorphization_error_using_features(src, &[], true);
+}
+
+const STATIC_ASSERT_STDLIB: &str = "
+    #[builtin(static_assert)]
+    pub fn static_assert<T>(predicate: bool, message: T) {}
+";
+
+#[test]
+fn static_assert_used_as_value_in_let_is_rejected() {
+    let src = r#"
+    fn main() {
+        let f = static_assert;
+        f(true, "msg");
+    }
+    "#;
+    let err = get_monomorphized_with_stdlib(src, &[STATIC_ASSERT_STDLIB]).unwrap_err();
+    assert!(
+        matches!(&err, MonomorphizationError::CannotUseFunctionAsValue { name, .. } if name == "static_assert"),
+        "expected CannotUseFunctionAsValue for static_assert, got: {err:?}"
+    );
+}
+
+#[test]
+fn static_assert_passed_as_argument_is_rejected() {
+    let src = r#"
+    fn main() {
+        call_it(static_assert);
+    }
+
+    fn call_it(f: fn(bool, str<3>) -> ()) {
+        f(true, "msg");
+    }
+    "#;
+    let err = get_monomorphized_with_stdlib(src, &[STATIC_ASSERT_STDLIB]).unwrap_err();
+    assert!(
+        matches!(&err, MonomorphizationError::CannotUseFunctionAsValue { name, .. } if name == "static_assert"),
+        "expected CannotUseFunctionAsValue for static_assert, got: {err:?}"
+    );
+}
+
+#[test]
+fn static_assert_in_block_callee_is_rejected() {
+    // The block expression evaluates to the static_assert function value, which is then called.
+    // Even though the program "looks like" a direct call, the value form goes through monomorphization.
+    let src = r#"
+    fn main() {
+        ({ static_assert })(true, "msg");
+    }
+    "#;
+    let err = get_monomorphized_with_stdlib(src, &[STATIC_ASSERT_STDLIB]).unwrap_err();
+    assert!(
+        matches!(&err, MonomorphizationError::CannotUseFunctionAsValue { name, .. } if name == "static_assert"),
+        "expected CannotUseFunctionAsValue for static_assert, got: {err:?}"
+    );
+}
+
+#[test]
+fn print_oracle_used_as_value_is_rejected() {
+    let src = r#"
+    fn main() {
+        // Safety: test
+        unsafe {
+            let p = print_oracle;
+            p(true, 1);
+        }
+    }
+    "#;
+    let err = get_monomorphized_with_stdlib(src, &[stdlib_src::PRINT]).unwrap_err();
+    assert!(
+        matches!(&err, MonomorphizationError::CannotUseFunctionAsValue { name, .. } if name == "print"),
+        "expected CannotUseFunctionAsValue for print oracle, got: {err:?}"
+    );
+}
+
+#[test]
+fn static_assert_called_directly_still_works() {
+    let src = r#"
+    fn main() {
+        static_assert(true, "msg");
+    }
+    "#;
+    get_monomorphized_with_stdlib(src, &[STATIC_ASSERT_STDLIB])
+        .expect("direct call to static_assert should still monomorphize");
+}
+
+const ZEROED_STDLIB: &str = "
+    #[builtin(zeroed)]
+    pub fn zeroed<T>() -> T {}
+";
+
+#[test]
+fn zeroed_array_of_references_does_not_alias() {
+    // Each slot of a zeroed `[&mut Field; N]` must get its own `allocate`. Wrapping a single
+    // `&mut 0` sub-expression in a repeated array literal would make every slot share one
+    // allocation, so a write through one slot would be visible through all the others.
+    let src = r#"
+    fn main() {
+        let _arr: [&mut Field; 3] = zeroed();
+    }
+    "#;
+    let program = get_monomorphized_with_stdlib(src, &[ZEROED_STDLIB]).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> () {
+        let _arr$l0 = [(&mut 0), (&mut 0), (&mut 0)]
+    }
+    ");
+}
+
+#[test]
+fn constrained_fn_value_nested_in_unconstrained_fn_target_keeps_mixed_pair() {
+    // A `let` whose declared type is `unconstrained fn(..)` forces every function value in its
+    // initializer to be built as an `(unconstrained, unconstrained)` pair, so that a constrained
+    // caller dispatching through slot `.0` still runs Brillig. That is correct for the value that
+    // occupies the slot -- here `dummy`.
+    //
+    // It must not extend to `g`, which is a separate binding with its own, constrained, `fn` type
+    // and never flows into that slot. `g` must stay a mixed `(constrained, unconstrained)` pair so
+    // that `g(x)` -- a call from constrained code with no `unsafe` -- selects the constrained
+    // specialization of `compute` and its `x * x` becomes an ACIR constraint.
+    let src = r#"
+    fn compute(x: u32) -> u32 { x * x }
+    unconstrained fn dummy(x: u32) -> u32 { x }
+
+    fn main(x: u32) -> pub u32 {
+        let mut r: u32 = 0;
+        let _f: unconstrained fn(u32) -> u32 = {
+            let g: fn(u32) -> u32 = compute;
+            r = g(x);
+            dummy
+        };
+        r
+    }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    // `g$l2` is a mixed pair and slot `.0` -- the one `g$l2.0(x$l0)` selects from constrained
+    // code -- is the constrained `compute$f1`, so `x * x` becomes an ACIR constraint. `dummy`,
+    // which does occupy the `unconstrained fn` slot, is still forced to a
+    // `(unconstrained, unconstrained)` pair.
+    insta::assert_snapshot!(program, @r"
+    fn main$f0(x$l0: u32) -> pub u32 {
+        let mut r$l1 = 0;
+        let _f$l3 = {
+            let g$l2 = (compute$f1, compute$f2);
+            r$l1 = g$l2.0(x$l0);
+            (dummy$f3, dummy$f3)
+        };
+        r$l1
+    }
+    fn compute$f1(x$l4: u32) -> u32 {
+        (x$l4 * x$l4)
+    }
+    unconstrained fn compute$f2(x$l5: u32) -> u32 {
+        (x$l5 * x$l5)
+    }
+    unconstrained fn dummy$f3(x$l6: u32) -> u32 {
+        x$l6
+    }
+    ");
+}
+
+#[test]
+fn lambda_in_if_condition_of_unconstrained_fn_target_is_not_forced() {
+    // An `if` condition does not produce the value that lands in the enclosing `unconstrained fn`
+    // slot -- only the branches do. A lambda built in the condition is therefore an ordinary
+    // constrained function value, and `(|y| y * y)(x)` must be constrained.
+    //
+    // If it is forced, the comparison feeding the `if` becomes a free witness, so every assertion
+    // inside a branch is predicated on a value the prover chooses and can be made vacuous.
+    let src = r#"
+    unconstrained fn dummy(y: u32) -> u32 { y }
+
+    fn main(x: u32) -> pub u32 {
+        let _f: unconstrained fn(u32) -> u32 =
+            if (|y: u32| y * y)(x) == 9 { dummy } else { dummy };
+        x
+    }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    // The condition calls the constrained `lambda$f1` directly, with no `unsafe` wrapper, so
+    // `y * y` is constrained. The branches, which do produce the value occupying the
+    // `unconstrained fn` slot, are still forced to `(dummy$f3, dummy$f3)`.
+    insta::assert_snapshot!(program, @r"
+    fn main$f0(x$l0: u32) -> pub u32 {
+        let _f$l3 = if (lambda$f1(x$l0) == 9) {
+            (dummy$f3, dummy$f3)
+        } else {
+            (dummy$f3, dummy$f3)
+        };
+        x$l0
+    }
+    fn lambda$f1(y$l1: u32) -> u32 {
+        (y$l1 * y$l1)
+    }
+    unconstrained fn lambda$f2(y$l2: u32) -> u32 {
+        (y$l2 * y$l2)
+    }
+    unconstrained fn dummy$f3(y$l4: u32) -> u32 {
+        y$l4
+    }
+    ");
+}
+
+#[test]
+fn constrained_fn_value_in_unconstrained_fn_target_control() {
+    // Control for `constrained_fn_value_nested_in_unconstrained_fn_target_keeps_mixed_pair`:
+    // the identical program with the `unconstrained fn` ascription removed. `g` is bound to a
+    // mixed pair whose slot `.0` is the constrained `compute$f1`, so `x * x` is constrained.
+    // This is the shape the forced case must also produce for its nested `g` binding.
+    let src = r#"
+    fn compute(x: u32) -> u32 { x * x }
+
+    fn main(x: u32) -> pub u32 {
+        let mut r: u32 = 0;
+        let _f: u32 = {
+            let g: fn(u32) -> u32 = compute;
+            r = g(x);
+            0
+        };
+        r
+    }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0(x$l0: u32) -> pub u32 {
+        let mut r$l1 = 0;
+        let _f$l3 = {
+            let g$l2 = (compute$f1, compute$f2);
+            r$l1 = g$l2.0(x$l0);
+            0
+        };
+        r$l1
+    }
+    fn compute$f1(x$l4: u32) -> u32 {
+        (x$l4 * x$l4)
+    }
+    unconstrained fn compute$f2(x$l5: u32) -> u32 {
+        (x$l5 * x$l5)
+    }
+    ");
+}
+
+#[test]
+fn errors_on_unknown_builtin_name() {
+    // The name in a `#[builtin]`/`#[foreign]` attribute is free-form at parse time;
+    // it is resolved to `shared::Builtin` when a call to it is monomorphized. A name
+    // the compiler does not implement must produce a diagnostic here rather than
+    // surviving to SSA generation and panicking there.
+    let src = r#"
+    #[builtin(not_a_real_builtin)]
+    pub fn not_a_real_builtin() {}
+
+    fn main() {
+        not_a_real_builtin();
+    }
+    "#;
+    let err = get_monomorphized_with_options(
+        src,
+        GetProgramOptions { root_and_stdlib: true, ..Default::default() },
+    )
+    .unwrap_err();
+    assert!(
+        matches!(&err, MonomorphizationError::UnknownBuiltin { name, .. } if name == "not_a_real_builtin"),
+        "expected UnknownBuiltin, got: {err:?}"
+    );
 }

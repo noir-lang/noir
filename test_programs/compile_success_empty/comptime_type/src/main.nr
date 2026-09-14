@@ -28,6 +28,10 @@ where
 {}
 // docs:end:serialize-setup
 
+type FieldAlias = Field;
+type BoolAlias = bool;
+type UnitAlias = ();
+
 fn main() {
     comptime {
         // Check type_of works correctly (relies on Eq for Type)
@@ -44,18 +48,20 @@ fn main() {
         assert(field_type_1.is_field());
         assert(!i32_type.is_field());
 
+        assert(quote { FieldAlias }.as_type().is_field());
+
         // Check Type::as_integer
         assert(field_type_1.as_integer().is_none());
 
-        let (signed, bits) = i32_type.as_integer().unwrap();
-        assert(signed);
-        assert_eq(bits, 32);
+        let int = i32_type.as_integer().unwrap();
+        assert(int.is_signed());
+        assert_eq(int.bits(), 32);
 
         let a_u8: u8 = 0;
         let u8_type = type_of(a_u8);
-        let (signed, bits) = u8_type.as_integer().unwrap();
-        assert(!signed);
-        assert_eq(bits, 8);
+        let int = u8_type.as_integer().unwrap();
+        assert(!int.is_signed());
+        assert_eq(int.bits(), 8);
 
         // Check Type::as_tuple
         assert(u8_type.as_tuple().is_none());
@@ -80,12 +86,12 @@ fn main() {
 
         let array = [1, 2, 3];
         let array_type = type_of(array);
-        let (array_type_element_type, array_length) = array_type.as_array().unwrap();
-        assert_eq(array_type_element_type, field_type_1);
+        let array = array_type.as_array().unwrap();
+        assert_eq(array.element_type(), field_type_1);
 
         // Check Type::as_constant
         assert(u8_type.as_constant().is_none());
-        assert_eq(array_length.as_constant().unwrap(), 3);
+        assert_eq(array.length_type().as_constant().unwrap(), 3);
 
         // Check Type::is_bool
         assert(!u8_type.is_bool());
@@ -94,17 +100,19 @@ fn main() {
         let bool_type = type_of(yes);
         assert(bool_type.is_bool());
 
+        assert(quote { BoolAlias }.as_type().is_bool());
+
         // Check Type::as_data_type
         assert(u8_type.as_data_type().is_none());
 
         let foo = Foo { x: 0 };
         let foo_type = type_of(foo);
-        let (struct_definition, generics) = foo_type.as_data_type().unwrap();
-        let fields = struct_definition.fields(generics);
+        let data = foo_type.as_data_type().unwrap();
+        let fields = data.definition().fields(data.generics());
         assert_eq(fields.len(), 1);
 
-        assert_eq(generics.len(), 1);
-        assert_eq(generics[0], field_type_1);
+        assert_eq(data.generics().len(), 1);
+        assert_eq(data.generics()[0], field_type_1);
 
         // Check Type::implements
         let some_trait_i32 = quote { SomeTrait<i32> }.as_trait_constraint();
@@ -150,6 +158,8 @@ fn main() {
         // Check Type::is_unit
         let unit = quote { () }.as_type();
         assert(unit.is_unit());
+
+        assert(quote { UnitAlias }.as_type().is_unit());
 
         // Check Type::as_mutable_reference
         let typ = quote { &mut Field }.as_type();

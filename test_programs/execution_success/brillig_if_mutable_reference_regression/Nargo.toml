@@ -1,0 +1,6 @@
+[package]
+name = "brillig_if_mutable_reference_regression"
+type = "bin"
+authors = [""]
+
+[dependencies]

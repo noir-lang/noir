@@ -1,3 +1,0 @@
-pub foo() -> bool {
-    true
-}

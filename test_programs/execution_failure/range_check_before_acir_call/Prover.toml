@@ -1,0 +1,3 @@
+# 2^40, which is outside the 32-bit range asserted in `main`.
+w1 = "1099511627776"
+w2 = "7"

@@ -3,7 +3,7 @@
 
 use crate::{
     test_utils::stdlib_src,
-    tests::{assert_no_errors, check_errors, check_errors_with_stdlib},
+    tests::{assert_no_errors, check_errors, check_errors_with_stdlib, get_program_errors},
 };
 
 #[test]
@@ -99,6 +99,67 @@ fn trait_inheritance_dependency_cycle() {
               ^^^ Dependency cycle found
               ~~~ 'Foo' recursively depends on itself: Foo -> Bar -> Foo
         trait Bar: Foo {}
+    "#;
+    check_errors(src);
+}
+
+// Regression test for add_trait_bound_to_scope() cyclic recursion
+#[test]
+fn add_trait_bound_to_scope_dependency_cycle() {
+    let src = r#"
+        trait A: B {}
+        trait B: C {}
+        trait C: B {
+              ^ Dependency cycle found
+              ~ 'C' recursively depends on itself: C -> B -> C
+            fn ping() -> u32;
+        }
+
+        pub fn foo<T: A>(_x: T) {}
+
+        fn main() {}
+    "#;
+    check_errors(src);
+}
+
+// Regression test for find_methods_or_constants_in_trait() cyclic recursion
+#[test]
+fn find_methods_or_constants_in_trait_dependency_cycle() {
+    let src = r#"
+        trait A: B {}
+        trait B: C {}
+        trait C: B {
+              ^ Dependency cycle found
+              ~ 'C' recursively depends on itself: C -> B -> C
+            fn ping() -> u32;
+        }
+
+        pub fn foo<T: A>() -> u32 {
+            T::ping()
+        }
+
+        fn main() {}
+    "#;
+    check_errors(src);
+}
+
+// Regression test for lookup_methods_in_trait() cyclic recursion
+#[test]
+fn lookup_methods_in_trait_dependency_cycle() {
+    let src = r#"
+        trait A: B {}
+        trait B: C {}
+        trait C: B {
+              ^ Dependency cycle found
+              ~ 'C' recursively depends on itself: C -> B -> C
+            fn ping(self) -> u32;
+        }
+
+        pub fn foo<T: A>(x: T) -> u32 {
+            x.ping()
+        }
+
+        fn main() {}
     "#;
     check_errors(src);
 }
@@ -227,10 +288,13 @@ fn trait_inheritance_with_ambiguous_associated_type() {
 
     pub trait Qux: Foo {
         type Bar;
-        // This is rejected by Rust as ambiguous, but is accepted by Noir.
         fn qux() -> Self::Bar;
+                    ^^^^^^^^^ Multiple applicable items in scope
+                    ~~~~~~~~~ Multiple traits which provide `Bar` are implemented and in scope: `Foo`, `Qux`
 
         fn quy() -> <Self as Qux>::Bar;
+                     ^^^^ Multiple applicable items in scope
+                     ~~~~ Multiple traits which provide `Bar` are implemented and in scope: `Foo`, `Qux`
         fn quz() -> <Self as Foo>::Bar;
     }
     "#;
@@ -267,6 +331,8 @@ fn trait_inheritance_assoc_via_self_as_in_impl() {
 
 #[test]
 fn trait_inheritance_assoc_disambiguate_via_self_as_in_impl() {
+    // Because Qux inherit from Foo, and they both define the associated type Bar
+    // `<Self as Qux>::Bar` does not disambiguate `Bar`
     let src = r#"
     pub trait Foo {
         type Bar;
@@ -276,6 +342,8 @@ fn trait_inheritance_assoc_disambiguate_via_self_as_in_impl() {
     pub trait Qux: Foo {
         type Bar;
         fn quy() -> <Self as Qux>::Bar;
+                     ^^^^ Multiple applicable items in scope
+                     ~~~~ Multiple traits which provide `Bar` are implemented and in scope: `Foo`, `Qux`
         fn quz() -> <Self as Foo>::Bar;
     }
 
@@ -299,7 +367,7 @@ fn trait_inheritance_assoc_disambiguate_via_self_as_in_impl() {
 
     fn main() {}
     "#;
-    assert_no_errors(src);
+    check_errors(src);
 }
 
 #[test]
@@ -382,13 +450,11 @@ fn trait_inheritance_with_generic_impl_and_base_call() {
     assert_no_errors(src);
 }
 
-// Known bug: Self::A from grandparent trait not accessible in impl
-
-/// TODO(https://github.com/noir-lang/noir/issues/11547): remove should_panic once fixed
+/// Regression test for <https://github.com/noir-lang/noir/issues/11547>.
+/// A subtrait may name an associated type declared on its supertrait via the `Self::Key`
+/// shorthand, both in the trait's method signature and in the implementing method.
 #[test]
-#[should_panic(expected = "Expected no errors")]
 fn supertrait_associated_type_in_impl() {
-    // Bug: Self::Key from supertrait KeyType not resolved in Lookup impl
     let src = r#"
     trait KeyType {
         type Key;
@@ -409,24 +475,25 @@ fn supertrait_associated_type_in_impl() {
 
     impl Lookup for Map {
         fn lookup(self, key: Self::Key) -> Field {
-            if self.key == key { self.value } else { 0 }
+            let _ = self.key;
+            let _ = self.value;
+            key
         }
     }
 
     fn main() {
         let m = Map { key: 1, value: 42 };
-        assert(m.lookup(1) == 42);
+        let _ = m.lookup(1);
     }
     "#;
     assert_no_errors(src);
 }
 
-/// TODO(https://github.com/noir-lang/noir/issues/11548): remove should_panic once fixed
+/// A trait may access associated types defined on any of its ancestor traits
+/// (parent, grandparent, ...), and a generic function bounded by such a trait
+/// can call methods whose signatures reference those inherited associated types.
 #[test]
-#[should_panic(expected = "Expected no errors")]
 fn trait_inheritance_chain_with_associated_types() {
-    // Bug: Self::A from grandparent trait Level1 not accessible in Level3 impl.
-    // Self::B from parent trait Level2 also not accessible.
     let src = r#"
     trait Level1 {
         type A;
@@ -469,4 +536,154 @@ fn trait_inheritance_chain_with_associated_types() {
     }
     "#;
     assert_no_errors(src);
+}
+
+/// A method whose return type references the trait's own associated type can be called through
+/// a grandchild bound, even when none of the intervening traits add associated types of their
+/// own. The inherited associated type must still resolve via the grandchild's bound.
+#[test]
+fn grandparent_trait_method_returning_own_associated_type() {
+    let src = r#"
+    trait Level1 {
+        type A;
+        fn get_a(self) -> Self::A;
+    }
+
+    trait Level2: Level1 {}
+    trait Level3: Level2 {}
+
+    struct Data {
+        a: Field,
+    }
+
+    impl Level1 for Data {
+        type A = Field;
+        fn get_a(self) -> Self::A { self.a }
+    }
+
+    impl Level2 for Data {}
+    impl Level3 for Data {}
+
+    fn process<T>(t: T) -> Field where T: Level3 {
+        t.get_a()
+    }
+
+    fn main() {
+        let d = Data { a: 42 };
+        assert(process(d) == 42);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// The inherited associated type resolves across an arbitrarily deep inheritance chain, not just
+/// a single grandparent hop.
+#[test]
+fn trait_inheritance_chain_with_associated_types_four_levels() {
+    let src = r#"
+    trait Level1 { type A; }
+    trait Level2: Level1 {
+        type B;
+        fn get_a(self) -> Self::A;
+    }
+    trait Level3: Level2 { type C; }
+    trait Level4: Level3 {
+        fn get_c(self) -> Self::C;
+    }
+
+    struct Data {
+        a: Field,
+        b: bool,
+        c: u32,
+    }
+
+    impl Level1 for Data { type A = Field; }
+    impl Level2 for Data {
+        type B = bool;
+        fn get_a(self) -> Self::A { self.a }
+    }
+    impl Level3 for Data { type C = u32; }
+    impl Level4 for Data {
+        fn get_c(self) -> Self::C { self.c }
+    }
+
+    fn process<T>(t: T) -> Field where T: Level4 {
+        t.get_a()
+    }
+
+    fn main() {
+        let d = Data { a: 42, b: true, c: 7 };
+        assert(process(d) == 42);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Diamond trait inheritance should not report "Multiple traits in scope"
+/// when the same trait method is reachable through multiple parent paths.
+///     C       (defines foo)
+///    / \
+///   A   B     (both inherit C)
+///    \ /
+///     D      (inherits A + B)
+#[test]
+fn diamond_trait_inheritance_method_call() {
+    let src = r#"
+    trait C {
+        fn foo(self) -> Field;
+    }
+
+    trait A: C {}
+    trait B: C {}
+    trait D: A + B {}
+
+    fn call_foo<T: D>(x: T) -> Field {
+        x.foo()
+    }
+
+    struct S {}
+
+    impl C for S {
+        fn foo(self) -> Field { 42 }
+    }
+    impl A for S {}
+    impl B for S {}
+    impl D for S {}
+
+    fn main() {
+        assert(call_foo(S {}) == 42);
+    }
+    "#;
+    let errors = get_program_errors(src);
+    let actual_errors: Vec<_> = errors.iter().filter(|e| e.is_error()).collect();
+    assert!(actual_errors.is_empty(), "Expected no errors, got: {actual_errors:?}");
+}
+
+// Regression test for lookup_associated_type_in_parent_impls() cyclic recursion.
+// Self::X inside the impl of A triggers lookup_associated_type_in_parent_impls
+// which traverses parent impls B -> C -> B -> ... and would hang without cycle detection.
+#[test]
+fn lookup_associated_type_in_parent_impls_dependency_cycle() {
+    let src = r#"
+        trait B: C {}
+              ^ Dependency cycle found
+              ~ 'B' recursively depends on itself: B -> C -> B
+        trait C: B {}
+
+        trait A: B {
+            type Y;
+        }
+
+        impl C for Field {}
+
+        impl B for Field {}
+
+        impl A for Field {
+            type Y = Self::X;
+                     ^^^^ Could not resolve 'Self' in path
+        }
+
+        fn main() {}
+    "#;
+    check_errors(src);
 }

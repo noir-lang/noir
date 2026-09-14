@@ -3,7 +3,7 @@ use std::{collections::BTreeSet, str::FromStr};
 use acir_field::{AcirField, FieldElement};
 
 use lexer::{Lexer, LexerError};
-use noirc_span::Span;
+use span::Span;
 use thiserror::Error;
 use token::{Keyword, SpannedToken, Token};
 
@@ -18,6 +18,7 @@ use crate::{
 };
 
 mod lexer;
+mod span;
 #[cfg(test)]
 mod tests;
 mod token;
@@ -191,7 +192,6 @@ impl<'a> Parser<'a> {
         let opcodes = self.parse_opcodes()?;
 
         Ok(Circuit {
-            current_witness_index: self.max_witness_index,
             opcodes,
             private_parameters,
             public_parameters,
@@ -297,18 +297,18 @@ impl<'a> Parser<'a> {
 
     fn parse_terms_or_error(&mut self) -> ParseResult<Vec<Term>> {
         let mut terms = Vec::new();
-        let mut negative = self.eat(Token::Minus)?;
+        let mut negative = self.eat(&Token::Minus)?;
         loop {
             let term = self.parse_term_or_error()?;
             let term = if negative { term.negate() } else { term };
             terms.push(term);
 
-            if self.eat(Token::Plus)? {
+            if self.eat(&Token::Plus)? {
                 negative = false;
                 continue;
             }
 
-            if self.eat(Token::Minus)? {
+            if self.eat(&Token::Minus)? {
                 negative = true;
                 continue;
             }
@@ -320,7 +320,7 @@ impl<'a> Parser<'a> {
 
     fn parse_term_or_error(&mut self) -> ParseResult<Term> {
         if let Some(coefficient) = self.eat_field_element()? {
-            if self.eat(Token::Star)? {
+            if self.eat(&Token::Star)? {
                 let w1 = self.eat_witness_or_error()?;
                 self.parse_linear_or_multiplication_term(coefficient, w1)
             } else {
@@ -338,7 +338,7 @@ impl<'a> Parser<'a> {
         coefficient: FieldElement,
         w1: Witness,
     ) -> Result<Term, ParserError> {
-        if self.eat(Token::Star)? {
+        if self.eat(&Token::Star)? {
             let w2 = self.eat_witness_or_error()?;
             Ok(Term::Multiplication(coefficient, w1, w2))
         } else {
@@ -501,8 +501,8 @@ impl<'a> Parser<'a> {
                 let predicate = self.parse_blackbox_input(Keyword::Predicate)?;
                 self.eat_comma_or_error()?;
 
-                let outputs = self.parse_blackbox_outputs_array::<3>()?;
-                let outputs = (outputs[0], outputs[1], outputs[2]);
+                let outputs = self.parse_blackbox_outputs_array::<2>()?;
+                let outputs = (outputs[0], outputs[1]);
 
                 BlackBoxFuncCall::MultiScalarMul { points, scalars, predicate, outputs }
             }
@@ -542,17 +542,17 @@ impl<'a> Parser<'a> {
                 }
             }
             BlackBoxFunc::EmbeddedCurveAdd => {
-                let input1 = self.parse_blackbox_inputs_array::<3>(Keyword::Input1)?;
+                let input1 = self.parse_blackbox_inputs_array::<2>(Keyword::Input1)?;
                 self.eat_comma_or_error()?;
 
-                let input2 = self.parse_blackbox_inputs_array::<3>(Keyword::Input2)?;
+                let input2 = self.parse_blackbox_inputs_array::<2>(Keyword::Input2)?;
                 self.eat_comma_or_error()?;
 
                 let predicate = self.parse_blackbox_input(Keyword::Predicate)?;
                 self.eat_comma_or_error()?;
 
-                let outputs = self.parse_blackbox_outputs_array::<3>()?;
-                let outputs = (outputs[0], outputs[1], outputs[2]);
+                let outputs = self.parse_blackbox_outputs_array::<2>()?;
+                let outputs = (outputs[0], outputs[1]);
 
                 BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, predicate, outputs }
             }
@@ -674,16 +674,14 @@ impl<'a> Parser<'a> {
         self.eat_keyword_or_error(Keyword::MemoryRead)?;
 
         // value = blockId[index]
-        let value = self.parse_arithmetic_expression()?;
+        let value = self.eat_witness_or_error()?;
         self.eat_or_error(Token::Equal)?;
         let block_id = self.eat_block_id_or_error()?;
         self.eat_or_error(Token::LeftBracket)?;
-        let index = self.parse_arithmetic_expression()?;
+        let index = self.eat_witness_or_error()?;
         self.eat_or_error(Token::RightBracket)?;
 
-        let operation = Expression::zero();
-
-        Ok(Opcode::MemoryOp { block_id, op: MemOp { index, value, operation } })
+        Ok(Opcode::MemoryOp { block_id, op: MemOp::read_at_mem_index(index, value) })
     }
 
     fn parse_memory_write(&mut self) -> ParseResult<Opcode<FieldElement>> {
@@ -692,14 +690,12 @@ impl<'a> Parser<'a> {
         // blockId[index] = value
         let block_id = self.eat_block_id_or_error()?;
         self.eat_or_error(Token::LeftBracket)?;
-        let index = self.parse_arithmetic_expression()?;
+        let index = self.eat_witness_or_error()?;
         self.eat_or_error(Token::RightBracket)?;
         self.eat_or_error(Token::Equal)?;
-        let value = self.parse_arithmetic_expression()?;
+        let value = self.eat_witness_or_error()?;
 
-        let operation = Expression::one();
-
-        Ok(Opcode::MemoryOp { block_id, op: MemOp { index, value, operation } })
+        Ok(Opcode::MemoryOp { block_id, op: MemOp::write_to_mem_index(index, value) })
     }
 
     fn parse_brillig_call(&mut self) -> ParseResult<Opcode<FieldElement>> {
@@ -724,7 +720,7 @@ impl<'a> Parser<'a> {
         self.eat_or_error(Token::Colon)?;
         let outputs = self.parse_brillig_outputs()?;
 
-        Ok(Opcode::BrilligCall { id: BrilligFunctionId(func_id), inputs, outputs, predicate })
+        Ok(Opcode::BrilligCall { id: BrilligFunctionId::new(func_id), inputs, outputs, predicate })
     }
 
     fn parse_brillig_inputs(&mut self) -> ParseResult<Vec<BrilligInputs<FieldElement>>> {
@@ -732,7 +728,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_brillig_input(&mut self) -> Result<BrilligInputs<FieldElement>, ParserError> {
-        if self.at(Token::LeftBracket) {
+        if self.at(&Token::LeftBracket) {
             // It's an array of expressions
             let exprs = self.parse_bracketed_list(|parser| parser.parse_arithmetic_expression())?;
             Ok(BrilligInputs::Array(exprs))
@@ -749,7 +745,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_brillig_output(&mut self) -> Result<BrilligOutputs, ParserError> {
-        if self.at(Token::LeftBracket) {
+        if self.at(&Token::LeftBracket) {
             let witnesses = self.parse_witness_vector()?;
             Ok(BrilligOutputs::Array(witnesses))
         } else if let Some(witness) = self.eat_witness()? {
@@ -776,7 +772,7 @@ impl<'a> Parser<'a> {
         self.eat_or_error(Token::Colon)?;
         let outputs = self.parse_witness_vector()?;
 
-        Ok(Opcode::Call { id: AcirFunctionId(id), inputs, outputs, predicate })
+        Ok(Opcode::Call { id: AcirFunctionId::new(id), inputs, outputs, predicate })
     }
 
     fn eat_predicate(&mut self) -> ParseResult<Expression<FieldElement>> {
@@ -795,12 +791,12 @@ impl<'a> Parser<'a> {
 
         let mut values = Vec::new();
 
-        while !self.eat(Token::RightBracket)? {
+        while !self.eat(&Token::RightBracket)? {
             let value = parser(self)?;
             values.push(value);
 
             // Eat optional comma
-            if self.eat(Token::Comma)? {
+            if self.eat(&Token::Comma)? {
                 continue;
             }
 
@@ -922,7 +918,7 @@ impl<'a> Parser<'a> {
         if is_block_type {
             let token = self.bump()?;
             match token.into_token() {
-                Token::Block(block) => Ok(Some(BlockId(block))),
+                Token::Block(block) => Ok(Some(BlockId::new(block))),
                 _ => unreachable!(),
             }
         } else {
@@ -939,17 +935,17 @@ impl<'a> Parser<'a> {
     }
 
     fn eat_or_error(&mut self, token: Token) -> ParseResult<()> {
-        if self.eat(token.clone())? { Ok(()) } else { self.expected_token(token) }
+        if self.eat(&token)? { Ok(()) } else { self.expected_token(token) }
     }
 
-    fn at(&self, token: Token) -> bool {
-        self.token.token() == &token
+    fn at(&self, token: &Token) -> bool {
+        self.token.token() == token
     }
 
     /// Returns true if the token is eaten and bumps to the next token.
     /// Otherwise will return false and no bump will occur.
-    fn eat(&mut self, token: Token) -> ParseResult<bool> {
-        if self.token.token() == &token {
+    fn eat(&mut self, token: &Token) -> ParseResult<bool> {
+        if self.token.token() == token {
             self.bump()?;
             Ok(true)
         } else {

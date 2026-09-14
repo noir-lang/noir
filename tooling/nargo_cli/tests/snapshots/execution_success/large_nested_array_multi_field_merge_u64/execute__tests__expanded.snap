@@ -1,0 +1,23 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+struct Element {
+    a: u64,
+    b: u64,
+    c: u64,
+    d: u64,
+    e: u64,
+}
+
+fn main(input: [Element; 64], condition: bool) {
+    let mut arr: [Element; 64] = input;
+    for i in 0_u32..64_u32 {
+        if condition {
+            arr[i].a = arr[i].a + 1_u64;
+            arr[i].c = arr[i].c + 2_u64;
+            arr[i].e = arr[i].e + 3_u64;
+        }
+    }
+    assert(arr[0_u32].a > 0_u64);
+}

@@ -1,7 +1,0 @@
-[package]
-name = "macro_result_type"
-type = "bin"
-authors = [""]
-compiler_version = ">=0.34.0"
-
-[dependencies]

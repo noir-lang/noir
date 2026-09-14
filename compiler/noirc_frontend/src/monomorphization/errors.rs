@@ -9,14 +9,14 @@ use crate::{
 #[derive(Debug)]
 pub enum MonomorphizationError {
     UnknownArrayLength { err: TypeCheckError, location: Location },
-    UnknownConstant { location: Location },
     NoDefaultType { location: Location },
     InternalError { message: &'static str, location: Location },
     InterpreterError(InterpreterError),
     ComptimeFnInRuntimeCode { name: String, location: Location },
     ComptimeTypeInRuntimeCode { typ: String, location: Location },
     CheckedTransmuteFailed { actual: String, expected: String, location: Location },
-    CheckedCastFailed { actual: Type, expected: Type, location: Location },
+    CheckedCastFailed { actual: String, expected: Type, location: Location },
+    CheckedCastEvaluationFailed { err: TypeCheckError, location: Location },
     RecursiveType { typ: Type, location: Location },
     CannotComputeAssociatedConstant { name: String, err: TypeCheckError, location: Location },
     ReferenceReturnedFromIfOrMatch { typ: String, location: Location },
@@ -24,24 +24,34 @@ pub enum MonomorphizationError {
     NestedVectors { location: Location },
     InvalidTypeInErrorMessage { typ: String, location: Location },
     ConstrainedReferenceToUnconstrained { typ: String, location: Location },
+    NestedOrContainerReferenceToUnconstrained { typ: String, location: Location },
     UnconstrainedReferenceReturnToConstrained { typ: String, location: Location },
     UnconstrainedVectorReturnToConstrained { typ: String, location: Location },
+    UnconstrainedFunctionReturnToConstrained { typ: String, location: Location },
+    UnconstrainedEnumReturnToConstrained { typ: String, location: Location },
     ReferenceReturnedFromOracle { typ: String, location: Location },
+    ReferenceParameterToOracle { typ: String, location: Location },
     VectorWithNestedArrayReturnedFromOracle { typ: String, location: Location },
     InvalidTypeForEntryPoint { invalid_type: InvalidType, location: Location },
+    InputLimitExceeded { num_elements: u64, max_elements: u64, location: Location },
+    ReturnLimitExceeded { num_elements: u64, max_elements: u64, location: Location },
     ComplexType { complexity: usize, max_complexity: usize, location: Location },
+    CannotUseFunctionAsValue { name: String, location: Location },
+    UnknownBuiltin { name: String, location: Location },
+    GlobalContainsFunctionPointer { typ: String, location: Location },
+    CalledDisabledFunction { name: String, location: Location },
 }
 
 impl MonomorphizationError {
     fn location(&self) -> Location {
         match self {
             MonomorphizationError::UnknownArrayLength { location, .. }
-            | MonomorphizationError::UnknownConstant { location }
             | MonomorphizationError::InternalError { location, .. }
             | MonomorphizationError::ComptimeFnInRuntimeCode { location, .. }
             | MonomorphizationError::ComptimeTypeInRuntimeCode { location, .. }
             | MonomorphizationError::CheckedTransmuteFailed { location, .. }
             | MonomorphizationError::CheckedCastFailed { location, .. }
+            | MonomorphizationError::CheckedCastEvaluationFailed { location, .. }
             | MonomorphizationError::RecursiveType { location, .. }
             | MonomorphizationError::NoDefaultType { location, .. }
             | MonomorphizationError::ReferenceReturnedFromIfOrMatch { location, .. }
@@ -50,14 +60,28 @@ impl MonomorphizationError {
             | MonomorphizationError::CannotComputeAssociatedConstant { location, .. }
             | MonomorphizationError::InvalidTypeInErrorMessage { location, .. }
             | MonomorphizationError::ConstrainedReferenceToUnconstrained { location, .. }
+            | MonomorphizationError::NestedOrContainerReferenceToUnconstrained {
+                location, ..
+            }
             | MonomorphizationError::UnconstrainedReferenceReturnToConstrained {
                 location, ..
             }
             | MonomorphizationError::UnconstrainedVectorReturnToConstrained { location, .. }
+            | MonomorphizationError::UnconstrainedFunctionReturnToConstrained {
+                location, ..
+            }
+            | MonomorphizationError::UnconstrainedEnumReturnToConstrained { location, .. }
             | MonomorphizationError::ReferenceReturnedFromOracle { location, .. }
+            | MonomorphizationError::ReferenceParameterToOracle { location, .. }
             | MonomorphizationError::VectorWithNestedArrayReturnedFromOracle { location, .. }
             | MonomorphizationError::InvalidTypeForEntryPoint { location, .. }
-            | MonomorphizationError::ComplexType { location, .. } => *location,
+            | MonomorphizationError::InputLimitExceeded { location, .. }
+            | MonomorphizationError::ReturnLimitExceeded { location, .. }
+            | MonomorphizationError::ComplexType { location, .. }
+            | MonomorphizationError::CannotUseFunctionAsValue { location, .. }
+            | MonomorphizationError::UnknownBuiltin { location, .. }
+            | MonomorphizationError::GlobalContainsFunctionPointer { location, .. }
+            | MonomorphizationError::CalledDisabledFunction { location, .. } => *location,
             MonomorphizationError::InterpreterError(error) => error.location(),
         }
     }
@@ -71,15 +95,15 @@ impl From<MonomorphizationError> for CustomDiagnostic {
                 let secondary = err.to_string();
                 return CustomDiagnostic::simple_error(message, secondary, *location);
             }
-            MonomorphizationError::UnknownConstant { .. } => {
-                "Could not resolve constant".to_string()
-            }
             MonomorphizationError::CheckedTransmuteFailed { actual, expected, .. } => {
                 format!("checked_transmute failed: expected `{expected}` but found `{actual}`")
             }
             MonomorphizationError::CheckedCastFailed { actual, expected, .. } => {
                 format!("Arithmetic generics simplification failed: `{actual:?}` != `{expected:?}`")
             }
+            // Show the underlying type-check error (e.g. a division by zero)
+            // as the user-facing diagnostic.
+            MonomorphizationError::CheckedCastEvaluationFailed { err, .. } => return err.into(),
             MonomorphizationError::NoDefaultType { location } => {
                 let message = "Type annotation needed".into();
                 let secondary = "Could not determine type of generic argument".into();
@@ -96,6 +120,11 @@ impl From<MonomorphizationError> for CustomDiagnostic {
             MonomorphizationError::ComptimeTypeInRuntimeCode { typ, location } => {
                 let message = format!("Comptime-only type `{typ}` used in runtime code");
                 let secondary = "Comptime type used here".into();
+                return CustomDiagnostic::simple_error(message, secondary, *location);
+            }
+            MonomorphizationError::CalledDisabledFunction { name, location } => {
+                let message = format!("Called disabled function `{name}`");
+                let secondary = "This function was disabled by a comptime attribute".into();
                 return CustomDiagnostic::simple_error(message, secondary, *location);
             }
             MonomorphizationError::RecursiveType { typ, location } => {
@@ -145,9 +174,14 @@ impl From<MonomorphizationError> for CustomDiagnostic {
                     "Cannot pass mutable reference `{typ}` from a constrained runtime to an unconstrained runtime"
                 )
             }
+            MonomorphizationError::NestedOrContainerReferenceToUnconstrained { typ, .. } => {
+                format!(
+                    "Cannot pass `{typ}` across the constrained/unconstrained boundary: only a direct immutable reference `&T` to a reference-free type is supported"
+                )
+            }
             MonomorphizationError::UnconstrainedReferenceReturnToConstrained { typ, .. } => {
                 format!(
-                    "Mutable reference `{typ}` cannot be returned from an unconstrained runtime to a constrained runtime"
+                    "Reference `{typ}` cannot be returned from an unconstrained runtime to a constrained runtime"
                 )
             }
             MonomorphizationError::UnconstrainedVectorReturnToConstrained { typ, .. } => {
@@ -155,8 +189,21 @@ impl From<MonomorphizationError> for CustomDiagnostic {
                     "Vector `{typ}` cannot be returned from an unconstrained runtime to a constrained runtime"
                 )
             }
+            MonomorphizationError::UnconstrainedFunctionReturnToConstrained { typ, .. } => {
+                format!(
+                    "Function `{typ}` cannot be returned from an unconstrained runtime to a constrained runtime"
+                )
+            }
+            MonomorphizationError::UnconstrainedEnumReturnToConstrained { typ, .. } => {
+                format!(
+                    "Enum `{typ}` cannot be returned from an unconstrained runtime to a constrained runtime"
+                )
+            }
             MonomorphizationError::ReferenceReturnedFromOracle { typ, .. } => {
-                format!("Mutable reference `{typ}` cannot be returned from an oracle function")
+                format!("Reference `{typ}` cannot be returned from an oracle function")
+            }
+            MonomorphizationError::ReferenceParameterToOracle { typ, .. } => {
+                format!("Reference `{typ}` cannot be passed to an oracle function")
             }
             MonomorphizationError::VectorWithNestedArrayReturnedFromOracle { typ, .. } => {
                 format!(
@@ -184,11 +231,39 @@ impl From<MonomorphizationError> for CustomDiagnostic {
                 invalid_type.add_to_diagnostic(*location, &mut diagnostic);
                 return diagnostic;
             }
+            MonomorphizationError::InputLimitExceeded { num_elements, max_elements, .. } => {
+                format!(
+                    "An input parameter has {num_elements} elements which exceeds the limit of {max_elements}"
+                )
+            }
+            MonomorphizationError::ReturnLimitExceeded { num_elements, max_elements, .. } => {
+                format!(
+                    "The return value has {num_elements} elements which exceeds the limit of {max_elements}"
+                )
+            }
             MonomorphizationError::ComplexType { complexity, max_complexity, location } => {
                 let message = format!(
                     "Type is too complex (complexity: {complexity}, max: {max_complexity})",
                 );
                 let secondary = "This usually happens with exponentially growing types. Consider simplifying the type structure.".to_string();
+                return CustomDiagnostic::simple_error(message, secondary, *location);
+            }
+            MonomorphizationError::CannotUseFunctionAsValue { name, location } => {
+                let message = format!(
+                    "`{name}` cannot be used as a function value; it must be called directly"
+                );
+                let secondary = "Used as a value here".to_string();
+                return CustomDiagnostic::simple_error(message, secondary, *location);
+            }
+            MonomorphizationError::UnknownBuiltin { name, location } => {
+                let message = format!("`{name}` is not a builtin function known to the compiler");
+                let secondary = "Called here".to_string();
+                return CustomDiagnostic::simple_error(message, secondary, *location);
+            }
+            MonomorphizationError::GlobalContainsFunctionPointer { typ, location } => {
+                let message = "Globals cannot contain function pointers".to_string();
+                let secondary =
+                    format!("This global has type `{typ}`, which contains a function pointer");
                 return CustomDiagnostic::simple_error(message, secondary, *location);
             }
         };

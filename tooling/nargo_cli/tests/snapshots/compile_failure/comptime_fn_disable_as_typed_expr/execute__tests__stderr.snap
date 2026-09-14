@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Called disabled function `tag`
+   ┌─ src/main.nr:23:17
+   │
+23 │     let typed = m.as_typed_expr();
+   │                 ----------------- This function was disabled by a comptime attribute
+   │
+
+Aborting due to 1 previous error

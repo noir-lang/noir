@@ -56,8 +56,8 @@ impl From<&SsaType> for AcirType {
 /// }
 /// ```
 ///
-/// the array, first represented as an [AcirValue::Array], will be put in
-/// an [AcirValue::DynamicArray]:
+/// the array, first represented as an [`AcirValue::Array`], will be put in
+/// an [`AcirValue::DynamicArray`]:
 ///
 /// ```acir
 /// private parameters: [w0, w1, w2, w3]
@@ -68,7 +68,7 @@ impl From<&SsaType> for AcirType {
 /// ASSERT w4 = w5
 /// ```
 ///
-/// Every dynamic array has an associated [BlockId] where its contents are stored,
+/// Every dynamic array has an associated [`BlockId`] where its contents are stored,
 /// in this case `b0`. Then the block can be read or written using dynamic indexes.
 ///
 /// Dynamic arrays might result from other operations. For example:
@@ -98,20 +98,16 @@ pub(super) struct AcirDynamicArray {
     /// and `value_types` will be `[u8, u32, Field]`. To know the type of the element at index `i`
     /// we can fetch `value_types[i % value_types.len()]`.
     pub(super) value_types: Vec<NumericType>,
-    /// Identification for the ACIR dynamic array
-    /// inner element type sizes array
-    pub(super) element_type_sizes: Option<BlockId>,
 }
 
 impl Debug for AcirDynamicArray {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(
             f,
-            "id: {}, len: {}, value_types: {:?}, element_type_sizes: {:?}",
-            self.block_id.0,
+            "id: {}, len: {}, value_types: {:?}",
+            self.block_id.as_u32(),
             self.len,
             self.value_types,
-            self.element_type_sizes.map(|block_id| block_id.0)
         )
     }
 }
@@ -137,7 +133,7 @@ pub(crate) enum AcirValue {
     /// }
     /// ```
     ///
-    /// the array will be represented as an [AcirValue::Array]
+    /// the array will be represented as an [`AcirValue::Array`]
     /// but we can see that it's simply a list of variables:
     ///
     /// ```acir
@@ -147,15 +143,15 @@ pub(crate) enum AcirValue {
     /// BRILLIG CALL func: 0, predicate: 1, inputs: [[w0, w1, w2]], outputs: []
     /// ```
     ///
-    /// The length of the inner vector is a [acvm::acir::brillig::lengths::SemiFlattenedLength].
+    /// The length of the inner vector is a [`acvm::acir::brillig::lengths::SemiFlattenedLength`].
     ///
     /// Compare this with `DynamicArray` below.
-    Array(im::Vector<AcirValue>),
+    Array(imbl::Vector<AcirValue>),
     /// Represents an array whose size is not known during compile time,
     /// and which might be indexed with a dynamic index.
     ///
-    /// See [AcirDynamicArray] for more details and how this differs from
-    /// [AcirValue::Array].
+    /// See [`AcirDynamicArray`] for more details and how this differs from
+    /// [`AcirValue::Array`].
     DynamicArray(AcirDynamicArray),
 }
 
@@ -165,7 +161,7 @@ impl AcirValue {
             AcirValue::Var(var, _) => Ok(var),
             AcirValue::DynamicArray(_) | AcirValue::Array(_) => Err(InternalError::General {
                 message: "Called AcirValue::into_var on an array".to_string(),
-                call_stack: CallStack::new(),
+                call_stack: CallStack::empty(),
             }),
         }
     }
@@ -175,23 +171,32 @@ impl AcirValue {
             AcirValue::Var(var, _) => Ok(*var),
             AcirValue::DynamicArray(_) | AcirValue::Array(_) => Err(InternalError::General {
                 message: "Called AcirValue::borrow_var on an array".to_string(),
-                call_stack: CallStack::new(),
+                call_stack: CallStack::empty(),
             }),
         }
     }
 
-    /// Fetch a flat list of ([AcirVar], [AcirType]).
+    /// Fetch a flat list of ([`AcirVar`], [`AcirType`]).
     ///
-    /// # Panics
-    /// If [AcirValue::DynamicArray] is supplied or an inner element of an [AcirValue::Array].
-    /// This is because an [AcirValue::DynamicArray] is simply a pointer to an array
-    /// and fetching its internal [AcirValue::Var] would require laying down opcodes to read its content.
-    /// This method should only be used where dynamic arrays are not a possible type.
-    pub(super) fn flatten(self) -> Vec<(AcirVar, NumericType)> {
+    /// Returns an error if [`AcirValue::DynamicArray`] is supplied or is an inner element of an
+    /// [`AcirValue::Array`]. This is because an [`AcirValue::DynamicArray`] is simply a pointer to
+    /// an array and fetching its internal [`AcirValue::Var`] would require laying down opcodes to
+    /// read its content. This method should only be used where dynamic arrays are not a possible
+    /// type, or where a dynamic array can be handled by falling back to reading its memory block.
+    pub(super) fn flatten(self) -> Result<Vec<(AcirVar, NumericType)>, InternalError> {
         match self {
-            AcirValue::Var(var, typ) => vec![(var, typ)],
-            AcirValue::Array(array) => array.into_iter().flat_map(AcirValue::flatten).collect(),
-            AcirValue::DynamicArray(_) => unimplemented!("Cannot flatten a dynamic array"),
+            AcirValue::Var(var, typ) => Ok(vec![(var, typ)]),
+            AcirValue::Array(array) => {
+                let mut flattened = Vec::new();
+                for value in array {
+                    flattened.extend(value.flatten()?);
+                }
+                Ok(flattened)
+            }
+            AcirValue::DynamicArray(_) => Err(InternalError::General {
+                message: "Cannot flatten a dynamic array".to_string(),
+                call_stack: CallStack::empty(),
+            }),
         }
     }
 }
@@ -206,24 +211,12 @@ impl AcirVar {
     }
 }
 
-/// Assumes `typ` is an array or vector type with nested numeric types, arrays or vectors
-/// (recursively) and returns a flat list of all the contained numeric types.
-/// Panics if `self` is not an array or vector type or if a function or reference type
-/// is found along the way.
-pub(crate) fn flat_numeric_types(typ: &SsaType) -> Vec<NumericType> {
-    match typ {
-        SsaType::Array(..) | SsaType::Vector(..) => {
-            let mut flat_types = Vec::new();
-            collect_flat_numeric_types(typ, &mut flat_types);
-            flat_types
-        }
-        _ => panic!("Called flat_numeric_types on a non-array/vector type"),
-    }
-}
-
 /// Returns the fully flattened numeric types for one element of a vector/array,
 /// recursively flattening nested arrays.
-/// For example, for Vector([(u32, u32, [Field; 3])]), this returns [u32, u32, Field, Field, Field].
+///
+/// For example, for `Vector([(u32, u32, [Field; 3])])`, this returns `[u32, u32, Field, Field, Field]`.
+///
+/// Panics if called on anything but an array or vector type.
 pub(crate) fn flat_element_types(typ: &SsaType) -> Vec<NumericType> {
     match typ {
         SsaType::Vector(element_types) | SsaType::Array(element_types, _) => {
@@ -238,7 +231,6 @@ pub(crate) fn flat_element_types(typ: &SsaType) -> Vec<NumericType> {
 }
 
 /// Helper function for `flat_element_types` that fully flattens arrays using the length.
-/// This is different from `collect_flat_numeric_types` which returns just the first element.
 fn collect_fully_flattened_numeric_types(typ: &SsaType, flat_types: &mut Vec<NumericType>) {
     match typ {
         SsaType::Numeric(numeric_type) => {
@@ -256,21 +248,5 @@ fn collect_fully_flattened_numeric_types(typ: &SsaType, flat_types: &mut Vec<Num
             panic!("Cannot fully flatten a vector type - vectors have dynamic length")
         }
         _ => panic!("Called collect_fully_flattened_numeric_types on unsupported type"),
-    }
-}
-
-/// Helper function for `flat_numeric_types` that recursively collects all numeric types
-/// into `flat_types`.
-fn collect_flat_numeric_types(typ: &SsaType, flat_types: &mut Vec<NumericType>) {
-    match typ {
-        SsaType::Numeric(numeric_type) => {
-            flat_types.push(*numeric_type);
-        }
-        SsaType::Array(types, _) | SsaType::Vector(types) => {
-            for typ in types.iter() {
-                collect_flat_numeric_types(typ, flat_types);
-            }
-        }
-        _ => panic!("Called collect_flat_numeric_types on non-array/vector/number type"),
     }
 }

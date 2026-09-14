@@ -1,0 +1,6 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+[1, 2, 3]
+[1, 2, 3]

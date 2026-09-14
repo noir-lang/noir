@@ -1,4 +1,5 @@
 #![forbid(unsafe_code)]
+#![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 use noirc_errors::println_to_stderr;
 use tracing_subscriber::{EnvFilter, fmt::format::FmtSpan};

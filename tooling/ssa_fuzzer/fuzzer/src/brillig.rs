@@ -244,7 +244,7 @@ impl SimulatorProcess {
         {
             Ok(response_line) => response_line,
             Err(e) => {
-                if e.to_string().contains("unexpected end of file") {
+                if e.contains("unexpected end of file") {
                     log::warn!("Unexpected end of file, recreating simulator");
                     recreate_simulator().expect("Failed to recreate simulator");
                     return self.execute(bytecode, inputs);
@@ -263,7 +263,7 @@ impl SimulatorProcess {
         {
             Ok(_) => (),
             Err(e) => {
-                if e.to_string().contains("unexpected end of file") {
+                if e.contains("unexpected end of file") {
                     log::warn!("Unexpected end of file, recreating simulator");
                     recreate_simulator().expect("Failed to recreate simulator");
                     return self.execute(bytecode, inputs);
@@ -329,7 +329,7 @@ fn initialize_simulator() {
 /// This is used to avoid transpiler writing to the same file in multiple threaded fuzzing
 fn initialize_artifacts_suffix() {
     // Set a random string to the ARTIFACTS_SUFFIX global variable
-    use rand::{Rng, distr::Alphanumeric};
+    use rand::{RngExt, distr::Alphanumeric};
 
     let random_string: String =
         rand::rng().sample_iter(&Alphanumeric).take(16).map(char::from).collect();

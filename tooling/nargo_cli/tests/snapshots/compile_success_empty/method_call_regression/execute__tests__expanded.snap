@@ -13,13 +13,13 @@ struct Struct<A, B> {
 }
 
 impl Struct<u8, u8> {
-    fn foo(self) {
+    pub fn foo(self) {
         let _: Self = self;
     }
 }
 
 impl Struct<u32, ()> {
-    fn foo(self) {
+    pub fn foo(self) {
         let _: Self = self;
     }
 }

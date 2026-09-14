@@ -1,0 +1,24 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn main(cond: bool, idx: u32, go: bool) -> pub Field {
+    let mut a: Field = 0_Field;
+    let mut b: Field = 0_Field;
+    let mut c: Field = 0_Field;
+    let mut sel: &mut Field = if cond { &mut a } else { &mut b };
+    let mut other: &mut Field = &mut c;
+    let cell0: &mut &mut Field = &mut sel;
+    let cell1: &mut &mut Field = &mut other;
+    let chosen: &mut &mut Field = if idx == 0_u32 { cell0 } else { cell1 };
+    *chosen = sel;
+    let loaded: &mut Field = *chosen;
+    let r2: &mut Field = if cond { loaded } else { &mut c };
+    if go {
+        a = 5_Field;
+        *r2 = 99_Field;
+        a
+    } else {
+        a
+    }
+}

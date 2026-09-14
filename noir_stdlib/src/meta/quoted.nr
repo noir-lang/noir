@@ -22,6 +22,11 @@ impl Quoted {
     pub comptime fn as_type(self) -> Type {}
     // docs:end:as_type
 
+    #[builtin(quoted_location)]
+    // docs:start:location
+    pub comptime fn location(self) -> Option<Location> {}
+    // docs:end:location
+
     #[builtin(quoted_tokens)]
     // docs:start:tokens
     pub comptime fn tokens(self) -> [Quoted] {}
@@ -29,9 +34,8 @@ impl Quoted {
 }
 
 impl Eq for Quoted {
-    comptime fn eq(self, other: Quoted) -> bool {
-        quoted_eq(self, other)
-    }
+    #[builtin(quoted_eq)]
+    comptime fn eq(self, other: Quoted) -> bool {}
 }
 
 impl crate::hash::Hash for Quoted {
@@ -42,9 +46,6 @@ impl crate::hash::Hash for Quoted {
         state.write(quoted_hash(self))
     }
 }
-
-#[builtin(quoted_eq)]
-comptime fn quoted_eq(_first: Quoted, _second: Quoted) -> bool {}
 
 #[builtin(quoted_hash)]
 comptime fn quoted_hash(_quoted: Quoted) -> Field {}

@@ -1,0 +1,26 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+warning: struct `Trigger` is never constructed
+  ┌─ src/main.nr:5:8
+  │
+5 │ struct Trigger {}
+  │        ------- struct is never constructed
+  │
+
+error: Function `raw_compute` is private
+   ┌─ src/main.nr:15:23
+   │
+15 │     let raw_compute = leak_impl.methods()[0].as_typed_expr();
+   │                       -------------------------------------- `raw_compute` is declared in `foo::`
+   │
+
+error: cannot find `call_private_hidden_trait_impl` in this scope
+   ┌─ src/main.nr:25:12
+   │
+25 │     assert(call_private_hidden_trait_impl(999) == 999000);
+   │            ------------------------------ not found in this scope
+   │
+
+Aborting due to 2 previous errors

@@ -1,0 +1,7 @@
+[package]
+name = "empty_vector_set"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.26.0"
+
+[dependencies]

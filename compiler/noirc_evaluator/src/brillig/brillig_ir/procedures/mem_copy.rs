@@ -9,7 +9,7 @@ use crate::brillig::brillig_ir::{
 };
 
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
-    /// Copy the input arguments to the [ScratchSpace], then emit an opcode to call [ProcedureId::MemCopy].
+    /// Copy the input arguments to the [`ScratchSpace`], then emit an opcode to call [`ProcedureId::MemCopy`].
     ///
     /// Copies `num_elements_variable` number of items on the heap from `source_pointer` to `destination_pointer`.
     pub(crate) fn call_mem_copy_procedure(
@@ -27,7 +27,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     }
 }
 
-/// Compile [ProcedureId::MemCopy].
+/// Compile [`ProcedureId::MemCopy`].
 pub(super) fn compile_mem_copy_procedure<F: AcirField + DebugToString>(
     brillig_context: &mut BrilligContext<F, ScratchSpace>,
 ) {

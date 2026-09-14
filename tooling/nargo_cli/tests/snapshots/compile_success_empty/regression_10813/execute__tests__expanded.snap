@@ -13,13 +13,9 @@ pub trait Foo {
 }
 
 impl Foo for () {
-    let Baz: u32 = 0;
+    let Baz: u32 = 0_u32;
 
     type Bar = Self;
-
-    fn foo(x: [Self; 0]) -> u32 {
-        x.len()
-    }
 }
 
 fn main() {

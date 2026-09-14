@@ -1,0 +1,31 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+warning: function `baz` cannot return without recursing
+   ┌─ src/main.nr:15:4
+   │
+15 │ fn baz() {
+   │    --- function cannot return without recursing
+   │
+
+error: Assertion failed: Stack too deep
+   ┌─ src/main.nr:18:9
+   │
+18 │         foo(baz);
+   │         --------
+   │
+   = Call stack:
+            1: main
+                at src/main.nr:2:5
+     ┌─     2: baz
+     │          at src/main.nr:18:9
+     │      3: foo
+     │          at src/main.nr:7:5
+     │      4: bar
+     │          at src/main.nr:12:5
+     └─ (repeated 3413 times)
+        10241: baz
+                at src/main.nr:18:9
+
+Failed assertion

@@ -1,3 +1,5 @@
+use std::meta::type_def::StructField;
+
 comptime fn derive_default(typ: TypeDefinition) -> Quoted {
     let generics = typ.generics();
     assert_eq(
@@ -31,10 +33,10 @@ struct Foo {
     y: Bar,
 }
 
-comptime fn make_field_exprs(fields: [(Quoted, Type, Quoted)]) -> [Quoted] {
+comptime fn make_field_exprs(fields: [StructField]) -> [Quoted] {
     let mut result = [].as_vector();
     for my_field in fields {
-        let name = my_field.0;
+        let name = my_field.name();
         result = result.push_back(quote { $name: Default::default(), });
     }
     result

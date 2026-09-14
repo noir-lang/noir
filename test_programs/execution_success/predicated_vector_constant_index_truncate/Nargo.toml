@@ -1,0 +1,6 @@
+[package]
+name = "predicated_vector_constant_index_truncate"
+type = "bin"
+authors = [""]
+
+[dependencies]

@@ -1,0 +1,5 @@
+[package]
+name = "debug_name_no_conflict"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.33.0"

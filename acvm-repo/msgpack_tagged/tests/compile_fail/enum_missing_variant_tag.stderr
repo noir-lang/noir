@@ -1,0 +1,5 @@
+error: missing `#[tag(N)]` attribute on enum variant — every variant needs an explicit tag
+  --> tests/compile_fail/enum_missing_variant_tag.rs:11:5
+   |
+11 |     Second,
+   |     ^^^^^^

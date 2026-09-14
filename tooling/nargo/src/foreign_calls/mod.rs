@@ -4,6 +4,7 @@ use thiserror::Error;
 
 pub mod layers;
 pub mod mocker;
+pub mod oracle_resolver_url;
 pub mod print;
 pub mod transcript;
 
@@ -13,6 +14,7 @@ pub mod rpc;
 pub use default::DefaultForeignCallBuilder;
 #[cfg(feature = "rpc")]
 pub use default::DefaultForeignCallExecutor;
+pub use oracle_resolver_url::{OracleResolverUrl, OracleResolverUrlParseError};
 
 pub use noirc_frontend::shared::ForeignCall;
 

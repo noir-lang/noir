@@ -11,18 +11,26 @@ fn main() {
 comptime fn foo_impl(t: TypeDefinition) -> Quoted {
     let g = t.generics();
 
-    let g_names = g.map(|(name, _)| quote [$name]).join(quote [,]);
+    let g_names = g
+        .map(|generic| {
+            let name = generic.typ();
+            quote [ $name ]
+        })
+        .join(quote [,]);
 
     let g_intros = g
-        .map(|(name, typ)| {
-            let typ = typ.unwrap();
+        .map(|generic| {
+            let name = generic.typ();
+            let typ = generic.numeric_type().unwrap();
             quote [ let $name: $typ ]
         })
         .join(quote [,]);
 
     quote {
         impl<$g_intros> Foo<$g_names> {
-            fn foo(self) { let _ = self; }
+            fn foo(self) {
+                let _ = self;
+            }
         }
     }
 }

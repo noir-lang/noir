@@ -1,0 +1,9 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+pub fn main(a: Field, b: Field, c: bool) -> pub (i8, u8, u64) {
+    let d: Field = a - b;
+    let e: Field = a - (c as Field);
+    (d as i8, d as u8, e as u64)
+}

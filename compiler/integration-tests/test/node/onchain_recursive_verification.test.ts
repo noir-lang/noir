@@ -1,12 +1,15 @@
 import { expect } from 'chai';
-import { ethers } from 'hardhat';
-import { CompiledCircuit, Noir } from '@noir-lang/noir_js';
+import { network } from 'hardhat';
+import { Noir } from '@noir-lang/noir_js';
+import type { CompiledCircuit } from '@noir-lang/types';
 import { Barretenberg, UltraHonkBackend, deflattenFields } from '@aztec/bb.js';
 
-import assertLtCircuit from '../../circuits/assert_lt/target/assert_lt.json' assert { type: 'json' };
-import recursionCircuit from '../../circuits/recursion/target/recursion.json' assert { type: 'json' };
+import assertLtCircuit from '../../circuits/assert_lt/target/assert_lt.json';
+import recursionCircuit from '../../circuits/recursion/target/recursion.json';
 
-it(`smart contract can verify a recursive proof`, async () => {
+it(`smart contract can verify a recursive proof`, async function () {
+  this.timeout(5 * 60 * 1000);
+
   const barretenbergAPI = await Barretenberg.new();
 
   // Inner circuit
@@ -68,13 +71,17 @@ it(`smart contract can verify a recursive proof`, async () => {
 
   // Smart contract verification
 
-  // Link the ZKTranscriptLib
+  // Link the ZKTranscriptLib and RelationsLib
+  const { ethers } = await network.connect();
   const ZKTranscriptLib = await ethers.deployContract('contracts/recursion.sol:ZKTranscriptLib');
   await ZKTranscriptLib.waitForDeployment();
+  const RelationsLib = await ethers.deployContract('contracts/recursion.sol:RelationsLib');
+  await RelationsLib.waitForDeployment();
 
   const contract = await ethers.deployContract('contracts/recursion.sol:HonkVerifier', [], {
     libraries: {
       ZKTranscriptLib: await ZKTranscriptLib.getAddress(),
+      RelationsLib: await RelationsLib.getAddress(),
     },
   });
   const result = await contract.verify.staticCall(recursiveProof, recursivePublicInputs);
