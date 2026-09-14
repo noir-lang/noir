@@ -969,10 +969,20 @@ impl Elaborator<'_> {
         &mut self,
         trait_impl: &mut UnresolvedTraitImpl,
     ) -> (Vec<(TraitConstraint, Location)>, Vec<ResolvedGeneric>) {
-        let previous_local_module = self.item.replace_local_module(trait_impl.module_id);
-        // Clear any previous item, so when we resolve the self-type we don't register any dependencies.
-        self.item.current_item = None;
+        // No current item is installed so that resolving the self type registers no dependencies.
+        let context =
+            ItemContext { local_module: Some(trait_impl.module_id), ..Default::default() };
+        self.with_item_context(context, |this| this.prepare_trait_impl_in_context(trait_impl))
+    }
 
+    /// Does the work of [`Self::prepare_trait_impl_for_function_meta_definition`].
+    ///
+    /// Expects the trait impl's own [`ItemContext`] to be installed; the generics resolved for the
+    /// impl are returned rather than left in that context.
+    fn prepare_trait_impl_in_context(
+        &mut self,
+        trait_impl: &mut UnresolvedTraitImpl,
+    ) -> (Vec<(TraitConstraint, Location)>, Vec<ResolvedGeneric>) {
         let (trait_id, trait_generics, path_location) =
             self.resolve_trait_impl_trait_path(trait_impl);
 
@@ -1029,8 +1039,6 @@ impl Elaborator<'_> {
             };
             self.interner.add_trait_reference(trait_id, location, is_self_type_name);
         }
-
-        self.item.local_module = previous_local_module;
 
         let generics = std::mem::take(&mut self.item.generics);
 
