@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["assert_usize"],"struct":["ElementTypesLength","ElementsFlattenedLength","FlattenedLength","SemanticLength","SemiFlattenedLength"]};
+window.SIDEBAR_ITEMS = {"fn":["assert_usize","checked_add","checked_mul"],"struct":["ElementTypesLength","ElementsFlattenedLength","FlattenedLength","SemanticLength","SemiFlattenedLength"]};
