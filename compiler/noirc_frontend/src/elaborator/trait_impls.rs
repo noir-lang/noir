@@ -472,24 +472,24 @@ impl Elaborator<'_> {
 
             let impl_self_type =
                 self.interner.get_trait_implementation(check.impl_id).borrow().typ.clone();
-            let prev_local_module = self.item.replace_local_module(check.module_id);
-            let prev_current_trait_impl = self.item.current_trait_impl.replace(check.impl_id);
-            let prev_current_trait = self.item.current_trait.replace(check.trait_id);
-            let prev_self_type = self.item.self_type.replace(impl_self_type);
-
-            self.check_where_clause_against_trait(
-                &check.impl_method_func_id,
-                &trait_method,
-                &check.trait_impl_where_clause,
-                &check.ordered_generics,
-                check.trait_id,
-                check.impl_id,
-            );
-
-            self.item.local_module = prev_local_module;
-            self.item.current_trait_impl = prev_current_trait_impl;
-            self.item.current_trait = prev_current_trait;
-            self.item.self_type = prev_self_type;
+            // Each check runs in a context of its own for the impl, as trait impl collection did.
+            let context = ItemContext {
+                local_module: Some(check.module_id),
+                current_trait_impl: Some(check.impl_id),
+                current_trait: Some(check.trait_id),
+                self_type: Some(impl_self_type),
+                ..Default::default()
+            };
+            self.with_item_context(context, |this| {
+                this.check_where_clause_against_trait(
+                    &check.impl_method_func_id,
+                    &trait_method,
+                    &check.trait_impl_where_clause,
+                    &check.ordered_generics,
+                    check.trait_id,
+                    check.impl_id,
+                );
+            });
         }
     }
 
