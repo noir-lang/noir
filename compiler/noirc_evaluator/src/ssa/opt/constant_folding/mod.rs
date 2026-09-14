@@ -1274,10 +1274,10 @@ mod test {
     }
 
     // Regression for noir-claude#1798.
-    // `black_box` is lowered in brillig as a register move, so for an array operand its result is
-    // the operand's heap buffer under a second name. A mutation of that result mutates the buffer
-    // the `make_array` produced, so the second, identical `make_array` must not be deduplicated
-    // against the first.
+    // `black_box` is lowered in brillig as a register move, so for an array operand the value it
+    // returns is the operand's heap buffer under a second name. The `array_set` against that result
+    // therefore writes the buffer `v3` names, and the second, identical `make_array` must not be
+    // deduplicated against `v3` — doing so makes the trailing `array_get` read 99 instead of `v0`.
     #[test]
     fn mutation_through_black_box_result_prevents_make_array_dedup() {
         let src = "
@@ -1293,17 +1293,7 @@ mod test {
             return v9
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let (_, result) = assert_pass_does_not_affect_execution(
-            ssa,
-            vec![
-                Value::field(5_u32.into()),
-                Value::from_constant(0_u32.into(), NumericType::unsigned(32)).unwrap(),
-                Value::from_constant(0_u32.into(), NumericType::unsigned(32)).unwrap(),
-            ],
-            |ssa| ssa.fold_constants_using_constraints(MIN_ITER),
-        );
-        assert!(result.is_ok(), "the program should still execute: {result:?}");
+        assert_ssa_does_not_change(src, |ssa| ssa.fold_constants_using_constraints(MIN_ITER));
     }
 
     // Regression for noir-claude#1690.
