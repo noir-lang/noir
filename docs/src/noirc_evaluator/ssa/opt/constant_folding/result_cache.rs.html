@@ -185,157 +185,177 @@
 <a href=#185 id=185 data-nosnippet>185</a>    ) {
 <a href=#186 id=186 data-nosnippet>186</a>        <span class="kw">use </span>Instruction::{ArraySet, Call, MakeArray, Store};
 <a href=#187 id=187 data-nosnippet>187</a>
-<a href=#188 id=188 data-nosnippet>188</a>        <span class="comment">// The values whose creating instructions must be removed from the cache. One value can
-<a href=#189 id=189 data-nosnippet>189</a>        // occupy many element positions (`[v; N]`, `[v, v]`) and be passed as several arguments,
-<a href=#190 id=190 data-nosnippet>190</a>        // so the values reachable from a mutation form a DAG rather than a tree: walking every
-<a href=#191 id=191 data-nosnippet>191</a>        // route through it is exponential in its depth. Removing a value's cache entries a second
-<a href=#192 id=192 data-nosnippet>192</a>        // time is a no-op, so each value only needs visiting once.
-<a href=#193 id=193 data-nosnippet>193</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>values = VisitOnceDeque::&lt;ValueId&gt;::default();
-<a href=#194 id=194 data-nosnippet>194</a>        <span class="kw">let </span><span class="kw-2">mut </span>remove_if_array = |value: <span class="kw-2">&amp;</span>ValueId| values.push_back(<span class="kw-2">*</span>value);
-<a href=#195 id=195 data-nosnippet>195</a>
-<a href=#196 id=196 data-nosnippet>196</a>        <span class="kw">match </span>instruction {
-<a href=#197 id=197 data-nosnippet>197</a>            <span class="comment">// A mutable `array_set` writes through its input array's backing store in place rather
-<a href=#198 id=198 data-nosnippet>198</a>            // than producing a fresh array, so the input is no longer safe to reuse. In ACIR the
-<a href=#199 id=199 data-nosnippet>199</a>            // `mutable` flag is only set by `mutable_array_set_optimization`, which runs after
-<a href=#200 id=200 data-nosnippet>200</a>            // constant folding; keying off the flag (rather than the runtime) keeps this invalidation
-<a href=#201 id=201 data-nosnippet>201</a>            // correct even if that ordering ever changes. In Brillig in-place mutation happens under
-<a href=#202 id=202 data-nosnippet>202</a>            // copy-on-write regardless of the flag, which the runtime-guarded arm below handles.
-<a href=#203 id=203 data-nosnippet>203</a>            </span>ArraySet { array: value, mutable: <span class="bool-val">true</span>, .. } =&gt; {
-<a href=#204 id=204 data-nosnippet>204</a>                remove_if_array(value);
-<a href=#205 id=205 data-nosnippet>205</a>            }
-<a href=#206 id=206 data-nosnippet>206</a>            <span class="comment">// In Brillig, `array_set`/`store` may mutate their array operand in place under
-<a href=#207 id=207 data-nosnippet>207</a>            // copy-on-write, so the operand is not safe for reuse. In ACIR these are value-semantic:
-<a href=#208 id=208 data-nosnippet>208</a>            // a non-mutable `array_set` produces a fresh array, and a `store` cannot lead to in-place
-<a href=#209 id=209 data-nosnippet>209</a>            // mutation because the only source of mutable sets (`mutable_array_set_optimization`)
-<a href=#210 id=210 data-nosnippet>210</a>            // runs after mem2reg has removed all loads/stores, so the two never coexist.
-<a href=#211 id=211 data-nosnippet>211</a>            </span>Store { value, .. } | ArraySet { array: value, .. } <span class="kw">if </span>dfg.runtime().is_brillig() =&gt; {
-<a href=#212 id=212 data-nosnippet>212</a>                remove_if_array(value);
-<a href=#213 id=213 data-nosnippet>213</a>            }
-<a href=#214 id=214 data-nosnippet>214</a>            Call { arguments, func } <span class="kw">if </span>dfg.runtime().is_brillig() =&gt; {
-<a href=#215 id=215 data-nosnippet>215</a>                <span class="comment">// Arrays passed to a callee might be mutated by it if there are no `inc_rc` instructions
-<a href=#216 id=216 data-nosnippet>216</a>                // placed *before* the call to protect them. Currently we don't track the ref count in this
-<a href=#217 id=217 data-nosnippet>217</a>                // context, so be conservative and do not reuse any array shared with such a callee.
-<a href=#218 id=218 data-nosnippet>218</a>                // In ACIR we don't track refcounts, so it should be fine.
-<a href=#219 id=219 data-nosnippet>219</a>                </span><span class="kw">let </span>mutates_arguments = <span class="kw">match </span><span class="kw-2">&amp;</span>dfg[<span class="kw-2">*</span>func] {
-<a href=#220 id=220 data-nosnippet>220</a>                    <span class="comment">// A non-pure user-defined function may mutate its array arguments in place.
-<a href=#221 id=221 data-nosnippet>221</a>                    </span>Value::Function(func_id) =&gt; {
-<a href=#222 id=222 data-nosnippet>222</a>                        <span class="macro">matches!</span>(dfg.purity_of(<span class="kw-2">*</span>func_id), <span class="prelude-val">None </span>| <span class="prelude-val">Some</span>(Purity::Impure))
-<a href=#223 id=223 data-nosnippet>223</a>                    }
-<a href=#224 id=224 data-nosnippet>224</a>                    <span class="comment">// The vector mutators (`push`/`pop`/`insert`/`remove`) write through their
-<a href=#225 id=225 data-nosnippet>225</a>                    // vector argument when its copy-on-write reference count is 1, even though they
-<a href=#226 id=226 data-nosnippet>226</a>                    // are otherwise "pure". Treat them like an impure call so a later identical
-<a href=#227 id=227 data-nosnippet>227</a>                    // array-producing instruction is not deduplicated against the now-mutated value.
-<a href=#228 id=228 data-nosnippet>228</a>                    </span>Value::Intrinsic(intrinsic) =&gt; intrinsic.unsafe_for_clone_elision_in_brillig(),
-<a href=#229 id=229 data-nosnippet>229</a>                    <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
-<a href=#230 id=230 data-nosnippet>230</a>                };
-<a href=#231 id=231 data-nosnippet>231</a>                <span class="kw">if </span>mutates_arguments {
-<a href=#232 id=232 data-nosnippet>232</a>                    <span class="kw">for </span>arg <span class="kw">in </span>arguments {
-<a href=#233 id=233 data-nosnippet>233</a>                        remove_if_array(arg);
-<a href=#234 id=234 data-nosnippet>234</a>                    }
-<a href=#235 id=235 data-nosnippet>235</a>                }
-<a href=#236 id=236 data-nosnippet>236</a>            }
-<a href=#237 id=237 data-nosnippet>237</a>            <span class="kw">_ </span>=&gt; {}
-<a href=#238 id=238 data-nosnippet>238</a>        }
-<a href=#239 id=239 data-nosnippet>239</a>
-<a href=#240 id=240 data-nosnippet>240</a>        <span class="kw">while let </span><span class="prelude-val">Some</span>(value) = values.pop_front() {
-<a href=#241 id=241 data-nosnippet>241</a>            <span class="comment">// We expect globals to be immutable, so we can cache those results indefinitely.
-<a href=#242 id=242 data-nosnippet>242</a>            </span><span class="kw">if </span>dfg.is_global(value) {
-<a href=#243 id=243 data-nosnippet>243</a>                <span class="kw">continue</span>;
-<a href=#244 id=244 data-nosnippet>244</a>            }
-<a href=#245 id=245 data-nosnippet>245</a>
-<a href=#246 id=246 data-nosnippet>246</a>            <span class="kw">let </span>value_type = dfg.type_of_value(value);
-<a href=#247 id=247 data-nosnippet>247</a>
-<a href=#248 id=248 data-nosnippet>248</a>            <span class="comment">// We only care about arrays and vectors. (`Store` can act on non-array values as well)
-<a href=#249 id=249 data-nosnippet>249</a>            </span><span class="kw">if </span>!value_type.is_array() {
-<a href=#250 id=250 data-nosnippet>250</a>                <span class="kw">continue</span>;
-<a href=#251 id=251 data-nosnippet>251</a>            }
-<a href=#252 id=252 data-nosnippet>252</a>
-<a href=#253 id=253 data-nosnippet>253</a>            <span class="comment">// Look up the original instruction that created the value, which is the cache key.
-<a href=#254 id=254 data-nosnippet>254</a>            </span><span class="kw">let </span>instruction = <span class="kw">match </span><span class="kw-2">&amp;</span>dfg[value] {
-<a href=#255 id=255 data-nosnippet>255</a>                Value::Instruction { instruction, .. } =&gt; <span class="kw-2">&amp;</span>dfg[<span class="kw-2">*</span>instruction],
-<a href=#256 id=256 data-nosnippet>256</a>                <span class="kw">_ </span>=&gt; {
-<a href=#257 id=257 data-nosnippet>257</a>                    <span class="comment">// If we can't trace back to a creating instruction (e.g. block parameters),
-<a href=#258 id=258 data-nosnippet>258</a>                    // conservatively remove all cached MakeArrays of the same type since any
-<a href=#259 id=259 data-nosnippet>259</a>                    // of them could be the source of this value.
-<a href=#260 id=260 data-nosnippet>260</a>                    </span><span class="self">self</span>.remove_make_arrays_of_type(<span class="kw-2">&amp;</span>value_type);
-<a href=#261 id=261 data-nosnippet>261</a>                    <span class="kw">continue</span>;
-<a href=#262 id=262 data-nosnippet>262</a>                }
-<a href=#263 id=263 data-nosnippet>263</a>            };
+<a href=#188 id=188 data-nosnippet>188</a>        <span class="doccomment">/// Whether a call to the callee referenced by `func` may return an array value that shares
+<a href=#189 id=189 data-nosnippet>189</a>        /// storage with one of its arguments.
+<a href=#190 id=190 data-nosnippet>190</a>        ///
+<a href=#191 id=191 data-nosnippet>191</a>        /// A foreign call cannot: an oracle's results are copied across the boundary, so the arrays
+<a href=#192 id=192 data-nosnippet>192</a>        /// it returns are freshly allocated. Every other callee may. A user-defined function can
+<a href=#193 id=193 data-nosnippet>193</a>        /// return a parameter unchanged; `black_box` and the identity-shaped conversions lower to a
+<a href=#194 id=194 data-nosnippet>194</a>        /// register move, so for an array operand the result is the operand's heap pointer; and the
+<a href=#195 id=195 data-nosnippet>195</a>        /// vector mutators write through their operand and hand it back.
+<a href=#196 id=196 data-nosnippet>196</a>        </span><span class="kw">fn </span>result_may_alias_an_argument(dfg: <span class="kw-2">&amp;</span>DataFlowGraph, func: ValueId) -&gt; bool {
+<a href=#197 id=197 data-nosnippet>197</a>            !<span class="macro">matches!</span>(<span class="kw-2">&amp;</span>dfg[func], Value::ForeignFunction { .. })
+<a href=#198 id=198 data-nosnippet>198</a>        }
+<a href=#199 id=199 data-nosnippet>199</a>
+<a href=#200 id=200 data-nosnippet>200</a>        <span class="comment">// The values whose creating instructions must be removed from the cache. One value can
+<a href=#201 id=201 data-nosnippet>201</a>        // occupy many element positions (`[v; N]`, `[v, v]`) and be passed as several arguments,
+<a href=#202 id=202 data-nosnippet>202</a>        // so the values reachable from a mutation form a DAG rather than a tree: walking every
+<a href=#203 id=203 data-nosnippet>203</a>        // route through it is exponential in its depth. Removing a value's cache entries a second
+<a href=#204 id=204 data-nosnippet>204</a>        // time is a no-op, so each value only needs visiting once.
+<a href=#205 id=205 data-nosnippet>205</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>values = VisitOnceDeque::&lt;ValueId&gt;::default();
+<a href=#206 id=206 data-nosnippet>206</a>        <span class="kw">let </span><span class="kw-2">mut </span>remove_if_array = |value: <span class="kw-2">&amp;</span>ValueId| values.push_back(<span class="kw-2">*</span>value);
+<a href=#207 id=207 data-nosnippet>207</a>
+<a href=#208 id=208 data-nosnippet>208</a>        <span class="kw">match </span>instruction {
+<a href=#209 id=209 data-nosnippet>209</a>            <span class="comment">// A mutable `array_set` writes through its input array's backing store in place rather
+<a href=#210 id=210 data-nosnippet>210</a>            // than producing a fresh array, so the input is no longer safe to reuse. In ACIR the
+<a href=#211 id=211 data-nosnippet>211</a>            // `mutable` flag is only set by `mutable_array_set_optimization`, which runs after
+<a href=#212 id=212 data-nosnippet>212</a>            // constant folding; keying off the flag (rather than the runtime) keeps this invalidation
+<a href=#213 id=213 data-nosnippet>213</a>            // correct even if that ordering ever changes. In Brillig in-place mutation happens under
+<a href=#214 id=214 data-nosnippet>214</a>            // copy-on-write regardless of the flag, which the runtime-guarded arm below handles.
+<a href=#215 id=215 data-nosnippet>215</a>            </span>ArraySet { array: value, mutable: <span class="bool-val">true</span>, .. } =&gt; {
+<a href=#216 id=216 data-nosnippet>216</a>                remove_if_array(value);
+<a href=#217 id=217 data-nosnippet>217</a>            }
+<a href=#218 id=218 data-nosnippet>218</a>            <span class="comment">// In Brillig, `array_set`/`store` may mutate their array operand in place under
+<a href=#219 id=219 data-nosnippet>219</a>            // copy-on-write, so the operand is not safe for reuse. In ACIR these are value-semantic:
+<a href=#220 id=220 data-nosnippet>220</a>            // a non-mutable `array_set` produces a fresh array, and a `store` cannot lead to in-place
+<a href=#221 id=221 data-nosnippet>221</a>            // mutation because the only source of mutable sets (`mutable_array_set_optimization`)
+<a href=#222 id=222 data-nosnippet>222</a>            // runs after mem2reg has removed all loads/stores, so the two never coexist.
+<a href=#223 id=223 data-nosnippet>223</a>            </span>Store { value, .. } | ArraySet { array: value, .. } <span class="kw">if </span>dfg.runtime().is_brillig() =&gt; {
+<a href=#224 id=224 data-nosnippet>224</a>                remove_if_array(value);
+<a href=#225 id=225 data-nosnippet>225</a>            }
+<a href=#226 id=226 data-nosnippet>226</a>            Call { arguments, func } <span class="kw">if </span>dfg.runtime().is_brillig() =&gt; {
+<a href=#227 id=227 data-nosnippet>227</a>                <span class="comment">// Arrays passed to a callee might be mutated by it if there are no `inc_rc` instructions
+<a href=#228 id=228 data-nosnippet>228</a>                // placed *before* the call to protect them. Currently we don't track the ref count in this
+<a href=#229 id=229 data-nosnippet>229</a>                // context, so be conservative and do not reuse any array shared with such a callee.
+<a href=#230 id=230 data-nosnippet>230</a>                // In ACIR we don't track refcounts, so it should be fine.
+<a href=#231 id=231 data-nosnippet>231</a>                </span><span class="kw">let </span>mutates_arguments = <span class="kw">match </span><span class="kw-2">&amp;</span>dfg[<span class="kw-2">*</span>func] {
+<a href=#232 id=232 data-nosnippet>232</a>                    <span class="comment">// A non-pure user-defined function may mutate its array arguments in place.
+<a href=#233 id=233 data-nosnippet>233</a>                    </span>Value::Function(func_id) =&gt; {
+<a href=#234 id=234 data-nosnippet>234</a>                        <span class="macro">matches!</span>(dfg.purity_of(<span class="kw-2">*</span>func_id), <span class="prelude-val">None </span>| <span class="prelude-val">Some</span>(Purity::Impure))
+<a href=#235 id=235 data-nosnippet>235</a>                    }
+<a href=#236 id=236 data-nosnippet>236</a>                    <span class="comment">// The vector mutators (`push`/`pop`/`insert`/`remove`) write through their
+<a href=#237 id=237 data-nosnippet>237</a>                    // vector argument when its copy-on-write reference count is 1, even though they
+<a href=#238 id=238 data-nosnippet>238</a>                    // are otherwise "pure". Treat them like an impure call so a later identical
+<a href=#239 id=239 data-nosnippet>239</a>                    // array-producing instruction is not deduplicated against the now-mutated value.
+<a href=#240 id=240 data-nosnippet>240</a>                    </span>Value::Intrinsic(intrinsic) =&gt; intrinsic.unsafe_for_clone_elision_in_brillig(),
+<a href=#241 id=241 data-nosnippet>241</a>                    <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
+<a href=#242 id=242 data-nosnippet>242</a>                };
+<a href=#243 id=243 data-nosnippet>243</a>                <span class="kw">if </span>mutates_arguments {
+<a href=#244 id=244 data-nosnippet>244</a>                    <span class="kw">for </span>arg <span class="kw">in </span>arguments {
+<a href=#245 id=245 data-nosnippet>245</a>                        remove_if_array(arg);
+<a href=#246 id=246 data-nosnippet>246</a>                    }
+<a href=#247 id=247 data-nosnippet>247</a>                }
+<a href=#248 id=248 data-nosnippet>248</a>            }
+<a href=#249 id=249 data-nosnippet>249</a>            <span class="kw">_ </span>=&gt; {}
+<a href=#250 id=250 data-nosnippet>250</a>        }
+<a href=#251 id=251 data-nosnippet>251</a>
+<a href=#252 id=252 data-nosnippet>252</a>        <span class="kw">while let </span><span class="prelude-val">Some</span>(value) = values.pop_front() {
+<a href=#253 id=253 data-nosnippet>253</a>            <span class="comment">// We expect globals to be immutable, so we can cache those results indefinitely.
+<a href=#254 id=254 data-nosnippet>254</a>            </span><span class="kw">if </span>dfg.is_global(value) {
+<a href=#255 id=255 data-nosnippet>255</a>                <span class="kw">continue</span>;
+<a href=#256 id=256 data-nosnippet>256</a>            }
+<a href=#257 id=257 data-nosnippet>257</a>
+<a href=#258 id=258 data-nosnippet>258</a>            <span class="kw">let </span>value_type = dfg.type_of_value(value);
+<a href=#259 id=259 data-nosnippet>259</a>
+<a href=#260 id=260 data-nosnippet>260</a>            <span class="comment">// We only care about arrays and vectors. (`Store` can act on non-array values as well)
+<a href=#261 id=261 data-nosnippet>261</a>            </span><span class="kw">if </span>!value_type.is_array() {
+<a href=#262 id=262 data-nosnippet>262</a>                <span class="kw">continue</span>;
+<a href=#263 id=263 data-nosnippet>263</a>            }
 <a href=#264 id=264 data-nosnippet>264</a>
-<a href=#265 id=265 data-nosnippet>265</a>            <span class="comment">// Remove the creator instruction from the cache.
-<a href=#266 id=266 data-nosnippet>266</a>            </span><span class="kw">if </span><span class="macro">matches!</span>(instruction, MakeArray { .. } | Call { .. }) {
-<a href=#267 id=267 data-nosnippet>267</a>                <span class="self">self</span>.remove(instruction);
-<a href=#268 id=268 data-nosnippet>268</a>            }
-<a href=#269 id=269 data-nosnippet>269</a>
-<a href=#270 id=270 data-nosnippet>270</a>            <span class="comment">// For arrays, we also want to invalidate the values, because multi-dimensional arrays
-<a href=#271 id=271 data-nosnippet>271</a>            // can be passed around, and through them their sub-arrays might be modified.
-<a href=#272 id=272 data-nosnippet>272</a>            </span><span class="kw">if let </span>MakeArray { elements, .. } = instruction {
-<a href=#273 id=273 data-nosnippet>273</a>                values.extend(elements.iter().copied());
-<a href=#274 id=274 data-nosnippet>274</a>            }
-<a href=#275 id=275 data-nosnippet>275</a>        }
-<a href=#276 id=276 data-nosnippet>276</a>    }
-<a href=#277 id=277 data-nosnippet>277</a>}
-<a href=#278 id=278 data-nosnippet>278</a>
-<a href=#279 id=279 data-nosnippet>279</a><span class="doccomment">/// Records the results of all duplicate [`Instruction`]s along with the blocks in which they sit.
-<a href=#280 id=280 data-nosnippet>280</a>///
-<a href=#281 id=281 data-nosnippet>281</a>/// For more information see [`InstructionResultCache`].
-<a href=#282 id=282 data-nosnippet>282</a></span><span class="attr">#[derive(Default, Debug)]
-<a href=#283 id=283 data-nosnippet>283</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct </span>ResultCache {
-<a href=#284 id=284 data-nosnippet>284</a>    result: <span class="prelude-ty">Option</span>&lt;(BasicBlockId, Vec&lt;ValueId&gt;)&gt;,
-<a href=#285 id=285 data-nosnippet>285</a>}
-<a href=#286 id=286 data-nosnippet>286</a><span class="kw">impl </span>ResultCache {
-<a href=#287 id=287 data-nosnippet>287</a>    <span class="doccomment">/// Records that an `Instruction` in block `block` produced the result values `results`.
-<a href=#288 id=288 data-nosnippet>288</a>    </span><span class="kw">fn </span>cache(<span class="kw-2">&amp;mut </span><span class="self">self</span>, block: BasicBlockId, dom: <span class="kw-2">&amp;</span>DominatorTree, results: Vec&lt;ValueId&gt;) {
-<a href=#289 id=289 data-nosnippet>289</a>        <span class="kw">let </span>overwrite = <span class="kw">match </span><span class="self">self</span>.result {
-<a href=#290 id=290 data-nosnippet>290</a>            <span class="prelude-val">None </span>=&gt; <span class="bool-val">true</span>,
-<a href=#291 id=291 data-nosnippet>291</a>            <span class="prelude-val">Some</span>((origin, <span class="kw">_</span>)) =&gt; origin != block &amp;&amp; dom.dominates(block, origin),
-<a href=#292 id=292 data-nosnippet>292</a>        };
-<a href=#293 id=293 data-nosnippet>293</a>
-<a href=#294 id=294 data-nosnippet>294</a>        <span class="kw">if </span>overwrite {
-<a href=#295 id=295 data-nosnippet>295</a>            <span class="self">self</span>.result = <span class="prelude-val">Some</span>((block, results));
-<a href=#296 id=296 data-nosnippet>296</a>        }
-<a href=#297 id=297 data-nosnippet>297</a>    }
+<a href=#265 id=265 data-nosnippet>265</a>            <span class="comment">// Look up the original instruction that created the value, which is the cache key.
+<a href=#266 id=266 data-nosnippet>266</a>            </span><span class="kw">let </span>instruction = <span class="kw">match </span><span class="kw-2">&amp;</span>dfg[value] {
+<a href=#267 id=267 data-nosnippet>267</a>                Value::Instruction { instruction, .. } =&gt; <span class="kw-2">&amp;</span>dfg[<span class="kw-2">*</span>instruction],
+<a href=#268 id=268 data-nosnippet>268</a>                <span class="kw">_ </span>=&gt; {
+<a href=#269 id=269 data-nosnippet>269</a>                    <span class="comment">// If we can't trace back to a creating instruction (e.g. block parameters),
+<a href=#270 id=270 data-nosnippet>270</a>                    // conservatively remove all cached MakeArrays of the same type since any
+<a href=#271 id=271 data-nosnippet>271</a>                    // of them could be the source of this value.
+<a href=#272 id=272 data-nosnippet>272</a>                    </span><span class="self">self</span>.remove_make_arrays_of_type(<span class="kw-2">&amp;</span>value_type);
+<a href=#273 id=273 data-nosnippet>273</a>                    <span class="kw">continue</span>;
+<a href=#274 id=274 data-nosnippet>274</a>                }
+<a href=#275 id=275 data-nosnippet>275</a>            };
+<a href=#276 id=276 data-nosnippet>276</a>
+<a href=#277 id=277 data-nosnippet>277</a>            <span class="comment">// Remove the creator instruction from the cache.
+<a href=#278 id=278 data-nosnippet>278</a>            </span><span class="kw">if </span><span class="macro">matches!</span>(instruction, MakeArray { .. } | Call { .. }) {
+<a href=#279 id=279 data-nosnippet>279</a>                <span class="self">self</span>.remove(instruction);
+<a href=#280 id=280 data-nosnippet>280</a>            }
+<a href=#281 id=281 data-nosnippet>281</a>
+<a href=#282 id=282 data-nosnippet>282</a>            <span class="kw">match </span>instruction {
+<a href=#283 id=283 data-nosnippet>283</a>                <span class="comment">// For arrays, we also want to invalidate the values, because multi-dimensional
+<a href=#284 id=284 data-nosnippet>284</a>                // arrays can be passed around, and through them their sub-arrays might be modified.
+<a href=#285 id=285 data-nosnippet>285</a>                </span>MakeArray { elements, .. } =&gt; values.extend(elements.iter().copied()),
+<a href=#286 id=286 data-nosnippet>286</a>                <span class="comment">// A callee that hands back an alias of an array argument gives that argument's
+<a href=#287 id=287 data-nosnippet>287</a>                // buffer a second name, so a mutation through the result is a mutation of the
+<a href=#288 id=288 data-nosnippet>288</a>                // argument. The cached instruction that goes stale is then the one that produced
+<a href=#289 id=289 data-nosnippet>289</a>                // the argument, not this call, and the arguments have to be followed to reach it.
+<a href=#290 id=290 data-nosnippet>290</a>                </span>Call { func, arguments } <span class="kw">if </span>result_may_alias_an_argument(dfg, <span class="kw-2">*</span>func) =&gt; {
+<a href=#291 id=291 data-nosnippet>291</a>                    values.extend(arguments.iter().copied());
+<a href=#292 id=292 data-nosnippet>292</a>                }
+<a href=#293 id=293 data-nosnippet>293</a>                <span class="kw">_ </span>=&gt; {}
+<a href=#294 id=294 data-nosnippet>294</a>            }
+<a href=#295 id=295 data-nosnippet>295</a>        }
+<a href=#296 id=296 data-nosnippet>296</a>    }
+<a href=#297 id=297 data-nosnippet>297</a>}
 <a href=#298 id=298 data-nosnippet>298</a>
-<a href=#299 id=299 data-nosnippet>299</a>    <span class="doccomment">/// Returns a set of [`ValueId`]s produced from a copy of this [`Instruction`] which sits
-<a href=#300 id=300 data-nosnippet>300</a>    /// within a block which dominates `block`.
-<a href=#301 id=301 data-nosnippet>301</a>    ///
-<a href=#302 id=302 data-nosnippet>302</a>    /// We require that the cached instruction's block dominates `block` in order to avoid
-<a href=#303 id=303 data-nosnippet>303</a>    /// cycles causing issues (e.g. two instructions being replaced with the results of each other
-<a href=#304 id=304 data-nosnippet>304</a>    /// such that neither instruction exists anymore.)
-<a href=#305 id=305 data-nosnippet>305</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>get(
-<a href=#306 id=306 data-nosnippet>306</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#307 id=307 data-nosnippet>307</a>        block: BasicBlockId,
-<a href=#308 id=308 data-nosnippet>308</a>        dom: <span class="kw-2">&amp;</span>DominatorTree,
-<a href=#309 id=309 data-nosnippet>309</a>        has_side_effects: bool,
-<a href=#310 id=310 data-nosnippet>310</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;CacheResult&gt; {
-<a href=#311 id=311 data-nosnippet>311</a>        <span class="kw">let </span>(origin, results) = <span class="self">self</span>.result.as_ref()<span class="question-mark">?</span>;
-<a href=#312 id=312 data-nosnippet>312</a>        <span class="kw">if </span>dom.dominates(<span class="kw-2">*</span>origin, block) {
-<a href=#313 id=313 data-nosnippet>313</a>            <span class="prelude-val">Some</span>(CacheResult::Cached { dominator: <span class="kw-2">*</span>origin, results })
-<a href=#314 id=314 data-nosnippet>314</a>        } <span class="kw">else if </span>!has_side_effects {
-<a href=#315 id=315 data-nosnippet>315</a>            <span class="comment">// Insert a copy of this instruction in the common dominator
-<a href=#316 id=316 data-nosnippet>316</a>            </span><span class="kw">let </span>dominator = dom.common_dominator(<span class="kw-2">*</span>origin, block);
-<a href=#317 id=317 data-nosnippet>317</a>            <span class="prelude-val">Some</span>(CacheResult::NeedToHoistToCommonBlock { dominator })
-<a href=#318 id=318 data-nosnippet>318</a>        } <span class="kw">else </span>{
-<a href=#319 id=319 data-nosnippet>319</a>            <span class="prelude-val">None
-<a href=#320 id=320 data-nosnippet>320</a>        </span>}
-<a href=#321 id=321 data-nosnippet>321</a>    }
-<a href=#322 id=322 data-nosnippet>322</a>}
-<a href=#323 id=323 data-nosnippet>323</a>
-<a href=#324 id=324 data-nosnippet>324</a><span class="attr">#[derive(Debug)]
-<a href=#325 id=325 data-nosnippet>325</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">enum </span>CacheResult&lt;<span class="lifetime">'a</span>&gt; {
-<a href=#326 id=326 data-nosnippet>326</a>    <span class="doccomment">/// The result of an earlier instruction can be readily reused, because it was found
-<a href=#327 id=327 data-nosnippet>327</a>    /// in a block that dominates the one where the current instruction is. We can drop
-<a href=#328 id=328 data-nosnippet>328</a>    /// the current instruction and redefine its results in terms of the existing values.
-<a href=#329 id=329 data-nosnippet>329</a>    </span>Cached {
-<a href=#330 id=330 data-nosnippet>330</a>        dominator: BasicBlockId,
-<a href=#331 id=331 data-nosnippet>331</a>        <span class="doccomment">/// The value IDs we can reuse.
-<a href=#332 id=332 data-nosnippet>332</a>        </span>results: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>[ValueId],
-<a href=#333 id=333 data-nosnippet>333</a>    },
-<a href=#334 id=334 data-nosnippet>334</a>    <span class="doccomment">/// We found an identical instruction in a non-dominating block, so we cannot directly
-<a href=#335 id=335 data-nosnippet>335</a>    /// reuse its results, because they are not visible in the current block. However, we
-<a href=#336 id=336 data-nosnippet>336</a>    /// can hoist the instruction into the common dominator, and deduplicate later.
-<a href=#337 id=337 data-nosnippet>337</a>    </span>NeedToHoistToCommonBlock {
-<a href=#338 id=338 data-nosnippet>338</a>        <span class="doccomment">/// The common dominator where we can hoist the current instruction.
-<a href=#339 id=339 data-nosnippet>339</a>        </span>dominator: BasicBlockId,
-<a href=#340 id=340 data-nosnippet>340</a>    },
-<a href=#341 id=341 data-nosnippet>341</a>}</code></pre></div></section></main></body></html>
+<a href=#299 id=299 data-nosnippet>299</a><span class="doccomment">/// Records the results of all duplicate [`Instruction`]s along with the blocks in which they sit.
+<a href=#300 id=300 data-nosnippet>300</a>///
+<a href=#301 id=301 data-nosnippet>301</a>/// For more information see [`InstructionResultCache`].
+<a href=#302 id=302 data-nosnippet>302</a></span><span class="attr">#[derive(Default, Debug)]
+<a href=#303 id=303 data-nosnippet>303</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct </span>ResultCache {
+<a href=#304 id=304 data-nosnippet>304</a>    result: <span class="prelude-ty">Option</span>&lt;(BasicBlockId, Vec&lt;ValueId&gt;)&gt;,
+<a href=#305 id=305 data-nosnippet>305</a>}
+<a href=#306 id=306 data-nosnippet>306</a><span class="kw">impl </span>ResultCache {
+<a href=#307 id=307 data-nosnippet>307</a>    <span class="doccomment">/// Records that an `Instruction` in block `block` produced the result values `results`.
+<a href=#308 id=308 data-nosnippet>308</a>    </span><span class="kw">fn </span>cache(<span class="kw-2">&amp;mut </span><span class="self">self</span>, block: BasicBlockId, dom: <span class="kw-2">&amp;</span>DominatorTree, results: Vec&lt;ValueId&gt;) {
+<a href=#309 id=309 data-nosnippet>309</a>        <span class="kw">let </span>overwrite = <span class="kw">match </span><span class="self">self</span>.result {
+<a href=#310 id=310 data-nosnippet>310</a>            <span class="prelude-val">None </span>=&gt; <span class="bool-val">true</span>,
+<a href=#311 id=311 data-nosnippet>311</a>            <span class="prelude-val">Some</span>((origin, <span class="kw">_</span>)) =&gt; origin != block &amp;&amp; dom.dominates(block, origin),
+<a href=#312 id=312 data-nosnippet>312</a>        };
+<a href=#313 id=313 data-nosnippet>313</a>
+<a href=#314 id=314 data-nosnippet>314</a>        <span class="kw">if </span>overwrite {
+<a href=#315 id=315 data-nosnippet>315</a>            <span class="self">self</span>.result = <span class="prelude-val">Some</span>((block, results));
+<a href=#316 id=316 data-nosnippet>316</a>        }
+<a href=#317 id=317 data-nosnippet>317</a>    }
+<a href=#318 id=318 data-nosnippet>318</a>
+<a href=#319 id=319 data-nosnippet>319</a>    <span class="doccomment">/// Returns a set of [`ValueId`]s produced from a copy of this [`Instruction`] which sits
+<a href=#320 id=320 data-nosnippet>320</a>    /// within a block which dominates `block`.
+<a href=#321 id=321 data-nosnippet>321</a>    ///
+<a href=#322 id=322 data-nosnippet>322</a>    /// We require that the cached instruction's block dominates `block` in order to avoid
+<a href=#323 id=323 data-nosnippet>323</a>    /// cycles causing issues (e.g. two instructions being replaced with the results of each other
+<a href=#324 id=324 data-nosnippet>324</a>    /// such that neither instruction exists anymore.)
+<a href=#325 id=325 data-nosnippet>325</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>get(
+<a href=#326 id=326 data-nosnippet>326</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#327 id=327 data-nosnippet>327</a>        block: BasicBlockId,
+<a href=#328 id=328 data-nosnippet>328</a>        dom: <span class="kw-2">&amp;</span>DominatorTree,
+<a href=#329 id=329 data-nosnippet>329</a>        has_side_effects: bool,
+<a href=#330 id=330 data-nosnippet>330</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;CacheResult&gt; {
+<a href=#331 id=331 data-nosnippet>331</a>        <span class="kw">let </span>(origin, results) = <span class="self">self</span>.result.as_ref()<span class="question-mark">?</span>;
+<a href=#332 id=332 data-nosnippet>332</a>        <span class="kw">if </span>dom.dominates(<span class="kw-2">*</span>origin, block) {
+<a href=#333 id=333 data-nosnippet>333</a>            <span class="prelude-val">Some</span>(CacheResult::Cached { dominator: <span class="kw-2">*</span>origin, results })
+<a href=#334 id=334 data-nosnippet>334</a>        } <span class="kw">else if </span>!has_side_effects {
+<a href=#335 id=335 data-nosnippet>335</a>            <span class="comment">// Insert a copy of this instruction in the common dominator
+<a href=#336 id=336 data-nosnippet>336</a>            </span><span class="kw">let </span>dominator = dom.common_dominator(<span class="kw-2">*</span>origin, block);
+<a href=#337 id=337 data-nosnippet>337</a>            <span class="prelude-val">Some</span>(CacheResult::NeedToHoistToCommonBlock { dominator })
+<a href=#338 id=338 data-nosnippet>338</a>        } <span class="kw">else </span>{
+<a href=#339 id=339 data-nosnippet>339</a>            <span class="prelude-val">None
+<a href=#340 id=340 data-nosnippet>340</a>        </span>}
+<a href=#341 id=341 data-nosnippet>341</a>    }
+<a href=#342 id=342 data-nosnippet>342</a>}
+<a href=#343 id=343 data-nosnippet>343</a>
+<a href=#344 id=344 data-nosnippet>344</a><span class="attr">#[derive(Debug)]
+<a href=#345 id=345 data-nosnippet>345</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">enum </span>CacheResult&lt;<span class="lifetime">'a</span>&gt; {
+<a href=#346 id=346 data-nosnippet>346</a>    <span class="doccomment">/// The result of an earlier instruction can be readily reused, because it was found
+<a href=#347 id=347 data-nosnippet>347</a>    /// in a block that dominates the one where the current instruction is. We can drop
+<a href=#348 id=348 data-nosnippet>348</a>    /// the current instruction and redefine its results in terms of the existing values.
+<a href=#349 id=349 data-nosnippet>349</a>    </span>Cached {
+<a href=#350 id=350 data-nosnippet>350</a>        dominator: BasicBlockId,
+<a href=#351 id=351 data-nosnippet>351</a>        <span class="doccomment">/// The value IDs we can reuse.
+<a href=#352 id=352 data-nosnippet>352</a>        </span>results: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>[ValueId],
+<a href=#353 id=353 data-nosnippet>353</a>    },
+<a href=#354 id=354 data-nosnippet>354</a>    <span class="doccomment">/// We found an identical instruction in a non-dominating block, so we cannot directly
+<a href=#355 id=355 data-nosnippet>355</a>    /// reuse its results, because they are not visible in the current block. However, we
+<a href=#356 id=356 data-nosnippet>356</a>    /// can hoist the instruction into the common dominator, and deduplicate later.
+<a href=#357 id=357 data-nosnippet>357</a>    </span>NeedToHoistToCommonBlock {
+<a href=#358 id=358 data-nosnippet>358</a>        <span class="doccomment">/// The common dominator where we can hoist the current instruction.
+<a href=#359 id=359 data-nosnippet>359</a>        </span>dominator: BasicBlockId,
+<a href=#360 id=360 data-nosnippet>360</a>    },
+<a href=#361 id=361 data-nosnippet>361</a>}</code></pre></div></section></main></body></html>
