@@ -86,13 +86,13 @@
 <a href=#86 id=86 data-nosnippet>86</a>            .prop_map(|bytes| InputValue::Field(FieldElement::from_be_bytes_reduce(<span class="kw-2">&amp;</span>bytes)))
 <a href=#87 id=87 data-nosnippet>87</a>            .sboxed(),
 <a href=#88 id=88 data-nosnippet>88</a>        AbiType::Integer { width, sign } <span class="kw">if </span>sign == <span class="kw-2">&amp;</span>Sign::Unsigned =&gt; {
-<a href=#89 id=89 data-nosnippet>89</a>            <span class="comment">// We've restricted the type system to only allow u64s as the maximum integer type.
-<a href=#90 id=90 data-nosnippet>90</a>            </span><span class="kw">let </span>width = (<span class="kw-2">*</span>width).min(<span class="number">64</span>);
-<a href=#91 id=91 data-nosnippet>91</a>            UintStrategy::new(width <span class="kw">as </span>usize, dictionary)
-<a href=#92 id=92 data-nosnippet>92</a>                .prop_map(|uint| InputValue::Field(uint.into()))
-<a href=#93 id=93 data-nosnippet>93</a>                .sboxed()
-<a href=#94 id=94 data-nosnippet>94</a>        }
-<a href=#95 id=95 data-nosnippet>95</a>        AbiType::Integer { width, .. } =&gt; {
+<a href=#89 id=89 data-nosnippet>89</a>            UintStrategy::new(<span class="kw-2">*</span>width <span class="kw">as </span>usize, dictionary)
+<a href=#90 id=90 data-nosnippet>90</a>                .prop_map(|uint| InputValue::Field(uint.into()))
+<a href=#91 id=91 data-nosnippet>91</a>                .sboxed()
+<a href=#92 id=92 data-nosnippet>92</a>        }
+<a href=#93 id=93 data-nosnippet>93</a>        <span class="comment">// Noir's widest signed integer is `i64`, so the strategy's `i128` domain covers every
+<a href=#94 id=94 data-nosnippet>94</a>        // signed width the ABI can name.
+<a href=#95 id=95 data-nosnippet>95</a>        </span>AbiType::Integer { width, .. } =&gt; {
 <a href=#96 id=96 data-nosnippet>96</a>            <span class="kw">let </span>width = (<span class="kw-2">*</span>width).min(<span class="number">64</span>);
 <a href=#97 id=97 data-nosnippet>97</a>            <span class="comment">// Based on `FieldElement::to_i128`:
 <a href=#98 id=98 data-nosnippet>98</a>            // * negative integers are represented by the range [p + i128::MIN, p)
