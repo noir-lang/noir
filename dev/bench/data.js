@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789388874317,
+  "lastUpdate": 1789388892935,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -21167,40 +21167,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "5e0051297d7133571ddd2bcaf2b7963f84f7d1bc",
-          "message": "chore: drop cspell allowlist entries for words that no longer appear in the repo (#13615)",
-          "timestamp": "2026-09-07T21:31:13Z",
-          "tree_id": "e8fa2cf48e8895fdf06b407e756bf37ec26bf692",
-          "url": "https://github.com/noir-lang/noir/commit/5e0051297d7133571ddd2bcaf2b7963f84f7d1bc"
-        },
-        "date": 1788818032711,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.3,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.271,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "aef4fc70bd052d02e057140b88b0b80a00e7d3ae",
           "message": "chore: fix spelling mistakes and normalize British spellings (#13617)",
@@ -22851,6 +22817,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 0.252,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "1aaf1e4c920f7c1bbbc58b56e9129f7c9a2b16ea",
+          "message": "fix(nargo_fmt): remove empty use lists instead of turning them into imports (#13678)",
+          "timestamp": "2026-09-14T12:02:10Z",
+          "tree_id": "9fb031122ace543852554c85f17094b814094ec1",
+          "url": "https://github.com/noir-lang/noir/commit/1aaf1e4c920f7c1bbbc58b56e9129f7c9a2b16ea"
+        },
+        "date": 1789388806811,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.296,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.218,
             "unit": "s"
           }
         ]
