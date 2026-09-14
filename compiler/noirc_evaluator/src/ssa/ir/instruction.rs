@@ -244,6 +244,20 @@ impl Intrinsic {
         )
     }
 
+    /// Returns true if a call to this intrinsic may mutate an array argument in place in Brillig,
+    /// or hand back an alias of one that a later instruction may mutate. Either way the argument's
+    /// storage is not safe to reuse across the call.
+    ///
+    /// Mirrors `is_pure_builtin_func` in `ssa_gen`: a pure intrinsic that is safe for clone elision
+    /// in Brillig can do neither, everything else conservatively can. The purity half is what
+    /// covers the intrinsics that are neither `Pure` nor `PureWithPredicate` — `black_box`, whose
+    /// result is its operand's heap pointer because it lowers to a register move, and the reference
+    /// count reads, which are ordering-dependent on the rc traffic around them.
+    pub(crate) fn may_mutate_or_alias_array_arguments_in_brillig(&self) -> bool {
+        self.unsafe_for_clone_elision_in_brillig()
+            || !matches!(self.purity(), Purity::Pure | Purity::PureWithPredicate)
+    }
+
     /// Returns true if this intrinsic may write through its vector operand in place in Brillig,
     /// i.e. when that operand's copy-on-write reference count is 1.
     ///
