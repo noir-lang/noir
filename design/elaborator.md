@@ -12,11 +12,12 @@ checks are made from, and the small counters used while elaborating its body.
 
 Fields of that state which are only meaningful together live in a sub-context of `ItemContext`,
 each in its own file under
-[`elaborator/item_context/`](../compiler/noirc_frontend/src/elaborator/item_context/): an
-`ImplContext` for the enclosing impl or trait, a `GenericsContext` for the generics in scope
-and the bounds they carry, a `BodyContext` for where in the item's body the elaborator is. A
-sub-context keeps its fields private and exposes the operations over them, so the scopes that
-enter and leave it are the only code that can change it.
+[`elaborator/item_context/`](../compiler/noirc_frontend/src/elaborator/item_context/): a
+`ModuleContext` for which item is being elaborated and where it was written, an `ImplContext`
+for the enclosing impl or trait, a `GenericsContext` for the generics in scope and the bounds
+they carry, a `BodyContext` for where in the item's body the elaborator is. A sub-context keeps
+its fields private and exposes the operations over them, so the scopes that enter and leave it
+are the only code that can change it.
 
 Elaborating an item can require elaborating another item first: a function body that calls a
 function returning `impl Trait` needs the callee's body to learn the concrete type; a body
