@@ -131,6 +131,12 @@ pub(super) struct ItemContext {
 }
 
 impl ItemContext {
+    /// The type `Self` refers to. Only call this where an impl, trait or trait impl context is
+    /// installed; items that have no `Self` leave this unset.
+    pub(super) fn self_type(&self) -> &Type {
+        self.self_type.as_ref().expect("self_type is unset")
+    }
+
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn next_lvalue_index_counter(&mut self) -> usize {
         let lvalue_index_counter = self.lvalue_index_counter;

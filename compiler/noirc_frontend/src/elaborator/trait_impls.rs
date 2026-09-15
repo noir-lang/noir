@@ -77,44 +77,49 @@ impl Elaborator<'_> {
             local_module: Some(trait_impl.module_id),
             current_trait_impl: trait_impl.impl_id,
             current_trait: trait_impl.trait_id,
-            self_type: Some(self_type.clone()),
+            self_type: Some(self_type),
             ..Default::default()
         };
         self.with_item_context(context, |this| {
-            this.collect_trait_impl_in_context(trait_impl, self_type);
+            this.collect_trait_impl_in_context(trait_impl);
         });
     }
 
     /// Does the work of [`Self::collect_trait_impl`].
     ///
     /// Expects the trait impl's own [`ItemContext`] to be installed.
-    fn collect_trait_impl_in_context(
-        &mut self,
-        trait_impl: &mut UnresolvedTraitImpl,
-        self_type: Type,
-    ) {
+    fn collect_trait_impl_in_context(&mut self, trait_impl: &mut UnresolvedTraitImpl) {
         let self_type_location = trait_impl.object_type.location;
 
-        if matches!(self_type.follow_bindings_shallow().as_ref(), Type::Reference(..)) {
-            let is_alias = matches!(self_type, Type::Alias(..));
-            self.push_err(DefCollectorErrorKind::ReferenceInTraitImpl {
-                is_alias,
-                location: self_type_location,
-            });
-        } else if get_type_method_key(&self_type).is_none() {
-            let error: CompilationError = if self_type == Type::Error {
-                TypeCheckError::expecting_other_error(
-                    "collect_trait_impl: missing trait type",
-                    self_type_location,
+        let self_type = self.item.self_type();
+        let error: Option<CompilationError> =
+            if matches!(self_type.follow_bindings_shallow().as_ref(), Type::Reference(..)) {
+                let is_alias = matches!(self_type, Type::Alias(..));
+                Some(
+                    DefCollectorErrorKind::ReferenceInTraitImpl {
+                        is_alias,
+                        location: self_type_location,
+                    }
+                    .into(),
                 )
-                .into()
+            } else if get_type_method_key(self_type).is_none() {
+                Some(if *self_type == Type::Error {
+                    TypeCheckError::expecting_other_error(
+                        "collect_trait_impl: missing trait type",
+                        self_type_location,
+                    )
+                    .into()
+                } else {
+                    ResolverError::TypeUnsupportedForTraitImpl {
+                        typ: self_type.clone(),
+                        location: self_type_location,
+                    }
+                    .into()
+                })
             } else {
-                ResolverError::TypeUnsupportedForTraitImpl {
-                    typ: self_type.clone(),
-                    location: self_type_location,
-                }
-                .into()
+                None
             };
+        if let Some(error) = error {
             self.push_err(error);
         }
 
@@ -230,8 +235,8 @@ impl Elaborator<'_> {
                     continue;
                 }
 
-                if self.interner.set_function_trait(*func_id, self_type.clone(), trait_id).is_some()
-                {
+                let self_type = self.item.self_type().clone();
+                if self.interner.set_function_trait(*func_id, self_type, trait_id).is_some() {
                     self.push_err(TypeCheckError::expecting_other_error(
                         "collect_trait_impl: overlapping function trait",
                         location,
@@ -266,7 +271,7 @@ impl Elaborator<'_> {
             let resolved_trait_impl = Shared::new(TraitImpl {
                 ident,
                 location,
-                typ: self_type.clone(),
+                typ: self.item.self_type().clone(),
                 trait_id,
                 file: trait_impl.file_id,
                 crate_id: self.crate_id,
@@ -277,7 +282,7 @@ impl Elaborator<'_> {
             let impl_generics = vecmap(&self.item.generics, |generic| generic.type_var.clone());
 
             match self.interner.add_trait_implementation(
-                self_type.clone(),
+                self.item.self_type().clone(),
                 trait_id,
                 trait_impl.impl_id.expect("ICE: impl_id should be set in define_function_metas"),
                 impl_generics,
@@ -287,8 +292,9 @@ impl Elaborator<'_> {
                 Ok(Ok(())) => (),
                 Err(error) => self.push_err(error),
                 Ok(Err(prev_location)) => {
+                    let typ = self.item.self_type().clone();
                     self.push_err(DefCollectorErrorKind::OverlappingImpl {
-                        typ: self_type,
+                        typ,
                         location: self_type_location,
                         prev_location,
                     });
@@ -505,7 +511,7 @@ impl Elaborator<'_> {
     ) {
         // First get the general trait to impl bindings.
         // Then we'll need to add the bindings for this specific method.
-        let self_type = self.item.self_type.as_ref().unwrap();
+        let self_type = self.item.self_type();
 
         let mut bindings =
             self.interner.trait_to_impl_bindings(trait_id, impl_id, trait_impl_generics, self_type);
