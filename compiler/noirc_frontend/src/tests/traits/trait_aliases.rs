@@ -1,7 +1,7 @@
 //! Tests for trait alias desugaring and validation.
 //! Trait aliases allow defining shortcuts for trait bounds like `trait Baz = Foo + Bar`.
 
-use crate::tests::{assert_no_errors, check_errors};
+use crate::tests::assert_no_errors;
 
 #[test]
 fn trait_alias_single_member() {
@@ -100,11 +100,10 @@ fn trait_alias_polymorphic_inheritance() {
     assert_no_errors(src);
 }
 
-// TODO(https://github.com/noir-lang/noir/issues/6467): currently failing, so
-// this just tests that the trait alias has an equivalent error to the expected
-// desugared version
+/// Regression test for https://github.com/noir-lang/noir/issues/6467, on the form a trait alias
+/// with a where clause desugars to.
 #[test]
-fn trait_alias_with_where_clause_has_equivalent_errors() {
+fn where_clause_on_supertrait_is_implied_by_it() {
     let src = r#"
         trait Bar {
             fn bar(self) -> Self;
@@ -123,17 +122,15 @@ fn trait_alias_with_where_clause_has_equivalent_errors() {
 
         pub fn qux<T, U>(x: T, _: U) -> bool where U: Qux<T> {
             x.baz()
-            ^^^^^^^ No method named 'baz' found for type 'T'
         }
     "#;
-    check_errors(src);
+    assert_no_errors(src);
 }
 
-// TODO(https://github.com/noir-lang/noir/issues/6467): currently failing, so
-// this just tests that the trait alias has an equivalent error to the expected
-// desugared version
+/// Regression test for https://github.com/noir-lang/noir/issues/6467: `U: Qux<T>` carries the
+/// alias's own `where T: Baz`, so `x.baz()` resolves.
 #[test]
-fn trait_alias_with_where_clause_has_equivalent_errors_2() {
+fn where_clause_on_trait_alias_is_implied_by_it() {
     let alias_src = r#"
         trait Bar {
             fn bar(self) -> Self;
@@ -147,8 +144,7 @@ fn trait_alias_with_where_clause_has_equivalent_errors_2() {
 
         pub fn qux<T, U>(x: T, _: U) -> bool where U: Qux<T> {
             x.baz()
-            ^^^^^^^ No method named 'baz' found for type 'T'
         }
     "#;
-    check_errors(alias_src);
+    assert_no_errors(alias_src);
 }

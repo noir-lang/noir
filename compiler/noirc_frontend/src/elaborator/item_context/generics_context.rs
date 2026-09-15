@@ -123,6 +123,17 @@ impl GenericsContext {
             .any(|bound| bound.trait_bound.trait_id == trait_id && bound.typ == *object_type)
     }
 
+    /// Returns the bound matching `object_type: trait` if one is in scope.
+    pub(crate) fn find_bound(
+        &self,
+        object_type: &Type,
+        trait_id: TraitId,
+    ) -> Option<&TraitConstraint> {
+        self.trait_bounds
+            .iter()
+            .find(|bound| bound.trait_bound.trait_id == trait_id && bound.typ == *object_type)
+    }
+
     /// The bounds written on the generic parameter named `name`, e.g. both `Foo` and `Bar` for
     /// `T` given `where T: Foo, T: Bar`.
     pub(crate) fn bounds_on_generic<'a>(

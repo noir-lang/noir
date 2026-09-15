@@ -806,6 +806,145 @@ impl Elaborator<'_> {
         }
     }
 
+    /// The constraints a trait's own `where` clause implies wherever that trait is named:
+    /// `U: Qux<T>`, declared as `trait Qux<T>: Bar where T: Baz`, implies `T: Baz`. The clause is
+    /// instantiated with the bound's generics, so the `T` in the result is the caller's.
+    ///
+    /// Entries keyed on `Self` are the trait's parent bounds, which are reached through
+    /// [`Trait::parent_bounds`](crate::hir_def::traits::Trait::parent_bounds) instead and are
+    /// excluded here.
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(super) fn trait_where_clause_implications(
+        &self,
+        trait_bound: &ResolvedTraitBound,
+    ) -> Vec<TraitConstraint> {
+        let Some(the_trait) = self.interner.try_get_trait(trait_bound.trait_id) else {
+            return Vec::new();
+        };
+
+        let self_id = the_trait.self_type_typevar.id();
+        let where_clause: Vec<_> = the_trait
+            .where_clause
+            .iter()
+            .filter(|constraint| {
+                !matches!(&constraint.typ, Type::TypeVariable(var) if var.id() == self_id)
+            })
+            .cloned()
+            .collect();
+
+        if where_clause.is_empty() {
+            return Vec::new();
+        }
+
+        let mut bindings = TypeBindings::default();
+        self.bind_generics_from_trait_bound(trait_bound, &mut bindings);
+
+        let mut implications = Vec::with_capacity(where_clause.len());
+
+        for constraint in where_clause {
+            let typ = constraint.typ.substitute(&bindings);
+            let mut trait_generics =
+                constraint.trait_bound.trait_generics.map(|generic| generic.substitute(&bindings));
+
+            self.instantiate_implicit_associated_types(
+                &typ,
+                constraint.trait_bound.trait_id,
+                &mut trait_generics.named,
+                &mut bindings,
+            );
+
+            implications.push(TraitConstraint {
+                typ,
+                trait_bound: ResolvedTraitBound { trait_generics, ..constraint.trait_bound },
+            });
+        }
+
+        implications
+    }
+
+    /// Gives an associated type the clause left implicit a variable that belongs to the use site.
+    ///
+    /// The variable standing for such an associated type is created once, with the trait, and is
+    /// shared by every use of it. A bound on the same type already in scope has its own variable
+    /// for that associated type, so reuse that one: two bounds describing the same associated type
+    /// through unrelated variables leave it unresolvable. Failing that, a fresh variable per use
+    /// at least keeps separate uses of the trait from sharing one.
+    fn instantiate_implicit_associated_types(
+        &self,
+        object: &Type,
+        trait_id: TraitId,
+        named: &mut [NamedType],
+        bindings: &mut TypeBindings,
+    ) {
+        let in_scope = self.item.generics.find_bound(object, trait_id);
+
+        for named_type in named.iter_mut() {
+            let Type::NamedGeneric(NamedGeneric { type_var, implicit: true, .. }) = &named_type.typ
+            else {
+                continue;
+            };
+            if !type_var.borrow().is_unbound() {
+                continue;
+            }
+
+            let in_scope = in_scope.and_then(|bound| {
+                bound
+                    .trait_bound
+                    .trait_generics
+                    .named
+                    .iter()
+                    .find(|existing| existing.name.as_str() == named_type.name.as_str())
+            });
+
+            let type_var = type_var.clone();
+            let kind = type_var.kind();
+            let typ = match in_scope {
+                Some(existing) => existing.typ.clone(),
+                None => Type::TypeVariable(TypeVariable::unbound(
+                    self.interner.next_type_variable_id(),
+                    kind.clone(),
+                )),
+            };
+
+            if !typ.occurs(type_var.id()) {
+                bindings.insert(type_var.id(), (type_var, kind, typ.clone()));
+            }
+            named_type.typ = typ;
+        }
+    }
+
+    /// The transitive closure of [`Self::trait_where_clause_implications`] over `constraints`,
+    /// excluding the constraints themselves. Each result is also pushed to
+    /// [`GenericsContext`] so `T::Assoc` syntax can reach it while the item is
+    /// elaborated.
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(super) fn implied_where_clause_constraints(
+        &mut self,
+        constraints: &[TraitConstraint],
+    ) -> Vec<TraitConstraint> {
+        let mut visited: BTreeSet<(Type, TraitId)> = constraints
+            .iter()
+            .map(|constraint| (constraint.typ.clone(), constraint.trait_bound.trait_id))
+            .collect();
+
+        let mut queue: Vec<_> = constraints.to_vec();
+        let mut implied = Vec::new();
+
+        while let Some(constraint) = queue.pop() {
+            for implication in self.trait_where_clause_implications(&constraint.trait_bound) {
+                let key = (implication.typ.clone(), implication.trait_bound.trait_id);
+                if !visited.insert(key) {
+                    continue;
+                }
+                self.item.generics.add_bound(implication.clone());
+                queue.push(implication.clone());
+                implied.push(implication);
+            }
+        }
+
+        implied
+    }
+
     /// Adds an assumed trait implementation for the given object type and trait bound.
     ///
     /// This also recursively adds assumed implementations for any parent traits,
@@ -840,11 +979,12 @@ impl Elaborator<'_> {
         self.add_trait_bound_to_scope_inner(location, object, trait_bound, written, &mut visited);
     }
 
-    /// `written` distinguishes the bound the user wrote from the ones it implies: a bound on one of
-    /// the trait's associated types, or a parent trait. Only a written bound can be redundant. An
-    /// implied bound duplicating one already in scope is how implication works, and a written
-    /// bound duplicating an implied one is redundant only in the sense that the user spelled out
-    /// something that already holds, which is not worth a warning. That is what
+    /// `written` distinguishes the bound the user wrote from the ones it implies: the named
+    /// trait's own where clause, a bound on one of the trait's associated types, or a parent
+    /// trait. Only a written bound can be redundant. An implied bound duplicating one already in
+    /// scope is how implication works, and a written bound duplicating an implied one is redundant
+    /// only in the sense that the user spelled out something that already holds, which is not
+    /// worth a warning. That is what
     /// [`GenericsContext::record_implied_bound`] is for: it makes the answer independent of the
     /// order the two are registered in.
     #[tracing::instrument(level = "trace", skip_all)]
@@ -943,6 +1083,24 @@ impl Elaborator<'_> {
                 location,
                 &associated_type,
                 &bound,
+                written,
+                visited,
+            );
+        }
+
+        // A trait's own `where` clause holds wherever the trait is named, so `U: Qux<T>`,
+        // declared as `trait Qux<T> where T: Baz`, also brings `T: Baz` into scope.
+        for constraint in self.trait_where_clause_implications(trait_bound) {
+            // Avoid looping forever in case there are cycles
+            if !visited.insert((constraint.typ.clone(), constraint.trait_bound.trait_id)) {
+                continue;
+            }
+
+            let written = false;
+            self.add_trait_bound_to_scope_inner(
+                location,
+                &constraint.typ,
+                &constraint.trait_bound,
                 written,
                 visited,
             );
