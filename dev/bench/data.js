@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789477424104,
+  "lastUpdate": 1789477815086,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -7387,40 +7387,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "ae46b797ab9e2cb0c9fbc8fd5f74ec6b3f0917f4",
-          "message": "chore: raise the 2s external-library test timeout to 5s (#13630)",
-          "timestamp": "2026-09-09T14:05:04Z",
-          "tree_id": "581db318dae5db3ff969a3624c7aa680c1570d49",
-          "url": "https://github.com/noir-lang/noir/commit/ae46b797ab9e2cb0c9fbc8fd5f74ec6b3f0917f4"
-        },
-        "date": 1788964276057,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 85.57,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 79.11,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -9620,6 +9586,95 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/1257c19c13f9810e8c6ddd80f42aeb4ab3c8d5c4"
         },
         "date": 1789475349383,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 297.91,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 338.44,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 325.22,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 372.43,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 369.21,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1270,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1270,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 369.44,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 471.34,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 483.02,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 368.72,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 85.57,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 79.11,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "4ea0a28ff92fadecf98f49344c7c55f02d164427",
+          "message": "fix(test): sum counts before dividing in the AST fuzzer calibration frequencies (#13724)",
+          "timestamp": "2026-09-15T12:27:18Z",
+          "tree_id": "aea955bee54ed7a272da9cebe18ef21c0034d87d",
+          "url": "https://github.com/noir-lang/noir/commit/4ea0a28ff92fadecf98f49344c7c55f02d164427"
+        },
+        "date": 1789477729053,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
