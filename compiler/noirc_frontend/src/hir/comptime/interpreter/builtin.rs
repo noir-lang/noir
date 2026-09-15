@@ -2447,7 +2447,7 @@ fn expr_resolve(
     let reason = Some(ElaborateReason::EvaluatingComptimeCall("Expr::resolve", location));
     interpreter.elaborate_in_function(function_to_resolve_in, reason, |elaborator| {
         if is_some {
-            elaborator.caller_module = caller_module;
+            elaborator.set_caller_module(caller_module);
         }
 
         match expr_value {

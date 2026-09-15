@@ -21,37 +21,60 @@ use crate::{Type, TypeAlias};
 use super::path_resolution::{
     PathResolutionItem, PathResolutionMode, Turbofish, TypedPath, TypedPathSegment,
 };
-use super::{Elaborator, PathResolutionTarget, ResolverMeta};
+use super::{Elaborator, PathResolutionTarget, ResolverMeta, item_context::ItemContext};
 
 type ScopeTree = GenericScopeTree<String, ResolverMeta>;
 
 pub(crate) struct ReplacedModule(CrateId, Option<LocalModuleId>);
 
+impl ItemContext {
+    pub(super) fn local_module(&self) -> LocalModuleId {
+        self.local_module.expect("local_module is unset")
+    }
+
+    #[must_use]
+    pub(super) fn replace_local_module(&mut self, module: LocalModuleId) -> Option<LocalModuleId> {
+        self.local_module.replace(module)
+    }
+}
+
 impl Elaborator<'_> {
     pub fn module_id(&self) -> ModuleId {
-        ModuleId { krate: self.crate_id, local_id: self.local_module() }
+        ModuleId { krate: self.crate_id, local_id: self.item.local_module() }
+    }
+
+    /// The module that visibility checks during path resolution are made from: the caller's
+    /// module when one is set, else the module the lookup runs in.
+    pub(crate) fn visibility_module(&self) -> ModuleId {
+        self.item.caller_module.unwrap_or_else(|| self.module_id())
+    }
+
+    /// Makes visibility checks during path resolution use `caller_module` instead of the module
+    /// the current item is in, for the rest of the current item's elaboration.
+    pub(crate) fn set_caller_module(&mut self, caller_module: Option<ModuleId>) {
+        self.item.caller_module = caller_module;
     }
 
     #[must_use]
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn replace_module(&mut self, new_module: ModuleId) -> ReplacedModule {
         let old_crate_id = self.crate_id;
-        let old_local_module = self.local_module;
+        let old_local_module = self.item.local_module;
         self.crate_id = new_module.krate;
-        self.local_module = Some(new_module.local_id);
+        self.item.local_module = Some(new_module.local_id);
         ReplacedModule(old_crate_id, old_local_module)
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn restore_module(&mut self, replaced_module: ReplacedModule) {
         self.crate_id = replaced_module.0;
-        self.local_module = replaced_module.1;
+        self.item.local_module = replaced_module.1;
     }
 
-    /// Runs `f` with `self.local_module` set to `module`, restoring the previous value
+    /// Runs `f` with `self.item.local_module` set to `module`, restoring the previous value
     /// afterwards (on every exit path, including early returns inside `f`). This is the
     /// module-scope analogue of [`Self::recover_generics`] and should be used instead of a
-    /// bare `self.local_module = Some(..)` so that the caller's module context is never left
+    /// bare `self.item.local_module = Some(..)` so that the caller's module context is never left
     /// dangling.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn in_local_module<T>(
@@ -59,15 +82,10 @@ impl Elaborator<'_> {
         module: LocalModuleId,
         f: impl FnOnce(&mut Self) -> T,
     ) -> T {
-        let previous = self.replace_local_module(module);
+        let previous = self.item.replace_local_module(module);
         let result = f(self);
-        self.local_module = previous;
+        self.item.local_module = previous;
         result
-    }
-
-    #[must_use]
-    pub(super) fn replace_local_module(&mut self, module: LocalModuleId) -> Option<LocalModuleId> {
-        self.local_module.replace(module)
     }
 
     pub(super) fn get_type(&self, type_id: TypeId) -> Shared<DataType> {
@@ -91,11 +109,11 @@ impl Elaborator<'_> {
 
         let mut transitive_capture_index: Option<usize> = None;
 
-        for lambda_index in 0..self.lambda_stack.len() {
-            if self.lambda_stack[lambda_index].scope_index > variable.scope {
+        for lambda_index in 0..self.item.lambda_stack.len() {
+            if self.item.lambda_stack[lambda_index].scope_index > variable.scope {
                 // Beware: the same variable may be captured multiple times, so we check
                 // for its presence before adding the capture below.
-                let position = self.lambda_stack[lambda_index]
+                let position = self.item.lambda_stack[lambda_index]
                     .captures
                     .iter()
                     .position(|capture| capture.ident.id == variable.ident.id);
@@ -107,19 +125,19 @@ impl Elaborator<'_> {
                     if self.in_comptime_context()
                         || !self.interner.definition(variable.ident.id).is_comptime_local()
                     {
-                        self.lambda_stack[lambda_index].captures.push(HirCapturedVar {
+                        self.item.lambda_stack[lambda_index].captures.push(HirCapturedVar {
                             ident: variable.ident.clone(),
                             transitive_capture_index,
                         });
                         // If this was a fresh capture, we added it to the end of
                         // the captures vector:
-                        Some(self.lambda_stack[lambda_index].captures.len() - 1)
+                        Some(self.item.lambda_stack[lambda_index].captures.len() - 1)
                     } else {
                         None
                     }
                 });
 
-                if lambda_index + 1 < self.lambda_stack.len() {
+                if lambda_index + 1 < self.item.lambda_stack.len() {
                     // There is more than one closure between the current scope and
                     // the scope of the variable, so this is a propagated capture.
                     // We need to track the transitive capture index as we go up in
@@ -327,7 +345,7 @@ impl Elaborator<'_> {
         let segment = path.as_single_segment();
         if let Some(segment) = segment
             && segment.ident.is_self_type_name()
-            && let Some(typ) = &self.self_type
+            && let Some(typ) = &self.item.self_type
         {
             return Some(typ.clone());
         }

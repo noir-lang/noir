@@ -182,6 +182,29 @@ fn check_errors_with_stdlib<'a>(src: &str, stdlib_src: impl IntoIterator<Item = 
     );
 }
 
+/// Like [`check_errors_with_stdlib`], with the given unstable features enabled.
+fn check_errors_with_stdlib_using_features<'a>(
+    src: &str,
+    stdlib_src: impl IntoIterator<Item = &'a str>,
+    features: &[UnstableFeature],
+) {
+    let stdlib_src: String = stdlib_src.into_iter().flat_map(|s| [s, "\n"]).collect();
+    let monomorphize = false;
+    check_errors_with_options(
+        &format!("{stdlib_src}\n\n{src}"),
+        monomorphize,
+        GetProgramOptions {
+            allow_parser_errors: false,
+            allow_elaborator_errors: true,
+            root_and_stdlib: true,
+            frontend_options: FrontendOptions {
+                enabled_unstable_features: features,
+                ..FrontendOptions::test_default()
+            },
+        },
+    );
+}
+
 fn check_errors_using_features(src: &str, features: &[UnstableFeature]) {
     let monomorphize = false;
     check_errors_with_options(

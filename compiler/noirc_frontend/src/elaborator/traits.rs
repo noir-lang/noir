@@ -199,15 +199,7 @@ use crate::{
     node_interner::{DependencyId, FuncId, ImplSearchErrorKind, ReferenceId, TraitId},
 };
 
-use super::{Elaborator, function::UnresolvedFunctionMeta, generics::GenericsState};
-
-/// State saved when entering a trait scope, used to restore state on exit.
-struct TraitScopeState {
-    generics: GenericsState,
-    current_trait: Option<TraitId>,
-    self_type: Option<Type>,
-    local_module: Option<crate::hir::def_map::LocalModuleId>,
-}
+use super::{Elaborator, function::UnresolvedFunctionMeta, item_context::ItemContext};
 
 /// A generic synthesized for an associated type that was elided from a trait bound.
 ///
@@ -241,38 +233,24 @@ pub(super) struct DesugaredAssociatedGeneric {
 }
 
 impl Elaborator<'_> {
-    /// Sets up the elaborator scope for processing a trait.
-    /// Returns state that must be passed to `exit_trait_scope` to restore the previous state.
+    /// Runs `f` in a context of its own for the trait: the trait's module, the trait as the
+    /// current one and its self type variable as `Self`. Whatever `f` adds to the context, such
+    /// as generics, is discarded on exit and the caller's context is reinstated.
     #[tracing::instrument(level = "trace", skip_all)]
-    fn enter_trait_scope(
+    fn with_trait_scope<T>(
         &mut self,
         trait_id: TraitId,
         module_id: crate::hir::def_map::LocalModuleId,
-    ) -> TraitScopeState {
-        let previous_state = TraitScopeState {
-            generics: self.enter_generics_scope(),
-            current_trait: self.current_trait,
-            self_type: self.self_type.clone(),
-            local_module: self.local_module,
+        f: impl FnOnce(&mut Self) -> T,
+    ) -> T {
+        let self_typevar = self.interner.get_trait(trait_id).self_type_typevar.clone();
+        let context = ItemContext {
+            local_module: Some(module_id),
+            current_trait: Some(trait_id),
+            self_type: Some(Type::TypeVariable(self_typevar)),
+            ..Default::default()
         };
-
-        self.local_module = Some(module_id);
-        self.current_trait = Some(trait_id);
-
-        let the_trait = self.interner.get_trait(trait_id);
-        let self_typevar = the_trait.self_type_typevar.clone();
-        self.self_type = Some(Type::TypeVariable(self_typevar));
-
-        previous_state
-    }
-
-    /// Restores the elaborator state after processing a trait.
-    #[tracing::instrument(level = "trace", skip_all)]
-    fn exit_trait_scope(&mut self, state: TraitScopeState) {
-        self.exit_generics_scope(state.generics);
-        self.current_trait = state.current_trait;
-        self.self_type = state.self_type;
-        self.local_module = state.local_module;
+        self.with_item_context(context, f)
     }
 }
 
@@ -286,80 +264,85 @@ impl Elaborator<'_> {
     #[tracing::instrument(level = "trace", skip_all)]
     pub fn collect_traits(&mut self, traits: &mut BTreeMap<TraitId, UnresolvedTrait>) {
         for (trait_id, unresolved_trait) in traits {
-            let state = self.enter_trait_scope(*trait_id, unresolved_trait.module_id);
+            self.with_trait_scope(*trait_id, unresolved_trait.module_id, |this| {
+                let resolved_generics = this.interner.get_trait(*trait_id).generics.clone();
+                this.add_existing_generics(
+                    &unresolved_trait.trait_def.generics,
+                    &resolved_generics,
+                );
 
-            let resolved_generics = self.interner.get_trait(*trait_id).generics.clone();
-            self.add_existing_generics(&unresolved_trait.trait_def.generics, &resolved_generics);
+                // Transform any constraints omitting their associated types (e.g. `I: Iterator`)
+                // into the explicit form (e.g. `I: Iterator<Item = FreshGeneric>`), returning
+                // any fresh generics created in the process (`[FreshGeneric]` here).
+                let desugared_generics =
+                    this.desugar_trait_constraints(&mut unresolved_trait.trait_def.where_clause);
 
-            // Transform any constraints omitting their associated types (e.g. `I: Iterator`)
-            // into the explicit form (e.g. `I: Iterator<Item = FreshGeneric>`), returning
-            // any fresh generics created in the process (`[FreshGeneric]` here).
-            let desugared_generics =
-                self.desugar_trait_constraints(&mut unresolved_trait.trait_def.where_clause);
-
-            // Capture the bounds declared on associated types reached through the trait's own
-            // where clause (e.g. `<T as Foo>::E: Bar` from `where T: Foo` + `type E: Bar`). These
-            // must be assumed when elaborating this trait's default method bodies so that methods
-            // on such associated types resolve. See https://github.com/noir-lang/noir/issues/8601.
-            let mut implicit_associated_type_constraints = Vec::new();
-            for desugared in &desugared_generics {
-                for bound in &desugared.bounds {
-                    let constraint = TraitConstraint {
-                        typ: desugared.named_generic.clone(),
-                        trait_bound: bound.clone(),
-                    };
-                    implicit_associated_type_constraints
-                        .push((constraint, desugared.generic.location));
+                // Capture the bounds declared on associated types reached through the trait's own
+                // where clause (e.g. `<T as Foo>::E: Bar` from `where T: Foo` + `type E: Bar`). These
+                // must be assumed when elaborating this trait's default method bodies so that methods
+                // on such associated types resolve. See https://github.com/noir-lang/noir/issues/8601.
+                let mut implicit_associated_type_constraints = Vec::new();
+                for desugared in &desugared_generics {
+                    for bound in &desugared.bounds {
+                        let constraint = TraitConstraint {
+                            typ: desugared.named_generic.clone(),
+                            trait_bound: bound.clone(),
+                        };
+                        implicit_associated_type_constraints
+                            .push((constraint, desugared.generic.location));
+                    }
                 }
-            }
 
-            let new_generics = vecmap(desugared_generics, |desugared| desugared.generic);
-            self.generics.extend(new_generics);
+                let new_generics = vecmap(desugared_generics, |desugared| desugared.generic);
+                this.item.generics.extend(new_generics);
 
-            let where_clause = self.resolve_trait_constraints_and_add_to_scope(
-                &unresolved_trait.trait_def.where_clause,
-            );
-            self.remove_trait_constraints_from_scope(where_clause.iter());
+                let where_clause = this.resolve_trait_constraints_and_add_to_scope(
+                    &unresolved_trait.trait_def.where_clause,
+                );
+                this.remove_trait_constraints_from_scope(where_clause.iter());
 
-            let mut associated_type_bounds = rustc_hash::FxHashMap::default();
-            for item in &unresolved_trait.trait_def.items {
-                if let TraitItem::Type { name, bounds } = &item.item {
-                    let resolved_bounds = self.resolve_trait_bounds(bounds);
-                    associated_type_bounds.insert(name.to_string(), resolved_bounds);
+                let mut associated_type_bounds = rustc_hash::FxHashMap::default();
+                for item in &unresolved_trait.trait_def.items {
+                    if let TraitItem::Type { name, bounds } = &item.item {
+                        let resolved_bounds = this.resolve_trait_bounds(bounds);
+                        associated_type_bounds.insert(name.to_string(), resolved_bounds);
+                    }
                 }
-            }
 
-            // Each associated type in this trait is also an implicit generic
-            for associated_type in &self.interner.get_trait(*trait_id).associated_types {
-                self.generics.push(associated_type.clone());
-            }
+                // Each associated type in this trait is also an implicit generic
+                for associated_type in &this.interner.get_trait(*trait_id).associated_types {
+                    this.item.generics.push(associated_type.clone());
+                }
 
-            let resolved_trait_bounds =
-                self.resolve_trait_bounds(&unresolved_trait.trait_def.bounds);
-            for bound in &resolved_trait_bounds {
-                self.interner.add_trait_dependency(DependencyId::Trait(bound.trait_id), *trait_id);
-            }
+                let resolved_trait_bounds =
+                    this.resolve_trait_bounds(&unresolved_trait.trait_def.bounds);
+                for bound in &resolved_trait_bounds {
+                    this.interner
+                        .add_trait_dependency(DependencyId::Trait(bound.trait_id), *trait_id);
+                }
 
-            // Lower super-trait bounds (`trait Foo: Bar`) into where-clause constraints
-            // keyed on `Self`, so that parent bounds and explicit where-clause entries
-            // share a single representation on `Trait`.
-            let self_type =
-                self.self_type.clone().expect("Expected Self type to be set inside collect_traits");
-            let mut where_clause = where_clause;
-            for trait_bound in resolved_trait_bounds {
-                where_clause.push(TraitConstraint { typ: self_type.clone(), trait_bound });
-            }
+                // Lower super-trait bounds (`trait Foo: Bar`) into where-clause constraints
+                // keyed on `Self`, so that parent bounds and explicit where-clause entries
+                // share a single representation on `Trait`.
+                let self_type = this
+                    .item
+                    .self_type
+                    .clone()
+                    .expect("Expected Self type to be set inside collect_traits");
+                let mut where_clause = where_clause;
+                for trait_bound in resolved_trait_bounds {
+                    where_clause.push(TraitConstraint { typ: self_type.clone(), trait_bound });
+                }
 
-            self.interner.update_trait(*trait_id, |trait_def| {
-                trait_def.set_where_clause(where_clause);
-                trait_def.set_visibility(unresolved_trait.trait_def.visibility);
-                trait_def.set_associated_type_bounds(associated_type_bounds);
-                trait_def.implicit_associated_type_constraints =
-                    implicit_associated_type_constraints;
-                trait_def.set_all_generics(self.generics.clone());
+                this.interner.update_trait(*trait_id, |trait_def| {
+                    trait_def.set_where_clause(where_clause);
+                    trait_def.set_visibility(unresolved_trait.trait_def.visibility);
+                    trait_def.set_associated_type_bounds(associated_type_bounds);
+                    trait_def.implicit_associated_type_constraints =
+                        implicit_associated_type_constraints;
+                    trait_def.set_all_generics(this.item.generics.clone());
+                });
             });
-
-            self.exit_trait_scope(state);
         }
     }
 
@@ -370,17 +353,15 @@ impl Elaborator<'_> {
     #[tracing::instrument(level = "trace", skip_all)]
     pub fn collect_trait_methods(&mut self, traits: &mut BTreeMap<TraitId, UnresolvedTrait>) {
         for (trait_id, unresolved_trait) in traits {
-            let state = self.enter_trait_scope(*trait_id, unresolved_trait.module_id);
+            self.with_trait_scope(*trait_id, unresolved_trait.module_id, |this| {
+                this.item.generics = this.interner.get_trait(*trait_id).all_generics.clone();
 
-            self.generics = self.interner.get_trait(*trait_id).all_generics.clone();
+                let methods = this.resolve_trait_methods(*trait_id, unresolved_trait);
 
-            let methods = self.resolve_trait_methods(*trait_id, unresolved_trait);
-
-            self.interner.update_trait(*trait_id, |trait_def| {
-                trait_def.set_methods(methods);
+                this.interner.update_trait(*trait_id, |trait_def| {
+                    trait_def.set_methods(methods);
+                });
             });
-
-            self.exit_trait_scope(state);
 
             // Register this trait under its operator slot if its name matches
             // (e.g. `Add` / `Sub` / `Eq`). This must happen here — *before*
@@ -615,11 +596,14 @@ impl Elaborator<'_> {
         }
 
         // Also assume `self` implements the current trait if we are inside a trait definition
-        if let Some(trait_id) = self.current_trait {
+        if let Some(trait_id) = self.item.current_trait {
             let the_trait = self.interner.get_trait(trait_id);
             let constraint = the_trait.as_constraint(the_trait.name.location());
-            let self_type =
-                self.self_type.clone().expect("Expected a self type if there's a current trait");
+            let self_type = self
+                .item
+                .self_type
+                .clone()
+                .expect("Expected a self type if there's a current trait");
 
             self.add_trait_bound_to_scope(location, &self_type, &constraint.trait_bound);
         }
@@ -638,11 +622,13 @@ impl Elaborator<'_> {
             self.interner
                 .remove_assumed_trait_implementations_for_trait(constraint.trait_bound.trait_id);
             // Also remove from trait_bounds
-            self.trait_bounds.retain(|c| c.trait_bound.trait_id != constraint.trait_bound.trait_id);
+            self.item
+                .trait_bounds
+                .retain(|c| c.trait_bound.trait_id != constraint.trait_bound.trait_id);
         }
 
         // Also remove the assumed trait implementation for `self` if this is a trait definition
-        if let Some(trait_id) = self.current_trait {
+        if let Some(trait_id) = self.item.current_trait {
             self.interner.remove_assumed_trait_implementations_for_trait(trait_id);
         }
     }
@@ -683,13 +669,13 @@ impl Elaborator<'_> {
 
         let constraint = TraitConstraint { typ, trait_bound };
         // Also add to trait_bounds so that T::AssocType syntax can be resolved
-        self.trait_bounds.push(constraint.clone());
+        self.item.trait_bounds.push(constraint.clone());
         Some(constraint)
     }
 
     /// For each resolved trait constraint, add constraints for parent traits that have
     /// associated types. This creates fresh type variables for the parent associated types
-    /// so that `M::Key` syntax can be resolved via `self.trait_bounds`.
+    /// so that `M::Key` syntax can be resolved via `self.item.trait_bounds`.
     ///
     /// The parent trait bounds are obtained from `Trait::parent_bounds` (already resolved
     /// during `collect_traits` with associated type variables) and instantiated via
@@ -724,7 +710,7 @@ impl Elaborator<'_> {
 
     /// Recursively walk parent trait hierarchies and create fresh type variables
     /// for any associated types found on parent traits. The new constraints are
-    /// pushed to `self.trait_bounds` and returned via the output parameters.
+    /// pushed to `self.item.trait_bounds` and returned via the output parameters.
     #[tracing::instrument(level = "trace", skip_all)]
     fn collect_parent_associated_types(
         &mut self,
@@ -752,10 +738,10 @@ impl Elaborator<'_> {
             // Skip if there are no associated types on this parent trait,
             // or if we already have a constraint for this type + parent trait.
             let has_named = !instantiated.trait_generics.named.is_empty();
-            let already_has = self
-                .trait_bounds
-                .iter()
-                .any(|c| c.trait_bound.trait_id == instantiated.trait_id && c.typ == *object_type);
+            let already_has =
+                self.item.trait_bounds.iter().any(|c| {
+                    c.trait_bound.trait_id == instantiated.trait_id && c.typ == *object_type
+                });
 
             if has_named && !already_has {
                 // Replace the named (associated) type variables with fresh per-function
@@ -803,7 +789,7 @@ impl Elaborator<'_> {
                         location: instantiated.location,
                     },
                 };
-                self.trait_bounds.push(parent_constraint.clone());
+                self.item.trait_bounds.push(parent_constraint.clone());
                 new_constraints.push(parent_constraint);
             }
 
@@ -885,7 +871,7 @@ impl Elaborator<'_> {
 
         if let Type::TypeVariable(self_var) = object
             && self_var.borrow().is_unbound()
-            && self.current_trait.is_some()
+            && self.item.current_trait.is_some()
         {
             // This would end up duplicating parent trait bounds we turned into where clauses on Self.
             // The reason is that in `add_trait_constraints_to_scope` we add the self-type of the current trait
@@ -1110,25 +1096,44 @@ impl Elaborator<'_> {
         def: FunctionDefinition,
         has_body: bool,
     ) {
-        let old_generic_count = self.generics.len();
-        self.scopes.start_function();
+        // The method is resolved in a context of its own, nested in the trait's: it sees the
+        // trait's module, `Self` and generics, and whatever it adds is discarded on exit.
+        let context = ItemContext {
+            local_module: self.item.local_module,
+            current_item: Some(DependencyId::Function(func_id)),
+            self_type: self.item.self_type.clone(),
+            current_trait: self.item.current_trait,
+            generics: self.item.generics.clone(),
+            in_comptime_context: def.is_comptime,
+            ..Default::default()
+        };
+        self.with_item_context(context, |this| {
+            this.scopes.start_function();
 
-        let kind =
-            if has_body { FunctionKind::Normal } else { FunctionKind::TraitFunctionWithoutBody };
-        let mut function = NoirFunction { kind, def };
-        // Assume the bounds implied by the trait's own where clause on associated types
-        // (e.g. `<T as Foo>::E: Bar`) while elaborating this method. See issue #8601.
-        let extra_trait_constraints =
-            self.interner.get_trait(trait_id).implicit_associated_type_constraints.clone();
-        self.define_function_meta(&mut function, func_id, Some(trait_id), &extra_trait_constraints);
+            let kind = if has_body {
+                FunctionKind::Normal
+            } else {
+                FunctionKind::TraitFunctionWithoutBody
+            };
+            let mut function = NoirFunction { kind, def };
+            // Assume the bounds implied by the trait's own where clause on associated types
+            // (e.g. `<T as Foo>::E: Bar`) while elaborating this method. See issue #8601.
+            let extra_trait_constraints =
+                this.interner.get_trait(trait_id).implicit_associated_type_constraints.clone();
+            this.define_function_meta(
+                &mut function,
+                func_id,
+                Some(trait_id),
+                &extra_trait_constraints,
+            );
 
-        if !has_body {
-            self.elaborate_function(func_id);
-        }
+            if !has_body {
+                this.elaborate_function(func_id);
+            }
 
-        let _ = self.scopes.end_function();
-        // Don't check the scope tree for unused variables, they can't be used in a declaration anyway.
-        self.generics.truncate(old_generic_count);
+            // Don't check the scope tree for unused variables, they can't be used in a declaration anyway.
+            let _ = this.scopes.end_function();
+        });
     }
 
     /// Compute the `(typ, trait_constraints, direct_generics)` tuple for a
@@ -1170,11 +1175,13 @@ impl Elaborator<'_> {
             if has_body { FunctionKind::Normal } else { FunctionKind::TraitFunctionWithoutBody };
         let function = NoirFunction { kind, def };
 
-        let local_module =
-            self.local_module.expect("local_module must be set when registering a trait method");
+        let local_module = self
+            .item
+            .local_module
+            .expect("local_module must be set when registering a trait method");
         // Trait methods see `Self` as the trait's self-type variable. Capture
         // it now so that meta resolution (run later, after attributes) finds
-        // `self.self_type` set when it processes `where` clauses and trait
+        // `self.item.self_type` set when it processes `where` clauses and trait
         // constraints (`add_trait_constraints_to_scope` requires it).
         let self_typevar = self.interner.get_trait(trait_id).self_type_typevar.clone();
         let self_type = Some(Type::TypeVariable(self_typevar));
@@ -1190,7 +1197,7 @@ impl Elaborator<'_> {
                 func: function,
                 local_module,
                 self_type,
-                outer_generics: self.generics.clone(),
+                outer_generics: self.item.generics.clone(),
                 current_trait: Some(trait_id),
                 current_trait_impl: None,
                 current_impl: None,

@@ -78,11 +78,10 @@ use crate::{
     hir_def::{
         expr::{HirCapturedVar, HirIdent},
         traits::TraitConstraint,
-        types::{Kind, ResolvedGeneric},
+        types::Kind,
     },
     node_interner::{
-        DependencyId, FuncId, GlobalId, ImplId, NodeInterner, TraitId, TraitImplId, TypeAliasId,
-        TypeId,
+        DependencyId, FuncId, GlobalId, NodeInterner, TraitId, TraitImplId, TypeAliasId, TypeId,
     },
     parser::{ParserError, ParserErrorReason},
     recursion::TypeRecursionContext,
@@ -99,6 +98,7 @@ mod function_context;
 mod generics;
 mod globals;
 mod impls;
+mod item_context;
 mod lints;
 mod options;
 mod path_resolution;
@@ -118,6 +118,7 @@ use self::traits::check_trait_impl_method_matches_declaration;
 use self::variable::VariableResolution;
 use fm::FileMap;
 use function_context::FunctionContext;
+use item_context::ItemContext;
 use noirc_errors::Location;
 pub(crate) use options::ElaboratorOptions;
 pub use options::{FrontendOptions, UnstableFeature};
@@ -188,8 +189,9 @@ pub struct LambdaContext {
 /// Determines whether we are in an unsafe block and, if so, whether
 /// any unconstrained calls were found in it (because if not we'll warn
 /// that the unsafe block is not needed).
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 enum UnsafeBlockStatus {
+    #[default]
     NotInUnsafeBlock,
     InUnsafeBlockWithoutUnconstrainedCalls,
     InUnsafeBlockWithUnconstrainedCalls,
@@ -250,39 +252,9 @@ pub struct Elaborator<'context> {
     /// they are elaborated (e.g. in a function's type or another global's RHS).
     unresolved_globals: &'context mut BTreeMap<GlobalId, UnresolvedGlobal>,
 
-    unsafe_block_status: UnsafeBlockStatus,
-    current_loop: Option<Loop>,
-
-    /// Contains a mapping of the current struct or functions's generics to
-    /// unique type variables if we're resolving a struct. Empty otherwise.
-    /// This is a Vec rather than a map to preserve the order a functions generics
-    /// were declared in.
-    generics: Vec<ResolvedGeneric>,
-
-    /// When resolving lambda expressions, we need to keep track of the variables
-    /// that are captured. We do this in order to create the hidden environment
-    /// parameter for the lambda function.
-    lambda_stack: Vec<LambdaContext>,
-
-    /// Set to the current type if we're resolving an impl
-    self_type: Option<Type>,
-
-    /// The current dependency item we're resolving.
-    /// Used to link items to their dependencies in the dependency graph
-    current_item: Option<DependencyId>,
-
-    /// If we're currently resolving methods within a trait impl, this will be set
-    /// to the corresponding trait impl ID.
-    current_trait_impl: Option<TraitImplId>,
-
-    /// If we're currently resolving methods within an inherent (non-trait) impl,
-    /// this will be set to the corresponding impl ID.
-    current_impl: Option<ImplId>,
-
-    /// The trait we're currently resolving or implementing, if any.
-    /// Set during both trait definitions (`trait Foo { ... }`) and
-    /// trait impl elaboration (`impl Foo for Bar { ... }`).
-    current_trait: Option<TraitId>,
+    /// State describing the item currently being elaborated. Swapped as a unit by
+    /// [`Elaborator::with_item_context`] so that elaborating one item cannot disturb another's.
+    item: ItemContext,
 
     /// In-resolution names
     ///
@@ -299,9 +271,6 @@ pub struct Elaborator<'context> {
     /// ```
     resolving_ids: BTreeSet<TypeId>,
 
-    /// Each constraint in the `where` clause of the function currently being resolved.
-    trait_bounds: Vec<TraitConstraint>,
-
     /// This is a stack of function contexts. Most of the time, for each function we
     /// expect this to be of length one, containing each type variable and trait constraint
     /// used in the function. This is also pushed to when a `comptime {}` block is used within
@@ -311,30 +280,9 @@ pub struct Elaborator<'context> {
     /// that were made within this block as well so that we can solve these traits.
     function_context: Vec<FunctionContext>,
 
-    /// The current module this elaborator is in.
-    /// Initially None, it is set whenever a new top-level item is resolved.
-    local_module: Option<LocalModuleId>,
-
-    /// True if we're elaborating a comptime item such as a comptime function,
-    /// block, global, or attribute.
-    in_comptime_context: bool,
-
-    /// True if we are elaborating arguments of a function call to an unconstrained function.
-    in_unconstrained_args: bool,
-
     crate_id: CrateId,
 
     interpreter_call_stack: imbl::Vector<Location>,
-
-    /// If greater than 0, field visibility errors won't be reported.
-    /// This is used when elaborating a comptime expression that is a struct constructor
-    /// like `Foo { inner: 5 }`: in that case we already elaborated the code that led to
-    /// that comptime value and any visibility errors were already reported.
-    silence_field_visibility_errors: usize,
-
-    /// When set, visibility checks during path resolution use this module
-    /// instead of the default importing module.
-    pub(crate) caller_module: Option<ModuleId>,
 
     /// Options from the nargo cli
     options: ElaboratorOptions<'context>,
@@ -353,32 +301,8 @@ pub struct Elaborator<'context> {
     /// This is a global counter that catches both single-function and mutual recursion.
     pub(crate) macro_expansion_depth: usize,
 
-    /// Counter used to define temporary variables for non-simple indexes in l-values.
-    ///
-    /// For example, this expression:
-    ///
-    /// ```noir
-    /// array[x + y] = 10;
-    /// ```
-    ///
-    /// is transformed into:
-    ///
-    /// ```noir
-    /// let i_0 = x + y;
-    /// array[i_0] = 10;
-    /// ```
-    lvalue_index_counter: usize,
-
     /// Current recursion depth.
     recursion_depth: usize,
-
-    /// Set when resolving types in positions where `impl Trait` is not allowed
-    /// (e.g., struct fields, globals, type aliases, enum variants).
-    /// `impl Trait` is only valid in function parameter and return type positions.
-    ///
-    /// This is stored as a field rather than checked at the call site so that it
-    /// propagates through recursive `resolve_type` calls.
-    pub(super) impl_trait_is_disallowed: Option<types::ImplTraitDisallowedContext>,
 
     /// Variable names from a parent runtime scope, used for error reporting only.
     /// When a fresh elaborator is created for comptime evaluation, this is populated
@@ -496,32 +420,16 @@ impl<'context> Elaborator<'context> {
             evaluation_tracker,
             required_unstable_features,
             unresolved_globals,
-            unsafe_block_status: UnsafeBlockStatus::NotInUnsafeBlock,
-            current_loop: None,
-            generics: Vec::new(),
-            lambda_stack: Vec::new(),
-            self_type: None,
-            current_item: None,
-            local_module: None,
+            item: ItemContext::default(),
             crate_id,
             resolving_ids: BTreeSet::new(),
-            trait_bounds: Vec::new(),
             function_context: vec![FunctionContext::default()],
-            current_trait_impl: None,
-            current_impl: None,
-            current_trait: None,
             interpreter_call_stack,
-            in_comptime_context: false,
-            in_unconstrained_args: false,
-            silence_field_visibility_errors: 0,
-            caller_module: None,
             options,
             elaborate_reasons,
             comptime_evaluation_halted: false,
             macro_expansion_depth: 0,
-            lvalue_index_counter: 0,
             recursion_depth: 0,
-            impl_trait_is_disallowed: None,
             parent_runtime_variables: rustc_hash::FxHashSet::default(),
             unresolved_function_metas: BTreeMap::default(),
             unresolved_struct_fields: BTreeMap::default(),
@@ -530,17 +438,13 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    pub(crate) fn local_module(&self) -> LocalModuleId {
-        self.local_module.expect("local_module is unset")
-    }
-
     /// Returns `true` if the current local module is the crate root,
     /// and we are not inside an impl or trait impl.
     pub(crate) fn is_at_crate_root(&self) -> bool {
-        self.self_type.is_none()
-            && self.current_trait.is_none()
-            && self.current_trait_impl.is_none()
-            && self.local_module.is_some_and(|id| id == self.def_maps[&self.crate_id].root())
+        self.item.self_type.is_none()
+            && self.item.current_trait.is_none()
+            && self.item.current_trait_impl.is_none()
+            && self.item.local_module.is_some_and(|id| id == self.def_maps[&self.crate_id].root())
     }
 
     pub fn from_context(
@@ -743,9 +647,6 @@ impl<'context> Elaborator<'context> {
         for (_, id, _) in functions.functions {
             self.elaborate_function(id);
         }
-
-        self.generics.clear();
-        self.self_type = None;
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
@@ -1104,45 +1005,50 @@ impl<'context> Elaborator<'context> {
 
     #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_traits(&mut self, traits: BTreeMap<TraitId, UnresolvedTrait>) {
-        for (trait_id, unresolved_trait) in traits {
-            self.current_trait = Some(trait_id);
+        for unresolved_trait in traits.into_values() {
             self.elaborate_functions(unresolved_trait.fns_with_default_impl);
         }
-        self.current_trait = None;
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_impls(&mut self, impls: Vec<UnresolvedImpl>) {
         for unresolved_impl in impls {
-            self.recover_generics(|this| this.elaborate_functions(unresolved_impl.methods));
+            self.elaborate_functions(unresolved_impl.methods);
         }
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_trait_impl(&mut self, trait_impl: UnresolvedTraitImpl) {
-        let previous_local_module = self.replace_local_module(trait_impl.module_id);
+        // The impl's where clause and its methods' signatures are resolved against the impl
+        // header, so the checks below run with its generics and trait ids in scope. The method
+        // bodies are elaborated outside that context: `elaborate_function` installs one of its
+        // own from each method's `FuncMeta`, and reads nothing from the context it is called in.
+        let context = ItemContext {
+            local_module: Some(trait_impl.module_id),
+            current_trait_impl: trait_impl.impl_id,
+            current_trait: trait_impl.trait_id,
+            generics: trait_impl.resolved_generics.clone(),
+            ..Default::default()
+        };
+        self.with_item_context(context, |this| {
+            this.add_trait_impl_assumed_trait_implementations(trait_impl.impl_id);
+            this.check_trait_impl_where_clause_matches_trait_where_clause(&trait_impl);
+            this.remove_trait_impl_assumed_trait_implementations(trait_impl.impl_id);
 
-        self.generics.clone_from(&trait_impl.resolved_generics);
-        self.current_trait_impl = trait_impl.impl_id;
-        self.current_trait = trait_impl.trait_id;
-
-        self.add_trait_impl_assumed_trait_implementations(trait_impl.impl_id);
-        self.check_trait_impl_where_clause_matches_trait_where_clause(&trait_impl);
-        self.remove_trait_impl_assumed_trait_implementations(trait_impl.impl_id);
-
-        // Inherited defaults are typed once at the trait definition; their bodies match the
-        // declaration by construction and re-elaborating them per impl would duplicate
-        // diagnostics (and waste work).
-        for (module, function, noir_function) in &trait_impl.methods.functions {
-            if trait_impl.inherited_default_method_func_ids.contains(function) {
-                continue;
+            // Inherited defaults are typed once at the trait definition; their bodies match the
+            // declaration by construction and re-elaborating them per impl would duplicate
+            // diagnostics (and waste work).
+            for (module, function, noir_function) in &trait_impl.methods.functions {
+                if trait_impl.inherited_default_method_func_ids.contains(function) {
+                    continue;
+                }
+                let previous_method_module = this.item.replace_local_module(*module);
+                let errors =
+                    check_trait_impl_method_matches_declaration(this, *function, noir_function);
+                this.item.local_module = previous_method_module;
+                this.push_errors(errors);
             }
-            let previous_method_module = self.replace_local_module(*module);
-            let errors =
-                check_trait_impl_method_matches_declaration(self, *function, noir_function);
-            self.local_module = previous_method_module;
-            self.push_errors(errors);
-        }
+        });
 
         for (_, id, _) in &trait_impl.methods.functions {
             if trait_impl.inherited_default_method_func_ids.contains(id) {
@@ -1150,13 +1056,6 @@ impl<'context> Elaborator<'context> {
             }
             self.elaborate_function(*id);
         }
-        self.generics.clear();
-
-        self.self_type = None;
-        self.current_trait_impl = None;
-        self.current_trait = None;
-        self.generics.clear();
-        self.local_module = previous_local_module;
     }
 
     pub fn get_module(&self, module: ModuleId) -> &ModuleData {
@@ -1172,20 +1071,30 @@ impl<'context> Elaborator<'context> {
 
     #[tracing::instrument(level = "trace", skip_all)]
     fn define_type_alias(&mut self, alias_id: TypeAliasId, alias: UnresolvedTypeAlias) {
-        let previous_local_module = self.replace_local_module(alias.module_id);
+        let context = ItemContext {
+            local_module: Some(alias.module_id),
+            current_item: Some(DependencyId::Alias(alias_id)),
+            in_comptime_context: alias.type_alias_def.comptime,
+            ..Default::default()
+        };
+        self.with_item_context(context, |this| this.define_type_alias_in_context(alias_id, alias));
+    }
 
-        let previous_in_comptime_context =
-            std::mem::replace(&mut self.in_comptime_context, alias.type_alias_def.comptime);
-
+    /// Resolves the aliased type and records it on the interner.
+    ///
+    /// Expects the alias's own [`ItemContext`] to be installed, as done by
+    /// [`Self::define_type_alias`].
+    fn define_type_alias_in_context(&mut self, alias_id: TypeAliasId, alias: UnresolvedTypeAlias) {
         let name = &alias.type_alias_def.name;
         let visibility = alias.type_alias_def.visibility;
         let location = alias.type_alias_def.location;
 
         let generics = self.add_generics(&alias.type_alias_def.generics);
-        self.current_item = Some(DependencyId::Alias(alias_id));
         let wildcard_allowed = types::WildcardAllowed::No(WildcardDisallowedContext::TypeAlias);
-        let previous_impl_trait_context =
-            self.impl_trait_is_disallowed.replace(types::ImplTraitDisallowedContext::TypeAlias);
+        let previous_impl_trait_context = self
+            .item
+            .impl_trait_is_disallowed
+            .replace(types::ImplTraitDisallowedContext::TypeAlias);
         let (typ, num_expr) = if let Some(num_type) = alias.type_alias_def.numeric_type {
             let num_type = self.resolve_type(num_type, wildcard_allowed);
             let kind = Kind::numeric(num_type);
@@ -1221,17 +1130,12 @@ impl<'context> Elaborator<'context> {
             (self.use_type(alias.type_alias_def.typ, wildcard_allowed), None)
         };
 
-        self.impl_trait_is_disallowed = previous_impl_trait_context;
+        self.item.impl_trait_is_disallowed = previous_impl_trait_context;
 
         if !visibility.is_private() {
             self.check_type_is_not_more_private_then_item(name, visibility, &typ, location);
         }
         self.interner.set_type_alias(alias_id, typ, generics, num_expr);
-        self.generics.clear();
-
-        self.current_item = None;
-        self.in_comptime_context = previous_in_comptime_context;
-        self.local_module = previous_local_module;
     }
 
     /// True if we're currently within a constrained function or lambda.
@@ -1241,7 +1145,7 @@ impl<'context> Elaborator<'context> {
             return false;
         }
 
-        let in_unconstrained_function = self.current_item.is_some_and(|id| {
+        let in_unconstrained_function = self.item.current_item.is_some_and(|id| {
             if let DependencyId::Function(id) = id {
                 self.interner.function_meta(&id).is_unconstrained()
             } else {
@@ -1249,7 +1153,8 @@ impl<'context> Elaborator<'context> {
             }
         });
 
-        let in_unconstrained_lambda = self.lambda_stack.last().is_some_and(|ctx| ctx.unconstrained);
+        let in_unconstrained_lambda =
+            self.item.lambda_stack.last().is_some_and(|ctx| ctx.unconstrained);
 
         !in_unconstrained_function && !in_unconstrained_lambda
     }
@@ -1323,18 +1228,6 @@ impl<'context> Elaborator<'context> {
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn interpreter_call_stack(&self) -> &imbl::Vector<Location> {
         &self.interpreter_call_stack
-    }
-
-    #[tracing::instrument(level = "trace", skip_all)]
-    pub(crate) fn reset_lvalue_index_counter(&mut self) {
-        self.lvalue_index_counter = 0;
-    }
-
-    #[tracing::instrument(level = "trace", skip_all)]
-    pub(crate) fn next_lvalue_index_counter(&mut self) -> usize {
-        let lvalue_index_counter = self.lvalue_index_counter;
-        self.lvalue_index_counter += 1;
-        lvalue_index_counter
     }
 
     /// Check the current recursion depth. if the limit has been reached,
