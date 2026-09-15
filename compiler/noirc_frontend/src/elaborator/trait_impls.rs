@@ -32,7 +32,10 @@ use noirc_errors::{Located, Location};
 use rustc_hash::FxHashMap as HashMap;
 use rustc_hash::FxHashSet as HashSet;
 
-use super::{Elaborator, item_context::ItemContext};
+use super::{
+    Elaborator,
+    item_context::{ImplContext, ItemContext},
+};
 
 impl Elaborator<'_> {
     /// Collects and validates a trait implementation.
@@ -75,9 +78,12 @@ impl Elaborator<'_> {
         // the implementing type as `Self`. The caller's context is reinstated afterwards.
         let context = ItemContext {
             local_module: Some(trait_impl.module_id),
-            current_trait_impl: trait_impl.impl_id,
-            current_trait: trait_impl.trait_id,
-            self_type: Some(self_type.clone()),
+            impl_context: ImplContext {
+                current_trait_impl: trait_impl.impl_id,
+                current_trait: trait_impl.trait_id,
+                self_type: Some(self_type.clone()),
+                ..Default::default()
+            },
             ..Default::default()
         };
         self.with_item_context(context, |this| {
@@ -475,9 +481,12 @@ impl Elaborator<'_> {
             // Each check runs in a context of its own for the impl, as trait impl collection did.
             let context = ItemContext {
                 local_module: Some(check.module_id),
-                current_trait_impl: Some(check.impl_id),
-                current_trait: Some(check.trait_id),
-                self_type: Some(impl_self_type),
+                impl_context: ImplContext {
+                    current_trait_impl: Some(check.impl_id),
+                    current_trait: Some(check.trait_id),
+                    self_type: Some(impl_self_type),
+                    ..Default::default()
+                },
                 ..Default::default()
             };
             self.with_item_context(context, |this| {
@@ -505,7 +514,7 @@ impl Elaborator<'_> {
     ) {
         // First get the general trait to impl bindings.
         // Then we'll need to add the bindings for this specific method.
-        let self_type = self.item.self_type.as_ref().unwrap();
+        let self_type = self.item.impl_context.self_type.as_ref().unwrap();
 
         let mut bindings =
             self.interner.trait_to_impl_bindings(trait_id, impl_id, trait_impl_generics, self_type);

@@ -448,7 +448,7 @@ impl Elaborator<'_> {
 
         if path.kind == PathKind::Plain
             && path.first_name() == Some(SELF_TYPE_NAME)
-            && let Some(typ @ Type::DataType(datatype, _)) = &self.item.self_type
+            && let Some(typ @ Type::DataType(datatype, _)) = &self.item.impl_context.self_type
         {
             let id = datatype.borrow().id;
             if path.segments.len() == 1 {

@@ -38,13 +38,14 @@ use crate::{
         stmt::HirPattern,
         traits::{Impl, TraitConstraint},
     },
-    node_interner::{
-        DefinitionKind, DependencyId, FuncId, FunctionModifiers, ImplId, TraitId, TraitImplId,
-    },
+    node_interner::{DefinitionKind, DependencyId, FuncId, FunctionModifiers, TraitId},
     shared::Visibility,
 };
 
-use super::{Elaborator, UnsafeBlockStatus, item_context::ItemContext};
+use super::{
+    Elaborator, UnsafeBlockStatus,
+    item_context::{ImplContext, ItemContext},
+};
 
 type ResolvedParametersInfo = (Vec<(HirPattern, Type, Visibility)>, Vec<Type>, Vec<HirIdent>);
 
@@ -58,13 +59,11 @@ type ResolvedParametersInfo = (Vec<(HirPattern, Type, Visibility)>, Vec<Type>, V
 pub(super) struct UnresolvedFunctionMeta {
     pub(super) func: NoirFunction,
     pub(super) local_module: LocalModuleId,
-    pub(super) self_type: Option<Type>,
+    /// The impl or trait enclosing the function, as it was when the function was registered.
+    pub(super) impl_context: ImplContext,
     /// Generics in scope from an enclosing `impl<...>` or trait impl, already
     /// resolved. The function's own generics are added during meta resolution.
     pub(super) outer_generics: Vec<ResolvedGeneric>,
-    pub(super) current_trait: Option<TraitId>,
-    pub(super) current_trait_impl: Option<TraitImplId>,
-    pub(super) current_impl: Option<ImplId>,
     pub(super) extra_trait_constraints: Vec<(TraitConstraint, Location)>,
 }
 
@@ -120,11 +119,8 @@ impl Elaborator<'_> {
                 UnresolvedFunctionMeta {
                     func: func.clone(),
                     local_module: *local_module,
-                    self_type: None,
+                    impl_context: ImplContext::default(),
                     outer_generics: Vec::new(),
-                    current_trait: None,
-                    current_trait_impl: None,
-                    current_impl: None,
                     extra_trait_constraints: extra_constraints.to_vec(),
                 },
             );
@@ -182,11 +178,12 @@ impl Elaborator<'_> {
                     UnresolvedFunctionMeta {
                         func: func.clone(),
                         local_module: *method_module,
-                        self_type: Some(self_type.clone()),
+                        impl_context: ImplContext {
+                            self_type: Some(self_type.clone()),
+                            current_impl: Some(impl_id),
+                            ..Default::default()
+                        },
                         outer_generics: outer_generics.clone(),
-                        current_trait: None,
-                        current_trait_impl: None,
-                        current_impl: Some(impl_id),
                         extra_trait_constraints: Vec::new(),
                     },
                 );
@@ -217,11 +214,13 @@ impl Elaborator<'_> {
                 UnresolvedFunctionMeta {
                     func: func.clone(),
                     local_module: *method_module,
-                    self_type: self_type.clone(),
+                    impl_context: ImplContext {
+                        self_type: self_type.clone(),
+                        current_trait: trait_impl.trait_id,
+                        current_trait_impl: trait_impl.impl_id,
+                        ..Default::default()
+                    },
                     outer_generics: generics.clone(),
-                    current_trait: trait_impl.trait_id,
-                    current_trait_impl: trait_impl.impl_id,
-                    current_impl: None,
                     extra_trait_constraints: new_generics_trait_constraints.clone(),
                 },
             );
@@ -288,11 +287,8 @@ impl Elaborator<'_> {
         let UnresolvedFunctionMeta {
             mut func,
             local_module,
-            self_type,
+            impl_context,
             outer_generics,
-            current_trait,
-            current_trait_impl,
-            current_impl,
             extra_trait_constraints,
         } = info;
 
@@ -301,7 +297,11 @@ impl Elaborator<'_> {
         // recorded as `meta.trait_id`). Trait impl methods record their impl on
         // `meta.trait_impl` and use `current_trait` purely for context — they
         // must pass `None` here so `meta.trait_id` stays None.
-        let defining_trait = if current_trait_impl.is_some() { None } else { current_trait };
+        let defining_trait = if impl_context.current_trait_impl.is_some() {
+            None
+        } else {
+            impl_context.current_trait
+        };
 
         // This can run in the middle of another item's elaboration (see the `item_context`
         // module), so the signature is resolved under the context captured when the meta was
@@ -309,10 +309,7 @@ impl Elaborator<'_> {
         let context = ItemContext {
             local_module: Some(local_module),
             current_item: Some(DependencyId::Function(func_id)),
-            self_type,
-            current_trait,
-            current_trait_impl,
-            current_impl,
+            impl_context,
             generics: outer_generics,
             in_comptime_context: func.def.is_comptime,
             ..Default::default()
@@ -432,11 +429,12 @@ impl Elaborator<'_> {
         let statements = std::mem::take(&mut func.def.body.statements);
         let body = BlockExpression { statements };
 
-        let struct_id = if let Some(Type::DataType(struct_type, _)) = &self.item.self_type {
-            Some(struct_type.borrow().id)
-        } else {
-            None
-        };
+        let struct_id =
+            if let Some(Type::DataType(struct_type, _)) = &self.item.impl_context.self_type {
+                Some(struct_type.borrow().id)
+            } else {
+                None
+            };
 
         // Remove the traits assumed by `resolve_trait_constraints` from scope
         self.remove_trait_constraints_from_scope(
@@ -452,8 +450,8 @@ impl Elaborator<'_> {
             all_generics: self.item.generics.clone(),
             type_id: struct_id,
             trait_id,
-            trait_impl: self.item.current_trait_impl,
-            impl_id: self.item.current_impl,
+            trait_impl: self.item.impl_context.current_trait_impl,
+            impl_id: self.item.impl_context.current_impl,
             enum_variant_index: None,
             parameters: parameters.into(),
             parameter_idents,
@@ -467,7 +465,7 @@ impl Elaborator<'_> {
             source_crate: self.crate_id,
             source_module: self.item.local_module(),
             function_body: FunctionBody::Unresolved(func.kind, body, func.def.location),
-            self_type: self.item.self_type.clone(),
+            self_type: self.item.impl_context.self_type.clone(),
             source_file: location.file,
         };
 
@@ -514,7 +512,7 @@ impl Elaborator<'_> {
     }
 
     fn is_function_in_contract(&self) -> bool {
-        if self.item.self_type.is_some() {
+        if self.item.impl_context.self_type.is_some() {
             // Without this, impl methods can accidentally be placed in contracts.
             // See: https://github.com/noir-lang/noir/issues/3254
             false
@@ -717,10 +715,12 @@ impl Elaborator<'_> {
             local_module: Some(func_meta.source_module),
             current_item: Some(DependencyId::Function(id)),
             caller_module: None,
-            self_type: func_meta.self_type.clone(),
-            current_trait: func_meta.trait_id,
-            current_trait_impl: func_meta.trait_impl,
-            current_impl: func_meta.impl_id,
+            impl_context: ImplContext {
+                self_type: func_meta.self_type.clone(),
+                current_trait: func_meta.trait_id,
+                current_trait_impl: func_meta.trait_impl,
+                current_impl: func_meta.impl_id,
+            },
             // Set by `introduce_generics_into_scope`, which also declares the numeric generics.
             generics: Vec::new(),
             trait_bounds: func_meta.all_trait_constraints().cloned().collect(),

@@ -118,7 +118,7 @@ use self::traits::check_trait_impl_method_matches_declaration;
 use self::variable::VariableResolution;
 use fm::FileMap;
 use function_context::FunctionContext;
-use item_context::ItemContext;
+use item_context::{ImplContext, ItemContext};
 use noirc_errors::Location;
 pub(crate) use options::ElaboratorOptions;
 pub use options::{FrontendOptions, UnstableFeature};
@@ -441,9 +441,7 @@ impl<'context> Elaborator<'context> {
     /// Returns `true` if the current local module is the crate root,
     /// and we are not inside an impl or trait impl.
     pub(crate) fn is_at_crate_root(&self) -> bool {
-        self.item.self_type.is_none()
-            && self.item.current_trait.is_none()
-            && self.item.current_trait_impl.is_none()
+        self.item.impl_context.is_outside_any_impl_or_trait()
             && self.item.local_module.is_some_and(|id| id == self.def_maps[&self.crate_id].root())
     }
 
@@ -1025,8 +1023,11 @@ impl<'context> Elaborator<'context> {
         // own from each method's `FuncMeta`, and reads nothing from the context it is called in.
         let context = ItemContext {
             local_module: Some(trait_impl.module_id),
-            current_trait_impl: trait_impl.impl_id,
-            current_trait: trait_impl.trait_id,
+            impl_context: ImplContext {
+                current_trait_impl: trait_impl.impl_id,
+                current_trait: trait_impl.trait_id,
+                ..Default::default()
+            },
             generics: trait_impl.resolved_generics.clone(),
             ..Default::default()
         };

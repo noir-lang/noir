@@ -17,12 +17,16 @@ use crate::{
     Type,
     hir::def_map::{LocalModuleId, ModuleId},
     hir_def::{traits::TraitConstraint, types::ResolvedGeneric},
-    node_interner::{DependencyId, ImplId, TraitId, TraitImplId},
+    node_interner::{DependencyId, TraitId},
 };
 
 use super::{
     Elaborator, LambdaContext, Loop, UnsafeBlockStatus, types::ImplTraitDisallowedContext,
 };
+
+mod impl_context;
+
+pub(crate) use impl_context::ImplContext;
 
 /// The elaborator state describing one item's elaboration.
 ///
@@ -48,21 +52,8 @@ pub(super) struct ItemContext {
     /// rather than to that of the scope it is resolved in.
     pub(super) caller_module: Option<ModuleId>,
 
-    /// Set to the current type if we're resolving an impl
-    pub(super) self_type: Option<Type>,
-
-    /// The trait we're currently resolving or implementing, if any.
-    /// Set during both trait definitions (`trait Foo { ... }`) and
-    /// trait impl elaboration (`impl Foo for Bar { ... }`).
-    pub(super) current_trait: Option<TraitId>,
-
-    /// If we're currently resolving methods within a trait impl, this will be set
-    /// to the corresponding trait impl ID.
-    pub(super) current_trait_impl: Option<TraitImplId>,
-
-    /// If we're currently resolving methods within an inherent (non-trait) impl,
-    /// this will be set to the corresponding impl ID.
-    pub(super) current_impl: Option<ImplId>,
+    /// The impl or trait the item belongs to, if any.
+    pub(super) impl_context: ImplContext,
 
     /// Contains a mapping of the current struct or functions's generics to
     /// unique type variables if we're resolving a struct. Empty otherwise.

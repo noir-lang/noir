@@ -199,7 +199,11 @@ use crate::{
     node_interner::{DependencyId, FuncId, ImplSearchErrorKind, ReferenceId, TraitId},
 };
 
-use super::{Elaborator, function::UnresolvedFunctionMeta, item_context::ItemContext};
+use super::{
+    Elaborator,
+    function::UnresolvedFunctionMeta,
+    item_context::{ImplContext, ItemContext},
+};
 
 /// A generic synthesized for an associated type that was elided from a trait bound.
 ///
@@ -246,8 +250,11 @@ impl Elaborator<'_> {
         let self_typevar = self.interner.get_trait(trait_id).self_type_typevar.clone();
         let context = ItemContext {
             local_module: Some(module_id),
-            current_trait: Some(trait_id),
-            self_type: Some(Type::TypeVariable(self_typevar)),
+            impl_context: ImplContext {
+                current_trait: Some(trait_id),
+                self_type: Some(Type::TypeVariable(self_typevar)),
+                ..Default::default()
+            },
             ..Default::default()
         };
         self.with_item_context(context, f)
@@ -326,6 +333,7 @@ impl Elaborator<'_> {
                 // share a single representation on `Trait`.
                 let self_type = this
                     .item
+                    .impl_context
                     .self_type
                     .clone()
                     .expect("Expected Self type to be set inside collect_traits");
@@ -596,11 +604,12 @@ impl Elaborator<'_> {
         }
 
         // Also assume `self` implements the current trait if we are inside a trait definition
-        if let Some(trait_id) = self.item.current_trait {
+        if let Some(trait_id) = self.item.impl_context.current_trait {
             let the_trait = self.interner.get_trait(trait_id);
             let constraint = the_trait.as_constraint(the_trait.name.location());
             let self_type = self
                 .item
+                .impl_context
                 .self_type
                 .clone()
                 .expect("Expected a self type if there's a current trait");
@@ -628,7 +637,7 @@ impl Elaborator<'_> {
         }
 
         // Also remove the assumed trait implementation for `self` if this is a trait definition
-        if let Some(trait_id) = self.item.current_trait {
+        if let Some(trait_id) = self.item.impl_context.current_trait {
             self.interner.remove_assumed_trait_implementations_for_trait(trait_id);
         }
 
@@ -905,7 +914,7 @@ impl Elaborator<'_> {
 
         if let Type::TypeVariable(self_var) = object
             && self_var.borrow().is_unbound()
-            && self.item.current_trait.is_some()
+            && self.item.impl_context.current_trait.is_some()
         {
             // This would end up duplicating parent trait bounds we turned into where clauses on Self.
             // The reason is that in `add_trait_constraints_to_scope` we add the self-type of the current trait
@@ -1175,8 +1184,11 @@ impl Elaborator<'_> {
         let context = ItemContext {
             local_module: self.item.local_module,
             current_item: Some(DependencyId::Function(func_id)),
-            self_type: self.item.self_type.clone(),
-            current_trait: self.item.current_trait,
+            impl_context: ImplContext {
+                self_type: self.item.impl_context.self_type.clone(),
+                current_trait: self.item.impl_context.current_trait,
+                ..Default::default()
+            },
             generics: self.item.generics.clone(),
             in_comptime_context: def.is_comptime,
             ..Default::default()
@@ -1255,7 +1267,7 @@ impl Elaborator<'_> {
             .expect("local_module must be set when registering a trait method");
         // Trait methods see `Self` as the trait's self-type variable. Capture
         // it now so that meta resolution (run later, after attributes) finds
-        // `self.item.self_type` set when it processes `where` clauses and trait
+        // `self.item.impl_context.self_type` set when it processes `where` clauses and trait
         // constraints (`add_trait_constraints_to_scope` requires it).
         let self_typevar = self.interner.get_trait(trait_id).self_type_typevar.clone();
         let self_type = Some(Type::TypeVariable(self_typevar));
@@ -1270,11 +1282,12 @@ impl Elaborator<'_> {
             UnresolvedFunctionMeta {
                 func: function,
                 local_module,
-                self_type,
+                impl_context: ImplContext {
+                    self_type,
+                    current_trait: Some(trait_id),
+                    ..Default::default()
+                },
                 outer_generics: self.item.generics.clone(),
-                current_trait: Some(trait_id),
-                current_trait_impl: None,
-                current_impl: None,
                 extra_trait_constraints,
             },
         );

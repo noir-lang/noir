@@ -377,8 +377,8 @@ impl Elaborator<'_> {
             let name = path.last_name();
 
             // Inside a trait definition (not an impl): check this trait and its parent traits.
-            if self.item.current_trait_impl.is_none()
-                && let Some(trait_id) = self.item.current_trait
+            if self.item.impl_context.current_trait_impl.is_none()
+                && let Some(trait_id) = self.item.impl_context.current_trait
             {
                 let mut found = self.lookup_associated_type_in_parent_traits(trait_id, name);
                 match found.len() {
@@ -401,12 +401,12 @@ impl Elaborator<'_> {
             }
 
             // Inside a trait impl: check the impl's own types, then parent trait impls.
-            if let Some(impl_id) = self.item.current_trait_impl {
+            if let Some(impl_id) = self.item.impl_context.current_trait_impl {
                 if let Some(typ) = self.interner.find_associated_type_for_impl(impl_id, name) {
                     return Some(typ.clone());
                 }
 
-                if let Some(trait_id) = self.item.current_trait
+                if let Some(trait_id) = self.item.impl_context.current_trait
                     && let Some(typ) = self.lookup_associated_type_in_parent_impls(
                         trait_id,
                         name,
@@ -475,7 +475,7 @@ impl Elaborator<'_> {
 
         let the_trait = self.interner.get_trait(trait_id);
         let parent_bounds: Vec<_> = the_trait.parent_bounds().cloned().collect();
-        let self_type = self.item.self_type.as_ref()?;
+        let self_type = self.item.impl_context.self_type.as_ref()?;
 
         for parent_bound in &parent_bounds {
             let result = self.interner.try_lookup_trait_implementation(
@@ -805,7 +805,7 @@ impl Elaborator<'_> {
         let name = path.last_name();
         match name {
             SELF_TYPE_NAME => {
-                let self_type = self.item.self_type.clone()?;
+                let self_type = self.item.impl_context.self_type.clone()?;
                 if !args.is_empty() {
                     self.push_err(ResolverError::GenericsOnSelfType { location: path.location });
                 }
@@ -1366,7 +1366,7 @@ impl Elaborator<'_> {
         trait_id: TraitId,
     ) -> Option<Type> {
         // Only applies if the path refers to the current trait.
-        let current_trait = self.item.current_trait?;
+        let current_trait = self.item.impl_context.current_trait?;
 
         if trait_id != current_trait {
             return None;
@@ -1873,6 +1873,7 @@ impl Elaborator<'_> {
             // the impl's generics — not the path's fresh ones — anchor the call).
             let func_id = self
                 .item
+                .impl_context
                 .self_type
                 .clone()
                 .and_then(|self_type| self.lookup_direct_method(&self_type, method_name, true))
@@ -3427,7 +3428,7 @@ impl Elaborator<'_> {
 
         // If inside a trait method, check if it's a method on `self`
         if let Some(trait_id) = func_meta_trait_id
-            && Some(object_type) == self.item.self_type.as_ref()
+            && Some(object_type) == self.item.impl_context.self_type.as_ref()
         {
             let the_trait = self.interner.get_trait(trait_id);
             let constraint = the_trait.as_constraint(the_trait.name.location());

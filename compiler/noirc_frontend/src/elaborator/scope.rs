@@ -345,7 +345,7 @@ impl Elaborator<'_> {
         let segment = path.as_single_segment();
         if let Some(segment) = segment
             && segment.ident.is_self_type_name()
-            && let Some(typ) = &self.item.self_type
+            && let Some(typ) = &self.item.impl_context.self_type
         {
             return Some(typ.clone());
         }
