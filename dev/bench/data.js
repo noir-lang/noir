@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789474237920,
+  "lastUpdate": 1789474333455,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -12686,48 +12686,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "d65a552679daadb9ffa9b6b92cae36d5a64e5264",
-          "message": "chore(deps): bump svgo from 3.3.4 to 3.3.5 in /docs (#13627)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-09-09T13:26:18Z",
-          "tree_id": "5cc01ba06832c4fb36098c3e358c2ee535139213",
-          "url": "https://github.com/noir-lang/noir/commit/d65a552679daadb9ffa9b6b92cae36d5a64e5264"
-        },
-        "date": 1788961757961,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 167934,
-            "range": "± 380",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 137667,
-            "range": "± 884",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2653072,
-            "range": "± 6600",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49558828+AztecBot@users.noreply.github.com",
             "name": "Aztec Bot",
             "username": "AztecBot"
@@ -14779,6 +14737,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2653382,
             "range": "± 1605",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1257c19c13f9810e8c6ddd80f42aeb4ab3c8d5c4",
+          "message": "chore(deps): bump rustls to 0.23.45 to fix RUSTSEC-2026-0285 (#13736)",
+          "timestamp": "2026-09-15T13:08:36+01:00",
+          "tree_id": "17b000a5b2ad7bbf5f9e86ae2b0356a14ec08048",
+          "url": "https://github.com/noir-lang/noir/commit/1257c19c13f9810e8c6ddd80f42aeb4ab3c8d5c4"
+        },
+        "date": 1789474260170,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 97752,
+            "range": "± 341",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 86844,
+            "range": "± 874",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2358630,
+            "range": "± 1304",
             "unit": "ns/iter"
           }
         ]
