@@ -198,6 +198,7 @@ impl Elaborator<'_> {
             local_module: Some(module_id),
             current_item: Some(DependencyId::DataType(type_id)),
             in_comptime_context: enum_def.comptime,
+            impl_trait_is_disallowed: Some(super::types::ImplTraitDisallowedContext::EnumVariant),
             ..Default::default()
         };
         self.with_item_context(context, |this| {
@@ -231,10 +232,6 @@ impl Elaborator<'_> {
         self.resolving_ids.insert(type_id);
 
         let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::EnumVariant);
-        let previous_impl_trait_context = self
-            .item
-            .impl_trait_is_disallowed
-            .replace(super::types::ImplTraitDisallowedContext::EnumVariant);
         for (i, variant) in enum_def.variants.iter().enumerate() {
             let parameters = variant.item.parameters.as_ref();
             let types = parameters.map(|params| {
@@ -263,8 +260,6 @@ impl Elaborator<'_> {
             let location = variant.item.name.location();
             self.interner.add_definition_location(reference_id, location);
         }
-
-        self.item.impl_trait_is_disallowed = previous_impl_trait_context;
 
         self.resolving_ids.remove(&type_id);
     }
