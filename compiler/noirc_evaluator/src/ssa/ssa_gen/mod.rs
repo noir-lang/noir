@@ -893,7 +893,7 @@ impl FunctionContext<'_> {
 
         let result = self.codegen_expression(&for_expr.block);
         self.codegen_unless_break_or_continue(result, |this, _| {
-            let new_loop_index = this.make_offset(loop_index, 1, true);
+            let new_loop_index = this.increment_loop_index(loop_index);
             this.builder.terminate_with_jmp(loop_entry, vec![new_loop_index]);
         })?;
 
@@ -1607,7 +1607,7 @@ impl FunctionContext<'_> {
 
         // Must remember to increment i before jumping
         if let Some(loop_index) = loop_.loop_index {
-            let new_loop_index = self.make_offset(loop_index, 1, true);
+            let new_loop_index = self.increment_loop_index(loop_index);
             self.builder.terminate_with_jmp(loop_.loop_entry, vec![new_loop_index]);
         } else {
             self.builder.terminate_with_jmp(loop_.loop_entry, vec![]);
