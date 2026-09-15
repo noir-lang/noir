@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789474834349,
+  "lastUpdate": 1789474841776,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -15028,40 +15028,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "9cbcbfd22f8e5c940fa447ed350a1b349e94ca64",
-          "message": "chore(deps): bump js-yaml from 3.15.1 to 3.15.2 in /docs (#13629)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-09-09T13:26:11Z",
-          "tree_id": "fe8db4b1dc1a5bf50c68968e18d28cb98781aeba",
-          "url": "https://github.com/noir-lang/noir/commit/9cbcbfd22f8e5c940fa447ed350a1b349e94ca64"
-        },
-        "date": 1788962009183,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 502.9,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 450,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49558828+AztecBot@users.noreply.github.com",
             "name": "Aztec Bot",
             "username": "AztecBot"
@@ -17296,6 +17262,105 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/cce0a9d6468d169ac2fe899641397b4f324e9958"
         },
         "date": 1789474078747,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1104.6,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 2678.9,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2110,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-no-txs",
+            "value": 442,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 471.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 583.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 440.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 30735.6,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 30781.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 475,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 4558,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 4829.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 248,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 502.9,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 450,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1257c19c13f9810e8c6ddd80f42aeb4ab3c8d5c4",
+          "message": "chore(deps): bump rustls to 0.23.45 to fix RUSTSEC-2026-0285 (#13736)",
+          "timestamp": "2026-09-15T13:08:36+01:00",
+          "tree_id": "17b000a5b2ad7bbf5f9e86ae2b0356a14ec08048",
+          "url": "https://github.com/noir-lang/noir/commit/1257c19c13f9810e8c6ddd80f42aeb4ab3c8d5c4"
+        },
+        "date": 1789474758609,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
