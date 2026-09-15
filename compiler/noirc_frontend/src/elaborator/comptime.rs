@@ -42,7 +42,10 @@ use crate::{
     token::{MetaAttribute, MetaAttributeName, SecondaryAttribute, SecondaryAttributeKind},
 };
 
-use super::{ElaborateReason, Elaborator, MAX_MACRO_EXPANSION_DEPTH, ResolverMeta};
+use super::{
+    ElaborateReason, Elaborator, MAX_MACRO_EXPANSION_DEPTH, ResolverMeta,
+    item_context::{GenericsContext, ImplContext},
+};
 
 /// Context information for the module that an attribute is located and where it should generate items.
 /// These locations differ when attributes are used across module boundaries.
@@ -126,10 +129,9 @@ impl<'context> Elaborator<'context> {
                 elaborator.item.current_item = Some(DependencyId::Function(function));
                 elaborator.crate_id = source_crate;
                 elaborator.item.local_module = Some(source_module);
-                elaborator.item.self_type = self_type;
-                elaborator.item.current_trait_impl = trait_impl;
-                elaborator.item.current_trait = trait_id;
-                elaborator.item.trait_bounds = trait_bounds;
+                elaborator.item.impl_context =
+                    ImplContext::in_trait_impl(self_type, trait_id, trait_impl);
+                elaborator.item.generics = GenericsContext::new(Vec::new(), trait_bounds);
                 elaborator.introduce_generics_into_scope(all_generics);
             }
         })
@@ -375,10 +377,10 @@ impl<'context> Elaborator<'context> {
     ) {
         // Each set carries the `Self` of the impl it came from; restore the caller's afterwards so
         // that items elaborated later do not resolve `Self` against the last impl visited here.
-        let previous_self_type = self.item.self_type.take();
+        let previous_self_type = self.item.impl_context.take_self_type();
 
         for function_set in function_sets {
-            self.item.self_type = function_set.self_type.clone();
+            self.item.impl_context.set_self_type(function_set.self_type.clone());
 
             for (local_module, function_id, function) in &function_set.functions {
                 let context = AttributeContext::new(*local_module);
@@ -394,7 +396,7 @@ impl<'context> Elaborator<'context> {
             }
         }
 
-        self.item.self_type = previous_self_type;
+        self.item.impl_context.set_self_type(previous_self_type);
     }
 
     /// Collect all comptime attributes from an item's attribute list.

@@ -31,21 +31,7 @@ use crate::{
     node_interner::{DefinitionId, DefinitionKind, ExprId, GlobalId, StmtId},
 };
 
-use super::{Elaborator, Loop, item_context::ItemContext};
-
-impl ItemContext {
-    /// Enters a loop body, returning the loop that was in scope so it can be handed back to
-    /// [`Self::exit_loop`].
-    #[must_use]
-    pub(super) fn enter_loop(&mut self, is_for: bool) -> Option<Loop> {
-        self.current_loop.replace(Loop { is_for, has_break: false })
-    }
-
-    /// Leaves a loop body, restoring `outer` and returning the loop that was just left.
-    pub(super) fn exit_loop(&mut self, outer: Option<Loop>) -> Loop {
-        std::mem::replace(&mut self.current_loop, outer).expect("Expected a loop")
-    }
-}
+use super::Elaborator;
 
 impl Elaborator<'_> {
     #[tracing::instrument(level = "trace", skip_all)]
@@ -498,7 +484,7 @@ impl Elaborator<'_> {
         let (end_range, end_range_type) = self.elaborate_expression(end);
         let (identifier, block) = (for_loop.identifier, for_loop.block);
 
-        let old_loop = self.item.enter_loop(true);
+        let old_loop = self.item.body.enter_loop(true);
         self.push_scope();
 
         let kind = DefinitionKind::Local(None);
@@ -529,7 +515,7 @@ impl Elaborator<'_> {
         self.unify_or_type_mismatch(&block_type, &Type::Unit, block_location);
 
         self.pop_scope();
-        let _ = self.item.exit_loop(old_loop);
+        let _ = self.item.body.exit_loop(old_loop);
 
         let statement = HirStatement::For(HirForStatement {
             start_range,
@@ -550,7 +536,7 @@ impl Elaborator<'_> {
             self.push_err(ResolverError::LoopInConstrainedFn { location });
         }
 
-        let old_loop = self.item.enter_loop(false);
+        let old_loop = self.item.body.enter_loop(false);
         self.push_scope();
 
         let block_location = block.type_location();
@@ -560,7 +546,7 @@ impl Elaborator<'_> {
 
         self.pop_scope();
 
-        let last_loop = self.item.exit_loop(old_loop);
+        let last_loop = self.item.body.exit_loop(old_loop);
         if !last_loop.has_break {
             self.push_err(ResolverError::LoopWithoutBreak { location });
         }
@@ -585,7 +571,7 @@ impl Elaborator<'_> {
         let (condition, cond_type) = self.elaborate_expression(while_.condition);
         self.unify_or_type_mismatch(&cond_type, &Type::Bool, location);
 
-        let old_loop = self.item.enter_loop(false);
+        let old_loop = self.item.body.enter_loop(false);
         self.push_scope();
 
         let block_location = while_.body.type_location();
@@ -595,7 +581,7 @@ impl Elaborator<'_> {
 
         self.pop_scope();
 
-        let _ = self.item.exit_loop(old_loop);
+        let _ = self.item.body.exit_loop(old_loop);
 
         let statement = HirStatement::While(condition, block);
 
@@ -610,7 +596,7 @@ impl Elaborator<'_> {
             self.push_err(ResolverError::JumpInConstrainedFn { is_break, location });
         }
 
-        if let Some(current_loop) = &mut self.item.current_loop {
+        if let Some(current_loop) = self.item.body.current_loop_mut() {
             if is_break {
                 current_loop.has_break = true;
             }
@@ -951,7 +937,7 @@ impl Elaborator<'_> {
         typ: Type,
         location: Location,
     ) -> (StmtId, HirLValue) {
-        let counter = self.item.next_lvalue_index_counter();
+        let counter = self.item.body.next_lvalue_index_counter();
         let id = self.interner.push_definition(
             format!("deref_{counter}"),
             false,
@@ -980,7 +966,7 @@ impl Elaborator<'_> {
             return None;
         }
 
-        let counter = self.item.next_lvalue_index_counter();
+        let counter = self.item.body.next_lvalue_index_counter();
         let id = self.interner.push_definition(
             format!("{name_prefix}_{counter}"),
             false,
