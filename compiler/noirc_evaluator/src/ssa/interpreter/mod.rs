@@ -1643,7 +1643,9 @@ fn evaluate_integer_binary(
             if !lhs.is_signed() =>
         {
             if is_brillig {
-                eval_via_constant_binary_op(lhs_field, rhs_field, operator, typ, binary, &overflow)
+                eval_via_constant_binary_op(
+                    lhs_field, rhs_field, operator, typ, is_brillig, binary, &overflow,
+                )
             } else {
                 if matches!(operator, Mul { .. }) && bit_size == 128 {
                     let product = BigUint::from_bytes_be(&lhs_field.to_be_bytes())
@@ -1687,7 +1689,9 @@ fn evaluate_integer_binary(
 
         // Signed checked arithmetic, div/mod, comparisons and bitwise ops all reduce their
         // operands; reuse the constant-folder's semantics.
-        _ => eval_via_constant_binary_op(lhs_field, rhs_field, operator, typ, binary, &overflow),
+        _ => eval_via_constant_binary_op(
+            lhs_field, rhs_field, operator, typ, is_brillig, binary, &overflow,
+        ),
     }
 }
 
@@ -1699,6 +1703,7 @@ fn eval_via_constant_binary_op(
     rhs_field: FieldElement,
     operator: BinaryOp,
     typ: NumericType,
+    is_brillig: bool,
     binary: &Binary,
     overflow: &impl Fn() -> InterpreterError,
 ) -> IResult<NumericValue> {
@@ -1709,7 +1714,7 @@ fn eval_via_constant_binary_op(
     let lhs_field = truncate_field(lhs_field, bit_size);
     let rhs_field = truncate_field(rhs_field, bit_size);
 
-    match eval_constant_binary_op(lhs_field, rhs_field, operator, typ) {
+    match eval_constant_binary_op(lhs_field, rhs_field, operator, typ, is_brillig) {
         BinaryEvaluationResult::Success(field, result_type) => {
             NumericValue::int_from_field(field, result_type)
         }

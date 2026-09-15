@@ -832,6 +832,7 @@ impl Loop {
                 step_field,
                 BinaryOp::Add { unchecked: false },
                 operand_type,
+                dfg.runtime().is_brillig(),
             ) {
                 BinaryEvaluationResult::Success(..) => {}
                 BinaryEvaluationResult::CouldNotEvaluate | BinaryEvaluationResult::Failure(..) => {
