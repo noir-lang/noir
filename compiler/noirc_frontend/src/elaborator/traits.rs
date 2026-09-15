@@ -841,11 +841,11 @@ impl Elaborator<'_> {
     }
 
     /// `written` distinguishes the bound the user wrote from the ones it implies: a bound on one of
-    /// the trait's associated types, or a parent trait. Only a written
-    /// bound can be redundant. An implied bound duplicating one already in scope is how
-    /// implication works, and a written bound duplicating an implied one is redundant only in the
-    /// sense that the user spelled out something that already holds, which is not worth a warning
-    /// - hence [`Self::implied_trait_bounds`], which makes that answer independent of the order
+    /// the trait's associated types, or a parent trait. Only a written bound can be redundant. An
+    /// implied bound duplicating one already in scope is how implication works, and a written
+    /// bound duplicating an implied one is redundant only in the sense that the user spelled out
+    /// something that already holds, which is not worth a warning. That is what
+    /// [`ItemContext::implied_trait_bounds`] is for: it makes the answer independent of the order
     /// the two are registered in.
     #[tracing::instrument(level = "trace", skip_all)]
     fn add_trait_bound_to_scope_inner(
