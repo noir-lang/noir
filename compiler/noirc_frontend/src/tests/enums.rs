@@ -789,6 +789,26 @@ fn can_return_enum_from_unconstrained_to_unconstrained() {
 }
 
 #[test]
+fn errors_if_using_impl_trait_in_enum_variant() {
+    let src = r#"
+    pub enum Foo {
+        Baz(impl Bar),
+                 ^^^ `impl Trait` is not allowed in enum variant types
+                 ~~~ Use a generic type parameter instead
+    }
+
+    trait Bar {
+        fn bar(self);
+    }
+    impl Bar for Foo {
+        fn bar(self) {}
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums, UnstableFeature::TraitAsType];
+    check_errors_using_features(src, &features);
+}
+
+#[test]
 fn errors_if_using_comptime_type_in_non_comptime_enum() {
     let src = r#"
     pub enum Foo {

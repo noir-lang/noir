@@ -104,6 +104,7 @@ impl Elaborator<'_> {
             local_module: Some(module_id),
             current_item: Some(DependencyId::DataType(type_id)),
             in_comptime_context: struct_def.comptime,
+            impl_trait_is_disallowed: Some(super::types::ImplTraitDisallowedContext::StructField),
             ..Default::default()
         };
         self.with_item_context(context, |this| {
@@ -163,10 +164,6 @@ impl Elaborator<'_> {
             this.add_existing_generics(&unresolved.generics, &struct_def.borrow().generics);
 
             let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::StructField);
-            let previous_impl_trait_context = this
-                .item
-                .impl_trait_is_disallowed
-                .replace(super::types::ImplTraitDisallowedContext::StructField);
             let fields = vecmap(&unresolved.fields, |field| {
                 let visibility = field.item.visibility;
                 let name = field.item.name.clone();
@@ -177,7 +174,6 @@ impl Elaborator<'_> {
                 let typ = this.use_type(field.item.typ.clone(), wildcard_allowed);
                 StructField { visibility, name, typ }
             });
-            this.item.impl_trait_is_disallowed = previous_impl_trait_context;
 
             this.resolving_ids.remove(&struct_id);
 
