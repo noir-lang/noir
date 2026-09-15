@@ -118,7 +118,7 @@ use self::traits::check_trait_impl_method_matches_declaration;
 use self::variable::VariableResolution;
 use fm::FileMap;
 use function_context::FunctionContext;
-use item_context::{GenericsContext, ImplContext, ItemContext};
+use item_context::{GenericsContext, ImplContext, ItemContext, ModuleContext};
 use noirc_errors::Location;
 pub(crate) use options::ElaboratorOptions;
 pub use options::{FrontendOptions, UnstableFeature};
@@ -431,7 +431,7 @@ impl<'context> Elaborator<'context> {
     /// and we are not inside an impl or trait impl.
     pub(crate) fn is_at_crate_root(&self) -> bool {
         self.item.impl_context.is_outside_any_impl_or_trait()
-            && self.item.local_module.is_some_and(|id| id == self.def_maps[&self.crate_id].root())
+            && self.item.module.is_in_module(self.def_maps[&self.crate_id].root())
     }
 
     pub fn from_context(
@@ -1011,7 +1011,7 @@ impl<'context> Elaborator<'context> {
         // bodies are elaborated outside that context: `elaborate_function` installs one of its
         // own from each method's `FuncMeta`, and reads nothing from the context it is called in.
         let context = ItemContext {
-            local_module: Some(trait_impl.module_id),
+            module: ModuleContext::in_module(trait_impl.module_id),
             impl_context: ImplContext::in_trait_impl(None, trait_impl.trait_id, trait_impl.impl_id),
             generics: GenericsContext::new(trait_impl.resolved_generics.clone(), Vec::new()),
             ..Default::default()
@@ -1028,10 +1028,10 @@ impl<'context> Elaborator<'context> {
                 if trait_impl.inherited_default_method_func_ids.contains(function) {
                     continue;
                 }
-                let previous_method_module = this.item.replace_local_module(*module);
+                let previous_method_module = this.item.module.replace_local_module(*module);
                 let errors =
                     check_trait_impl_method_matches_declaration(this, *function, noir_function);
-                this.item.local_module = previous_method_module;
+                this.item.module.set_local_module(previous_method_module);
                 this.push_errors(errors);
             }
         });
@@ -1058,8 +1058,7 @@ impl<'context> Elaborator<'context> {
     #[tracing::instrument(level = "trace", skip_all)]
     fn define_type_alias(&mut self, alias_id: TypeAliasId, alias: UnresolvedTypeAlias) {
         let context = ItemContext {
-            local_module: Some(alias.module_id),
-            current_item: Some(DependencyId::Alias(alias_id)),
+            module: ModuleContext::of_item(alias.module_id, DependencyId::Alias(alias_id)),
             in_comptime_context: alias.type_alias_def.comptime,
             ..Default::default()
         };
@@ -1131,7 +1130,7 @@ impl<'context> Elaborator<'context> {
             return false;
         }
 
-        let in_unconstrained_function = self.item.current_item.is_some_and(|id| {
+        let in_unconstrained_function = self.item.module.current_item().is_some_and(|id| {
             if let DependencyId::Function(id) = id {
                 self.interner.function_meta(&id).is_unconstrained()
             } else {

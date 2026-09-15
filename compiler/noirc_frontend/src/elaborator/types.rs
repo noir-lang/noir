@@ -642,7 +642,7 @@ impl Elaborator<'_> {
             let (args, _) =
                 self.resolve_type_args_inner(args, id, location, mode, wildcard_allowed);
 
-            if let Some(item) = self.item.current_item {
+            if let Some(item) = self.item.module.current_item() {
                 self.interner.add_type_alias_dependency(item, id);
             }
 
@@ -678,7 +678,7 @@ impl Elaborator<'_> {
                     wildcard_allowed,
                 );
 
-                if let Some(current_item) = self.item.current_item {
+                if let Some(current_item) = self.item.module.current_item() {
                     let dependency_id = data_type.borrow().id;
                     self.interner.add_type_dependency(current_item, dependency_id);
                 }
@@ -748,7 +748,7 @@ impl Elaborator<'_> {
             return;
         }
 
-        let Some(item) = self.item.current_item else {
+        let Some(item) = self.item.module.current_item() else {
             // Early return if we're not actually inside any item.
             return;
         };
@@ -777,7 +777,7 @@ impl Elaborator<'_> {
                 DependencyId::Trait(_) | DependencyId::Variable(_) => {
                     unreachable!(
                         "Unexpected current item when checking for comptime type usage: {:?}",
-                        self.item.current_item
+                        self.item.module.current_item()
                     )
                 }
             };
@@ -1061,7 +1061,7 @@ impl Elaborator<'_> {
             Ok(PathResolution { item: PathResolutionItem::Global(id), errors }) => {
                 self.push_errors(errors);
 
-                if let Some(current_item) = self.item.current_item {
+                if let Some(current_item) = self.item.module.current_item() {
                     self.interner.add_global_dependency(current_item, id);
                 }
 
@@ -2083,7 +2083,7 @@ impl Elaborator<'_> {
     /// Records the dependency and the LSP reference (at the method name) for an inherent method
     /// resolved here. Inherent methods aren't in the module scope that would otherwise record this.
     fn record_direct_method_reference(&mut self, func_id: FuncId, method_ident: &Ident) {
-        if let Some(current_item) = self.item.current_item {
+        if let Some(current_item) = self.item.module.current_item() {
             self.interner.add_function_dependency(current_item, func_id);
         }
         self.interner.add_function_reference(func_id, method_ident.location());
@@ -3406,7 +3406,7 @@ impl Elaborator<'_> {
         location: Location,
         object_location: Location,
     ) -> Option<HirMethodReference> {
-        let Some(DependencyId::Function(func_id)) = self.item.current_item else {
+        let Some(DependencyId::Function(func_id)) = self.item.module.current_item() else {
             // Unexpected method outside a function.
             self.push_err(TypeCheckError::UnresolvedMethodCall {
                 method_name: method_name.to_string(),

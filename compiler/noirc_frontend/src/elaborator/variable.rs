@@ -1172,7 +1172,7 @@ impl Elaborator<'_> {
     pub(crate) fn handle_definition_id(&mut self, definition_id: DefinitionId, location: Location) {
         match self.interner.definition(definition_id).kind {
             DefinitionKind::Function(func_id) => {
-                if let Some(current_item) = self.item.current_item {
+                if let Some(current_item) = self.item.module.current_item() {
                     self.interner.add_function_dependency(current_item, func_id);
                 }
 
@@ -1180,7 +1180,7 @@ impl Elaborator<'_> {
             }
             DefinitionKind::Global(global_id) => {
                 self.elaborate_global_if_unresolved(&global_id);
-                if let Some(current_item) = self.item.current_item {
+                if let Some(current_item) = self.item.module.current_item() {
                     self.interner.add_global_dependency(current_item, global_id);
                 }
 

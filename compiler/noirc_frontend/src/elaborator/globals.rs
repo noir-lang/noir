@@ -30,7 +30,10 @@ use crate::{
     token::SecondaryAttributeKind,
 };
 
-use super::{Elaborator, item_context::ItemContext};
+use super::{
+    Elaborator,
+    item_context::{ItemContext, ModuleContext},
+};
 
 impl Elaborator<'_> {
     /// Order the set of unresolved globals by their [`GlobalId`].
@@ -72,8 +75,10 @@ impl Elaborator<'_> {
         // happens in the module where the global was defined, and so that nothing of the item
         // that mentioned it, such as its `Self` type or generics, is visible to the initializer.
         let context = ItemContext {
-            local_module: Some(global.module_id),
-            current_item: Some(DependencyId::Global(global.global_id)),
+            module: ModuleContext::of_item(
+                global.module_id,
+                DependencyId::Global(global.global_id),
+            ),
             ..Default::default()
         };
         self.with_item_context(context, |this| this.elaborate_global_in_context(global));

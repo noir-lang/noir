@@ -44,7 +44,7 @@ use crate::{
 
 use super::{
     Elaborator,
-    item_context::{BodyContext, GenericsContext, ImplContext, ItemContext},
+    item_context::{BodyContext, GenericsContext, ImplContext, ItemContext, ModuleContext},
 };
 
 type ResolvedParametersInfo = (Vec<(HirPattern, Type, Visibility)>, Vec<Type>, Vec<HirIdent>);
@@ -136,7 +136,7 @@ impl Elaborator<'_> {
         local_module: LocalModuleId,
         impls: &mut Vec<UnresolvedImpl>,
     ) {
-        let previous_local_module = self.item.replace_local_module(local_module);
+        let previous_local_module = self.item.module.replace_local_module(local_module);
 
         for unresolved_impl in impls {
             let impl_id = unresolved_impl.impl_id;
@@ -191,7 +191,7 @@ impl Elaborator<'_> {
             self.item.generics.clear_params();
         }
 
-        self.item.local_module = previous_local_module;
+        self.item.module.set_local_module(previous_local_module);
     }
 
     /// Registers each trait impl method as an unresolved meta, capturing the trait
@@ -302,8 +302,7 @@ impl Elaborator<'_> {
         // module), so the signature is resolved under the context captured when the meta was
         // registered rather than whatever the caller had installed.
         let context = ItemContext {
-            local_module: Some(local_module),
-            current_item: Some(DependencyId::Function(func_id)),
+            module: ModuleContext::of_item(local_module, DependencyId::Function(func_id)),
             impl_context,
             generics: GenericsContext::new(outer_generics, Vec::new()),
             in_comptime_context: func.def.is_comptime,
@@ -453,7 +452,7 @@ impl Elaborator<'_> {
             is_entry_point,
             has_inline_attribute: func.has_inline_attribute(),
             source_crate: self.crate_id,
-            source_module: self.item.local_module(),
+            source_module: self.item.module.expect_local_module(),
             function_body: FunctionBody::Unresolved(func.kind, body, func.def.location),
             self_type: self.item.impl_context.self_type().cloned(),
             source_file: location.file,
@@ -702,9 +701,7 @@ impl Elaborator<'_> {
         // This can run in the middle of another item's body (see the `item_context` module), so
         // the function gets a context of its own rather than whatever the caller had installed.
         let context = ItemContext {
-            local_module: Some(func_meta.source_module),
-            current_item: Some(DependencyId::Function(id)),
-            caller_module: None,
+            module: ModuleContext::of_item(func_meta.source_module, DependencyId::Function(id)),
             impl_context: ImplContext::of_function(&func_meta),
             // The generics are left empty here and filled in by `introduce_generics_into_scope`,
             // which also declares the numeric ones.

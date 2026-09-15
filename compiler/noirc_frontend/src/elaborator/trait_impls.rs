@@ -34,7 +34,7 @@ use rustc_hash::FxHashSet as HashSet;
 
 use super::{
     Elaborator,
-    item_context::{ImplContext, ItemContext},
+    item_context::{ImplContext, ItemContext, ModuleContext},
 };
 
 impl Elaborator<'_> {
@@ -77,7 +77,7 @@ impl Elaborator<'_> {
         // The impl is collected in a context of its own: its module, the trait and impl ids and
         // the implementing type as `Self`. The caller's context is reinstated afterwards.
         let context = ItemContext {
-            local_module: Some(trait_impl.module_id),
+            module: ModuleContext::in_module(trait_impl.module_id),
             impl_context: ImplContext::in_trait_impl(
                 Some(self_type.clone()),
                 trait_impl.trait_id,
@@ -309,7 +309,7 @@ impl Elaborator<'_> {
         trait_impl: &mut UnresolvedTraitImpl,
         trait_impl_where_clause: &[TraitConstraint],
     ) {
-        let previous_local_module = self.item.replace_local_module(trait_impl.module_id);
+        let previous_local_module = self.item.module.replace_local_module(trait_impl.module_id);
 
         let impl_id = trait_impl.impl_id.expect("impl_id should be set in define_function_metas");
 
@@ -414,7 +414,7 @@ impl Elaborator<'_> {
         trait_impl.methods.functions = ordered_methods;
         trait_impl.methods.trait_id = Some(trait_id);
 
-        self.item.local_module = previous_local_module;
+        self.item.module.set_local_module(previous_local_module);
     }
 
     /// Issue an error if the impl is stricter than the trait.
@@ -445,7 +445,7 @@ impl Elaborator<'_> {
         impl_id: TraitImplId,
     ) {
         let module_id =
-            self.item.local_module.expect("local_module is set inside collect_trait_impl");
+            self.item.module.local_module().expect("local_module is set inside collect_trait_impl");
         self.pending_trait_work.where_clause_checks.push(super::PendingWhereClauseCheck {
             impl_method_func_id,
             trait_id,
@@ -479,7 +479,7 @@ impl Elaborator<'_> {
                 self.interner.get_trait_implementation(check.impl_id).borrow().typ.clone();
             // Each check runs in a context of its own for the impl, as trait impl collection did.
             let context = ItemContext {
-                local_module: Some(check.module_id),
+                module: ModuleContext::in_module(check.module_id),
                 impl_context: ImplContext::in_trait_impl(
                     Some(impl_self_type),
                     Some(check.trait_id),
@@ -664,7 +664,7 @@ impl Elaborator<'_> {
         trait_id: TraitId,
         trait_impl: &UnresolvedTraitImpl,
     ) {
-        let previous_local_module = self.item.replace_local_module(trait_impl.module_id);
+        let previous_local_module = self.item.module.replace_local_module(trait_impl.module_id);
 
         let object_crate = match &trait_impl.resolved_object_type {
             Some(Type::DataType(struct_or_enum_type, _)) => {
@@ -680,7 +680,7 @@ impl Elaborator<'_> {
             });
         }
 
-        self.item.local_module = previous_local_module;
+        self.item.module.set_local_module(previous_local_module);
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
@@ -923,8 +923,10 @@ impl Elaborator<'_> {
         trait_impl: &mut UnresolvedTraitImpl,
     ) -> (Vec<(TraitConstraint, Location)>, Vec<ResolvedGeneric>) {
         // No current item is installed so that resolving the self type registers no dependencies.
-        let context =
-            ItemContext { local_module: Some(trait_impl.module_id), ..Default::default() };
+        let context = ItemContext {
+            module: ModuleContext::in_module(trait_impl.module_id),
+            ..Default::default()
+        };
         self.with_item_context(context, |this| this.prepare_trait_impl_in_context(trait_impl))
     }
 
