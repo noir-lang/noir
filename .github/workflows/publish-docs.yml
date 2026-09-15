@@ -41,17 +41,15 @@ jobs:
         working-directory: docs
         run: yarn build
 
+      # Deploy with the Netlify CLI (not nwtgck/actions-netlify) so the markdown
+      # content-negotiation edge function in netlify.toml is bundled and deployed.
+      # --no-build: the site is already built above; do not re-run the build (no Rust
+      # toolchain here). base="docs" in netlify.toml is resolved relative to the repo
+      # root, so the edge-functions dir resolves correctly when run from docs/.
       - name: Deploy to Netlify
-        uses: nwtgck/actions-netlify@d22a32a27c918fe470bbc562e984f80ec48c2668 # v4.0.0
-        with:
-          publish-dir: "./docs/build"
-          production-branch: master
-          production-deploy: true
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          enable-github-deployment: false
-          deploy-message: "Deploy from GitHub Actions for tag ${{ inputs.noir-ref }}"
-          enable-commit-comment: false
+        working-directory: docs
+        run: yarn netlify deploy --prod --no-build --dir build --message "Deploy from GitHub Actions for tag ${{ inputs.noir-ref }}"
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
-        timeout-minutes: 1
+        timeout-minutes: 10
