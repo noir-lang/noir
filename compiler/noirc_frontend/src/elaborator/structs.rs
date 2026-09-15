@@ -15,7 +15,10 @@ use crate::{
     node_interner::{DependencyId, ReferenceId, TypeId},
 };
 
-use super::{Elaborator, item_context::ItemContext};
+use super::{
+    Elaborator,
+    item_context::{ItemContext, ModuleContext},
+};
 
 /// Everything needed to resolve a struct's fields later, captured at
 /// registration time. Mirrors [`super::function::UnresolvedFunctionMeta`] for
@@ -101,8 +104,7 @@ impl Elaborator<'_> {
         // struct's via `add_existing_generics`, and its `Self` type would be visible to the
         // field types.
         let context = ItemContext {
-            local_module: Some(module_id),
-            current_item: Some(DependencyId::DataType(type_id)),
+            module: ModuleContext::of_item(module_id, DependencyId::DataType(type_id)),
             in_comptime_context: struct_def.comptime,
             impl_trait_is_disallowed: Some(super::types::ImplTraitDisallowedContext::StructField),
             ..Default::default()

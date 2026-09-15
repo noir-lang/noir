@@ -46,7 +46,7 @@ use crate::{
 
 use super::{
     Elaborator, TypedPathSegment,
-    item_context::ItemContext,
+    item_context::{ItemContext, ModuleContext},
     path_resolution::{PathResolutionTarget, TypedPath},
 };
 
@@ -195,8 +195,7 @@ impl Elaborator<'_> {
         // gets a context of its own: the item's generics and `Self` type would otherwise be
         // visible to the variant types.
         let context = ItemContext {
-            local_module: Some(module_id),
-            current_item: Some(DependencyId::DataType(type_id)),
+            module: ModuleContext::of_item(module_id, DependencyId::DataType(type_id)),
             in_comptime_context: enum_def.comptime,
             impl_trait_is_disallowed: Some(super::types::ImplTraitDisallowedContext::EnumVariant),
             ..Default::default()

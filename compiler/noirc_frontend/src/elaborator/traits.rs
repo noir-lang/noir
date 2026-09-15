@@ -202,7 +202,7 @@ use crate::{
 use super::{
     Elaborator,
     function::UnresolvedFunctionMeta,
-    item_context::{GenericsContext, ImplContext, ItemContext},
+    item_context::{GenericsContext, ImplContext, ItemContext, ModuleContext},
 };
 
 /// A generic synthesized for an associated type that was elided from a trait bound.
@@ -249,7 +249,7 @@ impl Elaborator<'_> {
     ) -> T {
         let self_typevar = self.interner.get_trait(trait_id).self_type_typevar.clone();
         let context = ItemContext {
-            local_module: Some(module_id),
+            module: ModuleContext::in_module(module_id),
             impl_context: ImplContext::in_trait(trait_id, Type::TypeVariable(self_typevar)),
             ..Default::default()
         };
@@ -1172,8 +1172,7 @@ impl Elaborator<'_> {
         // The method is resolved in a context of its own, nested in the trait's: it sees the
         // trait's module, `Self` and generics, and whatever it adds is discarded on exit.
         let context = ItemContext {
-            local_module: self.item.local_module,
-            current_item: Some(DependencyId::Function(func_id)),
+            module: self.item.module.nested_item(DependencyId::Function(func_id)),
             impl_context: self.item.impl_context.clone(),
             generics: GenericsContext::new(self.item.generics.params().to_vec(), Vec::new()),
             in_comptime_context: def.is_comptime,
@@ -1249,7 +1248,8 @@ impl Elaborator<'_> {
 
         let local_module = self
             .item
-            .local_module
+            .module
+            .local_module()
             .expect("local_module must be set when registering a trait method");
         // Trait methods see `Self` as the trait's self-type variable. Capture
         // it now so that meta resolution (run later, after attributes) finds a `Self` type in

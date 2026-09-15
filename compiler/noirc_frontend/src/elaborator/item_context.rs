@@ -12,25 +12,23 @@
 //! as a unit, a field added here is saved and restored by construction.
 //!
 //! Within that struct, fields which are only meaningful together live in a sub-context of their
-//! own - [`ImplContext`] for the enclosing impl or trait, [`GenericsContext`] for the generics and
-//! bounds in scope, [`BodyContext`] for where in the item's body the elaborator is. Each
-//! sub-context owns the operations over its own fields, so a caller that needs one group does not
-//! get a handle on the rest.
-
-use crate::{
-    hir::def_map::{LocalModuleId, ModuleId},
-    node_interner::DependencyId,
-};
+//! own - [`ModuleContext`] for which item is being elaborated and where it lives, [`ImplContext`]
+//! for the enclosing impl or trait, [`GenericsContext`] for the generics and bounds in scope,
+//! [`BodyContext`] for where in the item's body the elaborator is. Each sub-context owns the
+//! operations over its own fields, so a caller that needs one group does not get a handle on the
+//! rest.
 
 use super::{Elaborator, types::ImplTraitDisallowedContext};
 
 mod body_context;
 mod generics_context;
 mod impl_context;
+mod module_context;
 
 pub(crate) use body_context::BodyContext;
 pub(crate) use generics_context::GenericsContext;
 pub(crate) use impl_context::ImplContext;
+pub(crate) use module_context::ModuleContext;
 
 /// The elaborator state describing one item's elaboration.
 ///
@@ -40,21 +38,8 @@ pub(crate) use impl_context::ImplContext;
 /// on the [`Elaborator`] itself.
 #[derive(Default)]
 pub(super) struct ItemContext {
-    /// The current module this elaborator is in.
-    /// Initially None, it is set whenever a new top-level item is resolved.
-    pub(super) local_module: Option<LocalModuleId>,
-
-    /// The current dependency item we're resolving.
-    /// Used to link items to their dependencies in the dependency graph
-    pub(super) current_item: Option<DependencyId>,
-
-    /// When set, visibility checks during path resolution use this module
-    /// instead of the default importing module.
-    ///
-    /// Set when resolving an expression on behalf of comptime code from another module (see
-    /// `Expr::resolve`), so that the item resolved that way is held to the caller's visibility
-    /// rather than to that of the scope it is resolved in.
-    pub(super) caller_module: Option<ModuleId>,
+    /// The item being elaborated, and the module it was written in.
+    pub(super) module: ModuleContext,
 
     /// The impl or trait the item belongs to, if any.
     pub(super) impl_context: ImplContext,
