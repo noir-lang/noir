@@ -1,5 +1,55 @@
 # Changelog
 
+## [1.0.0-rc.2](https://github.com/noir-lang/noir/compare/v1.0.0-rc.1...v1.0.0-rc.2) (2026-09-15)
+
+
+### Features
+
+* **nargo:** Reuse the elaborated context across tests in `nargo test` ([#13633](https://github.com/noir-lang/noir/issues/13633)) ([73f7ff0](https://github.com/noir-lang/noir/commit/73f7ff0d14e6dd3003c56bc92397504115e04141))
+* **ssa:** Lower array-initialisation `array_set` chains to `make_array` ([#13635](https://github.com/noir-lang/noir/issues/13635)) ([db43075](https://github.com/noir-lang/noir/commit/db430759c5864fc276bc7887192960c902a85d2f))
+* **ssa:** Predicate trivial conditionals instead of leaving them to flattening ([#13643](https://github.com/noir-lang/noir/issues/13643)) ([2e3caac](https://github.com/noir-lang/noir/commit/2e3caacfd2031529fb85ae0fee3281cc47ae58e1))
+
+
+### Bug Fixes
+
+* **acir_field:** Make `recovers_original_hex_string` test the hex round trip ([#13681](https://github.com/noir-lang/noir/issues/13681)) ([8c78b45](https://github.com/noir-lang/noir/commit/8c78b458a0a5cd31ebfcce60e5f4a5ff6c4e5085))
+* **acvm:** Stop the blackbox injectivity proptests generating all-zero inputs ([#13680](https://github.com/noir-lang/noir/issues/13680)) ([3cb916c](https://github.com/noir-lang/noir/commit/3cb916c3fdba200bc024fe471fe5c048a508db20))
+* **artifact_cli:** Read the artifact file the caller named ([#13683](https://github.com/noir-lang/noir/issues/13683)) ([42fd3eb](https://github.com/noir-lang/noir/commit/42fd3ebf9dcc7524edeab3240d6c6e853769299f))
+* **ast_fuzzer:** Draw `u128` inputs from the whole `u128` range ([#13687](https://github.com/noir-lang/noir/issues/13687)) ([f2950ef](https://github.com/noir-lang/noir/commit/f2950efaab3a60809d082f749a78b9d84182d547))
+* **brillig:** Don't let array length arithmetic wrap ([#13690](https://github.com/noir-lang/noir/issues/13690)) ([9218500](https://github.com/noir-lang/noir/commit/921850027871ded176c35987fd585bd685df7342))
+* Compare implicit named generics by type variable, not by printed name ([#13648](https://github.com/noir-lang/noir/issues/13648)) ([d3738fd](https://github.com/noir-lang/noir/commit/d3738fdfcbf070b6f8f3863db2c616d01b5dc725))
+* Do not cancel the repeated term of `N - (M + N)` ([#13661](https://github.com/noir-lang/noir/issues/13661)) ([dd4c67c](https://github.com/noir-lang/noir/commit/dd4c67c1778f8d0fec057d705d67b43e8ee6a606))
+* **fmt:** Keep `Safety:` marker lines at paragraph start when reflowing comments ([#13650](https://github.com/noir-lang/noir/issues/13650)) ([9232ef7](https://github.com/noir-lang/noir/commit/9232ef76db55fe5535c6769602607490f968ffd3))
+* **frontend:** Check `CheckedCast`s in monomorphization without binding their type variables ([#13647](https://github.com/noir-lang/noir/issues/13647)) ([e626290](https://github.com/noir-lang/noir/commit/e626290c0d5b08be10eb649d74cb601c1eacf685))
+* **frontend:** Check that monomorphization leaves every piece of interner state the right size ([#13642](https://github.com/noir-lang/noir/issues/13642)) ([14852a8](https://github.com/noir-lang/noir/commit/14852a8982c1b395ed467e99305c7ca0ccf41727))
+* **frontend:** Check that monomorphization left the elaborated context as it found it ([#13639](https://github.com/noir-lang/noir/issues/13639)) ([d86fd0a](https://github.com/noir-lang/noir/commit/d86fd0afc744fc7d905a2b10bd4dc6496f31f53b))
+* **frontend:** Check that the program monomorphization produces holds together ([#13644](https://github.com/noir-lang/noir/issues/13644)) ([45ce151](https://github.com/noir-lang/noir/commit/45ce1511412b3b2073f6b8df0d209e02c3f87397))
+* **frontend:** Fold `Field` division in type-level arithmetic ([#13664](https://github.com/noir-lang/noir/issues/13664)) ([c006ff9](https://github.com/noir-lang/noir/commit/c006ff9fbaabc09857dde7c5d28468eec5a993eb))
+* **frontend:** Fold `N * 0` to `0` in type-level arithmetic ([#13665](https://github.com/noir-lang/noir/issues/13665)) ([b4298ff](https://github.com/noir-lang/noir/commit/b4298ff529fa51409a929a9e5e7754e0f1f35426))
+* **frontend:** Give each function body its own elaborator item context ([#13696](https://github.com/noir-lang/noir/issues/13696)) ([1e653a5](https://github.com/noir-lang/noir/commit/1e653a538b362b96924d99abfac16f41174127e0))
+* **frontend:** Imply bounds declared on associated types ([#13669](https://github.com/noir-lang/noir/issues/13669)) ([bac317b](https://github.com/noir-lang/noir/commit/bac317b5af100da3754a32b8a0841e7d105d3723))
+* **frontend:** Only apply the `self_type` method visibility shortcut to methods from the current crate ([#13649](https://github.com/noir-lang/noir/issues/13649)) ([b162478](https://github.com/noir-lang/noir/commit/b1624788c42a91dda33546cf6dfce9b6e4e72d6a))
+* **frontend:** Qualify the trait in an associated item's generic name ([#13651](https://github.com/noir-lang/noir/issues/13651)) ([165e63f](https://github.com/noir-lang/noir/commit/165e63f4df8450d8349123adde9adb7557256e00))
+* **frontend:** Report a `Type::item` path that names no associated item ([#13666](https://github.com/noir-lang/noir/issues/13666)) ([43c4ba1](https://github.com/noir-lang/noir/commit/43c4ba1f9eaf77c91db9f1f2a455949f98dad652))
+* **frontend:** Report an impl method that equates two bounds' associated items as stricter than the trait ([#13655](https://github.com/noir-lang/noir/issues/13655)) ([f6ee621](https://github.com/noir-lang/noir/commit/f6ee62123b5fd1964e34554fd91b96119d3ac333))
+* **frontend:** Restore type variable bindings on every path out of monomorphization ([#13637](https://github.com/noir-lang/noir/issues/13637)) ([8dcefea](https://github.com/noir-lang/noir/commit/8dcefea164758707ea3afabb35400bd178177641))
+* **frontend:** Undo the bindings an impl search makes while monomorphizing a trait method ([#13638](https://github.com/noir-lang/noir/issues/13638)) ([7b5ea19](https://github.com/noir-lang/noir/commit/7b5ea19d53a00c562b2a6e2cff243e7c01fce7fd))
+* **lsp:** Render `&self` receivers as `&self` in completion items ([#13700](https://github.com/noir-lang/noir/issues/13700)) ([89c202d](https://github.com/noir-lang/noir/commit/89c202d92d5317d2f9a53c7d3f209a0632916961))
+* **nargo_doc:** Keep the grouping of nested numeric generic expressions ([#13677](https://github.com/noir-lang/noir/issues/13677)) ([4bfc9b0](https://github.com/noir-lang/noir/commit/4bfc9b0bc647af4f6f4416de2486a5266742b904))
+* **nargo_doc:** Render `&self` receivers as `&self` ([#13676](https://github.com/noir-lang/noir/issues/13676)) ([935d95d](https://github.com/noir-lang/noir/commit/935d95db72ae1736f8fdf32ede2b8446a7809288))
+* **nargo_fmt:** Remove empty use lists instead of turning them into imports ([#13678](https://github.com/noir-lang/noir/issues/13678)) ([1aaf1e4](https://github.com/noir-lang/noir/commit/1aaf1e4c920f7c1bbbc58b56e9129f7c9a2b16ea))
+* **noirc_abi:** Don't let `AbiType::field_count` wrap ([#13684](https://github.com/noir-lang/noir/issues/13684)) ([ba20062](https://github.com/noir-lang/noir/commit/ba20062c9e6928ca25f4e4443b5414ead3b10a24))
+* **ssa:** Check the radix range before computing `radix - 1` in `constant_to_radix` ([#13682](https://github.com/noir-lang/noir/issues/13682)) ([689753e](https://github.com/noir-lang/noir/commit/689753e8cf87caa7c96bbc0bf3c6fcdc35955460))
+* **ssa:** Don't inline a block into itself in `simplify_cfg` ([#13672](https://github.com/noir-lang/noir/issues/13672)) ([ad4f96e](https://github.com/noir-lang/noir/commit/ad4f96e11d1bd3029b46c811c344de956c5003b7))
+* **ssa:** Drain visit-once queues iteratively so wide array literals don't overflow the stack ([#13702](https://github.com/noir-lang/noir/issues/13702)) ([6723512](https://github.com/noir-lang/noir/commit/6723512315171f1314cf9362b51d15a630f01a81))
+* **ssa:** Follow alias chains through Call/ArraySet/IfElse when inval… ([#13701](https://github.com/noir-lang/noir/issues/13701)) ([65f7034](https://github.com/noir-lang/noir/commit/65f7034b68c6fad8faf2adab2d975197f701f6bb))
+* **ssa:** Follow alias-returning calls when invalidating constant folding's array cache ([#13697](https://github.com/noir-lang/noir/issues/13697)) ([43e060d](https://github.com/noir-lang/noir/commit/43e060d72ba40c438cf5dc5d65128bb8a0da2ad3))
+* **ssa:** Reject `not` on a field in the SSA validator ([#13685](https://github.com/noir-lang/noir/issues/13685)) ([091fd9e](https://github.com/noir-lang/noir/commit/091fd9e4258d2030c110ad7daf64a32ff6c732a0))
+* **ssa:** Reject duplicate block labels and function ids in the SSA parser ([#13688](https://github.com/noir-lang/noir/issues/13688)) ([b56d722](https://github.com/noir-lang/noir/commit/b56d72286b24a0990a71a8bd0c2ac98b10c57afd))
+* **ssa:** Visit each value once when invalidating constant folding's array cache ([#13695](https://github.com/noir-lang/noir/issues/13695)) ([80e295e](https://github.com/noir-lang/noir/commit/80e295e769b0d0d0da0b96a42b4b23774308af98))
+* **stdlib:** Close the `wrapping-sub-trait` and `wrapping-mul-trait` doc snippets ([#13692](https://github.com/noir-lang/noir/issues/13692)) ([be20618](https://github.com/noir-lang/noir/commit/be2061850b9a00bb6bddae2e0c9cda5e551512b4))
+* **test:** Sum counts before dividing in the AST fuzzer calibration frequencies ([#13724](https://github.com/noir-lang/noir/issues/13724)) ([4ea0a28](https://github.com/noir-lang/noir/commit/4ea0a28ff92fadecf98f49344c7c55f02d164427))
+
 ## [1.0.0-rc.1](https://github.com/noir-lang/noir/compare/v1.0.0-rc.0...v1.0.0-rc.1) (2026-09-09)
 
 
