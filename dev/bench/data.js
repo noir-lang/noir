@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789478978289,
+  "lastUpdate": 1789478981138,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -7982,40 +7982,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "70f78f437f029db3a347497a6c34ae22761b13d1",
-          "message": "chore(acir_gen): compute the fallback offset from the gating decision (#13477)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-09-09T14:54:18Z",
-          "tree_id": "42ff27aa224f9da759d1be9543709038a0e1dec2",
-          "url": "https://github.com/noir-lang/noir/commit/70f78f437f029db3a347497a6c34ae22761b13d1"
-        },
-        "date": 1788967208764,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 85.57,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 79.11,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "0a9e10d3dc337e19f75983bc38edd2b40fbde712",
           "message": "chore: remove the acvm_cli crate (#13632)",
           "timestamp": "2026-09-09T15:21:49Z",
@@ -10375,6 +10341,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore_depth_10",
             "value": 85.58,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 79.11,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "3662807d5b06c5c8e9525ab635fb04fbae8604ad",
+          "message": "chore(deps): bump hardhat from 3.15.0 to 3.16.0 in the hardhat group across 1 directory (#13728)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-09-15T12:47:37Z",
+          "tree_id": "b5cb1cafbd96526d32fc19015ce6472d913fa1b0",
+          "url": "https://github.com/noir-lang/noir/commit/3662807d5b06c5c8e9525ab635fb04fbae8604ad"
+        },
+        "date": 1789478892556,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 297.91,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 338.44,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 325.22,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 372.43,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 369.21,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1270,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1270,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 369.48,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 471.34,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 483.02,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 368.72,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 85.57,
             "unit": "MB"
           },
           {
