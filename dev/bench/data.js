@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789488520973,
+  "lastUpdate": 1789488891065,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19910,40 +19910,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "2c72b9174c4ce627a235d3c5b28d5331c4336777",
-          "message": "chore(ssa): remove interior mutability from the SSA layer (#13596)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-09-10T10:27:50Z",
-          "tree_id": "8f5cc9e43bcea0047a63bee1caeefd01687e1101",
-          "url": "https://github.com/noir-lang/noir/commit/2c72b9174c4ce627a235d3c5b28d5331c4336777"
-        },
-        "date": 1789037613703,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 5699,
-            "unit": "opcodes"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 13173,
-            "unit": "opcodes"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "45ce1511412b3b2073f6b8df0d209e02c3f87397",
           "message": "fix(frontend): check that the program monomorphization produces holds together (#13644)",
           "timestamp": "2026-09-10T11:04:28Z",
@@ -22688,6 +22654,105 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/e864cf379d3cfadd912473ca40e3c6c6a6b29afc"
         },
         "date": 1789487880000,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 18985,
+            "unit": "opcodes"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 96524,
+            "unit": "opcodes"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 80719,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root-no-txs",
+            "value": 9082,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 9148,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 10334,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 1438,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1388664,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1389857,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1800,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 239811,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 252121,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 1306,
+            "unit": "opcodes"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 5699,
+            "unit": "opcodes"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 13173,
+            "unit": "opcodes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "bac317b5af100da3754a32b8a0841e7d105d3723",
+          "message": "fix(frontend): imply bounds declared on associated types (#13669)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
+          "timestamp": "2026-09-15T15:44:38Z",
+          "tree_id": "3bb0cfc08dc14ec62cf1d40528f839f152055a0c",
+          "url": "https://github.com/noir-lang/noir/commit/bac317b5af100da3754a32b8a0841e7d105d3723"
+        },
+        "date": 1789488840345,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
