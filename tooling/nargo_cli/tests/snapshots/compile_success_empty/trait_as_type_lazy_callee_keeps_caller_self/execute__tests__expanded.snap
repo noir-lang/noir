@@ -1,0 +1,37 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+trait Marker {}
+
+struct Inner {}
+
+impl Inner {
+    fn hidden() -> impl Marker {
+        Self {}
+    }
+
+    fn after() -> bool {
+        false
+    }
+}
+
+impl Marker for Inner {}
+
+struct Outer {}
+
+impl Outer {
+    fn after() -> bool {
+        true
+    }
+
+    fn probe(_self: Self) -> bool {
+        let _hidden: Inner = Inner::hidden();
+        Self::after()
+    }
+}
+
+fn main() {
+    assert(Outer {}.probe());
+    assert(!Inner::after());
+}

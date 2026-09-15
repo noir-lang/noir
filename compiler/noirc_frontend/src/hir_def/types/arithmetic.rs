@@ -273,15 +273,15 @@ impl Type {
         }
     }
 
-    /// Try to simplify non-constant expressions in the form `N op1 (M op1 N)`
-    /// where the two `M` terms are expected to cancel out.
+    /// Try to simplify non-constant expressions in the form `N op1 (M op2 N)`
+    /// where the two `N` terms cancel out.
     /// Precondition: `lhs & rhs are in canonical form`
     ///
-    /// Unlike `try_simplify_non_constants_in_lhs` we can't simplify `N / (M * N)`
-    /// Since that should simplify to `1 / M` instead of `M`.
+    /// - Simplifies `N + (M - N)` to `M`
     ///
-    /// - Simplifies `N +/- (M -/+ N)` to `M`
-    /// - Simplifies `N * (M ÷ N)` to `M`
+    /// That is the only operator pair for which the two `N` terms cancel to `M`, so unlike
+    /// `try_simplify_non_constants_in_lhs` this is not symmetric in the operator's inverse:
+    /// `N - (M + N)` is `-M`, and `N / (M * N)` is `1 / M`.
     fn try_simplify_non_constants_in_rhs(
         lhs: &Type,
         op: BinaryTypeOperator,
@@ -295,16 +295,19 @@ impl Type {
                 Some(Type::CheckedCast { from: Box::new(from), to: Box::new(to) })
             }
             Type::InfixExpr(r_lhs, r_op, r_rhs, _) => {
-                // `N / (M * N)` should be simplified to `1 / M`, but we only handle
-                // simplifying to `M` in this function.
-                if op == BinaryTypeOperator::Division && *r_op == BinaryTypeOperator::Multiplication
-                {
+                // Only `N + (M - N)` cancels to `M`. Matching on the operator pair rather than
+                // on `r_op.inverse()` is what keeps the mirrored `N - (M + N)` out: it is `-M`,
+                // so cancelling it changes the value of the expression.
+                if !matches!(
+                    (op, *r_op),
+                    (BinaryTypeOperator::Addition, BinaryTypeOperator::Subtraction)
+                ) {
                     return None;
                 }
 
                 // Note that this is exact, syntactic equality, not unification.
                 // `lhs` is expected to already be in canonical form.
-                if r_op.inverse() != Some(op) || *lhs != r_rhs.canonicalize_unchecked() {
+                if *lhs != r_rhs.canonicalize_unchecked() {
                     return None;
                 }
 
@@ -364,10 +367,14 @@ impl Type {
                 Some(Type::infix_expr(l_type, l_op, Box::new(constant)))
             }
             (Multiplication, Division) => {
-                // We ensure the result divides evenly to preserve integer division semantics
-                // TODO(https://github.com/noir-lang/noir/issues/11013): do the division simplification
-                // also in case of Field elements
-                let divides_evenly = (l_const % r_const).is_some_and(|rem| rem.is_zero());
+                // We ensure the result divides evenly to preserve integer division semantics.
+                // `Field` has no remainder operation and needs none: every non-zero field
+                // element is invertible, so `(N * C1) / C2` is exactly `N * (C1 / C2)`.
+                let divides_evenly = if matches!(l_const, Integer::Field(_)) {
+                    matches!(r_const, Integer::Field(_))
+                } else {
+                    (l_const % r_const).is_some_and(|rem| rem.is_zero())
+                };
 
                 // If op is a division we need to ensure it divides evenly
                 if op == Division && (r_const.is_zero() || !divides_evenly) {
@@ -387,6 +394,7 @@ impl Type {
 #[cfg(test)]
 mod tests {
     use acvm::{AcirField, FieldElement};
+    use noirc_errors::Location;
 
     use crate::{
         NamedGeneric,
@@ -463,6 +471,69 @@ mod tests {
         let canonicalized_typ = one_plus_n_minus_one.canonicalize();
 
         assert_eq!(n, canonicalized_typ);
+    }
+
+    /// An unbound `u32` named generic, for building type-level arithmetic by hand.
+    ///
+    /// `sort_commutative` orders the operands of `+` by `TypeVariableId`, so the id decides
+    /// which side of a canonical sum a generic ends up on.
+    fn u32_generic(id: u32, name: &str) -> Type {
+        Type::NamedGeneric(NamedGeneric {
+            type_var: TypeVariable::unbound(TypeVariableId(id as usize), Kind::u32()),
+            name: std::rc::Rc::new(name.to_owned()),
+            implicit: false,
+            original_type_var_id: None,
+        })
+    }
+
+    /// Bind every generic in `bindings`, then check that `expr` and `canonicalized` evaluate
+    /// the same way — either to the same integer, or both to an arithmetic error.
+    ///
+    /// This is the contract canonicalization owes its callers: a canonical form denotes the
+    /// same value as the expression it came from, for every assignment of its free variables.
+    fn assert_canonicalization_preserved_value(expr: &Type, bindings: &[(&Type, u32)]) {
+        let canonicalized = expr.canonicalize();
+
+        for (generic, value) in bindings {
+            let Type::NamedGeneric(generic) = generic else { unreachable!() };
+            generic.type_var.bind(u32t(*value));
+        }
+
+        let location = Location::dummy();
+        let original_value = expr.evaluate_to_u32(location);
+        let canonical_value = canonicalized.evaluate_to_u32(location);
+
+        assert_eq!(
+            original_value.ok(),
+            canonical_value.ok(),
+            "canonicalize[{expr}] = {canonicalized}, which does not have the same value"
+        );
+    }
+
+    #[test]
+    fn does_not_cancel_the_repeated_term_of_n_minus_m_plus_n() {
+        // `N - (M + N)` is `-M`, so the two `N` terms must not cancel to `M`. Over `u32` the
+        // expression has no value at all whenever `M` is non-zero, which is what the
+        // evaluation below pins down.
+        let m = u32_generic(0, "M");
+        let n = u32_generic(1, "N");
+
+        let expr = n.clone() - (m.clone() + n.clone());
+        assert_ne!(expr.canonicalize(), m, "the two `N` terms must not cancel");
+
+        assert_canonicalization_preserved_value(&expr, &[(&m, 5), (&n, 3)]);
+    }
+
+    #[test]
+    fn cancels_the_repeated_term_of_n_plus_m_minus_n() {
+        // The mirrored shape is the one that does cancel: `N + (M - N)` really is `M`.
+        let m = u32_generic(0, "M");
+        let n = u32_generic(1, "N");
+
+        let expr = n.clone() + (m.clone() - n.clone());
+        assert_eq!(expr.canonicalize(), m);
+
+        assert_canonicalization_preserved_value(&expr, &[(&m, 5), (&n, 3)]);
     }
 
     #[test]
@@ -598,7 +669,9 @@ mod proptests {
             Context,
             comptime::{Integer, Interpreter, Value},
         },
-        hir_def::types::{BinaryTypeOperator, Kind, Type, TypeVariable, TypeVariableId},
+        hir_def::types::{
+            BinaryTypeOperator, Kind, Type, TypeBindings, TypeVariable, TypeVariableId,
+        },
         shared::Signedness,
     };
 
@@ -784,6 +857,31 @@ mod proptests {
         }
     }
 
+    prop_compose! {
+        /// An arithmetic expression over `Field` with up to `max_num_variables` variables, and
+        /// a constant to instantiate each variable with.
+        ///
+        /// Pinning the type to `Field` is what makes this usable as an oracle. `+`, `-` and `*`
+        /// on a field element are total — there is no range for an intermediate step to fall
+        /// out of — so the expression has a value at every instantiation, and a rewrite cannot
+        /// hide a change of value behind an evaluation that fails on only one side.
+        // the lint misfires on 'max_num_variables'
+        #[allow(unused_variables)]
+        fn arbitrary_field_infix_expr_with_bindings(max_num_variables: usize)
+            (num_variables in any::<usize>().prop_map(move |num_variables| (num_variables % max_num_variables).clamp(1, max_num_variables)))
+            (infix_expr in arbitrary_infix_expr_with_variables(Type::FieldElement, arbitrary_field_element().boxed(), num_variables),
+             values in collection::vec(arbitrary_field_element(), num_variables))
+        -> (Type, Vec<(TypeVariable, Type)>) {
+            let bindings = first_n_variables(Type::FieldElement, values.len())
+                .zip(values.iter().map(|value| {
+                    let int = Integer::try_from_type(*value, &Type::FieldElement).unwrap();
+                    Type::Constant(int)
+                }))
+                .collect();
+            (infix_expr, bindings)
+        }
+    }
+
     fn convert_infix_type_expr_to_expr(infix_expr: &Type) -> Expression {
         let kind = match infix_expr {
             Type::InfixExpr(lhs, op, rhs, _inversion) => {
@@ -893,6 +991,56 @@ mod proptests {
             }
         }
 
+        /// Canonicalization is a normal form, not a rewriting of one quantity into another:
+        /// wherever the original expression has a value, the canonical form has the same one.
+        ///
+        /// `compare_to_comptime` checks a similar contract against an independent evaluator,
+        /// but only over expressions built from constants. The cancellation rules in
+        /// `try_simplify_non_constants_in_lhs`/`_rhs` fire only when their operands are *not*
+        /// constants, so they are out of its reach; this is the property that covers them.
+        ///
+        /// Expressions are drawn over `Field` so that the comparison is not weakened by
+        /// over/underflow: cancelling a repeated term legitimately drops intermediate steps
+        /// (`(N - 1) + 1` is `N` even at `N = 0`, which is what `CheckedCast` re-reports; see
+        /// `design/arithmetic_generics.md`), and over a bounded integer type that is
+        /// indistinguishable from a rewrite that changed the value. Division by zero is the
+        /// one failure a `Field` expression can still have, and it is tolerated for the same
+        /// reason.
+        #[test]
+        fn canonicalize_preserves_value(infix_and_bindings in arbitrary_field_infix_expr_with_bindings(10)) {
+            let (infix, bindings) = infix_and_bindings;
+            let kind = Kind::numeric(Type::FieldElement);
+
+            // Canonicalize while the variables are still free: that is when a rewrite has to
+            // reason about them symbolically, and so when it can cancel two it should not.
+            let canonicalized = infix.canonicalize();
+
+            // Instantiate by substitution rather than by binding the `TypeVariable`s, because
+            // `TypeVariable::unbound` gives every variable its own binding cell — two
+            // variables sharing an id do not share a binding, so binding one of them would
+            // leave the expression untouched.
+            let mut substitutions = TypeBindings::default();
+            for (var, value) in &bindings {
+                substitutions.insert(var.id(), (var.clone(), var.kind(), value.clone()));
+            }
+
+            let location = Location::dummy();
+            let original_value =
+                infix.substitute(&substitutions).evaluate_to_integer(&kind, location);
+            let canonical_value =
+                canonicalized.substitute(&substitutions).evaluate_to_integer(&kind, location);
+
+            if let Ok(original_value) = original_value {
+                prop_assert_eq!(
+                    Some(original_value),
+                    canonical_value.ok(),
+                    "canonicalize[{}] = {}, which does not have the same value",
+                    infix,
+                    canonicalized
+                );
+            }
+        }
+
         #[test]
         fn compare_to_comptime(infix_type in arbitrary_infix_expr()) {
             let (infix, typ) = infix_type;
@@ -961,10 +1109,9 @@ mod proptests {
     }
 
     #[test]
-    fn try_simplify_partial_constants_does_not_simplify_large_field_elements() {
-        // TODO(https://github.com/noir-lang/noir/issues/11013): This test demonstrates that
-        // try_simplify_partial_constants() does not simplify expressions with FieldElements
-        // that don't fit in 128 bits, although this case should be handled.
+    fn try_simplify_partial_constants_simplifies_large_field_elements() {
+        // Field division is exact, so `(N * C1) / C2` folds to `N * (C1 / C2)` for any
+        // non-zero `C2`, including constants too large to fit in 128 bits.
         use crate::TypeVariableId;
         use acvm::FieldElement;
 
@@ -975,21 +1122,44 @@ mod proptests {
         let var_n = TypeVariable::unbound(TypeVariableId(0), kind);
         let n = Type::TypeVariable(var_n);
 
-        // large_field ≈ 2^200
+        // large_field = 2^200
         let large_field = FieldElement::from_be_bytes_reduce(&[
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00,
         ]);
+        // half_large_field = 2^199
+        let half_large_field = FieldElement::from_be_bytes_reduce(&[
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00,
+        ]);
 
-        let mul_expr = n * Type::constant_field(large_field);
+        let mul_expr = n.clone() * Type::constant_field(large_field);
         let div_expr = mul_expr / Type::constant_field(2u32.into());
 
-        // Canonicalize the expression
         let canonicalized = div_expr.canonicalize();
 
-        // The expression should remain unchanged because try_simplify_partial_constants
-        // cannot simplify it when field elements don't fit in 128 bits
-        assert_eq!(canonicalized, div_expr);
+        assert_eq!(canonicalized, n * Type::constant_field(half_large_field));
+    }
+
+    #[test]
+    fn field_division_by_a_non_divisor_is_still_simplified() {
+        // `3` does not divide `1` in the integers, but it does in the field: the result
+        // is the field inverse of 3, and multiplying it back by 3 recovers `N`.
+        use crate::TypeVariableId;
+        use acvm::FieldElement;
+
+        let kind = Kind::numeric(Type::FieldElement);
+        let var_n = TypeVariable::unbound(TypeVariableId(0), kind);
+        let n = Type::TypeVariable(var_n);
+
+        let two = FieldElement::from(2u32);
+        let three = FieldElement::from(3u32);
+        let div_expr = (n.clone() * Type::constant_field(two)) / Type::constant_field(three);
+
+        let canonicalized = div_expr.canonicalize();
+
+        assert_eq!(canonicalized, n * Type::constant_field(two / three));
     }
 }

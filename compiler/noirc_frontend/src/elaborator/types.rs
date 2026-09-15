@@ -82,7 +82,7 @@ pub enum WildcardAllowed {
 /// Context for positions where `impl Trait` is not allowed as a type.
 /// `impl Trait` is only meaningful in function signatures (parameters and return types).
 ///
-/// This context is stored on the `Elaborator` and checked in the `TraitAsType` arm of
+/// This context is stored on the elaborator's `ItemContext` and checked in the `TraitAsType` arm of
 /// type resolution. The variant is used to produce a position-specific error message.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ImplTraitDisallowedContext {
@@ -181,7 +181,7 @@ impl Elaborator<'_> {
     ) -> Type {
         let location = typ.location;
         let resolved_type = self.resolve_type_with_kind_inner(typ, kind, mode, wildcard_allowed);
-        if !self.in_comptime_context && resolved_type.is_nested_vector() {
+        if !self.item.in_comptime_context && resolved_type.is_nested_vector() {
             self.push_err(ResolverError::NestedVectors { location });
         }
         resolved_type
@@ -208,7 +208,7 @@ impl Elaborator<'_> {
             if let Type::NamedGeneric(named) = typ
                 && !named.is_associated()
                 && let TypeBinding::Unbound(id, kind) = &*named.type_var.borrow()
-                && let Some(generic) = self.find_generic(named.name.as_str())
+                && let Some(generic) = self.item.find_generic(named.name.as_str())
                 && generic.type_var.id() != *id
             {
                 let replacement = generic.clone().into_named_generic(None);
@@ -285,7 +285,7 @@ impl Elaborator<'_> {
                 self.resolve_named_type(path, args, mode, wildcard_allowed)
             }
             TraitAsType(path, args) => {
-                if let Some(context) = self.impl_trait_is_disallowed {
+                if let Some(context) = self.item.impl_trait_is_disallowed {
                     self.push_err(ResolverError::ImplTraitTypeDisallowed {
                         location: path.location,
                         context,
@@ -377,8 +377,8 @@ impl Elaborator<'_> {
             let name = path.last_name();
 
             // Inside a trait definition (not an impl): check this trait and its parent traits.
-            if self.current_trait_impl.is_none()
-                && let Some(trait_id) = self.current_trait
+            if self.item.current_trait_impl.is_none()
+                && let Some(trait_id) = self.item.current_trait
             {
                 let mut found = self.lookup_associated_type_in_parent_traits(trait_id, name);
                 match found.len() {
@@ -401,12 +401,12 @@ impl Elaborator<'_> {
             }
 
             // Inside a trait impl: check the impl's own types, then parent trait impls.
-            if let Some(impl_id) = self.current_trait_impl {
+            if let Some(impl_id) = self.item.current_trait_impl {
                 if let Some(typ) = self.interner.find_associated_type_for_impl(impl_id, name) {
                     return Some(typ.clone());
                 }
 
-                if let Some(trait_id) = self.current_trait
+                if let Some(trait_id) = self.item.current_trait
                     && let Some(typ) = self.lookup_associated_type_in_parent_impls(
                         trait_id,
                         name,
@@ -475,7 +475,7 @@ impl Elaborator<'_> {
 
         let the_trait = self.interner.get_trait(trait_id);
         let parent_bounds: Vec<_> = the_trait.parent_bounds().cloned().collect();
-        let self_type = self.self_type.as_ref()?;
+        let self_type = self.item.self_type.as_ref()?;
 
         for parent_bound in &parent_bounds {
             let result = self.interner.try_lookup_trait_implementation(
@@ -535,7 +535,7 @@ impl Elaborator<'_> {
     /// Also searches parent traits.
     #[tracing::instrument(level = "trace", skip_all)]
     fn lookup_associated_type_on_generic(&mut self, path: &TypedPath) -> Option<Type> {
-        if self.trait_bounds.is_empty() {
+        if self.item.trait_bounds.is_empty() {
             return None;
         }
 
@@ -547,15 +547,15 @@ impl Elaborator<'_> {
         let assoc_name = path.last_name();
 
         // Check if first segment is a generic parameter
-        self.find_generic(type_name)?;
+        self.item.find_generic(type_name)?;
 
         // Search trait bounds for this generic to find the associated type directly.
-        // Parent associated types are expected to be in `self.trait_bounds` already,
+        // Parent associated types are expected to be in `self.item.trait_bounds` already,
         // added during function elaboration.
         let mut found_types = Vec::new();
         let mut seen_traits = BTreeSet::new();
 
-        for constraint in &self.trait_bounds {
+        for constraint in &self.item.trait_bounds {
             if let Type::NamedGeneric(generic) = &constraint.typ
                 && generic.name.as_ref() == type_name
             {
@@ -646,7 +646,7 @@ impl Elaborator<'_> {
             let (args, _) =
                 self.resolve_type_args_inner(args, id, location, mode, wildcard_allowed);
 
-            if let Some(item) = self.current_item {
+            if let Some(item) = self.item.current_item {
                 self.interner.add_type_alias_dependency(item, id);
             }
 
@@ -682,7 +682,7 @@ impl Elaborator<'_> {
                     wildcard_allowed,
                 );
 
-                if let Some(current_item) = self.current_item {
+                if let Some(current_item) = self.item.current_item {
                     let dependency_id = data_type.borrow().id;
                     self.interner.add_type_dependency(current_item, dependency_id);
                 }
@@ -752,7 +752,7 @@ impl Elaborator<'_> {
             return;
         }
 
-        let Some(item) = self.current_item else {
+        let Some(item) = self.item.current_item else {
             // Early return if we're not actually inside any item.
             return;
         };
@@ -781,7 +781,7 @@ impl Elaborator<'_> {
                 DependencyId::Trait(_) | DependencyId::Variable(_) => {
                     unreachable!(
                         "Unexpected current item when checking for comptime type usage: {:?}",
-                        self.current_item
+                        self.item.current_item
                     )
                 }
             };
@@ -805,7 +805,7 @@ impl Elaborator<'_> {
         let name = path.last_name();
         match name {
             SELF_TYPE_NAME => {
-                let self_type = self.self_type.clone()?;
+                let self_type = self.item.self_type.clone()?;
                 if !args.is_empty() {
                     self.push_err(ResolverError::GenericsOnSelfType { location: path.location });
                 }
@@ -1012,7 +1012,7 @@ impl Elaborator<'_> {
     ) -> Option<Type> {
         if path.segments.len() == 1 {
             let name = path.last_name();
-            if let Some(generic) = self.find_generic(name) {
+            if let Some(generic) = self.item.find_generic(name) {
                 let generic = generic.clone();
                 // A generic type parameter cannot take generic arguments since we don't support
                 // higher-kinded types, so reject any that were given (in either `T<..>` or the
@@ -1065,7 +1065,7 @@ impl Elaborator<'_> {
             Ok(PathResolution { item: PathResolutionItem::Global(id), errors }) => {
                 self.push_errors(errors);
 
-                if let Some(current_item) = self.current_item {
+                if let Some(current_item) = self.item.current_item {
                     self.interner.add_global_dependency(current_item, id);
                 }
 
@@ -1366,7 +1366,7 @@ impl Elaborator<'_> {
         trait_id: TraitId,
     ) -> Option<Type> {
         // Only applies if the path refers to the current trait.
-        let current_trait = self.current_trait?;
+        let current_trait = self.item.current_trait?;
 
         if trait_id != current_trait {
             return None;
@@ -1872,6 +1872,7 @@ impl Elaborator<'_> {
             // impl among any non-overlapping inherent impls and resolve to a `SelfMethod` (so
             // the impl's generics — not the path's fresh ones — anchor the call).
             let func_id = self
+                .item
                 .self_type
                 .clone()
                 .and_then(|self_type| self.lookup_direct_method(&self_type, method_name, true))
@@ -2085,7 +2086,7 @@ impl Elaborator<'_> {
     /// Records the dependency and the LSP reference (at the method name) for an inherent method
     /// resolved here. Inherent methods aren't in the module scope that would otherwise record this.
     fn record_direct_method_reference(&mut self, func_id: FuncId, method_ident: &Ident) {
-        if let Some(current_item) = self.current_item {
+        if let Some(current_item) = self.item.current_item {
             self.interner.add_function_dependency(current_item, func_id);
         }
         self.interner.add_function_reference(func_id, method_ident.location());
@@ -2299,7 +2300,7 @@ impl Elaborator<'_> {
 
         // When passing lambdas to unconstrained functions that don't explicitly state
         // that they expect unconstrained lambdas, ignore the coercion.
-        if self.in_unconstrained_args {
+        if self.item.in_unconstrained_args {
             errors.retain(|err| {
                 !matches!(err, CompilationError::TypeError(TypeCheckError::UnsafeFn { .. }))
             });
@@ -3408,7 +3409,7 @@ impl Elaborator<'_> {
         location: Location,
         object_location: Location,
     ) -> Option<HirMethodReference> {
-        let Some(DependencyId::Function(func_id)) = self.current_item else {
+        let Some(DependencyId::Function(func_id)) = self.item.current_item else {
             // Unexpected method outside a function.
             self.push_err(TypeCheckError::UnresolvedMethodCall {
                 method_name: method_name.to_string(),
@@ -3426,7 +3427,7 @@ impl Elaborator<'_> {
 
         // If inside a trait method, check if it's a method on `self`
         if let Some(trait_id) = func_meta_trait_id
-            && Some(object_type) == self.self_type.as_ref()
+            && Some(object_type) == self.item.self_type.as_ref()
         {
             let the_trait = self.interner.get_trait(trait_id);
             let constraint = the_trait.as_constraint(the_trait.name.location());
@@ -3660,12 +3661,12 @@ impl Elaborator<'_> {
         let crossing_runtime_boundary = is_current_func_constrained && is_unconstrained_call;
 
         if crossing_runtime_boundary {
-            match self.unsafe_block_status {
+            match self.item.unsafe_block_status {
                 UnsafeBlockStatus::NotInUnsafeBlock => {
                     self.push_err(TypeCheckError::Unsafe { location });
                 }
                 UnsafeBlockStatus::InUnsafeBlockWithoutUnconstrainedCalls => {
-                    self.unsafe_block_status =
+                    self.item.unsafe_block_status =
                         UnsafeBlockStatus::InUnsafeBlockWithUnconstrainedCalls;
                 }
                 UnsafeBlockStatus::InUnsafeBlockWithUnconstrainedCalls => (),
