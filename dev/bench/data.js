@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789490647666,
+  "lastUpdate": 1789490650665,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -29736,40 +29736,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "2e3caacfd2031529fb85ae0fee3281cc47ae58e1",
-          "message": "feat(ssa): predicate trivial conditionals instead of leaving them to flattening (#13643)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
-          "timestamp": "2026-09-10T15:13:20Z",
-          "tree_id": "87db7021fdb196d11dfeb40fd2694a3e1da072d5",
-          "url": "https://github.com/noir-lang/noir/commit/2e3caacfd2031529fb85ae0fee3281cc47ae58e1"
-        },
-        "date": 1789054641470,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.005,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.013,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "e40b371879fb74e93b461279036b02891cc96d0b",
           "message": "chore(frontend): make raw type variable writes private to their module (#13640)",
           "timestamp": "2026-09-10T15:28:46Z",
@@ -32519,6 +32485,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 0.013,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2ba870c82e283acfe54eb914da98953d704fe052",
+          "message": "chore(frontend): record the elaborator's per-item context rule in `design/` (#13717)",
+          "timestamp": "2026-09-15T17:32:20+01:00",
+          "tree_id": "f87f79e34a78c56162450590d2e6816b34ab0efa",
+          "url": "https://github.com/noir-lang/noir/commit/2ba870c82e283acfe54eb914da98953d704fe052"
+        },
+        "date": 1789490562279,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.024,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 0.039,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.006,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-no-txs",
+            "value": 0.009,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 0.012,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 0.005,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 0.001,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.002,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 0.044,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 0.032,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 0.001,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.006,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.011,
             "unit": "s"
           }
         ]
