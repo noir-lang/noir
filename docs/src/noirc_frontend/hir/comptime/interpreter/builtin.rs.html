@@ -2447,7 +2447,7 @@
 <a href=#2447 id=2447 data-nosnippet>2447</a>    <span class="kw">let </span>reason = <span class="prelude-val">Some</span>(ElaborateReason::EvaluatingComptimeCall(<span class="string">"Expr::resolve"</span>, location));
 <a href=#2448 id=2448 data-nosnippet>2448</a>    interpreter.elaborate_in_function(function_to_resolve_in, reason, |elaborator| {
 <a href=#2449 id=2449 data-nosnippet>2449</a>        <span class="kw">if </span>is_some {
-<a href=#2450 id=2450 data-nosnippet>2450</a>            elaborator.caller_module = caller_module;
+<a href=#2450 id=2450 data-nosnippet>2450</a>            elaborator.set_caller_module(caller_module);
 <a href=#2451 id=2451 data-nosnippet>2451</a>        }
 <a href=#2452 id=2452 data-nosnippet>2452</a>
 <a href=#2453 id=2453 data-nosnippet>2453</a>        <span class="kw">match </span>expr_value {
