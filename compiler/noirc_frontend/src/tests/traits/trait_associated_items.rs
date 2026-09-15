@@ -1392,6 +1392,31 @@ fn fully_qualified_nested_associated_type() {
     assert_no_errors(src);
 }
 
+/// A bound implied by one item's where clause does not carry over to another item, even one that
+/// shares its generics. A sibling method writing that bound itself is not told it is redundant,
+/// and writing it a second time still is.
+#[test]
+fn implied_associated_type_bound_stays_with_the_item_that_implies_it() {
+    let src = "
+    trait HasQux {}
+    trait Foo { type Bar: HasQux; }
+
+    pub struct S<T, U> { t: T, u: U }
+
+    impl<T, U> S<T, U> {
+        pub fn implies() where T: Foo<Bar = U> {}
+
+        pub fn restates() where U: HasQux, U: HasQux {}
+               ^^^^^^^^ Constraint for `U: HasQux` is not needed, another matching impl is already in scope
+               ~~~~~~~~ Unnecessary trait constraint in where clause
+                                              ^^^^^^ Constraint for `U: HasQux` is not needed, another matching impl is already in scope
+                                              ~~~~~~ Unnecessary trait constraint in where clause
+    }
+    fn main() {}
+    ";
+    check_errors(src);
+}
+
 #[test]
 fn associated_constant_references_generic_in_impl() {
     let src = r#"
