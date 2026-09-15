@@ -2,7 +2,7 @@
 
 use crate::{
     Type,
-    node_interner::{ImplId, TraitId, TraitImplId},
+    node_interner::{ImplId, TraitId, TraitImplId, TypeId},
 };
 
 /// Where the item being elaborated sits with respect to impls and traits: what `Self` names, and
@@ -41,6 +41,17 @@ impl ImplContext {
             && current_trait.is_none()
             && current_trait_impl.is_none()
             && current_impl.is_none()
+    }
+
+    /// The struct or enum `Self` names, when `Self` is one.
+    ///
+    /// `None` when there is no `Self` in scope and when `Self` is something other than a data
+    /// type, such as the trait's own type variable inside a trait definition.
+    pub(crate) fn self_data_type_id(&self) -> Option<TypeId> {
+        match self.self_type.as_ref()? {
+            Type::DataType(data_type, _) => Some(data_type.borrow().id),
+            _ => None,
+        }
     }
 
     /// The type `Self` refers to, when the item is inside a trait or a trait impl.

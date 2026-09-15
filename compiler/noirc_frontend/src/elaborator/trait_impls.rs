@@ -280,8 +280,7 @@ impl Elaborator<'_> {
                 methods,
             });
 
-            let impl_generics =
-                vecmap(&self.item.generics.params, |generic| generic.type_var.clone());
+            let impl_generics = self.item.generics.type_vars();
 
             match self.interner.add_trait_implementation(
                 self_type.clone(),
@@ -971,8 +970,7 @@ impl Elaborator<'_> {
         if let Some(trait_id) = trait_id {
             // The ordered generics and associated types are already stored by `resolve_trait_impl_associated_types`.
             // Now that we have resolved the self-type, register the prepared trait impl for it.
-            let impl_generics =
-                vecmap(&self.item.generics.params, |generic| generic.type_var.clone());
+            let impl_generics = self.item.generics.type_vars();
             self.interner.add_prepared_trait_implementation(
                 self_type.clone(),
                 trait_id,

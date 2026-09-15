@@ -698,16 +698,7 @@ impl Elaborator<'_> {
             return None;
         }
         let head = path.segments[0].ident.as_str();
-        let bounds: Vec<_> = self
-            .item
-            .generics
-            .trait_bounds
-            .iter()
-            .filter(|constraint| {
-                matches!(&constraint.typ, Type::NamedGeneric(generic) if generic.name.as_str() == head)
-            })
-            .cloned()
-            .collect();
+        let bounds: Vec<_> = self.item.generics.bounds_on_generic(head).cloned().collect();
         (!bounds.is_empty()).then_some(bounds)
     }
 

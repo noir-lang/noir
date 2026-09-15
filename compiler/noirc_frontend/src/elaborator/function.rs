@@ -7,7 +7,7 @@
 //! - Second stage elaboration strategy of function bodies and their return type.
 //!   - Shared strategy for all types of functions (standalone, impl, trait impl)
 
-use std::collections::{BTreeSet, HashSet};
+use std::collections::HashSet;
 
 use iter_extended::vecmap;
 use itertools::Itertools;
@@ -310,7 +310,7 @@ impl Elaborator<'_> {
             local_module: Some(local_module),
             current_item: Some(DependencyId::Function(func_id)),
             impl_context,
-            generics: GenericsContext { params: outer_generics, ..Default::default() },
+            generics: GenericsContext::new(outer_generics, Vec::new()),
             in_comptime_context: func.def.is_comptime,
             ..Default::default()
         };
@@ -429,12 +429,7 @@ impl Elaborator<'_> {
         let statements = std::mem::take(&mut func.def.body.statements);
         let body = BlockExpression { statements };
 
-        let struct_id =
-            if let Some(Type::DataType(struct_type, _)) = &self.item.impl_context.self_type {
-                Some(struct_type.borrow().id)
-            } else {
-                None
-            };
+        let struct_id = self.item.impl_context.self_data_type_id();
 
         // Remove the traits assumed by `resolve_trait_constraints` from scope
         self.remove_trait_constraints_from_scope(
@@ -485,7 +480,7 @@ impl Elaborator<'_> {
     ) -> (Vec<TypeVariable>, Vec<TraitConstraint>) {
         self.add_generics(func_generics);
 
-        let func_generics = vecmap(&self.item.generics.params, |generic| generic.type_var.clone());
+        let func_generics = self.item.generics.type_vars();
 
         let associated_generics = self.desugar_trait_constraints(where_clause);
 
@@ -721,12 +716,12 @@ impl Elaborator<'_> {
                 current_trait_impl: func_meta.trait_impl,
                 current_impl: func_meta.impl_id,
             },
-            generics: GenericsContext {
-                // Set by `introduce_generics_into_scope`, which also declares the numeric generics.
-                params: Vec::new(),
-                trait_bounds: func_meta.all_trait_constraints().cloned().collect(),
-                implied_trait_bounds: BTreeSet::new(),
-            },
+            // The generics are left empty here and filled in by `introduce_generics_into_scope`,
+            // which also declares the numeric ones.
+            generics: GenericsContext::new(
+                Vec::new(),
+                func_meta.all_trait_constraints().cloned().collect(),
+            ),
             lambda_stack: Vec::new(),
             current_loop: None,
             unsafe_block_status: UnsafeBlockStatus::NotInUnsafeBlock,

@@ -1028,10 +1028,7 @@ impl<'context> Elaborator<'context> {
                 current_trait: trait_impl.trait_id,
                 ..Default::default()
             },
-            generics: GenericsContext {
-                params: trait_impl.resolved_generics.clone(),
-                ..Default::default()
-            },
+            generics: GenericsContext::new(trait_impl.resolved_generics.clone(), Vec::new()),
             ..Default::default()
         };
         self.with_item_context(context, |this| {

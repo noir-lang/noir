@@ -610,8 +610,7 @@ impl Elaborator<'_> {
             let self_type = self
                 .item
                 .impl_context
-                .self_type
-                .clone()
+                .trait_self_type()
                 .expect("Expected a self type if there's a current trait");
 
             self.add_trait_bound_to_scope(location, &self_type, &constraint.trait_bound);
@@ -642,7 +641,7 @@ impl Elaborator<'_> {
             self.interner.remove_assumed_trait_implementations_for_trait(trait_id);
         }
 
-        self.item.generics.implied_trait_bounds.clear();
+        self.item.generics.clear_implied_bounds();
     }
 
     /// Resolve the given trait constraints and add them to scope as we go.
@@ -855,8 +854,8 @@ impl Elaborator<'_> {
     /// implied bound duplicating one already in scope is how implication works, and a written
     /// bound duplicating an implied one is redundant only in the sense that the user spelled out
     /// something that already holds, which is not worth a warning. That is what
-    /// [`ItemContext::implied_trait_bounds`] is for: it makes the answer independent of the order
-    /// the two are registered in.
+    /// [`GenericsContext::record_implied_bound`] is for: it makes the answer independent of the
+    /// order the two are registered in.
     #[tracing::instrument(level = "trace", skip_all)]
     fn add_trait_bound_to_scope_inner(
         &mut self,
@@ -870,10 +869,9 @@ impl Elaborator<'_> {
         let generics = trait_bound.trait_generics.clone();
 
         if !written {
-            self.item.generics.implied_trait_bounds.insert((object.clone(), trait_id));
+            self.item.generics.record_implied_bound(object, trait_id);
         }
-        let written = written
-            && !self.item.generics.implied_trait_bounds.contains(&(object.clone(), trait_id));
+        let written = written && !self.item.generics.is_implied_bound(object, trait_id);
 
         match self.interner.add_assumed_trait_implementation(object.clone(), trait_id, generics) {
             Ok(true) => (),
@@ -1190,10 +1188,7 @@ impl Elaborator<'_> {
                 current_trait: self.item.impl_context.current_trait,
                 ..Default::default()
             },
-            generics: GenericsContext {
-                params: self.item.generics.params.clone(),
-                ..Default::default()
-            },
+            generics: GenericsContext::new(self.item.generics.params.clone(), Vec::new()),
             in_comptime_context: def.is_comptime,
             ..Default::default()
         };

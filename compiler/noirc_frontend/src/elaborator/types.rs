@@ -555,17 +555,13 @@ impl Elaborator<'_> {
         let mut found_types = Vec::new();
         let mut seen_traits = BTreeSet::new();
 
-        for constraint in &self.item.generics.trait_bounds {
-            if let Type::NamedGeneric(generic) = &constraint.typ
-                && generic.name.as_ref() == type_name
-            {
-                for named_generic in &constraint.trait_bound.trait_generics.named {
-                    if named_generic.name.as_str() == assoc_name {
-                        let trait_id = constraint.trait_bound.trait_id;
-                        // Skip duplicates.
-                        if seen_traits.insert(trait_id) {
-                            found_types.push((trait_id, named_generic.typ.clone()));
-                        }
+        for constraint in self.item.generics.bounds_on_generic(type_name) {
+            for named_generic in &constraint.trait_bound.trait_generics.named {
+                if named_generic.name.as_str() == assoc_name {
+                    let trait_id = constraint.trait_bound.trait_id;
+                    // Skip duplicates.
+                    if seen_traits.insert(trait_id) {
+                        found_types.push((trait_id, named_generic.typ.clone()));
                     }
                 }
             }
