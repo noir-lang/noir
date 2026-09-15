@@ -77,22 +77,19 @@ impl Elaborator<'_> {
             local_module: Some(trait_impl.module_id),
             current_trait_impl: trait_impl.impl_id,
             current_trait: trait_impl.trait_id,
-            self_type: Some(self_type.clone()),
+            self_type: Some(self_type),
             ..Default::default()
         };
         self.with_item_context(context, |this| {
-            this.collect_trait_impl_in_context(trait_impl, self_type);
+            this.collect_trait_impl_in_context(trait_impl);
         });
     }
 
     /// Does the work of [`Self::collect_trait_impl`].
     ///
     /// Expects the trait impl's own [`ItemContext`] to be installed.
-    fn collect_trait_impl_in_context(
-        &mut self,
-        trait_impl: &mut UnresolvedTraitImpl,
-        self_type: Type,
-    ) {
+    fn collect_trait_impl_in_context(&mut self, trait_impl: &mut UnresolvedTraitImpl) {
+        let self_type = self.item.self_type().clone();
         let self_type_location = trait_impl.object_type.location;
 
         if matches!(self_type.follow_bindings_shallow().as_ref(), Type::Reference(..)) {
@@ -505,7 +502,7 @@ impl Elaborator<'_> {
     ) {
         // First get the general trait to impl bindings.
         // Then we'll need to add the bindings for this specific method.
-        let self_type = self.item.self_type.as_ref().unwrap();
+        let self_type = self.item.self_type();
 
         let mut bindings =
             self.interner.trait_to_impl_bindings(trait_id, impl_id, trait_impl_generics, self_type);
