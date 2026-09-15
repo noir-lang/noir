@@ -53,8 +53,50 @@ use crate::{
 use super::{
     Elaborator, LambdaContext, UnsafeBlockStatus, UnstableFeature,
     function_context::BindableTypeVariableKind,
+    item_context::ItemContext,
     path_resolution::{TypedPath, TypedPathSegment},
 };
+
+impl ItemContext {
+    /// Enters an `unsafe` block, returning the status of the enclosing code so it can be handed
+    /// back to [`Self::exit_unsafe_block`].
+    #[must_use]
+    pub(super) fn enter_unsafe_block(&mut self) -> UnsafeBlockStatus {
+        std::mem::replace(
+            &mut self.unsafe_block_status,
+            UnsafeBlockStatus::InUnsafeBlockWithoutUnconstrainedCalls,
+        )
+    }
+
+    /// Leaves an `unsafe` block, returning whether it contained an unconstrained call.
+    ///
+    /// The `enclosing` status is reinstated unless this block is nested in another `unsafe`
+    /// block and contained an unconstrained call, in which case the enclosing block is
+    /// considered to contain that call as well.
+    pub(super) fn exit_unsafe_block(&mut self, enclosing: UnsafeBlockStatus) -> bool {
+        let has_unconstrained_call = matches!(
+            self.unsafe_block_status,
+            UnsafeBlockStatus::InUnsafeBlockWithUnconstrainedCalls
+        );
+        let is_nested = !matches!(enclosing, UnsafeBlockStatus::NotInUnsafeBlock);
+        if !is_nested || !has_unconstrained_call {
+            self.unsafe_block_status = enclosing;
+        }
+        has_unconstrained_call
+    }
+
+    /// Enters the arguments of a call to a function that is unconstrained or not, returning the
+    /// enclosing call's status so it can be handed back to [`Self::exit_call_arguments`].
+    #[must_use]
+    pub(super) fn enter_call_arguments(&mut self, unconstrained: bool) -> bool {
+        std::mem::replace(&mut self.in_unconstrained_args, unconstrained)
+    }
+
+    /// Leaves a call's arguments, reinstating the enclosing call's status.
+    pub(super) fn exit_call_arguments(&mut self, enclosing_unconstrained: bool) {
+        self.in_unconstrained_args = enclosing_unconstrained;
+    }
+}
 
 impl Elaborator<'_> {
     #[tracing::instrument(level = "trace", skip_all)]
@@ -358,36 +400,23 @@ impl Elaborator<'_> {
         unsafe_expression: UnsafeExpression,
         target_type: Option<&Type>,
     ) -> (HirExpression, Type) {
-        use UnsafeBlockStatus::*;
-        // Before entering the block we cache the old value of the unsafe block status, so it can be restored.
-        let old_in_unsafe_block = self.item.unsafe_block_status;
-        let is_nested_unsafe_block = !matches!(old_in_unsafe_block, NotInUnsafeBlock);
+        let enclosing_status = self.item.enter_unsafe_block();
 
-        if is_nested_unsafe_block {
+        if !matches!(enclosing_status, UnsafeBlockStatus::NotInUnsafeBlock) {
             self.push_err(TypeCheckError::NestedUnsafeBlock {
                 location: unsafe_expression.unsafe_keyword_location,
             });
         }
 
-        self.item.unsafe_block_status = InUnsafeBlockWithoutUnconstrainedCalls;
-
         let (hir_block_expression, typ) =
             self.elaborate_block_expression(unsafe_expression.block, target_type);
 
-        let has_unconstrained_call =
-            matches!(self.item.unsafe_block_status, InUnsafeBlockWithUnconstrainedCalls);
+        let has_unconstrained_call = self.item.exit_unsafe_block(enclosing_status);
 
         if !has_unconstrained_call {
             self.push_err(TypeCheckError::UnnecessaryUnsafeBlock {
                 location: unsafe_expression.unsafe_keyword_location,
             });
-        }
-
-        // Finally, we restore the original value of the unsafe block status,
-        // unless we are in a nested block and we have found an unconstrained call,
-        // in which case we should consider the outer block as having that call as well.
-        if !is_nested_unsafe_block || !has_unconstrained_call {
-            self.item.unsafe_block_status = old_in_unsafe_block;
         }
 
         (HirExpression::Unsafe(hir_block_expression), typ)
@@ -864,8 +893,7 @@ impl Elaborator<'_> {
             };
 
         // When calling an unconstrained function, we can elaborate lambda arguments to be unconstrained.
-        let was_in_unconstrained_args =
-            std::mem::replace(&mut self.item.in_unconstrained_args, unconstrained);
+        let enclosing_unconstrained_args = self.item.enter_call_arguments(unconstrained);
 
         let mut arguments = Vec::with_capacity(call.arguments.len());
         let args = vecmap(call.arguments.into_iter().enumerate(), |(arg_index, arg)| {
@@ -881,8 +909,7 @@ impl Elaborator<'_> {
         let hir_call = HirCallExpression { func, arguments, location, is_macro_call };
         let typ = self.type_check_call(&hir_call, func_type, args, location);
 
-        // Restore the old one after type checking.
-        self.item.in_unconstrained_args = was_in_unconstrained_args;
+        self.item.exit_call_arguments(enclosing_unconstrained_args);
 
         (hir_call, typ)
     }
@@ -2137,11 +2164,9 @@ impl Elaborator<'_> {
                 // Mirror `elaborate_unsafe_block`: an unconstrained call inside the block crosses
                 // the runtime boundary legally, so the boundary check must see that we are inside an
                 // unsafe block rather than reporting a spurious error.
-                let old_status = self.item.unsafe_block_status;
-                self.item.unsafe_block_status =
-                    UnsafeBlockStatus::InUnsafeBlockWithoutUnconstrainedCalls;
+                let enclosing_status = self.item.enter_unsafe_block();
                 self.revalidate_resolved_block(&block);
-                self.item.unsafe_block_status = old_status;
+                self.item.exit_unsafe_block(enclosing_status);
             }
             HirExpression::Prefix(prefix) => {
                 self.revalidate_resolved_expression(prefix.rhs);
