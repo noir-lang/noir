@@ -1321,6 +1321,30 @@ mod test {
         assert_ssa_does_not_change(&src, |ssa| ssa.fold_constants(MIN_ITER));
     }
 
+    // An ArraySet in the alias chain between a mutation and the original producer must
+    // also be followed. Here:
+    //   make_array → array_set → call identity() → vector_pop_front (mutation)
+    // The walk must traverse call then array_set to reach and evict the make_array.
+    #[test]
+    fn array_set_in_alias_chain_prevents_make_array_dedup() {
+        let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            v1 = make_array [u32 100, u32 200] : [u32]
+            v2 = array_set v1, index u32 0, value u32 300
+            v3, v4 = call f1(u32 2, v2) -> (u32, [u32])
+            v5, v6, v7 = call vector_pop_front(v3, v4) -> (u32, u32, [u32])
+            v8 = make_array [u32 100, u32 200] : [u32]
+            return v8
+        }
+        brillig(inline_never) pure fn identity f1 {
+          b0(v0: u32, v1: [u32]):
+            return v0, v1
+        }
+        ";
+        assert_ssa_does_not_change(src, |ssa| ssa.fold_constants_using_constraints(MIN_ITER));
+    }
+
     // Regression for noir-claude#1829.
     // A repeated array literal `[v; N]` lowers to a `make_array` holding one value in all N element
     // positions, so invalidating the cache for a mutation of it enqueues that value N times. Every
