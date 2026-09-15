@@ -1085,7 +1085,7 @@
 <a href=#1085 id=1085 data-nosnippet>1085</a>            <span class="kw">for </span>bound <span class="kw">in </span>desugared.bounds {
 <a href=#1086 id=1086 data-nosnippet>1086</a>                <span class="kw">let </span>typ = desugared.named_generic.clone();
 <a href=#1087 id=1087 data-nosnippet>1087</a>                <span class="kw">let </span>location = desugared.generic.location;
-<a href=#1088 id=1088 data-nosnippet>1088</a>                <span class="self">self</span>.add_trait_bound_to_scope(location, <span class="kw-2">&amp;</span>typ, <span class="kw-2">&amp;</span>bound);
+<a href=#1088 id=1088 data-nosnippet>1088</a>                <span class="self">self</span>.add_implied_trait_bound_to_scope(location, <span class="kw-2">&amp;</span>typ, <span class="kw-2">&amp;</span>bound);
 <a href=#1089 id=1089 data-nosnippet>1089</a>                new_generics_trait_constraints
 <a href=#1090 id=1090 data-nosnippet>1090</a>                    .push((TraitConstraint { typ, trait_bound: bound }, location));
 <a href=#1091 id=1091 data-nosnippet>1091</a>            }
