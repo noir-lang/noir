@@ -80,6 +80,12 @@ impl ImplContext {
         self.self_type.as_ref()
     }
 
+    /// The type `Self` refers to. Only call this where an impl, trait or trait impl context is
+    /// installed; items that have no `Self` leave this unset.
+    pub(crate) fn expect_self_type(&self) -> &Type {
+        self.self_type.as_ref().expect("self_type is unset")
+    }
+
     pub(crate) fn current_trait(&self) -> Option<TraitId> {
         self.current_trait
     }
