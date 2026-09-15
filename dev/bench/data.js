@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789490102025,
+  "lastUpdate": 1789490165076,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -15311,48 +15311,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "2e3caacfd2031529fb85ae0fee3281cc47ae58e1",
-          "message": "feat(ssa): predicate trivial conditionals instead of leaving them to flattening (#13643)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
-          "timestamp": "2026-09-10T15:13:20Z",
-          "tree_id": "87db7021fdb196d11dfeb40fd2694a3e1da072d5",
-          "url": "https://github.com/noir-lang/noir/commit/2e3caacfd2031529fb85ae0fee3281cc47ae58e1"
-        },
-        "date": 1789054501755,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 127259,
-            "range": "± 519",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 113029,
-            "range": "± 2687",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3040380,
-            "range": "± 9636",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "8dcefea164758707ea3afabb35400bd178177641",
           "message": "fix(frontend): restore type variable bindings on every path out of monomorphization (#13637)",
           "timestamp": "2026-09-10T15:28:46Z",
@@ -17394,6 +17352,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3048314,
             "range": "± 7809",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2ba870c82e283acfe54eb914da98953d704fe052",
+          "message": "chore(frontend): record the elaborator's per-item context rule in `design/` (#13717)",
+          "timestamp": "2026-09-15T17:32:20+01:00",
+          "tree_id": "f87f79e34a78c56162450590d2e6816b34ab0efa",
+          "url": "https://github.com/noir-lang/noir/commit/2ba870c82e283acfe54eb914da98953d704fe052"
+        },
+        "date": 1789490091595,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 100314,
+            "range": "± 1589",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 87883,
+            "range": "± 1544",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2395292,
+            "range": "± 25032",
             "unit": "ns/iter"
           }
         ]
