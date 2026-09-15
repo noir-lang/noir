@@ -5,21 +5,33 @@
 # Merge-queue note: `gh pr merge` doesn't work on repos with a merge queue,
 # so PRs are enqueued via the GraphQL `enqueuePullRequest` mutation instead.
 #
-# Usage: scripts/approve-dependabot-prs.sh [--dry-run]
+# Usage: scripts/approve-dependabot-prs.sh [--dry-run | --list]
+#   --dry-run  show what would be approved + enqueued without doing it.
+#   --list     print the open dependabot PRs (one per line as `<number> <branch>`) and exit,
+#              without prompting; for feeding other tooling.
 #   REPO=owner/name overrides the target repo (default: noir-lang/noir).
 
 set -euo pipefail
 
 REPO="${REPO:-noir-lang/noir}"
 DRY_RUN=false
-[ "${1:-}" = "--dry-run" ] && DRY_RUN=true
+LIST_ONLY=false
+case "${1:-}" in
+  --dry-run) DRY_RUN=true ;;
+  --list) LIST_ONLY=true ;;
+esac
 
 prs=$(gh pr list -R "$REPO" --author "app/dependabot" --state open --limit 100 \
-  --json number,title,id,isDraft,reviewDecision,statusCheckRollup)
+  --json number,title,id,isDraft,reviewDecision,statusCheckRollup,headRefName)
 
 count=$(jq 'length' <<<"$prs")
 if [ "$count" -eq 0 ]; then
   echo "No open dependabot PRs on $REPO."
+  exit 0
+fi
+
+if $LIST_ONLY; then
+  jq -r '.[] | "\(.number) \(.headRefName)"' <<<"$prs"
   exit 0
 fi
 
