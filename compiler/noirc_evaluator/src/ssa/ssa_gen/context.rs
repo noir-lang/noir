@@ -630,6 +630,25 @@ impl<'a> FunctionContext<'a> {
         )
     }
 
+    /// Increment a `for` loop's induction variable by one, for the back-edge jump.
+    ///
+    /// For a signed index this is an unchecked add, so in an ACIR function it may leave the
+    /// value as an extended (non-reduced) field element rather than wrapping. A `truncate`
+    /// brings it back to the type's bit size immediately, so the value seen at the next loop
+    /// entry (and by anything constant-folding it, such as `Unrolling`) is always the correctly
+    /// wrapped index rather than the raw field-extended one. The step itself cannot signed-overflow
+    /// for a well-typed loop, so no overflow check is needed here, only the reduction.
+    pub(super) fn increment_loop_index(&mut self, loop_index: ValueId) -> ValueId {
+        let typ = self.builder.type_of_value(loop_index).unwrap_numeric();
+        let new_index = self.make_offset(loop_index, 1, true);
+        if typ.is_signed() {
+            let bit_size = typ.bit_size::<FieldElement>();
+            self.builder.insert_truncate(new_index, bit_size, bit_size + 1)
+        } else {
+            new_index
+        }
+    }
+
     /// Create a const offset of an address for an array load or store
     pub(super) fn make_offset(
         &mut self,

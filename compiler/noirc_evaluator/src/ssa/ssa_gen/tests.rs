@@ -650,10 +650,11 @@ fn for_loop_inclusive_signed_negative_end_is_not_a_maximum() {
         v6 = add v5, v0
         store v6 at v1
         v8 = unchecked_add v0, i16 1
-        jmp b1(v8)
+        v9 = truncate v8 to 16 bits, max_bit_size: 17
+        jmp b1(v9)
       b3():
-        v9 = load v1 -> i16
-        return v9
+        v10 = load v1 -> i16
+        return v10
     }
     ");
 }
