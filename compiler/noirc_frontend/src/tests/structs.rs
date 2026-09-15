@@ -535,6 +535,16 @@ fn deny_cyclic_structs() {
 }
 
 #[test]
+fn allows_comptime_type_in_comptime_struct() {
+    let src = r#"
+    pub comptime struct Foo {
+        quoted: Quoted,
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn errors_if_using_comptime_type_in_non_comptime_struct() {
     let src = r#"
     pub struct Foo {

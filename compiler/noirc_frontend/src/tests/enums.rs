@@ -789,6 +789,17 @@ fn can_return_enum_from_unconstrained_to_unconstrained() {
 }
 
 #[test]
+fn allows_comptime_type_in_comptime_enum() {
+    let src = r#"
+    pub comptime enum Foo {
+        Quoted(Quoted),
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    assert_no_errors_using_features(src, &features);
+}
+
+#[test]
 fn errors_if_using_comptime_type_in_non_comptime_enum() {
     let src = r#"
     pub enum Foo {
