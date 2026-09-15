@@ -3795,6 +3795,13 @@ impl std::fmt::Debug for DataType {
 
 impl std::hash::Hash for Type {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        // `Type::eq` compares a `CheckedCast` against its `to` type and ignores the wrapper, so the
+        // hash has to ignore it as well: equal types must hash equally, or a `HashMap` keyed by
+        // `Type` misses on keys it considers equal.
+        if let Type::CheckedCast { to, .. } = self {
+            return to.hash(state);
+        }
+
         if let Some((variable, kind)) = self.get_inner_type_variable() {
             kind.hash(state);
             if let TypeBinding::Bound(typ) = &*variable.borrow() {
@@ -3853,7 +3860,9 @@ impl std::hash::Hash for Type {
                 vars.hash(state);
                 typ.hash(state);
             }
-            Type::CheckedCast { to, .. } => to.hash(state),
+            Type::CheckedCast { .. } => {
+                unreachable!("`CheckedCast` is hashed through its `to` type above")
+            }
             Type::Constant(value) => value.hash(state),
             Type::Quoted(typ) => typ.hash(state),
             Type::InfixExpr(lhs, op, rhs, _) => {
@@ -3945,6 +3954,38 @@ impl PartialEq for Type {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// `Type::eq` unwraps a `CheckedCast` and compares its `to` type, so any type that is equal to
+    /// a `CheckedCast` must also hash the same as it. Monomorphization keys its function cache on
+    /// `Type`, so a mismatch here silently duplicates instantiations.
+    #[test]
+    fn checked_cast_hashes_as_its_target_type() {
+        fn hash_of(typ: &Type) -> u64 {
+            use std::hash::{DefaultHasher, Hash, Hasher};
+
+            let mut hasher = DefaultHasher::new();
+            typ.hash(&mut hasher);
+            hasher.finish()
+        }
+
+        fn checked_cast(typ: Type) -> Type {
+            Type::CheckedCast { from: Box::new(typ.clone()), to: Box::new(typ) }
+        }
+
+        let type_variable =
+            Type::TypeVariable(TypeVariable::unbound(TypeVariableId(0), Kind::u32()));
+
+        for typ in [Type::FieldElement, Type::constant_u32(3), type_variable] {
+            let cast = checked_cast(typ.clone());
+            assert_eq!(typ, cast);
+            assert_eq!(hash_of(&typ), hash_of(&cast), "{typ:?} and {cast:?} hash differently");
+
+            // A `CheckedCast` produced by an arithmetic-generic solve can wrap another one.
+            let nested = checked_cast(cast);
+            assert_eq!(typ, nested);
+            assert_eq!(hash_of(&typ), hash_of(&nested), "{typ:?} and {nested:?} hash differently");
+        }
+    }
 
     /// Creates a tuple type nested to the specified depth.
     /// For example, depth 3 creates: (((Field,),),)
