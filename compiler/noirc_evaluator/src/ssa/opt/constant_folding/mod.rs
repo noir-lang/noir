@@ -1427,6 +1427,29 @@ mod test {
         assert_ssa_does_not_change(src, |ssa| ssa.fold_constants(MIN_ITER));
     }
 
+    // Regression for noir-claude#1798.
+    // `black_box` is lowered in brillig as a register move, so for an array operand the value it
+    // returns is the operand's heap buffer under a second name. The `array_set` against that result
+    // therefore writes the buffer `v3` names, and the second, identical `make_array` must not be
+    // deduplicated against `v3` — doing so makes the trailing `array_get` read 99 instead of `v0`.
+    #[test]
+    fn mutation_of_black_box_result_prevents_reuse_of_its_argument() {
+        let src = "
+        brillig(inline) impure fn main f0 {
+          b0(v0: Field, v1: u32, v2: u32):
+            v3 = make_array [v0, v0, v0] : [Field; 3]
+            v4 = call black_box(v3) -> [Field; 3]
+            v5 = array_set v4, index v1, value Field 99
+            v6 = make_array [v0, v0, v0] : [Field; 3]
+            v7 = array_get v5, index u32 0 -> Field
+            v8 = array_get v6, index v2 -> Field
+            v9 = make_array [v7, v8] : [Field; 2]
+            return v9
+        }
+        ";
+        assert_ssa_does_not_change(src, |ssa| ssa.fold_constants_using_constraints(MIN_ITER));
+    }
+
     #[test]
     fn deduplicate_instructions_with_predicates() {
         let src = "
