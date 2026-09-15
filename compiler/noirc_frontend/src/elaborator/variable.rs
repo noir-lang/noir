@@ -700,6 +700,7 @@ impl Elaborator<'_> {
         let head = path.segments[0].ident.as_str();
         let bounds: Vec<_> = self
             .item
+            .generics
             .trait_bounds
             .iter()
             .filter(|constraint| {

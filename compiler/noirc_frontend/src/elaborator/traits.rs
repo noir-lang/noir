@@ -202,7 +202,7 @@ use crate::{
 use super::{
     Elaborator,
     function::UnresolvedFunctionMeta,
-    item_context::{ImplContext, ItemContext},
+    item_context::{GenericsContext, ImplContext, ItemContext},
 };
 
 /// A generic synthesized for an associated type that was elided from a trait bound.
@@ -301,7 +301,7 @@ impl Elaborator<'_> {
                 }
 
                 let new_generics = vecmap(desugared_generics, |desugared| desugared.generic);
-                this.item.generics.extend(new_generics);
+                this.item.generics.params.extend(new_generics);
 
                 let where_clause = this.resolve_trait_constraints_and_add_to_scope(
                     &unresolved_trait.trait_def.where_clause,
@@ -318,7 +318,7 @@ impl Elaborator<'_> {
 
                 // Each associated type in this trait is also an implicit generic
                 for associated_type in &this.interner.get_trait(*trait_id).associated_types {
-                    this.item.generics.push(associated_type.clone());
+                    this.item.generics.params.push(associated_type.clone());
                 }
 
                 let resolved_trait_bounds =
@@ -348,7 +348,7 @@ impl Elaborator<'_> {
                     trait_def.set_associated_type_bounds(associated_type_bounds);
                     trait_def.implicit_associated_type_constraints =
                         implicit_associated_type_constraints;
-                    trait_def.set_all_generics(this.item.generics.clone());
+                    trait_def.set_all_generics(this.item.generics.params.clone());
                 });
             });
         }
@@ -362,7 +362,7 @@ impl Elaborator<'_> {
     pub fn collect_trait_methods(&mut self, traits: &mut BTreeMap<TraitId, UnresolvedTrait>) {
         for (trait_id, unresolved_trait) in traits {
             self.with_trait_scope(*trait_id, unresolved_trait.module_id, |this| {
-                this.item.generics = this.interner.get_trait(*trait_id).all_generics.clone();
+                this.item.generics.params = this.interner.get_trait(*trait_id).all_generics.clone();
 
                 let methods = this.resolve_trait_methods(*trait_id, unresolved_trait);
 
@@ -632,6 +632,7 @@ impl Elaborator<'_> {
                 .remove_assumed_trait_implementations_for_trait(constraint.trait_bound.trait_id);
             // Also remove from trait_bounds
             self.item
+                .generics
                 .trait_bounds
                 .retain(|c| c.trait_bound.trait_id != constraint.trait_bound.trait_id);
         }
@@ -641,7 +642,7 @@ impl Elaborator<'_> {
             self.interner.remove_assumed_trait_implementations_for_trait(trait_id);
         }
 
-        self.item.implied_trait_bounds.clear();
+        self.item.generics.implied_trait_bounds.clear();
     }
 
     /// Resolve the given trait constraints and add them to scope as we go.
@@ -680,13 +681,13 @@ impl Elaborator<'_> {
 
         let constraint = TraitConstraint { typ, trait_bound };
         // Also add to trait_bounds so that T::AssocType syntax can be resolved
-        self.item.trait_bounds.push(constraint.clone());
+        self.item.generics.trait_bounds.push(constraint.clone());
         Some(constraint)
     }
 
     /// For each resolved trait constraint, add constraints for parent traits that have
     /// associated types. This creates fresh type variables for the parent associated types
-    /// so that `M::Key` syntax can be resolved via `self.item.trait_bounds`.
+    /// so that `M::Key` syntax can be resolved via `self.item.generics.trait_bounds`.
     ///
     /// The parent trait bounds are obtained from `Trait::parent_bounds` (already resolved
     /// during `collect_traits` with associated type variables) and instantiated via
@@ -721,7 +722,7 @@ impl Elaborator<'_> {
 
     /// Recursively walk parent trait hierarchies and create fresh type variables
     /// for any associated types found on parent traits. The new constraints are
-    /// pushed to `self.item.trait_bounds` and returned via the output parameters.
+    /// pushed to `self.item.generics.trait_bounds` and returned via the output parameters.
     #[tracing::instrument(level = "trace", skip_all)]
     fn collect_parent_associated_types(
         &mut self,
@@ -750,7 +751,7 @@ impl Elaborator<'_> {
             // or if we already have a constraint for this type + parent trait.
             let has_named = !instantiated.trait_generics.named.is_empty();
             let already_has =
-                self.item.trait_bounds.iter().any(|c| {
+                self.item.generics.trait_bounds.iter().any(|c| {
                     c.trait_bound.trait_id == instantiated.trait_id && c.typ == *object_type
                 });
 
@@ -800,7 +801,7 @@ impl Elaborator<'_> {
                         location: instantiated.location,
                     },
                 };
-                self.item.trait_bounds.push(parent_constraint.clone());
+                self.item.generics.trait_bounds.push(parent_constraint.clone());
                 new_constraints.push(parent_constraint);
             }
 
@@ -869,10 +870,10 @@ impl Elaborator<'_> {
         let generics = trait_bound.trait_generics.clone();
 
         if !written {
-            self.item.implied_trait_bounds.insert((object.clone(), trait_id));
+            self.item.generics.implied_trait_bounds.insert((object.clone(), trait_id));
         }
-        let written =
-            written && !self.item.implied_trait_bounds.contains(&(object.clone(), trait_id));
+        let written = written
+            && !self.item.generics.implied_trait_bounds.contains(&(object.clone(), trait_id));
 
         match self.interner.add_assumed_trait_implementation(object.clone(), trait_id, generics) {
             Ok(true) => (),
@@ -1189,7 +1190,10 @@ impl Elaborator<'_> {
                 current_trait: self.item.impl_context.current_trait,
                 ..Default::default()
             },
-            generics: self.item.generics.clone(),
+            generics: GenericsContext {
+                params: self.item.generics.params.clone(),
+                ..Default::default()
+            },
             in_comptime_context: def.is_comptime,
             ..Default::default()
         };
@@ -1287,7 +1291,7 @@ impl Elaborator<'_> {
                     current_trait: Some(trait_id),
                     ..Default::default()
                 },
-                outer_generics: self.item.generics.clone(),
+                outer_generics: self.item.generics.params.clone(),
                 extra_trait_constraints,
             },
         );

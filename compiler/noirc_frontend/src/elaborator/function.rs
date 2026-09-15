@@ -44,7 +44,7 @@ use crate::{
 
 use super::{
     Elaborator, UnsafeBlockStatus,
-    item_context::{ImplContext, ItemContext},
+    item_context::{GenericsContext, ImplContext, ItemContext},
 };
 
 type ResolvedParametersInfo = (Vec<(HirPattern, Type, Visibility)>, Vec<Type>, Vec<HirIdent>);
@@ -171,7 +171,7 @@ impl Elaborator<'_> {
                 },
             );
 
-            let outer_generics = self.item.generics.clone();
+            let outer_generics = self.item.generics.params.clone();
             for (method_module, id, func) in &unresolved_impl.methods.functions {
                 self.unresolved_function_metas.insert(
                     *id,
@@ -192,7 +192,7 @@ impl Elaborator<'_> {
             // The assumed impls added while resolving the where clause are only needed to
             // resolve the where clause itself; method bodies re-add them when they elaborate.
             self.remove_trait_constraints_from_scope(resolved_where_clause.iter());
-            self.item.generics.clear();
+            self.item.generics.params.clear();
         }
 
         self.item.local_module = previous_local_module;
@@ -310,7 +310,7 @@ impl Elaborator<'_> {
             local_module: Some(local_module),
             current_item: Some(DependencyId::Function(func_id)),
             impl_context,
-            generics: outer_generics,
+            generics: GenericsContext { params: outer_generics, ..Default::default() },
             in_comptime_context: func.def.is_comptime,
             ..Default::default()
         };
@@ -421,7 +421,7 @@ impl Elaborator<'_> {
                 generic
                     .ident()
                     .ident()
-                    .and_then(|name| self.item.find_generic(name.as_str()))
+                    .and_then(|name| self.item.generics.find(name.as_str()))
                     .cloned()
             })
             .collect();
@@ -447,7 +447,7 @@ impl Elaborator<'_> {
             location,
             typ,
             direct_generics,
-            all_generics: self.item.generics.clone(),
+            all_generics: self.item.generics.params.clone(),
             type_id: struct_id,
             trait_id,
             trait_impl: self.item.impl_context.current_trait_impl,
@@ -485,7 +485,7 @@ impl Elaborator<'_> {
     ) -> (Vec<TypeVariable>, Vec<TraitConstraint>) {
         self.add_generics(func_generics);
 
-        let func_generics = vecmap(&self.item.generics, |generic| generic.type_var.clone());
+        let func_generics = vecmap(&self.item.generics.params, |generic| generic.type_var.clone());
 
         let associated_generics = self.desugar_trait_constraints(where_clause);
 
@@ -721,10 +721,12 @@ impl Elaborator<'_> {
                 current_trait_impl: func_meta.trait_impl,
                 current_impl: func_meta.impl_id,
             },
-            // Set by `introduce_generics_into_scope`, which also declares the numeric generics.
-            generics: Vec::new(),
-            trait_bounds: func_meta.all_trait_constraints().cloned().collect(),
-            implied_trait_bounds: BTreeSet::new(),
+            generics: GenericsContext {
+                // Set by `introduce_generics_into_scope`, which also declares the numeric generics.
+                params: Vec::new(),
+                trait_bounds: func_meta.all_trait_constraints().cloned().collect(),
+                implied_trait_bounds: BTreeSet::new(),
+            },
             lambda_stack: Vec::new(),
             current_loop: None,
             unsafe_block_status: UnsafeBlockStatus::NotInUnsafeBlock,

@@ -18,42 +18,16 @@ use crate::{
     node_interner::{DefinitionKind, NodeInterner, QuotedTypeId},
 };
 
-use super::{Elaborator, item_context::ItemContext};
-
-/// Saved generics state for restoration after a scope exits.
-pub(super) struct GenericsState {
-    generics_count: usize,
-}
-
-impl ItemContext {
-    /// Saves the current generics state to be restored later with [`Self::exit_generics_scope`].
-    /// Note that all of `self.generics` will still be in scope after this call. This will only save the
-    /// position of the current generics so that any generics added afterward can later be discarded
-    /// via a call to [`Self::exit_generics_scope`].
-    pub(super) fn enter_generics_scope(&self) -> GenericsState {
-        GenericsState { generics_count: self.generics.len() }
-    }
-
-    /// Restores the generics state saved by `enter_generics_scope`.
-    #[tracing::instrument(level = "trace", skip_all)]
-    pub(super) fn exit_generics_scope(&mut self, state: GenericsState) {
-        self.generics.truncate(state.generics_count);
-    }
-
-    /// Find a generic variable among the generics of the current struct or function.
-    pub(super) fn find_generic(&self, target_name: &str) -> Option<&ResolvedGeneric> {
-        self.generics.iter().find(|generic| generic.name.as_ref() == target_name)
-    }
-}
+use super::Elaborator;
 
 impl Elaborator<'_> {
     /// Runs `f` and if it modifies the generics in scope, they are truncated
     /// back to the previous length.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn recover_generics<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
-        let state = self.item.enter_generics_scope();
+        let state = self.item.generics.enter_scope();
         let ret = f(self);
-        self.item.exit_generics_scope(state);
+        self.item.generics.exit_scope(state);
         ret
     }
 
@@ -83,14 +57,14 @@ impl Elaborator<'_> {
             // we have multiple generics from macros which fail to resolve and
             // are all given the same default name "(error)".
             if !is_error {
-                if let Some(generic) = self.item.find_generic(&name_owned) {
+                if let Some(generic) = self.item.generics.find(&name_owned) {
                     self.push_err(ResolverError::DuplicateDefinition {
                         name: name_owned,
                         first_location: generic.location,
                         second_location: location,
                     });
                 } else {
-                    self.item.generics.push(resolved_generic.clone());
+                    self.item.generics.params.push(resolved_generic.clone());
                 }
             }
 
@@ -121,14 +95,14 @@ impl Elaborator<'_> {
         if let Some(name) = unresolved_generic.ident().ident() {
             let name = name.as_str();
 
-            if let Some(generic) = self.item.find_generic(name) {
+            if let Some(generic) = self.item.generics.find(name) {
                 self.push_err(ResolverError::DuplicateDefinition {
                     name: name.to_string(),
                     first_location: generic.location,
                     second_location: location,
                 });
             } else {
-                self.item.generics.push(resolved_generic.clone());
+                self.item.generics.params.push(resolved_generic.clone());
             }
         }
     }
@@ -268,7 +242,7 @@ impl Elaborator<'_> {
             }
         }
 
-        self.item.generics = all_generics;
+        self.item.generics.params = all_generics;
     }
 }
 

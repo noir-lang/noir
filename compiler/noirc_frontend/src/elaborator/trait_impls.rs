@@ -131,7 +131,7 @@ impl Elaborator<'_> {
         );
 
         if let Some(trait_id) = trait_impl.trait_id {
-            self.item.generics.clone_from(&trait_impl.resolved_generics);
+            self.item.generics.params.clone_from(&trait_impl.resolved_generics);
 
             let where_clause =
                 self.resolve_trait_constraints_and_add_to_scope(&trait_impl.where_clause);
@@ -280,7 +280,8 @@ impl Elaborator<'_> {
                 methods,
             });
 
-            let impl_generics = vecmap(&self.item.generics, |generic| generic.type_var.clone());
+            let impl_generics =
+                vecmap(&self.item.generics.params, |generic| generic.type_var.clone());
 
             match self.interner.add_trait_implementation(
                 self_type.clone(),
@@ -970,7 +971,8 @@ impl Elaborator<'_> {
         if let Some(trait_id) = trait_id {
             // The ordered generics and associated types are already stored by `resolve_trait_impl_associated_types`.
             // Now that we have resolved the self-type, register the prepared trait impl for it.
-            let impl_generics = vecmap(&self.item.generics, |generic| generic.type_var.clone());
+            let impl_generics =
+                vecmap(&self.item.generics.params, |generic| generic.type_var.clone());
             self.interner.add_prepared_trait_implementation(
                 self_type.clone(),
                 trait_id,
@@ -995,7 +997,7 @@ impl Elaborator<'_> {
             self.interner.add_trait_reference(trait_id, location, is_self_type_name);
         }
 
-        let generics = std::mem::take(&mut self.item.generics);
+        let generics = std::mem::take(&mut self.item.generics.params);
 
         (new_generics_trait_constraints, generics)
     }
@@ -1086,7 +1088,7 @@ impl Elaborator<'_> {
         trait_impl: &mut UnresolvedTraitImpl,
     ) -> (Vec<TraitConstraint>, Vec<(TraitConstraint, Location)>) {
         self.add_generics(&trait_impl.generics);
-        trait_impl.resolved_generics = self.item.generics.clone();
+        trait_impl.resolved_generics = self.item.generics.params.clone();
 
         let new_generics = self.desugar_trait_constraints(&mut trait_impl.where_clause);
         let mut new_generics_trait_constraints = Vec::new();
@@ -1099,7 +1101,7 @@ impl Elaborator<'_> {
                     .push((TraitConstraint { typ, trait_bound: bound }, location));
             }
             trait_impl.resolved_generics.push(desugared.generic.clone());
-            self.item.generics.push(desugared.generic);
+            self.item.generics.params.push(desugared.generic);
         }
 
         // We need to resolve the where clause before any associated types to be

@@ -8,11 +8,11 @@ use crate::{
 /// Where the item being elaborated sits with respect to impls and traits: what `Self` names, and
 /// which trait, trait impl or inherent impl block encloses it.
 ///
-/// The fields are read together - `Self` is meaningless without knowing which kind of block it
-/// came from - so they are set together, as a unit, by every scope that enters an impl or a trait.
-/// A scope that enters none of them leaves this [`Default`], which is what
+/// These fields describe one fact between them - `Self` means nothing without knowing whether it
+/// came from a trait, a trait impl or an inherent impl - so a scope entering any of those fills
+/// them in as a unit. A scope inside none of them leaves this [`Default`], which is what
 /// [`Self::is_outside_any_impl_or_trait`] reports.
-#[derive(Default, Clone)]
+#[derive(Default)]
 pub(crate) struct ImplContext {
     /// Set to the current type if we're resolving an impl
     pub(crate) self_type: Option<Type>,
@@ -48,6 +48,7 @@ impl ImplContext {
     /// `None` for an inherent impl: a constraint is only resolved against `Self` when `Self` is
     /// the trait's own type variable or the type a trait impl is written for.
     pub(crate) fn trait_self_type(&self) -> Option<Type> {
-        self.current_trait.and_then(|_| self.self_type.clone())
+        self.current_trait?;
+        self.self_type.clone()
     }
 }

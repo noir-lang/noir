@@ -10,22 +10,25 @@
 //! [`Elaborator::with_item_context`] installs a whole [`ItemContext`] for the duration of a closure
 //! and reinstates the previous one afterwards. Since the state lives in one struct that is swapped
 //! as a unit, a field added here is saved and restored by construction.
-
-use std::collections::BTreeSet;
+//!
+//! Within that struct, fields which are only meaningful together live in a sub-context of their
+//! own - [`ImplContext`] for the enclosing impl or trait, [`GenericsContext`] for the generics and
+//! bounds in scope. Each sub-context owns the operations over its own fields, so a caller that
+//! needs one group does not get a handle on the rest.
 
 use crate::{
-    Type,
     hir::def_map::{LocalModuleId, ModuleId},
-    hir_def::{traits::TraitConstraint, types::ResolvedGeneric},
-    node_interner::{DependencyId, TraitId},
+    node_interner::DependencyId,
 };
 
 use super::{
     Elaborator, LambdaContext, Loop, UnsafeBlockStatus, types::ImplTraitDisallowedContext,
 };
 
+mod generics_context;
 mod impl_context;
 
+pub(crate) use generics_context::GenericsContext;
 pub(crate) use impl_context::ImplContext;
 
 /// The elaborator state describing one item's elaboration.
@@ -55,24 +58,8 @@ pub(super) struct ItemContext {
     /// The impl or trait the item belongs to, if any.
     pub(super) impl_context: ImplContext,
 
-    /// Contains a mapping of the current struct or functions's generics to
-    /// unique type variables if we're resolving a struct. Empty otherwise.
-    /// This is a Vec rather than a map to preserve the order a functions generics
-    /// were declared in.
-    pub(super) generics: Vec<ResolvedGeneric>,
-
-    /// Each constraint in the `where` clause of the function currently being resolved.
-    pub(super) trait_bounds: Vec<TraitConstraint>,
-
-    /// Every `(object type, trait)` pair brought into scope by implication rather than by a
-    /// `where` clause naming it: a bound declared on an associated type, or a parent trait.
-    ///
-    /// A written bound which duplicates one of these is not reported as unnecessary. The two can
-    /// be registered in either order - the implication may come from a later clause in the same
-    /// `where` list - so remembering the implied pairs is what makes the diagnostic independent of
-    /// that order. Emptied together with the assumed impls by
-    /// [`Elaborator::remove_trait_constraints_from_scope`].
-    pub(super) implied_trait_bounds: BTreeSet<(Type, TraitId)>,
+    /// The generics in scope, and the trait bounds they carry.
+    pub(super) generics: GenericsContext,
 
     /// When resolving lambda expressions, we need to keep track of the variables
     /// that are captured. We do this in order to create the hidden environment

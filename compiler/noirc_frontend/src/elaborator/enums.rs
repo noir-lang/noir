@@ -158,7 +158,7 @@ impl Elaborator<'_> {
                 );
             }
         }
-        self.item.generics.clear();
+        self.item.generics.params.clear();
     }
 
     /// If `type_id` was registered for deferred variant resolution, resolve it

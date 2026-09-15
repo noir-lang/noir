@@ -208,7 +208,7 @@ impl Elaborator<'_> {
             if let Type::NamedGeneric(named) = typ
                 && !named.is_associated()
                 && let TypeBinding::Unbound(id, kind) = &*named.type_var.borrow()
-                && let Some(generic) = self.item.find_generic(named.name.as_str())
+                && let Some(generic) = self.item.generics.find(named.name.as_str())
                 && generic.type_var.id() != *id
             {
                 let replacement = generic.clone().into_named_generic(None);
@@ -535,7 +535,7 @@ impl Elaborator<'_> {
     /// Also searches parent traits.
     #[tracing::instrument(level = "trace", skip_all)]
     fn lookup_associated_type_on_generic(&mut self, path: &TypedPath) -> Option<Type> {
-        if self.item.trait_bounds.is_empty() {
+        if self.item.generics.trait_bounds.is_empty() {
             return None;
         }
 
@@ -547,15 +547,15 @@ impl Elaborator<'_> {
         let assoc_name = path.last_name();
 
         // Check if first segment is a generic parameter
-        self.item.find_generic(type_name)?;
+        self.item.generics.find(type_name)?;
 
         // Search trait bounds for this generic to find the associated type directly.
-        // Parent associated types are expected to be in `self.item.trait_bounds` already,
+        // Parent associated types are expected to be in `self.item.generics.trait_bounds` already,
         // added during function elaboration.
         let mut found_types = Vec::new();
         let mut seen_traits = BTreeSet::new();
 
-        for constraint in &self.item.trait_bounds {
+        for constraint in &self.item.generics.trait_bounds {
             if let Type::NamedGeneric(generic) = &constraint.typ
                 && generic.name.as_ref() == type_name
             {
@@ -1012,7 +1012,7 @@ impl Elaborator<'_> {
     ) -> Option<Type> {
         if path.segments.len() == 1 {
             let name = path.last_name();
-            if let Some(generic) = self.item.find_generic(name) {
+            if let Some(generic) = self.item.generics.find(name) {
                 let generic = generic.clone();
                 // A generic type parameter cannot take generic arguments since we don't support
                 // higher-kinded types, so reject any that were given (in either `T<..>` or the

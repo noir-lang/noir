@@ -118,7 +118,7 @@ use self::traits::check_trait_impl_method_matches_declaration;
 use self::variable::VariableResolution;
 use fm::FileMap;
 use function_context::FunctionContext;
-use item_context::{ImplContext, ItemContext};
+use item_context::{GenericsContext, ImplContext, ItemContext};
 use noirc_errors::Location;
 pub(crate) use options::ElaboratorOptions;
 pub use options::{FrontendOptions, UnstableFeature};
@@ -1028,7 +1028,10 @@ impl<'context> Elaborator<'context> {
                 current_trait: trait_impl.trait_id,
                 ..Default::default()
             },
-            generics: trait_impl.resolved_generics.clone(),
+            generics: GenericsContext {
+                params: trait_impl.resolved_generics.clone(),
+                ..Default::default()
+            },
             ..Default::default()
         };
         self.with_item_context(context, |this| {

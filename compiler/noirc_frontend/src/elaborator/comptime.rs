@@ -134,7 +134,7 @@ impl<'context> Elaborator<'context> {
                     current_trait_impl: trait_impl,
                     ..Default::default()
                 };
-                elaborator.item.trait_bounds = trait_bounds;
+                elaborator.item.generics.trait_bounds = trait_bounds;
                 elaborator.introduce_generics_into_scope(all_generics);
             }
         })
