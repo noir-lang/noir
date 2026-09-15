@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789492090764,
+  "lastUpdate": 1789492093522,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17853,40 +17853,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "8dcefea164758707ea3afabb35400bd178177641",
-          "message": "fix(frontend): restore type variable bindings on every path out of monomorphization (#13637)",
-          "timestamp": "2026-09-10T15:28:46Z",
-          "tree_id": "d90abf70d140603b8508dab2a9a69f1001f19d9b",
-          "url": "https://github.com/noir-lang/noir/commit/8dcefea164758707ea3afabb35400bd178177641"
-        },
-        "date": 1789055578564,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 502.9,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 450,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "e40b371879fb74e93b461279036b02891cc96d0b",
           "message": "chore(frontend): make raw type variable writes private to their module (#13640)",
           "timestamp": "2026-09-10T15:28:46Z",
@@ -20826,6 +20792,105 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/2ba870c82e283acfe54eb914da98953d704fe052"
         },
         "date": 1789490558924,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1104.6,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 2678.9,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2110,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-no-txs",
+            "value": 442,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 471.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 583.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 440.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 30735.6,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 30781.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 475,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 4558,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 4829.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 248,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 502.9,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 450,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "631e3da56090bfabc564db1ca0e9d41605a480c0",
+          "message": "chore(frontend): cover comptime-only types in trait method signatures (#13741)",
+          "timestamp": "2026-09-15T16:39:20Z",
+          "tree_id": "9aaeb609f9cbda8189e22fdfa084eaf32182fb97",
+          "url": "https://github.com/noir-lang/noir/commit/631e3da56090bfabc564db1ca0e9d41605a480c0"
+        },
+        "date": 1789492004537,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
