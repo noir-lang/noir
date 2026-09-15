@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789478988836,
+  "lastUpdate": 1789479250156,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -16288,40 +16288,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "48d9288a4feae660340149ef311506850812bab1",
-          "message": "chore(deps): bump joi from 17.13.4 to 17.13.7 in /docs (#13631)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-09-09T15:25:55Z",
-          "tree_id": "52dfb4523cd8e94259b173086344e9172ef204b5",
-          "url": "https://github.com/noir-lang/noir/commit/48d9288a4feae660340149ef311506850812bab1"
-        },
-        "date": 1788969050660,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 502.9,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 450,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "fc15ec1e47fb96a463892ec5e4c3708c602bf6d4",
           "message": "chore(deps): bump brace-expansion from 1.1.13 to 1.1.16 in /docs (#13367)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
           "timestamp": "2026-09-09T18:43:36Z",
@@ -18871,6 +18837,105 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/3662807d5b06c5c8e9525ab635fb04fbae8604ad"
         },
         "date": 1789478329447,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1104.6,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 2678.9,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2110,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-no-txs",
+            "value": 442,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 471.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 583.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 440.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 30735.6,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 30781.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 475,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 4558,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 4829.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 248,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 502.9,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 450,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "65f7034b68c6fad8faf2adab2d975197f701f6bb",
+          "message": "fix(ssa): follow alias chains through Call/ArraySet/IfElse when inval… (#13701)\n\nCo-authored-by: Claude Opus 4.6 <noreply@anthropic.com>\nCo-authored-by: AztecBot <tech@aztec-labs.com>",
+          "timestamp": "2026-09-15T13:01:48Z",
+          "tree_id": "380264109750997580e2c3a1f6c680499b1b6d86",
+          "url": "https://github.com/noir-lang/noir/commit/65f7034b68c6fad8faf2adab2d975197f701f6bb"
+        },
+        "date": 1789479198101,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
