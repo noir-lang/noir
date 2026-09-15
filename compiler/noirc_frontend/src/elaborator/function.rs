@@ -716,6 +716,7 @@ impl Elaborator<'_> {
         let context = ItemContext {
             local_module: Some(func_meta.source_module),
             current_item: Some(DependencyId::Function(id)),
+            caller_module: None,
             self_type: func_meta.self_type.clone(),
             current_trait: func_meta.trait_id,
             current_trait_impl: func_meta.trait_impl,

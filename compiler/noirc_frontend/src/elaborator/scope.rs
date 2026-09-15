@@ -43,6 +43,18 @@ impl Elaborator<'_> {
         ModuleId { krate: self.crate_id, local_id: self.item.local_module() }
     }
 
+    /// The module that visibility checks during path resolution are made from: the caller's
+    /// module when one is set, else the module the lookup runs in.
+    pub(crate) fn visibility_module(&self) -> ModuleId {
+        self.item.caller_module.unwrap_or_else(|| self.module_id())
+    }
+
+    /// Makes visibility checks during path resolution use `caller_module` instead of the module
+    /// the current item is in, for the rest of the current item's elaboration.
+    pub(crate) fn set_caller_module(&mut self, caller_module: Option<ModuleId>) {
+        self.item.caller_module = caller_module;
+    }
+
     #[must_use]
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn replace_module(&mut self, new_module: ModuleId) -> ReplacedModule {

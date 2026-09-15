@@ -284,10 +284,6 @@ pub struct Elaborator<'context> {
 
     interpreter_call_stack: imbl::Vector<Location>,
 
-    /// When set, visibility checks during path resolution use this module
-    /// instead of the default importing module.
-    pub(crate) caller_module: Option<ModuleId>,
-
     /// Options from the nargo cli
     options: ElaboratorOptions<'context>,
 
@@ -429,7 +425,6 @@ impl<'context> Elaborator<'context> {
             resolving_ids: BTreeSet::new(),
             function_context: vec![FunctionContext::default()],
             interpreter_call_stack,
-            caller_module: None,
             options,
             elaborate_reasons,
             comptime_evaluation_halted: false,

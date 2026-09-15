@@ -298,3 +298,31 @@ fn lazily_elaborated_impl_trait_callee_does_not_inherit_callers_comptime_block()
     "#;
     check_errors_using_features(src, &[UnstableFeature::TraitAsType]);
 }
+
+#[test]
+fn lazily_elaborated_impl_trait_callee_does_not_inherit_callers_unconstrained_args() {
+    let src = r#"
+    trait Marker {}
+
+    struct Bar {}
+    impl Marker for Bar {}
+
+    unconstrained fn uc() -> Field { 1 }
+
+    unconstrained fn run<T>(_x: T) {}
+
+    unconstrained fn main() {
+        // `hidden` is elaborated on demand while the arguments of a call to an unconstrained
+        // function are being elaborated.
+        run(hidden());
+    }
+
+    fn hidden() -> impl Marker {
+        let f: fn() -> Field = || uc();
+                                  ^^^^ Call to unconstrained function from constrained function is unsafe and must be in an unconstrained function or unsafe block
+        let _ = f;
+        Bar {}
+    }
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::TraitAsType]);
+}
