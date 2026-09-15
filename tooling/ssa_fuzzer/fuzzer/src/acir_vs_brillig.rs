@@ -5,8 +5,8 @@ mod mutations;
 mod utils;
 
 use fuzz_lib::{
+    corpus::CorpusCodec,
     fuzz_target_lib::fuzz_target,
-    fuzzer::FuzzerData,
     options::{FuzzerCommandOptions, FuzzerMode, FuzzerOptions, InstructionOptions},
 };
 use libfuzzer_sys::Corpus;
@@ -15,11 +15,12 @@ use noirc_driver::CompileOptions;
 use noirc_evaluator::ssa::ir::function::RuntimeType;
 use noirc_frontend::monomorphization::ast::InlineType as FrontendInlineType;
 use rand::{SeedableRng, rngs::StdRng};
-use serde_json::{from_slice as decode_from_slice, to_vec as encode_to_json_vec};
 use sha1::{Digest, Sha1};
 use utils::{push_fuzzer_output_to_redis_queue, redis};
 
 const MAX_EXECUTION_TIME_TO_KEEP_IN_CORPUS: u64 = 3;
+/// Format of this target's corpus, shared by the target and mutator callbacks below.
+const CORPUS_CODEC: CorpusCodec = CorpusCodec::Json;
 const INLINE_TYPE: FrontendInlineType = FrontendInlineType::Inline;
 const ACIR_RUNTIME: RuntimeType = RuntimeType::Acir(INLINE_TYPE);
 const BRILLIG_RUNTIME: RuntimeType = RuntimeType::Brillig(INLINE_TYPE);
@@ -61,7 +62,15 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| -> Corpus {
         fuzzer_command_options,
         ..FuzzerOptions::default()
     };
-    let fuzzer_data = decode_from_slice(data).unwrap_or(FuzzerData::default());
+    let fuzzer_data = match CORPUS_CODEC.decode(data) {
+        Ok(fuzzer_data) => fuzzer_data,
+        Err(error) => {
+            // Running the default test case instead would compile nothing and compare
+            // nothing while reporting success.
+            log::warn!("Skipping undecodable input of {} bytes: {error}", data.len());
+            return Corpus::Reject;
+        }
+    };
     let start = std::time::Instant::now();
     let fuzzer_output = fuzz_target(fuzzer_data, TARGET_RUNTIMES.to_vec(), options);
 
@@ -86,9 +95,9 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| -> Corpus {
 
 libfuzzer_sys::fuzz_mutator!(|data: &mut [u8], _size: usize, max_size: usize, seed: u32| {
     let mut rng = StdRng::seed_from_u64(u64::from(seed));
-    let mut new_fuzzer_data: FuzzerData = decode_from_slice(data).unwrap_or(FuzzerData::default());
+    let mut new_fuzzer_data = CORPUS_CODEC.decode_or_default(data);
     mutate(&mut new_fuzzer_data, &mut rng);
-    let new_bytes = encode_to_json_vec(&new_fuzzer_data).unwrap();
+    let new_bytes = CORPUS_CODEC.encode(&new_fuzzer_data);
     if new_bytes.len() > max_size {
         return 0;
     }

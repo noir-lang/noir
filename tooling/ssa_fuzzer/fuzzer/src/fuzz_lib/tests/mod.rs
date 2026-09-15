@@ -3,6 +3,7 @@ mod arrays;
 mod basic_tests;
 mod basic_unsigned_test;
 mod common;
+mod corpus;
 mod ecdsa;
 mod embedded_curve_ops;
 mod function_calls;
