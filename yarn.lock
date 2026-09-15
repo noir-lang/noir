@@ -7449,9 +7449,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"hardhat@npm:^3.15.0":
-  version: 3.15.0
-  resolution: "hardhat@npm:3.15.0"
+"hardhat@npm:^3.16.0":
+  version: 3.16.0
+  resolution: "hardhat@npm:3.16.0"
   dependencies:
     "@nomicfoundation/edr": "npm:0.19.0"
     "@nomicfoundation/hardhat-errors": "npm:^3.0.17"
@@ -7473,7 +7473,7 @@ __metadata:
     zod: "npm:^3.23.8"
   bin:
     hardhat: dist/src/cli.js
-  checksum: 10/d7c8c734fc4f941afd51d0f83c213f316d0600809c5e1d067dae2ac513309d279bfce0d14a98637c64850ad56ebf0185d12e19fbcf33119b49ab37ee3c51ddd6
+  checksum: 10/0027b1f47785b1e2105bf3e55f0427099742eacac11e26331f45077d4c442d6a8d02b6fbe88024949caa650c4dcd0b2ae5e79a31c975df95b3ee42d87eb8e8f7
   languageName: node
   linkType: hard
 
@@ -7953,7 +7953,7 @@ __metadata:
     eslint: "npm:^10.10.0"
     eslint-plugin-prettier: "npm:^5.5.6"
     ethers: "npm:^6.17.0"
-    hardhat: "npm:^3.15.0"
+    hardhat: "npm:^3.16.0"
     prettier: "npm:3.9.6"
     smol-toml: "npm:^1.8.0"
     toml: "npm:^5.0.0"
