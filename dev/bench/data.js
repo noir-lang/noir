@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789478649201,
+  "lastUpdate": 1789478754928,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -13826,48 +13826,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "48d9288a4feae660340149ef311506850812bab1",
-          "message": "chore(deps): bump joi from 17.13.4 to 17.13.7 in /docs (#13631)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-09-09T15:25:55Z",
-          "tree_id": "52dfb4523cd8e94259b173086344e9172ef204b5",
-          "url": "https://github.com/noir-lang/noir/commit/48d9288a4feae660340149ef311506850812bab1"
-        },
-        "date": 1788968904871,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 169107,
-            "range": "± 743",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 139325,
-            "range": "± 2772",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2651944,
-            "range": "± 12588",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "fc15ec1e47fb96a463892ec5e4c3708c602bf6d4",
           "message": "chore(deps): bump brace-expansion from 1.1.13 to 1.1.16 in /docs (#13367)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
           "timestamp": "2026-09-09T18:43:36Z",
@@ -15909,6 +15867,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2646886,
             "range": "± 10710",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "65f7034b68c6fad8faf2adab2d975197f701f6bb",
+          "message": "fix(ssa): follow alias chains through Call/ArraySet/IfElse when inval… (#13701)\n\nCo-authored-by: Claude Opus 4.6 <noreply@anthropic.com>\nCo-authored-by: AztecBot <tech@aztec-labs.com>",
+          "timestamp": "2026-09-15T13:01:48Z",
+          "tree_id": "380264109750997580e2c3a1f6c680499b1b6d86",
+          "url": "https://github.com/noir-lang/noir/commit/65f7034b68c6fad8faf2adab2d975197f701f6bb"
+        },
+        "date": 1789478699775,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 69664,
+            "range": "± 1367",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 65274,
+            "range": "± 920",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 1716749,
+            "range": "± 31190",
             "unit": "ns/iter"
           }
         ]
