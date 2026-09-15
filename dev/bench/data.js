@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789468897280,
+  "lastUpdate": 1789468900126,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -2163,40 +2163,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "a195103dbe8cadc7ddd9f750d9d96bcd78738f75",
-          "message": "fix: resolve trait impl function metas before comptime operator evaluation (#13587)\n\nCo-authored-by: Claude Opus 4.6 <noreply@anthropic.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-09-08T14:47:53Z",
-          "tree_id": "8a2e4692b5368d25ccfcc4782119f039f809fe70",
-          "url": "https://github.com/noir-lang/noir/commit/a195103dbe8cadc7ddd9f750d9d96bcd78738f75"
-        },
-        "date": 1788880398227,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.921,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.682,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -4311,6 +4277,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.992,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1e653a538b362b96924d99abfac16f41174127e0",
+          "message": "fix(frontend): give each function body its own elaborator item context (#13696)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-09-15T10:08:18Z",
+          "tree_id": "c4bc3cfaaacd536ee93cc63e8c9c3c79828a412d",
+          "url": "https://github.com/noir-lang/noir/commit/1e653a538b362b96924d99abfac16f41174127e0"
+        },
+        "date": 1789468806844,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 5.73,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 243,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 14.8,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-no-txs",
+            "value": 3.016,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 3.07,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 3.16,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 2.864,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 197,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 215,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 2.84,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 14.14,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 19.24,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 3.194,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.966,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.204,
             "unit": "s"
           }
         ]
