@@ -131,27 +131,33 @@
 <a href=#131 id=131 data-nosnippet>131</a>}
 <a href=#132 id=132 data-nosnippet>132</a>
 <a href=#133 id=133 data-nosnippet>133</a><span class="kw">impl </span>ItemContext {
-<a href=#134 id=134 data-nosnippet>134</a>    <span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#135 id=135 data-nosnippet>135</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>next_lvalue_index_counter(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; usize {
-<a href=#136 id=136 data-nosnippet>136</a>        <span class="kw">let </span>lvalue_index_counter = <span class="self">self</span>.lvalue_index_counter;
-<a href=#137 id=137 data-nosnippet>137</a>        <span class="self">self</span>.lvalue_index_counter += <span class="number">1</span>;
-<a href=#138 id=138 data-nosnippet>138</a>        lvalue_index_counter
-<a href=#139 id=139 data-nosnippet>139</a>    }
-<a href=#140 id=140 data-nosnippet>140</a>}
-<a href=#141 id=141 data-nosnippet>141</a>
-<a href=#142 id=142 data-nosnippet>142</a><span class="kw">impl </span>Elaborator&lt;<span class="lifetime">'_</span>&gt; {
-<a href=#143 id=143 data-nosnippet>143</a>    <span class="doccomment">/// Runs `f` with `context` installed, then reinstates the context that was active before.
-<a href=#144 id=144 data-nosnippet>144</a>    ///
-<a href=#145 id=145 data-nosnippet>145</a>    /// Whatever `f` leaves in the context is discarded, so an entry point that elaborates another
-<a href=#146 id=146 data-nosnippet>146</a>    /// item through this helper cannot leak that item's state back to its caller.
-<a href=#147 id=147 data-nosnippet>147</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>with_item_context&lt;T&gt;(
-<a href=#148 id=148 data-nosnippet>148</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#149 id=149 data-nosnippet>149</a>        context: ItemContext,
-<a href=#150 id=150 data-nosnippet>150</a>        f: <span class="kw">impl </span>FnOnce(<span class="kw-2">&amp;mut </span><span class="self">Self</span>) -&gt; T,
-<a href=#151 id=151 data-nosnippet>151</a>    ) -&gt; T {
-<a href=#152 id=152 data-nosnippet>152</a>        <span class="kw">let </span>outer = std::mem::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.item, context);
-<a href=#153 id=153 data-nosnippet>153</a>        <span class="kw">let </span>result = f(<span class="self">self</span>);
-<a href=#154 id=154 data-nosnippet>154</a>        <span class="self">self</span>.item = outer;
-<a href=#155 id=155 data-nosnippet>155</a>        result
-<a href=#156 id=156 data-nosnippet>156</a>    }
-<a href=#157 id=157 data-nosnippet>157</a>}</code></pre></div></section></main></body></html>
+<a href=#134 id=134 data-nosnippet>134</a>    <span class="doccomment">/// The type `Self` refers to. Only call this where an impl, trait or trait impl context is
+<a href=#135 id=135 data-nosnippet>135</a>    /// installed; items that have no `Self` leave this unset.
+<a href=#136 id=136 data-nosnippet>136</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>self_type(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>Type {
+<a href=#137 id=137 data-nosnippet>137</a>        <span class="self">self</span>.self_type.as_ref().expect(<span class="string">"self_type is unset"</span>)
+<a href=#138 id=138 data-nosnippet>138</a>    }
+<a href=#139 id=139 data-nosnippet>139</a>
+<a href=#140 id=140 data-nosnippet>140</a>    <span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
+<a href=#141 id=141 data-nosnippet>141</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>next_lvalue_index_counter(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; usize {
+<a href=#142 id=142 data-nosnippet>142</a>        <span class="kw">let </span>lvalue_index_counter = <span class="self">self</span>.lvalue_index_counter;
+<a href=#143 id=143 data-nosnippet>143</a>        <span class="self">self</span>.lvalue_index_counter += <span class="number">1</span>;
+<a href=#144 id=144 data-nosnippet>144</a>        lvalue_index_counter
+<a href=#145 id=145 data-nosnippet>145</a>    }
+<a href=#146 id=146 data-nosnippet>146</a>}
+<a href=#147 id=147 data-nosnippet>147</a>
+<a href=#148 id=148 data-nosnippet>148</a><span class="kw">impl </span>Elaborator&lt;<span class="lifetime">'_</span>&gt; {
+<a href=#149 id=149 data-nosnippet>149</a>    <span class="doccomment">/// Runs `f` with `context` installed, then reinstates the context that was active before.
+<a href=#150 id=150 data-nosnippet>150</a>    ///
+<a href=#151 id=151 data-nosnippet>151</a>    /// Whatever `f` leaves in the context is discarded, so an entry point that elaborates another
+<a href=#152 id=152 data-nosnippet>152</a>    /// item through this helper cannot leak that item's state back to its caller.
+<a href=#153 id=153 data-nosnippet>153</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>with_item_context&lt;T&gt;(
+<a href=#154 id=154 data-nosnippet>154</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#155 id=155 data-nosnippet>155</a>        context: ItemContext,
+<a href=#156 id=156 data-nosnippet>156</a>        f: <span class="kw">impl </span>FnOnce(<span class="kw-2">&amp;mut </span><span class="self">Self</span>) -&gt; T,
+<a href=#157 id=157 data-nosnippet>157</a>    ) -&gt; T {
+<a href=#158 id=158 data-nosnippet>158</a>        <span class="kw">let </span>outer = std::mem::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.item, context);
+<a href=#159 id=159 data-nosnippet>159</a>        <span class="kw">let </span>result = f(<span class="self">self</span>);
+<a href=#160 id=160 data-nosnippet>160</a>        <span class="self">self</span>.item = outer;
+<a href=#161 id=161 data-nosnippet>161</a>        result
+<a href=#162 id=162 data-nosnippet>162</a>    }
+<a href=#163 id=163 data-nosnippet>163</a>}</code></pre></div></section></main></body></html>
