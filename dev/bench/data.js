@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789478443725,
+  "lastUpdate": 1789478447023,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -2485,40 +2485,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "0a9e10d3dc337e19f75983bc38edd2b40fbde712",
-          "message": "chore: remove the acvm_cli crate (#13632)",
-          "timestamp": "2026-09-09T15:21:49Z",
-          "tree_id": "f7632919653bc4026bf63c943fee32bd6feccd4c",
-          "url": "https://github.com/noir-lang/noir/commit/0a9e10d3dc337e19f75983bc38edd2b40fbde712"
-        },
-        "date": 1788968786364,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.8,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.466,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -5091,6 +5057,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 2.008,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "82a0bed59bf66362d6b53bec431c435b530cdb03",
+          "message": "chore(deps): bump the cargo-minor-and-patch group with 5 updates (#13730)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-09-15T12:47:34Z",
+          "tree_id": "69cbc6923d3a1738d3d5772ff78eb49f3bcc4d8c",
+          "url": "https://github.com/noir-lang/noir/commit/82a0bed59bf66362d6b53bec431c435b530cdb03"
+        },
+        "date": 1789478350934,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 7.004,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 240,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 9.756,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-no-txs",
+            "value": 3.338,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 1.93,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 3.29,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 2.712,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 239,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 228,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 2.842,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 11.26,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 11.3,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 2.738,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.935,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.543,
             "unit": "s"
           }
         ]
