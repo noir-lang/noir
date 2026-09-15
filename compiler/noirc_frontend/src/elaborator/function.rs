@@ -43,8 +43,8 @@ use crate::{
 };
 
 use super::{
-    Elaborator, UnsafeBlockStatus,
-    item_context::{GenericsContext, ImplContext, ItemContext},
+    Elaborator,
+    item_context::{BodyContext, GenericsContext, ImplContext, ItemContext},
 };
 
 type ResolvedParametersInfo = (Vec<(HirPattern, Type, Visibility)>, Vec<Type>, Vec<HirIdent>);
@@ -171,18 +171,14 @@ impl Elaborator<'_> {
                 },
             );
 
-            let outer_generics = self.item.generics.params.clone();
+            let outer_generics = self.item.generics.params().to_vec();
             for (method_module, id, func) in &unresolved_impl.methods.functions {
                 self.unresolved_function_metas.insert(
                     *id,
                     UnresolvedFunctionMeta {
                         func: func.clone(),
                         local_module: *method_module,
-                        impl_context: ImplContext {
-                            self_type: Some(self_type.clone()),
-                            current_impl: Some(impl_id),
-                            ..Default::default()
-                        },
+                        impl_context: ImplContext::in_inherent_impl(impl_id, self_type.clone()),
                         outer_generics: outer_generics.clone(),
                         extra_trait_constraints: Vec::new(),
                     },
@@ -192,7 +188,7 @@ impl Elaborator<'_> {
             // The assumed impls added while resolving the where clause are only needed to
             // resolve the where clause itself; method bodies re-add them when they elaborate.
             self.remove_trait_constraints_from_scope(resolved_where_clause.iter());
-            self.item.generics.params.clear();
+            self.item.generics.clear_params();
         }
 
         self.item.local_module = previous_local_module;
@@ -214,12 +210,11 @@ impl Elaborator<'_> {
                 UnresolvedFunctionMeta {
                     func: func.clone(),
                     local_module: *method_module,
-                    impl_context: ImplContext {
-                        self_type: self_type.clone(),
-                        current_trait: trait_impl.trait_id,
-                        current_trait_impl: trait_impl.impl_id,
-                        ..Default::default()
-                    },
+                    impl_context: ImplContext::in_trait_impl(
+                        self_type.clone(),
+                        trait_impl.trait_id,
+                        trait_impl.impl_id,
+                    ),
                     outer_generics: generics.clone(),
                     extra_trait_constraints: new_generics_trait_constraints.clone(),
                 },
@@ -297,10 +292,10 @@ impl Elaborator<'_> {
         // recorded as `meta.trait_id`). Trait impl methods record their impl on
         // `meta.trait_impl` and use `current_trait` purely for context — they
         // must pass `None` here so `meta.trait_id` stays None.
-        let defining_trait = if impl_context.current_trait_impl.is_some() {
+        let defining_trait = if impl_context.current_trait_impl().is_some() {
             None
         } else {
-            impl_context.current_trait
+            impl_context.current_trait()
         };
 
         // This can run in the middle of another item's elaboration (see the `item_context`
@@ -442,11 +437,11 @@ impl Elaborator<'_> {
             location,
             typ,
             direct_generics,
-            all_generics: self.item.generics.params.clone(),
+            all_generics: self.item.generics.params().to_vec(),
             type_id: struct_id,
             trait_id,
-            trait_impl: self.item.impl_context.current_trait_impl,
-            impl_id: self.item.impl_context.current_impl,
+            trait_impl: self.item.impl_context.current_trait_impl(),
+            impl_id: self.item.impl_context.current_impl(),
             enum_variant_index: None,
             parameters: parameters.into(),
             parameter_idents,
@@ -460,7 +455,7 @@ impl Elaborator<'_> {
             source_crate: self.crate_id,
             source_module: self.item.local_module(),
             function_body: FunctionBody::Unresolved(func.kind, body, func.def.location),
-            self_type: self.item.impl_context.self_type.clone(),
+            self_type: self.item.impl_context.self_type().cloned(),
             source_file: location.file,
         };
 
@@ -507,7 +502,7 @@ impl Elaborator<'_> {
     }
 
     fn is_function_in_contract(&self) -> bool {
-        if self.item.impl_context.self_type.is_some() {
+        if self.item.impl_context.self_type().is_some() {
             // Without this, impl methods can accidentally be placed in contracts.
             // See: https://github.com/noir-lang/noir/issues/3254
             false
@@ -710,26 +705,16 @@ impl Elaborator<'_> {
             local_module: Some(func_meta.source_module),
             current_item: Some(DependencyId::Function(id)),
             caller_module: None,
-            impl_context: ImplContext {
-                self_type: func_meta.self_type.clone(),
-                current_trait: func_meta.trait_id,
-                current_trait_impl: func_meta.trait_impl,
-                current_impl: func_meta.impl_id,
-            },
+            impl_context: ImplContext::of_function(&func_meta),
             // The generics are left empty here and filled in by `introduce_generics_into_scope`,
             // which also declares the numeric ones.
             generics: GenericsContext::new(
                 Vec::new(),
                 func_meta.all_trait_constraints().cloned().collect(),
             ),
-            lambda_stack: Vec::new(),
-            current_loop: None,
-            unsafe_block_status: UnsafeBlockStatus::NotInUnsafeBlock,
+            body: BodyContext::default(),
             in_comptime_context: false,
-            in_unconstrained_args: false,
             impl_trait_is_disallowed: None,
-            silence_field_visibility_errors: 0,
-            lvalue_index_counter: 0,
         };
         self.with_item_context(context, |this| {
             this.elaborate_function_body(id, func_meta, kind, body, body_location);

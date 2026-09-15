@@ -64,7 +64,7 @@ impl Elaborator<'_> {
                         second_location: location,
                     });
                 } else {
-                    self.item.generics.params.push(resolved_generic.clone());
+                    self.item.generics.add_param(resolved_generic.clone());
                 }
             }
 
@@ -102,7 +102,7 @@ impl Elaborator<'_> {
                     second_location: location,
                 });
             } else {
-                self.item.generics.params.push(resolved_generic.clone());
+                self.item.generics.add_param(resolved_generic.clone());
             }
         }
     }
@@ -242,7 +242,7 @@ impl Elaborator<'_> {
             }
         }
 
-        self.item.generics.params = all_generics;
+        self.item.generics.set_params(all_generics);
     }
 }
 

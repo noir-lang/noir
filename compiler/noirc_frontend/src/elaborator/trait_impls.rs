@@ -78,12 +78,11 @@ impl Elaborator<'_> {
         // the implementing type as `Self`. The caller's context is reinstated afterwards.
         let context = ItemContext {
             local_module: Some(trait_impl.module_id),
-            impl_context: ImplContext {
-                current_trait_impl: trait_impl.impl_id,
-                current_trait: trait_impl.trait_id,
-                self_type: Some(self_type.clone()),
-                ..Default::default()
-            },
+            impl_context: ImplContext::in_trait_impl(
+                Some(self_type.clone()),
+                trait_impl.trait_id,
+                trait_impl.impl_id,
+            ),
             ..Default::default()
         };
         self.with_item_context(context, |this| {
@@ -131,7 +130,7 @@ impl Elaborator<'_> {
         );
 
         if let Some(trait_id) = trait_impl.trait_id {
-            self.item.generics.params.clone_from(&trait_impl.resolved_generics);
+            self.item.generics.set_params(trait_impl.resolved_generics.clone());
 
             let where_clause =
                 self.resolve_trait_constraints_and_add_to_scope(&trait_impl.where_clause);
@@ -481,12 +480,11 @@ impl Elaborator<'_> {
             // Each check runs in a context of its own for the impl, as trait impl collection did.
             let context = ItemContext {
                 local_module: Some(check.module_id),
-                impl_context: ImplContext {
-                    current_trait_impl: Some(check.impl_id),
-                    current_trait: Some(check.trait_id),
-                    self_type: Some(impl_self_type),
-                    ..Default::default()
-                },
+                impl_context: ImplContext::in_trait_impl(
+                    Some(impl_self_type),
+                    Some(check.trait_id),
+                    Some(check.impl_id),
+                ),
                 ..Default::default()
             };
             self.with_item_context(context, |this| {
@@ -514,7 +512,7 @@ impl Elaborator<'_> {
     ) {
         // First get the general trait to impl bindings.
         // Then we'll need to add the bindings for this specific method.
-        let self_type = self.item.impl_context.self_type.as_ref().unwrap();
+        let self_type = self.item.impl_context.self_type().unwrap();
 
         let mut bindings =
             self.interner.trait_to_impl_bindings(trait_id, impl_id, trait_impl_generics, self_type);
@@ -995,7 +993,7 @@ impl Elaborator<'_> {
             self.interner.add_trait_reference(trait_id, location, is_self_type_name);
         }
 
-        let generics = std::mem::take(&mut self.item.generics.params);
+        let generics = self.item.generics.take_params();
 
         (new_generics_trait_constraints, generics)
     }
@@ -1086,7 +1084,7 @@ impl Elaborator<'_> {
         trait_impl: &mut UnresolvedTraitImpl,
     ) -> (Vec<TraitConstraint>, Vec<(TraitConstraint, Location)>) {
         self.add_generics(&trait_impl.generics);
-        trait_impl.resolved_generics = self.item.generics.params.clone();
+        trait_impl.resolved_generics = self.item.generics.params().to_vec();
 
         let new_generics = self.desugar_trait_constraints(&mut trait_impl.where_clause);
         let mut new_generics_trait_constraints = Vec::new();
@@ -1099,7 +1097,7 @@ impl Elaborator<'_> {
                     .push((TraitConstraint { typ, trait_bound: bound }, location));
             }
             trait_impl.resolved_generics.push(desugared.generic.clone());
-            self.item.generics.params.push(desugared.generic);
+            self.item.generics.add_param(desugared.generic);
         }
 
         // We need to resolve the where clause before any associated types to be

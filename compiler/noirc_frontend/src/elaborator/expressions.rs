@@ -51,52 +51,10 @@ use crate::{
 };
 
 use super::{
-    Elaborator, LambdaContext, UnsafeBlockStatus, UnstableFeature,
+    Elaborator, UnstableFeature,
     function_context::BindableTypeVariableKind,
-    item_context::ItemContext,
     path_resolution::{TypedPath, TypedPathSegment},
 };
-
-impl ItemContext {
-    /// Enters an `unsafe` block, returning the status of the enclosing code so it can be handed
-    /// back to [`Self::exit_unsafe_block`].
-    #[must_use]
-    pub(super) fn enter_unsafe_block(&mut self) -> UnsafeBlockStatus {
-        std::mem::replace(
-            &mut self.unsafe_block_status,
-            UnsafeBlockStatus::InUnsafeBlockWithoutUnconstrainedCalls,
-        )
-    }
-
-    /// Leaves an `unsafe` block, returning whether it contained an unconstrained call.
-    ///
-    /// The `enclosing` status is reinstated unless this block is nested in another `unsafe`
-    /// block and contained an unconstrained call, in which case the enclosing block is
-    /// considered to contain that call as well.
-    pub(super) fn exit_unsafe_block(&mut self, enclosing: UnsafeBlockStatus) -> bool {
-        let has_unconstrained_call = matches!(
-            self.unsafe_block_status,
-            UnsafeBlockStatus::InUnsafeBlockWithUnconstrainedCalls
-        );
-        let is_nested = !matches!(enclosing, UnsafeBlockStatus::NotInUnsafeBlock);
-        if !is_nested || !has_unconstrained_call {
-            self.unsafe_block_status = enclosing;
-        }
-        has_unconstrained_call
-    }
-
-    /// Enters the arguments of a call to a function that is unconstrained or not, returning the
-    /// enclosing call's status so it can be handed back to [`Self::exit_call_arguments`].
-    #[must_use]
-    pub(super) fn enter_call_arguments(&mut self, unconstrained: bool) -> bool {
-        std::mem::replace(&mut self.in_unconstrained_args, unconstrained)
-    }
-
-    /// Leaves a call's arguments, reinstating the enclosing call's status.
-    pub(super) fn exit_call_arguments(&mut self, enclosing_unconstrained: bool) {
-        self.in_unconstrained_args = enclosing_unconstrained;
-    }
-}
 
 impl Elaborator<'_> {
     #[tracing::instrument(level = "trace", skip_all)]
@@ -400,9 +358,9 @@ impl Elaborator<'_> {
         unsafe_expression: UnsafeExpression,
         target_type: Option<&Type>,
     ) -> (HirExpression, Type) {
-        let enclosing_status = self.item.enter_unsafe_block();
+        let enclosing_status = self.item.body.enter_unsafe_block();
 
-        if !matches!(enclosing_status, UnsafeBlockStatus::NotInUnsafeBlock) {
+        if enclosing_status.is_nested() {
             self.push_err(TypeCheckError::NestedUnsafeBlock {
                 location: unsafe_expression.unsafe_keyword_location,
             });
@@ -411,7 +369,7 @@ impl Elaborator<'_> {
         let (hir_block_expression, typ) =
             self.elaborate_block_expression(unsafe_expression.block, target_type);
 
-        let has_unconstrained_call = self.item.exit_unsafe_block(enclosing_status);
+        let has_unconstrained_call = self.item.body.exit_unsafe_block(enclosing_status);
 
         if !has_unconstrained_call {
             self.push_err(TypeCheckError::UnnecessaryUnsafeBlock {
@@ -730,7 +688,7 @@ impl Elaborator<'_> {
         name: String,
         location: Location,
     ) {
-        if let Some(lambda_context) = self.item.lambda_stack.last() {
+        if let Some(lambda_context) = self.item.body.current_lambda() {
             let typ = self.interner.definition_type(id);
             if !typ.is_mutable_ref() && lambda_context.captures.iter().any(|var| var.ident.id == id)
             {
@@ -893,7 +851,7 @@ impl Elaborator<'_> {
             };
 
         // When calling an unconstrained function, we can elaborate lambda arguments to be unconstrained.
-        let enclosing_unconstrained_args = self.item.enter_call_arguments(unconstrained);
+        let enclosing_unconstrained_args = self.item.body.enter_call_arguments(unconstrained);
 
         let mut arguments = Vec::with_capacity(call.arguments.len());
         let args = vecmap(call.arguments.into_iter().enumerate(), |(arg_index, arg)| {
@@ -909,7 +867,7 @@ impl Elaborator<'_> {
         let hir_call = HirCallExpression { func, arguments, location, is_macro_call };
         let typ = self.type_check_call(&hir_call, func_type, args, location);
 
-        self.item.exit_call_arguments(enclosing_unconstrained_args);
+        self.item.body.exit_call_arguments(enclosing_unconstrained_args);
 
         (hir_call, typ)
     }
@@ -1762,7 +1720,7 @@ impl Elaborator<'_> {
             self.elaborate_lambda_with_parameter_type_hints(
                 lambda,
                 Some(&args),
-                unconstrained || self.item.in_unconstrained_args,
+                unconstrained || self.item.body.in_unconstrained_args(),
             )
         } else {
             self.elaborate_lambda_with_parameter_type_hints(lambda, None, false)
@@ -1785,11 +1743,7 @@ impl Elaborator<'_> {
         self.push_scope();
         let scope_index = self.scopes.current_scope_index();
 
-        self.item.lambda_stack.push(LambdaContext {
-            captures: Vec::new(),
-            scope_index,
-            unconstrained,
-        });
+        self.item.body.enter_lambda(scope_index, unconstrained);
 
         let mut arg_types = Vec::with_capacity(lambda.parameters.len());
         let mut parameter_names_in_list = HashMap::default();
@@ -1831,7 +1785,7 @@ impl Elaborator<'_> {
         let body_location = lambda.body.location;
         let (body, body_type) = self.elaborate_expression(lambda.body);
 
-        let lambda_context = self.item.lambda_stack.pop().unwrap();
+        let lambda_context = self.item.body.exit_lambda();
         self.pop_scope();
 
         self.unify_or_type_mismatch(&body_type, &return_type, body_location);
@@ -1930,11 +1884,11 @@ impl Elaborator<'_> {
                 // here (they could if we have `Foo { inner: 5 }` and `inner` is not
                 // accessible from where this expression is being elaborated).
                 if !from_macro_call {
-                    self.item.silence_field_visibility_errors += 1;
+                    self.item.body.silence_field_visibility_errors();
                 }
                 let value = self.elaborate_expression(new_expr);
                 if !from_macro_call {
-                    self.item.silence_field_visibility_errors -= 1;
+                    self.item.body.unsilence_field_visibility_errors();
                 }
                 value
             }
@@ -2164,9 +2118,9 @@ impl Elaborator<'_> {
                 // Mirror `elaborate_unsafe_block`: an unconstrained call inside the block crosses
                 // the runtime boundary legally, so the boundary check must see that we are inside an
                 // unsafe block rather than reporting a spurious error.
-                let enclosing_status = self.item.enter_unsafe_block();
+                let enclosing_status = self.item.body.enter_unsafe_block();
                 self.revalidate_resolved_block(&block);
-                self.item.exit_unsafe_block(enclosing_status);
+                self.item.body.exit_unsafe_block(enclosing_status);
             }
             HirExpression::Prefix(prefix) => {
                 self.revalidate_resolved_expression(prefix.rhs);
@@ -2216,13 +2170,10 @@ impl Elaborator<'_> {
             HirExpression::Lambda(lambda) => {
                 // A lambda body has its own runtime mode, so re-run the checks with that mode in
                 // effect rather than the enclosing function's.
-                self.item.lambda_stack.push(LambdaContext {
-                    captures: Vec::new(),
-                    scope_index: 0,
-                    unconstrained: lambda.unconstrained,
-                });
+                let scope_index = 0;
+                self.item.body.enter_lambda(scope_index, lambda.unconstrained);
                 self.revalidate_resolved_expression(lambda.body);
-                self.item.lambda_stack.pop();
+                let _ = self.item.body.exit_lambda();
             }
             HirExpression::Match(match_expr) => {
                 self.revalidate_resolved_match(&match_expr);

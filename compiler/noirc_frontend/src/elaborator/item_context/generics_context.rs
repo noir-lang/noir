@@ -24,10 +24,10 @@ pub(crate) struct GenericsContext {
     /// unique type variables if we're resolving a struct. Empty otherwise.
     /// This is a Vec rather than a map to preserve the order a functions generics
     /// were declared in.
-    pub(crate) params: Vec<ResolvedGeneric>,
+    params: Vec<ResolvedGeneric>,
 
     /// Each constraint in the `where` clause of the function currently being resolved.
-    pub(crate) trait_bounds: Vec<TraitConstraint>,
+    trait_bounds: Vec<TraitConstraint>,
 
     /// Every `(object type, trait)` pair brought into scope by implication rather than by a
     /// `where` clause naming it: a bound declared on an associated type, or a parent trait.
@@ -52,9 +52,9 @@ impl GenericsContext {
     }
 
     /// Saves the current generics state to be restored later with [`Self::exit_scope`].
-    /// Note that all of `self.params` will still be in scope after this call. This will only save
-    /// the position of the current generics so that any generics added afterward can later be
-    /// discarded via a call to [`Self::exit_scope`].
+    /// Note that all of the generics in scope will still be in scope after this call. This will
+    /// only save the position of the current generics so that any generics added afterward can
+    /// later be discarded via a call to [`Self::exit_scope`].
     pub(crate) fn enter_scope(&self) -> GenericsState {
         GenericsState { params_count: self.params.len() }
     }
@@ -63,6 +63,37 @@ impl GenericsContext {
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn exit_scope(&mut self, state: GenericsState) {
         self.params.truncate(state.params_count);
+    }
+
+    /// The generics in scope, in the order they were declared in.
+    pub(crate) fn params(&self) -> &[ResolvedGeneric] {
+        &self.params
+    }
+
+    /// Brings one more generic into scope, after the ones already there.
+    pub(crate) fn add_param(&mut self, param: ResolvedGeneric) {
+        self.params.push(param);
+    }
+
+    /// Brings several more generics into scope, after the ones already there.
+    pub(crate) fn add_params(&mut self, params: impl IntoIterator<Item = ResolvedGeneric>) {
+        self.params.extend(params);
+    }
+
+    /// Replaces the generics in scope wholesale, for an item whose generics are known up front
+    /// rather than accumulated as its declaration is resolved.
+    pub(crate) fn set_params(&mut self, params: Vec<ResolvedGeneric>) {
+        self.params = params;
+    }
+
+    /// Takes the generics out of scope and hands them to the caller.
+    pub(crate) fn take_params(&mut self) -> Vec<ResolvedGeneric> {
+        std::mem::take(&mut self.params)
+    }
+
+    /// Takes every generic out of scope.
+    pub(crate) fn clear_params(&mut self) {
+        self.params.clear();
     }
 
     /// Find a generic variable among the generics of the current struct or function.
@@ -75,6 +106,23 @@ impl GenericsContext {
         vecmap(&self.params, |generic| generic.type_var.clone())
     }
 
+    /// Whether any bound at all is in scope, written or implied.
+    pub(crate) fn has_bounds(&self) -> bool {
+        !self.trait_bounds.is_empty()
+    }
+
+    /// Assumes `constraint` for the rest of the item.
+    pub(crate) fn add_bound(&mut self, constraint: TraitConstraint) {
+        self.trait_bounds.push(constraint);
+    }
+
+    /// Whether `object_type: trait` is one of the bounds in scope.
+    pub(crate) fn has_bound(&self, object_type: &Type, trait_id: TraitId) -> bool {
+        self.trait_bounds
+            .iter()
+            .any(|bound| bound.trait_bound.trait_id == trait_id && bound.typ == *object_type)
+    }
+
     /// The bounds written on the generic parameter named `name`, e.g. both `Foo` and `Bar` for
     /// `T` given `where T: Foo, T: Bar`.
     pub(crate) fn bounds_on_generic<'a>(
@@ -84,6 +132,12 @@ impl GenericsContext {
         self.trait_bounds.iter().filter(move |constraint| {
             matches!(&constraint.typ, Type::NamedGeneric(generic) if generic.name.as_str() == name)
         })
+    }
+
+    /// Drops every bound on `trait_id`, for when the constraints that brought them into scope
+    /// leave it.
+    pub(crate) fn remove_bounds_on_trait(&mut self, trait_id: TraitId) {
+        self.trait_bounds.retain(|bound| bound.trait_bound.trait_id != trait_id);
     }
 
     /// Records `object_type: trait` as a bound that was implied rather than written, so that a

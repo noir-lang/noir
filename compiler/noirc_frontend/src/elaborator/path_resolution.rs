@@ -457,7 +457,7 @@ impl Elaborator<'_> {
                 });
             }
 
-            self_type = self.item.impl_context.self_type.clone();
+            self_type = self.item.impl_context.self_type().cloned();
             starting_module = id.module_id();
             path.segments.remove(0);
             intermediate_item = IntermediatePathResolutionItem::SelfType;

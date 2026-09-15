@@ -13,21 +13,22 @@
 //!
 //! Within that struct, fields which are only meaningful together live in a sub-context of their
 //! own - [`ImplContext`] for the enclosing impl or trait, [`GenericsContext`] for the generics and
-//! bounds in scope. Each sub-context owns the operations over its own fields, so a caller that
-//! needs one group does not get a handle on the rest.
+//! bounds in scope, [`BodyContext`] for where in the item's body the elaborator is. Each
+//! sub-context owns the operations over its own fields, so a caller that needs one group does not
+//! get a handle on the rest.
 
 use crate::{
     hir::def_map::{LocalModuleId, ModuleId},
     node_interner::DependencyId,
 };
 
-use super::{
-    Elaborator, LambdaContext, Loop, UnsafeBlockStatus, types::ImplTraitDisallowedContext,
-};
+use super::{Elaborator, types::ImplTraitDisallowedContext};
 
+mod body_context;
 mod generics_context;
 mod impl_context;
 
+pub(crate) use body_context::BodyContext;
 pub(crate) use generics_context::GenericsContext;
 pub(crate) use impl_context::ImplContext;
 
@@ -61,21 +62,12 @@ pub(super) struct ItemContext {
     /// The generics in scope, and the trait bounds they carry.
     pub(super) generics: GenericsContext,
 
-    /// When resolving lambda expressions, we need to keep track of the variables
-    /// that are captured. We do this in order to create the hidden environment
-    /// parameter for the lambda function.
-    pub(super) lambda_stack: Vec<LambdaContext>,
-
-    pub(super) current_loop: Option<Loop>,
-
-    pub(super) unsafe_block_status: UnsafeBlockStatus,
+    /// Where in the item's body the elaborator is.
+    pub(super) body: BodyContext,
 
     /// True if we're elaborating a comptime item such as a comptime function,
     /// block, global, or attribute.
     pub(super) in_comptime_context: bool,
-
-    /// True if we are elaborating arguments of a function call to an unconstrained function.
-    pub(super) in_unconstrained_args: bool,
 
     /// Set when resolving types in positions where `impl Trait` is not allowed
     /// (e.g., struct fields, globals, type aliases, enum variants).
@@ -84,37 +76,6 @@ pub(super) struct ItemContext {
     /// This is stored as a field rather than checked at the call site so that it
     /// propagates through recursive `resolve_type` calls.
     pub(super) impl_trait_is_disallowed: Option<ImplTraitDisallowedContext>,
-
-    /// If greater than 0, field visibility errors won't be reported.
-    /// This is used when elaborating a comptime expression that is a struct constructor
-    /// like `Foo { inner: 5 }`: in that case we already elaborated the code that led to
-    /// that comptime value and any visibility errors were already reported.
-    pub(super) silence_field_visibility_errors: usize,
-
-    /// Counter used to define temporary variables for non-simple indexes in l-values.
-    ///
-    /// For example, this expression:
-    ///
-    /// ```noir
-    /// array[x + y] = 10;
-    /// ```
-    ///
-    /// is transformed into:
-    ///
-    /// ```noir
-    /// let i_0 = x + y;
-    /// array[i_0] = 10;
-    /// ```
-    pub(super) lvalue_index_counter: usize,
-}
-
-impl ItemContext {
-    #[tracing::instrument(level = "trace", skip_all)]
-    pub(super) fn next_lvalue_index_counter(&mut self) -> usize {
-        let lvalue_index_counter = self.lvalue_index_counter;
-        self.lvalue_index_counter += 1;
-        lvalue_index_counter
-    }
 }
 
 impl Elaborator<'_> {

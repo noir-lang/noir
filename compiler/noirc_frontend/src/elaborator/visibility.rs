@@ -45,7 +45,7 @@ impl Elaborator<'_> {
     /// allowed from the current location, without reporting any error.
     pub(super) fn method_call_is_visible(&self, func_id: FuncId, object_type: &Type) -> bool {
         method_call_is_visible(
-            self.item.impl_context.self_type.as_ref(),
+            self.item.impl_context.self_type(),
             object_type,
             func_id,
             self.module_id(),
@@ -91,7 +91,7 @@ impl Elaborator<'_> {
         visibility: ItemVisibility,
         location: Location,
     ) {
-        if self.item.silence_field_visibility_errors > 0 {
+        if self.item.body.field_visibility_errors_silenced() {
             return;
         }
 

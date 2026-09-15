@@ -109,11 +109,14 @@ impl Elaborator<'_> {
 
         let mut transitive_capture_index: Option<usize> = None;
 
-        for lambda_index in 0..self.item.lambda_stack.len() {
-            if self.item.lambda_stack[lambda_index].scope_index > variable.scope {
+        for lambda_index in 0..self.item.body.lambda_depth() {
+            if self.item.body.lambda_at_depth_mut(lambda_index).scope_index > variable.scope {
                 // Beware: the same variable may be captured multiple times, so we check
                 // for its presence before adding the capture below.
-                let position = self.item.lambda_stack[lambda_index]
+                let position = self
+                    .item
+                    .body
+                    .lambda_at_depth_mut(lambda_index)
                     .captures
                     .iter()
                     .position(|capture| capture.ident.id == variable.ident.id);
@@ -125,19 +128,21 @@ impl Elaborator<'_> {
                     if self.in_comptime_context()
                         || !self.interner.definition(variable.ident.id).is_comptime_local()
                     {
-                        self.item.lambda_stack[lambda_index].captures.push(HirCapturedVar {
-                            ident: variable.ident.clone(),
-                            transitive_capture_index,
-                        });
+                        self.item.body.lambda_at_depth_mut(lambda_index).captures.push(
+                            HirCapturedVar {
+                                ident: variable.ident.clone(),
+                                transitive_capture_index,
+                            },
+                        );
                         // If this was a fresh capture, we added it to the end of
                         // the captures vector:
-                        Some(self.item.lambda_stack[lambda_index].captures.len() - 1)
+                        Some(self.item.body.lambda_at_depth_mut(lambda_index).captures.len() - 1)
                     } else {
                         None
                     }
                 });
 
-                if lambda_index + 1 < self.item.lambda_stack.len() {
+                if lambda_index + 1 < self.item.body.lambda_depth() {
                     // There is more than one closure between the current scope and
                     // the scope of the variable, so this is a propagated capture.
                     // We need to track the transitive capture index as we go up in
@@ -345,7 +350,7 @@ impl Elaborator<'_> {
         let segment = path.as_single_segment();
         if let Some(segment) = segment
             && segment.ident.is_self_type_name()
-            && let Some(typ) = &self.item.impl_context.self_type
+            && let Some(typ) = self.item.impl_context.self_type()
         {
             return Some(typ.clone());
         }

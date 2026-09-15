@@ -186,17 +186,6 @@ pub struct LambdaContext {
     pub unconstrained: bool,
 }
 
-/// Determines whether we are in an unsafe block and, if so, whether
-/// any unconstrained calls were found in it (because if not we'll warn
-/// that the unsafe block is not needed).
-#[derive(Copy, Clone, Default)]
-enum UnsafeBlockStatus {
-    #[default]
-    NotInUnsafeBlock,
-    InUnsafeBlockWithoutUnconstrainedCalls,
-    InUnsafeBlockWithUnconstrainedCalls,
-}
-
 pub struct Loop {
     pub is_for: bool,
     pub has_break: bool,
@@ -1023,11 +1012,7 @@ impl<'context> Elaborator<'context> {
         // own from each method's `FuncMeta`, and reads nothing from the context it is called in.
         let context = ItemContext {
             local_module: Some(trait_impl.module_id),
-            impl_context: ImplContext {
-                current_trait_impl: trait_impl.impl_id,
-                current_trait: trait_impl.trait_id,
-                ..Default::default()
-            },
+            impl_context: ImplContext::in_trait_impl(None, trait_impl.trait_id, trait_impl.impl_id),
             generics: GenericsContext::new(trait_impl.resolved_generics.clone(), Vec::new()),
             ..Default::default()
         };
@@ -1155,7 +1140,7 @@ impl<'context> Elaborator<'context> {
         });
 
         let in_unconstrained_lambda =
-            self.item.lambda_stack.last().is_some_and(|ctx| ctx.unconstrained);
+            self.item.body.current_lambda().is_some_and(|lambda| lambda.unconstrained);
 
         !in_unconstrained_function && !in_unconstrained_lambda
     }
