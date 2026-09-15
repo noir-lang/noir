@@ -1579,3 +1579,27 @@ fn regression_8485_does_not_panic() {
     let errors = crate::tests::get_program_errors(&full_src);
     assert!(!errors.is_empty(), "expected regression_8485 to produce errors without panicking");
 }
+
+/// An implied bound describes the same associated type as the bound already in scope, so a value
+/// of the bounded type resolves methods of the associated trait.
+#[test]
+fn implied_where_clause_shares_the_associated_type_of_the_bound_in_scope() {
+    let src = r#"
+    trait Foo {
+        let N: u32;
+
+        fn foo(self);
+    }
+
+    trait Bar<T: Foo> {
+        fn x(self) -> T;
+    }
+
+    pub fn use_it<T, P>(p: P) -> T where T: Foo, P: Bar<T> {
+        let v = p.x();
+        v.foo();
+        v
+    }
+    "#;
+    assert_no_errors(src);
+}
