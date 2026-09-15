@@ -667,7 +667,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
         Ok(match &self.dfg()[id] {
             super::ir::value::Value::NumericConstant { constant, typ } => {
-                Value::from_constant(*constant, *typ)?
+                Value::int_from_field(*constant, *typ)?
             }
             super::ir::value::Value::Function(id) => Value::Function(*id),
             super::ir::value::Value::Intrinsic(intrinsic) => Value::Intrinsic(*intrinsic),
