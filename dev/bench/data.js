@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789490995221,
+  "lastUpdate": 1789491213919,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -9152,40 +9152,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "2e3caacfd2031529fb85ae0fee3281cc47ae58e1",
-          "message": "feat(ssa): predicate trivial conditionals instead of leaving them to flattening (#13643)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
-          "timestamp": "2026-09-10T15:13:20Z",
-          "tree_id": "87db7021fdb196d11dfeb40fd2694a3e1da072d5",
-          "url": "https://github.com/noir-lang/noir/commit/2e3caacfd2031529fb85ae0fee3281cc47ae58e1"
-        },
-        "date": 1789054690083,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 85.57,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 79.11,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "8dcefea164758707ea3afabb35400bd178177641",
           "message": "fix(frontend): restore type variable bindings on every path out of monomorphization (#13637)",
           "timestamp": "2026-09-10T15:28:46Z",
@@ -11870,6 +11836,95 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/eec7eae13f2d288a5d0c2814eda50ec48b90a99a"
         },
         "date": 1789490207409,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 297.91,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 338.44,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 325.22,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 372.43,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 369.21,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1270,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1270,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 369.44,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 471.34,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 483.02,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 368.72,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 85.57,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 79.11,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2ba870c82e283acfe54eb914da98953d704fe052",
+          "message": "chore(frontend): record the elaborator's per-item context rule in `design/` (#13717)",
+          "timestamp": "2026-09-15T17:32:20+01:00",
+          "tree_id": "f87f79e34a78c56162450590d2e6816b34ab0efa",
+          "url": "https://github.com/noir-lang/noir/commit/2ba870c82e283acfe54eb914da98953d704fe052"
+        },
+        "date": 1789491134476,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
