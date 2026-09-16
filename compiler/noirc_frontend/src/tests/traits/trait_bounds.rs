@@ -1580,8 +1580,35 @@ fn regression_8485_does_not_panic() {
     assert!(!errors.is_empty(), "expected regression_8485 to produce errors without panicking");
 }
 
-/// An implied bound describes the same associated type as the bound already in scope, so a value
-/// of the bounded type resolves methods of the associated trait.
+/// `P: Bar<T>` implies `T: Foo` through `Bar`'s own where clause, so `v.foo()` resolves with no
+/// written bound on `T`.
+#[test]
+fn implied_where_clause_supplies_the_bound_a_method_call_needs() {
+    let src = r#"
+    trait Foo {
+        let N: u32;
+
+        fn foo(self);
+    }
+
+    trait Bar<T: Foo> {
+        fn x(self) -> T;
+    }
+
+    pub fn use_it<T, P>(p: P) -> T where P: Bar<T> {
+        let v = p.x();
+        v.foo();
+        v
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// The written `T: Foo` is the point of this test: `T` then has two `Foo` bounds in scope, the
+/// written one and the one `P: Bar<T>` implies. `Bar`'s clause leaves `Foo::N` implicit, and the
+/// variable standing for it is shared by every use of `Bar`, so the implied bound must describe `N`
+/// through the written bound's variable instead. Otherwise the two bounds disagree on `N` and
+/// `v.foo()` fails with no matching impl for `T: Foo<N = <T as Foo>::N>`.
 #[test]
 fn implied_where_clause_shares_the_associated_type_of_the_bound_in_scope() {
     let src = r#"
@@ -1664,11 +1691,12 @@ fn where_clause_implies_same_trait_on_different_types() {
     assert_no_errors(src);
 }
 
-/// When Self appears as a generic argument in a trait's where clause (e.g. `where T: Bar<Self>`),
-/// the implication must substitute Self with the object of the bound: `U: Foo<T>` implies
-/// `T: Bar<U>`, so `t.get_s()` returns `U`. Without the substitution, the trait's internal Self
-/// type variable leaks as unbound and unifies with whatever it touches first, permanently
-/// binding it for all subsequent uses of the trait.
+/// When `Self` appears as a generic argument in a trait's where clause (`where T: Bar<Self>`),
+/// the implication substitutes the object of the bound for it: `Y: Foo<X>` implies `X: Bar<Y>`,
+/// so `x.get_s()` returns `Y`. The trait has a single `Self` type variable shared by every use of
+/// it; if the implication left that variable in place, the first `get_s()` call would bind it to
+/// `Y` for good and `use_it2` would then see `P: Bar<Y>` and fail with "expected type Q, found
+/// type Y". Two callers are needed to observe that, so this test has two.
 #[test]
 fn where_clause_implication_substitutes_self_in_trait_generics() {
     let src = r#"
@@ -1678,27 +1706,12 @@ fn where_clause_implication_substitutes_self_in_trait_generics() {
 
     trait Foo<T> where T: Bar<Self> {}
 
-    pub struct A {}
-    pub struct B {}
-
-    impl Bar<A> for B {
-        fn get_s(self) -> A { A {} }
-    }
-    impl Foo<B> for A {}
-
-    impl Bar<B> for B {
-        fn get_s(self) -> B { B {} }
-    }
-    impl Foo<B> for B {}
-
-    // A: Foo<B> implies B: Bar<A>, so get_s returns A.
-    pub fn use_a(b: B, _a: A) -> A {
-        b.get_s()
+    pub fn use_it<X, Y>(x: X, _y: Y) -> Y where Y: Foo<X> {
+        x.get_s()
     }
 
-    // B: Foo<B> implies B: Bar<B>, so get_s returns B.
-    pub fn use_b(b: B, _b2: B) -> B {
-        b.get_s()
+    pub fn use_it2<P, Q>(p: P, _q: Q) -> Q where Q: Foo<P> {
+        p.get_s()
     }
     "#;
     assert_no_errors(src);
