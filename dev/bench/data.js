@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789565304675,
+  "lastUpdate": 1789568174011,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17696,48 +17696,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "b1624788c42a91dda33546cf6dfce9b6e4e72d6a",
-          "message": "fix(frontend): only apply the `self_type` method visibility shortcut to methods from the current crate (#13649)",
-          "timestamp": "2026-09-11T14:01:09Z",
-          "tree_id": "4754ea12b2dcba1425a8104bbbe3f4c55b734373",
-          "url": "https://github.com/noir-lang/noir/commit/b1624788c42a91dda33546cf6dfce9b6e4e72d6a"
-        },
-        "date": 1789136516028,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 69646,
-            "range": "± 1778",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 61562,
-            "range": "± 1388",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 1658177,
-            "range": "± 38291",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "9232ef76db55fe5535c6769602607490f968ffd3",
           "message": "fix(fmt): keep `Safety:` marker lines at paragraph start when reflowing comments (#13650)",
           "timestamp": "2026-09-11T14:51:33Z",
@@ -19779,6 +19737,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2647543,
             "range": "± 10607",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "e7002d271b2aa54f1d7b166248c8d3e1c30cb662",
+          "message": "chore(frontend): share one traversal between the type walkers that agree (#13751)",
+          "timestamp": "2026-09-16T13:52:39Z",
+          "tree_id": "d1d5fa7eac781a5a33494286e9beadce5d2383e3",
+          "url": "https://github.com/noir-lang/noir/commit/e7002d271b2aa54f1d7b166248c8d3e1c30cb662"
+        },
+        "date": 1789568085983,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 126823,
+            "range": "± 366",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 113090,
+            "range": "± 1742",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3046050,
+            "range": "± 1866",
             "unit": "ns/iter"
           }
         ]
