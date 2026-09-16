@@ -810,12 +810,16 @@ impl Elaborator<'_> {
     /// `U: Qux<T>`, declared as `trait Qux<T>: Bar where T: Baz`, implies `T: Baz`. The clause is
     /// instantiated with the bound's generics, so the `T` in the result is the caller's.
     ///
+    /// `object` is the type that satisfies the trait bound (e.g. `U` in `U: Qux<T>`), used to
+    /// substitute `Self` in constraints that mention it as a generic argument.
+    ///
     /// Entries keyed on `Self` are the trait's parent bounds, which are reached through
     /// [`Trait::parent_bounds`](crate::hir_def::traits::Trait::parent_bounds) instead and are
     /// excluded here.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn trait_where_clause_implications(
         &self,
+        object: &Type,
         trait_bound: &ResolvedTraitBound,
     ) -> Vec<TraitConstraint> {
         let Some(the_trait) = self.interner.try_get_trait(trait_bound.trait_id) else {
@@ -838,6 +842,11 @@ impl Elaborator<'_> {
 
         let mut bindings = TypeBindings::default();
         self.bind_generics_from_trait_bound(trait_bound, &mut bindings);
+
+        // Bind the trait's Self type variable to the object so that constraints mentioning
+        // Self as a generic argument (e.g. `where T: Bar<Self>`) are correctly instantiated.
+        let self_typevar = the_trait.self_type_typevar.clone();
+        bindings.insert(self_id, (self_typevar, Kind::Normal, object.clone()));
 
         let mut implications = Vec::with_capacity(where_clause.len());
 
@@ -935,7 +944,9 @@ impl Elaborator<'_> {
         let mut implied = Vec::new();
 
         while let Some(constraint) = queue.pop() {
-            for implication in self.trait_where_clause_implications(&constraint.trait_bound) {
+            for implication in
+                self.trait_where_clause_implications(&constraint.typ, &constraint.trait_bound)
+            {
                 let key = (implication.typ.clone(), implication.trait_bound.trait_id);
                 if !visited.insert(key) {
                     continue;
@@ -1095,7 +1106,7 @@ impl Elaborator<'_> {
 
         // A trait's own `where` clause holds wherever the trait is named, so `U: Qux<T>`,
         // declared as `trait Qux<T> where T: Baz`, also brings `T: Baz` into scope.
-        for constraint in self.trait_where_clause_implications(trait_bound) {
+        for constraint in self.trait_where_clause_implications(object, trait_bound) {
             // Avoid looping forever in case there are cycles
             if !visited.insert((constraint.typ.clone(), constraint.trait_bound.trait_id)) {
                 continue;

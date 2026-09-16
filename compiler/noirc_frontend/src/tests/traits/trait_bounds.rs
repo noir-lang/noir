@@ -1663,3 +1663,43 @@ fn where_clause_implies_same_trait_on_different_types() {
     "#;
     assert_no_errors(src);
 }
+
+/// When Self appears as a generic argument in a trait's where clause (e.g. `where T: Bar<Self>`),
+/// the implication must substitute Self with the object of the bound: `U: Foo<T>` implies
+/// `T: Bar<U>`, so `t.get_s()` returns `U`. Without the substitution, the trait's internal Self
+/// type variable leaks as unbound and unifies with whatever it touches first, permanently
+/// binding it for all subsequent uses of the trait.
+#[test]
+fn where_clause_implication_substitutes_self_in_trait_generics() {
+    let src = r#"
+    trait Bar<S> {
+        fn get_s(self) -> S;
+    }
+
+    trait Foo<T> where T: Bar<Self> {}
+
+    pub struct A {}
+    pub struct B {}
+
+    impl Bar<A> for B {
+        fn get_s(self) -> A { A {} }
+    }
+    impl Foo<B> for A {}
+
+    impl Bar<B> for B {
+        fn get_s(self) -> B { B {} }
+    }
+    impl Foo<B> for B {}
+
+    // A: Foo<B> implies B: Bar<A>, so get_s returns A.
+    pub fn use_a(b: B, _a: A) -> A {
+        b.get_s()
+    }
+
+    // B: Foo<B> implies B: Bar<B>, so get_s returns B.
+    pub fn use_b(b: B, _b2: B) -> B {
+        b.get_s()
+    }
+    "#;
+    assert_no_errors(src);
+}
