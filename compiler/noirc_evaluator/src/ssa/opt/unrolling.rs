@@ -1070,11 +1070,11 @@ impl Loop {
         let else_branch_is_body = self.blocks.contains(else_destination);
 
         // The header's guard bounds the induction variable only if it is the loop's exit test,
-        // i.e. exactly one of its arms leaves the loop. `codegen_loop` makes the body's first
-        // block the header, so a `loop`/`while` whose body opens with an `if` on the counter
-        // and exits further down has a header `jmpif` whose arms both stay inside the loop:
-        // that comparison is an ordinary branch and says nothing about how far the counter runs.
-        if then_branch_is_body == else_branch_is_body {
+        // i.e. one of its arms leaves the loop. `codegen_loop` makes the body's first block the
+        // header, so a `loop`/`while` whose body opens with an `if` on the counter and exits
+        // further down has a header `jmpif` whose arms both stay inside the loop: that
+        // comparison is an ordinary branch and says nothing about how far the counter runs.
+        if then_branch_is_body && else_branch_is_body {
             return None;
         }
 
