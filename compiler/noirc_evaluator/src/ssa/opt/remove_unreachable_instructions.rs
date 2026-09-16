@@ -462,7 +462,8 @@ fn binary_operation_always_fails(
 
     let lhs_value = context.dfg.get_numeric_constant(lhs)?;
 
-    match eval_constant_binary_op(lhs_value, rhs_value, operator, numeric_type) {
+    let is_brillig = context.dfg.runtime().is_brillig();
+    match eval_constant_binary_op(lhs_value, rhs_value, operator, numeric_type, is_brillig) {
         BinaryEvaluationResult::Failure(message) => Some(message),
         BinaryEvaluationResult::CouldNotEvaluate | BinaryEvaluationResult::Success(..) => None,
     }
