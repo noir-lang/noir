@@ -277,7 +277,10 @@ pub enum InterpreterError {
         token: Option<Token>,
         location: Location,
     },
+    /// The search for an impl ran out of depth, so whether one exists is unknown. `constraint`
+    /// names the bound the user's code asked for, when it is known.
     TraitImplResolutionRecursionLimitReached {
+        constraint: Option<String>,
         location: Location,
     },
     ExpectingOtherError(ExpectingOtherError),
@@ -400,7 +403,7 @@ impl InterpreterError {
             | InterpreterError::EvaluationDepthOverflow { location, .. }
             | InterpreterError::CheckedTransmuteFailed { location, .. }
             | InterpreterError::UnexpectedEscapedTokenInQuote { location, .. }
-            | InterpreterError::TraitImplResolutionRecursionLimitReached { location }
+            | InterpreterError::TraitImplResolutionRecursionLimitReached { location, .. }
             | InterpreterError::AttributeRecursionLimitExceeded { location }
             | InterpreterError::CannotCastNumericToBool { location, .. }
             | InterpreterError::CannotModifyExternalItem { location, .. }
@@ -831,10 +834,13 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 let secondary = "Only `$` may be escaped in `quote` expressions".to_string();
                 CustomDiagnostic::simple_error(primary, secondary, *location)
             }
-            InterpreterError::TraitImplResolutionRecursionLimitReached { location } => {
-                let primary = "Trait impl resolution recursion limit reached".to_string();
-                let secondary = String::new();
-                CustomDiagnostic::simple_warning(primary, secondary, *location)
+            InterpreterError::TraitImplResolutionRecursionLimitReached { constraint, location } => {
+                let primary = match constraint {
+                    Some(constraint) => format!("Overflow evaluating the trait bound `{constraint}`"),
+                    None => "Overflow searching for a trait impl".to_string(),
+                };
+                let secondary = "The trait impl search recursion limit was reached".to_string();
+                CustomDiagnostic::simple_error(primary, secondary, *location)
             }
             InterpreterError::ExpectingOtherError(error) => error.into(),
             InterpreterError::CannotModifyExternalItem { item, module, location } => {
