@@ -1,3 +1,13 @@
+// The `test_fuzz_target` test binary is rooted at this module, while each fuzz target
+// binary is rooted at its own file and reaches this module as `crate::fuzz_lib`. The
+// alias and the path attribute let the mutator, which is shared with those binaries and
+// so spells its imports `crate::fuzz_lib::...`, compile under both roots.
+#[cfg(test)]
+extern crate self as fuzz_lib;
+#[cfg(test)]
+#[path = "../mutations/mod.rs"]
+mod mutations;
+
 pub(crate) mod block_context;
 pub(crate) mod corpus;
 pub(crate) mod ecdsa;

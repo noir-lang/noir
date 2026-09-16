@@ -7,6 +7,7 @@ mod corpus;
 mod ecdsa;
 mod embedded_curve_ops;
 mod function_calls;
+mod fuzz_campaign;
 mod hash_tests;
 mod loops;
 mod vectors;

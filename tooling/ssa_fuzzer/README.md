@@ -50,6 +50,18 @@ FULL mode will show all SSA passes, FINAL mode will show only the final SSA pass
 cargo +nightly fuzz tmin acir_vs_brillig --fuzz-dir ./fuzzer PATH_TO_CRASH -runs=1000
 ```
 
+### Running a campaign without `cargo-fuzz`
+
+`cargo test -p ssa_fuzzer_fuzz --test test_fuzz_target fuzz_campaign` runs a bounded
+`acir_vs_brillig` campaign as an ordinary test: it mutates a corpus, round-trips each case
+through the corpus codec, and executes it under both runtimes. It needs no nightly
+toolchain and runs in CI, where it also asserts that mutated cases keep building programs
+— a harness that produces no program compares nothing while reporting success.
+
+- `NOIR_SSA_FUZZER_SEED=0x1234` replays a specific seed.
+- `NOIR_SSA_FUZZER_BUDGET_SECS=300` mutates for that long instead of running a fixed
+  number of cases.
+
 
 ## How it works
 ### TLDR
