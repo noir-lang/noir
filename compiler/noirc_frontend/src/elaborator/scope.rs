@@ -25,11 +25,11 @@ use super::{Elaborator, PathResolutionTarget, ResolverMeta};
 
 type ScopeTree = GenericScopeTree<String, ResolverMeta>;
 
-pub(crate) struct ReplacedModule(CrateId, Option<LocalModuleId>);
+pub(crate) struct ReplacedModule(CrateId, LocalModuleId);
 
 impl Elaborator<'_> {
     pub fn module_id(&self) -> ModuleId {
-        ModuleId { krate: self.crate_id, local_id: self.item.module.expect_local_module() }
+        ModuleId { krate: self.crate_id, local_id: self.item.module.local_module() }
     }
 
     /// The module that visibility checks during path resolution are made from: the caller's
@@ -48,9 +48,8 @@ impl Elaborator<'_> {
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn replace_module(&mut self, new_module: ModuleId) -> ReplacedModule {
         let old_crate_id = self.crate_id;
-        let old_local_module = self.item.module.local_module();
+        let old_local_module = self.item.module.replace_local_module(new_module.local_id);
         self.crate_id = new_module.krate;
-        self.item.module.set_local_module(Some(new_module.local_id));
         ReplacedModule(old_crate_id, old_local_module)
     }
 

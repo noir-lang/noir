@@ -76,15 +76,9 @@ impl Elaborator<'_> {
 
         // The impl is collected in a context of its own: its module, the trait and impl ids and
         // the implementing type as `Self`. The caller's context is reinstated afterwards.
-        let context = ItemContext {
-            module: ModuleContext::in_module(trait_impl.module_id),
-            impl_context: ImplContext::in_trait_impl(
-                Some(self_type),
-                trait_impl.trait_id,
-                trait_impl.impl_id,
-            ),
-            ..Default::default()
-        };
+        let context = ItemContext::new(ModuleContext::in_module(trait_impl.module_id)).with_impl(
+            ImplContext::in_trait_impl(Some(self_type), trait_impl.trait_id, trait_impl.impl_id),
+        );
         self.with_item_context(context, |this| {
             this.collect_trait_impl_in_context(trait_impl);
         });
@@ -450,8 +444,7 @@ impl Elaborator<'_> {
         trait_id: TraitId,
         impl_id: TraitImplId,
     ) {
-        let module_id =
-            self.item.module.local_module().expect("local_module is set inside collect_trait_impl");
+        let module_id = self.item.module.local_module();
         self.pending_trait_work.where_clause_checks.push(super::PendingWhereClauseCheck {
             impl_method_func_id,
             trait_id,
@@ -484,15 +477,13 @@ impl Elaborator<'_> {
             let impl_self_type =
                 self.interner.get_trait_implementation(check.impl_id).borrow().typ.clone();
             // Each check runs in a context of its own for the impl, as trait impl collection did.
-            let context = ItemContext {
-                module: ModuleContext::in_module(check.module_id),
-                impl_context: ImplContext::in_trait_impl(
+            let context = ItemContext::new(ModuleContext::in_module(check.module_id)).with_impl(
+                ImplContext::in_trait_impl(
                     Some(impl_self_type),
                     Some(check.trait_id),
                     Some(check.impl_id),
                 ),
-                ..Default::default()
-            };
+            );
             self.with_item_context(context, |this| {
                 this.check_where_clause_against_trait(
                     &check.impl_method_func_id,
@@ -929,10 +920,7 @@ impl Elaborator<'_> {
         trait_impl: &mut UnresolvedTraitImpl,
     ) -> (Vec<(TraitConstraint, Location)>, Vec<ResolvedGeneric>) {
         // No current item is installed so that resolving the self type registers no dependencies.
-        let context = ItemContext {
-            module: ModuleContext::in_module(trait_impl.module_id),
-            ..Default::default()
-        };
+        let context = ItemContext::new(ModuleContext::in_module(trait_impl.module_id));
         self.with_item_context(context, |this| this.prepare_trait_impl_in_context(trait_impl))
     }
 

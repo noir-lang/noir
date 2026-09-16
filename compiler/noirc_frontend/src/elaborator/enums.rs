@@ -194,12 +194,10 @@ impl Elaborator<'_> {
         // middle of another item (e.g. an impl method that matches on the enum), so the enum
         // gets a context of its own: the item's generics and `Self` type would otherwise be
         // visible to the variant types.
-        let context = ItemContext {
-            module: ModuleContext::of_item(module_id, DependencyId::DataType(type_id)),
-            in_comptime_context: enum_def.comptime,
-            impl_trait_is_disallowed: Some(super::types::ImplTraitDisallowedContext::EnumVariant),
-            ..Default::default()
-        };
+        let context =
+            ItemContext::new(ModuleContext::of_item(module_id, DependencyId::DataType(type_id)))
+                .in_comptime(enum_def.comptime)
+                .disallowing_impl_trait(super::types::ImplTraitDisallowedContext::EnumVariant);
         self.with_item_context(context, |this| {
             this.resolve_one_enum_variants_in_context(type_id, enum_def);
         });

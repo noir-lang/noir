@@ -103,12 +103,10 @@ impl Elaborator<'_> {
         // gets a context of its own: the item's generics would otherwise collide with the
         // struct's via `add_existing_generics`, and its `Self` type would be visible to the
         // field types.
-        let context = ItemContext {
-            module: ModuleContext::of_item(module_id, DependencyId::DataType(type_id)),
-            in_comptime_context: struct_def.comptime,
-            impl_trait_is_disallowed: Some(super::types::ImplTraitDisallowedContext::StructField),
-            ..Default::default()
-        };
+        let context =
+            ItemContext::new(ModuleContext::of_item(module_id, DependencyId::DataType(type_id)))
+                .in_comptime(struct_def.comptime)
+                .disallowing_impl_trait(super::types::ImplTraitDisallowedContext::StructField);
         self.with_item_context(context, |this| {
             this.resolve_one_struct_fields_in_context(type_id, struct_def);
         });

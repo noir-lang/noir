@@ -74,13 +74,10 @@ impl Elaborator<'_> {
         // function body that mentions it. It gets a context of its own so that name resolution
         // happens in the module where the global was defined, and so that nothing of the item
         // that mentioned it, such as its `Self` type or generics, is visible to the initializer.
-        let context = ItemContext {
-            module: ModuleContext::of_item(
-                global.module_id,
-                DependencyId::Global(global.global_id),
-            ),
-            ..Default::default()
-        };
+        let context = ItemContext::new(ModuleContext::of_item(
+            global.module_id,
+            DependencyId::Global(global.global_id),
+        ));
         self.with_item_context(context, |this| this.elaborate_global_in_context(global));
     }
 

@@ -248,11 +248,8 @@ impl Elaborator<'_> {
         f: impl FnOnce(&mut Self) -> T,
     ) -> T {
         let self_typevar = self.interner.get_trait(trait_id).self_type_typevar.clone();
-        let context = ItemContext {
-            module: ModuleContext::in_module(module_id),
-            impl_context: ImplContext::in_trait(trait_id, Type::TypeVariable(self_typevar)),
-            ..Default::default()
-        };
+        let context = ItemContext::new(ModuleContext::in_module(module_id))
+            .with_impl(ImplContext::in_trait(trait_id, Type::TypeVariable(self_typevar)));
         self.with_item_context(context, f)
     }
 }
@@ -1171,13 +1168,14 @@ impl Elaborator<'_> {
     ) {
         // The method is resolved in a context of its own, nested in the trait's: it sees the
         // trait's module, `Self` and generics, and whatever it adds is discarded on exit.
-        let context = ItemContext {
-            module: self.item.module.nested_item(DependencyId::Function(func_id)),
-            impl_context: self.item.impl_context.clone(),
-            generics: GenericsContext::new(self.item.generics.params().to_vec(), Vec::new()),
-            in_comptime_context: def.is_comptime,
-            ..Default::default()
-        };
+        let context =
+            ItemContext::new(self.item.module.nested_item(DependencyId::Function(func_id)))
+                .with_impl(self.item.impl_context.clone())
+                .with_generics(GenericsContext::new(
+                    self.item.generics.params().to_vec(),
+                    Vec::new(),
+                ))
+                .in_comptime(def.is_comptime);
         self.with_item_context(context, |this| {
             this.scopes.start_function();
 
@@ -1246,11 +1244,7 @@ impl Elaborator<'_> {
             if has_body { FunctionKind::Normal } else { FunctionKind::TraitFunctionWithoutBody };
         let function = NoirFunction { kind, def };
 
-        let local_module = self
-            .item
-            .module
-            .local_module()
-            .expect("local_module must be set when registering a trait method");
+        let local_module = self.item.module.local_module();
         // Trait methods see `Self` as the trait's self-type variable. Capture
         // it now so that meta resolution (run later, after attributes) finds a `Self` type in
         // scope when it processes `where` clauses and trait constraints
