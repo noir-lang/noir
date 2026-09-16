@@ -36,7 +36,6 @@ pub(crate) use module_context::ModuleContext;
 /// here is expected to start fresh for an item and to be irrelevant once that item is done. State
 /// shared by the whole elaboration - the interner, the collected errors, the recursion depth - stays
 /// on the [`Elaborator`] itself.
-#[derive(Default)]
 pub(super) struct ItemContext {
     /// The item being elaborated, and the module it was written in.
     pub(super) module: ModuleContext,
@@ -61,6 +60,46 @@ pub(super) struct ItemContext {
     /// This is stored as a field rather than checked at the call site so that it
     /// propagates through recursive `resolve_type` calls.
     pub(super) impl_trait_is_disallowed: Option<ImplTraitDisallowedContext>,
+}
+
+impl ItemContext {
+    /// The context of an item described by `module` that is outside any impl or trait, has no
+    /// generics in scope and is not comptime. An entry point whose item has any of those layers
+    /// them on with the chained setters below.
+    pub(super) fn new(module: ModuleContext) -> Self {
+        Self {
+            module,
+            impl_context: ImplContext::default(),
+            generics: GenericsContext::default(),
+            body: BodyContext::default(),
+            in_comptime_context: false,
+            impl_trait_is_disallowed: None,
+        }
+    }
+
+    /// The item belongs to the impl or trait described by `impl_context`.
+    pub(super) fn with_impl(mut self, impl_context: ImplContext) -> Self {
+        self.impl_context = impl_context;
+        self
+    }
+
+    /// The item has `generics` in scope.
+    pub(super) fn with_generics(mut self, generics: GenericsContext) -> Self {
+        self.generics = generics;
+        self
+    }
+
+    /// Whether the item is a comptime one.
+    pub(super) fn in_comptime(mut self, in_comptime_context: bool) -> Self {
+        self.in_comptime_context = in_comptime_context;
+        self
+    }
+
+    /// Types resolved for the item may not mention `impl Trait`, because they sit in `context`.
+    pub(super) fn disallowing_impl_trait(mut self, context: ImplTraitDisallowedContext) -> Self {
+        self.impl_trait_is_disallowed = Some(context);
+        self
+    }
 }
 
 impl Elaborator<'_> {

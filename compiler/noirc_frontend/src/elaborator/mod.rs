@@ -397,6 +397,8 @@ impl<'context> Elaborator<'context> {
         options: ElaboratorOptions<'context>,
         elaborate_reasons: imbl::Vector<ElaborateReason>,
     ) -> Self {
+        // Until an item installs its own context, paths resolve against the crate root.
+        let initial_module = def_maps[&crate_id].root();
         Self {
             scopes: ScopeForest::default(),
             errors: CompilationErrors::default(),
@@ -409,7 +411,7 @@ impl<'context> Elaborator<'context> {
             evaluation_tracker,
             required_unstable_features,
             unresolved_globals,
-            item: ItemContext::default(),
+            item: ItemContext::new(ModuleContext::in_module(initial_module)),
             crate_id,
             resolving_ids: BTreeSet::new(),
             function_context: vec![FunctionContext::default()],
@@ -1010,12 +1012,9 @@ impl<'context> Elaborator<'context> {
         // header, so the checks below run with its generics and trait ids in scope. The method
         // bodies are elaborated outside that context: `elaborate_function` installs one of its
         // own from each method's `FuncMeta`, and reads nothing from the context it is called in.
-        let context = ItemContext {
-            module: ModuleContext::in_module(trait_impl.module_id),
-            impl_context: ImplContext::in_trait_impl(None, trait_impl.trait_id, trait_impl.impl_id),
-            generics: GenericsContext::new(trait_impl.resolved_generics.clone(), Vec::new()),
-            ..Default::default()
-        };
+        let context = ItemContext::new(ModuleContext::in_module(trait_impl.module_id))
+            .with_impl(ImplContext::in_trait_impl(None, trait_impl.trait_id, trait_impl.impl_id))
+            .with_generics(GenericsContext::new(trait_impl.resolved_generics.clone(), Vec::new()));
         self.with_item_context(context, |this| {
             this.add_trait_impl_assumed_trait_implementations(trait_impl.impl_id);
             this.check_trait_impl_where_clause_matches_trait_where_clause(&trait_impl);
@@ -1057,11 +1056,11 @@ impl<'context> Elaborator<'context> {
 
     #[tracing::instrument(level = "trace", skip_all)]
     fn define_type_alias(&mut self, alias_id: TypeAliasId, alias: UnresolvedTypeAlias) {
-        let context = ItemContext {
-            module: ModuleContext::of_item(alias.module_id, DependencyId::Alias(alias_id)),
-            in_comptime_context: alias.type_alias_def.comptime,
-            ..Default::default()
-        };
+        let context = ItemContext::new(ModuleContext::of_item(
+            alias.module_id,
+            DependencyId::Alias(alias_id),
+        ))
+        .in_comptime(alias.type_alias_def.comptime);
         self.with_item_context(context, |this| this.define_type_alias_in_context(alias_id, alias));
     }
 

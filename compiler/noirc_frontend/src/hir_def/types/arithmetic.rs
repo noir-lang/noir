@@ -668,6 +668,7 @@ mod proptests {
         hir::{
             Context,
             comptime::{Integer, Interpreter, Value},
+            def_map::{CrateDefMap, ModuleData},
         },
         hir_def::types::{
             BinaryTypeOperator, Kind, Type, TypeBindings, TypeVariable, TypeVariableId,
@@ -1054,16 +1055,23 @@ mod proptests {
                 &file_manager,
                 &parsed_files,
             );
+            let crate_id = CrateId::Root(0);
+            let root_module = ModuleData::new(
+                None,
+                None,
+                Location::dummy(),
+                Vec::new(),
+                Vec::new(),
+                false, // is contract
+                false, // is struct
+            );
+            context.def_maps.insert(crate_id, CrateDefMap::new(crate_id, root_module));
             let options = ElaboratorOptions {
                 debug_comptime_in_file: None,
                 enabled_unstable_features: &[],
                 disable_required_unstable_features: false,
             };
-            let mut elaborator = Elaborator::from_context(
-                &mut context,
-                CrateId::Root(0),
-                options,
-            );
+            let mut elaborator = Elaborator::from_context(&mut context, crate_id, options);
             let (expr_id, expr_type) = elaborator.elaborate_expression(expr);
 
             assert_eq!(elaborator.errors.as_ref(), vec![]);
