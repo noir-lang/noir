@@ -1,42 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789565206988,
+  "lastUpdate": 1789565214318,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "73f7ff0d14e6dd3003c56bc92397504115e04141",
-          "message": "feat(nargo): reuse the elaborated context across tests in `nargo test` (#13633)",
-          "timestamp": "2026-09-11T13:20:06Z",
-          "tree_id": "452579fe64befbcd9fa48aced45e753eecee18fc",
-          "url": "https://github.com/noir-lang/noir/commit/73f7ff0d14e6dd3003c56bc92397504115e04141"
-        },
-        "date": 1789134370939,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 106.81,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 151.87,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -3454,6 +3420,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512_100_bytes",
             "value": 151.87,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fa949425d24544cea2345757c7c13caff68c1d9c",
+          "message": "fix: eval_const_binary executes unchecked ops right away in ACIR (#13743)",
+          "timestamp": "2026-09-16T12:47:55Z",
+          "tree_id": "e4cfdbf19025b0e37133169431f6aff766fbff46",
+          "url": "https://github.com/noir-lang/noir/commit/fa949425d24544cea2345757c7c13caff68c1d9c"
+        },
+        "date": 1789565120189,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 315.72,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 551.69,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 527.89,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-no-txs",
+            "value": 389.73,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 392.85,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 393.67,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 368.59,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 4960,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 4960,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 371.14,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 879.43,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 813.27,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 367.95,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 106.81,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 151.88,
             "unit": "MB"
           }
         ]
