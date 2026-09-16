@@ -1631,6 +1631,58 @@ fn implied_where_clause_shares_the_associated_type_of_the_bound_in_scope() {
     assert_no_errors(src);
 }
 
+/// The associated type an implied bound leaves implicit is instantiated per call site. `P: Bar<T>`
+/// implies `T: Foo<N = _>`; `use_it` is called once with `N = 3` and once with `N = 5`, and each call
+/// verifies its own `T: Foo`. If the variable standing for `N` were shared between call sites, the
+/// first call would bind it to `3` and the second would fail with no matching impl for
+/// `B: Foo<N = 3>`.
+#[test]
+fn implied_where_clause_associated_type_is_instantiated_per_call_site() {
+    let src = r#"
+    trait Foo {
+        let N: u32;
+    }
+
+    trait Bar<T: Foo> {
+        fn x(self) -> T;
+    }
+
+    pub struct A {}
+    pub struct B {}
+
+    impl Foo for A {
+        let N: u32 = 3;
+    }
+    impl Foo for B {
+        let N: u32 = 5;
+    }
+
+    pub struct XA {}
+    pub struct XB {}
+
+    impl Bar<A> for XA {
+        fn x(self) -> A {
+            A {}
+        }
+    }
+    impl Bar<B> for XB {
+        fn x(self) -> B {
+            B {}
+        }
+    }
+
+    pub fn use_it<T, P>(p: P) -> T where P: Bar<T> {
+        p.x()
+    }
+
+    fn main() {
+        let _ = use_it(XA {});
+        let _ = use_it(XB {});
+    }
+    "#;
+    assert_no_errors(src);
+}
+
 /// Transitive where clause implications: `Y: A<X>` implies `X: B<X>` (from A's where clause),
 /// which in turn implies `X: C` (from B's where clause), so `x.c()` resolves.
 #[test]
