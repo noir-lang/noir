@@ -1061,12 +1061,22 @@ impl Loop {
         dfg: &DataFlowGraph,
         resolve_value: impl Fn(ValueId) -> ValueId,
     ) -> Option<(IntegerConstant, LoopBoundKind)> {
-        let Some(TerminatorInstruction::JmpIf { then_destination, .. }) =
+        let Some(TerminatorInstruction::JmpIf { then_destination, else_destination, .. }) =
             dfg[self.header].terminator()
         else {
             return None;
         };
         let then_branch_is_body = self.blocks.contains(then_destination);
+        let else_branch_is_body = self.blocks.contains(else_destination);
+
+        // The header's guard bounds the induction variable only if it is the loop's exit test,
+        // i.e. exactly one of its arms leaves the loop. `codegen_loop` makes the body's first
+        // block the header, so a `loop`/`while` whose body opens with an `if` on the counter
+        // and exits further down has a header `jmpif` whose arms both stay inside the loop:
+        // that comparison is an ordinary branch and says nothing about how far the counter runs.
+        if then_branch_is_body == else_branch_is_body {
+            return None;
+        }
 
         let guard = self.induction_variable_guard(dfg, resolve_value)?;
         match guard {
@@ -4259,6 +4269,59 @@ mod tests {
             "get_const_upper_bound should return None when the header's Lt instruction \
              does not feed the jmpif condition, but got: {upper:?}"
         );
+    }
+
+    /// Regression for noir-lang/noir-claude#1844: the header's `jmpif` bounds the induction
+    /// variable only when it is the loop's exit test, i.e. exactly one of its arms leaves the
+    /// loop. Here the header guard tests the induction variable `v1` against a constant, but
+    /// both arms (`b2` and `b3`) stay inside the loop and the loop actually exits through
+    /// `eq v1, v0` in `b4`. `codegen_loop` emits this shape for a `loop` whose body opens with
+    /// an `if` on the counter and `break`s further down. Reading the guard's constant as the
+    /// upper bound would let LICM fold the real exit to `false` and uncheck the increment, so
+    /// `get_const_upper_bound` must return `None` for every guard kind.
+    #[test_case("u32", "lt v1, u32 10"; "less than")]
+    #[test_case("u32", "eq v1, u32 10"; "equal")]
+    #[test_case("u1", "not v1"; "not")]
+    fn get_const_upper_bound_requires_exactly_one_arm_to_exit_loop(typ: &str, guard: &str) {
+        let src = format!(
+            "
+        brillig(inline) fn main f0 {{
+          b0(v0: {typ}):
+            jmp b1({typ} 0)
+          b1(v1: {typ}):
+            v2 = {guard}
+            jmpif v2 then: b2(), else: b3()
+          b2():
+            jmp b4()
+          b3():
+            jmp b4()
+          b4():
+            v3 = eq v1, v0
+            jmpif v3 then: b6(), else: b5()
+          b5():
+            v4 = add v1, {typ} 1
+            jmp b1(v4)
+          b6():
+            return v1
+        }}
+        "
+        );
+        let ssa = Ssa::from_str(&src).unwrap();
+        let function = ssa.main();
+        let loops = Loops::find_all(function, LoopOrder::OutsideIn);
+        assert_eq!(loops.yet_to_unroll.len(), 1);
+        let loop_ = &loops.yet_to_unroll[0];
+
+        let upper = loop_.get_const_upper_bound(&function.dfg, |v| v);
+        assert!(
+            upper.is_none(),
+            "get_const_upper_bound should return None when both arms of the header's jmpif \
+             stay inside the loop, but got: {upper:?}"
+        );
+
+        let pre_header = loop_.get_pre_header(function, &loops.cfg).unwrap();
+        let bounds = loop_.get_const_bounds(&function.dfg, pre_header, |v| v);
+        assert!(bounds.is_none(), "get_const_bounds should return None, but got: {bounds:?}");
     }
 
     /// Regression test: after mem2reg, loop headers can have multiple parameters

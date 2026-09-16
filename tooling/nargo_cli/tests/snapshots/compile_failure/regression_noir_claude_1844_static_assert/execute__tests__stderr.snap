@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: else arm ran
+   ┌─ src/main.nr:15:13
+   │
+15 │             std::static_assert(false, "else arm ran");
+   │             -----------------------------------------
+   │
+   = Call stack:
+     1: f
+             at src/main.nr:15:13
+
+Aborting due to 1 previous error
