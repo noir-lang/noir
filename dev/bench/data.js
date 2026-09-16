@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789568174011,
+  "lastUpdate": 1789568251063,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17686,48 +17686,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "9232ef76db55fe5535c6769602607490f968ffd3",
-          "message": "fix(fmt): keep `Safety:` marker lines at paragraph start when reflowing comments (#13650)",
-          "timestamp": "2026-09-11T14:51:33Z",
-          "tree_id": "803224d64079f53a740e9af9cf9ce6760cd8f2e4",
-          "url": "https://github.com/noir-lang/noir/commit/9232ef76db55fe5535c6769602607490f968ffd3"
-        },
-        "date": 1789139421495,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 160997,
-            "range": "± 560",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 142726,
-            "range": "± 958",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2131772,
-            "range": "± 1658",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -19779,6 +19737,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3046050,
             "range": "± 1866",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6ca1c62bd2833984fd0cfc1eac52354e1e147335",
+          "message": "chore(frontend): scope the interpreter's module switch to a closure too (#13753)",
+          "timestamp": "2026-09-16T13:52:39Z",
+          "tree_id": "9165f02f9b3550d804119fb21aa174fc797e9eef",
+          "url": "https://github.com/noir-lang/noir/commit/6ca1c62bd2833984fd0cfc1eac52354e1e147335"
+        },
+        "date": 1789568163918,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 166922,
+            "range": "± 1837",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 135230,
+            "range": "± 607",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2647636,
+            "range": "± 1696",
             "unit": "ns/iter"
           }
         ]
