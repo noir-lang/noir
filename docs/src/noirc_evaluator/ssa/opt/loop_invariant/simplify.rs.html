@@ -329,48 +329,49 @@
 <a href=#329 id=329 data-nosnippet>329</a>            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
 <a href=#330 id=330 data-nosnippet>330</a>        } {
 <a href=#331 id=331 data-nosnippet>331</a>            <span class="comment">// Evaluate the operation at both bound extremes to check whether it will ever overflow.
-<a href=#332 id=332 data-nosnippet>332</a>            </span><span class="kw">for </span>(lhs, rhs) <span class="kw">in </span>checks {
-<a href=#333 id=333 data-nosnippet>333</a>                <span class="kw">let </span>lhs = lhs.into_numeric_constant().<span class="number">0</span>;
-<a href=#334 id=334 data-nosnippet>334</a>                <span class="kw">let </span>rhs = rhs.into_numeric_constant().<span class="number">0</span>;
-<a href=#335 id=335 data-nosnippet>335</a>                <span class="kw">match </span>eval_constant_binary_op(lhs, rhs, binary.operator, operand_type) {
-<a href=#336 id=336 data-nosnippet>336</a>                    BinaryEvaluationResult::Success(..) =&gt; {}
-<a href=#337 id=337 data-nosnippet>337</a>                    BinaryEvaluationResult::CouldNotEvaluate
-<a href=#338 id=338 data-nosnippet>338</a>                    | BinaryEvaluationResult::Failure(..) =&gt; {
-<a href=#339 id=339 data-nosnippet>339</a>                        <span class="kw">return </span>SimplifyResult::None;
-<a href=#340 id=340 data-nosnippet>340</a>                    }
-<a href=#341 id=341 data-nosnippet>341</a>                }
-<a href=#342 id=342 data-nosnippet>342</a>            }
-<a href=#343 id=343 data-nosnippet>343</a>            <span class="kw">let </span>unchecked = Instruction::Binary(Binary {
-<a href=#344 id=344 data-nosnippet>344</a>                operator: binary.operator.into_unchecked(),
-<a href=#345 id=345 data-nosnippet>345</a>                lhs: binary.lhs,
-<a href=#346 id=346 data-nosnippet>346</a>                rhs: binary.rhs,
-<a href=#347 id=347 data-nosnippet>347</a>            });
-<a href=#348 id=348 data-nosnippet>348</a>            <span class="kw">return </span>SimplifyResult::SimplifiedToInstruction(unchecked);
-<a href=#349 id=349 data-nosnippet>349</a>        }
-<a href=#350 id=350 data-nosnippet>350</a>
-<a href=#351 id=351 data-nosnippet>351</a>        <span class="comment">// Handle comparisons. (The upper_bound is exclusive).
-<a href=#352 id=352 data-nosnippet>352</a>        </span><span class="kw">match </span>binary.operator {
-<a href=#353 id=353 data-nosnippet>353</a>            BinaryOp::Eq =&gt; {
-<a href=#354 id=354 data-nosnippet>354</a>                <span class="kw">if </span>constant &gt;= bounds.upper || constant &lt; bounds.lower {
-<a href=#355 id=355 data-nosnippet>355</a>                    <span class="comment">// `i == const` cannot be true if the constant is out of range.
-<a href=#356 id=356 data-nosnippet>356</a>                    </span>SimplifyResult::SimplifiedTo(<span class="self">self</span>.false_value)
-<a href=#357 id=357 data-nosnippet>357</a>                } <span class="kw">else </span>{
-<a href=#358 id=358 data-nosnippet>358</a>                    SimplifyResult::None
-<a href=#359 id=359 data-nosnippet>359</a>                }
-<a href=#360 id=360 data-nosnippet>360</a>            }
-<a href=#361 id=361 data-nosnippet>361</a>            BinaryOp::Lt =&gt; <span class="kw">match </span>is_induction_var_lhs {
-<a href=#362 id=362 data-nosnippet>362</a>                <span class="comment">// `i &lt; const`
-<a href=#363 id=363 data-nosnippet>363</a>                </span><span class="bool-val">true </span><span class="kw">if </span>bounds.upper &lt;= constant =&gt; SimplifyResult::SimplifiedTo(<span class="self">self</span>.true_value),
-<a href=#364 id=364 data-nosnippet>364</a>                <span class="bool-val">true </span><span class="kw">if </span>bounds.lower &gt;= constant =&gt; SimplifyResult::SimplifiedTo(<span class="self">self</span>.false_value),
-<a href=#365 id=365 data-nosnippet>365</a>                <span class="comment">// `const &lt; i`
-<a href=#366 id=366 data-nosnippet>366</a>                </span><span class="bool-val">false </span><span class="kw">if </span>bounds.lower &gt; constant =&gt; SimplifyResult::SimplifiedTo(<span class="self">self</span>.true_value),
-<a href=#367 id=367 data-nosnippet>367</a>                <span class="bool-val">false </span><span class="kw">if </span>constant.inc().is_some_and(|constant| bounds.upper &lt;= constant) =&gt; {
-<a href=#368 id=368 data-nosnippet>368</a>                    <span class="comment">// If `const &gt;= upper_bound - 1` then it will never be less than `i`.
-<a href=#369 id=369 data-nosnippet>369</a>                    </span>SimplifyResult::SimplifiedTo(<span class="self">self</span>.false_value)
-<a href=#370 id=370 data-nosnippet>370</a>                }
-<a href=#371 id=371 data-nosnippet>371</a>                <span class="kw">_ </span>=&gt; SimplifyResult::None,
-<a href=#372 id=372 data-nosnippet>372</a>            },
-<a href=#373 id=373 data-nosnippet>373</a>            <span class="kw">_ </span>=&gt; SimplifyResult::None,
-<a href=#374 id=374 data-nosnippet>374</a>        }
-<a href=#375 id=375 data-nosnippet>375</a>    }
-<a href=#376 id=376 data-nosnippet>376</a>}</code></pre></div></section></main></body></html>
+<a href=#332 id=332 data-nosnippet>332</a>            </span><span class="kw">let </span>is_brillig = <span class="self">self</span>.inserter.function.dfg.runtime().is_brillig();
+<a href=#333 id=333 data-nosnippet>333</a>            <span class="kw">for </span>(lhs, rhs) <span class="kw">in </span>checks {
+<a href=#334 id=334 data-nosnippet>334</a>                <span class="kw">let </span>lhs = lhs.into_numeric_constant().<span class="number">0</span>;
+<a href=#335 id=335 data-nosnippet>335</a>                <span class="kw">let </span>rhs = rhs.into_numeric_constant().<span class="number">0</span>;
+<a href=#336 id=336 data-nosnippet>336</a>                <span class="kw">match </span>eval_constant_binary_op(lhs, rhs, binary.operator, operand_type, is_brillig) {
+<a href=#337 id=337 data-nosnippet>337</a>                    BinaryEvaluationResult::Success(..) =&gt; {}
+<a href=#338 id=338 data-nosnippet>338</a>                    BinaryEvaluationResult::CouldNotEvaluate
+<a href=#339 id=339 data-nosnippet>339</a>                    | BinaryEvaluationResult::Failure(..) =&gt; {
+<a href=#340 id=340 data-nosnippet>340</a>                        <span class="kw">return </span>SimplifyResult::None;
+<a href=#341 id=341 data-nosnippet>341</a>                    }
+<a href=#342 id=342 data-nosnippet>342</a>                }
+<a href=#343 id=343 data-nosnippet>343</a>            }
+<a href=#344 id=344 data-nosnippet>344</a>            <span class="kw">let </span>unchecked = Instruction::Binary(Binary {
+<a href=#345 id=345 data-nosnippet>345</a>                operator: binary.operator.into_unchecked(),
+<a href=#346 id=346 data-nosnippet>346</a>                lhs: binary.lhs,
+<a href=#347 id=347 data-nosnippet>347</a>                rhs: binary.rhs,
+<a href=#348 id=348 data-nosnippet>348</a>            });
+<a href=#349 id=349 data-nosnippet>349</a>            <span class="kw">return </span>SimplifyResult::SimplifiedToInstruction(unchecked);
+<a href=#350 id=350 data-nosnippet>350</a>        }
+<a href=#351 id=351 data-nosnippet>351</a>
+<a href=#352 id=352 data-nosnippet>352</a>        <span class="comment">// Handle comparisons. (The upper_bound is exclusive).
+<a href=#353 id=353 data-nosnippet>353</a>        </span><span class="kw">match </span>binary.operator {
+<a href=#354 id=354 data-nosnippet>354</a>            BinaryOp::Eq =&gt; {
+<a href=#355 id=355 data-nosnippet>355</a>                <span class="kw">if </span>constant &gt;= bounds.upper || constant &lt; bounds.lower {
+<a href=#356 id=356 data-nosnippet>356</a>                    <span class="comment">// `i == const` cannot be true if the constant is out of range.
+<a href=#357 id=357 data-nosnippet>357</a>                    </span>SimplifyResult::SimplifiedTo(<span class="self">self</span>.false_value)
+<a href=#358 id=358 data-nosnippet>358</a>                } <span class="kw">else </span>{
+<a href=#359 id=359 data-nosnippet>359</a>                    SimplifyResult::None
+<a href=#360 id=360 data-nosnippet>360</a>                }
+<a href=#361 id=361 data-nosnippet>361</a>            }
+<a href=#362 id=362 data-nosnippet>362</a>            BinaryOp::Lt =&gt; <span class="kw">match </span>is_induction_var_lhs {
+<a href=#363 id=363 data-nosnippet>363</a>                <span class="comment">// `i &lt; const`
+<a href=#364 id=364 data-nosnippet>364</a>                </span><span class="bool-val">true </span><span class="kw">if </span>bounds.upper &lt;= constant =&gt; SimplifyResult::SimplifiedTo(<span class="self">self</span>.true_value),
+<a href=#365 id=365 data-nosnippet>365</a>                <span class="bool-val">true </span><span class="kw">if </span>bounds.lower &gt;= constant =&gt; SimplifyResult::SimplifiedTo(<span class="self">self</span>.false_value),
+<a href=#366 id=366 data-nosnippet>366</a>                <span class="comment">// `const &lt; i`
+<a href=#367 id=367 data-nosnippet>367</a>                </span><span class="bool-val">false </span><span class="kw">if </span>bounds.lower &gt; constant =&gt; SimplifyResult::SimplifiedTo(<span class="self">self</span>.true_value),
+<a href=#368 id=368 data-nosnippet>368</a>                <span class="bool-val">false </span><span class="kw">if </span>constant.inc().is_some_and(|constant| bounds.upper &lt;= constant) =&gt; {
+<a href=#369 id=369 data-nosnippet>369</a>                    <span class="comment">// If `const &gt;= upper_bound - 1` then it will never be less than `i`.
+<a href=#370 id=370 data-nosnippet>370</a>                    </span>SimplifyResult::SimplifiedTo(<span class="self">self</span>.false_value)
+<a href=#371 id=371 data-nosnippet>371</a>                }
+<a href=#372 id=372 data-nosnippet>372</a>                <span class="kw">_ </span>=&gt; SimplifyResult::None,
+<a href=#373 id=373 data-nosnippet>373</a>            },
+<a href=#374 id=374 data-nosnippet>374</a>            <span class="kw">_ </span>=&gt; SimplifyResult::None,
+<a href=#375 id=375 data-nosnippet>375</a>        }
+<a href=#376 id=376 data-nosnippet>376</a>    }
+<a href=#377 id=377 data-nosnippet>377</a>}</code></pre></div></section></main></body></html>

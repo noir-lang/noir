@@ -8,7 +8,7 @@
 <a href=#8 id=8 data-nosnippet>8</a>
 <a href=#9 id=9 data-nosnippet>9</a><span class="kw">use </span><span class="kw">crate</span>::ast::{IdentOrQuotedType, UnresolvedGenerics};
 <a href=#10 id=10 data-nosnippet>10</a><span class="kw">use </span><span class="kw">crate</span>::debug::DebugInstrumenter;
-<a href=#11 id=11 data-nosnippet>11</a><span class="kw">use </span><span class="kw">crate</span>::elaborator::UnstableFeature;
+<a href=#11 id=11 data-nosnippet>11</a><span class="kw">use </span><span class="kw">crate</span>::elaborator::{Deferred, UnstableFeature};
 <a href=#12 id=12 data-nosnippet>12</a><span class="kw">use </span><span class="kw">crate</span>::graph::{CrateGraph, CrateId};
 <a href=#13 id=13 data-nosnippet>13</a><span class="kw">use </span><span class="kw">crate</span>::hir::comptime::EvaluationTracker;
 <a href=#14 id=14 data-nosnippet>14</a><span class="kw">use </span><span class="kw">crate</span>::hir::def_collector::dc_crate::{CompilationErrors, UnresolvedGlobal};
@@ -78,7 +78,7 @@
 <a href=#78 id=78 data-nosnippet>78</a>    </span><span class="kw">pub </span>required_unstable_features: BTreeMap&lt;CrateId, Vec&lt;UnstableFeature&gt;&gt;,
 <a href=#79 id=79 data-nosnippet>79</a>
 <a href=#80 id=80 data-nosnippet>80</a>    <span class="doccomment">/// Unresolved globals that need to be elaborated.
-<a href=#81 id=81 data-nosnippet>81</a>    </span><span class="kw">pub </span>unresolved_globals: BTreeMap&lt;GlobalId, UnresolvedGlobal&gt;,
+<a href=#81 id=81 data-nosnippet>81</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) unresolved_globals: Deferred&lt;GlobalId, UnresolvedGlobal&gt;,
 <a href=#82 id=82 data-nosnippet>82</a>}
 <a href=#83 id=83 data-nosnippet>83</a>
 <a href=#84 id=84 data-nosnippet>84</a><span class="attr">#[derive(Debug)]
@@ -112,7 +112,7 @@
 <a href=#112 id=112 data-nosnippet>112</a>            count_array_copies: <span class="bool-val">false</span>,
 <a href=#113 id=113 data-nosnippet>113</a>            interpreter_output: <span class="prelude-val">Some</span>(Rc::new(RefCell::new(std::io::stdout()))),
 <a href=#114 id=114 data-nosnippet>114</a>            required_unstable_features: BTreeMap::new(),
-<a href=#115 id=115 data-nosnippet>115</a>            unresolved_globals: BTreeMap::new(),
+<a href=#115 id=115 data-nosnippet>115</a>            unresolved_globals: Deferred::default(),
 <a href=#116 id=116 data-nosnippet>116</a>            evaluation_tracker: <span class="prelude-val">None</span>,
 <a href=#117 id=117 data-nosnippet>117</a>        }
 <a href=#118 id=118 data-nosnippet>118</a>    }
@@ -135,7 +135,7 @@
 <a href=#135 id=135 data-nosnippet>135</a>            count_array_copies: <span class="bool-val">false</span>,
 <a href=#136 id=136 data-nosnippet>136</a>            interpreter_output: <span class="prelude-val">Some</span>(Rc::new(RefCell::new(std::io::stdout()))),
 <a href=#137 id=137 data-nosnippet>137</a>            required_unstable_features: BTreeMap::new(),
-<a href=#138 id=138 data-nosnippet>138</a>            unresolved_globals: BTreeMap::new(),
+<a href=#138 id=138 data-nosnippet>138</a>            unresolved_globals: Deferred::default(),
 <a href=#139 id=139 data-nosnippet>139</a>            evaluation_tracker: <span class="prelude-val">None</span>,
 <a href=#140 id=140 data-nosnippet>140</a>        }
 <a href=#141 id=141 data-nosnippet>141</a>    }
@@ -163,7 +163,7 @@
 <a href=#163 id=163 data-nosnippet>163</a>            count_array_copies: <span class="bool-val">false</span>,
 <a href=#164 id=164 data-nosnippet>164</a>            interpreter_output: <span class="prelude-val">Some</span>(Rc::new(RefCell::new(std::io::stdout()))),
 <a href=#165 id=165 data-nosnippet>165</a>            required_unstable_features: BTreeMap::new(),
-<a href=#166 id=166 data-nosnippet>166</a>            unresolved_globals: BTreeMap::new(),
+<a href=#166 id=166 data-nosnippet>166</a>            unresolved_globals: Deferred::default(),
 <a href=#167 id=167 data-nosnippet>167</a>            evaluation_tracker: <span class="prelude-val">None</span>,
 <a href=#168 id=168 data-nosnippet>168</a>        }
 <a href=#169 id=169 data-nosnippet>169</a>    }

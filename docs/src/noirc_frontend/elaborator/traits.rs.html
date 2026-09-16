@@ -1260,7 +1260,7 @@
 <a href=#1260 id=1260 data-nosnippet>1260</a>        </span><span class="kw">let </span>extra_trait_constraints =
 <a href=#1261 id=1261 data-nosnippet>1261</a>            <span class="self">self</span>.interner.get_trait(trait_id).implicit_associated_type_constraints.clone();
 <a href=#1262 id=1262 data-nosnippet>1262</a>
-<a href=#1263 id=1263 data-nosnippet>1263</a>        <span class="self">self</span>.unresolved_function_metas.insert(
+<a href=#1263 id=1263 data-nosnippet>1263</a>        <span class="self">self</span>.deferred.function_metas.register(
 <a href=#1264 id=1264 data-nosnippet>1264</a>            func_id,
 <a href=#1265 id=1265 data-nosnippet>1265</a>            UnresolvedFunctionMeta {
 <a href=#1266 id=1266 data-nosnippet>1266</a>                func: function,
@@ -1271,10 +1271,10 @@
 <a href=#1271 id=1271 data-nosnippet>1271</a>            },
 <a href=#1272 id=1272 data-nosnippet>1272</a>        );
 <a href=#1273 id=1273 data-nosnippet>1273</a>
-<a href=#1274 id=1274 data-nosnippet>1274</a>        <span class="self">self</span>.pending_trait_work.records.push((trait_id, func_id, name));
+<a href=#1274 id=1274 data-nosnippet>1274</a>        <span class="self">self</span>.deferred.trait_work.records.push((trait_id, func_id, name));
 <a href=#1275 id=1275 data-nosnippet>1275</a>
 <a href=#1276 id=1276 data-nosnippet>1276</a>        <span class="kw">if </span>!has_body {
-<a href=#1277 id=1277 data-nosnippet>1277</a>            <span class="self">self</span>.pending_trait_work.no_body_func_ids.push(func_id);
+<a href=#1277 id=1277 data-nosnippet>1277</a>            <span class="self">self</span>.deferred.trait_work.no_body_func_ids.push(func_id);
 <a href=#1278 id=1278 data-nosnippet>1278</a>        }
 <a href=#1279 id=1279 data-nosnippet>1279</a>    }
 <a href=#1280 id=1280 data-nosnippet>1280</a>
@@ -1284,7 +1284,7 @@
 <a href=#1284 id=1284 data-nosnippet>1284</a>    /// the stub values written by [`Self::resolve_trait_methods`].
 <a href=#1285 id=1285 data-nosnippet>1285</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>populate_resolved_trait_method_records(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
 <a href=#1286 id=1286 data-nosnippet>1286</a>        <span class="kw">let </span>pending: Vec&lt;(TraitId, FuncId, Ident)&gt; =
-<a href=#1287 id=1287 data-nosnippet>1287</a>            std::mem::take(<span class="kw-2">&amp;mut </span><span class="self">self</span>.pending_trait_work.records);
+<a href=#1287 id=1287 data-nosnippet>1287</a>            std::mem::take(<span class="kw-2">&amp;mut </span><span class="self">self</span>.deferred.trait_work.records);
 <a href=#1288 id=1288 data-nosnippet>1288</a>        <span class="kw">for </span>(trait_id, func_id, name) <span class="kw">in </span>pending {
 <a href=#1289 id=1289 data-nosnippet>1289</a>            <span class="kw">let </span>(typ, trait_constraints, direct_generics) =
 <a href=#1290 id=1290 data-nosnippet>1290</a>                <span class="self">self</span>.build_trait_function_type_bits(func_id);
@@ -1335,7 +1335,7 @@
 <a href=#1335 id=1335 data-nosnippet>1335</a>    /// would normally happen synchronously inside `resolve_trait_function`. We
 <a href=#1336 id=1336 data-nosnippet>1336</a>    /// can't run this during registration since the meta is deferred.
 <a href=#1337 id=1337 data-nosnippet>1337</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>elaborate_pending_no_body_trait_methods(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-<a href=#1338 id=1338 data-nosnippet>1338</a>        <span class="kw">let </span>pending = std::mem::take(<span class="kw-2">&amp;mut </span><span class="self">self</span>.pending_trait_work.no_body_func_ids);
+<a href=#1338 id=1338 data-nosnippet>1338</a>        <span class="kw">let </span>pending = std::mem::take(<span class="kw-2">&amp;mut </span><span class="self">self</span>.deferred.trait_work.no_body_func_ids);
 <a href=#1339 id=1339 data-nosnippet>1339</a>        <span class="kw">for </span>func_id <span class="kw">in </span>pending {
 <a href=#1340 id=1340 data-nosnippet>1340</a>            <span class="self">self</span>.elaborate_function(func_id);
 <a href=#1341 id=1341 data-nosnippet>1341</a>        }

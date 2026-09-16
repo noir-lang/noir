@@ -667,7 +667,7 @@
 <a href=#667 id=667 data-nosnippet>667</a>
 <a href=#668 id=668 data-nosnippet>668</a>        <span class="prelude-val">Ok</span>(<span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.dfg()[id] {
 <a href=#669 id=669 data-nosnippet>669</a>            <span class="kw">super</span>::ir::value::Value::NumericConstant { constant, typ } =&gt; {
-<a href=#670 id=670 data-nosnippet>670</a>                Value::from_constant(<span class="kw-2">*</span>constant, <span class="kw-2">*</span>typ)<span class="question-mark">?
+<a href=#670 id=670 data-nosnippet>670</a>                Value::int_from_field(<span class="kw-2">*</span>constant, <span class="kw-2">*</span>typ)<span class="question-mark">?
 <a href=#671 id=671 data-nosnippet>671</a>            </span>}
 <a href=#672 id=672 data-nosnippet>672</a>            <span class="kw">super</span>::ir::value::Value::Function(id) =&gt; Value::Function(<span class="kw-2">*</span>id),
 <a href=#673 id=673 data-nosnippet>673</a>            <span class="kw">super</span>::ir::value::Value::Intrinsic(intrinsic) =&gt; Value::Intrinsic(<span class="kw-2">*</span>intrinsic),
@@ -1643,295 +1643,300 @@
 <a href=#1643 id=1643 data-nosnippet>1643</a>            <span class="kw">if </span>!lhs.is_signed() =&gt;
 <a href=#1644 id=1644 data-nosnippet>1644</a>        {
 <a href=#1645 id=1645 data-nosnippet>1645</a>            <span class="kw">if </span>is_brillig {
-<a href=#1646 id=1646 data-nosnippet>1646</a>                eval_via_constant_binary_op(lhs_field, rhs_field, operator, typ, binary, <span class="kw-2">&amp;</span>overflow)
-<a href=#1647 id=1647 data-nosnippet>1647</a>            } <span class="kw">else </span>{
-<a href=#1648 id=1648 data-nosnippet>1648</a>                <span class="kw">if </span><span class="macro">matches!</span>(operator, Mul { .. }) &amp;&amp; bit_size == <span class="number">128 </span>{
-<a href=#1649 id=1649 data-nosnippet>1649</a>                    <span class="kw">let </span>product = BigUint::from_bytes_be(<span class="kw-2">&amp;</span>lhs_field.to_be_bytes())
-<a href=#1650 id=1650 data-nosnippet>1650</a>                        * BigUint::from_bytes_be(<span class="kw-2">&amp;</span>rhs_field.to_be_bytes());
-<a href=#1651 id=1651 data-nosnippet>1651</a>                    <span class="kw">if </span>product.bits() &gt; <span class="number">128 </span>{
-<a href=#1652 id=1652 data-nosnippet>1652</a>                        <span class="kw">return </span><span class="prelude-val">Err</span>(overflow());
-<a href=#1653 id=1653 data-nosnippet>1653</a>                    }
-<a href=#1654 id=1654 data-nosnippet>1654</a>                }
-<a href=#1655 id=1655 data-nosnippet>1655</a>                <span class="kw">let </span>value = NumericValue::int_from_field(field_arith(), typ)<span class="question-mark">?</span>;
-<a href=#1656 id=1656 data-nosnippet>1656</a>                <span class="kw">if </span>value.is_in_range() { <span class="prelude-val">Ok</span>(value) } <span class="kw">else </span>{ <span class="prelude-val">Err</span>(overflow()) }
-<a href=#1657 id=1657 data-nosnippet>1657</a>            }
-<a href=#1658 id=1658 data-nosnippet>1658</a>        }
-<a href=#1659 id=1659 data-nosnippet>1659</a>
-<a href=#1660 id=1660 data-nosnippet>1660</a>        <span class="comment">// Shifts wrap the value to the bit size (a shift amount &gt;= the bit width is an overflow,
-<a href=#1661 id=1661 data-nosnippet>1661</a>        // matching `checked_shl`/`checked_shr`); they are not folded as checked overflows.
-<a href=#1662 id=1662 data-nosnippet>1662</a>        </span>BinaryOp::Shl | BinaryOp::Shr =&gt; {
-<a href=#1663 id=1663 data-nosnippet>1663</a>            <span class="kw">let </span>value_bits = bits_u128(lhs_field, bit_size);
-<a href=#1664 id=1664 data-nosnippet>1664</a>            <span class="kw">let </span>shift = bits_u128(rhs_field, bit_size);
-<a href=#1665 id=1665 data-nosnippet>1665</a>            <span class="kw">if </span>shift &gt;= u128::from(bit_size) {
-<a href=#1666 id=1666 data-nosnippet>1666</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(overflow());
-<a href=#1667 id=1667 data-nosnippet>1667</a>            }
-<a href=#1668 id=1668 data-nosnippet>1668</a>            <span class="kw">let </span>shift = shift <span class="kw">as </span>u32;
-<a href=#1669 id=1669 data-nosnippet>1669</a>            <span class="kw">let </span>result = <span class="kw">match </span>operator {
-<a href=#1670 id=1670 data-nosnippet>1670</a>                BinaryOp::Shl =&gt; {
-<a href=#1671 id=1671 data-nosnippet>1671</a>                    FieldElement::from(truncate(value_bits.wrapping_shl(shift), bit_size))
-<a href=#1672 id=1672 data-nosnippet>1672</a>                }
-<a href=#1673 id=1673 data-nosnippet>1673</a>                <span class="comment">// Arithmetic shift for signed values, logical shift for unsigned.
-<a href=#1674 id=1674 data-nosnippet>1674</a>                </span>BinaryOp::Shr <span class="kw">if </span>lhs.is_signed() =&gt; {
-<a href=#1675 id=1675 data-nosnippet>1675</a>                    <span class="kw">let </span>signed = try_convert_field_element_to_signed_integer(
-<a href=#1676 id=1676 data-nosnippet>1676</a>                        FieldElement::from(value_bits),
-<a href=#1677 id=1677 data-nosnippet>1677</a>                        bit_size,
-<a href=#1678 id=1678 data-nosnippet>1678</a>                    )
-<a href=#1679 id=1679 data-nosnippet>1679</a>                    .expect(<span class="string">"a reduced signed value converts"</span>);
-<a href=#1680 id=1680 data-nosnippet>1680</a>                    convert_signed_integer_to_field_element(signed &gt;&gt; shift, bit_size)
-<a href=#1681 id=1681 data-nosnippet>1681</a>                }
-<a href=#1682 id=1682 data-nosnippet>1682</a>                BinaryOp::Shr =&gt; FieldElement::from(value_bits &gt;&gt; shift),
-<a href=#1683 id=1683 data-nosnippet>1683</a>                <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
-<a href=#1684 id=1684 data-nosnippet>1684</a>            };
-<a href=#1685 id=1685 data-nosnippet>1685</a>            NumericValue::int_from_field(result, typ)
-<a href=#1686 id=1686 data-nosnippet>1686</a>        }
-<a href=#1687 id=1687 data-nosnippet>1687</a>
-<a href=#1688 id=1688 data-nosnippet>1688</a>        <span class="comment">// Signed checked arithmetic, div/mod, comparisons and bitwise ops all reduce their
-<a href=#1689 id=1689 data-nosnippet>1689</a>        // operands; reuse the constant-folder's semantics.
-<a href=#1690 id=1690 data-nosnippet>1690</a>        </span><span class="kw">_ </span>=&gt; eval_via_constant_binary_op(lhs_field, rhs_field, operator, typ, binary, <span class="kw-2">&amp;</span>overflow),
-<a href=#1691 id=1691 data-nosnippet>1691</a>    }
-<a href=#1692 id=1692 data-nosnippet>1692</a>}
-<a href=#1693 id=1693 data-nosnippet>1693</a>
-<a href=#1694 id=1694 data-nosnippet>1694</a><span class="doccomment">/// Apply [`eval_constant_binary_op`] to two operand fields and map the result into the interpreter's
-<a href=#1695 id=1695 data-nosnippet>1695</a>/// value/error types. `eval_constant_binary_op` truncates its operands to the type's bit size, so
-<a href=#1696 id=1696 data-nosnippet>1696</a>/// this is the "reduce then compute" path shared by both runtimes.
-<a href=#1697 id=1697 data-nosnippet>1697</a></span><span class="kw">fn </span>eval_via_constant_binary_op(
-<a href=#1698 id=1698 data-nosnippet>1698</a>    lhs_field: FieldElement,
-<a href=#1699 id=1699 data-nosnippet>1699</a>    rhs_field: FieldElement,
-<a href=#1700 id=1700 data-nosnippet>1700</a>    operator: BinaryOp,
-<a href=#1701 id=1701 data-nosnippet>1701</a>    typ: NumericType,
-<a href=#1702 id=1702 data-nosnippet>1702</a>    binary: <span class="kw-2">&amp;</span>Binary,
-<a href=#1703 id=1703 data-nosnippet>1703</a>    overflow: <span class="kw-2">&amp;</span><span class="kw">impl </span>Fn() -&gt; InterpreterError,
-<a href=#1704 id=1704 data-nosnippet>1704</a>) -&gt; IResult&lt;NumericValue&gt; {
-<a href=#1705 id=1705 data-nosnippet>1705</a>    <span class="comment">// Reduce the operands to their bit-pattern representatives first. `eval_constant_binary_op`
-<a href=#1706 id=1706 data-nosnippet>1706</a>    // also truncates internally, but its signed conversion requires the field to fit in `u128`,
-<a href=#1707 id=1707 data-nosnippet>1707</a>    // which an extended (out-of-range) ACIR operand such as `p - delta` does not.
-<a href=#1708 id=1708 data-nosnippet>1708</a>    </span><span class="kw">let </span>bit_size = typ.bit_size::&lt;FieldElement&gt;();
-<a href=#1709 id=1709 data-nosnippet>1709</a>    <span class="kw">let </span>lhs_field = truncate_field(lhs_field, bit_size);
-<a href=#1710 id=1710 data-nosnippet>1710</a>    <span class="kw">let </span>rhs_field = truncate_field(rhs_field, bit_size);
-<a href=#1711 id=1711 data-nosnippet>1711</a>
-<a href=#1712 id=1712 data-nosnippet>1712</a>    <span class="kw">match </span>eval_constant_binary_op(lhs_field, rhs_field, operator, typ) {
-<a href=#1713 id=1713 data-nosnippet>1713</a>        BinaryEvaluationResult::Success(field, result_type) =&gt; {
-<a href=#1714 id=1714 data-nosnippet>1714</a>            NumericValue::int_from_field(field, result_type)
-<a href=#1715 id=1715 data-nosnippet>1715</a>        }
-<a href=#1716 id=1716 data-nosnippet>1716</a>        BinaryEvaluationResult::Failure(<span class="kw">_</span>) =&gt; {
-<a href=#1717 id=1717 data-nosnippet>1717</a>            <span class="kw">let </span>divisor_is_zero = <span class="macro">matches!</span>(operator, BinaryOp::Div | BinaryOp::Mod)
-<a href=#1718 id=1718 data-nosnippet>1718</a>                &amp;&amp; truncate_field(rhs_field, typ.bit_size::&lt;FieldElement&gt;()).is_zero();
-<a href=#1719 id=1719 data-nosnippet>1719</a>            <span class="kw">if </span>divisor_is_zero {
-<a href=#1720 id=1720 data-nosnippet>1720</a>                <span class="prelude-val">Err</span>(division_by_zero(binary.lhs, lhs_field, binary.rhs, rhs_field))
-<a href=#1721 id=1721 data-nosnippet>1721</a>            } <span class="kw">else </span>{
-<a href=#1722 id=1722 data-nosnippet>1722</a>                <span class="prelude-val">Err</span>(overflow())
-<a href=#1723 id=1723 data-nosnippet>1723</a>            }
-<a href=#1724 id=1724 data-nosnippet>1724</a>        }
-<a href=#1725 id=1725 data-nosnippet>1725</a>        <span class="comment">// Only an overflowing `shl` reports this; treat it as an overflow.
-<a href=#1726 id=1726 data-nosnippet>1726</a>        </span>BinaryEvaluationResult::CouldNotEvaluate =&gt; <span class="prelude-val">Err</span>(overflow()),
-<a href=#1727 id=1727 data-nosnippet>1727</a>    }
-<a href=#1728 id=1728 data-nosnippet>1728</a>}
-<a href=#1729 id=1729 data-nosnippet>1729</a>
-<a href=#1730 id=1730 data-nosnippet>1730</a><span class="kw">fn </span>evaluate_binary(
-<a href=#1731 id=1731 data-nosnippet>1731</a>    binary: <span class="kw-2">&amp;</span>Binary,
-<a href=#1732 id=1732 data-nosnippet>1732</a>    lhs: NumericValue,
-<a href=#1733 id=1733 data-nosnippet>1733</a>    rhs: NumericValue,
-<a href=#1734 id=1734 data-nosnippet>1734</a>    side_effects_enabled: bool,
-<a href=#1735 id=1735 data-nosnippet>1735</a>    is_brillig: bool,
-<a href=#1736 id=1736 data-nosnippet>1736</a>    display_binary: <span class="kw">impl </span>Fn(<span class="kw-2">&amp;</span>Binary) -&gt; String,
-<a href=#1737 id=1737 data-nosnippet>1737</a>) -&gt; IResult&lt;NumericValue&gt; {
-<a href=#1738 id=1738 data-nosnippet>1738</a>    <span class="kw">let </span>lhs_id = binary.lhs;
-<a href=#1739 id=1739 data-nosnippet>1739</a>    <span class="kw">let </span>rhs_id = binary.rhs;
-<a href=#1740 id=1740 data-nosnippet>1740</a>
-<a href=#1741 id=1741 data-nosnippet>1741</a>    <span class="kw">if </span>lhs.get_type() != rhs.get_type() {
-<a href=#1742 id=1742 data-nosnippet>1742</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::MismatchedTypesInBinaryOperator {
-<a href=#1743 id=1743 data-nosnippet>1743</a>            lhs_id,
-<a href=#1744 id=1744 data-nosnippet>1744</a>            lhs: lhs.to_string(),
-<a href=#1745 id=1745 data-nosnippet>1745</a>            operator: binary.operator,
-<a href=#1746 id=1746 data-nosnippet>1746</a>            rhs_id,
-<a href=#1747 id=1747 data-nosnippet>1747</a>            rhs: rhs.to_string(),
-<a href=#1748 id=1748 data-nosnippet>1748</a>        }));
-<a href=#1749 id=1749 data-nosnippet>1749</a>    }
-<a href=#1750 id=1750 data-nosnippet>1750</a>
-<a href=#1751 id=1751 data-nosnippet>1751</a>    <span class="comment">// Disable this instruction if it is side-effectual and side effects are disabled.
-<a href=#1752 id=1752 data-nosnippet>1752</a>    </span><span class="kw">if </span>!side_effects_enabled {
-<a href=#1753 id=1753 data-nosnippet>1753</a>        <span class="kw">return </span><span class="prelude-val">Ok</span>(NumericValue::zero(lhs.get_type()));
+<a href=#1646 id=1646 data-nosnippet>1646</a>                eval_via_constant_binary_op(
+<a href=#1647 id=1647 data-nosnippet>1647</a>                    lhs_field, rhs_field, operator, typ, is_brillig, binary, <span class="kw-2">&amp;</span>overflow,
+<a href=#1648 id=1648 data-nosnippet>1648</a>                )
+<a href=#1649 id=1649 data-nosnippet>1649</a>            } <span class="kw">else </span>{
+<a href=#1650 id=1650 data-nosnippet>1650</a>                <span class="kw">if </span><span class="macro">matches!</span>(operator, Mul { .. }) &amp;&amp; bit_size == <span class="number">128 </span>{
+<a href=#1651 id=1651 data-nosnippet>1651</a>                    <span class="kw">let </span>product = BigUint::from_bytes_be(<span class="kw-2">&amp;</span>lhs_field.to_be_bytes())
+<a href=#1652 id=1652 data-nosnippet>1652</a>                        * BigUint::from_bytes_be(<span class="kw-2">&amp;</span>rhs_field.to_be_bytes());
+<a href=#1653 id=1653 data-nosnippet>1653</a>                    <span class="kw">if </span>product.bits() &gt; <span class="number">128 </span>{
+<a href=#1654 id=1654 data-nosnippet>1654</a>                        <span class="kw">return </span><span class="prelude-val">Err</span>(overflow());
+<a href=#1655 id=1655 data-nosnippet>1655</a>                    }
+<a href=#1656 id=1656 data-nosnippet>1656</a>                }
+<a href=#1657 id=1657 data-nosnippet>1657</a>                <span class="kw">let </span>value = NumericValue::int_from_field(field_arith(), typ)<span class="question-mark">?</span>;
+<a href=#1658 id=1658 data-nosnippet>1658</a>                <span class="kw">if </span>value.is_in_range() { <span class="prelude-val">Ok</span>(value) } <span class="kw">else </span>{ <span class="prelude-val">Err</span>(overflow()) }
+<a href=#1659 id=1659 data-nosnippet>1659</a>            }
+<a href=#1660 id=1660 data-nosnippet>1660</a>        }
+<a href=#1661 id=1661 data-nosnippet>1661</a>
+<a href=#1662 id=1662 data-nosnippet>1662</a>        <span class="comment">// Shifts wrap the value to the bit size (a shift amount &gt;= the bit width is an overflow,
+<a href=#1663 id=1663 data-nosnippet>1663</a>        // matching `checked_shl`/`checked_shr`); they are not folded as checked overflows.
+<a href=#1664 id=1664 data-nosnippet>1664</a>        </span>BinaryOp::Shl | BinaryOp::Shr =&gt; {
+<a href=#1665 id=1665 data-nosnippet>1665</a>            <span class="kw">let </span>value_bits = bits_u128(lhs_field, bit_size);
+<a href=#1666 id=1666 data-nosnippet>1666</a>            <span class="kw">let </span>shift = bits_u128(rhs_field, bit_size);
+<a href=#1667 id=1667 data-nosnippet>1667</a>            <span class="kw">if </span>shift &gt;= u128::from(bit_size) {
+<a href=#1668 id=1668 data-nosnippet>1668</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(overflow());
+<a href=#1669 id=1669 data-nosnippet>1669</a>            }
+<a href=#1670 id=1670 data-nosnippet>1670</a>            <span class="kw">let </span>shift = shift <span class="kw">as </span>u32;
+<a href=#1671 id=1671 data-nosnippet>1671</a>            <span class="kw">let </span>result = <span class="kw">match </span>operator {
+<a href=#1672 id=1672 data-nosnippet>1672</a>                BinaryOp::Shl =&gt; {
+<a href=#1673 id=1673 data-nosnippet>1673</a>                    FieldElement::from(truncate(value_bits.wrapping_shl(shift), bit_size))
+<a href=#1674 id=1674 data-nosnippet>1674</a>                }
+<a href=#1675 id=1675 data-nosnippet>1675</a>                <span class="comment">// Arithmetic shift for signed values, logical shift for unsigned.
+<a href=#1676 id=1676 data-nosnippet>1676</a>                </span>BinaryOp::Shr <span class="kw">if </span>lhs.is_signed() =&gt; {
+<a href=#1677 id=1677 data-nosnippet>1677</a>                    <span class="kw">let </span>signed = try_convert_field_element_to_signed_integer(
+<a href=#1678 id=1678 data-nosnippet>1678</a>                        FieldElement::from(value_bits),
+<a href=#1679 id=1679 data-nosnippet>1679</a>                        bit_size,
+<a href=#1680 id=1680 data-nosnippet>1680</a>                    )
+<a href=#1681 id=1681 data-nosnippet>1681</a>                    .expect(<span class="string">"a reduced signed value converts"</span>);
+<a href=#1682 id=1682 data-nosnippet>1682</a>                    convert_signed_integer_to_field_element(signed &gt;&gt; shift, bit_size)
+<a href=#1683 id=1683 data-nosnippet>1683</a>                }
+<a href=#1684 id=1684 data-nosnippet>1684</a>                BinaryOp::Shr =&gt; FieldElement::from(value_bits &gt;&gt; shift),
+<a href=#1685 id=1685 data-nosnippet>1685</a>                <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(),
+<a href=#1686 id=1686 data-nosnippet>1686</a>            };
+<a href=#1687 id=1687 data-nosnippet>1687</a>            NumericValue::int_from_field(result, typ)
+<a href=#1688 id=1688 data-nosnippet>1688</a>        }
+<a href=#1689 id=1689 data-nosnippet>1689</a>
+<a href=#1690 id=1690 data-nosnippet>1690</a>        <span class="comment">// Signed checked arithmetic, div/mod, comparisons and bitwise ops all reduce their
+<a href=#1691 id=1691 data-nosnippet>1691</a>        // operands; reuse the constant-folder's semantics.
+<a href=#1692 id=1692 data-nosnippet>1692</a>        </span><span class="kw">_ </span>=&gt; eval_via_constant_binary_op(
+<a href=#1693 id=1693 data-nosnippet>1693</a>            lhs_field, rhs_field, operator, typ, is_brillig, binary, <span class="kw-2">&amp;</span>overflow,
+<a href=#1694 id=1694 data-nosnippet>1694</a>        ),
+<a href=#1695 id=1695 data-nosnippet>1695</a>    }
+<a href=#1696 id=1696 data-nosnippet>1696</a>}
+<a href=#1697 id=1697 data-nosnippet>1697</a>
+<a href=#1698 id=1698 data-nosnippet>1698</a><span class="doccomment">/// Apply [`eval_constant_binary_op`] to two operand fields and map the result into the interpreter's
+<a href=#1699 id=1699 data-nosnippet>1699</a>/// value/error types. `eval_constant_binary_op` truncates its operands to the type's bit size, so
+<a href=#1700 id=1700 data-nosnippet>1700</a>/// this is the "reduce then compute" path shared by both runtimes.
+<a href=#1701 id=1701 data-nosnippet>1701</a></span><span class="kw">fn </span>eval_via_constant_binary_op(
+<a href=#1702 id=1702 data-nosnippet>1702</a>    lhs_field: FieldElement,
+<a href=#1703 id=1703 data-nosnippet>1703</a>    rhs_field: FieldElement,
+<a href=#1704 id=1704 data-nosnippet>1704</a>    operator: BinaryOp,
+<a href=#1705 id=1705 data-nosnippet>1705</a>    typ: NumericType,
+<a href=#1706 id=1706 data-nosnippet>1706</a>    is_brillig: bool,
+<a href=#1707 id=1707 data-nosnippet>1707</a>    binary: <span class="kw-2">&amp;</span>Binary,
+<a href=#1708 id=1708 data-nosnippet>1708</a>    overflow: <span class="kw-2">&amp;</span><span class="kw">impl </span>Fn() -&gt; InterpreterError,
+<a href=#1709 id=1709 data-nosnippet>1709</a>) -&gt; IResult&lt;NumericValue&gt; {
+<a href=#1710 id=1710 data-nosnippet>1710</a>    <span class="comment">// Reduce the operands to their bit-pattern representatives first. `eval_constant_binary_op`
+<a href=#1711 id=1711 data-nosnippet>1711</a>    // also truncates internally, but its signed conversion requires the field to fit in `u128`,
+<a href=#1712 id=1712 data-nosnippet>1712</a>    // which an extended (out-of-range) ACIR operand such as `p - delta` does not.
+<a href=#1713 id=1713 data-nosnippet>1713</a>    </span><span class="kw">let </span>bit_size = typ.bit_size::&lt;FieldElement&gt;();
+<a href=#1714 id=1714 data-nosnippet>1714</a>    <span class="kw">let </span>lhs_field = truncate_field(lhs_field, bit_size);
+<a href=#1715 id=1715 data-nosnippet>1715</a>    <span class="kw">let </span>rhs_field = truncate_field(rhs_field, bit_size);
+<a href=#1716 id=1716 data-nosnippet>1716</a>
+<a href=#1717 id=1717 data-nosnippet>1717</a>    <span class="kw">match </span>eval_constant_binary_op(lhs_field, rhs_field, operator, typ, is_brillig) {
+<a href=#1718 id=1718 data-nosnippet>1718</a>        BinaryEvaluationResult::Success(field, result_type) =&gt; {
+<a href=#1719 id=1719 data-nosnippet>1719</a>            NumericValue::int_from_field(field, result_type)
+<a href=#1720 id=1720 data-nosnippet>1720</a>        }
+<a href=#1721 id=1721 data-nosnippet>1721</a>        BinaryEvaluationResult::Failure(<span class="kw">_</span>) =&gt; {
+<a href=#1722 id=1722 data-nosnippet>1722</a>            <span class="kw">let </span>divisor_is_zero = <span class="macro">matches!</span>(operator, BinaryOp::Div | BinaryOp::Mod)
+<a href=#1723 id=1723 data-nosnippet>1723</a>                &amp;&amp; truncate_field(rhs_field, typ.bit_size::&lt;FieldElement&gt;()).is_zero();
+<a href=#1724 id=1724 data-nosnippet>1724</a>            <span class="kw">if </span>divisor_is_zero {
+<a href=#1725 id=1725 data-nosnippet>1725</a>                <span class="prelude-val">Err</span>(division_by_zero(binary.lhs, lhs_field, binary.rhs, rhs_field))
+<a href=#1726 id=1726 data-nosnippet>1726</a>            } <span class="kw">else </span>{
+<a href=#1727 id=1727 data-nosnippet>1727</a>                <span class="prelude-val">Err</span>(overflow())
+<a href=#1728 id=1728 data-nosnippet>1728</a>            }
+<a href=#1729 id=1729 data-nosnippet>1729</a>        }
+<a href=#1730 id=1730 data-nosnippet>1730</a>        <span class="comment">// Only an overflowing `shl` reports this; treat it as an overflow.
+<a href=#1731 id=1731 data-nosnippet>1731</a>        </span>BinaryEvaluationResult::CouldNotEvaluate =&gt; <span class="prelude-val">Err</span>(overflow()),
+<a href=#1732 id=1732 data-nosnippet>1732</a>    }
+<a href=#1733 id=1733 data-nosnippet>1733</a>}
+<a href=#1734 id=1734 data-nosnippet>1734</a>
+<a href=#1735 id=1735 data-nosnippet>1735</a><span class="kw">fn </span>evaluate_binary(
+<a href=#1736 id=1736 data-nosnippet>1736</a>    binary: <span class="kw-2">&amp;</span>Binary,
+<a href=#1737 id=1737 data-nosnippet>1737</a>    lhs: NumericValue,
+<a href=#1738 id=1738 data-nosnippet>1738</a>    rhs: NumericValue,
+<a href=#1739 id=1739 data-nosnippet>1739</a>    side_effects_enabled: bool,
+<a href=#1740 id=1740 data-nosnippet>1740</a>    is_brillig: bool,
+<a href=#1741 id=1741 data-nosnippet>1741</a>    display_binary: <span class="kw">impl </span>Fn(<span class="kw-2">&amp;</span>Binary) -&gt; String,
+<a href=#1742 id=1742 data-nosnippet>1742</a>) -&gt; IResult&lt;NumericValue&gt; {
+<a href=#1743 id=1743 data-nosnippet>1743</a>    <span class="kw">let </span>lhs_id = binary.lhs;
+<a href=#1744 id=1744 data-nosnippet>1744</a>    <span class="kw">let </span>rhs_id = binary.rhs;
+<a href=#1745 id=1745 data-nosnippet>1745</a>
+<a href=#1746 id=1746 data-nosnippet>1746</a>    <span class="kw">if </span>lhs.get_type() != rhs.get_type() {
+<a href=#1747 id=1747 data-nosnippet>1747</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::MismatchedTypesInBinaryOperator {
+<a href=#1748 id=1748 data-nosnippet>1748</a>            lhs_id,
+<a href=#1749 id=1749 data-nosnippet>1749</a>            lhs: lhs.to_string(),
+<a href=#1750 id=1750 data-nosnippet>1750</a>            operator: binary.operator,
+<a href=#1751 id=1751 data-nosnippet>1751</a>            rhs_id,
+<a href=#1752 id=1752 data-nosnippet>1752</a>            rhs: rhs.to_string(),
+<a href=#1753 id=1753 data-nosnippet>1753</a>        }));
 <a href=#1754 id=1754 data-nosnippet>1754</a>    }
 <a href=#1755 id=1755 data-nosnippet>1755</a>
-<a href=#1756 id=1756 data-nosnippet>1756</a>    <span class="kw">if let </span>(<span class="prelude-val">Some</span>(lhs), <span class="prelude-val">Some</span>(rhs)) = (lhs.as_field(), rhs.as_field()) {
-<a href=#1757 id=1757 data-nosnippet>1757</a>        <span class="kw">return </span>interpret_field_binary_op(lhs, binary.operator, rhs, lhs_id, rhs_id);
-<a href=#1758 id=1758 data-nosnippet>1758</a>    }
-<a href=#1759 id=1759 data-nosnippet>1759</a>
-<a href=#1760 id=1760 data-nosnippet>1760</a>    <span class="kw">if let </span>(<span class="prelude-val">Some</span>(lhs), <span class="prelude-val">Some</span>(rhs)) = (lhs.as_bool(), rhs.as_bool()) {
-<a href=#1761 id=1761 data-nosnippet>1761</a>        <span class="kw">return </span>interpret_u1_binary_op(lhs, rhs, binary, <span class="kw-2">&amp;</span>display_binary);
-<a href=#1762 id=1762 data-nosnippet>1762</a>    }
-<a href=#1763 id=1763 data-nosnippet>1763</a>
-<a href=#1764 id=1764 data-nosnippet>1764</a>    evaluate_integer_binary(binary, lhs, rhs, is_brillig, display_binary)
-<a href=#1765 id=1765 data-nosnippet>1765</a>}
-<a href=#1766 id=1766 data-nosnippet>1766</a>
-<a href=#1767 id=1767 data-nosnippet>1767</a><span class="kw">fn </span>interpret_field_binary_op(
-<a href=#1768 id=1768 data-nosnippet>1768</a>    lhs: FieldElement,
-<a href=#1769 id=1769 data-nosnippet>1769</a>    operator: BinaryOp,
-<a href=#1770 id=1770 data-nosnippet>1770</a>    rhs: FieldElement,
-<a href=#1771 id=1771 data-nosnippet>1771</a>    lhs_id: ValueId,
-<a href=#1772 id=1772 data-nosnippet>1772</a>    rhs_id: ValueId,
-<a href=#1773 id=1773 data-nosnippet>1773</a>) -&gt; IResult&lt;NumericValue&gt; {
-<a href=#1774 id=1774 data-nosnippet>1774</a>    <span class="kw">let </span>unsupported_operator = |operator| -&gt; IResult&lt;NumericValue&gt; {
-<a href=#1775 id=1775 data-nosnippet>1775</a>        <span class="kw">let </span>typ = <span class="string">"Field"</span>;
-<a href=#1776 id=1776 data-nosnippet>1776</a>        <span class="prelude-val">Err</span>(internal(InternalError::UnsupportedOperatorForType { operator, typ }))
-<a href=#1777 id=1777 data-nosnippet>1777</a>    };
-<a href=#1778 id=1778 data-nosnippet>1778</a>
-<a href=#1779 id=1779 data-nosnippet>1779</a>    <span class="kw">let </span>result = <span class="kw">match </span>operator {
-<a href=#1780 id=1780 data-nosnippet>1780</a>        BinaryOp::Add { unchecked: <span class="kw">_ </span>} =&gt; NumericValue::field(lhs + rhs),
-<a href=#1781 id=1781 data-nosnippet>1781</a>        BinaryOp::Sub { unchecked: <span class="kw">_ </span>} =&gt; NumericValue::field(lhs - rhs),
-<a href=#1782 id=1782 data-nosnippet>1782</a>        BinaryOp::Mul { unchecked: <span class="kw">_ </span>} =&gt; NumericValue::field(lhs * rhs),
-<a href=#1783 id=1783 data-nosnippet>1783</a>        BinaryOp::Div =&gt; {
-<a href=#1784 id=1784 data-nosnippet>1784</a>            <span class="kw">if </span>rhs.is_zero() {
-<a href=#1785 id=1785 data-nosnippet>1785</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(division_by_zero(lhs_id, lhs, rhs_id, rhs));
-<a href=#1786 id=1786 data-nosnippet>1786</a>            }
-<a href=#1787 id=1787 data-nosnippet>1787</a>            NumericValue::field(lhs / rhs)
-<a href=#1788 id=1788 data-nosnippet>1788</a>        }
-<a href=#1789 id=1789 data-nosnippet>1789</a>        BinaryOp::Mod =&gt; <span class="kw">return </span>unsupported_operator(<span class="string">"%"</span>),
-<a href=#1790 id=1790 data-nosnippet>1790</a>        BinaryOp::Eq =&gt; NumericValue::bool(lhs == rhs),
-<a href=#1791 id=1791 data-nosnippet>1791</a>        BinaryOp::Lt =&gt; NumericValue::bool(lhs &lt; rhs),
-<a href=#1792 id=1792 data-nosnippet>1792</a>        BinaryOp::And =&gt; <span class="kw">return </span>unsupported_operator(<span class="string">"&amp;"</span>),
-<a href=#1793 id=1793 data-nosnippet>1793</a>        BinaryOp::Or =&gt; <span class="kw">return </span>unsupported_operator(<span class="string">"|"</span>),
-<a href=#1794 id=1794 data-nosnippet>1794</a>        BinaryOp::Xor =&gt; <span class="kw">return </span>unsupported_operator(<span class="string">"^"</span>),
-<a href=#1795 id=1795 data-nosnippet>1795</a>        BinaryOp::Shl =&gt; <span class="kw">return </span>unsupported_operator(<span class="string">"&lt;&lt;"</span>),
-<a href=#1796 id=1796 data-nosnippet>1796</a>        BinaryOp::Shr =&gt; <span class="kw">return </span>unsupported_operator(<span class="string">"&gt;&gt;"</span>),
-<a href=#1797 id=1797 data-nosnippet>1797</a>    };
-<a href=#1798 id=1798 data-nosnippet>1798</a>    <span class="prelude-val">Ok</span>(result)
-<a href=#1799 id=1799 data-nosnippet>1799</a>}
-<a href=#1800 id=1800 data-nosnippet>1800</a>
-<a href=#1801 id=1801 data-nosnippet>1801</a><span class="kw">fn </span>interpret_u1_binary_op(
-<a href=#1802 id=1802 data-nosnippet>1802</a>    lhs: bool,
-<a href=#1803 id=1803 data-nosnippet>1803</a>    rhs: bool,
-<a href=#1804 id=1804 data-nosnippet>1804</a>    binary: <span class="kw-2">&amp;</span>Binary,
-<a href=#1805 id=1805 data-nosnippet>1805</a>    display_binary: <span class="kw-2">&amp;</span><span class="kw">impl </span>Fn(<span class="kw-2">&amp;</span>Binary) -&gt; String,
-<a href=#1806 id=1806 data-nosnippet>1806</a>) -&gt; IResult&lt;NumericValue&gt; {
-<a href=#1807 id=1807 data-nosnippet>1807</a>    <span class="kw">let </span>overflow = || overflow_error(binary, display_binary, lhs, rhs);
-<a href=#1808 id=1808 data-nosnippet>1808</a>
-<a href=#1809 id=1809 data-nosnippet>1809</a>    <span class="kw">let </span>lhs_id = binary.lhs;
-<a href=#1810 id=1810 data-nosnippet>1810</a>    <span class="kw">let </span>rhs_id = binary.rhs;
-<a href=#1811 id=1811 data-nosnippet>1811</a>
-<a href=#1812 id=1812 data-nosnippet>1812</a>    <span class="kw">let </span>result = <span class="kw">match </span>binary.operator {
-<a href=#1813 id=1813 data-nosnippet>1813</a>        BinaryOp::Add { unchecked: <span class="bool-val">true </span>} =&gt; lhs ^ rhs,
-<a href=#1814 id=1814 data-nosnippet>1814</a>        BinaryOp::Add { unchecked: <span class="bool-val">false </span>} =&gt; {
-<a href=#1815 id=1815 data-nosnippet>1815</a>            <span class="kw">if </span>lhs &amp;&amp; rhs {
-<a href=#1816 id=1816 data-nosnippet>1816</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(overflow());
-<a href=#1817 id=1817 data-nosnippet>1817</a>            } <span class="kw">else </span>{
-<a href=#1818 id=1818 data-nosnippet>1818</a>                lhs ^ rhs
-<a href=#1819 id=1819 data-nosnippet>1819</a>            }
-<a href=#1820 id=1820 data-nosnippet>1820</a>        }
-<a href=#1821 id=1821 data-nosnippet>1821</a>        BinaryOp::Sub { unchecked: <span class="bool-val">true </span>} =&gt; {
-<a href=#1822 id=1822 data-nosnippet>1822</a>            <span class="kw">if </span>!lhs &amp;&amp; rhs {
-<a href=#1823 id=1823 data-nosnippet>1823</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(overflow());
-<a href=#1824 id=1824 data-nosnippet>1824</a>            } <span class="kw">else </span>{
-<a href=#1825 id=1825 data-nosnippet>1825</a>                lhs ^ rhs
-<a href=#1826 id=1826 data-nosnippet>1826</a>            }
-<a href=#1827 id=1827 data-nosnippet>1827</a>        }
-<a href=#1828 id=1828 data-nosnippet>1828</a>        BinaryOp::Sub { unchecked: <span class="bool-val">false </span>} =&gt; {
-<a href=#1829 id=1829 data-nosnippet>1829</a>            <span class="kw">if </span>!lhs &amp;&amp; rhs {
-<a href=#1830 id=1830 data-nosnippet>1830</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(overflow());
-<a href=#1831 id=1831 data-nosnippet>1831</a>            } <span class="kw">else </span>{
-<a href=#1832 id=1832 data-nosnippet>1832</a>                lhs ^ rhs
-<a href=#1833 id=1833 data-nosnippet>1833</a>            }
-<a href=#1834 id=1834 data-nosnippet>1834</a>        }
-<a href=#1835 id=1835 data-nosnippet>1835</a>        BinaryOp::Mul { unchecked: <span class="kw">_ </span>} =&gt; lhs &amp; rhs, <span class="comment">// (*) = (&amp;) for u1
-<a href=#1836 id=1836 data-nosnippet>1836</a>        </span>BinaryOp::Div =&gt; {
-<a href=#1837 id=1837 data-nosnippet>1837</a>            <span class="comment">// (0, 0) -&gt; (division by 0)
-<a href=#1838 id=1838 data-nosnippet>1838</a>            // (0, 1) -&gt; 0
-<a href=#1839 id=1839 data-nosnippet>1839</a>            // (1, 0) -&gt; (division by 0)
-<a href=#1840 id=1840 data-nosnippet>1840</a>            // (1, 1) -&gt; 1
-<a href=#1841 id=1841 data-nosnippet>1841</a>            </span><span class="kw">if </span>!rhs {
-<a href=#1842 id=1842 data-nosnippet>1842</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(division_by_zero(lhs_id, u8::from(lhs), rhs_id, u8::from(rhs)));
-<a href=#1843 id=1843 data-nosnippet>1843</a>            }
-<a href=#1844 id=1844 data-nosnippet>1844</a>            lhs
-<a href=#1845 id=1845 data-nosnippet>1845</a>        }
-<a href=#1846 id=1846 data-nosnippet>1846</a>        BinaryOp::Mod =&gt; {
-<a href=#1847 id=1847 data-nosnippet>1847</a>            <span class="comment">// (0, 0) -&gt; (division by 0)
-<a href=#1848 id=1848 data-nosnippet>1848</a>            // (0, 1) -&gt; 0
-<a href=#1849 id=1849 data-nosnippet>1849</a>            // (1, 0) -&gt; (division by 0)
-<a href=#1850 id=1850 data-nosnippet>1850</a>            // (1, 1) -&gt; 0
-<a href=#1851 id=1851 data-nosnippet>1851</a>            </span><span class="kw">if </span>!rhs {
-<a href=#1852 id=1852 data-nosnippet>1852</a>                <span class="kw">let </span>lhs = <span class="macro">format!</span>(<span class="string">"u1 {}"</span>, u8::from(lhs));
-<a href=#1853 id=1853 data-nosnippet>1853</a>                <span class="kw">let </span>rhs = <span class="macro">format!</span>(<span class="string">"u1 {}"</span>, u8::from(rhs));
-<a href=#1854 id=1854 data-nosnippet>1854</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(division_by_zero(lhs_id, lhs, rhs_id, rhs));
-<a href=#1855 id=1855 data-nosnippet>1855</a>            }
-<a href=#1856 id=1856 data-nosnippet>1856</a>            <span class="bool-val">false
-<a href=#1857 id=1857 data-nosnippet>1857</a>        </span>}
-<a href=#1858 id=1858 data-nosnippet>1858</a>        BinaryOp::Eq =&gt; lhs == rhs,
-<a href=#1859 id=1859 data-nosnippet>1859</a>        <span class="comment">// clippy complains when you do `lhs &lt; rhs` and recommends this instead
-<a href=#1860 id=1860 data-nosnippet>1860</a>        </span>BinaryOp::Lt =&gt; !lhs &amp; rhs,
-<a href=#1861 id=1861 data-nosnippet>1861</a>        BinaryOp::And =&gt; lhs &amp; rhs,
-<a href=#1862 id=1862 data-nosnippet>1862</a>        BinaryOp::Or =&gt; lhs | rhs,
-<a href=#1863 id=1863 data-nosnippet>1863</a>        BinaryOp::Xor =&gt; lhs ^ rhs,
-<a href=#1864 id=1864 data-nosnippet>1864</a>        BinaryOp::Shl =&gt; {
-<a href=#1865 id=1865 data-nosnippet>1865</a>            <span class="kw">if </span>rhs {
-<a href=#1866 id=1866 data-nosnippet>1866</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(overflow());
-<a href=#1867 id=1867 data-nosnippet>1867</a>            } <span class="kw">else </span>{
-<a href=#1868 id=1868 data-nosnippet>1868</a>                lhs
-<a href=#1869 id=1869 data-nosnippet>1869</a>            }
-<a href=#1870 id=1870 data-nosnippet>1870</a>        }
-<a href=#1871 id=1871 data-nosnippet>1871</a>        BinaryOp::Shr =&gt; {
-<a href=#1872 id=1872 data-nosnippet>1872</a>            <span class="kw">if </span>rhs {
-<a href=#1873 id=1873 data-nosnippet>1873</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(overflow());
-<a href=#1874 id=1874 data-nosnippet>1874</a>            } <span class="kw">else </span>{
-<a href=#1875 id=1875 data-nosnippet>1875</a>                lhs
-<a href=#1876 id=1876 data-nosnippet>1876</a>            }
-<a href=#1877 id=1877 data-nosnippet>1877</a>        }
-<a href=#1878 id=1878 data-nosnippet>1878</a>    };
-<a href=#1879 id=1879 data-nosnippet>1879</a>    <span class="prelude-val">Ok</span>(NumericValue::bool(result))
-<a href=#1880 id=1880 data-nosnippet>1880</a>}
-<a href=#1881 id=1881 data-nosnippet>1881</a>
-<a href=#1882 id=1882 data-nosnippet>1882</a><span class="attr">#[cfg_attr(not(test), expect(dead_code))]
-<a href=#1883 id=1883 data-nosnippet>1883</a></span><span class="kw">fn </span>truncate_unsigned&lt;T&gt;(value: T, bit_size: u32) -&gt; IResult&lt;T&gt;
-<a href=#1884 id=1884 data-nosnippet>1884</a><span class="kw">where
-<a href=#1885 id=1885 data-nosnippet>1885</a>    </span>u128: From&lt;T&gt;,
-<a href=#1886 id=1886 data-nosnippet>1886</a>    T: TryFrom&lt;u128&gt;,
-<a href=#1887 id=1887 data-nosnippet>1887</a>    &lt;T <span class="kw">as </span>TryFrom&lt;u128&gt;&gt;::Error: std::fmt::Debug,
-<a href=#1888 id=1888 data-nosnippet>1888</a>{
-<a href=#1889 id=1889 data-nosnippet>1889</a>    <span class="kw">let </span>value_u128 = u128::from(value);
-<a href=#1890 id=1890 data-nosnippet>1890</a>    <span class="kw">let </span>bit_mask = <span class="kw">match </span>bit_size.cmp(<span class="kw-2">&amp;</span>MAX_UNSIGNED_BIT_SIZE) {
-<a href=#1891 id=1891 data-nosnippet>1891</a>        Ordering::Less =&gt; (<span class="number">1u128 </span>&lt;&lt; bit_size) - <span class="number">1</span>,
-<a href=#1892 id=1892 data-nosnippet>1892</a>        Ordering::Equal =&gt; u128::MAX,
-<a href=#1893 id=1893 data-nosnippet>1893</a>        Ordering::Greater =&gt; {
-<a href=#1894 id=1894 data-nosnippet>1894</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::InvalidUnsignedTruncateBitSize { bit_size }));
-<a href=#1895 id=1895 data-nosnippet>1895</a>        }
-<a href=#1896 id=1896 data-nosnippet>1896</a>    };
-<a href=#1897 id=1897 data-nosnippet>1897</a>
-<a href=#1898 id=1898 data-nosnippet>1898</a>    <span class="kw">let </span>result = value_u128 &amp; bit_mask;
-<a href=#1899 id=1899 data-nosnippet>1899</a>    <span class="prelude-val">Ok</span>(T::try_from(result).expect(
-<a href=#1900 id=1900 data-nosnippet>1900</a>        <span class="string">"The truncated result should always be smaller than or equal to the original `value`"</span>,
-<a href=#1901 id=1901 data-nosnippet>1901</a>    ))
-<a href=#1902 id=1902 data-nosnippet>1902</a>}
-<a href=#1903 id=1903 data-nosnippet>1903</a>
-<a href=#1904 id=1904 data-nosnippet>1904</a><span class="doccomment">/// Reduce `field` to its `bit_size`-bit pattern as a `u128`.
-<a href=#1905 id=1905 data-nosnippet>1905</a>///
-<a href=#1906 id=1906 data-nosnippet>1906</a>/// ACIR operands may carry an extended (out-of-range) field; truncating to the bit size yields the
-<a href=#1907 id=1907 data-nosnippet>1907</a>/// canonical bit pattern, which always fits in `u128` for the integer widths the interpreter models.
-<a href=#1908 id=1908 data-nosnippet>1908</a></span><span class="kw">fn </span>bits_u128(field: FieldElement, bit_size: u32) -&gt; u128 {
-<a href=#1909 id=1909 data-nosnippet>1909</a>    truncate_field(field, bit_size).try_into_u128().expect(<span class="string">"a reduced value fits in u128"</span>)
-<a href=#1910 id=1910 data-nosnippet>1910</a>}
-<a href=#1911 id=1911 data-nosnippet>1911</a>
-<a href=#1912 id=1912 data-nosnippet>1912</a><span class="doccomment">/// Build an `Overflow` error for `binary`, rendering the instruction as
-<a href=#1913 id=1913 data-nosnippet>1913</a>/// `` `&lt;ssa instruction&gt;` (&lt;operator&gt; &lt;lhs&gt;, &lt;rhs&gt;) ``.
-<a href=#1914 id=1914 data-nosnippet>1914</a></span><span class="kw">fn </span>overflow_error(
-<a href=#1915 id=1915 data-nosnippet>1915</a>    binary: <span class="kw-2">&amp;</span>Binary,
-<a href=#1916 id=1916 data-nosnippet>1916</a>    display_binary: <span class="kw">impl </span>Fn(<span class="kw-2">&amp;</span>Binary) -&gt; String,
-<a href=#1917 id=1917 data-nosnippet>1917</a>    lhs: <span class="kw">impl </span>std::fmt::Display,
-<a href=#1918 id=1918 data-nosnippet>1918</a>    rhs: <span class="kw">impl </span>std::fmt::Display,
-<a href=#1919 id=1919 data-nosnippet>1919</a>) -&gt; InterpreterError {
-<a href=#1920 id=1920 data-nosnippet>1920</a>    <span class="kw">let </span>operator = binary.operator;
-<a href=#1921 id=1921 data-nosnippet>1921</a>    <span class="kw">let </span>instruction = <span class="macro">format!</span>(<span class="string">"`{}` ({operator} {lhs}, {rhs})"</span>, display_binary(binary));
-<a href=#1922 id=1922 data-nosnippet>1922</a>    InterpreterError::Overflow { operator, instruction }
-<a href=#1923 id=1923 data-nosnippet>1923</a>}
-<a href=#1924 id=1924 data-nosnippet>1924</a>
-<a href=#1925 id=1925 data-nosnippet>1925</a><span class="doccomment">/// Build a `DivisionByZero` error, rendering each operand with its `Display`.
-<a href=#1926 id=1926 data-nosnippet>1926</a></span><span class="kw">fn </span>division_by_zero(
-<a href=#1927 id=1927 data-nosnippet>1927</a>    lhs_id: ValueId,
-<a href=#1928 id=1928 data-nosnippet>1928</a>    lhs: <span class="kw">impl </span>std::fmt::Display,
-<a href=#1929 id=1929 data-nosnippet>1929</a>    rhs_id: ValueId,
-<a href=#1930 id=1930 data-nosnippet>1930</a>    rhs: <span class="kw">impl </span>std::fmt::Display,
-<a href=#1931 id=1931 data-nosnippet>1931</a>) -&gt; InterpreterError {
-<a href=#1932 id=1932 data-nosnippet>1932</a>    InterpreterError::DivisionByZero { lhs_id, lhs: lhs.to_string(), rhs_id, rhs: rhs.to_string() }
-<a href=#1933 id=1933 data-nosnippet>1933</a>}
-<a href=#1934 id=1934 data-nosnippet>1934</a>
-<a href=#1935 id=1935 data-nosnippet>1935</a><span class="kw">fn </span>internal(error: InternalError) -&gt; InterpreterError {
-<a href=#1936 id=1936 data-nosnippet>1936</a>    InterpreterError::Internal(error)
-<a href=#1937 id=1937 data-nosnippet>1937</a>}</code></pre></div></section></main></body></html>
+<a href=#1756 id=1756 data-nosnippet>1756</a>    <span class="comment">// Disable this instruction if it is side-effectual and side effects are disabled.
+<a href=#1757 id=1757 data-nosnippet>1757</a>    </span><span class="kw">if </span>!side_effects_enabled {
+<a href=#1758 id=1758 data-nosnippet>1758</a>        <span class="kw">return </span><span class="prelude-val">Ok</span>(NumericValue::zero(lhs.get_type()));
+<a href=#1759 id=1759 data-nosnippet>1759</a>    }
+<a href=#1760 id=1760 data-nosnippet>1760</a>
+<a href=#1761 id=1761 data-nosnippet>1761</a>    <span class="kw">if let </span>(<span class="prelude-val">Some</span>(lhs), <span class="prelude-val">Some</span>(rhs)) = (lhs.as_field(), rhs.as_field()) {
+<a href=#1762 id=1762 data-nosnippet>1762</a>        <span class="kw">return </span>interpret_field_binary_op(lhs, binary.operator, rhs, lhs_id, rhs_id);
+<a href=#1763 id=1763 data-nosnippet>1763</a>    }
+<a href=#1764 id=1764 data-nosnippet>1764</a>
+<a href=#1765 id=1765 data-nosnippet>1765</a>    <span class="kw">if let </span>(<span class="prelude-val">Some</span>(lhs), <span class="prelude-val">Some</span>(rhs)) = (lhs.as_bool(), rhs.as_bool()) {
+<a href=#1766 id=1766 data-nosnippet>1766</a>        <span class="kw">return </span>interpret_u1_binary_op(lhs, rhs, binary, <span class="kw-2">&amp;</span>display_binary);
+<a href=#1767 id=1767 data-nosnippet>1767</a>    }
+<a href=#1768 id=1768 data-nosnippet>1768</a>
+<a href=#1769 id=1769 data-nosnippet>1769</a>    evaluate_integer_binary(binary, lhs, rhs, is_brillig, display_binary)
+<a href=#1770 id=1770 data-nosnippet>1770</a>}
+<a href=#1771 id=1771 data-nosnippet>1771</a>
+<a href=#1772 id=1772 data-nosnippet>1772</a><span class="kw">fn </span>interpret_field_binary_op(
+<a href=#1773 id=1773 data-nosnippet>1773</a>    lhs: FieldElement,
+<a href=#1774 id=1774 data-nosnippet>1774</a>    operator: BinaryOp,
+<a href=#1775 id=1775 data-nosnippet>1775</a>    rhs: FieldElement,
+<a href=#1776 id=1776 data-nosnippet>1776</a>    lhs_id: ValueId,
+<a href=#1777 id=1777 data-nosnippet>1777</a>    rhs_id: ValueId,
+<a href=#1778 id=1778 data-nosnippet>1778</a>) -&gt; IResult&lt;NumericValue&gt; {
+<a href=#1779 id=1779 data-nosnippet>1779</a>    <span class="kw">let </span>unsupported_operator = |operator| -&gt; IResult&lt;NumericValue&gt; {
+<a href=#1780 id=1780 data-nosnippet>1780</a>        <span class="kw">let </span>typ = <span class="string">"Field"</span>;
+<a href=#1781 id=1781 data-nosnippet>1781</a>        <span class="prelude-val">Err</span>(internal(InternalError::UnsupportedOperatorForType { operator, typ }))
+<a href=#1782 id=1782 data-nosnippet>1782</a>    };
+<a href=#1783 id=1783 data-nosnippet>1783</a>
+<a href=#1784 id=1784 data-nosnippet>1784</a>    <span class="kw">let </span>result = <span class="kw">match </span>operator {
+<a href=#1785 id=1785 data-nosnippet>1785</a>        BinaryOp::Add { unchecked: <span class="kw">_ </span>} =&gt; NumericValue::field(lhs + rhs),
+<a href=#1786 id=1786 data-nosnippet>1786</a>        BinaryOp::Sub { unchecked: <span class="kw">_ </span>} =&gt; NumericValue::field(lhs - rhs),
+<a href=#1787 id=1787 data-nosnippet>1787</a>        BinaryOp::Mul { unchecked: <span class="kw">_ </span>} =&gt; NumericValue::field(lhs * rhs),
+<a href=#1788 id=1788 data-nosnippet>1788</a>        BinaryOp::Div =&gt; {
+<a href=#1789 id=1789 data-nosnippet>1789</a>            <span class="kw">if </span>rhs.is_zero() {
+<a href=#1790 id=1790 data-nosnippet>1790</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(division_by_zero(lhs_id, lhs, rhs_id, rhs));
+<a href=#1791 id=1791 data-nosnippet>1791</a>            }
+<a href=#1792 id=1792 data-nosnippet>1792</a>            NumericValue::field(lhs / rhs)
+<a href=#1793 id=1793 data-nosnippet>1793</a>        }
+<a href=#1794 id=1794 data-nosnippet>1794</a>        BinaryOp::Mod =&gt; <span class="kw">return </span>unsupported_operator(<span class="string">"%"</span>),
+<a href=#1795 id=1795 data-nosnippet>1795</a>        BinaryOp::Eq =&gt; NumericValue::bool(lhs == rhs),
+<a href=#1796 id=1796 data-nosnippet>1796</a>        BinaryOp::Lt =&gt; NumericValue::bool(lhs &lt; rhs),
+<a href=#1797 id=1797 data-nosnippet>1797</a>        BinaryOp::And =&gt; <span class="kw">return </span>unsupported_operator(<span class="string">"&amp;"</span>),
+<a href=#1798 id=1798 data-nosnippet>1798</a>        BinaryOp::Or =&gt; <span class="kw">return </span>unsupported_operator(<span class="string">"|"</span>),
+<a href=#1799 id=1799 data-nosnippet>1799</a>        BinaryOp::Xor =&gt; <span class="kw">return </span>unsupported_operator(<span class="string">"^"</span>),
+<a href=#1800 id=1800 data-nosnippet>1800</a>        BinaryOp::Shl =&gt; <span class="kw">return </span>unsupported_operator(<span class="string">"&lt;&lt;"</span>),
+<a href=#1801 id=1801 data-nosnippet>1801</a>        BinaryOp::Shr =&gt; <span class="kw">return </span>unsupported_operator(<span class="string">"&gt;&gt;"</span>),
+<a href=#1802 id=1802 data-nosnippet>1802</a>    };
+<a href=#1803 id=1803 data-nosnippet>1803</a>    <span class="prelude-val">Ok</span>(result)
+<a href=#1804 id=1804 data-nosnippet>1804</a>}
+<a href=#1805 id=1805 data-nosnippet>1805</a>
+<a href=#1806 id=1806 data-nosnippet>1806</a><span class="kw">fn </span>interpret_u1_binary_op(
+<a href=#1807 id=1807 data-nosnippet>1807</a>    lhs: bool,
+<a href=#1808 id=1808 data-nosnippet>1808</a>    rhs: bool,
+<a href=#1809 id=1809 data-nosnippet>1809</a>    binary: <span class="kw-2">&amp;</span>Binary,
+<a href=#1810 id=1810 data-nosnippet>1810</a>    display_binary: <span class="kw-2">&amp;</span><span class="kw">impl </span>Fn(<span class="kw-2">&amp;</span>Binary) -&gt; String,
+<a href=#1811 id=1811 data-nosnippet>1811</a>) -&gt; IResult&lt;NumericValue&gt; {
+<a href=#1812 id=1812 data-nosnippet>1812</a>    <span class="kw">let </span>overflow = || overflow_error(binary, display_binary, lhs, rhs);
+<a href=#1813 id=1813 data-nosnippet>1813</a>
+<a href=#1814 id=1814 data-nosnippet>1814</a>    <span class="kw">let </span>lhs_id = binary.lhs;
+<a href=#1815 id=1815 data-nosnippet>1815</a>    <span class="kw">let </span>rhs_id = binary.rhs;
+<a href=#1816 id=1816 data-nosnippet>1816</a>
+<a href=#1817 id=1817 data-nosnippet>1817</a>    <span class="kw">let </span>result = <span class="kw">match </span>binary.operator {
+<a href=#1818 id=1818 data-nosnippet>1818</a>        BinaryOp::Add { unchecked: <span class="bool-val">true </span>} =&gt; lhs ^ rhs,
+<a href=#1819 id=1819 data-nosnippet>1819</a>        BinaryOp::Add { unchecked: <span class="bool-val">false </span>} =&gt; {
+<a href=#1820 id=1820 data-nosnippet>1820</a>            <span class="kw">if </span>lhs &amp;&amp; rhs {
+<a href=#1821 id=1821 data-nosnippet>1821</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(overflow());
+<a href=#1822 id=1822 data-nosnippet>1822</a>            } <span class="kw">else </span>{
+<a href=#1823 id=1823 data-nosnippet>1823</a>                lhs ^ rhs
+<a href=#1824 id=1824 data-nosnippet>1824</a>            }
+<a href=#1825 id=1825 data-nosnippet>1825</a>        }
+<a href=#1826 id=1826 data-nosnippet>1826</a>        BinaryOp::Sub { unchecked: <span class="bool-val">true </span>} =&gt; {
+<a href=#1827 id=1827 data-nosnippet>1827</a>            <span class="kw">if </span>!lhs &amp;&amp; rhs {
+<a href=#1828 id=1828 data-nosnippet>1828</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(overflow());
+<a href=#1829 id=1829 data-nosnippet>1829</a>            } <span class="kw">else </span>{
+<a href=#1830 id=1830 data-nosnippet>1830</a>                lhs ^ rhs
+<a href=#1831 id=1831 data-nosnippet>1831</a>            }
+<a href=#1832 id=1832 data-nosnippet>1832</a>        }
+<a href=#1833 id=1833 data-nosnippet>1833</a>        BinaryOp::Sub { unchecked: <span class="bool-val">false </span>} =&gt; {
+<a href=#1834 id=1834 data-nosnippet>1834</a>            <span class="kw">if </span>!lhs &amp;&amp; rhs {
+<a href=#1835 id=1835 data-nosnippet>1835</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(overflow());
+<a href=#1836 id=1836 data-nosnippet>1836</a>            } <span class="kw">else </span>{
+<a href=#1837 id=1837 data-nosnippet>1837</a>                lhs ^ rhs
+<a href=#1838 id=1838 data-nosnippet>1838</a>            }
+<a href=#1839 id=1839 data-nosnippet>1839</a>        }
+<a href=#1840 id=1840 data-nosnippet>1840</a>        BinaryOp::Mul { unchecked: <span class="kw">_ </span>} =&gt; lhs &amp; rhs, <span class="comment">// (*) = (&amp;) for u1
+<a href=#1841 id=1841 data-nosnippet>1841</a>        </span>BinaryOp::Div =&gt; {
+<a href=#1842 id=1842 data-nosnippet>1842</a>            <span class="comment">// (0, 0) -&gt; (division by 0)
+<a href=#1843 id=1843 data-nosnippet>1843</a>            // (0, 1) -&gt; 0
+<a href=#1844 id=1844 data-nosnippet>1844</a>            // (1, 0) -&gt; (division by 0)
+<a href=#1845 id=1845 data-nosnippet>1845</a>            // (1, 1) -&gt; 1
+<a href=#1846 id=1846 data-nosnippet>1846</a>            </span><span class="kw">if </span>!rhs {
+<a href=#1847 id=1847 data-nosnippet>1847</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(division_by_zero(lhs_id, u8::from(lhs), rhs_id, u8::from(rhs)));
+<a href=#1848 id=1848 data-nosnippet>1848</a>            }
+<a href=#1849 id=1849 data-nosnippet>1849</a>            lhs
+<a href=#1850 id=1850 data-nosnippet>1850</a>        }
+<a href=#1851 id=1851 data-nosnippet>1851</a>        BinaryOp::Mod =&gt; {
+<a href=#1852 id=1852 data-nosnippet>1852</a>            <span class="comment">// (0, 0) -&gt; (division by 0)
+<a href=#1853 id=1853 data-nosnippet>1853</a>            // (0, 1) -&gt; 0
+<a href=#1854 id=1854 data-nosnippet>1854</a>            // (1, 0) -&gt; (division by 0)
+<a href=#1855 id=1855 data-nosnippet>1855</a>            // (1, 1) -&gt; 0
+<a href=#1856 id=1856 data-nosnippet>1856</a>            </span><span class="kw">if </span>!rhs {
+<a href=#1857 id=1857 data-nosnippet>1857</a>                <span class="kw">let </span>lhs = <span class="macro">format!</span>(<span class="string">"u1 {}"</span>, u8::from(lhs));
+<a href=#1858 id=1858 data-nosnippet>1858</a>                <span class="kw">let </span>rhs = <span class="macro">format!</span>(<span class="string">"u1 {}"</span>, u8::from(rhs));
+<a href=#1859 id=1859 data-nosnippet>1859</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(division_by_zero(lhs_id, lhs, rhs_id, rhs));
+<a href=#1860 id=1860 data-nosnippet>1860</a>            }
+<a href=#1861 id=1861 data-nosnippet>1861</a>            <span class="bool-val">false
+<a href=#1862 id=1862 data-nosnippet>1862</a>        </span>}
+<a href=#1863 id=1863 data-nosnippet>1863</a>        BinaryOp::Eq =&gt; lhs == rhs,
+<a href=#1864 id=1864 data-nosnippet>1864</a>        <span class="comment">// clippy complains when you do `lhs &lt; rhs` and recommends this instead
+<a href=#1865 id=1865 data-nosnippet>1865</a>        </span>BinaryOp::Lt =&gt; !lhs &amp; rhs,
+<a href=#1866 id=1866 data-nosnippet>1866</a>        BinaryOp::And =&gt; lhs &amp; rhs,
+<a href=#1867 id=1867 data-nosnippet>1867</a>        BinaryOp::Or =&gt; lhs | rhs,
+<a href=#1868 id=1868 data-nosnippet>1868</a>        BinaryOp::Xor =&gt; lhs ^ rhs,
+<a href=#1869 id=1869 data-nosnippet>1869</a>        BinaryOp::Shl =&gt; {
+<a href=#1870 id=1870 data-nosnippet>1870</a>            <span class="kw">if </span>rhs {
+<a href=#1871 id=1871 data-nosnippet>1871</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(overflow());
+<a href=#1872 id=1872 data-nosnippet>1872</a>            } <span class="kw">else </span>{
+<a href=#1873 id=1873 data-nosnippet>1873</a>                lhs
+<a href=#1874 id=1874 data-nosnippet>1874</a>            }
+<a href=#1875 id=1875 data-nosnippet>1875</a>        }
+<a href=#1876 id=1876 data-nosnippet>1876</a>        BinaryOp::Shr =&gt; {
+<a href=#1877 id=1877 data-nosnippet>1877</a>            <span class="kw">if </span>rhs {
+<a href=#1878 id=1878 data-nosnippet>1878</a>                <span class="kw">return </span><span class="prelude-val">Err</span>(overflow());
+<a href=#1879 id=1879 data-nosnippet>1879</a>            } <span class="kw">else </span>{
+<a href=#1880 id=1880 data-nosnippet>1880</a>                lhs
+<a href=#1881 id=1881 data-nosnippet>1881</a>            }
+<a href=#1882 id=1882 data-nosnippet>1882</a>        }
+<a href=#1883 id=1883 data-nosnippet>1883</a>    };
+<a href=#1884 id=1884 data-nosnippet>1884</a>    <span class="prelude-val">Ok</span>(NumericValue::bool(result))
+<a href=#1885 id=1885 data-nosnippet>1885</a>}
+<a href=#1886 id=1886 data-nosnippet>1886</a>
+<a href=#1887 id=1887 data-nosnippet>1887</a><span class="attr">#[cfg_attr(not(test), expect(dead_code))]
+<a href=#1888 id=1888 data-nosnippet>1888</a></span><span class="kw">fn </span>truncate_unsigned&lt;T&gt;(value: T, bit_size: u32) -&gt; IResult&lt;T&gt;
+<a href=#1889 id=1889 data-nosnippet>1889</a><span class="kw">where
+<a href=#1890 id=1890 data-nosnippet>1890</a>    </span>u128: From&lt;T&gt;,
+<a href=#1891 id=1891 data-nosnippet>1891</a>    T: TryFrom&lt;u128&gt;,
+<a href=#1892 id=1892 data-nosnippet>1892</a>    &lt;T <span class="kw">as </span>TryFrom&lt;u128&gt;&gt;::Error: std::fmt::Debug,
+<a href=#1893 id=1893 data-nosnippet>1893</a>{
+<a href=#1894 id=1894 data-nosnippet>1894</a>    <span class="kw">let </span>value_u128 = u128::from(value);
+<a href=#1895 id=1895 data-nosnippet>1895</a>    <span class="kw">let </span>bit_mask = <span class="kw">match </span>bit_size.cmp(<span class="kw-2">&amp;</span>MAX_UNSIGNED_BIT_SIZE) {
+<a href=#1896 id=1896 data-nosnippet>1896</a>        Ordering::Less =&gt; (<span class="number">1u128 </span>&lt;&lt; bit_size) - <span class="number">1</span>,
+<a href=#1897 id=1897 data-nosnippet>1897</a>        Ordering::Equal =&gt; u128::MAX,
+<a href=#1898 id=1898 data-nosnippet>1898</a>        Ordering::Greater =&gt; {
+<a href=#1899 id=1899 data-nosnippet>1899</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::InvalidUnsignedTruncateBitSize { bit_size }));
+<a href=#1900 id=1900 data-nosnippet>1900</a>        }
+<a href=#1901 id=1901 data-nosnippet>1901</a>    };
+<a href=#1902 id=1902 data-nosnippet>1902</a>
+<a href=#1903 id=1903 data-nosnippet>1903</a>    <span class="kw">let </span>result = value_u128 &amp; bit_mask;
+<a href=#1904 id=1904 data-nosnippet>1904</a>    <span class="prelude-val">Ok</span>(T::try_from(result).expect(
+<a href=#1905 id=1905 data-nosnippet>1905</a>        <span class="string">"The truncated result should always be smaller than or equal to the original `value`"</span>,
+<a href=#1906 id=1906 data-nosnippet>1906</a>    ))
+<a href=#1907 id=1907 data-nosnippet>1907</a>}
+<a href=#1908 id=1908 data-nosnippet>1908</a>
+<a href=#1909 id=1909 data-nosnippet>1909</a><span class="doccomment">/// Reduce `field` to its `bit_size`-bit pattern as a `u128`.
+<a href=#1910 id=1910 data-nosnippet>1910</a>///
+<a href=#1911 id=1911 data-nosnippet>1911</a>/// ACIR operands may carry an extended (out-of-range) field; truncating to the bit size yields the
+<a href=#1912 id=1912 data-nosnippet>1912</a>/// canonical bit pattern, which always fits in `u128` for the integer widths the interpreter models.
+<a href=#1913 id=1913 data-nosnippet>1913</a></span><span class="kw">fn </span>bits_u128(field: FieldElement, bit_size: u32) -&gt; u128 {
+<a href=#1914 id=1914 data-nosnippet>1914</a>    truncate_field(field, bit_size).try_into_u128().expect(<span class="string">"a reduced value fits in u128"</span>)
+<a href=#1915 id=1915 data-nosnippet>1915</a>}
+<a href=#1916 id=1916 data-nosnippet>1916</a>
+<a href=#1917 id=1917 data-nosnippet>1917</a><span class="doccomment">/// Build an `Overflow` error for `binary`, rendering the instruction as
+<a href=#1918 id=1918 data-nosnippet>1918</a>/// `` `&lt;ssa instruction&gt;` (&lt;operator&gt; &lt;lhs&gt;, &lt;rhs&gt;) ``.
+<a href=#1919 id=1919 data-nosnippet>1919</a></span><span class="kw">fn </span>overflow_error(
+<a href=#1920 id=1920 data-nosnippet>1920</a>    binary: <span class="kw-2">&amp;</span>Binary,
+<a href=#1921 id=1921 data-nosnippet>1921</a>    display_binary: <span class="kw">impl </span>Fn(<span class="kw-2">&amp;</span>Binary) -&gt; String,
+<a href=#1922 id=1922 data-nosnippet>1922</a>    lhs: <span class="kw">impl </span>std::fmt::Display,
+<a href=#1923 id=1923 data-nosnippet>1923</a>    rhs: <span class="kw">impl </span>std::fmt::Display,
+<a href=#1924 id=1924 data-nosnippet>1924</a>) -&gt; InterpreterError {
+<a href=#1925 id=1925 data-nosnippet>1925</a>    <span class="kw">let </span>operator = binary.operator;
+<a href=#1926 id=1926 data-nosnippet>1926</a>    <span class="kw">let </span>instruction = <span class="macro">format!</span>(<span class="string">"`{}` ({operator} {lhs}, {rhs})"</span>, display_binary(binary));
+<a href=#1927 id=1927 data-nosnippet>1927</a>    InterpreterError::Overflow { operator, instruction }
+<a href=#1928 id=1928 data-nosnippet>1928</a>}
+<a href=#1929 id=1929 data-nosnippet>1929</a>
+<a href=#1930 id=1930 data-nosnippet>1930</a><span class="doccomment">/// Build a `DivisionByZero` error, rendering each operand with its `Display`.
+<a href=#1931 id=1931 data-nosnippet>1931</a></span><span class="kw">fn </span>division_by_zero(
+<a href=#1932 id=1932 data-nosnippet>1932</a>    lhs_id: ValueId,
+<a href=#1933 id=1933 data-nosnippet>1933</a>    lhs: <span class="kw">impl </span>std::fmt::Display,
+<a href=#1934 id=1934 data-nosnippet>1934</a>    rhs_id: ValueId,
+<a href=#1935 id=1935 data-nosnippet>1935</a>    rhs: <span class="kw">impl </span>std::fmt::Display,
+<a href=#1936 id=1936 data-nosnippet>1936</a>) -&gt; InterpreterError {
+<a href=#1937 id=1937 data-nosnippet>1937</a>    InterpreterError::DivisionByZero { lhs_id, lhs: lhs.to_string(), rhs_id, rhs: rhs.to_string() }
+<a href=#1938 id=1938 data-nosnippet>1938</a>}
+<a href=#1939 id=1939 data-nosnippet>1939</a>
+<a href=#1940 id=1940 data-nosnippet>1940</a><span class="kw">fn </span>internal(error: InternalError) -&gt; InterpreterError {
+<a href=#1941 id=1941 data-nosnippet>1941</a>    InterpreterError::Internal(error)
+<a href=#1942 id=1942 data-nosnippet>1942</a>}</code></pre></div></section></main></body></html>

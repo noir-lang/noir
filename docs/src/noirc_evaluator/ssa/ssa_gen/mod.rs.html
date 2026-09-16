@@ -893,7 +893,7 @@
 <a href=#893 id=893 data-nosnippet>893</a>
 <a href=#894 id=894 data-nosnippet>894</a>        <span class="kw">let </span>result = <span class="self">self</span>.codegen_expression(<span class="kw-2">&amp;</span>for_expr.block);
 <a href=#895 id=895 data-nosnippet>895</a>        <span class="self">self</span>.codegen_unless_break_or_continue(result, |this, <span class="kw">_</span>| {
-<a href=#896 id=896 data-nosnippet>896</a>            <span class="kw">let </span>new_loop_index = this.make_offset(loop_index, <span class="number">1</span>, <span class="bool-val">true</span>);
+<a href=#896 id=896 data-nosnippet>896</a>            <span class="kw">let </span>new_loop_index = this.increment_loop_index(loop_index);
 <a href=#897 id=897 data-nosnippet>897</a>            this.builder.terminate_with_jmp(loop_entry, <span class="macro">vec!</span>[new_loop_index]);
 <a href=#898 id=898 data-nosnippet>898</a>        })<span class="question-mark">?</span>;
 <a href=#899 id=899 data-nosnippet>899</a>
@@ -1607,7 +1607,7 @@
 <a href=#1607 id=1607 data-nosnippet>1607</a>
 <a href=#1608 id=1608 data-nosnippet>1608</a>        <span class="comment">// Must remember to increment i before jumping
 <a href=#1609 id=1609 data-nosnippet>1609</a>        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(loop_index) = loop_.loop_index {
-<a href=#1610 id=1610 data-nosnippet>1610</a>            <span class="kw">let </span>new_loop_index = <span class="self">self</span>.make_offset(loop_index, <span class="number">1</span>, <span class="bool-val">true</span>);
+<a href=#1610 id=1610 data-nosnippet>1610</a>            <span class="kw">let </span>new_loop_index = <span class="self">self</span>.increment_loop_index(loop_index);
 <a href=#1611 id=1611 data-nosnippet>1611</a>            <span class="self">self</span>.builder.terminate_with_jmp(loop_.loop_entry, <span class="macro">vec!</span>[new_loop_index]);
 <a href=#1612 id=1612 data-nosnippet>1612</a>        } <span class="kw">else </span>{
 <a href=#1613 id=1613 data-nosnippet>1613</a>            <span class="self">self</span>.builder.terminate_with_jmp(loop_.loop_entry, <span class="macro">vec!</span>[]);
