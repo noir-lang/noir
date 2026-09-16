@@ -1,42 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789564054365,
+  "lastUpdate": 1789564187720,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "14852a8982c1b395ed467e99305c7ca0ccf41727",
-          "message": "fix(frontend): check that monomorphization leaves every piece of interner state the right size (#13642)",
-          "timestamp": "2026-09-10T16:30:31Z",
-          "tree_id": "7a95132cf4be4e0b9809bd96787abe75123ddef9",
-          "url": "https://github.com/noir-lang/noir/commit/14852a8982c1b395ed467e99305c7ca0ccf41727"
-        },
-        "date": 1789059366904,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 106.81,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 150.52,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -3184,6 +3150,105 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/a29d220c37893ca8a7e0c7d79de4082badd8ad89"
         },
         "date": 1789558870002,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 315.72,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 551.69,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 527.89,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-no-txs",
+            "value": 389.73,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 392.85,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 393.67,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 368.59,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 4960,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 4960,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 371.14,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 879.43,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 813.27,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 367.95,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 106.81,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 151.87,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "ffde11b9045ff8d1f47a128e863a995d740126fb",
+          "message": "chore(frontend): pin every PrimitiveType name to lookup_by_name (#13747)",
+          "timestamp": "2026-09-16T12:29:17Z",
+          "tree_id": "a92fff1e18282d2319331a79c1662fa3f4f1a76f",
+          "url": "https://github.com/noir-lang/noir/commit/ffde11b9045ff8d1f47a128e863a995d740126fb"
+        },
+        "date": 1789564134003,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
