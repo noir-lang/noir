@@ -610,3 +610,101 @@ fn call_unconstrained_function_in_lambda_in_global() {
     "#;
     assert_no_errors(src);
 }
+
+/// A struct in a user crate has its fields resolved lazily, so a call elaborated from inside a
+/// comptime attribute can reach one whose fields are still deferred. The boundary check resolves
+/// what it needs on the way in, in every position a value of the returned type can hide a vector.
+#[test]
+fn vector_in_deferred_struct_returned_from_unconstrained() {
+    let src = r#"
+    pub struct Wrapper {
+        vector: [Field],
+    }
+
+    unconstrained fn consume(w: Wrapper) -> Wrapper {
+        w
+    }
+
+    #[generate]
+    ~~~~~~~~~~~ While running this function attribute
+    pub fn trigger() {}
+
+    comptime fn generate(_f: FunctionDefinition) -> Quoted {
+        quote {
+            pub fn use_it(w: Wrapper) {
+                // Safety: testing
+                let _ = unsafe { consume(w) };
+                                 ^^^^^^^^^^ Vectors cannot be returned from an unconstrained runtime to a constrained runtime
+            }
+        }
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn vector_in_deferred_struct_returned_through_a_bound_type_variable() {
+    let src = r#"
+    pub struct Wrapper {
+        vector: [Field],
+    }
+
+    fn id<T>(x: T) -> T {
+        x
+    }
+
+    unconstrained fn consume<U>(u: U) -> U {
+        u
+    }
+
+    #[generate]
+    ~~~~~~~~~~~ While running this function attribute
+    pub fn trigger() {}
+
+    comptime fn generate(_f: FunctionDefinition) -> Quoted {
+        quote {
+            pub fn use_it(w: Wrapper) {
+                // Safety: testing
+                let _ = unsafe { consume(id(w)) };
+                                 ^^^^^^^^^^^^^^ Vectors cannot be returned from an unconstrained runtime to a constrained runtime
+            }
+        }
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn vector_in_deferred_struct_returned_in_a_format_string() {
+    let src = r#"
+    pub struct Wrapper {
+        vector: [Field],
+    }
+
+    unconstrained fn consume() -> fmtstr<3, (Wrapper,)> {
+        let w = Wrapper { vector: @[0] };
+        f"{w}"
+    }
+
+    #[generate]
+    ~~~~~~~~~~~ While running this function attribute
+    pub fn trigger() {}
+
+    comptime fn generate(_f: FunctionDefinition) -> Quoted {
+        quote {
+            pub fn use_it() {
+                // Safety: testing
+                let _ = unsafe { consume() };
+                                 ^^^^^^^^^ Vectors cannot be returned from an unconstrained runtime to a constrained runtime
+            }
+        }
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}

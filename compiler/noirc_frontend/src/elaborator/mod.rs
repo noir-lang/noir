@@ -57,7 +57,7 @@ use std::{
 };
 
 use crate::{
-    Type,
+    NamedGeneric, Type, TypeBinding,
     elaborator::types::WildcardDisallowedContext,
     graph::CrateId,
     hir::{
@@ -671,10 +671,16 @@ impl<'context> Elaborator<'context> {
 
     /// Calls `visit` on every [`Type::DataType`] reachable from `typ`.
     ///
-    /// The walk expands aliases and descends into a data type's fields and variants, so it reaches
-    /// the data types a value of `typ` is built from, not only the ones named in it. `visit` runs
-    /// before the fields and variants of the type it was handed are read, so a visitor that
-    /// resolves a deferred body sees the resolved one on the way down.
+    /// The walk expands aliases, follows bound type variables, and descends into a data type's
+    /// fields and variants, so it reaches the data types a value of `typ` is built from, not only
+    /// the ones named in it. `visit` runs before the fields and variants of the type it was handed
+    /// are read, so a visitor that resolves a deferred body sees the resolved one on the way down.
+    ///
+    /// It reaches exactly what [`Type::contains_matching`] reaches. A visitor here is a pre-pass
+    /// for a consumer that asks a whole-type question, so a position this walk stops at and the
+    /// consumer descends into is a position where the consumer reads an unresolved body: a
+    /// deferred struct there answers as neither struct nor enum, and the question comes back
+    /// wrong. Keep the two in step.
     ///
     /// Two guards, for two different problems:
     /// * `TypeRecursionContext` breaks cycles and bounds depth, so a recursive type terminates.
@@ -700,8 +706,27 @@ impl<'context> Elaborator<'context> {
             return;
         }
         match typ {
-            Type::Array(element, _) | Type::Vector(element) | Type::Reference(element, _) => {
+            Type::Vector(element) | Type::String(element) | Type::Reference(element, _) => {
                 self.visit_data_types_in_helper(element, context.recur(), visited, visit);
+            }
+            Type::Forall(_, typ) => {
+                self.visit_data_types_in_helper(typ, context.recur(), visited, visit);
+            }
+            Type::Array(element, length) | Type::FmtString(length, element) => {
+                self.visit_data_types_in_helper(length, context.clone().recur(), visited, visit);
+                self.visit_data_types_in_helper(element, context.recur(), visited, visit);
+            }
+            // Only the environment is carried in a value of a function type.
+            Type::Function(_args, _ret, env, _unconstrained) => {
+                self.visit_data_types_in_helper(env, context.recur(), visited, visit);
+            }
+            Type::TypeVariable(type_variable)
+            | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
+                let bound = match &*type_variable.borrow() {
+                    TypeBinding::Bound(bound) => bound.clone(),
+                    TypeBinding::Unbound(..) => return,
+                };
+                self.visit_data_types_in_helper(&bound, context.recur(), visited, visit);
             }
             Type::Tuple(elements) => {
                 for element in elements {
@@ -773,16 +798,11 @@ impl<'context> Elaborator<'context> {
             Type::FieldElement
             | Type::Integer(..)
             | Type::Bool
-            | Type::String(_)
-            | Type::FmtString(_, _)
             | Type::Unit
             | Type::Quoted(..)
             | Type::Constant(..)
+            // A trait-as-type's generics describe the bound, not the represented value.
             | Type::TraitAsType(..)
-            | Type::TypeVariable(..)
-            | Type::NamedGeneric(..)
-            | Type::Function(..)
-            | Type::Forall(..)
             | Type::Error => (),
         }
     }
