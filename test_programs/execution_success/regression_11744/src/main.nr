@@ -1,3 +1,6 @@
+// Regression test for the fallback-offset unit mix-up in
+// https://github.com/noir-lang/noir/pull/11744 (a PR, not an issue).
+//
 // The disabled-branch fallback index for a dynamic array read must be a flat
 // slot offset, not an item ordinal. `Foo.b` is item 1 of the element but flat
 // slot 2 (`a` occupies two slots): a fallback biased to flat slot 1 would read

@@ -1712,6 +1712,20 @@ fn errors_on_cross_crate_pub_crate_composite_primitive_method_from_foreign_trait
         }
     "#;
 
+    assert_single_private_error_with_stdlib_dependency(
+        stdlib_src,
+        root_src,
+        "audit_internal_helper",
+    );
+}
+
+/// Compiles `root_src` against a `std` dependency built from `stdlib_src` and asserts that the
+/// only error is `{method_name} is private and not visible from the current module`.
+fn assert_single_private_error_with_stdlib_dependency(
+    stdlib_src: &str,
+    root_src: &str,
+    method_name: &str,
+) {
     let errors = get_program_with_stdlib_dependency(stdlib_src, root_src);
     let errors: Vec<_> = errors.into_iter().filter(CompilationError::is_error).collect();
 
@@ -1720,8 +1734,205 @@ fn errors_on_cross_crate_pub_crate_composite_primitive_method_from_foreign_trait
         CompilationError::ResolverError(ResolverError::PathResolutionError(
             PathResolutionError::Private(ident),
         )) => {
-            assert_eq!(ident.as_str(), "audit_internal_helper");
+            assert_eq!(ident.as_str(), method_name);
         }
-        other => panic!("expected `audit_internal_helper is private`, got: {other:?}"),
+        other => panic!("expected `{method_name} is private`, got: {other:?}"),
     }
+}
+
+/// A `pub(crate)` inherent method on a composite primitive receiver defined in another crate is
+/// not callable from a trait `impl` whose `self_type` is exactly that receiver type. Structural
+/// types compare equal across crates, so matching the receiver type says nothing about which
+/// crate the caller is in.
+#[test]
+fn errors_on_cross_crate_pub_crate_composite_primitive_method_from_exact_receiver_trait_impl() {
+    let stdlib_src = r#"
+        pub mod prelude {}
+
+        impl<T, let N: u32> [T; N] {
+            pub(crate) fn internal_helper(self) -> u32 {
+                N
+            }
+        }
+    "#;
+
+    let root_src = r#"
+        trait MyTrait {
+            fn caller(self) -> u32;
+        }
+
+        impl MyTrait for [u32; 4] {
+            fn caller(self) -> u32 {
+                self.internal_helper()
+            }
+        }
+
+        fn main() {
+            let a: [u32; 4] = [0; 4];
+            let _ = a.caller();
+        }
+    "#;
+
+    assert_single_private_error_with_stdlib_dependency(stdlib_src, root_src, "internal_helper");
+}
+
+/// A private inherent method on a primitive receiver defined in another crate is not callable
+/// from a trait `impl` for that receiver type.
+///
+/// Local module ids are only meaningful within their own crate. The helper is defined at the
+/// dependency's crate root, which has the same local module id as the calling crate's root, so
+/// looking the defining module up in the calling crate's def map would make every module of the
+/// calling crate appear to be a descendant of it.
+#[test]
+fn errors_on_cross_crate_private_primitive_method_from_foreign_trait_impl() {
+    let stdlib_src = r#"
+        pub mod prelude {}
+
+        impl Field {
+            fn internal_helper(self) -> Field {
+                self
+            }
+        }
+    "#;
+
+    let root_src = r#"
+        trait MyTrait {
+            fn caller(self) -> Field;
+        }
+
+        impl MyTrait for Field {
+            fn caller(self) -> Field {
+                self.internal_helper()
+            }
+        }
+
+        fn main() {
+            let x: Field = 1;
+            let _ = x.caller();
+        }
+    "#;
+
+    assert_single_private_error_with_stdlib_dependency(stdlib_src, root_src, "internal_helper");
+}
+
+/// Same as `errors_on_cross_crate_private_primitive_method_from_foreign_trait_impl`, with the
+/// helper in a submodule of the dependency and the trait `impl` in a submodule of the calling
+/// crate at the same position in its module tree, mirroring how the standard library defines its
+/// primitive methods.
+#[test]
+fn errors_on_cross_crate_private_primitive_method_from_foreign_trait_impl_in_submodule() {
+    let stdlib_src = r#"
+        pub mod prelude {}
+
+        mod field {
+            impl Field {
+                fn internal_helper(self) -> Field {
+                    self
+                }
+            }
+        }
+    "#;
+
+    let root_src = r#"
+        mod first {}
+
+        mod second {
+            pub trait MyTrait {
+                fn caller(self) -> Field;
+            }
+
+            impl MyTrait for Field {
+                fn caller(self) -> Field {
+                    self.internal_helper()
+                }
+            }
+        }
+
+        use second::MyTrait;
+
+        fn main() {
+            let x: Field = 1;
+            let _ = x.caller();
+        }
+    "#;
+
+    assert_single_private_error_with_stdlib_dependency(stdlib_src, root_src, "internal_helper");
+}
+
+/// A `pub(crate)` method on a struct defined in another crate is not callable from a trait `impl`
+/// for that struct in the calling crate.
+#[test]
+fn errors_on_cross_crate_pub_crate_struct_method_from_foreign_trait_impl() {
+    let stdlib_src = r#"
+        pub mod prelude {}
+
+        pub struct Foo {}
+
+        impl Foo {
+            pub(crate) fn internal_helper(self) -> u32 {
+                let _ = self;
+                0
+            }
+        }
+    "#;
+
+    let root_src = r#"
+        use std::Foo;
+
+        trait MyTrait {
+            fn caller(self) -> u32;
+        }
+
+        impl MyTrait for Foo {
+            fn caller(self) -> u32 {
+                self.internal_helper()
+            }
+        }
+
+        fn main() {
+            let foo = Foo {};
+            let _ = foo.caller();
+        }
+    "#;
+
+    assert_single_private_error_with_stdlib_dependency(stdlib_src, root_src, "internal_helper");
+}
+
+/// A private method on a struct defined in another crate is not callable from a trait `impl` for
+/// that struct in the calling crate.
+#[test]
+fn errors_on_cross_crate_private_struct_method_from_foreign_trait_impl() {
+    let stdlib_src = r#"
+        pub mod prelude {}
+
+        pub struct Foo {}
+
+        impl Foo {
+            fn internal_helper(self) -> u32 {
+                let _ = self;
+                0
+            }
+        }
+    "#;
+
+    let root_src = r#"
+        use std::Foo;
+
+        trait MyTrait {
+            fn caller(self) -> u32;
+        }
+
+        impl MyTrait for Foo {
+            fn caller(self) -> u32 {
+                self.internal_helper()
+            }
+        }
+
+        fn main() {
+            let foo = Foo {};
+            let _ = foo.caller();
+        }
+    "#;
+
+    assert_single_private_error_with_stdlib_dependency(stdlib_src, root_src, "internal_helper");
 }

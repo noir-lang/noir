@@ -10,7 +10,7 @@ use noirc_errors::Location;
 use strum_macros::Display;
 
 use crate::{
-    Kind, QuotedType, Shared, Type, TypeBindings, TypeVariable,
+    QuotedType, Shared, Type, TypeBindings,
     ast::{
         ArrayLiteral, BlockExpression, CallExpression, ConstructorExpression, Expression,
         ExpressionKind, Ident, LValue, LetStatement, MethodCallExpression, Path, PathKind,
@@ -27,6 +27,7 @@ use crate::{
         HirArrayLiteral, HirConstructorExpression, HirEnumConstructorExpression, HirExpression,
         HirIdent, HirLambda, HirLiteral, ImplKind,
     },
+    hir_def::types::BoundGenerics,
     node_interner::{ExprId, FuncId, NodeInterner, StmtId, TraitId, TraitImplId, TypeId},
     parser::{Item, Parser},
     token::{FmtStrFragment, IntegerTypeSuffix, LocatedToken, Token, Tokens},
@@ -99,7 +100,7 @@ pub struct Closure {
     /// The type bindings where the closure was created.
     /// This is needed because when the closure is interpreted, those type bindings
     /// need to be restored.
-    pub bindings: HashMap<TypeVariable, (Type, Kind)>,
+    pub(crate) bindings: BoundGenerics,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Display)]

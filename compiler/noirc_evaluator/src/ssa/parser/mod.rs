@@ -159,6 +159,10 @@ pub(crate) enum SsaError {
     VariableAlreadyDefined(Identifier),
     #[error("Global '{0}' already defined")]
     GlobalAlreadyDefined(Identifier),
+    #[error("Function '{0}' already defined")]
+    FunctionAlreadyDefined(Identifier),
+    #[error("Block '{0}' already defined")]
+    BlockAlreadyDefined(Identifier),
     #[error("Illegal use of offset in non-Brillig function '{0:?}'")]
     IllegalOffset(Identifier, ArrayOffset),
     #[error(
@@ -178,6 +182,8 @@ impl SsaError {
             | SsaError::UnknownBlock(identifier)
             | SsaError::VariableAlreadyDefined(identifier)
             | SsaError::GlobalAlreadyDefined(identifier)
+            | SsaError::FunctionAlreadyDefined(identifier)
+            | SsaError::BlockAlreadyDefined(identifier)
             | SsaError::UnknownFunction(identifier)
             | SsaError::PureModifierOnNonForeignFunction(identifier)
             | SsaError::IllegalOffset(identifier, _) => identifier.span,
@@ -246,7 +252,7 @@ impl<'a> Parser<'a> {
         self.eat_or_error(Token::Keyword(Keyword::Fn))?;
 
         let external_name = self.eat_ident_or_keyword_or_error()?;
-        let internal_name = self.eat_ident_or_error()?;
+        let internal_name = self.eat_identifier_or_error()?;
 
         self.eat_or_error(Token::LeftBrace)?;
 
@@ -409,7 +415,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_block(&mut self) -> ParseResult<ParsedBlock> {
-        let name = self.eat_ident_or_error()?;
+        let name = self.eat_identifier_or_error()?;
         self.eat_or_error(Token::LeftParen)?;
 
         let mut parameters = Vec::new();
@@ -1139,10 +1145,6 @@ impl<'a> Parser<'a> {
             Token::Ident(ident) => Ok(Some(ident)),
             _ => unreachable!(),
         }
-    }
-
-    fn eat_ident_or_error(&mut self) -> ParseResult<String> {
-        if let Some(ident) = self.eat_ident()? { Ok(ident) } else { self.expected_identifier() }
     }
 
     fn eat_ident_or_keyword_or_error(&mut self) -> ParseResult<String> {

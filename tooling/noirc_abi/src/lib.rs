@@ -1,6 +1,11 @@
 #![forbid(unsafe_code)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
+//! Types for Noir's serialized ABI format.
+//!
+//! The serialized format is the compatibility boundary. This crate's Rust API is an internal
+//! implementation detail and may change between Noir releases.
+
 use acvm::{
     AcirField, FieldElement,
     acir::{
@@ -16,7 +21,7 @@ use noirc_printable_type::{
     PrintableType, PrintableValue, PrintableValueDisplay, decode_printable_value,
     decode_string_value,
 };
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::borrow::Borrow;
 use std::{collections::BTreeMap, str};
 // This is the ABI used to bridge the different TOML formats for the initial
@@ -35,6 +40,31 @@ mod serialization;
 pub type InputMap = BTreeMap<String, InputValue>;
 
 pub const MAIN_RETURN_NAME: &str = "return";
+
+/// The version of the ABI schema emitted by this version of Noir.
+pub const ABI_VERSION: u32 = 1;
+
+/// The schema version of ABI JSON written before `ABI_VERSION` existed. This is a historical
+/// fact about those files and must not change when `ABI_VERSION` is incremented.
+const LEGACY_ABI_VERSION: u32 = 1;
+
+const fn default_abi_version() -> u32 {
+    LEGACY_ABI_VERSION
+}
+
+fn deserialize_abi_version<'de, D>(deserializer: D) -> Result<u32, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let version = u32::deserialize(deserializer)?;
+    if version == ABI_VERSION {
+        Ok(version)
+    } else {
+        Err(serde::de::Error::custom(format!(
+            "unsupported ABI schema version {version}; expected {ABI_VERSION}"
+        )))
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "lowercase")]
@@ -99,16 +129,23 @@ pub enum Sign {
 
 impl AbiType {
     /// Returns the number of field elements required to represent the type once encoded.
+    ///
+    /// Panics if the count does not fit in a `u32`. An ABI is read from an artifact file, so the
+    /// arithmetic here is over values this process did not produce; wrapping the count instead
+    /// hands [`Abi::decode`] a witness range that has nothing to do with the type, and a count of
+    /// `0` makes a parameter look like it occupies no witnesses at all.
     pub fn field_count(&self) -> u32 {
         match self {
             AbiType::Field | AbiType::Integer { .. } | AbiType::Boolean => 1,
-            AbiType::Array { length, typ } => typ.field_count() * *length,
-            AbiType::Struct { fields, .. } => {
-                fields.iter().fold(0, |acc, (_, field_type)| acc + field_type.field_count())
+            AbiType::Array { length, typ } => {
+                typ.field_count().checked_mul(*length).expect("ABI array field count overflow")
             }
-            AbiType::Tuple { fields } => {
-                fields.iter().fold(0, |acc, field_typ| acc + field_typ.field_count())
-            }
+            AbiType::Struct { fields, .. } => fields.iter().fold(0u32, |acc, (_, field_type)| {
+                acc.checked_add(field_type.field_count()).expect("ABI struct field count overflow")
+            }),
+            AbiType::Tuple { fields } => fields.iter().fold(0u32, |acc, field_typ| {
+                acc.checked_add(field_typ.field_count()).expect("ABI tuple field count overflow")
+            }),
             AbiType::String { length } => *length,
         }
     }
@@ -171,14 +208,29 @@ pub struct AbiReturnType {
     pub visibility: AbiVisibility,
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize, Hash)]
+#[derive(Clone, Debug, Serialize, Deserialize, Hash)]
 #[cfg_attr(test, derive(arbitrary::Arbitrary))]
 pub struct Abi {
+    /// The version of the serialized ABI schema.
+    #[serde(default = "default_abi_version", deserialize_with = "deserialize_abi_version")]
+    #[cfg_attr(test, proptest(strategy = "proptest::prelude::Just(ABI_VERSION)"))]
+    pub abi_version: u32,
     /// An ordered list of the arguments to the program's `main` function, specifying their types and visibility.
     pub parameters: Vec<AbiParameter>,
     pub return_type: Option<AbiReturnType>,
     #[cfg_attr(test, proptest(strategy = "proptest::prelude::Just(BTreeMap::from([]))"))]
     pub error_types: BTreeMap<ErrorSelector, AbiErrorType>,
+}
+
+impl Default for Abi {
+    fn default() -> Self {
+        Self {
+            abi_version: ABI_VERSION,
+            parameters: Vec::new(),
+            return_type: None,
+            error_types: BTreeMap::new(),
+        }
+    }
 }
 
 impl Abi {
@@ -536,7 +588,8 @@ mod tests {
     use proptest::prelude::*;
 
     use crate::{
-        Abi, AbiParameter, AbiType, AbiVisibility, Sign, arbitrary::arb_abi_and_input_map,
+        ABI_VERSION, Abi, AbiParameter, AbiType, AbiVisibility, Sign,
+        arbitrary::arb_abi_and_input_map,
     };
 
     proptest! {
@@ -550,8 +603,41 @@ mod tests {
         }
     }
 
+    fn nested_array(length: u32, depth: usize) -> AbiType {
+        let mut typ = AbiType::Field;
+        for _ in 0..depth {
+            typ = AbiType::Array { length, typ: Box::new(typ) };
+        }
+        typ
+    }
+
+    #[test]
+    fn field_count_of_nested_array() {
+        assert_eq!(nested_array(4, 3).field_count(), 64);
+    }
+
+    /// An ABI comes out of an artifact file, so its lengths are not values this process produced.
+    /// A field count that wraps hands `Abi::decode` a witness range unrelated to the type — a
+    /// count of `0` makes a parameter look like it occupies no witnesses at all.
+    #[test]
+    #[should_panic(expected = "ABI array field count overflow")]
+    fn field_count_of_oversized_array_does_not_wrap() {
+        // 2^16 nested four deep is 2^64 fields, which is 0 modulo 2^32.
+        let typ = nested_array(1 << 16, 4);
+        assert_eq!(typ.field_count(), 0);
+    }
+
+    #[test]
+    #[should_panic(expected = "ABI tuple field count overflow")]
+    fn field_count_of_oversized_tuple_does_not_wrap() {
+        let half = AbiType::Array { length: 1 << 31, typ: Box::new(AbiType::Field) };
+        let typ = AbiType::Tuple { fields: vec![half.clone(), half] };
+        assert_eq!(typ.field_count(), 0);
+    }
+
     fn abi_with_single_param(typ: AbiType) -> Abi {
         Abi {
+            abi_version: ABI_VERSION,
             parameters: vec![AbiParameter {
                 name: "x".to_string(),
                 typ,

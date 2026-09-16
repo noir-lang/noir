@@ -4,8 +4,8 @@
 //! `//`, `///`, or ` * ` already stripped), this module merges adjacent "plain"
 //! lines into paragraphs, then greedily wraps each paragraph to the configured
 //! width. Certain line shapes (markdown headers, list items, blockquotes,
-//! fenced code, tables, URL lines, Javadoc-style `@tag` lines, blank lines)
-//! are recognized and never merged into prose.
+//! fenced code, tables, URL lines, Javadoc-style `@tag` lines, `Safety:` marker
+//! lines, blank lines) are recognized and never merged into prose.
 //!
 //! Output lines do not carry the prefix or any caller-side indentation; the
 //! caller is responsible for adding them. The engine is a pure function with
@@ -116,6 +116,11 @@ enum LineKind<'a> {
     /// Javadoc-style tag like `@param`, `@return`, `@dev`. Starts a fresh paragraph
     /// so it doesn't get glued to prose above it.
     JavadocTag,
+    /// `Safety:` marker line (case-insensitive) that the parser requires above an
+    /// `unsafe` block. Starts a fresh paragraph so the marker stays at the start of
+    /// its own emitted line; merging it into prose above would make the parser stop
+    /// recognizing the comment as a safety comment.
+    SafetyMarker,
     /// Bullet list item (`* `, `- `, `+ `). `marker_len` is the byte length of the
     /// marker + its trailing space, so the caller can split the line into marker
     /// and content.
@@ -170,8 +175,18 @@ fn classify<'a>(line: &'a str) -> LineKind<'a> {
     if contains_url_or_reference(line) {
         return LineKind::UrlLine;
     }
+    if is_safety_marker(trimmed) {
+        return LineKind::SafetyMarker;
+    }
     let indent = line.len() - trimmed.len();
     LineKind::Plain { indent, content: trimmed }
+}
+
+/// Mirrors the parser's unsafe-block check, which accepts a comment line whose trimmed
+/// text starts with `safety:` in any letter case.
+fn is_safety_marker(trimmed: &str) -> bool {
+    const MARKER: &str = "safety:";
+    trimmed.get(..MARKER.len()).is_some_and(|prefix| prefix.eq_ignore_ascii_case(MARKER))
 }
 
 fn is_javadoc_tag(trimmed: &str) -> bool {
@@ -284,7 +299,7 @@ fn parse_blocks(lines: &[&str], reflow_paragraphs: bool) -> Vec<Block> {
             LineKind::Header | LineKind::TableLine | LineKind::UrlLine => {
                 blocks.push(Block::Passthrough { raw_lines: vec![line.to_string()] });
             }
-            LineKind::JavadocTag => {
+            LineKind::JavadocTag | LineKind::SafetyMarker => {
                 let words = collect_words(line);
                 blocks.push(Block::Paragraph { words });
             }
@@ -613,6 +628,51 @@ mod tests {
     fn javadoc_tag_breaks_paragraph() {
         let out = reflow(&["Build a Foo.", "@return a fresh Foo"], 80, 80);
         assert_eq!(out, vec!["Build a Foo.".to_string(), "@return a fresh Foo".to_string()]);
+    }
+
+    #[test]
+    fn safety_marker_breaks_paragraph() {
+        let out = reflow(
+            &["Call the identity helper.", "Safety: the assertion checks the returned value."],
+            80,
+            80,
+        );
+        assert_eq!(
+            out,
+            vec![
+                "Call the identity helper.".to_string(),
+                "Safety: the assertion checks the returned value.".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn safety_marker_is_case_insensitive() {
+        let out = reflow(&["Some context.", "SAFETY: checked below."], 80, 80);
+        assert_eq!(out, vec!["Some context.".to_string(), "SAFETY: checked below.".to_string()]);
+    }
+
+    #[test]
+    fn safety_marker_paragraph_still_reflows_its_continuation_lines() {
+        let out =
+            reflow(&["Safety: the assertion", "checks the returned value.", "Really."], 80, 80);
+        assert_eq!(
+            out,
+            vec!["Safety: the assertion checks the returned value. Really.".to_string()]
+        );
+    }
+
+    #[test]
+    fn safety_marker_stays_first_when_wrapped() {
+        let out = reflow(&["Safety: the assertion checks the returned value."], 24, 24);
+        assert_eq!(
+            out,
+            vec![
+                "Safety: the assertion".to_string(),
+                "checks the returned".to_string(),
+                "value.".to_string(),
+            ]
+        );
     }
 
     #[test]

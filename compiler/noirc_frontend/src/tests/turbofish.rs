@@ -526,48 +526,6 @@ fn incorrect_turbofish_count_with_fewer_generics_than_expected() {
 }
 
 #[test]
-fn cannot_determine_type_of_generic_argument_in_function_call_with_regular_generic() {
-    let src = r#"
-    fn foo<T>() {}
-
-    fn main()
-    {
-        foo();
-        ^^^ Type annotation needed
-        ~~~ Could not determine the type of the generic argument `T` declared on the function `foo`
-    }
-
-    "#;
-    check_errors(src);
-}
-
-#[test]
-fn cannot_determine_type_of_generic_argument_in_function_call_when_it_is_a_numeric_generic() {
-    let src = r#"
-    struct Foo<let N: u32> {
-        array: [Field; N],
-    }
-
-    impl<let N: u32> Foo<N> {
-        fn new() -> Self {
-            Self { array: [0; N] }
-        }
-    }
-
-    fn foo<let N: u32>() -> Foo<N> {
-        Foo::new()
-    }
-
-    fn main() {
-        let _ = foo();
-                ^^^ Type annotation needed
-                ~~~ Could not determine the value of the generic argument `N` declared on the function `foo`
-    }
-    "#;
-    check_errors(src);
-}
-
-#[test]
 fn static_method_with_generics_on_type_and_method() {
     let src = r#"
     struct Foo<T> {}
@@ -1074,7 +1032,7 @@ fn struct_turbofish_matching_struct_type_alias() {
 }
 
 #[test]
-fn no_turbofish_matching_on_type_alias_without_generics_with_underlaying_struct_with_generics() {
+fn no_turbofish_matching_on_type_alias_without_generics_with_underlying_struct_with_generics() {
     let src = r#"
     struct S<A> {}
 

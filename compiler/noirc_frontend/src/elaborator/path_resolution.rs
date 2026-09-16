@@ -443,27 +443,42 @@ impl Elaborator<'_> {
         let mut starting_module = self.module_id();
         let mut intermediate_item = IntermediatePathResolutionItem::Module;
 
+        // The self type of a `Self::item` path, kept to report what `item` failed to name.
+        let mut self_type = None;
+
         if path.kind == PathKind::Plain
             && path.first_name() == Some(SELF_TYPE_NAME)
-            && let Some(Type::DataType(datatype, _)) = &self.self_type
+            && let Some(id) = self.item.impl_context.self_data_type_id()
         {
-            let datatype = datatype.borrow();
             if path.segments.len() == 1 {
                 return Ok(PathResolution {
-                    item: PathResolutionItem::Type(datatype.id),
+                    item: PathResolutionItem::Type(id),
                     errors: Vec::new(),
                 });
             }
 
-            starting_module = datatype.id.module_id();
+            self_type = self.item.impl_context.self_type().cloned();
+            starting_module = id.module_id();
             path.segments.remove(0);
             intermediate_item = IntermediatePathResolutionItem::SelfType;
         }
 
         let turbofished_leaf =
             path.segments.last().filter(|segment| segment.generics.is_some()).cloned();
+        // The item named directly on `Self`, once the `Self` segment has been stripped.
+        let self_item = self_type.is_some().then(|| path.segments[0].ident.clone());
         let result =
             self.resolve_path_in_module(path, starting_module, intermediate_item, target, mode);
+        let result = match (result, self_type) {
+            // `Self::item` where `item` is not in the self type's module: say that `item` is not
+            // an associated item of the self type rather than that some name did not resolve.
+            (Err(PathResolutionError::Unresolved(ident)), Some(self_type))
+                if self_item.as_ref().is_some_and(|item| item.location() == ident.location()) =>
+            {
+                Err(self.unresolved_associated_item_error(&self_type, &ident))
+            }
+            (result, _) => result,
+        };
         Self::check_leaf_turbofish(result, turbofished_leaf.as_ref())
     }
 
@@ -644,9 +659,7 @@ impl Elaborator<'_> {
             });
         }
 
-        // The module to use for visibility check.
-        // Use the caller's module if set, else the module the lookup started in.
-        let visibility_module = self.caller_module.unwrap_or(self.module_id());
+        let visibility_module = self.visibility_module();
 
         // The first segment's visibility is computed with the same module the rest of
         // the path's visibility is checked against (`visibility_module`). When resolving on behalf
@@ -863,8 +876,7 @@ impl Elaborator<'_> {
         mode: PathResolutionMode,
         errors: &mut Vec<PathResolutionError>,
     ) -> PathResolutionItem {
-        // Use the caller's module if set, else the module the lookup started in.
-        let visibility_module = self.caller_module.unwrap_or(self.module_id());
+        let visibility_module = self.visibility_module();
         self.mark_segment(mode, current_module_id, &path.last_ident(), scope.id.namespace());
         self.per_ns_item_to_path_resolution_item(
             path,
@@ -1033,12 +1045,33 @@ impl Elaborator<'_> {
         if let Some(result) = self.try_resolve_trait_constant(type_id, self_type, ident) {
             return result;
         }
-        // Not an associated constant. If a trait defines an associated item with this name, point
-        // the user at it rather than reporting a bare "could not resolve".
+        Err(self.unresolved_associated_item_error(self_type, ident))
+    }
+
+    /// The error for a `Type::item` path whose `item` names nothing on `Type`. If a trait defines
+    /// an associated item with this name, point the user at it; otherwise report that `item` is not
+    /// an associated item at all, noting when it is a field (the common mistake is reaching for a
+    /// struct field through `Type::field`).
+    fn unresolved_associated_item_error(
+        &self,
+        self_type: &Type,
+        ident: &Ident,
+    ) -> PathResolutionError {
         if let Some(error) = self.resolve_associated_item_diagnostic(self_type, ident) {
-            return Err(error);
+            return error;
         }
-        Err(PathResolutionError::Unresolved(ident.clone()))
+        let is_field = match self_type.follow_bindings() {
+            Type::DataType(datatype, _) => datatype
+                .borrow()
+                .field_names()
+                .is_some_and(|names| names.iter().any(|name| name.as_str() == ident.as_str())),
+            _ => false,
+        };
+        PathResolutionError::NoSuchAssociatedItem {
+            ident: ident.clone(),
+            type_name: self_type.to_string(),
+            is_field,
+        }
     }
 
     /// Try to resolve an identifier as a trait associated constant (e.g., `Foo::N`) on `self_type`

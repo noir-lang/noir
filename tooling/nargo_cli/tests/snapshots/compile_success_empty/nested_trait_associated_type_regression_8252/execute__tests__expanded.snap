@@ -13,13 +13,13 @@ trait TraitWithAssociatedConstant {
 struct Foo {}
 
 impl TraitWithAssociatedConstant for Foo {
-    let N: u32 = 42;
+    let N: u32 = 42_u32;
 }
 
 struct Bar {}
 
 impl TraitWithAssociatedConstant for Bar {
-    let N: u32 = 43;
+    let N: u32 = 43_u32;
 }
 
 struct Wrapper<T> {

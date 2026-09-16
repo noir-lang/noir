@@ -10,6 +10,7 @@ export const SAMPLE_FMT_STRING = 'hello {a}';
 export const SAMPLE_STRING = 'hello world';
 
 export const abi: Abi = {
+  abi_version: 1,
   parameters: [
     {
       name: 'foo',

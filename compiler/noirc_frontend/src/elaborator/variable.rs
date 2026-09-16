@@ -630,13 +630,14 @@ impl Elaborator<'_> {
             // `Self` is contextual; which kind it is depends only on where we are (a trait impl, a
             // trait definition, somewhere `Self` is a plain type, or nowhere at all), so it is
             // classified here and the matching arm resolves the last segment.
-            if let Some(trait_impl_id) = self.current_trait_impl {
+            let impl_context = &self.item.impl_context;
+            if let Some(trait_impl_id) = impl_context.current_trait_impl() {
                 let self_type =
-                    self.self_type.clone().expect("a trait impl always has a self type");
+                    impl_context.self_type().expect("a trait impl always has a self type").clone();
                 PathPrefixKind::SelfInTraitImpl { self_type, trait_impl_id }
-            } else if let Some(trait_id) = self.current_trait {
+            } else if let Some(trait_id) = impl_context.current_trait() {
                 PathPrefixKind::SelfInTrait { trait_id }
-            } else if self.self_type.is_some() {
+            } else if impl_context.self_type().is_some() {
                 PathPrefixKind::SelfInImpl
             } else {
                 PathPrefixKind::SelfNotInScope
@@ -697,14 +698,7 @@ impl Elaborator<'_> {
             return None;
         }
         let head = path.segments[0].ident.as_str();
-        let bounds: Vec<_> = self
-            .trait_bounds
-            .iter()
-            .filter(|constraint| {
-                matches!(&constraint.typ, Type::NamedGeneric(generic) if generic.name.as_str() == head)
-            })
-            .cloned()
-            .collect();
+        let bounds: Vec<_> = self.item.generics.bounds_on_generic(head).cloned().collect();
         (!bounds.is_empty()).then_some(bounds)
     }
 
@@ -905,7 +899,7 @@ impl Elaborator<'_> {
                     ItemTypeBinding::ConcreteSelfType(Type::DataType(data_type, generics))
                 }
             }
-            PathResolutionItem::SelfMethod(_) => match &self.self_type {
+            PathResolutionItem::SelfMethod(_) => match self.item.impl_context.self_type() {
                 Some(self_type) => ItemTypeBinding::ConcreteSelfType(self_type.clone()),
                 None => ItemTypeBinding::None,
             },
@@ -1178,7 +1172,7 @@ impl Elaborator<'_> {
     pub(crate) fn handle_definition_id(&mut self, definition_id: DefinitionId, location: Location) {
         match self.interner.definition(definition_id).kind {
             DefinitionKind::Function(func_id) => {
-                if let Some(current_item) = self.current_item {
+                if let Some(current_item) = self.item.module.current_item() {
                     self.interner.add_function_dependency(current_item, func_id);
                 }
 
@@ -1186,7 +1180,7 @@ impl Elaborator<'_> {
             }
             DefinitionKind::Global(global_id) => {
                 self.elaborate_global_if_unresolved(&global_id);
-                if let Some(current_item) = self.current_item {
+                if let Some(current_item) = self.item.module.current_item() {
                     self.interner.add_global_dependency(current_item, global_id);
                 }
 

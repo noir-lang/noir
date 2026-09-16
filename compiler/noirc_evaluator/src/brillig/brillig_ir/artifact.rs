@@ -392,7 +392,7 @@ impl<F: Clone + std::fmt::Debug> BrilligArtifact<F> {
 
     /// Returns the index of the next opcode.
     ///
-    /// This is useful for labelling regions of code
+    /// This is useful for labeling regions of code
     /// before we start generating the opcodes for the region.
     pub(crate) fn index_of_next_opcode(&self) -> OpcodeLocation {
         self.byte_code.len()

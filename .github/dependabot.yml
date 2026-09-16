@@ -102,8 +102,10 @@ updates:
           - "@types/chai"
           - "@types/mocha*"
           - "@types/sinon"
-      # Playwright bumps are coupled to browser/docker image versions and need
-      # coordinated handling, so they are bundled separately from the catch-all.
+      # Playwright's lockfile version drives the CI browser install and the
+      # `mcr.microsoft.com/playwright` container image (both read it through
+      # `scripts/playwright_version.sh`), so it gets its own PR rather than
+      # riding along in the catch-all.
       playwright:
         patterns:
           - "*playwright*"

@@ -1,4 +1,4 @@
-define: &AZ_COMMIT 289b93c4f224019c70e5d07918610942129cf125
+define: &AZ_COMMIT f07ed56660a57222c902c6d75c496a86d3fbf05c
 projects:
   private-kernel-inner:
     repo: AztecProtocol/aztec-packages
@@ -36,16 +36,16 @@ projects:
     brillig-execution-timeout: 0.35
     compilation-memory-limit: 750
     execution-memory-limit: 350
-  rollup-block-root-first-empty-tx:
+  rollup-block-root-no-txs:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
-    path: noir-projects/fnd/noir-protocol-circuits/crates/rollup-block-root-first-empty-tx
+    path: noir-projects/fnd/noir-protocol-circuits/crates/rollup-block-root-no-txs
     cannot_execute: true
     num_compile_runs: 5
     num_execute_runs: 5
     compilation-timeout: 30
     brillig-compilation-timeout: 30
-    brillig-execution-timeout: 0.01
+    brillig-execution-timeout: 0.05
     compilation-memory-limit: 1500
   rollup-block-root-single-tx:
     repo: AztecProtocol/aztec-packages
@@ -56,7 +56,7 @@ projects:
     num_execute_runs: 1
     compilation-timeout: 250
     brillig-compilation-timeout: 250
-    brillig-execution-timeout: 0.01
+    brillig-execution-timeout: 0.05
     compilation-memory-limit: 10000
   rollup-block-root:
     repo: AztecProtocol/aztec-packages

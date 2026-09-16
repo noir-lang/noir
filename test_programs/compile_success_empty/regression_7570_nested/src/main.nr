@@ -8,7 +8,7 @@ pub enum Foo {
 }
 
 fn main() {
-    // - the error occured with or without values in the array
+    // - the error occurred with or without values in the array
     // - the error goes away if `x` is directly defined as e.g. `Foo::A`
     let arena: [Foo; 1] = [Foo::A];
     let x = arena[0];

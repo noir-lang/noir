@@ -433,7 +433,6 @@ impl Visitor for SignatureFinder<'_> {
                 let signature_information = self.assert_eq_signature_information(active_parameter);
                 self.set_signature_help(signature_information);
             }
-            ConstrainKind::Constrain => (),
         }
 
         false

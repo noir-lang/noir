@@ -10,16 +10,27 @@ use crate::{
 use super::Formatter;
 
 impl Formatter<'_> {
+    /// Formats a group of `use` statements, merged and sorted as the configuration asks for.
+    ///
+    /// Returns whether anything was written: a group made up entirely of empty lists
+    /// (`use foo::{};`) imports nothing and leaves no statement behind.
     pub(super) fn merge_and_format_imports(
         &mut self,
         imports: Vec<UseTree>,
         visibility: ItemVisibility,
-    ) {
+    ) -> bool {
         match self.config.imports_granularity {
             ImportsGranularity::Preserve => {
-                let mut import_trees: Vec<ImportTree> =
-                    imports.into_iter().map(|import| merge_imports(vec![import])).collect();
+                let mut import_trees: Vec<ImportTree> = imports
+                    .into_iter()
+                    .map(|import| merge_imports(vec![import]))
+                    .filter(|import_tree| !import_tree.tree.is_empty())
+                    .collect();
                 import_trees.sort();
+
+                if import_trees.is_empty() {
+                    return false;
+                }
 
                 for (index, import_tree) in import_trees.into_iter().enumerate() {
                     if index > 0 {
@@ -28,10 +39,17 @@ impl Formatter<'_> {
 
                     self.format_import_tree(import_tree, visibility);
                 }
+
+                true
             }
             ImportsGranularity::Crate => {
                 let import_tree = merge_imports(imports);
+                if import_tree.tree.is_empty() {
+                    return false;
+                }
+
                 self.format_import_tree(import_tree, visibility);
+                true
             }
         }
     }
@@ -223,6 +241,19 @@ impl ImportTree {
         self.tree.entry(segment).or_default()
     }
 
+    /// Removes the paths that lead to no import at all.
+    ///
+    /// An empty list (`use foo::{};`) imports nothing, but the path it hangs off is inserted into
+    /// the tree like any other, leaving a branch that ends in a childless node. Every real import
+    /// ends in a `Segment::SelfReference`, so a childless node under any other segment came from
+    /// an empty list and is dropped, together with any ancestor left childless by the drop.
+    fn remove_paths_without_imports(&mut self) {
+        self.tree.retain(|segment, tree| {
+            tree.remove_paths_without_imports();
+            *segment == Segment::SelfReference || !tree.tree.is_empty()
+        });
+    }
+
     /// Simplifies a tree by combining segments that only have one child.
     ///
     /// For example, this tree:
@@ -258,6 +289,7 @@ impl ImportTree {
 fn merge_imports(imports: Vec<UseTree>) -> ImportTree {
     let mut tree = ImportTree::new();
     merge_imports_in_tree(imports, &mut tree);
+    tree.remove_paths_without_imports();
     tree
 }
 
@@ -643,9 +675,71 @@ use std::merkle::compute_merkle_root;
     }
 
     #[test]
-    fn format_use_dep() {
-        let src = " use dep :: foo :: bar;  ";
+    fn format_use_absolute() {
+        let src = " use  :: foo :: bar;  ";
         let expected = "use ::foo::bar;\n";
+        assert_format(src, expected);
+    }
+
+    /// `use foo::{};` imports nothing, so it is removed rather than rewritten into `use foo;`,
+    /// which imports `foo`.
+    #[test]
+    fn removes_empty_use_list() {
+        let src = "use std::collections::{};\n";
+        // Nothing is left in the file, which is what an empty file formats to as well.
+        let expected = "\n";
+        assert_format_preserving_granularity(src, expected);
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn removes_empty_use_list_on_a_path_kind() {
+        let src = "use crate::{};\n";
+        let expected = "\n";
+        assert_format_preserving_granularity(src, expected);
+        assert_format(src, expected);
+    }
+
+    /// Removing the innermost list leaves its parents importing nothing either, and all of them
+    /// go in the same pass: formatting the output again has to be a no-op.
+    #[test]
+    fn removes_nested_empty_use_lists() {
+        let src = "use foo::{bar::{}, baz::{}};\n";
+        let expected = "\n";
+        assert_format_preserving_granularity(src, expected);
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn removes_empty_use_list_and_keeps_the_rest_of_the_group() {
+        let src = "use std::collections::{};\nuse std::cmp::Ordering;\n";
+        let expected = "use std::cmp::Ordering;\n";
+        assert_format_preserving_granularity(src, expected);
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn removes_empty_use_list_nested_next_to_an_import() {
+        let src = "use std::{collections::{}, cmp::Ordering};\n";
+        let expected = "use std::cmp::Ordering;\n";
+        assert_format_preserving_granularity(src, expected);
+        assert_format(src, expected);
+    }
+
+    /// A list holding `self` imports the path it hangs off, unlike an empty one.
+    #[test]
+    fn keeps_use_list_with_self() {
+        let src = "use std::collections::{self};\n";
+        let expected = "use std::collections;\n";
+        assert_format_preserving_granularity(src, expected);
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn removes_empty_use_list_before_another_item() {
+        let src = "use std::collections::{};\n\nfn foo() {}\n";
+        let expected = "fn foo() {}\n";
+        assert_format_preserving_granularity(src, expected);
         assert_format(src, expected);
     }
 }

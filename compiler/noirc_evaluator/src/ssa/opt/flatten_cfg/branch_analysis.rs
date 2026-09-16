@@ -630,7 +630,7 @@ mod tests {
     }
 
     fn run_pipeline_up_to_pass(mut ssa: Ssa, stop_before_pass: &str) -> Ssa {
-        let options = SsaEvaluatorOptions::default();
+        let options = SsaEvaluatorOptions::for_tests();
         let pipeline = primary_passes(&options);
         for pass in pipeline {
             if pass.msg() == stop_before_pass {

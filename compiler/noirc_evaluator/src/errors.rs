@@ -58,8 +58,6 @@ pub enum RuntimeError {
     StaticAssertFailed { message: String, call_stack: CallStack },
     #[error("Nested vectors, i.e. vectors within an array or vector, are not supported")]
     NestedVector { call_stack: CallStack },
-    #[error("Big Integer modulus do no match")]
-    BigIntModulus { call_stack: CallStack },
     #[error("Vectors cannot be returned from an unconstrained runtime to a constrained runtime")]
     UnconstrainedVectorReturnToConstrained { call_stack: CallStack },
     #[error(
@@ -126,8 +124,6 @@ pub enum RuntimeError {
 
 #[derive(Debug, PartialEq, Eq, Clone, Error)]
 pub enum InternalError {
-    #[error("ICE: Both expressions should have degree<=1")]
-    DegreeNotReduced { call_stack: CallStack },
     #[error("Try to get element from empty array")]
     EmptyArray { call_stack: CallStack },
     #[error("ICE: {message:?}")]
@@ -146,8 +142,7 @@ impl RuntimeError {
     fn call_stack(&self) -> &CallStack {
         match self {
             RuntimeError::InternalError(
-                InternalError::DegreeNotReduced { call_stack }
-                | InternalError::EmptyArray { call_stack }
+                InternalError::EmptyArray { call_stack }
                 | InternalError::General { call_stack, .. }
                 | InternalError::MissingArg { call_stack, .. }
                 | InternalError::NotAConstant { call_stack, .. }
@@ -164,7 +159,6 @@ impl RuntimeError {
             | RuntimeError::IntegerOutOfBounds { call_stack, .. }
             | RuntimeError::InvalidBlackBoxInputBitSize { call_stack, .. }
             | RuntimeError::NestedVector { call_stack, .. }
-            | RuntimeError::BigIntModulus { call_stack, .. }
             | RuntimeError::UnconstrainedVectorReturnToConstrained { call_stack }
             | RuntimeError::InvalidUnconstrainedDispatch { call_stack }
             | RuntimeError::ReturnedReferenceFromDynamicIf { call_stack }

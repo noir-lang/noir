@@ -634,7 +634,8 @@ fn format_noir_snippet(
 #[cfg(test)]
 mod tests {
     use crate::{
-        Config, assert_format, assert_format_with_config, assert_format_with_max_width,
+        Config, assert_format, assert_format_with_config,
+        assert_format_with_config_keeps_warnings_clean, assert_format_with_max_width,
         assert_formatter_changes_with_config,
     };
     use test_case::test_case;
@@ -1507,6 +1508,88 @@ fn bar() {}
         };
         // The fence opener, body, and closer are emitted verbatim.
         assert_format_with_config(src, src, config);
+    }
+
+    #[test]
+    fn reflow_keeps_safety_marker_on_its_own_line() {
+        let src = "unconstrained fn identity(x: Field) -> Field {
+    x
+}
+
+fn main(x: Field) {
+    // Call the identity helper.
+    // Safety: the assertion checks the returned value.
+    let result = unsafe { identity(x) };
+    assert(result == x);
+}
+";
+        let config = Config {
+            wrap_comments: true,
+            reflow_non_doc_comments: true,
+            comment_width: 100,
+            ..Config::default()
+        };
+        assert_format_with_config_keeps_warnings_clean(src, src, config);
+    }
+
+    #[test]
+    fn reflow_keeps_safety_marker_first_when_wrapping_its_paragraph() {
+        let src = "unconstrained fn identity(x: Field) -> Field {
+    x
+}
+
+fn main(x: Field) {
+    // Call the identity helper.
+    // Safety: the assertion below checks that
+    // the returned value is what we passed in.
+    let result = unsafe { identity(x) };
+    assert(result == x);
+}
+";
+        let expected = "unconstrained fn identity(x: Field) -> Field {
+    x
+}
+
+fn main(x: Field) {
+    // Call the identity helper.
+    // Safety: the assertion below checks
+    // that the returned value is what we
+    // passed in.
+    let result = unsafe { identity(x) };
+    assert(result == x);
+}
+";
+        // Without the marker boundary the paragraph would reflow to
+        // `// Call the identity helper. Safety: the` within this width.
+        let config = Config {
+            wrap_comments: true,
+            reflow_non_doc_comments: true,
+            comment_width: 45,
+            ..Config::default()
+        };
+        assert_format_with_config_keeps_warnings_clean(src, expected, config);
+    }
+
+    #[test]
+    fn reflow_keeps_safety_marker_in_block_comment() {
+        let src = "unconstrained fn identity(x: Field) -> Field {
+    x
+}
+
+fn main(x: Field) {
+    /* Call the identity helper.
+    Safety: the assertion checks the returned value. */
+    let result = unsafe { identity(x) };
+    assert(result == x);
+}
+";
+        let config = Config {
+            wrap_comments: true,
+            reflow_non_doc_comments: true,
+            comment_width: 100,
+            ..Config::default()
+        };
+        assert_format_with_config_keeps_warnings_clean(src, src, config);
     }
 
     #[test]

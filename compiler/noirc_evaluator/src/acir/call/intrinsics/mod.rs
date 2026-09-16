@@ -54,6 +54,11 @@ impl Context<'_> {
                     .iter()
                     .map(|result_id| dfg.type_of_value(*result_id).flattened_size())
                     .sum();
+
+                // Only `RecursiveAggregation` consumes the side-effects predicate: it is
+                // injected as an extra witness input so aggregation can be conditionally
+                // executed. Other blackbox functions either take no predicate or receive
+                // one as an ordinary SSA-level argument (e.g. MSM, ECDSA).
                 let predicate = matches!(black_box, BlackBoxFunc::RecursiveAggregation)
                     .then(|| self.predicate());
 

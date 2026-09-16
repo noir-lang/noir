@@ -12,6 +12,7 @@ use crate::ssa::{
         value::{Value, ValueId},
     },
     opt::pure::Purity,
+    visit_once_deque::VisitOnceDeque,
 };
 use rustc_hash::FxHashMap as HashMap;
 
@@ -182,53 +183,15 @@ impl InstructionResultCache {
         instruction: &Instruction,
         dfg: &DataFlowGraph,
     ) {
-        use Instruction::{ArraySet, Call, MakeArray, Store};
+        use Instruction::{ArraySet, Call, Store};
 
-        /// Recursively remove from the cache any array values.
-        fn go(
-            dfg: &DataFlowGraph,
-            cached_instruction_results: &mut InstructionResultCache,
-            value: &ValueId,
-        ) {
-            // We expect globals to be immutable, so we can cache those results indefinitely.
-            if dfg.is_global(*value) {
-                return;
-            }
-
-            let value_type = dfg.type_of_value(*value);
-
-            // We only care about arrays and vectors. (`Store` can act on non-array values as well)
-            if !value_type.is_array() {
-                return;
-            }
-
-            // Look up the original instruction that created the value, which is the cache key.
-            let instruction = match &dfg[*value] {
-                Value::Instruction { instruction, .. } => &dfg[*instruction],
-                _ => {
-                    // If we can't trace back to a creating instruction (e.g. block parameters),
-                    // conservatively remove all cached MakeArrays of the same type since any
-                    // of them could be the source of this value.
-                    cached_instruction_results.remove_make_arrays_of_type(&value_type);
-                    return;
-                }
-            };
-
-            // Remove the creator instruction from the cache.
-            if matches!(instruction, MakeArray { .. } | Call { .. }) {
-                cached_instruction_results.remove(instruction);
-            }
-
-            // For arrays, we also want to invalidate the values, because multi-dimensional arrays
-            // can be passed around, and through them their sub-arrays might be modified.
-            if let MakeArray { elements, .. } = instruction {
-                for elem in elements {
-                    go(dfg, cached_instruction_results, elem);
-                }
-            }
-        }
-
-        let mut remove_if_array = |value| go(dfg, self, value);
+        // The values whose creating instructions must be removed from the cache. One value can
+        // occupy many element positions (`[v; N]`, `[v, v]`) and be passed as several arguments,
+        // so the values reachable from a mutation form a DAG rather than a tree: walking every
+        // route through it is exponential in its depth. Removing a value's cache entries a second
+        // time is a no-op, so each value only needs visiting once.
+        let mut values = VisitOnceDeque::<ValueId>::default();
+        let mut remove_if_array = |value: &ValueId| values.push_back(*value);
 
         match instruction {
             // A mutable `array_set` writes through its input array's backing store in place rather
@@ -272,6 +235,43 @@ impl InstructionResultCache {
                 }
             }
             _ => {}
+        }
+
+        while let Some(value) = values.pop_front() {
+            // We expect globals to be immutable, so we can cache those results indefinitely.
+            if dfg.is_global(value) {
+                continue;
+            }
+
+            let value_type = dfg.type_of_value(value);
+
+            // We only care about arrays and vectors. (`Store` can act on non-array values as well)
+            if !value_type.is_array() {
+                continue;
+            }
+
+            // Look up the original instruction that created the value, which is the cache key.
+            let instruction = match &dfg[value] {
+                Value::Instruction { instruction, .. } => &dfg[*instruction],
+                _ => {
+                    // If we can't trace back to a creating instruction (e.g. block parameters),
+                    // conservatively remove all cached MakeArrays of the same type since any
+                    // of them could be the source of this value.
+                    self.remove_make_arrays_of_type(&value_type);
+                    continue;
+                }
+            };
+
+            // Remove the creator instruction from the cache: any instruction in the
+            // alias chain whose result has been mutated downstream is stale.
+            self.remove(instruction);
+
+            // Recurse into all operands so that multi-dimensional arrays and alias
+            // chains through Call/ArraySet/IfElse are fully invalidated. The
+            // `is_array()` guard above filters out non-array operands.
+            instruction.for_each_value(|operand| {
+                values.push_back(operand);
+            });
         }
     }
 }

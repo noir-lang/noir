@@ -225,26 +225,31 @@ fn constant_index(dfg: &DataFlowGraph, index: ValueId) -> Option<u32> {
     dfg.get_numeric_constant(index)?.try_to_u32()
 }
 
-/// Asserts the invariant the cross-block `array_get` cache relies on: a non-trivial side-effects
-/// predicate is confined to a single block.
+/// Pre-check for [`Function::array_get_optimization`].
 ///
-/// This holds exactly when a multi-block function contains no `enable_side_effects` instruction
-/// (those appear only after flattening, which collapses the function to a single block). SSA
-/// validation enforces this at construction but not between passes, so guard it here too: a breach
-/// means the cross-block cache can no longer be trusted, and asserting it once up front catches a
-/// future pipeline change that breaks the invariant rather than letting it silently emit an unsound
-/// fold.
+/// Panics if:
+///   - Any `ArraySet` has `mutable: true` (the pass assumes value semantics for `array_set`).
+///   - A multi-block function contains an `enable_side_effects` instruction (the cross-block
+///     cache assumes a non-trivial side-effects predicate is confined to a single block).
 #[cfg(debug_assertions)]
 fn array_get_optimization_pre_check(func: &Function) {
-    // The pass runs both before flattening (several blocks, but no `enable_side_effects` yet) and
-    // after it (a single block that may carry `enable_side_effects`). A single-block function
-    // trivially confines any predicate to that block, so only a multi-block function can break the
-    // invariant — and a well-formed one predates flattening and has no `enable_side_effects` at all.
-    if func.reachable_blocks().len() > 1 {
-        super::checks::for_each_instruction(func, |instruction, _| {
+    let is_multi_block = func.reachable_blocks().len() > 1;
+
+    super::checks::for_each_instruction(func, |instruction, _| {
+        // A mutable `array_set` writes in place, so the input array's backing store changes.
+        // The cache in this pass is keyed by ValueId and assumes distinct values have distinct
+        // storage, which a mutable set violates. In the production pipeline this never fires
+        // because `mutable_array_set_optimization` (the sole producer of the flag) runs last.
+        super::checks::assert_not_mutable_array_set(instruction);
+
+        // The pass runs both before flattening (several blocks, but no `enable_side_effects`
+        // yet) and after it (a single block that may carry `enable_side_effects`). A
+        // single-block function trivially confines any predicate to that block, so only a
+        // multi-block function can break the invariant.
+        if is_multi_block {
             super::checks::assert_not_enable_side_effects(instruction);
-        });
-    }
+        }
+    });
 }
 
 /// The result of the `array_get` optimization.

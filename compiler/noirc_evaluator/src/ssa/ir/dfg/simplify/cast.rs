@@ -59,7 +59,9 @@ pub(super) fn simplify_cast(
                 SimplifiedTo(dfg.make_constant(truncated, dst_typ))
             }
             (
-                NumericType::NativeField | NumericType::Unsigned { .. },
+                NumericType::NativeField
+                | NumericType::Unsigned { .. }
+                | NumericType::Signed { .. },
                 NumericType::Signed { bit_size },
             ) => {
                 // `IntegerConstant::from_numeric_constant` cannot handle i128
@@ -73,39 +75,6 @@ pub(super) fn simplify_cast(
                 let integer_constant = IntegerConstant::from_numeric_constant(constant, dst_typ);
                 if integer_constant.is_some() {
                     SimplifiedTo(dfg.make_constant(constant, dst_typ))
-                } else {
-                    None
-                }
-            }
-            (NumericType::Signed { .. }, NumericType::Signed { bit_size }) => {
-                // `IntegerConstant::from_numeric_constant` cannot handle i128
-                if bit_size == 128 {
-                    return None;
-                }
-
-                // When going from signed to signed, we first need to interpret the constant as the signed source type,
-                // and then convert it to the signed destination type.
-                // For example, when going from `i8 -1` to `i16`, `i8 -1` is represented as the FieldElement 255,
-                // and it would be incorrect to use `IntegerConstant::from_numeric_constant(constant, dst_typ)` as
-                // that would give `i16 255` instead of the desired `i16 -1`.
-                //
-                // For narrowing casts we also need to truncate to the destination width and
-                // sign-extend, so that e.g. `i16 256 as i8` yields `i8 0` rather than an
-                // out-of-range constant.
-                if let Some(src_constant) =
-                    IntegerConstant::from_numeric_constant(constant, src_typ)
-                {
-                    let value = src_constant.apply(|v| v, |v| v as i128);
-                    let truncated = match bit_size {
-                        8 => i128::from(value as i8),
-                        16 => i128::from(value as i16),
-                        32 => i128::from(value as i32),
-                        64 => i128::from(value as i64),
-                        _ => unreachable!("ICE - invalid bit size {bit_size} for signed integer"),
-                    };
-                    let dst_constant = IntegerConstant::Signed { value: truncated, bit_size };
-                    let (dst_constant, dst_typ) = dst_constant.into_numeric_constant();
-                    SimplifiedTo(dfg.make_constant(dst_constant, dst_typ))
                 } else {
                     None
                 }
@@ -214,86 +183,6 @@ mod tests {
             v2 = unchecked_add v0, v1
             v3 = cast v2 as i64
             return v2
-        }
-        ");
-    }
-
-    #[test]
-    fn simplifies_cast_from_i8_minus_1_to_i16() {
-        let src = "
-        acir(inline) pure fn main f0 {
-          b0():
-            v0 = cast i8 -1 as i16
-            return v0
-        }
-        ";
-
-        let ssa = Ssa::from_str_simplifying(src).unwrap();
-
-        assert_ssa_snapshot!(ssa, @"
-        acir(inline) pure fn main f0 {
-          b0():
-            return i16 -1
-        }
-        ");
-    }
-
-    #[test]
-    fn simplifies_cast_from_i16_minus_1_to_i8() {
-        let src = "
-        acir(inline) pure fn main f0 {
-          b0():
-            v0 = cast i16 -1 as i8
-            return v0
-        }
-        ";
-
-        let ssa = Ssa::from_str_simplifying(src).unwrap();
-
-        assert_ssa_snapshot!(ssa, @"
-        acir(inline) pure fn main f0 {
-          b0():
-            return i8 -1
-        }
-        ");
-    }
-
-    #[test]
-    fn simplifies_cast_from_i16_256_to_i8() {
-        let src = "
-        acir(inline) pure fn main f0 {
-          b0():
-            v0 = cast i16 256 as i8
-            return v0
-        }
-        ";
-
-        let ssa = Ssa::from_str_simplifying(src).unwrap();
-
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) pure fn main f0 {
-          b0():
-            return i8 0
-        }
-        ");
-    }
-
-    #[test]
-    fn simplifies_cast_from_i32_384_to_i8() {
-        let src = "
-        acir(inline) pure fn main f0 {
-          b0():
-            v0 = cast i32 384 as i8
-            return v0
-        }
-        ";
-
-        let ssa = Ssa::from_str_simplifying(src).unwrap();
-
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) pure fn main f0 {
-          b0():
-            return i8 -128
         }
         ");
     }

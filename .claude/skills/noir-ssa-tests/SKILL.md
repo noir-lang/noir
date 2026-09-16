@@ -132,12 +132,23 @@ assert!(execution_result.is_ok());
 
 ### No-op test
 
-When the point of the test is that the pass must *not* fire, the one-liner is enough
-— there is no behavior change to catch because there is no change:
+When the point of the test is that the pass must *not* fire, use the one-liner:
 
 ```rust
 assert_ssa_does_not_change(src, Ssa::remove_truncate_after_range_check);
 ```
+
+**Recognizing a no-op through renumbered IDs.** `assert_ssa_snapshot!` shows the SSA
+after `normalize_ids()`, so value and block IDs in the snapshot will differ from those
+in `src` whenever `src` uses non-sequential numbering (e.g. `v1, v2, v3` → `v0, v1,
+v2`). This makes the snapshot *look* different from the input even though the pass
+changed nothing. `assert_ssa_does_not_change` normalizes **both** sides before
+comparing, so it handles this correctly.
+
+Before writing a snapshot, ask: "if I renumbered the IDs in `src` to start from 0,
+would this snapshot be identical?" If yes, replace the entire block with
+`assert_ssa_does_not_change`. Never use `assert_ssa_snapshot!` for a no-op test — the
+snapshot adds noise and hides the intent that the pass should not fire.
 
 ## Building interpreter inputs
 

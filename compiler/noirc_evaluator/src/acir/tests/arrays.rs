@@ -1,4 +1,5 @@
 use acvm::{
+    FieldElement,
     acir::circuit::{Opcode, opcodes::BlockId},
     assert_circuit_snapshot,
 };
@@ -31,6 +32,92 @@ fn array_get_of_zero_length_element_emits_no_orphan_init() {
     }
     ";
     try_ssa_to_acir(src).expect("zero-length-element array_get should compile to ACIR");
+}
+
+#[test]
+fn array_set_of_zero_width_value_emits_no_orphan_init() {
+    // A non-mutating `array_set` whose store value has zero flattened width
+    // (`[Field; 0]`) writes no `MemoryOp`, but `resolve_array_set_block`
+    // has already emitted a fresh `MemoryInit` via `copy_array`. The following
+    // `array_get` returns a zero-slot value, so it reads no memory either
+    // (`arrays.rs` zero-width guard). The block is then initialized with no
+    // linked use, which `assert_initialized_blocks_are_used` rejects with
+    // "ICE: memory blocks initialized without any linked read/write/Brillig use".
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: Field, v1: u32, v2: u32):
+        v3 = make_array [] : [Field; 0]
+        v4 = make_array [v0, v3, v0, v3] : [(Field, [Field; 0]); 2]
+        v5 = array_set v4, index v1, value v3
+        v6 = array_get v5, index v2 -> [Field; 0]
+        return
+    }
+    ";
+    try_ssa_to_acir(src).expect("zero-width array_set should compile to ACIR");
+}
+
+#[test]
+fn mutating_array_set_of_zero_width_value_emits_no_orphan_init() {
+    // Same defect through the mutating branch of `resolve_array_set_block`:
+    // a mutating `array_set` promotes the source array with
+    // `ensure_array_is_initialized` and then writes nothing.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: Field, v1: u32, v2: u32):
+        v3 = make_array [] : [Field; 0]
+        v4 = make_array [v0, v3, v0, v3] : [(Field, [Field; 0]); 2]
+        v5 = array_set mut v4, index v1, value v3
+        v6 = array_get v5, index v2 -> [Field; 0]
+        return
+    }
+    ";
+    try_ssa_to_acir(src).expect("zero-width mutating array_set should compile to ACIR");
+}
+
+#[test]
+fn zero_width_array_set_result_must_not_observe_a_later_mutable_set() {
+    // If a non-mutating `array_set` whose store value has zero flattened width binds its
+    // result to the source's `AcirValue`, and the source is backed by a memory block, the
+    // result becomes a second name for that block and silently observes any later
+    // in-place write. Here `v9` is a snapshot of the vector `v8`, and `v10 = array_set mut
+    // v8, index 0` writes `v1` into `v8`'s block; `v11 = array_get v9, index 0` must still
+    // read the pre-mutation value.
+    //
+    // Semi-flattened indices count members: `[(Field, [Field; 0])]` has `a` at 2i and `e`
+    // at 2i+1, so `array_set v8, index 3, value v3` writes the zero-width `e` of element 1.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: Field, v1: Field, v2: u32):
+        v3 = make_array [] : [Field; 0]
+        v4 = add v0, Field 1
+        v5 = make_array [v0, v3, v4, v3] : [(Field, [Field; 0])]
+        v6 = add v0, Field 2
+        v7, v8 = call vector_insert(u32 2, v5, v2, v6, v3) -> (u32, [(Field, [Field; 0])])
+        v9 = array_set v8, index u32 3, value v3
+        v10 = array_set mut v8, index u32 0, value v1
+        v11 = array_get v9, index u32 0 -> Field
+        return v11
+    }
+    ";
+
+    let ssa = Ssa::from_str(src).unwrap();
+    crate::ssa::ssa_gen::validate_ssa(&ssa, true);
+
+    // x = 1, z = 9, idx = 0 => v8 == [3, 1, 2].
+    // v9 is a non-mutating array_set of a zero-slot value, so v9 == v8 and v9[0] == 3.
+    let witness = acvm::acir::native_types::WitnessMap::from(std::collections::BTreeMap::from([
+        (acvm::acir::native_types::Witness(0), FieldElement::from(1u128)),
+        (acvm::acir::native_types::Witness(1), FieldElement::from(9u128)),
+        (acvm::acir::native_types::Witness(2), FieldElement::from(0u128)),
+    ]));
+    let (status, out) =
+        crate::acir::tests::execute_ssa(ssa, witness, Some(&acvm::acir::native_types::Witness(3)));
+    assert_eq!(status, acvm::pwg::ACVMStatus::Solved, "the circuit should solve");
+    assert_eq!(
+        out,
+        Some(FieldElement::from(3u128)),
+        "a non-mutating `array_set` result must not observe a later `array_set mut` on its source"
+    );
 }
 
 #[test]
@@ -906,8 +993,8 @@ fn generates_predicated_index_for_dynamic_read() {
     // So w3 represents our index and w4 is our predicate
     // `ASSERT w5 = w3*w4` is the predicate gate inside `get_flattened_index`, which forces
     // the read to fall back to a safe in-bounds slot when the predicate is `0`. Since
-    // `compute_offset` returns `Some(0)` for `[Field; 3]`, no offset-fallback bias is
-    // applied and we read directly at `w5`.
+    // `compute_offset` returns `0` for `[Field; 3]` (its only field is the result type, at flat
+    // slot 0), no offset-fallback bias is applied and we read directly at `w5`.
     assert_circuit_snapshot!(program, @r"
     func 0
     private parameters: [w0, w1, w2, w3, w4]
@@ -935,8 +1022,8 @@ fn generates_predicated_index_and_dummy_value_for_dynamic_write() {
     let program = ssa_to_acir_program(src);
 
     // Similar to the `generates_predicated_index_for_dynamic_read` test, `w8 = w3*w4` is the
-    // predicate gate inside `get_flattened_index`. `compute_offset` returns `Some(0)` here so
-    // no offset-fallback bias is applied and we use `w8` directly.
+    // predicate gate inside `get_flattened_index`. A write needs no fallback slot, so no
+    // offset-fallback bias is applied and we use `w8` directly.
     // We then have extra logic for generating a dummy value.
     // The original value we want to write is `Field 10` and our predicate is `w4`.
     // We read the value at the predicated index into `w9`. This is our dummy value.
@@ -1290,12 +1377,13 @@ fn predicated_composite_get_on_vector_with_heterogeneous_items() {
 }
 
 #[test]
-#[should_panic(expected = "is not a field of the array element type")]
-fn type_mismatched_array_get_is_an_ice() {
-    // An `array_get` whose result type is not one of the element's field types cannot come out
-    // of SSA generation, so the disabled-branch fallback offset cannot be computed for it. The
-    // SSA validator currently accepts such (hand-written) SSA, so ACIR gen refuses it with a
-    // deliberate ICE rather than picking a fallback index whose slot type it cannot vouch for.
+fn type_mismatched_gated_array_get_is_an_ice() {
+    // An `array_get` whose result type is not one of the element's field types has no fallback
+    // slot whose type ACIR gen can vouch for, so a *gated* read is refused with an ICE rather
+    // than lowered onto slot 0, which may hold a wider value than the result's leaves declare.
+    // The SSA validator only type-checks an `array_get`'s result against the element types when
+    // a reference is involved, so this shape reaches ACIR gen as a recoverable error rather
+    // than a panic.
     let src = "
     acir(inline) fn main f0 {
       b0(v0: [Field; 3], v1: u32, v2: u1):
@@ -1305,7 +1393,35 @@ fn type_mismatched_array_get_is_an_ice() {
         return v3
     }
     ";
-    let _ = ssa_to_acir_program(src);
+    let err = try_ssa_to_acir(src).expect_err("expected an error for a type-mismatched array_get");
+    let message = err.to_string();
+    assert!(
+        message.contains("is not a field of the array element type"),
+        "unexpected error message: {message}"
+    );
+}
+
+#[test]
+fn type_mismatched_safe_array_get_needs_no_fallback_offset() {
+    // The counterpart of `type_mismatched_gated_array_get_is_an_ice`: the same mismatch at a
+    // constant, in-bounds index. A safe index is never gated, so the read stays on the slots the
+    // program asked for and never consults a fallback offset — there is nothing to fail on, and
+    // lowering proceeds exactly as it would for a well-typed read.
+    //
+    // This shape is the one an SSA pass can leave behind: replacing an index with a default
+    // after proving an overflow turns it into the constant `0`, which is a safe index for any
+    // non-empty array.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: [Field; 3], v1: u32, v2: u1):
+        v3 = array_set v0, index v1, value Field 5
+        enable_side_effects v2
+        v4 = array_get v3, index u32 0 -> u8
+        enable_side_effects u1 1
+        return v4
+    }
+    ";
+    try_ssa_to_acir(src).expect("a safe-index read needs no fallback offset");
 }
 
 #[test]
@@ -1402,7 +1518,7 @@ fn predicated_constant_index_get_on_heterogeneous_vector() {
 #[test]
 fn predicated_constant_index_get_on_heterogeneous_array() {
     // The array-typed counterpart of `predicated_constant_index_get_on_heterogeneous_vector`,
-    // pinning the behaviour the vector case should match: `is_safe_index` holds for an
+    // pinning the behavior the vector case should match: `is_safe_index` holds for an
     // in-bounds constant index into an array, so no bias is applied and both reads stay on the
     // slots the index resolved to.
     let src = "
@@ -1440,5 +1556,84 @@ fn predicated_constant_index_get_on_heterogeneous_array() {
     READ w14 = b1[w11]
     ASSERT w3 = w13
     ASSERT w4 = w14
+    ");
+}
+
+#[test]
+fn predicated_safe_get_on_heterogeneous_element_is_not_masked() {
+    // A read at a *constant, in-bounds* index under a dynamic predicate, on an array whose
+    // element layout is heterogeneous (`(u8, Field)`). A safe index is not gated, so the read
+    // stays on the slots the program asked for, and its result must reach its consumer
+    // untouched: multiplying it by the predicate would annihilate it on any branch whose
+    // condition is the complement of the live predicate, deleting whatever check consumed it.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: [(u8, Field); 3], v1: u32, v2: u1):
+        v3 = array_set v0, index v1, value u8 5
+        enable_side_effects v2
+        v4 = array_get v3, index u32 3 -> Field
+        enable_side_effects u1 1
+        return v4
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+    // The read is at the constant slot `w10 = 3` — ungated and unbiased — and its result `w11`
+    // reaches the return value directly, with no multiplication by the predicate `w7`.
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1, w2, w3, w4, w5, w6, w7]
+    public parameters: []
+    return values: [w8]
+    BLACKBOX::RANGE input: w0, bits: 8
+    BLACKBOX::RANGE input: w2, bits: 8
+    BLACKBOX::RANGE input: w4, bits: 8
+    BLACKBOX::RANGE input: w7, bits: 1
+    INIT b0 = [w0, w1, w2, w3, w4, w5]
+    ASSERT w9 = 5
+    WRITE b0[w6] = w9
+    ASSERT w10 = 3
+    READ w11 = b0[w10]
+    ASSERT w8 = w11
+    ");
+}
+
+#[test]
+fn predicated_get_of_repeated_field_type_biases_to_the_first_match() {
+    // An element with two fields of the same type (`(u8, u8, Field)`), read at the *second*
+    // `u8`. Any slot holding a `u8` is a type-compatible fallback, so the offset is the first
+    // match (slot 0) rather than the accessed field's own slot: the fallback only has to fit the
+    // result's declared type, since the value a disabled read returns is discarded. The offset
+    // being `0` is what makes the bias term disappear from the gated index below.
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: [(u8, u8, Field); 3], v1: u32, v2: u1):
+        enable_side_effects v2
+        v4 = unchecked_mul v1, u32 3
+        v6 = unchecked_add v4, u32 1
+        v7 = array_get v0, index v6 -> u8
+        enable_side_effects u1 1
+        return v7
+    }
+    ";
+    let program = ssa_to_acir_program(src);
+    // `w12 = 3*w9*w10 + w10` is `(3 * index + 1) * predicate`, with no `(1 - predicate)` term:
+    // the gated index already collapses onto a `u8` slot on a disabled branch.
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    private parameters: [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10]
+    public parameters: []
+    return values: [w11]
+    BLACKBOX::RANGE input: w0, bits: 8
+    BLACKBOX::RANGE input: w1, bits: 8
+    BLACKBOX::RANGE input: w3, bits: 8
+    BLACKBOX::RANGE input: w4, bits: 8
+    BLACKBOX::RANGE input: w6, bits: 8
+    BLACKBOX::RANGE input: w7, bits: 8
+    BLACKBOX::RANGE input: w9, bits: 32
+    BLACKBOX::RANGE input: w10, bits: 1
+    INIT b0 = [w0, w1, w2, w3, w4, w5, w6, w7, w8]
+    ASSERT w12 = 3*w9*w10 + w10
+    READ w13 = b0[w12]
+    ASSERT w11 = w13
     ");
 }

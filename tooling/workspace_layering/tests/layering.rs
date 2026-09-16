@@ -1,6 +1,6 @@
 //! Enforces the architectural layering of the workspace.
 //!
-//! The workspace is organised into four layers, listed from lowest to
+//! The workspace is organized into four layers, listed from lowest to
 //! highest: `utils`, `acvm-repo`, `compiler`, and `tooling`. A crate in a
 //! lower layer must never depend on a crate in a higher layer (whether as a
 //! normal, dev, or build dependency). Crates living outside these

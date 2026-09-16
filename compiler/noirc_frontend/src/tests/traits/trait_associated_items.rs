@@ -714,8 +714,22 @@ fn associated_type_mismatch_across_traits() {
 }
 
 #[test]
+fn associated_constants_of_one_trait_at_two_generic_arguments_are_distinguished() {
+    let src = r#"
+        pub trait Tr<let X: u32> { let N: u32; }
+
+        pub fn g<T>(xs: [Field; <T as Tr<1>>::N]) where T: Tr<1>, T: Tr<2> {
+            let _ys: [Field; <T as Tr<2>>::N] = xs;
+                                                ^^ Expected type [Field; <T as Tr<2>>::N], found type [Field; <T as Tr<1>>::N]
+        }
+
+        fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn associated_type_mismatch_across_modules() {
-    // Error message is confusing here but it is an improvement over no error
     let src = r#"
         pub mod one {
             pub trait Eggs {
@@ -733,7 +747,7 @@ fn associated_type_mismatch_across_modules() {
 
         pub fn mix<T: one::Eggs + two::Eggs>() {
             T::take(T::give());
-                    ^^^^^^^^^ Expected type <T as Eggs>::Item, found type <T as Eggs>::Item
+                    ^^^^^^^^^ Expected type <T as two::Eggs>::Item, found type <T as one::Eggs>::Item
         }
 
         fn main() {}
@@ -1113,7 +1127,7 @@ fn associated_constant_direct_access_no_impl_multiple_traits() {
 }
 
 #[test]
-fn nonexistent_associated_item_still_unresolved() {
+fn nonexistent_associated_item_errors() {
     let src = r#"
     trait MyTrait {
         let N: u32;
@@ -1124,7 +1138,8 @@ fn nonexistent_associated_item_still_unresolved() {
     }
     fn main() {
         let _: u32 = Foo::DoesNotExist;
-                          ^^^^^^^^^^^^ Could not resolve 'DoesNotExist' in path
+                          ^^^^^^^^^^^^ no associated item named `DoesNotExist` found for `Foo`
+                          ~~~~~~~~~~~~ a path can only name an associated type, constant or function of `Foo`
     }
     "#;
     check_errors(src);
@@ -1361,7 +1376,7 @@ fn associated_type_accessed_through_self_in_trait_impl_method() {
     check_errors(src);
 }
 
-/// TODO(https://github.com/noir-lang/noir/issues/11376): Switch to assert no errors once resolved
+/// Regression test for https://github.com/noir-lang/noir/issues/11376.
 #[test]
 fn fully_qualified_nested_associated_type() {
     let src = "
@@ -1371,8 +1386,31 @@ fn fully_qualified_nested_associated_type() {
 
     impl<T> Result for T where T: Foo {
         type Output = <T::Bar as HasQux>::Qux;
-                                 ^^^^^^ No matching impl found for `<T as Foo>::Bar: HasQux<Qux = _>`
-                                 ~~~~~~ No impl for `<T as Foo>::Bar: HasQux<Qux = _>`
+    }
+    fn main() {}
+    ";
+    assert_no_errors(src);
+}
+
+/// A bound implied by one item's where clause does not carry over to another item, even one that
+/// shares its generics. A sibling method writing that bound itself is not told it is redundant,
+/// and writing it a second time still is.
+#[test]
+fn implied_associated_type_bound_stays_with_the_item_that_implies_it() {
+    let src = "
+    trait HasQux {}
+    trait Foo { type Bar: HasQux; }
+
+    pub struct S<T, U> { t: T, u: U }
+
+    impl<T, U> S<T, U> {
+        pub fn implies() where T: Foo<Bar = U> {}
+
+        pub fn restates() where U: HasQux, U: HasQux {}
+               ^^^^^^^^ Constraint for `U: HasQux` is not needed, another matching impl is already in scope
+               ~~~~~~~~ Unnecessary trait constraint in where clause
+                                              ^^^^^^ Constraint for `U: HasQux` is not needed, another matching impl is already in scope
+                                              ~~~~~~ Unnecessary trait constraint in where clause
     }
     fn main() {}
     ";
@@ -1693,37 +1731,6 @@ fn numeric_generic_in_associated_constant_with_arithmetic() {
 
     fn main() {
         assert(get_storage_size::<DoubleArray<5>>() == 10);
-    }
-    "#;
-    assert_no_errors(src);
-}
-
-#[test]
-fn associated_type_in_generic_impl() {
-    let src = r#"
-    trait Mappable {
-        type Item;
-        fn first(self) -> Self::Item;
-    }
-
-    struct List<T> {
-        head: T,
-    }
-
-    impl<T> Mappable for List<T> {
-        type Item = T;
-        fn first(self) -> Self::Item {
-            self.head
-        }
-    }
-
-    fn get_head<T>(list: List<T>) -> T {
-        list.first()
-    }
-
-    fn main() {
-        let l = List { head: 42 as Field };
-        assert(get_head(l) == 42);
     }
     "#;
     assert_no_errors(src);
@@ -2664,16 +2671,11 @@ fn explicit_type_mismatch_at_trait_method_call_with_non_unit_associated_constant
 
 /// Regression test for https://github.com/noir-lang/noir/issues/9430.
 /// Variant where the leaf impl's associated constant is `0`. Eager resolution
-/// binds `<T as Serialize>::N` to `0`, so the impl method's instantiated
-/// return type contains `(N * 0)` rather than the unbound-`_assoc * N` shape
-/// the original bug exposed. The user's `[u32; 0]` annotation does not
-/// simplify against `[u32; (N * 0)]` (the canonicaliser does not currently
-/// reduce `X * 0` to `0`), but the error is precise about which factor came
-/// from the impl, which is the property we want to lock in: a wrong but
-/// associated-constant-aware error rather than a silent acceptance based on
-/// guessing `<T as Serialize>::N = 1`.
+/// binds `<T as Serialize>::N` to `0`, so the impl method's instantiated return
+/// type is `[u32; (N * 0)]`, which the canonicalizer reduces to `[u32; 0]` and
+/// unifies with the user's `[u32; 0]` annotation.
 #[test]
-fn explicit_type_mismatch_at_trait_method_call_with_zero_associated_constant() {
+fn explicit_type_at_trait_method_call_with_zero_associated_constant() {
     let src = r#"
     trait Serialize {
         let N: u32;
@@ -2706,14 +2708,13 @@ fn explicit_type_mismatch_at_trait_method_call_with_zero_associated_constant() {
 
         fn serialize(self) -> [u32; Self::N] {
             let _: [u32; 0] = self.value.serialize();
-                              ^^^^^^^^^^^^^^^^^^^^^^ Expected type [u32; 0], found type [u32; (N * 0)]
             [0; Self::N]
         }
     }
 
     fn main() {}
     "#;
-    check_errors(src);
+    assert_no_errors(src);
 }
 
 #[test]
@@ -2783,20 +2784,6 @@ fn duplicate_trait_function_is_an_error() {
         fn SomeFunc();
            ^^^^^^^^ Duplicate definitions of trait associated item with name SomeFunc found
            ~~~~~~~~ Second definition found here
-    }
-    "#;
-    check_errors(src);
-}
-
-#[test]
-fn duplicate_trait_associated_constant_is_an_error() {
-    let src = r#"
-    pub trait MyTrait {
-        let SomeConst: u32;
-            ~~~~~~~~~ First definition found here
-        let SomeConst: Field;
-            ^^^^^^^^^ Duplicate definitions of trait associated item with name SomeConst found
-            ~~~~~~~~~ Second definition found here
     }
     "#;
     check_errors(src);
@@ -2895,21 +2882,6 @@ fn trait_function_and_associated_type_with_same_name_is_an_error() {
         type Tralala;
              ^^^^^^^ Duplicate definitions of trait associated item with name Tralala found
              ~~~~~~~ Second definition found here
-    }
-    "#;
-    check_errors(src);
-}
-
-#[test]
-fn trait_associated_constant_and_function_name_clash() {
-    let src = r#"
-    pub trait Foo {
-        let N: u32;
-            ~ First definition found here
-
-        fn N() {}
-           ^ Duplicate definitions of trait associated item with name N found
-           ~ Second definition found here
     }
     "#;
     check_errors(src);

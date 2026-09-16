@@ -17,7 +17,7 @@ If this expression is an array, this returns a vector of each element in the arr
 
 #include_code as_assert noir_stdlib/src/meta/expr.nr rust
 
-If this expression is an assert, this returns the assert expression and the optional message.
+If this expression is an assert, this returns its predicate and optional message.
 
 ### as_assert_eq
 
@@ -30,8 +30,7 @@ expressions, together with the optional message.
 
 #include_code as_assign noir_stdlib/src/meta/expr.nr rust
 
-If this expression is an assignment, this returns a tuple with the left hand side
-and right hand side in order.
+If this expression is an assignment, this returns its left- and right-hand sides.
 
 ### as_binary_op
 
@@ -78,8 +77,8 @@ return the type and the fields.
 
 #include_code as_for noir_stdlib/src/meta/expr.nr rust
 
-If this expression is a for statement over a single expression, return the identifier,
-the expression and the for loop body.
+If this expression is a for statement over a single expression, return its identifier,
+iterable, and body.
 
 ### as_for_range
 
@@ -115,7 +114,7 @@ array and the index.
 
 #include_code as_integer noir_stdlib/src/meta/expr.nr rust
 
-If this expression is an integer literal, return the integer as a field.
+If this expression is an integer literal, return its value.
 Negative integers are encoded as the equivalent negative field value.
 
 ### as_lambda

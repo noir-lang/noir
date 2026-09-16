@@ -1,6 +1,7 @@
 use itertools::Itertools;
 
 use crate::acir::arrays::{ElementTypeSizesArrayShift, IndexGating};
+use crate::acir::side_effects::PredicateNotNeeded;
 use crate::acir::types::flat_element_types;
 use crate::acir::{AcirDynamicArray, AcirValue, AcirVar};
 use crate::brillig::assert_u32;
@@ -29,6 +30,17 @@ fn flattened_inline_source(value: &AcirValue) -> Option<Vec<AcirVar>> {
             .map(|flat| flat.into_iter().map(|(var, _typ)| var).collect()),
         AcirValue::Var(_, _) | AcirValue::DynamicArray(_) => None,
     }
+}
+
+/// How much of a vector's semantic length is known while it is being lowered.
+///
+/// Produced by [`Context::resolve_vector_length`], which is also where a constant length's
+/// "no predicate needed" acknowledgment is recorded.
+enum VectorLength {
+    /// Known at compile time, so the lowering can address the affected slot exactly.
+    Constant(FieldElement),
+    /// Only known at runtime, so the lowering has to gate on the side-effects predicate.
+    Unknown,
 }
 
 impl Context<'_> {
@@ -186,17 +198,12 @@ impl Context<'_> {
         let vector_typ = dfg.type_of_value(vector_contents);
         self.check_vector_element_count("vector_push_back", elements_to_push, &vector_typ)?;
 
-        // The length is known at compile time when it is either an SSA numeric constant or when its
-        // ACIR representation has folded to a constant (e.g. the length of a previous constant-length
-        // push). In that case we know exactly where the pushed elements land, so we can place them
-        // inline and let the block initialize with the final values — no `MemoryOp::Write` at a
-        // constant index into a freshly-initialized block.
-        let len_const = dfg.get_numeric_constant(arguments[0]).or_else(|| {
-            let expr = self.acir_context.var_to_expression(vector_length).ok()?;
-            expr.to_const().copied()
-        });
-        let new_vector_val = if let Some(len_const) = len_const {
-            // Length is known at compile time - we can precisely determine where to write
+        // When the length is known at compile time we know exactly where the pushed elements land,
+        // so we can place them inline and let the block initialize with the final values — no
+        // `MemoryOp::Write` at a constant index into a freshly-initialized block.
+        let new_vector_val = if let VectorLength::Constant(len_const) =
+            self.resolve_vector_length(dfg, arguments[0], Some(vector_length))
+        {
             let mut new_vector = self.read_array_with_type(vector, &vector_typ)?;
             // length of Acir Values vector
             let len = len_const.to_u128() as usize * elements_to_push.len();
@@ -385,8 +392,14 @@ impl Context<'_> {
         let vector_type = dfg.type_of_value(vector_contents_id);
         self.check_vector_result_count("vector_pop_back", result_ids, &vector_type)?;
 
-        // Check if we're trying to pop from a known empty vector.
-        if self.has_zero_length(vector_contents_id, dfg) {
+        let vector_length_var = vector_length_value.clone().into_var()?;
+
+        // Check if we're trying to pop from a known empty vector: one whose backing store
+        // is empty, or one whose semantic length is known to be zero (its backing store may
+        // still be non-empty padding in that case).
+        if self.has_zero_length(vector_contents_id, dfg)
+            || self.vector_length_is_known_zero(dfg, vector_length_id, vector_length_var)
+        {
             // Make sure this code is disabled, or fail with the empty-vector pop message.
             let msg = "Attempt to pop from an empty vector".to_string();
             let predicate = self.predicate();
@@ -451,6 +464,25 @@ impl Context<'_> {
         Ok(results)
     }
 
+    /// Whether the vector's semantic length is known to be zero at this point: either the
+    /// SSA value is the constant zero, or its ACIR expression has folded to zero (which
+    /// happens when the side-effects predicate it was multiplied by collapsed to a
+    /// constant). The backing store cannot answer this question — merging branch arms of
+    /// unequal lengths pads the shorter arm, so a semantically empty vector may still have
+    /// a non-empty backing store, and `has_zero_length` inspects that backing store.
+    fn vector_length_is_known_zero(
+        &self,
+        dfg: &DataFlowGraph,
+        vector_length_id: ValueId,
+        vector_length_var: AcirVar,
+    ) -> bool {
+        let length_const = dfg.get_numeric_constant(vector_length_id).or_else(|| {
+            let expr = self.acir_context.var_to_expression(vector_length_var).ok()?;
+            expr.to_const().copied()
+        });
+        length_const.is_some_and(|length| length.is_zero())
+    }
+
     /// Compute the new vector length after popping one value from it.
     ///
     /// Assumes that we already handled the constant zero case.
@@ -463,7 +495,12 @@ impl Context<'_> {
         vector_length_value: AcirValue,
     ) -> Result<AcirVar, RuntimeError> {
         let vector_length_var = vector_length_value.into_var()?;
-        let is_unknown_length = dfg.get_numeric_constant(vector_length_id).is_none();
+        // A length known at compile time is nonzero here (the caller handled the constant zero
+        // case), so it needs neither the runtime emptiness assertion nor index gating below.
+        let is_unknown_length = matches!(
+            self.resolve_vector_length(dfg, vector_length_id, None),
+            VectorLength::Unknown
+        );
 
         if is_unknown_length {
             // Check that the vector length is not zero.
@@ -547,8 +584,14 @@ impl Context<'_> {
         self.check_vector_result_count("vector_pop_front", result_ids, &vector_type)?;
         let element_size = vector_type.element_size();
 
-        // Check if we're trying to pop from a known empty vector.
-        if self.has_zero_length(vector_contents_id, dfg) {
+        let vector_length_var = vector_length_value.clone().into_var()?;
+
+        // Check if we're trying to pop from a known empty vector: one whose backing store
+        // is empty, or one whose semantic length is known to be zero (its backing store may
+        // still be non-empty padding in that case).
+        if self.has_zero_length(vector_contents_id, dfg)
+            || self.vector_length_is_known_zero(dfg, vector_length_id, vector_length_var)
+        {
             // Make sure this code is disabled, or fail with the empty-vector pop message.
             let msg = "Attempt to pop from an empty vector".to_string();
             let predicate = self.predicate();
@@ -661,7 +704,12 @@ impl Context<'_> {
 
         // Fetch the flattened index from the user provided index argument.
         let item_size = self.acir_context.add_constant(elements_to_insert.len());
-        let is_safe_index = Self::is_index_safe(arguments[2], dfg, &vector_typ, vector_size);
+        let gating = self.index_gating_without_fallback(Self::is_index_safe(
+            arguments[2],
+            dfg,
+            &vector_typ,
+            vector_size,
+        ));
         let insert_index = self.acir_context.mul_var(insert_index, item_size)?;
 
         // Because the insert index might be at the end of the vector, the element type sizes we
@@ -672,7 +720,7 @@ impl Context<'_> {
             vector_contents,
             insert_index,
             dfg,
-            IndexGating::without_fallback(is_safe_index),
+            gating,
             shift,
         )?;
 
@@ -874,8 +922,13 @@ impl Context<'_> {
         let vector_typ = dfg.type_of_value(vector_contents);
         self.check_vector_result_count("vector_remove", result_ids, &vector_typ)?;
 
-        // Check if we're trying to remove from an empty vector
-        if self.has_zero_length(vector_contents, dfg) {
+        // Check if we're trying to remove from a known empty vector: one whose backing store
+        // is empty, or one whose semantic length is known to be zero (its backing store may
+        // still be non-empty padding in that case). Without the semantic-length check a length
+        // that has folded to zero reaches the `sub_var(length, 1)` below and produces `p - 1`.
+        if self.has_zero_length(vector_contents, dfg)
+            || self.vector_length_is_known_zero(dfg, arguments[0], vector_length)
+        {
             // Make sure this code is disabled, or fail with "Index out of bounds".
             let msg = "Index out of bounds, vector has size 0".to_string();
             let predicate = self.predicate();
@@ -921,7 +974,12 @@ impl Context<'_> {
         let item_size = vector_typ.element_size().to_usize();
         let item_size_var = self.acir_context.add_constant(item_size);
         let remove_index = self.acir_context.mul_var(remove_index, item_size_var)?;
-        let is_safe_index = Self::is_index_safe(arguments[2], dfg, &vector_typ, vector_size);
+        let gating = self.index_gating_without_fallback(Self::is_index_safe(
+            arguments[2],
+            dfg,
+            &vector_typ,
+            vector_size,
+        ));
 
         // Fetch the flattened index from the user provided index argument.
         let flat_user_index = self.get_flattened_index(
@@ -929,7 +987,7 @@ impl Context<'_> {
             vector_contents,
             remove_index,
             dfg,
-            IndexGating::without_fallback(is_safe_index),
+            gating,
             ElementTypeSizesArrayShift::None,
         )?;
 
@@ -1017,6 +1075,36 @@ impl Context<'_> {
         result.append(&mut popped_elements);
 
         Ok(result)
+    }
+
+    /// Resolves how much of a vector's semantic length is known while lowering it.
+    ///
+    /// `acir_length`, when given, is the length's ACIR representation: a length which has folded to
+    /// a constant there (e.g. the length of a previous constant-length push) is as good as an SSA
+    /// constant.
+    ///
+    /// A length known at compile time pins the slot an element is pushed to or popped from, so the
+    /// lowering emits the same ACIR whether side effects are enabled or not and consults no
+    /// predicate. That acknowledgment is recorded here, where the decision is made, rather than
+    /// left to each caller to remember.
+    fn resolve_vector_length(
+        &self,
+        dfg: &DataFlowGraph,
+        length: ValueId,
+        acir_length: Option<AcirVar>,
+    ) -> VectorLength {
+        let constant = dfg.get_numeric_constant(length).or_else(|| {
+            let expr = self.acir_context.var_to_expression(acir_length?).ok()?;
+            expr.to_const().copied()
+        });
+
+        match constant {
+            Some(constant) => {
+                self.predicate_not_needed(PredicateNotNeeded::ConstantVectorLength);
+                VectorLength::Constant(constant)
+            }
+            None => VectorLength::Unknown,
+        }
     }
 
     /// Returns true if the user-facing index is less than the vector capacity

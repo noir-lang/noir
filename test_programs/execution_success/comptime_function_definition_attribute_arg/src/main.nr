@@ -22,7 +22,7 @@ comptime fn validate_with(s: TypeDefinition, check: FunctionDefinition) -> Quote
     // must be the type the attribute was placed on.
     let params = check.parameters();
     assert(params.len() == 1, "a validation function must take exactly one argument");
-    assert(params[0].1 == typ, "the validation function must take the annotated type");
+    assert(params[0].typ() == typ, "the validation function must take the annotated type");
 
     // (3) Emit a validator that calls the checker.
     let check_name = check.name();

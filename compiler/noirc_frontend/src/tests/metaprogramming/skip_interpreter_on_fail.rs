@@ -820,8 +820,10 @@ fn regression_10832() {
     check_errors(src);
 }
 
+/// Regression for issue #10855 (<https://github.com/noir-lang/noir/issues/10855>)
 #[test]
-fn regression_10855() {
+fn access_non_existent_struct_field() {
+    // We expect a single error. If we were to run the interpreter we would have duplicated errors.
     let src = "
     struct Foo {
         x: Field,
@@ -981,26 +983,6 @@ fn call_to_quoted_function_from_invalid_comptime_block() {
         let _result = helper(); // Potential error: `helper` not found
                       ^^^^^^ cannot find `helper` in this scope
                       ~~~~~~ not found in this scope
-    }
-    ";
-    check_errors(src);
-}
-
-/// Regression for issue #10855 (<https://github.com/noir-lang/noir/issues/10855>)
-#[test]
-fn access_non_existent_struct_field() {
-    // We expect a single error. If we were to run the interpreter we would have duplicated errors.
-    let src = "
-    struct Foo {
-        x: Field,
-        y: Field,
-    }
-    fn main() {
-        comptime {
-            let f: Foo = Foo { x: 1, y: 2 };
-            assert_eq(f.undefined, 999);
-                        ^^^^^^^^^ Type Foo has no member named undefined
-        }
     }
     ";
     check_errors(src);

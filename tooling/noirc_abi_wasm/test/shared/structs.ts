@@ -9,6 +9,7 @@ export type MyNestedStruct = {
 };
 
 export const abi: Abi = {
+  abi_version: 1,
   parameters: [
     {
       name: 'struct_arg',

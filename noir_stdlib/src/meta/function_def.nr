@@ -1,3 +1,24 @@
+use crate::meta::item_visibility::ItemVisibility;
+
+/// A single parameter of a [`FunctionDefinition`], returned from
+/// [`FunctionDefinition::parameters`].
+pub comptime struct FunctionParameter {
+    name: Quoted,
+    typ: Type,
+}
+
+impl FunctionParameter {
+    /// The parameter's declared name, as a [`Quoted`] identifier.
+    pub comptime fn name(self) -> Quoted {
+        self.name
+    }
+
+    /// The parameter's declared type.
+    pub comptime fn typ(self) -> Type {
+        self.typ
+    }
+}
+
 impl FunctionDefinition {
     #[builtin(function_def_as_typed_expr)]
     // docs:start:as_typed_expr
@@ -49,20 +70,32 @@ impl FunctionDefinition {
     pub comptime fn name(self) -> Quoted {}
     // docs:end:name
 
-    #[builtin(function_def_parameters)]
+    /// The parameters this function was declared with, in source order.
     // docs:start:parameters
-    pub comptime fn parameters(self) -> [(Quoted, Type)] {}
-    // docs:end:parameters
+    pub comptime fn parameters(self) -> [FunctionParameter] {
+        // docs:end:parameters
+        self.parameters_raw().map(|param: (Quoted, Type)| {
+            FunctionParameter { name: param.0, typ: param.1 }
+        })
+    }
+
+    #[builtin(function_def_parameters)]
+    comptime fn parameters_raw(self) -> [(Quoted, Type)] {}
 
     #[builtin(function_def_return_type)]
     // docs:start:return_type
     pub comptime fn return_type(self) -> Type {}
     // docs:end:return_type
 
-    #[builtin(function_def_visibility)]
+    /// The function's visibility.
     // docs:start:visibility
-    pub comptime fn visibility(self) -> Quoted {}
-    // docs:end:visibility
+    pub comptime fn visibility(self) -> ItemVisibility {
+        // docs:end:visibility
+        ItemVisibility::from_quoted(self.visibility_raw())
+    }
+
+    #[builtin(function_def_visibility)]
+    comptime fn visibility_raw(self) -> Quoted {}
 }
 
 impl crate::hash::Hash for FunctionDefinition {

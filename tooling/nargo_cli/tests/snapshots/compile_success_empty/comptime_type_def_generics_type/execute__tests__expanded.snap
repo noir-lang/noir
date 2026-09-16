@@ -8,7 +8,7 @@ pub struct Pair<T> {
 }
 
 comptime fn test_attr(pair_def: TypeDefinition) {
-    let generics: [(Type, Option<Type>)] = pair_def.generics();
+    let generics: [std::meta::type_def::TypeGeneric] = pair_def.generics();
     let generics_type: Type = std::meta::type_of(generics);
     let _: Type = generics_type.as_vector().unwrap();
 }

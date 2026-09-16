@@ -1,0 +1,6 @@
+[package]
+name = "predicated_safe_get_stale_predicate"
+type = "bin"
+authors = [""]
+
+[dependencies]

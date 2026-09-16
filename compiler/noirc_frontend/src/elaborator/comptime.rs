@@ -42,7 +42,10 @@ use crate::{
     token::{MetaAttribute, MetaAttributeName, SecondaryAttribute, SecondaryAttributeKind},
 };
 
-use super::{ElaborateReason, Elaborator, MAX_MACRO_EXPANSION_DEPTH, ResolverMeta};
+use super::{
+    ElaborateReason, Elaborator, MAX_MACRO_EXPANSION_DEPTH, ResolverMeta,
+    item_context::{GenericsContext, ImplContext},
+};
 
 /// Context information for the module that an attribute is located and where it should generate items.
 /// These locations differ when attributes are used across module boundaries.
@@ -123,13 +126,12 @@ impl<'context> Elaborator<'context> {
                         meta.all_trait_constraints().cloned().collect(),
                     )
                 });
-                elaborator.current_item = Some(DependencyId::Function(function));
+                elaborator.item.module.set_current_item(Some(DependencyId::Function(function)));
                 elaborator.crate_id = source_crate;
-                elaborator.local_module = Some(source_module);
-                elaborator.self_type = self_type;
-                elaborator.current_trait_impl = trait_impl;
-                elaborator.current_trait = trait_id;
-                elaborator.trait_bounds = trait_bounds;
+                elaborator.item.module.set_local_module(source_module);
+                elaborator.item.impl_context =
+                    ImplContext::in_trait_impl(self_type, trait_id, trait_impl);
+                elaborator.item.generics = GenericsContext::new(Vec::new(), trait_bounds);
                 elaborator.introduce_generics_into_scope(all_generics);
             }
         })
@@ -145,9 +147,9 @@ impl<'context> Elaborator<'context> {
         f: impl FnOnce(&mut Elaborator<'a>) -> T,
     ) -> T {
         self.elaborate_item_from_comptime(reason, f, |elaborator| {
-            elaborator.current_item = None;
+            elaborator.item.module.set_current_item(None);
             elaborator.crate_id = module.krate;
-            elaborator.local_module = Some(module.local_id);
+            elaborator.item.module.set_local_module(module.local_id);
         })
     }
 
@@ -186,7 +188,7 @@ impl<'context> Elaborator<'context> {
         elaborator.push_function_context();
         elaborator.scopes.start_function();
 
-        elaborator.local_module = self.local_module;
+        elaborator.item.module.set_local_module(self.item.module.local_module());
         elaborator.parent_runtime_variables = parent_runtime_variables;
         elaborator.unresolved_function_metas = std::mem::take(&mut self.unresolved_function_metas);
         elaborator.unresolved_struct_fields = std::mem::take(&mut self.unresolved_struct_fields);
@@ -373,8 +375,12 @@ impl<'context> Elaborator<'context> {
         impl_target: Option<&AttributeImplTarget>,
         attributes_to_run: &mut CollectedAttributes,
     ) {
+        // Each set carries the `Self` of the impl it came from; restore the caller's afterwards so
+        // that items elaborated later do not resolve `Self` against the last impl visited here.
+        let previous_self_type = self.item.impl_context.take_self_type();
+
         for function_set in function_sets {
-            self.self_type = function_set.self_type.clone();
+            self.item.impl_context.set_self_type(function_set.self_type.clone());
 
             for (local_module, function_id, function) in &function_set.functions {
                 let context = AttributeContext::new(*local_module);
@@ -389,6 +395,8 @@ impl<'context> Elaborator<'context> {
                 );
             }
         }
+
+        self.item.impl_context.set_self_type(previous_self_type);
     }
 
     /// Collect all comptime attributes from an item's attribute list.
@@ -538,7 +546,7 @@ impl<'context> Elaborator<'context> {
                 // Items must be added in the correct module (for a module attribute, this will be
                 // the module itself; for a function, it will be the module where the function is
                 // defined, etc.)
-                this.local_module = Some(attribute_context.module);
+                this.item.module.set_local_module(attribute_context.module);
 
                 let items =
                     value.into_top_level_items(location, this).map_err(CompilationError::from)?;
@@ -723,7 +731,7 @@ impl<'context> Elaborator<'context> {
         generated_items: &mut CollectedItems,
         location: Location,
     ) {
-        let local_module = self.local_module();
+        let local_module = self.item.module.local_module();
 
         match item.kind {
             ItemKind::Function(function) if impl_target.is_some() => {
@@ -873,7 +881,7 @@ impl<'context> Elaborator<'context> {
     /// The interpreter is initialized with the current crate and function context
     /// to ensure proper scoping and error reporting.
     pub(crate) fn setup_interpreter<'local>(&'local mut self) -> Interpreter<'local, 'context> {
-        let current_function = match self.current_item {
+        let current_function = match self.item.module.current_item() {
             Some(DependencyId::Function(function)) => Some(function),
             _ => None,
         };
@@ -992,7 +1000,7 @@ impl<'context> Elaborator<'context> {
     /// immediately rather than deferred, which the interpreter requires for execution.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn elaborate_in_comptime_context<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> T {
-        let old_comptime_value = std::mem::replace(&mut self.in_comptime_context, true);
+        let old_comptime_value = std::mem::replace(&mut self.item.in_comptime_context, true);
         // We have to push a new FunctionContext so that we can resolve any constraints
         // in this comptime block early before the function as a whole finishes elaborating.
         // Otherwise the interpreter below may find expressions for which the underlying trait
@@ -1002,14 +1010,14 @@ impl<'context> Elaborator<'context> {
         let result = f(self);
 
         self.check_and_pop_function_context();
-        self.in_comptime_context = old_comptime_value;
+        self.item.in_comptime_context = old_comptime_value;
         result
     }
 
     /// True if we're currently within a `comptime` block, function, or global
     pub(super) fn in_comptime_context(&self) -> bool {
-        self.in_comptime_context
-            || match self.current_item {
+        self.item.in_comptime_context
+            || match self.item.module.current_item() {
                 Some(DependencyId::Function(id)) => {
                     self.interner.function_modifiers(&id).is_comptime
                 }

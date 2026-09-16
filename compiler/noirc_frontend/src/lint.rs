@@ -7,13 +7,13 @@
 //! to silence it.
 //!
 //! [`Lint`] is the closed set of valid slugs. Making the set closed is what lets the
-//! parser reject an unrecognised slug: parsing `#[allow(<slug>)]`
+//! parser reject an unrecognized slug: parsing `#[allow(<slug>)]`
 //! (`parser/parser/attributes.rs`) looks the slug up with [`Lint::from_slug`], and an
 //! unknown slug raises the `UnknownLint` warning rather than being accepted as an inert
 //! no-op the author mistakes for a working suppression. That warning is a parser warning,
 //! which never blocks elaboration, so the lint the author *meant* to silence still fires.
 //!
-//! Consumers that honour `#[allow(...)]` compare against a [`Lint`] (via
+//! Consumers that honor `#[allow(...)]` compare against a [`Lint`] (via
 //! [`crate::token::Attributes::has_allow`] / `SecondaryAttributeKind::is_allow`) rather
 //! than a bare string, so the slug spellings live only in [`Lint::slug`].
 //!
@@ -51,7 +51,7 @@ impl Lint {
         }
     }
 
-    /// Look up a lint by its slug, returning `None` if the slug is not recognised.
+    /// Look up a lint by its slug, returning `None` if the slug is not recognized.
     pub fn from_slug(slug: &str) -> Option<Lint> {
         Lint::iter().find(|lint| lint.slug() == slug)
     }

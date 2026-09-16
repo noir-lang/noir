@@ -4,7 +4,7 @@
 fn main() {
     comptime {
         // `lv` is an interned lvalue extracted from the lhs of an assignment.
-        let lv = quote { x = 1 }.as_expr().unwrap().as_assign().unwrap().0;
+        let lv = quote { x = 1 }.as_expr().unwrap().as_assign().unwrap().lhs();
 
         // Method-call tail (the originally reported case).
         let method_call = quote { $lv.foo() }.as_expr().unwrap();

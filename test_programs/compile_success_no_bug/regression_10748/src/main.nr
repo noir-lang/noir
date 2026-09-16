@@ -13,7 +13,7 @@ impl<Context> StateVariable<Context> for PublicImmutable<Context> {
 }
 
 pub comptime fn storage(s: TypeDefinition) -> Quoted {
-    let (_name, typ, _) = s.fields_as_written()[0];
+    let typ = s.fields_as_written()[0].typ();
 
     let context = std::meta::typ::fresh_type_variable();
     assert(

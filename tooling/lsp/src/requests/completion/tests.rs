@@ -739,7 +739,12 @@ mod completion_tests {
         "#;
 
         let (items, _) = get_completions(src);
-        let items = items.into_iter().filter(|item| item.label.starts_with('i')).collect();
+        let items = items
+            .into_iter()
+            .filter(|item| {
+                item.label.starts_with('i') && item.kind == Some(CompletionItemKind::STRUCT)
+            })
+            .collect();
 
         assert_items_match(
             items,
@@ -1032,6 +1037,7 @@ mod completion_tests {
                 fn foobar(self, x: i32) {}
                 fn foobar2(&mut self, x: i32) {}
                 fn foobar3(y: i32) {}
+                fn foobar4(&self, x: i32) {}
             }
 
             fn foo(some: Some) {
@@ -1043,6 +1049,7 @@ mod completion_tests {
             vec![
                 function_completion_item("foobar(…)", "foobar(${1:x})", "fn(self, i32)"),
                 function_completion_item("foobar2(…)", "foobar2(${1:x})", "fn(&mut self, i32)"),
+                function_completion_item("foobar4(…)", "foobar4(${1:x})", "fn(&self, i32)"),
             ],
         );
     }

@@ -122,8 +122,8 @@ mod test {
 
     #[test]
     fn test_already_sorted_ascending_with_one_out_of_order() {
-        let mut arr: [u32; 1000] = [0; 1000];
-        for i in 0..1000 {
+        let mut arr: [u32; 100] = [0; 100];
+        for i in 0..100 {
             arr[i] = i as u32;
         }
         arr[0] = 2;

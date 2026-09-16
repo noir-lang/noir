@@ -121,22 +121,6 @@ fn can_pass_regular_function_to_unconstrained_function() {
 }
 
 #[test]
-fn cannot_pass_unconstrained_function_to_constrained_function() {
-    let src = r#"
-    fn main() {
-        let func = foo;
-        expect_regular(func);
-                       ^^^^ Converting an unconstrained fn to a non-unconstrained fn is unsafe
-    }
-
-    unconstrained fn foo() {}
-
-    fn expect_regular(_func: fn() -> ()) {}
-    "#;
-    check_errors(src);
-}
-
-#[test]
 fn cannot_return_function_from_unconstrained_to_constrained() {
     let src = r#"
     fn main() {

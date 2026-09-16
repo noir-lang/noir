@@ -92,7 +92,17 @@ pub fn assert_no_errors_without_report(src: &str) -> Context<'_, '_> {
 }
 
 fn assert_no_errors_and_to_string(src: &str) -> String {
-    let context = assert_no_errors(src);
+    assert_no_errors_and_to_string_using_features(
+        src,
+        FrontendOptions::test_default().enabled_unstable_features,
+    )
+}
+
+fn assert_no_errors_and_to_string_using_features(
+    src: &str,
+    features: &[UnstableFeature],
+) -> String {
+    let context = assert_no_errors_using_features(src, features);
     let expanded = display_crate(
         *context.crate_graph.root_crate_id(),
         &context.crate_graph,
@@ -107,7 +117,7 @@ fn assert_no_errors_and_to_string(src: &str) -> String {
     // its module and break access to a module-private item. Only hard errors are checked: the
     // printer can legitimately produce code whose warnings (e.g. unused imports) differ from the
     // original.
-    let errors = get_program_errors(&expanded);
+    let errors = get_program_using_features(&expanded, features).2;
     let errors: Vec<_> =
         errors.iter().map(CustomDiagnostic::from).filter(CustomDiagnostic::is_error).collect();
     if !errors.is_empty() {
@@ -168,6 +178,29 @@ fn check_errors_with_stdlib<'a>(src: &str, stdlib_src: impl IntoIterator<Item = 
             allow_elaborator_errors: true,
             root_and_stdlib: true,
             ..Default::default()
+        },
+    );
+}
+
+/// Like [`check_errors_with_stdlib`], with the given unstable features enabled.
+fn check_errors_with_stdlib_using_features<'a>(
+    src: &str,
+    stdlib_src: impl IntoIterator<Item = &'a str>,
+    features: &[UnstableFeature],
+) {
+    let stdlib_src: String = stdlib_src.into_iter().flat_map(|s| [s, "\n"]).collect();
+    let monomorphize = false;
+    check_errors_with_options(
+        &format!("{stdlib_src}\n\n{src}"),
+        monomorphize,
+        GetProgramOptions {
+            allow_parser_errors: false,
+            allow_elaborator_errors: true,
+            root_and_stdlib: true,
+            frontend_options: FrontendOptions {
+                enabled_unstable_features: features,
+                ..FrontendOptions::test_default()
+            },
         },
     );
 }

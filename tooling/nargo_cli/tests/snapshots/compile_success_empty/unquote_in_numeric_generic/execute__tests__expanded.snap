@@ -18,12 +18,17 @@ fn main() {
 }
 
 comptime fn foo_impl(t: TypeDefinition) -> Quoted {
-    let g: [(Type, Option<Type>)] = t.generics();
-    let g_names: Quoted =
-        g.map(|(name, _): (Type, Option<Type>)| -> Quoted quote { $name }).join(quote { ,  });
+    let g: [std::meta::type_def::TypeGeneric] = t.generics();
+    let g_names: Quoted = g
+        .map(|generic: std::meta::type_def::TypeGeneric| -> Quoted {
+            let name: Type = generic.typ();
+            quote { $name }
+        })
+        .join(quote { ,  });
     let g_intros: Quoted = g
-        .map(|(name, typ): (Type, Option<Type>)| -> Quoted {
-            let typ: Type = typ.unwrap();
+        .map(|generic: std::meta::type_def::TypeGeneric| -> Quoted {
+            let name: Type = generic.typ();
+            let typ: Type = generic.numeric_type().unwrap();
             quote { let $name: $typ }
         })
         .join(quote { ,  });

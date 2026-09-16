@@ -39,16 +39,19 @@ use crate::{
     ast::UnaryOp,
     hir_def::expr::Constructor,
     monomorphization::ast::{
-        Definition, Expression, Function, Ident, IdentId, LValue, Literal, LocalId, Program, Type,
-        Unary,
+        Definition, Expression, FuncId, Function, Ident, IdentId, LValue, Literal, LocalId,
+        Program, Type, Unary,
     },
 };
 
-use rustc_hash::FxHashMap as HashMap;
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
+mod clone_elision;
 mod last_uses;
 mod suboptimal_cloning_tests;
 mod tests;
+
+pub use clone_elision::{builtin_supports_clone_elision, find_oracle_wrappers};
 
 impl Program {
     /// Perform "ownership analysis".
@@ -57,8 +60,9 @@ impl Program {
     ///
     /// This should only be called once, before converting to SSA.
     pub fn handle_ownership(mut self) -> Self {
+        let oracle_wrappers = find_oracle_wrappers(&self);
         for function in &mut self.functions {
-            function.handle_ownership();
+            function.handle_ownership(&oracle_wrappers);
         }
         self
     }
@@ -70,18 +74,27 @@ impl Function {
     /// See [ownership](crate::ownership) for details.
     ///
     /// This should only be called on a function once.
-    pub fn handle_ownership(&mut self) {
-        let mut context = Context { variables_to_move: Default::default() };
+    ///
+    /// `oracle_wrappers` is the set of thin oracle-wrapper functions computed by
+    /// [`clone_elision::find_oracle_wrappers`]. When whole-program information is not
+    /// available, passing an empty set is always sound: it only disables the clone
+    /// elision for calls to those wrappers, keeping more clones than strictly needed.
+    pub fn handle_ownership(&mut self, oracle_wrappers: &HashSet<FuncId>) {
+        let mut context = Context { variables_to_move: Default::default(), oracle_wrappers };
         context.handle_ownership_in_function(self);
     }
 }
 
-struct Context {
+struct Context<'a> {
     /// This contains each instance of a variable we should move instead of cloning.
     variables_to_move: HashMap<LocalId, Vec<IdentId>>,
+
+    /// Functions that only forward their arguments to an oracle; calls to these
+    /// qualify for clone elision. See [`clone_elision`].
+    oracle_wrappers: &'a HashSet<FuncId>,
 }
 
-impl Context {
+impl Context<'_> {
     fn should_move(&self, definition: LocalId, variable: IdentId) -> bool {
         self.variables_to_move
             .get(&definition)
@@ -386,6 +399,10 @@ impl Context {
         for arg in &mut call.arguments {
             self.handle_expression(arg);
         }
+
+        // If the callee is known not to modify its array arguments, the clones inserted
+        // around them above may be unnecessary. See [`clone_elision`] for the conditions.
+        clone_elision::elide_clones_in_call_arguments(call, self.oracle_wrappers);
     }
 
     fn handle_let(&mut self, let_expr: &mut crate::monomorphization::ast::Let) {

@@ -1,0 +1,6 @@
+[package]
+name = "vector_ops_collapsed_predicate"
+type = "bin"
+authors = [""]
+
+[dependencies]

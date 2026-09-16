@@ -6,9 +6,10 @@ use midlib::PublicBox;
 
 comptime fn emit_transitive_type_api(_f: FunctionDefinition) -> Quoted {
     let typ: Type = quote { PublicBox }.as_type();
-    let (def, generics): (TypeDefinition, [Type]) = typ.as_data_type().unwrap();
-    let fields: [(Quoted, Type, Quoted)] = def.fields(generics);
-    let transitive_type: Type = fields[0_u32].1;
+    let data_type: std::meta::typ::DataType = typ.as_data_type().unwrap();
+    let fields: [std::meta::type_def::StructField] =
+        data_type.definition().fields(data_type.generics());
+    let transitive_type: Type = fields[0_u32].typ();
     quote {
         pub fn transitive_type_api() -> Option<$transitive_type> {
             Option::none()

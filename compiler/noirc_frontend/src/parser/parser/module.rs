@@ -158,7 +158,7 @@ mod tests {
             other => panic!("Expected NonAsciiIdentifier, got {other:?}"),
         }
 
-        // The parser still recognised the function declaration, with the original name.
+        // The parser still recognized the function declaration, with the original name.
         assert_eq!(module.items.len(), 1);
         let ItemKind::Function(func) = &module.items[0].kind else {
             panic!("Expected function declaration");

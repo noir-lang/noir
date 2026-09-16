@@ -3,6 +3,7 @@
 use crate::{
     ast::UnaryOp,
     monomorphization::ast::{Ident, Literal},
+    shared::Builtin,
 };
 
 use super::ast::{
@@ -583,10 +584,10 @@ impl AstPrinter {
                 // Builtins that are written as methods in Noir source have to be printed that
                 // way, or the printed program does not parse back: `as_bytes(s)` is not a
                 // function in scope, `s.as_bytes()` is.
-                Definition::Builtin(s)
-                    if s.starts_with("array")
-                        || s.starts_with("vector")
-                        || matches!(s.as_str(), "as_vector" | "str_as_bytes") =>
+                Definition::Builtin(builtin)
+                    if builtin.name().starts_with("array")
+                        || builtin.name().starts_with("vector")
+                        || matches!(builtin, Builtin::AsVector | Builtin::StrAsBytes) =>
                 {
                     Some(SpecialCall::Object(name.clone()))
                 }

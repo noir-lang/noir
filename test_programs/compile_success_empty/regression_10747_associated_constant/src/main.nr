@@ -29,12 +29,17 @@ pub comptime fn derive_ser(s: TypeDefinition) -> Quoted {
     let typ = s.as_type();
     let rhs = s
         .fields_as_written()
-        .map(|(_, field_type, _): (Quoted, Type, Quoted)| quote { <$field_type as Ser>::N })
+        .map(|field| {
+            let field_type = field.typ();
+            quote { <$field_type as Ser>::N }
+        })
         .join(quote { + });
 
     let generics = s
         .generics()
-        .map(|(name, maybe_int): (Type, Option<Type>)| {
+        .map(|generic| {
+            let name = generic.typ();
+            let maybe_int = generic.numeric_type();
             if maybe_int.is_some() {
                 let int_type = maybe_int.unwrap();
                 quote { let $name: $int_type }
@@ -45,8 +50,11 @@ pub comptime fn derive_ser(s: TypeDefinition) -> Quoted {
         .join(quote {,});
     let where_clause = s
         .generics()
-        .filter(|(_, maybe_int): (Type, Option<Type>)| maybe_int.is_none())
-        .map(|(name, _): (Type, Option<Type>)| quote { $name: Ser })
+        .filter(|generic| generic.numeric_type().is_none())
+        .map(|generic| {
+            let name = generic.typ();
+            quote { $name: Ser }
+        })
         .join(quote {,});
 
     quote {

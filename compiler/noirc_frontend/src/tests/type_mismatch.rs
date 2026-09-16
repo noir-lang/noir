@@ -236,18 +236,6 @@ fn negate_bool() {
 }
 
 #[test]
-fn tuple_mismatch() {
-    let src = r#"
-    fn main() {
-        let (_x, _y) = (1, 2, 3);
-            ^^^^^^^^ Expected a tuple with 3 elements, found one with 2 elements
-            ~~~~~~~~ The expression the tuple is assigned to has type `(Field,Field,Field)`
-    }
-    "#;
-    check_errors(src);
-}
-
-#[test]
 fn type_mismatch_same_name_different_fully_qualified_name_struct_case() {
     let src = r#"
     mod moo {

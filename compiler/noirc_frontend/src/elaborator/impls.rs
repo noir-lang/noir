@@ -116,7 +116,7 @@ impl Elaborator<'_> {
         impls: &mut [UnresolvedImpl],
         self_type: &UnresolvedType,
     ) {
-        let previous_local_module = self.replace_local_module(module);
+        let previous_local_module = self.item.module.replace_local_module(module);
 
         for unresolved_impl in impls {
             self.check_generics_appear_in_types(&unresolved_impl.generics, &[self_type], &[]);
@@ -128,7 +128,7 @@ impl Elaborator<'_> {
             });
         }
 
-        self.local_module = previous_local_module;
+        self.item.module.set_local_module(previous_local_module);
     }
 
     /// Declares methods in the appropriate module and registers them in the interner.

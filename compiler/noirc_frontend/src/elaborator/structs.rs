@@ -15,7 +15,10 @@ use crate::{
     node_interner::{DependencyId, ReferenceId, TypeId},
 };
 
-use super::Elaborator;
+use super::{
+    Elaborator,
+    item_context::{ItemContext, ModuleContext},
+};
 
 /// Everything needed to resolve a struct's fields later, captured at
 /// registration time. Mirrors [`super::function::UnresolvedFunctionMeta`] for
@@ -95,19 +98,24 @@ impl Elaborator<'_> {
         module_id: LocalModuleId,
         struct_def: &NoirStruct,
     ) {
-        let previous_local_module = self.replace_local_module(module_id);
-        let previous_current_item = self.current_item.take();
-        self.current_item = Some(DependencyId::DataType(type_id));
+        // Struct fields are resolved at the module level. This can run on demand from the
+        // middle of another item (e.g. an impl method that mentions the struct), so the struct
+        // gets a context of its own: the item's generics would otherwise collide with the
+        // struct's via `add_existing_generics`, and its `Self` type would be visible to the
+        // field types.
+        let context =
+            ItemContext::new(ModuleContext::of_item(module_id, DependencyId::DataType(type_id)))
+                .in_comptime(struct_def.comptime)
+                .disallowing_impl_trait(super::types::ImplTraitDisallowedContext::StructField);
+        self.with_item_context(context, |this| {
+            this.resolve_one_struct_fields_in_context(type_id, struct_def);
+        });
+    }
 
-        let previous_in_comptime_context =
-            std::mem::replace(&mut self.in_comptime_context, struct_def.comptime);
-
-        // Struct fields are resolved at the module level: clear any generics
-        // that an outer caller may have in scope (e.g. when lazy resolution
-        // is triggered from inside an impl method, the impl's generics would
-        // otherwise collide with the struct's via `add_existing_generics`).
-        let previous_generics = std::mem::take(&mut self.generics);
-
+    /// Does the work of [`Self::resolve_one_struct_fields`].
+    ///
+    /// Expects the struct's own [`ItemContext`] to be installed.
+    fn resolve_one_struct_fields_in_context(&mut self, type_id: TypeId, struct_def: &NoirStruct) {
         let fields = self.resolve_struct_fields(struct_def, type_id);
 
         if struct_def.is_abi() {
@@ -133,11 +141,6 @@ impl Elaborator<'_> {
             }
             struct_def_in_interner.set_fields(fields);
         });
-
-        self.generics = previous_generics;
-        self.in_comptime_context = previous_in_comptime_context;
-        self.current_item = previous_current_item;
-        self.local_module = previous_local_module;
     }
 
     /// Resolves the field types for a single struct definition.
@@ -155,17 +158,12 @@ impl Elaborator<'_> {
         struct_id: TypeId,
     ) -> Vec<StructField> {
         self.recover_generics(|this| {
-            let previous_item = this.current_item.replace(DependencyId::DataType(struct_id));
-
             this.resolving_ids.insert(struct_id);
 
             let struct_def = this.interner.get_type(struct_id);
             this.add_existing_generics(&unresolved.generics, &struct_def.borrow().generics);
 
             let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::StructField);
-            let previous_impl_trait_context = this
-                .impl_trait_is_disallowed
-                .replace(super::types::ImplTraitDisallowedContext::StructField);
             let fields = vecmap(&unresolved.fields, |field| {
                 let visibility = field.item.visibility;
                 let name = field.item.name.clone();
@@ -176,11 +174,8 @@ impl Elaborator<'_> {
                 let typ = this.use_type(field.item.typ.clone(), wildcard_allowed);
                 StructField { visibility, name, typ }
             });
-            this.impl_trait_is_disallowed = previous_impl_trait_context;
 
             this.resolving_ids.remove(&struct_id);
-
-            this.current_item = previous_item;
 
             fields
         })

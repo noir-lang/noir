@@ -413,6 +413,11 @@ impl NodeInterner {
     /// If this list of failing constraints is empty, this means type annotations are required.
     /// Returns the list of instantiation bindings as well, which should be stored on the
     /// expression.
+    ///
+    /// The bindings the search itself produced are committed to the shared HIR, which is what
+    /// type checking wants and what a pass over an already-elaborated program does not. Such a
+    /// pass should call [`Self::try_lookup_trait_implementation`], which hands those bindings back
+    /// instead, and apply them under a `BoundTypeVariables` guard.
     pub(crate) fn lookup_trait_implementation(
         &self,
         object_type: &Type,
@@ -774,15 +779,18 @@ impl NodeInterner {
         format!("{object_type:?}: {name}{generics}")
     }
 
-    /// Removes all `TraitImplKind::Assumed` from the list of known impls for the given trait
+    /// Removes all `TraitImplKind::Assumed` from the list of known impls for the given trait, and
+    /// for every trait that a bound on it implies: its parent traits and the traits bounding its
+    /// associated types. These are the assumed impls `Elaborator::add_trait_bound_to_scope` adds
+    /// alongside the bound itself.
     pub fn remove_assumed_trait_implementations_for_trait(&mut self, trait_id: TraitId) {
-        self.remove_assumed_trait_implementations_for_trait_and_parents(
+        self.remove_assumed_trait_implementations_for_trait_and_implied(
             trait_id,
             &mut HashSet::new(),
         );
     }
 
-    fn remove_assumed_trait_implementations_for_trait_and_parents(
+    fn remove_assumed_trait_implementations_for_trait_and_implied(
         &mut self,
         trait_id: TraitId,
         visited_trait_ids: &mut HashSet<TraitId>,
@@ -794,14 +802,19 @@ impl NodeInterner {
         let entries = self.trait_implementation_map.entry(trait_id).or_default();
         entries.retain(|(_, kind)| !matches!(kind, TraitImplKind::Assumed { .. }));
 
-        // Also remove assumed implementations for the parent traits, if any
-        let parent_trait_ids: Vec<TraitId> = self
+        // Also remove assumed implementations for the traits a bound on this one implies
+        let implied_trait_ids: Vec<TraitId> = self
             .try_get_trait(trait_id)
-            .map(|the_trait| the_trait.parent_bounds().map(|b| b.trait_id).collect())
+            .map(|the_trait| {
+                let parents = the_trait.parent_bounds().map(|bound| bound.trait_id);
+                let associated_type_bounds =
+                    the_trait.associated_type_bounds.values().flatten().map(|bound| bound.trait_id);
+                parents.chain(associated_type_bounds).collect()
+            })
             .unwrap_or_default();
-        for parent_trait_id in parent_trait_ids {
-            self.remove_assumed_trait_implementations_for_trait_and_parents(
-                parent_trait_id,
+        for implied_trait_id in implied_trait_ids {
+            self.remove_assumed_trait_implementations_for_trait_and_implied(
+                implied_trait_id,
                 visited_trait_ids,
             );
         }

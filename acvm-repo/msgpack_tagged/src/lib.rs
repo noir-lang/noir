@@ -8,11 +8,14 @@
 //! - [`TagRegistry`] / [`Entry`] — the runtime data structure populated by
 //!   recursive [`MsgpackTagged::register_into`] calls and consulted by the
 //!   wrapper Serializer/Deserializer (added in a follow-up step).
+#![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 // `msgpack_tagged_derive`'s `MsgpackTagged` proc-macro emits
 // `::msgpack_tagged::...` paths to remain hygienic at every call site. From
 // inside this crate that absolute path doesn't resolve unless we tell rustc
-// the current crate also goes by that name.
+// the current crate also goes by that name. The alias is only ever used from
+// macro-expanded code, so the lint cannot see the uses.
+#[allow(unused_extern_crates)]
 extern crate self as msgpack_tagged;
 
 mod containers;
@@ -103,7 +106,7 @@ pub trait MsgpackTagged: 'static {
     /// The wire shape of this type — either a [`Product`] (struct/tuple
     /// struct) or a [`Sum`] (enum). The derive macro emits this from
     /// `#[tag(N)]` annotations; primitives and container types use a
-    /// `Tagged::Product` with empty `fields`, signalling they don't appear
+    /// `Tagged::Product` with empty `fields`, signaling they don't appear
     /// directly on the wire as a registry entry but still satisfy the bound.
     const TAGGED: Tagged;
 

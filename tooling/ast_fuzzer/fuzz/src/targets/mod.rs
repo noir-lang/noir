@@ -76,7 +76,7 @@ mod tests {
     ///
     /// The `cases` determine how many tests to run on CI.
     /// Tune this so that we can expect CI to be able to get through all cases in reasonable time.
-    pub fn fuzz_with_arbtest(f: impl Fn(&mut Unstructured) -> eyre::Result<()>, cases: u32) {
+    pub(super) fn fuzz_with_arbtest(f: impl Fn(&mut Unstructured) -> eyre::Result<()>, cases: u32) {
         let _ = env_logger::try_init();
 
         if let Some(seed) = seed_from_env() {
@@ -180,10 +180,10 @@ mod tests {
     }
 
     /// Generate seeds for `arbtest` where the top 32 bits are random and the lower 32 bits represent the input size.
-    fn seed_strategy() -> proptest::strategy::BoxedStrategy<u64> {
+    fn seed_strategy() -> BoxedStrategy<u64> {
         (MIN_SIZE..MAX_SIZE)
             .prop_flat_map(move |size| {
-                any::<u64>().prop_map(move |raw| (size as u64) | (raw << u32::BITS))
+                any::<u64>().prop_map(move |raw| u64::from(size) | (raw << u32::BITS))
             })
             .boxed()
     }

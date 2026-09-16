@@ -9,7 +9,7 @@ pub trait HasSize {
 pub struct PublicMutable<T> {}
 
 impl<T> HasSize for PublicMutable<T> {
-    let N: u32 = 1;
+    let N: u32 = 1_u32;
 }
 
 pub struct Wrapper<let N: u32> {

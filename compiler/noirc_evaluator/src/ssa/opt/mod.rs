@@ -6,6 +6,7 @@
 
 mod alias_analysis;
 mod array_get;
+mod array_initialization;
 mod array_set;
 mod array_set_window_optimization;
 mod as_vector_length;
@@ -48,6 +49,7 @@ mod remove_unreachable_instructions;
 mod remove_unused_instructions;
 mod simple_optimization;
 mod simplify_cfg;
+mod trivial_conditional;
 mod unrolling;
 
 pub(crate) use array_get::{

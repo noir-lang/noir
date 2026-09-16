@@ -36,17 +36,18 @@ Example:
 
 #include_code as_array noir_stdlib/src/meta/typ.nr rust
 
-If this type is an array, return a pair of (element type, size type).
+If this type is an array, returns an `ArrayType`. Use `element_type()` to get the type of
+each array element and `length_type()` to get the numeric-constant type describing its length.
 
 Example:
 
 ```rust
 comptime {
     let array_type = quote { [Field; 3] }.as_type();
-    let (field_type, three_type) = array_type.as_array().unwrap();
+    let array = array_type.as_array().unwrap();
 
-    assert(field_type.is_field());
-    assert_eq(three_type.as_constant().unwrap(), 3);
+    assert(array.element_type().is_field());
+    assert_eq(array.length_type().as_constant().unwrap(), 3);
 }
 ```
 
@@ -61,8 +62,8 @@ return the numeric constant.
 
 #include_code as_integer noir_stdlib/src/meta/typ.nr rust
 
-If this is an integer type, return a boolean which is `true`
-if the type is signed, as well as the number of bits of this integer type.
+If this is an integer type, returns an `IntegerType`. Its `is_signed()` method reports
+whether the type is signed, and `bits()` returns its bit width.
 
 ### as_mutable_reference
 
@@ -86,8 +87,8 @@ If this is a `str<N>` type, returns the length `N` as a type.
 
 #include_code as_data_type noir_stdlib/src/meta/typ.nr rust
 
-If this is a struct or enum type, returns the type definition in addition to
-any generic arguments on this type.
+If this is a struct or enum type, returns a `DataType`. Use `definition()` to get its
+`TypeDefinition` and `generics()` to get the concrete generic arguments applied to it.
 
 ### as_tuple
 
@@ -165,6 +166,7 @@ fn foo<T>() where T: Default {
 impl Eq for Type
 impl Hash for Type
 ```
+
 Note that this is syntactic equality, this is not the same as whether two types will type check
 to be the same type. Unless type inference or generics are being used however, users should not
 typically have to worry about this distinction unless `std::meta::typ::fresh_type_variable` is used.

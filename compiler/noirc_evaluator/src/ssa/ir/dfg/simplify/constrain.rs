@@ -345,7 +345,7 @@ mod tests {
     }
 
     // `unchecked_mul` is still sound to decompose for `Field`: the prime modulus has no non-zero
-    // zero divisors, so `v0 * v0 == 0` implies `v0 == 0`. (`simplify_binary` also normalises the
+    // zero divisors, so `v0 * v0 == 0` implies `v0 == 0`. (`simplify_binary` also normalizes the
     // `Field` multiplication back to a checked `mul`, since a field multiplication cannot overflow.)
     #[test]
     fn simplifies_assertion_that_unchecked_squared_field_is_zero() {

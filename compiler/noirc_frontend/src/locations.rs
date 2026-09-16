@@ -19,6 +19,11 @@ pub(crate) struct LocationIndices {
 }
 
 impl LocationIndices {
+    /// How many files have locations indexed against them.
+    pub(crate) fn len(&self) -> usize {
+        self.map_file_to_range.len()
+    }
+
     pub(crate) fn add_location(&mut self, location: Location, node_index: PetGraphIndex) {
         // Some location spans are empty: maybe they are from fictitious nodes?
         if location.span.is_empty() {

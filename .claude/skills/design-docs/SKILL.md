@@ -13,20 +13,20 @@ Beyond the explicit decisions, describe how the feature is **expected to behave*
 detail that an external party — someone who has not read the code — could compare the doc
 against the implementation and find where they disagree. The doc is the specification the
 implementation is checked against; prose so vague that nothing could contradict it does not
-serve that purpose. Cover the normal behaviour, the edge cases, and how the feature
+serve that purpose. Cover the normal behavior, the edge cases, and how the feature
 interacts with the parts of the system around it.
 
-Where a behaviour can be enforced by a test, prefer a short summary plus a link to that
+Where a behavior can be enforced by a test, prefer a short summary plus a link to that
 test over an exhaustive prose description. A test is an executable specification that cannot
-silently drift from the code, whereas prose can — so state the behaviour in a sentence and
+silently drift from the code, whereas prose can — so state the behavior in a sentence and
 link the test that demonstrates it, rather than enumerating every case at length. Link the
 test file and name the test (not a line number, per the linking rule below). Reserve prose
 for what a test cannot capture: the rationale, the invariants, and how the parts fit
 together.
 
-When the intended behaviour is meant to **match an existing system** — for example Rust's
+When the intended behavior is meant to **match an existing system** — for example Rust's
 `#[allow]` / `#[deny]` lint levels — say so explicitly and link to that system's
-documentation. That tells a reader where the reference behaviour is defined so they can
+documentation. That tells a reader where the reference behavior is defined so they can
 check the match, and flags what should change here if that system changes.
 
 Follow these rules when writing or editing a `design/*.md` file.
@@ -40,11 +40,11 @@ Do not narrate how the code got here.
   did…", "originally…", "before this change…". Version control already records how things
   changed; the design doc records the decision that is in force now. Rewrite the rationale
   in the present tense as a property the design guarantees. Keep that property at the
-  design's altitude — the behaviour or invariant it ensures — not the mechanism that
+  design's altitude — the behavior or invariant it ensures — not the mechanism that
   implements it (that belongs next to the code). E.g.
   - ❌ "Historically any lint name was accepted, so a typo silently did nothing; that was
     later fixed."
-  - ✅ "Only recognised lint names are accepted, so a misspelled name is reported to the
+  - ✅ "Only recognized lint names are accepted, so a misspelled name is reported to the
     author rather than silently ignored."
 
 - **Only keep history that is a live constraint.** The single exception is when a past

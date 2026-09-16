@@ -379,16 +379,6 @@ fn path_to_link_target_searching_modules(
                 crate_graph,
             );
         }
-        if check_dependencies && *first_segment == "dep" {
-            segments.remove(0);
-            return path_to_link_target_searching_dependency(
-                crate_id,
-                segments,
-                interner,
-                def_maps,
-                crate_graph,
-            );
-        }
     }
 
     let mut current_module = &def_maps[&module_id.krate][module_id.local_id];

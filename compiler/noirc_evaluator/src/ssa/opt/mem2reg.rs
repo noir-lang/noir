@@ -20,7 +20,7 @@ use crate::ssa::{
         basic_block::BasicBlockId,
         cfg::ControlFlowGraph,
         dfg::DataFlowGraph,
-        dom::DominatorTree,
+        dom::{DominanceQueries, DominatorTree},
         function::Function,
         function_inserter::FunctionInserter,
         instruction::{Instruction, TerminatorInstruction},
@@ -72,7 +72,10 @@ impl Function {
     pub(crate) fn mem2reg(&mut self) {
         let cfg = ControlFlowGraph::with_function(self);
         let post_order = PostOrder::with_cfg(&cfg);
-        let dom_tree = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
+        // Only immediate dominators and the back-edge dominance frontiers are asked for
+        // below, and neither needs the depth-first intervals that answer `dominates`.
+        let dom_tree =
+            DominatorTree::with_cfg_and_post_order(&cfg, &post_order, DominanceQueries::Disabled);
         let mut dom_frontiers = None;
         let blocks = post_order.into_vec_reverse();
 

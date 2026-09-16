@@ -19,12 +19,12 @@ comptime fn my_comptime_fn(typ: TypeDefinition) {
 
 comptime fn check_struct_fields(s: TypeDefinition) {
     let fields = s.fields([]);
-    assert_eq(fields[0].2, quote { pub });
-    assert_eq(fields[1].2, quote { pub(crate) });
+    assert(fields[0].visibility().is_public());
+    assert(fields[1].visibility().is_public_crate());
 
     let fields = s.fields_as_written();
-    assert_eq(fields[0].2, quote { pub });
-    assert_eq(fields[1].2, quote { pub(crate) });
+    assert_eq(fields[0].visibility().as_quoted(), quote { pub });
+    assert_eq(fields[1].visibility().as_quoted(), quote { pub(crate) });
 }
 
 mod foo {
@@ -39,23 +39,24 @@ mod foo {
 fn main() {
     comptime {
         let typ = quote { MyType<i8, i16, i32> }.as_type();
-        let (struct_def, generics) = typ.as_data_type().unwrap();
+        let data_type = typ.as_data_type().unwrap();
+        let struct_def = data_type.definition();
 
-        let fields = struct_def.fields(generics);
+        let fields = struct_def.fields(data_type.generics());
         assert_eq(fields.len(), 2);
 
-        let (field1_name, field1_type, visibility1) = fields[0];
-        let (field2_name, field2_type, visibility2) = fields[1];
+        let field1 = fields[0];
+        let field2 = fields[1];
 
-        assert_eq(field1_name, quote { field1 });
-        assert_eq(field2_name, quote { field2 });
+        assert_eq(field1.name(), quote { field1 });
+        assert_eq(field2.name(), quote { field2 });
 
         // Ensure .fields(generics) actually performs substitutions on generics
-        assert_eq(field1_type, quote { [i8; 10] }.as_type());
-        assert_eq(field2_type, quote { (i16, i32) }.as_type());
+        assert_eq(field1.typ(), quote { [i8; 10] }.as_type());
+        assert_eq(field2.typ(), quote { (i16, i32) }.as_type());
 
-        assert_eq(visibility1, quote {});
-        assert_eq(visibility2, quote {});
+        assert(field1.visibility().is_private());
+        assert(field2.visibility().is_private());
 
         // Test TypeDefinition::as_type_with_generics
         let i32_type = quote [ i32 ].as_type();

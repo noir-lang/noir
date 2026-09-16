@@ -83,7 +83,7 @@ The project uses `just` as a task runner and `cargo` for Rust builds. Minimum Ru
 ### Building
 
 ```bash
-cargo build                          # Build default members (nargo_cli, acvm_cli, etc.)
+cargo build                          # Build default members (nargo_cli, artifact_cli, etc.)
 cargo build -p noirc_frontend        # Build a specific crate
 cargo build --release                # Release build
 ```

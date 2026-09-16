@@ -120,7 +120,12 @@ fn abi_from_ssa(ssa: &Ssa) -> Abi {
         .filter(|ts| !ts.is_empty())
         .map(|types| AbiReturnType { abi_type: abi_type_from_multi_ssa(&types), visibility });
 
-    Abi { parameters, return_type, error_types: Default::default() }
+    Abi {
+        abi_version: noirc_abi::ABI_VERSION,
+        parameters,
+        return_type,
+        error_types: Default::default(),
+    }
 }
 
 /// Create an ABI type from multiple SSA types, for example when multiple values are returned, or appear in arrays.

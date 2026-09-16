@@ -1,6 +1,7 @@
 import { Abi, InputMap } from '@noir-lang/noirc_abi';
 
 export const abi: Abi = {
+  abi_version: 1,
   parameters: [
     {
       name: 'foo',

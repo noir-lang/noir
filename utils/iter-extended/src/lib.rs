@@ -25,7 +25,7 @@ where
 pub fn btree_map<T, K, V, F>(iterable: T, f: F) -> BTreeMap<K, V>
 where
     T: IntoIterator,
-    K: std::cmp::Ord,
+    K: Ord,
     F: FnMut(T::Item) -> (K, V),
 {
     iterable.into_iter().map(f).collect()
@@ -35,7 +35,7 @@ where
 pub fn try_btree_map<T, K, V, E, F>(iterable: T, f: F) -> Result<BTreeMap<K, V>, E>
 where
     T: IntoIterator,
-    K: std::cmp::Ord,
+    K: Ord,
     F: FnMut(T::Item) -> Result<(K, V), E>,
 {
     iterable.into_iter().map(f).collect()

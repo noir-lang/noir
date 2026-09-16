@@ -150,7 +150,7 @@ pub(super) fn compile_prepare_vector_push_procedure<F: AcirField + DebugToString
 }
 
 /// When copy-counting is enabled, reserve the scratch slot immediately after a vector
-/// procedure's argument registers to hold the "an RC copy occurred" flag, initialised to false.
+/// procedure's argument registers to hold the "an RC copy occurred" flag, initialized to false.
 /// [`reallocate_vector_for_insertion`] sets it to true if and only if an RC (copy-on-write) copy,
 /// rather than a necessary capacity reallocation, is performed.
 ///

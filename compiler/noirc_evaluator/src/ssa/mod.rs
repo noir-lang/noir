@@ -172,9 +172,14 @@ pub struct SsaEvaluatorOptions {
     pub validate_between_passes: bool,
 }
 
-/// Defaults used in tests.
-impl Default for SsaEvaluatorOptions {
-    fn default() -> Self {
+impl SsaEvaluatorOptions {
+    /// Options for tests that just need a working pipeline, deliberately not a `Default` impl.
+    ///
+    /// These are not the options a user compiles with: the two correctness checks are skipped
+    /// and the inliner is at its least aggressive setting, so a test written against these runs
+    /// a different pipeline from production. `CompileOptions::as_ssa_options` is the only thing
+    /// that should build the options a real compilation uses, and it sets every field explicitly.
+    pub fn for_tests() -> Self {
         Self {
             ssa_logging: SsaLogging::None,
             ssa_logging_hide_unchanged: false,
@@ -297,6 +302,8 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
             },
             "Unrolling",
         ),
+        SsaPass::new(Ssa::lower_array_initializations, "Array initialization lowering"),
+        SsaPass::new(Ssa::flatten_trivial_conditionals, "Trivial conditional flattening"),
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
         SsaPass::new(Ssa::mem2reg, "Mem2Reg")
             .and_then(Ssa::load_store_forwarding)

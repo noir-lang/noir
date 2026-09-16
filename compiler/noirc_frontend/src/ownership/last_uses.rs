@@ -96,7 +96,7 @@ struct LastUseContext {
     break_dependent_uses: HashSet<IdentId>,
 }
 
-impl Context {
+impl Context<'_> {
     /// Traverse the given function and return the last use(s) of each local variable.
     /// A variable may have multiple last uses if it was last used within a conditional expression.
     pub(super) fn find_last_uses_of_variables(
@@ -311,6 +311,11 @@ impl LastUseContext {
             }
         }
         self.killed = saved_killed;
+        // A `break`/`continue` in the condition targets the enclosing loop, so its
+        // `killed.clear()` must apply to the enclosing set we just restored.
+        if condition_has_break {
+            self.killed.clear();
+        }
         self.has_break = saved_has_break || condition_has_break;
     }
 
@@ -411,11 +416,19 @@ impl LastUseContext {
         let conservative = type_contains_reference(&call.return_type)
             || call.arguments.iter().any(arg_can_store_reference);
 
-        for arg in call.arguments.iter().rev() {
+        for (index, arg) in call.arguments.iter().enumerate().rev() {
             if !conservative
                 && let Expression::Unary(unary) = arg
                 && matches!(unary.operator, UnaryOp::Reference { .. })
-                && base_ident_of_field_access(&unary.rhs).is_some()
+                && let Some(base) = base_ident_of_field_access(&unary.rhs)
+                // Even though the reference cannot escape the call, the *other* arguments of
+                // this same call are evaluated and handed to the callee while the reference is
+                // live. If one of them mentions `x` (e.g. `foo(&mut x, x)`), moving that use
+                // would let the callee's writes through the reference be observed through a
+                // by-value argument, so `x` must be treated as aliased.
+                && !call.arguments.iter().enumerate().any(|(other_index, other_arg)| {
+                    other_index != index && local_occurs_in(base, other_arg)
+                })
             {
                 // Track the use of the variable inside the reference (for last-use analysis)
                 // but skip the unary handler, which would mark the variable as aliased.

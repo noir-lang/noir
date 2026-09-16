@@ -1,3 +1,9 @@
+#![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
+
+// Used by the fuzz target binaries in `fuzz_targets/`, which this crate root's
+// lint does not cover.
+use libfuzzer_sys as _;
+
 use std::path::Path;
 
 use color_eyre::eyre;
@@ -15,7 +21,7 @@ use noirc_frontend::monomorphization::ast::Program;
 pub mod targets;
 
 fn bool_from_env(key: &str) -> bool {
-    std::env::var(key).map(|s| matches!(s.as_str(), "1" | "true" | "yes")).unwrap_or_default()
+    std::env::var(key).is_ok_and(|s| matches!(s.as_str(), "1" | "true" | "yes"))
 }
 
 /// Show all SSA passes during compilation.
@@ -24,9 +30,13 @@ fn show_ssa() -> bool {
 }
 
 pub fn default_ssa_options() -> SsaEvaluatorOptions {
-    ssa::SsaEvaluatorOptions {
+    // Note that these are the test options, not the options `nargo` compiles with: the
+    // under-constrained and Brillig-constraint checks are skipped and the inliner is at its
+    // least aggressive setting. That is what the fuzzer has always run; naming it here rather
+    // than reaching it through `Default` just makes the choice visible.
+    SsaEvaluatorOptions {
         ssa_logging: if show_ssa() { ssa::SsaLogging::All } else { ssa::SsaLogging::None },
-        ..Default::default()
+        ..SsaEvaluatorOptions::for_tests()
     }
 }
 

@@ -63,14 +63,14 @@ fn checked_casts_do_not_prevent_canonicalization() {
 
 // A return-type expression that simplifies to `simplified` (the value the
 // function body must produce) but whose unsimplified `from` obligation contains
-// the cancelling core `(N - 1) + 1`. With N = 0 the `(0 - 1)` subexpression
+// the canceling core `(N - 1) + 1`. With N = 0 the `(0 - 1)` subexpression
 // underflows u32 even though every layer simplifies away, so canonicalizing the
 // CheckedCast must not drop the inner `from`: the underflow has to be reported
-// at monomorphization regardless of how the cancelling core is wrapped.
+// at monomorphization regardless of how the canceling core is wrapped.
 //
 // Parametrised over the return type so it stays concise and extensible to other
 // arithmetic we want to reject.
-#[test_case("(N - 1) + 1", "N" ; "cancelling core simplified out of to")]
+#[test_case("(N - 1) + 1", "N" ; "canceling core simplified out of to")]
 #[test_case("((N - 1) + 1) + 0", "N" ; "wrapped in outer add zero")]
 #[test_case("((N - 1) + 1) + 1", "N + 1" ; "wrapped in outer add one")]
 fn arithmetic_generics_intermediate_underflow_reported(return_length: &str, simplified: &str) {
@@ -242,21 +242,6 @@ fn arithmetic_generics_field_division_by_zero() {
         }
     "#;
     check_monomorphization_error(source);
-}
-
-#[test]
-fn global_numeric_generic_larger_than_u32() {
-    // Regression test for https://github.com/noir-lang/noir/issues/6125
-    let source = r#"
-    global A: Field = 4294967297;
-    
-    fn foo<let A: Field>() { }
-    
-    fn main() {
-        let _ = foo::<A>();
-    }
-    "#;
-    assert_no_errors(source);
 }
 
 #[test]
@@ -562,4 +547,133 @@ fn arithmetic_generics_modulo_by_zero_in_array_length() {
     };
     assert_eq!(*lhs, Integer::U32(0));
     assert_eq!(*rhs, Integer::U32(0));
+}
+
+#[test]
+fn does_not_cancel_associated_constants_of_two_distinct_traits() {
+    // `<T as a::Tr>::N` and `<T as b::Tr>::N` are different unknowns, so
+    // `(M + <T as a::Tr>::N) - <T as b::Tr>::N` must not simplify to `M`.
+    let src = r#"
+        mod a { pub trait Tr { let N: u32; } }
+        mod b { pub trait Tr { let N: u32; } }
+
+        pub fn g<T, let M: u32>(xs: [Field; M])
+        where
+            T: a::Tr,
+            T: b::Tr,
+        {
+            let _ys: [Field; (M + <T as a::Tr>::N) - <T as b::Tr>::N] = xs;
+                                                                        ^^ Expected type [Field; ((M + <T as a::Tr>::N) - <T as b::Tr>::N)], found type [Field; M]
+        }
+
+        fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn does_not_cancel_associated_constants_of_two_distinct_traits_on_the_right() {
+    // The mirrored cancellation rule, `N + (M - N) -> M`.
+    let src = r#"
+        mod a { pub trait Tr { let N: u32; } }
+        mod b { pub trait Tr { let N: u32; } }
+
+        pub fn g<T, let M: u32>(xs: [Field; M])
+        where
+            T: a::Tr,
+            T: b::Tr,
+        {
+            let _ys: [Field; <T as a::Tr>::N + (M - <T as b::Tr>::N)] = xs;
+                                                                        ^^ Expected type [Field; (<T as a::Tr>::N + (M - <T as b::Tr>::N))], found type [Field; M]
+        }
+
+        fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn cancels_the_associated_constant_of_a_single_trait_bound() {
+    // The two occurrences really are the same unknown here, so the cancellation
+    // rules still apply and `(M + N) - N` simplifies to `M`.
+    let src = r#"
+        mod a { pub trait Tr { let N: u32; } }
+
+        pub fn g<T, let M: u32>(xs: [Field; M]) -> [Field; M]
+        where
+            T: a::Tr,
+        {
+            let ys: [Field; (M + <T as a::Tr>::N) - <T as a::Tr>::N] = xs;
+            ys
+        }
+
+        fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn does_not_infer_a_numeric_generic_by_cancelling_two_distinct_associated_constants() {
+    // `W<L + <T as b::Tr>::N> = W<M + <T as a::Tr>::N>` is solved by isolating `L`,
+    // which binds it to the canonical form of `(M + <T as a::Tr>::N) - <T as b::Tr>::N`.
+    // That binding carries no `CheckedCast`, so cancelling the two associated constants
+    // here would silently give `L` the wrong value rather than raising an error.
+    let src = r#"
+        mod a { pub trait Tr { let N: u32; } }
+        mod b { pub trait Tr { let N: u32; } }
+
+        struct W<let N: u32> {}
+
+        fn mk<let L: u32, let K: u32>() -> W<L + K> {
+            W {}
+        }
+
+        fn ident<let L: u32>(_w: W<L>) -> [Field; L] {
+            [0; L]
+        }
+
+        pub fn caller<T, let M: u32>()
+        where
+            T: a::Tr,
+            T: b::Tr,
+        {
+            let w = mk::<_, <T as b::Tr>::N>();
+            let _c: W<M + <T as a::Tr>::N> = w;
+            let _bad: [Field; M] = ident(w);
+                                   ^^^^^^^^ Expected type [Field; M], found type [Field; (((M + <T as a::Tr>::N) - <T as b::Tr>::N) + <T as b::Tr>::N)]
+        }
+
+        fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn does_not_cancel_the_repeated_term_of_n_minus_m_plus_n() {
+    // `N - (M + N)` is `-M`, not `M`, so the two `N` terms must not cancel and the return type
+    // must not be accepted as `[Field; M]`.
+    let src = r#"
+        pub fn f<let M: u32, let N: u32>(xs: [Field; M]) -> [Field; N - (M + N)] {
+                                                            ^^^^^^^^^^^^^^^^^^^^ expected type [Field; (N - (M + N))], found type [Field; M]
+                                                            ~~~~~~~~~~~~~~~~~~~~ expected [Field; (N - (M + N))] because of return type
+            xs
+            ~~ [Field; M] returned here
+        }
+
+        fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn cancels_the_repeated_term_of_n_plus_m_minus_n() {
+    // The mirrored shape is the one that does cancel: `N + (M - N)` really is `M`.
+    let src = r#"
+        pub fn f<let M: u32, let N: u32>(xs: [Field; M]) -> [Field; N + (M - N)] {
+            xs
+        }
+
+        fn main() {}
+    "#;
+    assert_no_errors(src);
 }

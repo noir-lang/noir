@@ -6,9 +6,9 @@ use midlib::PublicBox;
 // it is part of the dependency graph's public surface, not "more private" than the item.
 comptime fn emit_transitive_type_api(_f: FunctionDefinition) -> Quoted {
     let typ = quote { PublicBox }.as_type();
-    let (def, generics) = typ.as_data_type().unwrap();
-    let fields = def.fields(generics);
-    let transitive_type = fields[0].1;
+    let data_type = typ.as_data_type().unwrap();
+    let fields = data_type.definition().fields(data_type.generics());
+    let transitive_type = fields[0].typ();
 
     quote {
         pub fn transitive_type_api() -> Option<$transitive_type> {

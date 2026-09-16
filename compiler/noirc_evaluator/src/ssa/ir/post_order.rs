@@ -876,7 +876,7 @@ mod loop_ordering_property_tests {
     fn optimized_ssa(src: &str) -> Ssa {
         let program = get_monomorphized(src).expect("program should monomorphize");
         let ssa = generate_ssa(program).expect("SSA generation should succeed");
-        let options = SsaEvaluatorOptions::default();
+        let options = SsaEvaluatorOptions::for_tests();
         let builder = SsaBuilder::from_ssa(
             ssa,
             options.ssa_logging.clone(),

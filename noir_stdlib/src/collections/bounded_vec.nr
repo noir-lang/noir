@@ -582,35 +582,6 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
         assert(len <= MaxLen);
         BoundedVec { storage: array, len }
     }
-
-    /// Creates a new BoundedVec from the given array and length.
-    /// The given length must be less than or equal to the length of the array.
-    ///
-    /// This function is unsafe because it expects all elements past the `len` index
-    /// of `array` to be zeroed, but does not check for this internally. Use `from_parts`
-    /// for a safe version of this function which does zero out any indices past the
-    /// given length. Invalidating this assumption can notably cause `BoundedVec::eq`
-    /// to give incorrect results since it will check even elements past `len`.
-    ///
-    /// Example:
-    ///
-    /// ```noir
-    /// let vec: BoundedVec<u32, 4> = BoundedVec::from_parts_unchecked([1, 2, 3, 0], 3);
-    /// assert_eq(vec.len(), 3);
-    ///
-    /// // invalid use!
-    /// let vec1: BoundedVec<u32, 4> = BoundedVec::from_parts_unchecked([1, 2, 3, 1], 3);
-    /// let vec2: BoundedVec<u32, 4> = BoundedVec::from_parts_unchecked([1, 2, 3, 2], 3);
-    ///
-    /// // both vecs have length 3 so we'd expect them to be equal, but this
-    /// // fails because elements past the length are still checked in eq
-    /// assert_eq(vec1, vec2); // fails
-    /// ```
-    #[deprecated("`BoundedVec::from_parts` no longer requires an extra loop, `BoundedVec::from_parts_unchecked` is no longer required")]
-    pub fn from_parts_unchecked(array: [T; MaxLen], len: u32) -> Self {
-        assert(len <= MaxLen);
-        BoundedVec { storage: array, len }
-    }
 }
 
 impl<T, let MaxLen: u32> Eq for BoundedVec<T, MaxLen>

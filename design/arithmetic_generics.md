@@ -26,7 +26,7 @@ When a `CheckedCast` is evaluated to a constant (`Type::evaluate_to_integer_help
   `TypeCheckError::is_constant_arithmetic_failure` — that error propagates even though `to`
   evaluated successfully. This is what rejects `(N - 1) + 1` at `N = 0`.
 - Any other failure of `from` is tolerated and `to`'s value is used. This is required because
-  `from` may contain type variables that simplification cancelled out of `to` (e.g.
+  `from` may contain type variables that simplification canceled out of `to` (e.g.
   `from = (M + N) - M`, `to = N` with `M` unbound), and because canonicalization itself
   evaluates subexpressions speculatively while variables are still unbound.
 
@@ -47,3 +47,19 @@ from/to comparison and compile, as long as the value was never forced elsewhere 
 an array length or a runtime value). The single exception is `NonConstantEvaluated`: the `to`
 side may still contain an unbound-but-defaultable generic, which the surrounding
 `convert_type`/`check_type` recursion will default or reject with `NoDefaultType`.
+
+`check_checked_cast` unifies `from` with `to` into a local set of bindings and evaluates both
+sides with those bindings substituted in, without ever applying them. The type variables in a
+`CheckedCast` are shared with the elaborated program, and monomorphization must leave that
+program as it found it (see `compiler/noirc_frontend/src/monomorphization/purity.rs`): a binding
+committed here would be visible to every later compilation against the same context. An unbound
+variable on either side is therefore resolved for the purpose of the check only.
+
+## `X * 0` folds only when `X` is a variable
+
+`Type::canonicalize` folds `X * 0` to `0` only when `X` is a type variable or named generic. A
+variable evaluates to whatever constant it is eventually bound to, so nothing can go wrong inside
+it. Any larger `X` can fail on its own — an intermediate over/underflow, or a `CheckedCast` whose
+`from` side carries the validation obligation described above — and folding it away would report
+that program as valid. The comptime interpreter is strict here (it evaluates both operands of `*`),
+and the `compare_to_comptime` proptest holds canonicalization to the interpreter's answer.

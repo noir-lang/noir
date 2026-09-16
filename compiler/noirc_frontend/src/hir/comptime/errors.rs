@@ -1,9 +1,8 @@
 use std::fmt::Display;
-use std::rc::Rc;
 
 use crate::{
     Type,
-    ast::{Ident, TraitBound},
+    ast::TraitBound,
     hir::{
         def_collector::dc_crate::CompilationError,
         type_check::{ExpectingOtherError, NoMatchingImplFoundError, TypeCheckError},
@@ -86,14 +85,6 @@ pub enum InterpreterError {
         location: Location,
     },
     NonArrayIndexed {
-        typ: Type,
-        location: Location,
-    },
-    NonIntegerUsedAsIndex {
-        typ: Type,
-        location: Location,
-    },
-    NonIntegerIntegerLiteral {
         typ: Type,
         location: Location,
     },
@@ -245,30 +236,7 @@ pub enum InterpreterError {
     TypeAnnotationsNeededForMethodCall {
         location: Location,
     },
-    ExpectedIdentForStructField {
-        value: String,
-        index: usize,
-        location: Location,
-    },
-    InvalidAttribute {
-        attribute: String,
-        location: Location,
-    },
-    GenericNameShouldBeAnIdent {
-        name: String,
-        location: Location,
-    },
-    DuplicateGeneric {
-        name: Rc<String>,
-        struct_name: String,
-        duplicate_location: Location,
-        existing_location: Location,
-    },
     CannotResolveExpression {
-        location: Location,
-        expression: String,
-    },
-    CannotSetFunctionBody {
         location: Location,
         expression: String,
     },
@@ -288,11 +256,6 @@ pub enum InterpreterError {
     },
     LoopHaltedForUiResponsiveness {
         location: Location,
-    },
-    DuplicateStructFieldInSetFields {
-        name: Ident,
-        index: usize,
-        previous_index: usize,
     },
     CheckedTransmuteFailed {
         actual: Type,
@@ -391,8 +354,6 @@ impl InterpreterError {
             | InterpreterError::NonPointerDereferenced { location, .. }
             | InterpreterError::NonTupleOrStructInMemberAccess { location, .. }
             | InterpreterError::NonArrayIndexed { location, .. }
-            | InterpreterError::NonIntegerUsedAsIndex { location, .. }
-            | InterpreterError::NonIntegerIntegerLiteral { location, .. }
             | InterpreterError::InvalidArrayLength { location, .. }
             | InterpreterError::InvalidAssociatedConstant { location, .. }
             | InterpreterError::InvalidNumericGeneric { location, .. }
@@ -428,13 +389,8 @@ impl InterpreterError {
             | InterpreterError::FailedToResolveTraitBound { location, .. }
             | InterpreterError::FunctionAlreadyResolved { location, .. }
             | InterpreterError::MultipleMatchingImpls { location, .. }
-            | InterpreterError::ExpectedIdentForStructField { location, .. }
-            | InterpreterError::InvalidAttribute { location, .. }
-            | InterpreterError::GenericNameShouldBeAnIdent { location, .. }
-            | InterpreterError::DuplicateGeneric { duplicate_location: location, .. }
             | InterpreterError::TypeAnnotationsNeededForMethodCall { location }
             | InterpreterError::CannotResolveExpression { location, .. }
-            | InterpreterError::CannotSetFunctionBody { location, .. }
             | InterpreterError::UnknownArrayLength { location, .. }
             | InterpreterError::CannotInterpretFormatStringWithErrors { location }
             | InterpreterError::GlobalsDependencyCycle { location }
@@ -454,7 +410,6 @@ impl InterpreterError {
             InterpreterError::ExpectingOtherError(error) => error.location,
             InterpreterError::FailedToParseMacro { error, .. } => error.location(),
             InterpreterError::NoMatchingImplFound { error } => error.location,
-            InterpreterError::DuplicateStructFieldInSetFields { name, .. } => name.location(),
             InterpreterError::Break
             | InterpreterError::Continue
             | InterpreterError::SkippedDueToEarlierErrors => {
@@ -588,17 +543,6 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             InterpreterError::NonArrayIndexed { typ, location } => {
                 let msg = format!("Expected an array or vector but found a(n) {typ}");
                 let secondary = "Only arrays or vectors may be indexed".into();
-                CustomDiagnostic::simple_error(msg, secondary, *location)
-            }
-            InterpreterError::NonIntegerUsedAsIndex { typ, location } => {
-                let msg = format!("Expected an integer but found a(n) {typ}");
-                let secondary =
-                    "Only integers may be indexed. Note that this excludes `field`s".into();
-                CustomDiagnostic::simple_error(msg, secondary, *location)
-            }
-            InterpreterError::NonIntegerIntegerLiteral { typ, location } => {
-                let msg = format!("This integer literal somehow has the type `{typ}`");
-                let secondary = "This is likely a bug".into();
                 CustomDiagnostic::simple_error(msg, secondary, *location)
             }
             InterpreterError::InvalidArrayLength { err, location } => {
@@ -813,45 +757,8 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 error.add_note(message.to_string());
                 error
             }
-            InterpreterError::ExpectedIdentForStructField { value, index, location } => {
-                let msg = format!(
-                    "Quoted value in index {index} of this vector is not a valid field name"
-                );
-                let secondary = format!("`{value}` is not a valid field name for `set_fields`");
-                CustomDiagnostic::simple_error(msg, secondary, *location)
-            }
-            InterpreterError::InvalidAttribute { attribute, location } => {
-                let msg = format!("`{attribute}` is not a valid attribute");
-                let secondary = "Note that this method expects attribute contents, without the leading `#[` or trailing `]`".to_string();
-                CustomDiagnostic::simple_error(msg, secondary, *location)
-            }
-            InterpreterError::GenericNameShouldBeAnIdent { name, location } => {
-                let msg =
-                            "Generic name needs to be a valid identifier (one word beginning with a letter)"
-                                .to_string();
-                let secondary = format!("`{name}` is not a valid identifier");
-                CustomDiagnostic::simple_error(msg, secondary, *location)
-            }
-            InterpreterError::DuplicateGeneric {
-                name,
-                struct_name,
-                duplicate_location,
-                existing_location,
-            } => {
-                let msg = format!("`{struct_name}` already has a generic named `{name}`");
-                let secondary = format!("`{name}` added here a second time");
-                let mut error = CustomDiagnostic::simple_error(msg, secondary, *duplicate_location);
-
-                let existing_msg = format!("`{name}` was previously defined here");
-                error.add_secondary(existing_msg, *existing_location);
-                error
-            }
             InterpreterError::CannotResolveExpression { location, expression } => {
                 let msg = format!("Cannot resolve expression `{expression}`");
-                CustomDiagnostic::simple_error(msg, String::new(), *location)
-            }
-            InterpreterError::CannotSetFunctionBody { location, expression } => {
-                let msg = format!("`{expression}` is not a valid function body");
                 CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::UnknownArrayLength { length, err, location } => {
@@ -886,15 +793,6 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 unreachable!(
                     "SkippedDueToTypeErrors should be handled internally like Break/Continue"
                 )
-            }
-            InterpreterError::DuplicateStructFieldInSetFields { name, index, previous_index } => {
-                let msg = "Duplicate field name in call to `set_fields`".to_string();
-                let secondary = format!(
-                    "`{name}` first used as field {} then again as field {}",
-                    previous_index + 1,
-                    index + 1
-                );
-                CustomDiagnostic::simple_error(msg, secondary, name.location())
             }
             InterpreterError::CheckedTransmuteFailed { actual, expected, location } => {
                 let msg = format!("Checked transmute failed: `{actual:?}` != `{expected:?}`");

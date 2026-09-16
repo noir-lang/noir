@@ -1544,7 +1544,6 @@ mod tests {
         let mul = fn(x, y) {
             x * y;
         };
-        constrain mul(five, ten) == 50;
         assert(ten + five == 15);
     ";
 
@@ -1576,16 +1575,6 @@ mod tests {
             Token::Ident("y".to_string()),
             Token::Semicolon,
             Token::RightBrace,
-            Token::Semicolon,
-            Token::Keyword(Keyword::Constrain),
-            Token::Ident("mul".to_string()),
-            Token::LeftParen,
-            Token::Ident("five".to_string()),
-            Token::Comma,
-            Token::Ident("ten".to_string()),
-            Token::RightParen,
-            Token::Equal,
-            Token::Int(50_i128.into(), None),
             Token::Semicolon,
             Token::Keyword(Keyword::Assert),
             Token::LeftParen,

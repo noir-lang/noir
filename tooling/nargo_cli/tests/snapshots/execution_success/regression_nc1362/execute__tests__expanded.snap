@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn set_ref(r: &mut Field) {
+    *r = 1_Field;
+}
+
+unconstrained fn main() {
+    let mut x: Field = 0_Field;
+    let r: &mut Field = &mut x;
+    let mut arr: [(Field, &mut Field); 1] = [(7_Field, r)];
+    arr[0_u32].0 = 99_Field;
+    let rr: &mut Field = arr[0_u32].1;
+    set_ref(rr);
+    assert(x == 1_Field);
+}

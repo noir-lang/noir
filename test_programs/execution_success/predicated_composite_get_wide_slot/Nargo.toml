@@ -1,0 +1,6 @@
+[package]
+name = "predicated_composite_get_wide_slot"
+type = "bin"
+authors = [""]
+
+[dependencies]

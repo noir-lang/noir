@@ -12,7 +12,13 @@ struct MyStruct {
 
 comptime fn derive_do_nothing(s: TypeDefinition) -> Quoted {
     let typ = s.as_type();
-    let generics = s.generics().map(|g| quote { $g }).join(quote {,});
+    let generics = s
+        .generics()
+        .map(|generic| {
+            let typ = generic.typ();
+            quote { $typ }
+        })
+        .join(quote {,});
     quote {
         impl<$generics> DoNothing for $typ {
             fn do_nothing(_self: Self) {

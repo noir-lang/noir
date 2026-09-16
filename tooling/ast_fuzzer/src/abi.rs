@@ -28,7 +28,12 @@ pub fn program_abi(program: &Program) -> Abi {
         }),
     };
 
-    Abi { parameters, return_type, error_types: BTreeMap::default() }
+    Abi {
+        abi_version: noirc_abi::ABI_VERSION,
+        parameters,
+        return_type,
+        error_types: BTreeMap::default(),
+    }
 }
 
 /// Check if a type is valid as an ABI parameter for the `main` function.

@@ -101,7 +101,7 @@ yarn cut_version <VERSION>
 
 For example: `yarn cut_version v1.0.0-beta.20`
 
-This script does three things:
+This script does four things:
 
 1. Removes the new version from `versions.json` (since `yarn version::stables` will have added it
    from the GitHub release, but the versioned docs snapshot doesn't exist yet).
@@ -109,6 +109,13 @@ This script does three things:
    Nargo CLI reference).
 3. Runs `yarn docusaurus docs:version <VERSION>` to snapshot the current docs into
    `versioned_docs/version-<VERSION>/` and create a matching sidebar in `versioned_sidebars/`.
+4. Deletes any snapshot older than the newest `VERSIONS_TO_KEEP` (see `scripts/cut_version.sh`),
+   keeping `versioned_docs/` bounded. Only the versions listed in `versions.json` are ever built
+   and served — `scripts/setStable.ts` caps that list at `NUMBER_OF_VERSIONS_TO_SHOW` — so older
+   snapshots are dead weight in the repository. `VERSIONS_TO_KEEP` is deliberately larger than
+   `NUMBER_OF_VERSIONS_TO_SHOW`, so raising the number of served versions does not immediately
+   require re-cutting a snapshot that has already been deleted. Docs for deleted versions remain
+   available at their published URLs and in git history.
 
 After this, the new version will appear in the version dropdown on the site.
 

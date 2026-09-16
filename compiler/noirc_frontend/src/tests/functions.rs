@@ -597,6 +597,48 @@ fn errors_on_duplicate_generic_names() {
 }
 
 #[test]
+fn cannot_determine_type_of_generic_argument_in_function_call_with_regular_generic() {
+    let src = r#"
+    fn foo<T>() {}
+
+    fn main()
+    {
+        foo();
+        ^^^ Type annotation needed
+        ~~~ Could not determine the type of the generic argument `T` declared on the function `foo`
+    }
+
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn cannot_determine_type_of_generic_argument_in_function_call_when_it_is_a_numeric_generic() {
+    let src = r#"
+    struct Foo<let N: u32> {
+        array: [Field; N],
+    }
+
+    impl<let N: u32> Foo<N> {
+        fn new() -> Self {
+            Self { array: [0; N] }
+        }
+    }
+
+    fn foo<let N: u32>() -> Foo<N> {
+        Foo::new()
+    }
+
+    fn main() {
+        let _ = foo();
+                ^^^ Type annotation needed
+                ~~~ Could not determine the value of the generic argument `N` declared on the function `foo`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn errors_on_main_with_generics() {
     let src = r#"
     fn main<let F: u32>(x: [Field; F]) {

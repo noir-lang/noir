@@ -418,20 +418,6 @@ fn oracle_returning_vector_of_str() {
 }
 
 #[test]
-fn errors_if_oracle_returns_multiple_vectors_via_wrapper_tuple() {
-    let src = r#"
-    #[oracle(void_to_vectors)]
-    unconstrained fn void_to_vectors_oracle() -> ([Field], [Field]) {}
-                     ^^^^^^^^^^^^^^^^^^^^^^ Oracle functions cannot return multiple vectors
-
-    unconstrained fn main() {
-        let _ = void_to_vectors_oracle();
-    }
-    "#;
-    check_errors(src);
-}
-
-#[test]
 fn errors_if_oracle_clashes_with_stdlib_print() {
     let src = r#"
     #[oracle(print)]

@@ -64,11 +64,11 @@ fn mutable_array_set_optimization_pre_check(func: &Function) {
 
     // flatten_cfg must have run
     super::checks::assert_cfg_is_flattened(func);
-    super::checks::for_each_instruction(func, |instruction, _dfg| {
+    super::checks::for_each_instruction(func, |instruction, dfg| {
         // remove_if_else must have run
         super::checks::assert_not_if_else(instruction);
         // mem2reg must have run (no Load/Store remaining)
-        super::checks::assert_not_load_or_store(instruction);
+        super::checks::assert_not_load_or_store(func, instruction, dfg);
         // No mutable array sets should exist yet (they are created by this pass)
         super::checks::assert_not_mutable_array_set(instruction);
     });
@@ -124,7 +124,7 @@ impl<'f> Context<'f> {
 
     /// Remember this instruction as the last time the array has been read or written to.
     ///
-    /// Any previous instruction marked to be made mutable needs to be cancelled,
+    /// Any previous instruction marked to be made mutable needs to be canceled,
     /// as it turned out not to be the last use.
     fn set_last_use(&mut self, array: ValueId, instruction_id: InstructionId) {
         if let Some(existing) = self.array_to_last_use.insert(array, instruction_id) {

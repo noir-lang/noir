@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-global G_A: Option<bool> = Option::<bool> { _is_some: false, _value: false };
+global G_A: Option<bool> = Option::<bool>::none();
 
 fn main() {
     let a: Option<bool> = Option::<bool>::none();

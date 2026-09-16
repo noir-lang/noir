@@ -83,6 +83,117 @@ pub(crate) fn try_ssa_to_acir(
 }
 
 #[test]
+fn unreachable_terminator_lowers_to_unsatisfiable_circuit() {
+    // ACIR has no `trap` opcode, so a bare `unreachable` terminator must be lowered as
+    // a constraint no prover can satisfy — anything else lets a compiler input producer
+    // (or a future internal producer) trade trap semantics for a satisfiable circuit.
+    // Mirrors the Brillig fix in noir-lang/noir#13448 for its ACIR sibling.
+    let src = "
+    acir(inline) fn main f0 {
+      b0():
+        unreachable
+    }
+    ";
+    let ssa = Ssa::from_str(src).unwrap();
+    let brillig = ssa.to_brillig(&BrilligOptions::default());
+    let (acir_functions, brillig_functions, _) = ssa
+        .into_acir(&brillig, &BrilligOptions::default())
+        .expect("bare-unreachable SSA should reach ACIR codegen");
+
+    assert_eq!(acir_functions.len(), 1);
+    let blackbox_solver = StubbedBlackBoxSolver;
+    let mut acvm = ACVM::new(
+        &blackbox_solver,
+        acir_functions[0].opcodes(),
+        WitnessMap::default(),
+        &brillig_functions,
+        &[],
+    );
+    assert!(matches!(acvm.solve(), ACVMStatus::Failure::<FieldElement>(_)));
+}
+
+#[test]
+fn unreachable_after_always_failing_constrain_emits_no_extra_trap() {
+    // When the block's last instruction is an always-failing constrain
+    // (`remove_unreachable_instructions`'s canonical output shape), no additional
+    // ACIR constraint is required for the following `Unreachable` terminator: the
+    // preceding constraint already traps every witness. Assert both properties:
+    // the circuit still refuses to solve, and it contains no more opcodes than the
+    // failing constrain itself produces.
+    let src_guarded = "
+    acir(inline) fn main f0 {
+      b0():
+        constrain u32 0 == u32 1
+        unreachable
+    }
+    ";
+
+    // Baseline: the same failing constrain followed by a return, no `unreachable`.
+    // Whatever the constrain compiles to sets the opcode floor; the guarded case
+    // must not exceed it.
+    let src_baseline = "
+    acir(inline) fn main f0 {
+      b0():
+        constrain u32 0 == u32 1
+        return
+    }
+    ";
+    let baseline = Ssa::from_str(src_baseline).unwrap();
+    let (baseline_acir, _, _) = baseline
+        .into_acir(&Brillig::default(), &BrilligOptions::default())
+        .expect("baseline should compile");
+    let baseline_opcodes = baseline_acir[0].opcodes().len();
+
+    let guarded = Ssa::from_str(src_guarded).unwrap();
+    let (guarded_acir, guarded_brillig, _) = guarded
+        .into_acir(&Brillig::default(), &BrilligOptions::default())
+        .expect("guarded unreachable should compile");
+
+    assert_eq!(
+        guarded_acir[0].opcodes().len(),
+        baseline_opcodes,
+        "guarded unreachable should add no opcodes beyond its preceding failing constrain",
+    );
+
+    let blackbox_solver = StubbedBlackBoxSolver;
+    let mut acvm = ACVM::new(
+        &blackbox_solver,
+        guarded_acir[0].opcodes(),
+        WitnessMap::default(),
+        &guarded_brillig,
+        &[],
+    );
+    assert!(matches!(acvm.solve(), ACVMStatus::Failure::<FieldElement>(_)));
+}
+
+#[test]
+fn unreachable_after_predicated_constrain_not_equal_still_traps() {
+    // `ConstrainNotEqual` is predicated at ACIR gen (`assert_neq_var` multiplies by the current
+    // side-effects predicate), so a `constrain_not_equal a != a` under a zero predicate does
+    // not actually fail at runtime: the emitted assertion folds to `0 == 0`. The `Unreachable`
+    // recognizer must therefore not treat that shape as always-failing — the trap has to be
+    // emitted, or the whole block compiles to an empty, satisfiable circuit.
+    let src = "
+    acir(inline) fn main f0 {
+      b0():
+        enable_side_effects u1 0
+        constrain u32 5 != u32 5
+        unreachable
+    }
+    ";
+    let (program, _) = try_ssa_to_acir(src).expect("SSA should compile");
+    let blackbox_solver = StubbedBlackBoxSolver;
+    let mut acvm = ACVM::new(
+        &blackbox_solver,
+        program.functions[0].opcodes.as_slice(),
+        WitnessMap::default(),
+        &[],
+        &[],
+    );
+    assert!(matches!(acvm.solve(), ACVMStatus::Failure::<FieldElement>(_)));
+}
+
+#[test]
 fn unchecked_mul_should_not_have_range_check() {
     let src = "
     acir(inline) fn main f0 {

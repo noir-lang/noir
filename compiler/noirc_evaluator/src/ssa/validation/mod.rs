@@ -296,6 +296,18 @@ impl<'f> Validator<'f> {
                     );
                 }
             }
+            Instruction::Not(value) => {
+                let value_type = dfg.type_of_value(*value);
+                if *value_type == Type::field() {
+                    // ACIR lowers `not` as `2^bit_size - 1 - x`, and a field's bit size is the
+                    // modulus' — there is no such constant. The frontend, the SSA interpreter and
+                    // Brillig all decline `!` on a field for the same reason.
+                    panic!("Cannot use `not` with field elements");
+                }
+                if !value_type.is_numeric() {
+                    panic!("Not operand must be numeric, got {value_type}");
+                }
+            }
             Instruction::ArrayGet { array, index, .. }
             | Instruction::ArraySet { array, index, .. } => {
                 let index_type = dfg.type_of_value(*index);
@@ -303,7 +315,7 @@ impl<'f> Validator<'f> {
                     panic!("ArrayGet/ArraySet index must be u32");
                 }
                 let array_type = dfg.type_of_value(*array);
-                if !array_type.contains_an_array() {
+                if !array_type.is_array() {
                     panic!("ArrayGet/ArraySet must operate on an array; got {array_type}");
                 }
                 assert!(!array_type.is_nested_vector(), "ICE: Nested vector type is not supported");
@@ -2964,6 +2976,34 @@ mod tests {
         let _ = Ssa::from_str(src).unwrap();
     }
 
+    /// ACIR lowers `not` as `2^bit_size - 1 - x`; for a field that constant does not exist, and
+    /// building it aborts the compiler in `power_of_two`. The frontend, the SSA interpreter and
+    /// Brillig all decline `!` on a field, so the validator has to as well.
+    #[test]
+    #[should_panic(expected = "Cannot use `not` with field elements")]
+    fn not_on_field_has_incorrect_type() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = not v0
+            return v1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn not_on_integer_is_accepted() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u8):
+            v1 = not v0
+            return v1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
     #[test]
     #[should_panic(expected = "Cannot use `or` with field elements")]
     fn bitwise_or_has_incorrect_type() {
@@ -3633,48 +3673,34 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "store value should have type Field, not u32")]
-    fn disallows_store_with_wrong_type() {
+    #[should_panic(expected = "ArrayGet/ArraySet must operate on an array")]
+    fn disallows_array_get_on_reference_to_array() {
         let src = "
-        acir(inline) pure fn main f0 {
+        brillig(inline) fn main f0 {
           b0():
-            v0 = allocate -> &mut Field
-            store u32 1 at v0
-            return
+            v1 = make_array [Field 11, Field 22, Field 33] : [Field; 3]
+            v2 = allocate -> &mut [Field; 3]
+            store v1 at v2
+            v3 = array_get v2, index u32 0 -> Field // v2 is &mut [Field; 3]
+            return v3
         }
         ";
         let _ = Ssa::from_str(src).unwrap();
     }
 
     #[test]
-    #[cfg(debug_assertions)]
-    #[should_panic(expected = "Number of arguments in jmp must match number of block parameters")]
-    fn detects_terminator_argument_arity_mismatch() {
+    #[should_panic(expected = "ArrayGet/ArraySet must operate on an array")]
+    fn disallows_array_set_on_reference_to_array() {
         let src = "
-        acir(inline) fn main f0 {
+        brillig(inline) fn main f0 {
           b0():
-            jmp b1()
-          b1(v0: Field):
-            return
+            v1 = make_array [Field 11, Field 22, Field 33] : [Field; 3]
+            v2 = allocate -> &mut [Field; 3]
+            store v1 at v2
+            v3 = array_set v2, index u32 0, value Field 44 // v2 is &mut [Field; 3]
+            return v3
         }
         ";
-        let ssa = Ssa::from_str_no_validation(src).unwrap();
-        super::validate_terminators(ssa.main());
-    }
-
-    #[test]
-    #[cfg(debug_assertions)]
-    #[should_panic(expected = "Argument type in jmp must match block parameter type")]
-    fn detects_terminator_argument_type_mismatch() {
-        let src = "
-        acir(inline) fn main f0 {
-          b0():
-            jmp b1(u1 1)
-          b1(v0: Field):
-            return
-        }
-        ";
-        let ssa = Ssa::from_str_no_validation(src).unwrap();
-        super::validate_terminators(ssa.main());
+        let _ = Ssa::from_str(src).unwrap();
     }
 }

@@ -91,7 +91,7 @@ use crate::ssa::{
         basic_block::BasicBlockId,
         cfg::ControlFlowGraph,
         dfg::DataFlowGraph,
-        dom::DominatorTree,
+        dom::{DominanceQueries, DominatorTree},
         function::Function,
         function_inserter::FunctionInserter,
         instruction::{Instruction, InstructionId},
@@ -365,7 +365,11 @@ impl PostDominanceFrontiers {
     fn with_function(func: &mut Function) -> Self {
         let reversed_cfg = ControlFlowGraph::extended_reverse(func);
         let post_order = PostOrder::with_cfg(&reversed_cfg);
-        let post_dom = DominatorTree::with_cfg_and_post_order(&reversed_cfg, &post_order);
+        let post_dom = DominatorTree::with_cfg_and_post_order(
+            &reversed_cfg,
+            &post_order,
+            DominanceQueries::Enabled,
+        );
         let post_dom_frontiers = post_dom.compute_dominance_frontiers(&reversed_cfg);
 
         Self { post_dom_frontiers }
@@ -481,7 +485,7 @@ impl<'f> LoopInvariantContext<'f> {
                     }
                 } else {
                     let dfg = &self.inserter.function.dfg;
-                    // If the block has already been labelled as impure, we don't need to check the current
+                    // If the block has already been labeled as impure, we don't need to check the current
                     // instruction's side effects.
                     // Note that purity is dependent on the instruction ordering, which is expected because
                     // it tells us exactly if there is a side-effect instruction before the current one.
@@ -3357,7 +3361,7 @@ mod tests {
     ///
     /// The bump is redundant in this particular shape, since the entry block already protects
     /// `v1`: the pre-header scan in `unprotected_mutable_array_operands` is deliberately local,
-    /// and [`inserts_inc_rc_for_hoisted_array_set`] pins the case it does recognise. Conservative
+    /// and [`inserts_inc_rc_for_hoisted_array_set`] pins the case it does recognize. Conservative
     /// in this direction costs one rc bump; conservative in the other is a miscompilation. See
     /// [`hoisted_vector_mutator_guard_prevents_operand_corruption`] for the shape where the guard
     /// changes the result.

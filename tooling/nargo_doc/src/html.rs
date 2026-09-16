@@ -1157,8 +1157,10 @@ impl HTMLCreator {
                 self.output.push('\n');
                 self.output.push_str(&" ".repeat(4 * (indent + 1)));
             }
-            if param.mut_ref {
-                self.output.push_str("&mut ");
+            match param.self_reference {
+                Some(true) => self.output.push_str("&mut "),
+                Some(false) => self.output.push('&'),
+                None => (),
             }
             self.output.push_str(&param.name);
 
@@ -1243,6 +1245,20 @@ impl HTMLCreator {
             ));
         } else {
             self.output.push_str(name);
+        }
+    }
+
+    /// Wraps a nested arithmetic expression in parentheses so the rendered type keeps the grouping
+    /// the source wrote: without them `[Field; (N + M) * 2]` and `[Field; N + (M * 2)]` both render
+    /// as `[Field; N + M * 2]`, which is one of them and not the other.
+    fn render_infix_operand(&mut self, operand: &Type) {
+        let parenthesize = matches!(operand, Type::InfixExpr { .. });
+        if parenthesize {
+            self.output.push('(');
+        }
+        self.render_type(operand);
+        if parenthesize {
+            self.output.push(')');
         }
     }
 
@@ -1363,11 +1379,11 @@ impl HTMLCreator {
                 self.output.push_str(&escape_html(name));
             }
             Type::InfixExpr { lhs, operator, rhs } => {
-                self.render_type(lhs);
+                self.render_infix_operand(lhs);
                 self.output.push(' ');
                 self.output.push_str(operator);
                 self.output.push(' ');
-                self.render_type(rhs);
+                self.render_infix_operand(rhs);
             }
             Type::TraitAsType { trait_id, trait_name, ordered_generics, named_generics } => {
                 self.output.push_str("impl ");
@@ -1809,8 +1825,10 @@ fn function_signature_to_string(function: &Function, self_type: Option<&Type>) -
         if index > 0 {
             string.push_str(", ");
         }
-        if param.mut_ref {
-            string.push_str("&mut ");
+        match param.self_reference {
+            Some(true) => string.push_str("&mut "),
+            Some(false) => string.push('&'),
+            None => (),
         }
         string.push_str(&param.name);
         if !is_self_param(param, self_type) {
@@ -1920,9 +1938,9 @@ fn type_to_string(typ: &Type, self_type: Option<&Type>) -> String {
         Type::InfixExpr { lhs, operator, rhs } => {
             format!(
                 "{}{}{}",
-                type_to_string(lhs, self_type),
+                infix_operand_to_string(lhs, self_type),
                 operator,
-                type_to_string(rhs, self_type)
+                infix_operand_to_string(rhs, self_type)
             )
         }
         Type::TraitAsType { trait_name, ordered_generics, named_generics, trait_id: _ } => {
@@ -1955,28 +1973,211 @@ fn type_to_string(typ: &Type, self_type: Option<&Type>) -> String {
     }
 }
 
+/// Wraps a nested arithmetic expression in parentheses so the rendered type keeps the grouping the
+/// source wrote: without them `[Field; (N + M) * 2]` and `[Field; N + (M * 2)]` both render as
+/// `[Field; N + M * 2]`, which is one of them and not the other.
+fn infix_operand_to_string(operand: &Type, self_type: Option<&Type>) -> String {
+    let operand_string = type_to_string(operand, self_type);
+    if matches!(operand, Type::InfixExpr { .. }) {
+        format!("({operand_string})")
+    } else {
+        operand_string
+    }
+}
+
 fn is_self_param(param: &FunctionParam, self_type: Option<&Type>) -> bool {
     if param.name != "self" {
         return false;
     }
 
-    let Some(self_type) = self_type else {
-        if let Type::Generic(generic) = &param.r#type {
-            return generic == "Self";
-        }
-        return false;
-    };
-
-    if param.mut_ref {
-        let Type::Reference { r#type, mutable: true } = &param.r#type else {
+    // A receiver taken by reference is `Reference { .. }` around the type the shorthand stands for,
+    // and the reference's mutability has to be the one the receiver was written with.
+    let mut typ = &param.r#type;
+    if let Some(mutable) = param.self_reference {
+        let Type::Reference { r#type, mutable: type_mutable } = typ else {
             return false;
         };
-        r#type.as_ref() == self_type
-    } else {
-        &param.r#type == self_type
+        if *type_mutable != mutable {
+            return false;
+        }
+        typ = r#type;
+    }
+
+    match self_type {
+        // In a trait declaration there is no concrete self type, only the `Self` generic.
+        None => matches!(typ, Type::Generic(generic) if generic == "Self"),
+        Some(self_type) => typ == self_type,
     }
 }
 
 pub(super) fn escape_html(input: &str) -> String {
     input.replace('<', "&lt;").replace('>', "&gt;")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::items::ItemKind;
+
+    /// Builds the `self`-taking method `fn method(<receiver>)` as the doc model represents it.
+    fn method_with_receiver(receiver: FunctionParam) -> Function {
+        Function {
+            id: ItemId {
+                location: noirc_errors::Location::dummy(),
+                kind: ItemKind::Function,
+                name: "method".to_string(),
+            },
+            unconstrained: false,
+            comptime: false,
+            name: "method".to_string(),
+            generics: Vec::new(),
+            params: vec![receiver],
+            return_type: Type::Unit,
+            where_clause: Vec::new(),
+            comments: None,
+            deprecated: None,
+        }
+    }
+
+    fn self_type() -> Type {
+        Type::Generic("T".to_string())
+    }
+
+    fn reference(r#type: Type, mutable: bool) -> Type {
+        Type::Reference { r#type: Box::new(r#type), mutable }
+    }
+
+    fn generic(name: &str) -> Type {
+        Type::Generic(name.to_string())
+    }
+
+    fn infix(lhs: Type, operator: &str, rhs: Type) -> Type {
+        Type::InfixExpr { lhs: Box::new(lhs), operator: operator.to_string(), rhs: Box::new(rhs) }
+    }
+
+    fn html_creator(self_type: Option<Type>) -> HTMLCreator {
+        HTMLCreator {
+            output: String::new(),
+            files: Vec::new(),
+            current_path: Vec::new(),
+            current_crate_version: None,
+            workspace_name: String::new(),
+            id_to_info: HashMap::new(),
+            all_trait_impls: HashMap::new(),
+            self_type,
+        }
+    }
+
+    /// Renders through the HTML signature renderer, with the markup stripped so the assertions
+    /// read as the signatures a reader sees.
+    fn render_html_signature(function: &Function, self_type: Option<Type>) -> String {
+        let mut creator = html_creator(self_type);
+        creator.render_function_signature_inner(function, false, false, 0);
+        creator.output
+    }
+
+    fn render_type_to_html(typ: &Type) -> String {
+        let mut creator = html_creator(None);
+        creator.render_type(typ);
+        creator.output
+    }
+
+    /// Both signature renderers must print a receiver the way the source spells it. `&mut self: &T`
+    /// is not valid Noir, and it tells a reader that an immutable read requires mutable access.
+    #[track_caller]
+    fn assert_receiver_renders_as(
+        receiver: FunctionParam,
+        self_type: Option<Type>,
+        expected: &str,
+    ) {
+        let function = method_with_receiver(receiver);
+        let expected = format!("pub fn method({expected})");
+
+        assert_eq!(render_html_signature(&function, self_type.clone()), expected);
+        assert_eq!(function_signature_to_string(&function, self_type.as_ref()), expected);
+    }
+
+    /// `(N + M) * 2` and `N + (M * 2)` are different lengths, so they have to render differently.
+    /// The two renderers space their operators differently, which is why the expectations do too.
+    #[track_caller]
+    fn assert_renders_as(typ: Type, expected_html: &str, expected_string: &str) {
+        assert_eq!(render_type_to_html(&typ), expected_html);
+        assert_eq!(type_to_string(&typ, None), expected_string);
+    }
+
+    #[test]
+    fn renders_immutable_reference_receiver() {
+        let receiver = FunctionParam {
+            name: "self".to_string(),
+            r#type: reference(self_type(), false),
+            self_reference: Some(false),
+        };
+        assert_receiver_renders_as(receiver, Some(self_type()), "&self");
+    }
+
+    #[test]
+    fn renders_mutable_reference_receiver() {
+        let receiver = FunctionParam {
+            name: "self".to_string(),
+            r#type: reference(self_type(), true),
+            self_reference: Some(true),
+        };
+        assert_receiver_renders_as(receiver, Some(self_type()), "&mut self");
+    }
+
+    #[test]
+    fn renders_by_value_receiver() {
+        let receiver =
+            FunctionParam { name: "self".to_string(), r#type: self_type(), self_reference: None };
+        assert_receiver_renders_as(receiver, Some(self_type()), "self");
+    }
+
+    /// A method declared in a trait has no concrete self type, only the `Self` generic.
+    #[test]
+    fn renders_trait_declaration_receivers() {
+        let immutable = FunctionParam {
+            name: "self".to_string(),
+            r#type: reference(Type::Generic("Self".to_string()), false),
+            self_reference: Some(false),
+        };
+        assert_receiver_renders_as(immutable, None, "&self");
+
+        let mutable = FunctionParam {
+            name: "self".to_string(),
+            r#type: reference(Type::Generic("Self".to_string()), true),
+            self_reference: Some(true),
+        };
+        assert_receiver_renders_as(mutable, None, "&mut self");
+    }
+
+    /// A reference parameter that is not the receiver keeps its name and its type annotation.
+    #[test]
+    fn renders_non_receiver_reference_parameter() {
+        let param = FunctionParam {
+            name: "x".to_string(),
+            r#type: reference(self_type(), false),
+            self_reference: None,
+        };
+        assert_receiver_renders_as(param, Some(self_type()), "x: &Self");
+    }
+
+    #[test]
+    fn renders_grouped_left_operand() {
+        let typ =
+            infix(infix(generic("N"), "+", generic("M")), "*", Type::Constant("2".to_string()));
+        assert_renders_as(typ, "(N + M) * 2", "(N+M)*2");
+    }
+
+    #[test]
+    fn renders_grouped_right_operand() {
+        let typ =
+            infix(generic("N"), "+", infix(generic("M"), "*", Type::Constant("2".to_string())));
+        assert_renders_as(typ, "N + (M * 2)", "N+(M*2)");
+    }
+
+    #[test]
+    fn renders_ungrouped_expression_without_parentheses() {
+        let typ = infix(generic("N"), "+", generic("M"));
+        assert_renders_as(typ, "N + M", "N+M");
+    }
 }

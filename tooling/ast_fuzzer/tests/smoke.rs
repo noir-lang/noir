@@ -27,7 +27,7 @@ fn arb_program_can_be_executed() {
             let program = arb_program(u, config)?;
             let abi = program_abi(&program);
 
-            let options = ssa::SsaEvaluatorOptions::default();
+            let options = ssa::SsaEvaluatorOptions::for_tests();
 
             // Print the AST if something goes wrong, then panic.
             let print_ast_and_panic = |msg: &str| -> ! {

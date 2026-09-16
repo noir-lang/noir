@@ -186,9 +186,9 @@ fn brillig_global_array_not_coalesced_with_block_param() {
     let brillig = ssa_to_brillig_artifacts(src);
     let main = &brillig.ssa_function_to_brillig[&Id::test_new(0)];
     // Key opcodes:
-    //   13: sp[2] = @68  — global g0 lives in global register @68, copied into sp[2] (param v3's slot)
-    //   15: return        — returns sp[1]; global and param use separate allocations (not coalesced)
-    assert_artifact_snapshot!(main, @r"
+    //   17: sp[2] = @68  — global g0 lives in global register @68, copied into sp[2] (param v3's slot)
+    //   19: return        — returns sp[1]; global and param use separate allocations (not coalesced)
+    assert_artifact_snapshot!(main, @"
     fn main
      0: sp[3] = @1
      1: @1 = u32 add @1, @2

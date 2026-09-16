@@ -4,9 +4,9 @@ use mylib::PublicBox;
 // publicly, so splicing it into a public API is allowed: hand-written code could name it too.
 comptime fn emit_reexported_type_api(_f: FunctionDefinition) -> Quoted {
     let typ = quote { PublicBox }.as_type();
-    let (def, generics) = typ.as_data_type().unwrap();
-    let fields = def.fields(generics);
-    let reexported_type = fields[0].1;
+    let data_type = typ.as_data_type().unwrap();
+    let fields = data_type.definition().fields(data_type.generics());
+    let reexported_type = fields[0].typ();
 
     quote {
         pub fn reexported_type_api() -> Option<$reexported_type> {
