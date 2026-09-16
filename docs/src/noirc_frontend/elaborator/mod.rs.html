@@ -382,7 +382,7 @@
 <a href=#382 id=382 data-nosnippet>382</a>
 <a href=#383 id=383 data-nosnippet>383</a><span class="kw">impl</span>&lt;<span class="lifetime">'context</span>&gt; Elaborator&lt;<span class="lifetime">'context</span>&gt; {
 <a href=#384 id=384 data-nosnippet>384</a>    <span class="attr">#[allow(clippy::too_many_arguments)]
-<a href=#385 id=385 data-nosnippet>385</a>    </span><span class="kw">pub fn </span>new(
+<a href=#385 id=385 data-nosnippet>385</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(
 <a href=#386 id=386 data-nosnippet>386</a>        interner: <span class="kw-2">&amp;</span><span class="lifetime">'context </span><span class="kw-2">mut </span>NodeInterner,
 <a href=#387 id=387 data-nosnippet>387</a>        def_maps: <span class="kw-2">&amp;</span><span class="lifetime">'context </span><span class="kw-2">mut </span>DefMaps,
 <a href=#388 id=388 data-nosnippet>388</a>        usage_tracker: <span class="kw-2">&amp;</span><span class="lifetime">'context </span><span class="kw-2">mut </span>UsageTracker,
@@ -436,7 +436,7 @@
 <a href=#436 id=436 data-nosnippet>436</a>            &amp;&amp; <span class="self">self</span>.item.module.is_in_module(<span class="self">self</span>.def_maps[<span class="kw-2">&amp;</span><span class="self">self</span>.crate_id].root())
 <a href=#437 id=437 data-nosnippet>437</a>    }
 <a href=#438 id=438 data-nosnippet>438</a>
-<a href=#439 id=439 data-nosnippet>439</a>    <span class="kw">pub fn </span>from_context(
+<a href=#439 id=439 data-nosnippet>439</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>from_context(
 <a href=#440 id=440 data-nosnippet>440</a>        context: <span class="kw-2">&amp;</span><span class="lifetime">'context </span><span class="kw-2">mut </span>Context,
 <a href=#441 id=441 data-nosnippet>441</a>        crate_id: CrateId,
 <a href=#442 id=442 data-nosnippet>442</a>        options: ElaboratorOptions&lt;<span class="lifetime">'context</span>&gt;,
@@ -459,7 +459,7 @@
 <a href=#459 id=459 data-nosnippet>459</a>    }
 <a href=#460 id=460 data-nosnippet>460</a>
 <a href=#461 id=461 data-nosnippet>461</a>    <span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#462 id=462 data-nosnippet>462</a>    </span><span class="kw">pub fn </span>elaborate(
+<a href=#462 id=462 data-nosnippet>462</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>elaborate(
 <a href=#463 id=463 data-nosnippet>463</a>        context: <span class="kw-2">&amp;</span><span class="lifetime">'context </span><span class="kw-2">mut </span>Context,
 <a href=#464 id=464 data-nosnippet>464</a>        crate_id: CrateId,
 <a href=#465 id=465 data-nosnippet>465</a>        items: CollectedItems,
@@ -469,7 +469,7 @@
 <a href=#469 id=469 data-nosnippet>469</a>    }
 <a href=#470 id=470 data-nosnippet>470</a>
 <a href=#471 id=471 data-nosnippet>471</a>    <span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#472 id=472 data-nosnippet>472</a>    </span><span class="kw">pub fn </span>elaborate_and_return_self(
+<a href=#472 id=472 data-nosnippet>472</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>elaborate_and_return_self(
 <a href=#473 id=473 data-nosnippet>473</a>        context: <span class="kw-2">&amp;</span><span class="lifetime">'context </span><span class="kw-2">mut </span>Context,
 <a href=#474 id=474 data-nosnippet>474</a>        crate_id: CrateId,
 <a href=#475 id=475 data-nosnippet>475</a>        items: CollectedItems,
@@ -1043,7 +1043,7 @@
 <a href=#1043 id=1043 data-nosnippet>1043</a>        }
 <a href=#1044 id=1044 data-nosnippet>1044</a>    }
 <a href=#1045 id=1045 data-nosnippet>1045</a>
-<a href=#1046 id=1046 data-nosnippet>1046</a>    <span class="kw">pub fn </span>get_module(<span class="kw-2">&amp;</span><span class="self">self</span>, module: ModuleId) -&gt; <span class="kw-2">&amp;</span>ModuleData {
+<a href=#1046 id=1046 data-nosnippet>1046</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_module(<span class="kw-2">&amp;</span><span class="self">self</span>, module: ModuleId) -&gt; <span class="kw-2">&amp;</span>ModuleData {
 <a href=#1047 id=1047 data-nosnippet>1047</a>        <span class="kw">let </span>message = <span class="string">"A crate should always be present for a given crate id"</span>;
 <a href=#1048 id=1048 data-nosnippet>1048</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.def_maps.get(<span class="kw-2">&amp;</span>module.krate).expect(message)[module.local_id]
 <a href=#1049 id=1049 data-nosnippet>1049</a>    }
@@ -1146,7 +1146,7 @@
 <a href=#1146 id=1146 data-nosnippet>1146</a>    <span class="doccomment">/// Register a use of the given unstable feature. Errors if the feature has not
 <a href=#1147 id=1147 data-nosnippet>1147</a>    /// been explicitly enabled in this package.
 <a href=#1148 id=1148 data-nosnippet>1148</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#1149 id=1149 data-nosnippet>1149</a>    </span><span class="kw">pub fn </span>use_unstable_feature(<span class="kw-2">&amp;mut </span><span class="self">self</span>, feature: UnstableFeature, location: Location) {
+<a href=#1149 id=1149 data-nosnippet>1149</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>use_unstable_feature(<span class="kw-2">&amp;mut </span><span class="self">self</span>, feature: UnstableFeature, location: Location) {
 <a href=#1150 id=1150 data-nosnippet>1150</a>        <span class="comment">// Is the feature globally enabled via CLI options?
 <a href=#1151 id=1151 data-nosnippet>1151</a>        </span><span class="kw">if </span><span class="self">self</span>.options.enabled_unstable_features.contains(<span class="kw-2">&amp;</span>feature) {
 <a href=#1152 id=1152 data-nosnippet>1152</a>            <span class="kw">return</span>;
@@ -1173,7 +1173,7 @@
 <a href=#1173 id=1173 data-nosnippet>1173</a>    <span class="doccomment">/// Run the given function using the resolver and return true if any errors (not warnings)
 <a href=#1174 id=1174 data-nosnippet>1174</a>    /// occurred while running it.
 <a href=#1175 id=1175 data-nosnippet>1175</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#1176 id=1176 data-nosnippet>1176</a>    </span><span class="kw">pub fn </span>errors_occurred_in&lt;T&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, f: <span class="kw">impl </span>FnOnce(<span class="kw-2">&amp;mut </span><span class="self">Self</span>) -&gt; T) -&gt; (bool, T) {
+<a href=#1176 id=1176 data-nosnippet>1176</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>errors_occurred_in&lt;T&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, f: <span class="kw">impl </span>FnOnce(<span class="kw-2">&amp;mut </span><span class="self">Self</span>) -&gt; T) -&gt; (bool, T) {
 <a href=#1177 id=1177 data-nosnippet>1177</a>        <span class="kw">let </span>previous_errors = <span class="self">self</span>.errors.len();
 <a href=#1178 id=1178 data-nosnippet>1178</a>        <span class="kw">let </span>ret = f(<span class="self">self</span>);
 <a href=#1179 id=1179 data-nosnippet>1179</a>        <span class="kw">let </span>errored = <span class="self">self</span>.errors.iter().skip(previous_errors).any(|error| error.is_error());

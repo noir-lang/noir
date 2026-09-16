@@ -54,11 +54,12 @@
 <a href=#54 id=54 data-nosnippet>54</a>
 <a href=#55 id=55 data-nosnippet>55</a><span class="kw">impl</span>&lt;T&gt; GenericOptions&lt;<span class="lifetime">'_</span>, T&gt; {
 <a href=#56 id=56 data-nosnippet>56</a>    <span class="doccomment">/// A sane default of frontend options for running tests
-<a href=#57 id=57 data-nosnippet>57</a>    </span><span class="kw">pub fn </span>test_default() -&gt; GenericOptions&lt;<span class="lifetime">'static</span>, T&gt; {
-<a href=#58 id=58 data-nosnippet>58</a>        GenericOptions {
-<a href=#59 id=59 data-nosnippet>59</a>            debug_comptime_in_file: <span class="prelude-val">None</span>,
-<a href=#60 id=60 data-nosnippet>60</a>            enabled_unstable_features: <span class="kw-2">&amp;</span>[UnstableFeature::Enums],
-<a href=#61 id=61 data-nosnippet>61</a>            disable_required_unstable_features: <span class="bool-val">true</span>,
-<a href=#62 id=62 data-nosnippet>62</a>        }
-<a href=#63 id=63 data-nosnippet>63</a>    }
-<a href=#64 id=64 data-nosnippet>64</a>}</code></pre></div></section></main></body></html>
+<a href=#57 id=57 data-nosnippet>57</a>    </span><span class="attr">#[cfg(any(test, feature = <span class="string">"test_utils"</span>))]
+<a href=#58 id=58 data-nosnippet>58</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>test_default() -&gt; GenericOptions&lt;<span class="lifetime">'static</span>, T&gt; {
+<a href=#59 id=59 data-nosnippet>59</a>        GenericOptions {
+<a href=#60 id=60 data-nosnippet>60</a>            debug_comptime_in_file: <span class="prelude-val">None</span>,
+<a href=#61 id=61 data-nosnippet>61</a>            enabled_unstable_features: <span class="kw-2">&amp;</span>[UnstableFeature::Enums],
+<a href=#62 id=62 data-nosnippet>62</a>            disable_required_unstable_features: <span class="bool-val">true</span>,
+<a href=#63 id=63 data-nosnippet>63</a>        }
+<a href=#64 id=64 data-nosnippet>64</a>    }
+<a href=#65 id=65 data-nosnippet>65</a>}</code></pre></div></section></main></body></html>

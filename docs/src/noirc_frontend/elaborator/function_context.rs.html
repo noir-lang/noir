@@ -153,7 +153,7 @@
 <a href=#153 id=153 data-nosnippet>153</a>    <span class="doccomment">/// Push an `ExprId` that corresponds to an integer literal.
 <a href=#154 id=154 data-nosnippet>154</a>    /// At the end of the current function we'll check that they fit in their type's range.
 <a href=#155 id=155 data-nosnippet>155</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#156 id=156 data-nosnippet>156</a>    </span><span class="kw">pub fn </span>push_integer_literal_expr_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>, literal_expr_id: ExprId) {
+<a href=#156 id=156 data-nosnippet>156</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>push_integer_literal_expr_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>, literal_expr_id: ExprId) {
 <a href=#157 id=157 data-nosnippet>157</a>        <span class="self">self</span>.get_function_context_mut().integer_literal_expr_ids.push(literal_expr_id);
 <a href=#158 id=158 data-nosnippet>158</a>    }
 <a href=#159 id=159 data-nosnippet>159</a>

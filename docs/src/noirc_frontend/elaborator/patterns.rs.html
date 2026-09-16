@@ -82,7 +82,7 @@
 <a href=#82 id=82 data-nosnippet>82</a>    /// patterns in a list. If a name is found multiple times, an error is captured.
 <a href=#83 id=83 data-nosnippet>83</a>    </span><span class="attr">#[allow(clippy::too_many_arguments)]
 <a href=#84 id=84 data-nosnippet>84</a>    #[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#85 id=85 data-nosnippet>85</a>    </span><span class="kw">pub fn </span>elaborate_pattern_and_store_ids(
+<a href=#85 id=85 data-nosnippet>85</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>elaborate_pattern_and_store_ids(
 <a href=#86 id=86 data-nosnippet>86</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#87 id=87 data-nosnippet>87</a>        pattern: Pattern,
 <a href=#88 id=88 data-nosnippet>88</a>        expected_type: <span class="kw-2">&amp;</span>Type,
@@ -481,7 +481,7 @@
 <a href=#481 id=481 data-nosnippet>481</a>    <span class="doccomment">/// Add a [`ResolverMeta`] to the last scope for a given [`HirIdent`], which already has its definition interned,
 <a href=#482 id=482 data-nosnippet>482</a>    /// unless its name is `"_"`.
 <a href=#483 id=483 data-nosnippet>483</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#484 id=484 data-nosnippet>484</a>    </span><span class="kw">pub fn </span>add_existing_variable_to_scope(
+<a href=#484 id=484 data-nosnippet>484</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>add_existing_variable_to_scope(
 <a href=#485 id=485 data-nosnippet>485</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#486 id=486 data-nosnippet>486</a>        name: String,
 <a href=#487 id=487 data-nosnippet>487</a>        ident: HirIdent,
