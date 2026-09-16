@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["TypeRecursionContext"]};
+window.SIDEBAR_ITEMS = {"enum":["DataTypeGenerics"],"struct":["TypeRecursionContext","VisitedTypes"]};
