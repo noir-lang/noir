@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789574187966,
+  "lastUpdate": 1789576954872,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18446,48 +18446,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "165e63f4df8450d8349123adde9adb7557256e00",
-          "message": "fix(frontend): qualify the trait in an associated item's generic name (#13651)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-09-11T15:48:42Z",
-          "tree_id": "616359cd836240944d5ef430d347e21d3138472c",
-          "url": "https://github.com/noir-lang/noir/commit/165e63f4df8450d8349123adde9adb7557256e00"
-        },
-        "date": 1789142921224,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 127480,
-            "range": "± 309",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 112926,
-            "range": "± 1727",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3043977,
-            "range": "± 1424",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "8ed48f7bda8980ce914ad6b8cd4dd4a0e610e11d",
           "message": "chore: remove duplicated tests in `noirc_frontend` and `noirc_evaluator` (#13656)",
           "timestamp": "2026-09-11T17:47:13Z",
@@ -20529,6 +20487,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2649352,
             "range": "± 2711",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "49bb05da40ca9e52c6b03eeb1d30205b2718c6f7",
+          "message": "fix(ssa): only derive loop bounds from a header guard that exits the loop (#13754)",
+          "timestamp": "2026-09-16T16:20:20Z",
+          "tree_id": "4058c4f1ffe47e79f00fa08b981071898a889e8f",
+          "url": "https://github.com/noir-lang/noir/commit/49bb05da40ca9e52c6b03eeb1d30205b2718c6f7"
+        },
+        "date": 1789576867240,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 168679,
+            "range": "± 551",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136397,
+            "range": "± 2642",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2648483,
+            "range": "± 5222",
             "unit": "ns/iter"
           }
         ]
