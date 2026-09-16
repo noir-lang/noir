@@ -1603,3 +1603,63 @@ fn implied_where_clause_shares_the_associated_type_of_the_bound_in_scope() {
     "#;
     assert_no_errors(src);
 }
+
+/// Transitive where clause implications: `Y: A<X>` implies `X: B<X>` (from A's where clause),
+/// which in turn implies `X: C` (from B's where clause), so `x.c()` resolves.
+#[test]
+fn transitive_where_clause_implications() {
+    let src = r#"
+    trait C {
+        fn c(self) -> bool;
+    }
+
+    trait B<U> where U: C {}
+
+    trait A<T> where T: B<T> {}
+
+    pub fn test<X, Y>(x: X, _y: Y) -> bool where Y: A<X> {
+        x.c()
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Cyclic trait where clauses must not cause infinite loops or panics. Traits A and B refer to
+/// each other through their where clauses; the compiler terminates and produces errors rather
+/// than hanging.
+#[test]
+fn cyclic_where_clause_implications_terminate() {
+    let src = r#"
+    trait B<U> where U: A<U> {
+        fn b(self) -> bool;
+    }
+
+    trait A<T> where T: B<T> {
+        fn a(self) -> bool;
+    }
+
+    pub fn test<X, Y>(x: X, _y: Y) -> bool where Y: A<X> {
+        x.b()
+    }
+    "#;
+    let (_, _, errors) = crate::tests::get_program(src);
+    assert!(!errors.is_empty(), "Cyclic where clauses should produce errors");
+}
+
+/// A single bound can imply the same trait on different object types. `P: Pair<T, U>` implies
+/// both `T: Showable` and `U: Showable` through the trait's where clause.
+#[test]
+fn where_clause_implies_same_trait_on_different_types() {
+    let src = r#"
+    trait Showable {
+        fn show(self) -> bool;
+    }
+
+    trait Pair<T, U> where T: Showable, U: Showable {}
+
+    pub fn test<T, U, P>(t: T, u: U, _p: P) -> bool where P: Pair<T, U> {
+        t.show() & u.show()
+    }
+    "#;
+    assert_no_errors(src);
+}
