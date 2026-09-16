@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789564237377,
+  "lastUpdate": 1789564308623,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -16815,48 +16815,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "d3738fdfcbf070b6f8f3863db2c616d01b5dc725",
-          "message": "fix: compare implicit named generics by type variable, not by printed name (#13648)",
-          "timestamp": "2026-09-11T13:51:44Z",
-          "tree_id": "b646e12dcc72ab9bba863ed7b3f7173cec0d0307",
-          "url": "https://github.com/noir-lang/noir/commit/d3738fdfcbf070b6f8f3863db2c616d01b5dc725"
-        },
-        "date": 1789136022985,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 126178,
-            "range": "± 3130",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 105336,
-            "range": "± 1261",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 1741014,
-            "range": "± 73640",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "b1624788c42a91dda33546cf6dfce9b6e4e72d6a",
           "message": "fix(frontend): only apply the `self_type` method visibility shortcut to methods from the current crate (#13649)",
@@ -18899,6 +18857,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3041149,
             "range": "± 6391",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fa949425d24544cea2345757c7c13caff68c1d9c",
+          "message": "fix: eval_const_binary executes unchecked ops right away in ACIR (#13743)",
+          "timestamp": "2026-09-16T12:47:55Z",
+          "tree_id": "e4cfdbf19025b0e37133169431f6aff766fbff46",
+          "url": "https://github.com/noir-lang/noir/commit/fa949425d24544cea2345757c7c13caff68c1d9c"
+        },
+        "date": 1789564217712,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 166847,
+            "range": "± 1114",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136057,
+            "range": "± 483",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2647543,
+            "range": "± 10607",
             "unit": "ns/iter"
           }
         ]
