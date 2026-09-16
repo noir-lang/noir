@@ -352,7 +352,10 @@ impl Elaborator<'_> {
         // A trait named in a constraint brings its own `where` clause with it.
         let mut all_constraints = trait_constraints.clone();
         all_constraints.extend(extra_trait_constraints.iter().cloned());
-        extra_trait_constraints.extend(self.implied_where_clause_constraints(&all_constraints));
+        let (implied_generics, implied_constraints) =
+            self.implied_where_clause_constraints(&all_constraints);
+        generics.extend(implied_generics);
+        extra_trait_constraints.extend(implied_constraints);
 
         // Resolve parameters
         let (parameters, parameter_types, parameter_idents) =

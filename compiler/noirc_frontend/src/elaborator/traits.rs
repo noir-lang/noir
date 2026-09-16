@@ -813,6 +813,10 @@ impl Elaborator<'_> {
     /// `object` is the type that satisfies the trait bound (e.g. `U` in `U: Qux<T>`), used to
     /// substitute `Self` in constraints that mention it as a generic argument.
     ///
+    /// `new_generics` receives a generic for each associated type a clause leaves implicit, see
+    /// [`Self::instantiate_implicit_associated_types`]. Pass `None` when the implications only
+    /// serve as assumed impls for the current item and are never instantiated at a call site.
+    ///
     /// Entries keyed on `Self` are the trait's parent bounds, which are reached through
     /// [`Trait::parent_bounds`](crate::hir_def::traits::Trait::parent_bounds) instead and are
     /// excluded here.
@@ -821,6 +825,7 @@ impl Elaborator<'_> {
         &self,
         object: &Type,
         trait_bound: &ResolvedTraitBound,
+        mut new_generics: Option<&mut Vec<TypeVariable>>,
     ) -> Vec<TraitConstraint> {
         let Some(the_trait) = self.interner.try_get_trait(trait_bound.trait_id) else {
             return Vec::new();
@@ -857,9 +862,10 @@ impl Elaborator<'_> {
 
             self.instantiate_implicit_associated_types(
                 &typ,
-                constraint.trait_bound.trait_id,
-                &mut trait_generics.named,
+                &constraint.trait_bound,
+                &mut trait_generics,
                 &mut bindings,
+                new_generics.as_deref_mut(),
             );
 
             implications.push(TraitConstraint {
@@ -876,18 +882,29 @@ impl Elaborator<'_> {
     /// The variable standing for such an associated type is created once, with the trait, and is
     /// shared by every use of it. A bound on the same type already in scope has its own variable
     /// for that associated type, so reuse that one: two bounds describing the same associated type
-    /// through unrelated variables leave it unresolvable. Failing that, a fresh variable per use
-    /// at least keeps separate uses of the trait from sharing one.
+    /// through unrelated variables leave it unresolvable.
+    ///
+    /// Failing that, the associated type becomes a generic of the item, the way an unspecified
+    /// associated type in a written bound does (see [`Self::desugar_trait_constraints`]) and the
+    /// way one on a parent trait does (see [`Self::collect_parent_associated_types`]): a fresh
+    /// variable wrapped in an implicit named generic, pushed to `new_generics` so the caller can
+    /// quantify the item over it. A call site then instantiates it afresh and its impl lookup binds
+    /// it; a variable shared between call sites would be bound by the first and mismatch the rest.
+    /// With `new_generics` `None` a bare variable is used instead, which is enough for an assumed
+    /// impl that never leaves the current item.
     fn instantiate_implicit_associated_types(
         &self,
         object: &Type,
-        trait_id: TraitId,
-        named: &mut [NamedType],
+        trait_bound: &ResolvedTraitBound,
+        trait_generics: &mut TraitGenerics,
         bindings: &mut TypeBindings,
+        mut new_generics: Option<&mut Vec<TypeVariable>>,
     ) {
+        let trait_id = trait_bound.trait_id;
         let in_scope = self.item.generics.find_bound(object, trait_id);
+        let mut projection_names = None;
 
-        for named_type in named.iter_mut() {
+        for named_type in &mut trait_generics.named {
             let Type::NamedGeneric(NamedGeneric { type_var, implicit: true, .. }) = &named_type.typ
             else {
                 continue;
@@ -909,10 +926,27 @@ impl Elaborator<'_> {
             let kind = type_var.kind();
             let typ = match in_scope {
                 Some(existing) => existing.typ.clone(),
-                None => Type::TypeVariable(TypeVariable::unbound(
-                    self.interner.next_type_variable_id(),
-                    kind.clone(),
-                )),
+                None => {
+                    let fresh =
+                        TypeVariable::unbound(self.interner.next_type_variable_id(), kind.clone());
+                    match new_generics.as_deref_mut() {
+                        Some(new_generics) => {
+                            let (object_name, trait_name) =
+                                projection_names.get_or_insert_with(|| {
+                                    let trait_name = self
+                                        .projection_trait_name(trait_id, &trait_generics.ordered);
+                                    (object.to_string(), trait_name)
+                                });
+                            new_generics.push(fresh.clone());
+                            fresh.into_implicit_named_generic(
+                                &Rc::new(named_type.name.to_string()),
+                                Some((object_name, trait_name)),
+                                type_var.id(),
+                            )
+                        }
+                        None => Type::TypeVariable(fresh),
+                    }
+                }
             };
 
             if !typ.occurs(type_var.id()) {
@@ -923,26 +957,30 @@ impl Elaborator<'_> {
     }
 
     /// The transitive closure of [`Self::trait_where_clause_implications`] over `constraints`,
-    /// excluding the constraints themselves. Each result is also pushed to
+    /// excluding the constraints themselves, together with the generics the implied constraints
+    /// introduce for associated types left implicit. Each result is also pushed to
     /// [`GenericsContext`] so `T::Assoc` syntax can reach it while the item is
     /// elaborated.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn implied_where_clause_constraints(
         &mut self,
         constraints: &[TraitConstraint],
-    ) -> Vec<TraitConstraint> {
+    ) -> (Vec<TypeVariable>, Vec<TraitConstraint>) {
         let mut visited: BTreeSet<(Type, TraitId)> = constraints
             .iter()
             .map(|constraint| (constraint.typ.clone(), constraint.trait_bound.trait_id))
             .collect();
 
         let mut queue: Vec<_> = constraints.to_vec();
+        let mut new_generics = Vec::new();
         let mut implied = Vec::new();
 
         while let Some(constraint) = queue.pop() {
-            for implication in
-                self.trait_where_clause_implications(&constraint.typ, &constraint.trait_bound)
-            {
+            for implication in self.trait_where_clause_implications(
+                &constraint.typ,
+                &constraint.trait_bound,
+                Some(&mut new_generics),
+            ) {
                 let key = (implication.typ.clone(), implication.trait_bound.trait_id);
                 if !visited.insert(key) {
                     continue;
@@ -953,7 +991,7 @@ impl Elaborator<'_> {
             }
         }
 
-        implied
+        (new_generics, implied)
     }
 
     /// Adds an assumed trait implementation for the given object type and trait bound.
@@ -1101,7 +1139,7 @@ impl Elaborator<'_> {
 
         // A trait's own `where` clause holds wherever the trait is named, so `U: Qux<T>`,
         // declared as `trait Qux<T> where T: Baz`, also brings `T: Baz` into scope.
-        for constraint in self.trait_where_clause_implications(object, trait_bound) {
+        for constraint in self.trait_where_clause_implications(object, trait_bound, None) {
             // Avoid looping forever in case there are cycles
             if !visited.insert((constraint.typ.clone(), constraint.trait_bound.trait_id)) {
                 continue;

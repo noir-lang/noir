@@ -1683,6 +1683,67 @@ fn implied_where_clause_associated_type_is_instantiated_per_call_site() {
     assert_no_errors(src);
 }
 
+/// The associated type an implied bound leaves implicit is a generic of the function: `T::N`
+/// resolves through the implied `T: Foo` in the signature, and each call site instantiates it
+/// from its own impl.
+#[test]
+fn implied_where_clause_associated_type_is_usable_in_the_signature() {
+    let src = r#"
+    trait Foo {
+        let N: u32;
+
+        fn arr(self) -> [Field; Self::N];
+    }
+
+    trait Bar<T: Foo> {
+        fn x(self) -> T;
+    }
+
+    pub struct A {}
+    pub struct B {}
+
+    impl Foo for A {
+        let N: u32 = 3;
+
+        fn arr(self) -> [Field; 3] {
+            [0; 3]
+        }
+    }
+    impl Foo for B {
+        let N: u32 = 5;
+
+        fn arr(self) -> [Field; 5] {
+            [0; 5]
+        }
+    }
+
+    pub struct XA {}
+    pub struct XB {}
+
+    impl Bar<A> for XA {
+        fn x(self) -> A {
+            A {}
+        }
+    }
+    impl Bar<B> for XB {
+        fn x(self) -> B {
+            B {}
+        }
+    }
+
+    pub fn use_it<T, P>(p: P) -> [Field; T::N] where P: Bar<T> {
+        p.x().arr()
+    }
+
+    fn main() {
+        let a: [Field; 3] = use_it(XA {});
+        let b: [Field; 5] = use_it(XB {});
+        let _ = (a, b);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
 /// Transitive where clause implications: `Y: A<X>` implies `X: B<X>` (from A's where clause),
 /// which in turn implies `X: C` (from B's where clause), so `x.c()` resolves.
 #[test]
