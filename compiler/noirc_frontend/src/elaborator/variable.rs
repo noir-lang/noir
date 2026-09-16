@@ -245,9 +245,8 @@ impl Elaborator<'_> {
                     // Re-elaborate the alias body in the alias's defining module
                     // so unqualified names resolve against the alias's scope,
                     // not the caller's. Mirrors `define_type_alias` in mod.rs.
-                    let previous_module = self.replace_module(alias_module_id);
-                    let (id, typ) = self.elaborate_expression(var_expr);
-                    self.restore_module(previous_module);
+                    let (id, typ) =
+                        self.in_module(alias_module_id, |this| this.elaborate_expression(var_expr));
                     self.truncate_integer_literal_expr_ids(literals_before);
                     self.pop_scope();
 
