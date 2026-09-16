@@ -48,9 +48,9 @@ impl Elaborator<'_> {
     /// Resolves the rest of the item in `new_module`, in whichever crate that module belongs to.
     /// Returns the crate and module it replaces, to be given back to [`Self::restore_module`].
     ///
-    /// Prefer [`Self::in_module`], which pairs the two automatically. This split form exists for
-    /// the interpreter, whose closure calls save and restore the elaborator's module around a
-    /// body that borrows the interpreter rather than the elaborator.
+    /// Call [`Self::in_module`] instead. This split form exists only to be the body of a scoped
+    /// helper: the elaborator's, and the interpreter's own, which needs a separate one because
+    /// the body it wraps borrows the interpreter rather than the elaborator.
     #[must_use]
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn replace_module(&mut self, new_module: ModuleId) -> ReplacedModule {

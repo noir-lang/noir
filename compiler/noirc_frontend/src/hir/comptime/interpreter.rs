@@ -360,6 +360,18 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
     }
 
+    /// Runs `f` with the elaborator resolving in `module`, restoring the module it was resolving
+    /// in afterwards (on every exit path, including early returns inside `f`).
+    ///
+    /// The interpreter's counterpart to [`Elaborator::in_module`], which cannot be used here: `f`
+    /// needs `&mut Interpreter`, and the elaborator is borrowed out of it.
+    fn in_module<T>(&mut self, module: ModuleId, f: impl FnOnce(&mut Self) -> T) -> T {
+        let replaced = self.elaborator.replace_module(module);
+        let result = f(self);
+        self.elaborator.restore_module(replaced);
+        result
+    }
+
     /// Call a closure value with the given arguments and environment, returning the result.
     fn call_closure(
         &mut self,
@@ -369,27 +381,29 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     ) -> IResult<Value> {
         self.elaborator.push_interpreter_call_stack(call_location)?;
 
-        // Set the closure's scope to that of the function it was originally evaluated in
-        let old_module = self.elaborator.replace_module(closure.module_scope);
-        let old_function = std::mem::replace(&mut self.current_function, closure.function_scope);
+        // Resolve the closure body in the scope of the function it was originally evaluated in.
+        self.in_module(closure.module_scope, |this| {
+            let old_function =
+                std::mem::replace(&mut this.current_function, closure.function_scope);
 
-        let depth = self.bound_generics_depth();
-        self.unbind_generics_from_previous_function();
-        closure.bindings.apply();
+            let depth = this.bound_generics_depth();
+            this.unbind_generics_from_previous_function();
+            closure.bindings.apply();
 
-        self.remember_closure_bindings(&closure.bindings);
+            this.remember_closure_bindings(&closure.bindings);
 
-        let result = self.call_closure_inner(closure.lambda, closure.env, arguments, call_location);
+            let result =
+                this.call_closure_inner(closure.lambda, closure.env, arguments, call_location);
 
-        self.elaborator.pop_interpreter_call_stack();
+            this.elaborator.pop_interpreter_call_stack();
 
-        closure.bindings.remove();
-        self.rebind_generics_from_previous_function();
-        debug_assert_eq!(self.bound_generics_depth(), depth);
+            closure.bindings.remove();
+            this.rebind_generics_from_previous_function();
+            debug_assert_eq!(this.bound_generics_depth(), depth);
 
-        self.current_function = old_function;
-        self.elaborator.restore_module(old_module);
-        result
+            this.current_function = old_function;
+            result
+        })
     }
 
     /// Performs the bulk of the work for calling a closure function.
