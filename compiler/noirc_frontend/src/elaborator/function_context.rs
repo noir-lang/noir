@@ -153,7 +153,7 @@ impl Elaborator<'_> {
     /// Push an `ExprId` that corresponds to an integer literal.
     /// At the end of the current function we'll check that they fit in their type's range.
     #[tracing::instrument(level = "trace", skip_all)]
-    pub fn push_integer_literal_expr_id(&mut self, literal_expr_id: ExprId) {
+    pub(crate) fn push_integer_literal_expr_id(&mut self, literal_expr_id: ExprId) {
         self.get_function_context_mut().integer_literal_expr_ids.push(literal_expr_id);
     }
 

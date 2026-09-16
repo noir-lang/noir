@@ -99,7 +99,7 @@ impl<'context> Elaborator<'context> {
     /// Elaborate an expression from the middle of a comptime scope within a function.
     /// When this happens we require additional information to know
     /// what variables should be in scope.
-    pub fn elaborate_item_from_comptime_in_function<'a, T>(
+    pub(crate) fn elaborate_item_from_comptime_in_function<'a, T>(
         &'a mut self,
         current_function: Option<FuncId>,
         reason: Option<ElaborateReason>,
@@ -134,22 +134,6 @@ impl<'context> Elaborator<'context> {
                 elaborator.item.generics = GenericsContext::new(Vec::new(), trait_bounds);
                 elaborator.introduce_generics_into_scope(all_generics);
             }
-        })
-    }
-
-    /// Elaborate an expression from the middle of a comptime scope within a module.
-    ///
-    /// Similar to [`Self::elaborate_item_from_comptime_in_function`], but for module-level comptime code.
-    pub fn elaborate_item_from_comptime_in_module<'a, T>(
-        &'a mut self,
-        module: ModuleId,
-        reason: Option<ElaborateReason>,
-        f: impl FnOnce(&mut Elaborator<'a>) -> T,
-    ) -> T {
-        self.elaborate_item_from_comptime(reason, f, |elaborator| {
-            elaborator.item.module.set_current_item(None);
-            elaborator.crate_id = module.krate;
-            elaborator.item.module.set_local_module(module.local_id);
         })
     }
 

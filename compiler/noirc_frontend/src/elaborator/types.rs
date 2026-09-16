@@ -3779,7 +3779,12 @@ impl Elaborator<'_> {
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
-    pub fn type_check_function_body(&mut self, body_type: Type, meta: &FuncMeta, body_id: ExprId) {
+    pub(crate) fn type_check_function_body(
+        &mut self,
+        body_type: Type,
+        meta: &FuncMeta,
+        body_id: ExprId,
+    ) {
         let (expr_location, empty_function) = self.function_info(body_id);
         let declared_return_type = meta.return_type();
         let last_expr_location = self.last_expr_location(body_id);
@@ -3881,7 +3886,7 @@ impl Elaborator<'_> {
     /// - An associated type/constant lost: with a shared default-method body it gets bound to
     ///   the first impl resolved at dispatch and then leaks into the next (e.g. a second impl's
     ///   `Self::N` reads the first impl's constant).
-    pub fn bind_generics_from_trait_constraint(
+    pub(crate) fn bind_generics_from_trait_constraint(
         &self,
         constraint: &TraitConstraint,
         assumed: bool,
@@ -3964,7 +3969,7 @@ impl Elaborator<'_> {
     }
 
     /// Insert the ordered generics and associated types from the trait bound.
-    pub fn bind_generics_from_trait_bound(
+    pub(crate) fn bind_generics_from_trait_bound(
         &self,
         trait_bound: &ResolvedTraitBound,
         bindings: &mut TypeBindings,
@@ -3977,7 +3982,7 @@ impl Elaborator<'_> {
         bind_named_generics(associated_types, &trait_bound.trait_generics.named, bindings);
     }
 
-    pub fn instantiate_parent_trait_bound(
+    pub(crate) fn instantiate_parent_trait_bound(
         &self,
         trait_bound: &ResolvedTraitBound,
         parent_trait_bound: &ResolvedTraitBound,

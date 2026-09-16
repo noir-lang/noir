@@ -82,7 +82,7 @@ impl Elaborator<'_> {
     /// patterns in a list. If a name is found multiple times, an error is captured.
     #[allow(clippy::too_many_arguments)]
     #[tracing::instrument(level = "trace", skip_all)]
-    pub fn elaborate_pattern_and_store_ids(
+    pub(crate) fn elaborate_pattern_and_store_ids(
         &mut self,
         pattern: Pattern,
         expected_type: &Type,
@@ -481,7 +481,7 @@ impl Elaborator<'_> {
     /// Add a [`ResolverMeta`] to the last scope for a given [`HirIdent`], which already has its definition interned,
     /// unless its name is `"_"`.
     #[tracing::instrument(level = "trace", skip_all)]
-    pub fn add_existing_variable_to_scope(
+    pub(crate) fn add_existing_variable_to_scope(
         &mut self,
         name: String,
         ident: HirIdent,
