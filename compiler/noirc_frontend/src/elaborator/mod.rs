@@ -669,250 +669,150 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    /// Traverse the type and call `mark_struct_as_constructed` on any [`Type::DataType`].
+    /// Calls `visit` on every [`Type::DataType`] reachable from `typ`.
+    ///
+    /// The walk expands aliases and descends into a data type's fields and variants, so it reaches
+    /// the data types a value of `typ` is built from, not only the ones named in it. `visit` runs
+    /// before the fields and variants of the type it was handed are read, so a visitor that
+    /// resolves a deferred body sees the resolved one on the way down.
+    ///
+    /// Two guards, for two different problems:
+    /// * `TypeRecursionContext` breaks cycles and bounds depth, so a recursive type terminates.
+    /// * `VisitedRefHashSet` skips types already seen: deeply nested generics otherwise cause a
+    ///   combinatorial explosion of visits to the same type.
+    fn visit_data_types_in(&mut self, typ: &Type, visit: &mut impl FnMut(&mut Self, &Type)) {
+        self.visit_data_types_in_helper(
+            typ,
+            TypeRecursionContext::default(),
+            &mut VisitedRefHashSet::new(),
+            visit,
+        );
+    }
+
+    fn visit_data_types_in_helper(
+        &mut self,
+        typ: &Type,
+        mut context: TypeRecursionContext,
+        visited: &mut VisitedRefHashSet<Type>,
+        visit: &mut impl FnMut(&mut Self, &Type),
+    ) {
+        if !visited.insert(typ) {
+            return;
+        }
+        match typ {
+            Type::Array(element, _) | Type::Vector(element) | Type::Reference(element, _) => {
+                self.visit_data_types_in_helper(element, context.recur(), visited, visit);
+            }
+            Type::Tuple(elements) => {
+                for element in elements {
+                    self.visit_data_types_in_helper(
+                        element,
+                        context.clone().recur(),
+                        visited,
+                        visit,
+                    );
+                }
+            }
+            Type::CheckedCast { from, to } => {
+                self.visit_data_types_in_helper(from, context.clone().recur(), visited, visit);
+                self.visit_data_types_in_helper(to, context.recur(), visited, visit);
+            }
+            Type::InfixExpr(lhs, _op, rhs, _) => {
+                self.visit_data_types_in_helper(lhs, context.clone().recur(), visited, visit);
+                self.visit_data_types_in_helper(rhs, context.recur(), visited, visit);
+            }
+            Type::Alias(alias, generics) => {
+                if context.insert_alias(alias.borrow().id, generics.clone()) {
+                    let aliased = alias.borrow().get_type(generics);
+                    self.visit_data_types_in_helper(&aliased, context.recur(), visited, visit);
+                }
+            }
+            Type::DataType(datatype, generics) => {
+                if !context.insert_data_type(datatype.borrow().id, generics.clone()) {
+                    return;
+                }
+
+                visit(self, typ);
+
+                for generic in generics {
+                    self.visit_data_types_in_helper(
+                        generic,
+                        context.clone().recur(),
+                        visited,
+                        visit,
+                    );
+                }
+
+                let fields = datatype.borrow().get_fields(generics);
+                if let Some(fields) = fields {
+                    for (_, field, _) in fields {
+                        self.visit_data_types_in_helper(
+                            &field,
+                            context.clone().recur(),
+                            visited,
+                            visit,
+                        );
+                    }
+                    return;
+                }
+
+                let variants = datatype.borrow().get_variants(generics);
+                if let Some(variants) = variants {
+                    for (_, arguments) in variants {
+                        for argument in arguments {
+                            self.visit_data_types_in_helper(
+                                &argument,
+                                context.clone().recur(),
+                                visited,
+                                visit,
+                            );
+                        }
+                    }
+                }
+            }
+            Type::FieldElement
+            | Type::Integer(..)
+            | Type::Bool
+            | Type::String(_)
+            | Type::FmtString(_, _)
+            | Type::Unit
+            | Type::Quoted(..)
+            | Type::Constant(..)
+            | Type::TraitAsType(..)
+            | Type::TypeVariable(..)
+            | Type::NamedGeneric(..)
+            | Type::Function(..)
+            | Type::Forall(..)
+            | Type::Error => (),
+        }
+    }
+
+    /// Marks every struct reachable from `typ` as constructed, resolving any deferred fields on
+    /// the way down so the walk can see what each struct is built from.
     #[tracing::instrument(level = "trace", skip_all)]
     fn mark_type_as_used(&mut self, typ: &Type) {
-        self.mark_type_as_used_helper(
-            typ,
-            TypeRecursionContext::default(),
-            &mut VisitedRefHashSet::new(),
-        );
+        self.visit_data_types_in(typ, &mut |this, typ| {
+            let Type::DataType(datatype, _) = typ else { return };
+            this.mark_struct_as_constructed(datatype);
+            let datatype_id = datatype.borrow().id;
+            this.define_struct_fields_if_undefined(datatype_id);
+        });
     }
 
-    /// Traverse the type and call `mark_struct_as_constructed` on any [`Type::DataType`].
+    /// Resolves the fields or variants of every data type reachable from `typ` that is still
+    /// deferred.
     ///
-    /// We use two helper contexts:
-    /// * `type_recursion_context` is used to prevent infinite recursion in cycles,
-    ///   and recursing over types too deep until we hit stack overflow
-    /// * `visited` is used to only visit each type once; we only need to mark them once,
-    ///   but deeply nested generics can cause a combinatorial explosion of visits
-    #[tracing::instrument(level = "trace", skip_all)]
-    fn mark_type_as_used_helper(
-        &mut self,
-        typ: &Type,
-        mut type_recursion_context: TypeRecursionContext,
-        visited: &mut VisitedRefHashSet<Type>,
-    ) {
-        if !visited.insert(typ) {
-            return;
-        }
-        match typ {
-            Type::Array(typ, _n) => {
-                self.mark_type_as_used_helper(typ, type_recursion_context.recur(), visited);
-            }
-            Type::Vector(typ) => {
-                self.mark_type_as_used_helper(typ, type_recursion_context.recur(), visited);
-            }
-            Type::Tuple(types) => {
-                for typ in types {
-                    self.mark_type_as_used_helper(
-                        typ,
-                        type_recursion_context.clone().recur(),
-                        visited,
-                    );
-                }
-            }
-            Type::DataType(datatype, generics) => {
-                if type_recursion_context.insert_data_type(datatype.borrow().id, generics.clone()) {
-                    self.mark_struct_as_constructed(datatype);
-                    for generic in generics {
-                        self.mark_type_as_used_helper(
-                            generic,
-                            type_recursion_context.clone().recur(),
-                            visited,
-                        );
-                    }
-                    // The struct's field might not be type-checked yet: do it now.
-                    let datatype_id = datatype.borrow().id;
-                    self.define_struct_fields_if_undefined(datatype_id);
-                    if let Some(fields) = datatype.borrow().get_fields(generics) {
-                        for (_, typ, _) in fields {
-                            self.mark_type_as_used_helper(
-                                &typ,
-                                type_recursion_context.clone().recur(),
-                                visited,
-                            );
-                        }
-                    } else if let Some(variants) = datatype.borrow().get_variants(generics) {
-                        for (_, variant_types) in variants {
-                            for typ in variant_types {
-                                self.mark_type_as_used_helper(
-                                    &typ,
-                                    type_recursion_context.clone().recur(),
-                                    visited,
-                                );
-                            }
-                        }
-                    }
-                }
-            }
-            Type::Alias(alias_type, generics) => {
-                if type_recursion_context.insert_alias(alias_type.borrow().id, generics.clone()) {
-                    self.mark_type_as_used_helper(
-                        &alias_type.borrow().get_type(generics),
-                        type_recursion_context.recur(),
-                        visited,
-                    );
-                }
-            }
-            Type::CheckedCast { from, to } => {
-                self.mark_type_as_used_helper(
-                    from,
-                    type_recursion_context.clone().recur(),
-                    visited,
-                );
-                self.mark_type_as_used_helper(to, type_recursion_context.recur(), visited);
-            }
-            Type::Reference(typ, _) => {
-                self.mark_type_as_used_helper(typ, type_recursion_context.recur(), visited);
-            }
-            Type::InfixExpr(left, _op, right, _) => {
-                self.mark_type_as_used_helper(
-                    left,
-                    type_recursion_context.clone().recur(),
-                    visited,
-                );
-                self.mark_type_as_used_helper(right, type_recursion_context.recur(), visited);
-            }
-            Type::FieldElement
-            | Type::Integer(..)
-            | Type::Bool
-            | Type::String(_)
-            | Type::FmtString(_, _)
-            | Type::Unit
-            | Type::Quoted(..)
-            | Type::Constant(..)
-            | Type::TraitAsType(..)
-            | Type::TypeVariable(..)
-            | Type::NamedGeneric(..)
-            | Type::Function(..)
-            | Type::Forall(..)
-            | Type::Error => (),
-        }
-    }
-
-    /// Walk `typ` and lazy-resolve any [`Type::DataType`]'s struct fields or
-    /// enum variants encountered. Used at sites that ask whole-type questions
-    /// (`is_valid_for_unconstrained_boundary`, `contains_vector`, etc.) which
-    /// read fields/variants directly and would otherwise misinterpret a stub
-    /// `StructWithUnknownFields` body as an enum (or vice versa) when a
-    /// deferred struct/enum still hasn't been drained.
+    /// Used at sites that ask whole-type questions (`is_valid_for_unconstrained_boundary`,
+    /// `contains_vector`, and so on) which read fields and variants directly, and would otherwise
+    /// read a stub `StructWithUnknownFields` body as an enum, or an unresolved enum as neither.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn define_deferred_data_types_in(&mut self, typ: &Type) {
-        self.define_deferred_data_types_in_helper(
-            typ,
-            TypeRecursionContext::default(),
-            &mut VisitedRefHashSet::new(),
-        );
-    }
-
-    fn define_deferred_data_types_in_helper(
-        &mut self,
-        typ: &Type,
-        mut type_recursion_context: TypeRecursionContext,
-        visited: &mut VisitedRefHashSet<Type>,
-    ) {
-        if !visited.insert(typ) {
-            return;
-        }
-        match typ {
-            Type::Array(elem, _) | Type::Vector(elem) | Type::Reference(elem, _) => {
-                self.define_deferred_data_types_in_helper(
-                    elem,
-                    type_recursion_context.recur(),
-                    visited,
-                );
-            }
-            Type::Tuple(types) => {
-                for t in types {
-                    self.define_deferred_data_types_in_helper(
-                        t,
-                        type_recursion_context.clone().recur(),
-                        visited,
-                    );
-                }
-            }
-            Type::DataType(datatype, generics) => {
-                if type_recursion_context.insert_data_type(datatype.borrow().id, generics.clone()) {
-                    let datatype_id = datatype.borrow().id;
-                    self.define_struct_fields_if_undefined(datatype_id);
-                    self.define_enum_variants_if_undefined(datatype_id);
-                    for generic in generics {
-                        self.define_deferred_data_types_in_helper(
-                            generic,
-                            type_recursion_context.clone().recur(),
-                            visited,
-                        );
-                    }
-                    if let Some(fields) = datatype.borrow().get_fields(generics) {
-                        for (_, field_type, _) in fields {
-                            self.define_deferred_data_types_in_helper(
-                                &field_type,
-                                type_recursion_context.clone().recur(),
-                                visited,
-                            );
-                        }
-                    } else if let Some(variants) = datatype.borrow().get_variants(generics) {
-                        for (_, variant_types) in variants {
-                            for t in variant_types {
-                                self.define_deferred_data_types_in_helper(
-                                    &t,
-                                    type_recursion_context.clone().recur(),
-                                    visited,
-                                );
-                            }
-                        }
-                    }
-                }
-            }
-            Type::Alias(alias_type, generics) => {
-                if type_recursion_context.insert_alias(alias_type.borrow().id, generics.clone()) {
-                    self.define_deferred_data_types_in_helper(
-                        &alias_type.borrow().get_type(generics),
-                        type_recursion_context.recur(),
-                        visited,
-                    );
-                }
-            }
-            Type::CheckedCast { from, to } => {
-                self.define_deferred_data_types_in_helper(
-                    from,
-                    type_recursion_context.clone().recur(),
-                    visited,
-                );
-                self.define_deferred_data_types_in_helper(
-                    to,
-                    type_recursion_context.recur(),
-                    visited,
-                );
-            }
-            Type::InfixExpr(left, _op, right, _) => {
-                self.define_deferred_data_types_in_helper(
-                    left,
-                    type_recursion_context.clone().recur(),
-                    visited,
-                );
-                self.define_deferred_data_types_in_helper(
-                    right,
-                    type_recursion_context.recur(),
-                    visited,
-                );
-            }
-            Type::FieldElement
-            | Type::Integer(..)
-            | Type::Bool
-            | Type::String(_)
-            | Type::FmtString(_, _)
-            | Type::Unit
-            | Type::Quoted(..)
-            | Type::Constant(..)
-            | Type::TraitAsType(..)
-            | Type::TypeVariable(..)
-            | Type::NamedGeneric(..)
-            | Type::Function(..)
-            | Type::Forall(..)
-            | Type::Error => (),
-        }
+        self.visit_data_types_in(typ, &mut |this, typ| {
+            let Type::DataType(datatype, _) = typ else { return };
+            let datatype_id = datatype.borrow().id;
+            this.define_struct_fields_if_undefined(datatype_id);
+            this.define_enum_variants_if_undefined(datatype_id);
+        });
     }
 
     /// Returns `true` if the current module is a contract.
