@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789569133242,
+  "lastUpdate": 1789569165736,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11102,40 +11102,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "b1624788c42a91dda33546cf6dfce9b6e4e72d6a",
-          "message": "fix(frontend): only apply the `self_type` method visibility shortcut to methods from the current crate (#13649)",
-          "timestamp": "2026-09-11T14:01:09Z",
-          "tree_id": "4754ea12b2dcba1425a8104bbbe3f4c55b734373",
-          "url": "https://github.com/noir-lang/noir/commit/b1624788c42a91dda33546cf6dfce9b6e4e72d6a"
-        },
-        "date": 1789136718090,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 85.57,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 79.11,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "9232ef76db55fe5535c6769602607490f968ffd3",
           "message": "fix(fmt): keep `Safety:` marker lines at paragraph start when reflowing comments (#13650)",
           "timestamp": "2026-09-11T14:51:33Z",
@@ -14315,6 +14281,95 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/1262bcf096480906cc22b6f0db51f66469984211"
         },
         "date": 1789565209588,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 297.91,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 338.44,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 325.22,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 372.43,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 369.21,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1270,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1270,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 369.44,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 471.34,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 483.02,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 368.72,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 85.57,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 79.11,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "e7002d271b2aa54f1d7b166248c8d3e1c30cb662",
+          "message": "chore(frontend): share one traversal between the type walkers that agree (#13751)",
+          "timestamp": "2026-09-16T13:52:39Z",
+          "tree_id": "d1d5fa7eac781a5a33494286e9beadce5d2383e3",
+          "url": "https://github.com/noir-lang/noir/commit/e7002d271b2aa54f1d7b166248c8d3e1c30cb662"
+        },
+        "date": 1789569078976,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
