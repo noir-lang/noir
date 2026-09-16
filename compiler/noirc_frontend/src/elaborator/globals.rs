@@ -41,7 +41,7 @@ impl Elaborator<'_> {
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn set_unresolved_globals_ordering(&mut self, globals: Vec<UnresolvedGlobal>) {
         for global in globals {
-            self.unresolved_globals.insert(global.global_id, global);
+            self.unresolved_globals.register(global.global_id, global);
         }
     }
 
@@ -49,7 +49,7 @@ impl Elaborator<'_> {
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn elaborate_remaining_globals(&mut self) {
         // Start at the first global IDs to maintain the dependency order
-        while let Some((_, global)) = self.unresolved_globals.pop_first() {
+        while let Some(global) = self.unresolved_globals.take_first() {
             self.elaborate_global(global);
         }
     }
@@ -58,9 +58,7 @@ impl Elaborator<'_> {
     /// Preserves the BTreeMap-ordered drain so that inter-global dependency order is maintained.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_unresolved_globals_skipping(&mut self, skip: &HashSet<GlobalId>) {
-        let to_resolve: Vec<GlobalId> =
-            self.unresolved_globals.keys().copied().filter(|id| !skip.contains(id)).collect();
-        for global_id in to_resolve {
+        for global_id in self.unresolved_globals.keys_except(skip) {
             self.elaborate_global_if_unresolved(&global_id);
         }
     }
@@ -215,7 +213,7 @@ impl Elaborator<'_> {
     /// already elaborated (or doesn't exist in the unresolved set).
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn elaborate_global_if_unresolved(&mut self, global_id: &GlobalId) -> bool {
-        if let Some(global) = self.unresolved_globals.remove(global_id) {
+        if let Some(global) = self.unresolved_globals.take(global_id) {
             self.elaborate_global(global);
             true
         } else {
