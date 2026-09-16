@@ -15,6 +15,7 @@ mod expressions;
 mod functions;
 mod globals;
 mod imports;
+mod item_context;
 mod lambdas;
 mod meta_quote_roundtrip;
 mod metaprogramming;
