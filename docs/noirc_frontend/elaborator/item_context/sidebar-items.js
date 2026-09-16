@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["ItemContext"]};
+window.SIDEBAR_ITEMS = {"mod":["body_context","generics_context","impl_context","module_context"],"struct":["ItemContext"]};

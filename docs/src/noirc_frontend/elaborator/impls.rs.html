@@ -116,7 +116,7 @@
 <a href=#116 id=116 data-nosnippet>116</a>        impls: <span class="kw-2">&amp;mut </span>[UnresolvedImpl],
 <a href=#117 id=117 data-nosnippet>117</a>        self_type: <span class="kw-2">&amp;</span>UnresolvedType,
 <a href=#118 id=118 data-nosnippet>118</a>    ) {
-<a href=#119 id=119 data-nosnippet>119</a>        <span class="kw">let </span>previous_local_module = <span class="self">self</span>.item.replace_local_module(module);
+<a href=#119 id=119 data-nosnippet>119</a>        <span class="kw">let </span>previous_local_module = <span class="self">self</span>.item.module.replace_local_module(module);
 <a href=#120 id=120 data-nosnippet>120</a>
 <a href=#121 id=121 data-nosnippet>121</a>        <span class="kw">for </span>unresolved_impl <span class="kw">in </span>impls {
 <a href=#122 id=122 data-nosnippet>122</a>            <span class="self">self</span>.check_generics_appear_in_types(<span class="kw-2">&amp;</span>unresolved_impl.generics, <span class="kw-2">&amp;</span>[self_type], <span class="kw-2">&amp;</span>[]);
@@ -128,7 +128,7 @@
 <a href=#128 id=128 data-nosnippet>128</a>            });
 <a href=#129 id=129 data-nosnippet>129</a>        }
 <a href=#130 id=130 data-nosnippet>130</a>
-<a href=#131 id=131 data-nosnippet>131</a>        <span class="self">self</span>.item.local_module = previous_local_module;
+<a href=#131 id=131 data-nosnippet>131</a>        <span class="self">self</span>.item.module.set_local_module(previous_local_module);
 <a href=#132 id=132 data-nosnippet>132</a>    }
 <a href=#133 id=133 data-nosnippet>133</a>
 <a href=#134 id=134 data-nosnippet>134</a>    <span class="doccomment">/// Declares methods in the appropriate module and registers them in the interner.

@@ -206,7 +206,7 @@
 <a href=#206 id=206 data-nosnippet>206</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
 <a href=#207 id=207 data-nosnippet>207</a>        trait_constraints: <span class="kw-2">&amp;</span>[LocalTraitConstraint],
 <a href=#208 id=208 data-nosnippet>208</a>    ) {
-<a href=#209 id=209 data-nosnippet>209</a>        <span class="kw">let </span>current_trait_self = <span class="self">self</span>.item.current_trait.and_then(|<span class="kw">_</span>| <span class="self">self</span>.item.self_type.clone());
+<a href=#209 id=209 data-nosnippet>209</a>        <span class="kw">let </span>current_trait_self = <span class="self">self</span>.item.impl_context.trait_self_type();
 <a href=#210 id=210 data-nosnippet>210</a>        <span class="kw">for </span>local <span class="kw">in </span>trait_constraints {
 <a href=#211 id=211 data-nosnippet>211</a>            <span class="kw">let _ </span>= local.constraint.find_impl(<span class="self">self</span>.interner, current_trait_self.as_ref());
 <a href=#212 id=212 data-nosnippet>212</a>        }
@@ -232,7 +232,7 @@
 <a href=#232 id=232 data-nosnippet>232</a>
 <a href=#233 id=233 data-nosnippet>233</a>    <span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
 <a href=#234 id=234 data-nosnippet>234</a>    </span><span class="kw">fn </span>check_trait_constraints(<span class="kw-2">&amp;mut </span><span class="self">self</span>, trait_constraints: Vec&lt;LocalTraitConstraint&gt;) {
-<a href=#235 id=235 data-nosnippet>235</a>        <span class="kw">let </span>current_trait_self = <span class="self">self</span>.item.current_trait.and_then(|<span class="kw">_</span>| <span class="self">self</span>.item.self_type.clone());
+<a href=#235 id=235 data-nosnippet>235</a>        <span class="kw">let </span>current_trait_self = <span class="self">self</span>.item.impl_context.trait_self_type();
 <a href=#236 id=236 data-nosnippet>236</a>
 <a href=#237 id=237 data-nosnippet>237</a>        <span class="kw">for </span>local <span class="kw">in </span>trait_constraints {
 <a href=#238 id=238 data-nosnippet>238</a>            <span class="kw">match </span>local.constraint.find_impl(<span class="self">self</span>.interner, current_trait_self.as_ref()) {
