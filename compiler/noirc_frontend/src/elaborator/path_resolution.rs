@@ -235,7 +235,7 @@ pub struct TypedPath {
 
 impl TypedPath {
     /// Construct a [`PathKind::Plain`] from a number of segments.
-    pub fn plain(segments: Vec<TypedPathSegment>, location: Location) -> Self {
+    pub(crate) fn plain(segments: Vec<TypedPathSegment>, location: Location) -> Self {
         Self { segments, location, kind: PathKind::Plain, kind_location: location }
     }
 
@@ -243,31 +243,27 @@ impl TypedPath {
     ///
     /// Panics if there are no more segments in the path.
     #[tracing::instrument(level = "trace", skip_all)]
-    pub fn pop(&mut self) -> TypedPathSegment {
+    pub(crate) fn pop(&mut self) -> TypedPathSegment {
         self.segments.pop().unwrap()
     }
 
     /// Construct a [`PathKind::Plain`] from a single identifier name.
-    pub fn from_single(name: String, location: Location) -> TypedPath {
+    pub(crate) fn from_single(name: String, location: Location) -> TypedPath {
         let segment = Ident::from(Located::from(location, name));
         TypedPath::from_ident(segment)
     }
 
     /// Construct a [`PathKind::Plain`] from a single identifier segment.
-    pub fn from_ident(name: Ident) -> TypedPath {
+    pub(crate) fn from_ident(name: Ident) -> TypedPath {
         let location = name.location();
         let segment = TypedPathSegment::without_generics(name, location);
         TypedPath::plain(vec![segment], location)
     }
 
-    pub fn span(&self) -> Span {
-        self.location.span
-    }
-
     /// Returns a clone of the last segment.
     ///
     /// Panics if there are no segments in the path.
-    pub fn last_segment(&self) -> TypedPathSegment {
+    pub(crate) fn last_segment(&self) -> TypedPathSegment {
         assert!(!self.segments.is_empty());
         self.segments.last().unwrap().clone()
     }
@@ -275,27 +271,27 @@ impl TypedPath {
     /// The [Ident] of the last segment.
     ///
     /// Panics if there are no segments in the path.
-    pub fn last_ident(&self) -> Ident {
+    pub(crate) fn last_ident(&self) -> Ident {
         self.last_segment().ident
     }
 
     /// The name of the [Ident] in the first segment.
     ///
     /// Returns `None` if there are no segments in the path.
-    pub fn first_name(&self) -> Option<&str> {
+    pub(crate) fn first_name(&self) -> Option<&str> {
         self.segments.first().map(|segment| segment.ident.as_str())
     }
 
     /// The name of the [Ident] in the last segment.
     ///
     /// Panics if there are no segments in the path.
-    pub fn last_name(&self) -> &str {
+    pub(crate) fn last_name(&self) -> &str {
         assert!(!self.segments.is_empty());
         self.segments.last().unwrap().ident.as_str()
     }
 
     /// Returns `Some` if the [`TypedPath`] consists of a single [`PathKind::Plain`] segment, otherwise `None`.
-    pub fn as_single_segment(&self) -> Option<&TypedPathSegment> {
+    pub(crate) fn as_single_segment(&self) -> Option<&TypedPathSegment> {
         if self.kind == PathKind::Plain && self.segments.len() == 1 {
             self.segments.first()
         } else {
@@ -336,7 +332,7 @@ impl TypedPathSegment {
     /// ```
     ///
     /// Returns an empty [Span] at the end of `foo` if there's no turbofish.
-    pub fn turbofish_span(&self) -> Span {
+    pub(crate) fn turbofish_span(&self) -> Span {
         if self.ident.location().file == self.location.file {
             // The `location` contains both the `ident` and the potential turbofish.
             Span::from(self.ident.span().end()..self.location.span.end())
@@ -348,12 +344,12 @@ impl TypedPathSegment {
     /// [Location] of any turbofish in the segment.
     ///
     /// The [Span] will be empty if there was no turbofish.
-    pub fn turbofish_location(&self) -> Location {
+    pub(crate) fn turbofish_location(&self) -> Location {
         Location::new(self.turbofish_span(), self.location.file)
     }
 
     /// Returns the turbofish if there are generics in the path.
-    pub fn turbofish(&self) -> Option<Turbofish> {
+    pub(crate) fn turbofish(&self) -> Option<Turbofish> {
         self.generics.as_ref().map(|generics| Turbofish {
             location: self.turbofish_location(),
             generics: generics.clone(),
@@ -448,9 +444,8 @@ impl Elaborator<'_> {
 
         if path.kind == PathKind::Plain
             && path.first_name() == Some(SELF_TYPE_NAME)
-            && let Some(typ @ Type::DataType(datatype, _)) = &self.self_type
+            && let Some(id) = self.item.impl_context.self_data_type_id()
         {
-            let id = datatype.borrow().id;
             if path.segments.len() == 1 {
                 return Ok(PathResolution {
                     item: PathResolutionItem::Type(id),
@@ -458,7 +453,7 @@ impl Elaborator<'_> {
                 });
             }
 
-            self_type = Some(typ.clone());
+            self_type = self.item.impl_context.self_type().cloned();
             starting_module = id.module_id();
             path.segments.remove(0);
             intermediate_item = IntermediatePathResolutionItem::SelfType;
@@ -660,9 +655,7 @@ impl Elaborator<'_> {
             });
         }
 
-        // The module to use for visibility check.
-        // Use the caller's module if set, else the module the lookup started in.
-        let visibility_module = self.caller_module.unwrap_or(self.module_id());
+        let visibility_module = self.visibility_module();
 
         // The first segment's visibility is computed with the same module the rest of
         // the path's visibility is checked against (`visibility_module`). When resolving on behalf
@@ -879,8 +872,7 @@ impl Elaborator<'_> {
         mode: PathResolutionMode,
         errors: &mut Vec<PathResolutionError>,
     ) -> PathResolutionItem {
-        // Use the caller's module if set, else the module the lookup started in.
-        let visibility_module = self.caller_module.unwrap_or(self.module_id());
+        let visibility_module = self.visibility_module();
         self.mark_segment(mode, current_module_id, &path.last_ident(), scope.id.namespace());
         self.per_ns_item_to_path_resolution_item(
             path,

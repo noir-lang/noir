@@ -153,7 +153,7 @@ impl Elaborator<'_> {
     /// Push an `ExprId` that corresponds to an integer literal.
     /// At the end of the current function we'll check that they fit in their type's range.
     #[tracing::instrument(level = "trace", skip_all)]
-    pub fn push_integer_literal_expr_id(&mut self, literal_expr_id: ExprId) {
+    pub(crate) fn push_integer_literal_expr_id(&mut self, literal_expr_id: ExprId) {
         self.get_function_context_mut().integer_literal_expr_ids.push(literal_expr_id);
     }
 
@@ -206,7 +206,7 @@ impl Elaborator<'_> {
         &self,
         trait_constraints: &[LocalTraitConstraint],
     ) {
-        let current_trait_self = self.current_trait.and_then(|_| self.self_type.clone());
+        let current_trait_self = self.item.impl_context.trait_self_type();
         for local in trait_constraints {
             let _ = local.constraint.find_impl(self.interner, current_trait_self.as_ref());
         }
@@ -232,7 +232,7 @@ impl Elaborator<'_> {
 
     #[tracing::instrument(level = "trace", skip_all)]
     fn check_trait_constraints(&mut self, trait_constraints: Vec<LocalTraitConstraint>) {
-        let current_trait_self = self.current_trait.and_then(|_| self.self_type.clone());
+        let current_trait_self = self.item.impl_context.trait_self_type();
 
         for local in trait_constraints {
             match local.constraint.find_impl(self.interner, current_trait_self.as_ref()) {

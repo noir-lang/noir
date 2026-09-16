@@ -535,6 +535,16 @@ fn deny_cyclic_structs() {
 }
 
 #[test]
+fn allows_comptime_type_in_comptime_struct() {
+    let src = r#"
+    pub comptime struct Foo {
+        quoted: Quoted,
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn errors_if_using_comptime_type_in_non_comptime_struct() {
     let src = r#"
     pub struct Foo {
@@ -779,6 +789,33 @@ fn placeholder_not_allowed_in_struct_field_type() {
 
     fn main() {
         let _ = Foo { x: [1] };
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn lazily_resolved_struct_fields_do_not_inherit_callers_self_type() {
+    let src = r#"
+    pub struct Foo {}
+
+    pub struct Bar {
+        inner: Self,
+               ^^^^ Could not resolve 'Self' in path
+    }
+
+    #[add_method]
+    ~~~~~~~~~~~~~ While running this function attribute
+    fn main() {}
+
+    // The generated method's body is elaborated while `Bar`'s fields are still pending, so they
+    // are resolved on demand from inside an impl of `Foo`.
+    comptime fn add_method(_f: FunctionDefinition) -> Quoted {
+        quote {
+            impl Foo {
+                pub fn inner_of(bar: Bar) -> Foo { bar.inner }
+            }
+        }
     }
     "#;
     check_errors(src);

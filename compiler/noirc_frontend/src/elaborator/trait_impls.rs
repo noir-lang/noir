@@ -32,71 +32,13 @@ use noirc_errors::{Located, Location};
 use rustc_hash::FxHashMap as HashMap;
 use rustc_hash::FxHashSet as HashSet;
 
-use super::Elaborator;
-
-/// State saved when entering a trait-impl scope, used to restore state on exit.
-///
-/// This is the trait-impl analogue of [`super::traits`]'s `TraitScopeState`. The two
-/// scopes are deliberately separate: a trait-impl scope additionally tracks
-/// `current_trait_impl`, which a trait scope has no notion of.
-///
-/// Generics are handled by the separate [`Elaborator::enter_trait_impl_generics_scope`] /
-/// [`Elaborator::exit_trait_impl_generics_scope`] pair rather than this state: their scope
-/// is narrower (only entered once the trait resolves) and their semantics differ (the vec
-/// is swapped wholesale rather than truncated).
-struct TraitImplScopeState {
-    local_module: Option<crate::hir::def_map::LocalModuleId>,
-    current_trait_impl: Option<TraitImplId>,
-    current_trait: Option<TraitId>,
-    self_type: Option<Type>,
-}
+use super::deferred::PendingWhereClauseCheck;
+use super::{
+    Elaborator,
+    item_context::{ImplContext, ItemContext, ModuleContext},
+};
 
 impl Elaborator<'_> {
-    /// Sets up the elaborator scope for collecting a trait impl.
-    /// Returns state that must be passed to [`Self::exit_trait_impl_scope`] to restore the
-    /// previous state.
-    #[tracing::instrument(level = "trace", skip_all)]
-    fn enter_trait_impl_scope(
-        &mut self,
-        trait_impl: &UnresolvedTraitImpl,
-        self_type: Type,
-    ) -> TraitImplScopeState {
-        TraitImplScopeState {
-            local_module: self.replace_local_module(trait_impl.module_id),
-            current_trait_impl: std::mem::replace(&mut self.current_trait_impl, trait_impl.impl_id),
-            current_trait: std::mem::replace(&mut self.current_trait, trait_impl.trait_id),
-            self_type: self.self_type.replace(self_type),
-        }
-    }
-
-    /// Restores the elaborator state after collecting a trait impl.
-    #[tracing::instrument(level = "trace", skip_all)]
-    fn exit_trait_impl_scope(&mut self, state: TraitImplScopeState) {
-        self.local_module = state.local_module;
-        self.current_trait_impl = state.current_trait_impl;
-        self.current_trait = state.current_trait;
-        self.self_type = state.self_type;
-    }
-
-    /// Swaps the impl's resolved generics into scope, returning the previous generics to be
-    /// passed to [`Self::exit_trait_impl_generics_scope`] on exit.
-    ///
-    /// This replaces the whole generics vec (rather than truncating generics added within
-    /// the scope, as [`Self::enter_generics_scope`] does), preserving the trait-impl
-    /// collection's historical semantics.
-    #[must_use]
-    fn enter_trait_impl_generics_scope(
-        &mut self,
-        resolved_generics: &[ResolvedGeneric],
-    ) -> Vec<ResolvedGeneric> {
-        std::mem::replace(&mut self.generics, resolved_generics.to_vec())
-    }
-
-    /// Restores the generics saved by [`Self::enter_trait_impl_generics_scope`].
-    fn exit_trait_impl_generics_scope(&mut self, previous_generics: Vec<ResolvedGeneric>) {
-        self.generics = previous_generics;
-    }
-
     /// Collects and validates a trait implementation.
     ///
     /// This is the main entry point for processing a trait impl block like:
@@ -133,29 +75,51 @@ impl Elaborator<'_> {
         let self_type =
             self_type.expect("Expected struct type to be set before collect_trait_impl");
 
-        let scope = self.enter_trait_impl_scope(trait_impl, self_type.clone());
+        // The impl is collected in a context of its own: its module, the trait and impl ids and
+        // the implementing type as `Self`. The caller's context is reinstated afterwards.
+        let context = ItemContext::new(ModuleContext::in_module(trait_impl.module_id)).with_impl(
+            ImplContext::in_trait_impl(Some(self_type), trait_impl.trait_id, trait_impl.impl_id),
+        );
+        self.with_item_context(context, |this| {
+            this.collect_trait_impl_in_context(trait_impl);
+        });
+    }
+
+    /// Does the work of [`Self::collect_trait_impl`].
+    ///
+    /// Expects the trait impl's own [`ItemContext`] to be installed.
+    fn collect_trait_impl_in_context(&mut self, trait_impl: &mut UnresolvedTraitImpl) {
         let self_type_location = trait_impl.object_type.location;
 
-        if matches!(self_type.follow_bindings_shallow().as_ref(), Type::Reference(..)) {
-            let is_alias = matches!(self_type, Type::Alias(..));
-            self.push_err(DefCollectorErrorKind::ReferenceInTraitImpl {
-                is_alias,
-                location: self_type_location,
-            });
-        } else if get_type_method_key(&self_type).is_none() {
-            let error: CompilationError = if self_type == Type::Error {
-                TypeCheckError::expecting_other_error(
-                    "collect_trait_impl: missing trait type",
-                    self_type_location,
+        let self_type = self.item.impl_context.expect_self_type();
+        let error: Option<CompilationError> =
+            if matches!(self_type.follow_bindings_shallow().as_ref(), Type::Reference(..)) {
+                let is_alias = matches!(self_type, Type::Alias(..));
+                Some(
+                    DefCollectorErrorKind::ReferenceInTraitImpl {
+                        is_alias,
+                        location: self_type_location,
+                    }
+                    .into(),
                 )
-                .into()
+            } else if get_type_method_key(self_type).is_none() {
+                Some(if *self_type == Type::Error {
+                    TypeCheckError::expecting_other_error(
+                        "collect_trait_impl: missing trait type",
+                        self_type_location,
+                    )
+                    .into()
+                } else {
+                    ResolverError::TypeUnsupportedForTraitImpl {
+                        typ: self_type.clone(),
+                        location: self_type_location,
+                    }
+                    .into()
+                })
             } else {
-                ResolverError::TypeUnsupportedForTraitImpl {
-                    typ: self_type.clone(),
-                    location: self_type_location,
-                }
-                .into()
+                None
             };
+        if let Some(error) = error {
             self.push_err(error);
         }
 
@@ -166,8 +130,7 @@ impl Elaborator<'_> {
         );
 
         if let Some(trait_id) = trait_impl.trait_id {
-            let previous_generics =
-                self.enter_trait_impl_generics_scope(&trait_impl.resolved_generics);
+            self.item.generics.set_params(trait_impl.resolved_generics.clone());
 
             let where_clause =
                 self.resolve_trait_constraints_and_add_to_scope(&trait_impl.where_clause);
@@ -272,8 +235,8 @@ impl Elaborator<'_> {
                     continue;
                 }
 
-                if self.interner.set_function_trait(*func_id, self_type.clone(), trait_id).is_some()
-                {
+                let self_type = self.item.impl_context.expect_self_type().clone();
+                if self.interner.set_function_trait(*func_id, self_type, trait_id).is_some() {
                     self.push_err(TypeCheckError::expecting_other_error(
                         "collect_trait_impl: overlapping function trait",
                         location,
@@ -308,7 +271,7 @@ impl Elaborator<'_> {
             let resolved_trait_impl = Shared::new(TraitImpl {
                 ident,
                 location,
-                typ: self_type.clone(),
+                typ: self.item.impl_context.expect_self_type().clone(),
                 trait_id,
                 file: trait_impl.file_id,
                 crate_id: self.crate_id,
@@ -316,10 +279,10 @@ impl Elaborator<'_> {
                 methods,
             });
 
-            let impl_generics = vecmap(&self.generics, |generic| generic.type_var.clone());
+            let impl_generics = self.item.generics.type_vars();
 
             match self.interner.add_trait_implementation(
-                self_type.clone(),
+                self.item.impl_context.expect_self_type().clone(),
                 trait_id,
                 trait_impl.impl_id.expect("ICE: impl_id should be set in define_function_metas"),
                 impl_generics,
@@ -329,18 +292,15 @@ impl Elaborator<'_> {
                 Ok(Ok(())) => (),
                 Err(error) => self.push_err(error),
                 Ok(Err(prev_location)) => {
+                    let typ = self.item.impl_context.expect_self_type().clone();
                     self.push_err(DefCollectorErrorKind::OverlappingImpl {
-                        typ: self_type,
+                        typ,
                         location: self_type_location,
                         prev_location,
                     });
                 }
             }
-
-            self.exit_trait_impl_generics_scope(previous_generics);
         }
-
-        self.exit_trait_impl_scope(scope);
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
@@ -350,112 +310,111 @@ impl Elaborator<'_> {
         trait_impl: &mut UnresolvedTraitImpl,
         trait_impl_where_clause: &[TraitConstraint],
     ) {
-        let previous_local_module = self.replace_local_module(trait_impl.module_id);
+        self.in_local_module(trait_impl.module_id, |this| {
+            let impl_id =
+                trait_impl.impl_id.expect("impl_id should be set in define_function_metas");
 
-        let impl_id = trait_impl.impl_id.expect("impl_id should be set in define_function_metas");
+            // In this Vec methods[i] corresponds to trait.methods[i]. If the impl has no implementation
+            // for a particular method, the default implementation will be added at that slot.
+            let mut ordered_methods = Vec::new();
 
-        // In this Vec methods[i] corresponds to trait.methods[i]. If the impl has no implementation
-        // for a particular method, the default implementation will be added at that slot.
-        let mut ordered_methods = Vec::new();
+            // Check whether the trait implementation is in the same crate as either the trait or the type
+            this.check_trait_impl_crate_coherence(trait_id, trait_impl);
 
-        // Check whether the trait implementation is in the same crate as either the trait or the type
-        self.check_trait_impl_crate_coherence(trait_id, trait_impl);
+            // Set of function ids that have a corresponding method in the trait
+            let mut func_ids_in_trait = HashSet::default();
 
-        // Set of function ids that have a corresponding method in the trait
-        let mut func_ids_in_trait = HashSet::default();
+            // Temporarily take ownership of the trait's methods so we can iterate over them
+            // while also mutating the interner
+            let the_trait = this.interner.get_trait_mut(trait_id);
+            let methods = std::mem::take(&mut the_trait.methods);
+            for method in &methods {
+                let overrides: Vec<_> = trait_impl
+                    .methods
+                    .functions
+                    .iter()
+                    .filter(|(_, _, f)| f.name() == method.name.as_str())
+                    .collect();
 
-        // Temporarily take ownership of the trait's methods so we can iterate over them
-        // while also mutating the interner
-        let the_trait = self.interner.get_trait_mut(trait_id);
-        let methods = std::mem::take(&mut the_trait.methods);
-        for method in &methods {
-            let overrides: Vec<_> = trait_impl
-                .methods
-                .functions
-                .iter()
-                .filter(|(_, _, f)| f.name() == method.name.as_str())
-                .collect();
-
-            if overrides.is_empty() {
-                if let Some(default_impl) = &method.default_impl {
-                    // Reuse the trait's own FuncId for the default method instead of cloning
-                    // the body into a fresh FuncId per impl. The body has already been
-                    // elaborated once at the trait definition (`elaborate_traits` walks
-                    // `UnresolvedTrait::fns_with_default_impl`). Sharing the FuncId means
-                    // the body is type-checked exactly once, errors are reported once, and
-                    // paths in the body resolve from the trait's module rather than each
-                    // impl's. Per-call `Self` substitution still happens at the call site
-                    // via the instantiation bindings recorded during trait method
-                    // resolution, so dispatch needs no extra work.
-                    let trait_func_id =
-                        self.interner.get_trait(trait_id).method_ids[method.name.as_str()];
-                    trait_impl.inherited_default_method_func_ids.insert(trait_func_id);
-                    func_ids_in_trait.insert(trait_func_id);
-                    ordered_methods.push((
-                        method.default_impl_module_id,
-                        trait_func_id,
-                        *default_impl.clone(),
-                    ));
+                if overrides.is_empty() {
+                    if let Some(default_impl) = &method.default_impl {
+                        // Reuse the trait's own FuncId for the default method instead of cloning
+                        // the body into a fresh FuncId per impl. The body has already been
+                        // elaborated once at the trait definition (`elaborate_traits` walks
+                        // `UnresolvedTrait::fns_with_default_impl`). Sharing the FuncId means
+                        // the body is type-checked exactly once, errors are reported once, and
+                        // paths in the body resolve from the trait's module rather than each
+                        // impl's. Per-call `Self` substitution still happens at the call site
+                        // via the instantiation bindings recorded during trait method
+                        // resolution, so dispatch needs no extra work.
+                        let trait_func_id =
+                            this.interner.get_trait(trait_id).method_ids[method.name.as_str()];
+                        trait_impl.inherited_default_method_func_ids.insert(trait_func_id);
+                        func_ids_in_trait.insert(trait_func_id);
+                        ordered_methods.push((
+                            method.default_impl_module_id,
+                            trait_func_id,
+                            *default_impl.clone(),
+                        ));
+                    } else {
+                        this.push_err(DefCollectorErrorKind::TraitMissingMethod {
+                            trait_name: this.interner.get_trait(trait_id).name.clone(),
+                            method_name: method.name.clone(),
+                            trait_impl_location: trait_impl.object_type.location,
+                        });
+                    }
                 } else {
-                    self.push_err(DefCollectorErrorKind::TraitMissingMethod {
-                        trait_name: self.interner.get_trait(trait_id).name.clone(),
-                        method_name: method.name.clone(),
-                        trait_impl_location: trait_impl.object_type.location,
-                    });
-                }
-            } else {
-                let ordered_generics =
-                    self.interner.get_ordered_generics_for_impl(impl_id).to_vec();
-                for (_, func_id, _) in &overrides {
-                    // Defer the where-clause check until after the post-attribute
-                    // drain so that the impl method's meta and the trait method's
-                    // `TraitFunction` record are both fully resolved.
-                    self.queue_pending_where_clause_check(
-                        *func_id,
-                        method,
-                        trait_impl_where_clause,
-                        &ordered_generics,
-                        trait_id,
-                        impl_id,
-                    );
+                    let ordered_generics =
+                        this.interner.get_ordered_generics_for_impl(impl_id).to_vec();
+                    for (_, func_id, _) in &overrides {
+                        // Defer the where-clause check until after the post-attribute
+                        // drain so that the impl method's meta and the trait method's
+                        // `TraitFunction` record are both fully resolved.
+                        this.queue_pending_where_clause_check(
+                            *func_id,
+                            method,
+                            trait_impl_where_clause,
+                            &ordered_generics,
+                            trait_id,
+                            impl_id,
+                        );
 
-                    func_ids_in_trait.insert(*func_id);
-                }
+                        func_ids_in_trait.insert(*func_id);
+                    }
 
-                if overrides.len() > 1 {
-                    self.push_err(DefCollectorErrorKind::Duplicate {
-                        typ: DuplicateType::TraitAssociatedItem,
-                        first_def: overrides[0].2.name_ident().clone(),
-                        second_def: overrides[1].2.name_ident().clone(),
-                    });
-                }
+                    if overrides.len() > 1 {
+                        this.push_err(DefCollectorErrorKind::Duplicate {
+                            typ: DuplicateType::TraitAssociatedItem,
+                            first_def: overrides[0].2.name_ident().clone(),
+                            second_def: overrides[1].2.name_ident().clone(),
+                        });
+                    }
 
-                ordered_methods.push(overrides[0].clone());
+                    ordered_methods.push(overrides[0].clone());
+                }
             }
-        }
 
-        // Restore the methods that were taken before the for loop
-        let the_trait = self.interner.get_trait_mut(trait_id);
-        the_trait.set_methods(methods);
+            // Restore the methods that were taken before the for loop
+            let the_trait = this.interner.get_trait_mut(trait_id);
+            the_trait.set_methods(methods);
 
-        let trait_name = the_trait.name.clone();
+            let trait_name = the_trait.name.clone();
 
-        // Emit MethodNotInTrait error for methods in the impl block that
-        // don't have a corresponding method signature defined in the trait
-        for (_, func_id, func) in &trait_impl.methods.functions {
-            if !func_ids_in_trait.contains(func_id) {
-                let trait_name = trait_name.clone();
-                let impl_method = func.name_ident().clone();
-                let error = DefCollectorErrorKind::MethodNotInTrait { trait_name, impl_method };
-                let error: CompilationError = error.into();
-                self.push_err(error);
+            // Emit MethodNotInTrait error for methods in the impl block that
+            // don't have a corresponding method signature defined in the trait
+            for (_, func_id, func) in &trait_impl.methods.functions {
+                if !func_ids_in_trait.contains(func_id) {
+                    let trait_name = trait_name.clone();
+                    let impl_method = func.name_ident().clone();
+                    let error = DefCollectorErrorKind::MethodNotInTrait { trait_name, impl_method };
+                    let error: CompilationError = error.into();
+                    this.push_err(error);
+                }
             }
-        }
 
-        trait_impl.methods.functions = ordered_methods;
-        trait_impl.methods.trait_id = Some(trait_id);
-
-        self.local_module = previous_local_module;
+            trait_impl.methods.functions = ordered_methods;
+            trait_impl.methods.trait_id = Some(trait_id);
+        });
     }
 
     /// Issue an error if the impl is stricter than the trait.
@@ -485,8 +444,8 @@ impl Elaborator<'_> {
         trait_id: TraitId,
         impl_id: TraitImplId,
     ) {
-        let module_id = self.local_module.expect("local_module is set inside collect_trait_impl");
-        self.pending_trait_work.where_clause_checks.push(super::PendingWhereClauseCheck {
+        let module_id = self.item.module.local_module();
+        self.deferred.trait_work.where_clause_checks.push(PendingWhereClauseCheck {
             impl_method_func_id,
             trait_id,
             impl_id,
@@ -503,7 +462,7 @@ impl Elaborator<'_> {
     /// [`Elaborator::populate_resolved_trait_method_records`] has updated the
     /// trait's `TraitFunction` records.
     pub(super) fn run_pending_where_clause_checks(&mut self) {
-        let pending = std::mem::take(&mut self.pending_trait_work.where_clause_checks);
+        let pending = std::mem::take(&mut self.deferred.trait_work.where_clause_checks);
         for check in pending {
             // Re-fetch the trait method's TraitFunction record (now populated)
             // by name, mirroring how `collect_trait_impl_methods` matched it.
@@ -517,24 +476,24 @@ impl Elaborator<'_> {
 
             let impl_self_type =
                 self.interner.get_trait_implementation(check.impl_id).borrow().typ.clone();
-            let prev_local_module = self.replace_local_module(check.module_id);
-            let prev_current_trait_impl = self.current_trait_impl.replace(check.impl_id);
-            let prev_current_trait = self.current_trait.replace(check.trait_id);
-            let prev_self_type = self.self_type.replace(impl_self_type);
-
-            self.check_where_clause_against_trait(
-                &check.impl_method_func_id,
-                &trait_method,
-                &check.trait_impl_where_clause,
-                &check.ordered_generics,
-                check.trait_id,
-                check.impl_id,
+            // Each check runs in a context of its own for the impl, as trait impl collection did.
+            let context = ItemContext::new(ModuleContext::in_module(check.module_id)).with_impl(
+                ImplContext::in_trait_impl(
+                    Some(impl_self_type),
+                    Some(check.trait_id),
+                    Some(check.impl_id),
+                ),
             );
-
-            self.local_module = prev_local_module;
-            self.current_trait_impl = prev_current_trait_impl;
-            self.current_trait = prev_current_trait;
-            self.self_type = prev_self_type;
+            self.with_item_context(context, |this| {
+                this.check_where_clause_against_trait(
+                    &check.impl_method_func_id,
+                    &trait_method,
+                    &check.trait_impl_where_clause,
+                    &check.ordered_generics,
+                    check.trait_id,
+                    check.impl_id,
+                );
+            });
         }
     }
 
@@ -550,7 +509,7 @@ impl Elaborator<'_> {
     ) {
         // First get the general trait to impl bindings.
         // Then we'll need to add the bindings for this specific method.
-        let self_type = self.self_type.as_ref().unwrap();
+        let self_type = self.item.impl_context.expect_self_type();
 
         let mut bindings =
             self.interner.trait_to_impl_bindings(trait_id, impl_id, trait_impl_generics, self_type);
@@ -702,23 +661,21 @@ impl Elaborator<'_> {
         trait_id: TraitId,
         trait_impl: &UnresolvedTraitImpl,
     ) {
-        let previous_local_module = self.replace_local_module(trait_impl.module_id);
+        self.in_local_module(trait_impl.module_id, |this| {
+            let object_crate = match &trait_impl.resolved_object_type {
+                Some(Type::DataType(struct_or_enum_type, _)) => {
+                    Some(struct_or_enum_type.borrow().id.krate())
+                }
+                _ => None,
+            };
 
-        let object_crate = match &trait_impl.resolved_object_type {
-            Some(Type::DataType(struct_or_enum_type, _)) => {
-                Some(struct_or_enum_type.borrow().id.krate())
+            let the_trait = this.interner.get_trait(trait_id);
+            if this.crate_id != the_trait.crate_id && Some(this.crate_id) != object_crate {
+                this.push_err(DefCollectorErrorKind::TraitImplOrphaned {
+                    location: trait_impl.object_type.location,
+                });
             }
-            _ => None,
-        };
-
-        let the_trait = self.interner.get_trait(trait_id);
-        if self.crate_id != the_trait.crate_id && Some(self.crate_id) != object_crate {
-            self.push_err(DefCollectorErrorKind::TraitImplOrphaned {
-                location: trait_impl.object_type.location,
-            });
-        }
-
-        self.local_module = previous_local_module;
+        });
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
@@ -960,10 +917,19 @@ impl Elaborator<'_> {
         &mut self,
         trait_impl: &mut UnresolvedTraitImpl,
     ) -> (Vec<(TraitConstraint, Location)>, Vec<ResolvedGeneric>) {
-        let previous_local_module = self.replace_local_module(trait_impl.module_id);
-        // Clear any previous item, so when we resolve the self-type we don't register any dependencies.
-        self.current_item = None;
+        // No current item is installed so that resolving the self type registers no dependencies.
+        let context = ItemContext::new(ModuleContext::in_module(trait_impl.module_id));
+        self.with_item_context(context, |this| this.prepare_trait_impl_in_context(trait_impl))
+    }
 
+    /// Does the work of [`Self::prepare_trait_impl_for_function_meta_definition`].
+    ///
+    /// Expects the trait impl's own [`ItemContext`] to be installed; the generics resolved for the
+    /// impl are returned rather than left in that context.
+    fn prepare_trait_impl_in_context(
+        &mut self,
+        trait_impl: &mut UnresolvedTraitImpl,
+    ) -> (Vec<(TraitConstraint, Location)>, Vec<ResolvedGeneric>) {
         let (trait_id, trait_generics, path_location) =
             self.resolve_trait_impl_trait_path(trait_impl);
 
@@ -996,7 +962,7 @@ impl Elaborator<'_> {
         if let Some(trait_id) = trait_id {
             // The ordered generics and associated types are already stored by `resolve_trait_impl_associated_types`.
             // Now that we have resolved the self-type, register the prepared trait impl for it.
-            let impl_generics = vecmap(&self.generics, |generic| generic.type_var.clone());
+            let impl_generics = self.item.generics.type_vars();
             self.interner.add_prepared_trait_implementation(
                 self_type.clone(),
                 trait_id,
@@ -1021,9 +987,7 @@ impl Elaborator<'_> {
             self.interner.add_trait_reference(trait_id, location, is_self_type_name);
         }
 
-        self.local_module = previous_local_module;
-
-        let generics = std::mem::take(&mut self.generics);
+        let generics = self.item.generics.take_params();
 
         (new_generics_trait_constraints, generics)
     }
@@ -1114,7 +1078,7 @@ impl Elaborator<'_> {
         trait_impl: &mut UnresolvedTraitImpl,
     ) -> (Vec<TraitConstraint>, Vec<(TraitConstraint, Location)>) {
         self.add_generics(&trait_impl.generics);
-        trait_impl.resolved_generics = self.generics.clone();
+        trait_impl.resolved_generics = self.item.generics.params().to_vec();
 
         let new_generics = self.desugar_trait_constraints(&mut trait_impl.where_clause);
         let mut new_generics_trait_constraints = Vec::new();
@@ -1122,12 +1086,12 @@ impl Elaborator<'_> {
             for bound in desugared.bounds {
                 let typ = desugared.named_generic.clone();
                 let location = desugared.generic.location;
-                self.add_trait_bound_to_scope(location, &typ, &bound);
+                self.add_implied_trait_bound_to_scope(location, &typ, &bound);
                 new_generics_trait_constraints
                     .push((TraitConstraint { typ, trait_bound: bound }, location));
             }
             trait_impl.resolved_generics.push(desugared.generic.clone());
-            self.generics.push(desugared.generic);
+            self.item.generics.add_param(desugared.generic);
         }
 
         // We need to resolve the where clause before any associated types to be

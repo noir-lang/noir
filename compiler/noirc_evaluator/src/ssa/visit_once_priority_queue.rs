@@ -30,15 +30,26 @@ impl<P: Ord, T: Ord + Copy> VisitOncePriorityQueue<P, T> {
         }
     }
 
+    /// As in [`VisitOnceDeque`](crate::ssa::visit_once_deque::VisitOnceDeque), already-visited
+    /// items are skipped with a loop rather than a recursive call, so that the stack cost of a
+    /// drain stays constant however many duplicates the queue holds.
     pub(crate) fn pop_front(&mut self) -> Option<T> {
-        let (_, item) = self.queue.pop_first()?;
-        if self.visited.insert(item) { Some(item) } else { self.pop_front() }
+        while let Some((_, item)) = self.queue.pop_first() {
+            if self.visited.insert(item) {
+                return Some(item);
+            }
+        }
+        None
     }
 
     #[allow(unused)]
     pub(crate) fn pop_back(&mut self) -> Option<T> {
-        let (_, item) = self.queue.pop_last()?;
-        if self.visited.insert(item) { Some(item) } else { self.pop_back() }
+        while let Some((_, item)) = self.queue.pop_last() {
+            if self.visited.insert(item) {
+                return Some(item);
+            }
+        }
+        None
     }
 }
 

@@ -329,10 +329,11 @@ impl LoopInvariantContext<'_> {
             _ => None,
         } {
             // Evaluate the operation at both bound extremes to check whether it will ever overflow.
+            let is_brillig = self.inserter.function.dfg.runtime().is_brillig();
             for (lhs, rhs) in checks {
                 let lhs = lhs.into_numeric_constant().0;
                 let rhs = rhs.into_numeric_constant().0;
-                match eval_constant_binary_op(lhs, rhs, binary.operator, operand_type) {
+                match eval_constant_binary_op(lhs, rhs, binary.operator, operand_type, is_brillig) {
                     BinaryEvaluationResult::Success(..) => {}
                     BinaryEvaluationResult::CouldNotEvaluate
                     | BinaryEvaluationResult::Failure(..) => {

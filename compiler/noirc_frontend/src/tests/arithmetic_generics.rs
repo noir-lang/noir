@@ -647,3 +647,33 @@ fn does_not_infer_a_numeric_generic_by_cancelling_two_distinct_associated_consta
     "#;
     check_errors(src);
 }
+
+#[test]
+fn does_not_cancel_the_repeated_term_of_n_minus_m_plus_n() {
+    // `N - (M + N)` is `-M`, not `M`, so the two `N` terms must not cancel and the return type
+    // must not be accepted as `[Field; M]`.
+    let src = r#"
+        pub fn f<let M: u32, let N: u32>(xs: [Field; M]) -> [Field; N - (M + N)] {
+                                                            ^^^^^^^^^^^^^^^^^^^^ expected type [Field; (N - (M + N))], found type [Field; M]
+                                                            ~~~~~~~~~~~~~~~~~~~~ expected [Field; (N - (M + N))] because of return type
+            xs
+            ~~ [Field; M] returned here
+        }
+
+        fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn cancels_the_repeated_term_of_n_plus_m_minus_n() {
+    // The mirrored shape is the one that does cancel: `N + (M - N)` really is `M`.
+    let src = r#"
+        pub fn f<let M: u32, let N: u32>(xs: [Field; M]) -> [Field; N + (M - N)] {
+            xs
+        }
+
+        fn main() {}
+    "#;
+    assert_no_errors(src);
+}

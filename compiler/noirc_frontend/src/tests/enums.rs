@@ -789,6 +789,37 @@ fn can_return_enum_from_unconstrained_to_unconstrained() {
 }
 
 #[test]
+fn allows_comptime_type_in_comptime_enum() {
+    let src = r#"
+    pub comptime enum Foo {
+        Quoted(Quoted),
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    assert_no_errors_using_features(src, &features);
+}
+
+#[test]
+fn errors_if_using_impl_trait_in_enum_variant() {
+    let src = r#"
+    pub enum Foo {
+        Baz(impl Bar),
+                 ^^^ `impl Trait` is not allowed in enum variant types
+                 ~~~ Use a generic type parameter instead
+    }
+
+    trait Bar {
+        fn bar(self);
+    }
+    impl Bar for Foo {
+        fn bar(self) {}
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums, UnstableFeature::TraitAsType];
+    check_errors_using_features(src, &features);
+}
+
+#[test]
 fn errors_if_using_comptime_type_in_non_comptime_enum() {
     let src = r#"
     pub enum Foo {
@@ -1239,4 +1270,59 @@ fn errors_on_turbofish_on_both_type_and_variant_in_match_pattern() {
     "#;
     let features = vec![UnstableFeature::Enums];
     check_errors_using_features(src, &features);
+}
+
+#[test]
+fn empty_match_on_enum_with_pending_variants() {
+    let src = r#"
+    pub struct Foo {}
+
+    pub enum Bar {
+        Inner(Foo),
+    }
+
+    #[add_method]
+    ~~~~~~~~~~~~~ While running this function attribute
+    fn main() {}
+
+    // The generated method's body is elaborated while `Bar`'s variants are still pending, so
+    // they are resolved on demand while checking the match for missing cases.
+    comptime fn add_method(_f: FunctionDefinition) -> Quoted {
+        quote {
+            impl Foo {
+                pub fn unwrap_bar(bar: Bar) { match bar {} }
+                                                    ^^^ Missing case: `Inner`
+            }
+        }
+    }
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::Enums]);
+}
+
+#[test]
+fn lazily_resolved_enum_variants_do_not_inherit_callers_self_type() {
+    let src = r#"
+    pub struct Foo {}
+
+    pub enum Bar {
+        Inner(Self),
+              ^^^^ Could not resolve 'Self' in path
+    }
+
+    #[add_method]
+    ~~~~~~~~~~~~~ While running this function attribute
+    fn main() {}
+
+    // The generated method's body is elaborated while `Bar`'s variants are still pending, so
+    // they are resolved on demand from inside an impl of `Foo`.
+    comptime fn add_method(_f: FunctionDefinition) -> Quoted {
+        quote {
+            impl Foo {
+                pub fn unwrap_bar(bar: Bar) { match bar {} }
+                                                    ^^^ Missing case: `Inner`
+            }
+        }
+    }
+    "#;
+    check_errors_using_features(src, &[UnstableFeature::Enums]);
 }

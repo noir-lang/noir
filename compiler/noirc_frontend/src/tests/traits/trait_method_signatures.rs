@@ -1,7 +1,9 @@
 //! Tests for trait method signature matching between trait definitions and implementations.
 //! Validates parameter types, return types, parameter counts, and method presence.
 
-use crate::tests::{assert_no_errors, check_errors, check_monomorphization_error};
+use crate::tests::{
+    assert_no_errors, check_errors, check_errors_with_stdlib, check_monomorphization_error,
+};
 
 #[test]
 fn check_trait_implementation_duplicate_method() {
@@ -384,4 +386,46 @@ fn placeholder_not_allowed_in_trait_method_signature() {
     fn main() {}
     "#;
     check_errors(src);
+}
+
+#[test]
+fn errors_if_using_comptime_type_in_trait_method_signature() {
+    let src = r#"
+    pub trait Foo {
+        fn foo(_x: Quoted);
+                   ^^^^^^ Comptime-only type `Quoted` cannot be used in non-comptime function
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn allows_comptime_type_in_comptime_trait_method_signature() {
+    let src = r#"
+    pub trait Foo {
+        comptime fn foo(_x: Quoted);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn errors_if_using_comptime_type_in_stdlib_trait_method_signature() {
+    let src = r#"
+    pub trait Foo {
+        fn foo(_x: Quoted);
+                   ^^^^^^ Comptime-only type `Quoted` cannot be used in non-comptime function
+    }
+    "#;
+    check_errors_with_stdlib(src, []);
+}
+
+#[test]
+fn allows_comptime_type_in_stdlib_comptime_trait_method_signature() {
+    let src = r#"
+    pub trait Foo {
+        comptime fn foo(_x: Quoted);
+    }
+    "#;
+    check_errors_with_stdlib(src, []);
 }

@@ -1376,7 +1376,7 @@ fn associated_type_accessed_through_self_in_trait_impl_method() {
     check_errors(src);
 }
 
-/// TODO(https://github.com/noir-lang/noir/issues/11376): Switch to assert no errors once resolved
+/// Regression test for https://github.com/noir-lang/noir/issues/11376.
 #[test]
 fn fully_qualified_nested_associated_type() {
     let src = "
@@ -1386,8 +1386,31 @@ fn fully_qualified_nested_associated_type() {
 
     impl<T> Result for T where T: Foo {
         type Output = <T::Bar as HasQux>::Qux;
-                                 ^^^^^^ No matching impl found for `<T as Foo>::Bar: HasQux<Qux = _>`
-                                 ~~~~~~ No impl for `<T as Foo>::Bar: HasQux<Qux = _>`
+    }
+    fn main() {}
+    ";
+    assert_no_errors(src);
+}
+
+/// A bound implied by one item's where clause does not carry over to another item, even one that
+/// shares its generics. A sibling method writing that bound itself is not told it is redundant,
+/// and writing it a second time still is.
+#[test]
+fn implied_associated_type_bound_stays_with_the_item_that_implies_it() {
+    let src = "
+    trait HasQux {}
+    trait Foo { type Bar: HasQux; }
+
+    pub struct S<T, U> { t: T, u: U }
+
+    impl<T, U> S<T, U> {
+        pub fn implies() where T: Foo<Bar = U> {}
+
+        pub fn restates() where U: HasQux, U: HasQux {}
+               ^^^^^^^^ Constraint for `U: HasQux` is not needed, another matching impl is already in scope
+               ~~~~~~~~ Unnecessary trait constraint in where clause
+                                              ^^^^^^ Constraint for `U: HasQux` is not needed, another matching impl is already in scope
+                                              ~~~~~~ Unnecessary trait constraint in where clause
     }
     fn main() {}
     ";
