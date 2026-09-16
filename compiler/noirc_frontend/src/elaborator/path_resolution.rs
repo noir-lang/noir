@@ -448,9 +448,8 @@ impl Elaborator<'_> {
 
         if path.kind == PathKind::Plain
             && path.first_name() == Some(SELF_TYPE_NAME)
-            && let Some(typ @ Type::DataType(datatype, _)) = &self.item.self_type
+            && let Some(id) = self.item.impl_context.self_data_type_id()
         {
-            let id = datatype.borrow().id;
             if path.segments.len() == 1 {
                 return Ok(PathResolution {
                     item: PathResolutionItem::Type(id),
@@ -458,7 +457,7 @@ impl Elaborator<'_> {
                 });
             }
 
-            self_type = Some(typ.clone());
+            self_type = self.item.impl_context.self_type().cloned();
             starting_module = id.module_id();
             path.segments.remove(0);
             intermediate_item = IntermediatePathResolutionItem::SelfType;

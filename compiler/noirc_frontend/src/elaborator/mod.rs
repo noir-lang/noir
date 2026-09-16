@@ -118,7 +118,7 @@ use self::traits::check_trait_impl_method_matches_declaration;
 use self::variable::VariableResolution;
 use fm::FileMap;
 use function_context::FunctionContext;
-use item_context::ItemContext;
+use item_context::{GenericsContext, ImplContext, ItemContext};
 use noirc_errors::Location;
 pub(crate) use options::ElaboratorOptions;
 pub use options::{FrontendOptions, UnstableFeature};
@@ -184,17 +184,6 @@ pub struct LambdaContext {
     pub scope_index: usize,
     /// If we know this lambda to be unconstrained.
     pub unconstrained: bool,
-}
-
-/// Determines whether we are in an unsafe block and, if so, whether
-/// any unconstrained calls were found in it (because if not we'll warn
-/// that the unsafe block is not needed).
-#[derive(Copy, Clone, Default)]
-enum UnsafeBlockStatus {
-    #[default]
-    NotInUnsafeBlock,
-    InUnsafeBlockWithoutUnconstrainedCalls,
-    InUnsafeBlockWithUnconstrainedCalls,
 }
 
 pub struct Loop {
@@ -441,9 +430,7 @@ impl<'context> Elaborator<'context> {
     /// Returns `true` if the current local module is the crate root,
     /// and we are not inside an impl or trait impl.
     pub(crate) fn is_at_crate_root(&self) -> bool {
-        self.item.self_type.is_none()
-            && self.item.current_trait.is_none()
-            && self.item.current_trait_impl.is_none()
+        self.item.impl_context.is_outside_any_impl_or_trait()
             && self.item.local_module.is_some_and(|id| id == self.def_maps[&self.crate_id].root())
     }
 
@@ -1025,9 +1012,8 @@ impl<'context> Elaborator<'context> {
         // own from each method's `FuncMeta`, and reads nothing from the context it is called in.
         let context = ItemContext {
             local_module: Some(trait_impl.module_id),
-            current_trait_impl: trait_impl.impl_id,
-            current_trait: trait_impl.trait_id,
-            generics: trait_impl.resolved_generics.clone(),
+            impl_context: ImplContext::in_trait_impl(None, trait_impl.trait_id, trait_impl.impl_id),
+            generics: GenericsContext::new(trait_impl.resolved_generics.clone(), Vec::new()),
             ..Default::default()
         };
         self.with_item_context(context, |this| {
@@ -1154,7 +1140,7 @@ impl<'context> Elaborator<'context> {
         });
 
         let in_unconstrained_lambda =
-            self.item.lambda_stack.last().is_some_and(|ctx| ctx.unconstrained);
+            self.item.body.current_lambda().is_some_and(|lambda| lambda.unconstrained);
 
         !in_unconstrained_function && !in_unconstrained_lambda
     }

@@ -10,6 +10,14 @@ whether it is inside the arguments of a call to an unconstrained function, wheth
 is resolving is in a position where `impl Trait` is not allowed, the module its visibility
 checks are made from, and the small counters used while elaborating its body.
 
+Fields of that state which are only meaningful together live in a sub-context of `ItemContext`,
+each in its own file under
+[`elaborator/item_context/`](../compiler/noirc_frontend/src/elaborator/item_context/): an
+`ImplContext` for the enclosing impl or trait, a `GenericsContext` for the generics in scope
+and the bounds they carry, a `BodyContext` for where in the item's body the elaborator is. A
+sub-context keeps its fields private and exposes the operations over them, so the scopes that
+enter and leave it are the only code that can change it.
+
 Elaborating an item can require elaborating another item first: a function body that calls a
 function returning `impl Trait` needs the callee's body to learn the concrete type; a body
 that mentions a global whose initializer is still pending elaborates that global; a body that
@@ -26,8 +34,8 @@ scope, which can in turn reach any of the above. The rule is:
   generics, trait bounds, loops, `unsafe` blocks, comptime-ness and the caller's visibility
   module are not visible to it, and nothing it does to its context reaches the caller.
 - Scoping *within* an item (a nested `unsafe` block, a loop body, a call's arguments, a type
-  position where `impl Trait` is not allowed) uses enter/exit pairs on `ItemContext`, since
-  those legitimately see and update the enclosing item's state.
+  position where `impl Trait` is not allowed) uses enter/exit pairs on the sub-context that
+  owns the state, since those legitimately see and update the enclosing item's state.
 
 Two places set individual fields of the context instead, and neither is an exception to the
 rule:

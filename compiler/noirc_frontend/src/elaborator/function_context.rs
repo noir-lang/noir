@@ -206,7 +206,7 @@ impl Elaborator<'_> {
         &self,
         trait_constraints: &[LocalTraitConstraint],
     ) {
-        let current_trait_self = self.item.current_trait.and_then(|_| self.item.self_type.clone());
+        let current_trait_self = self.item.impl_context.trait_self_type();
         for local in trait_constraints {
             let _ = local.constraint.find_impl(self.interner, current_trait_self.as_ref());
         }
@@ -232,7 +232,7 @@ impl Elaborator<'_> {
 
     #[tracing::instrument(level = "trace", skip_all)]
     fn check_trait_constraints(&mut self, trait_constraints: Vec<LocalTraitConstraint>) {
-        let current_trait_self = self.item.current_trait.and_then(|_| self.item.self_type.clone());
+        let current_trait_self = self.item.impl_context.trait_self_type();
 
         for local in trait_constraints {
             match local.constraint.find_impl(self.interner, current_trait_self.as_ref()) {
