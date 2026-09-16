@@ -1586,4 +1586,44 @@ mod tests {
         let purities = &ssa.main().dfg.function_purities;
         assert_eq!(purities.purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
     }
+
+    /// Regression for noir-lang/noir-claude#1844: the header guard `lt v1, u32 10` has both of
+    /// its arms inside the loop, so it is not the loop's exit test and proves nothing about
+    /// termination. The loop only exits when `v0` is true, so with `v0 = false` it never
+    /// terminates. Classifying `f1` as `Pure` would let dead-code elimination delete the call
+    /// in `main`, turning a non-terminating program into one that returns.
+    #[test]
+    fn brillig_function_with_in_body_header_branch_is_not_pure() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = call f1(v0) -> u32
+            return u32 7
+        }
+        brillig(inline) fn f f1 {
+          b0(v0: u1):
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v2 = lt v1, u32 10
+            jmpif v2 then: b2(), else: b3()
+          b2():
+            jmp b4()
+          b3():
+            jmp b4()
+          b4():
+            jmpif v0 then: b6(), else: b5()
+          b5():
+            v3 = unchecked_add v1, u32 1
+            jmp b1(v3)
+          b6():
+            return v1
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+
+        let purities = &ssa.main().dfg.function_purities;
+        assert_eq!(purities.purities[&FunctionId::test_new(1)], Purity::PureWithPredicate);
+    }
 }
