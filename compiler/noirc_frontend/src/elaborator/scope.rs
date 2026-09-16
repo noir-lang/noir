@@ -64,6 +64,8 @@ impl Elaborator<'_> {
     /// (on every exit path, including early returns inside `f`). This is the module-scope
     /// analogue of [`Self::recover_generics`] and should be used instead of a bare
     /// [`ModuleContext::set_local_module`] so that the caller's module is never left dangling.
+    ///
+    /// [`ModuleContext::set_local_module`]: super::item_context::ModuleContext::set_local_module
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn in_local_module<T>(
         &mut self,
