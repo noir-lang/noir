@@ -382,7 +382,7 @@ impl ElaborateReason {
 
 impl<'context> Elaborator<'context> {
     #[allow(clippy::too_many_arguments)]
-    pub fn new(
+    pub(crate) fn new(
         interner: &'context mut NodeInterner,
         def_maps: &'context mut DefMaps,
         usage_tracker: &'context mut UsageTracker,
@@ -436,7 +436,7 @@ impl<'context> Elaborator<'context> {
             && self.item.module.is_in_module(self.def_maps[&self.crate_id].root())
     }
 
-    pub fn from_context(
+    pub(crate) fn from_context(
         context: &'context mut Context,
         crate_id: CrateId,
         options: ElaboratorOptions<'context>,
@@ -459,7 +459,7 @@ impl<'context> Elaborator<'context> {
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
-    pub fn elaborate(
+    pub(crate) fn elaborate(
         context: &'context mut Context,
         crate_id: CrateId,
         items: CollectedItems,
@@ -469,7 +469,7 @@ impl<'context> Elaborator<'context> {
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
-    pub fn elaborate_and_return_self(
+    pub(crate) fn elaborate_and_return_self(
         context: &'context mut Context,
         crate_id: CrateId,
         items: CollectedItems,
@@ -1043,7 +1043,7 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    pub fn get_module(&self, module: ModuleId) -> &ModuleData {
+    pub(crate) fn get_module(&self, module: ModuleId) -> &ModuleData {
         let message = "A crate should always be present for a given crate id";
         &self.def_maps.get(&module.krate).expect(message)[module.local_id]
     }
@@ -1146,7 +1146,7 @@ impl<'context> Elaborator<'context> {
     /// Register a use of the given unstable feature. Errors if the feature has not
     /// been explicitly enabled in this package.
     #[tracing::instrument(level = "trace", skip_all)]
-    pub fn use_unstable_feature(&mut self, feature: UnstableFeature, location: Location) {
+    pub(crate) fn use_unstable_feature(&mut self, feature: UnstableFeature, location: Location) {
         // Is the feature globally enabled via CLI options?
         if self.options.enabled_unstable_features.contains(&feature) {
             return;
@@ -1173,7 +1173,7 @@ impl<'context> Elaborator<'context> {
     /// Run the given function using the resolver and return true if any errors (not warnings)
     /// occurred while running it.
     #[tracing::instrument(level = "trace", skip_all)]
-    pub fn errors_occurred_in<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> (bool, T) {
+    pub(crate) fn errors_occurred_in<T>(&mut self, f: impl FnOnce(&mut Self) -> T) -> (bool, T) {
         let previous_errors = self.errors.len();
         let ret = f(self);
         let errored = self.errors.iter().skip(previous_errors).any(|error| error.is_error());

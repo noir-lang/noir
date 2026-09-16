@@ -13,7 +13,7 @@ impl Elaborator<'_> {
     /// Each time these two tokens are found, they are replaced by a new `UnquoteMarker` token
     /// containing the `ExprId` of the resolved variable to unquote.
     #[tracing::instrument(level = "trace", skip_all)]
-    pub fn find_unquoted_exprs_tokens(&mut self, tokens: Tokens) -> Tokens {
+    pub(crate) fn find_unquoted_exprs_tokens(&mut self, tokens: Tokens) -> Tokens {
         let token_count = tokens.0.len();
         let mut new_tokens = Vec::with_capacity(token_count);
         let mut tokens = tokens.0.into_iter();

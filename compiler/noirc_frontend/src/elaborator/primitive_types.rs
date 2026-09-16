@@ -112,7 +112,7 @@ impl PrimitiveType {
     }
 
     /// Inverse of `to_type()`: converts a `Type` back to a `PrimitiveType` if possible.
-    pub fn from_type(typ: &Type) -> Option<Self> {
+    pub(crate) fn from_type(typ: &Type) -> Option<Self> {
         match typ {
             Type::Bool => Some(Self::Bool),
             Type::FieldElement => Some(Self::Field),
@@ -146,7 +146,7 @@ impl PrimitiveType {
         }
     }
 
-    pub fn to_integer_or_field(self) -> Option<Type> {
+    pub(crate) fn to_integer_or_field(self) -> Option<Type> {
         match self {
             Self::I8 => Some(Type::Integer(Signedness::Signed, IntegerBitSize::Eight)),
             Self::I16 => Some(Type::Integer(Signedness::Signed, IntegerBitSize::Sixteen)),

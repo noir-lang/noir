@@ -28,7 +28,7 @@ type ScopeTree = GenericScopeTree<String, ResolverMeta>;
 pub(crate) struct ReplacedModule(CrateId, LocalModuleId);
 
 impl Elaborator<'_> {
-    pub fn module_id(&self) -> ModuleId {
+    pub(crate) fn module_id(&self) -> ModuleId {
         ModuleId { krate: self.crate_id, local_id: self.item.module.local_module() }
     }
 
@@ -237,13 +237,13 @@ impl Elaborator<'_> {
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
-    pub fn push_scope(&mut self) {
+    pub(crate) fn push_scope(&mut self) {
         self.scopes.start_scope();
         self.interner.comptime_scopes.push(Default::default());
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
-    pub fn pop_scope(&mut self) {
+    pub(crate) fn pop_scope(&mut self) {
         let scope = self.scopes.end_scope();
         self.interner.comptime_scopes.pop();
         let scope_decls = scope.into();
@@ -252,7 +252,7 @@ impl Elaborator<'_> {
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
-    pub fn check_for_unused_variables_in_scope_tree(&mut self, scope_decls: &ScopeTree) {
+    pub(crate) fn check_for_unused_variables_in_scope_tree(&mut self, scope_decls: &ScopeTree) {
         let mut unused_vars = Vec::new();
 
         for scope in &scope_decls.0 {
@@ -279,7 +279,10 @@ impl Elaborator<'_> {
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
-    pub fn check_for_unnecessary_mut_variables_in_scope_tree(&mut self, scope_decls: &ScopeTree) {
+    pub(crate) fn check_for_unnecessary_mut_variables_in_scope_tree(
+        &mut self,
+        scope_decls: &ScopeTree,
+    ) {
         let mut unnecessary_mut_vars = Vec::new();
 
         for scope in &scope_decls.0 {

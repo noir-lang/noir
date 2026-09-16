@@ -262,7 +262,7 @@ impl Elaborator<'_> {
     /// 3. Resolves any bounds on associated types
     /// 4. Resolves the trait's bounds (its listed super traits).
     #[tracing::instrument(level = "trace", skip_all)]
-    pub fn collect_traits(&mut self, traits: &mut BTreeMap<TraitId, UnresolvedTrait>) {
+    pub(crate) fn collect_traits(&mut self, traits: &mut BTreeMap<TraitId, UnresolvedTrait>) {
         for (trait_id, unresolved_trait) in traits {
             self.with_trait_scope(*trait_id, unresolved_trait.module_id, |this| {
                 let resolved_generics = this.interner.get_trait(*trait_id).generics.clone();
@@ -352,7 +352,10 @@ impl Elaborator<'_> {
     /// This mostly consists of resolving each parameter and any trait constraints. The trait
     /// method bodies are not elaborated.
     #[tracing::instrument(level = "trace", skip_all)]
-    pub fn collect_trait_methods(&mut self, traits: &mut BTreeMap<TraitId, UnresolvedTrait>) {
+    pub(crate) fn collect_trait_methods(
+        &mut self,
+        traits: &mut BTreeMap<TraitId, UnresolvedTrait>,
+    ) {
         for (trait_id, unresolved_trait) in traits {
             self.with_trait_scope(*trait_id, unresolved_trait.module_id, |this| {
                 this.item

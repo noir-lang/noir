@@ -1454,7 +1454,7 @@ impl Elaborator<'_> {
 
     /// Push a [`HirExpression`] with its [Location], with the [Type] to be followed up later.
     #[tracing::instrument(level = "trace", skip_all)]
-    pub fn intern_expr(
+    pub(crate) fn intern_expr(
         &mut self,
         expr: HirExpression,
         location: Location,
@@ -1464,7 +1464,11 @@ impl Elaborator<'_> {
 
     /// Follow up [`Self::intern_expr`] with the [Type].
     #[tracing::instrument(level = "trace", skip_all)]
-    pub fn intern_expr_type(&mut self, expr_id: PushedExpr<HasLocation>, typ: Type) -> ExprId {
+    pub(crate) fn intern_expr_type(
+        &mut self,
+        expr_id: PushedExpr<HasLocation>,
+        typ: Type,
+    ) -> ExprId {
         expr_id.push_type(self.interner, typ)
     }
 
@@ -1856,7 +1860,7 @@ impl Elaborator<'_> {
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
-    pub fn inline_comptime_value(
+    pub(crate) fn inline_comptime_value(
         &mut self,
         value: Result<comptime::Value, InterpreterError>,
         location: Location,
