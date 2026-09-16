@@ -149,7 +149,7 @@ impl Elaborator<'_> {
             }
         } else {
             for (type_id, typ) in enums {
-                self.unresolved_enum_variants.insert(
+                self.deferred.enum_variants.register(
                     *type_id,
                     UnresolvedEnumVariants {
                         enum_def: typ.enum_def.clone(),
@@ -164,7 +164,7 @@ impl Elaborator<'_> {
     /// If `type_id` was registered for deferred variant resolution, resolve it
     /// now. No-op for enums whose variants have already been resolved.
     pub(crate) fn define_enum_variants_if_undefined(&mut self, type_id: TypeId) {
-        let Some(info) = self.unresolved_enum_variants.remove(&type_id) else {
+        let Some(info) = self.deferred.enum_variants.take(&type_id) else {
             return;
         };
         self.resolve_one_enum_variants(type_id, info.module_id, &info.enum_def);
@@ -174,9 +174,7 @@ impl Elaborator<'_> {
     /// in `skip`.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_unresolved_enum_variants_skipping(&mut self, skip: &HashSet<TypeId>) {
-        let to_resolve: Vec<TypeId> =
-            self.unresolved_enum_variants.keys().copied().filter(|id| !skip.contains(id)).collect();
-        for type_id in to_resolve {
+        for type_id in self.deferred.enum_variants.keys_except(skip) {
             self.define_enum_variants_if_undefined(type_id);
         }
     }

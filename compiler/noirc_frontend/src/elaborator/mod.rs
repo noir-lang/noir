@@ -58,7 +58,6 @@ use std::{
 
 use crate::{
     Type,
-    ast::Ident,
     elaborator::types::WildcardDisallowedContext,
     graph::CrateId,
     hir::{
@@ -71,18 +70,15 @@ use crate::{
             },
             errors::DefCollectorErrorKind,
         },
-        def_map::{DefMaps, LocalModuleId, ModuleData, ModuleId},
+        def_map::{DefMaps, ModuleData, ModuleId},
         resolution::errors::ResolverError,
         scope::ScopeForest as GenericScopeForest,
     },
     hir_def::{
         expr::{HirCapturedVar, HirIdent},
-        traits::TraitConstraint,
         types::Kind,
     },
-    node_interner::{
-        DependencyId, FuncId, GlobalId, NodeInterner, TraitId, TraitImplId, TypeAliasId, TypeId,
-    },
+    node_interner::{DependencyId, FuncId, GlobalId, NodeInterner, TraitId, TypeAliasId, TypeId},
     parser::{ParserError, ParserErrorReason},
     recursion::TypeRecursionContext,
 };
@@ -91,6 +87,7 @@ use crate::{
 };
 
 mod comptime;
+mod deferred;
 mod enums;
 mod expressions;
 mod function;
@@ -114,8 +111,10 @@ mod unquote;
 mod variable;
 mod visibility;
 
+pub(crate) use self::deferred::Deferred;
 use self::traits::check_trait_impl_method_matches_declaration;
 use self::variable::VariableResolution;
+use deferred::DeferredItems;
 use fm::FileMap;
 use function_context::FunctionContext;
 use item_context::{GenericsContext, ImplContext, ItemContext, ModuleContext};
@@ -239,7 +238,7 @@ pub struct Elaborator<'context> {
     /// These are the globals that have yet to be elaborated.
     /// This map is used to lazily evaluate these globals if they're encountered before
     /// they are elaborated (e.g. in a function's type or another global's RHS).
-    unresolved_globals: &'context mut BTreeMap<GlobalId, UnresolvedGlobal>,
+    unresolved_globals: &'context mut Deferred<GlobalId, UnresolvedGlobal>,
 
     /// State describing the item currently being elaborated. Swapped as a unit by
     /// [`Elaborator::with_item_context`] so that elaborating one item cannot disturb another's.
@@ -300,62 +299,9 @@ pub struct Elaborator<'context> {
     /// about runtime variables not being available in comptime code.
     parent_runtime_variables: rustc_hash::FxHashSet<String>,
 
-    /// Function metadata that has been *registered* but not yet *resolved*. We register
-    /// up-front (capturing the impl/trait-impl context) and resolve lazily on first read,
-    /// so that forward references between functions, globals, and trait associated
-    /// constants don't depend on source order. Any entries left after lazy resolution
-    /// has played out are drained at the end of [`Self::elaborate_items`].
-    unresolved_function_metas: BTreeMap<FuncId, function::UnresolvedFunctionMeta>,
-
-    /// Struct definitions whose fields have been *registered* but not yet *resolved*.
-    /// Mirrors [`Self::unresolved_function_metas`]: we register up-front (during
-    /// def-collection) and resolve lazily on first read, so that struct field types
-    /// may reference items produced by comptime attribute expansion. Any entries
-    /// left after lazy resolution are drained post-attributes.
-    unresolved_struct_fields: BTreeMap<TypeId, structs::UnresolvedStructFields>,
-
-    /// Enum definitions whose variants have been *registered* but not yet *resolved*.
-    /// Same posture as [`Self::unresolved_struct_fields`], for enum variants: variant
-    /// parameter types may reference items produced by comptime attribute expansion,
-    /// so we defer them. Any entries left after lazy resolution are drained
-    /// post-attributes.
-    unresolved_enum_variants: BTreeMap<TypeId, enums::UnresolvedEnumVariants>,
-
-    /// Bookkeeping for trait-related work that has to wait until the
-    /// post-attribute drain has resolved the involved metas. See
-    /// [`PendingTraitWork`] for what each list is for.
-    pending_trait_work: PendingTraitWork,
-}
-
-#[derive(Default)]
-struct PendingTraitWork {
-    /// Trait method declarations registered with deferred meta resolution. These need
-    /// their `TraitFunction` records (in `the_trait.methods`) populated after the
-    /// post-attribute drain, since the records are filled with stub types up-front so
-    /// `collect_trait_impl` can do name-based matching while the real signatures are
-    /// still pending. Each entry is `(trait_id, func_id, name)`.
-    records: Vec<(TraitId, FuncId, Ident)>,
-
-    /// Trait method declarations without a body whose signature still needs the
-    /// `elaborate_function` step run after their meta is defined. We can't run it at
-    /// registration time because the meta is deferred.
-    no_body_func_ids: Vec<FuncId>,
-
-    /// Pending where-clause-against-trait checks deferred from `collect_trait_impl_methods`
-    /// so they run after the post-attribute drain (when both the trait method's and the
-    /// impl method's metas are fully resolved).
-    where_clause_checks: Vec<PendingWhereClauseCheck>,
-}
-
-#[derive(Clone)]
-struct PendingWhereClauseCheck {
-    impl_method_func_id: FuncId,
-    trait_id: TraitId,
-    impl_id: TraitImplId,
-    module_id: LocalModuleId,
-    trait_method_name: String,
-    trait_impl_where_clause: Vec<TraitConstraint>,
-    ordered_generics: Vec<Type>,
+    /// Items registered for resolution later, and the trait bookkeeping that waits on them.
+    /// See the [`deferred`] module for why each kind is deferred and what the drains guarantee.
+    deferred: DeferredItems,
 }
 
 #[derive(Copy, Clone)]
@@ -391,7 +337,7 @@ impl<'context> Elaborator<'context> {
         interpreter_output: &'context Option<Rc<RefCell<dyn std::io::Write>>>,
         evaluation_tracker: Option<&'context mut EvaluationTracker>,
         required_unstable_features: &'context BTreeMap<CrateId, Vec<UnstableFeature>>,
-        unresolved_globals: &'context mut BTreeMap<GlobalId, UnresolvedGlobal>,
+        unresolved_globals: &'context mut Deferred<GlobalId, UnresolvedGlobal>,
         crate_id: CrateId,
         interpreter_call_stack: imbl::Vector<Location>,
         options: ElaboratorOptions<'context>,
@@ -422,10 +368,7 @@ impl<'context> Elaborator<'context> {
             macro_expansion_depth: 0,
             recursion_depth: 0,
             parent_runtime_variables: rustc_hash::FxHashSet::default(),
-            unresolved_function_metas: BTreeMap::default(),
-            unresolved_struct_fields: BTreeMap::default(),
-            unresolved_enum_variants: BTreeMap::default(),
-            pending_trait_work: PendingTraitWork::default(),
+            deferred: DeferredItems::default(),
         }
     }
 
@@ -491,21 +434,17 @@ impl<'context> Elaborator<'context> {
         // generated bodies can still pull them out on demand), we just don't
         // unconditionally resolve them here.
         // The same is true for struct fields, enum variants and globals.
-        let outer_pending_functions: HashSet<FuncId> =
-            self.unresolved_function_metas.keys().copied().collect();
-        let outer_pending_struct_fields: HashSet<TypeId> =
-            self.unresolved_struct_fields.keys().copied().collect();
-        let outer_pending_enum_variants: HashSet<TypeId> =
-            self.unresolved_enum_variants.keys().copied().collect();
-        let outer_pending_globals: HashSet<GlobalId> =
-            self.unresolved_globals.keys().copied().collect();
+        let outer_pending_functions = self.deferred.function_metas.pending();
+        let outer_pending_struct_fields = self.deferred.struct_fields.pending();
+        let outer_pending_enum_variants = self.deferred.enum_variants.pending();
+        let outer_pending_globals = self.unresolved_globals.pending();
 
         // Scope the pending trait-method bookkeeping to this call so that a
         // recursive `elaborate_items` (from a comptime attribute that generated
         // new items) doesn't consume the outer call's entries. We restore the
         // outer state on exit so the outer call can process them when its own
         // post-attribute drain runs.
-        let outer_pending_trait_work = std::mem::take(&mut self.pending_trait_work);
+        let outer_pending_trait_work = std::mem::take(&mut self.deferred.trait_work);
 
         self.set_unresolved_globals_ordering(items.globals);
 
@@ -625,10 +564,10 @@ impl<'context> Elaborator<'context> {
 
         // Restore the outer call's pending bookkeeping so it can be processed
         // when the outer `elaborate_items` runs its own post-drain phases.
-        let inner = std::mem::replace(&mut self.pending_trait_work, outer_pending_trait_work);
-        self.pending_trait_work.records.extend(inner.records);
-        self.pending_trait_work.no_body_func_ids.extend(inner.no_body_func_ids);
-        self.pending_trait_work.where_clause_checks.extend(inner.where_clause_checks);
+        let inner = std::mem::replace(&mut self.deferred.trait_work, outer_pending_trait_work);
+        self.deferred.trait_work.records.extend(inner.records);
+        self.deferred.trait_work.no_body_func_ids.extend(inner.no_body_func_ids);
+        self.deferred.trait_work.where_clause_checks.extend(inner.where_clause_checks);
     }
 
     #[tracing::instrument(level = "trace", skip_all)]

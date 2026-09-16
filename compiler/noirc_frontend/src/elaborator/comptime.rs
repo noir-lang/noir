@@ -174,10 +174,7 @@ impl<'context> Elaborator<'context> {
 
         elaborator.item.module.set_local_module(self.item.module.local_module());
         elaborator.parent_runtime_variables = parent_runtime_variables;
-        elaborator.unresolved_function_metas = std::mem::take(&mut self.unresolved_function_metas);
-        elaborator.unresolved_struct_fields = std::mem::take(&mut self.unresolved_struct_fields);
-        elaborator.unresolved_enum_variants = std::mem::take(&mut self.unresolved_enum_variants);
-        elaborator.pending_trait_work = std::mem::take(&mut self.pending_trait_work);
+        elaborator.deferred = std::mem::take(&mut self.deferred);
 
         setup(&mut elaborator);
 
@@ -186,10 +183,7 @@ impl<'context> Elaborator<'context> {
         let result = f(&mut elaborator);
         elaborator.check_and_pop_function_context();
 
-        self.unresolved_function_metas = std::mem::take(&mut elaborator.unresolved_function_metas);
-        self.unresolved_struct_fields = std::mem::take(&mut elaborator.unresolved_struct_fields);
-        self.unresolved_enum_variants = std::mem::take(&mut elaborator.unresolved_enum_variants);
-        self.pending_trait_work = std::mem::take(&mut elaborator.pending_trait_work);
+        self.deferred = std::mem::take(&mut elaborator.deferred);
 
         let mut errors = std::mem::take(&mut elaborator.errors);
         if let Some(reason) = reason {

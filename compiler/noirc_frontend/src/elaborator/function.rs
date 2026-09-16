@@ -114,7 +114,7 @@ impl Elaborator<'_> {
         extra_constraints: &[(TraitConstraint, Location)],
     ) {
         for (local_module, id, func) in &function_set.functions {
-            self.unresolved_function_metas.insert(
+            self.deferred.function_metas.register(
                 *id,
                 UnresolvedFunctionMeta {
                     func: func.clone(),
@@ -172,7 +172,7 @@ impl Elaborator<'_> {
 
                 let outer_generics = this.item.generics.params().to_vec();
                 for (method_module, id, func) in &unresolved_impl.methods.functions {
-                    this.unresolved_function_metas.insert(
+                    this.deferred.function_metas.register(
                         *id,
                         UnresolvedFunctionMeta {
                             func: func.clone(),
@@ -203,7 +203,7 @@ impl Elaborator<'_> {
     ) {
         let self_type = trait_impl.methods.self_type.clone();
         for (method_module, id, func) in &trait_impl.methods.functions {
-            self.unresolved_function_metas.insert(
+            self.deferred.function_metas.register(
                 *id,
                 UnresolvedFunctionMeta {
                     func: func.clone(),
@@ -230,7 +230,7 @@ impl Elaborator<'_> {
     /// being resolved (the `remove` returns `None`, breaking cycles — the cycle
     /// will surface as an error from later phases like dependency-cycle detection).
     pub(crate) fn define_function_meta_if_undefined(&mut self, func_id: FuncId) {
-        let Some(info) = self.unresolved_function_metas.remove(&func_id) else {
+        let Some(info) = self.deferred.function_metas.take(&func_id) else {
             return;
         };
         self.resolve_unresolved_function_meta(func_id, info);
@@ -260,16 +260,8 @@ impl Elaborator<'_> {
     /// Resolves all unresolved function metas except those given in `skip`.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_unresolved_function_metas_skipping(&mut self, skip: &HashSet<FuncId>) {
-        let to_resolve: Vec<FuncId> = self
-            .unresolved_function_metas
-            .keys()
-            .copied()
-            .filter(|id| !skip.contains(id))
-            .collect();
-        for func_id in to_resolve {
-            if let Some(info) = self.unresolved_function_metas.remove(&func_id) {
-                self.resolve_unresolved_function_meta(func_id, info);
-            }
+        for func_id in self.deferred.function_metas.keys_except(skip) {
+            self.define_function_meta_if_undefined(func_id);
         }
     }
 
