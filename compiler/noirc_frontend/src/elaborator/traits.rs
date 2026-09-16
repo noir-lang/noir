@@ -236,6 +236,24 @@ pub(super) struct DesugaredAssociatedGeneric {
     pub(super) bounds: Vec<ResolvedTraitBound>,
 }
 
+/// The bounds already brought into scope while walking what one bound implies, so that cycles
+/// terminate. A bound is identified by its object type, trait and ordered generics: `T: Foo<A>`
+/// and `T: Foo<B>` are distinct bounds with distinct associated types.
+type VisitedBounds = BTreeSet<(Type, TraitId, Vec<Type>)>;
+
+/// The most bounds one walk over what a bound implies will bring into scope. A trait's where
+/// clause can imply a bound on an ever larger type, e.g. `trait A<T> where T: A<Wrapper<T>>`
+/// implies `Wrapper<X>: A<Wrapper<Wrapper<X>>>` from `X: A<Wrapper<X>>` and so on; those never
+/// repeat, so [`VisitedBounds`] alone does not stop them. Past this many the walk stops and the
+/// remaining implications are simply not assumed. The limit is well above what a real trait
+/// hierarchy implies from one bound, and low enough that the runaway case above stays cheap: the
+/// types grow with every step, and the cost of registering each one grows with them.
+const IMPLIED_BOUNDS_LIMIT: usize = 32;
+
+fn bound_key(object: &Type, trait_bound: &ResolvedTraitBound) -> (Type, TraitId, Vec<Type>) {
+    (object.clone(), trait_bound.trait_id, trait_bound.trait_generics.ordered.clone())
+}
+
 impl Elaborator<'_> {
     /// Runs `f` in a context of its own for the trait: the trait's module, the trait as the
     /// current one and its self type variable as `Self`. Whatever `f` adds to the context, such
@@ -901,7 +919,7 @@ impl Elaborator<'_> {
         mut new_generics: Option<&mut Vec<TypeVariable>>,
     ) {
         let trait_id = trait_bound.trait_id;
-        let in_scope = self.item.generics.find_bound(object, trait_id);
+        let in_scope = self.item.generics.find_bound(object, trait_id, &trait_generics.ordered);
         let mut projection_names = None;
 
         for named_type in &mut trait_generics.named {
@@ -961,14 +979,18 @@ impl Elaborator<'_> {
     /// introduce for associated types left implicit. Each result is also pushed to
     /// [`GenericsContext`] so `T::Assoc` syntax can reach it while the item is
     /// elaborated.
+    ///
+    /// Constraints are identified by object type, trait and ordered generics: `T: Foo<A>` and
+    /// `T: Foo<B>` are distinct bounds with distinct associated types, so one being present does
+    /// not make the other redundant.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn implied_where_clause_constraints(
         &mut self,
         constraints: &[TraitConstraint],
     ) -> (Vec<TypeVariable>, Vec<TraitConstraint>) {
-        let mut visited: BTreeSet<(Type, TraitId)> = constraints
+        let mut visited: VisitedBounds = constraints
             .iter()
-            .map(|constraint| (constraint.typ.clone(), constraint.trait_bound.trait_id))
+            .map(|constraint| bound_key(&constraint.typ, &constraint.trait_bound))
             .collect();
 
         let mut queue: Vec<_> = constraints.to_vec();
@@ -981,8 +1003,9 @@ impl Elaborator<'_> {
                 &constraint.trait_bound,
                 Some(&mut new_generics),
             ) {
-                let key = (implication.typ.clone(), implication.trait_bound.trait_id);
-                if !visited.insert(key) {
+                if implied.len() >= IMPLIED_BOUNDS_LIMIT
+                    || !visited.insert(bound_key(&implication.typ, &implication.trait_bound))
+                {
                     continue;
                 }
                 self.item.generics.add_bound(implication.clone());
@@ -1007,7 +1030,7 @@ impl Elaborator<'_> {
         object: &Type,
         trait_bound: &ResolvedTraitBound,
     ) {
-        let mut visited = BTreeSet::from([(object.clone(), trait_bound.trait_id)]);
+        let mut visited = VisitedBounds::from([bound_key(object, trait_bound)]);
         let written = true;
         self.add_trait_bound_to_scope_inner(location, object, trait_bound, written, &mut visited);
     }
@@ -1023,7 +1046,7 @@ impl Elaborator<'_> {
         object: &Type,
         trait_bound: &ResolvedTraitBound,
     ) {
-        let mut visited = BTreeSet::from([(object.clone(), trait_bound.trait_id)]);
+        let mut visited = VisitedBounds::from([bound_key(object, trait_bound)]);
         let written = false;
         self.add_trait_bound_to_scope_inner(location, object, trait_bound, written, &mut visited);
     }
@@ -1043,8 +1066,13 @@ impl Elaborator<'_> {
         object: &Type,
         trait_bound: &ResolvedTraitBound,
         written: bool,
-        visited: &mut BTreeSet<(Type, TraitId)>,
+        visited: &mut VisitedBounds,
     ) {
+        // Every recursive call adds its bound to `visited` first, so this bounds the recursion.
+        if visited.len() > IMPLIED_BOUNDS_LIMIT {
+            return;
+        }
+
         let trait_id = trait_bound.trait_id;
         let generics = trait_bound.trait_generics.clone();
 
@@ -1123,7 +1151,7 @@ impl Elaborator<'_> {
 
         for (associated_type, bound) in associated_bounds {
             // Avoid looping forever in case there are cycles
-            if !visited.insert((associated_type.clone(), bound.trait_id)) {
+            if !visited.insert(bound_key(&associated_type, &bound)) {
                 continue;
             }
 
@@ -1141,7 +1169,7 @@ impl Elaborator<'_> {
         // declared as `trait Qux<T> where T: Baz`, also brings `T: Baz` into scope.
         for constraint in self.trait_where_clause_implications(object, trait_bound, None) {
             // Avoid looping forever in case there are cycles
-            if !visited.insert((constraint.typ.clone(), constraint.trait_bound.trait_id)) {
+            if !visited.insert(bound_key(&constraint.typ, &constraint.trait_bound)) {
                 continue;
             }
 
@@ -1162,13 +1190,13 @@ impl Elaborator<'_> {
             .map(|the_trait| the_trait.parent_bounds().cloned().collect::<Vec<_>>())
         {
             for parent_trait_bound in trait_bounds {
+                let parent_trait_bound =
+                    self.instantiate_parent_trait_bound(trait_bound, &parent_trait_bound);
                 // Avoid looping forever in case there are cycles
-                if !visited.insert((object.clone(), parent_trait_bound.trait_id)) {
+                if !visited.insert(bound_key(object, &parent_trait_bound)) {
                     continue;
                 }
 
-                let parent_trait_bound =
-                    self.instantiate_parent_trait_bound(trait_bound, &parent_trait_bound);
                 let written = false;
                 self.add_trait_bound_to_scope_inner(
                     location,

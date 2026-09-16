@@ -1744,6 +1744,243 @@ fn implied_where_clause_associated_type_is_usable_in_the_signature() {
     assert_no_errors(src);
 }
 
+/// `T: Foo<A>` and `T: Foo<B>` are different bounds with different associated types. The written
+/// `T: Foo<A>` must not lend its `N` to the implied `T: Foo<B>`, and each resolves its own `N` at
+/// the call site.
+#[test]
+fn implied_where_clause_distinguishes_ordered_generics_of_the_same_trait() {
+    let src = r#"
+    trait Foo<X> {
+        let N: u32;
+
+        fn arr(self) -> [Field; Self::N];
+    }
+
+    trait Bar<T: Foo<B>> {
+        fn x(self) -> T;
+    }
+
+    pub struct A {}
+    pub struct B {}
+    pub struct C {}
+
+    impl Foo<A> for C {
+        let N: u32 = 3;
+
+        fn arr(self) -> [Field; 3] {
+            [0; 3]
+        }
+    }
+    impl Foo<B> for C {
+        let N: u32 = 5;
+
+        fn arr(self) -> [Field; 5] {
+            [0; 5]
+        }
+    }
+
+    pub struct XC {}
+
+    impl Bar<C> for XC {
+        fn x(self) -> C {
+            C {}
+        }
+    }
+
+    pub fn use_it<T, P>(t: T, p: P) -> ([Field; <T as Foo<A>>::N], [Field; <T as Foo<B>>::N])
+        where T: Foo<A>, P: Bar<T>
+    {
+        let _ = p;
+        (Foo::<A>::arr(t), Foo::<B>::arr(t))
+    }
+
+    fn main() {
+        let (a, b): ([Field; 3], [Field; 5]) = use_it(C {}, XC {});
+        let _ = (a, b);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// A bound implied by `P: Bar<T>` that the user also wrote, `T: Foo<B>`, next to a written
+/// `T: Foo<A>`: registering the implied duplicate leaves both written bounds and their associated
+/// types intact.
+#[test]
+fn implied_duplicate_of_a_written_bound_leaves_sibling_bounds_intact() {
+    let src = r#"
+    trait Foo<X> {
+        let N: u32;
+
+        fn arr(self) -> [Field; Self::N];
+    }
+
+    trait Bar<T: Foo<B>> {
+        fn x(self) -> T;
+    }
+
+    pub struct A {}
+    pub struct B {}
+    pub struct C {}
+
+    impl Foo<A> for C {
+        let N: u32 = 3;
+
+        fn arr(self) -> [Field; 3] {
+            [0; 3]
+        }
+    }
+    impl Foo<B> for C {
+        let N: u32 = 5;
+
+        fn arr(self) -> [Field; 5] {
+            [0; 5]
+        }
+    }
+
+    pub struct XC {}
+
+    impl Bar<C> for XC {
+        fn x(self) -> C {
+            C {}
+        }
+    }
+
+    pub fn use_it<T, P>(t: T, p: P) -> ([Field; <T as Foo<A>>::N], [Field; <T as Foo<B>>::N])
+        where T: Foo<A>, T: Foo<B>, P: Bar<T>
+    {
+        let _ = p;
+        (Foo::<A>::arr(t), Foo::<B>::arr(t))
+    }
+
+    fn main() {
+        let (a, b): ([Field; 3], [Field; 5]) = use_it(C {}, XC {});
+        let _ = (a, b);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// One where clause implying the same trait twice with different generics: both `T: Foo<A>` and
+/// `T: Foo<B>` are brought into scope, not just the first.
+#[test]
+fn where_clause_implies_the_same_trait_with_different_generics() {
+    let src = r#"
+    trait Foo<X> {
+        let N: u32;
+
+        fn arr(self) -> [Field; Self::N];
+    }
+
+    trait Pair<T> where T: Foo<A>, T: Foo<B> {}
+
+    pub struct A {}
+    pub struct B {}
+    pub struct C {}
+
+    impl Foo<A> for C {
+        let N: u32 = 3;
+
+        fn arr(self) -> [Field; 3] {
+            [0; 3]
+        }
+    }
+    impl Foo<B> for C {
+        let N: u32 = 5;
+
+        fn arr(self) -> [Field; 5] {
+            [0; 5]
+        }
+    }
+
+    pub struct XC {}
+
+    impl Pair<C> for XC {}
+
+    pub fn use_it<T, P>(t: T, p: P) -> ([Field; <T as Foo<A>>::N], [Field; <T as Foo<B>>::N])
+        where P: Pair<T>
+    {
+        let _ = p;
+        (Foo::<A>::arr(t), Foo::<B>::arr(t))
+    }
+
+    fn main() {
+        let (a, b): ([Field; 3], [Field; 5]) = use_it(C {}, XC {});
+        let _ = (a, b);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// A where clause can imply a bound on an ever larger type: `Y: A<X>` implies
+/// `X: A<Wrapper<X>>`, which implies `Wrapper<X>: A<Wrapper<Wrapper<X>>>`, and so on without
+/// repeating. The walk over implications is bounded, so this compiles instead of recursing
+/// until the stack overflows.
+#[test]
+fn growing_where_clause_implications_terminate() {
+    let src = r#"
+    pub struct Wrapper<T> {
+        inner: T,
+    }
+
+    trait A<T> where T: A<Wrapper<T>> {
+        fn a(self) -> bool;
+    }
+
+    pub fn f<X, Y>(x: X, _y: Y) -> bool where Y: A<X> {
+        x.a()
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// An impl's where clause implies the trait's: `U: Qux<T>` brings `T: Baz` into scope, which is
+/// what `Qux`'s own where clause asks of the impl.
+#[test]
+fn impl_where_clause_implication_satisfies_the_trait_where_clause() {
+    let src = r#"
+    trait Baz {
+        fn baz(self) -> bool;
+    }
+
+    trait Qux<T> where T: Baz {
+        fn q(self, x: T) -> bool;
+    }
+
+    pub struct W<U> {
+        u: U,
+    }
+
+    impl<T, U> Qux<T> for W<U> where U: Qux<T> {
+        fn q(self, x: T) -> bool {
+            self.u.q(x) & x.baz()
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// A written bound that an implied bound duplicates is not reported as unneeded, whichever of the
+/// two is written first.
+#[test]
+fn implied_bound_does_not_make_a_written_bound_redundant_in_either_order() {
+    let src = r#"
+    trait Baz {
+        fn baz(self) -> bool;
+    }
+
+    trait Qux<T> where T: Baz {}
+
+    pub fn a<T, U>(x: T, _u: U) -> bool where U: Qux<T>, T: Baz {
+        x.baz()
+    }
+
+    pub fn b<T, U>(x: T, _u: U) -> bool where T: Baz, U: Qux<T> {
+        x.baz()
+    }
+    "#;
+    assert_no_errors(src);
+}
+
 /// Transitive where clause implications: `Y: A<X>` implies `X: B<X>` (from A's where clause),
 /// which in turn implies `X: C` (from B's where clause), so `x.c()` resolves.
 #[test]
@@ -1764,9 +2001,9 @@ fn transitive_where_clause_implications() {
     assert_no_errors(src);
 }
 
-/// Cyclic trait where clauses must not cause infinite loops or panics. Traits A and B refer to
-/// each other through their where clauses; the compiler terminates and produces errors rather
-/// than hanging.
+/// Traits A and B refer to each other through their where clauses: `Y: A<X>` implies `X: B<X>`,
+/// which implies `X: A<X>`, which implies `X: B<X>` again. The walk stops at the repeat, and both
+/// bounds are in scope, so `x.b()` resolves.
 #[test]
 fn cyclic_where_clause_implications_terminate() {
     let src = r#"
@@ -1782,8 +2019,7 @@ fn cyclic_where_clause_implications_terminate() {
         x.b()
     }
     "#;
-    let (_, _, errors) = crate::tests::get_program(src);
-    assert!(!errors.is_empty(), "Cyclic where clauses should produce errors");
+    assert_no_errors(src);
 }
 
 /// A single bound can imply the same trait on different object types. `P: Pair<T, U>` implies
