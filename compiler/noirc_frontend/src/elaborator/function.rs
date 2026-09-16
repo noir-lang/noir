@@ -136,62 +136,60 @@ impl Elaborator<'_> {
         local_module: LocalModuleId,
         impls: &mut Vec<UnresolvedImpl>,
     ) {
-        let previous_local_module = self.item.module.replace_local_module(local_module);
+        self.in_local_module(local_module, |this| {
+            for unresolved_impl in impls {
+                let impl_id = unresolved_impl.impl_id;
 
-        for unresolved_impl in impls {
-            let impl_id = unresolved_impl.impl_id;
+                // Prepare the impl: adds the impl generics to scope so the this type can
+                // reference them, then resolve the this type.
+                let resolved_generics = this.add_generics(&unresolved_impl.generics);
 
-            // Prepare the impl: adds the impl generics to scope so the self type can
-            // reference them, then resolve the self type.
-            let resolved_generics = self.add_generics(&unresolved_impl.generics);
+                let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::ImplType);
+                let self_type = this.resolve_type(self_type.clone(), wildcard_allowed);
+                unresolved_impl.methods.self_type = Some(self_type.clone());
 
-            let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::ImplType);
-            let self_type = self.resolve_type(self_type.clone(), wildcard_allowed);
-            unresolved_impl.methods.self_type = Some(self_type.clone());
+                // Resolve the impl's where clause so it can be recovered later (e.g. by
+                // `nargo expand`). The constraints are resolved with the impl generics in scope so
+                // they share type variables with the methods' copies of these constraints (each
+                // method's where clause is extended with the impl's during def collection).
+                let resolved_where_clause =
+                    this.resolve_trait_constraints_and_add_to_scope(&unresolved_impl.where_clause);
 
-            // Resolve the impl's where clause so it can be recovered later (e.g. by
-            // `nargo expand`). The constraints are resolved with the impl generics in scope so
-            // they share type variables with the methods' copies of these constraints (each
-            // method's where clause is extended with the impl's during def collection).
-            let resolved_where_clause =
-                self.resolve_trait_constraints_and_add_to_scope(&unresolved_impl.where_clause);
-
-            self.interner.add_impl(
-                impl_id,
-                Impl {
-                    location: unresolved_impl.object_type_location,
-                    typ: self_type.clone(),
-                    file: unresolved_impl.object_type_location.file,
-                    crate_id: self.crate_id,
-                    module_id: ModuleId { krate: self.crate_id, local_id: local_module },
-                    generics: resolved_generics,
-                    methods: unresolved_impl.methods.function_ids(),
-                    where_clause: resolved_where_clause.clone(),
-                    doc_comments: unresolved_impl.doc_comments.clone(),
-                },
-            );
-
-            let outer_generics = self.item.generics.params().to_vec();
-            for (method_module, id, func) in &unresolved_impl.methods.functions {
-                self.unresolved_function_metas.insert(
-                    *id,
-                    UnresolvedFunctionMeta {
-                        func: func.clone(),
-                        local_module: *method_module,
-                        impl_context: ImplContext::in_inherent_impl(impl_id, self_type.clone()),
-                        outer_generics: outer_generics.clone(),
-                        extra_trait_constraints: Vec::new(),
+                this.interner.add_impl(
+                    impl_id,
+                    Impl {
+                        location: unresolved_impl.object_type_location,
+                        typ: self_type.clone(),
+                        file: unresolved_impl.object_type_location.file,
+                        crate_id: this.crate_id,
+                        module_id: ModuleId { krate: this.crate_id, local_id: local_module },
+                        generics: resolved_generics,
+                        methods: unresolved_impl.methods.function_ids(),
+                        where_clause: resolved_where_clause.clone(),
+                        doc_comments: unresolved_impl.doc_comments.clone(),
                     },
                 );
+
+                let outer_generics = this.item.generics.params().to_vec();
+                for (method_module, id, func) in &unresolved_impl.methods.functions {
+                    this.unresolved_function_metas.insert(
+                        *id,
+                        UnresolvedFunctionMeta {
+                            func: func.clone(),
+                            local_module: *method_module,
+                            impl_context: ImplContext::in_inherent_impl(impl_id, self_type.clone()),
+                            outer_generics: outer_generics.clone(),
+                            extra_trait_constraints: Vec::new(),
+                        },
+                    );
+                }
+
+                // The assumed impls added while resolving the where clause are only needed to
+                // resolve the where clause itself; method bodies re-add them when they elaborate.
+                this.remove_trait_constraints_from_scope(resolved_where_clause.iter());
+                this.item.generics.clear_params();
             }
-
-            // The assumed impls added while resolving the where clause are only needed to
-            // resolve the where clause itself; method bodies re-add them when they elaborate.
-            self.remove_trait_constraints_from_scope(resolved_where_clause.iter());
-            self.item.generics.clear_params();
-        }
-
-        self.item.module.set_local_module(previous_local_module);
+        });
     }
 
     /// Registers each trait impl method as an unresolved meta, capturing the trait

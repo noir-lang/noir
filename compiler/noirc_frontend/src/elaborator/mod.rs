@@ -1027,10 +1027,9 @@ impl<'context> Elaborator<'context> {
                 if trait_impl.inherited_default_method_func_ids.contains(function) {
                     continue;
                 }
-                let previous_method_module = this.item.module.replace_local_module(*module);
-                let errors =
-                    check_trait_impl_method_matches_declaration(this, *function, noir_function);
-                this.item.module.set_local_module(previous_method_module);
+                let errors = this.in_local_module(*module, |this| {
+                    check_trait_impl_method_matches_declaration(this, *function, noir_function)
+                });
                 this.push_errors(errors);
             }
         });

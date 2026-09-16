@@ -25,6 +25,7 @@ use super::{Elaborator, PathResolutionTarget, ResolverMeta};
 
 type ScopeTree = GenericScopeTree<String, ResolverMeta>;
 
+/// The crate and module an [`Elaborator::replace_module`] displaced.
 pub(crate) struct ReplacedModule(CrateId, LocalModuleId);
 
 impl Elaborator<'_> {
@@ -44,6 +45,12 @@ impl Elaborator<'_> {
         self.item.module.set_caller_module(caller_module);
     }
 
+    /// Resolves the rest of the item in `new_module`, in whichever crate that module belongs to.
+    /// Returns the crate and module it replaces, to be given back to [`Self::restore_module`].
+    ///
+    /// Prefer [`Self::in_module`], which pairs the two automatically. This split form exists for
+    /// the interpreter, whose closure calls save and restore the elaborator's module around a
+    /// body that borrows the interpreter rather than the elaborator.
     #[must_use]
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn replace_module(&mut self, new_module: ModuleId) -> ReplacedModule {
@@ -57,6 +64,18 @@ impl Elaborator<'_> {
     pub(crate) fn restore_module(&mut self, replaced_module: ReplacedModule) {
         self.crate_id = replaced_module.0;
         self.item.module.set_local_module(replaced_module.1);
+    }
+
+    /// Runs `f` with both the crate and the item's module set to `module`, restoring them
+    /// afterwards (on every exit path, including early returns inside `f`). The cross-crate
+    /// counterpart of [`Self::in_local_module`], for elaborating on behalf of an item that
+    /// lives in another crate.
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(crate) fn in_module<T>(&mut self, module: ModuleId, f: impl FnOnce(&mut Self) -> T) -> T {
+        let replaced = self.replace_module(module);
+        let result = f(self);
+        self.restore_module(replaced);
+        result
     }
 
     /// Runs `f` with the item's module set to `module`, restoring the previous value afterwards

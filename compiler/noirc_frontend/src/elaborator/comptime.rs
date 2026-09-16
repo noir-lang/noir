@@ -879,11 +879,10 @@ impl<'context> Elaborator<'context> {
         module: ModuleId,
         f: impl FnOnce(&mut Interpreter) -> T,
     ) -> T {
-        let old_module = self.replace_module(module);
-        let mut interpreter = self.setup_interpreter();
-        let result = f(&mut interpreter);
-        self.restore_module(old_module);
-        result
+        self.in_module(module, |this| {
+            let mut interpreter = this.setup_interpreter();
+            f(&mut interpreter)
+        })
     }
 
     /// Debug helper to print comptime evaluation results.
