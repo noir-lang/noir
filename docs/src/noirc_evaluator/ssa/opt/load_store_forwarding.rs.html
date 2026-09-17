@@ -1896,4 +1896,110 @@
 <a href=#1896 id=1896 data-nosnippet>1896</a>        // final load returns it.
 <a href=#1897 id=1897 data-nosnippet>1897</a>        </span><span class="macro">assert_eq!</span>(result.unwrap(), <span class="macro">vec!</span>[Value::field(<span class="number">1_u128</span>.into())]);
 <a href=#1898 id=1898 data-nosnippet>1898</a>    }
-<a href=#1899 id=1899 data-nosnippet>1899</a>}</code></pre></div></section></main></body></html>
+<a href=#1899 id=1899 data-nosnippet>1899</a>
+<a href=#1900 id=1900 data-nosnippet>1900</a>    <span class="doccomment">/// `v1` points at `v0`, so `f1` — handed `v1` — writes `v0`'s cell. The array literal
+<a href=#1901 id=1901 data-nosnippet>1901</a>    /// puts both references in one alias class, which must not stop the call from
+<a href=#1902 id=1902 data-nosnippet>1902</a>    /// invalidating the cached value of `*v0`: `v3 = load v0` has to read memory rather
+<a href=#1903 id=1903 data-nosnippet>1903</a>    /// than forward the pre-call `Field 5`.
+<a href=#1904 id=1904 data-nosnippet>1904</a>    </span><span class="attr">#[test]
+<a href=#1905 id=1905 data-nosnippet>1905</a>    </span><span class="kw">fn </span>call_through_ref_to_ref_in_array_invalidates_cached_load() {
+<a href=#1906 id=1906 data-nosnippet>1906</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#1907 id=1907 data-nosnippet>1907</a>        brillig(inline) fn main f0 {
+<a href=#1908 id=1908 data-nosnippet>1908</a>          b0():
+<a href=#1909 id=1909 data-nosnippet>1909</a>            v0 = allocate -&gt; &amp;mut Field
+<a href=#1910 id=1910 data-nosnippet>1910</a>            store Field 1 at v0
+<a href=#1911 id=1911 data-nosnippet>1911</a>            v1 = allocate -&gt; &amp;mut &amp;mut Field
+<a href=#1912 id=1912 data-nosnippet>1912</a>            store v0 at v1
+<a href=#1913 id=1913 data-nosnippet>1913</a>            v2 = make_array [v0, v1] : [(&amp;mut Field, &amp;mut &amp;mut Field); 1]
+<a href=#1914 id=1914 data-nosnippet>1914</a>            store Field 5 at v0
+<a href=#1915 id=1915 data-nosnippet>1915</a>            call f1(v1)
+<a href=#1916 id=1916 data-nosnippet>1916</a>            v3 = load v0 -&gt; Field
+<a href=#1917 id=1917 data-nosnippet>1917</a>            v4 = array_get v2, index u32 0 -&gt; &amp;mut Field
+<a href=#1918 id=1918 data-nosnippet>1918</a>            v5 = load v4 -&gt; Field
+<a href=#1919 id=1919 data-nosnippet>1919</a>            v6 = add v3, v5
+<a href=#1920 id=1920 data-nosnippet>1920</a>            return v6
+<a href=#1921 id=1921 data-nosnippet>1921</a>        }
+<a href=#1922 id=1922 data-nosnippet>1922</a>        brillig(inline) fn writer f1 {
+<a href=#1923 id=1923 data-nosnippet>1923</a>          b0(v0: &amp;mut &amp;mut Field):
+<a href=#1924 id=1924 data-nosnippet>1924</a>            v1 = load v0 -&gt; &amp;mut Field
+<a href=#1925 id=1925 data-nosnippet>1925</a>            store Field 99 at v1
+<a href=#1926 id=1926 data-nosnippet>1926</a>            return
+<a href=#1927 id=1927 data-nosnippet>1927</a>        }
+<a href=#1928 id=1928 data-nosnippet>1928</a>        "</span>;
+<a href=#1929 id=1929 data-nosnippet>1929</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#1930 id=1930 data-nosnippet>1930</a>
+<a href=#1931 id=1931 data-nosnippet>1931</a>        <span class="kw">let </span>(<span class="kw">_</span>, result) =
+<a href=#1932 id=1932 data-nosnippet>1932</a>            assert_pass_does_not_affect_execution(ssa, <span class="macro">vec!</span>[], |ssa| ssa.load_store_forwarding());
+<a href=#1933 id=1933 data-nosnippet>1933</a>
+<a href=#1934 id=1934 data-nosnippet>1934</a>        <span class="comment">// Both reads see the `Field 99` the callee wrote: 99 + 99.
+<a href=#1935 id=1935 data-nosnippet>1935</a>        </span><span class="macro">assert_eq!</span>(result.unwrap(), <span class="macro">vec!</span>[Value::field(<span class="number">198_u128</span>.into())]);
+<a href=#1936 id=1936 data-nosnippet>1936</a>    }
+<a href=#1937 id=1937 data-nosnippet>1937</a>
+<a href=#1938 id=1938 data-nosnippet>1938</a>    <span class="doccomment">/// Same shape, but `f1` only *reads* through `v1`. The store that initializes `v0`'s
+<a href=#1939 id=1939 data-nosnippet>1939</a>    /// cell is therefore observed by the call and must stay live: deleting it leaves the
+<a href=#1940 id=1940 data-nosnippet>1940</a>    /// callee loading a cell that was never written.
+<a href=#1941 id=1941 data-nosnippet>1941</a>    </span><span class="attr">#[test]
+<a href=#1942 id=1942 data-nosnippet>1942</a>    </span><span class="kw">fn </span>call_reading_through_ref_to_ref_in_array_keeps_store_live() {
+<a href=#1943 id=1943 data-nosnippet>1943</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#1944 id=1944 data-nosnippet>1944</a>        brillig(inline) fn main f0 {
+<a href=#1945 id=1945 data-nosnippet>1945</a>          b0():
+<a href=#1946 id=1946 data-nosnippet>1946</a>            v0 = allocate -&gt; &amp;mut Field
+<a href=#1947 id=1947 data-nosnippet>1947</a>            store Field 1 at v0
+<a href=#1948 id=1948 data-nosnippet>1948</a>            v1 = allocate -&gt; &amp;mut &amp;mut Field
+<a href=#1949 id=1949 data-nosnippet>1949</a>            store v0 at v1
+<a href=#1950 id=1950 data-nosnippet>1950</a>            v2 = make_array [v0, v1] : [(&amp;mut Field, &amp;mut &amp;mut Field); 1]
+<a href=#1951 id=1951 data-nosnippet>1951</a>            store Field 5 at v0
+<a href=#1952 id=1952 data-nosnippet>1952</a>            v3 = call f1(v1) -&gt; Field
+<a href=#1953 id=1953 data-nosnippet>1953</a>            store Field 7 at v0
+<a href=#1954 id=1954 data-nosnippet>1954</a>            v4 = array_get v2, index u32 0 -&gt; &amp;mut Field
+<a href=#1955 id=1955 data-nosnippet>1955</a>            v5 = load v4 -&gt; Field
+<a href=#1956 id=1956 data-nosnippet>1956</a>            v6 = add v3, v5
+<a href=#1957 id=1957 data-nosnippet>1957</a>            return v6
+<a href=#1958 id=1958 data-nosnippet>1958</a>        }
+<a href=#1959 id=1959 data-nosnippet>1959</a>        brillig(inline) fn reader f1 {
+<a href=#1960 id=1960 data-nosnippet>1960</a>          b0(v0: &amp;mut &amp;mut Field):
+<a href=#1961 id=1961 data-nosnippet>1961</a>            v1 = load v0 -&gt; &amp;mut Field
+<a href=#1962 id=1962 data-nosnippet>1962</a>            v2 = load v1 -&gt; Field
+<a href=#1963 id=1963 data-nosnippet>1963</a>            return v2
+<a href=#1964 id=1964 data-nosnippet>1964</a>        }
+<a href=#1965 id=1965 data-nosnippet>1965</a>        "</span>;
+<a href=#1966 id=1966 data-nosnippet>1966</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#1967 id=1967 data-nosnippet>1967</a>
+<a href=#1968 id=1968 data-nosnippet>1968</a>        <span class="kw">let </span>(<span class="kw">_</span>, result) =
+<a href=#1969 id=1969 data-nosnippet>1969</a>            assert_pass_does_not_affect_execution(ssa, <span class="macro">vec!</span>[], |ssa| ssa.load_store_forwarding());
+<a href=#1970 id=1970 data-nosnippet>1970</a>
+<a href=#1971 id=1971 data-nosnippet>1971</a>        <span class="comment">// The callee reads the `Field 5` in the cell, and the final load reads `Field 7`.
+<a href=#1972 id=1972 data-nosnippet>1972</a>        </span><span class="macro">assert_eq!</span>(result.unwrap(), <span class="macro">vec!</span>[Value::field(<span class="number">12_u128</span>.into())]);
+<a href=#1973 id=1973 data-nosnippet>1973</a>    }
+<a href=#1974 id=1974 data-nosnippet>1974</a>
+<a href=#1975 id=1975 data-nosnippet>1975</a>    <span class="doccomment">/// With no array literal the two references stay in separate alias classes, and the
+<a href=#1976 id=1976 data-nosnippet>1976</a>    /// call is still seen to write `v0` through `v1`.
+<a href=#1977 id=1977 data-nosnippet>1977</a>    </span><span class="attr">#[test]
+<a href=#1978 id=1978 data-nosnippet>1978</a>    </span><span class="kw">fn </span>call_through_ref_to_ref_invalidates_cached_load() {
+<a href=#1979 id=1979 data-nosnippet>1979</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#1980 id=1980 data-nosnippet>1980</a>        brillig(inline) fn main f0 {
+<a href=#1981 id=1981 data-nosnippet>1981</a>          b0():
+<a href=#1982 id=1982 data-nosnippet>1982</a>            v0 = allocate -&gt; &amp;mut Field
+<a href=#1983 id=1983 data-nosnippet>1983</a>            store Field 1 at v0
+<a href=#1984 id=1984 data-nosnippet>1984</a>            v1 = allocate -&gt; &amp;mut &amp;mut Field
+<a href=#1985 id=1985 data-nosnippet>1985</a>            store v0 at v1
+<a href=#1986 id=1986 data-nosnippet>1986</a>            store Field 5 at v0
+<a href=#1987 id=1987 data-nosnippet>1987</a>            call f1(v1)
+<a href=#1988 id=1988 data-nosnippet>1988</a>            v3 = load v0 -&gt; Field
+<a href=#1989 id=1989 data-nosnippet>1989</a>            return v3
+<a href=#1990 id=1990 data-nosnippet>1990</a>        }
+<a href=#1991 id=1991 data-nosnippet>1991</a>        brillig(inline) fn writer f1 {
+<a href=#1992 id=1992 data-nosnippet>1992</a>          b0(v0: &amp;mut &amp;mut Field):
+<a href=#1993 id=1993 data-nosnippet>1993</a>            v1 = load v0 -&gt; &amp;mut Field
+<a href=#1994 id=1994 data-nosnippet>1994</a>            store Field 99 at v1
+<a href=#1995 id=1995 data-nosnippet>1995</a>            return
+<a href=#1996 id=1996 data-nosnippet>1996</a>        }
+<a href=#1997 id=1997 data-nosnippet>1997</a>        "</span>;
+<a href=#1998 id=1998 data-nosnippet>1998</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#1999 id=1999 data-nosnippet>1999</a>
+<a href=#2000 id=2000 data-nosnippet>2000</a>        <span class="kw">let </span>(<span class="kw">_</span>, result) =
+<a href=#2001 id=2001 data-nosnippet>2001</a>            assert_pass_does_not_affect_execution(ssa, <span class="macro">vec!</span>[], |ssa| ssa.load_store_forwarding());
+<a href=#2002 id=2002 data-nosnippet>2002</a>
+<a href=#2003 id=2003 data-nosnippet>2003</a>        <span class="macro">assert_eq!</span>(result.unwrap(), <span class="macro">vec!</span>[Value::field(<span class="number">99_u128</span>.into())]);
+<a href=#2004 id=2004 data-nosnippet>2004</a>    }
+<a href=#2005 id=2005 data-nosnippet>2005</a>}</code></pre></div></section></main></body></html>
