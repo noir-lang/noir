@@ -6,6 +6,7 @@ use noirc_errors::Location;
 use crate::{hir_def::expr::HirExpression, node_interner::FuncId};
 
 /// Track comptime evaluations, to facilitate code coverage in tests.
+#[derive(Clone)]
 pub struct EvaluationTracker {
     /// Only locations whose file is in this set are recorded.
     allowed_files: HashSet<FileId>,
