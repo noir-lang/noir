@@ -227,11 +227,22 @@ impl AliasAnalysis {
     }
 
     /// Recursively check if `target` can be referenced by `from`
+    ///
+    /// `from` reaches `target` either by *being* `target`'s cell, or by following its
+    /// `points_to` chain to `target`'s class. Only the first leg is settled by allocation
+    /// sites: `cannot_equal` answers cell identity, which is [`Self::may_alias`]'s question,
+    /// and two cells being distinct is the ordinary case in which one points at the other.
+    /// So a distinct-sites verdict rules out the identity leg and nothing else — the walk
+    /// must still run. Field-insensitive merges (an array holding both a pointer and its
+    /// pointee) put `from` and `target` in one class whose `points_to` loops back to itself,
+    /// so the same class is exactly where both legs are live at once.
     pub(crate) fn may_reference(&mut self, from: GlobalValueId, target: GlobalValueId) -> bool {
         let from_rep = self.aliases.find_existing(from);
         let target_rep = self.aliases.find_existing(target);
-        if from_rep == target_rep {
-            return !self.get_allocation(from).cannot_equal(&self.get_allocation(target));
+        if from_rep == target_rep
+            && !self.get_allocation(from).cannot_equal(&self.get_allocation(target))
+        {
+            return true;
         }
         let mut seen = HashSet::default();
         let mut current = from_rep;
@@ -1644,6 +1655,73 @@ mod tests {
         let call_results = collect_call_results_in_main(&ssa);
         let mut analysis = analyze_main(&ssa);
         assert!(analysis.may_alias(ssa.main(), call_results[0], call_results[1]));
+    }
+
+    /// A pointer and its pointee inside one array literal land in one alias class, and
+    /// the two `allocate`s keep distinct allocation sites. `may_reference` asks whether a
+    /// callee handed `v1` can reach `v0`'s cell — `store v0 at v1` says it can — so the
+    /// distinct sites must not be allowed to answer it.
+    #[test]
+    fn may_reference_walks_points_to_within_a_merged_class() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v1 = allocate -> &mut &mut Field
+            store v0 at v1
+            v2 = make_array [v0, v1] : [(&mut Field, &mut &mut Field); 1]
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let allocs = collect_allocates(&ssa);
+        let mut analysis = analyze_main(&ssa);
+        assert!(analysis.may_reference(allocs[1], allocs[0]));
+        // The two cells are still distinct, which is `may_alias`'s question, not this one.
+        assert!(!analysis.may_alias(ssa.main(), allocs[0], allocs[1]));
+    }
+
+    /// Without the array literal the classes stay separate and the walk answers directly,
+    /// so `may_reference` is `true` in one direction only.
+    #[test]
+    fn may_reference_is_directional_across_separate_classes() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v1 = allocate -> &mut &mut Field
+            store v0 at v1
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let allocs = collect_allocates(&ssa);
+        let mut analysis = analyze_main(&ssa);
+        assert!(analysis.may_reference(allocs[1], allocs[0]));
+        assert!(!analysis.may_reference(allocs[0], allocs[1]));
+    }
+
+    /// Two cells that hold `Field`s rather than references are merged into one class by
+    /// an array literal, but neither has a `points_to` link, so neither can reach the
+    /// other and `may_reference` stays `false` in both directions.
+    #[test]
+    fn may_reference_is_false_for_distinct_cells_with_no_points_to_link() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = allocate -> &mut Field
+            v2 = make_array [v0, v1] : [(&mut Field, &mut Field); 1]
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let allocs = collect_allocates(&ssa);
+        let mut analysis = analyze_main(&ssa);
+        assert!(!analysis.may_reference(allocs[0], allocs[1]));
+        assert!(!analysis.may_reference(allocs[1], allocs[0]));
     }
 
     #[test]

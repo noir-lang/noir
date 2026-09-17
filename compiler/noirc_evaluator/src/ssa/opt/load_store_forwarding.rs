@@ -1896,4 +1896,110 @@ mod tests {
         // final load returns it.
         assert_eq!(result.unwrap(), vec![Value::field(1_u128.into())]);
     }
+
+    /// `v1` points at `v0`, so `f1` — handed `v1` — writes `v0`'s cell. The array literal
+    /// puts both references in one alias class, which must not stop the call from
+    /// invalidating the cached value of `*v0`: `v3 = load v0` has to read memory rather
+    /// than forward the pre-call `Field 5`.
+    #[test]
+    fn call_through_ref_to_ref_in_array_invalidates_cached_load() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v1 = allocate -> &mut &mut Field
+            store v0 at v1
+            v2 = make_array [v0, v1] : [(&mut Field, &mut &mut Field); 1]
+            store Field 5 at v0
+            call f1(v1)
+            v3 = load v0 -> Field
+            v4 = array_get v2, index u32 0 -> &mut Field
+            v5 = load v4 -> Field
+            v6 = add v3, v5
+            return v6
+        }
+        brillig(inline) fn writer f1 {
+          b0(v0: &mut &mut Field):
+            v1 = load v0 -> &mut Field
+            store Field 99 at v1
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let (_, result) =
+            assert_pass_does_not_affect_execution(ssa, vec![], |ssa| ssa.load_store_forwarding());
+
+        // Both reads see the `Field 99` the callee wrote: 99 + 99.
+        assert_eq!(result.unwrap(), vec![Value::field(198_u128.into())]);
+    }
+
+    /// Same shape, but `f1` only *reads* through `v1`. The store that initializes `v0`'s
+    /// cell is therefore observed by the call and must stay live: deleting it leaves the
+    /// callee loading a cell that was never written.
+    #[test]
+    fn call_reading_through_ref_to_ref_in_array_keeps_store_live() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v1 = allocate -> &mut &mut Field
+            store v0 at v1
+            v2 = make_array [v0, v1] : [(&mut Field, &mut &mut Field); 1]
+            store Field 5 at v0
+            v3 = call f1(v1) -> Field
+            store Field 7 at v0
+            v4 = array_get v2, index u32 0 -> &mut Field
+            v5 = load v4 -> Field
+            v6 = add v3, v5
+            return v6
+        }
+        brillig(inline) fn reader f1 {
+          b0(v0: &mut &mut Field):
+            v1 = load v0 -> &mut Field
+            v2 = load v1 -> Field
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let (_, result) =
+            assert_pass_does_not_affect_execution(ssa, vec![], |ssa| ssa.load_store_forwarding());
+
+        // The callee reads the `Field 5` in the cell, and the final load reads `Field 7`.
+        assert_eq!(result.unwrap(), vec![Value::field(12_u128.into())]);
+    }
+
+    /// With no array literal the two references stay in separate alias classes, and the
+    /// call is still seen to write `v0` through `v1`.
+    #[test]
+    fn call_through_ref_to_ref_invalidates_cached_load() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v1 = allocate -> &mut &mut Field
+            store v0 at v1
+            store Field 5 at v0
+            call f1(v1)
+            v3 = load v0 -> Field
+            return v3
+        }
+        brillig(inline) fn writer f1 {
+          b0(v0: &mut &mut Field):
+            v1 = load v0 -> &mut Field
+            store Field 99 at v1
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let (_, result) =
+            assert_pass_does_not_affect_execution(ssa, vec![], |ssa| ssa.load_store_forwarding());
+
+        assert_eq!(result.unwrap(), vec![Value::field(99_u128.into())]);
+    }
 }
