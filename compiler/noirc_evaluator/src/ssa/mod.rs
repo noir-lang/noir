@@ -489,6 +489,10 @@ pub fn optimize_ssa_builder_into_acir(
         "Brillig Array Get and Set Optimizations",
     )])?;
 
+    // Neither back end can lower the other runtime's intrinsics. Reject any that survived the
+    // passes, which have by now removed the branches `is_unconstrained()` disables.
+    builder.ssa().check_runtime_only_intrinsics()?;
+
     let brillig = time("SSA to Brillig", options.print_codegen_timings, || {
         builder.ssa().to_brillig(&options.brillig_options)
     });

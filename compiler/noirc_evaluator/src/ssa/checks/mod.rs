@@ -1,11 +1,13 @@
-//! This module defines security SSA passes detecting constraint problems leading to possible
-//! soundness vulnerabilities.
+//! This module defines checks on the final SSA.
 //!
-//! The compiler informs the developer of these as bugs.
+//! The security checks detect constraint problems leading to possible soundness
+//! vulnerabilities, and the compiler informs the developer of these as bugs. The runtime check
+//! rejects calls to intrinsics that the calling function's runtime cannot lower.
 use crate::ssa::ir::{function::Function, value::ValueId};
 
 mod check_for_missing_brillig_constraints;
 mod check_for_underconstrained_values;
+mod check_runtime_only_intrinsics;
 
 pub use check_for_missing_brillig_constraints::{
     DEFAULT_MAX_ANCESTOR_DISTANCE, DEFAULT_MAX_ARRAY_OUTPUT_LENGTH,
