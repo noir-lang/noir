@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789662134151,
+  "lastUpdate": 1789662554288,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20326,48 +20326,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "ba20062c9e6928ca25f4e4443b5414ead3b10a24",
-          "message": "fix(noirc_abi): don't let `AbiType::field_count` wrap (#13684)",
-          "timestamp": "2026-09-14T10:41:05Z",
-          "tree_id": "dca9a90ace6d37a92428ad4a6b9afe0c02a44ab8",
-          "url": "https://github.com/noir-lang/noir/commit/ba20062c9e6928ca25f4e4443b5414ead3b10a24"
-        },
-        "date": 1789383671941,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 170013,
-            "range": "± 346",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 137405,
-            "range": "± 1808",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2655643,
-            "range": "± 2158",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "3cb916c3fdba200bc024fe471fe5c048a508db20",
           "message": "fix(acvm): stop the blackbox injectivity proptests generating all-zero inputs (#13680)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
           "timestamp": "2026-09-14T10:42:47Z",
@@ -22409,6 +22367,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2650048,
             "range": "± 13656",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "92ec619cd769974d542a39b86735aea3f132fcc9",
+          "message": "fix(nargo_fmt): format `&&` as two reference layers instead of panicking (#13762)",
+          "timestamp": "2026-09-17T16:06:21Z",
+          "tree_id": "a0e1f4468c7ac3f8f93e25d775b1e07c51fac7b8",
+          "url": "https://github.com/noir-lang/noir/commit/92ec619cd769974d542a39b86735aea3f132fcc9"
+        },
+        "date": 1789662469110,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 168776,
+            "range": "± 620",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136634,
+            "range": "± 419",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2648736,
+            "range": "± 4922",
             "unit": "ns/iter"
           }
         ]
