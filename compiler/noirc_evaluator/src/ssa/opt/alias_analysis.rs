@@ -228,14 +228,9 @@ impl AliasAnalysis {
 
     /// Recursively check if `target` can be referenced by `from`
     ///
-    /// `from` reaches `target` either by *being* `target`'s cell, or by following its
-    /// `points_to` chain to `target`'s class. Only the first leg is settled by allocation
-    /// sites: `cannot_equal` answers cell identity, which is [`Self::may_alias`]'s question,
-    /// and two cells being distinct is the ordinary case in which one points at the other.
-    /// So a distinct-sites verdict rules out the identity leg and nothing else — the walk
-    /// must still run. Field-insensitive merges (an array holding both a pointer and its
-    /// pointee) put `from` and `target` in one class whose `points_to` loops back to itself,
-    /// so the same class is exactly where both legs are live at once.
+    /// `from` reaches `target` by being `target`'s cell, or by following `points_to` to it.
+    /// Allocation sites only rule out the first: `cannot_equal` answers cell identity, which
+    /// is [`Self::may_alias`]'s question, so the walk must still run once it has fired.
     pub(crate) fn may_reference(&mut self, from: GlobalValueId, target: GlobalValueId) -> bool {
         let from_rep = self.aliases.find_existing(from);
         let target_rep = self.aliases.find_existing(target);
