@@ -45,6 +45,13 @@ pub struct Config {
     /// predication) that only runs when an array element mixes member sizes, which
     /// needs a composite inside the element and so a depth of 3.
     pub max_type_depth: usize,
+    /// Maximum number of `&mut` layers wrapped around a generated type.
+    ///
+    /// A depth of 2 is what makes `&mut &mut T` reachable. That is the shape where a
+    /// reference and the cell holding it can both end up in one aggregate literal, which
+    /// a field-insensitive alias analysis merges into a single class — the case its
+    /// reachability queries have to get right.
+    pub max_ref_depth: usize,
     /// Maximum number of fields for tuples.
     pub max_tuple_size: usize,
     /// Maximum size for arrays.
@@ -145,6 +152,7 @@ impl Default for Config {
             max_block_size: 5,
             max_depth: 2,
             max_type_depth: 3,
+            max_ref_depth: 2,
             max_tuple_size: 5,
             max_array_size: 4,
             max_loop_size: 10,
