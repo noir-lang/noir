@@ -2070,3 +2070,118 @@ fn errors_on_unknown_builtin_name() {
         "expected UnknownBuiltin, got: {err:?}"
     );
 }
+
+/// The monomorphization function cache is a `HashMap` keyed on `Type`, and `Type::eq` looks
+/// through `Type::CheckedCast` — so `Type::hash` has to look through it too, or two keys the
+/// cache considers equal land in different buckets and the same instantiation is monomorphized
+/// twice.
+///
+/// `take` is reached at `N = 4` from a plain `[Field; 4]` and from `[Field; (M - 1) + 1]`, whose
+/// length still carries the `CheckedCast` wrapper the elaborator builds for arithmetic generics
+/// (`follow_bindings` preserves it, so normalizing the key does not strip it). One specialization
+/// must serve both call sites.
+#[test]
+fn checked_cast_and_plain_array_lengths_share_one_specialization() {
+    let src = r#"
+    fn take<let N: u32>(x: [Field; N]) -> u32 { N }
+
+    fn via_checked_cast<let M: u32>(x: [Field; (M - 1) + 1]) -> u32 { take(x) }
+
+    pub fn main() -> pub u32 {
+        let arr: [Field; 4] = [0; 4];
+        via_checked_cast::<4>(arr) + take(arr)
+    }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u32 {
+        let arr$l0 = [0; 4];
+        (via_checked_cast$f1(arr$l0) + take$f2(arr$l0))
+    }
+    fn via_checked_cast$f1(x$l1: [Field; 4]) -> u32 {
+        take$f2(x$l1)
+    }
+    fn take$f2(x$l2: [Field; 4]) -> u32 {
+        4
+    }
+    ");
+}
+
+/// Control for `checked_cast_and_plain_array_lengths_share_one_specialization`: two call sites
+/// whose lengths are *different* arithmetic expressions over `M` share one specialization,
+/// because both `Type::eq` and `Type::hash` ignore a `CheckedCast`'s `from` side and compare its
+/// `to`. A regression that splits the cache on `from` fails here and not in the mixed case.
+#[test]
+fn distinct_checked_cast_array_lengths_share_one_specialization() {
+    let src = r#"
+    fn take<let N: u32>(x: [Field; N]) -> u32 { N }
+
+    fn minus_then_plus<let M: u32>(x: [Field; (M - 1) + 1]) -> u32 { take(x) }
+    fn plus_then_minus<let M: u32>(x: [Field; (M + 2) - 2]) -> u32 { take(x) }
+
+    pub fn main() -> pub u32 {
+        let arr: [Field; 4] = [0; 4];
+        minus_then_plus::<4>(arr) + plus_then_minus::<4>(arr)
+    }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u32 {
+        let arr$l0 = [0; 4];
+        (minus_then_plus$f1(arr$l0) + plus_then_minus$f2(arr$l0))
+    }
+    fn minus_then_plus$f1(x$l1: [Field; 4]) -> u32 {
+        take$f3(x$l1)
+    }
+    fn plus_then_minus$f2(x$l2: [Field; 4]) -> u32 {
+        take$f3(x$l2)
+    }
+    fn take$f3(x$l3: [Field; 4]) -> u32 {
+        4
+    }
+    ");
+}
+
+/// The duplication is visible in the shipped artifact: `#[fold]` means "compile me as a
+/// standalone ACIR circuit", so a `#[fold]` function monomorphized twice for one instantiation
+/// becomes two entry-point circuits with two verification keys. One source `#[fold] fn heavy`
+/// called at `N = 4` must survive as exactly one entry point.
+#[test]
+fn fold_function_reached_through_checked_cast_is_one_entry_point() {
+    let src = r#"
+    #[fold]
+    fn heavy<let N: u32>(x: [Field; N]) -> Field { x[0] + N as Field }
+
+    fn via_checked_cast<let M: u32>(x: [Field; (M - 1) + 1]) -> Field { heavy(x) }
+
+    pub fn main(a: [Field; 4]) -> pub Field {
+        heavy(a) + via_checked_cast::<4>(a)
+    }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    let entry_points: Vec<_> =
+        program.functions.iter().filter(|function| function.is_entry_point).collect();
+    assert_eq!(
+        entry_points.iter().filter(|function| function.name == "heavy").count(),
+        1,
+        "`#[fold] fn heavy` at one instantiation must be one ACIR circuit, got: {}",
+        entry_points
+            .iter()
+            .map(|function| format!("{}${:?}", function.name, function.id))
+            .collect::<Vec<_>>()
+            .join(", ")
+    );
+
+    insta::assert_snapshot!(program, @r"
+    fn main$f0(a$l0: [Field; 4]) -> pub Field {
+        (heavy$f1(a$l0) + via_checked_cast$f2(a$l0))
+    }
+    #[fold]
+    fn heavy$f1(x$l1: [Field; 4]) -> Field {
+        (x$l1[0] + (4 as Field))
+    }
+    fn via_checked_cast$f2(x$l2: [Field; 4]) -> Field {
+        heavy$f1(x$l2)
+    }
+    ");
+}
