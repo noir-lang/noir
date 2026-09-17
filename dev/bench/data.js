@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789660484585,
+  "lastUpdate": 1789660498323,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -12727,40 +12727,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "689753e8cf87caa7c96bbc0bf3c6fcdc35955460",
-          "message": "fix(ssa): check the radix range before computing `radix - 1` in `constant_to_radix` (#13682)",
-          "timestamp": "2026-09-14T10:21:28Z",
-          "tree_id": "49fec64105dcdbb7980ed0ea54ebf13443f1fee4",
-          "url": "https://github.com/noir-lang/noir/commit/689753e8cf87caa7c96bbc0bf3c6fcdc35955460"
-        },
-        "date": 1789382854735,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 85.57,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 79.11,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "8c78b458a0a5cd31ebfcce60e5f4a5ff6c4e5085",
           "message": "fix(acir_field): make `recovers_original_hex_string` test the hex round trip (#13681)",
           "timestamp": "2026-09-14T10:28:34Z",
@@ -16435,6 +16401,95 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/c65318eef48ff039a2e2341a9233f13243d2a0f7"
         },
         "date": 1789660144106,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 297.91,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 338.44,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 325.22,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 372.43,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 369.21,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1270,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1270,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 369.44,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 471.34,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 483.02,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 368.72,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 85.57,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 79.11,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "dea5841562a427d7b25c688b36a11b7dfb8702ac",
+          "message": "fix(ssa): make the interpreter's `array_len` count elements, not flattened slots (#13686)",
+          "timestamp": "2026-09-17T15:14:34Z",
+          "tree_id": "649e02d336de7de16b5ddce40e915c238994869d",
+          "url": "https://github.com/noir-lang/noir/commit/dea5841562a427d7b25c688b36a11b7dfb8702ac"
+        },
+        "date": 1789660412154,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
