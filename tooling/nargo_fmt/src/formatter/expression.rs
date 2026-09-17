@@ -784,17 +784,35 @@ impl ChunkFormatter<'_, '_> {
 
     fn format_prefix(&mut self, prefix: PrefixExpression) -> ChunkGroup {
         let mut group = ChunkGroup::new();
-        group.text(self.chunk(|formatter| {
-            if let UnaryOp::Reference { mutable: true } = prefix.operator {
+
+        // `&&x` lexes as a single `LogicalAnd`, which the parser reads back as two nested
+        // reference prefixes (`parse_unary`). That one token carries both ampersands, so
+        // write it once and continue with the inner prefix, whose own ampersand it covered.
+        let (prefix, operator_written) = if matches!(prefix.operator, UnaryOp::Reference { .. })
+            && self.is_at(Token::LogicalAnd)
+        {
+            group.text(self.chunk(|formatter| {
                 formatter.write_current_token();
                 formatter.bump();
+            }));
+            let ExpressionKind::Prefix(inner) = prefix.rhs.kind else {
+                unreachable!("`&&` parses as two nested reference prefixes")
+            };
+            (*inner, true)
+        } else {
+            (prefix, false)
+        };
+
+        group.text(self.chunk(|formatter| {
+            if !operator_written {
+                formatter.write_current_token();
+                formatter.bump();
+            }
+            if let UnaryOp::Reference { mutable: true } = prefix.operator {
                 formatter.skip_comments_and_whitespace();
                 formatter.write_current_token();
                 formatter.bump();
                 formatter.write_space();
-            } else {
-                formatter.write_current_token();
-                formatter.bump();
             }
         }));
         self.format_expression(prefix.rhs, &mut group);
@@ -1787,6 +1805,27 @@ global y = 1;
     fn format_prefix() {
         let src = "global x = - a ;";
         let expected = "global x = -a;\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_double_reference_prefix() {
+        let src = "global x = & & a ;";
+        let expected = "global x = &&a;\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_double_reference_prefix_written_as_one_token() {
+        let src = "global x = &&a ;";
+        let expected = "global x = &&a;\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_reference_to_mutable_reference_prefix() {
+        let src = "global x = &&  mut  a ;";
+        let expected = "global x = &&mut a;\n";
         assert_format(src, expected);
     }
 

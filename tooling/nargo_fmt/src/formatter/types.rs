@@ -69,12 +69,20 @@ impl Formatter<'_> {
                 self.format_generic_type_args(generic_type_args);
             }
             UnresolvedTypeData::Reference(typ, mutable) => {
-                self.write_token(Token::Ampersand);
-                if mutable {
-                    self.write_keyword(Keyword::Mut);
-                    self.write_space();
+                // `&&T` lexes as a single `LogicalAnd`, which the parser reads back as two
+                // reference layers (`parse_reference_type`). That one token carries both
+                // ampersands, so write it once and continue with the inner layer rather
+                // than letting it ask for an ampersand that is no longer in the stream.
+                if self.is_at(Token::LogicalAnd) {
+                    self.write_token(Token::LogicalAnd);
+                    let UnresolvedTypeData::Reference(inner, inner_mutable) = typ.typ else {
+                        unreachable!("`&&` parses as two reference layers")
+                    };
+                    self.format_reference_target(*inner, inner_mutable);
+                } else {
+                    self.write_token(Token::Ampersand);
+                    self.format_reference_target(*typ, mutable);
                 }
-                self.format_type(*typ);
             }
             UnresolvedTypeData::Tuple(types) => {
                 let types_len = types.len();
@@ -145,6 +153,15 @@ impl Formatter<'_> {
             | UnresolvedTypeData::Interned(..)
             | UnresolvedTypeData::Error => unreachable!("Should not be present in the AST"),
         }
+    }
+
+    /// Write what follows a reference's `&`: an optional `mut`, then the referenced type.
+    fn format_reference_target(&mut self, typ: UnresolvedType, mutable: bool) {
+        if mutable {
+            self.write_keyword(Keyword::Mut);
+            self.write_space();
+        }
+        self.format_type(typ);
     }
 
     pub(super) fn format_as_trait_path(&mut self, as_trait_path: AsTraitPath) {
@@ -273,6 +290,34 @@ mod tests {
     fn format_mutable_reference_type() {
         let src = " &  mut  Field ";
         let expected = "&mut Field";
+        assert_format_type(src, expected);
+    }
+
+    #[test]
+    fn format_double_reference_type() {
+        let src = " & & Field ";
+        let expected = "&&Field";
+        assert_format_type(src, expected);
+    }
+
+    #[test]
+    fn format_double_reference_type_written_as_one_token() {
+        let src = " &&Field ";
+        let expected = "&&Field";
+        assert_format_type(src, expected);
+    }
+
+    #[test]
+    fn format_reference_to_mutable_reference_type() {
+        let src = " &&  mut  Field ";
+        let expected = "&&mut Field";
+        assert_format_type(src, expected);
+    }
+
+    #[test]
+    fn format_triple_reference_type() {
+        let src = " &&&mut Field ";
+        let expected = "&&&mut Field";
         assert_format_type(src, expected);
     }
 
