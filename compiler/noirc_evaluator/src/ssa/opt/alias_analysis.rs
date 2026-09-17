@@ -1344,6 +1344,8 @@ impl AliasAnalysisContext {
 #[cfg(test)]
 mod tests {
     //! Unit tests for the alias analysis.
+    use arbtest::arbitrary::{self, Unstructured};
+
     use super::*;
     use crate::ssa::{ir::instruction::Instruction, ssa_gen::Ssa};
 
@@ -1380,7 +1382,39 @@ mod tests {
         out
     }
 
+    /// Collect the result `ValueIds` of every `MakeArray` instruction.
+    fn collect_make_arrays(ssa: &Ssa) -> Vec<GlobalValueId> {
+        let func = ssa.main();
+        let mut out = Vec::new();
+        for block_id in func.reachable_blocks() {
+            for inst_id in func.dfg[block_id].instructions() {
+                if matches!(&func.dfg[*inst_id], Instruction::MakeArray { .. }) {
+                    let id =
+                        GlobalValueId::new(func, func.dfg.instruction_result::<1>(*inst_id)[0]);
+                    out.push(id);
+                }
+            }
+        }
+        out
+    }
+
     /// Collect the result `ValueIds` of every `ArrayGet` instruction.
+    /// Collect the result `ValueIds` of every `ArraySet` instruction.
+    fn collect_array_sets(ssa: &Ssa) -> Vec<GlobalValueId> {
+        let func = ssa.main();
+        let mut out = Vec::new();
+        for block_id in func.reachable_blocks() {
+            for inst_id in func.dfg[block_id].instructions() {
+                if matches!(&func.dfg[*inst_id], Instruction::ArraySet { .. }) {
+                    let id =
+                        GlobalValueId::new(func, func.dfg.instruction_result::<1>(*inst_id)[0]);
+                    out.push(id);
+                }
+            }
+        }
+        out
+    }
+
     fn collect_array_gets(ssa: &Ssa) -> Vec<GlobalValueId> {
         let func = ssa.main();
         let mut out = Vec::new();
@@ -1414,6 +1448,594 @@ mod tests {
 
     fn analyze_main(ssa: &Ssa) -> AliasAnalysis {
         AliasAnalysis::analyze(ssa)
+    }
+
+    // ============================================================
+    // Soundness property
+    // ============================================================
+
+    /// Where a generated value's `ValueId` can be recovered from, so the test can map its own
+    /// model back onto the parsed SSA without depending on how the parser numbers values.
+    #[derive(Clone, Copy)]
+    enum Origin {
+        Allocate(usize),
+        Load(usize),
+        ArrayGet(usize),
+        /// Index into the flat list of call results in the function.
+        CallResult(usize),
+    }
+
+    /// A reference-typed value in the generated program, plus the cells it may denote.
+    #[derive(Clone)]
+    struct GenValue {
+        /// Indirection depth: 0 is `&mut Field`, 1 is `&mut &mut Field`, and so on.
+        level: usize,
+        /// Allocation indices this value may be, as the test's own model sees it.
+        denotes: Vec<usize>,
+        origin: Origin,
+        /// The `vN` this was emitted as in the source text.
+        emitted: usize,
+    }
+
+    struct GenArray {
+        members: Vec<usize>,
+        emitted: usize,
+        /// Which collector recovers this container's `ValueId`.
+        origin: ArrayOrigin,
+        /// `Some(level)` when every member shares that indirection level. Vectors and the
+        /// vector intrinsics require a homogeneous element type.
+        homogeneous: Option<usize>,
+        /// Vectors print as `[T]`, arrays as `[T; N]`, and only vectors feed the intrinsics.
+        is_vector: bool,
+    }
+
+    #[derive(Clone, Copy)]
+    enum ArrayOrigin {
+        MakeArray(usize),
+        ArraySet(usize),
+        /// Index into the flat list of call results in the function.
+        CallResult(usize),
+    }
+
+    /// A generated function together with an independent model of its memory.
+    struct RefChainProgram {
+        src: String,
+        values: Vec<GenValue>,
+        arrays: Vec<GenArray>,
+        /// `holds[c]` is the set of allocation indices whose reference may sit in cell `c`.
+        holds: Vec<Vec<usize>>,
+    }
+
+    /// The SSA type for a given indirection level.
+    fn ref_type(level: usize) -> String {
+        let mut t = String::from("Field");
+        for _ in 0..=level {
+            t = format!("&mut {t}");
+        }
+        t
+    }
+
+    /// Generate a function built only from instructions the alias analysis has rules for —
+    /// `allocate`, `store`, `make_array`, `load` and `array_get` — recording in parallel what
+    /// each value may point at.
+    ///
+    /// The model is deliberately field-*sensitive* about arrays (element `k` really is the
+    /// value placed there). That keeps it a lower bound on what a sound may-analysis must
+    /// report, which is what makes the assertion below safe to make.
+    fn gen_ref_chain_program(u: &mut Unstructured) -> arbitrary::Result<RefChainProgram> {
+        let mut body = String::new();
+        let mut values: Vec<GenValue> = Vec::new();
+        let mut arrays: Vec<GenArray> = Vec::new();
+        let mut holds: Vec<Vec<usize>> = Vec::new();
+        let (mut n_alloc, mut n_load, mut n_get) = (0, 0, 0);
+        let (mut n_make, mut n_set) = (0, 0);
+        let mut n_call_result = 0;
+        let mut emitted = 0;
+
+        for _ in 0..u.int_in_range(2..=4)? {
+            let level = u.int_in_range(0..=2usize)?;
+            let cell = holds.len();
+            holds.push(Vec::new());
+            body.push_str(&format!("    v{emitted} = allocate -> {}\n", ref_type(level)));
+            values.push(GenValue {
+                level,
+                denotes: vec![cell],
+                origin: Origin::Allocate(n_alloc),
+                emitted,
+            });
+            emitted += 1;
+            n_alloc += 1;
+        }
+
+        for _ in 0..u.int_in_range(1..=8)? {
+            match u.choose_index(6)? {
+                // `store`: put a reference inside a cell one level above it.
+                0 => {
+                    let mut pairs = Vec::new();
+                    for (d, dst) in values.iter().enumerate() {
+                        for (s, src) in values.iter().enumerate() {
+                            if s != d && dst.level == src.level + 1 {
+                                pairs.push((s, d));
+                            }
+                        }
+                    }
+                    if pairs.is_empty() {
+                        continue;
+                    }
+                    let (s, d) = *u.choose(&pairs)?;
+                    body.push_str(&format!(
+                        "    store v{} at v{}\n",
+                        values[s].emitted, values[d].emitted
+                    ));
+                    let put = values[s].denotes.clone();
+                    for cell in values[d].denotes.clone() {
+                        for p in &put {
+                            if !holds[cell].contains(p) {
+                                holds[cell].push(*p);
+                            }
+                        }
+                    }
+                }
+                // `make_array`: the aggregate that makes a field-insensitive analysis merge
+                // its elements' classes while they remain distinct cells. Emitted as a vector
+                // (`[T]`) when the members share a type, so the vector intrinsics have
+                // something to consume.
+                1 => {
+                    if values.len() < 2 {
+                        continue;
+                    }
+                    let size = u.int_in_range(2..=values.len().min(4))?;
+                    let members: Vec<usize> = (0..size).collect();
+                    let elements = members
+                        .iter()
+                        .map(|i| format!("v{}", values[*i].emitted))
+                        .collect::<Vec<_>>()
+                        .join(", ");
+                    let homogeneous = shared_level(&values, &members);
+                    let is_vector = homogeneous.is_some() && u.ratio(1, 2)?;
+                    let typ = match (is_vector, homogeneous) {
+                        // Vectors print without a length.
+                        (true, Some(level)) => format!("[{}]", ref_type(level)),
+                        // A homogeneous array keeps a single element type, which is what
+                        // `as_vector` requires of its input.
+                        (false, Some(level)) => {
+                            format!("[{}; {}]", ref_type(level), members.len())
+                        }
+                        // Mixed element types are carried as a one-element array of a tuple.
+                        _ => {
+                            let types = members
+                                .iter()
+                                .map(|i| ref_type(values[*i].level))
+                                .collect::<Vec<_>>()
+                                .join(", ");
+                            format!("[({types}); 1]")
+                        }
+                    };
+                    body.push_str(&format!("    v{emitted} = make_array [{elements}] : {typ}\n"));
+                    arrays.push(GenArray {
+                        members,
+                        emitted,
+                        origin: ArrayOrigin::MakeArray(n_make),
+                        homogeneous,
+                        is_vector,
+                    });
+                    emitted += 1;
+                    n_make += 1;
+                }
+                // `load`: a fresh name for whatever a cell holds.
+                2 => {
+                    let candidates: Vec<usize> =
+                        (0..values.len()).filter(|i| values[*i].level > 0).collect();
+                    if candidates.is_empty() {
+                        continue;
+                    }
+                    let p = *u.choose(&candidates)?;
+                    let mut denotes: Vec<usize> = Vec::new();
+                    for cell in &values[p].denotes {
+                        for held in &holds[*cell] {
+                            if !denotes.contains(held) {
+                                denotes.push(*held);
+                            }
+                        }
+                    }
+                    if denotes.is_empty() {
+                        // Loading a cell nothing was ever stored into has no modelled meaning.
+                        continue;
+                    }
+                    let level = values[p].level - 1;
+                    body.push_str(&format!(
+                        "    v{emitted} = load v{} -> {}\n",
+                        values[p].emitted,
+                        ref_type(level)
+                    ));
+                    values.push(GenValue { level, denotes, origin: Origin::Load(n_load), emitted });
+                    emitted += 1;
+                    n_load += 1;
+                }
+                // `array_set`: a new aggregate that shares every element but one.
+                3 => {
+                    if arrays.is_empty() {
+                        continue;
+                    }
+                    let ai = u.choose_index(arrays.len())?;
+                    let k = u.choose_index(arrays[ai].members.len())?;
+                    let old_member = arrays[ai].members[k];
+                    let level = values[old_member].level;
+                    let replacements: Vec<usize> =
+                        (0..values.len()).filter(|i| values[*i].level == level).collect();
+                    if replacements.is_empty() {
+                        continue;
+                    }
+                    let v = *u.choose(&replacements)?;
+                    body.push_str(&format!(
+                        "    v{emitted} = array_set v{}, index u32 {k}, value v{}\n",
+                        arrays[ai].emitted, values[v].emitted
+                    ));
+                    let mut members = arrays[ai].members.clone();
+                    members[k] = v;
+                    let homogeneous = shared_level(&values, &members);
+                    arrays.push(GenArray {
+                        members,
+                        emitted,
+                        origin: ArrayOrigin::ArraySet(n_set),
+                        homogeneous,
+                        is_vector: arrays[ai].is_vector,
+                    });
+                    emitted += 1;
+                    n_set += 1;
+                }
+                // The vector intrinsics, each of which has its own bespoke merge rule in
+                // `unify_vector_intrinsic`. All seven rules are exercised.
+                4 => {
+                    // `as_vector` consumes a homogeneous *array*; the rest consume vectors.
+                    let want_as_vector = u.ratio(1, 6)?;
+                    let sources: Vec<usize> = (0..arrays.len())
+                        .filter(|i| {
+                            arrays[*i].homogeneous.is_some()
+                                && arrays[*i].is_vector != want_as_vector
+                        })
+                        .collect();
+                    if sources.is_empty() {
+                        continue;
+                    }
+                    let vi = *u.choose(&sources)?;
+                    let level = arrays[vi].homogeneous.expect("homogeneous");
+                    let t = ref_type(level);
+                    let len = arrays[vi].members.len();
+                    let src_emitted = arrays[vi].emitted;
+                    let members = arrays[vi].members.clone();
+
+                    // Helper to record a new vector produced by a call.
+                    macro_rules! push_vector {
+                        ($members:expr, $emitted:expr, $result:expr) => {
+                            arrays.push(GenArray {
+                                members: $members,
+                                emitted: $emitted,
+                                origin: ArrayOrigin::CallResult(n_call_result + $result),
+                                homogeneous: Some(level),
+                                is_vector: true,
+                            })
+                        };
+                    }
+
+                    if want_as_vector {
+                        // `(arr) -> (len, vec)`
+                        body.push_str(&format!(
+                            "    v{emitted}, v{} = call as_vector(v{src_emitted}) -> (u32, [{t}])\n",
+                            emitted + 1
+                        ));
+                        push_vector!(members, emitted + 1, 1);
+                        emitted += 2;
+                        n_call_result += 2;
+                    } else {
+                        match u.choose_index(5)? {
+                            // push_back: `(len, vec, elem) -> (new_len, new_vec)`
+                            0 => {
+                                let same: Vec<usize> = (0..values.len())
+                                    .filter(|i| values[*i].level == level)
+                                    .collect();
+                                if same.is_empty() {
+                                    continue;
+                                }
+                                let e = *u.choose(&same)?;
+                                body.push_str(&format!(
+                                    "    v{emitted}, v{} = call vector_push_back(u32 {len}, v{src_emitted}, v{}) -> (u32, [{t}])\n",
+                                    emitted + 1,
+                                    values[e].emitted
+                                ));
+                                let mut m = members;
+                                m.push(e);
+                                push_vector!(m, emitted + 1, 1);
+                                emitted += 2;
+                                n_call_result += 2;
+                            }
+                            // push_front: same shape, element lands at the front.
+                            1 => {
+                                let same: Vec<usize> = (0..values.len())
+                                    .filter(|i| values[*i].level == level)
+                                    .collect();
+                                if same.is_empty() {
+                                    continue;
+                                }
+                                let e = *u.choose(&same)?;
+                                body.push_str(&format!(
+                                    "    v{emitted}, v{} = call vector_push_front(u32 {len}, v{src_emitted}, v{}) -> (u32, [{t}])\n",
+                                    emitted + 1,
+                                    values[e].emitted
+                                ));
+                                let mut m = vec![e];
+                                m.extend(members);
+                                push_vector!(m, emitted + 1, 1);
+                                emitted += 2;
+                                n_call_result += 2;
+                            }
+                            // insert: `(len, vec, idx, elem) -> (new_len, new_vec)`
+                            2 => {
+                                if len == 0 {
+                                    continue;
+                                }
+                                let same: Vec<usize> = (0..values.len())
+                                    .filter(|i| values[*i].level == level)
+                                    .collect();
+                                if same.is_empty() {
+                                    continue;
+                                }
+                                let e = *u.choose(&same)?;
+                                let k = u.choose_index(len)?;
+                                body.push_str(&format!(
+                                    "    v{emitted}, v{} = call vector_insert(u32 {len}, v{src_emitted}, u32 {k}, v{}) -> (u32, [{t}])\n",
+                                    emitted + 1,
+                                    values[e].emitted
+                                ));
+                                let mut m = members;
+                                m.insert(k, e);
+                                push_vector!(m, emitted + 1, 1);
+                                emitted += 2;
+                                n_call_result += 2;
+                            }
+                            // pop_back: `(len, vec) -> (new_len, new_vec, elem)`
+                            3 => {
+                                if len == 0 {
+                                    continue;
+                                }
+                                body.push_str(&format!(
+                                    "    v{emitted}, v{}, v{} = call vector_pop_back(u32 {len}, v{src_emitted}) -> (u32, [{t}], {t})\n",
+                                    emitted + 1,
+                                    emitted + 2
+                                ));
+                                let back = *members.last().expect("non-empty");
+                                push_vector!(members[..len - 1].to_vec(), emitted + 1, 1);
+                                values.push(GenValue {
+                                    level,
+                                    denotes: values[back].denotes.clone(),
+                                    origin: Origin::CallResult(n_call_result + 2),
+                                    emitted: emitted + 2,
+                                });
+                                emitted += 3;
+                                n_call_result += 3;
+                            }
+                            // remove: `(len, vec, idx) -> (new_len, new_vec, elem)`
+                            _ => {
+                                if len == 0 {
+                                    continue;
+                                }
+                                let k = u.choose_index(len)?;
+                                body.push_str(&format!(
+                                    "    v{emitted}, v{}, v{} = call vector_remove(u32 {len}, v{src_emitted}, u32 {k}) -> (u32, [{t}], {t})\n",
+                                    emitted + 1,
+                                    emitted + 2
+                                ));
+                                let removed = members[k];
+                                let mut m = members;
+                                m.remove(k);
+                                push_vector!(m, emitted + 1, 1);
+                                values.push(GenValue {
+                                    level,
+                                    denotes: values[removed].denotes.clone(),
+                                    origin: Origin::CallResult(n_call_result + 2),
+                                    emitted: emitted + 2,
+                                });
+                                emitted += 3;
+                                n_call_result += 3;
+                            }
+                        }
+                    }
+                }
+                // `array_get`: a fresh name for one element of an aggregate.
+                _ => {
+                    if arrays.is_empty() {
+                        continue;
+                    }
+                    let ai = u.choose_index(arrays.len())?;
+                    let k = u.choose_index(arrays[ai].members.len())?;
+                    let member = arrays[ai].members[k];
+                    let level = values[member].level;
+                    body.push_str(&format!(
+                        "    v{emitted} = array_get v{}, index u32 {k} -> {}\n",
+                        arrays[ai].emitted,
+                        ref_type(level)
+                    ));
+                    values.push(GenValue {
+                        level,
+                        denotes: values[member].denotes.clone(),
+                        origin: Origin::ArrayGet(n_get),
+                        emitted,
+                    });
+                    emitted += 1;
+                    n_get += 1;
+                }
+            }
+        }
+
+        let src = format!("brillig(inline) fn main f0 {{\n  b0():\n{body}    return\n}}\n");
+        Ok(RefChainProgram { src, values, arrays, holds })
+    }
+
+    /// The shared indirection level of a set of values, when they all agree.
+    fn shared_level(values: &[GenValue], members: &[usize]) -> Option<usize> {
+        let level = values[*members.first()?].level;
+        members.iter().all(|m| values[*m].level == level).then_some(level)
+    }
+
+    /// Every allocation cell reachable from `start` by following the `holds` relation.
+    fn reachable_cells(holds: &[Vec<usize>], start: &[usize]) -> HashSet<usize> {
+        let mut seen = HashSet::default();
+        let mut stack: Vec<usize> = start.iter().flat_map(|c| holds[*c].clone()).collect();
+        while let Some(next) = stack.pop() {
+            if seen.insert(next) {
+                stack.extend(holds[next].iter().copied());
+            }
+        }
+        seen
+    }
+
+    /// `may_alias` is a *may* analysis too: whenever two values can denote the same cell in
+    /// some execution, it has to say so.
+    ///
+    /// The model only records cells a value genuinely can be — each one is realisable by the
+    /// execution in which the corresponding `store` ran last — so every pair it reports as
+    /// overlapping really does overlap somewhere.
+    #[test]
+    fn may_alias_reports_every_pair_that_can_be_one_cell() {
+        arbtest::arbtest(|u| {
+            let program = gen_ref_chain_program(u)?;
+            let Ok(ssa) = Ssa::from_str(&program.src) else {
+                return Ok(());
+            };
+            for function in ssa.functions.values() {
+                crate::ssa::validation::validate_function(function, &ssa, true);
+            }
+            let allocs = collect_allocates(&ssa);
+            let loads = collect_loads(&ssa);
+            let gets = collect_array_gets(&ssa);
+            let call_results = collect_call_results_in_main(&ssa);
+            let mut analysis = analyze_main(&ssa);
+
+            let id_of = |v: &GenValue| match v.origin {
+                Origin::Allocate(i) => allocs.get(i).copied(),
+                Origin::Load(i) => loads.get(i).copied(),
+                Origin::ArrayGet(i) => gets.get(i).copied(),
+                Origin::CallResult(i) => call_results.get(i).copied(),
+            };
+
+            for a in &program.values {
+                let Some(a_id) = id_of(a) else { continue };
+                for b in &program.values {
+                    let Some(b_id) = id_of(b) else { continue };
+                    if a.denotes.iter().any(|c| b.denotes.contains(c)) {
+                        assert!(
+                            analysis.may_alias(ssa.main(), a_id, b_id),
+                            "may_alias(v{}, v{}) is false, but both can denote the same cell:\n{}",
+                            a.emitted,
+                            b.emitted,
+                            program.src
+                        );
+                    }
+                }
+            }
+            Ok(())
+        })
+        .budget_ms(
+            std::env::var("NOIR_ALIAS_PROP_BUDGET_MS")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(2_000),
+        );
+    }
+
+    /// `may_reference` is a *may* analysis: over-reporting is legal, under-reporting is a
+    /// soundness bug. So every chain the generated program actually builds has to come back
+    /// `true`.
+    ///
+    /// The ground truth is derived from the emitted instructions rather than from the
+    /// analysis, so this cannot be fooled by the same mistake twice.
+    #[test]
+    fn may_reference_reports_every_chain_the_program_builds() {
+        arbtest::arbtest(|u| {
+            let program = gen_ref_chain_program(u)?;
+            let Ok(ssa) = Ssa::from_str(&program.src) else {
+                // A shape the parser rejects is not interesting here.
+                return Ok(());
+            };
+            // Only hold the analysis to shapes the SSA validator accepts, so a failure is
+            // always about a program the rest of the compiler considers well formed.
+            for function in ssa.functions.values() {
+                crate::ssa::validation::validate_function(function, &ssa, true);
+            }
+            let allocs = collect_allocates(&ssa);
+            let loads = collect_loads(&ssa);
+            let gets = collect_array_gets(&ssa);
+            let made = collect_make_arrays(&ssa);
+            let sets = collect_array_sets(&ssa);
+            let call_results = collect_call_results_in_main(&ssa);
+            let mut analysis = analyze_main(&ssa);
+
+            let id_of = |v: &GenValue| match v.origin {
+                Origin::Allocate(i) => allocs.get(i).copied(),
+                Origin::Load(i) => loads.get(i).copied(),
+                Origin::ArrayGet(i) => gets.get(i).copied(),
+                Origin::CallResult(i) => call_results.get(i).copied(),
+            };
+
+            // Every reference value against every other.
+            for from in &program.values {
+                let Some(from_id) = id_of(from) else { continue };
+                let reach = reachable_cells(&program.holds, &from.denotes);
+                for target in &program.values {
+                    let Some(target_id) = id_of(target) else { continue };
+                    if target.denotes.iter().any(|c| reach.contains(c)) {
+                        assert!(
+                            analysis.may_reference(from_id, target_id),
+                            "may_reference(v{}, v{}) is false, but the program builds a chain \
+                             from v{} to v{}:\n{}",
+                            from.emitted,
+                            target.emitted,
+                            from.emitted,
+                            target.emitted,
+                            program.src
+                        );
+                    }
+                }
+            }
+
+            // An aggregate reaches everything its elements reach, and the elements themselves.
+            for array in &program.arrays {
+                let array_id = match array.origin {
+                    ArrayOrigin::MakeArray(i) => made.get(i).copied(),
+                    ArrayOrigin::ArraySet(i) => sets.get(i).copied(),
+                    ArrayOrigin::CallResult(i) => call_results.get(i).copied(),
+                };
+                let Some(array_id) = array_id else { continue };
+                let mut cells: Vec<usize> = Vec::new();
+                for member in &array.members {
+                    cells.extend(program.values[*member].denotes.iter().copied());
+                }
+                let mut reach = reachable_cells(&program.holds, &cells);
+                reach.extend(cells.iter().copied());
+                for target in &program.values {
+                    let Some(target_id) = id_of(target) else { continue };
+                    if target.denotes.iter().any(|c| reach.contains(c)) {
+                        assert!(
+                            analysis.may_reference(array_id, target_id),
+                            "may_reference(v{}, v{}) is false, but the aggregate reaches v{}:\n{}",
+                            array.emitted,
+                            target.emitted,
+                            target.emitted,
+                            program.src
+                        );
+                    }
+                }
+            }
+            Ok(())
+        })
+        // Short enough for PR CI; `NOIR_ALIAS_PROP_BUDGET_MS` raises it for nightly runs,
+        // where the extra time buys deeper shapes at negligible cost.
+        .budget_ms(
+            std::env::var("NOIR_ALIAS_PROP_BUDGET_MS")
+                .ok()
+                .and_then(|v| v.parse().ok())
+                .unwrap_or(2_000),
+        );
     }
 
     // ============================================================
