@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789660007834,
+  "lastUpdate": 1789660033459,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -12531,40 +12531,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "091fd9e4258d2030c110ad7daf64a32ff6c732a0",
-          "message": "fix(ssa): reject `not` on a field in the SSA validator (#13685)",
-          "timestamp": "2026-09-14T08:42:00Z",
-          "tree_id": "33274e7fdb322cabb6ecf293b8e9dbeaa06ad9c6",
-          "url": "https://github.com/noir-lang/noir/commit/091fd9e4258d2030c110ad7daf64a32ff6c732a0"
-        },
-        "date": 1789376823875,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 85.57,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 79.11,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "42fd3ebf9dcc7524edeab3240d6c6e853769299f",
           "message": "fix(artifact_cli): read the artifact file the caller named (#13683)",
@@ -16130,6 +16096,95 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/1082e3dab920f029a623a05656c1d083c3925d95"
         },
         "date": 1789657762593,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 297.91,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 338.44,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 325.22,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 372.43,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 369.21,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1270,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1270,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 369.44,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 471.34,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 483.02,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 368.72,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 85.57,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 79.11,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "b3dc84035651dd4fbabf145640886c251d375884",
+          "message": "fix(ssa): report runtime-only intrinsics in the wrong runtime instead of panicking in codegen (#13660)",
+          "timestamp": "2026-09-17T15:07:30Z",
+          "tree_id": "ba8d373d5ac24a1a327bf4c4eafc59b2be101260",
+          "url": "https://github.com/noir-lang/noir/commit/b3dc84035651dd4fbabf145640886c251d375884"
+        },
+        "date": 1789659962529,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
