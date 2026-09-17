@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789659542550,
+  "lastUpdate": 1789659545676,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -21677,40 +21677,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "091fd9e4258d2030c110ad7daf64a32ff6c732a0",
-          "message": "fix(ssa): reject `not` on a field in the SSA validator (#13685)",
-          "timestamp": "2026-09-14T08:42:00Z",
-          "tree_id": "33274e7fdb322cabb6ecf293b8e9dbeaa06ad9c6",
-          "url": "https://github.com/noir-lang/noir/commit/091fd9e4258d2030c110ad7daf64a32ff6c732a0"
-        },
-        "date": 1789376811804,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 502.9,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 450,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "42fd3ebf9dcc7524edeab3240d6c6e853769299f",
           "message": "fix(artifact_cli): read the artifact file the caller named (#13683)",
@@ -25626,6 +25592,105 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/1082e3dab920f029a623a05656c1d083c3925d95"
         },
         "date": 1789657204362,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1104.6,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 2678.9,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2110,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-no-txs",
+            "value": 442,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 471.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 583.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 440.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 30735.6,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 30781.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 475,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 4558,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 4829.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 248,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 502.9,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 450,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "b3dc84035651dd4fbabf145640886c251d375884",
+          "message": "fix(ssa): report runtime-only intrinsics in the wrong runtime instead of panicking in codegen (#13660)",
+          "timestamp": "2026-09-17T15:07:30Z",
+          "tree_id": "ba8d373d5ac24a1a327bf4c4eafc59b2be101260",
+          "url": "https://github.com/noir-lang/noir/commit/b3dc84035651dd4fbabf145640886c251d375884"
+        },
+        "date": 1789659444523,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
