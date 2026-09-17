@@ -3471,254 +3471,295 @@
 <a href=#3471 id=3471 data-nosnippet>3471</a>
 <a href=#3472 id=3472 data-nosnippet>3472</a><span class="kw">impl </span>std::hash::Hash <span class="kw">for </span>Type {
 <a href=#3473 id=3473 data-nosnippet>3473</a>    <span class="kw">fn </span>hash&lt;H: std::hash::Hasher&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, state: <span class="kw-2">&amp;mut </span>H) {
-<a href=#3474 id=3474 data-nosnippet>3474</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>((variable, kind)) = <span class="self">self</span>.get_inner_type_variable() {
-<a href=#3475 id=3475 data-nosnippet>3475</a>            kind.hash(state);
-<a href=#3476 id=3476 data-nosnippet>3476</a>            <span class="kw">if let </span>TypeBinding::Bound(typ) = <span class="kw-2">&amp;*</span>variable.borrow() {
-<a href=#3477 id=3477 data-nosnippet>3477</a>                typ.hash(state);
-<a href=#3478 id=3478 data-nosnippet>3478</a>                <span class="kw">return</span>;
-<a href=#3479 id=3479 data-nosnippet>3479</a>            }
-<a href=#3480 id=3480 data-nosnippet>3480</a>        }
-<a href=#3481 id=3481 data-nosnippet>3481</a>
-<a href=#3482 id=3482 data-nosnippet>3482</a>        <span class="kw">if </span>!<span class="macro">matches!</span>(<span class="self">self</span>, Type::TypeVariable(..) | Type::NamedGeneric(..)) {
-<a href=#3483 id=3483 data-nosnippet>3483</a>            std::mem::discriminant(<span class="self">self</span>).hash(state);
-<a href=#3484 id=3484 data-nosnippet>3484</a>        }
-<a href=#3485 id=3485 data-nosnippet>3485</a>
-<a href=#3486 id=3486 data-nosnippet>3486</a>        <span class="kw">match </span><span class="self">self </span>{
-<a href=#3487 id=3487 data-nosnippet>3487</a>            Type::FieldElement | Type::Bool | Type::Unit | Type::Error =&gt; (),
-<a href=#3488 id=3488 data-nosnippet>3488</a>            Type::Array(elem, len) =&gt; {
-<a href=#3489 id=3489 data-nosnippet>3489</a>                len.hash(state);
-<a href=#3490 id=3490 data-nosnippet>3490</a>                elem.hash(state);
-<a href=#3491 id=3491 data-nosnippet>3491</a>            }
-<a href=#3492 id=3492 data-nosnippet>3492</a>            Type::Vector(elem) =&gt; elem.hash(state),
-<a href=#3493 id=3493 data-nosnippet>3493</a>            Type::Integer(sign, bits) =&gt; {
-<a href=#3494 id=3494 data-nosnippet>3494</a>                sign.hash(state);
-<a href=#3495 id=3495 data-nosnippet>3495</a>                bits.hash(state);
-<a href=#3496 id=3496 data-nosnippet>3496</a>            }
-<a href=#3497 id=3497 data-nosnippet>3497</a>            Type::String(len) =&gt; len.hash(state),
-<a href=#3498 id=3498 data-nosnippet>3498</a>            Type::FmtString(len, env) =&gt; {
-<a href=#3499 id=3499 data-nosnippet>3499</a>                len.hash(state);
-<a href=#3500 id=3500 data-nosnippet>3500</a>                env.hash(state);
-<a href=#3501 id=3501 data-nosnippet>3501</a>            }
-<a href=#3502 id=3502 data-nosnippet>3502</a>            Type::Tuple(elements) =&gt; elements.hash(state),
-<a href=#3503 id=3503 data-nosnippet>3503</a>            Type::DataType(def, args) =&gt; {
-<a href=#3504 id=3504 data-nosnippet>3504</a>                def.hash(state);
-<a href=#3505 id=3505 data-nosnippet>3505</a>                args.hash(state);
-<a href=#3506 id=3506 data-nosnippet>3506</a>            }
-<a href=#3507 id=3507 data-nosnippet>3507</a>            Type::Alias(alias, args) =&gt; {
-<a href=#3508 id=3508 data-nosnippet>3508</a>                alias.hash(state);
-<a href=#3509 id=3509 data-nosnippet>3509</a>                args.hash(state);
-<a href=#3510 id=3510 data-nosnippet>3510</a>            }
-<a href=#3511 id=3511 data-nosnippet>3511</a>            Type::TypeVariable(var) | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) =&gt; {
-<a href=#3512 id=3512 data-nosnippet>3512</a>                var.hash(state);
+<a href=#3474 id=3474 data-nosnippet>3474</a>        <span class="comment">// `Type::eq` compares a `CheckedCast` against its `to` type and ignores the wrapper, so the
+<a href=#3475 id=3475 data-nosnippet>3475</a>        // hash has to ignore it as well: equal types must hash equally, or a `HashMap` keyed by
+<a href=#3476 id=3476 data-nosnippet>3476</a>        // `Type` misses on keys it considers equal.
+<a href=#3477 id=3477 data-nosnippet>3477</a>        </span><span class="kw">if let </span>Type::CheckedCast { to, .. } = <span class="self">self </span>{
+<a href=#3478 id=3478 data-nosnippet>3478</a>            <span class="kw">return </span>to.hash(state);
+<a href=#3479 id=3479 data-nosnippet>3479</a>        }
+<a href=#3480 id=3480 data-nosnippet>3480</a>
+<a href=#3481 id=3481 data-nosnippet>3481</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>((variable, kind)) = <span class="self">self</span>.get_inner_type_variable() {
+<a href=#3482 id=3482 data-nosnippet>3482</a>            kind.hash(state);
+<a href=#3483 id=3483 data-nosnippet>3483</a>            <span class="kw">if let </span>TypeBinding::Bound(typ) = <span class="kw-2">&amp;*</span>variable.borrow() {
+<a href=#3484 id=3484 data-nosnippet>3484</a>                typ.hash(state);
+<a href=#3485 id=3485 data-nosnippet>3485</a>                <span class="kw">return</span>;
+<a href=#3486 id=3486 data-nosnippet>3486</a>            }
+<a href=#3487 id=3487 data-nosnippet>3487</a>        }
+<a href=#3488 id=3488 data-nosnippet>3488</a>
+<a href=#3489 id=3489 data-nosnippet>3489</a>        <span class="kw">if </span>!<span class="macro">matches!</span>(<span class="self">self</span>, Type::TypeVariable(..) | Type::NamedGeneric(..)) {
+<a href=#3490 id=3490 data-nosnippet>3490</a>            std::mem::discriminant(<span class="self">self</span>).hash(state);
+<a href=#3491 id=3491 data-nosnippet>3491</a>        }
+<a href=#3492 id=3492 data-nosnippet>3492</a>
+<a href=#3493 id=3493 data-nosnippet>3493</a>        <span class="kw">match </span><span class="self">self </span>{
+<a href=#3494 id=3494 data-nosnippet>3494</a>            Type::FieldElement | Type::Bool | Type::Unit | Type::Error =&gt; (),
+<a href=#3495 id=3495 data-nosnippet>3495</a>            Type::Array(elem, len) =&gt; {
+<a href=#3496 id=3496 data-nosnippet>3496</a>                len.hash(state);
+<a href=#3497 id=3497 data-nosnippet>3497</a>                elem.hash(state);
+<a href=#3498 id=3498 data-nosnippet>3498</a>            }
+<a href=#3499 id=3499 data-nosnippet>3499</a>            Type::Vector(elem) =&gt; elem.hash(state),
+<a href=#3500 id=3500 data-nosnippet>3500</a>            Type::Integer(sign, bits) =&gt; {
+<a href=#3501 id=3501 data-nosnippet>3501</a>                sign.hash(state);
+<a href=#3502 id=3502 data-nosnippet>3502</a>                bits.hash(state);
+<a href=#3503 id=3503 data-nosnippet>3503</a>            }
+<a href=#3504 id=3504 data-nosnippet>3504</a>            Type::String(len) =&gt; len.hash(state),
+<a href=#3505 id=3505 data-nosnippet>3505</a>            Type::FmtString(len, env) =&gt; {
+<a href=#3506 id=3506 data-nosnippet>3506</a>                len.hash(state);
+<a href=#3507 id=3507 data-nosnippet>3507</a>                env.hash(state);
+<a href=#3508 id=3508 data-nosnippet>3508</a>            }
+<a href=#3509 id=3509 data-nosnippet>3509</a>            Type::Tuple(elements) =&gt; elements.hash(state),
+<a href=#3510 id=3510 data-nosnippet>3510</a>            Type::DataType(def, args) =&gt; {
+<a href=#3511 id=3511 data-nosnippet>3511</a>                def.hash(state);
+<a href=#3512 id=3512 data-nosnippet>3512</a>                args.hash(state);
 <a href=#3513 id=3513 data-nosnippet>3513</a>            }
-<a href=#3514 id=3514 data-nosnippet>3514</a>            Type::TraitAsType(trait_id, <span class="kw">_</span>, args) =&gt; {
-<a href=#3515 id=3515 data-nosnippet>3515</a>                trait_id.hash(state);
+<a href=#3514 id=3514 data-nosnippet>3514</a>            Type::Alias(alias, args) =&gt; {
+<a href=#3515 id=3515 data-nosnippet>3515</a>                alias.hash(state);
 <a href=#3516 id=3516 data-nosnippet>3516</a>                args.hash(state);
 <a href=#3517 id=3517 data-nosnippet>3517</a>            }
-<a href=#3518 id=3518 data-nosnippet>3518</a>            Type::Function(args, ret, env, is_unconstrained) =&gt; {
-<a href=#3519 id=3519 data-nosnippet>3519</a>                args.hash(state);
-<a href=#3520 id=3520 data-nosnippet>3520</a>                ret.hash(state);
-<a href=#3521 id=3521 data-nosnippet>3521</a>                env.hash(state);
-<a href=#3522 id=3522 data-nosnippet>3522</a>                is_unconstrained.hash(state);
-<a href=#3523 id=3523 data-nosnippet>3523</a>            }
-<a href=#3524 id=3524 data-nosnippet>3524</a>            Type::Reference(elem, mutable) =&gt; {
-<a href=#3525 id=3525 data-nosnippet>3525</a>                elem.hash(state);
-<a href=#3526 id=3526 data-nosnippet>3526</a>                mutable.hash(state);
-<a href=#3527 id=3527 data-nosnippet>3527</a>            }
-<a href=#3528 id=3528 data-nosnippet>3528</a>            Type::Forall(vars, typ) =&gt; {
-<a href=#3529 id=3529 data-nosnippet>3529</a>                vars.hash(state);
-<a href=#3530 id=3530 data-nosnippet>3530</a>                typ.hash(state);
-<a href=#3531 id=3531 data-nosnippet>3531</a>            }
-<a href=#3532 id=3532 data-nosnippet>3532</a>            Type::CheckedCast { to, .. } =&gt; to.hash(state),
-<a href=#3533 id=3533 data-nosnippet>3533</a>            Type::Constant(value) =&gt; value.hash(state),
-<a href=#3534 id=3534 data-nosnippet>3534</a>            Type::Quoted(typ) =&gt; typ.hash(state),
-<a href=#3535 id=3535 data-nosnippet>3535</a>            Type::InfixExpr(lhs, op, rhs, <span class="kw">_</span>) =&gt; {
-<a href=#3536 id=3536 data-nosnippet>3536</a>                lhs.hash(state);
-<a href=#3537 id=3537 data-nosnippet>3537</a>                op.hash(state);
-<a href=#3538 id=3538 data-nosnippet>3538</a>                rhs.hash(state);
-<a href=#3539 id=3539 data-nosnippet>3539</a>            }
-<a href=#3540 id=3540 data-nosnippet>3540</a>        }
-<a href=#3541 id=3541 data-nosnippet>3541</a>    }
-<a href=#3542 id=3542 data-nosnippet>3542</a>}
-<a href=#3543 id=3543 data-nosnippet>3543</a>
-<a href=#3544 id=3544 data-nosnippet>3544</a><span class="kw">impl </span>PartialEq <span class="kw">for </span>Type {
-<a href=#3545 id=3545 data-nosnippet>3545</a>    <span class="kw">fn </span>eq(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; bool {
-<a href=#3546 id=3546 data-nosnippet>3546</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>((variable, kind)) = <span class="self">self</span>.get_inner_type_variable() {
-<a href=#3547 id=3547 data-nosnippet>3547</a>            <span class="kw">if </span>kind != other.kind() {
-<a href=#3548 id=3548 data-nosnippet>3548</a>                <span class="kw">return </span><span class="bool-val">false</span>;
-<a href=#3549 id=3549 data-nosnippet>3549</a>            }
-<a href=#3550 id=3550 data-nosnippet>3550</a>            <span class="kw">if let </span>TypeBinding::Bound(typ) = <span class="kw-2">&amp;*</span>variable.borrow() {
-<a href=#3551 id=3551 data-nosnippet>3551</a>                <span class="kw">return </span>typ == other;
-<a href=#3552 id=3552 data-nosnippet>3552</a>            }
-<a href=#3553 id=3553 data-nosnippet>3553</a>        }
-<a href=#3554 id=3554 data-nosnippet>3554</a>
-<a href=#3555 id=3555 data-nosnippet>3555</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>((variable, other_kind)) = other.get_inner_type_variable() {
-<a href=#3556 id=3556 data-nosnippet>3556</a>            <span class="kw">if </span><span class="self">self</span>.kind() != other_kind {
+<a href=#3518 id=3518 data-nosnippet>3518</a>            Type::TypeVariable(var) | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) =&gt; {
+<a href=#3519 id=3519 data-nosnippet>3519</a>                var.hash(state);
+<a href=#3520 id=3520 data-nosnippet>3520</a>            }
+<a href=#3521 id=3521 data-nosnippet>3521</a>            Type::TraitAsType(trait_id, <span class="kw">_</span>, args) =&gt; {
+<a href=#3522 id=3522 data-nosnippet>3522</a>                trait_id.hash(state);
+<a href=#3523 id=3523 data-nosnippet>3523</a>                args.hash(state);
+<a href=#3524 id=3524 data-nosnippet>3524</a>            }
+<a href=#3525 id=3525 data-nosnippet>3525</a>            Type::Function(args, ret, env, is_unconstrained) =&gt; {
+<a href=#3526 id=3526 data-nosnippet>3526</a>                args.hash(state);
+<a href=#3527 id=3527 data-nosnippet>3527</a>                ret.hash(state);
+<a href=#3528 id=3528 data-nosnippet>3528</a>                env.hash(state);
+<a href=#3529 id=3529 data-nosnippet>3529</a>                is_unconstrained.hash(state);
+<a href=#3530 id=3530 data-nosnippet>3530</a>            }
+<a href=#3531 id=3531 data-nosnippet>3531</a>            Type::Reference(elem, mutable) =&gt; {
+<a href=#3532 id=3532 data-nosnippet>3532</a>                elem.hash(state);
+<a href=#3533 id=3533 data-nosnippet>3533</a>                mutable.hash(state);
+<a href=#3534 id=3534 data-nosnippet>3534</a>            }
+<a href=#3535 id=3535 data-nosnippet>3535</a>            Type::Forall(vars, typ) =&gt; {
+<a href=#3536 id=3536 data-nosnippet>3536</a>                vars.hash(state);
+<a href=#3537 id=3537 data-nosnippet>3537</a>                typ.hash(state);
+<a href=#3538 id=3538 data-nosnippet>3538</a>            }
+<a href=#3539 id=3539 data-nosnippet>3539</a>            Type::CheckedCast { .. } =&gt; {
+<a href=#3540 id=3540 data-nosnippet>3540</a>                <span class="macro">unreachable!</span>(<span class="string">"`CheckedCast` is hashed through its `to` type above"</span>)
+<a href=#3541 id=3541 data-nosnippet>3541</a>            }
+<a href=#3542 id=3542 data-nosnippet>3542</a>            Type::Constant(value) =&gt; value.hash(state),
+<a href=#3543 id=3543 data-nosnippet>3543</a>            Type::Quoted(typ) =&gt; typ.hash(state),
+<a href=#3544 id=3544 data-nosnippet>3544</a>            Type::InfixExpr(lhs, op, rhs, <span class="kw">_</span>) =&gt; {
+<a href=#3545 id=3545 data-nosnippet>3545</a>                lhs.hash(state);
+<a href=#3546 id=3546 data-nosnippet>3546</a>                op.hash(state);
+<a href=#3547 id=3547 data-nosnippet>3547</a>                rhs.hash(state);
+<a href=#3548 id=3548 data-nosnippet>3548</a>            }
+<a href=#3549 id=3549 data-nosnippet>3549</a>        }
+<a href=#3550 id=3550 data-nosnippet>3550</a>    }
+<a href=#3551 id=3551 data-nosnippet>3551</a>}
+<a href=#3552 id=3552 data-nosnippet>3552</a>
+<a href=#3553 id=3553 data-nosnippet>3553</a><span class="kw">impl </span>PartialEq <span class="kw">for </span>Type {
+<a href=#3554 id=3554 data-nosnippet>3554</a>    <span class="kw">fn </span>eq(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; bool {
+<a href=#3555 id=3555 data-nosnippet>3555</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>((variable, kind)) = <span class="self">self</span>.get_inner_type_variable() {
+<a href=#3556 id=3556 data-nosnippet>3556</a>            <span class="kw">if </span>kind != other.kind() {
 <a href=#3557 id=3557 data-nosnippet>3557</a>                <span class="kw">return </span><span class="bool-val">false</span>;
 <a href=#3558 id=3558 data-nosnippet>3558</a>            }
 <a href=#3559 id=3559 data-nosnippet>3559</a>            <span class="kw">if let </span>TypeBinding::Bound(typ) = <span class="kw-2">&amp;*</span>variable.borrow() {
-<a href=#3560 id=3560 data-nosnippet>3560</a>                <span class="kw">return </span><span class="self">self </span>== typ;
+<a href=#3560 id=3560 data-nosnippet>3560</a>                <span class="kw">return </span>typ == other;
 <a href=#3561 id=3561 data-nosnippet>3561</a>            }
 <a href=#3562 id=3562 data-nosnippet>3562</a>        }
 <a href=#3563 id=3563 data-nosnippet>3563</a>
-<a href=#3564 id=3564 data-nosnippet>3564</a>        <span class="kw">use </span>Type::<span class="kw-2">*</span>;
-<a href=#3565 id=3565 data-nosnippet>3565</a>        <span class="kw">match </span>(<span class="self">self</span>, other) {
-<a href=#3566 id=3566 data-nosnippet>3566</a>            (FieldElement, FieldElement) | (Bool, Bool) | (Unit, Unit) | (Error, Error) =&gt; <span class="bool-val">true</span>,
-<a href=#3567 id=3567 data-nosnippet>3567</a>            (Array(lhs_elem, lhs_len), Array(rhs_elem, rhs_len)) =&gt; {
-<a href=#3568 id=3568 data-nosnippet>3568</a>                lhs_len == rhs_len &amp;&amp; lhs_elem == rhs_elem
-<a href=#3569 id=3569 data-nosnippet>3569</a>            }
-<a href=#3570 id=3570 data-nosnippet>3570</a>            (Vector(lhs_elem), Vector(rhs_elem)) =&gt; lhs_elem == rhs_elem,
-<a href=#3571 id=3571 data-nosnippet>3571</a>            (Integer(lhs_sign, lhs_bits), Integer(rhs_sign, rhs_bits)) =&gt; {
-<a href=#3572 id=3572 data-nosnippet>3572</a>                lhs_sign == rhs_sign &amp;&amp; lhs_bits == rhs_bits
-<a href=#3573 id=3573 data-nosnippet>3573</a>            }
-<a href=#3574 id=3574 data-nosnippet>3574</a>            (String(lhs_len), String(rhs_len)) =&gt; lhs_len == rhs_len,
-<a href=#3575 id=3575 data-nosnippet>3575</a>            (FmtString(lhs_len, lhs_env), FmtString(rhs_len, rhs_env)) =&gt; {
-<a href=#3576 id=3576 data-nosnippet>3576</a>                lhs_len == rhs_len &amp;&amp; lhs_env == rhs_env
-<a href=#3577 id=3577 data-nosnippet>3577</a>            }
-<a href=#3578 id=3578 data-nosnippet>3578</a>            (Tuple(lhs_types), Tuple(rhs_types)) =&gt; lhs_types == rhs_types,
-<a href=#3579 id=3579 data-nosnippet>3579</a>            (DataType(lhs_struct, lhs_generics), DataType(rhs_struct, rhs_generics)) =&gt; {
-<a href=#3580 id=3580 data-nosnippet>3580</a>                lhs_struct == rhs_struct &amp;&amp; lhs_generics == rhs_generics
-<a href=#3581 id=3581 data-nosnippet>3581</a>            }
-<a href=#3582 id=3582 data-nosnippet>3582</a>            (Alias(lhs_alias, lhs_generics), Alias(rhs_alias, rhs_generics)) =&gt; {
-<a href=#3583 id=3583 data-nosnippet>3583</a>                lhs_alias == rhs_alias &amp;&amp; lhs_generics == rhs_generics
-<a href=#3584 id=3584 data-nosnippet>3584</a>            }
-<a href=#3585 id=3585 data-nosnippet>3585</a>            (TraitAsType(lhs_trait, <span class="kw">_</span>, lhs_generics), TraitAsType(rhs_trait, <span class="kw">_</span>, rhs_generics)) =&gt; {
-<a href=#3586 id=3586 data-nosnippet>3586</a>                lhs_trait == rhs_trait &amp;&amp; lhs_generics == rhs_generics
-<a href=#3587 id=3587 data-nosnippet>3587</a>            }
-<a href=#3588 id=3588 data-nosnippet>3588</a>            (
-<a href=#3589 id=3589 data-nosnippet>3589</a>                Function(lhs_args, lhs_ret, lhs_env, lhs_unconstrained),
-<a href=#3590 id=3590 data-nosnippet>3590</a>                Function(rhs_args, rhs_ret, rhs_env, rhs_unconstrained),
-<a href=#3591 id=3591 data-nosnippet>3591</a>            ) =&gt; {
-<a href=#3592 id=3592 data-nosnippet>3592</a>                <span class="kw">let </span>args_and_ret_eq = lhs_args == rhs_args &amp;&amp; lhs_ret == rhs_ret;
-<a href=#3593 id=3593 data-nosnippet>3593</a>                args_and_ret_eq &amp;&amp; lhs_env == rhs_env &amp;&amp; lhs_unconstrained == rhs_unconstrained
-<a href=#3594 id=3594 data-nosnippet>3594</a>            }
-<a href=#3595 id=3595 data-nosnippet>3595</a>            (Reference(lhs_elem, lhs_mut), Reference(rhs_elem, rhs_mut)) =&gt; {
-<a href=#3596 id=3596 data-nosnippet>3596</a>                lhs_elem == rhs_elem &amp;&amp; lhs_mut == rhs_mut
-<a href=#3597 id=3597 data-nosnippet>3597</a>            }
-<a href=#3598 id=3598 data-nosnippet>3598</a>            (Forall(lhs_vars, lhs_type), Forall(rhs_vars, rhs_type)) =&gt; {
-<a href=#3599 id=3599 data-nosnippet>3599</a>                lhs_vars == rhs_vars &amp;&amp; lhs_type == rhs_type
-<a href=#3600 id=3600 data-nosnippet>3600</a>            }
-<a href=#3601 id=3601 data-nosnippet>3601</a>            (CheckedCast { to, .. }, other) | (other, CheckedCast { to, .. }) =&gt; <span class="kw-2">**</span>to == <span class="kw-2">*</span>other,
-<a href=#3602 id=3602 data-nosnippet>3602</a>            (Constant(lhs), Constant(rhs)) =&gt; lhs == rhs,
-<a href=#3603 id=3603 data-nosnippet>3603</a>            (Quoted(lhs), Quoted(rhs)) =&gt; lhs == rhs,
-<a href=#3604 id=3604 data-nosnippet>3604</a>            (InfixExpr(l_lhs, l_op, l_rhs, <span class="kw">_</span>), InfixExpr(r_lhs, r_op, r_rhs, <span class="kw">_</span>)) =&gt; {
-<a href=#3605 id=3605 data-nosnippet>3605</a>                l_lhs == r_lhs &amp;&amp; l_op == r_op &amp;&amp; l_rhs == r_rhs
+<a href=#3564 id=3564 data-nosnippet>3564</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>((variable, other_kind)) = other.get_inner_type_variable() {
+<a href=#3565 id=3565 data-nosnippet>3565</a>            <span class="kw">if </span><span class="self">self</span>.kind() != other_kind {
+<a href=#3566 id=3566 data-nosnippet>3566</a>                <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#3567 id=3567 data-nosnippet>3567</a>            }
+<a href=#3568 id=3568 data-nosnippet>3568</a>            <span class="kw">if let </span>TypeBinding::Bound(typ) = <span class="kw-2">&amp;*</span>variable.borrow() {
+<a href=#3569 id=3569 data-nosnippet>3569</a>                <span class="kw">return </span><span class="self">self </span>== typ;
+<a href=#3570 id=3570 data-nosnippet>3570</a>            }
+<a href=#3571 id=3571 data-nosnippet>3571</a>        }
+<a href=#3572 id=3572 data-nosnippet>3572</a>
+<a href=#3573 id=3573 data-nosnippet>3573</a>        <span class="kw">use </span>Type::<span class="kw-2">*</span>;
+<a href=#3574 id=3574 data-nosnippet>3574</a>        <span class="kw">match </span>(<span class="self">self</span>, other) {
+<a href=#3575 id=3575 data-nosnippet>3575</a>            (FieldElement, FieldElement) | (Bool, Bool) | (Unit, Unit) | (Error, Error) =&gt; <span class="bool-val">true</span>,
+<a href=#3576 id=3576 data-nosnippet>3576</a>            (Array(lhs_elem, lhs_len), Array(rhs_elem, rhs_len)) =&gt; {
+<a href=#3577 id=3577 data-nosnippet>3577</a>                lhs_len == rhs_len &amp;&amp; lhs_elem == rhs_elem
+<a href=#3578 id=3578 data-nosnippet>3578</a>            }
+<a href=#3579 id=3579 data-nosnippet>3579</a>            (Vector(lhs_elem), Vector(rhs_elem)) =&gt; lhs_elem == rhs_elem,
+<a href=#3580 id=3580 data-nosnippet>3580</a>            (Integer(lhs_sign, lhs_bits), Integer(rhs_sign, rhs_bits)) =&gt; {
+<a href=#3581 id=3581 data-nosnippet>3581</a>                lhs_sign == rhs_sign &amp;&amp; lhs_bits == rhs_bits
+<a href=#3582 id=3582 data-nosnippet>3582</a>            }
+<a href=#3583 id=3583 data-nosnippet>3583</a>            (String(lhs_len), String(rhs_len)) =&gt; lhs_len == rhs_len,
+<a href=#3584 id=3584 data-nosnippet>3584</a>            (FmtString(lhs_len, lhs_env), FmtString(rhs_len, rhs_env)) =&gt; {
+<a href=#3585 id=3585 data-nosnippet>3585</a>                lhs_len == rhs_len &amp;&amp; lhs_env == rhs_env
+<a href=#3586 id=3586 data-nosnippet>3586</a>            }
+<a href=#3587 id=3587 data-nosnippet>3587</a>            (Tuple(lhs_types), Tuple(rhs_types)) =&gt; lhs_types == rhs_types,
+<a href=#3588 id=3588 data-nosnippet>3588</a>            (DataType(lhs_struct, lhs_generics), DataType(rhs_struct, rhs_generics)) =&gt; {
+<a href=#3589 id=3589 data-nosnippet>3589</a>                lhs_struct == rhs_struct &amp;&amp; lhs_generics == rhs_generics
+<a href=#3590 id=3590 data-nosnippet>3590</a>            }
+<a href=#3591 id=3591 data-nosnippet>3591</a>            (Alias(lhs_alias, lhs_generics), Alias(rhs_alias, rhs_generics)) =&gt; {
+<a href=#3592 id=3592 data-nosnippet>3592</a>                lhs_alias == rhs_alias &amp;&amp; lhs_generics == rhs_generics
+<a href=#3593 id=3593 data-nosnippet>3593</a>            }
+<a href=#3594 id=3594 data-nosnippet>3594</a>            (TraitAsType(lhs_trait, <span class="kw">_</span>, lhs_generics), TraitAsType(rhs_trait, <span class="kw">_</span>, rhs_generics)) =&gt; {
+<a href=#3595 id=3595 data-nosnippet>3595</a>                lhs_trait == rhs_trait &amp;&amp; lhs_generics == rhs_generics
+<a href=#3596 id=3596 data-nosnippet>3596</a>            }
+<a href=#3597 id=3597 data-nosnippet>3597</a>            (
+<a href=#3598 id=3598 data-nosnippet>3598</a>                Function(lhs_args, lhs_ret, lhs_env, lhs_unconstrained),
+<a href=#3599 id=3599 data-nosnippet>3599</a>                Function(rhs_args, rhs_ret, rhs_env, rhs_unconstrained),
+<a href=#3600 id=3600 data-nosnippet>3600</a>            ) =&gt; {
+<a href=#3601 id=3601 data-nosnippet>3601</a>                <span class="kw">let </span>args_and_ret_eq = lhs_args == rhs_args &amp;&amp; lhs_ret == rhs_ret;
+<a href=#3602 id=3602 data-nosnippet>3602</a>                args_and_ret_eq &amp;&amp; lhs_env == rhs_env &amp;&amp; lhs_unconstrained == rhs_unconstrained
+<a href=#3603 id=3603 data-nosnippet>3603</a>            }
+<a href=#3604 id=3604 data-nosnippet>3604</a>            (Reference(lhs_elem, lhs_mut), Reference(rhs_elem, rhs_mut)) =&gt; {
+<a href=#3605 id=3605 data-nosnippet>3605</a>                lhs_elem == rhs_elem &amp;&amp; lhs_mut == rhs_mut
 <a href=#3606 id=3606 data-nosnippet>3606</a>            }
-<a href=#3607 id=3607 data-nosnippet>3607</a>            <span class="comment">// Special case: we consider unbound named generics and type variables to be equal to each
-<a href=#3608 id=3608 data-nosnippet>3608</a>            // other if their type variable ids match. This is important for some corner cases in
-<a href=#3609 id=3609 data-nosnippet>3609</a>            // monomorphization where we call `replace_named_generics_with_type_variables` but
-<a href=#3610 id=3610 data-nosnippet>3610</a>            // still want them to be equal for canonicalization checks in arithmetic generics.
-<a href=#3611 id=3611 data-nosnippet>3611</a>            // Without this we'd fail the `serialize` test.
-<a href=#3612 id=3612 data-nosnippet>3612</a>            </span>(
-<a href=#3613 id=3613 data-nosnippet>3613</a>                NamedGeneric(types::NamedGeneric { type_var: lhs_var, .. }) | TypeVariable(lhs_var),
-<a href=#3614 id=3614 data-nosnippet>3614</a>                NamedGeneric(types::NamedGeneric { type_var: rhs_var, .. }) | TypeVariable(rhs_var),
-<a href=#3615 id=3615 data-nosnippet>3615</a>            ) =&gt; lhs_var.id() == rhs_var.id(),
-<a href=#3616 id=3616 data-nosnippet>3616</a>            <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
-<a href=#3617 id=3617 data-nosnippet>3617</a>        }
-<a href=#3618 id=3618 data-nosnippet>3618</a>    }
-<a href=#3619 id=3619 data-nosnippet>3619</a>}
-<a href=#3620 id=3620 data-nosnippet>3620</a>
-<a href=#3621 id=3621 data-nosnippet>3621</a><span class="attr">#[cfg(test)]
-<a href=#3622 id=3622 data-nosnippet>3622</a></span><span class="kw">mod </span>tests {
-<a href=#3623 id=3623 data-nosnippet>3623</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
-<a href=#3624 id=3624 data-nosnippet>3624</a>
-<a href=#3625 id=3625 data-nosnippet>3625</a>    <span class="doccomment">/// Creates a tuple type nested to the specified depth.
-<a href=#3626 id=3626 data-nosnippet>3626</a>    /// For example, depth 3 creates: (((Field,),),)
-<a href=#3627 id=3627 data-nosnippet>3627</a>    </span><span class="kw">fn </span>create_nested_tuple(depth: usize) -&gt; Type {
-<a href=#3628 id=3628 data-nosnippet>3628</a>        <span class="kw">let </span><span class="kw-2">mut </span>typ = Type::FieldElement;
-<a href=#3629 id=3629 data-nosnippet>3629</a>        <span class="kw">for _ in </span><span class="number">0</span>..depth {
-<a href=#3630 id=3630 data-nosnippet>3630</a>            typ = Type::Tuple(<span class="macro">vec!</span>[typ]);
-<a href=#3631 id=3631 data-nosnippet>3631</a>        }
-<a href=#3632 id=3632 data-nosnippet>3632</a>        typ
-<a href=#3633 id=3633 data-nosnippet>3633</a>    }
-<a href=#3634 id=3634 data-nosnippet>3634</a>
-<a href=#3635 id=3635 data-nosnippet>3635</a>    <span class="attr">#[test]
-<a href=#3636 id=3636 data-nosnippet>3636</a>    </span><span class="kw">fn </span>follow_bindings_on_shallow_tuple() {
-<a href=#3637 id=3637 data-nosnippet>3637</a>        <span class="comment">// Depth 99 is within the limit
-<a href=#3638 id=3638 data-nosnippet>3638</a>        </span><span class="kw">let </span>typ = create_nested_tuple((TYPE_RECURSION_LIMIT - <span class="number">1</span>) <span class="kw">as </span>usize);
-<a href=#3639 id=3639 data-nosnippet>3639</a>        <span class="kw">let </span>result = typ.follow_bindings();
-<a href=#3640 id=3640 data-nosnippet>3640</a>        <span class="macro">assert!</span>(<span class="macro">matches!</span>(result, Type::Tuple(<span class="kw">_</span>)));
-<a href=#3641 id=3641 data-nosnippet>3641</a>    }
-<a href=#3642 id=3642 data-nosnippet>3642</a>
-<a href=#3643 id=3643 data-nosnippet>3643</a>    <span class="attr">#[test]
-<a href=#3644 id=3644 data-nosnippet>3644</a>    #[should_panic(expected = <span class="string">"Type recursion limit reached - types are too large"</span>)]
-<a href=#3645 id=3645 data-nosnippet>3645</a>    </span><span class="kw">fn </span>follow_bindings_on_deeply_nested_tuple() {
-<a href=#3646 id=3646 data-nosnippet>3646</a>        <span class="comment">// Depth 100 hits the limit
-<a href=#3647 id=3647 data-nosnippet>3647</a>        </span><span class="kw">let </span>typ = create_nested_tuple(TYPE_RECURSION_LIMIT <span class="kw">as </span>usize);
-<a href=#3648 id=3648 data-nosnippet>3648</a>        <span class="kw">let _ </span>= typ.follow_bindings();
-<a href=#3649 id=3649 data-nosnippet>3649</a>    }
+<a href=#3607 id=3607 data-nosnippet>3607</a>            (Forall(lhs_vars, lhs_type), Forall(rhs_vars, rhs_type)) =&gt; {
+<a href=#3608 id=3608 data-nosnippet>3608</a>                lhs_vars == rhs_vars &amp;&amp; lhs_type == rhs_type
+<a href=#3609 id=3609 data-nosnippet>3609</a>            }
+<a href=#3610 id=3610 data-nosnippet>3610</a>            (CheckedCast { to, .. }, other) | (other, CheckedCast { to, .. }) =&gt; <span class="kw-2">**</span>to == <span class="kw-2">*</span>other,
+<a href=#3611 id=3611 data-nosnippet>3611</a>            (Constant(lhs), Constant(rhs)) =&gt; lhs == rhs,
+<a href=#3612 id=3612 data-nosnippet>3612</a>            (Quoted(lhs), Quoted(rhs)) =&gt; lhs == rhs,
+<a href=#3613 id=3613 data-nosnippet>3613</a>            (InfixExpr(l_lhs, l_op, l_rhs, <span class="kw">_</span>), InfixExpr(r_lhs, r_op, r_rhs, <span class="kw">_</span>)) =&gt; {
+<a href=#3614 id=3614 data-nosnippet>3614</a>                l_lhs == r_lhs &amp;&amp; l_op == r_op &amp;&amp; l_rhs == r_rhs
+<a href=#3615 id=3615 data-nosnippet>3615</a>            }
+<a href=#3616 id=3616 data-nosnippet>3616</a>            <span class="comment">// Special case: we consider unbound named generics and type variables to be equal to each
+<a href=#3617 id=3617 data-nosnippet>3617</a>            // other if their type variable ids match. This is important for some corner cases in
+<a href=#3618 id=3618 data-nosnippet>3618</a>            // monomorphization where we call `replace_named_generics_with_type_variables` but
+<a href=#3619 id=3619 data-nosnippet>3619</a>            // still want them to be equal for canonicalization checks in arithmetic generics.
+<a href=#3620 id=3620 data-nosnippet>3620</a>            // Without this we'd fail the `serialize` test.
+<a href=#3621 id=3621 data-nosnippet>3621</a>            </span>(
+<a href=#3622 id=3622 data-nosnippet>3622</a>                NamedGeneric(types::NamedGeneric { type_var: lhs_var, .. }) | TypeVariable(lhs_var),
+<a href=#3623 id=3623 data-nosnippet>3623</a>                NamedGeneric(types::NamedGeneric { type_var: rhs_var, .. }) | TypeVariable(rhs_var),
+<a href=#3624 id=3624 data-nosnippet>3624</a>            ) =&gt; lhs_var.id() == rhs_var.id(),
+<a href=#3625 id=3625 data-nosnippet>3625</a>            <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
+<a href=#3626 id=3626 data-nosnippet>3626</a>        }
+<a href=#3627 id=3627 data-nosnippet>3627</a>    }
+<a href=#3628 id=3628 data-nosnippet>3628</a>}
+<a href=#3629 id=3629 data-nosnippet>3629</a>
+<a href=#3630 id=3630 data-nosnippet>3630</a><span class="attr">#[cfg(test)]
+<a href=#3631 id=3631 data-nosnippet>3631</a></span><span class="kw">mod </span>tests {
+<a href=#3632 id=3632 data-nosnippet>3632</a>    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+<a href=#3633 id=3633 data-nosnippet>3633</a>
+<a href=#3634 id=3634 data-nosnippet>3634</a>    <span class="doccomment">/// `Type::eq` unwraps a `CheckedCast` and compares its `to` type, so any type that is equal to
+<a href=#3635 id=3635 data-nosnippet>3635</a>    /// a `CheckedCast` must also hash the same as it. Monomorphization keys its function cache on
+<a href=#3636 id=3636 data-nosnippet>3636</a>    /// `Type`, so a mismatch here silently duplicates instantiations.
+<a href=#3637 id=3637 data-nosnippet>3637</a>    </span><span class="attr">#[test]
+<a href=#3638 id=3638 data-nosnippet>3638</a>    </span><span class="kw">fn </span>checked_cast_hashes_as_its_target_type() {
+<a href=#3639 id=3639 data-nosnippet>3639</a>        <span class="kw">fn </span>hash_of(typ: <span class="kw-2">&amp;</span>Type) -&gt; u64 {
+<a href=#3640 id=3640 data-nosnippet>3640</a>            <span class="kw">use </span>std::hash::{DefaultHasher, Hash, Hasher};
+<a href=#3641 id=3641 data-nosnippet>3641</a>
+<a href=#3642 id=3642 data-nosnippet>3642</a>            <span class="kw">let </span><span class="kw-2">mut </span>hasher = DefaultHasher::new();
+<a href=#3643 id=3643 data-nosnippet>3643</a>            typ.hash(<span class="kw-2">&amp;mut </span>hasher);
+<a href=#3644 id=3644 data-nosnippet>3644</a>            hasher.finish()
+<a href=#3645 id=3645 data-nosnippet>3645</a>        }
+<a href=#3646 id=3646 data-nosnippet>3646</a>
+<a href=#3647 id=3647 data-nosnippet>3647</a>        <span class="kw">fn </span>checked_cast(typ: Type) -&gt; Type {
+<a href=#3648 id=3648 data-nosnippet>3648</a>            Type::CheckedCast { from: Box::new(typ.clone()), to: Box::new(typ) }
+<a href=#3649 id=3649 data-nosnippet>3649</a>        }
 <a href=#3650 id=3650 data-nosnippet>3650</a>
-<a href=#3651 id=3651 data-nosnippet>3651</a>    <span class="doccomment">/// Creates an array type nested to the specified depth.
-<a href=#3652 id=3652 data-nosnippet>3652</a>    /// For example, depth 3 creates: [[[Field; 1]; 1]; 1]
-<a href=#3653 id=3653 data-nosnippet>3653</a>    </span><span class="kw">fn </span>create_nested_array(depth: usize) -&gt; Type {
-<a href=#3654 id=3654 data-nosnippet>3654</a>        <span class="kw">let </span><span class="kw-2">mut </span>typ = Type::FieldElement;
-<a href=#3655 id=3655 data-nosnippet>3655</a>        <span class="kw">for _ in </span><span class="number">0</span>..depth {
-<a href=#3656 id=3656 data-nosnippet>3656</a>            typ = Type::Array(Box::new(typ), Box::new(Type::constant_u32(<span class="number">1</span>)));
-<a href=#3657 id=3657 data-nosnippet>3657</a>        }
-<a href=#3658 id=3658 data-nosnippet>3658</a>        typ
-<a href=#3659 id=3659 data-nosnippet>3659</a>    }
-<a href=#3660 id=3660 data-nosnippet>3660</a>
-<a href=#3661 id=3661 data-nosnippet>3661</a>    <span class="attr">#[test]
-<a href=#3662 id=3662 data-nosnippet>3662</a>    </span><span class="kw">fn </span>numeric_kind_with_error_inner_type_is_defaultable_to_error() {
-<a href=#3663 id=3663 data-nosnippet>3663</a>        <span class="comment">// Recovery path: a numeric generic whose annotated type failed to resolve
-<a href=#3664 id=3664 data-nosnippet>3664</a>        // (so its kind wraps Type::Error) can still be defaulted, to Type::Error.
-<a href=#3665 id=3665 data-nosnippet>3665</a>        // This keeps `check_defaultable_type_variables` from panicking on tracked
-<a href=#3666 id=3666 data-nosnippet>3666</a>        // variables that were created during error recovery.
-<a href=#3667 id=3667 data-nosnippet>3667</a>        </span><span class="kw">let </span>kind = Kind::Numeric(Box::new(Type::Error));
-<a href=#3668 id=3668 data-nosnippet>3668</a>        <span class="macro">assert_eq!</span>(kind.default_type(), <span class="prelude-val">Some</span>(Type::Error));
-<a href=#3669 id=3669 data-nosnippet>3669</a>    }
-<a href=#3670 id=3670 data-nosnippet>3670</a>
-<a href=#3671 id=3671 data-nosnippet>3671</a>    <span class="attr">#[test]
-<a href=#3672 id=3672 data-nosnippet>3672</a>    </span><span class="kw">fn </span>numeric_kind_with_concrete_inner_type_has_no_default() {
-<a href=#3673 id=3673 data-nosnippet>3673</a>        <span class="comment">// Outside of error recovery, `Kind::Numeric(T)` deliberately has no default:
-<a href=#3674 id=3674 data-nosnippet>3674</a>        // we should not silently bind an unsolved numeric generic to its declared type.
-<a href=#3675 id=3675 data-nosnippet>3675</a>        </span><span class="kw">let </span>kind = Kind::Numeric(Box::new(Type::default_int_type()));
-<a href=#3676 id=3676 data-nosnippet>3676</a>        <span class="macro">assert_eq!</span>(kind.default_type(), <span class="prelude-val">None</span>);
-<a href=#3677 id=3677 data-nosnippet>3677</a>    }
-<a href=#3678 id=3678 data-nosnippet>3678</a>
-<a href=#3679 id=3679 data-nosnippet>3679</a>    <span class="attr">#[test]
-<a href=#3680 id=3680 data-nosnippet>3680</a>    </span><span class="kw">fn </span>follow_bindings_on_shallow_array() {
-<a href=#3681 id=3681 data-nosnippet>3681</a>        <span class="comment">// Depth 99 is within the limit (siblings share depth)
-<a href=#3682 id=3682 data-nosnippet>3682</a>        </span><span class="kw">let </span>typ = create_nested_array((TYPE_RECURSION_LIMIT - <span class="number">1</span>) <span class="kw">as </span>usize);
-<a href=#3683 id=3683 data-nosnippet>3683</a>        <span class="kw">let </span>result = typ.follow_bindings();
-<a href=#3684 id=3684 data-nosnippet>3684</a>        <span class="macro">assert!</span>(<span class="macro">matches!</span>(result, Type::Array(<span class="kw">_</span>, <span class="kw">_</span>)));
-<a href=#3685 id=3685 data-nosnippet>3685</a>    }
-<a href=#3686 id=3686 data-nosnippet>3686</a>
-<a href=#3687 id=3687 data-nosnippet>3687</a>    <span class="attr">#[test]
-<a href=#3688 id=3688 data-nosnippet>3688</a>    #[should_panic(expected = <span class="string">"Type recursion limit reached - types are too large"</span>)]
-<a href=#3689 id=3689 data-nosnippet>3689</a>    </span><span class="kw">fn </span>follow_bindings_on_deeply_nested_array() {
-<a href=#3690 id=3690 data-nosnippet>3690</a>        <span class="comment">// Depth 100 hits the limit
-<a href=#3691 id=3691 data-nosnippet>3691</a>        </span><span class="kw">let </span>typ = create_nested_array(TYPE_RECURSION_LIMIT <span class="kw">as </span>usize);
-<a href=#3692 id=3692 data-nosnippet>3692</a>        <span class="kw">let _ </span>= typ.follow_bindings();
-<a href=#3693 id=3693 data-nosnippet>3693</a>    }
-<a href=#3694 id=3694 data-nosnippet>3694</a>
-<a href=#3695 id=3695 data-nosnippet>3695</a>    <span class="attr">#[test]
-<a href=#3696 id=3696 data-nosnippet>3696</a>    </span><span class="kw">fn </span>implicit_named_generics_with_the_same_name_are_distinct() {
-<a href=#3697 id=3697 data-nosnippet>3697</a>        <span class="comment">// The name of an implicit named generic is a diagnostic label: `where T: a::Tr, T: b::Tr`
-<a href=#3698 id=3698 data-nosnippet>3698</a>        // gives both of the associated constants it desugars the name `&lt;T as Tr&gt;::N`. They are
-<a href=#3699 id=3699 data-nosnippet>3699</a>        // separate unknowns, and equality (and so hashing) must go by type variable instead,
-<a href=#3700 id=3700 data-nosnippet>3700</a>        // or the arithmetic simplifier cancels one against the other.
-<a href=#3701 id=3701 data-nosnippet>3701</a>        </span><span class="kw">let </span>name = Rc::new(<span class="string">"N"</span>.to_owned());
-<a href=#3702 id=3702 data-nosnippet>3702</a>        <span class="kw">let </span>as_trait = <span class="prelude-val">Some</span>((<span class="string">"T"</span>, <span class="string">"Tr"</span>));
-<a href=#3703 id=3703 data-nosnippet>3703</a>        <span class="kw">let </span>associated_constant = TypeVariableId(<span class="number">0</span>);
-<a href=#3704 id=3704 data-nosnippet>3704</a>
-<a href=#3705 id=3705 data-nosnippet>3705</a>        <span class="kw">let </span>make = |id| {
-<a href=#3706 id=3706 data-nosnippet>3706</a>            TypeVariable::unbound(TypeVariableId(id), Kind::u32()).into_implicit_named_generic(
-<a href=#3707 id=3707 data-nosnippet>3707</a>                <span class="kw-2">&amp;</span>name,
-<a href=#3708 id=3708 data-nosnippet>3708</a>                as_trait,
-<a href=#3709 id=3709 data-nosnippet>3709</a>                associated_constant,
-<a href=#3710 id=3710 data-nosnippet>3710</a>            )
-<a href=#3711 id=3711 data-nosnippet>3711</a>        };
-<a href=#3712 id=3712 data-nosnippet>3712</a>        <span class="kw">let </span>first = make(<span class="number">1</span>);
-<a href=#3713 id=3713 data-nosnippet>3713</a>        <span class="kw">let </span>second = make(<span class="number">2</span>);
-<a href=#3714 id=3714 data-nosnippet>3714</a>
-<a href=#3715 id=3715 data-nosnippet>3715</a>        <span class="macro">assert_eq!</span>(first.to_string(), second.to_string());
-<a href=#3716 id=3716 data-nosnippet>3716</a>        <span class="macro">assert_ne!</span>(first, second);
-<a href=#3717 id=3717 data-nosnippet>3717</a>        <span class="macro">assert_eq!</span>(first, make(<span class="number">1</span>));
-<a href=#3718 id=3718 data-nosnippet>3718</a>
-<a href=#3719 id=3719 data-nosnippet>3719</a>        <span class="kw">let </span><span class="kw-2">mut </span>map = HashMap::default();
-<a href=#3720 id=3720 data-nosnippet>3720</a>        map.insert(first, <span class="string">"a::Tr"</span>);
-<a href=#3721 id=3721 data-nosnippet>3721</a>        map.insert(second, <span class="string">"b::Tr"</span>);
-<a href=#3722 id=3722 data-nosnippet>3722</a>        <span class="macro">assert_eq!</span>(map.len(), <span class="number">2</span>);
-<a href=#3723 id=3723 data-nosnippet>3723</a>    }
-<a href=#3724 id=3724 data-nosnippet>3724</a>}</code></pre></div></section></main></body></html>
+<a href=#3651 id=3651 data-nosnippet>3651</a>        <span class="kw">let </span>type_variable =
+<a href=#3652 id=3652 data-nosnippet>3652</a>            Type::TypeVariable(TypeVariable::unbound(TypeVariableId(<span class="number">0</span>), Kind::u32()));
+<a href=#3653 id=3653 data-nosnippet>3653</a>
+<a href=#3654 id=3654 data-nosnippet>3654</a>        <span class="kw">for </span>typ <span class="kw">in </span>[Type::FieldElement, Type::constant_u32(<span class="number">3</span>), type_variable] {
+<a href=#3655 id=3655 data-nosnippet>3655</a>            <span class="kw">let </span>cast = checked_cast(typ.clone());
+<a href=#3656 id=3656 data-nosnippet>3656</a>            <span class="macro">assert_eq!</span>(typ, cast);
+<a href=#3657 id=3657 data-nosnippet>3657</a>            <span class="macro">assert_eq!</span>(hash_of(<span class="kw-2">&amp;</span>typ), hash_of(<span class="kw-2">&amp;</span>cast), <span class="string">"{typ:?} and {cast:?} hash differently"</span>);
+<a href=#3658 id=3658 data-nosnippet>3658</a>
+<a href=#3659 id=3659 data-nosnippet>3659</a>            <span class="comment">// A `CheckedCast` produced by an arithmetic-generic solve can wrap another one.
+<a href=#3660 id=3660 data-nosnippet>3660</a>            </span><span class="kw">let </span>nested = checked_cast(cast);
+<a href=#3661 id=3661 data-nosnippet>3661</a>            <span class="macro">assert_eq!</span>(typ, nested);
+<a href=#3662 id=3662 data-nosnippet>3662</a>            <span class="macro">assert_eq!</span>(hash_of(<span class="kw-2">&amp;</span>typ), hash_of(<span class="kw-2">&amp;</span>nested), <span class="string">"{typ:?} and {nested:?} hash differently"</span>);
+<a href=#3663 id=3663 data-nosnippet>3663</a>        }
+<a href=#3664 id=3664 data-nosnippet>3664</a>    }
+<a href=#3665 id=3665 data-nosnippet>3665</a>
+<a href=#3666 id=3666 data-nosnippet>3666</a>    <span class="doccomment">/// Creates a tuple type nested to the specified depth.
+<a href=#3667 id=3667 data-nosnippet>3667</a>    /// For example, depth 3 creates: (((Field,),),)
+<a href=#3668 id=3668 data-nosnippet>3668</a>    </span><span class="kw">fn </span>create_nested_tuple(depth: usize) -&gt; Type {
+<a href=#3669 id=3669 data-nosnippet>3669</a>        <span class="kw">let </span><span class="kw-2">mut </span>typ = Type::FieldElement;
+<a href=#3670 id=3670 data-nosnippet>3670</a>        <span class="kw">for _ in </span><span class="number">0</span>..depth {
+<a href=#3671 id=3671 data-nosnippet>3671</a>            typ = Type::Tuple(<span class="macro">vec!</span>[typ]);
+<a href=#3672 id=3672 data-nosnippet>3672</a>        }
+<a href=#3673 id=3673 data-nosnippet>3673</a>        typ
+<a href=#3674 id=3674 data-nosnippet>3674</a>    }
+<a href=#3675 id=3675 data-nosnippet>3675</a>
+<a href=#3676 id=3676 data-nosnippet>3676</a>    <span class="attr">#[test]
+<a href=#3677 id=3677 data-nosnippet>3677</a>    </span><span class="kw">fn </span>follow_bindings_on_shallow_tuple() {
+<a href=#3678 id=3678 data-nosnippet>3678</a>        <span class="comment">// Depth 99 is within the limit
+<a href=#3679 id=3679 data-nosnippet>3679</a>        </span><span class="kw">let </span>typ = create_nested_tuple((TYPE_RECURSION_LIMIT - <span class="number">1</span>) <span class="kw">as </span>usize);
+<a href=#3680 id=3680 data-nosnippet>3680</a>        <span class="kw">let </span>result = typ.follow_bindings();
+<a href=#3681 id=3681 data-nosnippet>3681</a>        <span class="macro">assert!</span>(<span class="macro">matches!</span>(result, Type::Tuple(<span class="kw">_</span>)));
+<a href=#3682 id=3682 data-nosnippet>3682</a>    }
+<a href=#3683 id=3683 data-nosnippet>3683</a>
+<a href=#3684 id=3684 data-nosnippet>3684</a>    <span class="attr">#[test]
+<a href=#3685 id=3685 data-nosnippet>3685</a>    #[should_panic(expected = <span class="string">"Type recursion limit reached - types are too large"</span>)]
+<a href=#3686 id=3686 data-nosnippet>3686</a>    </span><span class="kw">fn </span>follow_bindings_on_deeply_nested_tuple() {
+<a href=#3687 id=3687 data-nosnippet>3687</a>        <span class="comment">// Depth 100 hits the limit
+<a href=#3688 id=3688 data-nosnippet>3688</a>        </span><span class="kw">let </span>typ = create_nested_tuple(TYPE_RECURSION_LIMIT <span class="kw">as </span>usize);
+<a href=#3689 id=3689 data-nosnippet>3689</a>        <span class="kw">let _ </span>= typ.follow_bindings();
+<a href=#3690 id=3690 data-nosnippet>3690</a>    }
+<a href=#3691 id=3691 data-nosnippet>3691</a>
+<a href=#3692 id=3692 data-nosnippet>3692</a>    <span class="doccomment">/// Creates an array type nested to the specified depth.
+<a href=#3693 id=3693 data-nosnippet>3693</a>    /// For example, depth 3 creates: [[[Field; 1]; 1]; 1]
+<a href=#3694 id=3694 data-nosnippet>3694</a>    </span><span class="kw">fn </span>create_nested_array(depth: usize) -&gt; Type {
+<a href=#3695 id=3695 data-nosnippet>3695</a>        <span class="kw">let </span><span class="kw-2">mut </span>typ = Type::FieldElement;
+<a href=#3696 id=3696 data-nosnippet>3696</a>        <span class="kw">for _ in </span><span class="number">0</span>..depth {
+<a href=#3697 id=3697 data-nosnippet>3697</a>            typ = Type::Array(Box::new(typ), Box::new(Type::constant_u32(<span class="number">1</span>)));
+<a href=#3698 id=3698 data-nosnippet>3698</a>        }
+<a href=#3699 id=3699 data-nosnippet>3699</a>        typ
+<a href=#3700 id=3700 data-nosnippet>3700</a>    }
+<a href=#3701 id=3701 data-nosnippet>3701</a>
+<a href=#3702 id=3702 data-nosnippet>3702</a>    <span class="attr">#[test]
+<a href=#3703 id=3703 data-nosnippet>3703</a>    </span><span class="kw">fn </span>numeric_kind_with_error_inner_type_is_defaultable_to_error() {
+<a href=#3704 id=3704 data-nosnippet>3704</a>        <span class="comment">// Recovery path: a numeric generic whose annotated type failed to resolve
+<a href=#3705 id=3705 data-nosnippet>3705</a>        // (so its kind wraps Type::Error) can still be defaulted, to Type::Error.
+<a href=#3706 id=3706 data-nosnippet>3706</a>        // This keeps `check_defaultable_type_variables` from panicking on tracked
+<a href=#3707 id=3707 data-nosnippet>3707</a>        // variables that were created during error recovery.
+<a href=#3708 id=3708 data-nosnippet>3708</a>        </span><span class="kw">let </span>kind = Kind::Numeric(Box::new(Type::Error));
+<a href=#3709 id=3709 data-nosnippet>3709</a>        <span class="macro">assert_eq!</span>(kind.default_type(), <span class="prelude-val">Some</span>(Type::Error));
+<a href=#3710 id=3710 data-nosnippet>3710</a>    }
+<a href=#3711 id=3711 data-nosnippet>3711</a>
+<a href=#3712 id=3712 data-nosnippet>3712</a>    <span class="attr">#[test]
+<a href=#3713 id=3713 data-nosnippet>3713</a>    </span><span class="kw">fn </span>numeric_kind_with_concrete_inner_type_has_no_default() {
+<a href=#3714 id=3714 data-nosnippet>3714</a>        <span class="comment">// Outside of error recovery, `Kind::Numeric(T)` deliberately has no default:
+<a href=#3715 id=3715 data-nosnippet>3715</a>        // we should not silently bind an unsolved numeric generic to its declared type.
+<a href=#3716 id=3716 data-nosnippet>3716</a>        </span><span class="kw">let </span>kind = Kind::Numeric(Box::new(Type::default_int_type()));
+<a href=#3717 id=3717 data-nosnippet>3717</a>        <span class="macro">assert_eq!</span>(kind.default_type(), <span class="prelude-val">None</span>);
+<a href=#3718 id=3718 data-nosnippet>3718</a>    }
+<a href=#3719 id=3719 data-nosnippet>3719</a>
+<a href=#3720 id=3720 data-nosnippet>3720</a>    <span class="attr">#[test]
+<a href=#3721 id=3721 data-nosnippet>3721</a>    </span><span class="kw">fn </span>follow_bindings_on_shallow_array() {
+<a href=#3722 id=3722 data-nosnippet>3722</a>        <span class="comment">// Depth 99 is within the limit (siblings share depth)
+<a href=#3723 id=3723 data-nosnippet>3723</a>        </span><span class="kw">let </span>typ = create_nested_array((TYPE_RECURSION_LIMIT - <span class="number">1</span>) <span class="kw">as </span>usize);
+<a href=#3724 id=3724 data-nosnippet>3724</a>        <span class="kw">let </span>result = typ.follow_bindings();
+<a href=#3725 id=3725 data-nosnippet>3725</a>        <span class="macro">assert!</span>(<span class="macro">matches!</span>(result, Type::Array(<span class="kw">_</span>, <span class="kw">_</span>)));
+<a href=#3726 id=3726 data-nosnippet>3726</a>    }
+<a href=#3727 id=3727 data-nosnippet>3727</a>
+<a href=#3728 id=3728 data-nosnippet>3728</a>    <span class="attr">#[test]
+<a href=#3729 id=3729 data-nosnippet>3729</a>    #[should_panic(expected = <span class="string">"Type recursion limit reached - types are too large"</span>)]
+<a href=#3730 id=3730 data-nosnippet>3730</a>    </span><span class="kw">fn </span>follow_bindings_on_deeply_nested_array() {
+<a href=#3731 id=3731 data-nosnippet>3731</a>        <span class="comment">// Depth 100 hits the limit
+<a href=#3732 id=3732 data-nosnippet>3732</a>        </span><span class="kw">let </span>typ = create_nested_array(TYPE_RECURSION_LIMIT <span class="kw">as </span>usize);
+<a href=#3733 id=3733 data-nosnippet>3733</a>        <span class="kw">let _ </span>= typ.follow_bindings();
+<a href=#3734 id=3734 data-nosnippet>3734</a>    }
+<a href=#3735 id=3735 data-nosnippet>3735</a>
+<a href=#3736 id=3736 data-nosnippet>3736</a>    <span class="attr">#[test]
+<a href=#3737 id=3737 data-nosnippet>3737</a>    </span><span class="kw">fn </span>implicit_named_generics_with_the_same_name_are_distinct() {
+<a href=#3738 id=3738 data-nosnippet>3738</a>        <span class="comment">// The name of an implicit named generic is a diagnostic label: `where T: a::Tr, T: b::Tr`
+<a href=#3739 id=3739 data-nosnippet>3739</a>        // gives both of the associated constants it desugars the name `&lt;T as Tr&gt;::N`. They are
+<a href=#3740 id=3740 data-nosnippet>3740</a>        // separate unknowns, and equality (and so hashing) must go by type variable instead,
+<a href=#3741 id=3741 data-nosnippet>3741</a>        // or the arithmetic simplifier cancels one against the other.
+<a href=#3742 id=3742 data-nosnippet>3742</a>        </span><span class="kw">let </span>name = Rc::new(<span class="string">"N"</span>.to_owned());
+<a href=#3743 id=3743 data-nosnippet>3743</a>        <span class="kw">let </span>as_trait = <span class="prelude-val">Some</span>((<span class="string">"T"</span>, <span class="string">"Tr"</span>));
+<a href=#3744 id=3744 data-nosnippet>3744</a>        <span class="kw">let </span>associated_constant = TypeVariableId(<span class="number">0</span>);
+<a href=#3745 id=3745 data-nosnippet>3745</a>
+<a href=#3746 id=3746 data-nosnippet>3746</a>        <span class="kw">let </span>make = |id| {
+<a href=#3747 id=3747 data-nosnippet>3747</a>            TypeVariable::unbound(TypeVariableId(id), Kind::u32()).into_implicit_named_generic(
+<a href=#3748 id=3748 data-nosnippet>3748</a>                <span class="kw-2">&amp;</span>name,
+<a href=#3749 id=3749 data-nosnippet>3749</a>                as_trait,
+<a href=#3750 id=3750 data-nosnippet>3750</a>                associated_constant,
+<a href=#3751 id=3751 data-nosnippet>3751</a>            )
+<a href=#3752 id=3752 data-nosnippet>3752</a>        };
+<a href=#3753 id=3753 data-nosnippet>3753</a>        <span class="kw">let </span>first = make(<span class="number">1</span>);
+<a href=#3754 id=3754 data-nosnippet>3754</a>        <span class="kw">let </span>second = make(<span class="number">2</span>);
+<a href=#3755 id=3755 data-nosnippet>3755</a>
+<a href=#3756 id=3756 data-nosnippet>3756</a>        <span class="macro">assert_eq!</span>(first.to_string(), second.to_string());
+<a href=#3757 id=3757 data-nosnippet>3757</a>        <span class="macro">assert_ne!</span>(first, second);
+<a href=#3758 id=3758 data-nosnippet>3758</a>        <span class="macro">assert_eq!</span>(first, make(<span class="number">1</span>));
+<a href=#3759 id=3759 data-nosnippet>3759</a>
+<a href=#3760 id=3760 data-nosnippet>3760</a>        <span class="kw">let </span><span class="kw-2">mut </span>map = HashMap::default();
+<a href=#3761 id=3761 data-nosnippet>3761</a>        map.insert(first, <span class="string">"a::Tr"</span>);
+<a href=#3762 id=3762 data-nosnippet>3762</a>        map.insert(second, <span class="string">"b::Tr"</span>);
+<a href=#3763 id=3763 data-nosnippet>3763</a>        <span class="macro">assert_eq!</span>(map.len(), <span class="number">2</span>);
+<a href=#3764 id=3764 data-nosnippet>3764</a>    }
+<a href=#3765 id=3765 data-nosnippet>3765</a>}</code></pre></div></section></main></body></html>
