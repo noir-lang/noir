@@ -104,348 +104,353 @@
 <a href=#104 id=104 data-nosnippet>104</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
 <a href=#105 id=105 data-nosnippet>105</a>        initial_witness: WitnessMap&lt;F&gt;,
 <a href=#106 id=106 data-nosnippet>106</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(WitnessMap&lt;F&gt;, ProfilingSamples), NargoError&lt;F&gt;&gt; {
-<a href=#107 id=107 data-nosnippet>107</a>        <span class="kw">let </span>circuit = <span class="kw-2">&amp;</span><span class="self">self</span>.functions[<span class="self">self</span>.current_function_index];
-<a href=#108 id=108 data-nosnippet>108</a>        <span class="kw">let </span><span class="kw-2">mut </span>acvm = ACVM::new(
-<a href=#109 id=109 data-nosnippet>109</a>            <span class="self">self</span>.blackbox_solver,
-<a href=#110 id=110 data-nosnippet>110</a>            <span class="kw-2">&amp;</span>circuit.opcodes,
-<a href=#111 id=111 data-nosnippet>111</a>            initial_witness,
-<a href=#112 id=112 data-nosnippet>112</a>            <span class="self">self</span>.unconstrained_functions,
-<a href=#113 id=113 data-nosnippet>113</a>            <span class="kw-2">&amp;</span>circuit.assert_messages,
-<a href=#114 id=114 data-nosnippet>114</a>        );
-<a href=#115 id=115 data-nosnippet>115</a>        acvm.with_profiler(<span class="self">self</span>.profiling_active);
-<a href=#116 id=116 data-nosnippet>116</a>        acvm.with_brillig_fuzzing(<span class="self">self</span>.brillig_branch_to_feature_map);
-<a href=#117 id=117 data-nosnippet>117</a>
-<a href=#118 id=118 data-nosnippet>118</a>        <span class="kw">loop </span>{
-<a href=#119 id=119 data-nosnippet>119</a>            <span class="kw">let </span>solver_status = acvm.solve();
+<a href=#107 id=107 data-nosnippet>107</a>        <span class="comment">// Frames below this belong to a caller that is still executing.
+<a href=#108 id=108 data-nosnippet>108</a>        </span><span class="kw">let </span>entry_call_stack_depth = <span class="self">self</span>.call_stack.len();
+<a href=#109 id=109 data-nosnippet>109</a>
+<a href=#110 id=110 data-nosnippet>110</a>        <span class="kw">let </span>circuit = <span class="kw-2">&amp;</span><span class="self">self</span>.functions[<span class="self">self</span>.current_function_index];
+<a href=#111 id=111 data-nosnippet>111</a>        <span class="kw">let </span><span class="kw-2">mut </span>acvm = ACVM::new(
+<a href=#112 id=112 data-nosnippet>112</a>            <span class="self">self</span>.blackbox_solver,
+<a href=#113 id=113 data-nosnippet>113</a>            <span class="kw-2">&amp;</span>circuit.opcodes,
+<a href=#114 id=114 data-nosnippet>114</a>            initial_witness,
+<a href=#115 id=115 data-nosnippet>115</a>            <span class="self">self</span>.unconstrained_functions,
+<a href=#116 id=116 data-nosnippet>116</a>            <span class="kw-2">&amp;</span>circuit.assert_messages,
+<a href=#117 id=117 data-nosnippet>117</a>        );
+<a href=#118 id=118 data-nosnippet>118</a>        acvm.with_profiler(<span class="self">self</span>.profiling_active);
+<a href=#119 id=119 data-nosnippet>119</a>        acvm.with_brillig_fuzzing(<span class="self">self</span>.brillig_branch_to_feature_map);
 <a href=#120 id=120 data-nosnippet>120</a>
-<a href=#121 id=121 data-nosnippet>121</a>            <span class="kw">match </span>solver_status {
-<a href=#122 id=122 data-nosnippet>122</a>                ACVMStatus::Solved =&gt; <span class="kw">break</span>,
-<a href=#123 id=123 data-nosnippet>123</a>                ACVMStatus::InProgress =&gt; {
-<a href=#124 id=124 data-nosnippet>124</a>                    <span class="macro">unreachable!</span>(<span class="string">"Execution should not stop while in `InProgress` state."</span>)
-<a href=#125 id=125 data-nosnippet>125</a>                }
-<a href=#126 id=126 data-nosnippet>126</a>                ACVMStatus::Failure(error) =&gt; {
-<a href=#127 id=127 data-nosnippet>127</a>                    <span class="self">self</span>.last_fuzzing_trace = acvm.get_brillig_fuzzing_trace();
-<a href=#128 id=128 data-nosnippet>128</a>                    <span class="kw">if </span><span class="self">self</span>.return_witness_on_failure {
-<a href=#129 id=129 data-nosnippet>129</a>                        <span class="self">self</span>.failing_partial_witness = <span class="prelude-val">Some</span>(acvm.witness_map().clone());
-<a href=#130 id=130 data-nosnippet>130</a>                    }
-<a href=#131 id=131 data-nosnippet>131</a>                    <span class="kw">match </span><span class="kw-2">&amp;</span>error {
-<a href=#132 id=132 data-nosnippet>132</a>                        OpcodeResolutionError::UnsatisfiedConstrain {
-<a href=#133 id=133 data-nosnippet>133</a>                            opcode_location: ErrorLocation::Resolved(opcode_location),
-<a href=#134 id=134 data-nosnippet>134</a>                            ..
-<a href=#135 id=135 data-nosnippet>135</a>                        }
-<a href=#136 id=136 data-nosnippet>136</a>                        | OpcodeResolutionError::IndexOutOfBounds {
-<a href=#137 id=137 data-nosnippet>137</a>                            opcode_location: ErrorLocation::Resolved(opcode_location),
-<a href=#138 id=138 data-nosnippet>138</a>                            ..
-<a href=#139 id=139 data-nosnippet>139</a>                        }
-<a href=#140 id=140 data-nosnippet>140</a>                        | OpcodeResolutionError::InvalidInputBitSize {
-<a href=#141 id=141 data-nosnippet>141</a>                            opcode_location: ErrorLocation::Resolved(opcode_location),
-<a href=#142 id=142 data-nosnippet>142</a>                            ..
-<a href=#143 id=143 data-nosnippet>143</a>                        } =&gt; {
-<a href=#144 id=144 data-nosnippet>144</a>                            <span class="kw">let </span>resolved_location = ResolvedOpcodeLocation {
-<a href=#145 id=145 data-nosnippet>145</a>                                acir_function_index: <span class="self">self</span>.current_function_index,
-<a href=#146 id=146 data-nosnippet>146</a>                                opcode_location: <span class="kw-2">*</span>opcode_location,
-<a href=#147 id=147 data-nosnippet>147</a>                            };
-<a href=#148 id=148 data-nosnippet>148</a>                            <span class="self">self</span>.call_stack.push(resolved_location);
-<a href=#149 id=149 data-nosnippet>149</a>                        }
-<a href=#150 id=150 data-nosnippet>150</a>                        OpcodeResolutionError::BrilligFunctionFailed { call_stack, .. } =&gt; {
-<a href=#151 id=151 data-nosnippet>151</a>                            <span class="kw">let </span>brillig_call_stack =
-<a href=#152 id=152 data-nosnippet>152</a>                                call_stack.iter().map(|location| ResolvedOpcodeLocation {
-<a href=#153 id=153 data-nosnippet>153</a>                                    acir_function_index: <span class="self">self</span>.current_function_index,
-<a href=#154 id=154 data-nosnippet>154</a>                                    opcode_location: <span class="kw-2">*</span>location,
-<a href=#155 id=155 data-nosnippet>155</a>                                });
-<a href=#156 id=156 data-nosnippet>156</a>                            <span class="self">self</span>.call_stack.extend(brillig_call_stack);
-<a href=#157 id=157 data-nosnippet>157</a>                        }
-<a href=#158 id=158 data-nosnippet>158</a>                        <span class="kw">_ </span>=&gt; (),
-<a href=#159 id=159 data-nosnippet>159</a>                    }
-<a href=#160 id=160 data-nosnippet>160</a>
-<a href=#161 id=161 data-nosnippet>161</a>                    <span class="kw">return </span><span class="prelude-val">Err</span>(NargoError::ExecutionError(execution_error_from(
-<a href=#162 id=162 data-nosnippet>162</a>                        error,
-<a href=#163 id=163 data-nosnippet>163</a>                        <span class="kw-2">&amp;</span><span class="self">self</span>.call_stack,
-<a href=#164 id=164 data-nosnippet>164</a>                    )));
-<a href=#165 id=165 data-nosnippet>165</a>                }
-<a href=#166 id=166 data-nosnippet>166</a>                ACVMStatus::RequiresForeignCall(foreign_call) =&gt; {
-<a href=#167 id=167 data-nosnippet>167</a>                    <span class="kw">match </span><span class="self">self</span>.foreign_call_executor.execute(<span class="kw-2">&amp;</span>foreign_call) {
-<a href=#168 id=168 data-nosnippet>168</a>                        <span class="prelude-val">Ok</span>(foreign_call_result) =&gt; {
-<a href=#169 id=169 data-nosnippet>169</a>                            acvm.resolve_pending_foreign_call(foreign_call_result);
-<a href=#170 id=170 data-nosnippet>170</a>                        }
-<a href=#171 id=171 data-nosnippet>171</a>                        <span class="prelude-val">Err</span>(error) =&gt; {
-<a href=#172 id=172 data-nosnippet>172</a>                            <span class="kw">if </span><span class="self">self</span>.return_witness_on_failure {
-<a href=#173 id=173 data-nosnippet>173</a>                                <span class="self">self</span>.failing_partial_witness = <span class="prelude-val">Some</span>(acvm.witness_map().clone());
-<a href=#174 id=174 data-nosnippet>174</a>                            }
-<a href=#175 id=175 data-nosnippet>175</a>                            <span class="kw">return </span><span class="prelude-val">Err</span>(NargoError::ForeignCallError(error));
-<a href=#176 id=176 data-nosnippet>176</a>                        }
-<a href=#177 id=177 data-nosnippet>177</a>                    }
-<a href=#178 id=178 data-nosnippet>178</a>                }
-<a href=#179 id=179 data-nosnippet>179</a>                ACVMStatus::RequiresAcirCall(call_info) =&gt; {
-<a href=#180 id=180 data-nosnippet>180</a>                    <span class="comment">// Store the parent function index whose context we are currently executing
-<a href=#181 id=181 data-nosnippet>181</a>                    </span><span class="kw">let </span>acir_function_caller = <span class="self">self</span>.current_function_index;
-<a href=#182 id=182 data-nosnippet>182</a>                    <span class="comment">// Add call opcode to the call stack with a reference to the parent function index
-<a href=#183 id=183 data-nosnippet>183</a>                    </span><span class="self">self</span>.call_stack.push(ResolvedOpcodeLocation {
-<a href=#184 id=184 data-nosnippet>184</a>                        acir_function_index: acir_function_caller,
-<a href=#185 id=185 data-nosnippet>185</a>                        opcode_location: OpcodeLocation::Acir(acvm.instruction_pointer()),
-<a href=#186 id=186 data-nosnippet>186</a>                    });
-<a href=#187 id=187 data-nosnippet>187</a>
-<a href=#188 id=188 data-nosnippet>188</a>                    <span class="comment">// Set current function to the circuit we are about to execute
-<a href=#189 id=189 data-nosnippet>189</a>                    </span><span class="self">self</span>.current_function_index = call_info.id.as_usize();
-<a href=#190 id=190 data-nosnippet>190</a>                    <span class="comment">// Execute the ACIR call
-<a href=#191 id=191 data-nosnippet>191</a>                    </span><span class="kw">let </span>acir_to_call = <span class="kw-2">&amp;</span><span class="self">self</span>.functions[call_info.id.as_usize()];
-<a href=#192 id=192 data-nosnippet>192</a>                    <span class="kw">let </span>initial_witness = call_info.initial_witness;
-<a href=#193 id=193 data-nosnippet>193</a>                    <span class="comment">// TODO: Profiling among multiple circuits is not supported
-<a href=#194 id=194 data-nosnippet>194</a>                    </span><span class="kw">let </span>(call_solved_witness, <span class="kw">_</span>) = <span class="self">self</span>.execute_circuit(initial_witness)<span class="question-mark">?</span>;
-<a href=#195 id=195 data-nosnippet>195</a>
-<a href=#196 id=196 data-nosnippet>196</a>                    <span class="comment">// Set tracking index back to the parent function after ACIR call execution
-<a href=#197 id=197 data-nosnippet>197</a>                    </span><span class="self">self</span>.current_function_index = acir_function_caller;
+<a href=#121 id=121 data-nosnippet>121</a>        <span class="kw">loop </span>{
+<a href=#122 id=122 data-nosnippet>122</a>            <span class="kw">let </span>solver_status = acvm.solve();
+<a href=#123 id=123 data-nosnippet>123</a>
+<a href=#124 id=124 data-nosnippet>124</a>            <span class="kw">match </span>solver_status {
+<a href=#125 id=125 data-nosnippet>125</a>                ACVMStatus::Solved =&gt; <span class="kw">break</span>,
+<a href=#126 id=126 data-nosnippet>126</a>                ACVMStatus::InProgress =&gt; {
+<a href=#127 id=127 data-nosnippet>127</a>                    <span class="macro">unreachable!</span>(<span class="string">"Execution should not stop while in `InProgress` state."</span>)
+<a href=#128 id=128 data-nosnippet>128</a>                }
+<a href=#129 id=129 data-nosnippet>129</a>                ACVMStatus::Failure(error) =&gt; {
+<a href=#130 id=130 data-nosnippet>130</a>                    <span class="self">self</span>.last_fuzzing_trace = acvm.get_brillig_fuzzing_trace();
+<a href=#131 id=131 data-nosnippet>131</a>                    <span class="kw">if </span><span class="self">self</span>.return_witness_on_failure {
+<a href=#132 id=132 data-nosnippet>132</a>                        <span class="self">self</span>.failing_partial_witness = <span class="prelude-val">Some</span>(acvm.witness_map().clone());
+<a href=#133 id=133 data-nosnippet>133</a>                    }
+<a href=#134 id=134 data-nosnippet>134</a>                    <span class="kw">match </span><span class="kw-2">&amp;</span>error {
+<a href=#135 id=135 data-nosnippet>135</a>                        OpcodeResolutionError::UnsatisfiedConstrain {
+<a href=#136 id=136 data-nosnippet>136</a>                            opcode_location: ErrorLocation::Resolved(opcode_location),
+<a href=#137 id=137 data-nosnippet>137</a>                            ..
+<a href=#138 id=138 data-nosnippet>138</a>                        }
+<a href=#139 id=139 data-nosnippet>139</a>                        | OpcodeResolutionError::IndexOutOfBounds {
+<a href=#140 id=140 data-nosnippet>140</a>                            opcode_location: ErrorLocation::Resolved(opcode_location),
+<a href=#141 id=141 data-nosnippet>141</a>                            ..
+<a href=#142 id=142 data-nosnippet>142</a>                        }
+<a href=#143 id=143 data-nosnippet>143</a>                        | OpcodeResolutionError::InvalidInputBitSize {
+<a href=#144 id=144 data-nosnippet>144</a>                            opcode_location: ErrorLocation::Resolved(opcode_location),
+<a href=#145 id=145 data-nosnippet>145</a>                            ..
+<a href=#146 id=146 data-nosnippet>146</a>                        } =&gt; {
+<a href=#147 id=147 data-nosnippet>147</a>                            <span class="kw">let </span>resolved_location = ResolvedOpcodeLocation {
+<a href=#148 id=148 data-nosnippet>148</a>                                acir_function_index: <span class="self">self</span>.current_function_index,
+<a href=#149 id=149 data-nosnippet>149</a>                                opcode_location: <span class="kw-2">*</span>opcode_location,
+<a href=#150 id=150 data-nosnippet>150</a>                            };
+<a href=#151 id=151 data-nosnippet>151</a>                            <span class="self">self</span>.call_stack.push(resolved_location);
+<a href=#152 id=152 data-nosnippet>152</a>                        }
+<a href=#153 id=153 data-nosnippet>153</a>                        OpcodeResolutionError::BrilligFunctionFailed { call_stack, .. } =&gt; {
+<a href=#154 id=154 data-nosnippet>154</a>                            <span class="kw">let </span>brillig_call_stack =
+<a href=#155 id=155 data-nosnippet>155</a>                                call_stack.iter().map(|location| ResolvedOpcodeLocation {
+<a href=#156 id=156 data-nosnippet>156</a>                                    acir_function_index: <span class="self">self</span>.current_function_index,
+<a href=#157 id=157 data-nosnippet>157</a>                                    opcode_location: <span class="kw-2">*</span>location,
+<a href=#158 id=158 data-nosnippet>158</a>                                });
+<a href=#159 id=159 data-nosnippet>159</a>                            <span class="self">self</span>.call_stack.extend(brillig_call_stack);
+<a href=#160 id=160 data-nosnippet>160</a>                        }
+<a href=#161 id=161 data-nosnippet>161</a>                        <span class="kw">_ </span>=&gt; (),
+<a href=#162 id=162 data-nosnippet>162</a>                    }
+<a href=#163 id=163 data-nosnippet>163</a>
+<a href=#164 id=164 data-nosnippet>164</a>                    <span class="kw">return </span><span class="prelude-val">Err</span>(NargoError::ExecutionError(execution_error_from(
+<a href=#165 id=165 data-nosnippet>165</a>                        error,
+<a href=#166 id=166 data-nosnippet>166</a>                        <span class="kw-2">&amp;</span><span class="self">self</span>.call_stack,
+<a href=#167 id=167 data-nosnippet>167</a>                    )));
+<a href=#168 id=168 data-nosnippet>168</a>                }
+<a href=#169 id=169 data-nosnippet>169</a>                ACVMStatus::RequiresForeignCall(foreign_call) =&gt; {
+<a href=#170 id=170 data-nosnippet>170</a>                    <span class="kw">match </span><span class="self">self</span>.foreign_call_executor.execute(<span class="kw-2">&amp;</span>foreign_call) {
+<a href=#171 id=171 data-nosnippet>171</a>                        <span class="prelude-val">Ok</span>(foreign_call_result) =&gt; {
+<a href=#172 id=172 data-nosnippet>172</a>                            acvm.resolve_pending_foreign_call(foreign_call_result);
+<a href=#173 id=173 data-nosnippet>173</a>                        }
+<a href=#174 id=174 data-nosnippet>174</a>                        <span class="prelude-val">Err</span>(error) =&gt; {
+<a href=#175 id=175 data-nosnippet>175</a>                            <span class="kw">if </span><span class="self">self</span>.return_witness_on_failure {
+<a href=#176 id=176 data-nosnippet>176</a>                                <span class="self">self</span>.failing_partial_witness = <span class="prelude-val">Some</span>(acvm.witness_map().clone());
+<a href=#177 id=177 data-nosnippet>177</a>                            }
+<a href=#178 id=178 data-nosnippet>178</a>                            <span class="kw">return </span><span class="prelude-val">Err</span>(NargoError::ForeignCallError(error));
+<a href=#179 id=179 data-nosnippet>179</a>                        }
+<a href=#180 id=180 data-nosnippet>180</a>                    }
+<a href=#181 id=181 data-nosnippet>181</a>                }
+<a href=#182 id=182 data-nosnippet>182</a>                ACVMStatus::RequiresAcirCall(call_info) =&gt; {
+<a href=#183 id=183 data-nosnippet>183</a>                    <span class="comment">// Store the parent function index whose context we are currently executing
+<a href=#184 id=184 data-nosnippet>184</a>                    </span><span class="kw">let </span>acir_function_caller = <span class="self">self</span>.current_function_index;
+<a href=#185 id=185 data-nosnippet>185</a>                    <span class="comment">// Add call opcode to the call stack with a reference to the parent function index
+<a href=#186 id=186 data-nosnippet>186</a>                    </span><span class="self">self</span>.call_stack.push(ResolvedOpcodeLocation {
+<a href=#187 id=187 data-nosnippet>187</a>                        acir_function_index: acir_function_caller,
+<a href=#188 id=188 data-nosnippet>188</a>                        opcode_location: OpcodeLocation::Acir(acvm.instruction_pointer()),
+<a href=#189 id=189 data-nosnippet>189</a>                    });
+<a href=#190 id=190 data-nosnippet>190</a>
+<a href=#191 id=191 data-nosnippet>191</a>                    <span class="comment">// Set current function to the circuit we are about to execute
+<a href=#192 id=192 data-nosnippet>192</a>                    </span><span class="self">self</span>.current_function_index = call_info.id.as_usize();
+<a href=#193 id=193 data-nosnippet>193</a>                    <span class="comment">// Execute the ACIR call
+<a href=#194 id=194 data-nosnippet>194</a>                    </span><span class="kw">let </span>acir_to_call = <span class="kw-2">&amp;</span><span class="self">self</span>.functions[call_info.id.as_usize()];
+<a href=#195 id=195 data-nosnippet>195</a>                    <span class="kw">let </span>initial_witness = call_info.initial_witness;
+<a href=#196 id=196 data-nosnippet>196</a>                    <span class="comment">// TODO: Profiling among multiple circuits is not supported
+<a href=#197 id=197 data-nosnippet>197</a>                    </span><span class="kw">let </span>(call_solved_witness, <span class="kw">_</span>) = <span class="self">self</span>.execute_circuit(initial_witness)<span class="question-mark">?</span>;
 <a href=#198 id=198 data-nosnippet>198</a>
-<a href=#199 id=199 data-nosnippet>199</a>                    <span class="kw">let </span><span class="kw-2">mut </span>call_resolved_outputs = Vec::new();
-<a href=#200 id=200 data-nosnippet>200</a>                    <span class="kw">for </span>return_witness_index <span class="kw">in </span>acir_to_call.return_values.indices() {
-<a href=#201 id=201 data-nosnippet>201</a>                        <span class="kw">if let </span><span class="prelude-val">Some</span>(return_value) =
-<a href=#202 id=202 data-nosnippet>202</a>                            call_solved_witness.get_index(return_witness_index)
-<a href=#203 id=203 data-nosnippet>203</a>                        {
-<a href=#204 id=204 data-nosnippet>204</a>                            call_resolved_outputs.push(<span class="kw-2">*</span>return_value);
-<a href=#205 id=205 data-nosnippet>205</a>                        } <span class="kw">else </span>{
-<a href=#206 id=206 data-nosnippet>206</a>                            <span class="kw">return </span><span class="prelude-val">Err</span>(ExecutionError::SolvingError(
-<a href=#207 id=207 data-nosnippet>207</a>                                OpcodeNotSolvable::MissingAssignment(return_witness_index).into(),
-<a href=#208 id=208 data-nosnippet>208</a>                                <span class="prelude-val">None</span>, <span class="comment">// Missing assignment errors do not supply user-facing diagnostics so we do not need to attach a call stack
-<a href=#209 id=209 data-nosnippet>209</a>                            </span>)
-<a href=#210 id=210 data-nosnippet>210</a>                            .into());
-<a href=#211 id=211 data-nosnippet>211</a>                        }
-<a href=#212 id=212 data-nosnippet>212</a>                    }
-<a href=#213 id=213 data-nosnippet>213</a>                    acvm.resolve_pending_acir_call(call_resolved_outputs);
-<a href=#214 id=214 data-nosnippet>214</a>                    <span class="self">self</span>.witness_stack.push(call_info.id.as_u32(), call_solved_witness);
-<a href=#215 id=215 data-nosnippet>215</a>                }
-<a href=#216 id=216 data-nosnippet>216</a>            }
-<a href=#217 id=217 data-nosnippet>217</a>        }
-<a href=#218 id=218 data-nosnippet>218</a>        <span class="comment">// Clear the call stack if we have succeeded in executing the circuit.
-<a href=#219 id=219 data-nosnippet>219</a>        // This needs to be done or else all successful ACIR call stacks will also be
-<a href=#220 id=220 data-nosnippet>220</a>        // included in a failure case.
-<a href=#221 id=221 data-nosnippet>221</a>        </span><span class="self">self</span>.call_stack.clear();
-<a href=#222 id=222 data-nosnippet>222</a>
-<a href=#223 id=223 data-nosnippet>223</a>        <span class="kw">let </span>profiling_samples = acvm.take_profiling_samples();
-<a href=#224 id=224 data-nosnippet>224</a>        <span class="self">self</span>.last_fuzzing_trace = acvm.get_brillig_fuzzing_trace();
-<a href=#225 id=225 data-nosnippet>225</a>        <span class="prelude-val">Ok</span>((acvm.finalize(), profiling_samples))
-<a href=#226 id=226 data-nosnippet>226</a>    }
-<a href=#227 id=227 data-nosnippet>227</a>}
-<a href=#228 id=228 data-nosnippet>228</a>
-<a href=#229 id=229 data-nosnippet>229</a><span class="doccomment">/// Execute a [Program], returning the [`WitnessStack`].
-<a href=#230 id=230 data-nosnippet>230</a></span><span class="kw">pub fn </span>execute_program&lt;F: AcirField, B: BlackBoxFunctionSolver&lt;F&gt;, E: ForeignCallExecutor&lt;F&gt;&gt;(
-<a href=#231 id=231 data-nosnippet>231</a>    program: <span class="kw-2">&amp;</span>Program&lt;F&gt;,
-<a href=#232 id=232 data-nosnippet>232</a>    initial_witness: WitnessMap&lt;F&gt;,
-<a href=#233 id=233 data-nosnippet>233</a>    blackbox_solver: <span class="kw-2">&amp;</span>B,
-<a href=#234 id=234 data-nosnippet>234</a>    foreign_call_executor: <span class="kw-2">&amp;mut </span>E,
-<a href=#235 id=235 data-nosnippet>235</a>) -&gt; <span class="prelude-ty">Result</span>&lt;WitnessStack&lt;F&gt;, NargoError&lt;F&gt;&gt; {
-<a href=#236 id=236 data-nosnippet>236</a>    <span class="kw">let </span>profiling_active = <span class="bool-val">false</span>;
-<a href=#237 id=237 data-nosnippet>237</a>    <span class="kw">let </span>(witness_stack, profiling_samples) = execute_program_inner(
-<a href=#238 id=238 data-nosnippet>238</a>        program,
-<a href=#239 id=239 data-nosnippet>239</a>        initial_witness,
-<a href=#240 id=240 data-nosnippet>240</a>        blackbox_solver,
-<a href=#241 id=241 data-nosnippet>241</a>        foreign_call_executor,
-<a href=#242 id=242 data-nosnippet>242</a>        profiling_active,
-<a href=#243 id=243 data-nosnippet>243</a>    )<span class="question-mark">?</span>;
-<a href=#244 id=244 data-nosnippet>244</a>    <span class="macro">assert!</span>(profiling_samples.is_empty(), <span class="string">"Expected no profiling samples"</span>);
-<a href=#245 id=245 data-nosnippet>245</a>
-<a href=#246 id=246 data-nosnippet>246</a>    <span class="prelude-val">Ok</span>(witness_stack)
-<a href=#247 id=247 data-nosnippet>247</a>}
-<a href=#248 id=248 data-nosnippet>248</a>
-<a href=#249 id=249 data-nosnippet>249</a><span class="doccomment">/// Execute a [Program] with profiling turned on, returning the [`WitnessStack`] along with the [`ProfilingSamples`].
-<a href=#250 id=250 data-nosnippet>250</a></span><span class="kw">pub fn </span>execute_program_with_profiling&lt;
-<a href=#251 id=251 data-nosnippet>251</a>    F: AcirField,
-<a href=#252 id=252 data-nosnippet>252</a>    B: BlackBoxFunctionSolver&lt;F&gt;,
-<a href=#253 id=253 data-nosnippet>253</a>    E: ForeignCallExecutor&lt;F&gt;,
-<a href=#254 id=254 data-nosnippet>254</a>&gt;(
-<a href=#255 id=255 data-nosnippet>255</a>    program: <span class="kw-2">&amp;</span>Program&lt;F&gt;,
-<a href=#256 id=256 data-nosnippet>256</a>    initial_witness: WitnessMap&lt;F&gt;,
-<a href=#257 id=257 data-nosnippet>257</a>    blackbox_solver: <span class="kw-2">&amp;</span>B,
-<a href=#258 id=258 data-nosnippet>258</a>    foreign_call_executor: <span class="kw-2">&amp;mut </span>E,
-<a href=#259 id=259 data-nosnippet>259</a>) -&gt; <span class="prelude-ty">Result</span>&lt;(WitnessStack&lt;F&gt;, ProfilingSamples), NargoError&lt;F&gt;&gt; {
-<a href=#260 id=260 data-nosnippet>260</a>    <span class="kw">let </span>profiling_active = <span class="bool-val">true</span>;
-<a href=#261 id=261 data-nosnippet>261</a>    execute_program_inner(
-<a href=#262 id=262 data-nosnippet>262</a>        program,
-<a href=#263 id=263 data-nosnippet>263</a>        initial_witness,
-<a href=#264 id=264 data-nosnippet>264</a>        blackbox_solver,
-<a href=#265 id=265 data-nosnippet>265</a>        foreign_call_executor,
-<a href=#266 id=266 data-nosnippet>266</a>        profiling_active,
-<a href=#267 id=267 data-nosnippet>267</a>    )
-<a href=#268 id=268 data-nosnippet>268</a>}
-<a href=#269 id=269 data-nosnippet>269</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>execute_program_with_brillig_fuzzing&lt;
-<a href=#270 id=270 data-nosnippet>270</a>    F: AcirField,
-<a href=#271 id=271 data-nosnippet>271</a>    B: BlackBoxFunctionSolver&lt;F&gt;,
-<a href=#272 id=272 data-nosnippet>272</a>    E: ForeignCallExecutor&lt;F&gt;,
-<a href=#273 id=273 data-nosnippet>273</a>&gt;(
-<a href=#274 id=274 data-nosnippet>274</a>    program: <span class="kw-2">&amp;</span>Program&lt;F&gt;,
-<a href=#275 id=275 data-nosnippet>275</a>    initial_witness: WitnessMap&lt;F&gt;,
-<a href=#276 id=276 data-nosnippet>276</a>    blackbox_solver: <span class="kw-2">&amp;</span>B,
-<a href=#277 id=277 data-nosnippet>277</a>    foreign_call_executor: <span class="kw-2">&amp;mut </span>E,
-<a href=#278 id=278 data-nosnippet>278</a>    brillig_branch_to_feature_map: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>BranchToFeatureMap&gt;,
-<a href=#279 id=279 data-nosnippet>279</a>) -&gt; <span class="prelude-ty">Result</span>&lt;WitnessAndCoverage&lt;F&gt;, NargoErrorAndCoverage&lt;F&gt;&gt; {
-<a href=#280 id=280 data-nosnippet>280</a>    <span class="kw">let </span><span class="kw-2">mut </span>executor = ProgramExecutor::new(
-<a href=#281 id=281 data-nosnippet>281</a>        <span class="kw-2">&amp;</span>program.functions,
-<a href=#282 id=282 data-nosnippet>282</a>        <span class="kw-2">&amp;</span>program.unconstrained_functions,
-<a href=#283 id=283 data-nosnippet>283</a>        blackbox_solver,
-<a href=#284 id=284 data-nosnippet>284</a>        foreign_call_executor,
-<a href=#285 id=285 data-nosnippet>285</a>        <span class="bool-val">false</span>,
-<a href=#286 id=286 data-nosnippet>286</a>    );
-<a href=#287 id=287 data-nosnippet>287</a>    <span class="macro">assert!</span>(brillig_branch_to_feature_map.is_some());
-<a href=#288 id=288 data-nosnippet>288</a>    executor.with_brillig_fuzzing(brillig_branch_to_feature_map);
-<a href=#289 id=289 data-nosnippet>289</a>    <span class="kw">match </span>executor.execute_circuit(initial_witness) {
-<a href=#290 id=290 data-nosnippet>290</a>        <span class="prelude-val">Ok</span>((main_witness, <span class="kw">_</span>)) =&gt; {
-<a href=#291 id=291 data-nosnippet>291</a>            executor.witness_stack.push(<span class="number">0</span>, main_witness);
-<a href=#292 id=292 data-nosnippet>292</a>            <span class="kw">let </span>trace = executor.last_fuzzing_trace.clone();
-<a href=#293 id=293 data-nosnippet>293</a>            <span class="prelude-val">Ok</span>((executor.finalize(), trace))
-<a href=#294 id=294 data-nosnippet>294</a>        }
-<a href=#295 id=295 data-nosnippet>295</a>        <span class="prelude-val">Err</span>(err) =&gt; <span class="prelude-val">Err</span>((err, executor.last_fuzzing_trace)),
-<a href=#296 id=296 data-nosnippet>296</a>    }
-<a href=#297 id=297 data-nosnippet>297</a>}
-<a href=#298 id=298 data-nosnippet>298</a>
-<a href=#299 id=299 data-nosnippet>299</a><span class="doccomment">/// Execute the program with ACIR fuzzing enabled (returns the witness on failure, so that the fuzzer can detect boolean states)
-<a href=#300 id=300 data-nosnippet>300</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>execute_program_with_acir_fuzzing&lt;
-<a href=#301 id=301 data-nosnippet>301</a>    F: AcirField,
-<a href=#302 id=302 data-nosnippet>302</a>    B: BlackBoxFunctionSolver&lt;F&gt;,
-<a href=#303 id=303 data-nosnippet>303</a>    E: ForeignCallExecutor&lt;F&gt;,
-<a href=#304 id=304 data-nosnippet>304</a>&gt;(
-<a href=#305 id=305 data-nosnippet>305</a>    program: <span class="kw-2">&amp;</span>Program&lt;F&gt;,
-<a href=#306 id=306 data-nosnippet>306</a>    initial_witness: WitnessMap&lt;F&gt;,
-<a href=#307 id=307 data-nosnippet>307</a>    blackbox_solver: <span class="kw-2">&amp;</span>B,
-<a href=#308 id=308 data-nosnippet>308</a>    foreign_call_executor: <span class="kw-2">&amp;mut </span>E,
-<a href=#309 id=309 data-nosnippet>309</a>) -&gt; <span class="prelude-ty">Result</span>&lt;WitnessStack&lt;F&gt;, NargoErrorAndWitnessStack&lt;F&gt;&gt; {
-<a href=#310 id=310 data-nosnippet>310</a>    <span class="kw">let </span><span class="kw-2">mut </span>executor = ProgramExecutor::new(
-<a href=#311 id=311 data-nosnippet>311</a>        <span class="kw-2">&amp;</span>program.functions,
-<a href=#312 id=312 data-nosnippet>312</a>        <span class="kw-2">&amp;</span>program.unconstrained_functions,
-<a href=#313 id=313 data-nosnippet>313</a>        blackbox_solver,
-<a href=#314 id=314 data-nosnippet>314</a>        foreign_call_executor,
-<a href=#315 id=315 data-nosnippet>315</a>        <span class="bool-val">false</span>,
-<a href=#316 id=316 data-nosnippet>316</a>    );
-<a href=#317 id=317 data-nosnippet>317</a>    executor.with_partial_witness_on_failure(<span class="bool-val">true</span>);
-<a href=#318 id=318 data-nosnippet>318</a>    <span class="kw">match </span>executor.execute_circuit(initial_witness) {
-<a href=#319 id=319 data-nosnippet>319</a>        <span class="prelude-val">Ok</span>((main_witness, <span class="kw">_</span>)) =&gt; {
-<a href=#320 id=320 data-nosnippet>320</a>            executor.witness_stack.push(<span class="number">0</span>, main_witness);
-<a href=#321 id=321 data-nosnippet>321</a>            <span class="prelude-val">Ok</span>(executor.finalize())
-<a href=#322 id=322 data-nosnippet>322</a>        }
-<a href=#323 id=323 data-nosnippet>323</a>        <span class="prelude-val">Err</span>(err) =&gt; {
-<a href=#324 id=324 data-nosnippet>324</a>            executor.witness_stack.push(
-<a href=#325 id=325 data-nosnippet>325</a>                <span class="number">0</span>,
-<a href=#326 id=326 data-nosnippet>326</a>                executor
-<a href=#327 id=327 data-nosnippet>327</a>                    .failing_partial_witness
-<a href=#328 id=328 data-nosnippet>328</a>                    .as_ref()
-<a href=#329 id=329 data-nosnippet>329</a>                    .expect(<span class="string">"No partial witness on failure"</span>)
-<a href=#330 id=330 data-nosnippet>330</a>                    .clone(),
-<a href=#331 id=331 data-nosnippet>331</a>            );
-<a href=#332 id=332 data-nosnippet>332</a>            <span class="prelude-val">Err</span>((err, executor.finalize()))
-<a href=#333 id=333 data-nosnippet>333</a>        }
-<a href=#334 id=334 data-nosnippet>334</a>    }
-<a href=#335 id=335 data-nosnippet>335</a>}
-<a href=#336 id=336 data-nosnippet>336</a>
-<a href=#337 id=337 data-nosnippet>337</a><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-<a href=#338 id=338 data-nosnippet>338</a></span><span class="kw">fn </span>execute_program_inner&lt;F: AcirField, B: BlackBoxFunctionSolver&lt;F&gt;, E: ForeignCallExecutor&lt;F&gt;&gt;(
-<a href=#339 id=339 data-nosnippet>339</a>    program: <span class="kw-2">&amp;</span>Program&lt;F&gt;,
-<a href=#340 id=340 data-nosnippet>340</a>    initial_witness: WitnessMap&lt;F&gt;,
-<a href=#341 id=341 data-nosnippet>341</a>    blackbox_solver: <span class="kw-2">&amp;</span>B,
-<a href=#342 id=342 data-nosnippet>342</a>    foreign_call_executor: <span class="kw-2">&amp;mut </span>E,
-<a href=#343 id=343 data-nosnippet>343</a>    profiling_active: bool,
-<a href=#344 id=344 data-nosnippet>344</a>) -&gt; <span class="prelude-ty">Result</span>&lt;(WitnessStack&lt;F&gt;, ProfilingSamples), NargoError&lt;F&gt;&gt; {
-<a href=#345 id=345 data-nosnippet>345</a>    <span class="kw">let </span><span class="kw-2">mut </span>executor = ProgramExecutor::new(
-<a href=#346 id=346 data-nosnippet>346</a>        <span class="kw-2">&amp;</span>program.functions,
-<a href=#347 id=347 data-nosnippet>347</a>        <span class="kw-2">&amp;</span>program.unconstrained_functions,
-<a href=#348 id=348 data-nosnippet>348</a>        blackbox_solver,
-<a href=#349 id=349 data-nosnippet>349</a>        foreign_call_executor,
-<a href=#350 id=350 data-nosnippet>350</a>        profiling_active,
-<a href=#351 id=351 data-nosnippet>351</a>    );
-<a href=#352 id=352 data-nosnippet>352</a>    <span class="kw">let </span>(main_witness, profiling_samples) = executor.execute_circuit(initial_witness)<span class="question-mark">?</span>;
-<a href=#353 id=353 data-nosnippet>353</a>    executor.witness_stack.push(<span class="number">0</span>, main_witness);
-<a href=#354 id=354 data-nosnippet>354</a>
-<a href=#355 id=355 data-nosnippet>355</a>    <span class="prelude-val">Ok</span>((executor.finalize(), profiling_samples))
-<a href=#356 id=356 data-nosnippet>356</a>}
-<a href=#357 id=357 data-nosnippet>357</a>
-<a href=#358 id=358 data-nosnippet>358</a><span class="attr">#[cfg(test)]
-<a href=#359 id=359 data-nosnippet>359</a></span><span class="kw">mod </span>test {
-<a href=#360 id=360 data-nosnippet>360</a>    <span class="kw">use </span>std::collections::BTreeSet;
-<a href=#361 id=361 data-nosnippet>361</a>
-<a href=#362 id=362 data-nosnippet>362</a>    <span class="kw">use </span>acvm::{
-<a href=#363 id=363 data-nosnippet>363</a>        FieldElement,
-<a href=#364 id=364 data-nosnippet>364</a>        acir::{
-<a href=#365 id=365 data-nosnippet>365</a>            circuit::{
-<a href=#366 id=366 data-nosnippet>366</a>                Circuit, Opcode, PublicInputs,
-<a href=#367 id=367 data-nosnippet>367</a>                brillig::{BrilligBytecode, BrilligFunctionId},
-<a href=#368 id=368 data-nosnippet>368</a>            },
-<a href=#369 id=369 data-nosnippet>369</a>            native_types::{Expression, WitnessMap},
-<a href=#370 id=370 data-nosnippet>370</a>        },
-<a href=#371 id=371 data-nosnippet>371</a>        blackbox_solver::StubbedBlackBoxSolver,
-<a href=#372 id=372 data-nosnippet>372</a>        pwg::ForeignCallWaitInfo,
-<a href=#373 id=373 data-nosnippet>373</a>    };
-<a href=#374 id=374 data-nosnippet>374</a>    <span class="kw">use </span>brillig::{ForeignCallResult, Opcode <span class="kw">as </span>BrilligOpcode};
-<a href=#375 id=375 data-nosnippet>375</a>
-<a href=#376 id=376 data-nosnippet>376</a>    <span class="kw">use crate</span>::{
-<a href=#377 id=377 data-nosnippet>377</a>        NargoError,
-<a href=#378 id=378 data-nosnippet>378</a>        foreign_calls::{ForeignCallError, ForeignCallExecutor},
-<a href=#379 id=379 data-nosnippet>379</a>        ops::execute::ProgramExecutor,
-<a href=#380 id=380 data-nosnippet>380</a>    };
-<a href=#381 id=381 data-nosnippet>381</a>
-<a href=#382 id=382 data-nosnippet>382</a>    <span class="kw">struct </span>FailingForeignCallExecutor;
-<a href=#383 id=383 data-nosnippet>383</a>
-<a href=#384 id=384 data-nosnippet>384</a>    <span class="kw">impl</span>&lt;F&gt; ForeignCallExecutor&lt;F&gt; <span class="kw">for </span>FailingForeignCallExecutor {
-<a href=#385 id=385 data-nosnippet>385</a>        <span class="kw">fn </span>execute(
-<a href=#386 id=386 data-nosnippet>386</a>            <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#387 id=387 data-nosnippet>387</a>            <span class="kw">_</span>: <span class="kw-2">&amp;</span>ForeignCallWaitInfo&lt;F&gt;,
-<a href=#388 id=388 data-nosnippet>388</a>        ) -&gt; <span class="prelude-ty">Result</span>&lt;ForeignCallResult&lt;F&gt;, ForeignCallError&gt; {
-<a href=#389 id=389 data-nosnippet>389</a>            <span class="prelude-val">Err</span>(ForeignCallError::ExternalResolverError(jsonrpsee::core::client::Error::Custom(
-<a href=#390 id=390 data-nosnippet>390</a>                <span class="string">"ORACLE_CALL_BROKE"</span>.to_string(),
-<a href=#391 id=391 data-nosnippet>391</a>            )))
-<a href=#392 id=392 data-nosnippet>392</a>        }
-<a href=#393 id=393 data-nosnippet>393</a>    }
-<a href=#394 id=394 data-nosnippet>394</a>
-<a href=#395 id=395 data-nosnippet>395</a>    <span class="attr">#[test]
-<a href=#396 id=396 data-nosnippet>396</a>    </span><span class="kw">fn </span>returns_error_from_failing_foreign_call() {
-<a href=#397 id=397 data-nosnippet>397</a>        <span class="kw">let </span>function = [Circuit {
-<a href=#398 id=398 data-nosnippet>398</a>            function_name: <span class="string">"main"</span>.to_string(),
-<a href=#399 id=399 data-nosnippet>399</a>            opcodes: <span class="macro">vec!</span>[Opcode::BrilligCall {
-<a href=#400 id=400 data-nosnippet>400</a>                id: BrilligFunctionId::new(<span class="number">0</span>),
-<a href=#401 id=401 data-nosnippet>401</a>                inputs: Vec::new(),
-<a href=#402 id=402 data-nosnippet>402</a>                outputs: Vec::new(),
-<a href=#403 id=403 data-nosnippet>403</a>                predicate: Expression::&lt;FieldElement&gt;::one(),
-<a href=#404 id=404 data-nosnippet>404</a>            }],
-<a href=#405 id=405 data-nosnippet>405</a>            private_parameters: BTreeSet::new(),
-<a href=#406 id=406 data-nosnippet>406</a>            public_parameters: PublicInputs::default(),
-<a href=#407 id=407 data-nosnippet>407</a>            return_values: PublicInputs::default(),
-<a href=#408 id=408 data-nosnippet>408</a>            assert_messages: Vec::new(),
-<a href=#409 id=409 data-nosnippet>409</a>        }];
-<a href=#410 id=410 data-nosnippet>410</a>        <span class="kw">let </span>unconstrained_function = [BrilligBytecode {
-<a href=#411 id=411 data-nosnippet>411</a>            function_name: <span class="string">"oracle_wrapper"</span>.to_string(),
-<a href=#412 id=412 data-nosnippet>412</a>            bytecode: <span class="macro">vec!</span>[BrilligOpcode::ForeignCall {
-<a href=#413 id=413 data-nosnippet>413</a>                function: <span class="string">"failing_oracle"</span>.to_string(),
-<a href=#414 id=414 data-nosnippet>414</a>                destinations: Vec::new(),
-<a href=#415 id=415 data-nosnippet>415</a>                destination_value_types: Vec::new(),
-<a href=#416 id=416 data-nosnippet>416</a>                inputs: Vec::new(),
-<a href=#417 id=417 data-nosnippet>417</a>                input_value_types: Vec::new(),
-<a href=#418 id=418 data-nosnippet>418</a>            }],
-<a href=#419 id=419 data-nosnippet>419</a>        }];
-<a href=#420 id=420 data-nosnippet>420</a>
-<a href=#421 id=421 data-nosnippet>421</a>        <span class="comment">// We pass a foreign call executor which always fails.
-<a href=#422 id=422 data-nosnippet>422</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>failing_foreign_call_executor = FailingForeignCallExecutor;
-<a href=#423 id=423 data-nosnippet>423</a>        <span class="kw">let </span><span class="kw-2">mut </span>executor = ProgramExecutor::new(
-<a href=#424 id=424 data-nosnippet>424</a>            <span class="kw-2">&amp;</span>function,
-<a href=#425 id=425 data-nosnippet>425</a>            <span class="kw-2">&amp;</span>unconstrained_function,
-<a href=#426 id=426 data-nosnippet>426</a>            <span class="kw-2">&amp;</span>StubbedBlackBoxSolver,
-<a href=#427 id=427 data-nosnippet>427</a>            <span class="kw-2">&amp;mut </span>failing_foreign_call_executor,
-<a href=#428 id=428 data-nosnippet>428</a>            <span class="bool-val">false</span>,
-<a href=#429 id=429 data-nosnippet>429</a>        );
-<a href=#430 id=430 data-nosnippet>430</a>        executor.with_partial_witness_on_failure(<span class="bool-val">true</span>);
-<a href=#431 id=431 data-nosnippet>431</a>
-<a href=#432 id=432 data-nosnippet>432</a>        <span class="kw">let </span><span class="prelude-val">Err</span>(error) = executor.execute_circuit(WitnessMap::new()) <span class="kw">else </span>{
-<a href=#433 id=433 data-nosnippet>433</a>            <span class="macro">panic!</span>(<span class="string">"Execution succeeded when it should not."</span>)
-<a href=#434 id=434 data-nosnippet>434</a>        };
-<a href=#435 id=435 data-nosnippet>435</a>
-<a href=#436 id=436 data-nosnippet>436</a>        <span class="macro">assert!</span>(
-<a href=#437 id=437 data-nosnippet>437</a>            <span class="macro">matches!</span>(
-<a href=#438 id=438 data-nosnippet>438</a>                error,
-<a href=#439 id=439 data-nosnippet>439</a>                NargoError::ForeignCallError(
-<a href=#440 id=440 data-nosnippet>440</a>                    ForeignCallError::ExternalResolverError(jsonrpsee::core::client::Error::Custom(error_message))
-<a href=#441 id=441 data-nosnippet>441</a>                )
-<a href=#442 id=442 data-nosnippet>442</a>                 <span class="kw">if </span>error_message == <span class="kw-2">*</span><span class="string">"ORACLE_CALL_BROKE"
-<a href=#443 id=443 data-nosnippet>443</a>            </span>),
-<a href=#444 id=444 data-nosnippet>444</a>            <span class="string">"Execution did not fail with expected message"
-<a href=#445 id=445 data-nosnippet>445</a>        </span>);
-<a href=#446 id=446 data-nosnippet>446</a>        <span class="macro">assert!</span>(
-<a href=#447 id=447 data-nosnippet>447</a>            executor.failing_partial_witness.is_some(),
-<a href=#448 id=448 data-nosnippet>448</a>            <span class="string">"Failing witness map should be set but wasn't"
-<a href=#449 id=449 data-nosnippet>449</a>        </span>);
-<a href=#450 id=450 data-nosnippet>450</a>    }
-<a href=#451 id=451 data-nosnippet>451</a>}</code></pre></div></section></main></body></html>
+<a href=#199 id=199 data-nosnippet>199</a>                    <span class="comment">// Set tracking index back to the parent function after ACIR call execution
+<a href=#200 id=200 data-nosnippet>200</a>                    </span><span class="self">self</span>.current_function_index = acir_function_caller;
+<a href=#201 id=201 data-nosnippet>201</a>                    <span class="comment">// The callee returned, so the frame that entered it is no longer live.
+<a href=#202 id=202 data-nosnippet>202</a>                    </span><span class="self">self</span>.call_stack.pop();
+<a href=#203 id=203 data-nosnippet>203</a>
+<a href=#204 id=204 data-nosnippet>204</a>                    <span class="kw">let </span><span class="kw-2">mut </span>call_resolved_outputs = Vec::new();
+<a href=#205 id=205 data-nosnippet>205</a>                    <span class="kw">for </span>return_witness_index <span class="kw">in </span>acir_to_call.return_values.indices() {
+<a href=#206 id=206 data-nosnippet>206</a>                        <span class="kw">if let </span><span class="prelude-val">Some</span>(return_value) =
+<a href=#207 id=207 data-nosnippet>207</a>                            call_solved_witness.get_index(return_witness_index)
+<a href=#208 id=208 data-nosnippet>208</a>                        {
+<a href=#209 id=209 data-nosnippet>209</a>                            call_resolved_outputs.push(<span class="kw-2">*</span>return_value);
+<a href=#210 id=210 data-nosnippet>210</a>                        } <span class="kw">else </span>{
+<a href=#211 id=211 data-nosnippet>211</a>                            <span class="kw">return </span><span class="prelude-val">Err</span>(ExecutionError::SolvingError(
+<a href=#212 id=212 data-nosnippet>212</a>                                OpcodeNotSolvable::MissingAssignment(return_witness_index).into(),
+<a href=#213 id=213 data-nosnippet>213</a>                                <span class="prelude-val">None</span>, <span class="comment">// Missing assignment errors do not supply user-facing diagnostics so we do not need to attach a call stack
+<a href=#214 id=214 data-nosnippet>214</a>                            </span>)
+<a href=#215 id=215 data-nosnippet>215</a>                            .into());
+<a href=#216 id=216 data-nosnippet>216</a>                        }
+<a href=#217 id=217 data-nosnippet>217</a>                    }
+<a href=#218 id=218 data-nosnippet>218</a>                    acvm.resolve_pending_acir_call(call_resolved_outputs);
+<a href=#219 id=219 data-nosnippet>219</a>                    <span class="self">self</span>.witness_stack.push(call_info.id.as_u32(), call_solved_witness);
+<a href=#220 id=220 data-nosnippet>220</a>                }
+<a href=#221 id=221 data-nosnippet>221</a>            }
+<a href=#222 id=222 data-nosnippet>222</a>        }
+<a href=#223 id=223 data-nosnippet>223</a>        <span class="comment">// Drop the frames this circuit added. Clearing the whole stack instead would also drop
+<a href=#224 id=224 data-nosnippet>224</a>        // the caller frames of an enclosing circuit that is still executing, so a later failure in
+<a href=#225 id=225 data-nosnippet>225</a>        // the caller would be reported without the frames that led to it.
+<a href=#226 id=226 data-nosnippet>226</a>        </span><span class="self">self</span>.call_stack.truncate(entry_call_stack_depth);
+<a href=#227 id=227 data-nosnippet>227</a>
+<a href=#228 id=228 data-nosnippet>228</a>        <span class="kw">let </span>profiling_samples = acvm.take_profiling_samples();
+<a href=#229 id=229 data-nosnippet>229</a>        <span class="self">self</span>.last_fuzzing_trace = acvm.get_brillig_fuzzing_trace();
+<a href=#230 id=230 data-nosnippet>230</a>        <span class="prelude-val">Ok</span>((acvm.finalize(), profiling_samples))
+<a href=#231 id=231 data-nosnippet>231</a>    }
+<a href=#232 id=232 data-nosnippet>232</a>}
+<a href=#233 id=233 data-nosnippet>233</a>
+<a href=#234 id=234 data-nosnippet>234</a><span class="doccomment">/// Execute a [Program], returning the [`WitnessStack`].
+<a href=#235 id=235 data-nosnippet>235</a></span><span class="kw">pub fn </span>execute_program&lt;F: AcirField, B: BlackBoxFunctionSolver&lt;F&gt;, E: ForeignCallExecutor&lt;F&gt;&gt;(
+<a href=#236 id=236 data-nosnippet>236</a>    program: <span class="kw-2">&amp;</span>Program&lt;F&gt;,
+<a href=#237 id=237 data-nosnippet>237</a>    initial_witness: WitnessMap&lt;F&gt;,
+<a href=#238 id=238 data-nosnippet>238</a>    blackbox_solver: <span class="kw-2">&amp;</span>B,
+<a href=#239 id=239 data-nosnippet>239</a>    foreign_call_executor: <span class="kw-2">&amp;mut </span>E,
+<a href=#240 id=240 data-nosnippet>240</a>) -&gt; <span class="prelude-ty">Result</span>&lt;WitnessStack&lt;F&gt;, NargoError&lt;F&gt;&gt; {
+<a href=#241 id=241 data-nosnippet>241</a>    <span class="kw">let </span>profiling_active = <span class="bool-val">false</span>;
+<a href=#242 id=242 data-nosnippet>242</a>    <span class="kw">let </span>(witness_stack, profiling_samples) = execute_program_inner(
+<a href=#243 id=243 data-nosnippet>243</a>        program,
+<a href=#244 id=244 data-nosnippet>244</a>        initial_witness,
+<a href=#245 id=245 data-nosnippet>245</a>        blackbox_solver,
+<a href=#246 id=246 data-nosnippet>246</a>        foreign_call_executor,
+<a href=#247 id=247 data-nosnippet>247</a>        profiling_active,
+<a href=#248 id=248 data-nosnippet>248</a>    )<span class="question-mark">?</span>;
+<a href=#249 id=249 data-nosnippet>249</a>    <span class="macro">assert!</span>(profiling_samples.is_empty(), <span class="string">"Expected no profiling samples"</span>);
+<a href=#250 id=250 data-nosnippet>250</a>
+<a href=#251 id=251 data-nosnippet>251</a>    <span class="prelude-val">Ok</span>(witness_stack)
+<a href=#252 id=252 data-nosnippet>252</a>}
+<a href=#253 id=253 data-nosnippet>253</a>
+<a href=#254 id=254 data-nosnippet>254</a><span class="doccomment">/// Execute a [Program] with profiling turned on, returning the [`WitnessStack`] along with the [`ProfilingSamples`].
+<a href=#255 id=255 data-nosnippet>255</a></span><span class="kw">pub fn </span>execute_program_with_profiling&lt;
+<a href=#256 id=256 data-nosnippet>256</a>    F: AcirField,
+<a href=#257 id=257 data-nosnippet>257</a>    B: BlackBoxFunctionSolver&lt;F&gt;,
+<a href=#258 id=258 data-nosnippet>258</a>    E: ForeignCallExecutor&lt;F&gt;,
+<a href=#259 id=259 data-nosnippet>259</a>&gt;(
+<a href=#260 id=260 data-nosnippet>260</a>    program: <span class="kw-2">&amp;</span>Program&lt;F&gt;,
+<a href=#261 id=261 data-nosnippet>261</a>    initial_witness: WitnessMap&lt;F&gt;,
+<a href=#262 id=262 data-nosnippet>262</a>    blackbox_solver: <span class="kw-2">&amp;</span>B,
+<a href=#263 id=263 data-nosnippet>263</a>    foreign_call_executor: <span class="kw-2">&amp;mut </span>E,
+<a href=#264 id=264 data-nosnippet>264</a>) -&gt; <span class="prelude-ty">Result</span>&lt;(WitnessStack&lt;F&gt;, ProfilingSamples), NargoError&lt;F&gt;&gt; {
+<a href=#265 id=265 data-nosnippet>265</a>    <span class="kw">let </span>profiling_active = <span class="bool-val">true</span>;
+<a href=#266 id=266 data-nosnippet>266</a>    execute_program_inner(
+<a href=#267 id=267 data-nosnippet>267</a>        program,
+<a href=#268 id=268 data-nosnippet>268</a>        initial_witness,
+<a href=#269 id=269 data-nosnippet>269</a>        blackbox_solver,
+<a href=#270 id=270 data-nosnippet>270</a>        foreign_call_executor,
+<a href=#271 id=271 data-nosnippet>271</a>        profiling_active,
+<a href=#272 id=272 data-nosnippet>272</a>    )
+<a href=#273 id=273 data-nosnippet>273</a>}
+<a href=#274 id=274 data-nosnippet>274</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>execute_program_with_brillig_fuzzing&lt;
+<a href=#275 id=275 data-nosnippet>275</a>    F: AcirField,
+<a href=#276 id=276 data-nosnippet>276</a>    B: BlackBoxFunctionSolver&lt;F&gt;,
+<a href=#277 id=277 data-nosnippet>277</a>    E: ForeignCallExecutor&lt;F&gt;,
+<a href=#278 id=278 data-nosnippet>278</a>&gt;(
+<a href=#279 id=279 data-nosnippet>279</a>    program: <span class="kw-2">&amp;</span>Program&lt;F&gt;,
+<a href=#280 id=280 data-nosnippet>280</a>    initial_witness: WitnessMap&lt;F&gt;,
+<a href=#281 id=281 data-nosnippet>281</a>    blackbox_solver: <span class="kw-2">&amp;</span>B,
+<a href=#282 id=282 data-nosnippet>282</a>    foreign_call_executor: <span class="kw-2">&amp;mut </span>E,
+<a href=#283 id=283 data-nosnippet>283</a>    brillig_branch_to_feature_map: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>BranchToFeatureMap&gt;,
+<a href=#284 id=284 data-nosnippet>284</a>) -&gt; <span class="prelude-ty">Result</span>&lt;WitnessAndCoverage&lt;F&gt;, NargoErrorAndCoverage&lt;F&gt;&gt; {
+<a href=#285 id=285 data-nosnippet>285</a>    <span class="kw">let </span><span class="kw-2">mut </span>executor = ProgramExecutor::new(
+<a href=#286 id=286 data-nosnippet>286</a>        <span class="kw-2">&amp;</span>program.functions,
+<a href=#287 id=287 data-nosnippet>287</a>        <span class="kw-2">&amp;</span>program.unconstrained_functions,
+<a href=#288 id=288 data-nosnippet>288</a>        blackbox_solver,
+<a href=#289 id=289 data-nosnippet>289</a>        foreign_call_executor,
+<a href=#290 id=290 data-nosnippet>290</a>        <span class="bool-val">false</span>,
+<a href=#291 id=291 data-nosnippet>291</a>    );
+<a href=#292 id=292 data-nosnippet>292</a>    <span class="macro">assert!</span>(brillig_branch_to_feature_map.is_some());
+<a href=#293 id=293 data-nosnippet>293</a>    executor.with_brillig_fuzzing(brillig_branch_to_feature_map);
+<a href=#294 id=294 data-nosnippet>294</a>    <span class="kw">match </span>executor.execute_circuit(initial_witness) {
+<a href=#295 id=295 data-nosnippet>295</a>        <span class="prelude-val">Ok</span>((main_witness, <span class="kw">_</span>)) =&gt; {
+<a href=#296 id=296 data-nosnippet>296</a>            executor.witness_stack.push(<span class="number">0</span>, main_witness);
+<a href=#297 id=297 data-nosnippet>297</a>            <span class="kw">let </span>trace = executor.last_fuzzing_trace.clone();
+<a href=#298 id=298 data-nosnippet>298</a>            <span class="prelude-val">Ok</span>((executor.finalize(), trace))
+<a href=#299 id=299 data-nosnippet>299</a>        }
+<a href=#300 id=300 data-nosnippet>300</a>        <span class="prelude-val">Err</span>(err) =&gt; <span class="prelude-val">Err</span>((err, executor.last_fuzzing_trace)),
+<a href=#301 id=301 data-nosnippet>301</a>    }
+<a href=#302 id=302 data-nosnippet>302</a>}
+<a href=#303 id=303 data-nosnippet>303</a>
+<a href=#304 id=304 data-nosnippet>304</a><span class="doccomment">/// Execute the program with ACIR fuzzing enabled (returns the witness on failure, so that the fuzzer can detect boolean states)
+<a href=#305 id=305 data-nosnippet>305</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>execute_program_with_acir_fuzzing&lt;
+<a href=#306 id=306 data-nosnippet>306</a>    F: AcirField,
+<a href=#307 id=307 data-nosnippet>307</a>    B: BlackBoxFunctionSolver&lt;F&gt;,
+<a href=#308 id=308 data-nosnippet>308</a>    E: ForeignCallExecutor&lt;F&gt;,
+<a href=#309 id=309 data-nosnippet>309</a>&gt;(
+<a href=#310 id=310 data-nosnippet>310</a>    program: <span class="kw-2">&amp;</span>Program&lt;F&gt;,
+<a href=#311 id=311 data-nosnippet>311</a>    initial_witness: WitnessMap&lt;F&gt;,
+<a href=#312 id=312 data-nosnippet>312</a>    blackbox_solver: <span class="kw-2">&amp;</span>B,
+<a href=#313 id=313 data-nosnippet>313</a>    foreign_call_executor: <span class="kw-2">&amp;mut </span>E,
+<a href=#314 id=314 data-nosnippet>314</a>) -&gt; <span class="prelude-ty">Result</span>&lt;WitnessStack&lt;F&gt;, NargoErrorAndWitnessStack&lt;F&gt;&gt; {
+<a href=#315 id=315 data-nosnippet>315</a>    <span class="kw">let </span><span class="kw-2">mut </span>executor = ProgramExecutor::new(
+<a href=#316 id=316 data-nosnippet>316</a>        <span class="kw-2">&amp;</span>program.functions,
+<a href=#317 id=317 data-nosnippet>317</a>        <span class="kw-2">&amp;</span>program.unconstrained_functions,
+<a href=#318 id=318 data-nosnippet>318</a>        blackbox_solver,
+<a href=#319 id=319 data-nosnippet>319</a>        foreign_call_executor,
+<a href=#320 id=320 data-nosnippet>320</a>        <span class="bool-val">false</span>,
+<a href=#321 id=321 data-nosnippet>321</a>    );
+<a href=#322 id=322 data-nosnippet>322</a>    executor.with_partial_witness_on_failure(<span class="bool-val">true</span>);
+<a href=#323 id=323 data-nosnippet>323</a>    <span class="kw">match </span>executor.execute_circuit(initial_witness) {
+<a href=#324 id=324 data-nosnippet>324</a>        <span class="prelude-val">Ok</span>((main_witness, <span class="kw">_</span>)) =&gt; {
+<a href=#325 id=325 data-nosnippet>325</a>            executor.witness_stack.push(<span class="number">0</span>, main_witness);
+<a href=#326 id=326 data-nosnippet>326</a>            <span class="prelude-val">Ok</span>(executor.finalize())
+<a href=#327 id=327 data-nosnippet>327</a>        }
+<a href=#328 id=328 data-nosnippet>328</a>        <span class="prelude-val">Err</span>(err) =&gt; {
+<a href=#329 id=329 data-nosnippet>329</a>            executor.witness_stack.push(
+<a href=#330 id=330 data-nosnippet>330</a>                <span class="number">0</span>,
+<a href=#331 id=331 data-nosnippet>331</a>                executor
+<a href=#332 id=332 data-nosnippet>332</a>                    .failing_partial_witness
+<a href=#333 id=333 data-nosnippet>333</a>                    .as_ref()
+<a href=#334 id=334 data-nosnippet>334</a>                    .expect(<span class="string">"No partial witness on failure"</span>)
+<a href=#335 id=335 data-nosnippet>335</a>                    .clone(),
+<a href=#336 id=336 data-nosnippet>336</a>            );
+<a href=#337 id=337 data-nosnippet>337</a>            <span class="prelude-val">Err</span>((err, executor.finalize()))
+<a href=#338 id=338 data-nosnippet>338</a>        }
+<a href=#339 id=339 data-nosnippet>339</a>    }
+<a href=#340 id=340 data-nosnippet>340</a>}
+<a href=#341 id=341 data-nosnippet>341</a>
+<a href=#342 id=342 data-nosnippet>342</a><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
+<a href=#343 id=343 data-nosnippet>343</a></span><span class="kw">fn </span>execute_program_inner&lt;F: AcirField, B: BlackBoxFunctionSolver&lt;F&gt;, E: ForeignCallExecutor&lt;F&gt;&gt;(
+<a href=#344 id=344 data-nosnippet>344</a>    program: <span class="kw-2">&amp;</span>Program&lt;F&gt;,
+<a href=#345 id=345 data-nosnippet>345</a>    initial_witness: WitnessMap&lt;F&gt;,
+<a href=#346 id=346 data-nosnippet>346</a>    blackbox_solver: <span class="kw-2">&amp;</span>B,
+<a href=#347 id=347 data-nosnippet>347</a>    foreign_call_executor: <span class="kw-2">&amp;mut </span>E,
+<a href=#348 id=348 data-nosnippet>348</a>    profiling_active: bool,
+<a href=#349 id=349 data-nosnippet>349</a>) -&gt; <span class="prelude-ty">Result</span>&lt;(WitnessStack&lt;F&gt;, ProfilingSamples), NargoError&lt;F&gt;&gt; {
+<a href=#350 id=350 data-nosnippet>350</a>    <span class="kw">let </span><span class="kw-2">mut </span>executor = ProgramExecutor::new(
+<a href=#351 id=351 data-nosnippet>351</a>        <span class="kw-2">&amp;</span>program.functions,
+<a href=#352 id=352 data-nosnippet>352</a>        <span class="kw-2">&amp;</span>program.unconstrained_functions,
+<a href=#353 id=353 data-nosnippet>353</a>        blackbox_solver,
+<a href=#354 id=354 data-nosnippet>354</a>        foreign_call_executor,
+<a href=#355 id=355 data-nosnippet>355</a>        profiling_active,
+<a href=#356 id=356 data-nosnippet>356</a>    );
+<a href=#357 id=357 data-nosnippet>357</a>    <span class="kw">let </span>(main_witness, profiling_samples) = executor.execute_circuit(initial_witness)<span class="question-mark">?</span>;
+<a href=#358 id=358 data-nosnippet>358</a>    executor.witness_stack.push(<span class="number">0</span>, main_witness);
+<a href=#359 id=359 data-nosnippet>359</a>
+<a href=#360 id=360 data-nosnippet>360</a>    <span class="prelude-val">Ok</span>((executor.finalize(), profiling_samples))
+<a href=#361 id=361 data-nosnippet>361</a>}
+<a href=#362 id=362 data-nosnippet>362</a>
+<a href=#363 id=363 data-nosnippet>363</a><span class="attr">#[cfg(test)]
+<a href=#364 id=364 data-nosnippet>364</a></span><span class="kw">mod </span>test {
+<a href=#365 id=365 data-nosnippet>365</a>    <span class="kw">use </span>std::collections::BTreeSet;
+<a href=#366 id=366 data-nosnippet>366</a>
+<a href=#367 id=367 data-nosnippet>367</a>    <span class="kw">use </span>acvm::{
+<a href=#368 id=368 data-nosnippet>368</a>        FieldElement,
+<a href=#369 id=369 data-nosnippet>369</a>        acir::{
+<a href=#370 id=370 data-nosnippet>370</a>            circuit::{
+<a href=#371 id=371 data-nosnippet>371</a>                Circuit, Opcode, PublicInputs,
+<a href=#372 id=372 data-nosnippet>372</a>                brillig::{BrilligBytecode, BrilligFunctionId},
+<a href=#373 id=373 data-nosnippet>373</a>            },
+<a href=#374 id=374 data-nosnippet>374</a>            native_types::{Expression, WitnessMap},
+<a href=#375 id=375 data-nosnippet>375</a>        },
+<a href=#376 id=376 data-nosnippet>376</a>        blackbox_solver::StubbedBlackBoxSolver,
+<a href=#377 id=377 data-nosnippet>377</a>        pwg::ForeignCallWaitInfo,
+<a href=#378 id=378 data-nosnippet>378</a>    };
+<a href=#379 id=379 data-nosnippet>379</a>    <span class="kw">use </span>brillig::{ForeignCallResult, Opcode <span class="kw">as </span>BrilligOpcode};
+<a href=#380 id=380 data-nosnippet>380</a>
+<a href=#381 id=381 data-nosnippet>381</a>    <span class="kw">use crate</span>::{
+<a href=#382 id=382 data-nosnippet>382</a>        NargoError,
+<a href=#383 id=383 data-nosnippet>383</a>        foreign_calls::{ForeignCallError, ForeignCallExecutor},
+<a href=#384 id=384 data-nosnippet>384</a>        ops::execute::ProgramExecutor,
+<a href=#385 id=385 data-nosnippet>385</a>    };
+<a href=#386 id=386 data-nosnippet>386</a>
+<a href=#387 id=387 data-nosnippet>387</a>    <span class="kw">struct </span>FailingForeignCallExecutor;
+<a href=#388 id=388 data-nosnippet>388</a>
+<a href=#389 id=389 data-nosnippet>389</a>    <span class="kw">impl</span>&lt;F&gt; ForeignCallExecutor&lt;F&gt; <span class="kw">for </span>FailingForeignCallExecutor {
+<a href=#390 id=390 data-nosnippet>390</a>        <span class="kw">fn </span>execute(
+<a href=#391 id=391 data-nosnippet>391</a>            <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#392 id=392 data-nosnippet>392</a>            <span class="kw">_</span>: <span class="kw-2">&amp;</span>ForeignCallWaitInfo&lt;F&gt;,
+<a href=#393 id=393 data-nosnippet>393</a>        ) -&gt; <span class="prelude-ty">Result</span>&lt;ForeignCallResult&lt;F&gt;, ForeignCallError&gt; {
+<a href=#394 id=394 data-nosnippet>394</a>            <span class="prelude-val">Err</span>(ForeignCallError::ExternalResolverError(jsonrpsee::core::client::Error::Custom(
+<a href=#395 id=395 data-nosnippet>395</a>                <span class="string">"ORACLE_CALL_BROKE"</span>.to_string(),
+<a href=#396 id=396 data-nosnippet>396</a>            )))
+<a href=#397 id=397 data-nosnippet>397</a>        }
+<a href=#398 id=398 data-nosnippet>398</a>    }
+<a href=#399 id=399 data-nosnippet>399</a>
+<a href=#400 id=400 data-nosnippet>400</a>    <span class="attr">#[test]
+<a href=#401 id=401 data-nosnippet>401</a>    </span><span class="kw">fn </span>returns_error_from_failing_foreign_call() {
+<a href=#402 id=402 data-nosnippet>402</a>        <span class="kw">let </span>function = [Circuit {
+<a href=#403 id=403 data-nosnippet>403</a>            function_name: <span class="string">"main"</span>.to_string(),
+<a href=#404 id=404 data-nosnippet>404</a>            opcodes: <span class="macro">vec!</span>[Opcode::BrilligCall {
+<a href=#405 id=405 data-nosnippet>405</a>                id: BrilligFunctionId::new(<span class="number">0</span>),
+<a href=#406 id=406 data-nosnippet>406</a>                inputs: Vec::new(),
+<a href=#407 id=407 data-nosnippet>407</a>                outputs: Vec::new(),
+<a href=#408 id=408 data-nosnippet>408</a>                predicate: Expression::&lt;FieldElement&gt;::one(),
+<a href=#409 id=409 data-nosnippet>409</a>            }],
+<a href=#410 id=410 data-nosnippet>410</a>            private_parameters: BTreeSet::new(),
+<a href=#411 id=411 data-nosnippet>411</a>            public_parameters: PublicInputs::default(),
+<a href=#412 id=412 data-nosnippet>412</a>            return_values: PublicInputs::default(),
+<a href=#413 id=413 data-nosnippet>413</a>            assert_messages: Vec::new(),
+<a href=#414 id=414 data-nosnippet>414</a>        }];
+<a href=#415 id=415 data-nosnippet>415</a>        <span class="kw">let </span>unconstrained_function = [BrilligBytecode {
+<a href=#416 id=416 data-nosnippet>416</a>            function_name: <span class="string">"oracle_wrapper"</span>.to_string(),
+<a href=#417 id=417 data-nosnippet>417</a>            bytecode: <span class="macro">vec!</span>[BrilligOpcode::ForeignCall {
+<a href=#418 id=418 data-nosnippet>418</a>                function: <span class="string">"failing_oracle"</span>.to_string(),
+<a href=#419 id=419 data-nosnippet>419</a>                destinations: Vec::new(),
+<a href=#420 id=420 data-nosnippet>420</a>                destination_value_types: Vec::new(),
+<a href=#421 id=421 data-nosnippet>421</a>                inputs: Vec::new(),
+<a href=#422 id=422 data-nosnippet>422</a>                input_value_types: Vec::new(),
+<a href=#423 id=423 data-nosnippet>423</a>            }],
+<a href=#424 id=424 data-nosnippet>424</a>        }];
+<a href=#425 id=425 data-nosnippet>425</a>
+<a href=#426 id=426 data-nosnippet>426</a>        <span class="comment">// We pass a foreign call executor which always fails.
+<a href=#427 id=427 data-nosnippet>427</a>        </span><span class="kw">let </span><span class="kw-2">mut </span>failing_foreign_call_executor = FailingForeignCallExecutor;
+<a href=#428 id=428 data-nosnippet>428</a>        <span class="kw">let </span><span class="kw-2">mut </span>executor = ProgramExecutor::new(
+<a href=#429 id=429 data-nosnippet>429</a>            <span class="kw-2">&amp;</span>function,
+<a href=#430 id=430 data-nosnippet>430</a>            <span class="kw-2">&amp;</span>unconstrained_function,
+<a href=#431 id=431 data-nosnippet>431</a>            <span class="kw-2">&amp;</span>StubbedBlackBoxSolver,
+<a href=#432 id=432 data-nosnippet>432</a>            <span class="kw-2">&amp;mut </span>failing_foreign_call_executor,
+<a href=#433 id=433 data-nosnippet>433</a>            <span class="bool-val">false</span>,
+<a href=#434 id=434 data-nosnippet>434</a>        );
+<a href=#435 id=435 data-nosnippet>435</a>        executor.with_partial_witness_on_failure(<span class="bool-val">true</span>);
+<a href=#436 id=436 data-nosnippet>436</a>
+<a href=#437 id=437 data-nosnippet>437</a>        <span class="kw">let </span><span class="prelude-val">Err</span>(error) = executor.execute_circuit(WitnessMap::new()) <span class="kw">else </span>{
+<a href=#438 id=438 data-nosnippet>438</a>            <span class="macro">panic!</span>(<span class="string">"Execution succeeded when it should not."</span>)
+<a href=#439 id=439 data-nosnippet>439</a>        };
+<a href=#440 id=440 data-nosnippet>440</a>
+<a href=#441 id=441 data-nosnippet>441</a>        <span class="macro">assert!</span>(
+<a href=#442 id=442 data-nosnippet>442</a>            <span class="macro">matches!</span>(
+<a href=#443 id=443 data-nosnippet>443</a>                error,
+<a href=#444 id=444 data-nosnippet>444</a>                NargoError::ForeignCallError(
+<a href=#445 id=445 data-nosnippet>445</a>                    ForeignCallError::ExternalResolverError(jsonrpsee::core::client::Error::Custom(error_message))
+<a href=#446 id=446 data-nosnippet>446</a>                )
+<a href=#447 id=447 data-nosnippet>447</a>                 <span class="kw">if </span>error_message == <span class="kw-2">*</span><span class="string">"ORACLE_CALL_BROKE"
+<a href=#448 id=448 data-nosnippet>448</a>            </span>),
+<a href=#449 id=449 data-nosnippet>449</a>            <span class="string">"Execution did not fail with expected message"
+<a href=#450 id=450 data-nosnippet>450</a>        </span>);
+<a href=#451 id=451 data-nosnippet>451</a>        <span class="macro">assert!</span>(
+<a href=#452 id=452 data-nosnippet>452</a>            executor.failing_partial_witness.is_some(),
+<a href=#453 id=453 data-nosnippet>453</a>            <span class="string">"Failing witness map should be set but wasn't"
+<a href=#454 id=454 data-nosnippet>454</a>        </span>);
+<a href=#455 id=455 data-nosnippet>455</a>    }
+<a href=#456 id=456 data-nosnippet>456</a>}</code></pre></div></section></main></body></html>
