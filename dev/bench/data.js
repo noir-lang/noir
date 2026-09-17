@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789660047956,
+  "lastUpdate": 1789660168293,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -16334,80 +16334,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "2e3caacfd2031529fb85ae0fee3281cc47ae58e1",
-          "message": "feat(ssa): predicate trivial conditionals instead of leaving them to flattening (#13643)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
-          "timestamp": "2026-09-10T15:13:20Z",
-          "tree_id": "87db7021fdb196d11dfeb40fd2694a3e1da072d5",
-          "url": "https://github.com/noir-lang/noir/commit/2e3caacfd2031529fb85ae0fee3281cc47ae58e1"
-        },
-        "date": 1789055091019,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_fnd_noir-protocol-circuits_crates_blob",
-            "value": 3,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_fnd_noir-protocol-circuits_crates_private-kernel-lib",
-            "value": 3,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_fnd_noir-protocol-circuits_crates_types",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_noir-lang_noir-bignum_",
-            "value": 180,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_noir-lang_noir_bigcurve_",
-            "value": 362,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_noir-lang_noir_json_parser_",
-            "value": 13,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_noir-lang_sha256_",
-            "value": 35,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_noir-lang_sha512_",
-            "value": 14,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_zkpassport_noir-ecdsa_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_zkpassport_noir_rsa_",
-            "value": 3,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "7b5ea19d53a00c562b2a6e2cff243e7c01fce7fd",
           "message": "fix(frontend): undo the bindings an impl search makes while monomorphizing a trait method (#13638)",
           "timestamp": "2026-09-10T15:28:47Z",
@@ -19937,6 +19863,80 @@ window.BENCHMARK_DATA = {
           {
             "name": "test_report_zkpassport_noir_rsa_",
             "value": 1,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "dea5841562a427d7b25c688b36a11b7dfb8702ac",
+          "message": "fix(ssa): make the interpreter's `array_len` count elements, not flattened slots (#13686)",
+          "timestamp": "2026-09-17T15:14:34Z",
+          "tree_id": "649e02d336de7de16b5ddce40e915c238994869d",
+          "url": "https://github.com/noir-lang/noir/commit/dea5841562a427d7b25c688b36a11b7dfb8702ac"
+        },
+        "date": 1789660082695,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_fnd_noir-protocol-circuits_crates_blob",
+            "value": 127,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_fnd_noir-protocol-circuits_crates_private-kernel-lib",
+            "value": 401,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_fnd_noir-protocol-circuits_crates_types",
+            "value": 28,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_noir-lang_noir-bignum_",
+            "value": 60,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_noir-lang_noir_bigcurve_",
+            "value": 306,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_noir-lang_noir_json_parser_",
+            "value": 6,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_noir-lang_sha256_",
+            "value": 24,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_noir-lang_sha512_",
+            "value": 9,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_zkpassport_noir-ecdsa_",
+            "value": 4,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_zkpassport_noir_rsa_",
+            "value": 2,
             "unit": "s"
           }
         ]
