@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789659147590,
+  "lastUpdate": 1789659393350,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19446,48 +19446,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "689753e8cf87caa7c96bbc0bf3c6fcdc35955460",
-          "message": "fix(ssa): check the radix range before computing `radix - 1` in `constant_to_radix` (#13682)",
-          "timestamp": "2026-09-14T10:21:28Z",
-          "tree_id": "49fec64105dcdbb7980ed0ea54ebf13443f1fee4",
-          "url": "https://github.com/noir-lang/noir/commit/689753e8cf87caa7c96bbc0bf3c6fcdc35955460"
-        },
-        "date": 1789382633897,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 127961,
-            "range": "± 1444",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 113935,
-            "range": "± 313",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3046890,
-            "range": "± 1833",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "8c78b458a0a5cd31ebfcce60e5f4a5ff6c4e5085",
           "message": "fix(acir_field): make `recovers_original_hex_string` test the hex round trip (#13681)",
           "timestamp": "2026-09-14T10:28:34Z",
@@ -21529,6 +21487,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2644988,
             "range": "± 4969",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "dea5841562a427d7b25c688b36a11b7dfb8702ac",
+          "message": "fix(ssa): make the interpreter's `array_len` count elements, not flattened slots (#13686)",
+          "timestamp": "2026-09-17T15:14:34Z",
+          "tree_id": "649e02d336de7de16b5ddce40e915c238994869d",
+          "url": "https://github.com/noir-lang/noir/commit/dea5841562a427d7b25c688b36a11b7dfb8702ac"
+        },
+        "date": 1789659342880,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 68453,
+            "range": "± 1503",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 60103,
+            "range": "± 767",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 1676841,
+            "range": "± 19539",
             "unit": "ns/iter"
           }
         ]
