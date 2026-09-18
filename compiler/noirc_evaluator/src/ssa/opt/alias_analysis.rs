@@ -1399,6 +1399,21 @@ mod tests {
     }
 
     /// Collect the result `ValueIds` of every `ArrayGet` instruction.
+    /// Collect the parameters of every non-entry block, in block order.
+    fn collect_block_params(ssa: &Ssa) -> Vec<GlobalValueId> {
+        let func = ssa.main();
+        let mut out = Vec::new();
+        for block_id in func.reachable_blocks() {
+            if block_id == func.entry_block() {
+                continue;
+            }
+            for param in func.dfg[block_id].parameters() {
+                out.push(GlobalValueId::new(func, *param));
+            }
+        }
+        out
+    }
+
     /// Collect the result `ValueIds` of every `IfElse` instruction.
     fn collect_if_elses(ssa: &Ssa) -> Vec<GlobalValueId> {
         let func = ssa.main();
@@ -1481,6 +1496,8 @@ mod tests {
         CallResult(usize),
         /// Index into the `if_else` instructions of the function.
         IfElse(usize),
+        /// Index into the parameters of the non-entry blocks, in block order.
+        BlockParam(usize),
     }
 
     /// A reference-typed value in the generated program, plus the cells it may denote.
@@ -1497,6 +1514,10 @@ mod tests {
         origin: Origin,
         /// The `vN` this was emitted as in the source text.
         emitted: usize,
+        /// Index of the body line that defines this value. The loop shape splits the body
+        /// across two blocks, and a block-parameter argument has to be dominated by the edge
+        /// it travels on, so the split point decides what may be passed where.
+        line: usize,
     }
 
     struct GenArray {
@@ -1625,6 +1646,7 @@ mod tests {
                 denotes: vec![cell],
                 origin: Origin::Allocate(n_alloc),
                 emitted,
+                line: body.lines().count(),
             });
             emitted += 1;
             n_alloc += 1;
@@ -1738,6 +1760,7 @@ mod tests {
                         denotes,
                         origin: Origin::Load(n_load),
                         emitted,
+                        line: body.lines().count(),
                     });
                     emitted += 1;
                     n_load += 1;
@@ -1908,6 +1931,7 @@ mod tests {
                                     denotes: values[back].denotes.clone(),
                                     origin: Origin::CallResult(n_call_result + 2),
                                     emitted: emitted + 2,
+                                    line: body.lines().count(),
                                 });
                                 emitted += 3;
                                 n_call_result += 3;
@@ -1933,6 +1957,7 @@ mod tests {
                                     denotes: values[removed].denotes.clone(),
                                     origin: Origin::CallResult(n_call_result + 2),
                                     emitted: emitted + 2,
+                                    line: body.lines().count(),
                                 });
                                 emitted += 3;
                                 n_call_result += 3;
@@ -1994,6 +2019,7 @@ mod tests {
                             denotes: values[a].denotes.clone(),
                             origin: Origin::CallResult(n_call_result),
                             emitted,
+                            line: body.lines().count(),
                         });
                         emitted += 1;
                         n_call_result += 1;
@@ -2033,6 +2059,7 @@ mod tests {
                         denotes,
                         origin: Origin::IfElse(n_if_else),
                         emitted,
+                        line: body.lines().count(),
                     });
                     emitted += 1;
                     n_if_else += 1;
@@ -2078,6 +2105,7 @@ mod tests {
                         denotes: values[member].denotes.clone(),
                         origin: Origin::ArrayGet(n_get),
                         emitted,
+                        line: body.lines().count(),
                     });
                     emitted += 1;
                     n_get += 1;
@@ -2111,9 +2139,54 @@ mod tests {
             // A self-looping block. Every `allocate` is then inside a loop, which is what
             // makes its allocation site untrusted — the analysis has a whole mechanism for
             // that which straight-line code never reaches.
-            _ => format!(
-                "brillig(inline) fn main f0 {{\n  b0(v0: u1, v1: u1):\n    jmp b1()\n  b1():\n{body}    jmpif v0 then: b1(), else: b2()\n  b2():\n    return\n}}\n{callee_src}"
-            ),
+            _ => {
+                // Split the body so `b0` defines something the back edge can carry. A
+                // reference travelling through `b1`'s parameter is how a loop-carried
+                // reference reaches `track_allocations_from_predecessors`, and it is the only
+                // way one `allocate` can be observed as more than one cell.
+                let lines: Vec<&str> = body.lines().collect();
+                let join = |ls: &[&str]| ls.iter().map(|l| format!("{l}\n")).collect::<String>();
+                let split = if lines.is_empty() { 0 } else { u.choose_index(lines.len())? };
+                let initial = (0..values.len()).rfind(|i| values[*i].line < split);
+                match initial {
+                    Some(init) => {
+                        let (base, level) = (values[init].base, values[init].level);
+                        let carried: Vec<usize> = (0..values.len())
+                            .filter(|i| values[*i].base == base && values[*i].level == level)
+                            .collect();
+                        let back = *u.choose(&carried)?;
+                        let (first, second) = lines.split_at(split);
+                        let param = emitted;
+                        // The parameter is whichever value the edge taken carried.
+                        let mut denotes = values[init].denotes.clone();
+                        for c in &values[back].denotes {
+                            if !denotes.contains(c) {
+                                denotes.push(*c);
+                            }
+                        }
+                        values.push(GenValue {
+                            base,
+                            level,
+                            denotes,
+                            origin: Origin::BlockParam(0),
+                            emitted: param,
+                            line: split,
+                        });
+                        format!(
+                            "brillig(inline) fn main f0 {{\n  b0(v0: u1, v1: u1):\n{}    jmp b1(v{})\n  b1(v{param}: {}):\n{}    jmpif v0 then: b1(v{}), else: b2()\n  b2():\n    return\n}}\n{callee_src}",
+                            join(first),
+                            values[init].emitted,
+                            ref_type(base, level),
+                            join(second),
+                            values[back].emitted
+                        )
+                    }
+                    // Nothing defined before the split: fall back to a parameterless loop.
+                    None => format!(
+                        "brillig(inline) fn main f0 {{\n  b0(v0: u1, v1: u1):\n    jmp b1()\n  b1():\n{body}    jmpif v0 then: b1(), else: b2()\n  b2():\n    return\n}}\n{callee_src}"
+                    ),
+                }
+            }
         };
         Ok(RefChainProgram { src, values, arrays, holds })
     }
@@ -2164,6 +2237,7 @@ mod tests {
             let gets = collect_array_gets(&ssa);
             let call_results = collect_call_results_in_main(&ssa);
             let if_elses = collect_if_elses(&ssa);
+            let block_params = collect_block_params(&ssa);
             let mut analysis = analyze_main(&ssa);
 
             let id_of = |v: &GenValue| match v.origin {
@@ -2172,6 +2246,7 @@ mod tests {
                 Origin::ArrayGet(i) => gets.get(i).copied(),
                 Origin::CallResult(i) => call_results.get(i).copied(),
                 Origin::IfElse(i) => if_elses.get(i).copied(),
+                Origin::BlockParam(i) => block_params.get(i).copied(),
             };
 
             for a in &program.values {
@@ -2228,6 +2303,7 @@ mod tests {
             let sets = collect_array_sets(&ssa);
             let call_results = collect_call_results_in_main(&ssa);
             let if_elses = collect_if_elses(&ssa);
+            let block_params = collect_block_params(&ssa);
             let mut analysis = analyze_main(&ssa);
 
             let id_of = |v: &GenValue| match v.origin {
@@ -2236,6 +2312,7 @@ mod tests {
                 Origin::ArrayGet(i) => gets.get(i).copied(),
                 Origin::CallResult(i) => call_results.get(i).copied(),
                 Origin::IfElse(i) => if_elses.get(i).copied(),
+                Origin::BlockParam(i) => block_params.get(i).copied(),
             };
 
             // Every reference value against every other.
