@@ -1,107 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789766089414,
+  "lastUpdate": 1789766326700,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "9878753d961715079464d3688b0ddbe62abad8c5",
-          "message": "chore(ci): re-enable the aztec-packages circuit reports and noir-contracts compile job (#13694)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
-          "timestamp": "2026-09-14T12:37:06Z",
-          "tree_id": "92103cb56b12e99e2299081ee4fdae9f0e2be465",
-          "url": "https://github.com/noir-lang/noir/commit/9878753d961715079464d3688b0ddbe62abad8c5"
-        },
-        "date": 1789391758009,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 315.72,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 551.69,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 527.89,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-no-txs",
-            "value": 389.73,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 392.85,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 393.67,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 368.59,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 4960,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 4960,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 371.14,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 879.43,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 813.27,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 367.95,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 106.81,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 151.88,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -4949,6 +4850,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512_100_bytes",
             "value": 151.85,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ceeacf16d76f5c4294418250b95d7ca7284c08af",
+          "message": "chore(docs): add redirects for moved documentation URLs (#13771)",
+          "timestamp": "2026-09-18T20:38:04Z",
+          "tree_id": "ac538887d0db6d190c8f99f4799b792aa9efcb93",
+          "url": "https://github.com/noir-lang/noir/commit/ceeacf16d76f5c4294418250b95d7ca7284c08af"
+        },
+        "date": 1789766256601,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 311.88,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 559.83,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 536.38,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-no-txs",
+            "value": 389.73,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 392.85,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 393.67,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 368.79,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 4960,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 4960,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 371.69,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 881.13,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 814.02,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 367.95,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 106.81,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 151.87,
             "unit": "MB"
           }
         ]
