@@ -536,8 +536,16 @@ impl Context {
             }
         }
 
-        if !is_main && !is_global && u.ratio(1, 5)? {
-            typ = types::ref_with_mut(typ, bool::arbitrary(u)?);
+        // Wrap the type in references, which can nest up to `max_ref_depth`. Nesting is
+        // what makes `&mut &mut T` reachable, and with it the shape where a reference and
+        // the cell holding it both appear in one aggregate.
+        if !is_main && !is_global {
+            for _ in 0..self.config.max_ref_depth {
+                if !u.ratio(1, 5)? {
+                    break;
+                }
+                typ = types::ref_with_mut(typ, bool::arbitrary(u)?);
+            }
         }
 
         self.types.insert(typ.clone());
