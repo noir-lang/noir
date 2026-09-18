@@ -1399,6 +1399,22 @@ mod tests {
     }
 
     /// Collect the result `ValueIds` of every `ArrayGet` instruction.
+    /// Collect the result `ValueIds` of every `IfElse` instruction.
+    fn collect_if_elses(ssa: &Ssa) -> Vec<GlobalValueId> {
+        let func = ssa.main();
+        let mut out = Vec::new();
+        for block_id in func.reachable_blocks() {
+            for inst_id in func.dfg[block_id].instructions() {
+                if matches!(&func.dfg[*inst_id], Instruction::IfElse { .. }) {
+                    let id =
+                        GlobalValueId::new(func, func.dfg.instruction_result::<1>(*inst_id)[0]);
+                    out.push(id);
+                }
+            }
+        }
+        out
+    }
+
     /// Collect the result `ValueIds` of every `ArraySet` instruction.
     fn collect_array_sets(ssa: &Ssa) -> Vec<GlobalValueId> {
         let func = ssa.main();
@@ -1463,6 +1479,8 @@ mod tests {
         ArrayGet(usize),
         /// Index into the flat list of call results in the function.
         CallResult(usize),
+        /// Index into the `if_else` instructions of the function.
+        IfElse(usize),
     }
 
     /// A reference-typed value in the generated program, plus the cells it may denote.
@@ -1533,8 +1551,11 @@ mod tests {
         let mut holds: Vec<Vec<usize>> = Vec::new();
         let (mut n_alloc, mut n_load, mut n_get) = (0, 0, 0);
         let (mut n_make, mut n_set) = (0, 0);
+        let mut n_if_else = 0;
         let mut n_call_result = 0;
-        let mut emitted = 0;
+        // `v0` and `v1` are `u1` conditions for `if_else` and the loop back-edge. They are
+        // not references, so they are legal on an entry point.
+        let mut emitted = 2;
 
         // A second function, so calls to a *resolved* callee are exercised:
         // `unify_call_arguments_and_return` merges each argument with its parameter and each
@@ -1578,7 +1599,7 @@ mod tests {
         }
 
         for _ in 0..u.int_in_range(1..=8)? {
-            match u.choose_index(7)? {
+            match u.choose_index(9)? {
                 // `store`: put a reference inside a cell one level above it.
                 0 => {
                     let mut pairs = Vec::new();
@@ -1946,6 +1967,65 @@ mod tests {
                         n_call_result += 1;
                     }
                 }
+                // `if_else`: merges the two branch values into the result.
+                6 => {
+                    let mut pairs = Vec::new();
+                    for a in 0..values.len() {
+                        for b in 0..values.len() {
+                            if a != b
+                                && values[a].base == values[b].base
+                                && values[a].level == values[b].level
+                            {
+                                pairs.push((a, b));
+                            }
+                        }
+                    }
+                    if pairs.is_empty() {
+                        continue;
+                    }
+                    let (a, b) = *u.choose(&pairs)?;
+                    body.push_str(&format!(
+                        "    v{emitted} = if v0 then v{} else (if v1) v{}\n",
+                        values[a].emitted, values[b].emitted
+                    ));
+                    // Either branch can be taken, so the result may be either value.
+                    let mut denotes = values[a].denotes.clone();
+                    for c in &values[b].denotes {
+                        if !denotes.contains(c) {
+                            denotes.push(*c);
+                        }
+                    }
+                    values.push(GenValue {
+                        base: values[a].base,
+                        level: values[a].level,
+                        denotes,
+                        origin: Origin::IfElse(n_if_else),
+                        emitted,
+                    });
+                    emitted += 1;
+                    n_if_else += 1;
+                }
+                // An opaque call, which the analysis routes through `unresolved_call`: it
+                // buckets same-typed reference arguments and merges within each bucket.
+                //
+                // The model records nothing here — an opaque callee could rearrange memory in
+                // ways the test cannot know. That is sound for a one-directional assertion:
+                // the analysis may only ever report *more* aliasing than the model does, and
+                // an opaque call cannot un-do a store that already happened.
+                7 => {
+                    let refs: Vec<usize> = (0..values.len()).collect();
+                    if refs.len() < 2 {
+                        continue;
+                    }
+                    let a = *u.choose(&refs)?;
+                    let b = *u.choose(&refs)?;
+                    body.push_str(&format!(
+                        // The parser accepts a foreign callee only when it is `print` or the
+                        // name contains "oracle" (`parser/into_ssa.rs:688-694`).
+                        "    call oracle_opaque(v{}, v{})\n",
+                        values[a].emitted, values[b].emitted
+                    ));
+                }
                 // `array_get`: a fresh name for one element of an aggregate.
                 _ => {
                     if arrays.is_empty() {
@@ -1981,7 +2061,7 @@ mod tests {
         let src = match u.choose_index(3)? {
             // Straight line: one block.
             0 => format!(
-                "brillig(inline) fn main f0 {{\n  b0():\n{body}    return\n}}\n{callee_src}"
+                "brillig(inline) fn main f0 {{\n  b0(v0: u1, v1: u1):\n{body}    return\n}}\n{callee_src}"
             ),
             // A chain of two blocks. `b0` dominates `b1`, so values stay in scope.
             1 => {
@@ -1990,7 +2070,7 @@ mod tests {
                 let (first, second) = lines.split_at(split);
                 let join = |ls: &[&str]| ls.iter().map(|l| format!("{l}\n")).collect::<String>();
                 format!(
-                    "brillig(inline) fn main f0 {{\n  b0():\n{}    jmp b1()\n  b1():\n{}    return\n}}\n{}",
+                    "brillig(inline) fn main f0 {{\n  b0(v0: u1, v1: u1):\n{}    jmp b1()\n  b1():\n{}    return\n}}\n{}",
                     join(first),
                     join(second),
                     callee_src
@@ -2000,7 +2080,7 @@ mod tests {
             // makes its allocation site untrusted — the analysis has a whole mechanism for
             // that which straight-line code never reaches.
             _ => format!(
-                "brillig(inline) fn main f0 {{\n  b0(v{emitted}: u1):\n    jmp b1()\n  b1():\n{body}    jmpif v{emitted} then: b1(), else: b2()\n  b2():\n    return\n}}\n{callee_src}"
+                "brillig(inline) fn main f0 {{\n  b0(v0: u1, v1: u1):\n    jmp b1()\n  b1():\n{body}    jmpif v0 then: b1(), else: b2()\n  b2():\n    return\n}}\n{callee_src}"
             ),
         };
         Ok(RefChainProgram { src, values, arrays, holds })
@@ -2048,6 +2128,7 @@ mod tests {
             let loads = collect_loads(&ssa);
             let gets = collect_array_gets(&ssa);
             let call_results = collect_call_results_in_main(&ssa);
+            let if_elses = collect_if_elses(&ssa);
             let mut analysis = analyze_main(&ssa);
 
             let id_of = |v: &GenValue| match v.origin {
@@ -2055,6 +2136,7 @@ mod tests {
                 Origin::Load(i) => loads.get(i).copied(),
                 Origin::ArrayGet(i) => gets.get(i).copied(),
                 Origin::CallResult(i) => call_results.get(i).copied(),
+                Origin::IfElse(i) => if_elses.get(i).copied(),
             };
 
             for a in &program.values {
@@ -2107,6 +2189,7 @@ mod tests {
             let made = collect_make_arrays(&ssa);
             let sets = collect_array_sets(&ssa);
             let call_results = collect_call_results_in_main(&ssa);
+            let if_elses = collect_if_elses(&ssa);
             let mut analysis = analyze_main(&ssa);
 
             let id_of = |v: &GenValue| match v.origin {
@@ -2114,6 +2197,7 @@ mod tests {
                 Origin::Load(i) => loads.get(i).copied(),
                 Origin::ArrayGet(i) => gets.get(i).copied(),
                 Origin::CallResult(i) => call_results.get(i).copied(),
+                Origin::IfElse(i) => if_elses.get(i).copied(),
             };
 
             // Every reference value against every other.
