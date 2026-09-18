@@ -1,0 +1,6 @@
+# (1, 1) and (2, 3) are not on the embedded curve (y^2 = x^3 - 17).
+x1 = "1"
+y1 = "1"
+x2 = "2"
+y2 = "3"
+active = false
