@@ -1528,6 +1528,38 @@ mod tests {
         holds: Vec<Vec<usize>>,
     }
 
+    /// Counts programs generated against programs the parser refused.
+    ///
+    /// A refused program is skipped silently, which makes a broken generator look exactly like
+    /// a clean run — the property passes while testing nothing. Two real instances of that have
+    /// already happened here (a block shape that forgot to declare its `u1` conditions, and a
+    /// foreign callee whose name the parser does not accept), each quietly discarding around
+    /// 40% of programs. This keeps that failure mode loud.
+    #[derive(Default)]
+    struct GeneratorCounts {
+        generated: std::cell::Cell<usize>,
+        rejected: std::cell::Cell<usize>,
+    }
+
+    impl GeneratorCounts {
+        fn generated(&self) {
+            self.generated.set(self.generated.get() + 1);
+        }
+
+        fn rejected(&self) {
+            self.rejected.set(self.rejected.get() + 1);
+        }
+
+        fn assert_mostly_accepted(&self) {
+            let (generated, rejected) = (self.generated.get(), self.rejected.get());
+            assert!(
+                rejected * 100 <= generated,
+                "the parser refused {rejected} of {generated} generated programs; the generator \
+                 is emitting SSA it should not, and those programs test nothing"
+            );
+        }
+    }
+
     /// The SSA type for a given indirection level.
     fn ref_type(base: &str, level: usize) -> String {
         let mut t = String::from(base);
@@ -2116,9 +2148,12 @@ mod tests {
     /// overlapping really does overlap somewhere.
     #[test]
     fn may_alias_reports_every_pair_that_can_be_one_cell() {
+        let counts = GeneratorCounts::default();
         arbtest::arbtest(|u| {
             let program = gen_ref_chain_program(u)?;
+            counts.generated();
             let Ok(ssa) = Ssa::from_str(&program.src) else {
+                counts.rejected();
                 return Ok(());
             };
             for function in ssa.functions.values() {
@@ -2162,6 +2197,7 @@ mod tests {
                 .and_then(|v| v.parse().ok())
                 .unwrap_or(2_000),
         );
+        counts.assert_mostly_accepted();
     }
 
     /// `may_reference` is a *may* analysis: over-reporting is legal, under-reporting is a
@@ -2172,10 +2208,12 @@ mod tests {
     /// analysis, so this cannot be fooled by the same mistake twice.
     #[test]
     fn may_reference_reports_every_chain_the_program_builds() {
+        let counts = GeneratorCounts::default();
         arbtest::arbtest(|u| {
             let program = gen_ref_chain_program(u)?;
+            counts.generated();
             let Ok(ssa) = Ssa::from_str(&program.src) else {
-                // A shape the parser rejects is not interesting here.
+                counts.rejected();
                 return Ok(());
             };
             // Only hold the analysis to shapes the SSA validator accepts, so a failure is
@@ -2259,6 +2297,7 @@ mod tests {
                 .and_then(|v| v.parse().ok())
                 .unwrap_or(2_000),
         );
+        counts.assert_mostly_accepted();
     }
 
     // ============================================================
