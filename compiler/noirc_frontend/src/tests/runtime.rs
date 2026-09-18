@@ -882,3 +882,81 @@ fn vector_in_deferred_struct_returned_in_a_format_string() {
     "#;
     check_errors(src);
 }
+
+/// A method call manages `in_unconstrained_args` exactly as a plain call does, so passing a named
+/// unconstrained function to an unconstrained callee expecting a constrained `fn(..)` works
+/// whichever way the call is spelled.
+#[test]
+fn can_pass_unconstrained_fn_to_unconstrained_method_expecting_constrained_fn() {
+    let src = r#"
+    fn main() {
+        let s = S {};
+        // Safety: testing
+        unsafe { s.expect_regular(foo) };
+    }
+
+    struct S {}
+
+    impl S {
+        unconstrained fn expect_regular(self, _func: fn() -> ()) {
+            let _ = self;
+        }
+    }
+
+    unconstrained fn foo() {}
+    "#;
+    assert_no_errors(src);
+}
+
+/// The lambda counterpart: an unconstrained method infers its lambda argument as unconstrained, so
+/// a `&mut` reaching that lambda never crosses a runtime boundary. This is the shape
+/// `test_programs/compile_success_no_bug/regression_10631` covers for plain calls.
+#[test]
+fn can_pass_lambda_taking_mutable_reference_to_unconstrained_method() {
+    let src = r#"
+    fn main() {
+        let s = S {};
+        // Safety: testing
+        unsafe { s.expect_regular(|v| foo(v)) };
+    }
+
+    struct S {}
+
+    impl S {
+        unconstrained fn expect_regular(self, _func: fn(&mut u32)) {
+            let _ = self;
+        }
+    }
+
+    unconstrained fn foo(_x: &mut u32) {}
+    "#;
+    assert_no_errors(src);
+}
+
+/// Conversely a *constrained* method resets the flag, so a lambda in its argument list is
+/// elaborated constrained even when the method call is itself nested inside an unconstrained
+/// call's arguments. Without that reset the lambda is compiled to Brillig and the constrained
+/// method dispatches into it, which `check_for_missing_brillig_constraints` reports as a `bug:`.
+#[test]
+fn lambda_passed_to_constrained_method_inside_unconstrained_call_args_stays_constrained() {
+    let src = r#"
+    fn main(x: Field) {
+        let w = Wrapper { value: x };
+        // Safety: testing
+        unsafe { expect_field(w.apply(|v: Field| v + 1)) };
+    }
+
+    struct Wrapper {
+        value: Field,
+    }
+
+    impl Wrapper {
+        fn apply<Env>(self, f: fn[Env](Field) -> Field) -> Field {
+            f(self.value)
+        }
+    }
+
+    unconstrained fn expect_field(_v: Field) {}
+    "#;
+    assert_no_errors(src);
+}
