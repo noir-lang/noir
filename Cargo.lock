@@ -4998,20 +4998,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sancov"
-version = "0.1.0"
-source = "git+https://github.com/noir-lang/sancov.git#44c006ddc2f2cb35825d334353acd6d03194e041"
-dependencies = [
- "rustc-hash",
- "sancov-sys",
-]
-
-[[package]]
-name = "sancov-sys"
-version = "0.1.0"
-source = "git+https://github.com/noir-lang/sancov.git#44c006ddc2f2cb35825d334353acd6d03194e041"
-
-[[package]]
 name = "schannel"
 version = "0.1.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5485,7 +5471,6 @@ dependencies = [
  "acvm",
  "base64 0.23.1",
  "env_logger",
- "flate2",
  "hex",
  "itertools 0.15.0",
  "k256",
@@ -5500,7 +5485,6 @@ dependencies = [
  "rand 0.10.2",
  "redis",
  "rmp-serde",
- "sancov",
  "serde",
  "serde_json",
  "sha1 0.11.0",
