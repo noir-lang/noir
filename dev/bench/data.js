@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789663663126,
+  "lastUpdate": 1789729977459,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20696,48 +20696,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "3cb916c3fdba200bc024fe471fe5c048a508db20",
-          "message": "fix(acvm): stop the blackbox injectivity proptests generating all-zero inputs (#13680)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-09-14T10:42:47Z",
-          "tree_id": "6c5b11f6230ff6a08f72d72780e425b2bc3e36a4",
-          "url": "https://github.com/noir-lang/noir/commit/3cb916c3fdba200bc024fe471fe5c048a508db20"
-        },
-        "date": 1789383842594,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 127349,
-            "range": "± 365",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 113137,
-            "range": "± 2415",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3040504,
-            "range": "± 15597",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "f2950efaab3a60809d082f749a78b9d84182d547",
           "message": "fix(ast_fuzzer): draw `u128` inputs from the whole `u128` range (#13687)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
           "timestamp": "2026-09-14T10:41:41Z",
@@ -22779,6 +22737,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2648736,
             "range": "± 4922",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "459dbf6706d4f461ce8d9c5709babf89f6fa07d4",
+          "message": "chore(deps): bump benchmark-action/github-action-benchmark from 1.22.1 to 1.22.2 in the actions-minor-and-patch group (#13763)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-09-18T10:50:00Z",
+          "tree_id": "aab0f8e27a2b0ce741f0c8a68989f6b2f1f0f70c",
+          "url": "https://github.com/noir-lang/noir/commit/459dbf6706d4f461ce8d9c5709babf89f6fa07d4"
+        },
+        "date": 1789729891157,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 127756,
+            "range": "± 471",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 113647,
+            "range": "± 6915",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3042166,
+            "range": "± 1836",
             "unit": "ns/iter"
           }
         ]
