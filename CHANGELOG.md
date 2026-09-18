@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.0.0-rc.3](https://github.com/noir-lang/noir/compare/v1.0.0-rc.2...v1.0.0-rc.3) (2026-09-18)
+
+
+### Features
+
+* Report the logical out-of-bounds index from the memory op rather than a second bounds check ([#13770](https://github.com/noir-lang/noir/issues/13770)) ([873f745](https://github.com/noir-lang/noir/commit/873f7459ba50adb9927504f2ce4206d84b66db75))
+
+
+### Bug Fixes
+
+* **artifact_cli:** Report an empty `--witness-file` as an input error ([#13679](https://github.com/noir-lang/noir/issues/13679)) ([ff6ae96](https://github.com/noir-lang/noir/commit/ff6ae96b17601ccb59979ae6b4a2bad69926c055))
+* **frontend:** Don't cancel the repeated term of `N - (M + N)` in `new_infix_expr` ([#13768](https://github.com/noir-lang/noir/issues/13768)) ([52b2090](https://github.com/noir-lang/noir/commit/52b209057616ccb93843d368b1c012e7745db840))
+* **frontend:** Hash `Type::CheckedCast` as the type it compares equal to ([#13675](https://github.com/noir-lang/noir/issues/13675)) ([06e5463](https://github.com/noir-lang/noir/commit/06e54630ed95f191b64347de1a12ff9e1572900d))
+* **frontend:** Keep the derivation of a solved numeric generic for checking ([#13662](https://github.com/noir-lang/noir/issues/13662)) ([133f452](https://github.com/noir-lang/noir/commit/133f45213c7a58cd6cc1d9f8f612aa06aaafb2b6))
+* **frontend:** Scope the `UnsafeFn` coercion exemption to call arguments, and manage `in_unconstrained_args` across method calls ([#13705](https://github.com/noir-lang/noir/issues/13705)) ([5f00343](https://github.com/noir-lang/noir/commit/5f00343f2c3944da8430fb9a3e1b1ffc37820871))
+* **nargo_fmt:** Format `&&` as two reference layers instead of panicking ([#13762](https://github.com/noir-lang/noir/issues/13762)) ([92ec619](https://github.com/noir-lang/noir/commit/92ec619cd769974d542a39b86735aea3f132fcc9))
+* **nargo:** Keep caller frames when a nested ACIR call returns ([#13691](https://github.com/noir-lang/noir/issues/13691)) ([c65318e](https://github.com/noir-lang/noir/commit/c65318eef48ff039a2e2341a9233f13243d2a0f7))
+* **ssa:** `may_reference` must walk `points_to` after ruling out cell identity ([#13759](https://github.com/noir-lang/noir/issues/13759)) ([1082e3d](https://github.com/noir-lang/noir/commit/1082e3dab920f029a623a05656c1d083c3925d95))
+* **ssa:** Ask one question about whether a call may mutate its array arguments ([#13698](https://github.com/noir-lang/noir/issues/13698)) ([d88f3d7](https://github.com/noir-lang/noir/commit/d88f3d77901c803c065fd6ec7ba184cd9d2a3848))
+* **ssa:** Make the interpreter's `array_len` count elements, not flattened slots ([#13686](https://github.com/noir-lang/noir/issues/13686)) ([dea5841](https://github.com/noir-lang/noir/commit/dea5841562a427d7b25c688b36a11b7dfb8702ac))
+* **ssa:** Report runtime-only intrinsics in the wrong runtime instead of panicking in codegen ([#13660](https://github.com/noir-lang/noir/issues/13660)) ([b3dc840](https://github.com/noir-lang/noir/commit/b3dc84035651dd4fbabf145640886c251d375884))
+
 ## [1.0.0-rc.2](https://github.com/noir-lang/noir/compare/v1.0.0-rc.1...v1.0.0-rc.2) (2026-09-16)
 
 
