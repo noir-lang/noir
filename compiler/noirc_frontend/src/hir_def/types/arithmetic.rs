@@ -536,6 +536,110 @@ mod tests {
         assert_canonicalization_preserved_value(&expr, &[(&m, 5), (&n, 3)]);
     }
 
+    /// Build `lhs op rhs` carrying the `inversion` provenance flag: the flag records that the
+    /// operator was manufactured by unification rearranging an equation (`b = a / y` solved as
+    /// `y = b / a`), so the division it holds never truncated anything.
+    fn inverted(lhs: &Type, op: BinaryTypeOperator, rhs: &Type) -> Type {
+        Type::inverted_infix_expr(Box::new(lhs.clone()), op, Box::new(rhs.clone()))
+    }
+
+    /// Build `lhs op rhs` directly, bypassing the cancellation `Type::infix_expr` applies.
+    fn raw(lhs: &Type, op: BinaryTypeOperator, rhs: &Type) -> Type {
+        Type::InfixExpr(Box::new(lhs.clone()), op, Box::new(rhs.clone()), false)
+    }
+
+    #[test]
+    fn new_infix_expr_cancels_an_inverted_rhs_for_the_two_sound_pairs() {
+        use BinaryTypeOperator::{Addition, Division, Multiplication, Subtraction};
+
+        let m = u32_generic(0, "M");
+        let n = u32_generic(1, "N");
+
+        // `N + (M - N)` is `M`, and `N * (M / N)` is `M` too because the inverted division
+        // never truncated. These are the cancellations the constructor exists for.
+        let add = Type::infix_expr(
+            Box::new(n.clone()),
+            Addition,
+            Box::new(inverted(&m, Subtraction, &n)),
+        );
+        assert_eq!(add, m);
+
+        let mul = Type::infix_expr(
+            Box::new(n.clone()),
+            Multiplication,
+            Box::new(inverted(&m, Division, &n)),
+        );
+        assert_eq!(mul, m);
+    }
+
+    #[test]
+    fn new_infix_expr_does_not_cancel_an_inverted_rhs_for_the_mirrored_pairs() {
+        use BinaryTypeOperator::{Addition, Division, Multiplication, Subtraction};
+
+        let m = u32_generic(0, "M");
+        let n = u32_generic(1, "N");
+
+        // `N - (M + N)` is `-M` and `N / (M * N)` is `1 / M`, so neither cancels to `M` — the
+        // `inversion` provenance licenses recovering an exact value in the `*`-undoes-`/`
+        // direction only, and says nothing about these mirrored ones.
+        let sub = Type::infix_expr(
+            Box::new(n.clone()),
+            Subtraction,
+            Box::new(inverted(&m, Addition, &n)),
+        );
+        assert_ne!(sub, m, "the two `N` terms must not cancel");
+
+        let div = Type::infix_expr(
+            Box::new(n.clone()),
+            Division,
+            Box::new(inverted(&m, Multiplication, &n)),
+        );
+        assert_ne!(div, m, "the two `N` terms must not cancel");
+
+        let uncancelled_sub = raw(&n, Subtraction, &raw(&m, Addition, &n));
+        let uncancelled_div = raw(&n, Division, &raw(&m, Multiplication, &n));
+
+        let Type::NamedGeneric(m_generic) = &m else { unreachable!() };
+        let Type::NamedGeneric(n_generic) = &n else { unreachable!() };
+        m_generic.type_var.bind(u32t(5));
+        n_generic.type_var.bind(u32t(3));
+
+        // At `M = 5, N = 3`: `3 - (5 + 3)` has no `u32` value and `3 / (5 * 3)` is `0`, where
+        // cancelling to `M` would give `5` for both.
+        let location = Location::dummy();
+        assert_eq!(
+            sub.evaluate_to_u32(location).ok(),
+            uncancelled_sub.evaluate_to_u32(location).ok(),
+            "{sub} does not have the same value as {uncancelled_sub}"
+        );
+        assert_eq!(
+            div.evaluate_to_u32(location).ok(),
+            uncancelled_div.evaluate_to_u32(location).ok(),
+            "{div} does not have the same value as {uncancelled_div}"
+        );
+    }
+
+    #[test]
+    fn new_infix_expr_cancels_an_inverted_lhs_for_every_pair() {
+        use BinaryTypeOperator::{Addition, Division, Multiplication, Subtraction};
+
+        let m = u32_generic(0, "M");
+        let n = u32_generic(1, "N");
+
+        // With the repeated term on the left there is no mirrored direction to get wrong:
+        // `(M - N) + N`, `(M + N) - N`, `(M / N) * N` and `(M * N) / N` are all `M`.
+        for (op, inner_op) in [
+            (Addition, Subtraction),
+            (Subtraction, Addition),
+            (Multiplication, Division),
+            (Division, Multiplication),
+        ] {
+            let expr =
+                Type::infix_expr(Box::new(inverted(&m, inner_op, &n)), op, Box::new(n.clone()));
+            assert_eq!(expr, m, "({m} {inner_op} {n}) {op} {n} should cancel to {m}");
+        }
+    }
+
     #[test]
     fn instantiate_after_canonicalize_smoke_test() {
         let field_element_kind = Kind::numeric(Type::FieldElement);
