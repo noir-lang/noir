@@ -9,7 +9,7 @@ use noirc_artifacts::{debug::DebugArtifact, program::CompiledProgram};
 
 use crate::{
     commands::execute_cmd::InputSource,
-    errors::CliError,
+    errors::{CliError, FilesystemError},
     fs::{
         inputs::{read_inputs_from_file, write_inputs_to_file},
         witness::{load_witness_from_file, save_witness_to_dir},
@@ -51,9 +51,12 @@ where
         }
         InputSource::WitnessFile(witness_path) => {
             let mut witness_stack = load_witness_from_file(witness_path)?;
-            let witness =
-                witness_stack.pop().expect("Should have at least one witness on the stack").witness;
-            (witness, None)
+            // An empty stack is well-formed input rather than a corrupt file: `check-witness`
+            // accepts one, it just holds no witness to execute with.
+            let Some(stack_item) = witness_stack.pop() else {
+                return Err(FilesystemError::EmptyWitnessFile(witness_path.to_path_buf()).into());
+            };
+            (stack_item.witness, None)
         }
     };
 
@@ -261,5 +264,52 @@ fn append_input_value_to_string(input_value: &InputValue, abi_type: &AbiType, st
         (_, _) => {
             panic!("Unexpected InputValue-AbiType combination: {input_value:?} - {abi_type:?}");
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+
+    use bn254_blackbox_solver::Bn254BlackBoxSolver;
+    use nargo::foreign_calls::layers::Empty;
+    use noirc_abi::Abi;
+
+    use super::*;
+
+    /// A program that is never executed: the witness file is read before execution starts.
+    fn stub_program() -> CompiledProgram {
+        CompiledProgram {
+            noir_version: String::new(),
+            hash: 0,
+            program: Default::default(),
+            abi: Abi::default(),
+            debug: Vec::new(),
+            file_map: BTreeMap::new(),
+            warnings: Vec::new(),
+        }
+    }
+
+    /// An empty witness stack is well-formed, it simply holds no witness to execute with. Reading
+    /// one has to be an input error rather than a panic.
+    #[test]
+    fn reports_an_empty_witness_file_as_an_input_error() {
+        let dir = tempfile::tempdir().unwrap();
+        let witness_path =
+            save_witness_to_dir(&WitnessStack::<FieldElement>::default(), "witness", dir.path())
+                .unwrap();
+
+        let error = execute(
+            &stub_program(),
+            &Bn254BlackBoxSolver,
+            &mut Empty,
+            &InputSource::WitnessFile(&witness_path),
+        )
+        .unwrap_err();
+
+        assert!(
+            matches!(error, CliError::FilesystemError(FilesystemError::EmptyWitnessFile(_))),
+            "unexpected error: {error}"
+        );
     }
 }
