@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789738186636,
+  "lastUpdate": 1789739212809,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -21446,48 +21446,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "43c4ba1f9eaf77c91db9f1f2a455949f98dad652",
-          "message": "fix(frontend): report a `Type::item` path that names no associated item (#13666)",
-          "timestamp": "2026-09-14T11:47:50Z",
-          "tree_id": "6bf8415f4a63a7e53b01a4f838d82fddaf01fe62",
-          "url": "https://github.com/noir-lang/noir/commit/43c4ba1f9eaf77c91db9f1f2a455949f98dad652"
-        },
-        "date": 1789387822589,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 170107,
-            "range": "± 693",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 137219,
-            "range": "± 251",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2654813,
-            "range": "± 3016",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "be2061850b9a00bb6bddae2e0c9cda5e551512b4",
           "message": "fix(stdlib): close the `wrapping-sub-trait` and `wrapping-mul-trait` doc snippets (#13692)",
           "timestamp": "2026-09-14T11:53:11Z",
@@ -23529,6 +23487,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2646048,
             "range": "± 1421",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7a575d9e4e5af8949098463f38e96c74a90f1c58",
+          "message": "chore: remove the SSA fuzzer (#13766)",
+          "timestamp": "2026-09-18T13:21:53Z",
+          "tree_id": "0ca78335b815d277dee928ca2ac4417ab70ce1dc",
+          "url": "https://github.com/noir-lang/noir/commit/7a575d9e4e5af8949098463f38e96c74a90f1c58"
+        },
+        "date": 1789739112921,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 164958,
+            "range": "± 322",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 137163,
+            "range": "± 2281",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2126067,
+            "range": "± 1058",
             "unit": "ns/iter"
           }
         ]
