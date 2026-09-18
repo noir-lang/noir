@@ -1,0 +1,6 @@
+[package]
+name = "dynamic_index_nested_array_failure"
+type = "bin"
+authors = [""]
+
+[dependencies]

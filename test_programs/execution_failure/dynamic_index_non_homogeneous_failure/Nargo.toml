@@ -1,0 +1,6 @@
+[package]
+name = "dynamic_index_non_homogeneous_failure"
+type = "bin"
+authors = [""]
+
+[dependencies]

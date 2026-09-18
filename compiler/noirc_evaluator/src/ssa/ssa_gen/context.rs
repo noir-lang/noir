@@ -147,23 +147,25 @@ impl FunctionQueueState {
 /// than relying on ACIR's implicit OOB check on the underlying memory op.
 ///
 /// ACIR derives the implicit check from the memory op emitted for
-/// `array_get` / `array_set`. When the array's element flattens to zero
-/// ACIR cells (e.g. `[(); N]`), no memory op is laid down — for `array_get`
-/// the access can be optimized away, and for `array_set` the value to
-/// store has zero cells to write — so the implicit check is missing and an
+/// `array_get` / `array_set`. When the array flattens to zero ACIR cells
+/// (e.g. `[(); N]`, or any empty array), no memory op is laid down — for
+/// `array_get` the access can be optimized away, and for `array_set` the value
+/// to store has zero cells to write — so the implicit check is missing and an
 /// explicit one must be emitted. Brillig has no implicit check at all and
 /// always needs the explicit one. `array_type` must be a `Type::Array`.
 ///
-/// When the element flattens to more than one ACIR cell (a composite type such
-/// as a tuple or struct), the implicit memory op check reports the *flattened*
-/// index and size (e.g. `index * element_size`), which are detached from the
-/// logical index and length the user wrote. An explicit check is emitted so the
-/// error can report the logical values instead.
+/// An element that flattens to several ACIR cells (a composite type such as a
+/// tuple or struct) needs no explicit check either: the implicit check covers
+/// the same condition, since the flattened index passes the flattened length
+/// exactly when the logical index passes the logical length. The flattened
+/// coordinates it would report are translated back to logical ones by the
+/// assertion payload ACIR generation attaches to the memory op, so the reported
+/// message matches what the user wrote without a second check.
 pub(super) fn array_index_needs_explicit_oob_check(
     runtime: RuntimeType,
     array_type: &Type,
 ) -> bool {
-    runtime.is_brillig() || array_type.element_size().0 != 1 || array_type.flattened_size().0 == 0
+    runtime.is_brillig() || array_type.flattened_size().0 == 0
 }
 
 impl<'a> FunctionContext<'a> {
@@ -936,9 +938,9 @@ impl<'a> FunctionContext<'a> {
                     Type::Array(_, len) => {
                         if array_index_needs_explicit_oob_check(runtime, array_type) {
                             let logical_len = len.0;
-                            // A composite element type flattens the memory op index, so attach a
-                            // dynamic error reporting the logical index and length (see the read
-                            // path in `codegen_array_index`).
+                            // See the read path in `codegen_array_index`: only an explicit check
+                            // needs the dynamic error, and it is the check for an array with no
+                            // memory op to attach a payload to.
                             let dynamic_error =
                                 if runtime.is_acir() && array_type.element_size().0 > 1 {
                                     Some(self.out_of_bounds_error(index, logical_len))

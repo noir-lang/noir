@@ -64,6 +64,20 @@ pub(crate) struct AcirContext<F: AcirField> {
     pub(super) acir_ir: GeneratedAcir<F>,
 
     pub(super) warnings: Vec<SsaReport>,
+
+    /// Payload to attach to the next memory operation pushed, if any.
+    ///
+    /// A memory op carries an implicit bounds check on its index, and for an array whose elements
+    /// span several ACIR cells that check fails with flattened coordinates. Arming a payload makes
+    /// the failure report the logical ones instead (see `logical_index_out_of_bounds_payload` in
+    /// `crate::acir::arrays`).
+    ///
+    /// Lowering one array access can push several memory ops — an element-type-sizes lookup, the
+    /// dummy read a predicated write needs, the access itself — and the first of them is the one
+    /// whose bounds check runs first, so the payload goes to whichever comes first and is cleared.
+    /// The caller disarms whatever it armed once the access is lowered, so a payload never carries
+    /// over to an unrelated op.
+    next_memory_op_payload: Option<AssertionPayload<F>>,
 }
 
 impl<F: AcirField> AcirContext<F> {
@@ -74,6 +88,7 @@ impl<F: AcirField> AcirContext<F> {
             constant_witnesses: Default::default(),
             acir_ir: Default::default(),
             warnings: Default::default(),
+            next_memory_op_payload: None,
         }
     }
 
@@ -1367,6 +1382,22 @@ impl<F: AcirField> AcirContext<F> {
         id
     }
 
+    /// Arms `payload` on the next memory operation to be pushed, returning the payload that was
+    /// armed before (and is now replaced). See [`AcirContext::next_memory_op_payload`].
+    pub(crate) fn arm_memory_op_payload(
+        &mut self,
+        payload: Option<AssertionPayload<F>>,
+    ) -> Option<AssertionPayload<F>> {
+        std::mem::replace(&mut self.next_memory_op_payload, payload)
+    }
+
+    /// Attaches the armed payload, if any, to the memory operation just pushed.
+    fn attach_armed_memory_op_payload(&mut self) {
+        if let Some(payload) = self.next_memory_op_payload.take() {
+            self.acir_ir.attach_assertion_payload(payload);
+        }
+    }
+
     /// Returns a Variable that is constrained to be the result of reading
     /// from the memory `block_id` at the given `index`.
     pub(crate) fn read_from_memory(
@@ -1385,6 +1416,7 @@ impl<F: AcirField> AcirContext<F> {
         // Add the memory read operation to the list of opcodes
         let op = MemOp::read_at_mem_index(index_witness, value_read_witness);
         self.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op });
+        self.attach_armed_memory_op_payload();
 
         Ok(value_read_var)
     }
@@ -1407,6 +1439,7 @@ impl<F: AcirField> AcirContext<F> {
         // Add the memory write operation to the list of opcodes
         let op = MemOp::write_to_mem_index(index_witness, value_write_witness);
         self.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op });
+        self.attach_armed_memory_op_payload();
 
         Ok(())
     }
@@ -1525,6 +1558,20 @@ impl<F: AcirField> AcirContext<F> {
         message: String,
     ) -> AssertionPayload<F> {
         self.acir_ir.generate_assertion_message_payload(message)
+    }
+
+    /// Builds the payload of an out-of-bounds failure reported in an array's logical coordinates,
+    /// rendering as `Index out of bounds, array has size <array_len>, but index was <index>`.
+    ///
+    /// `index` is an expression for the logical index, evaluated by the solver over the witness
+    /// map once the memory op it is attached to has already failed its bounds check. It is data,
+    /// not a constraint: it adds no opcode and no witness of its own.
+    pub(crate) fn generate_index_out_of_bounds_payload(
+        &mut self,
+        index: Expression<F>,
+        array_len: u32,
+    ) -> AssertionPayload<F> {
+        self.acir_ir.generate_index_out_of_bounds_payload(index, array_len)
     }
 }
 

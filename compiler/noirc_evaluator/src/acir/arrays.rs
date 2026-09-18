@@ -126,7 +126,10 @@
 use acvm::acir::brillig::lengths::{
     ElementTypesLength, ElementsFlattenedLength, FlattenedLength, SemanticLength,
 };
-use acvm::acir::{circuit::opcodes::BlockType, native_types::Witness};
+use acvm::acir::{
+    circuit::{AssertionPayload, opcodes::BlockType},
+    native_types::{Expression, Witness},
+};
 use acvm::{FieldElement, acir::AcirField, acir::circuit::opcodes::BlockId};
 use iter_extended::vecmap;
 use itertools::Itertools;
@@ -253,6 +256,13 @@ impl Context<'_> {
         }
 
         let array_typ = dfg.type_of_value(array);
+
+        // The memory ops this access lowers to carry its only bounds check, so arm the payload
+        // that translates a failure back into the array's logical coordinates before emitting any
+        // of them, and disarm it once the access is lowered.
+        let payload = self.logical_index_out_of_bounds_payload(&array_typ, index, dfg)?;
+        self.acir_context.arm_memory_op_payload(payload);
+
         let gating = match (dfg.is_safe_index(index, array), store_value) {
             // The access stays on the slots the program asked for, so there is no fallback slot
             // to compute: an offset would be discarded, and computing one for a read whose
@@ -274,8 +284,55 @@ impl Context<'_> {
         } else {
             self.array_get(instruction, array, new_index, dfg)?;
         }
+        self.acir_context.arm_memory_op_payload(None);
 
         Ok(())
+    }
+
+    /// Builds the payload that makes an out-of-bounds access report the logical index and length
+    /// the program was written in, rather than the flattened coordinates ACIR memory works in.
+    ///
+    /// An array whose elements span several ACIR cells is read and written through a flattened
+    /// index, so the bounds check its memory op carries fails with `index * element_size` against
+    /// the flattened block length — numbers that appear nowhere in the program. The two checks are
+    /// otherwise the same, since the flattened index passes the flattened length exactly when the
+    /// logical index passes the logical length, so the message is all that needs fixing. Attaching
+    /// it as a payload keeps it free: a payload is data the solver evaluates over the witness map
+    /// once the op has already failed, so it lays down no opcode and no constraint of its own.
+    ///
+    /// The logical index is recovered rather than computed. SSA generation reaches the `field`th
+    /// field of element `logical` of an array with `element_size` fields per element at index
+    /// `element_size * logical + field`, so dividing that expression through by `element_size`
+    /// yields an expression for `logical` over witnesses the access has already computed —
+    /// `field` is below `element_size` and so falls out as the remainder. Dividing every
+    /// coefficient exactly is what makes the payload trustworthy: an index that is not laid out
+    /// this way does not divide, and reports the flattened coordinates as before.
+    ///
+    /// Returns `None` for an access whose implicit check already reports logical coordinates
+    /// (an element of a single cell), and for a vector, whose length is not known here.
+    fn logical_index_out_of_bounds_payload(
+        &mut self,
+        array_typ: &Type,
+        index: ValueId,
+        dfg: &DataFlowGraph,
+    ) -> Result<Option<AssertionPayload<FieldElement>>, RuntimeError> {
+        let Type::Array(element_types, len) = array_typ else {
+            return Ok(None);
+        };
+        let element_size = array_typ.element_size().0;
+        let element_flattened_size: FlattenedLength =
+            element_types.iter().map(|typ| typ.flattened_size()).sum();
+        if element_size == 0 || element_flattened_size.0 == 1 {
+            return Ok(None);
+        }
+
+        let index_var = self.convert_numeric_value(index, dfg)?;
+        let index_expr = self.acir_context.var_to_expression(index_var)?;
+        let Some(logical_index) = divide_expression(&index_expr, element_size) else {
+            return Ok(None);
+        };
+
+        Ok(Some(self.acir_context.generate_index_out_of_bounds_payload(logical_index, len.0)))
     }
 
     /// Resolves an array operation whose side-effects predicate is statically false.
@@ -912,7 +969,11 @@ impl Context<'_> {
         }
 
         let [result_id] = dfg.instruction_result(instruction);
+        // Copying the source array into a new block reads it at constant indices that no user
+        // index can push out of bounds, so keep any armed payload for the write itself.
+        let payload = self.acir_context.arm_memory_op_payload(None);
         let block_id = self.resolve_array_set_block(array, result_id, dfg, mutate_array)?;
+        self.acir_context.arm_memory_op_payload(payload);
 
         self.array_set_value(&store_value, block_id, &mut var_index)?;
 
@@ -1604,6 +1665,40 @@ pub(super) fn flattened_value_size(value: &AcirValue) -> FlattenedLength {
     }
 }
 
+/// Divides every coefficient of `expr` by `divisor`, yielding an expression whose value is
+/// `expr / divisor` rounded down, or `None` unless the division is exact.
+///
+/// Only the constant term is allowed a remainder: an index into an array of `divisor` fields per
+/// element carries the field being accessed there, and that field is what rounding down drops. A
+/// coefficient that does not divide exactly means the expression is not laid out as a multiple of
+/// `divisor` plus such a field, so there is nothing to recover and the caller must not pretend
+/// otherwise. Coefficients too large to read as integers (a subtraction leaves one just below the
+/// field modulus) are rejected for the same reason.
+fn divide_expression(
+    expr: &Expression<FieldElement>,
+    divisor: u32,
+) -> Option<Expression<FieldElement>> {
+    let divisor = u128::from(divisor);
+    let divide_exactly = |coefficient: &FieldElement| -> Option<FieldElement> {
+        let coefficient = coefficient.try_into_u128()?;
+        (coefficient % divisor == 0).then(|| FieldElement::from(coefficient / divisor))
+    };
+
+    Some(Expression {
+        mul_terms: expr
+            .mul_terms
+            .iter()
+            .map(|(coefficient, lhs, rhs)| Some((divide_exactly(coefficient)?, *lhs, *rhs)))
+            .collect::<Option<Vec<_>>>()?,
+        linear_combinations: expr
+            .linear_combinations
+            .iter()
+            .map(|(coefficient, witness)| Some((divide_exactly(coefficient)?, *witness)))
+            .collect::<Option<Vec<_>>>()?,
+        q_c: FieldElement::from(expr.q_c.try_into_u128()? / divisor),
+    })
+}
+
 /// Returns whether the array's elements have a constant size.
 ///
 /// This is useful as it then allows us to calculate the flattened index by multiplying by this constant
@@ -1625,5 +1720,50 @@ pub(super) fn array_has_constant_element_size(array_typ: &Type) -> Option<u32> {
         // If the array has no types in it it can be because it's something like `[(); 3]` where `()` is represented
         // as "no types". And in this case the array has constant element size because it's zero.
         Some(0)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use acvm::{FieldElement, acir::AcirField, acir::native_types::Witness};
+
+    use super::{Expression, divide_expression};
+
+    /// `2 * w1 + 4 * w2 * w3 + 7`, the shape of an index into an array of two fields per element.
+    fn index_expression() -> Expression<FieldElement> {
+        Expression {
+            mul_terms: vec![(FieldElement::from(4u128), Witness(2), Witness(3))],
+            linear_combinations: vec![(FieldElement::from(2u128), Witness(1))],
+            q_c: FieldElement::from(7u128),
+        }
+    }
+
+    #[test]
+    fn divides_every_coefficient_and_drops_the_field_offset() {
+        let divided = divide_expression(&index_expression(), 2).expect("divides by two");
+
+        assert_eq!(divided.mul_terms, vec![(FieldElement::from(2u128), Witness(2), Witness(3))]);
+        assert_eq!(divided.linear_combinations, vec![(FieldElement::one(), Witness(1))]);
+        // The offset of the field being accessed within the element is below the element size,
+        // so it falls out as the remainder of the constant term.
+        assert_eq!(divided.q_c, FieldElement::from(3u128));
+    }
+
+    #[test]
+    fn rejects_an_expression_that_is_not_a_multiple() {
+        // 2 * w1 does not divide by 4, so the expression describes no index into an array of
+        // four fields per element and nothing can be recovered from it.
+        assert!(divide_expression(&index_expression(), 4).is_none());
+    }
+
+    #[test]
+    fn rejects_a_coefficient_too_large_to_read_as_an_integer() {
+        let expr = Expression {
+            mul_terms: Vec::new(),
+            linear_combinations: vec![(-FieldElement::from(2u128), Witness(1))],
+            q_c: FieldElement::zero(),
+        };
+
+        assert!(divide_expression(&expr, 2).is_none());
     }
 }
