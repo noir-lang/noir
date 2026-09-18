@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789741959044,
+  "lastUpdate": 1789753820229,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22201,48 +22201,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "1aaf1e4c920f7c1bbbc58b56e9129f7c9a2b16ea",
-          "message": "fix(nargo_fmt): remove empty use lists instead of turning them into imports (#13678)",
-          "timestamp": "2026-09-14T12:02:10Z",
-          "tree_id": "9fb031122ace543852554c85f17094b814094ec1",
-          "url": "https://github.com/noir-lang/noir/commit/1aaf1e4c920f7c1bbbc58b56e9129f7c9a2b16ea"
-        },
-        "date": 1789388671470,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 156141,
-            "range": "± 1532",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 131644,
-            "range": "± 1387",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2082329,
-            "range": "± 20756",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "921850027871ded176c35987fd585bd685df7342",
           "message": "fix(brillig): don't let array length arithmetic wrap (#13690)",
           "timestamp": "2026-09-14T12:04:24Z",
@@ -24284,6 +24242,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2049447,
             "range": "± 4858",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "133f45213c7a58cd6cc1d9f8f612aa06aaafb2b6",
+          "message": "fix(frontend): keep the derivation of a solved numeric generic for checking (#13662)",
+          "timestamp": "2026-09-18T17:28:02Z",
+          "tree_id": "bccccd235447cd4f800f25fe834109210f041c4e",
+          "url": "https://github.com/noir-lang/noir/commit/133f45213c7a58cd6cc1d9f8f612aa06aaafb2b6"
+        },
+        "date": 1789753750496,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 99028,
+            "range": "± 541",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 87910,
+            "range": "± 1396",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2357682,
+            "range": "± 18408",
             "unit": "ns/iter"
           }
         ]
