@@ -56,7 +56,7 @@
     "@web/dev-server-esbuild": "^2.0.0",
     "@web/test-runner": "^1.0.0",
     "@web/test-runner-playwright": "^1.0.0",
-    "adm-zip": "^0.6.0",
+    "adm-zip": "^0.6.1",
     "assert": "^2.1.0",
     "browserify-fs": "^1.0.0",
     "chai": "^6.2.2",
