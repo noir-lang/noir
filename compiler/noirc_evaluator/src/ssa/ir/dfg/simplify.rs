@@ -37,12 +37,13 @@ pub(crate) use call::constant_to_radix;
 /// Simplification runs during SSA construction, before the validation pass that would reject such
 /// input, so it cannot rely on validation as a backstop. By default this panics at the call site
 /// (preserving a precise stack trace) since the normal pipeline never produces malformed SSA.
-/// When the owning [`DataFlowGraph`]'s `allow_malformed_simplify` is set — only the `ssa_fuzzer`,
-/// which builds malformed SSA on purpose, does this — it instead emits a trace and returns
+/// When the owning [`DataFlowGraph`]'s `allow_malformed_simplify` is set — only the SSA parser's
+/// `allow_malformed` mode, which builds malformed SSA on purpose, does this — it instead emits a
+/// trace and returns
 /// [`SimplifyResult::None`], leaving the instruction untouched.
 ///
 /// Only for checks on the instruction's *inputs*. Invariants on the simplifier's own logic or
-/// output should remain hard `assert!`s, so genuine compiler bugs still surface even under the fuzzer.
+/// output should remain hard `assert!`s, so genuine compiler bugs still surface even under that mode.
 macro_rules! bail_malformed {
     // Default form, for routines that return `SimplifyResult`: decline by returning `None`.
     ($dfg:expr, $($arg:tt)*) => {

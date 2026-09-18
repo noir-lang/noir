@@ -1149,7 +1149,7 @@ mod tests {
         let _ = Ssa::from_str_simplifying(&src);
     }
 
-    // With `allow_malformed_simplify` enabled (as the `ssa_fuzzer` does), the same malformed call is
+    // With `allow_malformed_simplify` enabled, the same malformed call is
     // left intact rather than panicking. Validation is skipped because it would reject the length too.
     #[test]
     fn wrong_sized_keccakf1600_is_left_intact_when_malformed_allowed() {
