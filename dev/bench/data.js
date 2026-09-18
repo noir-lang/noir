@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789735403111,
+  "lastUpdate": 1789735748768,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -13441,40 +13441,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "3cb916c3fdba200bc024fe471fe5c048a508db20",
-          "message": "fix(acvm): stop the blackbox injectivity proptests generating all-zero inputs (#13680)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-09-14T10:42:47Z",
-          "tree_id": "6c5b11f6230ff6a08f72d72780e425b2bc3e36a4",
-          "url": "https://github.com/noir-lang/noir/commit/3cb916c3fdba200bc024fe471fe5c048a508db20"
-        },
-        "date": 1789384064396,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 85.57,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 79.11,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "b56d72286b24a0990a71a8bd0c2ac98b10c57afd",
           "message": "fix(ssa): reject duplicate block labels and function ids in the SSA parser (#13688)",
@@ -17370,6 +17336,95 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/459dbf6706d4f461ce8d9c5709babf89f6fa07d4"
         },
         "date": 1789730954906,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 297.91,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 338.44,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 325.22,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 372.43,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 369.21,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1270,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1270,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 369.44,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 471.34,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 483.02,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 368.72,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 85.57,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 79.11,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ad07c0b19304ba8782391b9b9891cc4e911ae235",
+          "message": "chore(ssa_fuzzer): remove the `brillig` fuzz target and its external-VM integration (#13764)",
+          "timestamp": "2026-09-18T12:09:21Z",
+          "tree_id": "db53f924ed783f1bbdd04ccc3fe0d3f23ec7fed4",
+          "url": "https://github.com/noir-lang/noir/commit/ad07c0b19304ba8782391b9b9891cc4e911ae235"
+        },
+        "date": 1789735697368,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
