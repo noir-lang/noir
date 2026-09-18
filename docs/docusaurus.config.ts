@@ -20,8 +20,8 @@ const docsVersions = {
 // each mapped to the page that now holds the content. Netlify applies rules in order and stops
 // at the first match, so the generated rules must be emitted before the `/docs/*` catch-all
 // rewrite. Every source is anchored at a top-level segment, so none of them can swallow a
-// versioned path such as `/docs/v1.0.0-beta.22/explainers/explainer-writing-noir`, which is a
-// real page. More specific sources come first, since a wildcard would otherwise shadow them.
+// versioned path, which always carries its version as the first segment (`/docs/<version>/...`).
+// More specific sources come first, since a wildcard would otherwise shadow them.
 const legacyPathRedirects: [string, string][] = [
   ['/explainers/explainer-writing-noir', '/guides/thinking_in_circuits'],
   ['/explainers/explainer-oracle', '/guides/oracles'],
@@ -32,6 +32,10 @@ const legacyPathRedirects: [string, string][] = [
   ['/noir/concepts/*', '/language/:splat'],
   ['/noir/modules_packages_crates/*', '/project_structure/:splat'],
   ['/noir/standard_library/containers', '/libraries/standard_library/containers/boundedvec'],
+  [
+    '/noir/standard_library/cryptographic_primitives/ecdsa_sig_verification',
+    '/libraries/standard_library/cryptographic_primitives/signatures',
+  ],
   ['/noir/standard_library/*', '/libraries/standard_library/:splat'],
   ['/reference/debugger/*', '/tooling/debugger/:splat'],
   ['/reference/noir_codegen', '/tooling/noir_codegen'],
