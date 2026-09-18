@@ -686,7 +686,7 @@ mod ecdsa_simplify {
         let _ = Ssa::from_str_simplifying(&src);
     }
 
-    // With `allow_malformed_simplify` enabled (as the `ssa_fuzzer` does), the same malformed call is
+    // With `allow_malformed_simplify` enabled, the same malformed call is
     // left untouched instead of panicking. Validation is skipped because it would reject the length
     // too — the point here is only that simplification declines gracefully.
     #[test]

@@ -221,11 +221,13 @@ impl InstructionResultCache {
                     Value::Function(func_id) => {
                         matches!(dfg.purity_of(*func_id), None | Some(Purity::Impure))
                     }
-                    // The vector mutators (`push`/`pop`/`insert`/`remove`) write through their
-                    // vector argument when its copy-on-write reference count is 1, even though they
-                    // are otherwise "pure". Treat them like an impure call so a later identical
-                    // array-producing instruction is not deduplicated against the now-mutated value.
-                    Value::Intrinsic(intrinsic) => intrinsic.unsafe_for_clone_elision_in_brillig(),
+                    // An intrinsic that writes through its array argument when the argument's
+                    // copy-on-write reference count is 1 — the vector mutators — or that hands back
+                    // an alias of it, such as `black_box`. Either way a later identical
+                    // array-producing instruction must not be deduplicated against that argument.
+                    Value::Intrinsic(intrinsic) => {
+                        intrinsic.may_mutate_or_alias_array_arguments_in_brillig()
+                    }
                     _ => false,
                 };
                 if mutates_arguments {

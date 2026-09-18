@@ -1,3 +1,7 @@
+use std::hash::{Hash, Hasher};
+
+use rustc_hash::{FxHashSet as HashSet, FxHasher};
+
 use crate::{
     NamedGeneric, TYPE_RECURSION_LIMIT, Type, TypeBinding,
     node_interner::{TypeAliasId, TypeId},
@@ -38,36 +42,97 @@ impl TypeRecursionContext {
     }
 }
 
+/// The types already seen by a walk, so that a type reachable by many paths is walked once.
+///
+/// Deeply nested generics otherwise cause a combinatorial explosion of visits to the same type.
+/// Hashes are stored rather than types, with the colliding types kept to settle a collision.
+#[derive(Default)]
+struct VisitedTypes {
+    hashes: HashSet<u64>,
+    collided: HashSet<Type>,
+}
+
+impl VisitedTypes {
+    /// Returns whether this is the first time `typ` is seen.
+    fn insert(&mut self, typ: &Type) -> bool {
+        let mut hasher = FxHasher::default();
+        typ.hash(&mut hasher);
+        self.hashes.insert(hasher.finish()) || self.collided.insert(typ.clone())
+    }
+}
+
+/// Whether a walk reaches a data type's generic arguments.
+#[derive(Clone, Copy)]
+pub(crate) enum DataTypeGenerics {
+    /// Reach them: `Phantom<Foo>` names `Foo` whether or not a value of it holds one.
+    Named,
+    /// Skip them. A generic that a field or variant is built from is reached through that field
+    /// or variant, already substituted; one that none of them mentions is not in the value.
+    InValue,
+}
+
 impl Type {
-    /// Whether `predicate` holds for this type or for any type reachable from it.
+    /// Whether `predicate` holds for this type or for any type reachable from it, reachable in
+    /// the sense of [`Self::visit_reachable`] with [`DataTypeGenerics::InValue`]: the shape of a
+    /// *value* of this type.
+    pub(crate) fn contains_matching(&self, mut predicate: impl FnMut(&Type) -> bool) -> bool {
+        self.visit_reachable(DataTypeGenerics::InValue, &mut predicate)
+    }
+
+    /// Calls `visit` on this type and on every type reachable from it, stopping as soon as `visit`
+    /// returns `true`. Returns whether it did.
     ///
-    /// "Reachable" is the shape of a *value* of this type, so the walk expands aliases, follows
+    /// Reachable is the shape of a *value* of this type, so the walk expands aliases, follows
     /// bound type variables, and descends into a data type's fields or variants — a struct whose
-    /// field is a vector contains a vector. It stops at cycles, so a recursive type terminates.
+    /// field is a vector reaches that vector. It stops at cycles, so a recursive type terminates.
+    /// A data type's generic arguments are reached according to `generics`.
     ///
-    /// Two positions are deliberately not reachable:
+    /// Two positions are never reachable:
     ///
     /// * A function's parameter and return types. Only its environment is carried in a value of
     ///   the function type; arguments are passed in and the return type is returned.
     /// * A trait-as-type's generics, which describe the bound rather than the represented value.
-    pub(crate) fn contains_matching(&self, mut predicate: impl FnMut(&Type) -> bool) -> bool {
-        self.contains_matching_helper(&mut predicate, TypeRecursionContext::default())
+    ///
+    /// `visit` is called on a type before that type's fields, variants or aliased type are read,
+    /// so a visitor that resolves a deferred body sees the resolved one on the way down.
+    ///
+    /// Two guards, for two different problems:
+    /// * [`TypeRecursionContext`] breaks cycles and bounds depth, so a recursive type terminates.
+    /// * [`VisitedTypes`] walks a type reachable by many paths once.
+    pub(crate) fn visit_reachable(
+        &self,
+        generics: DataTypeGenerics,
+        visit: &mut impl FnMut(&Type) -> bool,
+    ) -> bool {
+        self.visit_reachable_helper(
+            visit,
+            generics,
+            TypeRecursionContext::default(),
+            &mut VisitedTypes::default(),
+        )
     }
 
-    fn contains_matching_helper(
+    fn visit_reachable_helper(
         &self,
-        predicate: &mut impl FnMut(&Type) -> bool,
+        visit: &mut impl FnMut(&Type) -> bool,
+        generics_mode: DataTypeGenerics,
         mut context: TypeRecursionContext,
+        visited: &mut VisitedTypes,
     ) -> bool {
-        if predicate(self) {
+        if !visited.insert(self) {
+            return false;
+        }
+
+        if visit(self) {
             return true;
         }
 
         // Every recursive call goes through this, so that a caller cannot descend into one of the
         // positions above by forgetting which arm it was writing.
-        let mut descend = |typ: &Type, context: TypeRecursionContext| {
-            typ.contains_matching_helper(predicate, context)
-        };
+        let mut descend =
+            |typ: &Type, context: TypeRecursionContext, visited: &mut VisitedTypes| {
+                typ.visit_reachable_helper(visit, generics_mode, context, visited)
+            };
 
         match self {
             Type::FieldElement
@@ -80,34 +145,40 @@ impl Type {
             | Type::Error => false,
 
             Type::Vector(element) | Type::String(element) | Type::Reference(element, _) => {
-                descend(element, context.recur())
+                descend(element, context.recur(), visited)
             }
-            Type::Forall(_, typ) => descend(typ, context.recur()),
+            Type::Forall(_, typ) => descend(typ, context.recur(), visited),
 
             Type::Array(element, length) | Type::FmtString(length, element) => {
-                descend(length, context.clone().recur()) || descend(element, context.recur())
+                descend(length, context.clone().recur(), visited)
+                    || descend(element, context.recur(), visited)
             }
             Type::CheckedCast { from, to } => {
-                descend(from, context.clone().recur()) || descend(to, context.recur())
+                descend(from, context.clone().recur(), visited)
+                    || descend(to, context.recur(), visited)
             }
             Type::InfixExpr(lhs, _op, rhs, _) => {
-                descend(lhs, context.clone().recur()) || descend(rhs, context.recur())
+                descend(lhs, context.clone().recur(), visited)
+                    || descend(rhs, context.recur(), visited)
             }
 
             // Only the environment is carried in a value of a function type.
-            Type::Function(_args, _ret, env, _unconstrained) => descend(env, context.recur()),
+            Type::Function(_args, _ret, env, _unconstrained) => {
+                descend(env, context.recur(), visited)
+            }
 
             Type::Tuple(elements) => {
-                elements.iter().any(|element| descend(element, context.clone().recur()))
+                elements.iter().any(|element| descend(element, context.clone().recur(), visited))
             }
 
             Type::TypeVariable(type_variable)
             | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
-                let binding = type_variable.borrow();
-                match &*binding {
-                    TypeBinding::Bound(bound) => descend(bound, context.recur()),
-                    TypeBinding::Unbound(..) => false,
-                }
+                // Cloned out so that no borrow of the type variable is held while `visit` runs.
+                let bound = match &*type_variable.borrow() {
+                    TypeBinding::Bound(bound) => bound.clone(),
+                    TypeBinding::Unbound(..) => return false,
+                };
+                descend(&bound, context.recur(), visited)
             }
 
             Type::Alias(alias, generics) => {
@@ -115,24 +186,42 @@ impl Type {
                     return false;
                 }
                 let aliased = alias.borrow().get_type(generics);
-                descend(&aliased, context.recur())
+                descend(&aliased, context.recur(), visited)
             }
 
             Type::DataType(definition, generics) => {
-                let definition = definition.borrow();
-                if !context.insert_data_type(definition.id, generics.clone()) {
+                let id = definition.borrow().id;
+                if !context.insert_data_type(id, generics.clone()) {
                     return false;
                 }
-                if let Some(fields) = definition.get_fields(generics) {
-                    fields.iter().any(|(_, field, _)| descend(field, context.clone().recur()))
-                } else if let Some(variants) = definition.get_variants(generics) {
-                    variants
+
+                if let DataTypeGenerics::Named = generics_mode
+                    && generics
+                        .iter()
+                        .any(|generic| descend(generic, context.clone().recur(), visited))
+                {
+                    return true;
+                }
+
+                // Read out of the definition rather than iterated through it, so that no borrow of
+                // it is held while `visit` runs on the types it is built from: a visitor is free to
+                // resolve a deferred body, which needs the definition mutably.
+                let fields = definition.borrow().get_fields(generics);
+                if let Some(fields) = fields {
+                    return fields
+                        .iter()
+                        .any(|(_, field, _)| descend(field, context.clone().recur(), visited));
+                }
+
+                let variants = definition.borrow().get_variants(generics);
+                if let Some(variants) = variants {
+                    return variants
                         .iter()
                         .flat_map(|(_, arguments)| arguments)
-                        .any(|argument| descend(argument, context.clone().recur()))
-                } else {
-                    false
+                        .any(|argument| descend(argument, context.clone().recur(), visited));
                 }
+
+                false
             }
         }
     }

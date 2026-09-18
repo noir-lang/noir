@@ -49,12 +49,7 @@
 //! wrapped with additional context when elaborating generated code (e.g., from attributes or
 //! comptime calls).
 
-use std::{
-    cell::RefCell,
-    collections::{BTreeMap, BTreeSet, HashSet},
-    hash::{Hash, Hasher},
-    rc::Rc,
-};
+use std::{cell::RefCell, collections::BTreeMap, collections::BTreeSet, rc::Rc};
 
 use crate::{
     Type,
@@ -80,7 +75,7 @@ use crate::{
     },
     node_interner::{DependencyId, FuncId, GlobalId, NodeInterner, TraitId, TypeAliasId, TypeId},
     parser::{ParserError, ParserErrorReason},
-    recursion::TypeRecursionContext,
+    recursion::DataTypeGenerics,
 };
 use crate::{
     graph::CrateGraph, hir::def_collector::dc_crate::UnresolvedTrait, usage_tracker::UsageTracker,
@@ -127,7 +122,6 @@ use path_resolution::{
 };
 pub(crate) use path_resolution::{TypedPath, TypedPathSegment};
 pub use primitive_types::PrimitiveType;
-use rustc_hash::FxHasher;
 
 /// Maximum number of recursive calls allowed at comptime.
 ///
@@ -188,36 +182,6 @@ pub struct LambdaContext {
 pub struct Loop {
     pub is_for: bool,
     pub has_break: bool,
-}
-
-/// Helper to keep track of visited items, without having to clone all of them.
-///
-/// It cannot be used to iterate visited items, only to detect the first visit.
-///
-/// This is used where we would normally use a `HashSet<&T>`, but the borrow
-/// checker doesn't allow us due to lifetime issues for example. By storing
-/// the hashes, and the values only if the hashes collide, we avoid cloning
-/// in the majority of cases.
-struct VisitedRefHashSet<T> {
-    /// Contains the hashes of every visited item (they might collide).
-    hashes: HashSet<u64>,
-    /// Contains the items which have collided in `hashes`.
-    values: HashSet<T>,
-}
-
-impl<T: Hash + Clone + Eq> VisitedRefHashSet<T> {
-    fn new() -> Self {
-        Self { hashes: HashSet::new(), values: HashSet::new() }
-    }
-    /// Insert a new value by reference.
-    ///
-    /// Returns `true` if this is the first time we visited this value, `false` otherwise.
-    fn insert(&mut self, value: &T) -> bool {
-        let mut hasher = FxHasher::default();
-        value.hash(&mut hasher);
-        let hash = hasher.finish();
-        self.hashes.insert(hash) || self.values.insert(value.clone())
-    }
 }
 
 pub struct Elaborator<'context> {
@@ -669,122 +633,19 @@ impl<'context> Elaborator<'context> {
         }
     }
 
-    /// Calls `visit` on every [`Type::DataType`] reachable from `typ`.
+    /// Calls `visit` on every type reachable from `typ`, including `typ` itself.
     ///
-    /// The walk expands aliases and descends into a data type's fields and variants, so it reaches
-    /// the data types a value of `typ` is built from, not only the ones named in it. `visit` runs
-    /// before the fields and variants of the type it was handed are read, so a visitor that
-    /// resolves a deferred body sees the resolved one on the way down.
-    ///
-    /// Two guards, for two different problems:
-    /// * `TypeRecursionContext` breaks cycles and bounds depth, so a recursive type terminates.
-    /// * `VisitedRefHashSet` skips types already seen: deeply nested generics otherwise cause a
-    ///   combinatorial explosion of visits to the same type.
+    /// The walk is [`Type::visit_reachable`], the one the whole-type questions in `hir_def::types`
+    /// are asked over, so a visitor here is a pre-pass for one of them: it sees every type its
+    /// consumer will see, and `visit` runs on a type before that type's fields, variants or
+    /// aliased type are read, so a visitor that resolves a deferred body sees the resolved one on
+    /// the way down. A data type's generics are reached as well, so the walk reaches every data
+    /// type *named* by `typ` and not only those a value of it is built from.
     fn visit_data_types_in(&mut self, typ: &Type, visit: &mut impl FnMut(&mut Self, &Type)) {
-        self.visit_data_types_in_helper(
-            typ,
-            TypeRecursionContext::default(),
-            &mut VisitedRefHashSet::new(),
-            visit,
-        );
-    }
-
-    fn visit_data_types_in_helper(
-        &mut self,
-        typ: &Type,
-        mut context: TypeRecursionContext,
-        visited: &mut VisitedRefHashSet<Type>,
-        visit: &mut impl FnMut(&mut Self, &Type),
-    ) {
-        if !visited.insert(typ) {
-            return;
-        }
-        match typ {
-            Type::Array(element, _) | Type::Vector(element) | Type::Reference(element, _) => {
-                self.visit_data_types_in_helper(element, context.recur(), visited, visit);
-            }
-            Type::Tuple(elements) => {
-                for element in elements {
-                    self.visit_data_types_in_helper(
-                        element,
-                        context.clone().recur(),
-                        visited,
-                        visit,
-                    );
-                }
-            }
-            Type::CheckedCast { from, to } => {
-                self.visit_data_types_in_helper(from, context.clone().recur(), visited, visit);
-                self.visit_data_types_in_helper(to, context.recur(), visited, visit);
-            }
-            Type::InfixExpr(lhs, _op, rhs, _) => {
-                self.visit_data_types_in_helper(lhs, context.clone().recur(), visited, visit);
-                self.visit_data_types_in_helper(rhs, context.recur(), visited, visit);
-            }
-            Type::Alias(alias, generics) => {
-                if context.insert_alias(alias.borrow().id, generics.clone()) {
-                    let aliased = alias.borrow().get_type(generics);
-                    self.visit_data_types_in_helper(&aliased, context.recur(), visited, visit);
-                }
-            }
-            Type::DataType(datatype, generics) => {
-                if !context.insert_data_type(datatype.borrow().id, generics.clone()) {
-                    return;
-                }
-
-                visit(self, typ);
-
-                for generic in generics {
-                    self.visit_data_types_in_helper(
-                        generic,
-                        context.clone().recur(),
-                        visited,
-                        visit,
-                    );
-                }
-
-                let fields = datatype.borrow().get_fields(generics);
-                if let Some(fields) = fields {
-                    for (_, field, _) in fields {
-                        self.visit_data_types_in_helper(
-                            &field,
-                            context.clone().recur(),
-                            visited,
-                            visit,
-                        );
-                    }
-                    return;
-                }
-
-                let variants = datatype.borrow().get_variants(generics);
-                if let Some(variants) = variants {
-                    for (_, arguments) in variants {
-                        for argument in arguments {
-                            self.visit_data_types_in_helper(
-                                &argument,
-                                context.clone().recur(),
-                                visited,
-                                visit,
-                            );
-                        }
-                    }
-                }
-            }
-            Type::FieldElement
-            | Type::Integer(..)
-            | Type::Bool
-            | Type::String(_)
-            | Type::FmtString(_, _)
-            | Type::Unit
-            | Type::Quoted(..)
-            | Type::Constant(..)
-            | Type::TraitAsType(..)
-            | Type::TypeVariable(..)
-            | Type::NamedGeneric(..)
-            | Type::Function(..)
-            | Type::Forall(..)
-            | Type::Error => (),
-        }
+        typ.visit_reachable(DataTypeGenerics::Named, &mut |typ| {
+            visit(self, typ);
+            false
+        });
     }
 
     /// Marks every struct reachable from `typ` as constructed, resolving any deferred fields on

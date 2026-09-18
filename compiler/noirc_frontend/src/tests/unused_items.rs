@@ -910,3 +910,21 @@ fn typo_in_allow_does_not_suppress_the_lint() {
         .any(|error| CustomDiagnostic::from(error).message.contains("unused variable"));
     assert!(has_unused_variable_warning, "expected unused-variable warning, got {errors:#?}");
 }
+
+/// A type named only as a phantom generic is still named by the parameter, and an entry point's
+/// parameter types are constructed by the caller rather than by any code in the crate.
+#[test]
+fn phantom_generic_of_an_entry_point_parameter_is_constructed() {
+    let src = r#"
+    struct Inner {}
+
+    struct Phantom<T> {
+        x: Field,
+    }
+
+    fn main(p: Phantom<Inner>) {
+        let _ = p.x;
+    }
+    "#;
+    check_errors(src);
+}

@@ -83,7 +83,7 @@ impl FunctionBuilder {
     /// Allow `simplify_*` routines to decline (emit a trace and leave the instruction in place)
     /// rather than panic when they encounter malformed input. Applies to the current function and
     /// every function created afterwards. Intended for producers of deliberately malformed SSA,
-    /// such as the `ssa_fuzzer`.
+    /// such as the SSA parser's `allow_malformed` mode.
     pub fn set_allow_malformed_simplify(&mut self, allow: bool) {
         self.allow_malformed_simplify = allow;
         self.current_function.dfg.allow_malformed_simplify = allow;

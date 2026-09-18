@@ -1,0 +1,6 @@
+[package]
+name = "recursive_aggregation_in_unconstrained_callee"
+type = "bin"
+authors = [""]
+
+[dependencies]

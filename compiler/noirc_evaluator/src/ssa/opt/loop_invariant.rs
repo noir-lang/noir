@@ -1241,6 +1241,123 @@ mod tests {
     }
 
     #[test]
+    fn in_body_header_branch_must_not_fold_real_exit() {
+        // Regression for noir-lang/noir-claude#1844: the header `b1` compares `v1 < 10` but
+        // both arms (`b2`, `b3`) stay inside the loop; the loop exits through `eq v1, u32 12`
+        // in `b4` (or `eq v1, v0` in `b5`). No induction-variable bounds may be derived from
+        // the header guard, so LICM must neither fold the `eq v1, u32 12` exit to `false` nor
+        // rewrite `add v1, u32 1` to an unchecked add. With `v0 = 1000` the source computes
+        // 10 * 1 + 3 * 100 = 310; folding the exit makes the loop run to `v1 == 1000`.
+        use crate::ssa::interpreter::value::Value;
+
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            jmp b1(u32 0, u32 0)
+          b1(v1: u32, v2: u32):
+            v3 = lt v1, u32 10
+            jmpif v3 then: b2(), else: b3()
+          b2():
+            v4 = add v2, u32 1
+            jmp b4(v4)
+          b3():
+            v5 = add v2, u32 100
+            jmp b4(v5)
+          b4(v6: u32):
+            v7 = eq v1, u32 12
+            jmpif v7 then: b6(), else: b5()
+          b5():
+            v8 = eq v1, v0
+            jmpif v8 then: b6(), else: b7()
+          b7():
+            v9 = add v1, u32 1
+            jmp b1(v9, v6)
+          b6():
+            return v6
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let (ssa, result) = assert_pass_does_not_affect_execution(
+            ssa,
+            vec![Value::u32(1000)],
+            Ssa::loop_invariant_code_motion,
+        );
+        assert_eq!(result.unwrap(), vec![Value::u32(310)]);
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            jmp b1(u32 0, u32 0)
+          b1(v1: u32, v2: u32):
+            v6 = lt v1, u32 10
+            jmpif v6 then: b2(), else: b3()
+          b2():
+            v8 = add v2, u32 1
+            jmp b4(v8)
+          b3():
+            v10 = add v2, u32 100
+            jmp b4(v10)
+          b4(v3: u32):
+            v12 = eq v1, u32 12
+            jmpif v12 then: b7(), else: b5()
+          b5():
+            v13 = eq v1, v0
+            jmpif v13 then: b7(), else: b6()
+          b6():
+            v14 = add v1, u32 1
+            jmp b1(v14, v3)
+          b7():
+            return v3
+        }
+        ");
+    }
+
+    #[test]
+    fn in_body_header_branch_must_keep_increment_checked() {
+        // Regression for noir-lang/noir-claude#1844, checked-arithmetic consumer: the header
+        // guard `lt v1, u8 10` has both arms inside the loop, so it does not bound `v1`; the
+        // loop only exits once the accumulator `v6` exceeds `v0`. With `v0 = 2000` the `u8`
+        // counter reaches 255 and the checked `add v1, u8 1` must overflow rather than be
+        // rewritten to an `unchecked_add` that wraps to 0.
+        use crate::ssa::interpreter::errors::InterpreterError;
+
+        use crate::ssa::interpreter::value::Value;
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            jmp b1(u8 0, u32 0)
+          b1(v1: u8, v2: u32):
+            v3 = lt v1, u8 10
+            jmpif v3 then: b2(), else: b3()
+          b2():
+            v4 = add v2, u32 1
+            jmp b4(v4)
+          b3():
+            v5 = add v2, u32 4
+            jmp b4(v5)
+          b4(v6: u32):
+            v7 = lt v0, v6
+            jmpif v7 then: b6(), else: b5()
+          b5():
+            v8 = add v1, u8 1
+            jmp b1(v8, v6)
+          b6():
+            return v6
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let (_, result) = assert_pass_does_not_affect_execution(
+            ssa,
+            vec![Value::u32(2000)],
+            Ssa::loop_invariant_code_motion,
+        );
+        assert!(
+            matches!(result, Err(InterpreterError::Overflow { .. })),
+            "the u8 counter increment must still overflow after LICM, got {result:?}"
+        );
+    }
+
+    #[test]
     fn sibling_loop_stale_bounds_must_not_fold_comparison() {
         // Regression for noir-lang/noir-claude#1640: the first loop's bounds `v0 in [0, 3)`
         // must not be applied to the sibling loop {b5, b6}, where `v0` is exactly 3, so the

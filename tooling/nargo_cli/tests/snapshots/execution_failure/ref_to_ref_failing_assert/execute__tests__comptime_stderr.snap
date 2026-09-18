@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Assertion failed
+   ┌─ src/main.nr:14:12
+   │
+14 │     assert(*p == y);
+   │            -------
+   │
+   = Call stack:
+     1: ?
+             at src/main.nr:8:4
+
+Error interpreting main function
