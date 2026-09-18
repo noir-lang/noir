@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Index out of bounds: 9 is out of bounds for the array of length 3
+  ┌─ src/main.nr:2:5
+  │
+2 │     a[i] = (7, true);
+  │     ----
+  │
+
+Error interpreting main function
