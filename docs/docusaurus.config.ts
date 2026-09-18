@@ -1,5 +1,6 @@
 import type { Config } from '@docusaurus/types';
 const versions = require("./versions.json");
+const { legacyPathRedirects } = require('./redirects');
 const { themes } = require('prism-react-renderer');
 const lightTheme = themes.github;
 const darkTheme = themes.dracula;
