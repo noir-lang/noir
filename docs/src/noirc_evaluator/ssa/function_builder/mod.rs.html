@@ -83,7 +83,7 @@
 <a href=#83 id=83 data-nosnippet>83</a>    <span class="doccomment">/// Allow `simplify_*` routines to decline (emit a trace and leave the instruction in place)
 <a href=#84 id=84 data-nosnippet>84</a>    /// rather than panic when they encounter malformed input. Applies to the current function and
 <a href=#85 id=85 data-nosnippet>85</a>    /// every function created afterwards. Intended for producers of deliberately malformed SSA,
-<a href=#86 id=86 data-nosnippet>86</a>    /// such as the `ssa_fuzzer`.
+<a href=#86 id=86 data-nosnippet>86</a>    /// such as the SSA parser's `allow_malformed` mode.
 <a href=#87 id=87 data-nosnippet>87</a>    </span><span class="kw">pub fn </span>set_allow_malformed_simplify(<span class="kw-2">&amp;mut </span><span class="self">self</span>, allow: bool) {
 <a href=#88 id=88 data-nosnippet>88</a>        <span class="self">self</span>.allow_malformed_simplify = allow;
 <a href=#89 id=89 data-nosnippet>89</a>        <span class="self">self</span>.current_function.dfg.allow_malformed_simplify = allow;
