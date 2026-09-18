@@ -12,7 +12,7 @@
 <a href=#12 id=12 data-nosnippet>12</a>    AcirField, BlackBoxFunc,
 <a href=#13 id=13 data-nosnippet>13</a>    brillig::lengths::{FlattenedLength, SemanticLength},
 <a href=#14 id=14 data-nosnippet>14</a>    circuit::{
-<a href=#15 id=15 data-nosnippet>15</a>        AssertionPayload, ErrorSelector, ExpressionOrMemory, Opcode,
+<a href=#15 id=15 data-nosnippet>15</a>        AssertionPayload, ErrorSelector, ExpressionOrMemory, Opcode, OpcodeLocation,
 <a href=#16 id=16 data-nosnippet>16</a>        opcodes::{AcirFunctionId, BlockId, BlockType, MemOp},
 <a href=#17 id=17 data-nosnippet>17</a>    },
 <a href=#18 id=18 data-nosnippet>18</a>    native_types::{Expression, Witness},
@@ -1367,426 +1367,469 @@
 <a href=#1367 id=1367 data-nosnippet>1367</a>        id
 <a href=#1368 id=1368 data-nosnippet>1368</a>    }
 <a href=#1369 id=1369 data-nosnippet>1369</a>
-<a href=#1370 id=1370 data-nosnippet>1370</a>    <span class="doccomment">/// Returns a Variable that is constrained to be the result of reading
-<a href=#1371 id=1371 data-nosnippet>1371</a>    /// from the memory `block_id` at the given `index`.
-<a href=#1372 id=1372 data-nosnippet>1372</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>read_from_memory(
-<a href=#1373 id=1373 data-nosnippet>1373</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#1374 id=1374 data-nosnippet>1374</a>        block_id: BlockId,
-<a href=#1375 id=1375 data-nosnippet>1375</a>        index: <span class="kw-2">&amp;</span>AcirVar,
-<a href=#1376 id=1376 data-nosnippet>1376</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirVar, InternalError&gt; {
-<a href=#1377 id=1377 data-nosnippet>1377</a>        <span class="comment">// Fetch the witness corresponding to the index
-<a href=#1378 id=1378 data-nosnippet>1378</a>        </span><span class="kw">let </span>index_var = <span class="self">self</span>.get_or_create_witness_var(<span class="kw-2">*</span>index)<span class="question-mark">?</span>;
-<a href=#1379 id=1379 data-nosnippet>1379</a>        <span class="kw">let </span>index_witness = <span class="self">self</span>.var_to_witness(index_var)<span class="question-mark">?</span>;
-<a href=#1380 id=1380 data-nosnippet>1380</a>
-<a href=#1381 id=1381 data-nosnippet>1381</a>        <span class="comment">// Create a Variable to hold the result of the read and extract the corresponding Witness
-<a href=#1382 id=1382 data-nosnippet>1382</a>        </span><span class="kw">let </span>value_read_var = <span class="self">self</span>.add_variable();
-<a href=#1383 id=1383 data-nosnippet>1383</a>        <span class="kw">let </span>value_read_witness = <span class="self">self</span>.var_to_witness(value_read_var)<span class="question-mark">?</span>;
-<a href=#1384 id=1384 data-nosnippet>1384</a>
-<a href=#1385 id=1385 data-nosnippet>1385</a>        <span class="comment">// Add the memory read operation to the list of opcodes
-<a href=#1386 id=1386 data-nosnippet>1386</a>        </span><span class="kw">let </span>op = MemOp::read_at_mem_index(index_witness, value_read_witness);
-<a href=#1387 id=1387 data-nosnippet>1387</a>        <span class="self">self</span>.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op });
-<a href=#1388 id=1388 data-nosnippet>1388</a>
-<a href=#1389 id=1389 data-nosnippet>1389</a>        <span class="prelude-val">Ok</span>(value_read_var)
-<a href=#1390 id=1390 data-nosnippet>1390</a>    }
-<a href=#1391 id=1391 data-nosnippet>1391</a>
-<a href=#1392 id=1392 data-nosnippet>1392</a>    <span class="doccomment">/// Constrains the Variable `value` to be the new value located at `index` in the memory `block_id`.
-<a href=#1393 id=1393 data-nosnippet>1393</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>write_to_memory(
-<a href=#1394 id=1394 data-nosnippet>1394</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#1395 id=1395 data-nosnippet>1395</a>        block_id: BlockId,
-<a href=#1396 id=1396 data-nosnippet>1396</a>        index: <span class="kw-2">&amp;</span>AcirVar,
-<a href=#1397 id=1397 data-nosnippet>1397</a>        value: <span class="kw-2">&amp;</span>AcirVar,
-<a href=#1398 id=1398 data-nosnippet>1398</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), InternalError&gt; {
-<a href=#1399 id=1399 data-nosnippet>1399</a>        <span class="comment">// Fetch the witness corresponding to the index
-<a href=#1400 id=1400 data-nosnippet>1400</a>        </span><span class="kw">let </span>index_var = <span class="self">self</span>.get_or_create_witness_var(<span class="kw-2">*</span>index)<span class="question-mark">?</span>;
-<a href=#1401 id=1401 data-nosnippet>1401</a>        <span class="kw">let </span>index_witness = <span class="self">self</span>.var_to_witness(index_var)<span class="question-mark">?</span>;
-<a href=#1402 id=1402 data-nosnippet>1402</a>
-<a href=#1403 id=1403 data-nosnippet>1403</a>        <span class="comment">// Fetch the witness corresponding to the value to be written
-<a href=#1404 id=1404 data-nosnippet>1404</a>        </span><span class="kw">let </span>value_write_var = <span class="self">self</span>.get_or_create_witness_var(<span class="kw-2">*</span>value)<span class="question-mark">?</span>;
-<a href=#1405 id=1405 data-nosnippet>1405</a>        <span class="kw">let </span>value_write_witness = <span class="self">self</span>.var_to_witness(value_write_var)<span class="question-mark">?</span>;
-<a href=#1406 id=1406 data-nosnippet>1406</a>
-<a href=#1407 id=1407 data-nosnippet>1407</a>        <span class="comment">// Add the memory write operation to the list of opcodes
-<a href=#1408 id=1408 data-nosnippet>1408</a>        </span><span class="kw">let </span>op = MemOp::write_to_mem_index(index_witness, value_write_witness);
-<a href=#1409 id=1409 data-nosnippet>1409</a>        <span class="self">self</span>.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op });
-<a href=#1410 id=1410 data-nosnippet>1410</a>
-<a href=#1411 id=1411 data-nosnippet>1411</a>        <span class="prelude-val">Ok</span>(())
-<a href=#1412 id=1412 data-nosnippet>1412</a>    }
+<a href=#1370 id=1370 data-nosnippet>1370</a>    <span class="doccomment">/// The index the next opcode pushed will take, for delimiting a range of opcodes to search
+<a href=#1371 id=1371 data-nosnippet>1371</a>    /// with [`AcirContext::attach_payload_to_first_memory_op`].
+<a href=#1372 id=1372 data-nosnippet>1372</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>next_opcode_index(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
+<a href=#1373 id=1373 data-nosnippet>1373</a>        <span class="self">self</span>.acir_ir.opcodes.len()
+<a href=#1374 id=1374 data-nosnippet>1374</a>    }
+<a href=#1375 id=1375 data-nosnippet>1375</a>
+<a href=#1376 id=1376 data-nosnippet>1376</a>    <span class="doccomment">/// Attaches `payload` to the first memory operation pushed at or after opcode `start`,
+<a href=#1377 id=1377 data-nosnippet>1377</a>    /// returning it unattached when that range holds none.
+<a href=#1378 id=1378 data-nosnippet>1378</a>    ///
+<a href=#1379 id=1379 data-nosnippet>1379</a>    /// The solver runs opcodes in order, so of the memory ops an array access lowers to, the
+<a href=#1380 id=1380 data-nosnippet>1380</a>    /// first is the one whose bounds check fails first and the one a message describing that
+<a href=#1381 id=1381 data-nosnippet>1381</a>    /// failure belongs on. Callers delimit the range so that it holds only ops indexed by the
+<a href=#1382 id=1382 data-nosnippet>1382</a>    /// access's own index, and pass an unattached payload on to the range that does.
+<a href=#1383 id=1383 data-nosnippet>1383</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>attach_payload_to_first_memory_op(
+<a href=#1384 id=1384 data-nosnippet>1384</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#1385 id=1385 data-nosnippet>1385</a>        start: usize,
+<a href=#1386 id=1386 data-nosnippet>1386</a>        payload: <span class="prelude-ty">Option</span>&lt;AssertionPayload&lt;F&gt;&gt;,
+<a href=#1387 id=1387 data-nosnippet>1387</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;AssertionPayload&lt;F&gt;&gt; {
+<a href=#1388 id=1388 data-nosnippet>1388</a>        <span class="kw">let </span>payload = payload<span class="question-mark">?</span>;
+<a href=#1389 id=1389 data-nosnippet>1389</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(offset) = <span class="self">self</span>.acir_ir.opcodes[start..]
+<a href=#1390 id=1390 data-nosnippet>1390</a>            .iter()
+<a href=#1391 id=1391 data-nosnippet>1391</a>            .position(|opcode| <span class="macro">matches!</span>(opcode, Opcode::MemoryOp { .. }))
+<a href=#1392 id=1392 data-nosnippet>1392</a>        <span class="kw">else </span>{
+<a href=#1393 id=1393 data-nosnippet>1393</a>            <span class="kw">return </span><span class="prelude-val">Some</span>(payload);
+<a href=#1394 id=1394 data-nosnippet>1394</a>        };
+<a href=#1395 id=1395 data-nosnippet>1395</a>        <span class="self">self</span>.acir_ir.attach_assertion_payload_at(OpcodeLocation::Acir(start + offset), payload);
+<a href=#1396 id=1396 data-nosnippet>1396</a>        <span class="prelude-val">None
+<a href=#1397 id=1397 data-nosnippet>1397</a>    </span>}
+<a href=#1398 id=1398 data-nosnippet>1398</a>
+<a href=#1399 id=1399 data-nosnippet>1399</a>    <span class="doccomment">/// Returns a Variable that is constrained to be the result of reading
+<a href=#1400 id=1400 data-nosnippet>1400</a>    /// from the memory `block_id` at the given `index`.
+<a href=#1401 id=1401 data-nosnippet>1401</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>read_from_memory(
+<a href=#1402 id=1402 data-nosnippet>1402</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#1403 id=1403 data-nosnippet>1403</a>        block_id: BlockId,
+<a href=#1404 id=1404 data-nosnippet>1404</a>        index: <span class="kw-2">&amp;</span>AcirVar,
+<a href=#1405 id=1405 data-nosnippet>1405</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;AcirVar, InternalError&gt; {
+<a href=#1406 id=1406 data-nosnippet>1406</a>        <span class="comment">// Fetch the witness corresponding to the index
+<a href=#1407 id=1407 data-nosnippet>1407</a>        </span><span class="kw">let </span>index_var = <span class="self">self</span>.get_or_create_witness_var(<span class="kw-2">*</span>index)<span class="question-mark">?</span>;
+<a href=#1408 id=1408 data-nosnippet>1408</a>        <span class="kw">let </span>index_witness = <span class="self">self</span>.var_to_witness(index_var)<span class="question-mark">?</span>;
+<a href=#1409 id=1409 data-nosnippet>1409</a>
+<a href=#1410 id=1410 data-nosnippet>1410</a>        <span class="comment">// Create a Variable to hold the result of the read and extract the corresponding Witness
+<a href=#1411 id=1411 data-nosnippet>1411</a>        </span><span class="kw">let </span>value_read_var = <span class="self">self</span>.add_variable();
+<a href=#1412 id=1412 data-nosnippet>1412</a>        <span class="kw">let </span>value_read_witness = <span class="self">self</span>.var_to_witness(value_read_var)<span class="question-mark">?</span>;
 <a href=#1413 id=1413 data-nosnippet>1413</a>
-<a href=#1414 id=1414 data-nosnippet>1414</a>    <span class="doccomment">/// Insert the `MemoryInit` for the Return Data array, using the provided witnesses
-<a href=#1415 id=1415 data-nosnippet>1415</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>initialize_return_data(<span class="kw-2">&amp;mut </span><span class="self">self</span>, block_id: BlockId, init: Vec&lt;Witness&gt;) {
-<a href=#1416 id=1416 data-nosnippet>1416</a>        <span class="self">self</span>.acir_ir.initialize_memory(block_id, init, BlockType::ReturnData);
-<a href=#1417 id=1417 data-nosnippet>1417</a>    }
-<a href=#1418 id=1418 data-nosnippet>1418</a>
-<a href=#1419 id=1419 data-nosnippet>1419</a>    <span class="doccomment">/// Initializes an array in memory with the given values `optional_values`.
-<a href=#1420 id=1420 data-nosnippet>1420</a>    /// If `optional_values` is empty, then the array is initialized with zeros.
-<a href=#1421 id=1421 data-nosnippet>1421</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>initialize_array(
-<a href=#1422 id=1422 data-nosnippet>1422</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#1423 id=1423 data-nosnippet>1423</a>        block_id: BlockId,
-<a href=#1424 id=1424 data-nosnippet>1424</a>        len: FlattenedLength,
-<a href=#1425 id=1425 data-nosnippet>1425</a>        optional_value: <span class="prelude-ty">Option</span>&lt;AcirValue&gt;,
-<a href=#1426 id=1426 data-nosnippet>1426</a>        databus: BlockType,
+<a href=#1414 id=1414 data-nosnippet>1414</a>        <span class="comment">// Add the memory read operation to the list of opcodes
+<a href=#1415 id=1415 data-nosnippet>1415</a>        </span><span class="kw">let </span>op = MemOp::read_at_mem_index(index_witness, value_read_witness);
+<a href=#1416 id=1416 data-nosnippet>1416</a>        <span class="self">self</span>.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op });
+<a href=#1417 id=1417 data-nosnippet>1417</a>
+<a href=#1418 id=1418 data-nosnippet>1418</a>        <span class="prelude-val">Ok</span>(value_read_var)
+<a href=#1419 id=1419 data-nosnippet>1419</a>    }
+<a href=#1420 id=1420 data-nosnippet>1420</a>
+<a href=#1421 id=1421 data-nosnippet>1421</a>    <span class="doccomment">/// Constrains the Variable `value` to be the new value located at `index` in the memory `block_id`.
+<a href=#1422 id=1422 data-nosnippet>1422</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>write_to_memory(
+<a href=#1423 id=1423 data-nosnippet>1423</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#1424 id=1424 data-nosnippet>1424</a>        block_id: BlockId,
+<a href=#1425 id=1425 data-nosnippet>1425</a>        index: <span class="kw-2">&amp;</span>AcirVar,
+<a href=#1426 id=1426 data-nosnippet>1426</a>        value: <span class="kw-2">&amp;</span>AcirVar,
 <a href=#1427 id=1427 data-nosnippet>1427</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), InternalError&gt; {
-<a href=#1428 id=1428 data-nosnippet>1428</a>        <span class="kw">let </span>len = len.to_usize();
-<a href=#1429 id=1429 data-nosnippet>1429</a>        <span class="kw">let </span>initialized_values = <span class="kw">match </span>optional_value {
-<a href=#1430 id=1430 data-nosnippet>1430</a>            <span class="prelude-val">None </span>=&gt; {
-<a href=#1431 id=1431 data-nosnippet>1431</a>                <span class="kw">let </span>zero = <span class="self">self</span>.add_constant(F::zero());
-<a href=#1432 id=1432 data-nosnippet>1432</a>                <span class="kw">let </span>zero_witness = <span class="self">self</span>.var_to_witness(zero)<span class="question-mark">?</span>;
-<a href=#1433 id=1433 data-nosnippet>1433</a>                <span class="macro">vec!</span>[zero_witness; len]
-<a href=#1434 id=1434 data-nosnippet>1434</a>            }
-<a href=#1435 id=1435 data-nosnippet>1435</a>            <span class="prelude-val">Some</span>(value) =&gt; {
-<a href=#1436 id=1436 data-nosnippet>1436</a>                <span class="kw">let </span><span class="kw-2">mut </span>values = Vec::new();
-<a href=#1437 id=1437 data-nosnippet>1437</a>                <span class="self">self</span>.initialize_array_inner(<span class="kw-2">&amp;mut </span>values, value)<span class="question-mark">?</span>;
-<a href=#1438 id=1438 data-nosnippet>1438</a>                <span class="kw">if </span>values.len() != len {
-<a href=#1439 id=1439 data-nosnippet>1439</a>                    <span class="kw">return </span><span class="prelude-val">Err</span>(InternalError::General {
-<a href=#1440 id=1440 data-nosnippet>1440</a>                        message: <span class="macro">format!</span>(
-<a href=#1441 id=1441 data-nosnippet>1441</a>                            <span class="string">"Attempted to initialize an array of flattened length {len} with {} values"</span>,
-<a href=#1442 id=1442 data-nosnippet>1442</a>                            values.len()
-<a href=#1443 id=1443 data-nosnippet>1443</a>                        ),
-<a href=#1444 id=1444 data-nosnippet>1444</a>                        call_stack: <span class="self">self</span>.get_call_stack(),
-<a href=#1445 id=1445 data-nosnippet>1445</a>                    });
-<a href=#1446 id=1446 data-nosnippet>1446</a>                }
-<a href=#1447 id=1447 data-nosnippet>1447</a>                values
-<a href=#1448 id=1448 data-nosnippet>1448</a>            }
-<a href=#1449 id=1449 data-nosnippet>1449</a>        };
-<a href=#1450 id=1450 data-nosnippet>1450</a>
-<a href=#1451 id=1451 data-nosnippet>1451</a>        <span class="self">self</span>.acir_ir.initialize_memory(block_id, initialized_values, databus);
-<a href=#1452 id=1452 data-nosnippet>1452</a>
-<a href=#1453 id=1453 data-nosnippet>1453</a>        <span class="prelude-val">Ok</span>(())
-<a href=#1454 id=1454 data-nosnippet>1454</a>    }
-<a href=#1455 id=1455 data-nosnippet>1455</a>
-<a href=#1456 id=1456 data-nosnippet>1456</a>    <span class="kw">fn </span>initialize_array_inner(
-<a href=#1457 id=1457 data-nosnippet>1457</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#1458 id=1458 data-nosnippet>1458</a>        witnesses: <span class="kw-2">&amp;mut </span>Vec&lt;Witness&gt;,
-<a href=#1459 id=1459 data-nosnippet>1459</a>        input: AcirValue,
-<a href=#1460 id=1460 data-nosnippet>1460</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), InternalError&gt; {
-<a href=#1461 id=1461 data-nosnippet>1461</a>        <span class="kw">match </span>input {
-<a href=#1462 id=1462 data-nosnippet>1462</a>            AcirValue::Var(var, <span class="kw">_</span>) =&gt; {
-<a href=#1463 id=1463 data-nosnippet>1463</a>                <span class="kw">let </span>var = <span class="self">self</span>.get_or_create_witness_var(var)<span class="question-mark">?</span>;
-<a href=#1464 id=1464 data-nosnippet>1464</a>                witnesses.push(<span class="self">self</span>.var_to_witness(var)<span class="question-mark">?</span>);
-<a href=#1465 id=1465 data-nosnippet>1465</a>            }
-<a href=#1466 id=1466 data-nosnippet>1466</a>            AcirValue::Array(values) =&gt; {
-<a href=#1467 id=1467 data-nosnippet>1467</a>                <span class="kw">for </span>value <span class="kw">in </span>values {
-<a href=#1468 id=1468 data-nosnippet>1468</a>                    <span class="self">self</span>.initialize_array_inner(witnesses, value)<span class="question-mark">?</span>;
-<a href=#1469 id=1469 data-nosnippet>1469</a>                }
-<a href=#1470 id=1470 data-nosnippet>1470</a>            }
-<a href=#1471 id=1471 data-nosnippet>1471</a>            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types, .. }) =&gt; {
-<a href=#1472 id=1472 data-nosnippet>1472</a>                <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..len.to_usize() {
-<a href=#1473 id=1473 data-nosnippet>1473</a>                    <span class="kw">let </span>index_var = <span class="self">self</span>.add_constant(i);
-<a href=#1474 id=1474 data-nosnippet>1474</a>                    <span class="kw">let </span>read = <span class="self">self</span>.read_from_memory(block_id, <span class="kw-2">&amp;</span>index_var)<span class="question-mark">?</span>;
-<a href=#1475 id=1475 data-nosnippet>1475</a>                    <span class="kw">let </span>typ = value_types[i % value_types.len()];
-<a href=#1476 id=1476 data-nosnippet>1476</a>                    <span class="kw">let </span>value = AcirValue::Var(read, typ);
-<a href=#1477 id=1477 data-nosnippet>1477</a>                    <span class="self">self</span>.initialize_array_inner(witnesses, value)<span class="question-mark">?</span>;
-<a href=#1478 id=1478 data-nosnippet>1478</a>                }
-<a href=#1479 id=1479 data-nosnippet>1479</a>            }
-<a href=#1480 id=1480 data-nosnippet>1480</a>        }
-<a href=#1481 id=1481 data-nosnippet>1481</a>        <span class="prelude-val">Ok</span>(())
-<a href=#1482 id=1482 data-nosnippet>1482</a>    }
-<a href=#1483 id=1483 data-nosnippet>1483</a>
-<a href=#1484 id=1484 data-nosnippet>1484</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>call_acir_function(
-<a href=#1485 id=1485 data-nosnippet>1485</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#1486 id=1486 data-nosnippet>1486</a>        id: AcirFunctionId,
-<a href=#1487 id=1487 data-nosnippet>1487</a>        inputs: Vec&lt;AcirValue&gt;,
-<a href=#1488 id=1488 data-nosnippet>1488</a>        output_count: FlattenedLength,
-<a href=#1489 id=1489 data-nosnippet>1489</a>        predicate: AcirVar,
-<a href=#1490 id=1490 data-nosnippet>1490</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;AcirVar&gt;, RuntimeError&gt; {
-<a href=#1491 id=1491 data-nosnippet>1491</a>        <span class="kw">let </span>output_count = output_count.to_usize();
-<a href=#1492 id=1492 data-nosnippet>1492</a>
-<a href=#1493 id=1493 data-nosnippet>1493</a>        <span class="comment">// A call whose predicate folds to a compile-time zero is on a statically-dead branch and is
-<a href=#1494 id=1494 data-nosnippet>1494</a>        // never executed. We resolve it up front to don't-care zeroed outputs and emit no `Call`
-<a href=#1495 id=1495 data-nosnippet>1495</a>        // opcode, mirroring the equivalent handling for Brillig calls. This keeps the
-<a href=#1496 id=1496 data-nosnippet>1496</a>        // `acir_post_check` invariant that no emitted call carries a compile-time zero predicate.
-<a href=#1497 id=1497 data-nosnippet>1497</a>        </span><span class="kw">if </span><span class="self">self</span>.var_to_expression(predicate)<span class="question-mark">?</span>.is_zero() {
-<a href=#1498 id=1498 data-nosnippet>1498</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(vecmap(<span class="number">0</span>..output_count, |<span class="kw">_</span>| <span class="self">self</span>.add_constant(F::zero())));
-<a href=#1499 id=1499 data-nosnippet>1499</a>        }
-<a href=#1500 id=1500 data-nosnippet>1500</a>
-<a href=#1501 id=1501 data-nosnippet>1501</a>        <span class="kw">let </span>inputs = <span class="self">self</span>.prepare_inputs_for_black_box_func_call(inputs, <span class="bool-val">false</span>)<span class="question-mark">?</span>;
-<a href=#1502 id=1502 data-nosnippet>1502</a>        <span class="kw">let </span>inputs = inputs
-<a href=#1503 id=1503 data-nosnippet>1503</a>            .iter()
-<a href=#1504 id=1504 data-nosnippet>1504</a>            .flat_map(|input| vecmap(input, |input| input.to_witness()))
-<a href=#1505 id=1505 data-nosnippet>1505</a>            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-<a href=#1506 id=1506 data-nosnippet>1506</a>        <span class="kw">let </span>outputs = vecmap(<span class="number">0</span>..output_count, |<span class="kw">_</span>| <span class="self">self</span>.acir_ir.next_witness_index());
-<a href=#1507 id=1507 data-nosnippet>1507</a>
-<a href=#1508 id=1508 data-nosnippet>1508</a>        <span class="comment">// Convert `Witness` values which are now constrained to be the output of the
-<a href=#1509 id=1509 data-nosnippet>1509</a>        // ACIR function call into `AcirVar`s.
-<a href=#1510 id=1510 data-nosnippet>1510</a>        // Similar to black box functions, we do not apply range information on the output of the  function.
-<a href=#1511 id=1511 data-nosnippet>1511</a>        // See issue https://github.com/noir-lang/noir/issues/1439
-<a href=#1512 id=1512 data-nosnippet>1512</a>        </span><span class="kw">let </span>results =
-<a href=#1513 id=1513 data-nosnippet>1513</a>            vecmap(<span class="kw-2">&amp;</span>outputs, |witness_index| <span class="self">self</span>.add_data(AcirVarData::Witness(<span class="kw-2">*</span>witness_index)));
-<a href=#1514 id=1514 data-nosnippet>1514</a>        <span class="kw">let </span>predicate: Expression&lt;F&gt; = <span class="kw">if </span><span class="self">self</span>.is_constant(<span class="kw-2">&amp;</span>predicate) {
-<a href=#1515 id=1515 data-nosnippet>1515</a>            <span class="self">self</span>.var_to_expression(predicate)<span class="question-mark">?
-<a href=#1516 id=1516 data-nosnippet>1516</a>        </span>} <span class="kw">else </span>{
-<a href=#1517 id=1517 data-nosnippet>1517</a>            <span class="self">self</span>.var_to_witness(predicate)<span class="question-mark">?</span>.into()
-<a href=#1518 id=1518 data-nosnippet>1518</a>        };
-<a href=#1519 id=1519 data-nosnippet>1519</a>        <span class="self">self</span>.acir_ir.push_opcode(Opcode::Call { id, inputs, outputs, predicate });
-<a href=#1520 id=1520 data-nosnippet>1520</a>        <span class="prelude-val">Ok</span>(results)
-<a href=#1521 id=1521 data-nosnippet>1521</a>    }
-<a href=#1522 id=1522 data-nosnippet>1522</a>
-<a href=#1523 id=1523 data-nosnippet>1523</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>generate_assertion_message_payload(
-<a href=#1524 id=1524 data-nosnippet>1524</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#1525 id=1525 data-nosnippet>1525</a>        message: String,
-<a href=#1526 id=1526 data-nosnippet>1526</a>    ) -&gt; AssertionPayload&lt;F&gt; {
-<a href=#1527 id=1527 data-nosnippet>1527</a>        <span class="self">self</span>.acir_ir.generate_assertion_message_payload(message)
-<a href=#1528 id=1528 data-nosnippet>1528</a>    }
-<a href=#1529 id=1529 data-nosnippet>1529</a>}
-<a href=#1530 id=1530 data-nosnippet>1530</a>
-<a href=#1531 id=1531 data-nosnippet>1531</a><span class="doccomment">/// Returns an `F` representing the value `2**power`
-<a href=#1532 id=1532 data-nosnippet>1532</a>///
-<a href=#1533 id=1533 data-nosnippet>1533</a>/// # Panics
-<a href=#1534 id=1534 data-nosnippet>1534</a>///
-<a href=#1535 id=1535 data-nosnippet>1535</a>/// Panics if `2**power` exceeds `F::modulus()`.
-<a href=#1536 id=1536 data-nosnippet>1536</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>power_of_two&lt;F: AcirField&gt;(power: u32) -&gt; F {
-<a href=#1537 id=1537 data-nosnippet>1537</a>    <span class="kw">if </span>power &gt;= F::max_num_bits() {
-<a href=#1538 id=1538 data-nosnippet>1538</a>        <span class="macro">panic!</span>(<span class="string">"Field cannot represent this power of two"</span>);
-<a href=#1539 id=1539 data-nosnippet>1539</a>    }
-<a href=#1540 id=1540 data-nosnippet>1540</a>    <span class="kw">let </span>full_bytes = power / <span class="number">8</span>;
-<a href=#1541 id=1541 data-nosnippet>1541</a>    <span class="kw">let </span>extra_bits = power % <span class="number">8</span>;
-<a href=#1542 id=1542 data-nosnippet>1542</a>    <span class="kw">let </span>most_significant_byte: u8 = <span class="kw">match </span>extra_bits % <span class="number">8 </span>{
-<a href=#1543 id=1543 data-nosnippet>1543</a>        <span class="number">0 </span>=&gt; <span class="number">0x01</span>,
-<a href=#1544 id=1544 data-nosnippet>1544</a>        <span class="number">1 </span>=&gt; <span class="number">0x02</span>,
-<a href=#1545 id=1545 data-nosnippet>1545</a>        <span class="number">2 </span>=&gt; <span class="number">0x04</span>,
-<a href=#1546 id=1546 data-nosnippet>1546</a>        <span class="number">3 </span>=&gt; <span class="number">0x08</span>,
-<a href=#1547 id=1547 data-nosnippet>1547</a>        <span class="number">4 </span>=&gt; <span class="number">0x10</span>,
-<a href=#1548 id=1548 data-nosnippet>1548</a>        <span class="number">5 </span>=&gt; <span class="number">0x20</span>,
-<a href=#1549 id=1549 data-nosnippet>1549</a>        <span class="number">6 </span>=&gt; <span class="number">0x40</span>,
-<a href=#1550 id=1550 data-nosnippet>1550</a>        <span class="number">7 </span>=&gt; <span class="number">0x80</span>,
-<a href=#1551 id=1551 data-nosnippet>1551</a>        <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"We cover the full range of x % 8"</span>),
-<a href=#1552 id=1552 data-nosnippet>1552</a>    };
-<a href=#1553 id=1553 data-nosnippet>1553</a>
-<a href=#1554 id=1554 data-nosnippet>1554</a>    <span class="kw">let </span>bytes_be: Vec&lt;u8&gt; = std::iter::once(most_significant_byte)
-<a href=#1555 id=1555 data-nosnippet>1555</a>        .chain(std::iter::repeat_n(<span class="number">0</span>, full_bytes <span class="kw">as </span>usize))
-<a href=#1556 id=1556 data-nosnippet>1556</a>        .collect();
-<a href=#1557 id=1557 data-nosnippet>1557</a>
-<a href=#1558 id=1558 data-nosnippet>1558</a>    F::from_be_bytes_reduce(<span class="kw-2">&amp;</span>bytes_be)
-<a href=#1559 id=1559 data-nosnippet>1559</a>}
-<a href=#1560 id=1560 data-nosnippet>1560</a>
-<a href=#1561 id=1561 data-nosnippet>1561</a><span class="doccomment">/// Enum representing the possible values that a
-<a href=#1562 id=1562 data-nosnippet>1562</a>/// Variable can be given.
-<a href=#1563 id=1563 data-nosnippet>1563</a></span><span class="attr">#[derive(Debug, Eq, Clone, PartialEq)]
-<a href=#1564 id=1564 data-nosnippet>1564</a></span><span class="kw">enum </span>AcirVarData&lt;F&gt; {
-<a href=#1565 id=1565 data-nosnippet>1565</a>    Witness(Witness),
-<a href=#1566 id=1566 data-nosnippet>1566</a>    Expr(Expression&lt;F&gt;),
-<a href=#1567 id=1567 data-nosnippet>1567</a>    Const(F),
-<a href=#1568 id=1568 data-nosnippet>1568</a>}
-<a href=#1569 id=1569 data-nosnippet>1569</a>
-<a href=#1570 id=1570 data-nosnippet>1570</a><span class="kw">impl</span>&lt;F: AcirField&gt; AcirVarData&lt;F&gt; {
-<a href=#1571 id=1571 data-nosnippet>1571</a>    <span class="doccomment">/// Converts all enum variants to an Expression.
-<a href=#1572 id=1572 data-nosnippet>1572</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>to_expression(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Cow&lt;Expression&lt;F&gt;&gt; {
-<a href=#1573 id=1573 data-nosnippet>1573</a>        <span class="kw">match </span><span class="self">self </span>{
-<a href=#1574 id=1574 data-nosnippet>1574</a>            AcirVarData::Witness(witness) =&gt; Cow::Owned(Expression::from(<span class="kw-2">*</span>witness)),
-<a href=#1575 id=1575 data-nosnippet>1575</a>            AcirVarData::Expr(expr) =&gt; Cow::Borrowed(expr),
-<a href=#1576 id=1576 data-nosnippet>1576</a>            AcirVarData::Const(constant) =&gt; Cow::Owned(Expression::from(<span class="kw-2">*</span>constant)),
-<a href=#1577 id=1577 data-nosnippet>1577</a>        }
-<a href=#1578 id=1578 data-nosnippet>1578</a>    }
-<a href=#1579 id=1579 data-nosnippet>1579</a>}
-<a href=#1580 id=1580 data-nosnippet>1580</a>
-<a href=#1581 id=1581 data-nosnippet>1581</a><span class="kw">impl</span>&lt;F&gt; From&lt;Witness&gt; <span class="kw">for </span>AcirVarData&lt;F&gt; {
-<a href=#1582 id=1582 data-nosnippet>1582</a>    <span class="kw">fn </span>from(witness: Witness) -&gt; <span class="self">Self </span>{
-<a href=#1583 id=1583 data-nosnippet>1583</a>        AcirVarData::Witness(witness)
-<a href=#1584 id=1584 data-nosnippet>1584</a>    }
-<a href=#1585 id=1585 data-nosnippet>1585</a>}
-<a href=#1586 id=1586 data-nosnippet>1586</a>
-<a href=#1587 id=1587 data-nosnippet>1587</a><span class="kw">impl</span>&lt;F: AcirField&gt; From&lt;Expression&lt;F&gt;&gt; <span class="kw">for </span>AcirVarData&lt;F&gt; {
-<a href=#1588 id=1588 data-nosnippet>1588</a>    <span class="kw">fn </span>from(expr: Expression&lt;F&gt;) -&gt; <span class="self">Self </span>{
-<a href=#1589 id=1589 data-nosnippet>1589</a>        <span class="comment">// Prefer simpler variants if possible.
-<a href=#1590 id=1590 data-nosnippet>1590</a>        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(constant) = expr.to_const() {
-<a href=#1591 id=1591 data-nosnippet>1591</a>            AcirVarData::Const(<span class="kw-2">*</span>constant)
-<a href=#1592 id=1592 data-nosnippet>1592</a>        } <span class="kw">else if let </span><span class="prelude-val">Some</span>(witness) = expr.to_witness() {
-<a href=#1593 id=1593 data-nosnippet>1593</a>            AcirVarData::from(witness)
-<a href=#1594 id=1594 data-nosnippet>1594</a>        } <span class="kw">else </span>{
-<a href=#1595 id=1595 data-nosnippet>1595</a>            AcirVarData::Expr(expr)
-<a href=#1596 id=1596 data-nosnippet>1596</a>        }
-<a href=#1597 id=1597 data-nosnippet>1597</a>    }
-<a href=#1598 id=1598 data-nosnippet>1598</a>}
-<a href=#1599 id=1599 data-nosnippet>1599</a>
-<a href=#1600 id=1600 data-nosnippet>1600</a><span class="attr">#[cfg(test)]
-<a href=#1601 id=1601 data-nosnippet>1601</a></span><span class="kw">mod </span>tests {
-<a href=#1602 id=1602 data-nosnippet>1602</a>    <span class="kw">use </span>std::collections::BTreeMap;
+<a href=#1428 id=1428 data-nosnippet>1428</a>        <span class="comment">// Fetch the witness corresponding to the index
+<a href=#1429 id=1429 data-nosnippet>1429</a>        </span><span class="kw">let </span>index_var = <span class="self">self</span>.get_or_create_witness_var(<span class="kw-2">*</span>index)<span class="question-mark">?</span>;
+<a href=#1430 id=1430 data-nosnippet>1430</a>        <span class="kw">let </span>index_witness = <span class="self">self</span>.var_to_witness(index_var)<span class="question-mark">?</span>;
+<a href=#1431 id=1431 data-nosnippet>1431</a>
+<a href=#1432 id=1432 data-nosnippet>1432</a>        <span class="comment">// Fetch the witness corresponding to the value to be written
+<a href=#1433 id=1433 data-nosnippet>1433</a>        </span><span class="kw">let </span>value_write_var = <span class="self">self</span>.get_or_create_witness_var(<span class="kw-2">*</span>value)<span class="question-mark">?</span>;
+<a href=#1434 id=1434 data-nosnippet>1434</a>        <span class="kw">let </span>value_write_witness = <span class="self">self</span>.var_to_witness(value_write_var)<span class="question-mark">?</span>;
+<a href=#1435 id=1435 data-nosnippet>1435</a>
+<a href=#1436 id=1436 data-nosnippet>1436</a>        <span class="comment">// Add the memory write operation to the list of opcodes
+<a href=#1437 id=1437 data-nosnippet>1437</a>        </span><span class="kw">let </span>op = MemOp::write_to_mem_index(index_witness, value_write_witness);
+<a href=#1438 id=1438 data-nosnippet>1438</a>        <span class="self">self</span>.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op });
+<a href=#1439 id=1439 data-nosnippet>1439</a>
+<a href=#1440 id=1440 data-nosnippet>1440</a>        <span class="prelude-val">Ok</span>(())
+<a href=#1441 id=1441 data-nosnippet>1441</a>    }
+<a href=#1442 id=1442 data-nosnippet>1442</a>
+<a href=#1443 id=1443 data-nosnippet>1443</a>    <span class="doccomment">/// Insert the `MemoryInit` for the Return Data array, using the provided witnesses
+<a href=#1444 id=1444 data-nosnippet>1444</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>initialize_return_data(<span class="kw-2">&amp;mut </span><span class="self">self</span>, block_id: BlockId, init: Vec&lt;Witness&gt;) {
+<a href=#1445 id=1445 data-nosnippet>1445</a>        <span class="self">self</span>.acir_ir.initialize_memory(block_id, init, BlockType::ReturnData);
+<a href=#1446 id=1446 data-nosnippet>1446</a>    }
+<a href=#1447 id=1447 data-nosnippet>1447</a>
+<a href=#1448 id=1448 data-nosnippet>1448</a>    <span class="doccomment">/// Initializes an array in memory with the given values `optional_values`.
+<a href=#1449 id=1449 data-nosnippet>1449</a>    /// If `optional_values` is empty, then the array is initialized with zeros.
+<a href=#1450 id=1450 data-nosnippet>1450</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>initialize_array(
+<a href=#1451 id=1451 data-nosnippet>1451</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#1452 id=1452 data-nosnippet>1452</a>        block_id: BlockId,
+<a href=#1453 id=1453 data-nosnippet>1453</a>        len: FlattenedLength,
+<a href=#1454 id=1454 data-nosnippet>1454</a>        optional_value: <span class="prelude-ty">Option</span>&lt;AcirValue&gt;,
+<a href=#1455 id=1455 data-nosnippet>1455</a>        databus: BlockType,
+<a href=#1456 id=1456 data-nosnippet>1456</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), InternalError&gt; {
+<a href=#1457 id=1457 data-nosnippet>1457</a>        <span class="kw">let </span>len = len.to_usize();
+<a href=#1458 id=1458 data-nosnippet>1458</a>        <span class="kw">let </span>initialized_values = <span class="kw">match </span>optional_value {
+<a href=#1459 id=1459 data-nosnippet>1459</a>            <span class="prelude-val">None </span>=&gt; {
+<a href=#1460 id=1460 data-nosnippet>1460</a>                <span class="kw">let </span>zero = <span class="self">self</span>.add_constant(F::zero());
+<a href=#1461 id=1461 data-nosnippet>1461</a>                <span class="kw">let </span>zero_witness = <span class="self">self</span>.var_to_witness(zero)<span class="question-mark">?</span>;
+<a href=#1462 id=1462 data-nosnippet>1462</a>                <span class="macro">vec!</span>[zero_witness; len]
+<a href=#1463 id=1463 data-nosnippet>1463</a>            }
+<a href=#1464 id=1464 data-nosnippet>1464</a>            <span class="prelude-val">Some</span>(value) =&gt; {
+<a href=#1465 id=1465 data-nosnippet>1465</a>                <span class="kw">let </span><span class="kw-2">mut </span>values = Vec::new();
+<a href=#1466 id=1466 data-nosnippet>1466</a>                <span class="self">self</span>.initialize_array_inner(<span class="kw-2">&amp;mut </span>values, value)<span class="question-mark">?</span>;
+<a href=#1467 id=1467 data-nosnippet>1467</a>                <span class="kw">if </span>values.len() != len {
+<a href=#1468 id=1468 data-nosnippet>1468</a>                    <span class="kw">return </span><span class="prelude-val">Err</span>(InternalError::General {
+<a href=#1469 id=1469 data-nosnippet>1469</a>                        message: <span class="macro">format!</span>(
+<a href=#1470 id=1470 data-nosnippet>1470</a>                            <span class="string">"Attempted to initialize an array of flattened length {len} with {} values"</span>,
+<a href=#1471 id=1471 data-nosnippet>1471</a>                            values.len()
+<a href=#1472 id=1472 data-nosnippet>1472</a>                        ),
+<a href=#1473 id=1473 data-nosnippet>1473</a>                        call_stack: <span class="self">self</span>.get_call_stack(),
+<a href=#1474 id=1474 data-nosnippet>1474</a>                    });
+<a href=#1475 id=1475 data-nosnippet>1475</a>                }
+<a href=#1476 id=1476 data-nosnippet>1476</a>                values
+<a href=#1477 id=1477 data-nosnippet>1477</a>            }
+<a href=#1478 id=1478 data-nosnippet>1478</a>        };
+<a href=#1479 id=1479 data-nosnippet>1479</a>
+<a href=#1480 id=1480 data-nosnippet>1480</a>        <span class="self">self</span>.acir_ir.initialize_memory(block_id, initialized_values, databus);
+<a href=#1481 id=1481 data-nosnippet>1481</a>
+<a href=#1482 id=1482 data-nosnippet>1482</a>        <span class="prelude-val">Ok</span>(())
+<a href=#1483 id=1483 data-nosnippet>1483</a>    }
+<a href=#1484 id=1484 data-nosnippet>1484</a>
+<a href=#1485 id=1485 data-nosnippet>1485</a>    <span class="kw">fn </span>initialize_array_inner(
+<a href=#1486 id=1486 data-nosnippet>1486</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#1487 id=1487 data-nosnippet>1487</a>        witnesses: <span class="kw-2">&amp;mut </span>Vec&lt;Witness&gt;,
+<a href=#1488 id=1488 data-nosnippet>1488</a>        input: AcirValue,
+<a href=#1489 id=1489 data-nosnippet>1489</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), InternalError&gt; {
+<a href=#1490 id=1490 data-nosnippet>1490</a>        <span class="kw">match </span>input {
+<a href=#1491 id=1491 data-nosnippet>1491</a>            AcirValue::Var(var, <span class="kw">_</span>) =&gt; {
+<a href=#1492 id=1492 data-nosnippet>1492</a>                <span class="kw">let </span>var = <span class="self">self</span>.get_or_create_witness_var(var)<span class="question-mark">?</span>;
+<a href=#1493 id=1493 data-nosnippet>1493</a>                witnesses.push(<span class="self">self</span>.var_to_witness(var)<span class="question-mark">?</span>);
+<a href=#1494 id=1494 data-nosnippet>1494</a>            }
+<a href=#1495 id=1495 data-nosnippet>1495</a>            AcirValue::Array(values) =&gt; {
+<a href=#1496 id=1496 data-nosnippet>1496</a>                <span class="kw">for </span>value <span class="kw">in </span>values {
+<a href=#1497 id=1497 data-nosnippet>1497</a>                    <span class="self">self</span>.initialize_array_inner(witnesses, value)<span class="question-mark">?</span>;
+<a href=#1498 id=1498 data-nosnippet>1498</a>                }
+<a href=#1499 id=1499 data-nosnippet>1499</a>            }
+<a href=#1500 id=1500 data-nosnippet>1500</a>            AcirValue::DynamicArray(AcirDynamicArray { block_id, len, value_types, .. }) =&gt; {
+<a href=#1501 id=1501 data-nosnippet>1501</a>                <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..len.to_usize() {
+<a href=#1502 id=1502 data-nosnippet>1502</a>                    <span class="kw">let </span>index_var = <span class="self">self</span>.add_constant(i);
+<a href=#1503 id=1503 data-nosnippet>1503</a>                    <span class="kw">let </span>read = <span class="self">self</span>.read_from_memory(block_id, <span class="kw-2">&amp;</span>index_var)<span class="question-mark">?</span>;
+<a href=#1504 id=1504 data-nosnippet>1504</a>                    <span class="kw">let </span>typ = value_types[i % value_types.len()];
+<a href=#1505 id=1505 data-nosnippet>1505</a>                    <span class="kw">let </span>value = AcirValue::Var(read, typ);
+<a href=#1506 id=1506 data-nosnippet>1506</a>                    <span class="self">self</span>.initialize_array_inner(witnesses, value)<span class="question-mark">?</span>;
+<a href=#1507 id=1507 data-nosnippet>1507</a>                }
+<a href=#1508 id=1508 data-nosnippet>1508</a>            }
+<a href=#1509 id=1509 data-nosnippet>1509</a>        }
+<a href=#1510 id=1510 data-nosnippet>1510</a>        <span class="prelude-val">Ok</span>(())
+<a href=#1511 id=1511 data-nosnippet>1511</a>    }
+<a href=#1512 id=1512 data-nosnippet>1512</a>
+<a href=#1513 id=1513 data-nosnippet>1513</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>call_acir_function(
+<a href=#1514 id=1514 data-nosnippet>1514</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#1515 id=1515 data-nosnippet>1515</a>        id: AcirFunctionId,
+<a href=#1516 id=1516 data-nosnippet>1516</a>        inputs: Vec&lt;AcirValue&gt;,
+<a href=#1517 id=1517 data-nosnippet>1517</a>        output_count: FlattenedLength,
+<a href=#1518 id=1518 data-nosnippet>1518</a>        predicate: AcirVar,
+<a href=#1519 id=1519 data-nosnippet>1519</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;AcirVar&gt;, RuntimeError&gt; {
+<a href=#1520 id=1520 data-nosnippet>1520</a>        <span class="kw">let </span>output_count = output_count.to_usize();
+<a href=#1521 id=1521 data-nosnippet>1521</a>
+<a href=#1522 id=1522 data-nosnippet>1522</a>        <span class="comment">// A call whose predicate folds to a compile-time zero is on a statically-dead branch and is
+<a href=#1523 id=1523 data-nosnippet>1523</a>        // never executed. We resolve it up front to don't-care zeroed outputs and emit no `Call`
+<a href=#1524 id=1524 data-nosnippet>1524</a>        // opcode, mirroring the equivalent handling for Brillig calls. This keeps the
+<a href=#1525 id=1525 data-nosnippet>1525</a>        // `acir_post_check` invariant that no emitted call carries a compile-time zero predicate.
+<a href=#1526 id=1526 data-nosnippet>1526</a>        </span><span class="kw">if </span><span class="self">self</span>.var_to_expression(predicate)<span class="question-mark">?</span>.is_zero() {
+<a href=#1527 id=1527 data-nosnippet>1527</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(vecmap(<span class="number">0</span>..output_count, |<span class="kw">_</span>| <span class="self">self</span>.add_constant(F::zero())));
+<a href=#1528 id=1528 data-nosnippet>1528</a>        }
+<a href=#1529 id=1529 data-nosnippet>1529</a>
+<a href=#1530 id=1530 data-nosnippet>1530</a>        <span class="kw">let </span>inputs = <span class="self">self</span>.prepare_inputs_for_black_box_func_call(inputs, <span class="bool-val">false</span>)<span class="question-mark">?</span>;
+<a href=#1531 id=1531 data-nosnippet>1531</a>        <span class="kw">let </span>inputs = inputs
+<a href=#1532 id=1532 data-nosnippet>1532</a>            .iter()
+<a href=#1533 id=1533 data-nosnippet>1533</a>            .flat_map(|input| vecmap(input, |input| input.to_witness()))
+<a href=#1534 id=1534 data-nosnippet>1534</a>            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+<a href=#1535 id=1535 data-nosnippet>1535</a>        <span class="kw">let </span>outputs = vecmap(<span class="number">0</span>..output_count, |<span class="kw">_</span>| <span class="self">self</span>.acir_ir.next_witness_index());
+<a href=#1536 id=1536 data-nosnippet>1536</a>
+<a href=#1537 id=1537 data-nosnippet>1537</a>        <span class="comment">// Convert `Witness` values which are now constrained to be the output of the
+<a href=#1538 id=1538 data-nosnippet>1538</a>        // ACIR function call into `AcirVar`s.
+<a href=#1539 id=1539 data-nosnippet>1539</a>        // Similar to black box functions, we do not apply range information on the output of the  function.
+<a href=#1540 id=1540 data-nosnippet>1540</a>        // See issue https://github.com/noir-lang/noir/issues/1439
+<a href=#1541 id=1541 data-nosnippet>1541</a>        </span><span class="kw">let </span>results =
+<a href=#1542 id=1542 data-nosnippet>1542</a>            vecmap(<span class="kw-2">&amp;</span>outputs, |witness_index| <span class="self">self</span>.add_data(AcirVarData::Witness(<span class="kw-2">*</span>witness_index)));
+<a href=#1543 id=1543 data-nosnippet>1543</a>        <span class="kw">let </span>predicate: Expression&lt;F&gt; = <span class="kw">if </span><span class="self">self</span>.is_constant(<span class="kw-2">&amp;</span>predicate) {
+<a href=#1544 id=1544 data-nosnippet>1544</a>            <span class="self">self</span>.var_to_expression(predicate)<span class="question-mark">?
+<a href=#1545 id=1545 data-nosnippet>1545</a>        </span>} <span class="kw">else </span>{
+<a href=#1546 id=1546 data-nosnippet>1546</a>            <span class="self">self</span>.var_to_witness(predicate)<span class="question-mark">?</span>.into()
+<a href=#1547 id=1547 data-nosnippet>1547</a>        };
+<a href=#1548 id=1548 data-nosnippet>1548</a>        <span class="self">self</span>.acir_ir.push_opcode(Opcode::Call { id, inputs, outputs, predicate });
+<a href=#1549 id=1549 data-nosnippet>1549</a>        <span class="prelude-val">Ok</span>(results)
+<a href=#1550 id=1550 data-nosnippet>1550</a>    }
+<a href=#1551 id=1551 data-nosnippet>1551</a>
+<a href=#1552 id=1552 data-nosnippet>1552</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>generate_assertion_message_payload(
+<a href=#1553 id=1553 data-nosnippet>1553</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#1554 id=1554 data-nosnippet>1554</a>        message: String,
+<a href=#1555 id=1555 data-nosnippet>1555</a>    ) -&gt; AssertionPayload&lt;F&gt; {
+<a href=#1556 id=1556 data-nosnippet>1556</a>        <span class="self">self</span>.acir_ir.generate_assertion_message_payload(message)
+<a href=#1557 id=1557 data-nosnippet>1557</a>    }
+<a href=#1558 id=1558 data-nosnippet>1558</a>
+<a href=#1559 id=1559 data-nosnippet>1559</a>    <span class="doccomment">/// Builds the payload of an out-of-bounds failure reported in an array's logical coordinates,
+<a href=#1560 id=1560 data-nosnippet>1560</a>    /// rendering as `Index out of bounds, array has size &lt;array_len&gt;, but index was &lt;index&gt;`.
+<a href=#1561 id=1561 data-nosnippet>1561</a>    ///
+<a href=#1562 id=1562 data-nosnippet>1562</a>    /// `index` is an expression for the logical index, evaluated by the solver over the witness
+<a href=#1563 id=1563 data-nosnippet>1563</a>    /// map once the memory op it is attached to has already failed its bounds check. It is data,
+<a href=#1564 id=1564 data-nosnippet>1564</a>    /// not a constraint: it adds no opcode and no witness of its own.
+<a href=#1565 id=1565 data-nosnippet>1565</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>generate_index_out_of_bounds_payload(
+<a href=#1566 id=1566 data-nosnippet>1566</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#1567 id=1567 data-nosnippet>1567</a>        index: Expression&lt;F&gt;,
+<a href=#1568 id=1568 data-nosnippet>1568</a>        array_len: u32,
+<a href=#1569 id=1569 data-nosnippet>1569</a>    ) -&gt; AssertionPayload&lt;F&gt; {
+<a href=#1570 id=1570 data-nosnippet>1570</a>        <span class="self">self</span>.acir_ir.generate_index_out_of_bounds_payload(index, array_len)
+<a href=#1571 id=1571 data-nosnippet>1571</a>    }
+<a href=#1572 id=1572 data-nosnippet>1572</a>}
+<a href=#1573 id=1573 data-nosnippet>1573</a>
+<a href=#1574 id=1574 data-nosnippet>1574</a><span class="doccomment">/// Returns an `F` representing the value `2**power`
+<a href=#1575 id=1575 data-nosnippet>1575</a>///
+<a href=#1576 id=1576 data-nosnippet>1576</a>/// # Panics
+<a href=#1577 id=1577 data-nosnippet>1577</a>///
+<a href=#1578 id=1578 data-nosnippet>1578</a>/// Panics if `2**power` exceeds `F::modulus()`.
+<a href=#1579 id=1579 data-nosnippet>1579</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>power_of_two&lt;F: AcirField&gt;(power: u32) -&gt; F {
+<a href=#1580 id=1580 data-nosnippet>1580</a>    <span class="kw">if </span>power &gt;= F::max_num_bits() {
+<a href=#1581 id=1581 data-nosnippet>1581</a>        <span class="macro">panic!</span>(<span class="string">"Field cannot represent this power of two"</span>);
+<a href=#1582 id=1582 data-nosnippet>1582</a>    }
+<a href=#1583 id=1583 data-nosnippet>1583</a>    <span class="kw">let </span>full_bytes = power / <span class="number">8</span>;
+<a href=#1584 id=1584 data-nosnippet>1584</a>    <span class="kw">let </span>extra_bits = power % <span class="number">8</span>;
+<a href=#1585 id=1585 data-nosnippet>1585</a>    <span class="kw">let </span>most_significant_byte: u8 = <span class="kw">match </span>extra_bits % <span class="number">8 </span>{
+<a href=#1586 id=1586 data-nosnippet>1586</a>        <span class="number">0 </span>=&gt; <span class="number">0x01</span>,
+<a href=#1587 id=1587 data-nosnippet>1587</a>        <span class="number">1 </span>=&gt; <span class="number">0x02</span>,
+<a href=#1588 id=1588 data-nosnippet>1588</a>        <span class="number">2 </span>=&gt; <span class="number">0x04</span>,
+<a href=#1589 id=1589 data-nosnippet>1589</a>        <span class="number">3 </span>=&gt; <span class="number">0x08</span>,
+<a href=#1590 id=1590 data-nosnippet>1590</a>        <span class="number">4 </span>=&gt; <span class="number">0x10</span>,
+<a href=#1591 id=1591 data-nosnippet>1591</a>        <span class="number">5 </span>=&gt; <span class="number">0x20</span>,
+<a href=#1592 id=1592 data-nosnippet>1592</a>        <span class="number">6 </span>=&gt; <span class="number">0x40</span>,
+<a href=#1593 id=1593 data-nosnippet>1593</a>        <span class="number">7 </span>=&gt; <span class="number">0x80</span>,
+<a href=#1594 id=1594 data-nosnippet>1594</a>        <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"We cover the full range of x % 8"</span>),
+<a href=#1595 id=1595 data-nosnippet>1595</a>    };
+<a href=#1596 id=1596 data-nosnippet>1596</a>
+<a href=#1597 id=1597 data-nosnippet>1597</a>    <span class="kw">let </span>bytes_be: Vec&lt;u8&gt; = std::iter::once(most_significant_byte)
+<a href=#1598 id=1598 data-nosnippet>1598</a>        .chain(std::iter::repeat_n(<span class="number">0</span>, full_bytes <span class="kw">as </span>usize))
+<a href=#1599 id=1599 data-nosnippet>1599</a>        .collect();
+<a href=#1600 id=1600 data-nosnippet>1600</a>
+<a href=#1601 id=1601 data-nosnippet>1601</a>    F::from_be_bytes_reduce(<span class="kw-2">&amp;</span>bytes_be)
+<a href=#1602 id=1602 data-nosnippet>1602</a>}
 <a href=#1603 id=1603 data-nosnippet>1603</a>
-<a href=#1604 id=1604 data-nosnippet>1604</a>    <span class="kw">use </span>acvm::{
-<a href=#1605 id=1605 data-nosnippet>1605</a>        AcirField, FieldElement,
-<a href=#1606 id=1606 data-nosnippet>1606</a>        acir::native_types::WitnessMap,
-<a href=#1607 id=1607 data-nosnippet>1607</a>        assert_circuit_snapshot,
-<a href=#1608 id=1608 data-nosnippet>1608</a>        blackbox_solver::StubbedBlackBoxSolver,
-<a href=#1609 id=1609 data-nosnippet>1609</a>        pwg::{ACVM, ACVMStatus},
-<a href=#1610 id=1610 data-nosnippet>1610</a>    };
-<a href=#1611 id=1611 data-nosnippet>1611</a>    <span class="kw">use </span>noirc_frontend::shared::Visibility;
-<a href=#1612 id=1612 data-nosnippet>1612</a>    <span class="kw">use </span>proptest::prelude::<span class="kw-2">*</span>;
-<a href=#1613 id=1613 data-nosnippet>1613</a>
-<a href=#1614 id=1614 data-nosnippet>1614</a>    <span class="kw">use crate</span>::{
-<a href=#1615 id=1615 data-nosnippet>1615</a>        acir::acir_context::{AcirContext, BrilligStdLib},
-<a href=#1616 id=1616 data-nosnippet>1616</a>        ssa::convert_generated_acir_into_circuit,
-<a href=#1617 id=1617 data-nosnippet>1617</a>    };
-<a href=#1618 id=1618 data-nosnippet>1618</a>
-<a href=#1619 id=1619 data-nosnippet>1619</a>    <span class="kw">use </span><span class="kw">super</span>::power_of_two;
-<a href=#1620 id=1620 data-nosnippet>1620</a>
-<a href=#1621 id=1621 data-nosnippet>1621</a>    <span class="attr">#[test]
-<a href=#1622 id=1622 data-nosnippet>1622</a>    #[should_panic = <span class="string">"Field cannot represent this power of two"</span>]
-<a href=#1623 id=1623 data-nosnippet>1623</a>    </span><span class="kw">fn </span>power_of_two_panics_on_overflow() {
-<a href=#1624 id=1624 data-nosnippet>1624</a>        power_of_two::&lt;FieldElement&gt;(FieldElement::max_num_bits());
-<a href=#1625 id=1625 data-nosnippet>1625</a>    }
-<a href=#1626 id=1626 data-nosnippet>1626</a>
-<a href=#1627 id=1627 data-nosnippet>1627</a>    <span class="attr">#[test]
-<a href=#1628 id=1628 data-nosnippet>1628</a>    </span><span class="kw">fn </span>initialize_array_rejects_length_mismatch() {
-<a href=#1629 id=1629 data-nosnippet>1629</a>        <span class="kw">use </span><span class="kw">crate</span>::acir::AcirValue;
-<a href=#1630 id=1630 data-nosnippet>1630</a>        <span class="kw">use </span><span class="kw">crate</span>::errors::InternalError;
-<a href=#1631 id=1631 data-nosnippet>1631</a>        <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::types::NumericType;
-<a href=#1632 id=1632 data-nosnippet>1632</a>        <span class="kw">use </span>acvm::acir::brillig::lengths::FlattenedLength;
-<a href=#1633 id=1633 data-nosnippet>1633</a>        <span class="kw">use </span>acvm::acir::circuit::opcodes::{BlockId, BlockType};
-<a href=#1634 id=1634 data-nosnippet>1634</a>
-<a href=#1635 id=1635 data-nosnippet>1635</a>        <span class="kw">let </span><span class="kw-2">mut </span>context = AcirContext::&lt;FieldElement&gt;::new(BrilligStdLib::default());
-<a href=#1636 id=1636 data-nosnippet>1636</a>        <span class="kw">let </span>var = context.add_constant(FieldElement::one());
-<a href=#1637 id=1637 data-nosnippet>1637</a>        <span class="kw">let </span>value = AcirValue::Array(<span class="macro">imbl::vector!</span>[AcirValue::Var(var, NumericType::NativeField)]);
-<a href=#1638 id=1638 data-nosnippet>1638</a>
-<a href=#1639 id=1639 data-nosnippet>1639</a>        <span class="comment">// Claim a flattened length of 2 but provide only a single value.
-<a href=#1640 id=1640 data-nosnippet>1640</a>        </span><span class="kw">let </span>result = context.initialize_array(
-<a href=#1641 id=1641 data-nosnippet>1641</a>            BlockId::new(<span class="number">0</span>),
-<a href=#1642 id=1642 data-nosnippet>1642</a>            FlattenedLength(<span class="number">2</span>),
-<a href=#1643 id=1643 data-nosnippet>1643</a>            <span class="prelude-val">Some</span>(value),
-<a href=#1644 id=1644 data-nosnippet>1644</a>            BlockType::Memory,
-<a href=#1645 id=1645 data-nosnippet>1645</a>        );
-<a href=#1646 id=1646 data-nosnippet>1646</a>        <span class="macro">assert!</span>(<span class="macro">matches!</span>(result, <span class="prelude-val">Err</span>(InternalError::General { .. })));
-<a href=#1647 id=1647 data-nosnippet>1647</a>    }
-<a href=#1648 id=1648 data-nosnippet>1648</a>
-<a href=#1649 id=1649 data-nosnippet>1649</a>    <span class="macro">proptest!</span> {
-<a href=#1650 id=1650 data-nosnippet>1650</a>        <span class="attr">#[test]
-<a href=#1651 id=1651 data-nosnippet>1651</a>        </span><span class="kw">fn </span>power_of_two_agrees_with_generic_impl(bit_size <span class="kw">in </span>(<span class="number">0</span>..=<span class="number">128u32</span>)) {
-<a href=#1652 id=1652 data-nosnippet>1652</a>            <span class="kw">let </span>power_of_two_general =
-<a href=#1653 id=1653 data-nosnippet>1653</a>                FieldElement::from(<span class="number">2_u128</span>).pow(<span class="kw-2">&amp;</span>FieldElement::from(bit_size));
-<a href=#1654 id=1654 data-nosnippet>1654</a>            <span class="kw">let </span>power_of_two_opt: FieldElement = power_of_two(bit_size);
-<a href=#1655 id=1655 data-nosnippet>1655</a>
-<a href=#1656 id=1656 data-nosnippet>1656</a>            <span class="macro">prop_assert_eq!</span>(power_of_two_opt, power_of_two_general);
-<a href=#1657 id=1657 data-nosnippet>1657</a>        }
-<a href=#1658 id=1658 data-nosnippet>1658</a>
-<a href=#1659 id=1659 data-nosnippet>1659</a>
-<a href=#1660 id=1660 data-nosnippet>1660</a>        <span class="attr">#[test]
-<a href=#1661 id=1661 data-nosnippet>1661</a>        </span><span class="kw">fn </span>fuzz_bound_constraint_with_offset(
-<a href=#1662 id=1662 data-nosnippet>1662</a>            (limit, offset) <span class="kw">in </span><span class="macro">prop_oneof!</span>[
-<a href=#1663 id=1663 data-nosnippet>1663</a>                <span class="comment">// Specific case: strict inequality with 2^127 + 1
-<a href=#1664 id=1664 data-nosnippet>1664</a>                </span>Just((<span class="number">170141183460469231731687303715884105729u128</span>, <span class="bool-val">true</span>)),
-<a href=#1665 id=1665 data-nosnippet>1665</a>                <span class="comment">// Random cases
-<a href=#1666 id=1666 data-nosnippet>1666</a>                </span>(any::&lt;u128&gt;(), any::&lt;bool&gt;())
-<a href=#1667 id=1667 data-nosnippet>1667</a>            ]
-<a href=#1668 id=1668 data-nosnippet>1668</a>        ) {
-<a href=#1669 id=1669 data-nosnippet>1669</a>            <span class="kw">let </span><span class="kw-2">mut </span>context = AcirContext::&lt;FieldElement&gt;::new(BrilligStdLib::default());
-<a href=#1670 id=1670 data-nosnippet>1670</a>
-<a href=#1671 id=1671 data-nosnippet>1671</a>            <span class="kw">let </span>lhs = context.add_variable();
-<a href=#1672 id=1672 data-nosnippet>1672</a>            <span class="kw">let </span>rhs = context.add_constant(limit);
-<a href=#1673 id=1673 data-nosnippet>1673</a>            <span class="kw">let </span>offset_var = context.add_constant(offset);
-<a href=#1674 id=1674 data-nosnippet>1674</a>            <span class="kw">let </span>one = context.add_constant(<span class="number">1_u128</span>);
-<a href=#1675 id=1675 data-nosnippet>1675</a>
-<a href=#1676 id=1676 data-nosnippet>1676</a>            <span class="kw">let </span>lhs_witness = context.var_to_witness(lhs).unwrap();
-<a href=#1677 id=1677 data-nosnippet>1677</a>            context.acir_ir.input_witnesses = <span class="macro">vec!</span>[lhs_witness];
-<a href=#1678 id=1678 data-nosnippet>1678</a>
-<a href=#1679 id=1679 data-nosnippet>1679</a>            context.bound_constraint_with_offset(lhs, rhs, offset_var, <span class="number">128</span>, one).unwrap();
-<a href=#1680 id=1680 data-nosnippet>1680</a>
-<a href=#1681 id=1681 data-nosnippet>1681</a>            <span class="kw">let </span>circuit = context.finish(Vec::new(), Vec::new());
-<a href=#1682 id=1682 data-nosnippet>1682</a>            <span class="kw">let </span>circuit = convert_generated_acir_into_circuit(
-<a href=#1683 id=1683 data-nosnippet>1683</a>                circuit,
-<a href=#1684 id=1684 data-nosnippet>1684</a>                <span class="kw-2">&amp;</span>[(<span class="number">1</span>, Visibility::Private)],
-<a href=#1685 id=1685 data-nosnippet>1685</a>                <span class="kw-2">&amp;</span>BTreeMap::default(),
-<a href=#1686 id=1686 data-nosnippet>1686</a>                BTreeMap::default(),
-<a href=#1687 id=1687 data-nosnippet>1687</a>                BTreeMap::default(),
-<a href=#1688 id=1688 data-nosnippet>1688</a>                BTreeMap::default(),
-<a href=#1689 id=1689 data-nosnippet>1689</a>            )
-<a href=#1690 id=1690 data-nosnippet>1690</a>            .circuit;
+<a href=#1604 id=1604 data-nosnippet>1604</a><span class="doccomment">/// Enum representing the possible values that a
+<a href=#1605 id=1605 data-nosnippet>1605</a>/// Variable can be given.
+<a href=#1606 id=1606 data-nosnippet>1606</a></span><span class="attr">#[derive(Debug, Eq, Clone, PartialEq)]
+<a href=#1607 id=1607 data-nosnippet>1607</a></span><span class="kw">enum </span>AcirVarData&lt;F&gt; {
+<a href=#1608 id=1608 data-nosnippet>1608</a>    Witness(Witness),
+<a href=#1609 id=1609 data-nosnippet>1609</a>    Expr(Expression&lt;F&gt;),
+<a href=#1610 id=1610 data-nosnippet>1610</a>    Const(F),
+<a href=#1611 id=1611 data-nosnippet>1611</a>}
+<a href=#1612 id=1612 data-nosnippet>1612</a>
+<a href=#1613 id=1613 data-nosnippet>1613</a><span class="kw">impl</span>&lt;F: AcirField&gt; AcirVarData&lt;F&gt; {
+<a href=#1614 id=1614 data-nosnippet>1614</a>    <span class="doccomment">/// Converts all enum variants to an Expression.
+<a href=#1615 id=1615 data-nosnippet>1615</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>to_expression(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Cow&lt;Expression&lt;F&gt;&gt; {
+<a href=#1616 id=1616 data-nosnippet>1616</a>        <span class="kw">match </span><span class="self">self </span>{
+<a href=#1617 id=1617 data-nosnippet>1617</a>            AcirVarData::Witness(witness) =&gt; Cow::Owned(Expression::from(<span class="kw-2">*</span>witness)),
+<a href=#1618 id=1618 data-nosnippet>1618</a>            AcirVarData::Expr(expr) =&gt; Cow::Borrowed(expr),
+<a href=#1619 id=1619 data-nosnippet>1619</a>            AcirVarData::Const(constant) =&gt; Cow::Owned(Expression::from(<span class="kw-2">*</span>constant)),
+<a href=#1620 id=1620 data-nosnippet>1620</a>        }
+<a href=#1621 id=1621 data-nosnippet>1621</a>    }
+<a href=#1622 id=1622 data-nosnippet>1622</a>}
+<a href=#1623 id=1623 data-nosnippet>1623</a>
+<a href=#1624 id=1624 data-nosnippet>1624</a><span class="kw">impl</span>&lt;F&gt; From&lt;Witness&gt; <span class="kw">for </span>AcirVarData&lt;F&gt; {
+<a href=#1625 id=1625 data-nosnippet>1625</a>    <span class="kw">fn </span>from(witness: Witness) -&gt; <span class="self">Self </span>{
+<a href=#1626 id=1626 data-nosnippet>1626</a>        AcirVarData::Witness(witness)
+<a href=#1627 id=1627 data-nosnippet>1627</a>    }
+<a href=#1628 id=1628 data-nosnippet>1628</a>}
+<a href=#1629 id=1629 data-nosnippet>1629</a>
+<a href=#1630 id=1630 data-nosnippet>1630</a><span class="kw">impl</span>&lt;F: AcirField&gt; From&lt;Expression&lt;F&gt;&gt; <span class="kw">for </span>AcirVarData&lt;F&gt; {
+<a href=#1631 id=1631 data-nosnippet>1631</a>    <span class="kw">fn </span>from(expr: Expression&lt;F&gt;) -&gt; <span class="self">Self </span>{
+<a href=#1632 id=1632 data-nosnippet>1632</a>        <span class="comment">// Prefer simpler variants if possible.
+<a href=#1633 id=1633 data-nosnippet>1633</a>        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(constant) = expr.to_const() {
+<a href=#1634 id=1634 data-nosnippet>1634</a>            AcirVarData::Const(<span class="kw-2">*</span>constant)
+<a href=#1635 id=1635 data-nosnippet>1635</a>        } <span class="kw">else if let </span><span class="prelude-val">Some</span>(witness) = expr.to_witness() {
+<a href=#1636 id=1636 data-nosnippet>1636</a>            AcirVarData::from(witness)
+<a href=#1637 id=1637 data-nosnippet>1637</a>        } <span class="kw">else </span>{
+<a href=#1638 id=1638 data-nosnippet>1638</a>            AcirVarData::Expr(expr)
+<a href=#1639 id=1639 data-nosnippet>1639</a>        }
+<a href=#1640 id=1640 data-nosnippet>1640</a>    }
+<a href=#1641 id=1641 data-nosnippet>1641</a>}
+<a href=#1642 id=1642 data-nosnippet>1642</a>
+<a href=#1643 id=1643 data-nosnippet>1643</a><span class="attr">#[cfg(test)]
+<a href=#1644 id=1644 data-nosnippet>1644</a></span><span class="kw">mod </span>tests {
+<a href=#1645 id=1645 data-nosnippet>1645</a>    <span class="kw">use </span>std::collections::BTreeMap;
+<a href=#1646 id=1646 data-nosnippet>1646</a>
+<a href=#1647 id=1647 data-nosnippet>1647</a>    <span class="kw">use </span>acvm::{
+<a href=#1648 id=1648 data-nosnippet>1648</a>        AcirField, FieldElement,
+<a href=#1649 id=1649 data-nosnippet>1649</a>        acir::native_types::WitnessMap,
+<a href=#1650 id=1650 data-nosnippet>1650</a>        assert_circuit_snapshot,
+<a href=#1651 id=1651 data-nosnippet>1651</a>        blackbox_solver::StubbedBlackBoxSolver,
+<a href=#1652 id=1652 data-nosnippet>1652</a>        pwg::{ACVM, ACVMStatus},
+<a href=#1653 id=1653 data-nosnippet>1653</a>    };
+<a href=#1654 id=1654 data-nosnippet>1654</a>    <span class="kw">use </span>noirc_frontend::shared::Visibility;
+<a href=#1655 id=1655 data-nosnippet>1655</a>    <span class="kw">use </span>proptest::prelude::<span class="kw-2">*</span>;
+<a href=#1656 id=1656 data-nosnippet>1656</a>
+<a href=#1657 id=1657 data-nosnippet>1657</a>    <span class="kw">use crate</span>::{
+<a href=#1658 id=1658 data-nosnippet>1658</a>        acir::acir_context::{AcirContext, BrilligStdLib},
+<a href=#1659 id=1659 data-nosnippet>1659</a>        ssa::convert_generated_acir_into_circuit,
+<a href=#1660 id=1660 data-nosnippet>1660</a>    };
+<a href=#1661 id=1661 data-nosnippet>1661</a>
+<a href=#1662 id=1662 data-nosnippet>1662</a>    <span class="kw">use </span><span class="kw">super</span>::power_of_two;
+<a href=#1663 id=1663 data-nosnippet>1663</a>
+<a href=#1664 id=1664 data-nosnippet>1664</a>    <span class="attr">#[test]
+<a href=#1665 id=1665 data-nosnippet>1665</a>    #[should_panic = <span class="string">"Field cannot represent this power of two"</span>]
+<a href=#1666 id=1666 data-nosnippet>1666</a>    </span><span class="kw">fn </span>power_of_two_panics_on_overflow() {
+<a href=#1667 id=1667 data-nosnippet>1667</a>        power_of_two::&lt;FieldElement&gt;(FieldElement::max_num_bits());
+<a href=#1668 id=1668 data-nosnippet>1668</a>    }
+<a href=#1669 id=1669 data-nosnippet>1669</a>
+<a href=#1670 id=1670 data-nosnippet>1670</a>    <span class="attr">#[test]
+<a href=#1671 id=1671 data-nosnippet>1671</a>    </span><span class="kw">fn </span>initialize_array_rejects_length_mismatch() {
+<a href=#1672 id=1672 data-nosnippet>1672</a>        <span class="kw">use </span><span class="kw">crate</span>::acir::AcirValue;
+<a href=#1673 id=1673 data-nosnippet>1673</a>        <span class="kw">use </span><span class="kw">crate</span>::errors::InternalError;
+<a href=#1674 id=1674 data-nosnippet>1674</a>        <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::types::NumericType;
+<a href=#1675 id=1675 data-nosnippet>1675</a>        <span class="kw">use </span>acvm::acir::brillig::lengths::FlattenedLength;
+<a href=#1676 id=1676 data-nosnippet>1676</a>        <span class="kw">use </span>acvm::acir::circuit::opcodes::{BlockId, BlockType};
+<a href=#1677 id=1677 data-nosnippet>1677</a>
+<a href=#1678 id=1678 data-nosnippet>1678</a>        <span class="kw">let </span><span class="kw-2">mut </span>context = AcirContext::&lt;FieldElement&gt;::new(BrilligStdLib::default());
+<a href=#1679 id=1679 data-nosnippet>1679</a>        <span class="kw">let </span>var = context.add_constant(FieldElement::one());
+<a href=#1680 id=1680 data-nosnippet>1680</a>        <span class="kw">let </span>value = AcirValue::Array(<span class="macro">imbl::vector!</span>[AcirValue::Var(var, NumericType::NativeField)]);
+<a href=#1681 id=1681 data-nosnippet>1681</a>
+<a href=#1682 id=1682 data-nosnippet>1682</a>        <span class="comment">// Claim a flattened length of 2 but provide only a single value.
+<a href=#1683 id=1683 data-nosnippet>1683</a>        </span><span class="kw">let </span>result = context.initialize_array(
+<a href=#1684 id=1684 data-nosnippet>1684</a>            BlockId::new(<span class="number">0</span>),
+<a href=#1685 id=1685 data-nosnippet>1685</a>            FlattenedLength(<span class="number">2</span>),
+<a href=#1686 id=1686 data-nosnippet>1686</a>            <span class="prelude-val">Some</span>(value),
+<a href=#1687 id=1687 data-nosnippet>1687</a>            BlockType::Memory,
+<a href=#1688 id=1688 data-nosnippet>1688</a>        );
+<a href=#1689 id=1689 data-nosnippet>1689</a>        <span class="macro">assert!</span>(<span class="macro">matches!</span>(result, <span class="prelude-val">Err</span>(InternalError::General { .. })));
+<a href=#1690 id=1690 data-nosnippet>1690</a>    }
 <a href=#1691 id=1691 data-nosnippet>1691</a>
-<a href=#1692 id=1692 data-nosnippet>1692</a>            <span class="kw">let </span>solver = StubbedBlackBoxSolver;
-<a href=#1693 id=1693 data-nosnippet>1693</a>
-<a href=#1694 id=1694 data-nosnippet>1694</a>            <span class="kw">let </span><span class="kw-2">mut </span>witness_map = WitnessMap::new();
-<a href=#1695 id=1695 data-nosnippet>1695</a>            witness_map.insert(lhs_witness,  FieldElement::from(limit));
-<a href=#1696 id=1696 data-nosnippet>1696</a>            <span class="kw">let </span><span class="kw-2">mut </span>acvm = ACVM::new(<span class="kw-2">&amp;</span>solver, <span class="kw-2">&amp;</span>circuit.opcodes, witness_map, <span class="kw-2">&amp;</span>[], <span class="kw-2">&amp;</span>[]);
-<a href=#1697 id=1697 data-nosnippet>1697</a>
-<a href=#1698 id=1698 data-nosnippet>1698</a>            <span class="kw">if </span>offset {
-<a href=#1699 id=1699 data-nosnippet>1699</a>                <span class="macro">prop_assert!</span>(<span class="macro">matches!</span>(acvm.solve(), ACVMStatus::Failure(..)));
-<a href=#1700 id=1700 data-nosnippet>1700</a>            } <span class="kw">else </span>{
-<a href=#1701 id=1701 data-nosnippet>1701</a>                <span class="macro">prop_assert!</span>(<span class="macro">matches!</span>(acvm.solve(), ACVMStatus::Solved));
-<a href=#1702 id=1702 data-nosnippet>1702</a>            }
-<a href=#1703 id=1703 data-nosnippet>1703</a>
-<a href=#1704 id=1704 data-nosnippet>1704</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(just_below_limit) = limit.checked_sub(<span class="number">1</span>)  {
-<a href=#1705 id=1705 data-nosnippet>1705</a>                <span class="kw">let </span><span class="kw-2">mut </span>witness_map = WitnessMap::new();
-<a href=#1706 id=1706 data-nosnippet>1706</a>                witness_map.insert(lhs_witness, FieldElement::from(just_below_limit));
-<a href=#1707 id=1707 data-nosnippet>1707</a>                <span class="kw">let </span><span class="kw-2">mut </span>acvm = ACVM::new(<span class="kw-2">&amp;</span>solver, <span class="kw-2">&amp;</span>circuit.opcodes, witness_map, <span class="kw-2">&amp;</span>[], <span class="kw-2">&amp;</span>[]);
-<a href=#1708 id=1708 data-nosnippet>1708</a>
-<a href=#1709 id=1709 data-nosnippet>1709</a>                <span class="macro">prop_assert!</span>(<span class="macro">matches!</span>(acvm.solve(), ACVMStatus::Solved));
-<a href=#1710 id=1710 data-nosnippet>1710</a>            }
-<a href=#1711 id=1711 data-nosnippet>1711</a>
-<a href=#1712 id=1712 data-nosnippet>1712</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(just_above_limit) = limit.checked_add(<span class="number">1</span>)  {
-<a href=#1713 id=1713 data-nosnippet>1713</a>                <span class="kw">let </span><span class="kw-2">mut </span>witness_map = WitnessMap::new();
-<a href=#1714 id=1714 data-nosnippet>1714</a>                witness_map.insert(lhs_witness, FieldElement::from(just_above_limit));
-<a href=#1715 id=1715 data-nosnippet>1715</a>                <span class="kw">let </span><span class="kw-2">mut </span>acvm = ACVM::new(<span class="kw-2">&amp;</span>solver, <span class="kw-2">&amp;</span>circuit.opcodes, witness_map, <span class="kw-2">&amp;</span>[], <span class="kw-2">&amp;</span>[]);
-<a href=#1716 id=1716 data-nosnippet>1716</a>
-<a href=#1717 id=1717 data-nosnippet>1717</a>                <span class="macro">prop_assert!</span>(<span class="macro">matches!</span>(acvm.solve(), ACVMStatus::Failure(..)));
-<a href=#1718 id=1718 data-nosnippet>1718</a>            }
-<a href=#1719 id=1719 data-nosnippet>1719</a>        }
-<a href=#1720 id=1720 data-nosnippet>1720</a>    }
+<a href=#1692 id=1692 data-nosnippet>1692</a>    <span class="macro">proptest!</span> {
+<a href=#1693 id=1693 data-nosnippet>1693</a>        <span class="attr">#[test]
+<a href=#1694 id=1694 data-nosnippet>1694</a>        </span><span class="kw">fn </span>power_of_two_agrees_with_generic_impl(bit_size <span class="kw">in </span>(<span class="number">0</span>..=<span class="number">128u32</span>)) {
+<a href=#1695 id=1695 data-nosnippet>1695</a>            <span class="kw">let </span>power_of_two_general =
+<a href=#1696 id=1696 data-nosnippet>1696</a>                FieldElement::from(<span class="number">2_u128</span>).pow(<span class="kw-2">&amp;</span>FieldElement::from(bit_size));
+<a href=#1697 id=1697 data-nosnippet>1697</a>            <span class="kw">let </span>power_of_two_opt: FieldElement = power_of_two(bit_size);
+<a href=#1698 id=1698 data-nosnippet>1698</a>
+<a href=#1699 id=1699 data-nosnippet>1699</a>            <span class="macro">prop_assert_eq!</span>(power_of_two_opt, power_of_two_general);
+<a href=#1700 id=1700 data-nosnippet>1700</a>        }
+<a href=#1701 id=1701 data-nosnippet>1701</a>
+<a href=#1702 id=1702 data-nosnippet>1702</a>
+<a href=#1703 id=1703 data-nosnippet>1703</a>        <span class="attr">#[test]
+<a href=#1704 id=1704 data-nosnippet>1704</a>        </span><span class="kw">fn </span>fuzz_bound_constraint_with_offset(
+<a href=#1705 id=1705 data-nosnippet>1705</a>            (limit, offset) <span class="kw">in </span><span class="macro">prop_oneof!</span>[
+<a href=#1706 id=1706 data-nosnippet>1706</a>                <span class="comment">// Specific case: strict inequality with 2^127 + 1
+<a href=#1707 id=1707 data-nosnippet>1707</a>                </span>Just((<span class="number">170141183460469231731687303715884105729u128</span>, <span class="bool-val">true</span>)),
+<a href=#1708 id=1708 data-nosnippet>1708</a>                <span class="comment">// Random cases
+<a href=#1709 id=1709 data-nosnippet>1709</a>                </span>(any::&lt;u128&gt;(), any::&lt;bool&gt;())
+<a href=#1710 id=1710 data-nosnippet>1710</a>            ]
+<a href=#1711 id=1711 data-nosnippet>1711</a>        ) {
+<a href=#1712 id=1712 data-nosnippet>1712</a>            <span class="kw">let </span><span class="kw-2">mut </span>context = AcirContext::&lt;FieldElement&gt;::new(BrilligStdLib::default());
+<a href=#1713 id=1713 data-nosnippet>1713</a>
+<a href=#1714 id=1714 data-nosnippet>1714</a>            <span class="kw">let </span>lhs = context.add_variable();
+<a href=#1715 id=1715 data-nosnippet>1715</a>            <span class="kw">let </span>rhs = context.add_constant(limit);
+<a href=#1716 id=1716 data-nosnippet>1716</a>            <span class="kw">let </span>offset_var = context.add_constant(offset);
+<a href=#1717 id=1717 data-nosnippet>1717</a>            <span class="kw">let </span>one = context.add_constant(<span class="number">1_u128</span>);
+<a href=#1718 id=1718 data-nosnippet>1718</a>
+<a href=#1719 id=1719 data-nosnippet>1719</a>            <span class="kw">let </span>lhs_witness = context.var_to_witness(lhs).unwrap();
+<a href=#1720 id=1720 data-nosnippet>1720</a>            context.acir_ir.input_witnesses = <span class="macro">vec!</span>[lhs_witness];
 <a href=#1721 id=1721 data-nosnippet>1721</a>
-<a href=#1722 id=1722 data-nosnippet>1722</a>    <span class="attr">#[test]
-<a href=#1723 id=1723 data-nosnippet>1723</a>    </span><span class="kw">fn </span>bound_constraint_with_offset_test() {
-<a href=#1724 id=1724 data-nosnippet>1724</a>        <span class="kw">let </span><span class="kw-2">mut </span>context = AcirContext::&lt;FieldElement&gt;::new(BrilligStdLib::default());
-<a href=#1725 id=1725 data-nosnippet>1725</a>
-<a href=#1726 id=1726 data-nosnippet>1726</a>        <span class="kw">let </span>limit = power_of_two::&lt;FieldElement&gt;(<span class="number">128</span>);
-<a href=#1727 id=1727 data-nosnippet>1727</a>
-<a href=#1728 id=1728 data-nosnippet>1728</a>        <span class="kw">let </span>lhs = context.add_variable();
-<a href=#1729 id=1729 data-nosnippet>1729</a>        <span class="kw">let </span>rhs = context.add_constant(limit);
-<a href=#1730 id=1730 data-nosnippet>1730</a>        <span class="kw">let </span>one = context.add_constant(<span class="number">1_u128</span>);
-<a href=#1731 id=1731 data-nosnippet>1731</a>
-<a href=#1732 id=1732 data-nosnippet>1732</a>        <span class="kw">let </span>lhs_witness = context.var_to_witness(lhs).unwrap();
-<a href=#1733 id=1733 data-nosnippet>1733</a>        context.acir_ir.input_witnesses = <span class="macro">vec!</span>[lhs_witness];
+<a href=#1722 id=1722 data-nosnippet>1722</a>            context.bound_constraint_with_offset(lhs, rhs, offset_var, <span class="number">128</span>, one).unwrap();
+<a href=#1723 id=1723 data-nosnippet>1723</a>
+<a href=#1724 id=1724 data-nosnippet>1724</a>            <span class="kw">let </span>circuit = context.finish(Vec::new(), Vec::new());
+<a href=#1725 id=1725 data-nosnippet>1725</a>            <span class="kw">let </span>circuit = convert_generated_acir_into_circuit(
+<a href=#1726 id=1726 data-nosnippet>1726</a>                circuit,
+<a href=#1727 id=1727 data-nosnippet>1727</a>                <span class="kw-2">&amp;</span>[(<span class="number">1</span>, Visibility::Private)],
+<a href=#1728 id=1728 data-nosnippet>1728</a>                <span class="kw-2">&amp;</span>BTreeMap::default(),
+<a href=#1729 id=1729 data-nosnippet>1729</a>                BTreeMap::default(),
+<a href=#1730 id=1730 data-nosnippet>1730</a>                BTreeMap::default(),
+<a href=#1731 id=1731 data-nosnippet>1731</a>                BTreeMap::default(),
+<a href=#1732 id=1732 data-nosnippet>1732</a>            )
+<a href=#1733 id=1733 data-nosnippet>1733</a>            .circuit;
 <a href=#1734 id=1734 data-nosnippet>1734</a>
-<a href=#1735 id=1735 data-nosnippet>1735</a>        context.bound_constraint_with_offset(lhs, rhs, one, <span class="number">128</span>, one).unwrap();
+<a href=#1735 id=1735 data-nosnippet>1735</a>            <span class="kw">let </span>solver = StubbedBlackBoxSolver;
 <a href=#1736 id=1736 data-nosnippet>1736</a>
-<a href=#1737 id=1737 data-nosnippet>1737</a>        <span class="kw">let </span>circuit = context.finish(Vec::new(), Vec::new());
-<a href=#1738 id=1738 data-nosnippet>1738</a>        <span class="kw">let </span>circuit = convert_generated_acir_into_circuit(
-<a href=#1739 id=1739 data-nosnippet>1739</a>            circuit,
-<a href=#1740 id=1740 data-nosnippet>1740</a>            <span class="kw-2">&amp;</span>[(<span class="number">1</span>, Visibility::Private)],
-<a href=#1741 id=1741 data-nosnippet>1741</a>            <span class="kw-2">&amp;</span>BTreeMap::default(),
-<a href=#1742 id=1742 data-nosnippet>1742</a>            BTreeMap::default(),
-<a href=#1743 id=1743 data-nosnippet>1743</a>            BTreeMap::default(),
-<a href=#1744 id=1744 data-nosnippet>1744</a>            BTreeMap::default(),
-<a href=#1745 id=1745 data-nosnippet>1745</a>        )
-<a href=#1746 id=1746 data-nosnippet>1746</a>        .circuit;
-<a href=#1747 id=1747 data-nosnippet>1747</a>
-<a href=#1748 id=1748 data-nosnippet>1748</a>        <span class="macro">assert_circuit_snapshot!</span>(circuit, @<span class="string">r"
-<a href=#1749 id=1749 data-nosnippet>1749</a>        private parameters: [w0]
-<a href=#1750 id=1750 data-nosnippet>1750</a>        public parameters: []
-<a href=#1751 id=1751 data-nosnippet>1751</a>        return values: []
-<a href=#1752 id=1752 data-nosnippet>1752</a>        ASSERT w1 = -w0 + 340282366920938463463374607431768211455
-<a href=#1753 id=1753 data-nosnippet>1753</a>        BLACKBOX::RANGE input: w1, bits: 128
-<a href=#1754 id=1754 data-nosnippet>1754</a>        "</span>);
-<a href=#1755 id=1755 data-nosnippet>1755</a>
-<a href=#1756 id=1756 data-nosnippet>1756</a>        <span class="kw">let </span>solver = StubbedBlackBoxSolver;
-<a href=#1757 id=1757 data-nosnippet>1757</a>
-<a href=#1758 id=1758 data-nosnippet>1758</a>        <span class="kw">let </span><span class="kw-2">mut </span>witness_map = WitnessMap::new();
-<a href=#1759 id=1759 data-nosnippet>1759</a>        witness_map.insert(lhs_witness, limit);
-<a href=#1760 id=1760 data-nosnippet>1760</a>        <span class="kw">let </span><span class="kw-2">mut </span>acvm = ACVM::new(<span class="kw-2">&amp;</span>solver, <span class="kw-2">&amp;</span>circuit.opcodes, witness_map, <span class="kw-2">&amp;</span>[], <span class="kw-2">&amp;</span>[]);
-<a href=#1761 id=1761 data-nosnippet>1761</a>
-<a href=#1762 id=1762 data-nosnippet>1762</a>        <span class="macro">assert!</span>(<span class="macro">matches!</span>(acvm.solve(), ACVMStatus::Failure(..)));
-<a href=#1763 id=1763 data-nosnippet>1763</a>
-<a href=#1764 id=1764 data-nosnippet>1764</a>        <span class="kw">let </span><span class="kw-2">mut </span>witness_map = WitnessMap::new();
-<a href=#1765 id=1765 data-nosnippet>1765</a>        witness_map.insert(lhs_witness, limit - FieldElement::one());
-<a href=#1766 id=1766 data-nosnippet>1766</a>        <span class="kw">let </span><span class="kw-2">mut </span>acvm = ACVM::new(<span class="kw-2">&amp;</span>solver, <span class="kw-2">&amp;</span>circuit.opcodes, witness_map, <span class="kw-2">&amp;</span>[], <span class="kw-2">&amp;</span>[]);
-<a href=#1767 id=1767 data-nosnippet>1767</a>
-<a href=#1768 id=1768 data-nosnippet>1768</a>        <span class="macro">assert!</span>(<span class="macro">matches!</span>(acvm.solve(), ACVMStatus::Solved));
-<a href=#1769 id=1769 data-nosnippet>1769</a>    }
+<a href=#1737 id=1737 data-nosnippet>1737</a>            <span class="kw">let </span><span class="kw-2">mut </span>witness_map = WitnessMap::new();
+<a href=#1738 id=1738 data-nosnippet>1738</a>            witness_map.insert(lhs_witness,  FieldElement::from(limit));
+<a href=#1739 id=1739 data-nosnippet>1739</a>            <span class="kw">let </span><span class="kw-2">mut </span>acvm = ACVM::new(<span class="kw-2">&amp;</span>solver, <span class="kw-2">&amp;</span>circuit.opcodes, witness_map, <span class="kw-2">&amp;</span>[], <span class="kw-2">&amp;</span>[]);
+<a href=#1740 id=1740 data-nosnippet>1740</a>
+<a href=#1741 id=1741 data-nosnippet>1741</a>            <span class="kw">if </span>offset {
+<a href=#1742 id=1742 data-nosnippet>1742</a>                <span class="macro">prop_assert!</span>(<span class="macro">matches!</span>(acvm.solve(), ACVMStatus::Failure(..)));
+<a href=#1743 id=1743 data-nosnippet>1743</a>            } <span class="kw">else </span>{
+<a href=#1744 id=1744 data-nosnippet>1744</a>                <span class="macro">prop_assert!</span>(<span class="macro">matches!</span>(acvm.solve(), ACVMStatus::Solved));
+<a href=#1745 id=1745 data-nosnippet>1745</a>            }
+<a href=#1746 id=1746 data-nosnippet>1746</a>
+<a href=#1747 id=1747 data-nosnippet>1747</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(just_below_limit) = limit.checked_sub(<span class="number">1</span>)  {
+<a href=#1748 id=1748 data-nosnippet>1748</a>                <span class="kw">let </span><span class="kw-2">mut </span>witness_map = WitnessMap::new();
+<a href=#1749 id=1749 data-nosnippet>1749</a>                witness_map.insert(lhs_witness, FieldElement::from(just_below_limit));
+<a href=#1750 id=1750 data-nosnippet>1750</a>                <span class="kw">let </span><span class="kw-2">mut </span>acvm = ACVM::new(<span class="kw-2">&amp;</span>solver, <span class="kw-2">&amp;</span>circuit.opcodes, witness_map, <span class="kw-2">&amp;</span>[], <span class="kw-2">&amp;</span>[]);
+<a href=#1751 id=1751 data-nosnippet>1751</a>
+<a href=#1752 id=1752 data-nosnippet>1752</a>                <span class="macro">prop_assert!</span>(<span class="macro">matches!</span>(acvm.solve(), ACVMStatus::Solved));
+<a href=#1753 id=1753 data-nosnippet>1753</a>            }
+<a href=#1754 id=1754 data-nosnippet>1754</a>
+<a href=#1755 id=1755 data-nosnippet>1755</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(just_above_limit) = limit.checked_add(<span class="number">1</span>)  {
+<a href=#1756 id=1756 data-nosnippet>1756</a>                <span class="kw">let </span><span class="kw-2">mut </span>witness_map = WitnessMap::new();
+<a href=#1757 id=1757 data-nosnippet>1757</a>                witness_map.insert(lhs_witness, FieldElement::from(just_above_limit));
+<a href=#1758 id=1758 data-nosnippet>1758</a>                <span class="kw">let </span><span class="kw-2">mut </span>acvm = ACVM::new(<span class="kw-2">&amp;</span>solver, <span class="kw-2">&amp;</span>circuit.opcodes, witness_map, <span class="kw-2">&amp;</span>[], <span class="kw-2">&amp;</span>[]);
+<a href=#1759 id=1759 data-nosnippet>1759</a>
+<a href=#1760 id=1760 data-nosnippet>1760</a>                <span class="macro">prop_assert!</span>(<span class="macro">matches!</span>(acvm.solve(), ACVMStatus::Failure(..)));
+<a href=#1761 id=1761 data-nosnippet>1761</a>            }
+<a href=#1762 id=1762 data-nosnippet>1762</a>        }
+<a href=#1763 id=1763 data-nosnippet>1763</a>    }
+<a href=#1764 id=1764 data-nosnippet>1764</a>
+<a href=#1765 id=1765 data-nosnippet>1765</a>    <span class="attr">#[test]
+<a href=#1766 id=1766 data-nosnippet>1766</a>    </span><span class="kw">fn </span>bound_constraint_with_offset_test() {
+<a href=#1767 id=1767 data-nosnippet>1767</a>        <span class="kw">let </span><span class="kw-2">mut </span>context = AcirContext::&lt;FieldElement&gt;::new(BrilligStdLib::default());
+<a href=#1768 id=1768 data-nosnippet>1768</a>
+<a href=#1769 id=1769 data-nosnippet>1769</a>        <span class="kw">let </span>limit = power_of_two::&lt;FieldElement&gt;(<span class="number">128</span>);
 <a href=#1770 id=1770 data-nosnippet>1770</a>
-<a href=#1771 id=1771 data-nosnippet>1771</a>    <span class="doccomment">/// Exercise `bound_constraint_with_offset()` with the invalid inputs:
-<a href=#1772 id=1772 data-nosnippet>1772</a>    /// lhs = 2^253 - 1, rhs = 0, predicate = 1, offset = 1, bits = 253
-<a href=#1773 id=1773 data-nosnippet>1773</a>    </span><span class="attr">#[test]
-<a href=#1774 id=1774 data-nosnippet>1774</a>    #[should_panic = <span class="string">"range check with bit size + 1 &gt;= the prime field bit size is not implemented yet"</span>]
-<a href=#1775 id=1775 data-nosnippet>1775</a>    </span><span class="kw">fn </span>bound_constraint_shifted_path_rhs_const() {
-<a href=#1776 id=1776 data-nosnippet>1776</a>        <span class="kw">let </span><span class="kw-2">mut </span>context = AcirContext::&lt;FieldElement&gt;::new(BrilligStdLib::default());
+<a href=#1771 id=1771 data-nosnippet>1771</a>        <span class="kw">let </span>lhs = context.add_variable();
+<a href=#1772 id=1772 data-nosnippet>1772</a>        <span class="kw">let </span>rhs = context.add_constant(limit);
+<a href=#1773 id=1773 data-nosnippet>1773</a>        <span class="kw">let </span>one = context.add_constant(<span class="number">1_u128</span>);
+<a href=#1774 id=1774 data-nosnippet>1774</a>
+<a href=#1775 id=1775 data-nosnippet>1775</a>        <span class="kw">let </span>lhs_witness = context.var_to_witness(lhs).unwrap();
+<a href=#1776 id=1776 data-nosnippet>1776</a>        context.acir_ir.input_witnesses = <span class="macro">vec!</span>[lhs_witness];
 <a href=#1777 id=1777 data-nosnippet>1777</a>
-<a href=#1778 id=1778 data-nosnippet>1778</a>        <span class="kw">let </span>bits = <span class="number">253</span>;
+<a href=#1778 id=1778 data-nosnippet>1778</a>        context.bound_constraint_with_offset(lhs, rhs, one, <span class="number">128</span>, one).unwrap();
 <a href=#1779 id=1779 data-nosnippet>1779</a>
-<a href=#1780 id=1780 data-nosnippet>1780</a>        <span class="kw">let </span>lhs = context.add_variable();
-<a href=#1781 id=1781 data-nosnippet>1781</a>        <span class="kw">let </span>rhs = context.add_variable();
-<a href=#1782 id=1782 data-nosnippet>1782</a>        <span class="kw">let </span>predicate = context.add_variable();
-<a href=#1783 id=1783 data-nosnippet>1783</a>        <span class="kw">let </span>one = context.add_constant(<span class="number">1_u128</span>);
-<a href=#1784 id=1784 data-nosnippet>1784</a>
-<a href=#1785 id=1785 data-nosnippet>1785</a>        <span class="kw">let </span>lhs_witness = context.var_to_witness(lhs).unwrap();
-<a href=#1786 id=1786 data-nosnippet>1786</a>        <span class="kw">let </span>rhs_witness = context.var_to_witness(rhs).unwrap();
-<a href=#1787 id=1787 data-nosnippet>1787</a>        <span class="kw">let </span>predicate_witness = context.var_to_witness(predicate).unwrap();
-<a href=#1788 id=1788 data-nosnippet>1788</a>        context.acir_ir.input_witnesses = <span class="macro">vec!</span>[lhs_witness, rhs_witness, predicate_witness];
-<a href=#1789 id=1789 data-nosnippet>1789</a>
-<a href=#1790 id=1790 data-nosnippet>1790</a>        context.bound_constraint_with_offset(lhs, rhs, one, bits, predicate).unwrap();
-<a href=#1791 id=1791 data-nosnippet>1791</a>    }
-<a href=#1792 id=1792 data-nosnippet>1792</a>}</code></pre></div></section></main></body></html>
+<a href=#1780 id=1780 data-nosnippet>1780</a>        <span class="kw">let </span>circuit = context.finish(Vec::new(), Vec::new());
+<a href=#1781 id=1781 data-nosnippet>1781</a>        <span class="kw">let </span>circuit = convert_generated_acir_into_circuit(
+<a href=#1782 id=1782 data-nosnippet>1782</a>            circuit,
+<a href=#1783 id=1783 data-nosnippet>1783</a>            <span class="kw-2">&amp;</span>[(<span class="number">1</span>, Visibility::Private)],
+<a href=#1784 id=1784 data-nosnippet>1784</a>            <span class="kw-2">&amp;</span>BTreeMap::default(),
+<a href=#1785 id=1785 data-nosnippet>1785</a>            BTreeMap::default(),
+<a href=#1786 id=1786 data-nosnippet>1786</a>            BTreeMap::default(),
+<a href=#1787 id=1787 data-nosnippet>1787</a>            BTreeMap::default(),
+<a href=#1788 id=1788 data-nosnippet>1788</a>        )
+<a href=#1789 id=1789 data-nosnippet>1789</a>        .circuit;
+<a href=#1790 id=1790 data-nosnippet>1790</a>
+<a href=#1791 id=1791 data-nosnippet>1791</a>        <span class="macro">assert_circuit_snapshot!</span>(circuit, @<span class="string">r"
+<a href=#1792 id=1792 data-nosnippet>1792</a>        private parameters: [w0]
+<a href=#1793 id=1793 data-nosnippet>1793</a>        public parameters: []
+<a href=#1794 id=1794 data-nosnippet>1794</a>        return values: []
+<a href=#1795 id=1795 data-nosnippet>1795</a>        ASSERT w1 = -w0 + 340282366920938463463374607431768211455
+<a href=#1796 id=1796 data-nosnippet>1796</a>        BLACKBOX::RANGE input: w1, bits: 128
+<a href=#1797 id=1797 data-nosnippet>1797</a>        "</span>);
+<a href=#1798 id=1798 data-nosnippet>1798</a>
+<a href=#1799 id=1799 data-nosnippet>1799</a>        <span class="kw">let </span>solver = StubbedBlackBoxSolver;
+<a href=#1800 id=1800 data-nosnippet>1800</a>
+<a href=#1801 id=1801 data-nosnippet>1801</a>        <span class="kw">let </span><span class="kw-2">mut </span>witness_map = WitnessMap::new();
+<a href=#1802 id=1802 data-nosnippet>1802</a>        witness_map.insert(lhs_witness, limit);
+<a href=#1803 id=1803 data-nosnippet>1803</a>        <span class="kw">let </span><span class="kw-2">mut </span>acvm = ACVM::new(<span class="kw-2">&amp;</span>solver, <span class="kw-2">&amp;</span>circuit.opcodes, witness_map, <span class="kw-2">&amp;</span>[], <span class="kw-2">&amp;</span>[]);
+<a href=#1804 id=1804 data-nosnippet>1804</a>
+<a href=#1805 id=1805 data-nosnippet>1805</a>        <span class="macro">assert!</span>(<span class="macro">matches!</span>(acvm.solve(), ACVMStatus::Failure(..)));
+<a href=#1806 id=1806 data-nosnippet>1806</a>
+<a href=#1807 id=1807 data-nosnippet>1807</a>        <span class="kw">let </span><span class="kw-2">mut </span>witness_map = WitnessMap::new();
+<a href=#1808 id=1808 data-nosnippet>1808</a>        witness_map.insert(lhs_witness, limit - FieldElement::one());
+<a href=#1809 id=1809 data-nosnippet>1809</a>        <span class="kw">let </span><span class="kw-2">mut </span>acvm = ACVM::new(<span class="kw-2">&amp;</span>solver, <span class="kw-2">&amp;</span>circuit.opcodes, witness_map, <span class="kw-2">&amp;</span>[], <span class="kw-2">&amp;</span>[]);
+<a href=#1810 id=1810 data-nosnippet>1810</a>
+<a href=#1811 id=1811 data-nosnippet>1811</a>        <span class="macro">assert!</span>(<span class="macro">matches!</span>(acvm.solve(), ACVMStatus::Solved));
+<a href=#1812 id=1812 data-nosnippet>1812</a>    }
+<a href=#1813 id=1813 data-nosnippet>1813</a>
+<a href=#1814 id=1814 data-nosnippet>1814</a>    <span class="doccomment">/// Exercise `bound_constraint_with_offset()` with the invalid inputs:
+<a href=#1815 id=1815 data-nosnippet>1815</a>    /// lhs = 2^253 - 1, rhs = 0, predicate = 1, offset = 1, bits = 253
+<a href=#1816 id=1816 data-nosnippet>1816</a>    </span><span class="attr">#[test]
+<a href=#1817 id=1817 data-nosnippet>1817</a>    #[should_panic = <span class="string">"range check with bit size + 1 &gt;= the prime field bit size is not implemented yet"</span>]
+<a href=#1818 id=1818 data-nosnippet>1818</a>    </span><span class="kw">fn </span>bound_constraint_shifted_path_rhs_const() {
+<a href=#1819 id=1819 data-nosnippet>1819</a>        <span class="kw">let </span><span class="kw-2">mut </span>context = AcirContext::&lt;FieldElement&gt;::new(BrilligStdLib::default());
+<a href=#1820 id=1820 data-nosnippet>1820</a>
+<a href=#1821 id=1821 data-nosnippet>1821</a>        <span class="kw">let </span>bits = <span class="number">253</span>;
+<a href=#1822 id=1822 data-nosnippet>1822</a>
+<a href=#1823 id=1823 data-nosnippet>1823</a>        <span class="kw">let </span>lhs = context.add_variable();
+<a href=#1824 id=1824 data-nosnippet>1824</a>        <span class="kw">let </span>rhs = context.add_variable();
+<a href=#1825 id=1825 data-nosnippet>1825</a>        <span class="kw">let </span>predicate = context.add_variable();
+<a href=#1826 id=1826 data-nosnippet>1826</a>        <span class="kw">let </span>one = context.add_constant(<span class="number">1_u128</span>);
+<a href=#1827 id=1827 data-nosnippet>1827</a>
+<a href=#1828 id=1828 data-nosnippet>1828</a>        <span class="kw">let </span>lhs_witness = context.var_to_witness(lhs).unwrap();
+<a href=#1829 id=1829 data-nosnippet>1829</a>        <span class="kw">let </span>rhs_witness = context.var_to_witness(rhs).unwrap();
+<a href=#1830 id=1830 data-nosnippet>1830</a>        <span class="kw">let </span>predicate_witness = context.var_to_witness(predicate).unwrap();
+<a href=#1831 id=1831 data-nosnippet>1831</a>        context.acir_ir.input_witnesses = <span class="macro">vec!</span>[lhs_witness, rhs_witness, predicate_witness];
+<a href=#1832 id=1832 data-nosnippet>1832</a>
+<a href=#1833 id=1833 data-nosnippet>1833</a>        context.bound_constraint_with_offset(lhs, rhs, one, bits, predicate).unwrap();
+<a href=#1834 id=1834 data-nosnippet>1834</a>    }
+<a href=#1835 id=1835 data-nosnippet>1835</a>}</code></pre></div></section></main></body></html>

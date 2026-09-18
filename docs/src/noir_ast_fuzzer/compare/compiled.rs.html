@@ -547,119 +547,120 @@
 <a href=#547 id=547 data-nosnippet>547</a>                    opcode_location: ErrorLocation::Unresolved,
 <a href=#548 id=548 data-nosnippet>548</a>                    index: FieldElement::from(<span class="number">268u32</span>),
 <a href=#549 id=549 data-nosnippet>549</a>                    array_size: <span class="number">4</span>,
-<a href=#550 id=550 data-nosnippet>550</a>                },
-<a href=#551 id=551 data-nosnippet>551</a>                <span class="prelude-val">None</span>,
-<a href=#552 id=552 data-nosnippet>552</a>            )),
-<a href=#553 id=553 data-nosnippet>553</a>            BTreeMap::new(),
-<a href=#554 id=554 data-nosnippet>554</a>        );
-<a href=#555 id=555 data-nosnippet>555</a>        <span class="kw">let </span>brillig_error = NargoErrorWithTypes(
-<a href=#556 id=556 data-nosnippet>556</a>            nargo::NargoError::ExecutionError(ExecutionError::AssertionFailed(
-<a href=#557 id=557 data-nosnippet>557</a>                ResolvedAssertionPayload::Raw(RawAssertionPayload {
-<a href=#558 id=558 data-nosnippet>558</a>                    selector: ErrorSelector::new(<span class="number">14990209321349310352</span>),
-<a href=#559 id=559 data-nosnippet>559</a>                    data: <span class="macro">vec!</span>[],
-<a href=#560 id=560 data-nosnippet>560</a>                }),
-<a href=#561 id=561 data-nosnippet>561</a>                Vec::new(),
-<a href=#562 id=562 data-nosnippet>562</a>                <span class="prelude-val">Some</span>(BrilligFunctionId::new(<span class="number">0</span>)),
-<a href=#563 id=563 data-nosnippet>563</a>            )),
-<a href=#564 id=564 data-nosnippet>564</a>            BTreeMap::from_iter([(
-<a href=#565 id=565 data-nosnippet>565</a>                ErrorSelector::new(<span class="number">14990209321349310352</span>),
-<a href=#566 id=566 data-nosnippet>566</a>                ErrorType::String(<span class="string">"attempt to add with overflow"</span>.to_string()),
-<a href=#567 id=567 data-nosnippet>567</a>            )]),
-<a href=#568 id=568 data-nosnippet>568</a>        );
-<a href=#569 id=569 data-nosnippet>569</a>
-<a href=#570 id=570 data-nosnippet>570</a>        <span class="macro">assert!</span>(NargoErrorWithTypes::equivalent(<span class="kw-2">&amp;</span>acir_error, <span class="kw-2">&amp;</span>brillig_error));
-<a href=#571 id=571 data-nosnippet>571</a>    }
-<a href=#572 id=572 data-nosnippet>572</a>
-<a href=#573 id=573 data-nosnippet>573</a>    <span class="attr">#[test]
-<a href=#574 id=574 data-nosnippet>574</a>    </span><span class="kw">fn </span>decodes_dynamic_string_error_type_without_panicking() {
-<a href=#575 id=575 data-nosnippet>575</a>        <span class="comment">// Regression test for the `orig_vs_morph` failure with seed 0xee0040bf00100000.
-<a href=#576 id=576 data-nosnippet>576</a>        //
-<a href=#577 id=577 data-nosnippet>577</a>        // The metamorphic rewriter turns a literal `assert(_, "PLH")` message into
-<a href=#578 id=578 data-nosnippet>578</a>        // `if b { "PLH" } else { "PLH" }`. Being non-literal, `codegen_constrain_error`
-<a href=#579 id=579 data-nosnippet>579</a>        // records it as `ErrorType::Dynamic` (whose inner type is nonetheless a plain
-<a href=#580 id=580 data-nosnippet>580</a>        // `str&lt;3&gt;`) in the SSA error type table, with the runtime payload carrying the
-<a href=#581 id=581 data-nosnippet>581</a>        // string bytes. Extracting the message used to `panic!("didn't expect dynamic error
-<a href=#582 id=582 data-nosnippet>582</a>        // types")`; instead the bytes must be decoded back into the original string so the
-<a href=#583 id=583 data-nosnippet>583</a>        // morphed program compares equal to the original.
-<a href=#584 id=584 data-nosnippet>584</a>        </span><span class="kw">let </span>str_type = HirType::String(Box::new(HirType::Constant(Integer::U32(<span class="number">3</span>))));
-<a href=#585 id=585 data-nosnippet>585</a>        <span class="kw">let </span>selector = ErrorSelector::new(<span class="number">9230725515038505495</span>);
-<a href=#586 id=586 data-nosnippet>586</a>        <span class="kw">let </span>plh_payload = <span class="macro">vec!</span>[
-<a href=#587 id=587 data-nosnippet>587</a>            FieldElement::from(u32::from(<span class="string">b'P'</span>)),
-<a href=#588 id=588 data-nosnippet>588</a>            FieldElement::from(u32::from(<span class="string">b'L'</span>)),
-<a href=#589 id=589 data-nosnippet>589</a>            FieldElement::from(u32::from(<span class="string">b'H'</span>)),
-<a href=#590 id=590 data-nosnippet>590</a>        ];
-<a href=#591 id=591 data-nosnippet>591</a>
-<a href=#592 id=592 data-nosnippet>592</a>        <span class="kw">let </span>dynamic_error = NargoErrorWithTypes(
-<a href=#593 id=593 data-nosnippet>593</a>            nargo::NargoError::ExecutionError(ExecutionError::AssertionFailed(
-<a href=#594 id=594 data-nosnippet>594</a>                ResolvedAssertionPayload::Raw(RawAssertionPayload { selector, data: plh_payload }),
-<a href=#595 id=595 data-nosnippet>595</a>                Vec::new(),
-<a href=#596 id=596 data-nosnippet>596</a>                <span class="prelude-val">Some</span>(BrilligFunctionId::new(<span class="number">0</span>)),
-<a href=#597 id=597 data-nosnippet>597</a>            )),
-<a href=#598 id=598 data-nosnippet>598</a>            BTreeMap::from_iter([(selector, ErrorType::Dynamic(str_type))]),
-<a href=#599 id=599 data-nosnippet>599</a>        );
-<a href=#600 id=600 data-nosnippet>600</a>        <span class="kw">let </span>static_string_error = NargoErrorWithTypes(
-<a href=#601 id=601 data-nosnippet>601</a>            nargo::NargoError::ExecutionError(ExecutionError::AssertionFailed(
-<a href=#602 id=602 data-nosnippet>602</a>                ResolvedAssertionPayload::String(<span class="string">"PLH"</span>.to_string()),
-<a href=#603 id=603 data-nosnippet>603</a>                Vec::new(),
-<a href=#604 id=604 data-nosnippet>604</a>                <span class="prelude-val">Some</span>(BrilligFunctionId::new(<span class="number">0</span>)),
-<a href=#605 id=605 data-nosnippet>605</a>            )),
-<a href=#606 id=606 data-nosnippet>606</a>            BTreeMap::new(),
-<a href=#607 id=607 data-nosnippet>607</a>        );
-<a href=#608 id=608 data-nosnippet>608</a>
-<a href=#609 id=609 data-nosnippet>609</a>        <span class="macro">assert!</span>(NargoErrorWithTypes::equivalent(<span class="kw-2">&amp;</span>dynamic_error, <span class="kw-2">&amp;</span>static_string_error));
-<a href=#610 id=610 data-nosnippet>610</a>    }
-<a href=#611 id=611 data-nosnippet>611</a>
-<a href=#612 id=612 data-nosnippet>612</a>    <span class="attr">#[test]
-<a href=#613 id=613 data-nosnippet>613</a>    </span><span class="kw">fn </span>matches_acir_dynamic_fmtstr_oob_with_brillig_string() {
-<a href=#614 id=614 data-nosnippet>614</a>        <span class="comment">// Regression test for the `acir_vs_brillig` failure with seed 0x6c3ad1760003227e.
-<a href=#615 id=615 data-nosnippet>615</a>        //
-<a href=#616 id=616 data-nosnippet>616</a>        // A dynamic read of a composite array (element size &gt; 1) out of bounds is reported in
-<a href=#617 id=617 data-nosnippet>617</a>        // ACIR by a synthesized format-string assertion carrying the logical index and length
-<a href=#618 id=618 data-nosnippet>618</a>        // (`ConstrainError::Dynamic` with an `ErrorType::Dynamic(fmtstr&lt;_, (u32,)&gt;)`). Its raw
-<a href=#619 id=619 data-nosnippet>619</a>        // payload is the template bytes, followed by the field count and the formatted index
-<a href=#620 id=620 data-nosnippet>620</a>        // value. In Brillig the same access surfaces as a plain `"Index out of bounds"` string.
-<a href=#621 id=621 data-nosnippet>621</a>        // Extracting the template message from the fmtstr payload is what lets the comparator
-<a href=#622 id=622 data-nosnippet>622</a>        // treat the two as equivalent.
-<a href=#623 id=623 data-nosnippet>623</a>        </span><span class="kw">let </span>template = <span class="string">"Index out of bounds, array has size 4, but index was {}"</span>;
-<a href=#624 id=624 data-nosnippet>624</a>        <span class="kw">let </span><span class="kw-2">mut </span>data: Vec&lt;FieldElement&gt; =
-<a href=#625 id=625 data-nosnippet>625</a>            template.bytes().map(|b| FieldElement::from(u32::from(b))).collect();
-<a href=#626 id=626 data-nosnippet>626</a>        <span class="comment">// Format string layout: template bytes, then the field count, then the formatted values.
-<a href=#627 id=627 data-nosnippet>627</a>        </span>data.push(FieldElement::from(<span class="number">1u32</span>));
-<a href=#628 id=628 data-nosnippet>628</a>        data.push(FieldElement::from(<span class="number">869191887u32</span>));
-<a href=#629 id=629 data-nosnippet>629</a>
-<a href=#630 id=630 data-nosnippet>630</a>        <span class="kw">let </span>fmtstr_type = HirType::FmtString(
-<a href=#631 id=631 data-nosnippet>631</a>            Box::new(HirType::Constant(Integer::U32(template.len() <span class="kw">as </span>u32))),
-<a href=#632 id=632 data-nosnippet>632</a>            Box::new(HirType::Tuple(<span class="macro">vec!</span>[HirType::u32()])),
-<a href=#633 id=633 data-nosnippet>633</a>        );
-<a href=#634 id=634 data-nosnippet>634</a>        <span class="kw">let </span>acir_selector = ErrorSelector::new(<span class="number">9034042597070725729</span>);
-<a href=#635 id=635 data-nosnippet>635</a>        <span class="kw">let </span>acir_error = NargoErrorWithTypes(
-<a href=#636 id=636 data-nosnippet>636</a>            nargo::NargoError::ExecutionError(ExecutionError::AssertionFailed(
-<a href=#637 id=637 data-nosnippet>637</a>                ResolvedAssertionPayload::Raw(RawAssertionPayload {
-<a href=#638 id=638 data-nosnippet>638</a>                    selector: acir_selector,
-<a href=#639 id=639 data-nosnippet>639</a>                    data,
-<a href=#640 id=640 data-nosnippet>640</a>                }),
-<a href=#641 id=641 data-nosnippet>641</a>                Vec::new(),
-<a href=#642 id=642 data-nosnippet>642</a>                <span class="prelude-val">None</span>,
-<a href=#643 id=643 data-nosnippet>643</a>            )),
-<a href=#644 id=644 data-nosnippet>644</a>            BTreeMap::from_iter([(acir_selector, ErrorType::Dynamic(fmtstr_type))]),
-<a href=#645 id=645 data-nosnippet>645</a>        );
-<a href=#646 id=646 data-nosnippet>646</a>
-<a href=#647 id=647 data-nosnippet>647</a>        <span class="kw">let </span>brillig_selector = ErrorSelector::new(<span class="number">16431471497789672479</span>);
-<a href=#648 id=648 data-nosnippet>648</a>        <span class="kw">let </span>brillig_error = NargoErrorWithTypes(
-<a href=#649 id=649 data-nosnippet>649</a>            nargo::NargoError::ExecutionError(ExecutionError::AssertionFailed(
-<a href=#650 id=650 data-nosnippet>650</a>                ResolvedAssertionPayload::Raw(RawAssertionPayload {
-<a href=#651 id=651 data-nosnippet>651</a>                    selector: brillig_selector,
-<a href=#652 id=652 data-nosnippet>652</a>                    data: <span class="macro">vec!</span>[],
-<a href=#653 id=653 data-nosnippet>653</a>                }),
-<a href=#654 id=654 data-nosnippet>654</a>                Vec::new(),
-<a href=#655 id=655 data-nosnippet>655</a>                <span class="prelude-val">Some</span>(BrilligFunctionId::new(<span class="number">0</span>)),
-<a href=#656 id=656 data-nosnippet>656</a>            )),
-<a href=#657 id=657 data-nosnippet>657</a>            BTreeMap::from_iter([(
-<a href=#658 id=658 data-nosnippet>658</a>                brillig_selector,
-<a href=#659 id=659 data-nosnippet>659</a>                ErrorType::String(<span class="string">"Index out of bounds"</span>.to_string()),
-<a href=#660 id=660 data-nosnippet>660</a>            )]),
-<a href=#661 id=661 data-nosnippet>661</a>        );
-<a href=#662 id=662 data-nosnippet>662</a>
-<a href=#663 id=663 data-nosnippet>663</a>        <span class="macro">assert!</span>(NargoErrorWithTypes::equivalent(<span class="kw-2">&amp;</span>acir_error, <span class="kw-2">&amp;</span>brillig_error));
-<a href=#664 id=664 data-nosnippet>664</a>    }
-<a href=#665 id=665 data-nosnippet>665</a>}</code></pre></div></section></main></body></html>
+<a href=#550 id=550 data-nosnippet>550</a>                    payload: <span class="prelude-val">None</span>,
+<a href=#551 id=551 data-nosnippet>551</a>                },
+<a href=#552 id=552 data-nosnippet>552</a>                <span class="prelude-val">None</span>,
+<a href=#553 id=553 data-nosnippet>553</a>            )),
+<a href=#554 id=554 data-nosnippet>554</a>            BTreeMap::new(),
+<a href=#555 id=555 data-nosnippet>555</a>        );
+<a href=#556 id=556 data-nosnippet>556</a>        <span class="kw">let </span>brillig_error = NargoErrorWithTypes(
+<a href=#557 id=557 data-nosnippet>557</a>            nargo::NargoError::ExecutionError(ExecutionError::AssertionFailed(
+<a href=#558 id=558 data-nosnippet>558</a>                ResolvedAssertionPayload::Raw(RawAssertionPayload {
+<a href=#559 id=559 data-nosnippet>559</a>                    selector: ErrorSelector::new(<span class="number">14990209321349310352</span>),
+<a href=#560 id=560 data-nosnippet>560</a>                    data: <span class="macro">vec!</span>[],
+<a href=#561 id=561 data-nosnippet>561</a>                }),
+<a href=#562 id=562 data-nosnippet>562</a>                Vec::new(),
+<a href=#563 id=563 data-nosnippet>563</a>                <span class="prelude-val">Some</span>(BrilligFunctionId::new(<span class="number">0</span>)),
+<a href=#564 id=564 data-nosnippet>564</a>            )),
+<a href=#565 id=565 data-nosnippet>565</a>            BTreeMap::from_iter([(
+<a href=#566 id=566 data-nosnippet>566</a>                ErrorSelector::new(<span class="number">14990209321349310352</span>),
+<a href=#567 id=567 data-nosnippet>567</a>                ErrorType::String(<span class="string">"attempt to add with overflow"</span>.to_string()),
+<a href=#568 id=568 data-nosnippet>568</a>            )]),
+<a href=#569 id=569 data-nosnippet>569</a>        );
+<a href=#570 id=570 data-nosnippet>570</a>
+<a href=#571 id=571 data-nosnippet>571</a>        <span class="macro">assert!</span>(NargoErrorWithTypes::equivalent(<span class="kw-2">&amp;</span>acir_error, <span class="kw-2">&amp;</span>brillig_error));
+<a href=#572 id=572 data-nosnippet>572</a>    }
+<a href=#573 id=573 data-nosnippet>573</a>
+<a href=#574 id=574 data-nosnippet>574</a>    <span class="attr">#[test]
+<a href=#575 id=575 data-nosnippet>575</a>    </span><span class="kw">fn </span>decodes_dynamic_string_error_type_without_panicking() {
+<a href=#576 id=576 data-nosnippet>576</a>        <span class="comment">// Regression test for the `orig_vs_morph` failure with seed 0xee0040bf00100000.
+<a href=#577 id=577 data-nosnippet>577</a>        //
+<a href=#578 id=578 data-nosnippet>578</a>        // The metamorphic rewriter turns a literal `assert(_, "PLH")` message into
+<a href=#579 id=579 data-nosnippet>579</a>        // `if b { "PLH" } else { "PLH" }`. Being non-literal, `codegen_constrain_error`
+<a href=#580 id=580 data-nosnippet>580</a>        // records it as `ErrorType::Dynamic` (whose inner type is nonetheless a plain
+<a href=#581 id=581 data-nosnippet>581</a>        // `str&lt;3&gt;`) in the SSA error type table, with the runtime payload carrying the
+<a href=#582 id=582 data-nosnippet>582</a>        // string bytes. Extracting the message used to `panic!("didn't expect dynamic error
+<a href=#583 id=583 data-nosnippet>583</a>        // types")`; instead the bytes must be decoded back into the original string so the
+<a href=#584 id=584 data-nosnippet>584</a>        // morphed program compares equal to the original.
+<a href=#585 id=585 data-nosnippet>585</a>        </span><span class="kw">let </span>str_type = HirType::String(Box::new(HirType::Constant(Integer::U32(<span class="number">3</span>))));
+<a href=#586 id=586 data-nosnippet>586</a>        <span class="kw">let </span>selector = ErrorSelector::new(<span class="number">9230725515038505495</span>);
+<a href=#587 id=587 data-nosnippet>587</a>        <span class="kw">let </span>plh_payload = <span class="macro">vec!</span>[
+<a href=#588 id=588 data-nosnippet>588</a>            FieldElement::from(u32::from(<span class="string">b'P'</span>)),
+<a href=#589 id=589 data-nosnippet>589</a>            FieldElement::from(u32::from(<span class="string">b'L'</span>)),
+<a href=#590 id=590 data-nosnippet>590</a>            FieldElement::from(u32::from(<span class="string">b'H'</span>)),
+<a href=#591 id=591 data-nosnippet>591</a>        ];
+<a href=#592 id=592 data-nosnippet>592</a>
+<a href=#593 id=593 data-nosnippet>593</a>        <span class="kw">let </span>dynamic_error = NargoErrorWithTypes(
+<a href=#594 id=594 data-nosnippet>594</a>            nargo::NargoError::ExecutionError(ExecutionError::AssertionFailed(
+<a href=#595 id=595 data-nosnippet>595</a>                ResolvedAssertionPayload::Raw(RawAssertionPayload { selector, data: plh_payload }),
+<a href=#596 id=596 data-nosnippet>596</a>                Vec::new(),
+<a href=#597 id=597 data-nosnippet>597</a>                <span class="prelude-val">Some</span>(BrilligFunctionId::new(<span class="number">0</span>)),
+<a href=#598 id=598 data-nosnippet>598</a>            )),
+<a href=#599 id=599 data-nosnippet>599</a>            BTreeMap::from_iter([(selector, ErrorType::Dynamic(str_type))]),
+<a href=#600 id=600 data-nosnippet>600</a>        );
+<a href=#601 id=601 data-nosnippet>601</a>        <span class="kw">let </span>static_string_error = NargoErrorWithTypes(
+<a href=#602 id=602 data-nosnippet>602</a>            nargo::NargoError::ExecutionError(ExecutionError::AssertionFailed(
+<a href=#603 id=603 data-nosnippet>603</a>                ResolvedAssertionPayload::String(<span class="string">"PLH"</span>.to_string()),
+<a href=#604 id=604 data-nosnippet>604</a>                Vec::new(),
+<a href=#605 id=605 data-nosnippet>605</a>                <span class="prelude-val">Some</span>(BrilligFunctionId::new(<span class="number">0</span>)),
+<a href=#606 id=606 data-nosnippet>606</a>            )),
+<a href=#607 id=607 data-nosnippet>607</a>            BTreeMap::new(),
+<a href=#608 id=608 data-nosnippet>608</a>        );
+<a href=#609 id=609 data-nosnippet>609</a>
+<a href=#610 id=610 data-nosnippet>610</a>        <span class="macro">assert!</span>(NargoErrorWithTypes::equivalent(<span class="kw-2">&amp;</span>dynamic_error, <span class="kw-2">&amp;</span>static_string_error));
+<a href=#611 id=611 data-nosnippet>611</a>    }
+<a href=#612 id=612 data-nosnippet>612</a>
+<a href=#613 id=613 data-nosnippet>613</a>    <span class="attr">#[test]
+<a href=#614 id=614 data-nosnippet>614</a>    </span><span class="kw">fn </span>matches_acir_dynamic_fmtstr_oob_with_brillig_string() {
+<a href=#615 id=615 data-nosnippet>615</a>        <span class="comment">// Regression test for the `acir_vs_brillig` failure with seed 0x6c3ad1760003227e.
+<a href=#616 id=616 data-nosnippet>616</a>        //
+<a href=#617 id=617 data-nosnippet>617</a>        // A dynamic read of a composite array (element size &gt; 1) out of bounds is reported in
+<a href=#618 id=618 data-nosnippet>618</a>        // ACIR by a synthesized format-string assertion carrying the logical index and length
+<a href=#619 id=619 data-nosnippet>619</a>        // (`ConstrainError::Dynamic` with an `ErrorType::Dynamic(fmtstr&lt;_, (u32,)&gt;)`). Its raw
+<a href=#620 id=620 data-nosnippet>620</a>        // payload is the template bytes, followed by the field count and the formatted index
+<a href=#621 id=621 data-nosnippet>621</a>        // value. In Brillig the same access surfaces as a plain `"Index out of bounds"` string.
+<a href=#622 id=622 data-nosnippet>622</a>        // Extracting the template message from the fmtstr payload is what lets the comparator
+<a href=#623 id=623 data-nosnippet>623</a>        // treat the two as equivalent.
+<a href=#624 id=624 data-nosnippet>624</a>        </span><span class="kw">let </span>template = <span class="string">"Index out of bounds, array has size 4, but index was {}"</span>;
+<a href=#625 id=625 data-nosnippet>625</a>        <span class="kw">let </span><span class="kw-2">mut </span>data: Vec&lt;FieldElement&gt; =
+<a href=#626 id=626 data-nosnippet>626</a>            template.bytes().map(|b| FieldElement::from(u32::from(b))).collect();
+<a href=#627 id=627 data-nosnippet>627</a>        <span class="comment">// Format string layout: template bytes, then the field count, then the formatted values.
+<a href=#628 id=628 data-nosnippet>628</a>        </span>data.push(FieldElement::from(<span class="number">1u32</span>));
+<a href=#629 id=629 data-nosnippet>629</a>        data.push(FieldElement::from(<span class="number">869191887u32</span>));
+<a href=#630 id=630 data-nosnippet>630</a>
+<a href=#631 id=631 data-nosnippet>631</a>        <span class="kw">let </span>fmtstr_type = HirType::FmtString(
+<a href=#632 id=632 data-nosnippet>632</a>            Box::new(HirType::Constant(Integer::U32(template.len() <span class="kw">as </span>u32))),
+<a href=#633 id=633 data-nosnippet>633</a>            Box::new(HirType::Tuple(<span class="macro">vec!</span>[HirType::u32()])),
+<a href=#634 id=634 data-nosnippet>634</a>        );
+<a href=#635 id=635 data-nosnippet>635</a>        <span class="kw">let </span>acir_selector = ErrorSelector::new(<span class="number">9034042597070725729</span>);
+<a href=#636 id=636 data-nosnippet>636</a>        <span class="kw">let </span>acir_error = NargoErrorWithTypes(
+<a href=#637 id=637 data-nosnippet>637</a>            nargo::NargoError::ExecutionError(ExecutionError::AssertionFailed(
+<a href=#638 id=638 data-nosnippet>638</a>                ResolvedAssertionPayload::Raw(RawAssertionPayload {
+<a href=#639 id=639 data-nosnippet>639</a>                    selector: acir_selector,
+<a href=#640 id=640 data-nosnippet>640</a>                    data,
+<a href=#641 id=641 data-nosnippet>641</a>                }),
+<a href=#642 id=642 data-nosnippet>642</a>                Vec::new(),
+<a href=#643 id=643 data-nosnippet>643</a>                <span class="prelude-val">None</span>,
+<a href=#644 id=644 data-nosnippet>644</a>            )),
+<a href=#645 id=645 data-nosnippet>645</a>            BTreeMap::from_iter([(acir_selector, ErrorType::Dynamic(fmtstr_type))]),
+<a href=#646 id=646 data-nosnippet>646</a>        );
+<a href=#647 id=647 data-nosnippet>647</a>
+<a href=#648 id=648 data-nosnippet>648</a>        <span class="kw">let </span>brillig_selector = ErrorSelector::new(<span class="number">16431471497789672479</span>);
+<a href=#649 id=649 data-nosnippet>649</a>        <span class="kw">let </span>brillig_error = NargoErrorWithTypes(
+<a href=#650 id=650 data-nosnippet>650</a>            nargo::NargoError::ExecutionError(ExecutionError::AssertionFailed(
+<a href=#651 id=651 data-nosnippet>651</a>                ResolvedAssertionPayload::Raw(RawAssertionPayload {
+<a href=#652 id=652 data-nosnippet>652</a>                    selector: brillig_selector,
+<a href=#653 id=653 data-nosnippet>653</a>                    data: <span class="macro">vec!</span>[],
+<a href=#654 id=654 data-nosnippet>654</a>                }),
+<a href=#655 id=655 data-nosnippet>655</a>                Vec::new(),
+<a href=#656 id=656 data-nosnippet>656</a>                <span class="prelude-val">Some</span>(BrilligFunctionId::new(<span class="number">0</span>)),
+<a href=#657 id=657 data-nosnippet>657</a>            )),
+<a href=#658 id=658 data-nosnippet>658</a>            BTreeMap::from_iter([(
+<a href=#659 id=659 data-nosnippet>659</a>                brillig_selector,
+<a href=#660 id=660 data-nosnippet>660</a>                ErrorType::String(<span class="string">"Index out of bounds"</span>.to_string()),
+<a href=#661 id=661 data-nosnippet>661</a>            )]),
+<a href=#662 id=662 data-nosnippet>662</a>        );
+<a href=#663 id=663 data-nosnippet>663</a>
+<a href=#664 id=664 data-nosnippet>664</a>        <span class="macro">assert!</span>(NargoErrorWithTypes::equivalent(<span class="kw-2">&amp;</span>acir_error, <span class="kw-2">&amp;</span>brillig_error));
+<a href=#665 id=665 data-nosnippet>665</a>    }
+<a href=#666 id=666 data-nosnippet>666</a>}</code></pre></div></section></main></body></html>
