@@ -189,8 +189,17 @@ impl<F: AcirField> GeneratedAcir<F> {
         payload: AssertionPayload<F>,
     ) -> OpcodeLocation {
         let location = self.last_acir_opcode_location();
-        self.assertion_payloads.insert(location, payload);
+        self.attach_assertion_payload_at(location, payload);
         location
+    }
+
+    /// Attaches an assertion payload to the opcode at `location`.
+    pub(crate) fn attach_assertion_payload_at(
+        &mut self,
+        location: OpcodeLocation,
+        payload: AssertionPayload<F>,
+    ) {
+        self.assertion_payloads.insert(location, payload);
     }
 }
 

@@ -12,7 +12,7 @@ use acvm::acir::{
     AcirField, BlackBoxFunc,
     brillig::lengths::{FlattenedLength, SemanticLength},
     circuit::{
-        AssertionPayload, ErrorSelector, ExpressionOrMemory, Opcode,
+        AssertionPayload, ErrorSelector, ExpressionOrMemory, Opcode, OpcodeLocation,
         opcodes::{AcirFunctionId, BlockId, BlockType, MemOp},
     },
     native_types::{Expression, Witness},
@@ -64,20 +64,6 @@ pub(crate) struct AcirContext<F: AcirField> {
     pub(super) acir_ir: GeneratedAcir<F>,
 
     pub(super) warnings: Vec<SsaReport>,
-
-    /// Payload to attach to the next memory operation pushed, if any.
-    ///
-    /// A memory op carries an implicit bounds check on its index, and for an array whose elements
-    /// span several ACIR cells that check fails with flattened coordinates. Arming a payload makes
-    /// the failure report the logical ones instead (see `logical_index_out_of_bounds_payload` in
-    /// `crate::acir::arrays`).
-    ///
-    /// Lowering one array access can push several memory ops — an element-type-sizes lookup, the
-    /// dummy read a predicated write needs, the access itself — and the first of them is the one
-    /// whose bounds check runs first, so the payload goes to whichever comes first and is cleared.
-    /// The caller disarms whatever it armed once the access is lowered, so a payload never carries
-    /// over to an unrelated op.
-    next_memory_op_payload: Option<AssertionPayload<F>>,
 }
 
 impl<F: AcirField> AcirContext<F> {
@@ -88,7 +74,6 @@ impl<F: AcirField> AcirContext<F> {
             constant_witnesses: Default::default(),
             acir_ir: Default::default(),
             warnings: Default::default(),
-            next_memory_op_payload: None,
         }
     }
 
@@ -1382,20 +1367,33 @@ impl<F: AcirField> AcirContext<F> {
         id
     }
 
-    /// Arms `payload` on the next memory operation to be pushed, returning the payload that was
-    /// armed before (and is now replaced). See [`AcirContext::next_memory_op_payload`].
-    pub(crate) fn arm_memory_op_payload(
-        &mut self,
-        payload: Option<AssertionPayload<F>>,
-    ) -> Option<AssertionPayload<F>> {
-        std::mem::replace(&mut self.next_memory_op_payload, payload)
+    /// The index the next opcode pushed will take, for delimiting a range of opcodes to search
+    /// with [`AcirContext::attach_payload_to_first_memory_op`].
+    pub(crate) fn next_opcode_index(&self) -> usize {
+        self.acir_ir.opcodes.len()
     }
 
-    /// Attaches the armed payload, if any, to the memory operation just pushed.
-    fn attach_armed_memory_op_payload(&mut self) {
-        if let Some(payload) = self.next_memory_op_payload.take() {
-            self.acir_ir.attach_assertion_payload(payload);
-        }
+    /// Attaches `payload` to the first memory operation pushed at or after opcode `start`,
+    /// returning it unattached when that range holds none.
+    ///
+    /// The solver runs opcodes in order, so of the memory ops an array access lowers to, the
+    /// first is the one whose bounds check fails first and the one a message describing that
+    /// failure belongs on. Callers delimit the range so that it holds only ops indexed by the
+    /// access's own index, and pass an unattached payload on to the range that does.
+    pub(crate) fn attach_payload_to_first_memory_op(
+        &mut self,
+        start: usize,
+        payload: Option<AssertionPayload<F>>,
+    ) -> Option<AssertionPayload<F>> {
+        let payload = payload?;
+        let Some(offset) = self.acir_ir.opcodes[start..]
+            .iter()
+            .position(|opcode| matches!(opcode, Opcode::MemoryOp { .. }))
+        else {
+            return Some(payload);
+        };
+        self.acir_ir.attach_assertion_payload_at(OpcodeLocation::Acir(start + offset), payload);
+        None
     }
 
     /// Returns a Variable that is constrained to be the result of reading
@@ -1416,7 +1414,6 @@ impl<F: AcirField> AcirContext<F> {
         // Add the memory read operation to the list of opcodes
         let op = MemOp::read_at_mem_index(index_witness, value_read_witness);
         self.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op });
-        self.attach_armed_memory_op_payload();
 
         Ok(value_read_var)
     }
@@ -1439,7 +1436,6 @@ impl<F: AcirField> AcirContext<F> {
         // Add the memory write operation to the list of opcodes
         let op = MemOp::write_to_mem_index(index_witness, value_write_witness);
         self.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op });
-        self.attach_armed_memory_op_payload();
 
         Ok(())
     }

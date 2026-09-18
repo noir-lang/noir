@@ -257,11 +257,10 @@ impl Context<'_> {
 
         let array_typ = dfg.type_of_value(array);
 
-        // The memory ops this access lowers to carry its only bounds check, so arm the payload
-        // that translates a failure back into the array's logical coordinates before emitting any
-        // of them, and disarm it once the access is lowered.
+        // The memory ops this access lowers to carry its only bounds check, so the message that
+        // translates a failure back into the array's logical coordinates travels with the access
+        // until it reaches the first of them.
         let payload = self.logical_index_out_of_bounds_payload(&array_typ, index, dfg)?;
-        self.acir_context.arm_memory_op_payload(payload);
 
         let gating = match (dfg.is_safe_index(index, array), store_value) {
             // The access stays on the slots the program asked for, so there is no fallback slot
@@ -276,15 +275,19 @@ impl Context<'_> {
                 fallback_offset: self.compute_offset(instruction, dfg, &array_typ)?,
             },
         };
+        let inputs_start = self.acir_context.next_opcode_index();
         let (new_index, new_value) =
             self.convert_array_operation_inputs(array, dfg, index, store_value, gating)?;
+        // Converting the inputs can emit memory ops of its own — the element-type-sizes lookup a
+        // non-homogeneous layout needs, and the dummy read of a predicated write — and both are
+        // indexed by the access's index, so they fail before the access itself does.
+        let payload = self.acir_context.attach_payload_to_first_memory_op(inputs_start, payload);
 
         if let Some(new_value) = new_value {
-            self.array_set(instruction, new_index, new_value, dfg, mutable)?;
+            self.array_set(instruction, new_index, new_value, dfg, mutable, payload)?;
         } else {
-            self.array_get(instruction, array, new_index, dfg)?;
+            self.array_get(instruction, array, new_index, dfg, payload)?;
         }
-        self.acir_context.arm_memory_op_payload(None);
 
         Ok(())
     }
@@ -797,10 +800,11 @@ impl Context<'_> {
         array: ValueId,
         var_index: AcirVar,
         dfg: &DataFlowGraph,
+        payload: Option<AssertionPayload<FieldElement>>,
     ) -> Result<(), RuntimeError> {
         let [result] = dfg.instruction_result(instruction);
         let res_typ = dfg.type_of_value(result);
-        let value = self.load_array_value(array, var_index, &res_typ, dfg)?;
+        let value = self.load_array_value(array, var_index, &res_typ, dfg, payload)?;
         self.define_result(dfg, instruction, value);
         Ok(())
     }
@@ -812,6 +816,7 @@ impl Context<'_> {
         mut var_index: AcirVar,
         res_typ: &Type,
         dfg: &DataFlowGraph,
+        payload: Option<AssertionPayload<FieldElement>>,
     ) -> Result<AcirValue, RuntimeError> {
         // Get operations to call-data parameters are replaced by a get to the call-data-bus array
         let call_data_info = self
@@ -848,7 +853,12 @@ impl Context<'_> {
             let call_data_block = self.ensure_array_is_initialized(array_id, dfg)?;
             let bus_index = self.acir_context.add_constant(FieldElement::from(bus_index as i128));
             let mut current_index = self.acir_context.add_var(bus_index, var_index)?;
-            self.get_from_call_data(&mut current_index, call_data_block, res_typ)
+            // Initializing the block above reads its source at fixed slots, which no index can
+            // push out of bounds, so the message is only offered to the reads of the access.
+            let read_start = self.acir_context.next_opcode_index();
+            let value = self.get_from_call_data(&mut current_index, call_data_block, res_typ);
+            self.acir_context.attach_payload_to_first_memory_op(read_start, payload);
+            value
         } else if res_typ.flattened_size().0 == 0 {
             // Reading a zero-slot value (e.g. an empty nested array like `[u8; 0]`) emits no
             // `MemoryOp` reads, so initializing the source array's block here would leave an
@@ -860,7 +870,10 @@ impl Context<'_> {
             // initialized lazily here rather than for every `ArrayGet` (call-data reads are served
             // from the databus block and never touch this one).
             let block_id = self.ensure_array_is_initialized(array, dfg)?;
-            self.array_get_value(res_typ, block_id, &mut var_index)
+            let read_start = self.acir_context.next_opcode_index();
+            let value = self.array_get_value(res_typ, block_id, &mut var_index);
+            self.acir_context.attach_payload_to_first_memory_op(read_start, payload);
+            value
         }
     }
 
@@ -938,6 +951,7 @@ impl Context<'_> {
         store_value: AcirValue,
         dfg: &DataFlowGraph,
         mutate_array: bool,
+        payload: Option<AssertionPayload<FieldElement>>,
     ) -> Result<(), RuntimeError> {
         // Pass the instruction between array methods rather than the internal fields themselves
         let Instruction::ArraySet { array, value: store_value_id, .. } = dfg[instruction] else {
@@ -969,13 +983,13 @@ impl Context<'_> {
         }
 
         let [result_id] = dfg.instruction_result(instruction);
-        // Copying the source array into a new block reads it at constant indices that no user
-        // index can push out of bounds, so keep any armed payload for the write itself.
-        let payload = self.acir_context.arm_memory_op_payload(None);
         let block_id = self.resolve_array_set_block(array, result_id, dfg, mutate_array)?;
-        self.acir_context.arm_memory_op_payload(payload);
 
+        // Copying the source array into a new block reads it at fixed slots, which no index can
+        // push out of bounds, so the message is only offered to the writes of the access.
+        let write_start = self.acir_context.next_opcode_index();
         self.array_set_value(&store_value, block_id, &mut var_index)?;
+        self.acir_context.attach_payload_to_first_memory_op(write_start, payload);
 
         let result_value = self.make_array_set_result_value(array, block_id, dfg)?;
 
