@@ -1579,3 +1579,489 @@ fn regression_8485_does_not_panic() {
     let errors = crate::tests::get_program_errors(&full_src);
     assert!(!errors.is_empty(), "expected regression_8485 to produce errors without panicking");
 }
+
+/// `P: Bar<T>` implies `T: Foo` through `Bar`'s own where clause, so `v.foo()` resolves with no
+/// written bound on `T`.
+#[test]
+fn implied_where_clause_supplies_the_bound_a_method_call_needs() {
+    let src = r#"
+    trait Foo {
+        let N: u32;
+
+        fn foo(self);
+    }
+
+    trait Bar<T: Foo> {
+        fn x(self) -> T;
+    }
+
+    pub fn use_it<T, P>(p: P) -> T where P: Bar<T> {
+        let v = p.x();
+        v.foo();
+        v
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// The written `T: Foo` is the point of this test: `T` then has two `Foo` bounds in scope, the
+/// written one and the one `P: Bar<T>` implies. `Bar`'s clause leaves `Foo::N` implicit, and the
+/// variable standing for it is shared by every use of `Bar`, so the implied bound must describe `N`
+/// through the written bound's variable instead. Otherwise the two bounds disagree on `N` and
+/// `v.foo()` fails with no matching impl for `T: Foo<N = <T as Foo>::N>`.
+#[test]
+fn implied_where_clause_shares_the_associated_type_of_the_bound_in_scope() {
+    let src = r#"
+    trait Foo {
+        let N: u32;
+
+        fn foo(self);
+    }
+
+    trait Bar<T: Foo> {
+        fn x(self) -> T;
+    }
+
+    pub fn use_it<T, P>(p: P) -> T where T: Foo, P: Bar<T> {
+        let v = p.x();
+        v.foo();
+        v
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// The associated type an implied bound leaves implicit is instantiated per call site. `P: Bar<T>`
+/// implies `T: Foo<N = _>`; `use_it` is called once with `N = 3` and once with `N = 5`, and each call
+/// verifies its own `T: Foo`. If the variable standing for `N` were shared between call sites, the
+/// first call would bind it to `3` and the second would fail with no matching impl for
+/// `B: Foo<N = 3>`.
+#[test]
+fn implied_where_clause_associated_type_is_instantiated_per_call_site() {
+    let src = r#"
+    trait Foo {
+        let N: u32;
+    }
+
+    trait Bar<T: Foo> {
+        fn x(self) -> T;
+    }
+
+    pub struct A {}
+    pub struct B {}
+
+    impl Foo for A {
+        let N: u32 = 3;
+    }
+    impl Foo for B {
+        let N: u32 = 5;
+    }
+
+    pub struct XA {}
+    pub struct XB {}
+
+    impl Bar<A> for XA {
+        fn x(self) -> A {
+            A {}
+        }
+    }
+    impl Bar<B> for XB {
+        fn x(self) -> B {
+            B {}
+        }
+    }
+
+    pub fn use_it<T, P>(p: P) -> T where P: Bar<T> {
+        p.x()
+    }
+
+    fn main() {
+        let _ = use_it(XA {});
+        let _ = use_it(XB {});
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// The associated type an implied bound leaves implicit is a generic of the function: `T::N`
+/// resolves through the implied `T: Foo` in the signature, and each call site instantiates it
+/// from its own impl.
+#[test]
+fn implied_where_clause_associated_type_is_usable_in_the_signature() {
+    let src = r#"
+    trait Foo {
+        let N: u32;
+
+        fn arr(self) -> [Field; Self::N];
+    }
+
+    trait Bar<T: Foo> {
+        fn x(self) -> T;
+    }
+
+    pub struct A {}
+    pub struct B {}
+
+    impl Foo for A {
+        let N: u32 = 3;
+
+        fn arr(self) -> [Field; 3] {
+            [0; 3]
+        }
+    }
+    impl Foo for B {
+        let N: u32 = 5;
+
+        fn arr(self) -> [Field; 5] {
+            [0; 5]
+        }
+    }
+
+    pub struct XA {}
+    pub struct XB {}
+
+    impl Bar<A> for XA {
+        fn x(self) -> A {
+            A {}
+        }
+    }
+    impl Bar<B> for XB {
+        fn x(self) -> B {
+            B {}
+        }
+    }
+
+    pub fn use_it<T, P>(p: P) -> [Field; T::N] where P: Bar<T> {
+        p.x().arr()
+    }
+
+    fn main() {
+        let a: [Field; 3] = use_it(XA {});
+        let b: [Field; 5] = use_it(XB {});
+        let _ = (a, b);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// `T: Foo<A>` and `T: Foo<B>` are different bounds with different associated types. The written
+/// `T: Foo<A>` must not lend its `N` to the implied `T: Foo<B>`, and each resolves its own `N` at
+/// the call site.
+#[test]
+fn implied_where_clause_distinguishes_ordered_generics_of_the_same_trait() {
+    let src = r#"
+    trait Foo<X> {
+        let N: u32;
+
+        fn arr(self) -> [Field; Self::N];
+    }
+
+    trait Bar<T: Foo<B>> {
+        fn x(self) -> T;
+    }
+
+    pub struct A {}
+    pub struct B {}
+    pub struct C {}
+
+    impl Foo<A> for C {
+        let N: u32 = 3;
+
+        fn arr(self) -> [Field; 3] {
+            [0; 3]
+        }
+    }
+    impl Foo<B> for C {
+        let N: u32 = 5;
+
+        fn arr(self) -> [Field; 5] {
+            [0; 5]
+        }
+    }
+
+    pub struct XC {}
+
+    impl Bar<C> for XC {
+        fn x(self) -> C {
+            C {}
+        }
+    }
+
+    pub fn use_it<T, P>(t: T, p: P) -> ([Field; <T as Foo<A>>::N], [Field; <T as Foo<B>>::N])
+        where T: Foo<A>, P: Bar<T>
+    {
+        let _ = p;
+        (Foo::<A>::arr(t), Foo::<B>::arr(t))
+    }
+
+    fn main() {
+        let (a, b): ([Field; 3], [Field; 5]) = use_it(C {}, XC {});
+        let _ = (a, b);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// A bound implied by `P: Bar<T>` that the user also wrote, `T: Foo<B>`, next to a written
+/// `T: Foo<A>`: registering the implied duplicate leaves both written bounds and their associated
+/// types intact.
+#[test]
+fn implied_duplicate_of_a_written_bound_leaves_sibling_bounds_intact() {
+    let src = r#"
+    trait Foo<X> {
+        let N: u32;
+
+        fn arr(self) -> [Field; Self::N];
+    }
+
+    trait Bar<T: Foo<B>> {
+        fn x(self) -> T;
+    }
+
+    pub struct A {}
+    pub struct B {}
+    pub struct C {}
+
+    impl Foo<A> for C {
+        let N: u32 = 3;
+
+        fn arr(self) -> [Field; 3] {
+            [0; 3]
+        }
+    }
+    impl Foo<B> for C {
+        let N: u32 = 5;
+
+        fn arr(self) -> [Field; 5] {
+            [0; 5]
+        }
+    }
+
+    pub struct XC {}
+
+    impl Bar<C> for XC {
+        fn x(self) -> C {
+            C {}
+        }
+    }
+
+    pub fn use_it<T, P>(t: T, p: P) -> ([Field; <T as Foo<A>>::N], [Field; <T as Foo<B>>::N])
+        where T: Foo<A>, T: Foo<B>, P: Bar<T>
+    {
+        let _ = p;
+        (Foo::<A>::arr(t), Foo::<B>::arr(t))
+    }
+
+    fn main() {
+        let (a, b): ([Field; 3], [Field; 5]) = use_it(C {}, XC {});
+        let _ = (a, b);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// One where clause implying the same trait twice with different generics: both `T: Foo<A>` and
+/// `T: Foo<B>` are brought into scope, not just the first.
+#[test]
+fn where_clause_implies_the_same_trait_with_different_generics() {
+    let src = r#"
+    trait Foo<X> {
+        let N: u32;
+
+        fn arr(self) -> [Field; Self::N];
+    }
+
+    trait Pair<T> where T: Foo<A>, T: Foo<B> {}
+
+    pub struct A {}
+    pub struct B {}
+    pub struct C {}
+
+    impl Foo<A> for C {
+        let N: u32 = 3;
+
+        fn arr(self) -> [Field; 3] {
+            [0; 3]
+        }
+    }
+    impl Foo<B> for C {
+        let N: u32 = 5;
+
+        fn arr(self) -> [Field; 5] {
+            [0; 5]
+        }
+    }
+
+    pub struct XC {}
+
+    impl Pair<C> for XC {}
+
+    pub fn use_it<T, P>(t: T, p: P) -> ([Field; <T as Foo<A>>::N], [Field; <T as Foo<B>>::N])
+        where P: Pair<T>
+    {
+        let _ = p;
+        (Foo::<A>::arr(t), Foo::<B>::arr(t))
+    }
+
+    fn main() {
+        let (a, b): ([Field; 3], [Field; 5]) = use_it(C {}, XC {});
+        let _ = (a, b);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// A where clause can imply a bound on an ever larger type: `Y: A<X>` implies
+/// `X: A<Wrapper<X>>`, which implies `Wrapper<X>: A<Wrapper<Wrapper<X>>>`, and so on without
+/// repeating. The walk over implications is bounded, so this compiles instead of recursing
+/// until the stack overflows.
+#[test]
+fn growing_where_clause_implications_terminate() {
+    let src = r#"
+    pub struct Wrapper<T> {
+        inner: T,
+    }
+
+    trait A<T> where T: A<Wrapper<T>> {
+        fn a(self) -> bool;
+    }
+
+    pub fn f<X, Y>(x: X, _y: Y) -> bool where Y: A<X> {
+        x.a()
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// An impl's where clause implies the trait's: `U: Qux<T>` brings `T: Baz` into scope, which is
+/// what `Qux`'s own where clause asks of the impl.
+#[test]
+fn impl_where_clause_implication_satisfies_the_trait_where_clause() {
+    let src = r#"
+    trait Baz {
+        fn baz(self) -> bool;
+    }
+
+    trait Qux<T> where T: Baz {
+        fn q(self, x: T) -> bool;
+    }
+
+    pub struct W<U> {
+        u: U,
+    }
+
+    impl<T, U> Qux<T> for W<U> where U: Qux<T> {
+        fn q(self, x: T) -> bool {
+            self.u.q(x) & x.baz()
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// A written bound that an implied bound duplicates is not reported as unneeded, whichever of the
+/// two is written first.
+#[test]
+fn implied_bound_does_not_make_a_written_bound_redundant_in_either_order() {
+    let src = r#"
+    trait Baz {
+        fn baz(self) -> bool;
+    }
+
+    trait Qux<T> where T: Baz {}
+
+    pub fn a<T, U>(x: T, _u: U) -> bool where U: Qux<T>, T: Baz {
+        x.baz()
+    }
+
+    pub fn b<T, U>(x: T, _u: U) -> bool where T: Baz, U: Qux<T> {
+        x.baz()
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Transitive where clause implications: `Y: A<X>` implies `X: B<X>` (from A's where clause),
+/// which in turn implies `X: C` (from B's where clause), so `x.c()` resolves.
+#[test]
+fn transitive_where_clause_implications() {
+    let src = r#"
+    trait C {
+        fn c(self) -> bool;
+    }
+
+    trait B<U> where U: C {}
+
+    trait A<T> where T: B<T> {}
+
+    pub fn test<X, Y>(x: X, _y: Y) -> bool where Y: A<X> {
+        x.c()
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Traits A and B refer to each other through their where clauses: `Y: A<X>` implies `X: B<X>`,
+/// which implies `X: A<X>`, which implies `X: B<X>` again. The walk stops at the repeat, and both
+/// bounds are in scope, so `x.b()` resolves.
+#[test]
+fn cyclic_where_clause_implications_terminate() {
+    let src = r#"
+    trait B<U> where U: A<U> {
+        fn b(self) -> bool;
+    }
+
+    trait A<T> where T: B<T> {
+        fn a(self) -> bool;
+    }
+
+    pub fn test<X, Y>(x: X, _y: Y) -> bool where Y: A<X> {
+        x.b()
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// A single bound can imply the same trait on different object types. `P: Pair<T, U>` implies
+/// both `T: Showable` and `U: Showable` through the trait's where clause.
+#[test]
+fn where_clause_implies_same_trait_on_different_types() {
+    let src = r#"
+    trait Showable {
+        fn show(self) -> bool;
+    }
+
+    trait Pair<T, U> where T: Showable, U: Showable {}
+
+    pub fn test<T, U, P>(t: T, u: U, _p: P) -> bool where P: Pair<T, U> {
+        t.show() & u.show()
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// When `Self` appears as a generic argument in a trait's where clause (`where T: Bar<Self>`),
+/// the implication substitutes the object of the bound for it: `Y: Foo<X>` implies `X: Bar<Y>`,
+/// so `x.get_s()` returns `Y`. The trait has a single `Self` type variable shared by every use of
+/// it; if the implication left that variable in place, the first `get_s()` call would bind it to
+/// `Y` for good and `use_it2` would then see `P: Bar<Y>` and fail with "expected type Q, found
+/// type Y". Two callers are needed to observe that, so this test has two.
+#[test]
+fn where_clause_implication_substitutes_self_in_trait_generics() {
+    let src = r#"
+    trait Bar<S> {
+        fn get_s(self) -> S;
+    }
+
+    trait Foo<T> where T: Bar<Self> {}
+
+    pub fn use_it<X, Y>(x: X, _y: Y) -> Y where Y: Foo<X> {
+        x.get_s()
+    }
+
+    pub fn use_it2<P, Q>(p: P, _q: Q) -> Q where Q: Foo<P> {
+        p.get_s()
+    }
+    "#;
+    assert_no_errors(src);
+}
