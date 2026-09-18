@@ -547,6 +547,43 @@ impl Type {
         errors: &mut Vec<CompilationError>,
         make_error: impl FnOnce(&Elaborator) -> CompilationError,
     ) {
+        self.unify_with_coercions_inner(
+            expected, expression, location, elaborator, errors, make_error, false,
+        );
+    }
+
+    /// As [`Self::unify_with_coercions`], but an `unconstrained fn(..)` is accepted where a
+    /// constrained `fn(..)` is expected, without reporting [`TypeCheckError::UnsafeFn`].
+    ///
+    /// Calling this asserts that the runtime named by `expected` is not observable, so erasing it
+    /// changes nothing. That holds where the elaborator has itself chosen to make the value
+    /// unconstrained and the value goes straight into unconstrained code; it does not hold for a
+    /// slot that outlives the expression being checked.
+    pub fn unify_with_coercions_allowing_unconstrained_fn(
+        &self,
+        expected: &Type,
+        expression: ExprId,
+        location: Location,
+        elaborator: &mut Elaborator,
+        errors: &mut Vec<CompilationError>,
+        make_error: impl FnOnce(&Elaborator) -> CompilationError,
+    ) {
+        self.unify_with_coercions_inner(
+            expected, expression, location, elaborator, errors, make_error, true,
+        );
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn unify_with_coercions_inner(
+        &self,
+        expected: &Type,
+        expression: ExprId,
+        location: Location,
+        elaborator: &mut Elaborator,
+        errors: &mut Vec<CompilationError>,
+        make_error: impl FnOnce(&Elaborator) -> CompilationError,
+        allow_unconstrained_fn_coercion: bool,
+    ) {
         let mut bindings = TypeBindings::default();
 
         if let Ok(()) = self.try_unify(expected, &mut bindings) {
@@ -570,15 +607,29 @@ impl Type {
         match self.try_fn_to_unconstrained_fn_coercion(expected) {
             FunctionCoercionResult::NoCoercion => errors.push(make_error(elaborator)),
             FunctionCoercionResult::Coerced(coerced_self) => {
-                coerced_self.unify_with_coercions(
-                    expected, expression, location, elaborator, errors, make_error,
+                coerced_self.unify_with_coercions_inner(
+                    expected,
+                    expression,
+                    location,
+                    elaborator,
+                    errors,
+                    make_error,
+                    allow_unconstrained_fn_coercion,
                 );
             }
             FunctionCoercionResult::UnconstrainedMismatch(coerced_self) => {
-                errors.push(CompilationError::TypeError(TypeCheckError::UnsafeFn { location }));
+                if !allow_unconstrained_fn_coercion {
+                    errors.push(CompilationError::TypeError(TypeCheckError::UnsafeFn { location }));
+                }
 
-                coerced_self.unify_with_coercions(
-                    expected, expression, location, elaborator, errors, make_error,
+                coerced_self.unify_with_coercions_inner(
+                    expected,
+                    expression,
+                    location,
+                    elaborator,
+                    errors,
+                    make_error,
+                    allow_unconstrained_fn_coercion,
                 );
             }
         }
