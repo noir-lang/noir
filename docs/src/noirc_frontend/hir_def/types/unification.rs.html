@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `compiler/noirc_frontend/src/hir_def/types/unification.rs`."><title>unification.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-84e720fa.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="noirc_frontend" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0 (29483883e 2025-08-04)" data-channel="1.89.0" data-search-js="search-92309212.js" data-settings-js="settings-5514c975.js" ><script src="../../../../static.files/storage-4e99c027.js"></script><script defer src="../../../../static.files/src-script-813739b1.js"></script><script defer src="../../../../src-files.js"></script><script defer src="../../../../static.files/main-fd3af306.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noirc_frontend/hir_def/types/</div>unification.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="kw">use </span>std::borrow::Cow;
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `compiler/noirc_frontend/src/hir_def/types/unification.rs`."><title>unification.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-84e720fa.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="noirc_frontend" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0 (29483883e 2025-08-04)" data-channel="1.89.0" data-search-js="search-92309212.js" data-settings-js="settings-5514c975.js" ><script src="../../../../static.files/storage-4e99c027.js"></script><script defer src="../../../../static.files/src-script-813739b1.js"></script><script defer src="../../../../src-files.js"></script><script defer src="../../../../static.files/main-fd3af306.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noirc_frontend/hir_def/types/</div>unification.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-4"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="kw">use </span>std::borrow::Cow;
 <a href=#2 id=2 data-nosnippet>2</a>
 <a href=#3 id=3 data-nosnippet>3</a><span class="kw">use </span>itertools::Itertools;
 <a href=#4 id=4 data-nosnippet>4</a><span class="kw">use </span>noirc_errors::Location;
@@ -547,409 +547,460 @@
 <a href=#547 id=547 data-nosnippet>547</a>        errors: <span class="kw-2">&amp;mut </span>Vec&lt;CompilationError&gt;,
 <a href=#548 id=548 data-nosnippet>548</a>        make_error: <span class="kw">impl </span>FnOnce(<span class="kw-2">&amp;</span>Elaborator) -&gt; CompilationError,
 <a href=#549 id=549 data-nosnippet>549</a>    ) {
-<a href=#550 id=550 data-nosnippet>550</a>        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
-<a href=#551 id=551 data-nosnippet>551</a>
-<a href=#552 id=552 data-nosnippet>552</a>        <span class="kw">if let </span><span class="prelude-val">Ok</span>(()) = <span class="self">self</span>.try_unify(expected, <span class="kw-2">&amp;mut </span>bindings) {
-<a href=#553 id=553 data-nosnippet>553</a>            Type::apply_type_bindings(bindings);
-<a href=#554 id=554 data-nosnippet>554</a>            <span class="kw">return</span>;
-<a href=#555 id=555 data-nosnippet>555</a>        }
-<a href=#556 id=556 data-nosnippet>556</a>
-<a href=#557 id=557 data-nosnippet>557</a>        <span class="kw">if </span><span class="self">self</span>.try_array_to_vector_coercion(expected, expression, elaborator.interner) {
-<a href=#558 id=558 data-nosnippet>558</a>            <span class="kw">return</span>;
-<a href=#559 id=559 data-nosnippet>559</a>        }
-<a href=#560 id=560 data-nosnippet>560</a>
-<a href=#561 id=561 data-nosnippet>561</a>        <span class="kw">if </span><span class="self">self</span>.try_string_to_ctstring_coercion(expected, expression, elaborator.interner) {
-<a href=#562 id=562 data-nosnippet>562</a>            <span class="kw">return</span>;
-<a href=#563 id=563 data-nosnippet>563</a>        }
-<a href=#564 id=564 data-nosnippet>564</a>
-<a href=#565 id=565 data-nosnippet>565</a>        <span class="kw">if </span><span class="self">self</span>.try_reference_coercion(expected) {
-<a href=#566 id=566 data-nosnippet>566</a>            <span class="kw">return</span>;
-<a href=#567 id=567 data-nosnippet>567</a>        }
-<a href=#568 id=568 data-nosnippet>568</a>
-<a href=#569 id=569 data-nosnippet>569</a>        <span class="comment">// Try to coerce `fn (..) -&gt; T` to `unconstrained fn (..) -&gt; T`
-<a href=#570 id=570 data-nosnippet>570</a>        </span><span class="kw">match </span><span class="self">self</span>.try_fn_to_unconstrained_fn_coercion(expected) {
-<a href=#571 id=571 data-nosnippet>571</a>            FunctionCoercionResult::NoCoercion =&gt; errors.push(make_error(elaborator)),
-<a href=#572 id=572 data-nosnippet>572</a>            FunctionCoercionResult::Coerced(coerced_self) =&gt; {
-<a href=#573 id=573 data-nosnippet>573</a>                coerced_self.unify_with_coercions(
-<a href=#574 id=574 data-nosnippet>574</a>                    expected, expression, location, elaborator, errors, make_error,
-<a href=#575 id=575 data-nosnippet>575</a>                );
-<a href=#576 id=576 data-nosnippet>576</a>            }
-<a href=#577 id=577 data-nosnippet>577</a>            FunctionCoercionResult::UnconstrainedMismatch(coerced_self) =&gt; {
-<a href=#578 id=578 data-nosnippet>578</a>                errors.push(CompilationError::TypeError(TypeCheckError::UnsafeFn { location }));
-<a href=#579 id=579 data-nosnippet>579</a>
-<a href=#580 id=580 data-nosnippet>580</a>                coerced_self.unify_with_coercions(
-<a href=#581 id=581 data-nosnippet>581</a>                    expected, expression, location, elaborator, errors, make_error,
-<a href=#582 id=582 data-nosnippet>582</a>                );
-<a href=#583 id=583 data-nosnippet>583</a>            }
-<a href=#584 id=584 data-nosnippet>584</a>        }
-<a href=#585 id=585 data-nosnippet>585</a>    }
-<a href=#586 id=586 data-nosnippet>586</a>
-<a href=#587 id=587 data-nosnippet>587</a>    <span class="doccomment">/// If `self` and `expected` are function types, tries to coerce `self` to `expected`.
-<a href=#588 id=588 data-nosnippet>588</a>    /// Returns `None` if no coercion can be applied, otherwise returns `self` coerced to `expected`.
-<a href=#589 id=589 data-nosnippet>589</a>    </span><span class="kw">fn </span>try_fn_to_unconstrained_fn_coercion(<span class="kw-2">&amp;</span><span class="self">self</span>, expected: <span class="kw-2">&amp;</span>Type) -&gt; FunctionCoercionResult {
-<a href=#590 id=590 data-nosnippet>590</a>        <span class="comment">// If `self` and `expected` are function types, `self` can be coerced to `expected`
-<a href=#591 id=591 data-nosnippet>591</a>        // if `self` is unconstrained and `expected` is not. The other way around is an error, though.
-<a href=#592 id=592 data-nosnippet>592</a>        </span><span class="kw">if let </span>(
-<a href=#593 id=593 data-nosnippet>593</a>            Type::Function(params, ret, env, unconstrained_self),
-<a href=#594 id=594 data-nosnippet>594</a>            Type::Function(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, unconstrained_expected),
-<a href=#595 id=595 data-nosnippet>595</a>        ) = (<span class="self">self</span>.follow_bindings(), expected.follow_bindings())
-<a href=#596 id=596 data-nosnippet>596</a>        {
-<a href=#597 id=597 data-nosnippet>597</a>            <span class="kw">let </span>coerced_type = Type::Function(params, ret, env, unconstrained_expected);
-<a href=#598 id=598 data-nosnippet>598</a>
-<a href=#599 id=599 data-nosnippet>599</a>            <span class="kw">match </span>(unconstrained_self, unconstrained_expected) {
-<a href=#600 id=600 data-nosnippet>600</a>                (<span class="bool-val">true</span>, <span class="bool-val">true</span>) | (<span class="bool-val">false</span>, <span class="bool-val">false</span>) =&gt; FunctionCoercionResult::NoCoercion,
-<a href=#601 id=601 data-nosnippet>601</a>                (<span class="bool-val">false</span>, <span class="bool-val">true</span>) =&gt; FunctionCoercionResult::Coerced(coerced_type),
-<a href=#602 id=602 data-nosnippet>602</a>                (<span class="bool-val">true</span>, <span class="bool-val">false</span>) =&gt; FunctionCoercionResult::UnconstrainedMismatch(coerced_type),
-<a href=#603 id=603 data-nosnippet>603</a>            }
-<a href=#604 id=604 data-nosnippet>604</a>        } <span class="kw">else </span>{
-<a href=#605 id=605 data-nosnippet>605</a>            FunctionCoercionResult::NoCoercion
-<a href=#606 id=606 data-nosnippet>606</a>        }
-<a href=#607 id=607 data-nosnippet>607</a>    }
-<a href=#608 id=608 data-nosnippet>608</a>
-<a href=#609 id=609 data-nosnippet>609</a>    <span class="doccomment">/// Try to apply the array to vector coercion to this given type pair and expression.
-<a href=#610 id=610 data-nosnippet>610</a>    /// If self can be converted to target this way, do so and return true to indicate success.
-<a href=#611 id=611 data-nosnippet>611</a>    </span><span class="kw">fn </span>try_array_to_vector_coercion(
-<a href=#612 id=612 data-nosnippet>612</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#613 id=613 data-nosnippet>613</a>        target: <span class="kw-2">&amp;</span>Type,
-<a href=#614 id=614 data-nosnippet>614</a>        expression: ExprId,
-<a href=#615 id=615 data-nosnippet>615</a>        interner: <span class="kw-2">&amp;mut </span>NodeInterner,
-<a href=#616 id=616 data-nosnippet>616</a>    ) -&gt; bool {
-<a href=#617 id=617 data-nosnippet>617</a>        <span class="kw">let </span>this = <span class="self">self</span>.follow_bindings();
-<a href=#618 id=618 data-nosnippet>618</a>        <span class="kw">let </span>target = target.follow_bindings();
-<a href=#619 id=619 data-nosnippet>619</a>
-<a href=#620 id=620 data-nosnippet>620</a>        <span class="kw">if let </span>(Type::Array(element1, _size), Type::Vector(element2)) = (<span class="kw-2">&amp;</span>this, <span class="kw-2">&amp;</span>target) {
-<a href=#621 id=621 data-nosnippet>621</a>            <span class="comment">// We can only do the coercion if the `as_vector` method exists.
-<a href=#622 id=622 data-nosnippet>622</a>            // This is usually true, but some tests don't have access to the standard library.
-<a href=#623 id=623 data-nosnippet>623</a>            </span><span class="kw">if let </span><span class="prelude-val">Some</span>(as_vector) = interner.lookup_direct_method(<span class="kw-2">&amp;</span>this, <span class="string">"as_vector"</span>, <span class="bool-val">true</span>) {
-<a href=#624 id=624 data-nosnippet>624</a>                <span class="comment">// Still have to ensure the element types match.
-<a href=#625 id=625 data-nosnippet>625</a>                // Don't need to issue an error here if not, it will be done in unify_with_coercions
-<a href=#626 id=626 data-nosnippet>626</a>                </span><span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
-<a href=#627 id=627 data-nosnippet>627</a>                <span class="kw">if </span>element1.try_unify(element2, <span class="kw-2">&amp;mut </span>bindings).is_ok() {
-<a href=#628 id=628 data-nosnippet>628</a>                    invoke_function_on_expression(expression, this, target, as_vector, interner);
-<a href=#629 id=629 data-nosnippet>629</a>                    <span class="self">Self</span>::apply_type_bindings(bindings);
-<a href=#630 id=630 data-nosnippet>630</a>                    <span class="kw">return </span><span class="bool-val">true</span>;
-<a href=#631 id=631 data-nosnippet>631</a>                }
-<a href=#632 id=632 data-nosnippet>632</a>            }
-<a href=#633 id=633 data-nosnippet>633</a>        }
-<a href=#634 id=634 data-nosnippet>634</a>        <span class="bool-val">false
-<a href=#635 id=635 data-nosnippet>635</a>    </span>}
-<a href=#636 id=636 data-nosnippet>636</a>
-<a href=#637 id=637 data-nosnippet>637</a>    <span class="kw">fn </span>try_string_to_ctstring_coercion(
-<a href=#638 id=638 data-nosnippet>638</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#639 id=639 data-nosnippet>639</a>        target: <span class="kw-2">&amp;</span>Type,
-<a href=#640 id=640 data-nosnippet>640</a>        expression: ExprId,
-<a href=#641 id=641 data-nosnippet>641</a>        interner: <span class="kw-2">&amp;mut </span>NodeInterner,
-<a href=#642 id=642 data-nosnippet>642</a>    ) -&gt; bool {
-<a href=#643 id=643 data-nosnippet>643</a>        <span class="kw">let </span>this = <span class="self">self</span>.follow_bindings();
-<a href=#644 id=644 data-nosnippet>644</a>        <span class="kw">let </span>target = target.follow_bindings();
-<a href=#645 id=645 data-nosnippet>645</a>
-<a href=#646 id=646 data-nosnippet>646</a>        <span class="kw">let </span>Type::Quoted(QuotedType::CtString) = <span class="kw-2">&amp;</span>target <span class="kw">else </span>{
-<a href=#647 id=647 data-nosnippet>647</a>            <span class="kw">return </span><span class="bool-val">false</span>;
-<a href=#648 id=648 data-nosnippet>648</a>        };
+<a href=#550 id=550 data-nosnippet>550</a>        <span class="self">self</span>.unify_with_coercions_inner(
+<a href=#551 id=551 data-nosnippet>551</a>            expected, expression, location, elaborator, errors, make_error, <span class="bool-val">false</span>,
+<a href=#552 id=552 data-nosnippet>552</a>        );
+<a href=#553 id=553 data-nosnippet>553</a>    }
+<a href=#554 id=554 data-nosnippet>554</a>
+<a href=#555 id=555 data-nosnippet>555</a>    <span class="doccomment">/// As [`Self::unify_with_coercions`], but an `unconstrained fn(..)` is accepted where a
+<a href=#556 id=556 data-nosnippet>556</a>    /// constrained `fn(..)` is expected, without reporting [`TypeCheckError::UnsafeFn`].
+<a href=#557 id=557 data-nosnippet>557</a>    ///
+<a href=#558 id=558 data-nosnippet>558</a>    /// Calling this asserts that the runtime named by `expected` is not observable, so erasing it
+<a href=#559 id=559 data-nosnippet>559</a>    /// changes nothing. That holds where the elaborator has itself chosen to make the value
+<a href=#560 id=560 data-nosnippet>560</a>    /// unconstrained and the value goes straight into unconstrained code; it does not hold for a
+<a href=#561 id=561 data-nosnippet>561</a>    /// slot that outlives the expression being checked.
+<a href=#562 id=562 data-nosnippet>562</a>    </span><span class="kw">pub fn </span>unify_with_coercions_allowing_unconstrained_fn(
+<a href=#563 id=563 data-nosnippet>563</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#564 id=564 data-nosnippet>564</a>        expected: <span class="kw-2">&amp;</span>Type,
+<a href=#565 id=565 data-nosnippet>565</a>        expression: ExprId,
+<a href=#566 id=566 data-nosnippet>566</a>        location: Location,
+<a href=#567 id=567 data-nosnippet>567</a>        elaborator: <span class="kw-2">&amp;mut </span>Elaborator,
+<a href=#568 id=568 data-nosnippet>568</a>        errors: <span class="kw-2">&amp;mut </span>Vec&lt;CompilationError&gt;,
+<a href=#569 id=569 data-nosnippet>569</a>        make_error: <span class="kw">impl </span>FnOnce(<span class="kw-2">&amp;</span>Elaborator) -&gt; CompilationError,
+<a href=#570 id=570 data-nosnippet>570</a>    ) {
+<a href=#571 id=571 data-nosnippet>571</a>        <span class="self">self</span>.unify_with_coercions_inner(
+<a href=#572 id=572 data-nosnippet>572</a>            expected, expression, location, elaborator, errors, make_error, <span class="bool-val">true</span>,
+<a href=#573 id=573 data-nosnippet>573</a>        );
+<a href=#574 id=574 data-nosnippet>574</a>    }
+<a href=#575 id=575 data-nosnippet>575</a>
+<a href=#576 id=576 data-nosnippet>576</a>    <span class="attr">#[allow(clippy::too_many_arguments)]
+<a href=#577 id=577 data-nosnippet>577</a>    </span><span class="kw">fn </span>unify_with_coercions_inner(
+<a href=#578 id=578 data-nosnippet>578</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#579 id=579 data-nosnippet>579</a>        expected: <span class="kw-2">&amp;</span>Type,
+<a href=#580 id=580 data-nosnippet>580</a>        expression: ExprId,
+<a href=#581 id=581 data-nosnippet>581</a>        location: Location,
+<a href=#582 id=582 data-nosnippet>582</a>        elaborator: <span class="kw-2">&amp;mut </span>Elaborator,
+<a href=#583 id=583 data-nosnippet>583</a>        errors: <span class="kw-2">&amp;mut </span>Vec&lt;CompilationError&gt;,
+<a href=#584 id=584 data-nosnippet>584</a>        make_error: <span class="kw">impl </span>FnOnce(<span class="kw-2">&amp;</span>Elaborator) -&gt; CompilationError,
+<a href=#585 id=585 data-nosnippet>585</a>        allow_unconstrained_fn_coercion: bool,
+<a href=#586 id=586 data-nosnippet>586</a>    ) {
+<a href=#587 id=587 data-nosnippet>587</a>        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
+<a href=#588 id=588 data-nosnippet>588</a>
+<a href=#589 id=589 data-nosnippet>589</a>        <span class="kw">if let </span><span class="prelude-val">Ok</span>(()) = <span class="self">self</span>.try_unify(expected, <span class="kw-2">&amp;mut </span>bindings) {
+<a href=#590 id=590 data-nosnippet>590</a>            Type::apply_type_bindings(bindings);
+<a href=#591 id=591 data-nosnippet>591</a>            <span class="kw">return</span>;
+<a href=#592 id=592 data-nosnippet>592</a>        }
+<a href=#593 id=593 data-nosnippet>593</a>
+<a href=#594 id=594 data-nosnippet>594</a>        <span class="kw">if </span><span class="self">self</span>.try_array_to_vector_coercion(expected, expression, elaborator.interner) {
+<a href=#595 id=595 data-nosnippet>595</a>            <span class="kw">return</span>;
+<a href=#596 id=596 data-nosnippet>596</a>        }
+<a href=#597 id=597 data-nosnippet>597</a>
+<a href=#598 id=598 data-nosnippet>598</a>        <span class="kw">if </span><span class="self">self</span>.try_string_to_ctstring_coercion(expected, expression, elaborator.interner) {
+<a href=#599 id=599 data-nosnippet>599</a>            <span class="kw">return</span>;
+<a href=#600 id=600 data-nosnippet>600</a>        }
+<a href=#601 id=601 data-nosnippet>601</a>
+<a href=#602 id=602 data-nosnippet>602</a>        <span class="kw">if </span><span class="self">self</span>.try_reference_coercion(expected) {
+<a href=#603 id=603 data-nosnippet>603</a>            <span class="kw">return</span>;
+<a href=#604 id=604 data-nosnippet>604</a>        }
+<a href=#605 id=605 data-nosnippet>605</a>
+<a href=#606 id=606 data-nosnippet>606</a>        <span class="comment">// Try to coerce `fn (..) -&gt; T` to `unconstrained fn (..) -&gt; T`
+<a href=#607 id=607 data-nosnippet>607</a>        </span><span class="kw">match </span><span class="self">self</span>.try_fn_to_unconstrained_fn_coercion(expected) {
+<a href=#608 id=608 data-nosnippet>608</a>            FunctionCoercionResult::NoCoercion =&gt; errors.push(make_error(elaborator)),
+<a href=#609 id=609 data-nosnippet>609</a>            FunctionCoercionResult::Coerced(coerced_self) =&gt; {
+<a href=#610 id=610 data-nosnippet>610</a>                coerced_self.unify_with_coercions_inner(
+<a href=#611 id=611 data-nosnippet>611</a>                    expected,
+<a href=#612 id=612 data-nosnippet>612</a>                    expression,
+<a href=#613 id=613 data-nosnippet>613</a>                    location,
+<a href=#614 id=614 data-nosnippet>614</a>                    elaborator,
+<a href=#615 id=615 data-nosnippet>615</a>                    errors,
+<a href=#616 id=616 data-nosnippet>616</a>                    make_error,
+<a href=#617 id=617 data-nosnippet>617</a>                    allow_unconstrained_fn_coercion,
+<a href=#618 id=618 data-nosnippet>618</a>                );
+<a href=#619 id=619 data-nosnippet>619</a>            }
+<a href=#620 id=620 data-nosnippet>620</a>            FunctionCoercionResult::UnconstrainedMismatch(coerced_self) =&gt; {
+<a href=#621 id=621 data-nosnippet>621</a>                <span class="kw">if </span>!allow_unconstrained_fn_coercion {
+<a href=#622 id=622 data-nosnippet>622</a>                    errors.push(CompilationError::TypeError(TypeCheckError::UnsafeFn { location }));
+<a href=#623 id=623 data-nosnippet>623</a>                }
+<a href=#624 id=624 data-nosnippet>624</a>
+<a href=#625 id=625 data-nosnippet>625</a>                coerced_self.unify_with_coercions_inner(
+<a href=#626 id=626 data-nosnippet>626</a>                    expected,
+<a href=#627 id=627 data-nosnippet>627</a>                    expression,
+<a href=#628 id=628 data-nosnippet>628</a>                    location,
+<a href=#629 id=629 data-nosnippet>629</a>                    elaborator,
+<a href=#630 id=630 data-nosnippet>630</a>                    errors,
+<a href=#631 id=631 data-nosnippet>631</a>                    make_error,
+<a href=#632 id=632 data-nosnippet>632</a>                    allow_unconstrained_fn_coercion,
+<a href=#633 id=633 data-nosnippet>633</a>                );
+<a href=#634 id=634 data-nosnippet>634</a>            }
+<a href=#635 id=635 data-nosnippet>635</a>        }
+<a href=#636 id=636 data-nosnippet>636</a>    }
+<a href=#637 id=637 data-nosnippet>637</a>
+<a href=#638 id=638 data-nosnippet>638</a>    <span class="doccomment">/// If `self` and `expected` are function types, tries to coerce `self` to `expected`.
+<a href=#639 id=639 data-nosnippet>639</a>    /// Returns `None` if no coercion can be applied, otherwise returns `self` coerced to `expected`.
+<a href=#640 id=640 data-nosnippet>640</a>    </span><span class="kw">fn </span>try_fn_to_unconstrained_fn_coercion(<span class="kw-2">&amp;</span><span class="self">self</span>, expected: <span class="kw-2">&amp;</span>Type) -&gt; FunctionCoercionResult {
+<a href=#641 id=641 data-nosnippet>641</a>        <span class="comment">// If `self` and `expected` are function types, `self` can be coerced to `expected`
+<a href=#642 id=642 data-nosnippet>642</a>        // if `self` is unconstrained and `expected` is not. The other way around is an error, though.
+<a href=#643 id=643 data-nosnippet>643</a>        </span><span class="kw">if let </span>(
+<a href=#644 id=644 data-nosnippet>644</a>            Type::Function(params, ret, env, unconstrained_self),
+<a href=#645 id=645 data-nosnippet>645</a>            Type::Function(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, unconstrained_expected),
+<a href=#646 id=646 data-nosnippet>646</a>        ) = (<span class="self">self</span>.follow_bindings(), expected.follow_bindings())
+<a href=#647 id=647 data-nosnippet>647</a>        {
+<a href=#648 id=648 data-nosnippet>648</a>            <span class="kw">let </span>coerced_type = Type::Function(params, ret, env, unconstrained_expected);
 <a href=#649 id=649 data-nosnippet>649</a>
-<a href=#650 id=650 data-nosnippet>650</a>        <span class="kw">match </span><span class="kw-2">&amp;</span>this {
-<a href=#651 id=651 data-nosnippet>651</a>            Type::String(..) | Type::FmtString(..) =&gt; {
-<a href=#652 id=652 data-nosnippet>652</a>                <span class="comment">// as_ctstring is defined as a trait method
-<a href=#653 id=653 data-nosnippet>653</a>                </span><span class="kw">for </span>(func_id, trait_id, <span class="kw">_</span>) <span class="kw">in
-<a href=#654 id=654 data-nosnippet>654</a>                    </span>interner.lookup_trait_methods(<span class="kw-2">&amp;</span>this, <span class="string">"as_ctstring"</span>, <span class="bool-val">true</span>)
-<a href=#655 id=655 data-nosnippet>655</a>                {
-<a href=#656 id=656 data-nosnippet>656</a>                    <span class="comment">// Look up the one that's in the standard library.
-<a href=#657 id=657 data-nosnippet>657</a>                    </span><span class="kw">let </span>trait_ = interner.get_trait(trait_id);
-<a href=#658 id=658 data-nosnippet>658</a>                    <span class="kw">if </span>trait_.crate_id.is_stdlib() &amp;&amp; trait_.name.as_str() == <span class="string">"AsCtString" </span>{
-<a href=#659 id=659 data-nosnippet>659</a>                        invoke_function_on_expression(expression, this, target, func_id, interner);
-<a href=#660 id=660 data-nosnippet>660</a>                        <span class="kw">return </span><span class="bool-val">true</span>;
-<a href=#661 id=661 data-nosnippet>661</a>                    }
-<a href=#662 id=662 data-nosnippet>662</a>                }
-<a href=#663 id=663 data-nosnippet>663</a>            }
-<a href=#664 id=664 data-nosnippet>664</a>            <span class="kw">_ </span>=&gt; (),
-<a href=#665 id=665 data-nosnippet>665</a>        }
-<a href=#666 id=666 data-nosnippet>666</a>
-<a href=#667 id=667 data-nosnippet>667</a>        <span class="bool-val">false
-<a href=#668 id=668 data-nosnippet>668</a>    </span>}
-<a href=#669 id=669 data-nosnippet>669</a>
-<a href=#670 id=670 data-nosnippet>670</a>    <span class="doccomment">/// Attempt to coerce reference types, returning true if possible.
-<a href=#671 id=671 data-nosnippet>671</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>try_reference_coercion(<span class="kw-2">&amp;</span><span class="self">self</span>, target: <span class="kw-2">&amp;</span>Type) -&gt; bool {
-<a href=#672 id=672 data-nosnippet>672</a>        <span class="kw">let </span>this = <span class="self">self</span>.follow_bindings();
-<a href=#673 id=673 data-nosnippet>673</a>        <span class="kw">let </span>target = target.follow_bindings();
-<a href=#674 id=674 data-nosnippet>674</a>
-<a href=#675 id=675 data-nosnippet>675</a>        <span class="kw">match </span>(<span class="kw-2">&amp;</span>this, <span class="kw-2">&amp;</span>target) {
-<a href=#676 id=676 data-nosnippet>676</a>            <span class="comment">// Coerce `&amp;mut T` to `&amp;T`, and `&amp;T` to `&amp;T`
-<a href=#677 id=677 data-nosnippet>677</a>            </span>(Type::Reference(this_elem, <span class="bool-val">true</span>), Type::Reference(target_elem, <span class="bool-val">false</span>))
-<a href=#678 id=678 data-nosnippet>678</a>            | (Type::Reference(this_elem, <span class="bool-val">false</span>), Type::Reference(target_elem, <span class="bool-val">false</span>)) =&gt; {
-<a href=#679 id=679 data-nosnippet>679</a>                <span class="comment">// Still have to ensure the element types match.
-<a href=#680 id=680 data-nosnippet>680</a>                // Don't need to issue an error here if not, it will be done in unify_with_coercions
-<a href=#681 id=681 data-nosnippet>681</a>                </span><span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
-<a href=#682 id=682 data-nosnippet>682</a>                <span class="kw">if </span>this_elem.try_unify(target_elem, <span class="kw-2">&amp;mut </span>bindings).is_ok() {
-<a href=#683 id=683 data-nosnippet>683</a>                    <span class="self">Self</span>::apply_type_bindings(bindings);
-<a href=#684 id=684 data-nosnippet>684</a>                    <span class="kw">return </span><span class="bool-val">true</span>;
-<a href=#685 id=685 data-nosnippet>685</a>                }
-<a href=#686 id=686 data-nosnippet>686</a>                <span class="bool-val">false
-<a href=#687 id=687 data-nosnippet>687</a>            </span>}
-<a href=#688 id=688 data-nosnippet>688</a>            <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
-<a href=#689 id=689 data-nosnippet>689</a>        }
-<a href=#690 id=690 data-nosnippet>690</a>    }
-<a href=#691 id=691 data-nosnippet>691</a>}
-<a href=#692 id=692 data-nosnippet>692</a>
-<a href=#693 id=693 data-nosnippet>693</a><span class="doccomment">/// Wraps a given `expression` in `expression.method()`
-<a href=#694 id=694 data-nosnippet>694</a></span><span class="kw">fn </span>invoke_function_on_expression(
-<a href=#695 id=695 data-nosnippet>695</a>    expression: ExprId,
-<a href=#696 id=696 data-nosnippet>696</a>    expression_type: Type,
-<a href=#697 id=697 data-nosnippet>697</a>    target_type: Type,
-<a href=#698 id=698 data-nosnippet>698</a>    method: <span class="kw">crate</span>::node_interner::FuncId,
-<a href=#699 id=699 data-nosnippet>699</a>    interner: <span class="kw-2">&amp;mut </span>NodeInterner,
-<a href=#700 id=700 data-nosnippet>700</a>) {
-<a href=#701 id=701 data-nosnippet>701</a>    <span class="kw">let </span>method_id = interner.function_definition_id(method);
-<a href=#702 id=702 data-nosnippet>702</a>    <span class="kw">let </span>location = interner.expr_location(<span class="kw-2">&amp;</span>expression);
-<a href=#703 id=703 data-nosnippet>703</a>    <span class="kw">let </span>method = HirExpression::Ident(HirIdent::non_trait_method(method_id, location), <span class="prelude-val">None</span>);
-<a href=#704 id=704 data-nosnippet>704</a>    <span class="kw">let </span>func_type = Type::Function(
-<a href=#705 id=705 data-nosnippet>705</a>        <span class="macro">vec!</span>[expression_type.clone()],
-<a href=#706 id=706 data-nosnippet>706</a>        Box::new(target_type.clone()),
-<a href=#707 id=707 data-nosnippet>707</a>        Box::new(Type::Unit),
-<a href=#708 id=708 data-nosnippet>708</a>        <span class="bool-val">false</span>,
-<a href=#709 id=709 data-nosnippet>709</a>    );
-<a href=#710 id=710 data-nosnippet>710</a>    <span class="kw">let </span>func = interner.push_expr_full(method, location, func_type);
-<a href=#711 id=711 data-nosnippet>711</a>
-<a href=#712 id=712 data-nosnippet>712</a>    <span class="comment">// Copy the expression and give it a new ExprId. The old one
-<a href=#713 id=713 data-nosnippet>713</a>    // will be mutated in place into a Call expression.
-<a href=#714 id=714 data-nosnippet>714</a>    </span><span class="kw">let </span>argument = interner.expression(<span class="kw-2">&amp;</span>expression);
-<a href=#715 id=715 data-nosnippet>715</a>    <span class="kw">let </span>argument = interner.push_expr_full(argument, location, expression_type);
-<a href=#716 id=716 data-nosnippet>716</a>
-<a href=#717 id=717 data-nosnippet>717</a>    <span class="kw">let </span>arguments = <span class="macro">vec!</span>[argument];
-<a href=#718 id=718 data-nosnippet>718</a>    <span class="kw">let </span>is_macro_call = <span class="bool-val">false</span>;
-<a href=#719 id=719 data-nosnippet>719</a>    <span class="kw">let </span>call = HirExpression::Call(HirCallExpression { func, arguments, location, is_macro_call });
-<a href=#720 id=720 data-nosnippet>720</a>    interner.replace_expr(<span class="kw-2">&amp;</span>expression, call);
-<a href=#721 id=721 data-nosnippet>721</a>    interner.push_expr_type(expression, target_type);
-<a href=#722 id=722 data-nosnippet>722</a>}
-<a href=#723 id=723 data-nosnippet>723</a>
-<a href=#724 id=724 data-nosnippet>724</a><span class="attr">#[cfg(test)]
-<a href=#725 id=725 data-nosnippet>725</a></span><span class="kw">mod </span>tests {
-<a href=#726 id=726 data-nosnippet>726</a>    <span class="kw">use crate</span>::{
-<a href=#727 id=727 data-nosnippet>727</a>        BinaryTypeOperator, Kind, Type, TypeBindings, TypeVariable, TypeVariableId,
-<a href=#728 id=728 data-nosnippet>728</a>        hir::comptime::Integer,
-<a href=#729 id=729 data-nosnippet>729</a>    };
-<a href=#730 id=730 data-nosnippet>730</a>
-<a href=#731 id=731 data-nosnippet>731</a>    <span class="kw">struct </span>Types {
-<a href=#732 id=732 data-nosnippet>732</a>        next_type_variable_id: usize,
-<a href=#733 id=733 data-nosnippet>733</a>    }
-<a href=#734 id=734 data-nosnippet>734</a>
-<a href=#735 id=735 data-nosnippet>735</a>    <span class="kw">impl </span>Types {
-<a href=#736 id=736 data-nosnippet>736</a>        <span class="kw">fn </span>new() -&gt; <span class="self">Self </span>{
-<a href=#737 id=737 data-nosnippet>737</a>            <span class="self">Self </span>{ next_type_variable_id: <span class="number">0 </span>}
-<a href=#738 id=738 data-nosnippet>738</a>        }
-<a href=#739 id=739 data-nosnippet>739</a>
-<a href=#740 id=740 data-nosnippet>740</a>        <span class="kw">fn </span>type_variable(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; (Type, TypeVariableId) {
-<a href=#741 id=741 data-nosnippet>741</a>            <span class="self">self</span>.type_variable_with_kind(Kind::Any)
-<a href=#742 id=742 data-nosnippet>742</a>        }
+<a href=#650 id=650 data-nosnippet>650</a>            <span class="kw">match </span>(unconstrained_self, unconstrained_expected) {
+<a href=#651 id=651 data-nosnippet>651</a>                (<span class="bool-val">true</span>, <span class="bool-val">true</span>) | (<span class="bool-val">false</span>, <span class="bool-val">false</span>) =&gt; FunctionCoercionResult::NoCoercion,
+<a href=#652 id=652 data-nosnippet>652</a>                (<span class="bool-val">false</span>, <span class="bool-val">true</span>) =&gt; FunctionCoercionResult::Coerced(coerced_type),
+<a href=#653 id=653 data-nosnippet>653</a>                (<span class="bool-val">true</span>, <span class="bool-val">false</span>) =&gt; FunctionCoercionResult::UnconstrainedMismatch(coerced_type),
+<a href=#654 id=654 data-nosnippet>654</a>            }
+<a href=#655 id=655 data-nosnippet>655</a>        } <span class="kw">else </span>{
+<a href=#656 id=656 data-nosnippet>656</a>            FunctionCoercionResult::NoCoercion
+<a href=#657 id=657 data-nosnippet>657</a>        }
+<a href=#658 id=658 data-nosnippet>658</a>    }
+<a href=#659 id=659 data-nosnippet>659</a>
+<a href=#660 id=660 data-nosnippet>660</a>    <span class="doccomment">/// Try to apply the array to vector coercion to this given type pair and expression.
+<a href=#661 id=661 data-nosnippet>661</a>    /// If self can be converted to target this way, do so and return true to indicate success.
+<a href=#662 id=662 data-nosnippet>662</a>    </span><span class="kw">fn </span>try_array_to_vector_coercion(
+<a href=#663 id=663 data-nosnippet>663</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#664 id=664 data-nosnippet>664</a>        target: <span class="kw-2">&amp;</span>Type,
+<a href=#665 id=665 data-nosnippet>665</a>        expression: ExprId,
+<a href=#666 id=666 data-nosnippet>666</a>        interner: <span class="kw-2">&amp;mut </span>NodeInterner,
+<a href=#667 id=667 data-nosnippet>667</a>    ) -&gt; bool {
+<a href=#668 id=668 data-nosnippet>668</a>        <span class="kw">let </span>this = <span class="self">self</span>.follow_bindings();
+<a href=#669 id=669 data-nosnippet>669</a>        <span class="kw">let </span>target = target.follow_bindings();
+<a href=#670 id=670 data-nosnippet>670</a>
+<a href=#671 id=671 data-nosnippet>671</a>        <span class="kw">if let </span>(Type::Array(element1, _size), Type::Vector(element2)) = (<span class="kw-2">&amp;</span>this, <span class="kw-2">&amp;</span>target) {
+<a href=#672 id=672 data-nosnippet>672</a>            <span class="comment">// We can only do the coercion if the `as_vector` method exists.
+<a href=#673 id=673 data-nosnippet>673</a>            // This is usually true, but some tests don't have access to the standard library.
+<a href=#674 id=674 data-nosnippet>674</a>            </span><span class="kw">if let </span><span class="prelude-val">Some</span>(as_vector) = interner.lookup_direct_method(<span class="kw-2">&amp;</span>this, <span class="string">"as_vector"</span>, <span class="bool-val">true</span>) {
+<a href=#675 id=675 data-nosnippet>675</a>                <span class="comment">// Still have to ensure the element types match.
+<a href=#676 id=676 data-nosnippet>676</a>                // Don't need to issue an error here if not, it will be done in unify_with_coercions
+<a href=#677 id=677 data-nosnippet>677</a>                </span><span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
+<a href=#678 id=678 data-nosnippet>678</a>                <span class="kw">if </span>element1.try_unify(element2, <span class="kw-2">&amp;mut </span>bindings).is_ok() {
+<a href=#679 id=679 data-nosnippet>679</a>                    invoke_function_on_expression(expression, this, target, as_vector, interner);
+<a href=#680 id=680 data-nosnippet>680</a>                    <span class="self">Self</span>::apply_type_bindings(bindings);
+<a href=#681 id=681 data-nosnippet>681</a>                    <span class="kw">return </span><span class="bool-val">true</span>;
+<a href=#682 id=682 data-nosnippet>682</a>                }
+<a href=#683 id=683 data-nosnippet>683</a>            }
+<a href=#684 id=684 data-nosnippet>684</a>        }
+<a href=#685 id=685 data-nosnippet>685</a>        <span class="bool-val">false
+<a href=#686 id=686 data-nosnippet>686</a>    </span>}
+<a href=#687 id=687 data-nosnippet>687</a>
+<a href=#688 id=688 data-nosnippet>688</a>    <span class="kw">fn </span>try_string_to_ctstring_coercion(
+<a href=#689 id=689 data-nosnippet>689</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#690 id=690 data-nosnippet>690</a>        target: <span class="kw-2">&amp;</span>Type,
+<a href=#691 id=691 data-nosnippet>691</a>        expression: ExprId,
+<a href=#692 id=692 data-nosnippet>692</a>        interner: <span class="kw-2">&amp;mut </span>NodeInterner,
+<a href=#693 id=693 data-nosnippet>693</a>    ) -&gt; bool {
+<a href=#694 id=694 data-nosnippet>694</a>        <span class="kw">let </span>this = <span class="self">self</span>.follow_bindings();
+<a href=#695 id=695 data-nosnippet>695</a>        <span class="kw">let </span>target = target.follow_bindings();
+<a href=#696 id=696 data-nosnippet>696</a>
+<a href=#697 id=697 data-nosnippet>697</a>        <span class="kw">let </span>Type::Quoted(QuotedType::CtString) = <span class="kw-2">&amp;</span>target <span class="kw">else </span>{
+<a href=#698 id=698 data-nosnippet>698</a>            <span class="kw">return </span><span class="bool-val">false</span>;
+<a href=#699 id=699 data-nosnippet>699</a>        };
+<a href=#700 id=700 data-nosnippet>700</a>
+<a href=#701 id=701 data-nosnippet>701</a>        <span class="kw">match </span><span class="kw-2">&amp;</span>this {
+<a href=#702 id=702 data-nosnippet>702</a>            Type::String(..) | Type::FmtString(..) =&gt; {
+<a href=#703 id=703 data-nosnippet>703</a>                <span class="comment">// as_ctstring is defined as a trait method
+<a href=#704 id=704 data-nosnippet>704</a>                </span><span class="kw">for </span>(func_id, trait_id, <span class="kw">_</span>) <span class="kw">in
+<a href=#705 id=705 data-nosnippet>705</a>                    </span>interner.lookup_trait_methods(<span class="kw-2">&amp;</span>this, <span class="string">"as_ctstring"</span>, <span class="bool-val">true</span>)
+<a href=#706 id=706 data-nosnippet>706</a>                {
+<a href=#707 id=707 data-nosnippet>707</a>                    <span class="comment">// Look up the one that's in the standard library.
+<a href=#708 id=708 data-nosnippet>708</a>                    </span><span class="kw">let </span>trait_ = interner.get_trait(trait_id);
+<a href=#709 id=709 data-nosnippet>709</a>                    <span class="kw">if </span>trait_.crate_id.is_stdlib() &amp;&amp; trait_.name.as_str() == <span class="string">"AsCtString" </span>{
+<a href=#710 id=710 data-nosnippet>710</a>                        invoke_function_on_expression(expression, this, target, func_id, interner);
+<a href=#711 id=711 data-nosnippet>711</a>                        <span class="kw">return </span><span class="bool-val">true</span>;
+<a href=#712 id=712 data-nosnippet>712</a>                    }
+<a href=#713 id=713 data-nosnippet>713</a>                }
+<a href=#714 id=714 data-nosnippet>714</a>            }
+<a href=#715 id=715 data-nosnippet>715</a>            <span class="kw">_ </span>=&gt; (),
+<a href=#716 id=716 data-nosnippet>716</a>        }
+<a href=#717 id=717 data-nosnippet>717</a>
+<a href=#718 id=718 data-nosnippet>718</a>        <span class="bool-val">false
+<a href=#719 id=719 data-nosnippet>719</a>    </span>}
+<a href=#720 id=720 data-nosnippet>720</a>
+<a href=#721 id=721 data-nosnippet>721</a>    <span class="doccomment">/// Attempt to coerce reference types, returning true if possible.
+<a href=#722 id=722 data-nosnippet>722</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>try_reference_coercion(<span class="kw-2">&amp;</span><span class="self">self</span>, target: <span class="kw-2">&amp;</span>Type) -&gt; bool {
+<a href=#723 id=723 data-nosnippet>723</a>        <span class="kw">let </span>this = <span class="self">self</span>.follow_bindings();
+<a href=#724 id=724 data-nosnippet>724</a>        <span class="kw">let </span>target = target.follow_bindings();
+<a href=#725 id=725 data-nosnippet>725</a>
+<a href=#726 id=726 data-nosnippet>726</a>        <span class="kw">match </span>(<span class="kw-2">&amp;</span>this, <span class="kw-2">&amp;</span>target) {
+<a href=#727 id=727 data-nosnippet>727</a>            <span class="comment">// Coerce `&amp;mut T` to `&amp;T`, and `&amp;T` to `&amp;T`
+<a href=#728 id=728 data-nosnippet>728</a>            </span>(Type::Reference(this_elem, <span class="bool-val">true</span>), Type::Reference(target_elem, <span class="bool-val">false</span>))
+<a href=#729 id=729 data-nosnippet>729</a>            | (Type::Reference(this_elem, <span class="bool-val">false</span>), Type::Reference(target_elem, <span class="bool-val">false</span>)) =&gt; {
+<a href=#730 id=730 data-nosnippet>730</a>                <span class="comment">// Still have to ensure the element types match.
+<a href=#731 id=731 data-nosnippet>731</a>                // Don't need to issue an error here if not, it will be done in unify_with_coercions
+<a href=#732 id=732 data-nosnippet>732</a>                </span><span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
+<a href=#733 id=733 data-nosnippet>733</a>                <span class="kw">if </span>this_elem.try_unify(target_elem, <span class="kw-2">&amp;mut </span>bindings).is_ok() {
+<a href=#734 id=734 data-nosnippet>734</a>                    <span class="self">Self</span>::apply_type_bindings(bindings);
+<a href=#735 id=735 data-nosnippet>735</a>                    <span class="kw">return </span><span class="bool-val">true</span>;
+<a href=#736 id=736 data-nosnippet>736</a>                }
+<a href=#737 id=737 data-nosnippet>737</a>                <span class="bool-val">false
+<a href=#738 id=738 data-nosnippet>738</a>            </span>}
+<a href=#739 id=739 data-nosnippet>739</a>            <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
+<a href=#740 id=740 data-nosnippet>740</a>        }
+<a href=#741 id=741 data-nosnippet>741</a>    }
+<a href=#742 id=742 data-nosnippet>742</a>}
 <a href=#743 id=743 data-nosnippet>743</a>
-<a href=#744 id=744 data-nosnippet>744</a>        <span class="kw">fn </span>type_variable_with_kind(<span class="kw-2">&amp;mut </span><span class="self">self</span>, kind: Kind) -&gt; (Type, TypeVariableId) {
-<a href=#745 id=745 data-nosnippet>745</a>            <span class="kw">let </span>id = TypeVariableId(<span class="self">self</span>.next_type_variable_id);
-<a href=#746 id=746 data-nosnippet>746</a>            <span class="self">self</span>.next_type_variable_id += <span class="number">1</span>;
-<a href=#747 id=747 data-nosnippet>747</a>            (Type::TypeVariable(TypeVariable::unbound(id, kind)), id)
-<a href=#748 id=748 data-nosnippet>748</a>        }
-<a href=#749 id=749 data-nosnippet>749</a>    }
-<a href=#750 id=750 data-nosnippet>750</a>
-<a href=#751 id=751 data-nosnippet>751</a>    <span class="kw">fn </span>constant(value: u128) -&gt; Type {
-<a href=#752 id=752 data-nosnippet>752</a>        Type::Constant(Integer::Field(value.into()))
-<a href=#753 id=753 data-nosnippet>753</a>    }
-<a href=#754 id=754 data-nosnippet>754</a>
-<a href=#755 id=755 data-nosnippet>755</a>    <span class="kw">fn </span>add(a: <span class="kw-2">&amp;</span>Type, b: <span class="kw-2">&amp;</span>Type) -&gt; Type {
-<a href=#756 id=756 data-nosnippet>756</a>        binary(a, BinaryTypeOperator::Addition, b)
-<a href=#757 id=757 data-nosnippet>757</a>    }
-<a href=#758 id=758 data-nosnippet>758</a>
-<a href=#759 id=759 data-nosnippet>759</a>    <span class="kw">fn </span>subtract(a: <span class="kw-2">&amp;</span>Type, b: <span class="kw-2">&amp;</span>Type) -&gt; Type {
-<a href=#760 id=760 data-nosnippet>760</a>        binary(a, BinaryTypeOperator::Subtraction, b)
-<a href=#761 id=761 data-nosnippet>761</a>    }
+<a href=#744 id=744 data-nosnippet>744</a><span class="doccomment">/// Wraps a given `expression` in `expression.method()`
+<a href=#745 id=745 data-nosnippet>745</a></span><span class="kw">fn </span>invoke_function_on_expression(
+<a href=#746 id=746 data-nosnippet>746</a>    expression: ExprId,
+<a href=#747 id=747 data-nosnippet>747</a>    expression_type: Type,
+<a href=#748 id=748 data-nosnippet>748</a>    target_type: Type,
+<a href=#749 id=749 data-nosnippet>749</a>    method: <span class="kw">crate</span>::node_interner::FuncId,
+<a href=#750 id=750 data-nosnippet>750</a>    interner: <span class="kw-2">&amp;mut </span>NodeInterner,
+<a href=#751 id=751 data-nosnippet>751</a>) {
+<a href=#752 id=752 data-nosnippet>752</a>    <span class="kw">let </span>method_id = interner.function_definition_id(method);
+<a href=#753 id=753 data-nosnippet>753</a>    <span class="kw">let </span>location = interner.expr_location(<span class="kw-2">&amp;</span>expression);
+<a href=#754 id=754 data-nosnippet>754</a>    <span class="kw">let </span>method = HirExpression::Ident(HirIdent::non_trait_method(method_id, location), <span class="prelude-val">None</span>);
+<a href=#755 id=755 data-nosnippet>755</a>    <span class="kw">let </span>func_type = Type::Function(
+<a href=#756 id=756 data-nosnippet>756</a>        <span class="macro">vec!</span>[expression_type.clone()],
+<a href=#757 id=757 data-nosnippet>757</a>        Box::new(target_type.clone()),
+<a href=#758 id=758 data-nosnippet>758</a>        Box::new(Type::Unit),
+<a href=#759 id=759 data-nosnippet>759</a>        <span class="bool-val">false</span>,
+<a href=#760 id=760 data-nosnippet>760</a>    );
+<a href=#761 id=761 data-nosnippet>761</a>    <span class="kw">let </span>func = interner.push_expr_full(method, location, func_type);
 <a href=#762 id=762 data-nosnippet>762</a>
-<a href=#763 id=763 data-nosnippet>763</a>    <span class="kw">fn </span>multiply(a: <span class="kw-2">&amp;</span>Type, b: <span class="kw-2">&amp;</span>Type) -&gt; Type {
-<a href=#764 id=764 data-nosnippet>764</a>        binary(a, BinaryTypeOperator::Multiplication, b)
-<a href=#765 id=765 data-nosnippet>765</a>    }
-<a href=#766 id=766 data-nosnippet>766</a>
-<a href=#767 id=767 data-nosnippet>767</a>    <span class="kw">fn </span>divide(a: <span class="kw-2">&amp;</span>Type, b: <span class="kw-2">&amp;</span>Type) -&gt; Type {
-<a href=#768 id=768 data-nosnippet>768</a>        binary(a, BinaryTypeOperator::Division, b)
-<a href=#769 id=769 data-nosnippet>769</a>    }
-<a href=#770 id=770 data-nosnippet>770</a>
-<a href=#771 id=771 data-nosnippet>771</a>    <span class="kw">fn </span>binary(a: <span class="kw-2">&amp;</span>Type, op: BinaryTypeOperator, b: <span class="kw-2">&amp;</span>Type) -&gt; Type {
-<a href=#772 id=772 data-nosnippet>772</a>        Type::infix_expr(Box::new(a.clone()), op, Box::new(b.clone()))
-<a href=#773 id=773 data-nosnippet>773</a>    }
+<a href=#763 id=763 data-nosnippet>763</a>    <span class="comment">// Copy the expression and give it a new ExprId. The old one
+<a href=#764 id=764 data-nosnippet>764</a>    // will be mutated in place into a Call expression.
+<a href=#765 id=765 data-nosnippet>765</a>    </span><span class="kw">let </span>argument = interner.expression(<span class="kw-2">&amp;</span>expression);
+<a href=#766 id=766 data-nosnippet>766</a>    <span class="kw">let </span>argument = interner.push_expr_full(argument, location, expression_type);
+<a href=#767 id=767 data-nosnippet>767</a>
+<a href=#768 id=768 data-nosnippet>768</a>    <span class="kw">let </span>arguments = <span class="macro">vec!</span>[argument];
+<a href=#769 id=769 data-nosnippet>769</a>    <span class="kw">let </span>is_macro_call = <span class="bool-val">false</span>;
+<a href=#770 id=770 data-nosnippet>770</a>    <span class="kw">let </span>call = HirExpression::Call(HirCallExpression { func, arguments, location, is_macro_call });
+<a href=#771 id=771 data-nosnippet>771</a>    interner.replace_expr(<span class="kw-2">&amp;</span>expression, call);
+<a href=#772 id=772 data-nosnippet>772</a>    interner.push_expr_type(expression, target_type);
+<a href=#773 id=773 data-nosnippet>773</a>}
 <a href=#774 id=774 data-nosnippet>774</a>
-<a href=#775 id=775 data-nosnippet>775</a>    <span class="doccomment">/// Solving for a numeric generic rearranges the equation it appears in and canonicalizes
-<a href=#776 id=776 data-nosnippet>776</a>    /// the result. That answer is the solution only if canonicalizing it preserved the value,
-<a href=#777 id=777 data-nosnippet>777</a>    /// so the binding keeps the rearrangement it was derived from — the `from` side of a
-<a href=#778 id=778 data-nosnippet>778</a>    /// `CheckedCast` — for evaluation to check it against once the generics are concrete.
-<a href=#779 id=779 data-nosnippet>779</a>    /// Binding the canonical form on its own commits to a simplification nothing re-examines.
-<a href=#780 id=780 data-nosnippet>780</a>    </span><span class="attr">#[test]
-<a href=#781 id=781 data-nosnippet>781</a>    </span><span class="kw">fn </span>isolated_numeric_generic_keeps_its_derivation_for_checking() {
-<a href=#782 id=782 data-nosnippet>782</a>        <span class="kw">let </span><span class="kw-2">mut </span>types = Types::new();
-<a href=#783 id=783 data-nosnippet>783</a>        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
-<a href=#784 id=784 data-nosnippet>784</a>
-<a href=#785 id=785 data-nosnippet>785</a>        <span class="comment">// (Z + (Y * K)) - B = Y * K
-<a href=#786 id=786 data-nosnippet>786</a>        </span><span class="kw">let </span>(z, <span class="kw">_</span>) = types.type_variable_with_kind(Kind::u32());
-<a href=#787 id=787 data-nosnippet>787</a>        <span class="kw">let </span>(y, <span class="kw">_</span>) = types.type_variable_with_kind(Kind::u32());
-<a href=#788 id=788 data-nosnippet>788</a>        <span class="kw">let </span>(k, <span class="kw">_</span>) = types.type_variable_with_kind(Kind::u32());
-<a href=#789 id=789 data-nosnippet>789</a>        <span class="kw">let </span>(b, id_b) = types.type_variable_with_kind(Kind::u32());
+<a href=#775 id=775 data-nosnippet>775</a><span class="attr">#[cfg(test)]
+<a href=#776 id=776 data-nosnippet>776</a></span><span class="kw">mod </span>tests {
+<a href=#777 id=777 data-nosnippet>777</a>    <span class="kw">use crate</span>::{
+<a href=#778 id=778 data-nosnippet>778</a>        BinaryTypeOperator, Kind, Type, TypeBindings, TypeVariable, TypeVariableId,
+<a href=#779 id=779 data-nosnippet>779</a>        hir::comptime::Integer,
+<a href=#780 id=780 data-nosnippet>780</a>    };
+<a href=#781 id=781 data-nosnippet>781</a>
+<a href=#782 id=782 data-nosnippet>782</a>    <span class="kw">struct </span>Types {
+<a href=#783 id=783 data-nosnippet>783</a>        next_type_variable_id: usize,
+<a href=#784 id=784 data-nosnippet>784</a>    }
+<a href=#785 id=785 data-nosnippet>785</a>
+<a href=#786 id=786 data-nosnippet>786</a>    <span class="kw">impl </span>Types {
+<a href=#787 id=787 data-nosnippet>787</a>        <span class="kw">fn </span>new() -&gt; <span class="self">Self </span>{
+<a href=#788 id=788 data-nosnippet>788</a>            <span class="self">Self </span>{ next_type_variable_id: <span class="number">0 </span>}
+<a href=#789 id=789 data-nosnippet>789</a>        }
 <a href=#790 id=790 data-nosnippet>790</a>
-<a href=#791 id=791 data-nosnippet>791</a>        <span class="kw">let </span>y_times_k = multiply(<span class="kw-2">&amp;</span>y, <span class="kw-2">&amp;</span>k);
-<a href=#792 id=792 data-nosnippet>792</a>        <span class="kw">let </span>equation = subtract(<span class="kw-2">&amp;</span>add(<span class="kw-2">&amp;</span>z, <span class="kw-2">&amp;</span>y_times_k), <span class="kw-2">&amp;</span>b);
-<a href=#793 id=793 data-nosnippet>793</a>        <span class="macro">assert!</span>(equation.try_unify(<span class="kw-2">&amp;</span>y_times_k, <span class="kw-2">&amp;mut </span>bindings).is_ok());
+<a href=#791 id=791 data-nosnippet>791</a>        <span class="kw">fn </span>type_variable(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; (Type, TypeVariableId) {
+<a href=#792 id=792 data-nosnippet>792</a>            <span class="self">self</span>.type_variable_with_kind(Kind::Any)
+<a href=#793 id=793 data-nosnippet>793</a>        }
 <a href=#794 id=794 data-nosnippet>794</a>
-<a href=#795 id=795 data-nosnippet>795</a>        <span class="comment">// Isolating `B` rearranges this to `B = (Z + (Y * K)) - (Y * K)`, which cancels the
-<a href=#796 id=796 data-nosnippet>796</a>        // repeated `Y * K` down to `Z`. Both readings are kept, and they differ — the
-<a href=#797 id=797 data-nosnippet>797</a>        // cancellation is exactly the step a later evaluation gets to re-check.
-<a href=#798 id=798 data-nosnippet>798</a>        </span><span class="kw">let </span>binding = <span class="kw-2">&amp;</span>bindings[<span class="kw-2">&amp;</span>id_b].<span class="number">2</span>;
-<a href=#799 id=799 data-nosnippet>799</a>        <span class="kw">let </span>Type::CheckedCast { from, to } = binding <span class="kw">else </span>{
-<a href=#800 id=800 data-nosnippet>800</a>            <span class="macro">panic!</span>(<span class="string">"expected `B` to keep its derivation, but it was bound to `{binding}`"</span>);
-<a href=#801 id=801 data-nosnippet>801</a>        };
-<a href=#802 id=802 data-nosnippet>802</a>        <span class="macro">assert_eq!</span>(<span class="kw-2">**</span>to, z, <span class="string">"the canonical form is what the type checker goes on to use"</span>);
-<a href=#803 id=803 data-nosnippet>803</a>        <span class="macro">assert_ne!</span>(from, to, <span class="string">"the rearrangement before cancellation is kept for checking"</span>);
+<a href=#795 id=795 data-nosnippet>795</a>        <span class="kw">fn </span>type_variable_with_kind(<span class="kw-2">&amp;mut </span><span class="self">self</span>, kind: Kind) -&gt; (Type, TypeVariableId) {
+<a href=#796 id=796 data-nosnippet>796</a>            <span class="kw">let </span>id = TypeVariableId(<span class="self">self</span>.next_type_variable_id);
+<a href=#797 id=797 data-nosnippet>797</a>            <span class="self">self</span>.next_type_variable_id += <span class="number">1</span>;
+<a href=#798 id=798 data-nosnippet>798</a>            (Type::TypeVariable(TypeVariable::unbound(id, kind)), id)
+<a href=#799 id=799 data-nosnippet>799</a>        }
+<a href=#800 id=800 data-nosnippet>800</a>    }
+<a href=#801 id=801 data-nosnippet>801</a>
+<a href=#802 id=802 data-nosnippet>802</a>    <span class="kw">fn </span>constant(value: u128) -&gt; Type {
+<a href=#803 id=803 data-nosnippet>803</a>        Type::Constant(Integer::Field(value.into()))
 <a href=#804 id=804 data-nosnippet>804</a>    }
 <a href=#805 id=805 data-nosnippet>805</a>
-<a href=#806 id=806 data-nosnippet>806</a>    <span class="attr">#[test]
-<a href=#807 id=807 data-nosnippet>807</a>    </span><span class="kw">fn </span>unifies_two_type_variables() {
-<a href=#808 id=808 data-nosnippet>808</a>        <span class="kw">let </span><span class="kw-2">mut </span>types = Types::new();
-<a href=#809 id=809 data-nosnippet>809</a>        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
-<a href=#810 id=810 data-nosnippet>810</a>
-<a href=#811 id=811 data-nosnippet>811</a>        <span class="comment">// A = B
-<a href=#812 id=812 data-nosnippet>812</a>        </span><span class="kw">let </span>(a, id_a) = types.type_variable();
-<a href=#813 id=813 data-nosnippet>813</a>        <span class="kw">let </span>(b, <span class="kw">_</span>) = types.type_variable();
-<a href=#814 id=814 data-nosnippet>814</a>        <span class="macro">assert!</span>(a.try_unify(<span class="kw-2">&amp;</span>b, <span class="kw-2">&amp;mut </span>bindings).is_ok());
-<a href=#815 id=815 data-nosnippet>815</a>
-<a href=#816 id=816 data-nosnippet>816</a>        <span class="comment">// A = B
-<a href=#817 id=817 data-nosnippet>817</a>        </span><span class="macro">assert_eq!</span>(bindings[<span class="kw-2">&amp;</span>id_a].<span class="number">2</span>, b);
-<a href=#818 id=818 data-nosnippet>818</a>    }
-<a href=#819 id=819 data-nosnippet>819</a>
-<a href=#820 id=820 data-nosnippet>820</a>    <span class="attr">#[test]
-<a href=#821 id=821 data-nosnippet>821</a>    </span><span class="kw">fn </span>unifies_addition_1() {
-<a href=#822 id=822 data-nosnippet>822</a>        <span class="kw">let </span><span class="kw-2">mut </span>types = Types::new();
-<a href=#823 id=823 data-nosnippet>823</a>        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
-<a href=#824 id=824 data-nosnippet>824</a>
-<a href=#825 id=825 data-nosnippet>825</a>        <span class="comment">// A + B = 1
-<a href=#826 id=826 data-nosnippet>826</a>        </span><span class="kw">let </span>(a, id_a) = types.type_variable();
-<a href=#827 id=827 data-nosnippet>827</a>        <span class="kw">let </span>(b, <span class="kw">_</span>) = types.type_variable();
-<a href=#828 id=828 data-nosnippet>828</a>        <span class="kw">let </span>one = constant(<span class="number">1</span>);
-<a href=#829 id=829 data-nosnippet>829</a>
-<a href=#830 id=830 data-nosnippet>830</a>        <span class="kw">let </span>addition = add(<span class="kw-2">&amp;</span>a, <span class="kw-2">&amp;</span>b);
-<a href=#831 id=831 data-nosnippet>831</a>        <span class="macro">assert!</span>(addition.try_unify(<span class="kw-2">&amp;</span>one, <span class="kw-2">&amp;mut </span>bindings).is_ok());
-<a href=#832 id=832 data-nosnippet>832</a>
-<a href=#833 id=833 data-nosnippet>833</a>        <span class="comment">// A = 1 - B
-<a href=#834 id=834 data-nosnippet>834</a>        </span><span class="macro">assert_eq!</span>(bindings[<span class="kw-2">&amp;</span>id_a].<span class="number">2</span>, subtract(<span class="kw-2">&amp;</span>one, <span class="kw-2">&amp;</span>b));
-<a href=#835 id=835 data-nosnippet>835</a>    }
-<a href=#836 id=836 data-nosnippet>836</a>
-<a href=#837 id=837 data-nosnippet>837</a>    <span class="attr">#[test]
-<a href=#838 id=838 data-nosnippet>838</a>    </span><span class="kw">fn </span>unifies_addition_2() {
-<a href=#839 id=839 data-nosnippet>839</a>        <span class="kw">let </span><span class="kw-2">mut </span>types = Types::new();
-<a href=#840 id=840 data-nosnippet>840</a>        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
+<a href=#806 id=806 data-nosnippet>806</a>    <span class="kw">fn </span>add(a: <span class="kw-2">&amp;</span>Type, b: <span class="kw-2">&amp;</span>Type) -&gt; Type {
+<a href=#807 id=807 data-nosnippet>807</a>        binary(a, BinaryTypeOperator::Addition, b)
+<a href=#808 id=808 data-nosnippet>808</a>    }
+<a href=#809 id=809 data-nosnippet>809</a>
+<a href=#810 id=810 data-nosnippet>810</a>    <span class="kw">fn </span>subtract(a: <span class="kw-2">&amp;</span>Type, b: <span class="kw-2">&amp;</span>Type) -&gt; Type {
+<a href=#811 id=811 data-nosnippet>811</a>        binary(a, BinaryTypeOperator::Subtraction, b)
+<a href=#812 id=812 data-nosnippet>812</a>    }
+<a href=#813 id=813 data-nosnippet>813</a>
+<a href=#814 id=814 data-nosnippet>814</a>    <span class="kw">fn </span>multiply(a: <span class="kw-2">&amp;</span>Type, b: <span class="kw-2">&amp;</span>Type) -&gt; Type {
+<a href=#815 id=815 data-nosnippet>815</a>        binary(a, BinaryTypeOperator::Multiplication, b)
+<a href=#816 id=816 data-nosnippet>816</a>    }
+<a href=#817 id=817 data-nosnippet>817</a>
+<a href=#818 id=818 data-nosnippet>818</a>    <span class="kw">fn </span>divide(a: <span class="kw-2">&amp;</span>Type, b: <span class="kw-2">&amp;</span>Type) -&gt; Type {
+<a href=#819 id=819 data-nosnippet>819</a>        binary(a, BinaryTypeOperator::Division, b)
+<a href=#820 id=820 data-nosnippet>820</a>    }
+<a href=#821 id=821 data-nosnippet>821</a>
+<a href=#822 id=822 data-nosnippet>822</a>    <span class="kw">fn </span>binary(a: <span class="kw-2">&amp;</span>Type, op: BinaryTypeOperator, b: <span class="kw-2">&amp;</span>Type) -&gt; Type {
+<a href=#823 id=823 data-nosnippet>823</a>        Type::infix_expr(Box::new(a.clone()), op, Box::new(b.clone()))
+<a href=#824 id=824 data-nosnippet>824</a>    }
+<a href=#825 id=825 data-nosnippet>825</a>
+<a href=#826 id=826 data-nosnippet>826</a>    <span class="doccomment">/// Solving for a numeric generic rearranges the equation it appears in and canonicalizes
+<a href=#827 id=827 data-nosnippet>827</a>    /// the result. That answer is the solution only if canonicalizing it preserved the value,
+<a href=#828 id=828 data-nosnippet>828</a>    /// so the binding keeps the rearrangement it was derived from — the `from` side of a
+<a href=#829 id=829 data-nosnippet>829</a>    /// `CheckedCast` — for evaluation to check it against once the generics are concrete.
+<a href=#830 id=830 data-nosnippet>830</a>    /// Binding the canonical form on its own commits to a simplification nothing re-examines.
+<a href=#831 id=831 data-nosnippet>831</a>    </span><span class="attr">#[test]
+<a href=#832 id=832 data-nosnippet>832</a>    </span><span class="kw">fn </span>isolated_numeric_generic_keeps_its_derivation_for_checking() {
+<a href=#833 id=833 data-nosnippet>833</a>        <span class="kw">let </span><span class="kw-2">mut </span>types = Types::new();
+<a href=#834 id=834 data-nosnippet>834</a>        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
+<a href=#835 id=835 data-nosnippet>835</a>
+<a href=#836 id=836 data-nosnippet>836</a>        <span class="comment">// (Z + (Y * K)) - B = Y * K
+<a href=#837 id=837 data-nosnippet>837</a>        </span><span class="kw">let </span>(z, <span class="kw">_</span>) = types.type_variable_with_kind(Kind::u32());
+<a href=#838 id=838 data-nosnippet>838</a>        <span class="kw">let </span>(y, <span class="kw">_</span>) = types.type_variable_with_kind(Kind::u32());
+<a href=#839 id=839 data-nosnippet>839</a>        <span class="kw">let </span>(k, <span class="kw">_</span>) = types.type_variable_with_kind(Kind::u32());
+<a href=#840 id=840 data-nosnippet>840</a>        <span class="kw">let </span>(b, id_b) = types.type_variable_with_kind(Kind::u32());
 <a href=#841 id=841 data-nosnippet>841</a>
-<a href=#842 id=842 data-nosnippet>842</a>        <span class="comment">// A + B = C * D
-<a href=#843 id=843 data-nosnippet>843</a>        </span><span class="kw">let </span>(a, id_a) = types.type_variable();
-<a href=#844 id=844 data-nosnippet>844</a>        <span class="kw">let </span>(b, <span class="kw">_</span>) = types.type_variable();
-<a href=#845 id=845 data-nosnippet>845</a>        <span class="kw">let </span>(c, <span class="kw">_</span>) = types.type_variable();
-<a href=#846 id=846 data-nosnippet>846</a>        <span class="kw">let </span>(d, <span class="kw">_</span>) = types.type_variable();
-<a href=#847 id=847 data-nosnippet>847</a>
-<a href=#848 id=848 data-nosnippet>848</a>        <span class="kw">let </span>left = add(<span class="kw-2">&amp;</span>a, <span class="kw-2">&amp;</span>b);
-<a href=#849 id=849 data-nosnippet>849</a>        <span class="kw">let </span>right = multiply(<span class="kw-2">&amp;</span>c, <span class="kw-2">&amp;</span>d);
-<a href=#850 id=850 data-nosnippet>850</a>        <span class="macro">assert!</span>(left.try_unify(<span class="kw-2">&amp;</span>right, <span class="kw-2">&amp;mut </span>bindings).is_ok());
-<a href=#851 id=851 data-nosnippet>851</a>
-<a href=#852 id=852 data-nosnippet>852</a>        <span class="comment">// A = (C * D) - B
-<a href=#853 id=853 data-nosnippet>853</a>        </span><span class="macro">assert_eq!</span>(bindings[<span class="kw-2">&amp;</span>id_a].<span class="number">2</span>, subtract(<span class="kw-2">&amp;</span>right, <span class="kw-2">&amp;</span>b));
-<a href=#854 id=854 data-nosnippet>854</a>    }
-<a href=#855 id=855 data-nosnippet>855</a>
-<a href=#856 id=856 data-nosnippet>856</a>    <span class="attr">#[test]
-<a href=#857 id=857 data-nosnippet>857</a>    </span><span class="kw">fn </span>unifies_subtraction_1() {
-<a href=#858 id=858 data-nosnippet>858</a>        <span class="kw">let </span><span class="kw-2">mut </span>types = Types::new();
-<a href=#859 id=859 data-nosnippet>859</a>        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
-<a href=#860 id=860 data-nosnippet>860</a>
-<a href=#861 id=861 data-nosnippet>861</a>        <span class="comment">// A - B = 1
-<a href=#862 id=862 data-nosnippet>862</a>        </span><span class="kw">let </span>(a, id_a) = types.type_variable();
-<a href=#863 id=863 data-nosnippet>863</a>        <span class="kw">let </span>(b, <span class="kw">_</span>) = types.type_variable();
-<a href=#864 id=864 data-nosnippet>864</a>        <span class="kw">let </span>subtraction = subtract(<span class="kw-2">&amp;</span>a, <span class="kw-2">&amp;</span>b);
-<a href=#865 id=865 data-nosnippet>865</a>        <span class="kw">let </span>one = constant(<span class="number">1</span>);
-<a href=#866 id=866 data-nosnippet>866</a>        <span class="macro">assert!</span>(subtraction.try_unify(<span class="kw-2">&amp;</span>one, <span class="kw-2">&amp;mut </span>bindings).is_ok());
-<a href=#867 id=867 data-nosnippet>867</a>
-<a href=#868 id=868 data-nosnippet>868</a>        <span class="comment">// A = B + 1
-<a href=#869 id=869 data-nosnippet>869</a>        </span><span class="macro">assert_eq!</span>(bindings[<span class="kw-2">&amp;</span>id_a].<span class="number">2</span>, add(<span class="kw-2">&amp;</span>b, <span class="kw-2">&amp;</span>one));
-<a href=#870 id=870 data-nosnippet>870</a>    }
-<a href=#871 id=871 data-nosnippet>871</a>
-<a href=#872 id=872 data-nosnippet>872</a>    <span class="attr">#[test]
-<a href=#873 id=873 data-nosnippet>873</a>    </span><span class="kw">fn </span>unifies_subtraction_2() {
-<a href=#874 id=874 data-nosnippet>874</a>        <span class="kw">let </span><span class="kw-2">mut </span>types = Types::new();
-<a href=#875 id=875 data-nosnippet>875</a>        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
-<a href=#876 id=876 data-nosnippet>876</a>
-<a href=#877 id=877 data-nosnippet>877</a>        <span class="comment">// 1 - A = B * C
-<a href=#878 id=878 data-nosnippet>878</a>        </span><span class="kw">let </span>(a, id_a) = types.type_variable();
-<a href=#879 id=879 data-nosnippet>879</a>        <span class="kw">let </span>(b, <span class="kw">_</span>) = types.type_variable();
-<a href=#880 id=880 data-nosnippet>880</a>        <span class="kw">let </span>(c, <span class="kw">_</span>) = types.type_variable();
-<a href=#881 id=881 data-nosnippet>881</a>        <span class="kw">let </span>one = constant(<span class="number">1</span>);
-<a href=#882 id=882 data-nosnippet>882</a>
-<a href=#883 id=883 data-nosnippet>883</a>        <span class="kw">let </span>left = subtract(<span class="kw-2">&amp;</span>one, <span class="kw-2">&amp;</span>a);
-<a href=#884 id=884 data-nosnippet>884</a>        <span class="kw">let </span>right = multiply(<span class="kw-2">&amp;</span>b, <span class="kw-2">&amp;</span>c);
-<a href=#885 id=885 data-nosnippet>885</a>        <span class="macro">assert!</span>(left.try_unify(<span class="kw-2">&amp;</span>right, <span class="kw-2">&amp;mut </span>bindings).is_ok());
-<a href=#886 id=886 data-nosnippet>886</a>
-<a href=#887 id=887 data-nosnippet>887</a>        <span class="comment">// A = 1 - (B * C)
-<a href=#888 id=888 data-nosnippet>888</a>        </span><span class="macro">assert_eq!</span>(bindings[<span class="kw-2">&amp;</span>id_a].<span class="number">2</span>, subtract(<span class="kw-2">&amp;</span>one, <span class="kw-2">&amp;</span>right));
-<a href=#889 id=889 data-nosnippet>889</a>    }
-<a href=#890 id=890 data-nosnippet>890</a>
-<a href=#891 id=891 data-nosnippet>891</a>    <span class="attr">#[test]
-<a href=#892 id=892 data-nosnippet>892</a>    </span><span class="kw">fn </span>unifies_constant_added_in_both_sides() {
-<a href=#893 id=893 data-nosnippet>893</a>        <span class="kw">let </span><span class="kw-2">mut </span>types = Types::new();
-<a href=#894 id=894 data-nosnippet>894</a>        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
-<a href=#895 id=895 data-nosnippet>895</a>
-<a href=#896 id=896 data-nosnippet>896</a>        <span class="comment">// A + 1 = B + 3
-<a href=#897 id=897 data-nosnippet>897</a>        </span><span class="kw">let </span>(a, id_a) = types.type_variable_with_kind(Kind::Numeric(Box::new(Type::FieldElement)));
-<a href=#898 id=898 data-nosnippet>898</a>        <span class="kw">let </span>(b, <span class="kw">_</span>) = types.type_variable_with_kind(Kind::Numeric(Box::new(Type::FieldElement)));
-<a href=#899 id=899 data-nosnippet>899</a>        <span class="kw">let </span>one = constant(<span class="number">1</span>);
-<a href=#900 id=900 data-nosnippet>900</a>        <span class="kw">let </span>two = constant(<span class="number">2</span>);
-<a href=#901 id=901 data-nosnippet>901</a>        <span class="kw">let </span>three = constant(<span class="number">3</span>);
+<a href=#842 id=842 data-nosnippet>842</a>        <span class="kw">let </span>y_times_k = multiply(<span class="kw-2">&amp;</span>y, <span class="kw-2">&amp;</span>k);
+<a href=#843 id=843 data-nosnippet>843</a>        <span class="kw">let </span>equation = subtract(<span class="kw-2">&amp;</span>add(<span class="kw-2">&amp;</span>z, <span class="kw-2">&amp;</span>y_times_k), <span class="kw-2">&amp;</span>b);
+<a href=#844 id=844 data-nosnippet>844</a>        <span class="macro">assert!</span>(equation.try_unify(<span class="kw-2">&amp;</span>y_times_k, <span class="kw-2">&amp;mut </span>bindings).is_ok());
+<a href=#845 id=845 data-nosnippet>845</a>
+<a href=#846 id=846 data-nosnippet>846</a>        <span class="comment">// Isolating `B` rearranges this to `B = (Z + (Y * K)) - (Y * K)`, which cancels the
+<a href=#847 id=847 data-nosnippet>847</a>        // repeated `Y * K` down to `Z`. Both readings are kept, and they differ — the
+<a href=#848 id=848 data-nosnippet>848</a>        // cancellation is exactly the step a later evaluation gets to re-check.
+<a href=#849 id=849 data-nosnippet>849</a>        </span><span class="kw">let </span>binding = <span class="kw-2">&amp;</span>bindings[<span class="kw-2">&amp;</span>id_b].<span class="number">2</span>;
+<a href=#850 id=850 data-nosnippet>850</a>        <span class="kw">let </span>Type::CheckedCast { from, to } = binding <span class="kw">else </span>{
+<a href=#851 id=851 data-nosnippet>851</a>            <span class="macro">panic!</span>(<span class="string">"expected `B` to keep its derivation, but it was bound to `{binding}`"</span>);
+<a href=#852 id=852 data-nosnippet>852</a>        };
+<a href=#853 id=853 data-nosnippet>853</a>        <span class="macro">assert_eq!</span>(<span class="kw-2">**</span>to, z, <span class="string">"the canonical form is what the type checker goes on to use"</span>);
+<a href=#854 id=854 data-nosnippet>854</a>        <span class="macro">assert_ne!</span>(from, to, <span class="string">"the rearrangement before cancellation is kept for checking"</span>);
+<a href=#855 id=855 data-nosnippet>855</a>    }
+<a href=#856 id=856 data-nosnippet>856</a>
+<a href=#857 id=857 data-nosnippet>857</a>    <span class="attr">#[test]
+<a href=#858 id=858 data-nosnippet>858</a>    </span><span class="kw">fn </span>unifies_two_type_variables() {
+<a href=#859 id=859 data-nosnippet>859</a>        <span class="kw">let </span><span class="kw-2">mut </span>types = Types::new();
+<a href=#860 id=860 data-nosnippet>860</a>        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
+<a href=#861 id=861 data-nosnippet>861</a>
+<a href=#862 id=862 data-nosnippet>862</a>        <span class="comment">// A = B
+<a href=#863 id=863 data-nosnippet>863</a>        </span><span class="kw">let </span>(a, id_a) = types.type_variable();
+<a href=#864 id=864 data-nosnippet>864</a>        <span class="kw">let </span>(b, <span class="kw">_</span>) = types.type_variable();
+<a href=#865 id=865 data-nosnippet>865</a>        <span class="macro">assert!</span>(a.try_unify(<span class="kw-2">&amp;</span>b, <span class="kw-2">&amp;mut </span>bindings).is_ok());
+<a href=#866 id=866 data-nosnippet>866</a>
+<a href=#867 id=867 data-nosnippet>867</a>        <span class="comment">// A = B
+<a href=#868 id=868 data-nosnippet>868</a>        </span><span class="macro">assert_eq!</span>(bindings[<span class="kw-2">&amp;</span>id_a].<span class="number">2</span>, b);
+<a href=#869 id=869 data-nosnippet>869</a>    }
+<a href=#870 id=870 data-nosnippet>870</a>
+<a href=#871 id=871 data-nosnippet>871</a>    <span class="attr">#[test]
+<a href=#872 id=872 data-nosnippet>872</a>    </span><span class="kw">fn </span>unifies_addition_1() {
+<a href=#873 id=873 data-nosnippet>873</a>        <span class="kw">let </span><span class="kw-2">mut </span>types = Types::new();
+<a href=#874 id=874 data-nosnippet>874</a>        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
+<a href=#875 id=875 data-nosnippet>875</a>
+<a href=#876 id=876 data-nosnippet>876</a>        <span class="comment">// A + B = 1
+<a href=#877 id=877 data-nosnippet>877</a>        </span><span class="kw">let </span>(a, id_a) = types.type_variable();
+<a href=#878 id=878 data-nosnippet>878</a>        <span class="kw">let </span>(b, <span class="kw">_</span>) = types.type_variable();
+<a href=#879 id=879 data-nosnippet>879</a>        <span class="kw">let </span>one = constant(<span class="number">1</span>);
+<a href=#880 id=880 data-nosnippet>880</a>
+<a href=#881 id=881 data-nosnippet>881</a>        <span class="kw">let </span>addition = add(<span class="kw-2">&amp;</span>a, <span class="kw-2">&amp;</span>b);
+<a href=#882 id=882 data-nosnippet>882</a>        <span class="macro">assert!</span>(addition.try_unify(<span class="kw-2">&amp;</span>one, <span class="kw-2">&amp;mut </span>bindings).is_ok());
+<a href=#883 id=883 data-nosnippet>883</a>
+<a href=#884 id=884 data-nosnippet>884</a>        <span class="comment">// A = 1 - B
+<a href=#885 id=885 data-nosnippet>885</a>        </span><span class="macro">assert_eq!</span>(bindings[<span class="kw-2">&amp;</span>id_a].<span class="number">2</span>, subtract(<span class="kw-2">&amp;</span>one, <span class="kw-2">&amp;</span>b));
+<a href=#886 id=886 data-nosnippet>886</a>    }
+<a href=#887 id=887 data-nosnippet>887</a>
+<a href=#888 id=888 data-nosnippet>888</a>    <span class="attr">#[test]
+<a href=#889 id=889 data-nosnippet>889</a>    </span><span class="kw">fn </span>unifies_addition_2() {
+<a href=#890 id=890 data-nosnippet>890</a>        <span class="kw">let </span><span class="kw-2">mut </span>types = Types::new();
+<a href=#891 id=891 data-nosnippet>891</a>        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
+<a href=#892 id=892 data-nosnippet>892</a>
+<a href=#893 id=893 data-nosnippet>893</a>        <span class="comment">// A + B = C * D
+<a href=#894 id=894 data-nosnippet>894</a>        </span><span class="kw">let </span>(a, id_a) = types.type_variable();
+<a href=#895 id=895 data-nosnippet>895</a>        <span class="kw">let </span>(b, <span class="kw">_</span>) = types.type_variable();
+<a href=#896 id=896 data-nosnippet>896</a>        <span class="kw">let </span>(c, <span class="kw">_</span>) = types.type_variable();
+<a href=#897 id=897 data-nosnippet>897</a>        <span class="kw">let </span>(d, <span class="kw">_</span>) = types.type_variable();
+<a href=#898 id=898 data-nosnippet>898</a>
+<a href=#899 id=899 data-nosnippet>899</a>        <span class="kw">let </span>left = add(<span class="kw-2">&amp;</span>a, <span class="kw-2">&amp;</span>b);
+<a href=#900 id=900 data-nosnippet>900</a>        <span class="kw">let </span>right = multiply(<span class="kw-2">&amp;</span>c, <span class="kw-2">&amp;</span>d);
+<a href=#901 id=901 data-nosnippet>901</a>        <span class="macro">assert!</span>(left.try_unify(<span class="kw-2">&amp;</span>right, <span class="kw-2">&amp;mut </span>bindings).is_ok());
 <a href=#902 id=902 data-nosnippet>902</a>
-<a href=#903 id=903 data-nosnippet>903</a>        <span class="kw">let </span>left = add(<span class="kw-2">&amp;</span>a, <span class="kw-2">&amp;</span>one);
-<a href=#904 id=904 data-nosnippet>904</a>        <span class="kw">let </span>right = add(<span class="kw-2">&amp;</span>b, <span class="kw-2">&amp;</span>three);
-<a href=#905 id=905 data-nosnippet>905</a>        <span class="macro">assert!</span>(left.try_unify(<span class="kw-2">&amp;</span>right, <span class="kw-2">&amp;mut </span>bindings).is_ok());
+<a href=#903 id=903 data-nosnippet>903</a>        <span class="comment">// A = (C * D) - B
+<a href=#904 id=904 data-nosnippet>904</a>        </span><span class="macro">assert_eq!</span>(bindings[<span class="kw-2">&amp;</span>id_a].<span class="number">2</span>, subtract(<span class="kw-2">&amp;</span>right, <span class="kw-2">&amp;</span>b));
+<a href=#905 id=905 data-nosnippet>905</a>    }
 <a href=#906 id=906 data-nosnippet>906</a>
-<a href=#907 id=907 data-nosnippet>907</a>        <span class="comment">// A = B + 2
-<a href=#908 id=908 data-nosnippet>908</a>        </span><span class="macro">assert_eq!</span>(bindings[<span class="kw-2">&amp;</span>id_a].<span class="number">2</span>, add(<span class="kw-2">&amp;</span>b, <span class="kw-2">&amp;</span>two));
-<a href=#909 id=909 data-nosnippet>909</a>    }
-<a href=#910 id=910 data-nosnippet>910</a>
-<a href=#911 id=911 data-nosnippet>911</a>    <span class="attr">#[test]
-<a href=#912 id=912 data-nosnippet>912</a>    </span><span class="kw">fn </span>unifies_infix_subtraction_against_multiplication() {
-<a href=#913 id=913 data-nosnippet>913</a>        <span class="kw">let </span><span class="kw-2">mut </span>types = Types::new();
-<a href=#914 id=914 data-nosnippet>914</a>        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
-<a href=#915 id=915 data-nosnippet>915</a>
-<a href=#916 id=916 data-nosnippet>916</a>        <span class="comment">// (3 - A) - 1 = B * C
-<a href=#917 id=917 data-nosnippet>917</a>        </span><span class="kw">let </span>(a, id_a) = types.type_variable_with_kind(Kind::Numeric(Box::new(Type::FieldElement)));
-<a href=#918 id=918 data-nosnippet>918</a>        <span class="kw">let </span>(b, <span class="kw">_</span>) = types.type_variable_with_kind(Kind::Numeric(Box::new(Type::FieldElement)));
-<a href=#919 id=919 data-nosnippet>919</a>        <span class="kw">let </span>(c, <span class="kw">_</span>) = types.type_variable_with_kind(Kind::Numeric(Box::new(Type::FieldElement)));
-<a href=#920 id=920 data-nosnippet>920</a>        <span class="kw">let </span>one = constant(<span class="number">1</span>);
-<a href=#921 id=921 data-nosnippet>921</a>        <span class="kw">let </span>three = constant(<span class="number">3</span>);
+<a href=#907 id=907 data-nosnippet>907</a>    <span class="attr">#[test]
+<a href=#908 id=908 data-nosnippet>908</a>    </span><span class="kw">fn </span>unifies_subtraction_1() {
+<a href=#909 id=909 data-nosnippet>909</a>        <span class="kw">let </span><span class="kw-2">mut </span>types = Types::new();
+<a href=#910 id=910 data-nosnippet>910</a>        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
+<a href=#911 id=911 data-nosnippet>911</a>
+<a href=#912 id=912 data-nosnippet>912</a>        <span class="comment">// A - B = 1
+<a href=#913 id=913 data-nosnippet>913</a>        </span><span class="kw">let </span>(a, id_a) = types.type_variable();
+<a href=#914 id=914 data-nosnippet>914</a>        <span class="kw">let </span>(b, <span class="kw">_</span>) = types.type_variable();
+<a href=#915 id=915 data-nosnippet>915</a>        <span class="kw">let </span>subtraction = subtract(<span class="kw-2">&amp;</span>a, <span class="kw-2">&amp;</span>b);
+<a href=#916 id=916 data-nosnippet>916</a>        <span class="kw">let </span>one = constant(<span class="number">1</span>);
+<a href=#917 id=917 data-nosnippet>917</a>        <span class="macro">assert!</span>(subtraction.try_unify(<span class="kw-2">&amp;</span>one, <span class="kw-2">&amp;mut </span>bindings).is_ok());
+<a href=#918 id=918 data-nosnippet>918</a>
+<a href=#919 id=919 data-nosnippet>919</a>        <span class="comment">// A = B + 1
+<a href=#920 id=920 data-nosnippet>920</a>        </span><span class="macro">assert_eq!</span>(bindings[<span class="kw-2">&amp;</span>id_a].<span class="number">2</span>, add(<span class="kw-2">&amp;</span>b, <span class="kw-2">&amp;</span>one));
+<a href=#921 id=921 data-nosnippet>921</a>    }
 <a href=#922 id=922 data-nosnippet>922</a>
-<a href=#923 id=923 data-nosnippet>923</a>        <span class="kw">let </span>left = subtract(<span class="kw-2">&amp;</span>subtract(<span class="kw-2">&amp;</span>three, <span class="kw-2">&amp;</span>a), <span class="kw-2">&amp;</span>one);
-<a href=#924 id=924 data-nosnippet>924</a>        <span class="kw">let </span>right = multiply(<span class="kw-2">&amp;</span>b, <span class="kw-2">&amp;</span>c);
-<a href=#925 id=925 data-nosnippet>925</a>        <span class="macro">assert!</span>(left.try_unify(<span class="kw-2">&amp;</span>right, <span class="kw-2">&amp;mut </span>bindings).is_ok());
-<a href=#926 id=926 data-nosnippet>926</a>
-<a href=#927 id=927 data-nosnippet>927</a>        <span class="comment">// A = 3 - ((B * C) + 1)
-<a href=#928 id=928 data-nosnippet>928</a>        </span><span class="macro">assert_eq!</span>(bindings[<span class="kw-2">&amp;</span>id_a].<span class="number">2</span>, subtract(<span class="kw-2">&amp;</span>three, <span class="kw-2">&amp;</span>add(<span class="kw-2">&amp;</span>right, <span class="kw-2">&amp;</span>one)));
-<a href=#929 id=929 data-nosnippet>929</a>    }
-<a href=#930 id=930 data-nosnippet>930</a>
-<a href=#931 id=931 data-nosnippet>931</a>    <span class="attr">#[test]
-<a href=#932 id=932 data-nosnippet>932</a>    </span><span class="kw">fn </span>does_not_recurse_forever_when_moving_single_constant_terms() {
-<a href=#933 id=933 data-nosnippet>933</a>        <span class="kw">let </span><span class="kw-2">mut </span>types = Types::new();
-<a href=#934 id=934 data-nosnippet>934</a>        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
-<a href=#935 id=935 data-nosnippet>935</a>
-<a href=#936 id=936 data-nosnippet>936</a>        <span class="comment">// (A / B) - 1 = C * D
-<a href=#937 id=937 data-nosnippet>937</a>        </span><span class="kw">let </span>(a, <span class="kw">_</span>) = types.type_variable();
-<a href=#938 id=938 data-nosnippet>938</a>        <span class="kw">let </span>(b, <span class="kw">_</span>) = types.type_variable();
-<a href=#939 id=939 data-nosnippet>939</a>        <span class="kw">let </span>(c, <span class="kw">_</span>) = types.type_variable();
-<a href=#940 id=940 data-nosnippet>940</a>        <span class="kw">let </span>(d, <span class="kw">_</span>) = types.type_variable();
-<a href=#941 id=941 data-nosnippet>941</a>        <span class="kw">let </span>one = constant(<span class="number">1</span>);
-<a href=#942 id=942 data-nosnippet>942</a>
-<a href=#943 id=943 data-nosnippet>943</a>        <span class="kw">let </span>left = subtract(<span class="kw-2">&amp;</span>divide(<span class="kw-2">&amp;</span>a, <span class="kw-2">&amp;</span>b), <span class="kw-2">&amp;</span>one);
-<a href=#944 id=944 data-nosnippet>944</a>        <span class="kw">let </span>right = multiply(<span class="kw-2">&amp;</span>c, <span class="kw-2">&amp;</span>d);
-<a href=#945 id=945 data-nosnippet>945</a>
-<a href=#946 id=946 data-nosnippet>946</a>        <span class="comment">// This shouldn't unify. The idea is the compiler will try to do this:
-<a href=#947 id=947 data-nosnippet>947</a>        //
-<a href=#948 id=948 data-nosnippet>948</a>        // 1. (A / B) - 1 = C * D
-<a href=#949 id=949 data-nosnippet>949</a>        // 2. (A / B) = (C * D) + 1
-<a href=#950 id=950 data-nosnippet>950</a>        //
-<a href=#951 id=951 data-nosnippet>951</a>        // It can't solve either A or B, so it will try to move the `1` back to
-<a href=#952 id=952 data-nosnippet>952</a>        // the right side... except that we prevent that recursion.
-<a href=#953 id=953 data-nosnippet>953</a>        </span><span class="macro">assert!</span>(left.try_unify(<span class="kw-2">&amp;</span>right, <span class="kw-2">&amp;mut </span>bindings).is_err());
-<a href=#954 id=954 data-nosnippet>954</a>    }
-<a href=#955 id=955 data-nosnippet>955</a>}</code></pre></div></section></main></body></html>
+<a href=#923 id=923 data-nosnippet>923</a>    <span class="attr">#[test]
+<a href=#924 id=924 data-nosnippet>924</a>    </span><span class="kw">fn </span>unifies_subtraction_2() {
+<a href=#925 id=925 data-nosnippet>925</a>        <span class="kw">let </span><span class="kw-2">mut </span>types = Types::new();
+<a href=#926 id=926 data-nosnippet>926</a>        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
+<a href=#927 id=927 data-nosnippet>927</a>
+<a href=#928 id=928 data-nosnippet>928</a>        <span class="comment">// 1 - A = B * C
+<a href=#929 id=929 data-nosnippet>929</a>        </span><span class="kw">let </span>(a, id_a) = types.type_variable();
+<a href=#930 id=930 data-nosnippet>930</a>        <span class="kw">let </span>(b, <span class="kw">_</span>) = types.type_variable();
+<a href=#931 id=931 data-nosnippet>931</a>        <span class="kw">let </span>(c, <span class="kw">_</span>) = types.type_variable();
+<a href=#932 id=932 data-nosnippet>932</a>        <span class="kw">let </span>one = constant(<span class="number">1</span>);
+<a href=#933 id=933 data-nosnippet>933</a>
+<a href=#934 id=934 data-nosnippet>934</a>        <span class="kw">let </span>left = subtract(<span class="kw-2">&amp;</span>one, <span class="kw-2">&amp;</span>a);
+<a href=#935 id=935 data-nosnippet>935</a>        <span class="kw">let </span>right = multiply(<span class="kw-2">&amp;</span>b, <span class="kw-2">&amp;</span>c);
+<a href=#936 id=936 data-nosnippet>936</a>        <span class="macro">assert!</span>(left.try_unify(<span class="kw-2">&amp;</span>right, <span class="kw-2">&amp;mut </span>bindings).is_ok());
+<a href=#937 id=937 data-nosnippet>937</a>
+<a href=#938 id=938 data-nosnippet>938</a>        <span class="comment">// A = 1 - (B * C)
+<a href=#939 id=939 data-nosnippet>939</a>        </span><span class="macro">assert_eq!</span>(bindings[<span class="kw-2">&amp;</span>id_a].<span class="number">2</span>, subtract(<span class="kw-2">&amp;</span>one, <span class="kw-2">&amp;</span>right));
+<a href=#940 id=940 data-nosnippet>940</a>    }
+<a href=#941 id=941 data-nosnippet>941</a>
+<a href=#942 id=942 data-nosnippet>942</a>    <span class="attr">#[test]
+<a href=#943 id=943 data-nosnippet>943</a>    </span><span class="kw">fn </span>unifies_constant_added_in_both_sides() {
+<a href=#944 id=944 data-nosnippet>944</a>        <span class="kw">let </span><span class="kw-2">mut </span>types = Types::new();
+<a href=#945 id=945 data-nosnippet>945</a>        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
+<a href=#946 id=946 data-nosnippet>946</a>
+<a href=#947 id=947 data-nosnippet>947</a>        <span class="comment">// A + 1 = B + 3
+<a href=#948 id=948 data-nosnippet>948</a>        </span><span class="kw">let </span>(a, id_a) = types.type_variable_with_kind(Kind::Numeric(Box::new(Type::FieldElement)));
+<a href=#949 id=949 data-nosnippet>949</a>        <span class="kw">let </span>(b, <span class="kw">_</span>) = types.type_variable_with_kind(Kind::Numeric(Box::new(Type::FieldElement)));
+<a href=#950 id=950 data-nosnippet>950</a>        <span class="kw">let </span>one = constant(<span class="number">1</span>);
+<a href=#951 id=951 data-nosnippet>951</a>        <span class="kw">let </span>two = constant(<span class="number">2</span>);
+<a href=#952 id=952 data-nosnippet>952</a>        <span class="kw">let </span>three = constant(<span class="number">3</span>);
+<a href=#953 id=953 data-nosnippet>953</a>
+<a href=#954 id=954 data-nosnippet>954</a>        <span class="kw">let </span>left = add(<span class="kw-2">&amp;</span>a, <span class="kw-2">&amp;</span>one);
+<a href=#955 id=955 data-nosnippet>955</a>        <span class="kw">let </span>right = add(<span class="kw-2">&amp;</span>b, <span class="kw-2">&amp;</span>three);
+<a href=#956 id=956 data-nosnippet>956</a>        <span class="macro">assert!</span>(left.try_unify(<span class="kw-2">&amp;</span>right, <span class="kw-2">&amp;mut </span>bindings).is_ok());
+<a href=#957 id=957 data-nosnippet>957</a>
+<a href=#958 id=958 data-nosnippet>958</a>        <span class="comment">// A = B + 2
+<a href=#959 id=959 data-nosnippet>959</a>        </span><span class="macro">assert_eq!</span>(bindings[<span class="kw-2">&amp;</span>id_a].<span class="number">2</span>, add(<span class="kw-2">&amp;</span>b, <span class="kw-2">&amp;</span>two));
+<a href=#960 id=960 data-nosnippet>960</a>    }
+<a href=#961 id=961 data-nosnippet>961</a>
+<a href=#962 id=962 data-nosnippet>962</a>    <span class="attr">#[test]
+<a href=#963 id=963 data-nosnippet>963</a>    </span><span class="kw">fn </span>unifies_infix_subtraction_against_multiplication() {
+<a href=#964 id=964 data-nosnippet>964</a>        <span class="kw">let </span><span class="kw-2">mut </span>types = Types::new();
+<a href=#965 id=965 data-nosnippet>965</a>        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
+<a href=#966 id=966 data-nosnippet>966</a>
+<a href=#967 id=967 data-nosnippet>967</a>        <span class="comment">// (3 - A) - 1 = B * C
+<a href=#968 id=968 data-nosnippet>968</a>        </span><span class="kw">let </span>(a, id_a) = types.type_variable_with_kind(Kind::Numeric(Box::new(Type::FieldElement)));
+<a href=#969 id=969 data-nosnippet>969</a>        <span class="kw">let </span>(b, <span class="kw">_</span>) = types.type_variable_with_kind(Kind::Numeric(Box::new(Type::FieldElement)));
+<a href=#970 id=970 data-nosnippet>970</a>        <span class="kw">let </span>(c, <span class="kw">_</span>) = types.type_variable_with_kind(Kind::Numeric(Box::new(Type::FieldElement)));
+<a href=#971 id=971 data-nosnippet>971</a>        <span class="kw">let </span>one = constant(<span class="number">1</span>);
+<a href=#972 id=972 data-nosnippet>972</a>        <span class="kw">let </span>three = constant(<span class="number">3</span>);
+<a href=#973 id=973 data-nosnippet>973</a>
+<a href=#974 id=974 data-nosnippet>974</a>        <span class="kw">let </span>left = subtract(<span class="kw-2">&amp;</span>subtract(<span class="kw-2">&amp;</span>three, <span class="kw-2">&amp;</span>a), <span class="kw-2">&amp;</span>one);
+<a href=#975 id=975 data-nosnippet>975</a>        <span class="kw">let </span>right = multiply(<span class="kw-2">&amp;</span>b, <span class="kw-2">&amp;</span>c);
+<a href=#976 id=976 data-nosnippet>976</a>        <span class="macro">assert!</span>(left.try_unify(<span class="kw-2">&amp;</span>right, <span class="kw-2">&amp;mut </span>bindings).is_ok());
+<a href=#977 id=977 data-nosnippet>977</a>
+<a href=#978 id=978 data-nosnippet>978</a>        <span class="comment">// A = 3 - ((B * C) + 1)
+<a href=#979 id=979 data-nosnippet>979</a>        </span><span class="macro">assert_eq!</span>(bindings[<span class="kw-2">&amp;</span>id_a].<span class="number">2</span>, subtract(<span class="kw-2">&amp;</span>three, <span class="kw-2">&amp;</span>add(<span class="kw-2">&amp;</span>right, <span class="kw-2">&amp;</span>one)));
+<a href=#980 id=980 data-nosnippet>980</a>    }
+<a href=#981 id=981 data-nosnippet>981</a>
+<a href=#982 id=982 data-nosnippet>982</a>    <span class="attr">#[test]
+<a href=#983 id=983 data-nosnippet>983</a>    </span><span class="kw">fn </span>does_not_recurse_forever_when_moving_single_constant_terms() {
+<a href=#984 id=984 data-nosnippet>984</a>        <span class="kw">let </span><span class="kw-2">mut </span>types = Types::new();
+<a href=#985 id=985 data-nosnippet>985</a>        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
+<a href=#986 id=986 data-nosnippet>986</a>
+<a href=#987 id=987 data-nosnippet>987</a>        <span class="comment">// (A / B) - 1 = C * D
+<a href=#988 id=988 data-nosnippet>988</a>        </span><span class="kw">let </span>(a, <span class="kw">_</span>) = types.type_variable();
+<a href=#989 id=989 data-nosnippet>989</a>        <span class="kw">let </span>(b, <span class="kw">_</span>) = types.type_variable();
+<a href=#990 id=990 data-nosnippet>990</a>        <span class="kw">let </span>(c, <span class="kw">_</span>) = types.type_variable();
+<a href=#991 id=991 data-nosnippet>991</a>        <span class="kw">let </span>(d, <span class="kw">_</span>) = types.type_variable();
+<a href=#992 id=992 data-nosnippet>992</a>        <span class="kw">let </span>one = constant(<span class="number">1</span>);
+<a href=#993 id=993 data-nosnippet>993</a>
+<a href=#994 id=994 data-nosnippet>994</a>        <span class="kw">let </span>left = subtract(<span class="kw-2">&amp;</span>divide(<span class="kw-2">&amp;</span>a, <span class="kw-2">&amp;</span>b), <span class="kw-2">&amp;</span>one);
+<a href=#995 id=995 data-nosnippet>995</a>        <span class="kw">let </span>right = multiply(<span class="kw-2">&amp;</span>c, <span class="kw-2">&amp;</span>d);
+<a href=#996 id=996 data-nosnippet>996</a>
+<a href=#997 id=997 data-nosnippet>997</a>        <span class="comment">// This shouldn't unify. The idea is the compiler will try to do this:
+<a href=#998 id=998 data-nosnippet>998</a>        //
+<a href=#999 id=999 data-nosnippet>999</a>        // 1. (A / B) - 1 = C * D
+<a href=#1000 id=1000 data-nosnippet>1000</a>        // 2. (A / B) = (C * D) + 1
+<a href=#1001 id=1001 data-nosnippet>1001</a>        //
+<a href=#1002 id=1002 data-nosnippet>1002</a>        // It can't solve either A or B, so it will try to move the `1` back to
+<a href=#1003 id=1003 data-nosnippet>1003</a>        // the right side... except that we prevent that recursion.
+<a href=#1004 id=1004 data-nosnippet>1004</a>        </span><span class="macro">assert!</span>(left.try_unify(<span class="kw-2">&amp;</span>right, <span class="kw-2">&amp;mut </span>bindings).is_err());
+<a href=#1005 id=1005 data-nosnippet>1005</a>    }
+<a href=#1006 id=1006 data-nosnippet>1006</a>}</code></pre></div></section></main></body></html>
