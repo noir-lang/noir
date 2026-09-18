@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789741736236,
+  "lastUpdate": 1789741936437,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14222,40 +14222,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "ad4f96e11d1bd3029b46c811c344de956c5003b7",
-          "message": "fix(ssa): don't inline a block into itself in `simplify_cfg` (#13672)",
-          "timestamp": "2026-09-14T12:01:41Z",
-          "tree_id": "f350866521c4567c578f5daf971ae1eecf7c55b7",
-          "url": "https://github.com/noir-lang/noir/commit/ad4f96e11d1bd3029b46c811c344de956c5003b7"
-        },
-        "date": 1789388782404,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 85.57,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 79.11,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "1aaf1e4c920f7c1bbbc58b56e9129f7c9a2b16ea",
           "message": "fix(nargo_fmt): remove empty use lists instead of turning them into imports (#13678)",
           "timestamp": "2026-09-14T12:02:10Z",
@@ -18370,6 +18336,95 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/ff6ae96b17601ccb59979ae6b4a2bad69926c055"
         },
         "date": 1789741600444,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 297.91,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 338.44,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 325.22,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 372.43,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 369.21,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1270,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1270,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 369.44,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 471.34,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 483.02,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 368.72,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 85.57,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 79.11,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "52b209057616ccb93843d368b1c012e7745db840",
+          "message": "fix(frontend): don't cancel the repeated term of `N - (M + N)` in `new_infix_expr` (#13768)",
+          "timestamp": "2026-09-18T13:56:07Z",
+          "tree_id": "2e62a5647401cb01a689f402dc712d10ef91a13d",
+          "url": "https://github.com/noir-lang/noir/commit/52b209057616ccb93843d368b1c012e7745db840"
+        },
+        "date": 1789741871698,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
