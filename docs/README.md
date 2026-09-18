@@ -77,6 +77,37 @@ contents hosting service.
 yarn serve
 ```
 
+## Adding, Moving or Removing a Page
+
+Every page URL is recorded in `routes.snapshot.json`, and CI fails if one of them stops being
+served without somewhere for its readers to go. External sites, blog posts and search results link
+straight at these URLs, and Docusaurus' own broken-link check cannot see them — it only validates
+links inside this site.
+
+When you rename, move or delete a page:
+
+1. Add the old URL to `redirects.js`, mapped to the page that now holds the content.
+   `docusaurus.config.ts` renders that table into the Netlify `_redirects` file as 301s. Paths
+   there are site-relative and version-agnostic: `/guides/oracles`, not `/docs/guides/oracles`.
+   If the content has no successor anywhere, record the URL in `removed-urls.json` with a reason
+   instead, and it will be allowed to 404.
+2. Refresh the snapshot and check it:
+
+```sh
+yarn build
+yarn routes:snapshot
+yarn routes:check
+```
+
+`yarn routes:check` also fails when a redirect points at a page that no longer exists, so the table
+cannot rot into a chain of 301s ending in a 404.
+
+Adding a page needs step 2 as well — the snapshot lists every page, so a new one makes it stale
+and `yarn routes:check` fails until it is regenerated. A new page needs no redirect.
+
+Versioned snapshots under `versioned_docs/` are not covered: their URLs are frozen at release and
+keep working on their own.
+
 ## Production Testing
 
 The site will be deployed at `noir-lang.org/docs/`. Test production configuration locally:
@@ -135,4 +166,6 @@ All commands should be run from the `docs` directory:
 | `yarn serve` | Serve built site locally |
 | `yarn version::stables` | Update stable versions list |
 | `yarn cut_version <VERSION>` | Cut a new versioned docs snapshot |
+| `yarn routes:snapshot` | Refresh the page-URL snapshot after a build |
+| `yarn routes:check` | Verify no page URL lost its redirect |
 | `yarn clean` | Clean build artifacts |

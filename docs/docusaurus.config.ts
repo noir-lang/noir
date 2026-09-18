@@ -1,5 +1,6 @@
 import type { Config } from '@docusaurus/types';
 const versions = require("./versions.json");
+const { legacyPathRedirects } = require('./redirects');
 const { themes } = require('prism-react-renderer');
 const lightTheme = themes.github;
 const darkTheme = themes.dracula;
@@ -15,33 +16,6 @@ const docsVersions = {
   current: { label: 'dev', path: 'dev', noIndex: true },
   ...Object.fromEntries(versions.slice(1).map((v: string) => [v, { noIndex: true }])),
 };
-
-// Documentation URLs that external sites, blog posts and search results still point at,
-// each mapped to the page that now holds the content. Netlify applies rules in order and stops
-// at the first match, so the generated rules must be emitted before the `/docs/*` catch-all
-// rewrite. Every source is anchored at a top-level segment, so none of them can swallow a
-// versioned path, which always carries its version as the first segment (`/docs/<version>/...`).
-// More specific sources come first, since a wildcard would otherwise shadow them.
-const legacyPathRedirects: [string, string][] = [
-  ['/explainers/explainer-writing-noir', '/guides/thinking_in_circuits'],
-  ['/explainers/explainer-oracle', '/guides/oracles'],
-  ['/how_to/how-to-oracles', '/guides/how_to_use_oracles'],
-  ['/how_to/debugger/*', '/guides/debugging/:splat'],
-  ['/tutorials/noirjs_app', '/guides/building_a_web_app'],
-  ['/noir/concepts/data_types/*', '/language/data_types/:splat'],
-  ['/noir/concepts/*', '/language/:splat'],
-  ['/noir/modules_packages_crates/*', '/project_structure/:splat'],
-  ['/noir/standard_library/containers', '/libraries/standard_library/containers/boundedvec'],
-  [
-    '/noir/standard_library/cryptographic_primitives/ecdsa_sig_verification',
-    '/libraries/standard_library/cryptographic_primitives/signatures',
-  ],
-  ['/noir/standard_library/*', '/libraries/standard_library/:splat'],
-  ['/reference/debugger/*', '/tooling/debugger/:splat'],
-  ['/reference/noir_codegen', '/tooling/noir_codegen'],
-  ['/getting_started/noir_installation', '/installation'],
-  ['/getting_started/*', '/getting_started_manually'],
-];
 
 export default {
   title: 'Noir Documentation',
