@@ -1867,7 +1867,33 @@ mod tests {
             }
         }
 
-        let src = format!("brillig(inline) fn main f0 {{\n  b0():\n{body}    return\n}}\n");
+        // Wrap the instructions in one of three control-flow shapes. The model is
+        // flow-insensitive, so placing the same instructions in different blocks does not
+        // change what may point at what — but it does change what the analysis has to do,
+        // because the CFG walk, the predecessor merge and the loop detection only run when
+        // there is more than one block.
+        let src = match u.choose_index(3)? {
+            // Straight line: one block.
+            0 => format!("brillig(inline) fn main f0 {{\n  b0():\n{body}    return\n}}\n"),
+            // A chain of two blocks. `b0` dominates `b1`, so values stay in scope.
+            1 => {
+                let lines: Vec<&str> = body.lines().collect();
+                let split = if lines.is_empty() { 0 } else { u.choose_index(lines.len())? };
+                let (first, second) = lines.split_at(split);
+                let join = |ls: &[&str]| ls.iter().map(|l| format!("{l}\n")).collect::<String>();
+                format!(
+                    "brillig(inline) fn main f0 {{\n  b0():\n{}    jmp b1()\n  b1():\n{}    return\n}}\n",
+                    join(first),
+                    join(second)
+                )
+            }
+            // A self-looping block. Every `allocate` is then inside a loop, which is what
+            // makes its allocation site untrusted — the analysis has a whole mechanism for
+            // that which straight-line code never reaches.
+            _ => format!(
+                "brillig(inline) fn main f0 {{\n  b0(v{emitted}: u1):\n    jmp b1()\n  b1():\n{body}    jmpif v{emitted} then: b1(), else: b2()\n  b2():\n    return\n}}\n"
+            ),
+        };
         Ok(RefChainProgram { src, values, arrays, holds })
     }
 
