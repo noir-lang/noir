@@ -1026,7 +1026,17 @@ impl AliasAnalysisContext {
                 break;
             };
             let pointee_root = self.aliases.find(pointee);
-            self.points_to_sites.insert(pointee_root, AllocationLattice::External);
+            // Join rather than overwrite. The class may already hold a local `Known` site,
+            // because field-insensitive merging can put a local allocation in the same class
+            // as an entry parameter's pointee. Overwriting it with `External` would make
+            // `cannot_equal` claim the local and the external cell are certainly distinct,
+            // and `may_alias` would then deny an aliasing that really exists.
+            let existing = self
+                .points_to_sites
+                .get(&pointee_root)
+                .copied()
+                .unwrap_or(AllocationLattice::Undef);
+            self.points_to_sites.insert(pointee_root, existing.join(AllocationLattice::External));
             current = pointee_root;
         }
     }
@@ -1717,6 +1727,32 @@ mod tests {
         let mut analysis = analyze_main(&ssa);
         assert!(!analysis.may_reference(allocs[0], allocs[1]));
         assert!(!analysis.may_reference(allocs[1], allocs[0]));
+    }
+
+    /// Field-insensitive merging can put a local `allocate` in the same class as the pointee
+    /// of an entry point's reference parameter. Marking that pointee `External` must not
+    /// discard the local's `Known` site: `cannot_equal(Known, External)` is `true`, so
+    /// `may_alias` would then deny an aliasing that really exists.
+    ///
+    /// Here `v2` is element 1 of an aggregate whose element 1 is `v1`, so the two are the
+    /// same reference and must be reported as aliasing.
+    #[test]
+    fn entry_parameter_does_not_erase_a_local_allocation_site() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: &mut &mut Field):
+            v1 = allocate -> &mut Field
+            v2 = make_array [v0, v1] : [(&mut &mut Field, &mut Field); 1]
+            store v1 at v0
+            v3 = array_get v2, index u32 1 -> &mut Field
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let allocs = collect_allocates(&ssa);
+        let gets = collect_array_gets(&ssa);
+        let mut analysis = analyze_main(&ssa);
+        assert!(analysis.may_alias(ssa.main(), allocs[0], gets[0]));
     }
 
     #[test]
