@@ -1468,6 +1468,10 @@ mod tests {
     /// A reference-typed value in the generated program, plus the cells it may denote.
     #[derive(Clone)]
     struct GenValue {
+        /// The scalar at the bottom of the reference chain. Varying it is what lets
+        /// `may_alias`'s `canonical_eq` type filter fire at all — with a single base type two
+        /// references always have the same type and the filter can never reject.
+        base: &'static str,
         /// Indirection depth: 0 is `&mut Field`, 1 is `&mut &mut Field`, and so on.
         level: usize,
         /// Allocation indices this value may be, as the test's own model sees it.
@@ -1482,9 +1486,9 @@ mod tests {
         emitted: usize,
         /// Which collector recovers this container's `ValueId`.
         origin: ArrayOrigin,
-        /// `Some(level)` when every member shares that indirection level. Vectors and the
+        /// `Some((base, level))` when every member shares that element type. Vectors and the
         /// vector intrinsics require a homogeneous element type.
-        homogeneous: Option<usize>,
+        homogeneous: Option<(&'static str, usize)>,
         /// Vectors print as `[T]`, arrays as `[T; N]`, and only vectors feed the intrinsics.
         is_vector: bool,
     }
@@ -1507,8 +1511,8 @@ mod tests {
     }
 
     /// The SSA type for a given indirection level.
-    fn ref_type(level: usize) -> String {
-        let mut t = String::from("Field");
+    fn ref_type(base: &str, level: usize) -> String {
+        let mut t = String::from(base);
         for _ in 0..=level {
             t = format!("&mut {t}");
         }
@@ -1532,12 +1536,38 @@ mod tests {
         let mut n_call_result = 0;
         let mut emitted = 0;
 
+        // A second function, so calls to a *resolved* callee are exercised:
+        // `unify_call_arguments_and_return` merges each argument with its parameter and each
+        // result with the callee's return value, and marks a callee's allocation sites
+        // untrusted once it is called more than once. None of that runs without a callee.
+        //
+        // The callee's body is fixed so the test can model its effect exactly: `writer`
+        // stores its second argument into the cell its first argument names, and `identity`
+        // hands a reference straight back.
+        let callee_base = *u.choose(&["Field", "u32", "bool"])?;
+        let callee_level = u.int_in_range(0..=1usize)?;
+        let callee_is_writer: bool = u.arbitrary()?;
+        let callee_src = if callee_is_writer {
+            format!(
+                "brillig(inline) fn writer f1 {{\n  b0(v0: {}, v1: {}):\n    store v1 at v0\n    return\n}}\n",
+                ref_type(callee_base, callee_level + 1),
+                ref_type(callee_base, callee_level)
+            )
+        } else {
+            format!(
+                "brillig(inline) fn identity f1 {{\n  b0(v0: {0}):\n    return v0\n}}\n",
+                ref_type(callee_base, callee_level)
+            )
+        };
+
         for _ in 0..u.int_in_range(2..=4)? {
+            let base = *u.choose(&["Field", "u32", "bool"])?;
             let level = u.int_in_range(0..=2usize)?;
             let cell = holds.len();
             holds.push(Vec::new());
-            body.push_str(&format!("    v{emitted} = allocate -> {}\n", ref_type(level)));
+            body.push_str(&format!("    v{emitted} = allocate -> {}\n", ref_type(base, level)));
             values.push(GenValue {
+                base,
                 level,
                 denotes: vec![cell],
                 origin: Origin::Allocate(n_alloc),
@@ -1548,13 +1578,13 @@ mod tests {
         }
 
         for _ in 0..u.int_in_range(1..=8)? {
-            match u.choose_index(6)? {
+            match u.choose_index(7)? {
                 // `store`: put a reference inside a cell one level above it.
                 0 => {
                     let mut pairs = Vec::new();
                     for (d, dst) in values.iter().enumerate() {
                         for (s, src) in values.iter().enumerate() {
-                            if s != d && dst.level == src.level + 1 {
+                            if s != d && dst.level == src.level + 1 && dst.base == src.base {
                                 pairs.push((s, d));
                             }
                         }
@@ -1595,17 +1625,17 @@ mod tests {
                     let is_vector = homogeneous.is_some() && u.ratio(1, 2)?;
                     let typ = match (is_vector, homogeneous) {
                         // Vectors print without a length.
-                        (true, Some(level)) => format!("[{}]", ref_type(level)),
+                        (true, Some((base, level))) => format!("[{}]", ref_type(base, level)),
                         // A homogeneous array keeps a single element type, which is what
                         // `as_vector` requires of its input.
-                        (false, Some(level)) => {
-                            format!("[{}; {}]", ref_type(level), members.len())
+                        (false, Some((base, level))) => {
+                            format!("[{}; {}]", ref_type(base, level), members.len())
                         }
                         // Mixed element types are carried as a one-element array of a tuple.
                         _ => {
                             let types = members
                                 .iter()
-                                .map(|i| ref_type(values[*i].level))
+                                .map(|i| ref_type(values[*i].base, values[*i].level))
                                 .collect::<Vec<_>>()
                                 .join(", ");
                             format!("[({types}); 1]")
@@ -1643,12 +1673,19 @@ mod tests {
                         continue;
                     }
                     let level = values[p].level - 1;
+                    let base = values[p].base;
                     body.push_str(&format!(
                         "    v{emitted} = load v{} -> {}\n",
                         values[p].emitted,
-                        ref_type(level)
+                        ref_type(base, level)
                     ));
-                    values.push(GenValue { level, denotes, origin: Origin::Load(n_load), emitted });
+                    values.push(GenValue {
+                        base,
+                        level,
+                        denotes,
+                        origin: Origin::Load(n_load),
+                        emitted,
+                    });
                     emitted += 1;
                     n_load += 1;
                 }
@@ -1660,9 +1697,10 @@ mod tests {
                     let ai = u.choose_index(arrays.len())?;
                     let k = u.choose_index(arrays[ai].members.len())?;
                     let old_member = arrays[ai].members[k];
-                    let level = values[old_member].level;
-                    let replacements: Vec<usize> =
-                        (0..values.len()).filter(|i| values[*i].level == level).collect();
+                    let (base, level) = (values[old_member].base, values[old_member].level);
+                    let replacements: Vec<usize> = (0..values.len())
+                        .filter(|i| values[*i].level == level && values[*i].base == base)
+                        .collect();
                     if replacements.is_empty() {
                         continue;
                     }
@@ -1699,8 +1737,8 @@ mod tests {
                         continue;
                     }
                     let vi = *u.choose(&sources)?;
-                    let level = arrays[vi].homogeneous.expect("homogeneous");
-                    let t = ref_type(level);
+                    let (base, level) = arrays[vi].homogeneous.expect("homogeneous");
+                    let t = ref_type(base, level);
                     let len = arrays[vi].members.len();
                     let src_emitted = arrays[vi].emitted;
                     let members = arrays[vi].members.clone();
@@ -1712,7 +1750,7 @@ mod tests {
                                 members: $members,
                                 emitted: $emitted,
                                 origin: ArrayOrigin::CallResult(n_call_result + $result),
-                                homogeneous: Some(level),
+                                homogeneous: Some((base, level)),
                                 is_vector: true,
                             })
                         };
@@ -1732,7 +1770,9 @@ mod tests {
                             // push_back: `(len, vec, elem) -> (new_len, new_vec)`
                             0 => {
                                 let same: Vec<usize> = (0..values.len())
-                                    .filter(|i| values[*i].level == level)
+                                    .filter(|i| {
+                                        values[*i].level == level && values[*i].base == base
+                                    })
                                     .collect();
                                 if same.is_empty() {
                                     continue;
@@ -1752,7 +1792,9 @@ mod tests {
                             // push_front: same shape, element lands at the front.
                             1 => {
                                 let same: Vec<usize> = (0..values.len())
-                                    .filter(|i| values[*i].level == level)
+                                    .filter(|i| {
+                                        values[*i].level == level && values[*i].base == base
+                                    })
                                     .collect();
                                 if same.is_empty() {
                                     continue;
@@ -1775,7 +1817,9 @@ mod tests {
                                     continue;
                                 }
                                 let same: Vec<usize> = (0..values.len())
-                                    .filter(|i| values[*i].level == level)
+                                    .filter(|i| {
+                                        values[*i].level == level && values[*i].base == base
+                                    })
                                     .collect();
                                 if same.is_empty() {
                                     continue;
@@ -1806,6 +1850,7 @@ mod tests {
                                 let back = *members.last().expect("non-empty");
                                 push_vector!(members[..len - 1].to_vec(), emitted + 1, 1);
                                 values.push(GenValue {
+                                    base,
                                     level,
                                     denotes: values[back].denotes.clone(),
                                     origin: Origin::CallResult(n_call_result + 2),
@@ -1830,6 +1875,7 @@ mod tests {
                                 m.remove(k);
                                 push_vector!(m, emitted + 1, 1);
                                 values.push(GenValue {
+                                    base,
                                     level,
                                     denotes: values[removed].denotes.clone(),
                                     origin: Origin::CallResult(n_call_result + 2),
@@ -1841,6 +1887,65 @@ mod tests {
                         }
                     }
                 }
+                // A call to the resolved callee declared above.
+                5 => {
+                    if callee_is_writer {
+                        let dsts: Vec<usize> = (0..values.len())
+                            .filter(|i| {
+                                values[*i].base == callee_base
+                                    && values[*i].level == callee_level + 1
+                            })
+                            .collect();
+                        let srcs: Vec<usize> = (0..values.len())
+                            .filter(|i| {
+                                values[*i].base == callee_base && values[*i].level == callee_level
+                            })
+                            .collect();
+                        if dsts.is_empty() || srcs.is_empty() {
+                            continue;
+                        }
+                        let d = *u.choose(&dsts)?;
+                        let sv = *u.choose(&srcs)?;
+                        body.push_str(&format!(
+                            "    call f1(v{}, v{})\n",
+                            values[d].emitted, values[sv].emitted
+                        ));
+                        // The callee stores its second argument into the first's cell.
+                        let put = values[sv].denotes.clone();
+                        for cell in values[d].denotes.clone() {
+                            for p in &put {
+                                if !holds[cell].contains(p) {
+                                    holds[cell].push(*p);
+                                }
+                            }
+                        }
+                    } else {
+                        let args: Vec<usize> = (0..values.len())
+                            .filter(|i| {
+                                values[*i].base == callee_base && values[*i].level == callee_level
+                            })
+                            .collect();
+                        if args.is_empty() {
+                            continue;
+                        }
+                        let a = *u.choose(&args)?;
+                        body.push_str(&format!(
+                            "    v{emitted} = call f1(v{}) -> {}\n",
+                            values[a].emitted,
+                            ref_type(callee_base, callee_level)
+                        ));
+                        // The callee hands the same reference back.
+                        values.push(GenValue {
+                            base: callee_base,
+                            level: callee_level,
+                            denotes: values[a].denotes.clone(),
+                            origin: Origin::CallResult(n_call_result),
+                            emitted,
+                        });
+                        emitted += 1;
+                        n_call_result += 1;
+                    }
+                }
                 // `array_get`: a fresh name for one element of an aggregate.
                 _ => {
                     if arrays.is_empty() {
@@ -1849,13 +1954,14 @@ mod tests {
                     let ai = u.choose_index(arrays.len())?;
                     let k = u.choose_index(arrays[ai].members.len())?;
                     let member = arrays[ai].members[k];
-                    let level = values[member].level;
+                    let (base, level) = (values[member].base, values[member].level);
                     body.push_str(&format!(
                         "    v{emitted} = array_get v{}, index u32 {k} -> {}\n",
                         arrays[ai].emitted,
-                        ref_type(level)
+                        ref_type(base, level)
                     ));
                     values.push(GenValue {
+                        base,
                         level,
                         denotes: values[member].denotes.clone(),
                         origin: Origin::ArrayGet(n_get),
@@ -1874,7 +1980,9 @@ mod tests {
         // there is more than one block.
         let src = match u.choose_index(3)? {
             // Straight line: one block.
-            0 => format!("brillig(inline) fn main f0 {{\n  b0():\n{body}    return\n}}\n"),
+            0 => format!(
+                "brillig(inline) fn main f0 {{\n  b0():\n{body}    return\n}}\n{callee_src}"
+            ),
             // A chain of two blocks. `b0` dominates `b1`, so values stay in scope.
             1 => {
                 let lines: Vec<&str> = body.lines().collect();
@@ -1882,25 +1990,30 @@ mod tests {
                 let (first, second) = lines.split_at(split);
                 let join = |ls: &[&str]| ls.iter().map(|l| format!("{l}\n")).collect::<String>();
                 format!(
-                    "brillig(inline) fn main f0 {{\n  b0():\n{}    jmp b1()\n  b1():\n{}    return\n}}\n",
+                    "brillig(inline) fn main f0 {{\n  b0():\n{}    jmp b1()\n  b1():\n{}    return\n}}\n{}",
                     join(first),
-                    join(second)
+                    join(second),
+                    callee_src
                 )
             }
             // A self-looping block. Every `allocate` is then inside a loop, which is what
             // makes its allocation site untrusted — the analysis has a whole mechanism for
             // that which straight-line code never reaches.
             _ => format!(
-                "brillig(inline) fn main f0 {{\n  b0(v{emitted}: u1):\n    jmp b1()\n  b1():\n{body}    jmpif v{emitted} then: b1(), else: b2()\n  b2():\n    return\n}}\n"
+                "brillig(inline) fn main f0 {{\n  b0(v{emitted}: u1):\n    jmp b1()\n  b1():\n{body}    jmpif v{emitted} then: b1(), else: b2()\n  b2():\n    return\n}}\n{callee_src}"
             ),
         };
         Ok(RefChainProgram { src, values, arrays, holds })
     }
 
     /// The shared indirection level of a set of values, when they all agree.
-    fn shared_level(values: &[GenValue], members: &[usize]) -> Option<usize> {
-        let level = values[*members.first()?].level;
-        members.iter().all(|m| values[*m].level == level).then_some(level)
+    fn shared_level(values: &[GenValue], members: &[usize]) -> Option<(&'static str, usize)> {
+        let first = &values[*members.first()?];
+        let (base, level) = (first.base, first.level);
+        members
+            .iter()
+            .all(|m| values[*m].level == level && values[*m].base == base)
+            .then_some((base, level))
     }
 
     /// Every allocation cell reachable from `start` by following the `holds` relation.
