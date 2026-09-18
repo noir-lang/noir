@@ -2,7 +2,7 @@
 the transitive dependencies of the entry-point crate.</p>
 <p>This is for all intents and purposes the file system that the compiler will use to resolve/compile
 files in the crate being compiled and its dependencies.</p>
-<p>Using a <code>BTreeMap</code> to add files to the <a href="../../fm/struct.FileManager.html" title="struct fm::FileManager">FileManager</a> in a deterministic order,
+<p>Using a <code>BTreeMap</code> to add files to the [FileManager] in a deterministic order,
 which affects the <code>FileId</code> in the <code>Location</code>s in the AST on which the <code>hash</code> is based.
 Note that we cannot expect to match the IDs assigned by the <code>FileManager</code> used by <code>nargo</code>,
 because there the order is determined by the dependency graph as well as the file name.</p>
