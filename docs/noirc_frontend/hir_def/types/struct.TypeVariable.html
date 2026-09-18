@@ -12,7 +12,7 @@ to undo. A pass that does need to bind over an existing binding goes through
     &amp;self,
     binding: <a class="enum" href="enum.Type.html" title="enum noirc_frontend::hir_def::types::Type">Type</a>,
     kind: &amp;<a class="enum" href="enum.Kind.html" title="enum noirc_frontend::hir_def::types::Kind">Kind</a>,
-    location: Location,
+    location: <a class="struct" href="../../../noirc_errors/position/struct.Location.html" title="struct noirc_errors::position::Location">Location</a>,
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.unit.html">()</a>, <a class="enum" href="../../hir/type_check/enum.TypeCheckError.html" title="enum noirc_frontend::hir::type_check::TypeCheckError">TypeCheckError</a>&gt;</h4></section><details class="toggle method-toggle" open><summary><section id="method.shares_binding_with" class="method"><a class="src rightside" href="../../../src/noirc_frontend/hir_def/types.rs.html#1096-1098">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.shares_binding_with" class="fn">shares_binding_with</a>(&amp;self, other: &amp;<a class="struct" href="struct.TypeVariable.html" title="struct noirc_frontend::hir_def::types::TypeVariable">TypeVariable</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.89.0/std/primitive.bool.html">bool</a></h4></section></summary><div class="docblock"><p>Whether <code>other</code> is a handle on the same binding as this one, so that writing through
 either is visible through both.</p>
 <p>Compares the allocation rather than the contents, which <code>PartialEq</code> does.</p>
