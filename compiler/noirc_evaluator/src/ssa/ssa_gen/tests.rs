@@ -218,6 +218,64 @@ fn acir_no_access_check_on_array_assignment() {
 }
 
 #[test]
+fn acir_no_access_check_on_composite_array_read() {
+    // The memory op the read lowers to carries the bounds check, and reports it in the array's
+    // logical coordinates through the payload ACIR gen attaches to that op.
+    let src = "
+    fn main(mut array: [(Field, Field); 3], index: u32) -> pub Field {
+        array[index].0
+    }
+    ";
+    let ssa = get_initial_ssa(src).unwrap();
+
+    let expected = "
+    acir(inline) fn main f0 {
+      b0(v0: [(Field, Field); 3], v1: u32):
+        v2 = allocate -> &mut [(Field, Field); 3]
+        store v0 at v2
+        v3 = load v2 -> [(Field, Field); 3]
+        v5 = unchecked_mul v1, u32 2
+        v6 = array_get v3, index v5 -> Field
+        v8 = unchecked_add v5, u32 1
+        v9 = array_get v3, index v8 -> Field
+        return v6
+    }
+    ";
+    assert_normalized_ssa_equals(ssa, expected);
+}
+
+#[test]
+fn acir_access_check_on_one_element_composite_array_read() {
+    // Zero is the only index in bounds, so the check determines the index rather than bounding
+    // it: later passes fold the access to a constant index and the memory op disappears, which
+    // the memory op's own bounds check cannot do for them.
+    let src = "
+    fn main(mut array: [(Field, Field); 1], index: u32) -> pub Field {
+        array[index].0
+    }
+    ";
+    let ssa = get_initial_ssa(src).unwrap();
+
+    let expected = "
+    acir(inline) fn main f0 {
+      b0(v0: [(Field, Field); 1], v1: u32):
+        v2 = allocate -> &mut [(Field, Field); 1]
+        store v0 at v2
+        v3 = load v2 -> [(Field, Field); 1]
+        v27 = make_array b\"Index out of bounds, array has size 1, but index was {}\"
+        v29 = eq v1, u32 0
+        constrain v1 == u32 0, data v27, Field 1, v1
+        v32 = unchecked_mul v1, u32 2
+        v33 = array_get v3, index v32 -> Field
+        v35 = unchecked_add v32, u32 1
+        v36 = array_get v3, index v35 -> Field
+        return v33
+    }
+    ";
+    assert_normalized_ssa_equals(ssa, expected);
+}
+
+#[test]
 fn brillig_access_check_on_array_read() {
     let src = "
     unconstrained fn main(mut array: [Field; 3], index: u32) -> pub Field {

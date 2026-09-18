@@ -161,11 +161,27 @@ impl FunctionQueueState {
 /// coordinates it would report are translated back to logical ones by the
 /// assertion payload ACIR generation attaches to the memory op, so the reported
 /// message matches what the user wrote without a second check.
+///
+/// A one-element array of such a composite is the exception, because there its
+/// check determines the index rather than merely bounding it: zero is the only
+/// index in bounds, so the check resolves the access to a constant index and
+/// the memory op (and for a non-homogenous layout, the element type sizes array
+/// backing it) disappears, which is worth far more than the check costs.
+/// [`crate::ssa::ir::dfg::simplify`] draws that conclusion for arrays whose
+/// elements are single cells, where the index it sees is the logical one; for a
+/// composite element it sees a multiple of the element size plus a field
+/// offset, and the check is what supplies the conclusion instead.
 pub(super) fn array_index_needs_explicit_oob_check(
     runtime: RuntimeType,
     array_type: &Type,
 ) -> bool {
-    runtime.is_brillig() || array_type.flattened_size().0 == 0
+    let Type::Array(_, len) = array_type else {
+        unreachable!("ICE: expected an array to check the index of, found {array_type}")
+    };
+
+    runtime.is_brillig()
+        || array_type.flattened_size().0 == 0
+        || (len.0 == 1 && array_type.element_size().0 > 1)
 }
 
 impl<'a> FunctionContext<'a> {
