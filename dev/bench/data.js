@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789740734387,
+  "lastUpdate": 1789740992618,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -21701,48 +21701,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "ad4f96e11d1bd3029b46c811c344de956c5003b7",
-          "message": "fix(ssa): don't inline a block into itself in `simplify_cfg` (#13672)",
-          "timestamp": "2026-09-14T12:01:41Z",
-          "tree_id": "f350866521c4567c578f5daf971ae1eecf7c55b7",
-          "url": "https://github.com/noir-lang/noir/commit/ad4f96e11d1bd3029b46c811c344de956c5003b7"
-        },
-        "date": 1789388575038,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 169803,
-            "range": "± 651",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 137627,
-            "range": "± 796",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2655176,
-            "range": "± 8333",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "1aaf1e4c920f7c1bbbc58b56e9129f7c9a2b16ea",
           "message": "fix(nargo_fmt): remove empty use lists instead of turning them into imports (#13678)",
           "timestamp": "2026-09-14T12:02:10Z",
@@ -23784,6 +23742,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2127215,
             "range": "± 22902",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "52b209057616ccb93843d368b1c012e7745db840",
+          "message": "fix(frontend): don't cancel the repeated term of `N - (M + N)` in `new_infix_expr` (#13768)",
+          "timestamp": "2026-09-18T13:56:07Z",
+          "tree_id": "2e62a5647401cb01a689f402dc712d10ef91a13d",
+          "url": "https://github.com/noir-lang/noir/commit/52b209057616ccb93843d368b1c012e7745db840"
+        },
+        "date": 1789740914479,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 150544,
+            "range": "± 687",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 117435,
+            "range": "± 2047",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2049447,
+            "range": "± 4858",
             "unit": "ns/iter"
           }
         ]
