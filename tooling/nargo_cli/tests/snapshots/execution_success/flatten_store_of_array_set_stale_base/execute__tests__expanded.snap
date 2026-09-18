@@ -1,0 +1,24 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 374
+expression: expanded_code
+---
+fn main(c: bool, d: bool, s: u32) -> pub Field {
+    assert(s == 0_u32);
+    let mut a: [Field; 2] = [0_Field, 0_Field];
+    let mut b: [Field; 2] = [7_Field, 7_Field];
+    let refs: [&mut [Field; 2]; 2] = [&mut a, &mut b];
+    let r: &mut [Field; 2] = refs[s];
+    let old: [Field; 2] = *r;
+    if c {
+        let mut t: [Field; 2] = old;
+        t[0_u32] = 9_Field;
+        *r = t;
+    };
+    if d {
+        let mut t: [Field; 2] = old;
+        t[1_u32] = 5_Field;
+        *r = t;
+    };
+    (*r)[0_u32]
+}
