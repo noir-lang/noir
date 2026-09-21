@@ -644,9 +644,17 @@ impl std::fmt::Display for ArrayValue {
 
         write!(f, "[")?;
 
-        let length = self.elements.borrow().len() / self.element_types.len();
-        if length == 0 {
-            // We show an array length zero like `[T; 0]` or `[(T1, T2, ...); 0]`
+        // An element of no types holds no elements to count, so the length only survives in the
+        // array's own type. A vector of such elements has no length to show at all: the length
+        // it is used at is a separate value alongside it.
+        let length = match self.length {
+            Some(length) => length.0 as usize,
+            None if self.element_types.is_empty() => 0,
+            None => self.elements.borrow().len() / self.element_types.len(),
+        };
+        if length == 0 || self.element_types.is_empty() {
+            // We show an array with nothing to list like `[T; 0]` or `[(T1, T2, ...); 0]`,
+            // which for an element of no types at all reads `[(); 4]`.
             let element_types = if self.element_types.len() == 1 {
                 self.element_types[0].to_string()
             } else {

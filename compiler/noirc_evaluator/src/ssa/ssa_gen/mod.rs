@@ -427,7 +427,11 @@ impl FunctionContext<'_> {
         for element in elements {
             element.for_each(|element| {
                 let element = element.eval(self);
-                array.push_back(element);
+                // A zero-sized field is not part of the element types this array is laid out
+                // from, so it takes no slot here either.
+                if !self.builder.type_of_value(element).is_zero_sized() {
+                    array.push_back(element);
+                }
             });
         }
 
@@ -579,17 +583,20 @@ impl FunctionContext<'_> {
 
         // base_index = index * type_size
         let index = self.make_array_index(index);
-        let type_size_usize = Self::convert_type(element_type).size_of_type();
-        let type_size =
-            self.builder.numeric_constant(type_size_usize as u128, NumericType::length_type());
+        let array_type = self.builder.type_of_value(array);
+        // The stride is the array's own element size rather than the number of fields the
+        // element type has, because the two differ by the element's zero-sized fields, which
+        // the array is not laid out from.
+        let type_size = self
+            .builder
+            .numeric_constant(u128::from(array_type.element_size().0), NumericType::length_type());
 
-        let array_type = &self.builder.type_of_value(array);
         let runtime = self.builder.current_function.runtime();
 
         // Checks for index Out-of-bounds
-        match array_type {
+        match &array_type {
             Type::Array(_, len) => {
-                if context::array_index_needs_explicit_oob_check(runtime, array_type) {
+                if context::array_index_needs_explicit_oob_check(runtime, &array_type) {
                     let logical_len = len.0;
                     // An array that needs an explicit check has no memory op to carry a payload
                     // reporting the logical index and length, so a composite element's flattened
@@ -630,6 +637,12 @@ impl FunctionContext<'_> {
 
         let mut field_index = 0u128;
         Ok(Self::map_type(element_type, |typ| {
+            // A zero-sized field takes no slot in the array, so there is nothing to read: it
+            // holds no information, so a fresh value of that type is the value that was stored.
+            if typ.is_zero_sized() {
+                return self.zero_sized_value(typ).into();
+            }
+
             let index = self.make_offset(base_index, field_index, unchecked);
             field_index += 1;
 
@@ -1398,9 +1411,37 @@ impl FunctionContext<'_> {
             arguments.append(&mut values);
         }
 
+        let intrinsic = self.builder.get_intrinsic_from_value(function);
+
+        // A vector holds its elements in the same layout an array does, without their
+        // zero-sized fields, so an element passed to one of these has none either. Only an
+        // element can be zero-sized here: every other argument is a length, an index or the
+        // vector itself.
+        if matches!(
+            intrinsic,
+            Some(Intrinsic::VectorPushBack | Intrinsic::VectorPushFront | Intrinsic::VectorInsert)
+        ) {
+            arguments.retain(|argument| !self.builder.type_of_value(*argument).is_zero_sized());
+        }
+
         self.codegen_intrinsic_call_checks(function, &arguments, call.location);
 
-        let result = self.insert_call(function, arguments, &call.return_type, call.location);
+        // The mirror image: an element taken back out of a vector arrives without its
+        // zero-sized fields, which are rebuilt around it.
+        let returns_vector_element = matches!(
+            intrinsic,
+            Some(Intrinsic::VectorPopBack | Intrinsic::VectorPopFront | Intrinsic::VectorRemove)
+        );
+        let result = if returns_vector_element {
+            self.insert_call_rebuilding_zero_sized_results(
+                function,
+                arguments,
+                &call.return_type,
+                call.location,
+            )
+        } else {
+            self.insert_call(function, arguments, &call.return_type, call.location)
+        };
         self.codegen_intrinsic_inc_rc_results(function, &call.return_type, &result);
         Ok(result)
     }

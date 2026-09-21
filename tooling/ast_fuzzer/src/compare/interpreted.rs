@@ -333,11 +333,22 @@ fn append_input_value_to_ssa(typ: &AbiType, input: &InputValue, values: &mut Vec
         InputValue::Vec(input_values) => match typ {
             AbiType::Array { length, typ } => {
                 assert_eq!(*length as usize, input_values.len(), "array length != input length");
+                // An array is laid out without its element type's zero-sized fields, so the
+                // types and the values it holds both leave them out (see `Type::is_zero_sized`).
+                let element_types = input_type_to_ssa(typ);
                 let mut elements = Vec::with_capacity(*length as usize);
                 for input in input_values {
-                    append_input_value_to_ssa(typ, input, &mut elements);
+                    let mut element = Vec::with_capacity(element_types.len());
+                    append_input_value_to_ssa(typ, input, &mut element);
+                    for (value, element_type) in element.into_iter().zip_eq(&element_types) {
+                        if !element_type.is_zero_sized() {
+                            elements.push(value);
+                        }
+                    }
                 }
-                values.push(array_value(elements, input_type_to_ssa(typ), SemanticLength(*length)));
+                let element_types =
+                    vecmap(element_types.iter().filter(|typ| !typ.is_zero_sized()), Clone::clone);
+                values.push(array_value(elements, element_types, SemanticLength(*length)));
             }
             AbiType::Tuple { fields } => {
                 assert_eq!(fields.len(), input_values.len(), "tuple size != input length");
@@ -380,7 +391,11 @@ fn append_input_type_to_ssa(typ: &AbiType, types: &mut Vec<ssa::ir::types::Type>
     match typ {
         AbiType::Field => types.push(Type::field()),
         AbiType::Array { length, typ } => {
-            types.push(Type::Array(Arc::new(input_type_to_ssa(typ)), SemanticLength(*length)));
+            let element_types = vecmap(
+                input_type_to_ssa(typ).iter().filter(|typ| !typ.is_zero_sized()),
+                Clone::clone,
+            );
+            types.push(Type::Array(Arc::new(element_types), SemanticLength(*length)));
         }
         AbiType::Integer { sign: Sign::Signed, width } => types.push(Type::signed(*width)),
         AbiType::Integer { sign: Sign::Unsigned, width } => types.push(Type::unsigned(*width)),

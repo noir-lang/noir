@@ -77,14 +77,6 @@ impl<T> Tree<T> {
         }
     }
 
-    /// Returns the total amount of leaves in this tree
-    pub(super) fn count_leaves(&self) -> usize {
-        match self {
-            Tree::Branch(trees) => trees.iter().map(|tree| tree.count_leaves()).sum(),
-            Tree::Leaf(_) => 1,
-        }
-    }
-
     /// Iterates over each Leaf node, calling f on each value within.
     pub(super) fn for_each(self, mut f: impl FnMut(T)) {
         self.for_each_helper(&mut f);
@@ -160,15 +152,6 @@ impl From<IrValueId> for Values {
 impl From<IrValueId> for Value {
     fn from(id: IrValueId) -> Self {
         Value::Normal(id)
-    }
-}
-
-// Specialize this impl just to give a better name for this function
-impl Tree<Type> {
-    /// Returns the size of the type in terms of the number of `FieldElements` it contains.
-    /// Non-field types like functions and references are also counted as 1 `FieldElement`.
-    pub(super) fn size_of_type(&self) -> usize {
-        self.count_leaves()
     }
 }
 

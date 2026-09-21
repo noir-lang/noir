@@ -1555,12 +1555,10 @@ fn array_is_laid_out_without_its_elements_zero_sized_fields() {
         v2 = make_array [] : [Field; 0]
         v3 = make_array [] : [Field; 0]
         v5 = add v1, Field 1
-        v6 = make_array [v2, v1, v3, v5] : [([Field; 0], Field); 2]
-        v8 = unchecked_mul v0, u32 2
-        v9 = array_get v6, index v8 -> [Field; 0]
-        v11 = unchecked_add v8, u32 1
-        v12 = array_get v6, index v11 -> Field
-        return v12
+        v6 = make_array [v1, v5] : [Field; 2]
+        v7 = make_array [] : [Field; 0]
+        v8 = array_get v6, index v0 -> Field
+        return v8
     }
     ");
 }
@@ -1586,25 +1584,19 @@ fn writing_a_zero_sized_field_of_an_array_element_checks_the_index() {
         v2 = make_array [] : [Field; 0]
         v3 = make_array [] : [Field; 0]
         v5 = add v1, Field 1
-        v6 = make_array [v2, v1, v3, v5] : [([Field; 0], Field); 2]
-        v7 = allocate -> &mut [([Field; 0], Field); 2]
+        v6 = make_array [v1, v5] : [Field; 2]
+        v7 = allocate -> &mut [Field; 2]
         store v6 at v7
         v8 = make_array [] : [Field; 0]
-        v9 = load v7 -> [([Field; 0], Field); 2]
-        v11 = unchecked_mul v0, u32 2
-        v12 = array_get v9, index v11 -> [Field; 0]
-        v14 = unchecked_add v11, u32 1
-        v15 = array_get v9, index v14 -> Field
-        v16 = unchecked_mul v0, u32 2
-        v17 = array_set v9, index v16, value v8
-        v18 = unchecked_add v16, u32 1
-        v19 = array_set v17, index v18, value v15
-        v20 = unchecked_add v18, u32 1
-        store v19 at v7
-        v21 = load v7 -> [([Field; 0], Field); 2]
-        v23 = array_get v21, index u32 0 -> [Field; 0]
-        v24 = array_get v21, index u32 1 -> Field
-        return v24
+        v9 = load v7 -> [Field; 2]
+        v10 = make_array [] : [Field; 0]
+        v11 = array_get v9, index v0 -> Field
+        v13 = unchecked_add v0, u32 1
+        store v9 at v7
+        v14 = load v7 -> [Field; 2]
+        v15 = make_array [] : [Field; 0]
+        v17 = array_get v14, index u32 0 -> Field
+        return v17
     }
     ");
 }
@@ -1628,12 +1620,11 @@ fn indexing_an_array_of_zero_sized_elements_checks_the_index() {
         v3 = make_array [] : [Field; 0]
         v4 = make_array [] : [Field; 0]
         v5 = make_array [] : [Field; 0]
-        v6 = make_array [v2, v3, v4, v5] : [[Field; 0]; 4]
+        v6 = make_array [] : [(); 4]
         v7 = cast v0 as Field
         range_check v7 to 2 bits, "Index out of bounds"
-        v8 = array_get v6, index v0 -> [Field; 0]
+        v8 = make_array [] : [Field; 0]
         return v1
     }
     "#);
 }
-

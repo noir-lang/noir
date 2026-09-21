@@ -294,6 +294,29 @@ impl Type {
         }
     }
 
+    /// True if a value of this type occupies no memory at all: an array of length zero, or an
+    /// array whose elements are themselves zero-sized, such as `[Field; 0]`, `str<0>` or
+    /// `[[Field; 0]; 4]`.
+    ///
+    /// Only an array can be zero-sized. Every other type is one cell wide, and a vector's size
+    /// is not a property of its type.
+    ///
+    /// Array and vector layouts leave zero-sized fields out of their element types (see
+    /// `FunctionContext::convert_non_tuple_type`), so that an element's field count and its
+    /// flattened width scale an index by the same factor. Anything that builds an array type or
+    /// an array value from a type of its own has to leave them out the same way, which is why
+    /// this is public.
+    pub fn is_zero_sized(&self) -> bool {
+        // Structural rather than `self.flattened_size().0 == 0`: a flattened size overflows for
+        // a large enough type, and whether it is zero does not depend on any of that arithmetic.
+        match self {
+            Type::Array(element_types, len) => {
+                len.0 == 0 || element_types.iter().all(Type::is_zero_sized)
+            }
+            _ => false,
+        }
+    }
+
     /// True if this type is an array (or vector)
     pub(crate) fn is_array(&self) -> bool {
         matches!(self, Type::Array(_, _) | Type::Vector(_))

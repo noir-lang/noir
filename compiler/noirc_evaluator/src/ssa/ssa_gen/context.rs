@@ -333,7 +333,7 @@ impl<'a> FunctionContext<'a> {
                 Self::map_type_helper(&fmt_str_tuple, f)
             }
             ast::Type::Vector(elements) => {
-                let element_types = Self::convert_type(elements).flatten();
+                let element_types = Self::element_types_of(elements);
                 Tree::Branch(vec![
                     Tree::Leaf(f(Type::length_type())),
                     Tree::Leaf(f(Type::Vector(Arc::new(element_types)))),
@@ -351,6 +351,28 @@ impl<'a> FunctionContext<'a> {
         Self::map_type_helper(typ, &mut |x| x)
     }
 
+    /// The element types of an array or vector whose elements have the given type.
+    ///
+    /// A field that occupies no memory is left out. Keeping it would make an element's field
+    /// count larger than the number of cells the element occupies, and those two numbers scale
+    /// the same index: SSA generation reaches field `field` of element `logical` at
+    /// `element_size * logical + field`, and ACIR generation scales that again by the width of
+    /// each field. A field of no width makes the first factor grow while the second does not,
+    /// which leaves the two coordinate systems unable to name the same cell by multiplication —
+    /// ACIR then has to look the address up in a per-element table (see
+    /// `acir::arrays::calculate_element_type_sizes_array`), and the index and length an
+    /// out-of-bounds access reports are that table's, not the program's.
+    ///
+    /// Dropping the field costs nothing, since it holds nothing: a value of a zero-sized type
+    /// is rebuilt wherever one is read back out (see `FunctionContext::zero_sized_value`).
+    fn element_types_of(element: &ast::Type) -> Vec<Type> {
+        Self::convert_type(element)
+            .flatten()
+            .into_iter()
+            .filter(|typ| !typ.is_zero_sized())
+            .collect()
+    }
+
     /// Converts a non-tuple type into an SSA type. Panics if a tuple type is passed.
     ///
     /// This function is needed since this SSA IR has no concept of tuples and thus no type for
@@ -359,7 +381,7 @@ impl<'a> FunctionContext<'a> {
         match typ {
             ast::Type::Field => Type::field(),
             ast::Type::Array(len, element) => {
-                let element_types = Self::convert_type(element).flatten();
+                let element_types = Self::element_types_of(element);
                 Type::Array(Arc::new(element_types), SemanticLength(*len))
             }
             ast::Type::Integer(Signedness::Signed, bits) => Type::signed((*bits).into()),
@@ -475,6 +497,44 @@ impl<'a> FunctionContext<'a> {
 
         let mut i = 0;
         let reshaped_return_values = Self::map_type(result_type, |_| {
+            let result = results[i].into();
+            i += 1;
+            result
+        });
+        assert_eq!(i, results.len());
+        reshaped_return_values
+    }
+
+    /// Inserts a call whose results leave out every zero-sized value the result type calls for,
+    /// and puts those values back into the returned tree.
+    ///
+    /// This is how a vector hands an element back. A vector is laid out without its element
+    /// type's zero-sized fields (see [`Self::element_types_of`]), so an intrinsic that takes an
+    /// element out of one has no slot to take them from, and nothing it could report if it had.
+    /// They carry no information, so rebuilding them here loses nothing.
+    pub(super) fn insert_call_rebuilding_zero_sized_results(
+        &mut self,
+        function: ValueId,
+        arguments: Vec<ValueId>,
+        result_type: &ast::Type,
+        location: Location,
+    ) -> Values {
+        let result_types: Vec<Type> = Self::convert_type(result_type)
+            .flatten()
+            .into_iter()
+            .filter(|typ| !typ.is_zero_sized())
+            .collect();
+        let results = self
+            .builder
+            .set_location(location)
+            .insert_call(function, arguments, result_types)
+            .to_vec();
+
+        let mut i = 0;
+        let reshaped_return_values = Self::map_type(result_type, |typ| {
+            if typ.is_zero_sized() {
+                return self.zero_sized_value(typ).into();
+            }
             let result = results[i].into();
             i += 1;
             result
@@ -1050,12 +1110,28 @@ impl<'a> FunctionContext<'a> {
 
         new_value.for_each(|value| {
             let value = value.eval(self);
+            // A zero-sized field has no slot in the array to be written to, and no contents to
+            // write there. The bounds check above is all this assignment amounts to.
+            if self.builder.type_of_value(value).is_zero_sized() {
+                return;
+            }
             let mutable = false;
             array = self.builder.insert_array_set(array, index, value, mutable);
             // Unchecked add because this can't overflow (it would have overflowed when creating the array)
             index = self.builder.insert_binary(index, BinaryOp::Add { unchecked: true }, one);
         });
         array
+    }
+
+    /// A fresh value of a zero-sized type, which is always an empty array.
+    ///
+    /// Arrays and vectors are laid out without their elements' zero-sized fields (see
+    /// [`Self::element_types_of`]), so reading an element back out of one has to rebuild them.
+    /// Any two values of a zero-sized type hold the same nothing, so a new one is as good as
+    /// the one that was stored.
+    pub(super) fn zero_sized_value(&mut self, typ: Type) -> ValueId {
+        assert!(typ.is_zero_sized(), "zero_sized_value: {typ} is not zero-sized");
+        self.builder.insert_make_array(imbl::Vector::new(), typ)
     }
 
     fn element_size(&self, array: ValueId) -> FieldElement {
