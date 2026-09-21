@@ -734,6 +734,12 @@ fn collect_witnesses(opcode: &Opcode<FieldElement>, into: &mut BTreeSet<Witness>
     }
 }
 
+/// Whether tests are running in CI, by this repo\'s own convention (the
+/// `justfile`\'s `ci :=` line checks the same variable the same way).
+fn is_ci() -> bool {
+    matches!(std::env::var("CI").as_deref(), Ok("true") | Ok("1"))
+}
+
 /// Runs a complete SMT-LIB2 script. Used for the field-algebra lemmas the
 /// inverse-idiom rewrites rest on, which are written out in full rather than
 /// built by [`Encoding`]: they are statements about `ZZ_p`, not about any
@@ -761,9 +767,13 @@ fn run_cvc5(script: &str, dropped: usize) -> Verdict {
         .stderr(Stdio::null())
         .spawn()
     else {
+        // Locally a missing solver is a skip, so `cargo test` still works
+        // without it. On CI it is a failure: a misconfigured install step would
+        // otherwise leave every one of these tests green having checked nothing.
         assert!(
-            std::env::var("NOIR_REQUIRE_CVC5").is_err(),
-            "NOIR_REQUIRE_CVC5 is set but cvc5 is not on PATH"
+            !is_ci(),
+            "cvc5 is not on PATH in CI. The `Install cvc5` step (`just install-cvc5`) should have \
+             put it there — see .github/workflows/test-rust-workspace.yml"
         );
         eprintln!("skipping soundness check: cvc5 not found on PATH");
         return Verdict::Skipped;
