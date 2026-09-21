@@ -599,9 +599,14 @@ impl FunctionContext<'_> {
                 if context::array_index_needs_explicit_oob_check(runtime, &array_type) {
                     let logical_len = len.0;
                     // An array that needs an explicit check has no memory op to carry a payload
-                    // reporting the logical index and length, so a composite element's flattened
-                    // coordinates have to be replaced by a dynamic error on the check itself.
-                    let dynamic_error = if runtime.is_acir() && array_type.element_size().0 > 1 {
+                    // reporting the logical index and length, so the check reports them itself.
+                    // The index here is the logical one: the scaling by the element size happens
+                    // below.
+                    let dynamic_error = if context::acir_check_reports_its_own_coordinates(
+                        runtime,
+                        &array_type,
+                        logical_len,
+                    ) {
                         Some(self.out_of_bounds_error(index, logical_len))
                     } else {
                         None

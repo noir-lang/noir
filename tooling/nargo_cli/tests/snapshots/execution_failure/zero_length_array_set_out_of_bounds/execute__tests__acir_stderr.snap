@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-error: Assertion failed: Index out of bounds
+error: Assertion failed: Index out of bounds, array has size 4, but index was 4
   ┌─ src/main.nr:3:5
   │
 3 │     slots[idx] = [];

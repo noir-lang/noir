@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-error: Assertion failed: Index out of bounds
+error: Assertion failed: Index out of bounds, array has size 1, but index was 10
    ┌─ src/main.nr:10:5
    │
 10 │     arr[i].b

@@ -1621,9 +1621,10 @@ fn indexing_an_array_of_zero_sized_elements_checks_the_index() {
         v4 = make_array [] : [Field; 0]
         v5 = make_array [] : [Field; 0]
         v6 = make_array [] : [(); 4]
-        v7 = cast v0 as Field
-        range_check v7 to 2 bits, "Index out of bounds"
-        v8 = make_array [] : [Field; 0]
+        v30 = make_array b"Index out of bounds, array has size 4, but index was {}"
+        v32 = lt v0, u32 4
+        constrain v32 == u1 1, data v30, Field 1, v0
+        v35 = make_array [] : [Field; 0]
         return v1
     }
     "#);

@@ -162,15 +162,14 @@ impl FunctionQueueState {
 /// assertion payload ACIR generation attaches to the memory op, so the reported
 /// message matches what the user wrote without a second check.
 ///
-/// A one-element array of such a composite is the exception, because there its
-/// check determines the index rather than merely bounding it: zero is the only
-/// index in bounds, so the check resolves the access to a constant index and
-/// the memory op (and for a non-homogenous layout, the element type sizes array
-/// backing it) disappears, which is worth far more than the check costs.
-/// [`crate::ssa::ir::dfg::simplify`] draws that conclusion for arrays whose
-/// elements are single cells, where the index it sees is the logical one; for a
-/// composite element it sees a multiple of the element size plus a field
-/// offset, and the check is what supplies the conclusion instead.
+/// A one-element array is the exception, because there the check determines the
+/// index rather than merely bounding it: zero is the only index in bounds, so
+/// the check resolves the access to a constant index and the memory op (and for
+/// a non-homogenous layout, the element type sizes array backing it)
+/// disappears, which is worth far more than the check costs. It is also the
+/// only way such an access reports the index it was given: once the memory op
+/// is gone there is nothing left to carry a payload, and the check DIE would
+/// otherwise insert in its place carries a static message.
 pub(super) fn array_index_needs_explicit_oob_check(
     runtime: RuntimeType,
     array_type: &Type,
@@ -179,9 +178,33 @@ pub(super) fn array_index_needs_explicit_oob_check(
         unreachable!("ICE: expected an array to check the index of, found {array_type}")
     };
 
-    runtime.is_brillig()
-        || array_type.flattened_size().0 == 0
-        || (len.0 == 1 && array_type.element_size().0 > 1)
+    runtime.is_brillig() || array_type.flattened_size().0 == 0 || len.0 == 1
+}
+
+/// True if the explicit check `array[i]` gets from
+/// [`array_index_needs_explicit_oob_check`] must carry a payload reporting the logical index
+/// and length, rather than the static `"Index out of bounds"` message.
+///
+/// An explicit check stands in for a memory op, so nothing else is left to report the access.
+/// Whether it is worth paying for the payload — which rules out the cheaper `range_check`
+/// lowering in [`FunctionContext::codegen_access_check`] — depends on what the message would
+/// otherwise be:
+///
+/// - An element of exactly one cell leaves the index as the logical one, so the static message
+///   is what Brillig prints for the same program, and the two runtimes agree for free. An
+///   element of no cells or several does not, and only the payload can name the index the
+///   program used.
+/// - A one-element array is the exception to that: its check is the only report the access
+///   gets whatever the element looks like, since the memory op is resolved away (see
+///   [`array_index_needs_explicit_oob_check`]).
+///
+/// Brillig never takes a payload: its checks carry static messages throughout.
+pub(super) fn acir_check_reports_its_own_coordinates(
+    runtime: RuntimeType,
+    array_type: &Type,
+    logical_len: u32,
+) -> bool {
+    runtime.is_acir() && (array_type.element_size().0 != 1 || logical_len == 1)
 }
 
 impl<'a> FunctionContext<'a> {
@@ -1033,15 +1056,18 @@ impl<'a> FunctionContext<'a> {
                     Type::Array(_, len) => {
                         if array_index_needs_explicit_oob_check(runtime, array_type) {
                             let logical_len = len.0;
-                            // See the read path in `codegen_array_index`: only an explicit check
-                            // needs the dynamic error, and it is the check for an array with no
-                            // memory op to attach a payload to.
-                            let dynamic_error =
-                                if runtime.is_acir() && array_type.element_size().0 > 1 {
-                                    Some(self.out_of_bounds_error(index, logical_len))
-                                } else {
-                                    None
-                                };
+                            // See the read path in `codegen_array_index`: an explicit check
+                            // replaces the memory op that would have reported the index and
+                            // length, so it has to report them itself.
+                            let dynamic_error = if acir_check_reports_its_own_coordinates(
+                                runtime,
+                                array_type,
+                                logical_len,
+                            ) {
+                                Some(self.out_of_bounds_error(index, logical_len))
+                            } else {
+                                None
+                            };
                             let len = self.builder.numeric_constant(
                                 u128::from(logical_len),
                                 NumericType::length_type(),

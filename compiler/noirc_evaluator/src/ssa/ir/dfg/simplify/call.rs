@@ -585,7 +585,13 @@ fn simplify_vector_pop_back_or_front_for_zero_sized_vector(
     call_stack: CallStackId,
 ) -> Option<SimplifyResult> {
     let (length, vector) = zero_sized_vector_length_and_value(arguments, dfg)?;
-    constrain_vector_not_empty(length, "Cannot pop from an empty vector", dfg, block, call_stack);
+    constrain_vector_not_empty(
+        length,
+        "Attempt to pop from an empty vector",
+        dfg,
+        block,
+        call_stack,
+    );
     Some(decrement_zero_sized_vector_length(length, vector, dfg, block, call_stack))
 }
 
@@ -1641,7 +1647,7 @@ mod tests {
         acir(inline) fn main f0 {
           b0(v0: u32, v1: [()]):
             v3 = eq v0, u32 0
-            constrain v3 == u1 0, "Cannot pop from an empty vector"
+            constrain v3 == u1 0, "Attempt to pop from an empty vector"
             v6 = unchecked_sub v0, u32 1
             return v6, v1
         }
@@ -1662,7 +1668,7 @@ mod tests {
         acir(inline) fn main f0 {
           b0(v0: u32, v1: [()]):
             v3 = eq v0, u32 0
-            constrain v3 == u1 0, "Cannot pop from an empty vector"
+            constrain v3 == u1 0, "Attempt to pop from an empty vector"
             v6 = unchecked_sub v0, u32 1
             return v6, v1
         }
@@ -1683,7 +1689,7 @@ mod tests {
         brillig(inline) fn main f0 {
           b0(v0: u32, v1: [()]):
             v3 = eq v0, u32 0
-            constrain v3 == u1 0, "Cannot pop from an empty vector"
+            constrain v3 == u1 0, "Attempt to pop from an empty vector"
             v6 = unchecked_sub v0, u32 1
             return v6, v1
         }
@@ -1704,7 +1710,7 @@ mod tests {
         brillig(inline) fn main f0 {
           b0(v0: u32, v1: [()]):
             v3 = eq v0, u32 0
-            constrain v3 == u1 0, "Cannot pop from an empty vector"
+            constrain v3 == u1 0, "Attempt to pop from an empty vector"
             v6 = unchecked_sub v0, u32 1
             return v6, v1
         }
