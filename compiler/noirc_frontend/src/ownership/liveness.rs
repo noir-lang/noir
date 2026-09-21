@@ -12,9 +12,11 @@
 //! membership test. Branches join by union; loops iterate to a fixpoint so that the back edge
 //! is accounted for, and a loop's exit and jump edges are modelled explicitly:
 //!
-//! - a `while`'s condition has two successors, the body and the loop exit, so whatever is live
-//!   after the loop is live out of the condition. This is what makes a condition's read of a
-//!   variable that survives the loop a copy, even when the body reassigns that variable.
+//! - a `while` and a `for` are both tested at their header, so the header has two successors,
+//!   the body and the loop exit, and whatever is live after the loop is live at the header.
+//!   This is what makes a read that the body reassigns afterwards a copy rather than a move:
+//!   the exit edge reaches the post-loop reader without crossing that reassignment. A bare
+//!   `loop` has no header test and leaves only via `break`, so its header carries nothing.
 //! - a `break`/`continue` does not fall through: the set live before it is the set live at its
 //!   jump target, not the set live after it in the tree. A `break`/`continue` written in a
 //!   `while` condition targets the *enclosing* loop (consistent with SSA lowering and the
@@ -106,9 +108,11 @@ impl LivenessContext {
             }
             Expression::Cast(cast) => self.visit(&cast.lhs, live),
             Expression::For(for_expr) => self.visit_for(for_expr, live),
-            Expression::Loop(body) => self.visit_loop(body, None, live),
+            // A bare `loop` has no header test: it leaves only via `break`, which reads
+            // `break_live` directly, so nothing is live at its header on entry.
+            Expression::Loop(body) => self.loop_fixpoint(body, None, false, live),
             Expression::While(while_expr) => {
-                self.visit_loop(&while_expr.body, Some(&while_expr.condition), live)
+                self.loop_fixpoint(&while_expr.body, Some(&while_expr.condition), true, live)
             }
             Expression::If(if_expr) => self.visit_if(if_expr, live),
             Expression::Match(match_expr) => self.visit_match(match_expr, live),
@@ -292,7 +296,9 @@ impl LivenessContext {
 
     fn visit_for(&mut self, for_expr: &ast::For, live: Live) -> Live {
         // The ranges are evaluated once, before the loop, so they sit outside the fixpoint.
-        let mut header = self.loop_fixpoint(&for_expr.block, None, live.clone());
+        // `for` carries no condition *expression*, but `index < end_range` is still tested at
+        // the header, so the loop exits from there just as a `while` does.
+        let mut header = self.loop_fixpoint(&for_expr.block, None, true, live.clone());
         // The loop header defines the index variable on every iteration.
         header.remove(&for_expr.index_variable);
 
@@ -300,15 +306,6 @@ impl LivenessContext {
         let live = header.union(&live).copied().collect::<Live>();
         let live = self.visit(&for_expr.end_range, live);
         self.visit(&for_expr.start_range, live)
-    }
-
-    fn visit_loop(
-        &mut self,
-        body: &Expression,
-        condition: Option<&Expression>,
-        live: Live,
-    ) -> Live {
-        self.loop_fixpoint(body, condition, live)
     }
 
     /// Returns the set live at the loop's header, given the set live after the loop.
@@ -321,14 +318,16 @@ impl LivenessContext {
         &mut self,
         body: &Expression,
         condition: Option<&Expression>,
+        exits_from_header: bool,
         live_after: Live,
     ) -> Live {
         let recording = std::mem::replace(&mut self.recording, false);
 
-        // A `while`/`for` exits from its header, so the header starts out with at least
-        // whatever the code after the loop needs. A bare `loop` exits only via `break`, which
-        // reads `break_live` directly.
-        let mut header = if condition.is_some() { live_after.clone() } else { Live::default() };
+        // When the loop can exit from its header, the header's successors include the code
+        // after the loop, so whatever that code needs is live at the header. This is what keeps
+        // a read inside the body live when the body reassigns the variable afterwards: the exit
+        // edge reaches the post-loop reader without passing that reassignment again.
+        let mut header = if exits_from_header { live_after.clone() } else { Live::default() };
         loop {
             let next = self.visit_loop_once(body, condition, &header, &live_after);
             if next.is_subset(&header) {

@@ -132,6 +132,79 @@ fn does_not_move_into_loop_that_repeats() {
     ");
 }
 
+// A `for` is tested at its header, so the loop exits from there. The body's last read of `x`
+// therefore reaches `use_var(x)` after the loop along the exit edge, without crossing
+// `x = [4, 5, 6]` a second time, and must be copied even though the reassignment precedes it.
+#[test]
+fn copies_read_after_reassignment_in_for_body_when_read_after_the_loop() {
+    let src = "
+    unconstrained fn main(n: u32) {
+        let mut x = [1, 2, 3];
+        for _i in 0..n {
+            x = [4, 5, 6];
+            use_var(x);
+        }
+        use_var(x);
+    }
+
+    fn use_var<T>(_x: T) {}
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(n$l0: u32) -> () {
+        let mut x$l1 = [1, 2, 3];
+        for _i$l2 in 0 .. n$l0 {
+            x$l1 = [4, 5, 6];
+            use_var$f1(x$l1.clone());
+        };
+        use_var$f1(x$l1);
+    }
+    unconstrained fn use_var$f1(_x$l3: [Field; 3]) -> () {
+    }
+    ");
+}
+
+// `continue` in a `for` body jumps to the header, which can exit the loop, so the same copy is
+// required on a read the `continue` skips past the reassignment of.
+#[test]
+fn copies_read_before_continue_in_for_body_when_read_after_the_loop() {
+    let src = "
+    unconstrained fn main(n: u32, c: bool) {
+        let mut x = [1, 2, 3];
+        for _i in 0..n {
+            x = [4, 5, 6];
+            use_var(x);
+            if c {
+                continue;
+            }
+            x = [7, 8, 9];
+        }
+        use_var(x);
+    }
+
+    fn use_var<T>(_x: T) {}
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(n$l0: u32, c$l1: bool) -> () {
+        let mut x$l2 = [1, 2, 3];
+        for _i$l3 in 0 .. n$l0 {
+            x$l2 = [4, 5, 6];
+            use_var$f1(x$l2.clone());;
+            if c$l1 {
+                continue
+            };
+            x$l2 = [7, 8, 9]
+        };
+        use_var$f1(x$l2);
+    }
+    unconstrained fn use_var$f1(_x$l4: [Field; 3]) -> () {
+    }
+    ");
+}
+
 #[test]
 fn can_move_within_loop() {
     let src = "
