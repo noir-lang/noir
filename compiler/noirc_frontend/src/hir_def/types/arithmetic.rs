@@ -536,6 +536,92 @@ mod tests {
         assert_canonicalization_preserved_value(&expr, &[(&m, 5), (&n, 3)]);
     }
 
+    /// `Type::new_infix_expr` cancels the repeated term of `N op (M op' N)` and of
+    /// `(M op' N) op N` down to `M` when the inner expression carries the `inversion`
+    /// provenance flag. These pin down which operator pairs may do that.
+    mod new_infix_expr {
+        use noirc_errors::Location;
+        use test_case::test_case;
+
+        use super::{u32_generic, u32t};
+        use crate::hir_def::types::{
+            BinaryTypeOperator,
+            BinaryTypeOperator::{Addition, Division, Multiplication, Subtraction},
+            Type,
+        };
+
+        /// Build `lhs op rhs` carrying the `inversion` provenance flag: the flag records that
+        /// the operator was manufactured by unification rearranging an equation (`b = a / y`
+        /// solved as `y = b / a`), so the division it holds never truncated anything.
+        fn inverted(lhs: &Type, op: BinaryTypeOperator, rhs: &Type) -> Type {
+            Type::inverted_infix_expr(Box::new(lhs.clone()), op, Box::new(rhs.clone()))
+        }
+
+        /// Build `lhs op rhs` directly, bypassing the cancellation `Type::infix_expr` applies.
+        fn raw(lhs: &Type, op: BinaryTypeOperator, rhs: &Type) -> Type {
+            Type::InfixExpr(Box::new(lhs.clone()), op, Box::new(rhs.clone()), false)
+        }
+
+        /// `N + (M - N)` is `M`, and `N * (M / N)` is `M` too because the division that the
+        /// `inversion` flag marks never truncated. These are the cancellations the
+        /// constructor exists for.
+        #[test_case(Addition, Subtraction ; "n_plus_m_minus_n")]
+        #[test_case(Multiplication, Division ; "n_times_m_div_n")]
+        fn cancels_an_inverted_rhs(op: BinaryTypeOperator, inner_op: BinaryTypeOperator) {
+            let m = u32_generic(0, "M");
+            let n = u32_generic(1, "N");
+
+            let expr =
+                Type::infix_expr(Box::new(n.clone()), op, Box::new(inverted(&m, inner_op, &n)));
+            assert_eq!(expr, m, "N {op} (M {inner_op} N) should cancel to M");
+        }
+
+        /// `N - (M + N)` is `-M` and `N / (M * N)` is `1 / M`, so neither cancels to `M`. The
+        /// `inversion` provenance licenses recovering an exact value in the `*`-undoes-`/`
+        /// direction only; it says nothing about these mirrored ones.
+        #[test_case(Subtraction, Addition ; "n_minus_m_plus_n")]
+        #[test_case(Division, Multiplication ; "n_div_m_times_n")]
+        fn does_not_cancel_an_inverted_rhs(op: BinaryTypeOperator, inner_op: BinaryTypeOperator) {
+            let m = u32_generic(0, "M");
+            let n = u32_generic(1, "N");
+
+            let expr =
+                Type::infix_expr(Box::new(n.clone()), op, Box::new(inverted(&m, inner_op, &n)));
+            assert_ne!(expr, m, "the two `N` terms must not cancel");
+
+            let uncancelled = raw(&n, op, &raw(&m, inner_op, &n));
+
+            let Type::NamedGeneric(m_generic) = &m else { unreachable!() };
+            let Type::NamedGeneric(n_generic) = &n else { unreachable!() };
+            m_generic.type_var.bind(u32t(5));
+            n_generic.type_var.bind(u32t(3));
+
+            // At `M = 5, N = 3`: `3 - (5 + 3)` has no `u32` value and `3 / (5 * 3)` is `0`,
+            // where cancelling to `M` would give `5` for both.
+            let location = Location::dummy();
+            assert_eq!(
+                expr.evaluate_to_u32(location).ok(),
+                uncancelled.evaluate_to_u32(location).ok(),
+                "{expr} does not have the same value as {uncancelled}"
+            );
+        }
+
+        /// With the repeated term on the left there is no mirrored direction to get wrong:
+        /// `(M - N) + N`, `(M + N) - N`, `(M / N) * N` and `(M * N) / N` are all `M`.
+        #[test_case(Addition, Subtraction ; "m_minus_n_plus_n")]
+        #[test_case(Subtraction, Addition ; "m_plus_n_minus_n")]
+        #[test_case(Multiplication, Division ; "m_div_n_times_n")]
+        #[test_case(Division, Multiplication ; "m_times_n_div_n")]
+        fn cancels_an_inverted_lhs(op: BinaryTypeOperator, inner_op: BinaryTypeOperator) {
+            let m = u32_generic(0, "M");
+            let n = u32_generic(1, "N");
+
+            let expr =
+                Type::infix_expr(Box::new(inverted(&m, inner_op, &n)), op, Box::new(n.clone()));
+            assert_eq!(expr, m, "(M {inner_op} N) {op} N should cancel to M");
+        }
+    }
+
     #[test]
     fn instantiate_after_canonicalize_smoke_test() {
         let field_element_kind = Kind::numeric(Type::FieldElement);

@@ -3,7 +3,7 @@
   "contributors": [
     "The Noir Team <team@noir-lang.org>"
   ],
-  "version": "1.0.0-rc.2",
+  "version": "1.0.0-rc.3",
   "license": "(MIT OR Apache-2.0)",
   "main": "dist/main.js",
   "types": "./dist/types/src/index.d.cts",
@@ -56,7 +56,7 @@
     "@web/dev-server-esbuild": "^2.0.0",
     "@web/test-runner": "^1.0.0",
     "@web/test-runner-playwright": "^1.0.0",
-    "adm-zip": "^0.6.0",
+    "adm-zip": "^0.6.1",
     "assert": "^2.1.0",
     "browserify-fs": "^1.0.0",
     "chai": "^6.2.2",

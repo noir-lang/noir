@@ -1919,14 +1919,24 @@ impl Type {
         // `y` is `rhs` here) then we can simplify this to just `b` because there wasn't an actual
         // division in the original expression, so multiplying it back is just going back to the
         // original `y`
+        //
+        // `N op (M op' N)` cancels to `M` only for the pairs `(+, -)` and `(*, /)`, which is why
+        // this matches on the operator pair instead of testing `op.approx_inverse()`: that test
+        // is symmetric and would also admit the mirrored directions, where the identity is a
+        // different one — `N - (M + N)` is `-M`, and `N / (M * N)` is `1 / M`.
         if let Type::InfixExpr(rhs_lhs, rhs_op, rhs_rhs, true) = &*rhs
-            && op.approx_inverse() == Some(*rhs_op)
+            && matches!(
+                (op, *rhs_op),
+                (BinaryTypeOperator::Addition, BinaryTypeOperator::Subtraction)
+                    | (BinaryTypeOperator::Multiplication, BinaryTypeOperator::Division)
+            )
             && lhs == *rhs_rhs
         {
             return *rhs_lhs.clone();
         }
 
-        // Same thing but on the other side.
+        // Same thing but on the other side. Here every pair `op.approx_inverse()` admits does
+        // cancel: `(M - N) + N`, `(M + N) - N`, `(M / N) * N` and `(M * N) / N` are all `M`.
         if let Type::InfixExpr(lhs_lhs, lhs_op, lhs_rhs, true) = &*lhs
             && op.approx_inverse() == Some(*lhs_op)
             && rhs == *lhs_rhs
