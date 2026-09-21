@@ -16,9 +16,11 @@
 //! arrays can also be shared by value and we want to avoid clones when possible. This pass
 //! clones arrays (increments their reference counts) in the following situations which roughly
 //! correspond to where a `Copy` variable in Rust would be copied:
-//! - Variables are copied on each use, except for the last use where they are moved.
-//!   - If a variable's last use is in a loop that it was not defined in, it is copied instead of moved,
-//!     except if the last use is also reassigning the variable, killing the reference to its previous value.
+//! - Variables are copied on each use, except where the variable is dead immediately after
+//!   that use, in which case it is moved.
+//!   - A use inside a loop is reached again by the loop's back edge, so it is copied unless the
+//!     loop reassigns the variable between that use and every later one — including the use at
+//!     the top of the next iteration, and the one the loop's exit edge leads to.
 //!   - The last use analysis isn't sophisticated on struct fields. It will count `a.b` and `a.c`
 //!     both as uses of `a`. Even if both could conceptually be moved, only the last usage will be
 //!     moved and the first (say `a.b`) will still be cloned.
@@ -32,9 +34,9 @@
 //!     - E.g. `self.b.c` is compiled as `self.b.c.clone()` over `self.clone().b.c`
 //!   - Array indexing `a[i]` will avoid cloning `a`. The extracted element is always cloned.
 //!
-//! Most of this logic is contained in this file except for the last use analysis which is in the
-//! `last_uses` module. That module contains a separate pass run on each function before this pass
-//! to find the last use of each local variable to identify where moves can occur.
+//! Most of this logic is contained in this file except for the liveness analysis which is in the
+//! `liveness` module. That module contains a separate pass run on each function before this pass
+//! to find which uses of each local variable can be moves.
 use crate::{
     ast::UnaryOp,
     hir_def::expr::Constructor,
@@ -47,7 +49,7 @@ use crate::{
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 mod clone_elision;
-mod last_uses;
+mod liveness;
 mod suboptimal_cloning_tests;
 mod tests;
 
@@ -106,7 +108,7 @@ impl Context<'_> {
             return;
         }
 
-        self.variables_to_move = Self::find_last_uses_of_variables(function);
+        self.variables_to_move = liveness::find_variables_to_move(function);
         self.handle_expression(&mut function.body);
     }
 
