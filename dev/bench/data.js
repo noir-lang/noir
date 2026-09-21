@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789990913352,
+  "lastUpdate": 1789991126275,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22915,48 +22915,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "43e060d72ba40c438cf5dc5d65128bb8a0da2ad3",
-          "message": "fix(ssa): follow alias-returning calls when invalidating constant folding's array cache (#13697)",
-          "timestamp": "2026-09-14T14:00:35Z",
-          "tree_id": "ba4523b6f416d03802947fceee754c174cea1b15",
-          "url": "https://github.com/noir-lang/noir/commit/43e060d72ba40c438cf5dc5d65128bb8a0da2ad3"
-        },
-        "date": 1789395748462,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 164966,
-            "range": "± 607",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 134778,
-            "range": "± 372",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2124779,
-            "range": "± 6229",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "dd4c67c1778f8d0fec057d705d67b43e8ee6a606",
           "message": "fix: do not cancel the repeated term of `N - (M + N)` (#13661)",
@@ -24999,6 +24957,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2646557,
             "range": "± 1948",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d2dbc56c73a80487ed44204a75b9a0d4091b3c44",
+          "message": "chore: raise `private-kernel-inner` execution memory limit to 350MB (#13775)",
+          "timestamp": "2026-09-21T12:41:59+01:00",
+          "tree_id": "468c195168b000bc1050474b1c13669aa4efcaa5",
+          "url": "https://github.com/noir-lang/noir/commit/d2dbc56c73a80487ed44204a75b9a0d4091b3c44"
+        },
+        "date": 1789991062902,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 124521,
+            "range": "± 3042",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 103876,
+            "range": "± 3766",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 1726601,
+            "range": "± 34842",
             "unit": "ns/iter"
           }
         ]
