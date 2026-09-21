@@ -117,7 +117,10 @@ impl NodeInterner {
             TraitLookupMode::Default,
         );
         match existing {
+            // `NoImplFound` is the trait having no impl of any kind yet, which is the case for
+            // a trait whose own where clause names it, resolved before any of its methods.
             Err(ImplSearchErrorKind::NoMatching(_))
+            | Err(ImplSearchErrorKind::NoImplFound(_))
             | Err(ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType) => {
                 // The incoming bound may describe an associated type inherited from a parent (or
                 // grandparent) trait, supplied as a fresh variable that does not unify with the
@@ -141,13 +144,22 @@ impl NodeInterner {
                 ));
                 Ok(true)
             }
-            Ok(_) => {
+            Ok((matched, _, _)) => {
                 // A parent trait constraint may provide fresh variables for associated types we
                 // already have an assumed entry for; reconcile them so both share one binding.
+                // Merge into the entry the lookup matched: the same object type may carry
+                // assumed impls of this trait with other ordered generics (`T: Foo<A>` next to
+                // `T: Foo<B>`), whose associated types are unrelated to this bound's.
+                let matched_ordered: &[Type] = match &matched {
+                    TraitImplKind::Assumed { trait_generics, .. } => &trait_generics.ordered,
+                    TraitImplKind::Normal(_) | TraitImplKind::Prepared(..) => {
+                        &trait_generics.ordered
+                    }
+                };
                 if self.merge_named_generics_into_assumed_impl(
                     trait_id,
                     &object_type,
-                    None,
+                    Some(matched_ordered),
                     &trait_generics.named,
                 ) {
                     Ok(true)
@@ -156,8 +168,7 @@ impl NodeInterner {
                 }
             }
             Err(
-                error @ (ImplSearchErrorKind::NoImplFound(_)
-                | ImplSearchErrorKind::MultipleMatching(_)
+                error @ (ImplSearchErrorKind::MultipleMatching(_)
                 | ImplSearchErrorKind::RecursionLimitReached),
             ) => Err(error),
         }
