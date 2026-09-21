@@ -90,7 +90,7 @@
 //! constrain v0 == u1 0, "Index out of bounds"
 //! v2 = allocate -> &mut Field
 //! store Field 0 at v2
-//! v3 <- load v2 -> Field
+//! v3 = load v2 -> Field
 //! v4 = add v3, Field 2
 //! ```
 //!
