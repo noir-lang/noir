@@ -2196,6 +2196,83 @@ fn while_condition_read_is_cloned_when_reused_in_body() {
     ");
 }
 
+// The loop's exit edge leaves from the `while` condition, so the final condition evaluation is
+// followed by no reassignment: the buffer it consumed is the one live after the loop. A body that
+// unconditionally reassigns `x` therefore does not license moving the condition's read, even
+// though it does license moving a read in the body.
+#[test]
+fn while_condition_read_is_cloned_when_body_reassigns_without_reading() {
+    let src = "
+    unconstrained fn main() -> pub Field {
+        let mut x = [1, 2, 3];
+        while peek(x) {
+            x = [4, 5, 6];
+        }
+        x[0]
+    }
+
+    fn peek(_x: [Field; 3]) -> bool { false }
+    ";
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> pub Field {
+        let mut x$l0 = [1, 2, 3];
+        while peek$f1(x$l0.clone()) {
+            x$l0 = [4, 5, 6]
+        };
+        x$l0[0]
+    }
+    unconstrained fn peek$f1(_x$l1: [Field; 3]) -> bool {
+        false
+    }
+    ");
+}
+
+// A read that follows the reassignment must clone when another read precedes it: the preceding
+// read runs again on the next iteration and would observe the buffer the following read moved
+// away. The reassignment sits between the two reads within one iteration, but not across the
+// back edge. No `while` is needed for this — the back edge is what matters, not the exit edge.
+#[test]
+fn read_after_reassignment_in_loop_is_cloned_when_a_read_precedes_it() {
+    let src = "
+    unconstrained fn main(n: u32) -> pub Field {
+        let mut x = [1, 2, 3];
+        let mut acc = 0;
+        for _j in 0..n {
+            acc += peek(x);
+            x = [4, 5, 6];
+            acc += peek(x);
+        }
+        acc
+    }
+
+    fn peek(x: [Field; 3]) -> Field { x[0] }
+    ";
+    let program = get_monomorphized(src).unwrap();
+    // The read before the reassignment is moved; the one after it is cloned.
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(n$l0: u32) -> pub Field {
+        let mut x$l1 = [1, 2, 3];
+        let mut acc$l2 = 0;
+        for _j$l3 in 0 .. n$l0 {
+            {
+                let op_rhs_0$l4 = peek$f1(x$l1);
+                acc$l2 = (acc$l2 + op_rhs_0$l4)
+            };
+            x$l1 = [4, 5, 6];
+            {
+                let op_rhs_1$l5 = peek$f1(x$l1.clone());
+                acc$l2 = (acc$l2 + op_rhs_1$l5)
+            }
+        };
+        acc$l2
+    }
+    unconstrained fn peek$f1(x$l6: [Field; 3]) -> Field {
+        x$l6[0]
+    }
+    ");
+}
+
 // A `break` in a `while` condition targets the *enclosing* loop, not the `while`. Here the inner
 // `while`'s condition can `break` out of the outer loop before the assignment `x = if ...` commits,
 // so the old value of `x` outlives the loop. `let mut y = x` must therefore clone: otherwise `y`
