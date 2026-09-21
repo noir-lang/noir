@@ -139,7 +139,8 @@ pub(super) struct Encoding {
 impl Encoding {
     pub(super) fn new(opcodes: &[Opcode<FieldElement>]) -> Result<Self, WidthExceedsField> {
         let ranges = collect_ranges(opcodes);
-        let width = required_width(opcodes, &ranges)?;
+        let bounds = infer_bounds(opcodes, &ranges);
+        let width = required_width(opcodes, &bounds)?;
 
         let mut witnesses = BTreeSet::new();
         let mut lines = Vec::new();
@@ -151,7 +152,7 @@ impl Encoding {
                     // Only an expression whose every witness is bounded has a
                     // faithful bitvector form; the rest are dropped, which can
                     // only admit more witnesses.
-                    if expression_bound(expression, &ranges).is_err() {
+                    if expression_bound(expression, &bounds).is_err() {
                         dropped += 1;
                         continue;
                     }
@@ -254,12 +255,98 @@ fn collect_ranges(opcodes: &[Opcode<FieldElement>]) -> BTreeMap<Witness, u32> {
     ranges
 }
 
+/// The largest absolute value each witness can hold. Range constraints seed
+/// this, and it then propagates through defining equations: when an
+/// `AssertZero` pins one otherwise-unknown witness to a combination of known
+/// ones, that witness inherits their bound. Without the propagation step the
+/// return witness of a compiled circuit is unbounded — it is only ever tied to
+/// a range-constrained value by an equation — so the equation defining it would
+/// be dropped and the query would admit witnesses the real circuit rejects.
+fn infer_bounds(
+    opcodes: &[Opcode<FieldElement>],
+    ranges: &BTreeMap<Witness, u32>,
+) -> BTreeMap<Witness, BigUint> {
+    let mut bounds: BTreeMap<Witness, BigUint> = ranges
+        .iter()
+        .map(|(witness, bits)| (*witness, (BigUint::from(1_u32) << bits) - 1_u32))
+        .collect();
+
+    loop {
+        let mut progress = false;
+        for opcode in opcodes {
+            let Opcode::AssertZero(expression) = opcode else { continue };
+            let Some(unknown) = sole_unknown(expression, &bounds) else { continue };
+
+            // `unknown` is `-(everything else)`, so it cannot exceed the sum of
+            // the magnitudes of the rest.
+            let mut rest = magnitude(&expression.q_c);
+            let mut derivable = true;
+            for (coefficient, lhs, rhs) in &expression.mul_terms {
+                match (bounds.get(lhs), bounds.get(rhs)) {
+                    (Some(lhs), Some(rhs)) => rest += magnitude(coefficient) * lhs * rhs,
+                    _ => derivable = false,
+                }
+            }
+            for (coefficient, witness) in &expression.linear_combinations {
+                if *witness == unknown {
+                    continue;
+                }
+                match bounds.get(witness) {
+                    Some(bound) => rest += magnitude(coefficient) * bound,
+                    None => derivable = false,
+                }
+            }
+            if derivable && bounds.insert(unknown, rest).is_none() {
+                progress = true;
+            }
+        }
+        if !progress {
+            return bounds;
+        }
+    }
+}
+
+/// The one unbounded witness an expression pins down, if there is exactly one
+/// and it appears as a lone `±1`-weighted linear term. Any other shape leaves
+/// its value underdetermined by this equation.
+fn sole_unknown(
+    expression: &Expression<FieldElement>,
+    bounds: &BTreeMap<Witness, BigUint>,
+) -> Option<Witness> {
+    let mut candidate = None;
+    for (_, witness) in &expression.linear_combinations {
+        if bounds.contains_key(witness) {
+            continue;
+        }
+        if candidate.is_some_and(|existing| existing != *witness) {
+            return None;
+        }
+        candidate = Some(*witness);
+    }
+    let candidate = candidate?;
+
+    let appearances = expression
+        .linear_combinations
+        .iter()
+        .filter(|(_, witness)| *witness == candidate)
+        .collect::<Vec<_>>();
+    let [(coefficient, _)] = appearances[..] else { return None };
+    if magnitude(coefficient) != BigUint::from(1_u32) {
+        return None;
+    }
+    // A witness inside a product is not pinned down by this equation: the
+    // factor it multiplies may be zero.
+    let in_a_product =
+        expression.mul_terms.iter().any(|(_, lhs, rhs)| *lhs == candidate || *rhs == candidate);
+    (!in_a_product).then_some(candidate)
+}
+
 /// A width at which no `AssertZero` expression can reach the modulus, so that
 /// reducing modulo `2^W` and reducing modulo `p` agree on every value the
 /// opcodes can produce.
 fn required_width(
     opcodes: &[Opcode<FieldElement>],
-    ranges: &BTreeMap<Witness, u32>,
+    bounds: &BTreeMap<Witness, BigUint>,
 ) -> Result<u32, WidthExceedsField> {
     let mut largest = BigUint::from(1_u32);
     for opcode in opcodes {
@@ -267,7 +354,7 @@ fn required_width(
             Opcode::AssertZero(expression) => {
                 // An expression that cannot be bounded gets dropped rather than
                 // encoded, so it does not constrain the width either.
-                if let Ok(bound) = expression_bound(expression, ranges) {
+                if let Ok(bound) = expression_bound(expression, bounds) {
                     largest = largest.max(bound);
                 }
             }
@@ -297,11 +384,10 @@ fn required_width(
 /// constraints, treating each coefficient as its signed magnitude.
 fn expression_bound(
     expression: &Expression<FieldElement>,
-    ranges: &BTreeMap<Witness, u32>,
+    bounds: &BTreeMap<Witness, BigUint>,
 ) -> Result<BigUint, Unbounded> {
     let bound = |witness: &Witness| -> Result<BigUint, Unbounded> {
-        let bits = ranges.get(witness).ok_or(Unbounded)?;
-        Ok((BigUint::from(1_u32) << bits) - 1_u32)
+        bounds.get(witness).cloned().ok_or(Unbounded)
     };
 
     let mut total = magnitude(&expression.q_c);

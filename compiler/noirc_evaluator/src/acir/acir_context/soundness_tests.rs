@@ -19,8 +19,11 @@ use acvm::acir::circuit::opcodes::{BlackBoxFuncCall, FunctionInput};
 use acvm::acir::native_types::Witness;
 use acvm::{AcirField, FieldElement};
 
+use super::generated_acir::GeneratedAcir;
 use super::soundness::{Encoding, WidthExceedsField};
 use super::{AcirContext, BrilligStdLib};
+use crate::brillig::BrilligOptions;
+use crate::ssa::ssa_gen::Ssa;
 
 /// The opcodes `euclidean_division_var` emits for `a / b` on `bit_size`-bit
 /// unsigned operands, with the predicate active, plus the witnesses for
@@ -190,5 +193,67 @@ fn bound_constraint_with_offset_really_bounds() {
     encoding.declare(rhs_witness);
 
     let goal = format!("(bvuge w{} w{})", lhs_witness.0, rhs_witness.0);
+    encoding.check(&goal).assert_sound();
+}
+
+/// Compiles SSA source through the real lowering (`Ssa::to_brillig` +
+/// `Ssa::into_acir`) and returns the ACIR of its single function. Nothing in
+/// the harness decides what gets emitted; the opcodes are whatever the compiler
+/// produced for that program.
+fn compile(src: &str) -> GeneratedAcir<FieldElement> {
+    let ssa = Ssa::from_str(src).unwrap();
+    let options = BrilligOptions::default();
+    let brillig = ssa.to_brillig(&options);
+    let (mut functions, ..) = ssa.into_acir(&brillig, &options).unwrap();
+    assert_eq!(functions.len(), 1, "multiple ACIR functions are out of scope");
+    functions.remove(0)
+}
+
+/// The whole path, for a whole program: `u8` division lowered by the real
+/// pipeline, then checked against `bvudiv`/`bvurem` over the circuit's declared
+/// inputs and return value.
+#[test]
+fn unsigned_division_from_ssa_is_sound() {
+    let acir = compile(
+        "
+        acir(inline) fn main f0 {
+          b0(v0: u8, v1: u8):
+            v2 = div v0, v1
+            return v2
+        }
+        ",
+    );
+
+    let [lhs, rhs] = acir.input_witnesses[..] else { panic!("expected two inputs") };
+    let [result] = acir.return_witnesses[..] else { panic!("expected one return value") };
+
+    let mut encoding = Encoding::new(&acir.opcodes).expect("the circuit should be encodable");
+    for witness in [lhs, rhs, result] {
+        encoding.declare(witness);
+    }
+    let goal = format!("(not (= w{} (bvudiv w{} w{})))", result.0, lhs.0, rhs.0);
+    encoding.check(&goal).assert_sound();
+}
+
+#[test]
+fn unsigned_remainder_from_ssa_is_sound() {
+    let acir = compile(
+        "
+        acir(inline) fn main f0 {
+          b0(v0: u8, v1: u8):
+            v2 = mod v0, v1
+            return v2
+        }
+        ",
+    );
+
+    let [lhs, rhs] = acir.input_witnesses[..] else { panic!("expected two inputs") };
+    let [result] = acir.return_witnesses[..] else { panic!("expected one return value") };
+
+    let mut encoding = Encoding::new(&acir.opcodes).expect("the circuit should be encodable");
+    for witness in [lhs, rhs, result] {
+        encoding.declare(witness);
+    }
+    let goal = format!("(not (= w{} (bvurem w{} w{})))", result.0, lhs.0, rhs.0);
     encoding.check(&goal).assert_sound();
 }
