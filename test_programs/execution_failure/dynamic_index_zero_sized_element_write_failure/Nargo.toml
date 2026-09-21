@@ -1,0 +1,6 @@
+[package]
+name = "dynamic_index_zero_sized_element_write_failure"
+type = "bin"
+authors = [""]
+
+[dependencies]

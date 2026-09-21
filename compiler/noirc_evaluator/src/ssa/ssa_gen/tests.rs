@@ -1534,3 +1534,106 @@ fn brillig_pop_front_empty_check_uses_the_vector_pop_message() {
          generated SSA still reads:\n{ssa}"
     );
 }
+
+#[test]
+fn array_is_laid_out_without_its_elements_zero_sized_fields() {
+    // `S` has two fields, but `a` occupies no cells, so the array holds one field per element.
+    // Element `i` of such an array starts at `i`, not at `2 * i`, which is what lets the memory
+    // operation's own bounds check report the index and length the program wrote.
+    let src = "
+    struct S { a: [Field; 0], b: Field }
+
+    fn main(i: u32, x: Field) -> pub Field {
+        let arr = [S { a: [], b: x }, S { a: [], b: x + 1 }];
+        arr[i].b
+    }
+    ";
+    let ssa = get_initial_ssa(src).unwrap();
+    assert_ssa_snapshot!(ssa, @r"
+    acir(inline) fn main f0 {
+      b0(v0: u32, v1: Field):
+        v2 = make_array [] : [Field; 0]
+        v3 = make_array [] : [Field; 0]
+        v5 = add v1, Field 1
+        v6 = make_array [v2, v1, v3, v5] : [([Field; 0], Field); 2]
+        v8 = unchecked_mul v0, u32 2
+        v9 = array_get v6, index v8 -> [Field; 0]
+        v11 = unchecked_add v8, u32 1
+        v12 = array_get v6, index v11 -> Field
+        return v12
+    }
+    ");
+}
+
+#[test]
+fn writing_a_zero_sized_field_of_an_array_element_checks_the_index() {
+    // The write itself stores nothing, so the index it was written at is only checked if the
+    // surrounding access is: an array whose elements do occupy cells checks it with the memory
+    // operation that writes the rest of the element.
+    let src = "
+    struct S { a: [Field; 0], b: Field }
+
+    fn main(i: u32, x: Field) -> pub Field {
+        let mut arr = [S { a: [], b: x }, S { a: [], b: x + 1 }];
+        arr[i].a = [];
+        arr[0].b
+    }
+    ";
+    let ssa = get_initial_ssa(src).unwrap();
+    assert_ssa_snapshot!(ssa, @r"
+    acir(inline) fn main f0 {
+      b0(v0: u32, v1: Field):
+        v2 = make_array [] : [Field; 0]
+        v3 = make_array [] : [Field; 0]
+        v5 = add v1, Field 1
+        v6 = make_array [v2, v1, v3, v5] : [([Field; 0], Field); 2]
+        v7 = allocate -> &mut [([Field; 0], Field); 2]
+        store v6 at v7
+        v8 = make_array [] : [Field; 0]
+        v9 = load v7 -> [([Field; 0], Field); 2]
+        v11 = unchecked_mul v0, u32 2
+        v12 = array_get v9, index v11 -> [Field; 0]
+        v14 = unchecked_add v11, u32 1
+        v15 = array_get v9, index v14 -> Field
+        v16 = unchecked_mul v0, u32 2
+        v17 = array_set v9, index v16, value v8
+        v18 = unchecked_add v16, u32 1
+        v19 = array_set v17, index v18, value v15
+        v20 = unchecked_add v18, u32 1
+        store v19 at v7
+        v21 = load v7 -> [([Field; 0], Field); 2]
+        v23 = array_get v21, index u32 0 -> [Field; 0]
+        v24 = array_get v21, index u32 1 -> Field
+        return v24
+    }
+    ");
+}
+
+#[test]
+fn indexing_an_array_of_zero_sized_elements_checks_the_index() {
+    // Every element occupies no cells, so there is no memory operation to carry the bounds
+    // check and an explicit one is emitted against the array's length instead.
+    let src = "
+    fn main(i: u32, x: Field) -> pub Field {
+        let arr: [[Field; 0]; 4] = [[], [], [], []];
+        let _ = arr[i];
+        x
+    }
+    ";
+    let ssa = get_initial_ssa(src).unwrap();
+    assert_ssa_snapshot!(ssa, @r#"
+    acir(inline) fn main f0 {
+      b0(v0: u32, v1: Field):
+        v2 = make_array [] : [Field; 0]
+        v3 = make_array [] : [Field; 0]
+        v4 = make_array [] : [Field; 0]
+        v5 = make_array [] : [Field; 0]
+        v6 = make_array [v2, v3, v4, v5] : [[Field; 0]; 4]
+        v7 = cast v0 as Field
+        range_check v7 to 2 bits, "Index out of bounds"
+        v8 = array_get v6, index v0 -> [Field; 0]
+        return v1
+    }
+    "#);
+}
+
