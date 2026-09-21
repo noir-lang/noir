@@ -205,6 +205,50 @@ fn copies_read_before_continue_in_for_body_when_read_after_the_loop() {
     ");
 }
 
+// `continue` reaches the loop header the same way falling off the end of the body does, so a read
+// it carries past a later reassignment is still live and must be copied.
+#[test]
+fn copies_read_before_continue_in_while_body_when_read_after_the_loop() {
+    let src = "
+    unconstrained fn main(n: u32, c: bool) {
+        let mut x = [1, 2, 3];
+        let mut k = 0;
+        while k < n {
+            k += 1;
+            x = [4, 5, 6];
+            use_var(x);
+            if c {
+                continue;
+            }
+            x = [7, 8, 9];
+        }
+        use_var(x);
+    }
+
+    fn use_var<T>(_x: T) {}
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(n$l0: u32, c$l1: bool) -> () {
+        let mut x$l2 = [1, 2, 3];
+        let mut k$l3 = 0;
+        while (k$l3 < n$l0) {
+            k$l3 = (k$l3 + 1);
+            x$l2 = [4, 5, 6];
+            use_var$f1(x$l2.clone());;
+            if c$l1 {
+                continue
+            };
+            x$l2 = [7, 8, 9]
+        };
+        use_var$f1(x$l2);
+    }
+    unconstrained fn use_var$f1(_x$l4: [Field; 3]) -> () {
+    }
+    ");
+}
+
 #[test]
 fn can_move_within_loop() {
     let src = "
