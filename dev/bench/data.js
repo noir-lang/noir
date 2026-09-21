@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789992149968,
+  "lastUpdate": 1789994813517,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22931,48 +22931,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "6723512315171f1314cf9362b51d15a630f01a81",
-          "message": "fix(ssa): drain visit-once queues iteratively so wide array literals don't overflow the stack (#13702)",
-          "timestamp": "2026-09-14T15:02:12Z",
-          "tree_id": "d6447a50569078bf0b32d5d55a6e65c9eccd0534",
-          "url": "https://github.com/noir-lang/noir/commit/6723512315171f1314cf9362b51d15a630f01a81"
-        },
-        "date": 1789399388290,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 171881,
-            "range": "± 613",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 139926,
-            "range": "± 3472",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2652664,
-            "range": "± 1681",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "c006ff9fbaabc09857dde7c5d28468eec5a993eb",
           "message": "fix(frontend): fold `Field` division in type-level arithmetic (#13664)",
           "timestamp": "2026-09-14T15:51:11Z",
@@ -25014,6 +24972,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2649566,
             "range": "± 8305",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ac75dfa5c762a5ec522e8b43c99cb444fd42bb70",
+          "message": "fix: keep sibling `where` bounds on one trait from sharing associated types (#13777)",
+          "timestamp": "2026-09-21T12:23:43Z",
+          "tree_id": "1e7d6c685623ef0c4094fb7c3bebde4a40f8d503",
+          "url": "https://github.com/noir-lang/noir/commit/ac75dfa5c762a5ec522e8b43c99cb444fd42bb70"
+        },
+        "date": 1789994726268,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 168785,
+            "range": "± 1178",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136755,
+            "range": "± 6051",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2647913,
+            "range": "± 4054",
             "unit": "ns/iter"
           }
         ]
