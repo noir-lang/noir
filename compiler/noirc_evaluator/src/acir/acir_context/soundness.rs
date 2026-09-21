@@ -116,6 +116,15 @@ impl Verdict {
         }
     }
 
+    /// Whether a counterexample was found, or `None` when nothing was checked.
+    pub(super) fn found_counterexample(&self) -> Option<bool> {
+        match self {
+            Verdict::Sound => Some(false),
+            Verdict::Unsound { .. } => Some(true),
+            Verdict::Skipped => None,
+        }
+    }
+
     pub(super) fn assert_unsound(self) {
         match self {
             Verdict::Unsound { .. } | Verdict::Skipped => {}
@@ -139,26 +148,49 @@ pub(super) struct Encoding {
 impl Encoding {
     pub(super) fn new(opcodes: &[Opcode<FieldElement>]) -> Result<Self, WidthExceedsField> {
         let ranges = collect_ranges(opcodes);
-        let bounds = infer_bounds(opcodes, &ranges);
-        let width = required_width(opcodes, &bounds)?;
+        let analysis = analyze(opcodes, &ranges);
+        let bounds = &analysis.bounds;
+        let width = required_width(opcodes, &analysis)?;
 
         let mut witnesses = BTreeSet::new();
         let mut lines = Vec::new();
         let mut dropped = 0;
+        let zero = literal(&BigUint::ZERO, width);
+        let one = literal(&BigUint::from(1_u32), width);
 
-        for opcode in opcodes {
+        for (index, opcode) in opcodes.iter().enumerate() {
+            match analysis.abstractions.get(&index) {
+                Some(Abstraction::Absorbed) => continue,
+                Some(Abstraction::NonZero(subject)) => {
+                    collect_expression_witnesses(subject, &mut witnesses);
+                    let subject = encode_expression(subject, width);
+                    lines.push(format!("(assert (not (= {subject} {zero})))"));
+                    continue;
+                }
+                Some(Abstraction::IsZero { indicator, subject }) => {
+                    witnesses.insert(*indicator);
+                    collect_expression_witnesses(subject, &mut witnesses);
+                    let subject = encode_expression(subject, width);
+                    lines.push(format!(
+                        "(assert (= {} (ite (= {subject} {zero}) {one} {zero})))",
+                        name(*indicator)
+                    ));
+                    continue;
+                }
+                None => {}
+            }
             match opcode {
                 Opcode::AssertZero(expression) => {
                     // Only an expression whose every witness is bounded has a
                     // faithful bitvector form; the rest are dropped, which can
                     // only admit more witnesses.
-                    if expression_bound(expression, &bounds).is_err() {
+                    if expression_bound(expression, bounds).is_err() {
                         dropped += 1;
                         continue;
                     }
                     collect_witnesses(opcode, &mut witnesses);
                     let terms = encode_expression(expression, width);
-                    lines.push(format!("(assert (= {terms} {}))", literal(&BigUint::ZERO, width)));
+                    lines.push(format!("(assert (= {terms} {zero}))"));
                 }
                 Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
                     input: FunctionInput::Witness(witness),
@@ -255,6 +287,196 @@ fn collect_ranges(opcodes: &[Opcode<FieldElement>]) -> BTreeMap<Witness, u32> {
     ranges
 }
 
+/// One of the two field-inverse idioms, rewritten into a form a bitvector
+/// solver can read. Both rewrites are equivalences, proved separately in
+/// `QF_FF`, so neither loses a witness nor invents one.
+#[derive(Clone)]
+enum Abstraction {
+    /// `E * inv = 1` with `inv` free and unused elsewhere, hence `E != 0`.
+    NonZero(Expression<FieldElement>),
+    /// `z = 1 - E * inv` together with `E * z = 0`, hence `z = ite(E = 0, 1, 0)`.
+    IsZero { indicator: Witness, subject: Expression<FieldElement> },
+    /// The partner opcode of an [`Abstraction::IsZero`], already accounted for.
+    Absorbed,
+}
+
+/// Splits `expression` into `(coefficient, remainder)` with
+/// `expression = witness * coefficient + remainder`, both linear. `None` when
+/// `witness` appears squared, which no idiom here produces.
+fn split_on(
+    expression: &Expression<FieldElement>,
+    witness: Witness,
+) -> Option<(Expression<FieldElement>, Expression<FieldElement>)> {
+    let mut coefficient = Expression::<FieldElement>::default();
+    let mut remainder = Expression::<FieldElement>::default();
+
+    for (factor, lhs, rhs) in &expression.mul_terms {
+        let other = match (*lhs == witness, *rhs == witness) {
+            (true, true) => return None,
+            (true, false) => *rhs,
+            (false, true) => *lhs,
+            (false, false) => {
+                remainder.mul_terms.push((*factor, *lhs, *rhs));
+                continue;
+            }
+        };
+        coefficient.linear_combinations.push((*factor, other));
+    }
+    for (factor, other) in &expression.linear_combinations {
+        if *other == witness {
+            coefficient.q_c += *factor;
+        } else {
+            remainder.linear_combinations.push((*factor, *other));
+        }
+    }
+    remainder.q_c = expression.q_c;
+    Some((coefficient, remainder))
+}
+
+fn is_constant(expression: &Expression<FieldElement>, value: FieldElement) -> bool {
+    expression.mul_terms.is_empty()
+        && expression.linear_combinations.is_empty()
+        && expression.q_c == value
+}
+
+/// An `AssertZero` says its expression is zero, so it carries no preferred
+/// sign: these shapes are matched up to negation throughout.
+fn is_unit_constant(expression: &Expression<FieldElement>) -> bool {
+    is_constant(expression, FieldElement::one()) || is_constant(expression, -FieldElement::one())
+}
+
+/// `±(1 - z)`, for the `z` the caller is looking for.
+fn one_minus_witness(expression: &Expression<FieldElement>) -> Option<Witness> {
+    if !expression.mul_terms.is_empty() {
+        return None;
+    }
+    let [(factor, witness)] = expression.linear_combinations[..] else { return None };
+    (expression.q_c == -factor && is_unit_constant(&Expression::from_field(factor)))
+        .then_some(witness)
+}
+
+/// Whether two linear polynomials are equal up to sign, which is all `E * z = 0`
+/// needs in order to be the partner of an `IsZero`.
+fn same_up_to_sign(left: &Expression<FieldElement>, right: &Expression<FieldElement>) -> bool {
+    let negated = |e: &Expression<FieldElement>| {
+        let mut e = e.clone();
+        e.linear_combinations.iter_mut().for_each(|(factor, _)| *factor = -*factor);
+        e.q_c = -e.q_c;
+        e.sort();
+        e
+    };
+    let mut left_sorted = left.clone();
+    left_sorted.sort();
+    let mut right_sorted = right.clone();
+    right_sorted.sort();
+    left_sorted == right_sorted || left_sorted == negated(right)
+}
+
+/// How many opcodes a witness appears in, so that a hint used in exactly one
+/// place can be told apart from one that is load-bearing elsewhere.
+fn appearances(opcodes: &[Opcode<FieldElement>]) -> BTreeMap<Witness, usize> {
+    let mut counts: BTreeMap<Witness, usize> = BTreeMap::new();
+    for opcode in opcodes {
+        let mut here = BTreeSet::new();
+        collect_witnesses(opcode, &mut here);
+        for witness in here {
+            *counts.entry(witness).or_default() += 1;
+        }
+    }
+    counts
+}
+
+/// Bounds and inverse-idiom rewrites, computed together: a rewrite bounds its
+/// indicator witness, which can bound more expressions, which can expose
+/// another rewrite.
+struct Analysis {
+    bounds: BTreeMap<Witness, BigUint>,
+    abstractions: BTreeMap<usize, Abstraction>,
+}
+
+fn analyze(opcodes: &[Opcode<FieldElement>], ranges: &BTreeMap<Witness, u32>) -> Analysis {
+    let appearances = appearances(opcodes);
+    let mut analysis = Analysis {
+        bounds: ranges
+            .iter()
+            .map(|(witness, bits)| (*witness, (BigUint::from(1_u32) << bits) - 1_u32))
+            .collect(),
+        abstractions: BTreeMap::new(),
+    };
+
+    loop {
+        let grew = propagate_bounds(opcodes, &mut analysis);
+        let rewritten = find_inverse_idioms(opcodes, &appearances, &mut analysis);
+        if !grew && !rewritten {
+            return analysis;
+        }
+    }
+}
+
+/// Recognises the two inverse idioms and records their proved conclusions.
+fn find_inverse_idioms(
+    opcodes: &[Opcode<FieldElement>],
+    appearances: &BTreeMap<Witness, usize>,
+    analysis: &mut Analysis,
+) -> bool {
+    let mut progress = false;
+    for (index, opcode) in opcodes.iter().enumerate() {
+        if analysis.abstractions.contains_key(&index) {
+            continue;
+        }
+        let Opcode::AssertZero(expression) = opcode else { continue };
+
+        // The hint is the unbounded witness inside a product — in both idioms
+        // the indicator is unbounded too until the rewrite bounds it, so the
+        // product is what tells them apart. It must be the only such witness,
+        // and must appear in no other opcode, or removing it would lose a
+        // constraint that is doing work elsewhere.
+        let mut in_products = BTreeSet::new();
+        for (_, lhs, rhs) in &expression.mul_terms {
+            in_products.insert(*lhs);
+            in_products.insert(*rhs);
+        }
+        in_products.retain(|witness| !analysis.bounds.contains_key(witness));
+        let [inverse] = in_products.iter().copied().collect::<Vec<_>>()[..] else { continue };
+        if appearances.get(&inverse) != Some(&1) {
+            continue;
+        }
+        let Some((subject, remainder)) = split_on(expression, inverse) else { continue };
+        if subject.linear_combinations.is_empty() && subject.q_c.is_zero() {
+            continue;
+        }
+
+        if is_unit_constant(&remainder) {
+            analysis.abstractions.insert(index, Abstraction::NonZero(subject));
+            progress = true;
+        } else if let Some(indicator) = one_minus_witness(&remainder) {
+            let Some(partner) = find_partner(opcodes, index, indicator, &subject) else { continue };
+            analysis.abstractions.insert(index, Abstraction::IsZero { indicator, subject });
+            analysis.abstractions.insert(partner, Abstraction::Absorbed);
+            analysis.bounds.insert(indicator, BigUint::from(1_u32));
+            progress = true;
+        }
+    }
+    progress
+}
+
+/// The `E * z = 0` half of an `IsZero`.
+fn find_partner(
+    opcodes: &[Opcode<FieldElement>],
+    skip: usize,
+    indicator: Witness,
+    subject: &Expression<FieldElement>,
+) -> Option<usize> {
+    opcodes.iter().enumerate().position(|(index, opcode)| {
+        if index == skip {
+            return false;
+        }
+        let Opcode::AssertZero(expression) = opcode else { return false };
+        let Some((coefficient, remainder)) = split_on(expression, indicator) else { return false };
+        is_constant(&remainder, FieldElement::zero()) && same_up_to_sign(&coefficient, subject)
+    })
+}
+
 /// The largest absolute value each witness can hold. Range constraints seed
 /// this, and it then propagates through defining equations: when an
 /// `AssertZero` pins one otherwise-unknown witness to a combination of known
@@ -262,20 +484,17 @@ fn collect_ranges(opcodes: &[Opcode<FieldElement>]) -> BTreeMap<Witness, u32> {
 /// return witness of a compiled circuit is unbounded — it is only ever tied to
 /// a range-constrained value by an equation — so the equation defining it would
 /// be dropped and the query would admit witnesses the real circuit rejects.
-fn infer_bounds(
-    opcodes: &[Opcode<FieldElement>],
-    ranges: &BTreeMap<Witness, u32>,
-) -> BTreeMap<Witness, BigUint> {
-    let mut bounds: BTreeMap<Witness, BigUint> = ranges
-        .iter()
-        .map(|(witness, bits)| (*witness, (BigUint::from(1_u32) << bits) - 1_u32))
-        .collect();
-
+fn propagate_bounds(opcodes: &[Opcode<FieldElement>], analysis: &mut Analysis) -> bool {
+    let bounds = &mut analysis.bounds;
+    let mut grew = false;
     loop {
         let mut progress = false;
-        for opcode in opcodes {
+        for (index, opcode) in opcodes.iter().enumerate() {
+            if analysis.abstractions.contains_key(&index) {
+                continue;
+            }
             let Opcode::AssertZero(expression) = opcode else { continue };
-            let Some(unknown) = sole_unknown(expression, &bounds) else { continue };
+            let Some(unknown) = sole_unknown(expression, bounds) else { continue };
 
             // `unknown` is `-(everything else)`, so it cannot exceed the sum of
             // the magnitudes of the rest.
@@ -298,10 +517,11 @@ fn infer_bounds(
             }
             if derivable && bounds.insert(unknown, rest).is_none() {
                 progress = true;
+                grew = true;
             }
         }
         if !progress {
-            return bounds;
+            return grew;
         }
     }
 }
@@ -346,10 +566,24 @@ fn sole_unknown(
 /// opcodes can produce.
 fn required_width(
     opcodes: &[Opcode<FieldElement>],
-    bounds: &BTreeMap<Witness, BigUint>,
+    analysis: &Analysis,
 ) -> Result<u32, WidthExceedsField> {
+    let bounds = &analysis.bounds;
     let mut largest = BigUint::from(1_u32);
-    for opcode in opcodes {
+    for abstraction in analysis.abstractions.values() {
+        let subject = match abstraction {
+            Abstraction::NonZero(subject) => subject,
+            Abstraction::IsZero { subject, .. } => subject,
+            Abstraction::Absorbed => continue,
+        };
+        if let Ok(bound) = expression_bound(subject, bounds) {
+            largest = largest.max(bound);
+        }
+    }
+    for (index, opcode) in opcodes.iter().enumerate() {
+        if analysis.abstractions.contains_key(&index) {
+            continue;
+        }
         match opcode {
             Opcode::AssertZero(expression) => {
                 // An expression that cannot be bounded gets dropped rather than
@@ -474,17 +708,22 @@ fn name(witness: Witness) -> String {
     format!("w{}", witness.0)
 }
 
+fn collect_expression_witnesses(
+    expression: &Expression<FieldElement>,
+    into: &mut BTreeSet<Witness>,
+) {
+    for (_, lhs, rhs) in &expression.mul_terms {
+        into.insert(*lhs);
+        into.insert(*rhs);
+    }
+    for (_, witness) in &expression.linear_combinations {
+        into.insert(*witness);
+    }
+}
+
 fn collect_witnesses(opcode: &Opcode<FieldElement>, into: &mut BTreeSet<Witness>) {
     match opcode {
-        Opcode::AssertZero(expression) => {
-            for (_, lhs, rhs) in &expression.mul_terms {
-                into.insert(*lhs);
-                into.insert(*rhs);
-            }
-            for (_, witness) in &expression.linear_combinations {
-                into.insert(*witness);
-            }
-        }
+        Opcode::AssertZero(expression) => collect_expression_witnesses(expression, into),
         Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
             input: FunctionInput::Witness(witness),
             ..
@@ -493,6 +732,19 @@ fn collect_witnesses(opcode: &Opcode<FieldElement>, into: &mut BTreeSet<Witness>
         }
         _ => {}
     }
+}
+
+/// Runs a complete SMT-LIB2 script. Used for the field-algebra lemmas the
+/// inverse-idiom rewrites rest on, which are written out in full rather than
+/// built by [`Encoding`]: they are statements about `ZZ_p`, not about any
+/// particular circuit.
+pub(super) fn prove(script: &str) -> Verdict {
+    run_cvc5(script, 0)
+}
+
+/// The prime the circuits live over, for those lemmas to quantify over.
+pub(super) fn modulus() -> BigUint {
+    FieldElement::modulus()
 }
 
 /// Shells out rather than linking a solver into the compiler: cvc5 is a test

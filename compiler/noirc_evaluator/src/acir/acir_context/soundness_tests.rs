@@ -20,7 +20,7 @@ use acvm::acir::native_types::Witness;
 use acvm::{AcirField, FieldElement};
 
 use super::generated_acir::GeneratedAcir;
-use super::soundness::{Encoding, WidthExceedsField};
+use super::soundness::{self, Encoding, WidthExceedsField};
 use super::{AcirContext, BrilligStdLib};
 use crate::brillig::BrilligOptions;
 use crate::ssa::ssa_gen::Ssa;
@@ -157,14 +157,115 @@ fn u128_division_is_out_of_range_of_this_encoding() {
     assert!(matches!(Encoding::new(&opcodes), Err(WidthExceedsField { .. })));
 }
 
-/// The inverse constraint `b · b⁻¹ = 1` that `inv_var` emits has no faithful
-/// bitvector form — modulo `2^W` only odd values are invertible — so it is
-/// dropped rather than approximated. Everything else in the gadget is encoded.
+/// Nothing in this gadget is beyond the encoder: the one constraint with no
+/// bitvector reading, the inverse `b · b⁻¹ = 1` that `inv_var` emits, is
+/// rewritten to `b ≠ 0` rather than dropped.
 #[test]
-fn only_the_inverse_constraint_is_dropped() {
+fn the_whole_division_gadget_is_encoded() {
     let (opcodes, _) = euclidean_division(8);
     let encoding = Encoding::new(&opcodes).expect("the gadget should be encodable at this width");
-    assert_eq!(encoding.dropped(), 1);
+    assert_eq!(encoding.dropped(), 0);
+}
+
+/// The field algebra behind [`super::soundness`]\'s first rewrite: an
+/// unconstrained `inv` can satisfy `E · inv = 1` exactly when `E` is nonzero.
+/// Checked in `QF_FF`, which is quick here because the statement carries no
+/// range constraints — the thing that logic handles badly.
+#[test]
+fn inverse_idiom_means_nonzero() {
+    prove_over_the_field(
+        "
+        (declare-const e FF)
+        (declare-const inv FF)
+        (assert (= (ff.mul e inv) (as ff1 FF)))
+        (assert (= e (as ff0 FF)))
+        ",
+    );
+}
+
+/// The second rewrite: given `z = 1 - E · inv` and `E · z = 0`, the value of
+/// `z` is pinned to the indicator of `E = 0`, however `inv` is chosen.
+#[test]
+fn is_zero_idiom_pins_the_indicator() {
+    prove_over_the_field(
+        "
+        (declare-const e FF)
+        (declare-const inv FF)
+        (declare-const z FF)
+        (assert (= z (ff.add (as ff1 FF) (ff.mul (as ff-1 FF) e inv))))
+        (assert (= (ff.mul e z) (as ff0 FF)))
+        (assert (or (and (= e (as ff0 FF)) (not (= z (as ff1 FF))))
+                    (and (not (= e (as ff0 FF))) (not (= z (as ff0 FF))))))
+        ",
+    );
+}
+
+/// Asserts that `body` — the negation of a lemma — has no solution over the
+/// circuits\' prime field.
+fn prove_over_the_field(body: &str) {
+    let script = format!(
+        "(set-logic QF_FF)\n(define-sort FF () (_ FiniteField {}))\n{body}\n(check-sat)\n",
+        soundness::modulus()
+    );
+    soundness::prove(&script).assert_sound();
+}
+
+/// Signed division, the case the inverse rewrites exist for. `expand_signed_math`
+/// lowers it into `Field` arithmetic that wraps modulo `p` and leans on four
+/// inverse idioms; the check is that the circuit\'s return witness holds the
+/// two\'s-complement result of `bvsdiv` on its inputs, for every witness the
+/// constraints admit.
+/// The ACIR that `expand_signed_math` plus the real lowering produce for `i8`
+/// division.
+fn signed_division() -> GeneratedAcir<FieldElement> {
+    let ssa = Ssa::from_str(
+        "
+        acir(inline) fn main f0 {
+          b0(v0: i8, v1: i8):
+            v2 = div v0, v1
+            return v2
+        }
+        ",
+    )
+    .unwrap()
+    .expand_signed_math();
+
+    let options = BrilligOptions::default();
+    let brillig = ssa.to_brillig(&options);
+    let (mut functions, ..) = ssa.into_acir(&brillig, &options).unwrap();
+    functions.remove(0)
+}
+
+/// Each witness holds an 8-bit two\'s-complement pattern, zero-extended to the
+/// encoding width, so the specification reads those low bits as signed.
+fn signed_division_goal(
+    encoding: &Encoding,
+    lhs: Witness,
+    rhs: Witness,
+    result: Witness,
+) -> String {
+    let byte = |witness: Witness| format!("((_ extract 7 0) w{})", witness.0);
+    format!(
+        "(not (= w{} ((_ zero_extend {}) (bvsdiv {} {}))))",
+        result.0,
+        encoding.width() - 8,
+        byte(lhs),
+        byte(rhs)
+    )
+}
+
+#[test]
+fn signed_division_from_ssa_is_sound() {
+    let acir = signed_division();
+    let [lhs, rhs] = acir.input_witnesses[..] else { panic!("expected two inputs") };
+    let [result] = acir.return_witnesses[..] else { panic!("expected one return value") };
+
+    let mut encoding = Encoding::new(&acir.opcodes).expect("the circuit should be encodable");
+    assert_eq!(encoding.dropped(), 0, "every constraint should be encoded or rewritten");
+    for witness in [lhs, rhs, result] {
+        encoding.declare(witness);
+    }
+    encoding.check(&signed_division_goal(&encoding, lhs, rhs, result)).assert_sound();
 }
 
 /// `bound_constraint_with_offset` claims that `lhs < rhs`, and gets there by
@@ -256,4 +357,44 @@ fn unsigned_remainder_from_ssa_is_sound() {
     }
     let goal = format!("(not (= w{} (bvurem w{} w{})))", result.0, lhs.0, rhs.0);
     encoding.check(&goal).assert_sound();
+}
+
+/// Sensitivity check for the signed query: at least one of the range
+/// constraints that circuit emits has to be load-bearing, or the proof above is
+/// passing for reasons unconnected to what the compiler emitted.
+#[test]
+fn signed_division_range_checks_are_load_bearing() {
+    let acir = signed_division();
+    let [lhs, rhs] = acir.input_witnesses[..] else { panic!("expected two inputs") };
+    let [result] = acir.return_witnesses[..] else { panic!("expected one return value") };
+
+    let ranged = acir
+        .opcodes
+        .iter()
+        .filter_map(|opcode| match opcode {
+            Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
+                input: FunctionInput::Witness(witness),
+                ..
+            }) => Some(*witness),
+            _ => None,
+        })
+        .collect::<std::collections::BTreeSet<_>>();
+
+    let mut checked = 0;
+    let mut detected = 0;
+    for witness in ranged {
+        let opcodes = without_range_check_on(&acir.opcodes, witness);
+        let Ok(mut encoding) = Encoding::new(&opcodes) else { continue };
+        for declared in [lhs, rhs, result] {
+            encoding.declare(declared);
+        }
+        if let Some(found) = encoding
+            .check(&signed_division_goal(&encoding, lhs, rhs, result))
+            .found_counterexample()
+        {
+            checked += 1;
+            detected += usize::from(found);
+        }
+    }
+    assert!(checked == 0 || detected > 0, "no range constraint turned out to matter");
 }
