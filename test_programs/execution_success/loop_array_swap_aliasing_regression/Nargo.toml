@@ -1,0 +1,6 @@
+[package]
+name = "loop_array_swap_aliasing_regression"
+type = "bin"
+authors = [""]
+
+[dependencies]

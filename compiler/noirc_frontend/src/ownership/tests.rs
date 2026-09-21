@@ -1818,12 +1818,49 @@ fn confirmed_move_for_variable_reassigned_in_the_loop() {
     ");
 }
 
-/// Regression: `c = { ...; a }` followed by `a = c` leaves `a` and `c` naming one buffer, and
-/// the next iteration's `c[0] = 99` writes through `c`. Exactly one of the two uses must be
-/// cloned to keep that write copy-on-write, and it is the use of `c` in `a = c`: `c` is read
-/// again by the next iteration, whereas `a` is overwritten by `a = c` before anything reads
-/// it, so the block tail's use of `a` is its last one and moves. Without the clone on `c` the
-/// shared buffer stays at refcount 1 and `c[0] = 99` corrupts `a` in place.
+/// Regression: swapping two arrays through a temporary rotates buffers across the loop's back
+/// edge. Each read is followed by a reassignment of the variable it read, so on names alone every
+/// read looks like a last use — but `a = c` and `c = t` hand their variables buffers that are
+/// already named elsewhere, so a move would carry the rotation with no reference count of its
+/// own and a later write through either name would mutate in place. `let t = a` and `a = c` are
+/// therefore cloned; `c = t` still moves, since `t` is the temporary and nothing else names it.
+#[test]
+fn clone_for_array_swap_through_a_temporary_in_a_loop() {
+    let src = "
+    unconstrained fn main(n: u32) -> pub [Field; 2] {
+        let mut a = [1, 2];
+        let mut c = [10, 20];
+        for _j in 0..n {
+            let t = a;
+            a = c;
+            c = t;
+        }
+        c[0] = 99;
+        a
+    }
+    ";
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(n$l0: u32) -> pub [Field; 2] {
+        let mut a$l1 = [1, 2];
+        let mut c$l2 = [10, 20];
+        for _j$l3 in 0 .. n$l0 {
+            let t$l4 = a$l1.clone();
+            a$l1 = c$l2.clone();
+            c$l2 = t$l4
+        };
+        c$l2[0] = 99;
+        a$l1
+    }
+    ");
+}
+
+/// Regression: `c = { ...; a }` hands `c` the buffer `a` names and `a = c` hands it straight
+/// back, so neither assignment gives its variable a buffer of its own. That is why `a = c`
+/// overwriting `a` does not license moving the block tail's use of `a`: the back edge reaches
+/// that use again with `a` and `c` naming one buffer, and a move would leave it at refcount 1
+/// under two names, so the next iteration's `c[0] = 99` would corrupt `a` in place. Both uses
+/// are cloned.
 #[test]
 fn clone_for_loop_buffer_rotation_via_aliasing_reassignment() {
     let src = "
@@ -1857,7 +1894,7 @@ fn clone_for_loop_buffer_rotation_via_aliasing_reassignment() {
                     i$l3 = (i$l3 + 1);
                     c$l1[0] = 99
                 };
-                a$l0
+                a$l0.clone()
             };
             a$l0 = c$l1.clone()
         };

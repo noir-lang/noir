@@ -249,11 +249,26 @@ impl LivenessContext {
         if let ast::LValue::Ident(ast::Ident { definition: Definition::Local(local_id), .. }) =
             &assign.lvalue
         {
-            // Assigning the whole variable is a definition: it is not live before the
-            // assignment, so a use of it in the right-hand side can be the last one.
+            // Assigning the whole variable ends its old value, so a use of it inside the
+            // right-hand side can be the last one.
             let mut live = live;
             live.remove(local_id);
-            return self.visit(&assign.expression, live);
+            let mut live = self.visit(&assign.expression, live);
+
+            if !rhs_is_fresh(&assign.expression) {
+                // The right-hand side may evaluate to a buffer something else still names, so
+                // this assignment does not give the variable an owner of its own: afterwards
+                // the two share one buffer and one reference count. A use of the variable that
+                // reaches here from *before* the assignment — a loop's back edge reaches the
+                // top of the body again — would be moved into a second refcount-1 name for
+                // that shared buffer, and a later write through either name would mutate in
+                // place instead of copying. Keep the variable live for those uses. Uses inside
+                // the right-hand side are unaffected: nothing runs between them and the
+                // overwrite except the rest of the right-hand side.
+                live.insert(*local_id);
+            }
+
+            return live;
         }
 
         // A compound lvalue (e.g. `a[i] = expr`) reads `a` as well as writing it, so it is
@@ -366,6 +381,35 @@ impl LivenessContext {
             }
             None => body_in,
         }
+    }
+}
+
+/// Returns `true` if assigning `expr` to a variable hands it a buffer of its own, rather than one
+/// that whatever produced `expr` may still name.
+///
+/// Only fresh allocations and scalar literals qualify. An allocation is created at the assignment
+/// with a reference count of its own, so the assigned variable is its only name. A place expression
+/// (`Ident`, `Index`, member access, ...), a call result, or a block tail may all evaluate to a
+/// buffer that is already named elsewhere.
+///
+/// Only the *outer* buffer matters: inner-array sharing inside `[a, b]` or `[arr; N]` is handled by
+/// clone insertion at the element sites, so array, vector and repeated literals are fresh at this
+/// level whatever their elements are.
+fn rhs_is_fresh(expr: &Expression) -> bool {
+    match expr {
+        Expression::Literal(literal) => matches!(
+            literal,
+            Literal::Array(_)
+                | Literal::Vector(_)
+                | Literal::Repeated { .. }
+                | Literal::Integer(..)
+                | Literal::Bool(_)
+                | Literal::Unit
+                | Literal::Str(_)
+        ),
+        // A cast cannot change buffer identity, so it is fresh exactly when its operand is.
+        Expression::Cast(cast) => rhs_is_fresh(&cast.lhs),
+        _ => false,
     }
 }
 
