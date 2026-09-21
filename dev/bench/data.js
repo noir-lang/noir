@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1789991126275,
+  "lastUpdate": 1789991169782,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22915,48 +22915,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "dd4c67c1778f8d0fec057d705d67b43e8ee6a606",
-          "message": "fix: do not cancel the repeated term of `N - (M + N)` (#13661)",
-          "timestamp": "2026-09-14T15:00:23Z",
-          "tree_id": "f60535ec859dc17f24c20b36fdc7b574c1645a03",
-          "url": "https://github.com/noir-lang/noir/commit/dd4c67c1778f8d0fec057d705d67b43e8ee6a606"
-        },
-        "date": 1789399318563,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 169974,
-            "range": "± 266",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 139970,
-            "range": "± 5380",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2652689,
-            "range": "± 5395",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "6723512315171f1314cf9362b51d15a630f01a81",
           "message": "fix(ssa): drain visit-once queues iteratively so wide array literals don't overflow the stack (#13702)",
@@ -24999,6 +24957,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 1726601,
             "range": "± 34842",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5486537b236a532567a83397839127e803096e1d",
+          "message": "chore(deps-dev): bump adm-zip from 0.6.0 to 0.6.1 (#13773)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-09-21T12:42:10+01:00",
+          "tree_id": "9cd57e1d3d4a23419837bc0498e15174b3592928",
+          "url": "https://github.com/noir-lang/noir/commit/5486537b236a532567a83397839127e803096e1d"
+        },
+        "date": 1789991082161,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 168374,
+            "range": "± 692",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 137833,
+            "range": "± 543",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2649566,
+            "range": "± 8305",
             "unit": "ns/iter"
           }
         ]
