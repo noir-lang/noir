@@ -34,6 +34,10 @@ use crate::{
 mod black_box;
 mod brillig_call;
 mod generated_acir;
+#[cfg(test)]
+mod soundness;
+#[cfg(test)]
+mod soundness_tests;
 
 use super::{
     AcirDynamicArray, AcirValue,
