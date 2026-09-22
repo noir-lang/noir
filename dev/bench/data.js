@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790075093280,
+  "lastUpdate": 1790075753804,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22931,48 +22931,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "1e653a538b362b96924d99abfac16f41174127e0",
-          "message": "fix(frontend): give each function body its own elaborator item context (#13696)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-09-15T10:08:18Z",
-          "tree_id": "c4bc3cfaaacd536ee93cc63e8c9c3c79828a412d",
-          "url": "https://github.com/noir-lang/noir/commit/1e653a538b362b96924d99abfac16f41174127e0"
-        },
-        "date": 1789468157197,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 126372,
-            "range": "± 1906",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 97041,
-            "range": "± 1074",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 1724828,
-            "range": "± 26868",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -25024,6 +24982,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3042659,
             "range": "± 1890",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2c9b0584c166670c75c5eca1562c689687a95c39",
+          "message": "chore(deps): bump the npm-minor-and-patch group with 3 updates (#13783)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-09-22T10:54:47Z",
+          "tree_id": "b369bf8396a3918e30a2510e817bede2ae3e9a78",
+          "url": "https://github.com/noir-lang/noir/commit/2c9b0584c166670c75c5eca1562c689687a95c39"
+        },
+        "date": 1790075666871,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 168978,
+            "range": "± 266",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 137698,
+            "range": "± 1790",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2646142,
+            "range": "± 11399",
             "unit": "ns/iter"
           }
         ]
