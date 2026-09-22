@@ -28,10 +28,43 @@ pub struct HintSite {
     /// Which Brillig function is called. Stdlib directives are deduplicated, so every
     /// `directive_invert` site shares one id.
     pub brillig_id: BrilligFunctionId,
+    /// What kind of hint this is, which decides how a finding here should be read.
+    pub kind: HintKind,
     /// Output witnesses, flattened in the order the ACVM writes the call's return data.
     pub outputs: Vec<Witness>,
     /// The values `outputs` took during honest execution.
     pub honest: Vec<FieldElement>,
+}
+
+/// Who is responsible for constraining a call's outputs.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum HintKind {
+    /// A hint the compiler inserted itself, such as `directive_integer_quotient`. Constraining its
+    /// outputs is the compiler's job, so a second witness here is a compiler bug.
+    Directive(String),
+    /// An `unconstrained fn` the program called. Constraining its outputs is the program author's
+    /// job, so a second witness here says the program trusts a value it never checks.
+    UserFunction(String),
+}
+
+impl HintKind {
+    fn of(name: &str) -> Self {
+        if name.starts_with("directive_") {
+            HintKind::Directive(name.to_string())
+        } else {
+            HintKind::UserFunction(name.to_string())
+        }
+    }
+
+    pub fn name(&self) -> &str {
+        match self {
+            HintKind::Directive(name) | HintKind::UserFunction(name) => name,
+        }
+    }
+
+    pub fn is_directive(&self) -> bool {
+        matches!(self, HintKind::Directive(_))
+    }
 }
 
 impl HintSite {
@@ -67,10 +100,16 @@ pub fn hint_sites(
             continue;
         };
 
+        let name = program
+            .unconstrained_functions
+            .get(id.as_u32() as usize)
+            .map_or("", |function| function.function_name.as_str());
+
         sites.push(HintSite {
             function_index,
             opcode_index,
             brillig_id: *id,
+            kind: HintKind::of(name),
             outputs: witnesses,
             honest,
         });

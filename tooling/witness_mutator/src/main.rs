@@ -3,7 +3,7 @@
 use clap::Parser;
 use color_eyre::eyre::{Context, Result, bail};
 use noir_artifact_cli::{Artifact, fs::inputs::read_inputs_from_file};
-use noir_witness_mutator::{Report, search};
+use noir_witness_mutator::{Report, Severity, search};
 use noirc_artifacts::program::CompiledProgram;
 use std::path::PathBuf;
 
@@ -47,9 +47,10 @@ fn main() -> Result<()> {
 
     print(&report, args.verbose);
 
-    // A non-zero status marks a program whose outputs a prover can choose, which is what a corpus
-    // run or a CI check wants to act on. A LOW finding is not enough on its own.
-    if report.high().next().is_some() {
+    // A non-zero status marks a circuit weaker than the program it was compiled from, which is
+    // what a corpus run or a CI check wants to act on. A program that returns an unconstrained
+    // value is the author's decision and is reported without failing the run.
+    if report.compiler_bugs().next().is_some() {
         std::process::exit(1);
     }
     Ok(())
@@ -67,15 +68,22 @@ fn print(report: &Report, verbose: bool) {
 
     for finding in &report.findings {
         println!(
-            "\n{} second witness at {} (strategy: {})",
-            finding.severity(),
+            "\n{} second witness at {} in {} (strategy: {})",
+            finding.severity().label(),
             finding.site.label(),
+            finding.site.kind.name(),
             finding.strategy
         );
-        if finding.changes_return {
-            println!("  a return value changes, so a prover can choose the program's output");
-        } else {
-            println!("  only intermediate witnesses change");
+        match finding.severity() {
+            Severity::CompilerBug => println!(
+                "  a return value changes: the constraints the compiler emitted for this hint do \
+                 not pin its outputs down"
+            ),
+            Severity::ProgramUnderconstrained => println!(
+                "  a return value changes: the program returns this unconstrained call's output \
+                 without constraining it"
+            ),
+            Severity::Intermediate => println!("  only intermediate witnesses change"),
         }
         for (witness, honest, mutated) in &finding.changed_outputs {
             println!("  w{}: honest {} -> {}", witness.0, honest, mutated);

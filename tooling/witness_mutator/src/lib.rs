@@ -24,6 +24,30 @@ use crate::{
     strategy::candidates,
 };
 
+/// What a second witness means, which depends on whose job it was to rule it out.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Severity {
+    /// A compiler-inserted hint's outputs are not pinned down, and a return value follows them.
+    /// The circuit the compiler emitted is too weak.
+    CompilerBug,
+    /// The program returns a value an `unconstrained fn` produced without constraining it. The
+    /// circuit matches the source; the source is what trusts an unchecked value.
+    ProgramUnderconstrained,
+    /// Only intermediate witnesses move. Some hints are legitimately free — the inverse hint of an
+    /// `x != 0` check when `x` is zero, or any call under a false predicate.
+    Intermediate,
+}
+
+impl Severity {
+    pub fn label(self) -> &'static str {
+        match self {
+            Severity::CompilerBug => "HIGH",
+            Severity::ProgramUnderconstrained => "PROGRAM",
+            Severity::Intermediate => "LOW",
+        }
+    }
+}
+
 /// A witness that differs from the honest one and still satisfies every constraint.
 #[derive(Clone, Debug)]
 pub struct Finding {
@@ -38,8 +62,12 @@ pub struct Finding {
 }
 
 impl Finding {
-    pub fn severity(&self) -> &'static str {
-        if self.changes_return { "HIGH" } else { "LOW" }
+    pub fn severity(&self) -> Severity {
+        match (self.changes_return, self.site.kind.is_directive()) {
+            (false, _) => Severity::Intermediate,
+            (true, true) => Severity::CompilerBug,
+            (true, false) => Severity::ProgramUnderconstrained,
+        }
     }
 }
 
@@ -51,8 +79,8 @@ pub struct Report {
 }
 
 impl Report {
-    pub fn high(&self) -> impl Iterator<Item = &Finding> {
-        self.findings.iter().filter(|finding| finding.changes_return)
+    pub fn compiler_bugs(&self) -> impl Iterator<Item = &Finding> {
+        self.findings.iter().filter(|finding| finding.severity() == Severity::CompilerBug)
     }
 }
 
@@ -147,6 +175,6 @@ pub fn search(
         });
     }
 
-    findings.sort_by_key(|finding| (!finding.changes_return, finding.site.opcode_index));
+    findings.sort_by_key(|finding| (finding.severity(), finding.site.opcode_index));
     Ok(Report { findings, sites: sites.len(), candidates_tried })
 }

@@ -10,7 +10,7 @@ nargo compile --program-dir <dir>
 noir-witness-mutator --artifact-path <dir>/target/<pkg>.json --prover-file <dir>/Prover.toml
 ```
 
-It exits non-zero when a finding changes a return value.
+It exits non-zero when a compiler-inserted hint turns out to be underconstrained.
 
 ## How it works
 
@@ -26,9 +26,19 @@ program:
 3. **Check.** Append a Brillig function that returns the candidate values, repoint that one call
    site at it, and re-solve the whole program. Nothing else changes, so the solver's own answer
    decides: if it completes, the candidate is a real second witness.
-4. **Report.** A finding that changes a return value is `HIGH`, since a prover can choose the
-   program's output. One that changes only intermediates is `LOW` — some hints are legitimately free,
-   such as the inverse hint of an `x != 0` check when `x` is zero.
+4. **Report.** Findings are graded by whose job it was to rule the second witness out. Each Brillig
+   function carries its name into the artifact, and the compiler's own hints are the ones called
+   `directive_*`, so the two cases are distinguishable without guessing:
+
+   | grade | meaning |
+   | --- | --- |
+   | `HIGH` | a return value follows a **compiler-inserted** hint whose outputs are not pinned down: the emitted circuit is weaker than the program it came from |
+   | `PROGRAM` | a return value follows an **`unconstrained fn` the program called**, with nothing constraining it. The circuit matches the source; the source trusts an unchecked value |
+   | `LOW` | only intermediate witnesses move. Some hints are legitimately free — the inverse hint of an `x != 0` check when `x` is zero, or any call under a false predicate |
+
+   Only `HIGH` makes the tool exit non-zero. `PROGRAM` is the author's decision to report, not a
+   compiler defect, and it is what Noir's own `check_for_missing_brillig_constraints` warns about
+   statically.
 
 Because step 3 re-solves rather than reasoning about constraints, a `HIGH` finding is not a
 heuristic: the alternative witness is printed and can be checked independently.
@@ -55,8 +65,8 @@ the recomposition constraint forces.
 
 - Only the first ACIR function is searched; programs that use `Call` opcodes are covered only in
   `main`.
-- No hint-aware strategy: the three compiler-inserted directives (`Inverse`, `Quotient`,
-  `ToLeBytes`) are treated like any other unconstrained call.
+- No hint-aware strategy: candidate values ignore what a directive computes, so an alias is only
+  found when the near, edge or wraparound families happen to contain it.
 - Findings report the opcode location, not yet the Noir source line.
 - Only one call site is overridden at a time, so it cannot find a witness that requires two hints to
   move together.
@@ -74,5 +84,22 @@ The 20 inputs are fixed random field elements; the tool is not told the maliciou
 the expected shape of the result rather than a shortfall: a wraparound alias only exists when the
 shifted quotient still fits its range check, which for this program excludes most inputs. What
 matters for a bug hunt is that *some* input exposes it, and that a clean compiler yields nothing.
+
+## Sweep over the test suite
+
+`sweep.sh` runs the search over a `test_programs` directory. On unmodified `master`, over
+`execution_success` (546 programs, 2000 candidates and 120s per program):
+
+| grade | programs | what they are |
+| --- | --- | --- |
+| `HIGH` | 0 | no compiler-emitted circuit was found to be weaker than its source |
+| `PROGRAM` | 55 | 49 have an `unconstrained fn main`, whose result nothing can constrain; the other 6 return an `unsafe` call's value unchecked |
+| `LOW` | 55 | 48 of them `directive_invert`, the expected benign case |
+| none | 370 | |
+| skipped | 66 | no `Prover.toml`, or honest execution needs an oracle transcript |
+
+Zero `HIGH` on a clean compiler is the property that makes the grade worth acting on. The 55
+`PROGRAM` findings are a useful check that the search works at all: it rediscovered, from execution
+alone, the same class of program the compiler's static check flags.
 
 See `corpus/README.md` for the rest of the corpus and how it is scored.
