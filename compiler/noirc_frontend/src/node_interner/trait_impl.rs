@@ -129,7 +129,7 @@ impl NodeInterner {
                 if self.merge_named_generics_into_assumed_impl(
                     trait_id,
                     &object_type,
-                    Some(&trait_generics.ordered),
+                    &trait_generics.ordered,
                     &trait_generics.named,
                 ) {
                     return Ok(true);
@@ -144,10 +144,13 @@ impl NodeInterner {
             Ok(_) => {
                 // A parent trait constraint may provide fresh variables for associated types we
                 // already have an assumed entry for; reconcile them so both share one binding.
+                // As above, only an entry with matching ordered generics describes the same
+                // bound: `T: Foo<u8>` and `T: Foo<u32>` are separate bounds that each keep their
+                // own associated types.
                 if self.merge_named_generics_into_assumed_impl(
                     trait_id,
                     &object_type,
-                    None,
+                    &trait_generics.ordered,
                     &trait_generics.named,
                 ) {
                     Ok(true)
@@ -174,8 +177,9 @@ impl NodeInterner {
     /// placeholder carries no extra information and would otherwise leave the associated type
     /// unresolvable. This keeps the most-resolved binding regardless of registration order.
     ///
-    /// When `require_matching_ordered` is `Some`, only an entry whose ordered generics equal it
-    /// is merged, so genuinely distinct bounds are not collapsed.
+    /// A bound is identified by its object type *and* its ordered generics, so only an entry
+    /// whose ordered generics equal `ordered` is merged: `T: Foo<u8>` and `T: Foo<u32>` are
+    /// distinct bounds on one trait and must not be collapsed into each other.
     ///
     /// Returns true if such an entry was found and reconciled; the caller then avoids registering
     /// a duplicate entry.
@@ -183,7 +187,7 @@ impl NodeInterner {
         &mut self,
         trait_id: TraitId,
         object_type: &Type,
-        require_matching_ordered: Option<&[Type]>,
+        ordered: &[Type],
         named: &[NamedType],
     ) -> bool {
         if named.is_empty() {
@@ -199,9 +203,7 @@ impl NodeInterner {
             } = impl_kind
                 && *existing_obj == *object_type
             {
-                if let Some(ordered) = require_matching_ordered
-                    && existing_generics.ordered.as_slice() != ordered
-                {
+                if existing_generics.ordered.as_slice() != ordered {
                     // A genuinely distinct bound (different ordered generics) — keep looking
                     // rather than collapsing it into this entry.
                     continue;
