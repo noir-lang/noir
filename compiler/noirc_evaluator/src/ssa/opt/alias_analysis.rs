@@ -1503,9 +1503,13 @@ mod tests {
     /// A reference-typed value in the generated program, plus the cells it may denote.
     #[derive(Clone)]
     struct GenValue {
-        /// The scalar at the bottom of the reference chain. Varying it is what lets
-        /// `may_alias`'s `canonical_eq` type filter fire at all — with a single base type two
-        /// references always have the same type and the filter can never reject.
+        /// The scalar at the bottom of the reference chain. Varying it widens the space and
+        /// constrains what `store`, array members and call arguments may be paired with.
+        ///
+        /// It does not reach `may_alias`'s `canonical_eq` type filter: that filter only
+        /// rejects when two values of *different* types denote one cell, which in practice
+        /// means `&T` against `&mut T`. `allocate` only ever yields `&mut`, so this generator
+        /// cannot build the pair, and the filter is never the reason an answer comes back.
         base: &'static str,
         /// Indirection depth: 0 is `&mut Field`, 1 is `&mut &mut Field`, and so on.
         level: usize,
@@ -1618,8 +1622,22 @@ mod tests {
         // The callee's body is fixed so the test can model its effect exactly: `writer`
         // stores its second argument into the cell its first argument names, and `identity`
         // hands a reference straight back.
-        let callee_base = *u.choose(&["Field", "u32", "bool"])?;
-        let callee_level = u.int_in_range(0..=1usize)?;
+        // A program draws its references from a narrow pool rather than from the full cross
+        // product of three bases and three indirection levels. Under the full cross product
+        // two references hardly ever agree on a type, and every rule that needs two of one
+        // type is reached only by coincidence: homogeneous `make_array`s were 3% of those
+        // generated, which left each of the seven vector intrinsics firing a single-digit
+        // number of times per run at the default budget. The variety lives across programs
+        // instead of inside one.
+        let all_bases = ["Field", "u32", "bool"];
+        let offset = u.choose_index(all_bases.len())?;
+        let bases: Vec<&'static str> = (0..u.int_in_range(1..=2usize)?)
+            .map(|k| all_bases[(offset + k) % all_bases.len()])
+            .collect();
+        // A window starting at 0, so a `store` always has a `level`/`level + 1` pair to join.
+        let max_level = u.int_in_range(1..=2usize)?;
+        let callee_base = *u.choose(&bases)?;
+        let callee_level = u.int_in_range(0..=max_level.min(1))?;
         let callee_is_writer: bool = u.arbitrary()?;
         let callee_src = if callee_is_writer {
             format!(
@@ -1635,8 +1653,8 @@ mod tests {
         };
 
         for _ in 0..u.int_in_range(2..=4)? {
-            let base = *u.choose(&["Field", "u32", "bool"])?;
-            let level = u.int_in_range(0..=2usize)?;
+            let base = *u.choose(&bases)?;
+            let level = u.int_in_range(0..=max_level)?;
             let cell = holds.len();
             holds.push(Vec::new());
             body.push_str(&format!("    v{emitted} = allocate -> {}\n", ref_type(base, level)));
@@ -1689,8 +1707,23 @@ mod tests {
                     if values.len() < 2 {
                         continue;
                     }
-                    let size = u.int_in_range(2..=values.len().min(4))?;
-                    let members: Vec<usize> = (0..size).collect();
+                    // Prefer a single element type: `as_vector` and all six vector
+                    // intrinsics require one, and the mixed-element fallback below is a
+                    // one-element array of a tuple, which none of them accept.
+                    let same: Vec<usize> = {
+                        let pivot = u.choose_index(values.len())?;
+                        let (b, l) = (values[pivot].base, values[pivot].level);
+                        (0..values.len())
+                            .filter(|i| values[*i].base == b && values[*i].level == l)
+                            .collect()
+                    };
+                    let pool: Vec<usize> = if same.len() >= 2 && u.ratio(2, 3)? {
+                        same
+                    } else {
+                        (0..values.len()).collect()
+                    };
+                    let size = u.int_in_range(2..=pool.len().min(4))?;
+                    let members: Vec<usize> = pool[..size].to_vec();
                     let elements = members
                         .iter()
                         .map(|i| format!("v{}", values[*i].emitted))
