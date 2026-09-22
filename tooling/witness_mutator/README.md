@@ -61,13 +61,25 @@ solved from an `AssertZero`**, exactly as the solver would. That second form is 
 whose partner value is not guessable — a quotient's matching remainder, for instance, is whatever
 the recomposition constraint forces.
 
+On top of those, the three compiler directives get candidates computed from **what they compute**.
+Each stands for an integer relation the constraints can only check modulo `p`, so recomputing the
+hint on `a + k*p` yields the outputs a dishonest prover would supply:
+
+| directive | candidates |
+| --- | --- |
+| `directive_integer_quotient` | `(a + k*p) divmod b` |
+| `directive_to_radix` | the limbs of `a + k*p` |
+| `directive_invert` | any non-zero value, but only when the input is zero — the inverse of anything else is unique |
+
+This family is the only one that can supply every output of a call at once, which is what a
+many-limbed decomposition needs.
+
 ## What it does not do yet
 
 - Only the first ACIR function is searched; programs that use `Call` opcodes are covered only in
   `main`.
-- No hint-aware strategy: candidate values ignore what a directive computes, so an alias is only
-  found when the near, edge or wraparound families happen to contain it.
-- Findings report the opcode location, not yet the Noir source line.
+- Hint-aware candidates cover only the three compiler directives; any other unconstrained call gets
+  the generic families alone.
 - Only one call site is overridden at a time, so it cannot find a witness that requires two hints to
   move together.
 
@@ -102,4 +114,10 @@ Zero `HIGH` on a clean compiler is the property that makes the grade worth actin
 `PROGRAM` findings are a useful check that the search works at all: it rediscovered, from execution
 alone, the same class of program the compiler's static check flags.
 
-See `corpus/README.md` for the rest of the corpus and how it is scored.
+## Score against the corpus
+
+`RESULTS.md` holds the held-out scoring: three of four "second witness" entries found, both
+"accepts a bad input" controls correctly missed and caught by the differential oracle instead, and
+one entry left open. The tool was frozen before any held-out entry was run.
+
+See `corpus/README.md` for the corpus itself and how it is labelled.
