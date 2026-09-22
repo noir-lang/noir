@@ -67,6 +67,18 @@ fn solve_linear(
     Some(-constant / coefficient)
 }
 
+/// Evaluate `expression` under `known`, or `None` if it mentions a witness that is not known yet.
+pub fn evaluate(expression: &Expression<FieldElement>, known: &Known) -> Option<FieldElement> {
+    let mut total = expression.q_c;
+    for (factor, lhs, rhs) in &expression.mul_terms {
+        total += *factor * *known.get(lhs)? * *known.get(rhs)?;
+    }
+    for (factor, witness) in &expression.linear_combinations {
+        total += *factor * *known.get(witness)?;
+    }
+    Some(total)
+}
+
 /// The coefficients `target` is multiplied by in the constraints, as field elements.
 ///
 /// These drive the wraparound candidates: a witness multiplied by `c` can usually be shifted by
@@ -143,6 +155,25 @@ mod tests {
         let known = BTreeMap::from([(Witness(0), FieldElement::from(30u128))]);
 
         assert_eq!(derive_from_constraints(&circuit, &known, Witness(1)), None);
+    }
+
+    #[test]
+    fn evaluates_an_expression_under_known_values() {
+        let known = BTreeMap::from([
+            (Witness(0), FieldElement::from(30u128)),
+            (Witness(1), FieldElement::from(7u128)),
+            (Witness(2), FieldElement::from(2u128)),
+        ]);
+
+        // 30 - 4*7 - 2 == 0
+        assert_eq!(evaluate(&recomposition(), &known), Some(FieldElement::zero()));
+    }
+
+    #[test]
+    fn evaluation_needs_every_witness() {
+        let known = BTreeMap::from([(Witness(0), FieldElement::from(30u128))]);
+
+        assert_eq!(evaluate(&recomposition(), &known), None);
     }
 
     #[test]

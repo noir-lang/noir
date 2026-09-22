@@ -7,7 +7,9 @@
 //! witness is the proof, and no reasoning about the source is needed to trust it.
 
 pub mod derive;
+pub mod directives;
 pub mod hints;
+pub mod source;
 pub mod strategy;
 
 use acir::{

@@ -9,6 +9,7 @@ use std::collections::{BTreeMap, HashSet};
 
 use crate::{
     derive::{Known, derive_from_constraints, linear_coefficients},
+    directives,
     hints::HintSite,
 };
 
@@ -91,6 +92,26 @@ pub fn candidates(
     let mut seen: HashSet<(usize, Vec<FieldElement>)> = HashSet::new();
 
     for (site_index, site) in sites.iter().enumerate() {
+        // What the hint computes, where that is known. These are the only candidates that can
+        // supply every output of a call at once, which is what a many-limbed decomposition needs.
+        if site.kind.is_directive() {
+            let opcode = &circuit.opcodes[site.opcode_index];
+            for (strategy, values) in directives::candidates(site, opcode, honest_witness) {
+                if values != site.honest
+                    && candidates.len() < limit
+                    && seen.insert((site_index, values.clone()))
+                {
+                    candidates.push(Candidate {
+                        site_index,
+                        values,
+                        strategy,
+                        moved: 0,
+                        derived: None,
+                    });
+                }
+            }
+        }
+
         for moved in 0..site.outputs.len() {
             let values = candidate_values(circuit, site.outputs[moved], site.honest[moved]);
 

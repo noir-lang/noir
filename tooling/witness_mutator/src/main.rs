@@ -3,7 +3,7 @@
 use clap::Parser;
 use color_eyre::eyre::{Context, Result, bail};
 use noir_artifact_cli::{Artifact, fs::inputs::read_inputs_from_file};
-use noir_witness_mutator::{Report, Severity, search};
+use noir_witness_mutator::{Report, Severity, search, source::location_of};
 use noirc_artifacts::program::CompiledProgram;
 use std::path::PathBuf;
 
@@ -45,7 +45,7 @@ fn main() -> Result<()> {
     let report = search(&program.program, initial_witness, args.max_candidates)
         .map_err(|error| color_eyre::eyre::eyre!(error))?;
 
-    print(&report, args.verbose);
+    print(&report, &program, args.verbose);
 
     // A non-zero status marks a circuit weaker than the program it was compiled from, which is
     // what a corpus run or a CI check wants to act on. A program that returns an unconstrained
@@ -56,7 +56,7 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn print(report: &Report, verbose: bool) {
+fn print(report: &Report, program: &CompiledProgram, verbose: bool) {
     println!(
         "{} hint call site(s), {} candidate witness(es) tried",
         report.sites, report.candidates_tried
@@ -84,6 +84,11 @@ fn print(report: &Report, verbose: bool) {
                  without constraining it"
             ),
             Severity::Intermediate => println!("  only intermediate witnesses change"),
+        }
+        if let Some(location) =
+            location_of(program, finding.site.function_index, finding.site.opcode_index)
+        {
+            println!("  at {location}");
         }
         for (witness, honest, mutated) in &finding.changed_outputs {
             println!("  w{}: honest {} -> {}", witness.0, honest, mutated);
