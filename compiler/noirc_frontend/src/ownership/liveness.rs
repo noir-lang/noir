@@ -60,6 +60,10 @@ struct LivenessContext {
 
     /// Fixpoint iterations run with this off, so only the converged pass records moves.
     recording: bool,
+
+    /// For each immutable `let`, the variables whose buffer its value may be. See
+    /// [`BufferSources`].
+    let_sources: HashMap<LocalId, BufferSources>,
 }
 
 /// Traverse the given function and return each use of a local variable that can be moved.
@@ -71,6 +75,7 @@ pub(super) fn find_variables_to_move(function: &Function) -> HashMap<LocalId, Ve
         break_live: Vec::new(),
         continue_live: Vec::new(),
         recording: true,
+        let_sources: collect_let_sources(&function.body),
     };
 
     // Nothing is live on return: the function's result has already been consumed by the
@@ -255,15 +260,16 @@ impl LivenessContext {
             live.remove(local_id);
             let mut live = self.visit(&assign.expression, live);
 
-            if !rhs_is_fresh(&assign.expression) {
-                // The right-hand side may evaluate to a buffer something else still names, so
-                // this assignment does not give the variable an owner of its own: afterwards
-                // the two share one buffer and one reference count. A use of the variable that
-                // reaches here from *before* the assignment — a loop's back edge reaches the
-                // top of the body again — would be moved into a second refcount-1 name for
-                // that shared buffer, and a later write through either name would mutate in
-                // place instead of copying. Keep the variable live for those uses. Uses inside
-                // the right-hand side are unaffected: nothing runs between them and the
+            if carries_another_variable(&self.let_sources, &assign.expression, *local_id) {
+                // The right-hand side may be another variable's buffer, handed over by moves
+                // alone. Each such move is justified by liveness, since the moved-from name is not
+                // read again; but inside a loop a chain of them — `t = a; a = c; c = t` — lowers to
+                // loop-header parameters permuted across the back edge with no `inc_rc` among
+                // them, and `rc_invariant` reasons about SSA values, not about which names are
+                // dead, so it cannot tell that permutation from an alias and rejects the next
+                // in-place write. Keeping the variable live for uses that reach here from before
+                // the assignment clones the earlier use and puts an `inc_rc` on the chain. Uses
+                // inside the right-hand side are unaffected: nothing runs between them and the
                 // overwrite except the rest of the right-hand side.
                 live.insert(*local_id);
             }
@@ -384,32 +390,118 @@ impl LivenessContext {
     }
 }
 
-/// Returns `true` if assigning `expr` to a variable hands it a buffer of its own, rather than one
-/// that whatever produced `expr` may still name.
+/// The variables whose buffer an expression may evaluate to by data movement alone: through
+/// identifiers, immutable `let`s, tuple fields, casts and block tails, with no call or allocation
+/// producing a new value on the way. `None` means it may be any existing buffer.
 ///
-/// Only fresh allocations and scalar literals qualify. An allocation is created at the assignment
-/// with a reference count of its own, so the assigned variable is its only name. A place expression
-/// (`Ident`, `Index`, member access, ...), a call result, or a block tail may all evaluate to a
-/// buffer that is already named elsewhere.
+/// A call or an allocation ends the chain because its result is a new SSA value rather than a
+/// loop-header parameter, so it cannot take part in the parameter permutation that the guard in
+/// `visit_assign` exists to break. `rc_invariant` itself treats call and allocation results as
+/// fresh storage.
+type BufferSources = Option<HashSet<LocalId>>;
+
+fn union_sources(sources: impl IntoIterator<Item = BufferSources>) -> BufferSources {
+    let mut all = HashSet::default();
+    for source in sources {
+        all.extend(source?);
+    }
+    Some(all)
+}
+
+/// Returns the [`BufferSources`] of `expr`, looking immutable `let`s up in `let_sources`.
 ///
-/// Only the *outer* buffer matters: inner-array sharing inside `[a, b]` or `[arr; N]` is handled by
-/// clone insertion at the element sites, so array, vector and repeated literals are fresh at this
-/// level whatever their elements are.
-fn rhs_is_fresh(expr: &Expression) -> bool {
+/// A mutable variable or a parameter is its own source: it may be reassigned, so the name is all
+/// that is known about its buffer. An index, a dereference or a global may be any existing buffer.
+fn buffer_sources(
+    let_sources: &HashMap<LocalId, BufferSources>,
+    expr: &Expression,
+) -> BufferSources {
+    let sources = |expr| buffer_sources(let_sources, expr);
     match expr {
-        Expression::Literal(literal) => matches!(
-            literal,
+        Expression::Ident(ident) => match ident.definition {
+            Definition::Local(id) => match let_sources.get(&id) {
+                Some(of_let) => of_let.clone(),
+                None => Some(HashSet::from_iter([id])),
+            },
+            _ => None,
+        },
+        Expression::Literal(literal) => match literal {
             Literal::Array(_)
-                | Literal::Vector(_)
-                | Literal::Repeated { .. }
-                | Literal::Integer(..)
-                | Literal::Bool(_)
-                | Literal::Unit
-                | Literal::Str(_)
+            | Literal::Vector(_)
+            | Literal::Repeated { .. }
+            | Literal::Integer(..)
+            | Literal::Bool(_)
+            | Literal::Unit
+            | Literal::Str(_) => Some(HashSet::default()),
+            Literal::FmtStr(..) => None,
+        },
+        Expression::Call(_) => Some(HashSet::default()),
+        Expression::Cast(cast) => sources(&cast.lhs),
+        Expression::ExtractTupleField(tuple, _) => sources(tuple),
+        Expression::Tuple(elements) => union_sources(elements.iter().map(sources)),
+        Expression::Block(exprs) => match exprs.last() {
+            Some(tail) => sources(tail),
+            None => Some(HashSet::default()),
+        },
+        Expression::If(if_expr) => union_sources([
+            sources(&if_expr.consequence),
+            if_expr.alternative.as_ref().map_or(Some(HashSet::default()), |alt| sources(alt)),
+        ]),
+        Expression::Match(match_expr) => union_sources(
+            match_expr
+                .cases
+                .iter()
+                .map(|case| sources(&case.branch))
+                .chain(match_expr.default_case.as_ref().map(|default| sources(default))),
         ),
-        // A cast cannot change buffer identity, so it is fresh exactly when its operand is.
-        Expression::Cast(cast) => rhs_is_fresh(&cast.lhs),
-        _ => false,
+        Expression::Binary(_)
+        | Expression::Let(_)
+        | Expression::Assign(_)
+        | Expression::Constrain(..)
+        | Expression::Semi(_)
+        | Expression::For(_)
+        | Expression::Loop(_)
+        | Expression::While(_)
+        | Expression::Break
+        | Expression::Continue => Some(HashSet::default()),
+        Expression::Unary(_)
+        | Expression::Index(_)
+        | Expression::Clone(_)
+        | Expression::Drop(_) => None,
+    }
+}
+
+/// Records the [`BufferSources`] of every immutable `let` in `body`. Each `let` is recorded after
+/// its initializer has been walked, so a `let` nested inside another's initializer is known by
+/// the time the outer one is resolved.
+fn collect_let_sources(body: &Expression) -> HashMap<LocalId, BufferSources> {
+    let mut let_sources = HashMap::default();
+    crate::monomorphization::visitor::visit_expr_be(
+        body,
+        &mut |_| (true, ()),
+        &mut |expr, ()| {
+            if let Expression::Let(let_expr) = expr
+                && !let_expr.mutable
+            {
+                let sources = buffer_sources(&let_sources, &let_expr.expression);
+                let_sources.insert(let_expr.id, sources);
+            }
+        },
+        &mut |_| {},
+    );
+    let_sources
+}
+
+/// Returns `true` if assigning `rhs` to `assigned` may hand it a buffer that some other variable
+/// held, by data movement alone.
+fn carries_another_variable(
+    let_sources: &HashMap<LocalId, BufferSources>,
+    rhs: &Expression,
+    assigned: LocalId,
+) -> bool {
+    match buffer_sources(let_sources, rhs) {
+        Some(sources) => sources.iter().any(|source| *source != assigned),
+        None => true,
     }
 }
 

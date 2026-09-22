@@ -1818,12 +1818,56 @@ fn confirmed_move_for_variable_reassigned_in_the_loop() {
     ");
 }
 
-/// Regression: swapping two arrays through a temporary rotates buffers across the loop's back
-/// edge. Each read is followed by a reassignment of the variable it read, so on names alone every
-/// read looks like a last use — but `a = c` and `c = t` hand their variables buffers that are
-/// already named elsewhere, so a move would carry the rotation with no reference count of its
-/// own and a later write through either name would mutate in place. `let t = a` and `a = c` are
-/// therefore cloned; `c = t` still moves, since `t` is the temporary and nothing else names it.
+/// A call's result is a new value rather than another variable's buffer, so reassigning from it
+/// frees earlier uses to move. This is the shape of the stack loop in the standard library's
+/// quicksort: the array handed to `pop` is moved, because `stack = new_stack` overwrites `stack`
+/// with a value that came out of the call.
+#[test]
+fn moves_use_before_reassignment_from_a_call_result() {
+    let src = "
+    unconstrained fn main(input: [Field; 2], n: u32) -> pub Field {
+        let mut stack = input;
+        let mut acc = 0;
+        for _j in 0..n {
+            let (new_stack, v) = pop(stack);
+            stack = new_stack;
+            acc += v;
+        }
+        acc
+    }
+
+    unconstrained fn pop(s: [Field; 2]) -> ([Field; 2], Field) {
+        (s, s[0])
+    }
+    ";
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(input$l0: [Field; 2], n$l1: u32) -> pub Field {
+        let mut stack$l2 = input$l0;
+        let mut acc$l3 = 0;
+        for _j$l4 in 0 .. n$l1 {
+            {
+                let _$l5 = pop$f1(stack$l2);
+                let new_stack$l6 = 0$l5.0.clone();
+                let v$l7 = 1$l5.1
+            };
+            stack$l2 = new_stack$l6;
+            acc$l3 = (acc$l3 + v$l7)
+        };
+        acc$l3
+    }
+    unconstrained fn pop$f1(s$l8: [Field; 2]) -> ([Field; 2], Field) {
+        (s$l8.clone(), s$l8[0])
+    }
+    ");
+}
+
+/// Regression: swapping two arrays through a temporary, inside a loop. Every read is followed by
+/// a reassignment of the variable it read, so on names alone each is a last use; moved, the whole
+/// swap lowers to loop-header parameters permuted across the back edge with no `inc_rc`, which
+/// `rc_invariant` rejects at the next in-place write. `a = c` and `c = t` hand their variables
+/// another variable's buffer, so the reads before them — `let t = a` and `a = c` — are cloned.
+/// `c = t` itself still moves `t`: nothing reads the temporary afterwards.
 #[test]
 fn clone_for_array_swap_through_a_temporary_in_a_loop() {
     let src = "
@@ -1856,11 +1900,9 @@ fn clone_for_array_swap_through_a_temporary_in_a_loop() {
 }
 
 /// Regression: `c = { ...; a }` hands `c` the buffer `a` names and `a = c` hands it straight
-/// back, so neither assignment gives its variable a buffer of its own. That is why `a = c`
-/// overwriting `a` does not license moving the block tail's use of `a`: the back edge reaches
-/// that use again with `a` and `c` naming one buffer, and a move would leave it at refcount 1
-/// under two names, so the next iteration's `c[0] = 99` would corrupt `a` in place. Both uses
-/// are cloned.
+/// back. Both right-hand sides may be another variable's buffer, so neither assignment frees an
+/// earlier use of its variable to move: the block tail's use of `a` is cloned even though `a = c`
+/// overwrites `a`, and so is the use of `c` in `a = c`.
 #[test]
 fn clone_for_loop_buffer_rotation_via_aliasing_reassignment() {
     let src = "
