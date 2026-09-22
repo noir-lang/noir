@@ -94,6 +94,14 @@ struct LastUseContext {
     /// still live after the loop, so it must be cloned rather than moved. The use stays in
     /// `pending_last_uses` instead, where loop-exit truncation forces the clone.
     break_dependent_uses: HashSet<IdentId>,
+
+    /// Uses recorded while the variable was already in [`Self::killed`].
+    ///
+    /// Because the traversal is in reverse, a use is only in this set if the reassignment
+    /// that justifies rescuing it had already been reached, i.e. the read precedes the
+    /// reassignment in forward order. A read that *follows* the reassignment is absent, and
+    /// is only rescued when no preceding read exists to observe it on the next iteration.
+    pre_kill_uses: HashSet<IdentId>,
 }
 
 impl Context<'_> {
@@ -112,6 +120,7 @@ impl Context<'_> {
             referenced_variables: HashSet::default(),
             has_break: false,
             break_dependent_uses: HashSet::default(),
+            pre_kill_uses: HashSet::default(),
         };
 
         for (parameter, ..) in &function.parameters {
@@ -134,6 +143,9 @@ impl LastUseContext {
             self.pending_last_uses.entry(id).or_default().push(ident_id);
             if self.has_break {
                 self.break_dependent_uses.insert(ident_id);
+            }
+            if self.killed.contains(&id) {
+                self.pre_kill_uses.insert(ident_id);
             }
         }
     }
@@ -286,6 +298,8 @@ impl LastUseContext {
         // below). A `break` in a `while` condition targets the enclosing loop, so process the
         // condition with a clean flag and let whatever it sets propagate outward.
         self.has_break = false;
+        let lengths_after_body: HashMap<LocalId, usize> =
+            self.pending_last_uses.iter().map(|(id, uses)| (*id, uses.len())).collect();
         if let Some(condition) = condition {
             self.find_last_uses_in_expression(condition);
         }
@@ -293,16 +307,39 @@ impl LastUseContext {
 
         self.loop_depth = loop_body_depth - 1;
 
-        // Variables declared outside this loop cannot be moved inside it — unless
-        // they are unconditionally reassigned (killed) within the loop body, in which
-        // case their value is freshly created and consumed each iteration.
+        // Variables declared outside this loop cannot be moved inside it — unless the loop
+        // unconditionally reassigns them (killed) between the read and every later read of
+        // the same variable, in which case the value read is overwritten before anyone can
+        // observe the move.
+        //
+        // Two reads are not covered by that argument and must keep their clone:
+        //
+        // * a read in the `while` condition. The loop's exit edge leaves from the condition,
+        //   so the final evaluation's read is followed by no reassignment at all, and the
+        //   buffer it consumed is the one live after the loop.
+        // * a read that follows the reassignment, when some other read precedes it. The
+        //   preceding read runs again on the next iteration and would observe the buffer the
+        //   following read moved away. With no preceding read, the only later read is the
+        //   same one an iteration later, and the reassignment does sit between them.
+        let pre_kill_uses = std::mem::take(&mut self.pre_kill_uses);
+        let killed = std::mem::take(&mut self.killed);
         for (id, uses) in &mut self.pending_last_uses {
             let decl_depth = self.declaration_depth.get(id).copied().unwrap_or(0);
-            if decl_depth < loop_body_depth && !self.killed.contains(id) {
-                let before_len = pending_lengths.get(id).copied().unwrap_or(0);
-                uses.truncate(before_len);
+            if decl_depth >= loop_body_depth {
+                continue;
+            }
+            uses.truncate(lengths_after_body.get(id).copied().unwrap_or(0).min(uses.len()));
+
+            let before_len = pending_lengths.get(id).copied().unwrap_or(0).min(uses.len());
+            let in_body = uses.split_off(before_len);
+            if in_body.iter().any(|use_id| pre_kill_uses.contains(use_id)) {
+                uses.extend(in_body.into_iter().filter(|use_id| pre_kill_uses.contains(use_id)));
+            } else if killed.contains(id) {
+                uses.extend(in_body);
             }
         }
+        self.killed = killed;
+        self.pre_kill_uses = pre_kill_uses;
         // Reinsert anything we have seen before, so nothing before the loop becomes a new last use.
         for id in &saved_seen {
             let decl_depth = self.declaration_depth.get(id).copied().unwrap_or(0);
