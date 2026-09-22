@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790076778551,
+  "lastUpdate": 1790092466279,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22931,48 +22931,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "d89cc38218ed909c049aeab656e75f4808487a00",
-          "message": "chore(deps): bump the linter group with 3 updates (#13726)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-09-15T11:33:29Z",
-          "tree_id": "82f7327f008d68cf905fe56077d284b5e71325a2",
-          "url": "https://github.com/noir-lang/noir/commit/d89cc38218ed909c049aeab656e75f4808487a00"
-        },
-        "date": 1789473225291,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 170884,
-            "range": "± 677",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 138945,
-            "range": "± 424",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2652536,
-            "range": "± 2559",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -25024,6 +24982,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2646142,
             "range": "± 11399",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "952378fc0d72883c578149e9f00b757d9516b711",
+          "message": "fix: attach the logical OOB payload whenever the memory-op index is scaled (#13776)",
+          "timestamp": "2026-09-22T15:30:01Z",
+          "tree_id": "f80dfbc10d8e89a004bb340ebffd4c2a905253bf",
+          "url": "https://github.com/noir-lang/noir/commit/952378fc0d72883c578149e9f00b757d9516b711"
+        },
+        "date": 1790092374677,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 168597,
+            "range": "± 372",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 137530,
+            "range": "± 1008",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2645804,
+            "range": "± 2275",
             "unit": "ns/iter"
           }
         ]
