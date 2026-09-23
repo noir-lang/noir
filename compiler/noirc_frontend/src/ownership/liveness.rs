@@ -9,14 +9,14 @@
 //!
 //! `visit` walks the expression tree in reverse, threading the set of variables live *after*
 //! an expression and returning those live *before* it. At each identifier the decision is one
-//! membership test. Branches join by union; loops iterate to a fixpoint so that the back edge
-//! is accounted for, and a loop's exit and jump edges are modelled explicitly:
+//! membership test. Branches join by union; a loop takes two passes so that the back edge is
+//! accounted for (see `visit_loop`), and a loop's exit and jump edges are modelled explicitly:
 //!
-//! - a `while` and a `for` are both tested at their header, so the header has two successors,
-//!   the body and the loop exit, and whatever is live after the loop is live at the header.
+//! - a `while` and a `for` are both tested at their header, so the test has two successors,
+//!   the body and the loop exit, and whatever is live after the loop is live at the test.
 //!   This is what makes a read that the body reassigns afterwards a copy rather than a move:
 //!   the exit edge reaches the post-loop reader without crossing that reassignment. A bare
-//!   `loop` has no header test and leaves only via `break`, so its header carries nothing.
+//!   `loop` has no header test and leaves only via `break`.
 //! - a `break`/`continue` does not fall through: the set live before it is the set live at its
 //!   jump target, not the set live after it in the tree. A `break`/`continue` written in a
 //!   `while` condition targets the *enclosing* loop (consistent with SSA lowering and the
@@ -115,10 +115,10 @@ impl LivenessContext {
             Expression::Cast(cast) => self.visit(&cast.lhs, live),
             Expression::For(for_expr) => self.visit_for(for_expr, live),
             // A bare `loop` has no header test: it leaves only via `break`, which reads
-            // `break_live` directly, so nothing is live at its header on entry.
-            Expression::Loop(body) => self.loop_fixpoint(body, None, false, live),
+            // `break_live` directly.
+            Expression::Loop(body) => self.visit_loop(body, None, false, live),
             Expression::While(while_expr) => {
-                self.loop_fixpoint(&while_expr.body, Some(&while_expr.condition), true, live)
+                self.visit_loop(&while_expr.body, Some(&while_expr.condition), true, live)
             }
             Expression::If(if_expr) => self.visit_if(if_expr, live),
             Expression::Match(match_expr) => self.visit_match(match_expr, live),
@@ -317,26 +317,30 @@ impl LivenessContext {
     }
 
     fn visit_for(&mut self, for_expr: &ast::For, live: Live) -> Live {
-        // The ranges are evaluated once, before the loop, so they sit outside the fixpoint.
+        // The ranges are evaluated once, before the loop, so they sit outside it.
         // `for` carries no condition *expression*, but `index < end_range` is still tested at
         // the header, so the loop exits from there just as a `while` does.
-        let mut header = self.loop_fixpoint(&for_expr.block, None, true, live.clone());
+        let mut live = self.visit_loop(&for_expr.block, None, true, live);
         // The loop header defines the index variable on every iteration.
-        header.remove(&for_expr.index_variable);
-
-        // The header's other successor is the loop exit.
-        let live = header.union(&live).copied().collect::<Live>();
+        live.remove(&for_expr.index_variable);
         let live = self.visit(&for_expr.end_range, live);
         self.visit(&for_expr.start_range, live)
     }
 
     /// Returns the set live at the loop's header, given the set live after the loop.
     ///
-    /// The back edge makes the header's live-in depend on itself, so iterate: the set only
-    /// grows, the lattice of variable sets is finite, and in practice two passes suffice.
-    /// The iterations run with recording off, since a use recorded against a live set that is
-    /// still growing could claim a move the converged answer rejects.
-    fn loop_fixpoint(
+    /// The back edge and every `continue` make the header its own successor, so its live set
+    /// `H` is a fixpoint. Two passes find it without iterating. Every transfer function in this
+    /// analysis has the form `X ↦ A ∪ (X ∩ T)`: a use adds to `A`, a definition removes from `T`,
+    /// a jump replaces `X` with its target's set, and unions, sequencing and nested loops all
+    /// preserve the form. So `H = A ∪ (H ∩ T)`, whose least solution is `A` itself, which is
+    /// what one pass computes with the header taken to be empty. Put in terms of paths: a path
+    /// that goes round the back edge before reaching a use adds nothing, because the part after
+    /// its last visit to the header already reaches that use within a single iteration.
+    ///
+    /// The first pass runs with recording off, because its header set is not yet the true one.
+    /// The second pass, with `H` in hand, records the moves.
+    fn visit_loop(
         &mut self,
         body: &Expression,
         condition: Option<&Expression>,
@@ -344,28 +348,17 @@ impl LivenessContext {
         live_after: Live,
     ) -> Live {
         let recording = std::mem::replace(&mut self.recording, false);
-
-        // When the loop can exit from its header, the header's successors include the code
-        // after the loop, so whatever that code needs is live at the header. This is what keeps
-        // a read inside the body live when the body reassigns the variable afterwards: the exit
-        // edge reaches the post-loop reader without passing that reassignment again.
-        let mut header = if exits_from_header { live_after.clone() } else { Live::default() };
-        loop {
-            let next = self.visit_loop_once(body, condition, &header, &live_after);
-            if next.is_subset(&header) {
-                break;
-            }
-            header.extend(next);
-        }
-
+        let header =
+            self.visit_loop_once(body, condition, exits_from_header, &Live::default(), &live_after);
         self.recording = recording;
-        self.visit_loop_once(body, condition, &header, &live_after)
+        self.visit_loop_once(body, condition, exits_from_header, &header, &live_after)
     }
 
     fn visit_loop_once(
         &mut self,
         body: &Expression,
         condition: Option<&Expression>,
+        exits_from_header: bool,
         header: &Live,
         live_after: &Live,
     ) -> Live {
@@ -386,6 +379,8 @@ impl LivenessContext {
                 let condition_out = body_in.union(live_after).copied().collect::<Live>();
                 self.visit(condition, condition_out)
             }
+            // A `for` has no condition expression, but its header test still exits the loop.
+            None if exits_from_header => body_in.union(live_after).copied().collect(),
             None => body_in,
         }
     }

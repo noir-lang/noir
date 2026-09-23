@@ -277,7 +277,7 @@ fn moves_read_in_while_body_when_the_condition_reassigns_before_every_later_read
             (k$l2 < n$l0)
         } {
             k$l2 = (k$l2 + 1);
-            use_var$f1(x$l1.clone());
+            use_var$f1(x$l1);
         };
         use_var$f1(x$l1);
     }
