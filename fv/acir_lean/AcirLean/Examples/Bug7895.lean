@@ -1,4 +1,9 @@
-import AcirLean.Template
+/-
+EXAMPLE: not part of the claims, no review needed. Lean checks it.
+-/
+
+import AcirLean.Templates.Gadgets
+import AcirLean.Proofs.Basic
 
 /-!
 `truncT` with the `q ≤ q0` bound removed (the bound fixed in noir-lang/noir#7895).
@@ -17,7 +22,7 @@ def truncBugT (k : ℕ) : List Cstr :=
     .zero [⟨1, [2, 4]⟩, ⟨(R' k : ℤ), [4]⟩, ⟨-1, [5]⟩],
     if N' k = 0 then .zero [⟨1, [5]⟩] else .range 5 (N' k) ]
 
-instance (σ : ℕ → F) (c : Cstr) : Decidable (c.sat σ) := by
+instance instDecidableCstrSatExample (σ : ℕ → F) (c : Cstr) : Decidable (c.sat σ) := by
   cases c <;> unfold Cstr.sat <;> unfold Range <;> infer_instance
 
 /-- The forged assignment for `x as u64`: pick `q = q0 + 1`, so `2^64 * q`

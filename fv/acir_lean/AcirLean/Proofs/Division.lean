@@ -1,4 +1,9 @@
-import AcirLean.Basic
+/-
+MACHINE-CHECKED: no review needed. Lean checks every proof in this file, and
+nothing here can change what `AcirLean/Spec/Claims.lean` states.
+-/
+
+import AcirLean.Proofs.Basic
 
 /-!
 Soundness of `AcirContext::euclidean_division_var`

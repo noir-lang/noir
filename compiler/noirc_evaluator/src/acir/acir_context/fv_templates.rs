@@ -2,6 +2,11 @@
 //! whose soundness is proved in Lean (`fv/acir_lean`). The golden file is
 //! produced by `EmitTemplates.lean` (see `fv/acir_lean/README.md`); a change to
 //! either side fails here until the proof and the Rust agree again.
+//!
+//! REVIEWED: this file is the Rust half of the pin, so it is part of the trusted
+//! base. `canonical` must print every constraint faithfully, in the same form as
+//! `fv/acir_lean/AcirLean/Spec/Pin.lean`, and the gadget calls below must cover
+//! every width in `pinnedWidths` there.
 
 use acvm::{
     AcirField, FieldElement,
@@ -105,7 +110,7 @@ fn integer_gadgets_match_lean_templates() {
             "integer gadget constraints differ from the Lean-proved templates.\n\
              templates.golden is generated from fv/acir_lean and checked by \
              fv/acir_lean/scripts/check.sh: editing it by hand fails that check. \
-             Update AcirLean/Template.lean and its proofs to match the new constraints, \
+             Update AcirLean/Templates/Gadgets.lean and the proofs to match the new constraints, \
              then regenerate the golden file from Lean.\n\
              --- emitted ---\n{emitted}"
         );

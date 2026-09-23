@@ -1,4 +1,9 @@
-import AcirLean.Division
+/-
+MACHINE-CHECKED: no review needed. Lean checks every proof in this file, and
+nothing here can change what `AcirLean/Spec/Claims.lean` states.
+-/
+
+import AcirLean.Proofs.Division
 
 /-!
 `AcirContext::more_than_eq_var(a, b, m)`: divide `2^m + a - b` by the constant

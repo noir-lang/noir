@@ -1,30 +1,17 @@
-import Mathlib.Data.ZMod.Basic
-import Mathlib.Data.Nat.Size
+/-
+MACHINE-CHECKED: no review needed. Lean checks every proof in this file, and
+nothing here can change what `AcirLean/Spec/Claims.lean` states.
+-/
+
+import AcirLean.Templates.Gadgets
 import Mathlib.Tactic
 
-/-!
-BN254 scalar field and the semantics of the ACIR constraints the Noir
-`acir_context` emits: `AssertZero` is an equation over `F`, and a `RANGE`
-black-box of `k` bits is `x.val < 2^k`.
--/
+/-! Arithmetic facts about `p` and the range-check lemmas the gadget proofs use. -/
 
 namespace AcirLean
 
-def p : ℕ := 21888242871839275222246405745257275088548364400416034343698204186575808495617
-
-instance : NeZero p := ⟨by norm_num [p]⟩
-instance : Fact (1 < p) := ⟨by norm_num [p]⟩
-
-abbrev F := ZMod p
-
 theorem p_gt : 2 ^ 253 < p := by norm_num [p]
 theorem p_lt : p < 2 ^ 254 := by norm_num [p]
-
-/-- ACIR `RANGE { num_bits := k }` on a witness. -/
-def Range (x : F) (k : ℕ) : Prop := x.val < 2 ^ k
-
-/-- Rust `num_bits` / `bit_size_u128`: the bit length. -/
-abbrev bits (n : ℕ) : ℕ := Nat.size n
 
 theorem val_natCast_of_lt {n : ℕ} (h : n < p) : ((n : ℕ) : F).val = n := by
   rw [ZMod.val_natCast, Nat.mod_eq_of_lt h]
