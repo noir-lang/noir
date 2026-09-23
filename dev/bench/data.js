@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790093496735,
+  "lastUpdate": 1790171553524,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22936,48 +22936,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "1257c19c13f9810e8c6ddd80f42aeb4ab3c8d5c4",
-          "message": "chore(deps): bump rustls to 0.23.45 to fix RUSTSEC-2026-0285 (#13736)",
-          "timestamp": "2026-09-15T13:08:36+01:00",
-          "tree_id": "17b000a5b2ad7bbf5f9e86ae2b0356a14ec08048",
-          "url": "https://github.com/noir-lang/noir/commit/1257c19c13f9810e8c6ddd80f42aeb4ab3c8d5c4"
-        },
-        "date": 1789474260170,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 97752,
-            "range": "± 341",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 86844,
-            "range": "± 874",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2358630,
-            "range": "± 1304",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49558828+AztecBot@users.noreply.github.com",
             "name": "Aztec Bot",
             "username": "AztecBot"
@@ -25029,6 +24987,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2648672,
             "range": "± 7938",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fbc9588327568d7199702abe27bef8fb3d9aa650",
+          "message": "chore(ssa): property-test `may_reference` and `may_alias` against an independent memory model (#13767)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-09-23T13:32:08Z",
+          "tree_id": "30bead668bc823cfc6693eea54118dcb3502ef8b",
+          "url": "https://github.com/noir-lang/noir/commit/fbc9588327568d7199702abe27bef8fb3d9aa650"
+        },
+        "date": 1790171463911,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 169252,
+            "range": "± 832",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 137880,
+            "range": "± 1834",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2646250,
+            "range": "± 2235",
             "unit": "ns/iter"
           }
         ]
