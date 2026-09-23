@@ -1398,7 +1398,6 @@ mod tests {
         out
     }
 
-    /// Collect the result `ValueIds` of every `ArrayGet` instruction.
     /// Collect the parameters of every non-entry block, in block order.
     fn collect_block_params(ssa: &Ssa) -> Vec<GlobalValueId> {
         let func = ssa.main();
@@ -1446,6 +1445,7 @@ mod tests {
         out
     }
 
+    /// Collect the result `ValueIds` of every `ArrayGet` instruction.
     fn collect_array_gets(ssa: &Ssa) -> Vec<GlobalValueId> {
         let func = ssa.main();
         let mut out = Vec::new();
@@ -1594,9 +1594,13 @@ mod tests {
         t
     }
 
-    /// Generate a function built only from instructions the alias analysis has rules for —
-    /// `allocate`, `store`, `make_array`, `load` and `array_get` — recording in parallel what
-    /// each value may point at.
+    /// Generate a function built only from instructions the alias analysis has rules for,
+    /// recording in parallel what each value may point at: `allocate`, `store`, `make_array`
+    /// (array or vector), `load`, `array_get`, `array_set`, `as_vector` and five of the six
+    /// vector intrinsics (all but `vector_pop_front`), `if_else`, calls to a resolved second
+    /// function, and opaque foreign calls. The body is laid out as a straight line, a
+    /// two-block chain, or a self-looping block whose parameter carries a reference across
+    /// the back edge.
     ///
     /// The model is deliberately field-*sensitive* about arrays (element `k` really is the
     /// value placed there). That keeps it a lower bound on what a sound may-analysis must
@@ -1832,7 +1836,8 @@ mod tests {
                     n_set += 1;
                 }
                 // The vector intrinsics, each of which has its own bespoke merge rule in
-                // `unify_vector_intrinsic`. All seven rules are exercised.
+                // `unify_vector_intrinsic`. Six of the seven are exercised; `vector_pop_front`
+                // has a hand-written test instead.
                 4 => {
                     // `as_vector` consumes a homogeneous *array*; the rest consume vectors.
                     let want_as_vector = u.ratio(1, 6)?;
@@ -2234,6 +2239,18 @@ mod tests {
             .then_some((base, level))
     }
 
+    /// Time budget for each alias-analysis property, in milliseconds.
+    ///
+    /// The 2-second default is short enough for PR CI. The nightly fuzz workflow sets
+    /// `NOIR_ALIAS_PROP_BUDGET_MS` to run each property for longer, where the extra time buys
+    /// deeper shapes at negligible cost.
+    fn prop_budget_ms() -> u64 {
+        std::env::var("NOIR_ALIAS_PROP_BUDGET_MS")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(2_000)
+    }
+
     /// Every allocation cell reachable from `start` by following the `holds` relation.
     fn reachable_cells(holds: &[Vec<usize>], start: &[usize]) -> HashSet<usize> {
         let mut seen = HashSet::default();
@@ -2299,12 +2316,7 @@ mod tests {
             }
             Ok(())
         })
-        .budget_ms(
-            std::env::var("NOIR_ALIAS_PROP_BUDGET_MS")
-                .ok()
-                .and_then(|v| v.parse().ok())
-                .unwrap_or(2_000),
-        );
+        .budget_ms(prop_budget_ms());
         counts.assert_mostly_accepted();
     }
 
@@ -2399,14 +2411,7 @@ mod tests {
             }
             Ok(())
         })
-        // Short enough for PR CI; `NOIR_ALIAS_PROP_BUDGET_MS` raises it for nightly runs,
-        // where the extra time buys deeper shapes at negligible cost.
-        .budget_ms(
-            std::env::var("NOIR_ALIAS_PROP_BUDGET_MS")
-                .ok()
-                .and_then(|v| v.parse().ok())
-                .unwrap_or(2_000),
-        );
+        .budget_ms(prop_budget_ms());
         counts.assert_mostly_accepted();
     }
 
