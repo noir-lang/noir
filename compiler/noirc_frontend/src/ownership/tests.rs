@@ -250,6 +250,43 @@ fn copies_read_before_continue_in_while_body_when_read_after_the_loop() {
 }
 
 #[test]
+fn moves_read_in_while_body_when_the_condition_reassigns_before_every_later_read() {
+    // Every path from the body's read of `x` reaches `x = [4, 5, 6]` in the condition before
+    // any other read, including the path that leaves the loop, so that read is a move.
+    let src = "
+    unconstrained fn main(n: u32) {
+        let mut x = [1, 2, 3];
+        let mut k = 0;
+        while { x = [4, 5, 6]; k < n } {
+            k += 1;
+            use_var(x);
+        }
+        use_var(x);
+    }
+
+    fn use_var<T>(_x: T) {}
+    ";
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(n$l0: u32) -> () {
+        let mut x$l1 = [1, 2, 3];
+        let mut k$l2 = 0;
+        while {
+            x$l1 = [4, 5, 6];
+            (k$l2 < n$l0)
+        } {
+            k$l2 = (k$l2 + 1);
+            use_var$f1(x$l1.clone());
+        };
+        use_var$f1(x$l1);
+    }
+    unconstrained fn use_var$f1(_x$l3: [Field; 3]) -> () {
+    }
+    ");
+}
+
+#[test]
 fn can_move_within_loop() {
     let src = "
     unconstrained fn main() {
