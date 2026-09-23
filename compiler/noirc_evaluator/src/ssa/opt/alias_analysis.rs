@@ -1344,8 +1344,18 @@ impl AliasAnalysisContext {
 #[cfg(test)]
 mod tests {
     //! Unit tests for the alias analysis.
+    use std::collections::BTreeSet;
+
+    use acvm::acir::brillig::lengths::SemanticLength;
+    use arbtest::arbitrary::{self, Unstructured};
+    use noirc_frontend::monomorphization::ast::InlineType;
+
     use super::*;
-    use crate::ssa::{ir::instruction::Instruction, ssa_gen::Ssa};
+    use crate::ssa::{
+        function_builder::FunctionBuilder,
+        ir::{function::RuntimeType, instruction::Instruction, map::Id},
+        ssa_gen::Ssa,
+    };
 
     /// Collect the result `ValueIds` of every `Allocate` instruction in the main
     /// function, in declaration order (across reachable blocks).
@@ -1414,6 +1424,689 @@ mod tests {
 
     fn analyze_main(ssa: &Ssa) -> AliasAnalysis {
         AliasAnalysis::analyze(ssa)
+    }
+
+    // ============================================================
+    // Soundness properties
+    // ============================================================
+    //
+    // `may_alias` and `may_reference` are *may* analyses. Answering `true` too often only
+    // costs optimizations; answering `false` wrongly lets `load_store_forwarding` reuse a
+    // stale value. The two properties below check that the second kind of mistake never
+    // happens.
+    //
+    // Each case builds a random function that does nothing but move references around, and
+    // while building it records in a `Model` which `allocate` each reference may denote and
+    // which references each cell may hold. The model never consults `AliasAnalysis`, and
+    // every fact it records is realised by some execution, so it is a lower bound: whenever
+    // the model says two values can be one cell, or that one reaches another, the analysis
+    // has to say so too.
+
+    /// A cell is one `allocate` in the generated function, identified by its position.
+    type Cell = usize;
+
+    /// What the generated function can do to memory, tracked independently of the analysis.
+    #[derive(Default)]
+    struct Model {
+        /// The cells each reference value may denote.
+        denotes: HashMap<ValueId, BTreeSet<Cell>>,
+        /// `holds[c]` is every cell whose reference may have been stored into cell `c`.
+        holds: Vec<BTreeSet<Cell>>,
+        /// The elements of each array or vector value, in order.
+        elements: HashMap<ValueId, Vec<ValueId>>,
+    }
+
+    impl Model {
+        fn allocate(&mut self, reference: ValueId) {
+            self.denotes.insert(reference, BTreeSet::from([self.holds.len()]));
+            self.holds.push(BTreeSet::new());
+        }
+
+        /// `result` may denote any cell one of `sources` may denote.
+        fn copy(&mut self, result: ValueId, sources: &[ValueId]) {
+            let cells = sources.iter().flat_map(|source| self.denotes[source].clone()).collect();
+            self.denotes.insert(result, cells);
+        }
+
+        fn store(&mut self, address: ValueId, value: ValueId) {
+            for cell in &self.denotes[&address] {
+                self.holds[*cell].extend(&self.denotes[&value]);
+            }
+        }
+
+        /// The cells a reference loaded through `address` may denote.
+        fn loaded(&self, address: ValueId) -> BTreeSet<Cell> {
+            self.denotes[&address].iter().flat_map(|cell| self.holds[*cell].clone()).collect()
+        }
+
+        fn can_be_one_cell(&self, a: ValueId, b: ValueId) -> bool {
+            !self.denotes[&a].is_disjoint(&self.denotes[&b])
+        }
+
+        /// Every cell reachable from `value`: through the stores out of the cells a reference
+        /// denotes, or, for an aggregate, its elements' own cells and everything they reach.
+        fn reachable_from(&self, value: ValueId) -> BTreeSet<Cell> {
+            let mut reached = BTreeSet::new();
+            let mut stack: Vec<Cell> = if let Some(elements) = self.elements.get(&value) {
+                let cells: Vec<Cell> =
+                    elements.iter().flat_map(|element| self.denotes[element].clone()).collect();
+                reached.extend(&cells);
+                cells
+            } else {
+                self.denotes[&value].iter().copied().collect()
+            };
+            while let Some(cell) = stack.pop() {
+                for held in &self.holds[cell] {
+                    if reached.insert(*held) {
+                        stack.push(*held);
+                    }
+                }
+            }
+            reached
+        }
+    }
+
+    /// A random function built from reference-only SSA, and its model.
+    struct Program {
+        ssa: Ssa,
+        model: Model,
+        /// Every reference value in `main` the model tracks.
+        references: Vec<ValueId>,
+        /// Every array and vector value in `main` the model tracks.
+        arrays: Vec<ValueId>,
+    }
+
+    /// The second function `main` may call. Its body is fixed so the model can apply its
+    /// effect exactly, which is what lets a *resolved* call be tested.
+    enum Callee {
+        /// `writer(address, value)` stores `value` at `address`.
+        Writer { value_type: Type },
+        /// `identity(reference)` returns `reference`.
+        Identity { reference_type: Type },
+    }
+
+    /// The control-flow shape the generated instructions are laid out in. The model is
+    /// flow-insensitive, so the shape does not change what may point at what, but the
+    /// analysis only runs its CFG walk, predecessor merge and loop handling with more than
+    /// one block.
+    #[derive(PartialEq)]
+    enum Shape {
+        /// One block.
+        Straight,
+        /// `b0` jumps to `b1`, splitting the instructions between them.
+        Chain,
+        /// `b1` loops back to itself, which makes every `allocate` in it untrusted. When `b0`
+        /// defines a reference, `b1` takes a parameter that carries one across the back edge.
+        Loop,
+    }
+
+    const CALLEE: u32 = 1;
+
+    struct Generator<'u, 'data> {
+        u: &'u mut Unstructured<'data>,
+        builder: FunctionBuilder,
+        model: Model,
+        references: Vec<ValueId>,
+        arrays: Vec<ValueId>,
+        /// The `u1` entry parameters used as `if_else` and loop conditions.
+        conditions: [ValueId; 2],
+        callee: Callee,
+        /// The loop header and its parameter, with the value `b0` passes to it.
+        loop_header: Option<(BasicBlockId, Option<(ValueId, ValueId)>)>,
+    }
+
+    impl Program {
+        fn global(&self, value: ValueId) -> GlobalValueId {
+            GlobalValueId::new(self.ssa.main(), value)
+        }
+
+        fn generate(u: &mut Unstructured) -> arbitrary::Result<Self> {
+            // Each program draws its references from a narrow pool of types: one or two base
+            // types, and indirection depths starting at 0. Under the full cross product two
+            // references hardly ever share a type, and every instruction that needs two
+            // references of one type would only be reached by coincidence.
+            let all_bases = [Type::field(), Type::unsigned(32), Type::bool()];
+            let offset = u.choose_index(all_bases.len())?;
+            let base_count = u.int_in_range(1..=2usize)?;
+            let bases: Vec<Type> = (0..base_count)
+                .map(|k| all_bases[(offset + k) % all_bases.len()].clone())
+                .collect();
+            let max_depth = u.int_in_range(1..=2usize)?;
+
+            let callee_type = reference_type(u.choose(&bases)?, u.int_in_range(0..=1)?);
+            let callee = if u.arbitrary()? {
+                Callee::Writer { value_type: callee_type }
+            } else {
+                Callee::Identity { reference_type: callee_type }
+            };
+
+            let mut builder = FunctionBuilder::new("main".to_string(), Id::test_new(0));
+            builder.set_runtime(RuntimeType::Brillig(InlineType::Inline));
+            // The analysis has to see each instruction as written, not a simplified form.
+            builder.simplify = false;
+            let conditions =
+                [builder.add_parameter(Type::bool()), builder.add_parameter(Type::bool())];
+
+            let mut generator = Generator {
+                u,
+                builder,
+                model: Model::default(),
+                references: Vec::new(),
+                arrays: Vec::new(),
+                conditions,
+                callee,
+                loop_header: None,
+            };
+
+            let allocations = generator.u.int_in_range(2..=4)?;
+            let operations = generator.u.int_in_range(1..=8)?;
+            let shape = match generator.u.choose_index(3)? {
+                0 => Shape::Straight,
+                1 => Shape::Chain,
+                _ => Shape::Loop,
+            };
+            let split = generator.u.choose_index(allocations + operations)?;
+            for step in 0..allocations + operations {
+                if step == split && shape != Shape::Straight {
+                    generator.enter_second_block(&shape);
+                }
+                if step < allocations {
+                    let base = generator.u.choose(&bases)?.clone();
+                    let depth = generator.u.int_in_range(0..=max_depth)?;
+                    generator.allocate(reference_type(&base, depth));
+                } else {
+                    generator.random_operation()?;
+                }
+            }
+            generator.finish()
+        }
+    }
+
+    /// `&mut base` wrapped in `depth` more levels of `&mut`.
+    fn reference_type(base: &Type, depth: usize) -> Type {
+        let mut typ = Type::Reference(Arc::new(base.clone()), true);
+        for _ in 0..depth {
+            typ = Type::Reference(Arc::new(typ), true);
+        }
+        typ
+    }
+
+    impl Generator<'_, '_> {
+        fn type_of(&self, value: ValueId) -> Type {
+            self.builder.type_of_value(value)
+        }
+
+        /// The tracked references whose type satisfies `predicate`.
+        fn references_where(&self, predicate: impl Fn(&Type) -> bool) -> Vec<ValueId> {
+            let references = self.references.iter().copied();
+            references.filter(|reference| predicate(&self.type_of(*reference))).collect()
+        }
+
+        fn references_of_type(&self, typ: &Type) -> Vec<ValueId> {
+            self.references_where(|t| t == typ)
+        }
+
+        /// The tracked arrays and vectors whose type satisfies `predicate`.
+        fn arrays_where(&self, predicate: impl Fn(&Type) -> bool) -> Vec<ValueId> {
+            let arrays = self.arrays.iter().copied();
+            arrays.filter(|array| predicate(&self.type_of(*array))).collect()
+        }
+
+        /// Picks a tracked reference of type `typ`, or `None` when there is none.
+        fn pick_of_type(&mut self, typ: &Type) -> arbitrary::Result<Option<ValueId>> {
+            let candidates = self.references_of_type(typ);
+            self.pick(&candidates)
+        }
+
+        /// Picks one of `candidates`, or `None` when there are none.
+        fn pick<T: Clone>(&mut self, candidates: &[T]) -> arbitrary::Result<Option<T>> {
+            if candidates.is_empty() {
+                return Ok(None);
+            }
+            Ok(Some(self.u.choose(candidates)?.clone()))
+        }
+
+        fn index(&mut self, index: usize) -> ValueId {
+            self.builder.length_constant(index as u128)
+        }
+
+        fn allocate(&mut self, typ: Type) {
+            let Type::Reference(pointee, _) = typ else { unreachable!() };
+            let reference = self.builder.insert_allocate((*pointee).clone());
+            self.model.allocate(reference);
+            self.references.push(reference);
+        }
+
+        fn random_operation(&mut self) -> arbitrary::Result<()> {
+            match self.u.choose_index(9)? {
+                0 => self.store(),
+                1 => self.make_array(),
+                2 => self.load(),
+                3 => self.array_get(),
+                4 => self.array_set(),
+                5 if self.u.ratio(1, 6)? => self.as_vector(),
+                5 => self.vector_operation(),
+                6 => self.call_callee(),
+                7 => self.if_else(),
+                _ => self.opaque_call(),
+            }
+        }
+
+        /// `store value at address`, where `address` is one level above `value`.
+        fn store(&mut self) -> arbitrary::Result<()> {
+            let mut pairs = Vec::new();
+            for &value in &self.references {
+                let address_type = Type::Reference(Arc::new(self.type_of(value)), true);
+                for address in self.references_of_type(&address_type) {
+                    pairs.push((address, value));
+                }
+            }
+            let Some((address, value)) = self.pick(&pairs)? else { return Ok(()) };
+            self.builder.insert_store(address, value);
+            self.model.store(address, value);
+            Ok(())
+        }
+
+        /// A fresh name for whatever the cells behind `address` hold. Skipped when nothing
+        /// was stored there yet, because such a load has no modelled meaning.
+        fn load(&mut self) -> arbitrary::Result<()> {
+            let addresses = self.references_where(|t| {
+                matches!(t.reference_element_type(), Some(Type::Reference(..)))
+            });
+            let Some(address) = self.pick(&addresses)? else { return Ok(()) };
+            let cells = self.model.loaded(address);
+            if cells.is_empty() {
+                return Ok(());
+            }
+            let loaded_type = self.type_of(address).reference_element_type().unwrap().clone();
+            let result = self.builder.insert_load(address, loaded_type);
+            self.model.denotes.insert(result, cells);
+            self.references.push(result);
+            Ok(())
+        }
+
+        /// An array of two to four references. When they share a type it is `[T; N]` or a
+        /// vector `[T]`, which is what the vector intrinsics consume; otherwise it is a
+        /// one-element array of a tuple.
+        fn make_array(&mut self) -> arbitrary::Result<()> {
+            let Some(pivot) = self.pick(&self.references.clone())? else { return Ok(()) };
+            let same_type = self.references_of_type(&self.type_of(pivot));
+            let pool = if same_type.len() >= 2 && self.u.ratio(2, 3)? {
+                same_type
+            } else {
+                self.references.clone()
+            };
+            if pool.len() < 2 {
+                return Ok(());
+            }
+            let size = self.u.int_in_range(2..=pool.len().min(4))?;
+            let elements = pool[..size].to_vec();
+            let types: Vec<Type> = elements.iter().map(|element| self.type_of(*element)).collect();
+            let typ = if types.iter().all(|t| *t == types[0]) {
+                let element_type = Arc::new(vec![types[0].clone()]);
+                if self.u.arbitrary()? {
+                    Type::Vector(element_type)
+                } else {
+                    Type::Array(element_type, SemanticLength(size as u32))
+                }
+            } else {
+                Type::Array(Arc::new(types), SemanticLength(1))
+            };
+            let array = self.builder.insert_make_array(elements.iter().copied().collect(), typ);
+            self.add_array(array, elements);
+            Ok(())
+        }
+
+        fn add_array(&mut self, array: ValueId, elements: Vec<ValueId>) {
+            self.model.elements.insert(array, elements);
+            self.arrays.push(array);
+        }
+
+        /// A fresh name for one element of an array.
+        fn array_get(&mut self) -> arbitrary::Result<()> {
+            let Some(array) = self.pick(&self.arrays.clone())? else { return Ok(()) };
+            let elements = self.model.elements[&array].clone();
+            let k = self.u.choose_index(elements.len())?;
+            let index = self.index(k);
+            let result = self.builder.insert_array_get(array, index, self.type_of(elements[k]));
+            self.model.copy(result, &[elements[k]]);
+            self.references.push(result);
+            Ok(())
+        }
+
+        /// A new array that shares every element of an existing one but one.
+        fn array_set(&mut self) -> arbitrary::Result<()> {
+            let Some(array) = self.pick(&self.arrays.clone())? else { return Ok(()) };
+            let mut elements = self.model.elements[&array].clone();
+            let k = self.u.choose_index(elements.len())?;
+            let Some(value) = self.pick_of_type(&self.type_of(elements[k]))? else { return Ok(()) };
+            let index = self.index(k);
+            let result = self.builder.insert_array_set(array, index, value, false);
+            elements[k] = value;
+            self.add_array(result, elements);
+            Ok(())
+        }
+
+        /// `as_vector`: a vector with the same elements as an array `[T; N]`.
+        fn as_vector(&mut self) -> arbitrary::Result<()> {
+            let arrays =
+                self.arrays_where(|t| matches!(t, Type::Array(types, _) if types.len() == 1));
+            let Some(array) = self.pick(&arrays)? else { return Ok(()) };
+            let elements = self.model.elements[&array].clone();
+            self.call_vector_intrinsic(Intrinsic::AsVector, array, vec![array], elements, None);
+            Ok(())
+        }
+
+        /// A vector intrinsic that adds or removes one element. Each has its own merge rule in
+        /// `unify_vector_intrinsic`. `vector_pop_front` is not generated; it has a
+        /// hand-written test instead.
+        fn vector_operation(&mut self) -> arbitrary::Result<()> {
+            let vectors = self.arrays_where(|t| matches!(t, Type::Vector(_)));
+            let Some(vector) = self.pick(&vectors)? else { return Ok(()) };
+            let mut elements = self.model.elements[&vector].clone();
+            let element_type = self.type_of(vector).element_types()[0].clone();
+            let length = self.index(elements.len());
+            match self.u.choose_index(5)? {
+                0 => {
+                    let Some(element) = self.pick_of_type(&element_type)? else { return Ok(()) };
+                    elements.push(element);
+                    let arguments = vec![length, vector, element];
+                    self.call_vector_intrinsic(
+                        Intrinsic::VectorPushBack,
+                        vector,
+                        arguments,
+                        elements,
+                        None,
+                    );
+                }
+                1 => {
+                    let Some(element) = self.pick_of_type(&element_type)? else { return Ok(()) };
+                    elements.insert(0, element);
+                    let arguments = vec![length, vector, element];
+                    self.call_vector_intrinsic(
+                        Intrinsic::VectorPushFront,
+                        vector,
+                        arguments,
+                        elements,
+                        None,
+                    );
+                }
+                2 => {
+                    if elements.is_empty() {
+                        return Ok(());
+                    }
+                    let Some(element) = self.pick_of_type(&element_type)? else { return Ok(()) };
+                    let k = self.u.choose_index(elements.len())?;
+                    elements.insert(k, element);
+                    let arguments = vec![length, vector, self.index(k), element];
+                    self.call_vector_intrinsic(
+                        Intrinsic::VectorInsert,
+                        vector,
+                        arguments,
+                        elements,
+                        None,
+                    );
+                }
+                3 => {
+                    let Some(popped) = elements.pop() else { return Ok(()) };
+                    let arguments = vec![length, vector];
+                    self.call_vector_intrinsic(
+                        Intrinsic::VectorPopBack,
+                        vector,
+                        arguments,
+                        elements,
+                        Some(popped),
+                    );
+                }
+                _ => {
+                    if elements.is_empty() {
+                        return Ok(());
+                    }
+                    let k = self.u.choose_index(elements.len())?;
+                    let removed = elements.remove(k);
+                    let arguments = vec![length, vector, self.index(k)];
+                    self.call_vector_intrinsic(
+                        Intrinsic::VectorRemove,
+                        vector,
+                        arguments,
+                        elements,
+                        Some(removed),
+                    );
+                }
+            }
+            Ok(())
+        }
+
+        /// Calls a vector intrinsic on `source`. Its results are the new length, a vector
+        /// holding `elements`, and, when the intrinsic takes an element out, that element.
+        fn call_vector_intrinsic(
+            &mut self,
+            intrinsic: Intrinsic,
+            source: ValueId,
+            arguments: Vec<ValueId>,
+            elements: Vec<ValueId>,
+            removed: Option<ValueId>,
+        ) {
+            let element_type = self.type_of(source).element_types()[0].clone();
+            let vector_type = Type::Vector(Arc::new(vec![element_type.clone()]));
+            let mut result_types = vec![Type::length_type(), vector_type];
+            if removed.is_some() {
+                result_types.push(element_type);
+            }
+            let function = self.builder.import_intrinsic_id(intrinsic);
+            let results = self.builder.insert_call(function, arguments, result_types).to_vec();
+            self.add_array(results[1], elements);
+            if let Some(removed) = removed {
+                self.model.copy(results[2], &[removed]);
+                self.references.push(results[2]);
+            }
+        }
+
+        /// A call to the resolved second function.
+        fn call_callee(&mut self) -> arbitrary::Result<()> {
+            let function = self.builder.import_function(Id::test_new(CALLEE));
+            match &self.callee {
+                Callee::Writer { value_type } => {
+                    let value_type = value_type.clone();
+                    let address_type = Type::Reference(Arc::new(value_type.clone()), true);
+                    let Some(address) = self.pick_of_type(&address_type)? else { return Ok(()) };
+                    let Some(value) = self.pick_of_type(&value_type)? else { return Ok(()) };
+                    self.builder.insert_call(function, vec![address, value], vec![]);
+                    self.model.store(address, value);
+                }
+                Callee::Identity { reference_type } => {
+                    let reference_type = reference_type.clone();
+                    let Some(argument) = self.pick_of_type(&reference_type)? else { return Ok(()) };
+                    let result =
+                        self.builder.insert_call(function, vec![argument], vec![reference_type])[0];
+                    self.model.copy(result, &[argument]);
+                    self.references.push(result);
+                }
+            }
+            Ok(())
+        }
+
+        /// `if_else` of two references of one type; the result may be either.
+        fn if_else(&mut self) -> arbitrary::Result<()> {
+            let mut pairs = Vec::new();
+            for &a in &self.references {
+                for b in self.references_of_type(&self.type_of(a)) {
+                    if a != b {
+                        pairs.push((a, b));
+                    }
+                }
+            }
+            let Some((then_value, else_value)) = self.pick(&pairs)? else { return Ok(()) };
+            let [then_condition, else_condition] = self.conditions;
+            let instruction =
+                Instruction::IfElse { then_condition, then_value, else_condition, else_value };
+            let result = self.builder.insert_instruction(instruction, None).first();
+            self.model.copy(result, &[then_value, else_value]);
+            self.references.push(result);
+            Ok(())
+        }
+
+        /// A call to a foreign function, which the analysis handles in `unresolved_call`.
+        ///
+        /// The model records nothing: an opaque callee could rearrange memory in ways the test
+        /// cannot know. That is sound for these one-directional properties, because such a
+        /// call can only add aliasing, never undo a store that already happened.
+        fn opaque_call(&mut self) -> arbitrary::Result<()> {
+            let Some(a) = self.pick(&self.references.clone())? else { return Ok(()) };
+            let Some(b) = self.pick(&self.references.clone())? else { return Ok(()) };
+            // The SSA parser only accepts foreign functions named `print` or `*oracle*`, and
+            // using such a name keeps a failing program's printout parseable.
+            let function = self.builder.import_foreign_function("oracle_opaque", false);
+            self.builder.insert_call(function, vec![a, b], vec![]);
+            Ok(())
+        }
+
+        /// Ends `b0` with a jump into a new block `b1` and continues there. For a loop, the
+        /// last reference `b0` defined, if any, becomes `b1`'s parameter on entry.
+        fn enter_second_block(&mut self, shape: &Shape) {
+            let block = self.builder.insert_block();
+            let mut arguments = Vec::new();
+            if *shape == Shape::Loop {
+                let mut parameter = None;
+                if let Some(&initial) = self.references.last() {
+                    let typ = self.type_of(initial);
+                    parameter = Some((self.builder.add_block_parameter(block, typ), initial));
+                    arguments.push(initial);
+                }
+                self.loop_header = Some((block, parameter));
+            }
+            self.builder.terminate_with_jmp(block, arguments);
+            self.builder.switch_to_block(block);
+        }
+
+        /// Terminates `main`, builds the callee, and returns the finished program.
+        fn finish(mut self) -> arbitrary::Result<Program> {
+            match self.loop_header {
+                None => self.builder.terminate_with_return(vec![]),
+                Some((header, parameter)) => {
+                    let exit = self.builder.insert_block();
+                    let mut back_arguments = Vec::new();
+                    if let Some((parameter, initial)) = parameter {
+                        // The back edge carries any reference of the parameter's type, so the
+                        // parameter may be the value from `b0` or the one from the back edge.
+                        let candidates = self.references_of_type(&self.type_of(parameter));
+                        let back = *self.u.choose(&candidates)?;
+                        back_arguments.push(back);
+                        self.model.copy(parameter, &[initial, back]);
+                        self.references.push(parameter);
+                    }
+                    let condition = self.conditions[0];
+                    self.builder.terminate_with_jmpif(
+                        condition,
+                        header,
+                        back_arguments,
+                        exit,
+                        vec![],
+                    );
+                    self.builder.switch_to_block(exit);
+                    self.builder.terminate_with_return(vec![]);
+                }
+            }
+
+            let callee_id = Id::test_new(CALLEE);
+            match &self.callee {
+                Callee::Writer { value_type } => {
+                    self.builder.new_brillig_function(
+                        "writer".into(),
+                        callee_id,
+                        InlineType::Inline,
+                    );
+                    let address_type = Type::Reference(Arc::new(value_type.clone()), true);
+                    let address = self.builder.add_parameter(address_type);
+                    let value = self.builder.add_parameter(value_type.clone());
+                    self.builder.insert_store(address, value);
+                    self.builder.terminate_with_return(vec![]);
+                }
+                Callee::Identity { reference_type } => {
+                    self.builder.new_brillig_function(
+                        "identity".into(),
+                        callee_id,
+                        InlineType::Inline,
+                    );
+                    let reference = self.builder.add_parameter(reference_type.clone());
+                    self.builder.terminate_with_return(vec![reference]);
+                }
+            }
+
+            Ok(Program {
+                ssa: self.builder.finish(),
+                model: self.model,
+                references: self.references,
+                arrays: self.arrays,
+            })
+        }
+    }
+
+    /// Time budget for each alias-analysis property, in milliseconds.
+    ///
+    /// The 2-second default is short enough for PR CI. The nightly fuzz workflow sets
+    /// `NOIR_ALIAS_PROP_BUDGET_MS` to run each property for longer, where the extra time buys
+    /// deeper shapes at negligible cost.
+    fn prop_budget_ms() -> u64 {
+        std::env::var("NOIR_ALIAS_PROP_BUDGET_MS")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(2_000)
+    }
+
+    /// Runs `check` on random programs, each first checked by the SSA validator so that a
+    /// failure is always about a program the rest of the compiler considers well formed.
+    fn check_random_programs(check: impl Fn(&Program, &mut AliasAnalysis)) {
+        arbtest::arbtest(|u| {
+            let program = Program::generate(u)?;
+            for function in program.ssa.functions.values() {
+                crate::ssa::validation::validate_function(function, &program.ssa, true);
+            }
+            let mut analysis = AliasAnalysis::analyze(&program.ssa);
+            check(&program, &mut analysis);
+            Ok(())
+        })
+        .budget_ms(prop_budget_ms());
+    }
+
+    #[test]
+    fn may_alias_reports_every_pair_that_can_be_one_cell() {
+        check_random_programs(|program, analysis| {
+            for &a in &program.references {
+                for &b in &program.references {
+                    if program.model.can_be_one_cell(a, b) {
+                        assert!(
+                            analysis.may_alias(
+                                program.ssa.main(),
+                                program.global(a),
+                                program.global(b)
+                            ),
+                            "may_alias({a}, {b}) is false, but both can denote the same cell:\n{}",
+                            program.ssa
+                        );
+                    }
+                }
+            }
+        });
+    }
+
+    #[test]
+    fn may_reference_reports_every_chain_the_program_builds() {
+        check_random_programs(|program, analysis| {
+            for &from in program.references.iter().chain(&program.arrays) {
+                let reachable = program.model.reachable_from(from);
+                for &target in &program.references {
+                    if !program.model.denotes[&target].is_disjoint(&reachable) {
+                        assert!(
+                            analysis.may_reference(program.global(from), program.global(target)),
+                            "may_reference({from}, {target}) is false, but the program builds a \
+                             chain from {from} to {target}:\n{}",
+                            program.ssa
+                        );
+                    }
+                }
+            }
+        });
     }
 
     // ============================================================
