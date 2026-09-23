@@ -1,0 +1,42 @@
+name: FV Lean
+
+on:
+  pull_request:
+    paths:
+      - "fv/**"
+      - "compiler/noirc_evaluator/src/acir/acir_context/**"
+      - ".github/workflows/fv-lean.yml"
+  push:
+    branches:
+      - master
+    paths:
+      - "fv/**"
+      - "compiler/noirc_evaluator/src/acir/acir_context/**"
+      - ".github/workflows/fv-lean.yml"
+
+permissions: {}
+
+# This will cancel previous runs when a branch or PR is updated
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  acir-lean:
+    name: ACIR gadget proofs
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install elan
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
+      - name: Build proofs and check the golden file
+        working-directory: fv/acir_lean
+        run: ./scripts/check.sh
