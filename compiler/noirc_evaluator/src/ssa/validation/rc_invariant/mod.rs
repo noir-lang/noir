@@ -607,7 +607,8 @@ impl<'f> Context<'f> {
                            mut v: ValueId|
          -> Option<HashSet<ValueId>> {
             loop {
-                if let Value::Instruction { instruction, .. } = &function.dfg[v]
+                if !function.dfg.is_global(v)
+                    && let Value::Instruction { instruction, .. } = &function.dfg[v]
                     && let Instruction::ArraySet { array, .. } = &function.dfg[*instruction]
                 {
                     v = *array;
@@ -618,6 +619,9 @@ impl<'f> Context<'f> {
         };
         let bound_in_loop = |v: ValueId, header: BasicBlockId| -> bool {
             let Some(blocks) = loops_by_header.get(&header) else { return false };
+            if function.dfg.is_global(v) {
+                return false;
+            }
             match &function.dfg[v] {
                 Value::Param { block, .. } => blocks.contains(block),
                 _ => array_value_defs.get(&v).is_some_and(|(block, _)| blocks.contains(block)),
@@ -1836,6 +1840,10 @@ fn iteration_storage(
         UnionOf(Vec<ValueId>),
     }
     let step = |v: ValueId| -> Step {
+        // A global's value lives in the globals' own DFG, not this function's.
+        if function.dfg.is_global(v) {
+            return Step::Known(None);
+        }
         match &function.dfg[v] {
             Value::Param { block, position, .. } => {
                 if *block == header {
