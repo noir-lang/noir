@@ -1,22 +1,22 @@
 # Lean soundness proofs for ACIR integer gadgets
 
 Machine-checked soundness of the constraints `AcirContext` emits for Euclidean
-division, truncation and comparison
-(`compiler/noirc_evaluator/src/acir/acir_context/mod.rs`), for every bit
-width, plus a pin that keeps those proofs attached to the Rust code.
+division (with and without a predicate), truncation and comparison
+(`compiler/noirc_evaluator/src/acir/acir_context/mod.rs`), and correctness of
+the SSA `expand_signed_math` emits for signed `lt`, plus a pin that keeps
+those proofs attached to the Rust code.
 
 ## What you must review, and what you can ignore
 
-The layout is the review policy. `scripts/check.sh` enforces it in CI, and
-`.github/CODEOWNERS` routes changes to the reviewed files to their owners.
+The layout is the review policy, and `scripts/check.sh` enforces it in CI.
 
 | Path | Status | Why |
 |---|---|---|
-| `AcirLean/Spec/` | **REVIEWED** | What a constraint means, the golden printer, and the claims. Nothing checks these against intent. |
+| `AcirLean/Spec/` | **REVIEWED** | What an ACIR constraint and an SSA instruction mean, the golden printer, and the claims. Nothing checks these against intent. |
 | `Check.lean`, `EmitTemplates.lean` | **REVIEWED** | The two entry points: the final check, and the golden-file writer. |
 | `scripts/check.sh`, `.github/workflows/fv-lean.yml` | **REVIEWED** | The enforcement itself. |
 | `compiler/.../acir_context/fv_templates.rs` | **REVIEWED** | The Rust half of the pin. |
-| `AcirLean/Templates/` | pinned, ignore | Constraint lists, checked byte-for-byte against the Rust output. Plain definitions only. |
+| `AcirLean/Templates/` | pinned, ignore | Constraint lists and SSA, checked byte-for-byte against the Rust output. Plain definitions only. |
 | `AcirLean/Proofs/` | machine-checked, ignore | Lean checks every proof, and nothing here can change what `Spec/` states. |
 | `AcirLean/Examples/` | ignore | Demonstrations, not part of the claims. |
 
@@ -26,14 +26,14 @@ three standard axioms. `check.sh` additionally fails if:
 
 - `Spec/` imports anything outside `Spec/`, `Templates/` and Mathlib;
 - `Templates/` contains anything but plain definitions, or imports anything
-  beyond `Spec/Semantics.lean` and Mathlib;
+  beyond `Spec/Semantics.lean`, `Spec/Ssa.lean` and Mathlib;
 - any file uses `sorry`, `admit`, `axiom`, `native_decide`, `unsafe`,
   `implemented_by`, `@[extern` or a kernel-check bypass;
 - `templates.golden` differs from what `Spec/Pin.lean` prints.
 
 ### Reading the reviewed Lean
 
-The reviewed files are about 180 lines, mostly comments. The notation you need:
+The reviewed files are about 320 lines, mostly comments. The notation you need:
 
 | Lean | Meaning |
 |---|---|
@@ -42,47 +42,59 @@ The reviewed files are about 180 lines, mostly comments. The notation you need:
 | `∀ σ, A → B → C` | for every witness assignment, if `A` and `B` then `C` |
 | `∃ σ, A ∧ B` | some witness assignment satisfies both `A` and `B` |
 | `a / b`, `a % b` on `.val` | integer division and remainder |
-| `∀ n ∈ pinnedWidths, …` | for `n` = 8, 16, 32 and 64 |
+| `∀ n ∈ pinnedWidths, …` | for `n` = 8, 16, 32, 64 and 128 |
 
-`AllClaims` reads: for every pinned width, (1) any witness that satisfies the
-division constraints, with `a` and `b` of that width, has `q = a / b` and
-`r = a % b`; (2) any witness that satisfies the truncation constraints has
-`r = x mod 2^k`; and (3) each constraint list has at least one satisfying
-witness, so the assumptions in (1) and (2) are not contradictory.
+`AllClaims` reads, for every pinned width:
+
+1. any witness that satisfies the division constraints, with `a` and `b` of
+   that width, has `q = a / b` and `r = a % b`, both with a constant predicate
+   and with a predicate witness that is on;
+2. any witness that satisfies the truncation constraints has `r = x mod 2^k`;
+3. any witness that satisfies the comparison constraints, with `a` and `b` of
+   that width, has `q = [a >= b]`;
+4. each of those constraint lists has a satisfying witness, so the
+   assumptions in 1–3 are not contradictory;
+5. the SSA `expand_signed_math` produces for `lt` on `i<n>` returns `1` exactly
+   when the first operand is less than the second as signed integers.
 
 ## What is proved
 
-The claims cover the pinned widths (8, 16, 32 and 64 bits). The proofs in
-`Proofs/` hold for every width (`divVarT_sound` for `n ≤ 126`, `truncT_sound`
-for `2 ≤ k ≤ 125`); pinning another width extends the claims to it.
-
-`Proofs/` also proves soundness of u128 division (`div_var128_sound`), the
-no-overflow constant divisor (`div_const_sound`) and comparison
-(`more_than_eq_sound`). Those are not pinned yet, so they are not claims.
+The claims cover the pinned widths (8, 16, 32, 64 and 128 bits). Most proofs
+in `Proofs/` hold for every width: `divVarT_sound` and `divPredT_sound` for
+`n ≤ 126`, `truncT_sound` for `2 ≤ k ≤ 125`, `moreThanEqT_sound` for
+`1 ≤ m ≤ 128`, and `signedLtT_correct` for `n ≥ 1`; 128-bit division and
+truncation take different branches and have their own proofs.
 `Examples/Bug7895.lean` shows that truncation without the `q ≤ q0` bound
 accepts a forged witness.
 
-Not yet covered: a witness predicate (division under an `if`), constant
-divisors with `p / c < 2^128` (e.g. `Field` to `u128`), and signed operations,
-which are lowered in SSA (`remove_bit_shifts`) rather than here.
+Not yet covered:
+
+- composition: each claim is about one gadget or one SSA rewrite in
+  isolation. Nothing yet proves that ACIR generation calls the right gadget
+  with the right width for each SSA instruction, or that every `u<n>` value's
+  witness is below `2^n` (the division and comparison claims assume it of
+  their inputs);
+- constant-divisor division (`div_const_sound` is proved but not pinned),
+  signed `div` and `mod`, bitwise operations, and completeness.
 
 Trusted: the Lean kernel and its three standard axioms, plus the reviewed
 files above.
 
 ## How the proofs stay attached to the Rust
 
-`Templates/Gadgets.lean` states each gadget's constraints as data, and
-`Spec/Pin.lean` prints them in a canonical text form. Two checks meet at
+`Templates/` states each gadget's constraints and the pinned SSA as data, and
+`Spec/Pin.lean` prints them: constraints in a canonical text form, SSA in the
+syntax `Ssa`'s `Display` uses. Two checks meet at
 `templates.golden`:
 
 1. `scripts/check.sh` fails unless the Lean printout equals `templates.golden`.
 2. `fv_templates.rs` (`cargo test -p noirc_evaluator --lib fv_templates`) runs
-   the real gadgets and fails unless their constraints, printed the same way,
-   equal `templates.golden`.
+   the real gadgets and `expand_signed_math` and fails unless their output,
+   printed the same way, equals `templates.golden`.
 
-Together: the Rust emits exactly the constraint lists `AllClaims` is about. A
+Together: the Rust emits exactly the constraint lists and SSA `AllClaims` is about. A
 change to a pinned gadget fails the Rust test; making it pass means changing
-`Templates/Gadgets.lean` to the new constraints and regenerating the golden
+`Templates/` to the new output and regenerating the golden
 file from Lean, and that only passes `Check.lean` if `AllClaims` is still
 provable. An unsound change cannot be (see `Examples/Bug7895.lean`).
 

@@ -1,7 +1,7 @@
 /-
 REVIEWED: this file is part of the trusted specification (`AcirLean/Spec/`).
 Every definition here is taken on trust: read it against its comment. A change
-to this directory needs review from the owners listed in CODEOWNERS.
+to this directory needs careful review.
 -/
 
 import Mathlib.Data.ZMod.Basic

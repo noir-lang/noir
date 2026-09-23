@@ -6,55 +6,73 @@ nothing here can change what `AcirLean/Spec/Claims.lean` states.
 import AcirLean.Spec.Claims
 import AcirLean.Proofs.Basic
 
-/-! Honest witnesses for every pinned constraint list. -/
+/-! Honest witnesses for every pinned constraint list, checked by evaluation. -/
 
 namespace AcirLean
 
 instance instDecidableCstrSatProofs (σ : ℕ → F) (c : Cstr) : Decidable (c.sat σ) := by
   cases c <;> unfold Cstr.sat <;> unfold Range <;> infer_instance
 
-/-- `0 / 1 = 0 rem 0`. -/
-theorem divVarT_satisfiable (n : ℕ) (hn : 1 ≤ n) :
-    Satisfiable (divVarT n) [(0, n), (1, n)] := by
-  refine ⟨fun i => if i = 1 ∨ i = 2 then 1 else 0, ?_, ?_⟩
-  · intro c hc
-    simp only [divVarT, List.mem_cons, List.not_mem_nil, or_false] at hc
-    rcases hc with h | h | h | h | h | h | h | h <;> subst h <;>
-      simp [Cstr.sat, Term.eval, Range]
-  · intro iw hiw
-    simp only [List.mem_cons, List.not_mem_nil, or_false] at hiw
-    rcases hiw with h | h <;> subst h <;> simp [ZMod.val_one, Nat.one_lt_two_pow_iff]; omega
+instance instDecidableAllSat (σ : ℕ → F) (cs : List Cstr) : Decidable (AllSat σ cs) := by
+  unfold AllSat; infer_instance
 
-/-- `x = 2^k · q0` truncates to `0`, with the quotient at its bound `q0`. -/
-def truncWitness (k : ℕ) : ℕ → F
-  | 0 => ((2 ^ k * q0 k : ℕ) : F)
-  | 1 => ((q0 k : ℕ) : F)
-  | 5 => 1
-  | 6 => ((R' k : ℕ) : F)
+instance instDecidableInputsFit (σ : ℕ → F) (inputs : List (ℕ × ℕ)) :
+    Decidable (InputsFit σ inputs) := by
+  unfold InputsFit; infer_instance
+
+/-- `0 / 1 = 0 rem 0`; at `u128`, `1 = 2^64 · 0 + 1` for the divisor split. -/
+def divWitness : ℕ → F
+  | 1 | 2 | 9 => 1
   | _ => 0
 
-theorem truncT_satisfiable_8 : Satisfiable (truncT 8) [] := by
-  refine ⟨truncWitness 8, ?_, by simp [InputsFit]⟩
-  intro c hc
-  simp only [truncT, List.mem_cons, List.not_mem_nil, or_false] at hc
-  rcases hc with h | h | h | h | h | h | h | h | h | h | h | h <;> subst h <;> decide +kernel
+/-- `0 / 1` with the predicate on: `z = 1/b = 1`, `[b == 0] = 0`. -/
+def divPredWitness : ℕ → F
+  | 1 | 2 | 3 | 13 => 1
+  | 11 => ((2 ^ 64 : ℕ) : F)
+  | 14 => ((2 ^ 64 + 1 : ℕ) : F)
+  | _ => 0
 
-theorem truncT_satisfiable_16 : Satisfiable (truncT 16) [] := by
-  refine ⟨truncWitness 16, ?_, by simp [InputsFit]⟩
-  intro c hc
-  simp only [truncT, List.mem_cons, List.not_mem_nil, or_false] at hc
-  rcases hc with h | h | h | h | h | h | h | h | h | h | h | h <;> subst h <;> decide +kernel
+/-- `x = 2^k · q0` truncates to `0`, with the quotient at its bound `q0`. -/
+def truncWitness (k : ℕ) : ℕ → F :=
+  if k = 128 then fun
+    | 0 => ((2 ^ 128 * q0 128 : ℕ) : F)
+    | 1 => ((q0 128 : ℕ) : F)
+    | 3 => ((2 ^ 128 - 1 : ℕ) : F)
+    | 4 => ((q0 128 + Rq 128 : ℕ) : F)
+    | 6 => 1
+    | 7 => ((R' 128 : ℕ) : F)
+    | _ => 0
+  else fun
+    | 0 => ((2 ^ k * q0 k : ℕ) : F)
+    | 1 => ((q0 k : ℕ) : F)
+    | 5 => 1
+    | 6 => ((R' k : ℕ) : F)
+    | _ => 0
 
-theorem truncT_satisfiable_32 : Satisfiable (truncT 32) [] := by
-  refine ⟨truncWitness 32, ?_, by simp [InputsFit]⟩
-  intro c hc
-  simp only [truncT, List.mem_cons, List.not_mem_nil, or_false] at hc
-  rcases hc with h | h | h | h | h | h | h | h | h | h | h | h <;> subst h <;> decide +kernel
+/-- `0 >= 0`: `2^m + 0 - 0 = 2^m · 1 + 0`. -/
+def geWitness : ℕ → F
+  | 2 => 1
+  | 4 => ((2 ^ 128 - 1 : ℕ) : F)
+  | _ => 0
 
-theorem truncT_satisfiable_64 : Satisfiable (truncT 64) [] := by
-  refine ⟨truncWitness 64, ?_, by simp [InputsFit]⟩
-  intro c hc
-  simp only [truncT, List.mem_cons, List.not_mem_nil, or_false] at hc
-  rcases hc with h | h | h | h | h | h | h | h | h | h | h | h <;> subst h <;> decide +kernel
+theorem divVarT_satisfiable {n : ℕ} (hn : n ∈ pinnedWidths) :
+    Satisfiable (divVarT n) [(0, n), (1, n)] := by
+  simp only [pinnedWidths, List.mem_cons, List.not_mem_nil, or_false] at hn
+  rcases hn with rfl | rfl | rfl | rfl | rfl <;> exact ⟨divWitness, by decide +kernel⟩
+
+theorem divPredT_satisfiable {n : ℕ} (hn : n ∈ pinnedWidths) :
+    Satisfiable (divPredT n) [(0, n), (1, n)] := by
+  simp only [pinnedWidths, List.mem_cons, List.not_mem_nil, or_false] at hn
+  rcases hn with rfl | rfl | rfl | rfl | rfl <;> exact ⟨divPredWitness, by decide +kernel⟩
+
+theorem truncT_satisfiable {k : ℕ} (hk : k ∈ pinnedWidths) : Satisfiable (truncT k) [] := by
+  refine ⟨truncWitness k, ?_⟩
+  simp only [pinnedWidths, List.mem_cons, List.not_mem_nil, or_false] at hk
+  rcases hk with rfl | rfl | rfl | rfl | rfl <;> decide +kernel
+
+theorem moreThanEqT_satisfiable {m : ℕ} (hm : m ∈ pinnedWidths) :
+    Satisfiable (moreThanEqT m) [(0, m), (1, m)] := by
+  simp only [pinnedWidths, List.mem_cons, List.not_mem_nil, or_false] at hm
+  rcases hm with rfl | rfl | rfl | rfl | rfl <;> exact ⟨geWitness, by decide +kernel⟩
 
 end AcirLean

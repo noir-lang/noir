@@ -6,7 +6,8 @@
 //! REVIEWED: this file is the Rust half of the pin, so it is part of the trusted
 //! base. `canonical` must print every constraint faithfully, in the same form as
 //! `fv/acir_lean/AcirLean/Spec/Pin.lean`, and the gadget calls below must cover
-//! every width in `pinnedWidths` there.
+//! every width in `pinnedWidths` there. `signed_lt` prints the SSA with `Ssa`'s own
+//! `Display`, which `Spec/Ssa.lean` mirrors for the instructions it uses.
 
 use acvm::{
     AcirField, FieldElement,
@@ -16,6 +17,7 @@ use acvm::{
 use num_bigint::BigUint;
 
 use super::{AcirContext, BrilligStdLib};
+use crate::ssa::ssa_gen::Ssa;
 
 /// One constraint in the canonical text form shared with the Lean emitter:
 /// `zero c*[i,j] + c*[i] + c*[]` (terms sorted by witness list, merged, zero
@@ -89,13 +91,48 @@ fn truncate_field(bits: u32) -> Vec<String> {
     canonical(context.acir_ir.opcodes())
 }
 
+fn div_var_predicated(bit_size: u32) -> Vec<String> {
+    let mut context = AcirContext::<FieldElement>::new(BrilligStdLib::default());
+    let lhs = context.add_variable();
+    let rhs = context.add_variable();
+    let predicate = context.add_variable();
+    context.euclidean_division_var(lhs, rhs, bit_size, predicate).unwrap();
+    canonical(context.acir_ir.opcodes())
+}
+
+fn more_than_eq(bit_size: u32) -> Vec<String> {
+    let mut context = AcirContext::<FieldElement>::new(BrilligStdLib::default());
+    let lhs = context.add_variable();
+    let rhs = context.add_variable();
+    context.more_than_eq_var(lhs, rhs, bit_size).unwrap();
+    canonical(context.acir_ir.opcodes())
+}
+
+/// The SSA `expand_signed_math` produces for a signed `lt`, as printed.
+fn signed_lt(bit_size: u32) -> Vec<String> {
+    let src = format!(
+        "acir(inline) fn main f0 {{\n  b0(v0: i{bit_size}, v1: i{bit_size}):\n    v2 = lt v0, v1\n    return v2\n}}\n"
+    );
+    let ssa = Ssa::from_str(&src).unwrap().expand_signed_math();
+    ssa.to_string().trim().lines().map(str::to_string).collect()
+}
+
 fn emitted() -> String {
     let mut sections = Vec::new();
-    for n in [8, 16, 32, 64] {
+    for n in [8, 16, 32, 64, 128] {
         sections.push(format!("# div_var {n}\n{}", div_var(n).join("\n")));
     }
-    for k in [8, 16, 32, 64] {
+    for n in [8, 16, 32, 64, 128] {
+        sections.push(format!("# div_var_predicated {n}\n{}", div_var_predicated(n).join("\n")));
+    }
+    for k in [8, 16, 32, 64, 128] {
         sections.push(format!("# truncate_field {k}\n{}", truncate_field(k).join("\n")));
+    }
+    for n in [8, 16, 32, 64, 128] {
+        sections.push(format!("# more_than_eq {n}\n{}", more_than_eq(n).join("\n")));
+    }
+    for n in [8, 16, 32, 64, 128] {
+        sections.push(format!("# signed_lt {n}\n{}", signed_lt(n).join("\n")));
     }
     sections.join("\n") + "\n"
 }

@@ -29,7 +29,9 @@ theorem divVarT_sound {n : ℕ} (hn : n ≤ 126) (σ : ℕ → F) (h : AllSat σ
 
 theorem truncT_sound {k : ℕ} (hk1 : 2 ≤ k) (hk : k ≤ 125) (σ : ℕ → F)
     (h : AllSat σ (truncT k)) : (σ 2).val = (σ 0).val % 2 ^ k := by
-  have g : ∀ c, c ∈ truncT k → c.sat σ := h
+  unfold truncT AllSat at h
+  rw [if_neg (show k ≠ 128 by omega)] at h
+  have g := h
   have hbits : bits (2 ^ k) = k + 1 := Nat.size_pow
   have hmq : 254 - bits (2 ^ k) + 1 = 254 - k := by rw [hbits]; omega
   have hmr : bits (2 ^ k - 1) = k := by
@@ -38,16 +40,16 @@ theorem truncT_sound {k : ℕ} (hk1 : 2 ≤ k) (hk : k ≤ 125) (σ : ℕ → F)
     have hle : bits (2 ^ k - 1) ≤ k := Nat.size_le.2 (by omega)
     have hlt : k - 1 < bits (2 ^ k - 1) := Nat.lt_size.2 (by omega)
     omega
-  have r1 := g (.range 1 (254 - k)) (by simp [truncT])
-  have r2 := g (.range 2 k) (by simp [truncT])
-  have e1 := g (.zero [⟨1, [0]⟩, ⟨-(2 ^ k : ℕ), [1]⟩, ⟨-1, [2]⟩]) (by simp [truncT])
-  have e2 := g (.zero [⟨(q0 k : ℤ), []⟩, ⟨-1, [1]⟩, ⟨-1, [3]⟩]) (by simp [truncT])
-  have r3 := g (.range 3 (254 - k)) (by simp [truncT])
+  have r1 := g (.range 1 (254 - k)) (by simp)
+  have r2 := g (.range 2 k) (by simp)
+  have e1 := g (.zero [⟨1, [0]⟩, ⟨-(2 ^ k : ℕ), [1]⟩, ⟨-1, [2]⟩]) (by simp)
+  have e2 := g (.zero [⟨(q0 k : ℤ), []⟩, ⟨-1, [1]⟩, ⟨-1, [3]⟩]) (by simp)
+  have r3 := g (.range 3 (254 - k)) (by simp)
   have e3 := g (.zero [⟨1, []⟩, ⟨1, [1, 4]⟩, ⟨-(q0 k : ℤ), [4]⟩, ⟨-1, [5]⟩])
-    (by simp [truncT])
-  have e4 := g (.zero [⟨1, [1, 5]⟩, ⟨-(q0 k : ℤ), [5]⟩]) (by simp [truncT])
-  have e5 := g (.zero [⟨1, [2, 5]⟩, ⟨(R' k : ℤ), [5]⟩, ⟨-1, [6]⟩]) (by simp [truncT])
-  have r6 := g (if N' k = 0 then .zero [⟨1, [6]⟩] else .range 6 (N' k)) (by simp [truncT])
+    (by simp)
+  have e4 := g (.zero [⟨1, [1, 5]⟩, ⟨-(q0 k : ℤ), [5]⟩]) (by simp)
+  have e5 := g (.zero [⟨1, [2, 5]⟩, ⟨(R' k : ℤ), [5]⟩, ⟨-1, [6]⟩]) (by simp)
+  have r6 := g (if N' k = 0 then .zero [⟨1, [6]⟩] else .range 6 (N' k)) (by simp)
   simp only [Cstr.sat, Term.eval, List.map, List.prod_cons, List.prod_nil,
     List.sum_cons, List.sum_nil] at e1 e2 e3 e4 e5 r1 r2 r3
   push_cast at e1 e2 e3 e4 e5

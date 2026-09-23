@@ -99,17 +99,16 @@ structure DivConstOverflowConstraints (n c : ℕ) (a q r y z : F) : Prop where
   eq_q0   : IsZero (((p / c : ℕ) : F) - q) y z
   bound_r : Range ((r + ((2 ^ bits (p % c - 1) - p % c : ℕ) : F)) * y) (bits (p % c - 1))
 
-theorem div_const_overflow_sound {n c : ℕ} (hc : 2 ≤ c) (hc252 : c < 2 ^ 252)
-    (hmaxq : n - bits c + 1 ≤ 252) (hmodpos : 0 < p % c) (hmod128 : p % c ≤ 2 ^ 128)
-    {a q r y z : F} (k : DivConstOverflowConstraints n c a q r y z) :
+/-- The overflow guard, from `q ≤ p / c` however the gadget enforces it. -/
+theorem div_const_overflow_core {n c : ℕ} (hc : 2 ≤ c) (hc252 : c < 2 ^ 252)
+    (hmodpos : 0 < p % c) (hmod128 : p % c ≤ 2 ^ 128) {a q r y z : F}
+    (base : DivConstConstraints n c a q r) (hqle : q.val ≤ p / c)
+    (eq_q0 : IsZero (((p / c : ℕ) : F) - q) y z)
+    (bound_r : Range ((r + ((2 ^ bits (p % c - 1) - p % c : ℕ) : F)) * y)
+      (bits (p % c - 1))) :
     q.val = a.val / c ∧ r.val = a.val % c := by
-  have hrc := rem_lt_const hc hc252 k.base.range_r k.base.bound_r
-  have hq := k.base.range_q; unfold Range at hq
+  have hrc := rem_lt_const hc hc252 base.range_r base.bound_r
   have hcv : ((c : ℕ) : F).val = c := val_natCast_of_lt (by have := p_gt; omega)
-  have hq0v : ((p / c : ℕ) : F).val = p / c :=
-    val_natCast_of_lt (Nat.div_lt_self (by norm_num [p]) (by omega))
-  have hqle : q.val ≤ p / c := by
-    have := le_of_bound0 hmaxq hq k.bound_q; rwa [hq0v] at this
   have hcq0 : c * (p / c) + p % c = p := Nat.div_add_mod p c
   have hlt : c * q.val + r.val < p := by
     rcases Nat.lt_or_ge q.val (p / c) with h | h
@@ -118,19 +117,30 @@ theorem div_const_overflow_sound {n c : ℕ} (hc : 2 ≤ c) (hc252 : c < 2 ^ 252
     · have hqq : q.val = p / c := le_antisymm hqle h
       have ht : ((p / c : ℕ) : F) - q = 0 := by
         rw [← hqq, ZMod.natCast_zmod_val, sub_self]
-      have hy := k.eq_q0.one_of_zero ht
-      have hb := k.bound_r; rw [hy, mul_one] at hb
+      have hy := eq_q0.one_of_zero ht
+      have hb := bound_r; rw [hy, mul_one] at hb
       have hN : bits (p % c - 1) ≤ 128 := Nat.size_le.2 (by omega)
       have hr252 : r.val < 2 ^ 252 := by
-        have := k.base.range_r; unfold Range at this
+        have := base.range_r; unfold Range at this
         exact lt_of_lt_of_le this (Nat.pow_le_pow_right (by norm_num)
           (Nat.size_le.2 (by omega)))
       have := lt_of_bound_const' (by omega) rfl hN hr252 hb
       rw [hqq]; omega
-  have heq : a = (c : F) * q + r := by simpa using k.base.euclid
+  have heq : a = (c : F) * q + r := by simpa using base.euclid
   have := nat_eq_of_field_eq (by rwa [hcv]) heq
   rw [hcv] at this
   exact divmod_of_eq (by omega) hrc this
+
+theorem div_const_overflow_sound {n c : ℕ} (hc : 2 ≤ c) (hc252 : c < 2 ^ 252)
+    (hmaxq : n - bits c + 1 ≤ 252) (hmodpos : 0 < p % c) (hmod128 : p % c ≤ 2 ^ 128)
+    {a q r y z : F} (k : DivConstOverflowConstraints n c a q r y z) :
+    q.val = a.val / c ∧ r.val = a.val % c := by
+  have hq := k.base.range_q; unfold Range at hq
+  have hq0v : ((p / c : ℕ) : F).val = p / c :=
+    val_natCast_of_lt (Nat.div_lt_self (by norm_num [p]) (by omega))
+  have hqle : q.val ≤ p / c := by
+    have := le_of_bound0 hmaxq hq k.bound_q; rwa [hq0v] at this
+  exact div_const_overflow_core hc hc252 hmodpos hmod128 k.base hqle k.eq_q0 k.bound_r
 
 /-- `truncate_var(x, k, 254)`: truncating a full field element to `k` bits. -/
 theorem truncate_field_sound {k : ℕ} (hk1 : 2 ≤ k) (hk : k ≤ 125) {a q r y z : F}

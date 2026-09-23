@@ -71,4 +71,12 @@ theorem lt_of_bound_const {x : F} {c N : ℕ} (hc : 1 ≤ c) (hN : N = bits (c -
   rw [ZMod.val_add_of_lt (by omega), hR] at h
   omega
 
+/-- `bits (2^k - 1) = k`: the all-ones `k`-bit number. -/
+theorem bits_pow_sub_one {k : ℕ} (hk : 1 ≤ k) : bits (2 ^ k - 1) = k := by
+  have h2 : 2 ^ (k - 1) * 2 = 2 ^ k := by rw [← pow_succ]; congr 1; omega
+  have h1 := Nat.one_le_two_pow (n := k - 1)
+  have hle : bits (2 ^ k - 1) ≤ k := Nat.size_le.2 (by omega)
+  have hlt : k - 1 < bits (2 ^ k - 1) := Nat.lt_size.2 (by omega)
+  omega
+
 end AcirLean

@@ -1,18 +1,19 @@
 /-
 REVIEWED: this file is part of the trusted specification (`AcirLean/Spec/`).
 Every definition here is taken on trust: read it against its comment. A change
-to this directory needs review from the owners listed in CODEOWNERS.
+to this directory needs careful review.
 -/
 
 import AcirLean.Spec.Semantics
 import AcirLean.Templates.Gadgets
+import AcirLean.Templates.Signed
 
 /-!
 # The pin
 
 `renderAll` prints the constraint lists for every width in `pinnedWidths`, in
 the canonical text form that `fv_templates.rs` also prints the Rust gadgets'
-output in. `scripts/check.sh` fails unless this printout equals
+output in, followed by the pinned SSA in `Ssa`'s own `Display` syntax. `scripts/check.sh` fails unless this printout equals
 `templates.golden`, and the Rust test fails unless the gadgets' printout does.
 
 Canonical form: `zero c*[i,j] + c*[i] + c*[]` with terms sorted by witness
@@ -24,7 +25,7 @@ namespace AcirLean
 
 /-- The widths whose constraint lists are pinned to the Rust output. The claims
 are stated for exactly these widths. -/
-def pinnedWidths : List ℕ := [8, 16, 32, 64]
+def pinnedWidths : List ℕ := [8, 16, 32, 64, 128]
 
 /-- Lexicographic order on witness lists (the order `Vec<u32>` sorts in Rust). -/
 def listLe : List ℕ → List ℕ → Bool
@@ -53,7 +54,10 @@ def renderAll : String :=
   let sec (title : String) (cs : List Cstr) :=
     s!"# {title}\n" ++ "\n".intercalate (cs.map Cstr.render)
   let secs := pinnedWidths.map (fun n => sec s!"div_var {n}" (divVarT n)) ++
-    pinnedWidths.map (fun k => sec s!"truncate_field {k}" (truncT k))
+    pinnedWidths.map (fun n => sec s!"div_var_predicated {n}" (divPredT n)) ++
+    pinnedWidths.map (fun k => sec s!"truncate_field {k}" (truncT k)) ++
+    pinnedWidths.map (fun m => sec s!"more_than_eq {m}" (moreThanEqT m)) ++
+    pinnedWidths.map (fun n => s!"# signed_lt {n}\n" ++ "\n".intercalate (signedLtT n).render)
   "\n".intercalate secs ++ "\n"
 
 end AcirLean

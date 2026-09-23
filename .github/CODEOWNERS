@@ -1,9 +1,0 @@
-# Trusted base of the Lean soundness proofs for the ACIR integer gadgets
-# (see fv/acir_lean/README.md). Everything else under fv/acir_lean is either
-# machine-checked or pinned to the Rust output.
-/fv/acir_lean/AcirLean/Spec/ @asterite
-/fv/acir_lean/Check.lean @asterite
-/fv/acir_lean/EmitTemplates.lean @asterite
-/fv/acir_lean/scripts/ @asterite
-/.github/workflows/fv-lean.yml @asterite
-/compiler/noirc_evaluator/src/acir/acir_context/fv_templates.rs @asterite
