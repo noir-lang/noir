@@ -35,6 +35,7 @@
 use crate::ast::UnaryOp;
 use crate::monomorphization::ast::{self, Definition, IdentId, LocalId};
 use crate::monomorphization::ast::{Expression, Function, Literal};
+use crate::shared::Builtin;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 /// The set of variables live at a program point.
@@ -391,13 +392,13 @@ impl LivenessContext {
 }
 
 /// The variables whose buffer an expression may evaluate to by data movement alone: through
-/// identifiers, immutable `let`s, tuple fields, casts and block tails, with no call or allocation
-/// producing a new value on the way. `None` means it may be any existing buffer.
+/// identifiers, immutable `let`s, tuple fields, casts, identity conversions and block tails.
+/// `None` means it may be any existing buffer.
 ///
-/// A call or an allocation ends the chain because its result is a new SSA value rather than a
-/// loop-header parameter, so it cannot take part in the parameter permutation that the guard in
-/// `visit_assign` exists to break. `rc_invariant` itself treats call and allocation results as
-/// fresh storage.
+/// Calls that remain calls in SSA and allocations end the chain: `rc_invariant` treats their
+/// results as fresh storage. Identity conversion builtins simplify to their input SSA value,
+/// so they preserve its source and can participate in the loop-header parameter permutation
+/// that the guard in `visit_assign` exists to break.
 type BufferSources = Option<HashSet<LocalId>>;
 
 fn union_sources(sources: impl IntoIterator<Item = BufferSources>) -> BufferSources {
@@ -435,7 +436,20 @@ fn buffer_sources(
             | Literal::Str(_) => Some(HashSet::default()),
             Literal::FmtStr(..) => None,
         },
-        Expression::Call(_) => Some(HashSet::default()),
+        Expression::Call(call) => {
+            if let Expression::Ident(ident) = call.func.as_ref()
+                && matches!(
+                    ident.definition,
+                    Definition::Builtin(Builtin::StrAsBytes | Builtin::ArrayAsStrUnchecked)
+                        | Definition::LowLevel(Builtin::StrAsBytes | Builtin::ArrayAsStrUnchecked)
+                )
+            {
+                // These conversions simplify to their input SSA value, preserving its buffer.
+                call.arguments.first().and_then(sources)
+            } else {
+                Some(HashSet::default())
+            }
+        }
         Expression::Cast(cast) => sources(&cast.lhs),
         Expression::ExtractTupleField(tuple, _) => sources(tuple),
         Expression::Tuple(elements) => union_sources(elements.iter().map(sources)),
