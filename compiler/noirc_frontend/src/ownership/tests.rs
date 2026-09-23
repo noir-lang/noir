@@ -1899,14 +1899,11 @@ fn moves_use_before_reassignment_from_a_call_result() {
     ");
 }
 
-/// Regression: swapping two arrays through a temporary, inside a loop. Every read is followed by
-/// a reassignment of the variable it read, so on names alone each is a last use; moved, the whole
-/// swap lowers to loop-header parameters permuted across the back edge with no `inc_rc`, which
-/// `rc_invariant` rejects at the next in-place write. `a = c` and `c = t` hand their variables
-/// another variable's buffer, so the reads before them — `let t = a` and `a = c` — are cloned.
-/// `c = t` itself still moves `t`: nothing reads the temporary afterwards.
+/// Swapping two arrays through a temporary, inside a loop. Every read is followed by a
+/// reassignment of the variable it read, so each is a move: the loop only exchanges the two
+/// buffers, which never share storage.
 #[test]
-fn clone_for_array_swap_through_a_temporary_in_a_loop() {
+fn moves_array_swap_through_a_temporary_in_a_loop() {
     let src = "
     unconstrained fn main(n: u32) -> pub [Field; 2] {
         let mut a = [1, 2];
@@ -1926,8 +1923,8 @@ fn clone_for_array_swap_through_a_temporary_in_a_loop() {
         let mut a$l1 = [1, 2];
         let mut c$l2 = [10, 20];
         for _j$l3 in 0 .. n$l0 {
-            let t$l4 = a$l1.clone();
-            a$l1 = c$l2.clone();
+            let t$l4 = a$l1;
+            a$l1 = c$l2;
             c$l2 = t$l4
         };
         c$l2[0] = 99;
@@ -1937,9 +1934,9 @@ fn clone_for_array_swap_through_a_temporary_in_a_loop() {
 }
 
 /// Regression: `c = { ...; a }` hands `c` the buffer `a` names and `a = c` hands it straight
-/// back. Both right-hand sides may be another variable's buffer, so neither assignment frees an
-/// earlier use of its variable to move: the block tail's use of `a` is cloned even though `a = c`
-/// overwrites `a`, and so is the use of `c` in `a = c`.
+/// back. The inner loop writes `c[0]` before `c` is reassigned, so `c` is live at the loop header
+/// and its read in `a = c` is cloned: the write then copies rather than mutating the buffer `a`
+/// shares. The block tail's read of `a` is followed by `a = c` on every path, so it moves.
 #[test]
 fn clone_for_loop_buffer_rotation_via_aliasing_reassignment() {
     let src = "
@@ -1973,7 +1970,7 @@ fn clone_for_loop_buffer_rotation_via_aliasing_reassignment() {
                     i$l3 = (i$l3 + 1);
                     c$l1[0] = 99
                 };
-                a$l0.clone()
+                a$l0
             };
             a$l0 = c$l1.clone()
         };

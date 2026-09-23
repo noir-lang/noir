@@ -1,4 +1,6 @@
-// Both conversions in a round trip preserve the original array's buffer source.
+// Swapping two arrays that each go through a `str` round trip, inside a loop. SSA simplifies the
+// round trip away, so the loop permutes the two buffers between loop-header parameters, and
+// `rc_invariant` must accept the in-place write after it.
 unconstrained fn main(a: [u8; 2], c: [u8; 2], n: u32) {
     let mut a = a;
     let mut c = c;

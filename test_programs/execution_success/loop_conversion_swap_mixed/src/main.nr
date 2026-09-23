@@ -1,5 +1,6 @@
-// Identity conversions preserve the buffer sources across the loop's assignments.
-// Clones keep the parameter permutation compatible with reference-count validation.
+// Swapping a byte array and a string through identity conversions, inside a loop. SSA simplifies
+// `as_str_unchecked` and `as_bytes` to their argument, so the loop permutes the two buffers between
+// loop-header parameters, and `rc_invariant` must accept the in-place write after it.
 unconstrained fn main(bytes: [u8; 2], text: str<2>, n: u32) {
     let mut bytes = bytes;
     let mut text = text;
