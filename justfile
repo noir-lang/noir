@@ -107,10 +107,18 @@ export NOIR_AST_FUZZER_BUDGET_SECS := env_var_or_default("NOIR_AST_FUZZER_BUDGET
 
 # Performs a nightly fuzzing run
 fuzz-nightly: install-rust-tools
-    @echo "env NOIR_AST_FUZZER_BUDGET_SECS='$NOIR_AST_FUZZER_BUDGET_SECS'"
+    #!/usr/bin/env bash
+    set -uo pipefail
+    echo "env NOIR_AST_FUZZER_BUDGET_SECS='${NOIR_AST_FUZZER_BUDGET_SECS:-}'"
+    echo "env NOIR_ALIAS_PROP_BUDGET_MS='${NOIR_ALIAS_PROP_BUDGET_MS:-}'"
+    status=0
     # On regular PRs we run deterministic fuzzing to avoid flaky tests on CI.
     # In the nightly tests we want to explore uncharted territory.
-    NOIR_AST_FUZZER_FORCE_NON_DETERMINISTIC=1 cargo nextest run -p noir_ast_fuzzer_fuzz --no-fail-fast
+    NOIR_AST_FUZZER_FORCE_NON_DETERMINISTIC=1 cargo nextest run -p noir_ast_fuzzer_fuzz --no-fail-fast || status=1
+    # The alias analysis soundness properties run for NOIR_ALIAS_PROP_BUDGET_MS each (2s if unset).
+    # Both suites always run, so a failure in one does not hide the other.
+    cargo nextest run -p noirc_evaluator --lib --no-fail-fast -E 'test(/::may_(alias|reference)_reports_/)' || status=1
+    exit $status
 
 # Reproduce an AST fuzzer failure from a SEED, e.g. `just fuzz-repro 0x6819c61400001000`
 fuzz-repro seed target="" out="":
