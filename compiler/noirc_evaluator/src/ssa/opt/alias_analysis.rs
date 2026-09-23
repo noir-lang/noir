@@ -1646,6 +1646,18 @@ mod tests {
             self.references_where(|t| t == typ)
         }
 
+        /// The tracked arrays and vectors whose type satisfies `predicate`.
+        fn arrays_where(&self, predicate: impl Fn(&Type) -> bool) -> Vec<ValueId> {
+            let arrays = self.arrays.iter().copied();
+            arrays.filter(|array| predicate(&self.type_of(*array))).collect()
+        }
+
+        /// Picks a tracked reference of type `typ`, or `None` when there is none.
+        fn pick_of_type(&mut self, typ: &Type) -> arbitrary::Result<Option<ValueId>> {
+            let candidates = self.references_of_type(typ);
+            self.pick(&candidates)
+        }
+
         /// Picks one of `candidates`, or `None` when there are none.
         fn pick<T: Clone>(&mut self, candidates: &[T]) -> arbitrary::Result<Option<T>> {
             if candidates.is_empty() {
@@ -1672,7 +1684,8 @@ mod tests {
                 2 => self.load(),
                 3 => self.array_get(),
                 4 => self.array_set(),
-                5 => self.vector_intrinsic(),
+                5 if self.u.ratio(1, 6)? => self.as_vector(),
+                5 => self.vector_operation(),
                 6 => self.call_callee(),
                 7 => self.if_else(),
                 _ => self.opaque_call(),
@@ -1766,8 +1779,7 @@ mod tests {
             let Some(array) = self.pick(&self.arrays.clone())? else { return Ok(()) };
             let mut elements = self.model.elements[&array].clone();
             let k = self.u.choose_index(elements.len())?;
-            let replacements = self.references_of_type(&self.type_of(elements[k]));
-            let Some(value) = self.pick(&replacements)? else { return Ok(()) };
+            let Some(value) = self.pick_of_type(&self.type_of(elements[k]))? else { return Ok(()) };
             let index = self.index(k);
             let result = self.builder.insert_array_set(array, index, value, false);
             elements[k] = value;
@@ -1775,101 +1787,119 @@ mod tests {
             Ok(())
         }
 
-        /// One of the vector intrinsics, each of which has its own merge rule in
+        /// `as_vector`: a vector with the same elements as an array `[T; N]`.
+        fn as_vector(&mut self) -> arbitrary::Result<()> {
+            let arrays =
+                self.arrays_where(|t| matches!(t, Type::Array(types, _) if types.len() == 1));
+            let Some(array) = self.pick(&arrays)? else { return Ok(()) };
+            let elements = self.model.elements[&array].clone();
+            self.call_vector_intrinsic(Intrinsic::AsVector, array, vec![array], elements, None);
+            Ok(())
+        }
+
+        /// A vector intrinsic that adds or removes one element. Each has its own merge rule in
         /// `unify_vector_intrinsic`. `vector_pop_front` is not generated; it has a
         /// hand-written test instead.
-        fn vector_intrinsic(&mut self) -> arbitrary::Result<()> {
-            let as_vector = self.u.ratio(1, 6)?;
-            let sources: Vec<ValueId> = self
-                .arrays
-                .iter()
-                .copied()
-                .filter(|array| match self.type_of(*array) {
-                    Type::Array(types, _) => as_vector && types.len() == 1,
-                    Type::Vector(_) => !as_vector,
-                    _ => false,
-                })
-                .collect();
-            let Some(source) = self.pick(&sources)? else { return Ok(()) };
-            let element_type = self.type_of(source).element_types()[0].clone();
-            let vector_type = Type::Vector(Arc::new(vec![element_type.clone()]));
-            let mut elements = self.model.elements[&source].clone();
+        fn vector_operation(&mut self) -> arbitrary::Result<()> {
+            let vectors = self.arrays_where(|t| matches!(t, Type::Vector(_)));
+            let Some(vector) = self.pick(&vectors)? else { return Ok(()) };
+            let mut elements = self.model.elements[&vector].clone();
+            let element_type = self.type_of(vector).element_types()[0].clone();
             let length = self.index(elements.len());
-
-            if as_vector {
-                let results = self.call_intrinsic(
-                    Intrinsic::AsVector,
-                    vec![source],
-                    vec![Type::length_type(), vector_type],
-                );
-                self.add_array(results[1], elements);
-                return Ok(());
-            }
-
-            let same_type = self.references_of_type(&element_type);
-            let intrinsic = *self.u.choose(&[
-                Intrinsic::VectorPushBack,
-                Intrinsic::VectorPushFront,
-                Intrinsic::VectorInsert,
-                Intrinsic::VectorPopBack,
-                Intrinsic::VectorRemove,
-            ])?;
-            let needs_element =
-                !matches!(intrinsic, Intrinsic::VectorPushBack | Intrinsic::VectorPushFront);
-            if needs_element && elements.is_empty() {
-                return Ok(());
-            }
-            let mut result_types = vec![Type::length_type(), vector_type];
-            let (arguments, removed) = match intrinsic {
-                Intrinsic::VectorPushBack
-                | Intrinsic::VectorPushFront
-                | Intrinsic::VectorInsert => {
-                    let Some(element) = self.pick(&same_type)? else { return Ok(()) };
-                    match intrinsic {
-                        Intrinsic::VectorPushBack => {
-                            elements.push(element);
-                            (vec![length, source, element], None)
-                        }
-                        Intrinsic::VectorPushFront => {
-                            elements.insert(0, element);
-                            (vec![length, source, element], None)
-                        }
-                        _ => {
-                            let k = self.u.choose_index(elements.len())?;
-                            elements.insert(k, element);
-                            (vec![length, source, self.index(k), element], None)
-                        }
-                    }
+            match self.u.choose_index(5)? {
+                0 => {
+                    let Some(element) = self.pick_of_type(&element_type)? else { return Ok(()) };
+                    elements.push(element);
+                    let arguments = vec![length, vector, element];
+                    self.call_vector_intrinsic(
+                        Intrinsic::VectorPushBack,
+                        vector,
+                        arguments,
+                        elements,
+                        None,
+                    );
                 }
-                Intrinsic::VectorPopBack => {
-                    result_types.push(element_type);
-                    let popped = elements.pop().unwrap();
-                    (vec![length, source], Some(popped))
+                1 => {
+                    let Some(element) = self.pick_of_type(&element_type)? else { return Ok(()) };
+                    elements.insert(0, element);
+                    let arguments = vec![length, vector, element];
+                    self.call_vector_intrinsic(
+                        Intrinsic::VectorPushFront,
+                        vector,
+                        arguments,
+                        elements,
+                        None,
+                    );
+                }
+                2 => {
+                    if elements.is_empty() {
+                        return Ok(());
+                    }
+                    let Some(element) = self.pick_of_type(&element_type)? else { return Ok(()) };
+                    let k = self.u.choose_index(elements.len())?;
+                    elements.insert(k, element);
+                    let arguments = vec![length, vector, self.index(k), element];
+                    self.call_vector_intrinsic(
+                        Intrinsic::VectorInsert,
+                        vector,
+                        arguments,
+                        elements,
+                        None,
+                    );
+                }
+                3 => {
+                    let Some(popped) = elements.pop() else { return Ok(()) };
+                    let arguments = vec![length, vector];
+                    self.call_vector_intrinsic(
+                        Intrinsic::VectorPopBack,
+                        vector,
+                        arguments,
+                        elements,
+                        Some(popped),
+                    );
                 }
                 _ => {
-                    result_types.push(element_type);
+                    if elements.is_empty() {
+                        return Ok(());
+                    }
                     let k = self.u.choose_index(elements.len())?;
                     let removed = elements.remove(k);
-                    (vec![length, source, self.index(k)], Some(removed))
+                    let arguments = vec![length, vector, self.index(k)];
+                    self.call_vector_intrinsic(
+                        Intrinsic::VectorRemove,
+                        vector,
+                        arguments,
+                        elements,
+                        Some(removed),
+                    );
                 }
-            };
-            let results = self.call_intrinsic(intrinsic, arguments, result_types);
+            }
+            Ok(())
+        }
+
+        /// Calls a vector intrinsic on `source`. Its results are the new length, a vector
+        /// holding `elements`, and, when the intrinsic takes an element out, that element.
+        fn call_vector_intrinsic(
+            &mut self,
+            intrinsic: Intrinsic,
+            source: ValueId,
+            arguments: Vec<ValueId>,
+            elements: Vec<ValueId>,
+            removed: Option<ValueId>,
+        ) {
+            let element_type = self.type_of(source).element_types()[0].clone();
+            let vector_type = Type::Vector(Arc::new(vec![element_type.clone()]));
+            let mut result_types = vec![Type::length_type(), vector_type];
+            if removed.is_some() {
+                result_types.push(element_type);
+            }
+            let function = self.builder.import_intrinsic_id(intrinsic);
+            let results = self.builder.insert_call(function, arguments, result_types).to_vec();
             self.add_array(results[1], elements);
             if let Some(removed) = removed {
                 self.model.copy(results[2], &[removed]);
                 self.references.push(results[2]);
             }
-            Ok(())
-        }
-
-        fn call_intrinsic(
-            &mut self,
-            intrinsic: Intrinsic,
-            arguments: Vec<ValueId>,
-            result_types: Vec<Type>,
-        ) -> Vec<ValueId> {
-            let function = self.builder.import_intrinsic_id(intrinsic);
-            self.builder.insert_call(function, arguments, result_types).to_vec()
         }
 
         /// A call to the resolved second function.
@@ -1877,18 +1907,16 @@ mod tests {
             let function = self.builder.import_function(Id::test_new(CALLEE));
             match &self.callee {
                 Callee::Writer { value_type } => {
+                    let value_type = value_type.clone();
                     let address_type = Type::Reference(Arc::new(value_type.clone()), true);
-                    let addresses = self.references_of_type(&address_type);
-                    let values = self.references_of_type(value_type);
-                    let Some(address) = self.pick(&addresses)? else { return Ok(()) };
-                    let Some(value) = self.pick(&values)? else { return Ok(()) };
+                    let Some(address) = self.pick_of_type(&address_type)? else { return Ok(()) };
+                    let Some(value) = self.pick_of_type(&value_type)? else { return Ok(()) };
                     self.builder.insert_call(function, vec![address, value], vec![]);
                     self.model.store(address, value);
                 }
                 Callee::Identity { reference_type } => {
                     let reference_type = reference_type.clone();
-                    let arguments = self.references_of_type(&reference_type);
-                    let Some(argument) = self.pick(&arguments)? else { return Ok(()) };
+                    let Some(argument) = self.pick_of_type(&reference_type)? else { return Ok(()) };
                     let result =
                         self.builder.insert_call(function, vec![argument], vec![reference_type])[0];
                     self.model.copy(result, &[argument]);
