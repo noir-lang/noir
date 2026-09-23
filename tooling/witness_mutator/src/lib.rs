@@ -26,7 +26,17 @@ use crate::{
     strategy::candidates,
 };
 
-/// What a second witness means, which depends on whose job it was to rule it out.
+/// What a second witness means.
+///
+/// Two questions decide it. Does anything the verifier sees change — that is, a return value? And
+/// if not, does the rest of the witness move with the mutation, or is the free value one that
+/// nothing reads?
+///
+/// The second question has no mechanical answer for whether it is a bug. A circuit whose whole
+/// statement is "I know a value with property P" has no return value to change, so a free witness
+/// there is the break itself; a circuit that returns a result and happens to leave a scratch value
+/// free is fine. Which one a program is depends on what it claims to prove, so those findings are
+/// reported for a human rather than graded.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Severity {
     /// A compiler-inserted hint's outputs are not pinned down, and a return value follows them.
@@ -35,9 +45,14 @@ pub enum Severity {
     /// The program returns a value an `unconstrained fn` produced without constraining it. The
     /// circuit matches the source; the source is what trusts an unchecked value.
     ProgramUnderconstrained,
-    /// Only intermediate witnesses move. Some hints are legitimately free — the inverse hint of an
-    /// `x != 0` check when `x` is zero, or any call under a false predicate.
-    Intermediate,
+    /// No return value moves, but the rest of the witness does: the proof does not pin down the
+    /// values the program computed. Whether that is exploitable depends on what the circuit is
+    /// meant to prove.
+    WitnessNotUnique,
+    /// Only the hint's own outputs move, and nothing else in the witness follows. The value is not
+    /// read by anything — the inverse hint of an `x != 0` check when `x` is zero, or a call under
+    /// a false predicate.
+    Inert,
 }
 
 impl Severity {
@@ -45,7 +60,8 @@ impl Severity {
         match self {
             Severity::CompilerBug => "HIGH",
             Severity::ProgramUnderconstrained => "PROGRAM",
-            Severity::Intermediate => "LOW",
+            Severity::WitnessNotUnique => "WITNESS",
+            Severity::Inert => "INERT",
         }
     }
 }
@@ -57,18 +73,21 @@ pub struct Finding {
     pub strategy: String,
     /// Hint outputs that differ, as (witness, honest, second witness).
     pub changed_outputs: Vec<(Witness, FieldElement, FieldElement)>,
-    /// Whether a return value changes, which is the difference between an exploitable circuit and
-    /// a harmless one: an intermediate nobody reads may legitimately have several values.
+    /// Whether a return value changes, which is the only difference a verifier can see.
     pub changes_return: bool,
+    /// How many witnesses other than this call's own outputs take a different value. A free value
+    /// that nothing reads moves nothing; one the program computes with drags the rest along.
+    pub blast_radius: usize,
     pub witness: WitnessMap<FieldElement>,
 }
 
 impl Finding {
     pub fn severity(&self) -> Severity {
         match (self.changes_return, self.site.kind.is_directive()) {
-            (false, _) => Severity::Intermediate,
             (true, true) => Severity::CompilerBug,
             (true, false) => Severity::ProgramUnderconstrained,
+            (false, _) if self.blast_radius > 0 => Severity::WitnessNotUnique,
+            (false, _) => Severity::Inert,
         }
     }
 }
@@ -78,6 +97,9 @@ pub struct Report {
     pub findings: Vec<Finding>,
     pub sites: usize,
     pub candidates_tried: usize,
+    /// A circuit with no return values gives a verifier nothing to compare, so no finding in it can
+    /// be graded by its effect on the output.
+    pub has_return_values: bool,
 }
 
 impl Report {
@@ -158,25 +180,39 @@ pub fn search(
             .iter()
             .any(|witness_index| witness.get(witness_index) != honest.get(witness_index));
 
-        // One report per site and severity: a site that is free at all is usually free in many
-        // ways, and listing every alias buries the fact that there are two distinct problems.
-        let already_reported = findings.iter().any(|finding| {
-            finding.site.opcode_index == site.opcode_index
-                && finding.changes_return == changes_return
-        });
-        if already_reported {
-            continue;
-        }
+        let blast_radius = witness
+            .clone()
+            .into_iter()
+            .filter(|(index, value)| {
+                !site.outputs.contains(index) && honest.get(index) != Some(value)
+            })
+            .count();
 
-        findings.push(Finding {
+        let finding = Finding {
             site: site.clone(),
             strategy: candidate.strategy,
             changed_outputs,
             changes_return,
+            blast_radius,
             witness,
+        };
+
+        // One report per site and grade: a site that is free at all is usually free in many ways,
+        // and listing every alias buries the fact that there are distinct problems.
+        let already_reported = findings.iter().any(|reported| {
+            reported.site.opcode_index == finding.site.opcode_index
+                && reported.severity() == finding.severity()
         });
+        if !already_reported {
+            findings.push(finding);
+        }
     }
 
     findings.sort_by_key(|finding| (finding.severity(), finding.site.opcode_index));
-    Ok(Report { findings, sites: sites.len(), candidates_tried })
+    Ok(Report {
+        findings,
+        sites: sites.len(),
+        candidates_tried,
+        has_return_values: !return_witnesses.is_empty(),
+    })
 }

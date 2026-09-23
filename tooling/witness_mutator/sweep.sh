@@ -5,7 +5,8 @@
 #
 # Writes one TSV line per program to stdout: <name> <verdict> <detail>, where verdict is one of
 # HIGH (a compiler-inserted hint is underconstrained), PROGRAM (the program returns an
-# unconstrained call's output without checking it), LOW (intermediates only), none, timeout, or
+# unconstrained call's output without checking it), WITNESS (no return value moves but the rest of
+# the witness does), INERT (the free value is read by nothing), none, timeout, or
 # skipped (no Prover.toml, or honest execution failed — programs needing an oracle cannot be
 # searched without their foreign call transcript).
 set -uo pipefail
@@ -46,8 +47,10 @@ one() {
     printf '%s\tHIGH\t%s\n' "$name" "$(grep '^HIGH' <<<"$output" | head -1)"
   elif grep -q '^PROGRAM' <<<"$output"; then
     printf '%s\tPROGRAM\t%s\n' "$name" "$(grep '^PROGRAM' <<<"$output" | head -1)"
-  elif grep -q '^LOW' <<<"$output"; then
-    printf '%s\tLOW\t%s\n' "$name" "$(grep '^LOW' <<<"$output" | head -1)"
+  elif grep -q '^WITNESS' <<<"$output"; then
+    printf '%s\tWITNESS\t%s\n' "$name" "$(grep '^WITNESS' <<<"$output" | head -1)"
+  elif grep -q '^INERT' <<<"$output"; then
+    printf '%s\tINERT\t%s\n' "$name" "$(grep '^INERT' <<<"$output" | head -1)"
   elif grep -q 'honest execution failed' <<<"$output"; then
     printf '%s\tskipped\thonest execution failed\n' "$name"
   else

@@ -61,6 +61,12 @@ fn print(report: &Report, program: &CompiledProgram, verbose: bool) {
         "{} hint call site(s), {} candidate witness(es) tried",
         report.sites, report.candidates_tried
     );
+    if !report.has_return_values {
+        println!(
+            "this circuit returns nothing, so a verifier has no value to compare: every finding \
+             below is a question about what the circuit claims to prove"
+        );
+    }
     if report.findings.is_empty() {
         println!("no second witness found");
         return;
@@ -83,7 +89,16 @@ fn print(report: &Report, program: &CompiledProgram, verbose: bool) {
                 "  a return value changes: the program returns this unconstrained call's output \
                  without constraining it"
             ),
-            Severity::Intermediate => println!("  only intermediate witnesses change"),
+            Severity::WitnessNotUnique => println!(
+                "  no return value changes, but {} other witness(es) do: the proof does not pin \
+                 down what the program computed. Whether that is exploitable depends on what this \
+                 circuit is meant to prove",
+                finding.blast_radius
+            ),
+            Severity::Inert => println!(
+                "  only this call's own outputs change, and nothing else in the witness follows: \
+                 the value is not read"
+            ),
         }
         if let Some(location) =
             location_of(program, finding.site.function_index, finding.site.opcode_index)

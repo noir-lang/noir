@@ -34,11 +34,20 @@ program:
    | --- | --- |
    | `HIGH` | a return value follows a **compiler-inserted** hint whose outputs are not pinned down: the emitted circuit is weaker than the program it came from |
    | `PROGRAM` | a return value follows an **`unconstrained fn` the program called**, with nothing constraining it. The circuit matches the source; the source trusts an unchecked value |
-   | `LOW` | only intermediate witnesses move. Some hints are legitimately free — the inverse hint of an `x != 0` check when `x` is zero, or any call under a false predicate |
+   | `WITNESS` | no return value moves, but the rest of the witness does — the proof does not pin down what the program computed |
+   | `INERT` | only the hint's own outputs move and nothing follows them: the value is read by nothing |
 
    Only `HIGH` makes the tool exit non-zero. `PROGRAM` is the author's decision to report, not a
    compiler defect, and it is what Noir's own `check_for_missing_brillig_constraints` warns about
    statically.
+
+   `WITNESS` exists because a return value is not the only thing a circuit can be about. A circuit
+   whose statement is "I know a value with property P" often returns nothing at all, and a free
+   witness there *is* the break, while a circuit that returns a result and leaves a scratch value
+   free is fine. The difference is what the program claims to prove, which no tool can decide, so
+   these are reported with their blast radius — how much of the rest of the witness moved — for a
+   human to judge. A circuit with no return values says so in the report, since nothing in it can
+   be graded by its effect on an output.
 
 Because step 3 re-solves rather than reasoning about constraints, a `HIGH` finding is not a
 heuristic: the alternative witness is printed and can be checked independently.
@@ -106,11 +115,12 @@ matters for a bug hunt is that *some* input exposes it, and that a clean compile
 | --- | --- | --- |
 | `HIGH` | 0 | no compiler-emitted circuit was found to be weaker than its source |
 | `PROGRAM` | 55 | 49 have an `unconstrained fn main`, whose result nothing can constrain; the other 6 return an `unsafe` call's value unchecked |
-| `LOW` | 55 | 48 of them `directive_invert`, the expected benign case |
+| `WITNESS` | 3 | free values that move part of the witness without reaching an output |
+| `INERT` | 52 | mostly `directive_invert` with a zero input, the expected benign case |
 | none | 370 | |
 | skipped | 66 | no `Prover.toml`, or honest execution needs an oracle transcript |
 
-Zero `HIGH` on a clean compiler is the property that makes the grade worth acting on. The 55
+Zero `HIGH` on a clean compiler is the property that makes the grade worth acting on. The
 `PROGRAM` findings are a useful check that the search works at all: it rediscovered, from execution
 alone, the same class of program the compiler's static check flags.
 

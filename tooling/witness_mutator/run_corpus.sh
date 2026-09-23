@@ -43,6 +43,8 @@ cargo build -p nargo_cli --bin nargo -p noir_witness_mutator >/dev/null 2>&1
 echo "clean master: $(sweep) inputs with a second witness"
 
 git apply "$dir/bug.patch"
-trap 'git checkout -- compiler acvm-repo' EXIT
+# Rebuild on the way out as well as on the way in: leaving a compiler built from the patched tree
+# on disk makes every later run in the same checkout measure the bug instead of master.
+trap 'git checkout -- compiler acvm-repo; cargo build -p nargo_cli --bin nargo >/dev/null 2>&1' EXIT
 cargo build -p nargo_cli --bin nargo >/dev/null 2>&1
 echo "bug applied:  $(sweep) inputs with a second witness"
