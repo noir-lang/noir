@@ -224,7 +224,7 @@ impl LivenessContext {
         // 1. The call returns a reference type — the passed reference might be returned.
         // 2. Another argument has type `&mut T` where `T` contains a reference — the function
         //    could write the passed reference into `*that_arg`, making it escape without returning.
-        let conservative = call.return_type.contains_reference()
+        let conservative = type_contains_reference(&call.return_type)
             || call.arguments.iter().any(arg_can_store_reference);
 
         let mut live = live;
@@ -582,7 +582,7 @@ fn arg_can_store_reference(arg: &Expression) -> bool {
 fn type_can_store_reference(typ: &ast::Type) -> bool {
     use ast::Type;
     match typ {
-        Type::Reference(inner, true /* mutable */) => inner.contains_reference(),
+        Type::Reference(inner, true /* mutable */) => type_contains_reference(inner),
         Type::Reference(inner, false) => type_can_store_reference(inner),
         Type::Tuple(elements) => elements.iter().any(type_can_store_reference),
         Type::Array(_, elem) | Type::Vector(elem) | Type::FmtString(_, elem) => {
@@ -592,6 +592,26 @@ fn type_can_store_reference(typ: &ast::Type) -> bool {
             args.iter().any(type_can_store_reference)
                 || type_can_store_reference(ret)
                 || type_can_store_reference(env)
+        }
+        Type::Field | Type::Integer(..) | Type::Bool | Type::String(..) | Type::Unit => false,
+    }
+}
+
+/// Returns `true` if the type contains a `Reference` anywhere (directly or nested within
+/// tuples, arrays, or function types). Used to decide whether a call might return a
+/// reference that aliases a variable passed by `&mut` to that call.
+fn type_contains_reference(typ: &ast::Type) -> bool {
+    use ast::Type;
+    match typ {
+        Type::Reference(..) => true,
+        Type::Tuple(elements) => elements.iter().any(type_contains_reference),
+        Type::Array(_, elem) | Type::Vector(elem) | Type::FmtString(_, elem) => {
+            type_contains_reference(elem)
+        }
+        Type::Function(args, ret, env, _) => {
+            args.iter().any(type_contains_reference)
+                || type_contains_reference(ret)
+                || type_contains_reference(env)
         }
         Type::Field | Type::Integer(..) | Type::Bool | Type::String(..) | Type::Unit => false,
     }
