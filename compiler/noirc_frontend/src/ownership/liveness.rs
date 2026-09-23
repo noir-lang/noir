@@ -59,7 +59,8 @@ struct LivenessContext {
     /// The set live at the header of each enclosing loop, innermost last. A `continue` jumps here.
     continue_live: Vec<Live>,
 
-    /// Fixpoint iterations run with this off, so only the converged pass records moves.
+    /// Off during the first pass over a loop, whose header set is provisional, so that only
+    /// the second pass records moves. See `visit_loop`.
     recording: bool,
 
     /// For each immutable `let`, the variables whose buffer its value may be. See
