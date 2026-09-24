@@ -10,6 +10,7 @@ import AcirLean.Templates.Signed
 import AcirLean.Templates.Programs
 import AcirLean.Templates.Shipped
 import AcirLean.Templates.SignedDivMod
+import AcirLean.Templates.Corpus
 
 /-!
 # The pin
@@ -61,6 +62,20 @@ def AcirFn.render (f : AcirFn) : List String :=
   let ws (l : List ℕ) := ",".intercalate (l.map toString)
   f.cs.map Cstr.render ++ [s!"inputs [{ws f.inputs}]", s!"returns [{ws f.returns}]"]
 
+/-- A straight-line program as `Ssa`'s `Display` prints it. -/
+def UProg.render (P : UProg) : List String :=
+  let params := ", ".intercalate ((List.range P.nparams).map fun i => s!"v{i}: u{P.width}")
+  let op : UOp → String
+    | .div => "div"
+    | .lt => "lt"
+  ["acir(inline) fn main f0 {", s!"  b0({params}):"] ++
+    (P.body.zipIdx.map fun (i, k) => s!"    v{P.nparams + k} = {op i.op} v{i.a}, v{i.b}") ++
+    [s!"    return v{P.ret}", "}"]
+
+/-- A corpus entry: the program, its shipped circuit, and the solved witness. -/
+def CorpusEntry.render (e : CorpusEntry) : List String :=
+  e.prog.render ++ e.fn.render ++ e.witness.map fun (w, v) => s!"witness {w} {v}"
+
 /-- The golden file: one `# <gadget> <width>` section per pinned width. -/
 def renderAll : String :=
   let sec (title : String) (cs : List Cstr) :=
@@ -85,7 +100,8 @@ def renderAll : String :=
     signedWidths.map (fun n =>
       s!"# shipped_signed_div {n}\n" ++ "\n".intercalate (shippedSDivT n).render) ++
     signedWidths.map (fun n =>
-      s!"# shipped_signed_mod {n}\n" ++ "\n".intercalate (shippedSModT n).render)
+      s!"# shipped_signed_mod {n}\n" ++ "\n".intercalate (shippedSModT n).render) ++
+    corpus.zipIdx.map (fun (e, i) => s!"# corpus {i}\n" ++ "\n".intercalate e.render)
   "\n".intercalate secs ++ "\n"
 
 end AcirLean

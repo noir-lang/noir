@@ -169,6 +169,81 @@ fn shipped_signed(op: &str, bit_size: u32) -> Vec<String> {
     shipped_of_ssa(Ssa::from_str(&src).unwrap().expand_signed_math())
 }
 
+/// `v<result> = <op> v<a>, v<b>`.
+type Instruction = (&'static str, usize, usize);
+
+/// The straight-line programs the Lean checker is run on: `u<n>` parameters `v0`,
+/// `v1`, then `div` and `lt` instructions whose operands are earlier `u<n>` values,
+/// returning the last result. Operands are always two different values.
+fn corpus_programs() -> Vec<(u32, Vec<Instruction>)> {
+    let mut programs = Vec::new();
+    for width in [8, 64, 128] {
+        for op in ["div", "lt"] {
+            programs.push((width, vec![(op, 0, 1)]));
+            programs.push((width, vec![(op, 1, 0)]));
+        }
+        for (a, b) in [(0, 1), (1, 0)] {
+            for (c, d) in [(2, 0), (0, 2), (2, 1), (1, 2)] {
+                for op in ["div", "lt"] {
+                    programs.push((width, vec![("div", a, b), (op, c, d)]));
+                }
+            }
+        }
+        programs.push((width, vec![("div", 0, 1), ("div", 2, 1), ("lt", 3, 0)]));
+        programs.push((width, vec![("div", 1, 0), ("div", 0, 2), ("div", 3, 1)]));
+    }
+    programs
+}
+
+fn corpus_source(width: u32, body: &[Instruction]) -> String {
+    let mut src = format!("acir(inline) fn main f0 {{\n  b0(v0: u{width}, v1: u{width}):\n");
+    for (i, (op, a, b)) in body.iter().enumerate() {
+        src.push_str(&format!("    v{} = {op} v{a}, v{b}\n", i + 2));
+    }
+    src.push_str(&format!("    return v{}\n}}\n", body.len() + 1));
+    src
+}
+
+/// The shipped circuit for a corpus program, and the witness ACVM solves for it on
+/// the first sample input it accepts.
+fn corpus_entry(width: u32, body: &[Instruction]) -> Vec<String> {
+    use acvm::{
+        acir::native_types::{Witness, WitnessMap},
+        blackbox_solver::StubbedBlackBoxSolver,
+        pwg::{ACVM, ACVMStatus},
+    };
+    let src = corpus_source(width, body);
+    let (program, _) = crate::acir::tests::try_ssa_to_acir(&src).unwrap();
+    let circuit = &program.functions[0];
+    let mut lines: Vec<String> = src.trim().lines().map(str::to_string).collect();
+    lines.extend(shipped_of(&src));
+    let big = FieldElement::from(2u128).pow(&FieldElement::from(u128::from(width - 1)))
+        + FieldElement::from(5u128);
+    let candidates = [
+        (big, FieldElement::from(7u128)),
+        (FieldElement::from(7u128), big),
+        (FieldElement::from(13u128), FieldElement::from(5u128)),
+    ];
+    let solver = StubbedBlackBoxSolver;
+    let mut acvm = None;
+    for (a, b) in candidates {
+        let mut inputs = WitnessMap::new();
+        inputs.insert(Witness(0), a);
+        inputs.insert(Witness(1), b);
+        let mut vm =
+            ACVM::new(&solver, &circuit.opcodes, inputs, &program.unconstrained_functions, &[]);
+        if vm.solve() == ACVMStatus::Solved {
+            acvm = Some(vm);
+            break;
+        }
+    }
+    let acvm = acvm.expect("some candidate input satisfies the program");
+    for (w, v) in acvm.witness_map().clone() {
+        lines.push(format!("witness {} {}", w.0, BigUint::from_bytes_be(&v.to_be_bytes())));
+    }
+    lines
+}
+
 fn emitted() -> String {
     let mut sections = Vec::new();
     for n in [8, 16, 32, 64, 128] {
@@ -235,6 +310,9 @@ fn emitted() -> String {
     }
     for n in [8, 16, 32, 64] {
         sections.push(format!("# shipped_signed_mod {n}\n{}", shipped_signed("mod", n).join("\n")));
+    }
+    for (i, (width, body)) in corpus_programs().iter().enumerate() {
+        sections.push(format!("# corpus {i}\n{}", corpus_entry(*width, body).join("\n")));
     }
     sections.join("\n") + "\n"
 }

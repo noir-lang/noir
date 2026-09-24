@@ -28,14 +28,15 @@ three standard axioms. `check.sh` additionally fails if:
 
 - `Spec/` imports anything outside `Spec/`, `Templates/` and Mathlib;
 - `Templates/` contains anything but plain definitions, or imports anything
-  beyond `Templates/`, `Spec/Semantics.lean`, `Spec/Ssa.lean` and Mathlib;
+  beyond `Templates/`, `Spec/Semantics.lean`, `Spec/Ssa.lean`,
+  `Spec/Programs.lean` and Mathlib;
 - any file uses `sorry`, `admit`, `axiom`, `native_decide`, `unsafe`,
   `implemented_by`, `@[extern` or a kernel-check bypass;
 - `templates.golden` differs from what `Spec/Pin.lean` prints.
 
 ### Reading the reviewed Lean
 
-The reviewed files are about 420 lines, mostly comments. The notation you need:
+The reviewed files are about 510 lines, mostly comments. The notation you need:
 
 | Lean | Meaning |
 |---|---|
@@ -71,8 +72,29 @@ The reviewed files are about 420 lines, mostly comments. The notation you need:
    `MIN / -1`, and return the truncating signed quotient or remainder
    (`Int.tdiv`, `Int.tmod`) in two's complement.
 
+9. every program in the corpus (`Templates/Corpus.lean`: straight-line
+   programs of `div` and `lt` on `u8`, `u64` and `u128`), as shipped,
+   enforces its parameters' types and returns what the program computes, and
+   the witness ACVM solved for it satisfies its circuit.
+
 The `eq` gadget these use is sound only because the BN254 scalar field modulus
 is prime; `Proofs/Prime.lean` proves that with a Pratt certificate.
+
+### The checker
+
+Claim 9 is not proved program by program. `Proofs/Checker.lean` defines
+`checkProg P C`, which walks program `P`'s instructions, tracks which witness
+(or `1 - w`) holds each value, and requires each instruction's proved gadget
+template, placed on a block of fresh witnesses, to appear among circuit `C`'s
+constraints (in a canonical form proved to preserve meaning). `checkProg_sound`
+proves once that acceptance implies `SoundFn C (ProgSpec P)`; the corpus claim
+is then one evaluation of `checkProg` over the corpus. Adding programs to the
+corpus needs no new proof, only programs the checker accepts.
+
+The checker only accepts circuits it can prove sound. Rebuilding the corpus
+with the `r < b` constraint removed from `euclidean_division_var`, it accepts
+4 of the 66 circuits: the lone `lt` programs at widths 8 and 64, where that
+constraint was a repeat of a range check already present.
 
 ## What is proved
 
@@ -93,10 +115,8 @@ its new indices and chains the results.
 
 Not yet covered:
 
-- arbitrary programs: the whole-function claims cover the pinned functions
-  only. A claim for every straight-line program needs a Lean model of how ACIR
-  generation compiles each SSA instruction, and the pin can only compare that
-  model with the Rust on a fixed corpus of programs;
+- instructions beyond `div` and `lt` in the checker (arithmetic, constants,
+  casts, `constrain`, arrays, calls), so it cannot yet run on `test_programs`;
 - the ACVM optimization passes on programs outside the pinned corpus: the
   optimized circuits are checked program by program, not the passes in
   general;
@@ -138,6 +158,15 @@ Then, from the repository root:
 ```sh
 (cd fv/acir_lean && ./scripts/check.sh)                  # ~2 min first run (Mathlib cache download), ~20 s after
 cargo test -p noirc_evaluator --lib fv_templates         # Rust side of the pin
+```
+
+After a change to the corpus programs in `fv_templates.rs`, regenerate the
+Lean data from the Rust output (the converter is untrusted; the pin checks its
+output):
+
+```sh
+cargo test -p noirc_evaluator --lib fv_templates 2>&1 | sed -n '/--- emitted ---/,/^note:/p' | sed '1d;$d' | sed '$d' > /tmp/emitted.txt
+(cd fv/acir_lean && ./scripts/gen_corpus.py /tmp/emitted.txt > AcirLean/Templates/Corpus.lean)
 ```
 
 After an intentional change to a pinned gadget:

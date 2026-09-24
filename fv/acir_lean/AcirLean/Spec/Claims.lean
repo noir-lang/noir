@@ -111,6 +111,8 @@ def SignedOp (n : ℕ) (op : ℤ → ℤ → ℤ) : List ℕ → List ℕ → Pr
 * signed `div` and `mod` on `i<n>` (for `n` in `signedWidths`), as shipped,
   compute truncating signed division and remainder, and reject a zero divisor
   and `MIN / -1`;
+* every program in the corpus, as shipped, implements it (`ProgSpec`), and
+  the witness ACVM solved for it satisfies its circuit;
 * no constraint list is contradictory. -/
 def AllClaims : Prop :=
   (∀ n ∈ pinnedWidths,
@@ -149,6 +151,7 @@ def AllClaims : Prop :=
   (∀ n ∈ signedWidths,
     SoundFn (shippedSDivT n) (SignedOp n Int.tdiv) ∧ SatisfiableFn (shippedSDivT n)) ∧
   (∀ n ∈ signedWidths,
-    SoundFn (shippedSModT n) (SignedOp n Int.tmod) ∧ SatisfiableFn (shippedSModT n))
+    SoundFn (shippedSModT n) (SignedOp n Int.tmod) ∧ SatisfiableFn (shippedSModT n)) ∧
+  (∀ e ∈ corpus, SoundFn e.fn (ProgSpec e.prog) ∧ AllSat e.assignment e.fn.cs)
 
 end AcirLean
