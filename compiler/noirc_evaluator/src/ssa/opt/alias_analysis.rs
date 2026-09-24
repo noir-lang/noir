@@ -3365,6 +3365,95 @@ mod tests {
     }
 
     #[test]
+    fn may_alias_via_load_single_store() {
+        // `v2` is loaded from `*v0` after `v1` was stored there, so it is `v1`.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut &mut Field
+            v1 = allocate -> &mut Field
+            store v1 at v0
+            v2 = load v0 -> &mut Field
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let allocs = collect_allocates(&ssa);
+        let loads = collect_loads(&ssa);
+        let mut analysis = analyze_main(&ssa);
+        assert!(analysis.may_alias(ssa.main(), allocs[1], loads[0]));
+    }
+
+    #[test]
+    fn may_alias_via_array_get_single_make_array() {
+        // Every element of `v1` is `v0`, so `v2 = array_get v1` is `v0`.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = make_array [v0, v0] : [&mut Field; 2]
+            v2 = array_get v1, index u32 0 -> &mut Field
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let allocs = collect_allocates(&ssa);
+        let gets = collect_array_gets(&ssa);
+        let mut analysis = analyze_main(&ssa);
+        assert!(analysis.may_alias(ssa.main(), allocs[0], gets[0]));
+    }
+
+    #[test]
+    fn may_alias_ifelse_over_load_result() {
+        // `v3` is loaded from `*v2` after `v1` was stored there, so both
+        // branches of `v5` are `v1`.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = allocate -> &mut Field
+            v2 = allocate -> &mut &mut Field
+            store v1 at v2
+            v3 = load v2 -> &mut Field
+            v4 = not v0
+            v5 = if v0 then v1 else (if v4) v3
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let allocs = collect_allocates(&ssa);
+        let ifelse_results = collect_ifelse_results(&ssa);
+        let mut analysis = analyze_main(&ssa);
+        assert!(analysis.may_alias(ssa.main(), allocs[0], ifelse_results[0]));
+    }
+
+    #[test]
+    fn may_alias_through_chain_passed_to_foreign_call() {
+        // The foreign call receives `v2` but does not change the chain, so
+        // after it `v3 = load v2` is `v1` and `v4 = load v3` is `v0`.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = allocate -> &mut &mut Field
+            store v0 at v1
+            v2 = allocate -> &mut &mut &mut Field
+            store v1 at v2
+            call oracle_op(v2)
+            v3 = load v2 -> &mut &mut Field
+            v4 = load v3 -> &mut Field
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let allocs = collect_allocates(&ssa);
+        let loads = collect_loads(&ssa);
+        let mut analysis = analyze_main(&ssa);
+        // loads[0] = v3 (load v2), loads[1] = v4 (load v3)
+        assert!(analysis.may_alias(ssa.main(), allocs[1], loads[0]));
+        assert!(analysis.may_alias(ssa.main(), allocs[0], loads[1]));
+    }
+
+    #[test]
     fn must_alias_via_load_mixed_stores_false() {
         // Two distinct allocations have been stored at `*v0`; the loaded
         // value has no site and must_alias returns false.
