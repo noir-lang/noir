@@ -1,0 +1,97 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+mod lib {
+    pub global MAX_LEN: u32 = 4;
+
+    pub type Cap: u32 = 4;
+
+    pub global N: u32 = 2;
+
+    pub type Size: u32 = 2;
+
+    pub type Double<let N: u32>: u32 = N * 2;
+
+    pub type Quad<let N: u32>: u32 = (N * 2) + (N * 2);
+}
+
+mod local {
+    pub global N: u32 = 2;
+
+    pub type Size: u32 = 2;
+
+    pub type Plus<let A: u32>: u32 = A + 2;
+
+    pub type Mul<let A: u32, let B: u32>: u32 = A * B;
+}
+
+mod no_global {
+    pub type Double<let N: u32>: u32 = N * 2;
+
+    pub type Quad<let N: u32>: u32 = (N * 2) + (N * 2);
+}
+
+fn numeric_generic_named_like_global<let N: u32>() -> u32 {
+    2_u32
+}
+
+fn numeric_generic_named_like_alias_generic<let N: u32>() -> u32 {
+    (N + 2)
+}
+
+fn turbofish_with_caller_generic<let M: u32>() -> u32 {
+    (M * 2)
+}
+
+fn composed_with_caller_generic<let M: u32>() -> u32 {
+    ((M * 2) + (M * 2))
+}
+
+fn swapped_generics<let A: u32, let B: u32>() -> u32 {
+    ((B * A) - (A * B)) + B
+}
+
+fn generic_arithmetic_in_turbofish<let K: u32>() -> u32 {
+    turbofish_with_caller_generic::<K + 1>()
+}
+
+fn value_and_type_position_agree<let M: u32>() -> bool {
+    let a: [u8; (M * 2) + (M * 2)] = [0_u8; (M * 2) + (M * 2)];
+    a.len() == ((M * 2) + (M * 2))
+}
+
+fn main(N: pub u32, MAX_LEN: u32, x: u32) {
+    assert(2_u32 == 2_u32);
+    assert(2_u32 == 2_u32);
+    assert(4_u32 == 4_u32);
+    assert(MAX_LEN <= 4_u32);
+    assert(N != 2_u32);
+    assert(numeric_generic_named_like_global::<9>() == 2_u32);
+    assert(numeric_generic_named_like_alias_generic::<10>() == 12_u32);
+    let f: fn(u32) -> u32 = |N: u32| -> u32 { 2_u32 + N };
+    assert(f(x) == (2_u32 + x));
+    {
+        let N: u32 = x + 1_u32;
+        let MAX_LEN: u32 = x + 2_u32;
+        assert(2_u32 == 2_u32);
+        assert(4_u32 == 4_u32);
+        assert(N == (x + 1_u32));
+        assert(MAX_LEN == (x + 2_u32));
+    };
+    assert(turbofish_with_caller_generic::<5>() == 10_u32);
+    assert(composed_with_caller_generic::<3>() == 12_u32);
+    assert(swapped_generics::<3, 7>() == 7_u32);
+    assert(generic_arithmetic_in_turbofish::<4>() == 10_u32);
+    assert(value_and_type_position_agree::<5>());
+    assert(((3 * 2) + (3 * 2)) == 12_u32);
+    let a: [u8; (3 * 2) + (3 * 2)] = [0_u8; 12];
+    assert(a.len() == ((3 * 2) + (3 * 2)));
+    assert(((3 * 2) + (3 * 2)) == 12_u32);
+    assert(12_u32 == 12_u32);
+    let mut sum: u32 = 0_u32;
+    for i in 0_u32..(3 * 2) {
+        sum = sum + i;
+    }
+    assert(sum == 15_u32);
+}

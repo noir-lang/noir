@@ -1002,18 +1002,35 @@ impl ItemPrinter<'_, '_> {
                 self.push_str(name);
             }
             DefinitionKind::NumericGeneric(ref type_var, ref numeric_type) => {
-                // When a numeric type alias's parameter is used as a value (`AliasN::<1>`),
-                // the definition's type variable is bound to the resolved value and the bare
-                // name doesn't resolve at the use site (or worse, resolves to something else
-                // with the same name). Print the value instead, suffixed with its numeric
-                // type so it can't be inferred as a different one.
-                if let TypeBinding::Bound(binding) = &*type_var.borrow()
-                    && let Type::Constant(constant) = binding.follow_bindings()
-                {
-                    self.push_str(&constant.to_string());
-                    self.push('_');
-                    self.show_type(numeric_type);
-                    return;
+                // When a numeric type alias is used as a value (`Alias`, `AliasN::<1>`), the
+                // definition's type variable is bound to the value the alias stands for, and
+                // the bare name doesn't resolve at the use site (or worse, resolves to
+                // something else with the same name). Print the value instead: a constant
+                // suffixed with its numeric type so it can't be inferred as a different one,
+                // anything else (e.g. `N * 2` in a generic function) in parentheses so it
+                // keeps its meaning as an operand.
+                let binding = match &*type_var.borrow() {
+                    TypeBinding::Bound(binding) => Some(binding.follow_bindings()),
+                    TypeBinding::Unbound(..) => None,
+                };
+                match binding {
+                    Some(Type::Constant(constant)) => {
+                        self.push_str(&constant.to_string());
+                        self.push('_');
+                        self.show_type(numeric_type);
+                        return;
+                    }
+                    Some(binding @ Type::NamedGeneric(..)) => {
+                        self.show_type(&binding);
+                        return;
+                    }
+                    Some(Type::TypeVariable(..)) | None => (),
+                    Some(binding) => {
+                        self.push('(');
+                        self.show_type(&binding);
+                        self.push(')');
+                        return;
+                    }
                 }
                 let name = self.interner.definition_name(ident.id);
                 self.push_str(name);
