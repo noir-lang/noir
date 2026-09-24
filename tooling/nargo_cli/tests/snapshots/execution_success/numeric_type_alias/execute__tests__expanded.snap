@@ -50,7 +50,7 @@ fn main(x: Field) {
 
 fn quadruple_array<let N: u32>() -> [u32; (N * 2) + (N * 2)] {
     let mut a: [u32; (N * 2) + (N * 2)] = [0_u32; (N * 2) + (N * 2)];
-    for i in 0_u32..((N * 2) + (N * 2)) {
+    for i in 0_u32..((N * 2_u32) + (N * 2_u32)) {
         a[i] = i;
     }
     a
@@ -58,7 +58,7 @@ fn quadruple_array<let N: u32>() -> [u32; (N * 2) + (N * 2)] {
 
 fn mixed_array<let N: u32>() -> [u32; N * ((N * 2) + 3)] {
     let mut a: [u32; N * ((N * 2) + 3)] = [0_u32; N * ((N * 2) + 3)];
-    for i in 0_u32..(N * ((N * 2) + 3)) {
+    for i in 0_u32..(N * ((N * 2_u32) + 3_u32)) {
         a[i] = i;
     }
     a
