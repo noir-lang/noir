@@ -8,6 +8,7 @@ import AcirLean.Spec.Semantics
 import AcirLean.Templates.Gadgets
 import AcirLean.Templates.Signed
 import AcirLean.Templates.Programs
+import AcirLean.Templates.Shipped
 
 /-!
 # The pin
@@ -70,7 +71,13 @@ def renderAll : String :=
     pinnedWidths.map (fun n =>
       s!"# acir_truncate {n}\n" ++ "\n".intercalate (acirTruncT n).render) ++
     pinnedWidths.map (fun n =>
-      s!"# acir_signed_lt {n}\n" ++ "\n".intercalate (acirSignedLtT n).render)
+      s!"# acir_signed_lt {n}\n" ++ "\n".intercalate (acirSignedLtT n).render) ++
+    pinnedWidths.map (fun n => s!"# shipped_div {n}\n" ++ "\n".intercalate (shippedDivT n).render) ++
+    pinnedWidths.map (fun n => s!"# shipped_lt {n}\n" ++ "\n".intercalate (shippedLtT n).render) ++
+    pinnedWidths.map (fun n =>
+      s!"# shipped_truncate {n}\n" ++ "\n".intercalate (shippedTruncT n).render) ++
+    pinnedWidths.map (fun n =>
+      s!"# shipped_signed_lt {n}\n" ++ "\n".intercalate (shippedSignedLtT n).render)
   "\n".intercalate secs ++ "\n"
 
 end AcirLean

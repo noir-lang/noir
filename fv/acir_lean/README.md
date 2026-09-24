@@ -4,8 +4,9 @@ Machine-checked soundness of the constraints `AcirContext` emits for Euclidean
 division (with and without a predicate), truncation and comparison
 (`compiler/noirc_evaluator/src/acir/acir_context/mod.rs`), correctness of the
 SSA `expand_signed_math` emits for signed `lt`, and soundness of whole
-functions as ACIR generation compiles them, plus a pin that keeps those proofs
-attached to the Rust code.
+functions as ACIR generation compiles them, both before and after the ACVM
+optimization passes, plus a pin that keeps those proofs attached to the Rust
+code.
 
 ## What you must review, and what you can ignore
 
@@ -57,11 +58,14 @@ The reviewed files are about 375 lines, mostly comments. The notation you need:
    assumptions in 1–3 are not contradictory;
 5. the SSA `expand_signed_math` produces for `lt` on `i<n>` returns `1` exactly
    when the first operand is less than the second as signed integers;
-6. whole functions, as ACIR generation compiles them, return their SSA
-   meaning for every satisfying witness, with no assumption on the inputs
-   (their range checks are part of the pinned constraints): `div` and `lt` on
-   `u<n>`, a field truncated to `u<n>`, and signed `lt` on `i<n>` compiled end
-   to end after `expand_signed_math`.
+6. whole functions, as ACIR generation compiles them, enforce their
+   parameters' types and return their SSA meaning for every satisfying
+   witness, with no assumption on the inputs: `div` and `lt` on `u<n>`, a
+   field truncated to `u<n>`, and signed `lt` on `i<n>` compiled end to end
+   after `expand_signed_math`;
+7. the same holds for the optimized circuits `nargo compile` ships
+   (`acvm::compiler::optimize`: the general simplifier, the redundant-range
+   optimizer and common-subexpression merging).
 
 ## What is proved
 
@@ -71,7 +75,8 @@ in `Proofs/` hold for every width: `divVarT_sound` and `divPredT_sound` for
 `1 ≤ m ≤ 128`, and `signedLtT_correct` for `n ≥ 1`; 128-bit division and
 truncation take different branches and have their own proofs.
 `Examples/Bug7895.lean` shows that truncation without the `q ≤ q0` bound
-accepts a forged witness.
+accepts a forged witness, and `Examples/RangeOptimizerBug.lean` shows the same
+for a range optimizer that drops a parameter's range check.
 
 The whole-function claims are proved by composition: `Templates/Programs.lean`
 builds each compiled function from the gadget templates placed at new witness
@@ -85,8 +90,9 @@ Not yet covered:
   only. A claim for every straight-line program needs a Lean model of how ACIR
   generation compiles each SSA instruction, and the pin can only compare that
   model with the Rust on a fixed corpus of programs;
-- the ACVM optimization passes that run after ACIR generation (the pin is on
-  the constraints before them);
+- the ACVM optimization passes on programs outside the pinned corpus: the
+  optimized circuits are checked program by program, not the passes in
+  general;
 - constant-divisor `div` on its own, signed `div` and `mod`, bitwise
   operations on more than one bit, and completeness.
 
@@ -102,8 +108,9 @@ syntax `Ssa`'s `Display` uses. Two checks meet at
 
 1. `scripts/check.sh` fails unless the Lean printout equals `templates.golden`.
 2. `fv_templates.rs` (`cargo test -p noirc_evaluator --lib fv_templates`) runs
-   the real gadgets, `expand_signed_math` and ACIR generation, and fails unless
-   their output, printed the same way, equals `templates.golden`.
+   the real gadgets, `expand_signed_math`, ACIR generation and the ACVM
+   optimizer, and fails unless their output, printed the same way, equals
+   `templates.golden`.
 
 Together: the Rust emits exactly the constraint lists and SSA `AllClaims` is about. A
 change to a pinned gadget fails the Rust test; making it pass means changing

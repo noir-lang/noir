@@ -8,8 +8,8 @@
 //! `fv/acir_lean/AcirLean/Spec/Pin.lean`, and the gadget calls below must cover
 //! every width in `pinnedWidths` there. `signed_lt` prints the SSA with `Ssa`'s own
 //! `Display`, which `Spec/Ssa.lean` mirrors for the instructions it uses, and
-//! `acir_of` must print the full output of ACIR generation, including the input
-//! and return witnesses.
+//! `acir_of` and `shipped_of` must print the full output of ACIR generation and
+//! of the optimized circuit, including the input and return witnesses.
 
 use acvm::{
     AcirField, FieldElement,
@@ -136,6 +136,23 @@ fn acir_of(src: &str) -> Vec<String> {
     lines
 }
 
+/// The optimized circuit for an SSA function: what `nargo compile` ships.
+fn shipped_of(src: &str) -> Vec<String> {
+    let (program, _) = crate::acir::tests::try_ssa_to_acir(src).unwrap();
+    let circuit = &program.functions[0];
+    let mut lines = canonical(&circuit.opcodes);
+    let witnesses = |ws: Vec<u32>| ws.iter().map(u32::to_string).collect::<Vec<_>>().join(",");
+    lines.push(format!(
+        "inputs [{}]",
+        witnesses(circuit.private_parameters.iter().map(|w| w.0).collect())
+    ));
+    lines.push(format!(
+        "returns [{}]",
+        witnesses(circuit.return_values.0.iter().map(|w| w.0).collect())
+    ));
+    lines
+}
+
 fn emitted() -> String {
     let mut sections = Vec::new();
     for n in [8, 16, 32, 64, 128] {
@@ -174,6 +191,28 @@ fn emitted() -> String {
     for n in [8, 16, 32, 64, 128] {
         let ssa = signed_lt(n).join("\n") + "\n";
         sections.push(format!("# acir_signed_lt {n}\n{}", acir_of(&ssa).join("\n")));
+    }
+    for n in [8, 16, 32, 64, 128] {
+        let src = format!(
+            "acir(inline) fn main f0 {{\n  b0(v0: u{n}, v1: u{n}):\n    v2 = div v0, v1\n    return v2\n}}\n"
+        );
+        sections.push(format!("# shipped_div {n}\n{}", shipped_of(&src).join("\n")));
+    }
+    for n in [8, 16, 32, 64, 128] {
+        let src = format!(
+            "acir(inline) fn main f0 {{\n  b0(v0: u{n}, v1: u{n}):\n    v2 = lt v0, v1\n    return v2\n}}\n"
+        );
+        sections.push(format!("# shipped_lt {n}\n{}", shipped_of(&src).join("\n")));
+    }
+    for n in [8, 16, 32, 64, 128] {
+        let src = format!(
+            "acir(inline) fn main f0 {{\n  b0(v0: Field):\n    v1 = truncate v0 to {n} bits, max_bit_size: 254\n    v2 = cast v1 as u{n}\n    return v2\n}}\n"
+        );
+        sections.push(format!("# shipped_truncate {n}\n{}", shipped_of(&src).join("\n")));
+    }
+    for n in [8, 16, 32, 64, 128] {
+        let ssa = signed_lt(n).join("\n") + "\n";
+        sections.push(format!("# shipped_signed_lt {n}\n{}", shipped_of(&ssa).join("\n")));
     }
     sections.join("\n") + "\n"
 }

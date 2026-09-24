@@ -65,14 +65,15 @@ theorem pinned_bounds {n : ℕ} (hn : n ∈ pinnedWidths) : 8 ≤ n ∧ n ≤ 12
 /-! ### `div` -/
 
 theorem acirDivT_sound {n : ℕ} (hn : n ∈ pinnedWidths) :
-    SoundFn (acirDivT n) (Computes2 (BinOp.eval .div)) := by
+    SoundFn (acirDivT n) (Computes2 n (BinOp.eval .div)) := by
   intro σ h
   simp only [acirDivT, allSat_append, allSat_rename] at h
   obtain ⟨⟨hin, hg⟩, hl⟩ := h
+  have ha := hin (.range 0 n) (by simp)
   have hb := hin (.range 1 n) (by simp)
   have e := hl (.zero [⟨1, [2]⟩, ⟨-1, [4]⟩]) (by simp)
   simp only [Cstr.sat, Term.eval, List.map, List.prod_cons, List.prod_nil,
-    List.sum_cons, List.sum_nil, Range] at e hb
+    List.sum_cons, List.sum_nil, Range] at e ha hb
   push_cast at e
   have hq : ((σ ∘ at_ [0, 1, 3, 4, 5, 6, 7, 8, 9, 10]) 3).val =
       ((σ ∘ at_ [0, 1, 3, 4, 5, 6, 7, 8, 9, 10]) 0).val /
@@ -82,12 +83,13 @@ theorem acirDivT_sound {n : ℕ} (hn : n ∈ pinnedWidths) :
     · exact (divVarT128_sound _ hg (by simpa [at_] using hb)).1
   simp [at_] at hq
   simp only [acirDivT, List.map, Computes2, BinOp.eval]
+  refine ⟨ha, hb, ?_⟩
   rw [show σ 2 = σ 4 by linear_combination e, hq]
 
 /-! ### `lt` -/
 
 theorem acirLtT_sound {n : ℕ} (hn : n ∈ pinnedWidths) :
-    SoundFn (acirLtT n) (Computes2 (BinOp.eval .lt)) := by
+    SoundFn (acirLtT n) (Computes2 n (BinOp.eval .lt)) := by
   intro σ h
   simp only [acirLtT, allSat_append, allSat_rename] at h
   obtain ⟨⟨hin, hg⟩, hl⟩ := h
@@ -102,6 +104,7 @@ theorem acirLtT_sound {n : ℕ} (hn : n ∈ pinnedWidths) :
     (by simpa [at_] using hb)
   simp [geSpec, at_] at hge
   simp only [acirLtT, List.map, Computes2, BinOp.eval]
+  refine ⟨ha, hb, ?_⟩
   rw [show σ 2 = 1 - σ 3 by linear_combination -e]
   exact not_ge hge
 
@@ -151,7 +154,7 @@ theorem divPow2T_sound {n j : ℕ} (hj : 1 ≤ j) (hjn : j < n) (hn : n ≤ 128)
   exact ⟨(div_const_sound hc2 (by rw [hbits]; omega) c).1, r1⟩
 
 theorem acirSignedLtT_sound {n : ℕ} (hn : n ∈ pinnedWidths) :
-    SoundFn (acirSignedLtT n) (Computes2 fun a b => if sint n a < sint n b then 1 else 0) := by
+    SoundFn (acirSignedLtT n) (Computes2 n fun a b => if sint n a < sint n b then 1 else 0) := by
   intro σ h
   have hbd := pinned_bounds hn
   simp only [acirSignedLtT] at h ⊢
@@ -189,6 +192,7 @@ theorem acirSignedLtT_sound {n : ℕ} (hn : n ∈ pinnedWidths) :
       simp [h0, h1, ZMod.val_one]
   have hy2 : (σ (x + 1)).val < 2 := by rw [hyv]; split_ifs <;> norm_num
   simp only [List.map, Computes2]
+  refine ⟨ha, hb, ?_⟩
   rw [show σ 2 = σ x + σ (x + 1) - 2 * σ x * σ (x + 1) by linear_combination er,
     xor_bits hx2 hy2, hxv, hyv, ← signedLtT_run]
   exact signedLtT_correct (by omega) _ _ ha hb

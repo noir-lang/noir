@@ -70,9 +70,11 @@ def SoundFn (f : AcirFn) (spec : List ℕ → List ℕ → Prop) : Prop :=
 /-- Some witness assignment satisfies `f`'s constraints. -/
 def SatisfiableFn (f : AcirFn) : Prop := ∃ σ : ℕ → F, AllSat σ f.cs
 
-/-- Two inputs `a`, `b` and one return value, equal to `g a b`. -/
-def Computes2 (g : ℕ → ℕ → ℕ) : List ℕ → List ℕ → Prop
-  | [a, b], [r] => r = g a b
+/-- Two `n`-bit inputs `a`, `b` and one return value equal to `g a b`. The
+inputs' width is part of the promise: a circuit that let a parameter of type
+`u<n>` or `i<n>` exceed `n` bits would break every later use of it. -/
+def Computes2 (n : ℕ) (g : ℕ → ℕ → ℕ) : List ℕ → List ℕ → Prop
+  | [a, b], [r] => a < 2 ^ n ∧ b < 2 ^ n ∧ r = g a b
   | _, _ => False
 
 /-- One input `a` and one return value, equal to `g a`. -/
@@ -87,9 +89,12 @@ def Computes1 (g : ℕ → ℕ) : List ℕ → List ℕ → Prop
 * `truncate_var(x, n, 254)` on any field element computes `x mod 2^n`;
 * `more_than_eq_var(a, b, n)` with `a`, `b` both `n`-bit computes `a >= b`;
 * the SSA `expand_signed_math` emits for `lt` on `i<n>` computes signed `<`;
-* whole functions, as ACIR generation compiles them, compute their SSA
-  meaning with no assumption on the inputs: `div` and `lt` on `u<n>`, a field
+* whole functions, as ACIR generation compiles them, enforce their
+  parameters' types and compute their SSA meaning, with no assumption on the
+  inputs: `div` and `lt` on `u<n>`, a field
   truncated to `u<n>`, and signed `lt` on `i<n>` after `expand_signed_math`;
+* the same functions still do after `acvm::compiler::optimize`, as the
+  circuits `nargo compile` ships;
 * no constraint list is contradictory. -/
 def AllClaims : Prop :=
   (∀ n ∈ pinnedWidths,
@@ -106,14 +111,24 @@ def AllClaims : Prop :=
     Satisfiable (moreThanEqT m) [(0, m), (1, m)]) ∧
   (∀ n ∈ pinnedWidths, ComputesSignedLt (signedLtT n) n) ∧
   (∀ n ∈ pinnedWidths,
-    SoundFn (acirDivT n) (Computes2 (BinOp.eval .div)) ∧ SatisfiableFn (acirDivT n)) ∧
+    SoundFn (acirDivT n) (Computes2 n (BinOp.eval .div)) ∧ SatisfiableFn (acirDivT n)) ∧
   (∀ n ∈ pinnedWidths,
-    SoundFn (acirLtT n) (Computes2 (BinOp.eval .lt)) ∧ SatisfiableFn (acirLtT n)) ∧
+    SoundFn (acirLtT n) (Computes2 n (BinOp.eval .lt)) ∧ SatisfiableFn (acirLtT n)) ∧
   (∀ n ∈ pinnedWidths,
     SoundFn (acirTruncT n) (Computes1 (· % 2 ^ n)) ∧ SatisfiableFn (acirTruncT n)) ∧
   (∀ n ∈ pinnedWidths,
     SoundFn (acirSignedLtT n)
-      (Computes2 fun a b => if sint n a < sint n b then 1 else 0) ∧
-    SatisfiableFn (acirSignedLtT n))
+      (Computes2 n fun a b => if sint n a < sint n b then 1 else 0) ∧
+    SatisfiableFn (acirSignedLtT n)) ∧
+  (∀ n ∈ pinnedWidths,
+    SoundFn (shippedDivT n) (Computes2 n (BinOp.eval .div)) ∧ SatisfiableFn (shippedDivT n)) ∧
+  (∀ n ∈ pinnedWidths,
+    SoundFn (shippedLtT n) (Computes2 n (BinOp.eval .lt)) ∧ SatisfiableFn (shippedLtT n)) ∧
+  (∀ n ∈ pinnedWidths,
+    SoundFn (shippedTruncT n) (Computes1 (· % 2 ^ n)) ∧ SatisfiableFn (shippedTruncT n)) ∧
+  (∀ n ∈ pinnedWidths,
+    SoundFn (shippedSignedLtT n)
+      (Computes2 n fun a b => if sint n a < sint n b then 1 else 0) ∧
+    SatisfiableFn (shippedSignedLtT n))
 
 end AcirLean

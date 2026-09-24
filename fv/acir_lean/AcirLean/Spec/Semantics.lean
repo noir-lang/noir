@@ -34,12 +34,14 @@ def Range (x : F) (k : ℕ) : Prop := x.val < 2 ^ k
 structure Term where
   coef : ℤ
   ws : List ℕ
+  deriving DecidableEq
 
 /-- One ACIR constraint: an `AssertZero` polynomial (a sum of terms), or a
 `RANGE` check on witness `w`. -/
 inductive Cstr where
   | zero (ts : List Term)
   | range (w k : ℕ)
+  deriving DecidableEq
 
 /-- The value of a term under the witness assignment `σ`. -/
 def Term.eval (σ : ℕ → F) (t : Term) : F := (t.coef : F) * (t.ws.map σ).prod
