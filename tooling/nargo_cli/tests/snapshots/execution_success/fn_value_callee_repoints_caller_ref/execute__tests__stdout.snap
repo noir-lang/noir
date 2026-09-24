@@ -1,0 +1,5 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+[fn_value_callee_repoints_caller_ref] Circuit output: 0x05

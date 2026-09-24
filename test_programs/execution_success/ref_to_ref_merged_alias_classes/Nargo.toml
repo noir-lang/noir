@@ -1,0 +1,6 @@
+[package]
+name = "ref_to_ref_merged_alias_classes"
+type = "bin"
+authors = [""]
+
+[dependencies]
