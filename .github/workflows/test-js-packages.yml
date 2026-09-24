@@ -787,6 +787,65 @@ jobs:
         working-directory: ./test-repo/noir-projects/fnd/noir-contracts
         run: nargo compile --inliner-aggressiveness 0
 
+  # aztec-nr and the application contracts live in aztec-node, which aztec-packages carries as
+  # its `labs/` submodule plus a patch series (`labs-patches/*.patch`) of fixes that have not
+  # landed upstream yet. This job rebuilds that tree the way aztec-packages does: the submodule
+  # at the pinned gitlink, the patch series on top, and the manifests' aztec-packages git
+  # dependencies rewritten to point at the same aztec-packages checkout.
+  compile-aztec-node-contracts:
+    name: Compile aztec-node `aztec-nr` and `noir-contracts`
+    needs: [build-binaries]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Note that we are checking out into a sub-directory, which affects action paths.
+          path: noir-repo
+
+      - name: Resolve pinned aztec-packages commit
+        id: aztec-commit
+        run: echo "commit=$(yq '.define' ./noir-repo/EXTERNAL_NOIR_LIBRARIES.yml)" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: AztecProtocol/aztec-packages
+          ref: ${{ steps.aztec-commit.outputs.commit }}
+          path: test-repo
+          persist-credentials: false
+
+      - name: Check out `labs/` and apply the labs patch series
+        working-directory: ./test-repo
+        run: ./labs-patches/bootstrap.sh apply
+
+      - name: Point aztec-node manifests at the aztec-packages checkout
+        working-directory: ./test-repo/labs
+        run: node ./labs-aztec-toolchain/pins.mjs use-local "$GITHUB_WORKSPACE/test-repo"
+
+      - name: Download nargo binary
+        uses: ./noir-repo/.github/actions/download-binary
+        with:
+          name: nargo
+
+      - name: Remove requirements on compiler version
+        working-directory: ./test-repo
+        run: |
+          # Github actions seems to not expand "**" in globs by default.
+          shopt -s globstar
+          sed -i '/^compiler_version/d' ./**/Nargo.toml
+
+      - name: Run nargo check on aztec-nr
+        working-directory: ./test-repo/labs/noir-projects/aztec-nr
+        run: nargo check
+
+      - name: Run nargo compile
+        working-directory: ./test-repo/labs/noir-projects/noir-contracts
+        run: nargo compile --inliner-aggressiveness 0
+
   upload_critical_library_report:
     name: Upload critical library report
     needs: [external-repo-checks]
@@ -881,6 +940,7 @@ jobs:
       - test-nargo-doc
       - test-examples
       # - compile-noir-contracts
+      # - compile-aztec-node-contracts
     permissions:
       contents: read
 
