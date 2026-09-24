@@ -743,6 +743,46 @@ mod tests {
         );
     }
 
+    #[test]
+    fn end_to_end_double_feed_after_forwarded_inc_rc_is_rejected() {
+        // `copied` is fresh storage with RC 1. Feeding it to both loop-carried
+        // array parameters makes `a` and `b` share storage in the next
+        // iteration, so `array_set a` mutates in place and the read of `b`
+        // observes the write.
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0():
+                v1 = make_array [Field 1] : [Field; 1]
+                v2 = make_array [Field 2] : [Field; 1]
+                jmp b1(u32 0, v1, v2)
+              b1(i: u32, a: [Field; 1], b: [Field; 1]):
+                cond = lt i, u32 2
+                jmpif cond then: b2(), else: b9()
+              b2():
+                before = array_get b, index u32 0 -> Field
+                written = array_set a, index u32 0, value Field 9
+                after = array_get b, index u32 0 -> Field
+                constrain before == after
+                next = add i, u32 1
+                first = eq i, u32 0
+                jmpif first then: b3(), else: b6()
+              b3():
+                inc_rc written
+                jmp b4(written)
+              b4(p: [Field; 1]):
+                copied = array_set p, index u32 0, value Field 7
+                jmp b1(next, copied, copied)
+              b6():
+                jmp b1(next, b, written)
+              b9():
+                return
+            }"#;
+        let ssa = Ssa::from_str(src).expect("SSA parses");
+        let result = ssa.interpret(Vec::new());
+        assert!(result.is_err(), "unprotected sharing must corrupt the second iteration");
+        assert_verifier_rejects(src);
+    }
+
     /// ACIR functions are skipped: `inc_rc` / `dec_rc` are no-ops in ACIR and
     /// `array_set` always produces a fresh array.
     #[test]
