@@ -35,7 +35,7 @@ three standard axioms. `check.sh` additionally fails if:
 
 ### Reading the reviewed Lean
 
-The reviewed files are about 375 lines, mostly comments. The notation you need:
+The reviewed files are about 420 lines, mostly comments. The notation you need:
 
 | Lean | Meaning |
 |---|---|
@@ -65,7 +65,14 @@ The reviewed files are about 375 lines, mostly comments. The notation you need:
    after `expand_signed_math`;
 7. the same holds for the optimized circuits `nargo compile` ships
    (`acvm::compiler::optimize`: the general simplifier, the redundant-range
-   optimizer and common-subexpression merging).
+   optimizer and common-subexpression merging);
+8. signed `div` and `mod` on `i8`–`i64`, as shipped (`expand_signed_math`,
+   ACIR generation and the optimizer), accept only a nonzero divisor and not
+   `MIN / -1`, and return the truncating signed quotient or remainder
+   (`Int.tdiv`, `Int.tmod`) in two's complement.
+
+The `eq` gadget these use is sound only because the BN254 scalar field modulus
+is prime; `Proofs/Prime.lean` proves that with a Pratt certificate.
 
 ## What is proved
 
@@ -93,8 +100,8 @@ Not yet covered:
 - the ACVM optimization passes on programs outside the pinned corpus: the
   optimized circuits are checked program by program, not the passes in
   general;
-- constant-divisor `div` on its own, signed `div` and `mod`, bitwise
-  operations on more than one bit, and completeness.
+- constant-divisor `div` on its own, bitwise operations on more than one bit,
+  and completeness.
 
 Trusted: the Lean kernel and its three standard axioms, plus the reviewed
 files above.

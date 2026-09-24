@@ -9,6 +9,7 @@ import AcirLean.Templates.Gadgets
 import AcirLean.Templates.Signed
 import AcirLean.Templates.Programs
 import AcirLean.Templates.Shipped
+import AcirLean.Templates.SignedDivMod
 
 /-!
 # The pin
@@ -28,6 +29,9 @@ namespace AcirLean
 /-- The widths whose constraint lists are pinned to the Rust output. The claims
 are stated for exactly these widths. -/
 def pinnedWidths : List ℕ := [8, 16, 32, 64, 128]
+
+/-- The signed widths pinned for `div` and `mod` (there is no `i128`). -/
+def signedWidths : List ℕ := [8, 16, 32, 64]
 
 /-- Lexicographic order on witness lists (the order `Vec<u32>` sorts in Rust). -/
 def listLe : List ℕ → List ℕ → Bool
@@ -77,7 +81,11 @@ def renderAll : String :=
     pinnedWidths.map (fun n =>
       s!"# shipped_truncate {n}\n" ++ "\n".intercalate (shippedTruncT n).render) ++
     pinnedWidths.map (fun n =>
-      s!"# shipped_signed_lt {n}\n" ++ "\n".intercalate (shippedSignedLtT n).render)
+      s!"# shipped_signed_lt {n}\n" ++ "\n".intercalate (shippedSignedLtT n).render) ++
+    signedWidths.map (fun n =>
+      s!"# shipped_signed_div {n}\n" ++ "\n".intercalate (shippedSDivT n).render) ++
+    signedWidths.map (fun n =>
+      s!"# shipped_signed_mod {n}\n" ++ "\n".intercalate (shippedSModT n).render)
   "\n".intercalate secs ++ "\n"
 
 end AcirLean

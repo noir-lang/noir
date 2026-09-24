@@ -8,6 +8,7 @@ import AcirLean.Proofs.Satisfiable
 import AcirLean.Proofs.Signed
 import AcirLean.Proofs.Programs
 import AcirLean.Proofs.Shipped
+import AcirLean.Proofs.SignedDivMod
 
 /-! The proof of `AllClaims`, assembled from the gadget theorems. -/
 
@@ -24,7 +25,9 @@ theorem allClaims : AllClaims := by
     fun n hn => ⟨(shipped_sound hn).1, (shipped_satisfiable hn).1⟩,
     fun n hn => ⟨(shipped_sound hn).2.1, (shipped_satisfiable hn).2.1⟩,
     fun n hn => ⟨(shipped_sound hn).2.2.1, (shipped_satisfiable hn).2.2.1⟩,
-    fun n hn => ⟨(shipped_sound hn).2.2.2, (shipped_satisfiable hn).2.2.2⟩⟩
+    fun n hn => ⟨(shipped_sound hn).2.2.2, (shipped_satisfiable hn).2.2.2⟩,
+    fun n hn => ⟨shippedSDivT_sound hn, (signed_satisfiable hn).1⟩,
+    fun n hn => ⟨shippedSModT_sound hn, (signed_satisfiable hn).2⟩⟩
   · rcases pinned_cases hn with h | rfl
     · exact fun σ h' hin => divVarT_sound (by omega) σ h' (hin (1, n) (by simp))
     · exact fun σ h' hin => divVarT128_sound σ h' (hin (1, 128) (by simp))

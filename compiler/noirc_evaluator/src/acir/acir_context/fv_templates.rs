@@ -123,7 +123,10 @@ fn signed_lt(bit_size: u32) -> Vec<String> {
 /// The ACIR that ACIR generation emits for an SSA function, before optimization:
 /// the canonical constraints, then the input and return witnesses.
 fn acir_of(src: &str) -> Vec<String> {
-    let ssa = Ssa::from_str(src).unwrap();
+    acir_of_ssa(Ssa::from_str(src).unwrap())
+}
+
+fn acir_of_ssa(ssa: Ssa) -> Vec<String> {
     let brillig = ssa.to_brillig(&BrilligOptions::default());
     let (acirs, _, _) = ssa.into_acir(&brillig, &BrilligOptions::default()).unwrap();
     let acir = &acirs[0];
@@ -138,7 +141,11 @@ fn acir_of(src: &str) -> Vec<String> {
 
 /// The optimized circuit for an SSA function: what `nargo compile` ships.
 fn shipped_of(src: &str) -> Vec<String> {
-    let (program, _) = crate::acir::tests::try_ssa_to_acir(src).unwrap();
+    shipped_of_ssa(Ssa::from_str(src).unwrap())
+}
+
+fn shipped_of_ssa(ssa: Ssa) -> Vec<String> {
+    let (program, _) = crate::acir::tests::try_ssa_value_to_acir(ssa).unwrap();
     let circuit = &program.functions[0];
     let mut lines = canonical(&circuit.opcodes);
     let witnesses = |ws: Vec<u32>| ws.iter().map(u32::to_string).collect::<Vec<_>>().join(",");
@@ -151,6 +158,15 @@ fn shipped_of(src: &str) -> Vec<String> {
         witnesses(circuit.return_values.0.iter().map(|w| w.0).collect())
     ));
     lines
+}
+
+/// The optimized circuit for a signed `div` or `mod` on `i<n>` after
+/// `expand_signed_math`.
+fn shipped_signed(op: &str, bit_size: u32) -> Vec<String> {
+    let src = format!(
+        "acir(inline) fn main f0 {{\n  b0(v0: i{bit_size}, v1: i{bit_size}):\n    v2 = {op} v0, v1\n    return v2\n}}\n"
+    );
+    shipped_of_ssa(Ssa::from_str(&src).unwrap().expand_signed_math())
 }
 
 fn emitted() -> String {
@@ -213,6 +229,12 @@ fn emitted() -> String {
     for n in [8, 16, 32, 64, 128] {
         let ssa = signed_lt(n).join("\n") + "\n";
         sections.push(format!("# shipped_signed_lt {n}\n{}", shipped_of(&ssa).join("\n")));
+    }
+    for n in [8, 16, 32, 64] {
+        sections.push(format!("# shipped_signed_div {n}\n{}", shipped_signed("div", n).join("\n")));
+    }
+    for n in [8, 16, 32, 64] {
+        sections.push(format!("# shipped_signed_mod {n}\n{}", shipped_signed("mod", n).join("\n")));
     }
     sections.join("\n") + "\n"
 }

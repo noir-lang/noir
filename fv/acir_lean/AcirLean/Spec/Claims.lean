@@ -82,6 +82,19 @@ def Computes1 (g : ℕ → ℕ) : List ℕ → List ℕ → Prop
   | [a], [r] => r = g a
   | _, _ => False
 
+/-- The `n`-bit two's-complement bit pattern of an integer. -/
+def encode (n : ℕ) (x : ℤ) : ℕ := (x % 2 ^ n).toNat
+
+/-- Signed `div` or `mod` on `i<n>`: two `n`-bit inputs, a nonzero divisor, not
+the overflowing `MIN / -1`, and the result is `op` on the signed values,
+encoded. Noir's `/` and `%` on signed integers truncate toward zero, which is
+Lean's `Int.tdiv` and `Int.tmod`. -/
+def SignedOp (n : ℕ) (op : ℤ → ℤ → ℤ) : List ℕ → List ℕ → Prop
+  | [a, b], [r] =>
+    a < 2 ^ n ∧ b < 2 ^ n ∧ sint n b ≠ 0 ∧ ¬ (sint n a = -2 ^ (n - 1) ∧ sint n b = -1) ∧
+      r = encode n (op (sint n a) (sint n b))
+  | _, _ => False
+
 /-- The whole promise, for every pinned width `n`:
 * `euclidean_division_var(a, b, n)` with `a`, `b` both `n`-bit computes
   `a / b` and `a % b`, with the predicate constant `1` and with a predicate
@@ -95,6 +108,9 @@ def Computes1 (g : ℕ → ℕ) : List ℕ → List ℕ → Prop
   truncated to `u<n>`, and signed `lt` on `i<n>` after `expand_signed_math`;
 * the same functions still do after `acvm::compiler::optimize`, as the
   circuits `nargo compile` ships;
+* signed `div` and `mod` on `i<n>` (for `n` in `signedWidths`), as shipped,
+  compute truncating signed division and remainder, and reject a zero divisor
+  and `MIN / -1`;
 * no constraint list is contradictory. -/
 def AllClaims : Prop :=
   (∀ n ∈ pinnedWidths,
@@ -129,6 +145,10 @@ def AllClaims : Prop :=
   (∀ n ∈ pinnedWidths,
     SoundFn (shippedSignedLtT n)
       (Computes2 n fun a b => if sint n a < sint n b then 1 else 0) ∧
-    SatisfiableFn (shippedSignedLtT n))
+    SatisfiableFn (shippedSignedLtT n)) ∧
+  (∀ n ∈ signedWidths,
+    SoundFn (shippedSDivT n) (SignedOp n Int.tdiv) ∧ SatisfiableFn (shippedSDivT n)) ∧
+  (∀ n ∈ signedWidths,
+    SoundFn (shippedSModT n) (SignedOp n Int.tmod) ∧ SatisfiableFn (shippedSModT n))
 
 end AcirLean
