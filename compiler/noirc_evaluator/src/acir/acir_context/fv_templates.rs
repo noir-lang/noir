@@ -333,3 +333,29 @@ fn integer_gadgets_match_lean_templates() {
         );
     }
 }
+
+/// Prints, for each `nargo` artifact listed in the file named by `FV_ARTIFACTS`,
+/// the canonical constraints of its main circuit and its input and return
+/// witnesses. Used to regenerate `fv/acir_lean` test-program data.
+#[test]
+#[ignore = "run by fv/acir_lean/scripts/regen_programs.sh"]
+fn dump_artifacts() {
+    let list = std::env::var("FV_ARTIFACTS").unwrap();
+    for path in std::fs::read_to_string(list).unwrap().lines() {
+        let json = std::fs::read_to_string(path).unwrap();
+        let artifact: noirc_artifacts::program::ProgramArtifact =
+            serde_json::from_str(&json).unwrap();
+        let circuit = &artifact.bytecode.functions[0];
+        let mut inputs: Vec<u32> = circuit.private_parameters.iter().map(|w| w.0).collect();
+        inputs.extend(circuit.public_parameters.0.iter().map(|w| w.0));
+        inputs.sort_unstable();
+        let returns: Vec<u32> = circuit.return_values.0.iter().map(|w| w.0).collect();
+        let join = |ws: &[u32]| ws.iter().map(u32::to_string).collect::<Vec<_>>().join(",");
+        println!("# artifact {path}");
+        for line in canonical(&circuit.opcodes) {
+            println!("{line}");
+        }
+        println!("inputs [{}]", join(&inputs));
+        println!("returns [{}]", join(&returns));
+    }
+}

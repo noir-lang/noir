@@ -95,6 +95,17 @@ def SignedOp (n : ℕ) (op : ℤ → ℤ → ℤ) : List ℕ → List ℕ → Pr
       r = encode n (op (sint n a) (sint n b))
   | _, _ => False
 
+/-- Test programs in `testPrograms` that the claims leave out, with the reason:
+* `arithmetic_binary_operations` divides `Field`s, which `Prog2.eval` does not
+  define;
+* `regression_8519` truncates a `Field` to 128 bits, whose remainder bound
+  takes a shape the checker does not handle;
+* `vector_pop_back_simplify` adds `c * x` and `(1 - c) * y` for a boolean `c`
+  unchecked; that this cannot overflow needs a case split on `c` that interval
+  bounds do not make. -/
+def uncoveredPrograms : List String :=
+  ["arithmetic_binary_operations", "regression_8519", "vector_pop_back_simplify"]
+
 /-- The whole promise, for every pinned width `n`:
 * `euclidean_division_var(a, b, n)` with `a`, `b` both `n`-bit computes
   `a / b` and `a % b`, with the predicate constant `1` and with a predicate
@@ -113,6 +124,9 @@ def SignedOp (n : ℕ) (op : ℤ → ℤ → ℤ) : List ℕ → List ℕ → Pr
   and `MIN / -1`;
 * every program in the corpus, as shipped, implements it (`ProgSpec`), and
   the witness ACVM solved for it satisfies its circuit;
+* every scalar program from `test_programs/execution_success` in
+  `testPrograms`, except `uncoveredPrograms`, is implemented by the circuit
+  `nargo compile` ships for it (`ProgSpec2`);
 * no constraint list is contradictory. -/
 def AllClaims : Prop :=
   (∀ n ∈ pinnedWidths,
@@ -152,6 +166,7 @@ def AllClaims : Prop :=
     SoundFn (shippedSDivT n) (SignedOp n Int.tdiv) ∧ SatisfiableFn (shippedSDivT n)) ∧
   (∀ n ∈ signedWidths,
     SoundFn (shippedSModT n) (SignedOp n Int.tmod) ∧ SatisfiableFn (shippedSModT n)) ∧
-  (∀ e ∈ corpus, SoundFn e.fn (ProgSpec e.prog) ∧ AllSat e.assignment e.fn.cs)
+  (∀ e ∈ corpus, SoundFn e.fn (ProgSpec e.prog) ∧ AllSat e.assignment e.fn.cs) ∧
+  (∀ e ∈ testPrograms, e.name ∉ uncoveredPrograms → SoundFn e.fn (ProgSpec2 e.prog))
 
 end AcirLean

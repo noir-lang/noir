@@ -11,6 +11,7 @@ import AcirLean.Templates.Programs
 import AcirLean.Templates.Shipped
 import AcirLean.Templates.SignedDivMod
 import AcirLean.Templates.Corpus
+import AcirLean.Templates.TestPrograms
 
 /-!
 # The pin
@@ -19,6 +20,11 @@ import AcirLean.Templates.Corpus
 the canonical text form that `fv_templates.rs` also prints the Rust gadgets'
 output in, followed by the pinned SSA in `Ssa`'s own `Display` syntax. `scripts/check.sh` fails unless this printout equals
 `templates.golden`, and the Rust test fails unless the gadgets' printout does.
+
+`renderTestPrograms` prints each test program's final SSA and shipped circuit
+in the same syntax; `scripts/check.sh` fails unless it equals
+`test_programs.golden`, which `scripts/regen_programs.sh` writes from
+`nargo compile` output.
 
 Canonical form: `zero c*[i,j] + c*[i] + c*[]` with each term's witnesses
 sorted, terms sorted by witness list, zero terms dropped, and the sign chosen so the first coefficient is at
@@ -75,6 +81,14 @@ def UProg.render (P : UProg) : List String :=
 /-- A corpus entry: the program, its shipped circuit, and the solved witness. -/
 def CorpusEntry.render (e : CorpusEntry) : List String :=
   e.prog.render ++ e.fn.render ++ e.witness.map fun (w, v) => s!"witness {w} {v}"
+
+/-- A test program: its SSA, then its shipped circuit. -/
+def ProgEntry.render (e : ProgEntry) : List String :=
+  s!"# program {e.name}" :: e.prog.render ++ e.fn.render
+
+/-- `test_programs.golden`: every test program in `testPrograms`. -/
+def renderTestPrograms : String :=
+  "".intercalate (testPrograms.map fun e => "\n".intercalate e.render ++ "\n")
 
 /-- The golden file: one `# <gadget> <width>` section per pinned width. -/
 def renderAll : String :=

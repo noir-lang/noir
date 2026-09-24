@@ -6,7 +6,8 @@
 #   3. the reviewed spec (`AcirLean/Spec/`) and the pinned data
 #      (`AcirLean/Templates/`) never import unreviewed proof code, and the pinned
 #      data contains plain definitions only;
-#   4. `templates.golden` is exactly what the pinned templates print;
+#   4. `templates.golden` is exactly what the pinned templates print, and
+#      `test_programs.golden` exactly what the pinned test programs print;
 #   5. `Check.lean`: the final theorem proves exactly `AcirLean.AllClaims` from
 #      Lean's three standard axioms.
 set -euo pipefail
@@ -21,7 +22,7 @@ lake exe cache get
 lake build
 
 forbidden='\b(sorry|admit|axiom)\b|native_decide|skipKernelTC|implemented_by|@\[extern|\bunsafe\b|\bdebug\.'
-if grep -rnE "$forbidden" AcirLean AcirLean.lean Check.lean EmitTemplates.lean; then
+if grep -rnE "$forbidden" AcirLean AcirLean.lean Check.lean EmitTemplates.lean EmitPrograms.lean; then
   fail "Forbidden proof escape hatch found."
 fi
 
@@ -31,8 +32,8 @@ imports_outside() {
 }
 bad=$(imports_outside AcirLean/Spec '^(Mathlib(\..*)?|AcirLean\.Spec\..*|AcirLean\.Templates\..*)$')
 [ -z "$bad" ] || fail "AcirLean/Spec imports unreviewed modules: $bad"
-bad=$(imports_outside AcirLean/Templates '^(Mathlib(\..*)?|AcirLean\.Spec\.(Semantics|Ssa|Programs)|AcirLean\.Templates\..*)$')
-[ -z "$bad" ] || fail "AcirLean/Templates imports modules other than Mathlib, Spec.Semantics, Spec.Ssa, Spec.Programs and Templates: $bad"
+bad=$(imports_outside AcirLean/Templates '^(Mathlib(\..*)?|AcirLean\.Spec\.(Semantics|Ssa|Programs|Programs2)|AcirLean\.Templates\..*)$')
+[ -z "$bad" ] || fail "AcirLean/Templates imports modules other than Mathlib, Spec.Semantics, Spec.Ssa, Spec.Programs, Spec.Programs2 and Templates: $bad"
 
 templates_only_defs='^\s*(@\[|instance|notation|infix|infixl|infixr|prefix|postfix|macro|macro_rules|syntax|elab|attribute|set_option|open|local|scoped|theorem|lemma|opaque|partial|initialize|builtin_initialize)\b'
 if grep -nE "$templates_only_defs" AcirLean/Templates/*.lean; then
@@ -50,6 +51,14 @@ if ! cmp -s "$generated" templates.golden; then
   exit 1
 fi
 
+lake env lean --run EmitPrograms.lean "$generated"
+if ! cmp -s "$generated" test_programs.golden; then
+  echo "test_programs.golden is not what AcirLean/Templates/TestPrograms.lean emits." >&2
+  echo "Regenerate both with scripts/regen_programs.sh." >&2
+  diff "$generated" test_programs.golden | head -20 >&2
+  exit 1
+fi
+
 lake env lean Check.lean
 
-echo "AllClaims proved from standard axioms; golden file current."
+echo "AllClaims proved from standard axioms; golden files current."
