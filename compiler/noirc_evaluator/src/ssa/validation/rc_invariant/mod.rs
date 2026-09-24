@@ -1810,8 +1810,9 @@ fn header_param_aliasing(
 /// result that allocated it during the iteration. An empty set is storage whose reference
 /// count has been raised; `None` is untraceable. Results are cached in `memo`.
 ///
-/// An `array_set` result may be its operand's storage, mutated in place, unless an `inc_rc`
-/// of the operand runs first, in which case the `array_set` copies into a new allocation. A
+/// An `array_set` result may be its operand's storage, mutated in place, or a new allocation
+/// if the operand's reference count is above 1, so it is both; if an `inc_rc` of the operand
+/// runs first it is only the new allocation. A
 /// `make_array` or `Call` result defined in the loop is a new allocation, the same assumption
 /// [`Context::iteration_local_fresh`] makes. A parameter of a block in the loop that is not
 /// itself a loop header only has forward predecessors, so it may be whatever they pass it,
@@ -1837,7 +1838,8 @@ fn iteration_storage(
 ) -> Option<BTreeSet<ValueId>> {
     enum Step {
         Known(Option<BTreeSet<ValueId>>),
-        UnionOf(Vec<ValueId>),
+        /// The union of the dependencies' storage, plus the value's own allocation if any.
+        UnionOf(Vec<ValueId>, Option<ValueId>),
     }
     let step = |v: ValueId| -> Step {
         // A global's value lives in the globals' own DFG, not this function's.
@@ -1862,7 +1864,7 @@ fn iteration_storage(
                     })
                     .collect::<Option<Vec<_>>>();
                 match args {
-                    Some(args) => Step::UnionOf(args),
+                    Some(args) => Step::UnionOf(args, None),
                     None => Step::Known(None),
                 }
             }
@@ -1884,7 +1886,7 @@ fn iteration_storage(
                         if raised {
                             Step::Known(Some(BTreeSet::from([v])))
                         } else {
-                            Step::UnionOf(vec![*array])
+                            Step::UnionOf(vec![*array], Some(v))
                         }
                     }
                     _ if fresh_array_values.contains(&v) => Step::Known(Some(BTreeSet::from([v]))),
@@ -1909,14 +1911,14 @@ fn iteration_storage(
             Step::Known(storage) => {
                 memo.insert(v, storage);
             }
-            Step::UnionOf(deps) if expanded => {
-                let storage = deps.iter().try_fold(BTreeSet::new(), |mut acc, dep| {
+            Step::UnionOf(deps, own) if expanded => {
+                let storage = deps.iter().try_fold(BTreeSet::from_iter(own), |mut acc, dep| {
                     acc.extend(memo.get(dep).cloned().flatten()?);
                     Some(acc)
                 });
                 memo.insert(v, storage);
             }
-            Step::UnionOf(deps) => {
+            Step::UnionOf(deps, _) => {
                 in_progress.insert(v);
                 stack.push((v, true));
                 stack
