@@ -218,6 +218,28 @@ impl<T, let N: u32> [T; N] {
         }
         result
     }
+    /// Returns a subarray of length `M` starting at `offset`.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// fn main() {
+    ///     let arr = [10, 20, 30, 40, 50];
+    ///     let sub: [Field; 3] = arr.subarray(1);
+    ///     assert_eq(sub, [20, 30, 40]);
+    ///
+    ///     let forty = arr.subarray::<1>(3);
+    ///     assert_eq(forty, [40]);
+    /// }
+    /// ```
+    pub fn subarray<let M: u32>(&self, offset: u32) -> [T; M] {
+        assert(offset + M <= N, "subarray: offset + length exceeds array length");
+        let mut result = [crate::mem::zeroed(); M];
+        for i in 0..M {
+            result[i] = self[offset + i];
+        }
+        result
+    }
 }
 
 impl<T, let N: u32> [T; N]
@@ -552,4 +574,53 @@ mod test {
         let bytes: [u8; 4] = crate::convert::From::from("Noir");
         assert_eq(bytes, [78_u8, 111, 105, 114]);
     }
+    #[test]
+    fn subarray_middle() {
+        let arr = [10, 20, 30, 40, 50];
+        let sub: [Field; 3] = arr.subarray(1);
+        assert_eq(sub, [20, 30, 40]);
+    }
+
+    #[test]
+    fn subarray_full_array() {
+        let arr = [1, 2, 3];
+        let sub: [Field; 3] = arr.subarray(0);
+        assert_eq(sub, [1, 2, 3]);
+    }
+
+    #[test]
+    fn subarray_empty_output() {
+        let arr = [1, 2, 3];
+        let sub: [Field; 0] = arr.subarray(2);
+        assert_eq(sub, []);
+    }
+
+    #[test]
+    fn subarray_empty_at_end() {
+        let arr = [1, 2, 3];
+        let sub: [Field; 0] = arr.subarray(3);
+        assert_eq(sub, []);
+    }
+
+    #[test]
+    fn subarray_empty_input() {
+        let arr: [Field; 0] = [];
+        let sub: [Field; 0] = arr.subarray(0);
+        assert_eq(sub, []);
+    }
+
+    #[test]
+    fn subarray_borrowed_input() {
+        let arr: [u32; 3] = [1, 2, 3];
+        let borrowed = &arr;
+        assert_eq(borrowed.subarray::<2>(1), [2, 3]);
+        assert_eq(arr, [1, 2, 3]);
+    }
+
+    #[test(should_fail_with = "subarray: offset + length exceeds array length")]
+    fn subarray_out_of_bounds() {
+        let arr = [1, 2, 3];
+        let _sub: [Field; 2] = arr.subarray(2);
+    }
+
 }
