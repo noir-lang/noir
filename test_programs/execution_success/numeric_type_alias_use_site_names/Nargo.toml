@@ -1,0 +1,6 @@
+[package]
+name = "numeric_type_alias_use_site_names"
+type = "bin"
+authors = [""]
+
+[dependencies]

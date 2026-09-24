@@ -25,9 +25,9 @@ fn main(x: Field) {
     assert(b[0_u32] == 0_u32);
     let c: [u32; 14] = mixed_array::<2>();
     assert(c[0_u32] == 0_u32);
-    let two: u32 = One + One;
+    let two: u32 = 2_u32;
     assert(two == 2_u32);
-    let three: u32 = (One + One) + One;
+    let three: u32 = 3_u32;
     assert(three == 3_u32);
     let arr2: [Field; 2] = [0_Field; 2];
     assert(arr2.len() == 2_u32);
@@ -50,7 +50,7 @@ fn main(x: Field) {
 
 fn quadruple_array<let N: u32>() -> [u32; (N * 2) + (N * 2)] {
     let mut a: [u32; (N * 2) + (N * 2)] = [0_u32; (N * 2) + (N * 2)];
-    for i in 0_u32..(N * 2_u32) + (N * 2_u32) {
+    for i in 0_u32..((N * 2_u32) + (N * 2_u32)) {
         a[i] = i;
     }
     a
@@ -58,7 +58,7 @@ fn quadruple_array<let N: u32>() -> [u32; (N * 2) + (N * 2)] {
 
 fn mixed_array<let N: u32>() -> [u32; N * ((N * 2) + 3)] {
     let mut a: [u32; N * ((N * 2) + 3)] = [0_u32; N * ((N * 2) + 3)];
-    for i in 0_u32..N * ((N * 2_u32) + 3_u32) {
+    for i in 0_u32..(N * ((N * 2_u32) + 3_u32)) {
         a[i] = i;
     }
     a
@@ -92,7 +92,7 @@ fn trace<let N: u32, let M: u32>(A: Matrix<N, M>) -> Field {
 
 fn sum<let N: u32, let M: u32>(A: Matrix<N, M>) -> Field {
     let mut s: Field = 0_Field;
-    for i in 0_u32..N * M {
+    for i in 0_u32..(N * M) {
         s = s + A.elements[i];
     }
     s
@@ -100,7 +100,7 @@ fn sum<let N: u32, let M: u32>(A: Matrix<N, M>) -> Field {
 
 fn equal<let N: u32, let M: u32>(A: Matrix<N, M>, B: Matrix<N, M>) -> bool {
     let mut s: bool = true;
-    for i in 0_u32..N * M {
+    for i in 0_u32..(N * M) {
         s = s | (A.elements[i] == B.elements[i]);
     }
     s
