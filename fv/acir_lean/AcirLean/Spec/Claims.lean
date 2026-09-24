@@ -59,6 +59,27 @@ def ComputesSignedLt (f : SsaFn) (n : ℕ) : Prop :=
   ∀ a b : ℕ, a < 2 ^ n → b < 2 ^ n →
     f.run [a, b] = if sint n a < sint n b then 1 else 0
 
+/-- For every witness assignment satisfying `f`'s constraints, `spec` holds of
+the integer values of `f`'s inputs and return values. There is no other
+assumption: in particular the inputs' types are enforced by `f`'s own
+constraints, not assumed. -/
+def SoundFn (f : AcirFn) (spec : List ℕ → List ℕ → Prop) : Prop :=
+  ∀ σ : ℕ → F, AllSat σ f.cs →
+    spec (f.inputs.map fun i => (σ i).val) (f.returns.map fun i => (σ i).val)
+
+/-- Some witness assignment satisfies `f`'s constraints. -/
+def SatisfiableFn (f : AcirFn) : Prop := ∃ σ : ℕ → F, AllSat σ f.cs
+
+/-- Two inputs `a`, `b` and one return value, equal to `g a b`. -/
+def Computes2 (g : ℕ → ℕ → ℕ) : List ℕ → List ℕ → Prop
+  | [a, b], [r] => r = g a b
+  | _, _ => False
+
+/-- One input `a` and one return value, equal to `g a`. -/
+def Computes1 (g : ℕ → ℕ) : List ℕ → List ℕ → Prop
+  | [a], [r] => r = g a
+  | _, _ => False
+
 /-- The whole promise, for every pinned width `n`:
 * `euclidean_division_var(a, b, n)` with `a`, `b` both `n`-bit computes
   `a / b` and `a % b`, with the predicate constant `1` and with a predicate
@@ -66,6 +87,9 @@ def ComputesSignedLt (f : SsaFn) (n : ℕ) : Prop :=
 * `truncate_var(x, n, 254)` on any field element computes `x mod 2^n`;
 * `more_than_eq_var(a, b, n)` with `a`, `b` both `n`-bit computes `a >= b`;
 * the SSA `expand_signed_math` emits for `lt` on `i<n>` computes signed `<`;
+* whole functions, as ACIR generation compiles them, compute their SSA
+  meaning with no assumption on the inputs: `div` and `lt` on `u<n>`, a field
+  truncated to `u<n>`, and signed `lt` on `i<n>` after `expand_signed_math`;
 * no constraint list is contradictory. -/
 def AllClaims : Prop :=
   (∀ n ∈ pinnedWidths,
@@ -80,6 +104,16 @@ def AllClaims : Prop :=
   (∀ m ∈ pinnedWidths,
     Sound (moreThanEqT m) [(0, m), (1, m)] geSpec ∧
     Satisfiable (moreThanEqT m) [(0, m), (1, m)]) ∧
-  (∀ n ∈ pinnedWidths, ComputesSignedLt (signedLtT n) n)
+  (∀ n ∈ pinnedWidths, ComputesSignedLt (signedLtT n) n) ∧
+  (∀ n ∈ pinnedWidths,
+    SoundFn (acirDivT n) (Computes2 (BinOp.eval .div)) ∧ SatisfiableFn (acirDivT n)) ∧
+  (∀ n ∈ pinnedWidths,
+    SoundFn (acirLtT n) (Computes2 (BinOp.eval .lt)) ∧ SatisfiableFn (acirLtT n)) ∧
+  (∀ n ∈ pinnedWidths,
+    SoundFn (acirTruncT n) (Computes1 (· % 2 ^ n)) ∧ SatisfiableFn (acirTruncT n)) ∧
+  (∀ n ∈ pinnedWidths,
+    SoundFn (acirSignedLtT n)
+      (Computes2 fun a b => if sint n a < sint n b then 1 else 0) ∧
+    SatisfiableFn (acirSignedLtT n))
 
 end AcirLean

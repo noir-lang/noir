@@ -52,4 +52,11 @@ def Cstr.sat (σ : ℕ → F) : Cstr → Prop
 /-- Every constraint in the list holds. -/
 def AllSat (σ : ℕ → F) (cs : List Cstr) : Prop := ∀ c ∈ cs, c.sat σ
 
+/-- An ACIR function as ACIR generation emits it: its constraints, and the
+witnesses holding its parameters and its return values. -/
+structure AcirFn where
+  cs : List Cstr
+  inputs : List ℕ
+  returns : List ℕ
+
 end AcirLean

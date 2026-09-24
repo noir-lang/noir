@@ -31,8 +31,8 @@ imports_outside() {
 }
 bad=$(imports_outside AcirLean/Spec '^(Mathlib(\..*)?|AcirLean\.Spec\..*|AcirLean\.Templates\..*)$')
 [ -z "$bad" ] || fail "AcirLean/Spec imports unreviewed modules: $bad"
-bad=$(imports_outside AcirLean/Templates '^(Mathlib(\..*)?|AcirLean\.Spec\.(Semantics|Ssa))$')
-[ -z "$bad" ] || fail "AcirLean/Templates imports modules other than Mathlib, Spec.Semantics and Spec.Ssa: $bad"
+bad=$(imports_outside AcirLean/Templates '^(Mathlib(\..*)?|AcirLean\.Spec\.(Semantics|Ssa)|AcirLean\.Templates\..*)$')
+[ -z "$bad" ] || fail "AcirLean/Templates imports modules other than Mathlib, Spec.Semantics, Spec.Ssa and Templates: $bad"
 
 templates_only_defs='^\s*(@\[|instance|notation|infix|infixl|infixr|prefix|postfix|macro|macro_rules|syntax|elab|attribute|set_option|open|local|scoped|theorem|lemma|opaque|partial|initialize|builtin_initialize)\b'
 if grep -nE "$templates_only_defs" AcirLean/Templates/*.lean; then

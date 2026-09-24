@@ -7,7 +7,9 @@
 //! base. `canonical` must print every constraint faithfully, in the same form as
 //! `fv/acir_lean/AcirLean/Spec/Pin.lean`, and the gadget calls below must cover
 //! every width in `pinnedWidths` there. `signed_lt` prints the SSA with `Ssa`'s own
-//! `Display`, which `Spec/Ssa.lean` mirrors for the instructions it uses.
+//! `Display`, which `Spec/Ssa.lean` mirrors for the instructions it uses, and
+//! `acir_of` must print the full output of ACIR generation, including the input
+//! and return witnesses.
 
 use acvm::{
     AcirField, FieldElement,
@@ -17,6 +19,7 @@ use acvm::{
 use num_bigint::BigUint;
 
 use super::{AcirContext, BrilligStdLib};
+use crate::brillig::BrilligOptions;
 use crate::ssa::ssa_gen::Ssa;
 
 /// One constraint in the canonical text form shared with the Lean emitter:
@@ -117,6 +120,22 @@ fn signed_lt(bit_size: u32) -> Vec<String> {
     ssa.to_string().trim().lines().map(str::to_string).collect()
 }
 
+/// The ACIR that ACIR generation emits for an SSA function, before optimization:
+/// the canonical constraints, then the input and return witnesses.
+fn acir_of(src: &str) -> Vec<String> {
+    let ssa = Ssa::from_str(src).unwrap();
+    let brillig = ssa.to_brillig(&BrilligOptions::default());
+    let (acirs, _, _) = ssa.into_acir(&brillig, &BrilligOptions::default()).unwrap();
+    let acir = &acirs[0];
+    let mut lines = canonical(acir.opcodes());
+    let witnesses = |ws: &[acvm::acir::native_types::Witness]| {
+        ws.iter().map(|w| w.0.to_string()).collect::<Vec<_>>().join(",")
+    };
+    lines.push(format!("inputs [{}]", witnesses(&acir.input_witnesses)));
+    lines.push(format!("returns [{}]", witnesses(&acir.return_witnesses)));
+    lines
+}
+
 fn emitted() -> String {
     let mut sections = Vec::new();
     for n in [8, 16, 32, 64, 128] {
@@ -133,6 +152,28 @@ fn emitted() -> String {
     }
     for n in [8, 16, 32, 64, 128] {
         sections.push(format!("# signed_lt {n}\n{}", signed_lt(n).join("\n")));
+    }
+    for n in [8, 16, 32, 64, 128] {
+        let src = format!(
+            "acir(inline) fn main f0 {{\n  b0(v0: u{n}, v1: u{n}):\n    v2 = div v0, v1\n    return v2\n}}\n"
+        );
+        sections.push(format!("# acir_div {n}\n{}", acir_of(&src).join("\n")));
+    }
+    for n in [8, 16, 32, 64, 128] {
+        let src = format!(
+            "acir(inline) fn main f0 {{\n  b0(v0: u{n}, v1: u{n}):\n    v2 = lt v0, v1\n    return v2\n}}\n"
+        );
+        sections.push(format!("# acir_lt {n}\n{}", acir_of(&src).join("\n")));
+    }
+    for n in [8, 16, 32, 64, 128] {
+        let src = format!(
+            "acir(inline) fn main f0 {{\n  b0(v0: Field):\n    v1 = truncate v0 to {n} bits, max_bit_size: 254\n    v2 = cast v1 as u{n}\n    return v2\n}}\n"
+        );
+        sections.push(format!("# acir_truncate {n}\n{}", acir_of(&src).join("\n")));
+    }
+    for n in [8, 16, 32, 64, 128] {
+        let ssa = signed_lt(n).join("\n") + "\n";
+        sections.push(format!("# acir_signed_lt {n}\n{}", acir_of(&ssa).join("\n")));
     }
     sections.join("\n") + "\n"
 }

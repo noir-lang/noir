@@ -7,6 +7,7 @@ to this directory needs careful review.
 import AcirLean.Spec.Semantics
 import AcirLean.Templates.Gadgets
 import AcirLean.Templates.Signed
+import AcirLean.Templates.Programs
 
 /-!
 # The pin
@@ -16,8 +17,8 @@ the canonical text form that `fv_templates.rs` also prints the Rust gadgets'
 output in, followed by the pinned SSA in `Ssa`'s own `Display` syntax. `scripts/check.sh` fails unless this printout equals
 `templates.golden`, and the Rust test fails unless the gadgets' printout does.
 
-Canonical form: `zero c*[i,j] + c*[i] + c*[]` with terms sorted by witness
-list, zero terms dropped, and the sign chosen so the first coefficient is at
+Canonical form: `zero c*[i,j] + c*[i] + c*[]` with each term's witnesses
+sorted, terms sorted by witness list, zero terms dropped, and the sign chosen so the first coefficient is at
 most `(p-1)/2`; or `range i k`.
 -/
 
@@ -40,6 +41,7 @@ def fmod (c : ℤ) : ℕ := (c % (p : ℤ)).toNat
 def Cstr.render : Cstr → String
   | .range w k => s!"range {w} {k}"
   | .zero ts =>
+    let ts := ts.map (fun t => { t with ws := t.ws.mergeSort (· ≤ ·) })
     let ts := (ts.filter (fun t => fmod t.coef ≠ 0)).mergeSort (fun a b => listLe a.ws b.ws)
     let neg : Bool := match ts with
       | t :: _ => decide (fmod t.coef > (p - 1) / 2)
@@ -49,6 +51,11 @@ def Cstr.render : Cstr → String
       s!"{c}*[{",".intercalate (t.ws.map toString)}]"
     "zero " ++ " + ".intercalate body
 
+/-- An ACIR function: its constraints, then its input and return witnesses. -/
+def AcirFn.render (f : AcirFn) : List String :=
+  let ws (l : List ℕ) := ",".intercalate (l.map toString)
+  f.cs.map Cstr.render ++ [s!"inputs [{ws f.inputs}]", s!"returns [{ws f.returns}]"]
+
 /-- The golden file: one `# <gadget> <width>` section per pinned width. -/
 def renderAll : String :=
   let sec (title : String) (cs : List Cstr) :=
@@ -57,7 +64,13 @@ def renderAll : String :=
     pinnedWidths.map (fun n => sec s!"div_var_predicated {n}" (divPredT n)) ++
     pinnedWidths.map (fun k => sec s!"truncate_field {k}" (truncT k)) ++
     pinnedWidths.map (fun m => sec s!"more_than_eq {m}" (moreThanEqT m)) ++
-    pinnedWidths.map (fun n => s!"# signed_lt {n}\n" ++ "\n".intercalate (signedLtT n).render)
+    pinnedWidths.map (fun n => s!"# signed_lt {n}\n" ++ "\n".intercalate (signedLtT n).render) ++
+    pinnedWidths.map (fun n => s!"# acir_div {n}\n" ++ "\n".intercalate (acirDivT n).render) ++
+    pinnedWidths.map (fun n => s!"# acir_lt {n}\n" ++ "\n".intercalate (acirLtT n).render) ++
+    pinnedWidths.map (fun n =>
+      s!"# acir_truncate {n}\n" ++ "\n".intercalate (acirTruncT n).render) ++
+    pinnedWidths.map (fun n =>
+      s!"# acir_signed_lt {n}\n" ++ "\n".intercalate (acirSignedLtT n).render)
   "\n".intercalate secs ++ "\n"
 
 end AcirLean
