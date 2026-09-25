@@ -11,7 +11,7 @@ namespace AcirLean
 
 /-- `expand_signed_math` applied to `v2 = lt v0, v1` on `i<n>` operands: compare
 the bit patterns as unsigned, and flip the result when the signs differ. -/
-def signedLtT (n : ℕ) : SsaFn where
+def signedLtSsa (n : ℕ) : SsaFunction where
   params := [(0, .i n), (1, .i n)]
   body :=
     [ .cast 4 0 (.u n), .cast 5 1 (.u n),

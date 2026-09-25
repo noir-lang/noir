@@ -16,22 +16,22 @@ theorem Term.eval_rename (σ : ℕ → F) (f : ℕ → ℕ) (t : Term) :
     (t.rename f).eval σ = t.eval (σ ∘ f) := by
   simp [Term.rename, Term.eval, List.map_map]
 
-theorem Cstr.sat_rename (σ : ℕ → F) (f : ℕ → ℕ) (c : Cstr) :
-    (c.rename f).sat σ ↔ c.sat (σ ∘ f) := by
+theorem Constraint.holds_rename (σ : ℕ → F) (f : ℕ → ℕ) (c : Constraint) :
+    (c.rename f).Holds σ ↔ c.Holds (σ ∘ f) := by
   cases c with
   | zero ts =>
-    simp only [Cstr.rename, Cstr.sat, List.map_map]
+    simp only [Constraint.rename, Constraint.Holds, List.map_map]
     rw [show Term.eval σ ∘ Term.rename f = Term.eval (σ ∘ f) from
       funext (Term.eval_rename σ f)]
-  | range w k => simp [Cstr.rename, Cstr.sat]
+  | range w k => simp [Constraint.rename, Constraint.Holds]
 
-theorem allSat_rename (σ : ℕ → F) (f : ℕ → ℕ) (cs : List Cstr) :
-    AllSat σ (cs.map (Cstr.rename f)) ↔ AllSat (σ ∘ f) cs := by
-  simp [AllSat, Cstr.sat_rename]
+theorem allHold_rename (σ : ℕ → F) (f : ℕ → ℕ) (cs : List Constraint) :
+    AllHold σ (cs.map (Constraint.rename f)) ↔ AllHold (σ ∘ f) cs := by
+  simp [AllHold, Constraint.holds_rename]
 
-theorem allSat_append (σ : ℕ → F) (a b : List Cstr) :
-    AllSat σ (a ++ b) ↔ AllSat σ a ∧ AllSat σ b := by
-  simp only [AllSat, List.mem_append]
+theorem allHold_append (σ : ℕ → F) (a b : List Constraint) :
+    AllHold σ (a ++ b) ↔ AllHold σ a ∧ AllHold σ b := by
+  simp only [AllHold, List.mem_append]
   exact ⟨fun h => ⟨fun c hc => h c (Or.inl hc), fun c hc => h c (Or.inr hc)⟩,
     fun ⟨h1, h2⟩ c hc => hc.elim (h1 c) (h2 c)⟩
 
@@ -64,82 +64,82 @@ theorem pinned_bounds {n : ℕ} (hn : n ∈ pinnedWidths) : 8 ≤ n ∧ n ≤ 12
 
 /-! ### `div` -/
 
-theorem acirDivT_sound {n : ℕ} (hn : n ∈ pinnedWidths) :
-    SoundFn (acirDivT n) (Computes2 n (BinOp.eval .div)) := by
+theorem acirGenDiv_sound {n : ℕ} (hn : n ∈ pinnedWidths) :
+    SoundFunction (acirGenDiv n) (Computes2 n (SsaBinOp.eval .div)) := by
   intro σ h
-  simp only [acirDivT, allSat_append, allSat_rename] at h
+  simp only [acirGenDiv, allHold_append, allHold_rename] at h
   obtain ⟨⟨hin, hg⟩, hl⟩ := h
   have ha := hin (.range 0 n) (by simp)
   have hb := hin (.range 1 n) (by simp)
   have e := hl (.zero [⟨1, [2]⟩, ⟨-1, [4]⟩]) (by simp)
-  simp only [Cstr.sat, Term.eval, List.map, List.prod_cons, List.prod_nil,
+  simp only [Constraint.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
     List.sum_cons, List.sum_nil, Range] at e ha hb
   push_cast at e
-  have hq : ((σ ∘ at_ [0, 1, 3, 4, 5, 6, 7, 8, 9, 10]) 3).val =
-      ((σ ∘ at_ [0, 1, 3, 4, 5, 6, 7, 8, 9, 10]) 0).val /
-        ((σ ∘ at_ [0, 1, 3, 4, 5, 6, 7, 8, 9, 10]) 1).val := by
+  have hq : ((σ ∘ witnessAt [0, 1, 3, 4, 5, 6, 7, 8, 9, 10]) 3).val =
+      ((σ ∘ witnessAt [0, 1, 3, 4, 5, 6, 7, 8, 9, 10]) 0).val /
+        ((σ ∘ witnessAt [0, 1, 3, 4, 5, 6, 7, 8, 9, 10]) 1).val := by
     rcases pinned_cases hn with h | rfl
-    · exact (divVarT_sound (by omega) _ hg (by simpa [at_] using hb)).1
-    · exact (divVarT128_sound _ hg (by simpa [at_] using hb)).1
-  simp [at_] at hq
-  simp only [acirDivT, List.map, Computes2, BinOp.eval]
+    · exact (divVarGadget_sound (by omega) _ hg (by simpa [witnessAt] using hb)).1
+    · exact (divVarGadget128_sound _ hg (by simpa [witnessAt] using hb)).1
+  simp [witnessAt] at hq
+  simp only [acirGenDiv, List.map, Computes2, SsaBinOp.eval]
   refine ⟨ha, hb, ?_⟩
   rw [show σ 2 = σ 4 by linear_combination e, hq]
 
 /-! ### `lt` -/
 
-theorem acirLtT_sound {n : ℕ} (hn : n ∈ pinnedWidths) :
-    SoundFn (acirLtT n) (Computes2 n (BinOp.eval .lt)) := by
+theorem acirGenLt_sound {n : ℕ} (hn : n ∈ pinnedWidths) :
+    SoundFunction (acirGenLt n) (Computes2 n (SsaBinOp.eval .lt)) := by
   intro σ h
-  simp only [acirLtT, allSat_append, allSat_rename] at h
+  simp only [acirGenLt, allHold_append, allHold_rename] at h
   obtain ⟨⟨hin, hg⟩, hl⟩ := h
   have ha := hin (.range 0 n) (by simp)
   have hb := hin (.range 1 n) (by simp)
   have e := hl (.zero [⟨1, []⟩, ⟨-1, [2]⟩, ⟨-1, [3]⟩]) (by simp)
-  simp only [Cstr.sat, Term.eval, List.map, List.prod_cons, List.prod_nil,
+  simp only [Constraint.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
     List.sum_cons, List.sum_nil, Range] at e ha hb
   push_cast at e
   have hbd := pinned_bounds hn
-  have hge := moreThanEqT_sound (by omega) hbd.2 _ hg (by simpa [at_] using ha)
-    (by simpa [at_] using hb)
-  simp [geSpec, at_] at hge
-  simp only [acirLtT, List.map, Computes2, BinOp.eval]
+  have hge := moreThanEqGadget_sound (by omega) hbd.2 _ hg (by simpa [witnessAt] using ha)
+    (by simpa [witnessAt] using hb)
+  simp [geSpec, witnessAt] at hge
+  simp only [acirGenLt, List.map, Computes2, SsaBinOp.eval]
   refine ⟨ha, hb, ?_⟩
   rw [show σ 2 = 1 - σ 3 by linear_combination -e]
   exact not_ge hge
 
 /-! ### truncation of a field element -/
 
-theorem acirTruncT_sound {n : ℕ} (hn : n ∈ pinnedWidths) :
-    SoundFn (acirTruncT n) (Computes1 (· % 2 ^ n)) := by
+theorem acirGenTruncate_sound {n : ℕ} (hn : n ∈ pinnedWidths) :
+    SoundFunction (acirGenTruncate n) (Computes1 (· % 2 ^ n)) := by
   intro σ h
-  simp only [acirTruncT, allSat_append, allSat_rename] at h
+  simp only [acirGenTruncate, allHold_append, allHold_rename] at h
   obtain ⟨hg, hl⟩ := h
   have e := hl (.zero [⟨1, [1]⟩, ⟨-1, [3]⟩]) (by simp)
-  simp only [Cstr.sat, Term.eval, List.map, List.prod_cons, List.prod_nil,
+  simp only [Constraint.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
     List.sum_cons, List.sum_nil] at e
   push_cast at e
-  have hr : ((σ ∘ at_ [0, 2, 3, 4, 5, 6, 7, 8]) 2).val =
-      ((σ ∘ at_ [0, 2, 3, 4, 5, 6, 7, 8]) 0).val % 2 ^ n := by
+  have hr : ((σ ∘ witnessAt [0, 2, 3, 4, 5, 6, 7, 8]) 2).val =
+      ((σ ∘ witnessAt [0, 2, 3, 4, 5, 6, 7, 8]) 0).val % 2 ^ n := by
     rcases pinned_cases hn with h | rfl
-    · exact truncT_sound (by omega) (by omega) _ hg
-    · exact truncT128_sound _ hg
-  simp [at_] at hr
-  simp only [acirTruncT, List.map, Computes1]
+    · exact truncateGadget_sound (by omega) (by omega) _ hg
+    · exact truncateGadget128_sound _ hg
+  simp [witnessAt] at hr
+  simp only [acirGenTruncate, List.map, Computes1]
   rw [show σ 1 = σ 3 by linear_combination e, hr]
 
 /-! ### signed `lt`, end to end -/
 
 /-- Dividing an `n`-bit value by `2^j`. -/
-theorem divPow2T_sound {n j : ℕ} (hj : 1 ≤ j) (hjn : j < n) (hn : n ≤ 128) (σ : ℕ → F)
-    (h : AllSat σ (divPow2T n j)) :
+theorem divPow2Gadget_sound {n j : ℕ} (hj : 1 ≤ j) (hjn : j < n) (hn : n ≤ 128) (σ : ℕ → F)
+    (h : AllHold σ (divPow2Gadget n j)) :
     (σ 1).val = (σ 0).val / 2 ^ j ∧ (σ 1).val < 2 ^ (n - j) := by
   have hbits : bits (2 ^ j) = j + 1 := Nat.size_pow
   have hr : bits (2 ^ j - 1) = j := bits_pow_sub_one hj
-  have r1 := h (.range 1 (n - j)) (by simp [divPow2T])
-  have r2 := h (.range 2 j) (by simp [divPow2T])
-  have e := h (.zero [⟨1, [0]⟩, ⟨-(2 ^ j : ℕ), [1]⟩, ⟨-1, [2]⟩]) (by simp [divPow2T])
-  simp only [Cstr.sat, Term.eval, List.map, List.prod_cons, List.prod_nil,
+  have r1 := h (.range 1 (n - j)) (by simp [divPow2Gadget])
+  have r2 := h (.range 2 j) (by simp [divPow2Gadget])
+  have e := h (.zero [⟨1, [0]⟩, ⟨-(2 ^ j : ℕ), [1]⟩, ⟨-1, [2]⟩]) (by simp [divPow2Gadget])
+  simp only [Constraint.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
     List.sum_cons, List.sum_nil] at e r1 r2
   push_cast at e
   have c : DivConstConstraints n (2 ^ j) (σ 0) (σ 1) (σ 2) := by
@@ -153,33 +153,33 @@ theorem divPow2T_sound {n j : ℕ} (hj : 1 ≤ j) (hjn : j < n) (hn : n ≤ 128)
       _ ≤ 2 ^ j := Nat.pow_le_pow_right (by norm_num) hj
   exact ⟨(div_const_sound hc2 (by rw [hbits]; omega) c).1, r1⟩
 
-theorem acirSignedLtT_sound {n : ℕ} (hn : n ∈ pinnedWidths) :
-    SoundFn (acirSignedLtT n) (Computes2 n fun a b => if sint n a < sint n b then 1 else 0) := by
+theorem acirGenSignedLt_sound {n : ℕ} (hn : n ∈ pinnedWidths) :
+    SoundFunction (acirGenSignedLt n) (Computes2 n fun a b => if toSigned n a < toSigned n b then 1 else 0) := by
   intro σ h
   have hbd := pinned_bounds hn
-  simp only [acirSignedLtT] at h ⊢
+  simp only [acirGenSignedLt] at h ⊢
   generalize hx : (if n = 128 then 10 else 9) = x at h
-  simp only [allSat_append, allSat_rename] at h
+  simp only [allHold_append, allHold_rename] at h
   obtain ⟨⟨⟨⟨hin, hd1⟩, hd2⟩, hge⟩, hl⟩ := h
   have ha := hin (.range 0 n) (by simp)
   have hb := hin (.range 1 n) (by simp)
   have ex := hl (.zero [⟨1, [3]⟩, ⟨-2, [3, 5]⟩, ⟨1, [5]⟩, ⟨-1, [x]⟩]) (by simp)
   have ey := hl (.zero [⟨1, []⟩, ⟨-1, [7]⟩, ⟨-1, [x + 1]⟩]) (by simp)
   have er := hl (.zero [⟨1, [2]⟩, ⟨-1, [x]⟩, ⟨2, [x, x + 1]⟩, ⟨-1, [x + 1]⟩]) (by simp)
-  simp only [Cstr.sat, Term.eval, List.map, List.prod_cons, List.prod_nil,
+  simp only [Constraint.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
     List.sum_cons, List.sum_nil, Range] at ex ey er ha hb
   push_cast at ex ey er
   -- the sign bits
-  have s0 := divPow2T_sound (by omega) (by omega) hbd.2 _ hd1
-  have s1 := divPow2T_sound (by omega) (by omega) hbd.2 _ hd2
+  have s0 := divPow2Gadget_sound (by omega) (by omega) hbd.2 _ hd1
+  have s1 := divPow2Gadget_sound (by omega) (by omega) hbd.2 _ hd2
   simp only [show n - (n - 1) = 1 by omega, pow_one] at s0 s1
-  simp [at_] at s0 s1
+  simp [witnessAt] at s0 s1
   have b0 : (σ 3).val < 2 := by omega
   have b1 : (σ 5).val < 2 := by omega
   -- the unsigned comparison
-  have hg := moreThanEqT_sound (by omega) hbd.2 _ hge (by simpa [at_] using ha)
-    (by simpa [at_] using hb)
-  simp [geSpec, at_] at hg
+  have hg := moreThanEqGadget_sound (by omega) hbd.2 _ hge (by simpa [witnessAt] using ha)
+    (by simpa [witnessAt] using hb)
+  simp [geSpec, witnessAt] at hg
   -- the two xors
   have hxv : (σ x).val = (σ 0).val / 2 ^ (n - 1) ^^^ (σ 1).val / 2 ^ (n - 1) := by
     rw [show σ x = σ 3 + σ 5 - 2 * σ 3 * σ 5 by linear_combination -ex,
@@ -194,8 +194,8 @@ theorem acirSignedLtT_sound {n : ℕ} (hn : n ∈ pinnedWidths) :
   simp only [List.map, Computes2]
   refine ⟨ha, hb, ?_⟩
   rw [show σ 2 = σ x + σ (x + 1) - 2 * σ x * σ (x + 1) by linear_combination er,
-    xor_bits hx2 hy2, hxv, hyv, ← signedLtT_run]
-  exact signedLtT_correct (by omega) _ _ ha hb
+    xor_bits hx2 hy2, hxv, hyv, ← signedLtSsa_run]
+  exact signedLtSsa_correct (by omega) _ _ ha hb
 
 end AcirLean
 
@@ -203,8 +203,8 @@ namespace AcirLean
 
 /-! ### Honest witnesses for the compiled functions -/
 
-instance instDecidableAllSatFn (σ : ℕ → F) (f : AcirFn) : Decidable (AllSat σ f.cs) :=
-  instDecidableAllSat σ f.cs
+instance instDecidableAllSatFn (σ : ℕ → F) (f : AcirFunction) : Decidable (AllHold σ f.constraints) :=
+  instDecidableAllSat σ f.constraints
 
 /-- `0 / 1`: `inv = 1`, and at `u128` the divisor's low half `1`. -/
 def acirDivWitness : ℕ → F
@@ -230,8 +230,8 @@ def acirSignedLtWitness (n : ℕ) : ℕ → F
   | _ => 0
 
 theorem acir_satisfiable {n : ℕ} (hn : n ∈ pinnedWidths) :
-    SatisfiableFn (acirDivT n) ∧ SatisfiableFn (acirLtT n) ∧
-      SatisfiableFn (acirTruncT n) ∧ SatisfiableFn (acirSignedLtT n) := by
+    SatisfiableFunction (acirGenDiv n) ∧ SatisfiableFunction (acirGenLt n) ∧
+      SatisfiableFunction (acirGenTruncate n) ∧ SatisfiableFunction (acirGenSignedLt n) := by
   refine ⟨⟨acirDivWitness, ?_⟩, ⟨acirLtWitness, ?_⟩, ⟨acirTruncWitness n, ?_⟩,
     ⟨acirSignedLtWitness n, ?_⟩⟩ <;>
   simp only [pinnedWidths, List.mem_cons, List.not_mem_nil, or_false] at hn <;>

@@ -18,8 +18,8 @@ is accepted as a `u8`, which breaks every later use of `b`.
 
 namespace AcirLean
 
-def buggyShippedDiv8 : AcirFn :=
-  { shippedDivT 8 with cs := (shippedDivT 8).cs.filter (· != .range 1 8) }
+def buggyShippedDiv8 : AcirFunction :=
+  { shippedDiv 8 with constraints := (shippedDiv 8).constraints.filter (· != .range 1 8) }
 
 /-- `a = 44`, `b = 300`, quotient `0`, remainder `44`, `t = b - r - 1 = 255`. -/
 def forgedDiv : ℕ → F
@@ -30,13 +30,13 @@ def forgedDiv : ℕ → F
   | 6 => 255
   | _ => 0
 
-theorem forgedDiv_satisfies : AllSat forgedDiv buggyShippedDiv8.cs := by decide +kernel
+theorem forgedDiv_satisfies : AllHold forgedDiv buggyShippedDiv8.constraints := by decide +kernel
 
 theorem buggy_range_optimizer_not_sound :
-    ¬ SoundFn buggyShippedDiv8 (Computes2 8 (BinOp.eval .div)) := by
+    ¬ SoundFunction buggyShippedDiv8 (Computes2 8 (SsaBinOp.eval .div)) := by
   intro h
   have hs := h forgedDiv forgedDiv_satisfies
-  simp only [buggyShippedDiv8, shippedDivT, acirDivT, List.map, Computes2] at hs
+  simp only [buggyShippedDiv8, shippedDiv, acirGenDiv, List.map, Computes2] at hs
   have hb : (forgedDiv 1).val = 300 := by decide +kernel
   have := hs.2.1
   omega

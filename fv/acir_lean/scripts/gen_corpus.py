@@ -67,7 +67,7 @@ def lean_entry(idx, lines):
     return (
         f"def corpus{idx} : CorpusEntry where\n"
         f"  prog := {{ width := {width}, nparams := {nparams}, body := [{', '.join(body)}], ret := {ret} }}\n"
-        f"  fn := {{ cs := [{', '.join(cs)}], inputs := {inputs}, returns := {returns} }}\n"
+        f"  fn := {{ constraints := [{', '.join(cs)}], inputs := {inputs}, returns := {returns} }}\n"
         f"  witness := [{', '.join(witness)}]\n"
     )
 

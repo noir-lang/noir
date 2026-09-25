@@ -21,73 +21,73 @@ treat it as a relabelling). `div` is integer division, `lt` is `1` or `0`, and
 namespace AcirLean
 
 /-- `u<n>` or `i<n>`. -/
-inductive IntTy where
+inductive IntType where
   | u (n : ℕ)
   | i (n : ℕ)
 
 /-- A value id, or a typed constant such as `u8 128`. -/
-inductive Operand where
+inductive SsaOperand where
   | var (id : ℕ)
-  | const (ty : IntTy) (v : ℕ)
+  | const (ty : IntType) (v : ℕ)
 
-inductive BinOp where
+inductive SsaBinOp where
   | div
   | lt
   | xor
 
 /-- `v<dst> = cast v<src> as <ty>`, or `v<dst> = <op> <a>, <b>`. -/
-inductive SsaIns where
-  | cast (dst src : ℕ) (ty : IntTy)
-  | bin (dst : ℕ) (op : BinOp) (a b : Operand)
+inductive SsaInstruction where
+  | cast (dst src : ℕ) (ty : IntType)
+  | bin (dst : ℕ) (op : SsaBinOp) (a b : SsaOperand)
 
 /-- `acir(inline) fn main f0 { b0(<params>): <body> return v<ret> }`. -/
-structure SsaFn where
-  params : List (ℕ × IntTy)
-  body : List SsaIns
+structure SsaFunction where
+  params : List (ℕ × IntType)
+  body : List SsaInstruction
   ret : ℕ
 
-def Operand.eval (env : ℕ → ℕ) : Operand → ℕ
+def SsaOperand.eval (env : ℕ → ℕ) : SsaOperand → ℕ
   | .var id => env id
   | .const _ v => v
 
-def BinOp.eval : BinOp → ℕ → ℕ → ℕ
+def SsaBinOp.eval : SsaBinOp → ℕ → ℕ → ℕ
   | .div, a, b => a / b
   | .lt, a, b => if a < b then 1 else 0
   | .xor, a, b => a ^^^ b
 
 /-- Execute one instruction: set `v<dst>`, leave every other value unchanged. -/
-def SsaIns.step (env : ℕ → ℕ) : SsaIns → (ℕ → ℕ)
+def SsaInstruction.step (env : ℕ → ℕ) : SsaInstruction → (ℕ → ℕ)
   | .cast dst src _ => fun i => if i = dst then env src else env i
   | .bin dst op a b => fun i => if i = dst then op.eval (a.eval env) (b.eval env) else env i
 
 /-- Bind the parameters to `args` in order, run the body, and return `v<ret>`. -/
-def SsaFn.run (f : SsaFn) (args : List ℕ) : ℕ :=
+def SsaFunction.run (f : SsaFunction) (args : List ℕ) : ℕ :=
   let env0 : ℕ → ℕ := fun i =>
     (((f.params.map Prod.fst).zip args).lookup i).getD 0
-  (f.body.foldl SsaIns.step env0) f.ret
+  (f.body.foldl SsaInstruction.step env0) f.ret
 
 /-! ## Printing, in the syntax `Ssa`'s `Display` uses -/
 
-def IntTy.render : IntTy → String
+def IntType.render : IntType → String
   | .u n => s!"u{n}"
   | .i n => s!"i{n}"
 
-def Operand.render : Operand → String
+def SsaOperand.render : SsaOperand → String
   | .var id => s!"v{id}"
   | .const ty v => s!"{ty.render} {v}"
 
-def BinOp.render : BinOp → String
+def SsaBinOp.render : SsaBinOp → String
   | .div => "div"
   | .lt => "lt"
   | .xor => "xor"
 
-def SsaIns.render : SsaIns → String
+def SsaInstruction.render : SsaInstruction → String
   | .cast dst src ty => s!"    v{dst} = cast v{src} as {ty.render}"
   | .bin dst op a b => s!"    v{dst} = {op.render} {a.render}, {b.render}"
 
-def SsaFn.render (f : SsaFn) : List String :=
+def SsaFunction.render (f : SsaFunction) : List String :=
   let params := ", ".intercalate (f.params.map fun (id, ty) => s!"v{id}: {ty.render}")
-  ["acir(inline) fn main f0 {", s!"  b0({params}):"] ++ f.body.map SsaIns.render ++
+  ["acir(inline) fn main f0 {", s!"  b0({params}):"] ++ f.body.map SsaInstruction.render ++
     [s!"    return v{f.ret}", "}"]
 
 end AcirLean

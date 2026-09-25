@@ -22,7 +22,7 @@ abbrev bits (n : ℕ) : ℕ := Nat.size n
 Witnesses: `0 = a, 1 = b, 2 = inv, 3 = q, 4 = r, 5 = b - r - 1`; at `n = 128`
 also `6, 7 = q / 2^64, q % 2^64` and `8, 9 = b / 2^64, b % 2^64`. -/
 
-def divVarT (n : ℕ) : List Cstr :=
+def divVarGadget (n : ℕ) : List Constraint :=
   [ .zero [⟨1, []⟩, ⟨-1, [1, 2]⟩],
     .range 3 n, .range 4 n, .range 3 n, .range 4 n,
     .zero [⟨1, []⟩, ⟨-1, [1]⟩, ⟨1, [4]⟩, ⟨1, [5]⟩],
@@ -42,7 +42,7 @@ Witnesses: `0 = a, 1 = b, 2 = pred, 3 = z, 4 = [b == 0], 5 = q, 6 = r,
 `11 = q % 2^64 + pred + 2^64 - 1`, `12, 13 = b / 2^64, b % 2^64` and
 `14 = b % 2^64 + pred + 2^64 - 1`. -/
 
-def divPredT (n : ℕ) : List Cstr :=
+def divPredGadget (n : ℕ) : List Constraint :=
   [ .zero [⟨1, []⟩, ⟨-1, [1, 3]⟩, ⟨-1, [4]⟩],
     .zero [⟨1, [1, 4]⟩],
     .zero [⟨1, [2, 4]⟩],
@@ -77,7 +77,7 @@ def R' (k : ℕ) : ℕ := 2 ^ N' k - M k
 /-- The slack that moves `q ≤ q0` to a range check when `q0 < 2^128`. -/
 def Rq (k : ℕ) : ℕ := 2 ^ bits (q0 k) - 1 - q0 k
 
-def truncT (k : ℕ) : List Cstr :=
+def truncateGadget (k : ℕ) : List Constraint :=
   if k = 128 then
     [ .range 1 126, .range 2 128, .range 1 126, .range 2 128,
       .zero [⟨(2 ^ 128 - 1 : ℕ), []⟩, ⟨-1, [2]⟩, ⟨-1, [3]⟩],
@@ -102,7 +102,7 @@ def truncT (k : ℕ) : List Cstr :=
 /-! ### `more_than_eq_var(a, b, m)`: divide `2^m + a - b` by `2^m`
 Witnesses: `0 = a, 1 = b, 2 = q, 3 = r`; at `m = 128` also `4 = 2^128 - 1 - r`. -/
 
-def moreThanEqT (m : ℕ) : List Cstr :=
+def moreThanEqGadget (m : ℕ) : List Constraint :=
   if m = 128 then
     [ .range 2 1, .range 3 128, .range 2 1, .range 3 128,
       .zero [⟨(2 ^ 128 - 1 : ℕ), []⟩, ⟨-1, [3]⟩, ⟨-1, [4]⟩],

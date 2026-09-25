@@ -9,17 +9,17 @@ import AcirLean.Proofs.Overflow
 
 namespace AcirLean
 
-theorem divVarT_sound {n : ℕ} (hn : n ≤ 126) (σ : ℕ → F) (h : AllSat σ (divVarT n))
+theorem divVarGadget_sound {n : ℕ} (hn : n ≤ 126) (σ : ℕ → F) (h : AllHold σ (divVarGadget n))
     (hb : (σ 1).val < 2 ^ n) :
     (σ 3).val = (σ 0).val / (σ 1).val ∧ (σ 4).val = (σ 0).val % (σ 1).val := by
-  have g : ∀ c, c ∈ divVarT n → c.sat σ := h
-  have e1 := g (.zero [⟨1, []⟩, ⟨-1, [1, 2]⟩]) (by simp [divVarT])
-  have r3 := g (.range 3 n) (by simp [divVarT])
-  have r4 := g (.range 4 n) (by simp [divVarT])
-  have e2 := g (.zero [⟨1, []⟩, ⟨-1, [1]⟩, ⟨1, [4]⟩, ⟨1, [5]⟩]) (by simp [divVarT])
-  have r5 := g (.range 5 n) (by simp [divVarT])
-  have e3 := g (.zero [⟨1, [0]⟩, ⟨-1, [1, 3]⟩, ⟨-1, [4]⟩]) (by simp [divVarT])
-  simp only [Cstr.sat, Term.eval, List.map, List.prod_cons, List.prod_nil,
+  have g : ∀ c, c ∈ divVarGadget n → c.Holds σ := h
+  have e1 := g (.zero [⟨1, []⟩, ⟨-1, [1, 2]⟩]) (by simp [divVarGadget])
+  have r3 := g (.range 3 n) (by simp [divVarGadget])
+  have r4 := g (.range 4 n) (by simp [divVarGadget])
+  have e2 := g (.zero [⟨1, []⟩, ⟨-1, [1]⟩, ⟨1, [4]⟩, ⟨1, [5]⟩]) (by simp [divVarGadget])
+  have r5 := g (.range 5 n) (by simp [divVarGadget])
+  have e3 := g (.zero [⟨1, [0]⟩, ⟨-1, [1, 3]⟩, ⟨-1, [4]⟩]) (by simp [divVarGadget])
+  simp only [Constraint.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
     List.sum_cons, List.sum_nil] at e1 e2 e3 r3 r4 r5
   have ht : σ 5 = σ 1 - (σ 4 + 1) := by push_cast at e2; linear_combination e2
   refine div_var_sound hn hb (inv := σ 2) ⟨?_, r3, r4, ?_, ?_⟩
@@ -27,9 +27,9 @@ theorem divVarT_sound {n : ℕ} (hn : n ≤ 126) (σ : ℕ → F) (h : AllSat σ
   · rw [← ht]; exact r5
   · push_cast at e3; linear_combination e3
 
-theorem truncT_sound {k : ℕ} (hk1 : 2 ≤ k) (hk : k ≤ 125) (σ : ℕ → F)
-    (h : AllSat σ (truncT k)) : (σ 2).val = (σ 0).val % 2 ^ k := by
-  unfold truncT AllSat at h
+theorem truncateGadget_sound {k : ℕ} (hk1 : 2 ≤ k) (hk : k ≤ 125) (σ : ℕ → F)
+    (h : AllHold σ (truncateGadget k)) : (σ 2).val = (σ 0).val % 2 ^ k := by
+  unfold truncateGadget AllHold at h
   rw [if_neg (show k ≠ 128 by omega)] at h
   have g := h
   have hbits : bits (2 ^ k) = k + 1 := Nat.size_pow
@@ -50,12 +50,12 @@ theorem truncT_sound {k : ℕ} (hk1 : 2 ≤ k) (hk : k ≤ 125) (σ : ℕ → F)
   have e4 := g (.zero [⟨1, [1, 5]⟩, ⟨-(q0 k : ℤ), [5]⟩]) (by simp)
   have e5 := g (.zero [⟨1, [2, 5]⟩, ⟨(R' k : ℤ), [5]⟩, ⟨-1, [6]⟩]) (by simp)
   have r6 := g (if N' k = 0 then .zero [⟨1, [6]⟩] else .range 6 (N' k)) (by simp)
-  simp only [Cstr.sat, Term.eval, List.map, List.prod_cons, List.prod_nil,
+  simp only [Constraint.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
     List.sum_cons, List.sum_nil] at e1 e2 e3 e4 e5 r1 r2 r3
   push_cast at e1 e2 e3 e4 e5
   have hu : Range (σ 6) (N' k) := by
     split_ifs at r6 with h0
-    · simp only [Cstr.sat, Term.eval, List.map, List.prod_cons, List.prod_nil,
+    · simp only [Constraint.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
         List.sum_cons, List.sum_nil] at r6
       push_cast at r6
       have : σ 6 = 0 := by linear_combination r6

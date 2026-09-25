@@ -10,15 +10,15 @@ import Mathlib.Tactic
 
 namespace AcirLean
 
-theorem signedLtT_run (n a b : ℕ) :
-    (signedLtT n).run [a, b] =
+theorem signedLtSsa_run (n a b : ℕ) :
+    (signedLtSsa n).run [a, b] =
       (a / 2 ^ (n - 1) ^^^ b / 2 ^ (n - 1)) ^^^ (if a < b then 1 else 0) := by
-  simp [SsaFn.run, signedLtT, SsaIns.step, BinOp.eval, Operand.eval, List.lookup]
+  simp [SsaFunction.run, signedLtSsa, SsaInstruction.step, SsaBinOp.eval, SsaOperand.eval, List.lookup]
 
-theorem signedLtT_correct {n : ℕ} (hn : 1 ≤ n) : ComputesSignedLt (signedLtT n) n := by
+theorem signedLtSsa_correct {n : ℕ} (hn : 1 ≤ n) : ComputesSignedLt (signedLtSsa n) n := by
   intro a b ha hb
-  rw [signedLtT_run]
-  unfold sint
+  rw [signedLtSsa_run]
+  unfold toSigned
   have h2 : (2 : ℕ) ^ n = 2 * 2 ^ (n - 1) := by
     rw [← pow_succ']; congr 1; omega
   have hz : (2 : ℤ) ^ n = 2 * 2 ^ (n - 1) := by exact_mod_cast h2

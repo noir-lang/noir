@@ -41,37 +41,37 @@ def pinnedWidths : List ℕ := [8, 16, 32, 64, 128]
 def signedWidths : List ℕ := [8, 16, 32, 64]
 
 /-- Lexicographic order on witness lists (the order `Vec<u32>` sorts in Rust). -/
-def listLe : List ℕ → List ℕ → Bool
+def witnessListLe : List ℕ → List ℕ → Bool
   | [], _ => true
   | _ :: _, [] => false
-  | a :: as, b :: bs => if a < b then true else if b < a then false else listLe as bs
+  | a :: as, b :: bs => if a < b then true else if b < a then false else witnessListLe as bs
 
 /-- An integer coefficient as a field element's integer value, in `[0, p)`. -/
-def fmod (c : ℤ) : ℕ := (c % (p : ℤ)).toNat
+def coefValue (c : ℤ) : ℕ := (c % (p : ℤ)).toNat
 
 /-- One constraint in canonical form (see the module comment). -/
-def Cstr.render : Cstr → String
+def Constraint.render : Constraint → String
   | .range w k => s!"range {w} {k}"
   | .zero ts =>
-    let ts := ts.map (fun t => { t with ws := t.ws.mergeSort (· ≤ ·) })
-    let ts := (ts.filter (fun t => fmod t.coef ≠ 0)).mergeSort (fun a b => listLe a.ws b.ws)
+    let ts := ts.map (fun t => { t with witnesses := t.witnesses.mergeSort (· ≤ ·) })
+    let ts := (ts.filter (fun t => coefValue t.coef ≠ 0)).mergeSort (fun a b => witnessListLe a.witnesses b.witnesses)
     let neg : Bool := match ts with
-      | t :: _ => decide (fmod t.coef > (p - 1) / 2)
+      | t :: _ => decide (coefValue t.coef > (p - 1) / 2)
       | [] => false
     let body := ts.map fun t =>
-      let c := if neg then fmod (-t.coef) else fmod t.coef
-      s!"{c}*[{",".intercalate (t.ws.map toString)}]"
+      let c := if neg then coefValue (-t.coef) else coefValue t.coef
+      s!"{c}*[{",".intercalate (t.witnesses.map toString)}]"
     "zero " ++ " + ".intercalate body
 
 /-- An ACIR function: its constraints, then its input and return witnesses. -/
-def AcirFn.render (f : AcirFn) : List String :=
+def AcirFunction.render (f : AcirFunction) : List String :=
   let ws (l : List ℕ) := ",".intercalate (l.map toString)
-  f.cs.map Cstr.render ++ [s!"inputs [{ws f.inputs}]", s!"returns [{ws f.returns}]"]
+  f.constraints.map Constraint.render ++ [s!"inputs [{ws f.inputs}]", s!"returns [{ws f.returns}]"]
 
 /-- A straight-line program as `Ssa`'s `Display` prints it. -/
-def UProg.render (P : UProg) : List String :=
+def CorpusProgram.render (P : CorpusProgram) : List String :=
   let params := ", ".intercalate ((List.range P.nparams).map fun i => s!"v{i}: u{P.width}")
-  let op : UOp → String
+  let op : CorpusOp → String
     | .div => "div"
     | .lt => "lt"
   ["acir(inline) fn main f0 {", s!"  b0({params}):"] ++
@@ -83,7 +83,7 @@ def CorpusEntry.render (e : CorpusEntry) : List String :=
   e.prog.render ++ e.fn.render ++ e.witness.map fun (w, v) => s!"witness {w} {v}"
 
 /-- A test program: its SSA, then its shipped circuit. -/
-def ProgEntry.render (e : ProgEntry) : List String :=
+def TestProgram.render (e : TestProgram) : List String :=
   s!"# program {e.name}" :: e.prog.render ++ e.fn.render
 
 /-- `test_programs.golden`: every test program in `testPrograms`. -/
@@ -92,29 +92,29 @@ def renderTestPrograms : String :=
 
 /-- The golden file: one `# <gadget> <width>` section per pinned width. -/
 def renderAll : String :=
-  let sec (title : String) (cs : List Cstr) :=
-    s!"# {title}\n" ++ "\n".intercalate (cs.map Cstr.render)
-  let secs := pinnedWidths.map (fun n => sec s!"div_var {n}" (divVarT n)) ++
-    pinnedWidths.map (fun n => sec s!"div_var_predicated {n}" (divPredT n)) ++
-    pinnedWidths.map (fun k => sec s!"truncate_field {k}" (truncT k)) ++
-    pinnedWidths.map (fun m => sec s!"more_than_eq {m}" (moreThanEqT m)) ++
-    pinnedWidths.map (fun n => s!"# signed_lt {n}\n" ++ "\n".intercalate (signedLtT n).render) ++
-    pinnedWidths.map (fun n => s!"# acir_div {n}\n" ++ "\n".intercalate (acirDivT n).render) ++
-    pinnedWidths.map (fun n => s!"# acir_lt {n}\n" ++ "\n".intercalate (acirLtT n).render) ++
+  let sec (title : String) (cs : List Constraint) :=
+    s!"# {title}\n" ++ "\n".intercalate (cs.map Constraint.render)
+  let secs := pinnedWidths.map (fun n => sec s!"div_var {n}" (divVarGadget n)) ++
+    pinnedWidths.map (fun n => sec s!"div_var_predicated {n}" (divPredGadget n)) ++
+    pinnedWidths.map (fun k => sec s!"truncate_field {k}" (truncateGadget k)) ++
+    pinnedWidths.map (fun m => sec s!"more_than_eq {m}" (moreThanEqGadget m)) ++
+    pinnedWidths.map (fun n => s!"# signed_lt {n}\n" ++ "\n".intercalate (signedLtSsa n).render) ++
+    pinnedWidths.map (fun n => s!"# acir_div {n}\n" ++ "\n".intercalate (acirGenDiv n).render) ++
+    pinnedWidths.map (fun n => s!"# acir_lt {n}\n" ++ "\n".intercalate (acirGenLt n).render) ++
     pinnedWidths.map (fun n =>
-      s!"# acir_truncate {n}\n" ++ "\n".intercalate (acirTruncT n).render) ++
+      s!"# acir_truncate {n}\n" ++ "\n".intercalate (acirGenTruncate n).render) ++
     pinnedWidths.map (fun n =>
-      s!"# acir_signed_lt {n}\n" ++ "\n".intercalate (acirSignedLtT n).render) ++
-    pinnedWidths.map (fun n => s!"# shipped_div {n}\n" ++ "\n".intercalate (shippedDivT n).render) ++
-    pinnedWidths.map (fun n => s!"# shipped_lt {n}\n" ++ "\n".intercalate (shippedLtT n).render) ++
+      s!"# acir_signed_lt {n}\n" ++ "\n".intercalate (acirGenSignedLt n).render) ++
+    pinnedWidths.map (fun n => s!"# shipped_div {n}\n" ++ "\n".intercalate (shippedDiv n).render) ++
+    pinnedWidths.map (fun n => s!"# shipped_lt {n}\n" ++ "\n".intercalate (shippedLt n).render) ++
     pinnedWidths.map (fun n =>
-      s!"# shipped_truncate {n}\n" ++ "\n".intercalate (shippedTruncT n).render) ++
+      s!"# shipped_truncate {n}\n" ++ "\n".intercalate (shippedTruncate n).render) ++
     pinnedWidths.map (fun n =>
-      s!"# shipped_signed_lt {n}\n" ++ "\n".intercalate (shippedSignedLtT n).render) ++
+      s!"# shipped_signed_lt {n}\n" ++ "\n".intercalate (shippedSignedLt n).render) ++
     signedWidths.map (fun n =>
-      s!"# shipped_signed_div {n}\n" ++ "\n".intercalate (shippedSDivT n).render) ++
+      s!"# shipped_signed_div {n}\n" ++ "\n".intercalate (shippedSignedDiv n).render) ++
     signedWidths.map (fun n =>
-      s!"# shipped_signed_mod {n}\n" ++ "\n".intercalate (shippedSModT n).render) ++
+      s!"# shipped_signed_mod {n}\n" ++ "\n".intercalate (shippedSignedMod n).render) ++
     corpus.zipIdx.map (fun (e, i) => s!"# corpus {i}\n" ++ "\n".intercalate e.render)
   "\n".intercalate secs ++ "\n"
 

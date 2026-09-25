@@ -24,13 +24,13 @@ theorem split64 {x xu xr : F} (hu : Range xu 64) (hr : Range xr 64)
   · rw [he]; push_cast; ring
 
 section
-attribute [local simp] Cstr.sat Term.eval List.map List.prod_cons List.prod_nil
+attribute [local simp] Constraint.Holds Term.eval List.map List.prod_cons List.prod_nil
   List.sum_cons List.sum_nil
 
-theorem divVarT128_sound (σ : ℕ → F) (h : AllSat σ (divVarT 128))
+theorem divVarGadget128_sound (σ : ℕ → F) (h : AllHold σ (divVarGadget 128))
     (hb : (σ 1).val < 2 ^ 128) :
     (σ 3).val = (σ 0).val / (σ 1).val ∧ (σ 4).val = (σ 0).val % (σ 1).val := by
-  unfold divVarT AllSat at h
+  unfold divVarGadget AllHold at h
   rw [if_pos rfl] at h
   have e1 := h (.zero [⟨1, []⟩, ⟨-1, [1, 2]⟩]) (by simp)
   have r3 := h (.range 3 128) (by simp)
@@ -45,7 +45,7 @@ theorem divVarT128_sound (σ : ℕ → F) (h : AllSat σ (divVarT 128))
   have r9 := h (.range 9 64) (by simp)
   have e5 := h (.zero [⟨1, [1]⟩, ⟨-(2 ^ 64 : ℕ), [8]⟩, ⟨-1, [9]⟩]) (by simp)
   have e6 := h (.zero [⟨1, [6, 8]⟩]) (by simp)
-  simp only [Cstr.sat, Term.eval, List.map, List.prod_cons, List.prod_nil,
+  simp only [Constraint.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
     List.sum_cons, List.sum_nil] at e1 e2 e3 e4 e5 e6 r3 r4 r5 r6 r7 r8 r9
   push_cast at e1 e2 e3 e4 e5 e6
   refine div_var128_sound hb (inv := σ 2) (qu := σ 6) (qr := σ 7) (bu := σ 8) (br := σ 9)
@@ -55,7 +55,7 @@ theorem divVarT128_sound (σ : ℕ → F) (h : AllSat σ (divVarT 128))
   have ht : σ 5 = σ 1 - (σ 4 + 1) := by linear_combination e2
   rw [← ht]; exact r5
 
-/-- The prefix every `divPredT n` shares: with the predicate on, it is the
+/-- The prefix every `divPredGadget n` shares: with the predicate on, it is the
 unpredicated constraint set with `inv = z`. -/
 theorem divPred_base {n : ℕ} (σ : ℕ → F) (hp : σ 2 = 1)
     (h : ∀ c ∈ ([ .zero [⟨1, []⟩, ⟨-1, [1, 3]⟩, ⟨-1, [4]⟩],
@@ -65,7 +65,7 @@ theorem divPred_base {n : ℕ} (σ : ℕ → F) (hp : σ 2 = 1)
       .zero [⟨1, [1]⟩, ⟨-1, [2]⟩, ⟨-1, [6]⟩, ⟨-1, [7]⟩],
       .range 7 n,
       .zero [⟨1, [1, 5]⟩, ⟨1, [6]⟩, ⟨-1, [8]⟩],
-      .zero [⟨1, [0, 2]⟩, ⟨-1, [2, 8]⟩] ] : List Cstr), c.sat σ) :
+      .zero [⟨1, [0, 2]⟩, ⟨-1, [2, 8]⟩] ] : List Constraint), c.Holds σ) :
     DivVarConstraints n (σ 0) (σ 1) (σ 5) (σ 6) (σ 3) := by
   have e1 := h (.zero [⟨1, []⟩, ⟨-1, [1, 3]⟩, ⟨-1, [4]⟩]) (by simp)
   have e3 := h (.zero [⟨1, [2, 4]⟩]) (by simp)
@@ -75,7 +75,7 @@ theorem divPred_base {n : ℕ} (σ : ℕ → F) (hp : σ 2 = 1)
   have r7 := h (.range 7 n) (by simp)
   have e5 := h (.zero [⟨1, [1, 5]⟩, ⟨1, [6]⟩, ⟨-1, [8]⟩]) (by simp)
   have e6 := h (.zero [⟨1, [0, 2]⟩, ⟨-1, [2, 8]⟩]) (by simp)
-  simp only [Cstr.sat, Term.eval, List.map, List.prod_cons, List.prod_nil,
+  simp only [Constraint.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
     List.sum_cons, List.sum_nil] at e1 e3 e4 e5 e6 r5 r6 r7
   push_cast at e1 e3 e4 e5 e6
   rw [hp] at e3 e4 e6
@@ -84,17 +84,17 @@ theorem divPred_base {n : ℕ} (σ : ℕ → F) (hp : σ 2 = 1)
   refine ⟨by rw [hy] at e1; linear_combination -e1, r5, r6, by rw [← ht]; exact r7, ?_⟩
   linear_combination e6 - e5
 
-theorem divPredT_sound {n : ℕ} (hn : n ≤ 126) (σ : ℕ → F) (h : AllSat σ (divPredT n))
+theorem divPredGadget_sound {n : ℕ} (hn : n ≤ 126) (σ : ℕ → F) (h : AllHold σ (divPredGadget n))
     (hb : (σ 1).val < 2 ^ n) : divPredSpec σ := by
   intro hp
-  unfold divPredT AllSat at h
+  unfold divPredGadget AllHold at h
   rw [if_neg (by omega), List.append_nil] at h
   exact div_var_sound hn hb (divPred_base σ hp h)
 
-theorem divPredT128_sound (σ : ℕ → F) (h : AllSat σ (divPredT 128))
+theorem divPredGadget128_sound (σ : ℕ → F) (h : AllHold σ (divPredGadget 128))
     (hb : (σ 1).val < 2 ^ 128) : divPredSpec σ := by
   intro hp
-  unfold divPredT AllSat at h
+  unfold divPredGadget AllHold at h
   rw [if_pos rfl] at h
   have base := divPred_base (n := 128) σ hp (fun c hc => h c (List.mem_append_left _ hc))
   have r9 := h (.range 9 64) (by simp)
@@ -104,7 +104,7 @@ theorem divPredT128_sound (σ : ℕ → F) (h : AllSat σ (divPredT 128))
   have r13 := h (.range 13 64) (by simp)
   have e8 := h (.zero [⟨1, [1, 2]⟩, ⟨-(2 ^ 64 : ℕ), [2, 12]⟩, ⟨-1, [2, 13]⟩]) (by simp)
   have e9 := h (.zero [⟨1, [9, 12]⟩]) (by simp)
-  simp only [Cstr.sat, Term.eval, List.map, List.prod_cons, List.prod_nil,
+  simp only [Constraint.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
     List.sum_cons, List.sum_nil] at e7 e8 e9 r9 r10 r12 r13
   push_cast at e7 e8 e9
   rw [hp] at e7 e8
@@ -112,9 +112,9 @@ theorem divPredT128_sound (σ : ℕ → F) (h : AllSat σ (divPredT 128))
     ⟨base, split64 r9 r10 (by linear_combination e7), split64 r12 r13 (by linear_combination e8),
       by linear_combination e9⟩
 
-theorem truncT128_sound (σ : ℕ → F) (h : AllSat σ (truncT 128)) :
+theorem truncateGadget128_sound (σ : ℕ → F) (h : AllHold σ (truncateGadget 128)) :
     (σ 2).val = (σ 0).val % 2 ^ 128 := by
-  unfold truncT AllSat at h
+  unfold truncateGadget AllHold at h
   rw [if_pos rfl] at h
   have r1 := h (.range 1 126) (by simp)
   have r2 := h (.range 2 128) (by simp)
@@ -127,7 +127,7 @@ theorem truncT128_sound (σ : ℕ → F) (h : AllSat σ (truncT 128)) :
   have e5 := h (.zero [⟨1, [1, 6]⟩, ⟨-(q0 128 : ℤ), [6]⟩]) (by simp)
   have e6 := h (.zero [⟨1, [2, 6]⟩, ⟨(R' 128 : ℤ), [6]⟩, ⟨-1, [7]⟩]) (by simp)
   have r7 := h (.range 7 (N' 128)) (by simp)
-  simp only [Cstr.sat, Term.eval, List.map, List.prod_cons, List.prod_nil,
+  simp only [Constraint.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
     List.sum_cons, List.sum_nil] at e1 e2 e3 e4 e5 e6 r1 r2 r3 r4 r7
   push_cast at e1 e2 e3 e4 e5 e6
   have hbits : bits (2 ^ 128) = 129 := Nat.size_pow
@@ -162,12 +162,12 @@ theorem truncT128_sound (σ : ℕ → F) (h : AllSat σ (truncT 128)) :
       unfold R' N' M at e6; linear_combination -e6
     rw [← hu]; unfold N' M at r7; exact r7
 
-theorem moreThanEqT_sound {m : ℕ} (hm : 1 ≤ m) (hm128 : m ≤ 128) (σ : ℕ → F)
-    (h : AllSat σ (moreThanEqT m)) (ha : (σ 0).val < 2 ^ m) (hb : (σ 1).val < 2 ^ m) :
+theorem moreThanEqGadget_sound {m : ℕ} (hm : 1 ≤ m) (hm128 : m ≤ 128) (σ : ℕ → F)
+    (h : AllHold σ (moreThanEqGadget m)) (ha : (σ 0).val < 2 ^ m) (hb : (σ 1).val < 2 ^ m) :
     geSpec σ := by
   have hbits : bits (2 ^ m) = m + 1 := Nat.size_pow
   have hmr : bits (2 ^ m - 1) = m := bits_pow_sub_one hm
-  unfold moreThanEqT AllSat at h
+  unfold moreThanEqGadget AllHold at h
   have hc : DivConstConstraints (m + 1) (2 ^ m) (σ 0 - σ 1 + ((2 ^ m : ℕ) : F)) (σ 2) (σ 3) := by
     split_ifs at h with h128
     · subst h128
@@ -177,7 +177,7 @@ theorem moreThanEqT_sound {m : ℕ} (hm : 1 ≤ m) (hm128 : m ≤ 128) (σ : ℕ
       have r4 := h (.range 4 128) (by simp)
       have e2 := h (.zero [⟨(2 ^ 128 : ℕ), []⟩, ⟨1, [0]⟩, ⟨-1, [1]⟩, ⟨-(2 ^ 128 : ℕ), [2]⟩,
         ⟨-1, [3]⟩]) (by simp)
-      simp only [Cstr.sat, Term.eval, List.map, List.prod_cons, List.prod_nil,
+      simp only [Constraint.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
         List.sum_cons, List.sum_nil] at e1 e2 r2 r3 r4
       push_cast at e1 e2
       refine ⟨by rw [hbits]; simpa using r2, by rw [hmr]; exact r3, ?_, ?_⟩
@@ -190,7 +190,7 @@ theorem moreThanEqT_sound {m : ℕ} (hm : 1 ≤ m) (hm128 : m ≤ 128) (σ : ℕ
       have r3 := h (.range 3 m) (by simp)
       have e2 := h (.zero [⟨(2 ^ m : ℕ), []⟩, ⟨1, [0]⟩, ⟨-1, [1]⟩, ⟨-(2 ^ m : ℕ), [2]⟩,
         ⟨-1, [3]⟩]) (by simp)
-      simp only [Cstr.sat, Term.eval, List.map, List.prod_cons, List.prod_nil,
+      simp only [Constraint.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
         List.sum_cons, List.sum_nil] at e2 r2 r3
       push_cast at e2
       refine ⟨by rw [hbits]; simpa using r2, by rw [hmr]; exact r3, ?_, ?_⟩

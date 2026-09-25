@@ -33,7 +33,7 @@ namespace AcirLean
     (psub P Q).eval σ = P.eval σ - Q.eval σ := by
   simp [psub]; ring
 theorem eval_mulTerm (σ : ℕ → F) (t : Term) (Q : Poly) :
-    Poly.eval σ (Q.map fun u => (⟨t.coef * u.coef, t.ws ++ u.ws⟩ : Term)) = t.eval σ * Q.eval σ := by
+    Poly.eval σ (Q.map fun u => (⟨t.coef * u.coef, t.witnesses ++ u.witnesses⟩ : Term)) = t.eval σ * Q.eval σ := by
   induction Q with
   | nil => simp
   | cons u Q ih =>
@@ -66,10 +66,10 @@ theorem eval_collect (σ : ℕ → F) : ∀ P : Poly, (collect P).eval σ = P.ev
     congr 1
     exact ((isort_perm _ _).map σ).prod_eq
 
-theorem key_sat (σ : ℕ → F) (P : Poly) : (key P).sat σ ↔ P.eval σ = 0 := by
+theorem key_sat (σ : ℕ → F) (P : Poly) : (key P).Holds σ ↔ P.eval σ = 0 := by
   unfold key
-  rw [Cstr.canon_sat]
-  simp only [Cstr.sat]
+  rw [Constraint.canon_sat]
+  simp only [Constraint.Holds]
   rw [← eval_collect σ P]; rfl
 
 theorem comb_mem {f : Poly → Poly → Poly} {as bs : List Poly} {X : Poly}
@@ -80,14 +80,14 @@ theorem comb_mem {f : Poly → Poly → Poly} {as bs : List Poly} {X : Poly}
 
 
 section
-variable {cc : List Cstr} {σ : ℕ → F} (hcc : ∀ c ∈ cc, c.sat σ)
+variable {cc : List Constraint} {σ : ℕ → F} (hcc : ∀ c ∈ cc, c.Holds σ)
 include hcc
 
 theorem holdsZ_sound {P : Poly} (h : holdsZ cc P = true) : P.eval σ = 0 := by
   rw [← key_sat]
   unfold holdsZ at h
   split at h
-  · next he => rw [he]; simp [Cstr.sat]
+  · next he => rw [he]; simp [Constraint.Holds]
   · exact hcc _ (of_decide_eq_true h)
 
 theorem matV_sound {P : Poly} {w : ℕ} (h : matV cc P = some w) : σ w = P.eval σ := by
@@ -122,7 +122,7 @@ theorem wbound_sound {w L M : ℕ} (h : wbound cc w = some (L, M)) :
         simp only [Option.some.injEq] at hcM
         subst hv; subst hcM
         have := hcc _ hc
-        simp only [Cstr.sat, Range] at this
+        simp only [Constraint.Holds, Range] at this
         omega
       · simp at hcM
     · simp at hcM
@@ -211,7 +211,7 @@ theorem cast_val (x : F) : ((x.val : ℕ) : F) = x := ZMod.natCast_zmod_val x
 /-! ## The rules -/
 
 /-- `r` describes the value `v`. -/
-def RepOK2 (σ : ℕ → F) (r : Rep2) (v : F × VTy) : Prop :=
+def RepOK2 (σ : ℕ → F) (r : Rep2) (v : F × ValueType) : Prop :=
   r.ty = v.2 ∧ (∀ P ∈ r.alts, P.eval σ = v.1) ∧ r.L ≤ v.1.val ∧ v.1.val ≤ r.M
 
 theorem flag_ok (σ : ℕ → F) (alts : List Poly) (b : Bool) (L : ℕ) (hL : L = 0)
@@ -220,7 +220,7 @@ theorem flag_ok (σ : ℕ → F) (alts : List Poly) (b : Bool) (L : ℕ) (hL : L
   cases b <;> simp [flag, ZMod.val_one]
 
 section
-variable {cc : List Cstr} {σ : ℕ → F} (hcc : ∀ c ∈ cc, c.sat σ)
+variable {cc : List Constraint} {σ : ℕ → F} (hcc : ∀ c ∈ cc, c.Holds σ)
 include hcc
 
 theorem checked_sound {alts : List Poly} {x : F} (h : ∀ P ∈ alts, P.eval σ = x) {n L M : ℕ}
@@ -329,7 +329,7 @@ theorem eqFlags_sound {a b : Rep2} {x y : F}
 end
 
 section
-variable {cc : List Cstr} {σ : ℕ → F} (hcc : ∀ c ∈ cc, c.sat σ)
+variable {cc : List Constraint} {σ : ℕ → F} (hcc : ∀ c ∈ cc, c.Holds σ)
 include hcc
 
 theorem truncOK_sound {k q r : ℕ} {x : F} (h : truncOK cc k q r = true)
@@ -395,10 +395,10 @@ theorem truncOK_sound {k q r : ℕ} {x : F} (h : truncOK cc k q r = true)
 end
 
 section
-variable {cc : List Cstr} {σ : ℕ → F} (hcc : ∀ c ∈ cc, c.sat σ)
+variable {cc : List Constraint} {σ : ℕ → F} (hcc : ∀ c ∈ cc, c.Holds σ)
 include hcc
 
-theorem truncRep_sound {a : Rep2} {x : F} {tx : VTy} (ha : RepOK2 σ a (x, tx)) (k : ℕ) :
+theorem truncRep_sound {a : Rep2} {x : F} {tx : ValueType} (ha : RepOK2 σ a (x, tx)) (k : ℕ) :
     RepOK2 σ (truncRep cc a k) (((x.val % 2 ^ k : ℕ) : F), tx) := by
   obtain ⟨hta, hPa, hLa, hMa⟩ := ha
   simp only at hta hPa hLa hMa
@@ -423,7 +423,7 @@ theorem truncRep_sound {a : Rep2} {x : F} {tx : VTy} (ha : RepOK2 σ a (x, tx)) 
     have := Nat.mod_le x.val (2 ^ k)
     omega
 
-theorem binRep_sound {op : BOp} {a b r : Rep2} {x y : F} {tx ty : VTy}
+theorem binRep_sound {op : BinaryOp} {a b r : Rep2} {x y : F} {tx ty : ValueType}
     (h : binRep cc op a b = some r) (ha : RepOK2 σ a (x, tx)) (hb : RepOK2 σ b (y, ty)) :
     ∃ v, op.apply x y tx = some v ∧ RepOK2 σ r v := by
   obtain ⟨hta, hPa, hLa, hMa⟩ := ha
@@ -445,7 +445,7 @@ theorem binRep_sound {op : BOp} {a b r : Rep2} {x y : F} {tx ty : VTy}
   have hmul := @hcomb pmul (· * ·) (fun A B => eval_pmul σ A B)
   obtain ⟨aalts, aty, aL, aM⟩ := a
   simp only at hadd hsub hmul hFa hLa hMa ⊢
-  cases op <;> cases aty <;> simp only [binRep, BOp.apply, Option.some.injEq, reduceCtorEq] at h ⊢
+  cases op <;> cases aty <;> simp only [binRep, BinaryOp.apply, Option.some.injEq, reduceCtorEq] at h ⊢
   case add.field =>
     subst h
     exact ⟨_, rfl, rfl, hadd, Nat.zero_le _, by dsimp only; have := ZMod.val_lt (x + y); omega⟩
@@ -581,7 +581,7 @@ theorem lookup_ok {σ : ℕ → F} : ∀ {reps : List (ℕ × Rep2)} {env : Env}
       exact lookup_ok ht h
 
 theorem opRep_ok {σ : ℕ → F} {reps : List (ℕ × Rep2)} {env : Env} (hE : EnvOK σ reps env)
-    {o : Opnd} {r : Rep2} (h : opRep reps o = some r) :
+    {o : Operand} {r : Rep2} (h : opRep reps o = some r) :
     ∃ v, o.value env = some v ∧ RepOK2 σ r v := by
   cases o with
   | var id => exact lookup_ok hE h
@@ -597,10 +597,10 @@ theorem opRep_ok {σ : ℕ → F} {reps : List (ℕ × Rep2)} {env : Env} (hE : 
     · simp [ZMod.val_natCast]
 
 section
-variable {cc : List Cstr} {σ : ℕ → F} (hcc : ∀ c ∈ cc, c.sat σ)
+variable {cc : List Constraint} {σ : ℕ → F} (hcc : ∀ c ∈ cc, c.Holds σ)
 include hcc
 
-theorem step2_ok {reps : List (ℕ × Rep2)} {env : Env} (hE : EnvOK σ reps env) {i : Ins}
+theorem step2_ok {reps : List (ℕ × Rep2)} {env : Env} (hE : EnvOK σ reps env) {i : Instruction}
     {reps' : List (ℕ × Rep2)} (h : step2 cc reps i = some reps') :
     ∃ env', i.run env = some env' ∧ EnvOK σ reps' env' := by
   cases i with
@@ -612,7 +612,7 @@ theorem step2_ok {reps : List (ℕ × Rep2)} {env : Env} (hE : EnvOK σ reps env
     obtain ⟨v, hv, hokv⟩ := binRep_sound hcc hr hokx hoky
     simp only [Option.some.injEq] at h
     subst h
-    exact ⟨(d, v) :: env, by simp [Ins.run, hx, hy, hv], .cons ⟨rfl, hokv⟩ hE⟩
+    exact ⟨(d, v) :: env, by simp [Instruction.run, hx, hy, hv], .cons ⟨rfl, hokv⟩ hE⟩
   | not d a =>
     simp only [step2, Option.bind_eq_bind, Option.bind_eq_some_iff] at h
     obtain ⟨ra, hra, h⟩ := h
@@ -627,7 +627,7 @@ theorem step2_ok {reps : List (ℕ × Rep2)} {env : Env} (hE : EnvOK σ reps env
       subst hty
       have hxp : x.val ≤ 2 ^ n - 1 := by omega
       have hv : ((2 ^ n - 1 - x.val : ℕ) : F).val = 2 ^ n - 1 - x.val := val_natCast_of_lt (by omega)
-      refine ⟨(d, (((2 ^ n - 1 - x.val : ℕ) : F), .uint n)) :: env, by simp [Ins.run, hx],
+      refine ⟨(d, (((2 ^ n - 1 - x.val : ℕ) : F), .uint n)) :: env, by simp [Instruction.run, hx],
         .cons ⟨rfl, rfl, ?_, ?_, ?_⟩ hE⟩
       · intro P hP'
         obtain ⟨Q, hQ, rfl⟩ := List.mem_map.1 hP'
@@ -646,15 +646,15 @@ theorem step2_ok {reps : List (ℕ × Rep2)} {env : Env} (hE : EnvOK σ reps env
     subst h
     have hfit : ty.fits x = true := by
       cases ty <;> simp only [castOK, decide_eq_true_eq] at hc <;>
-        simp only [VTy.fits, decide_eq_true_eq] <;> omega
-    exact ⟨(d, (x, ty)) :: env, by simp [Ins.run, hx, hfit], .cons ⟨rfl, rfl, hP, hL, hM⟩ hE⟩
+        simp only [ValueType.fits, decide_eq_true_eq] <;> omega
+    exact ⟨(d, (x, ty)) :: env, by simp [Instruction.run, hx, hfit], .cons ⟨rfl, rfl, hP, hL, hM⟩ hE⟩
   | truncate d a k m =>
     simp only [step2, Option.bind_eq_bind, Option.bind_eq_some_iff] at h
     obtain ⟨ra, hra, h⟩ := h
     obtain ⟨⟨x, tx⟩, hx, hok⟩ := opRep_ok hE hra
     simp only [Option.some.injEq] at h
     subst h
-    exact ⟨(d, (((x.val % 2 ^ k : ℕ) : F), tx)) :: env, by simp [Ins.run, hx],
+    exact ⟨(d, (((x.val % 2 ^ k : ℕ) : F), tx)) :: env, by simp [Instruction.run, hx],
       .cons ⟨rfl, truncRep_sound hcc hok k⟩ hE⟩
   | constrain a b m =>
     simp only [step2, Option.bind_eq_bind, Option.bind_eq_some_iff] at h
@@ -669,7 +669,7 @@ theorem step2_ok {reps : List (ℕ × Rep2)} {env : Env} (hE : EnvOK σ reps env
     have hxy := eqVia_sound hcc he
     simp only at hPa hPb
     rw [forms_sound hcc hPa Xa hXa, forms_sound hcc hPb Xb hXb] at hxy
-    exact ⟨env, by simp [Ins.run, hx, hy, hxy], hE⟩
+    exact ⟨env, by simp [Instruction.run, hx, hy, hxy], hE⟩
   | rangeCheck a k m =>
     simp only [step2, Option.bind_eq_bind, Option.bind_eq_some_iff] at h
     obtain ⟨ra, hra, h⟩ := h
@@ -685,15 +685,15 @@ theorem step2_ok {reps : List (ℕ × Rep2)} {env : Env} (hE : EnvOK σ reps env
       · obtain ⟨⟨L, M⟩, hc⟩ := Option.isSome_iff_exists.1 hr
         have := checked_sound hcc hPa hc
         omega
-    exact ⟨env, by simp [Ins.run, hx, hk], hE⟩
+    exact ⟨env, by simp [Instruction.run, hx, hk], hE⟩
 
 end
 
 section
-variable {cc : List Cstr} {σ : ℕ → F} (hcc : ∀ c ∈ cc, c.sat σ)
+variable {cc : List Constraint} {σ : ℕ → F} (hcc : ∀ c ∈ cc, c.Holds σ)
 include hcc
 
-theorem paramRep_ok {w : ℕ} {ty : VTy} {r : Rep2} (h : paramRep cc w ty = some r) :
+theorem paramRep_ok {w : ℕ} {ty : ValueType} {r : Rep2} (h : paramRep cc w ty = some r) :
     RepOK2 σ r (σ w, ty) ∧ ty.fits (σ w) = true := by
   have hw := ZMod.val_lt (σ w)
   cases ty with
@@ -708,7 +708,7 @@ theorem paramRep_ok {w : ℕ} {ty : VTy} {r : Rep2} (h : paramRep cc w ty = some
     simp only [Option.some.injEq] at h
     subst h
     have := wbound_sound hcc hb
-    exact ⟨⟨rfl, by simp, this.1, this.2⟩, by simp [VTy.fits]; omega⟩
+    exact ⟨⟨rfl, by simp, this.1, this.2⟩, by simp [ValueType.fits]; omega⟩
   | sint n =>
     simp only [paramRep, Option.bind_eq_some_iff] at h
     obtain ⟨⟨L, M⟩, hb, h⟩ := h
@@ -716,9 +716,9 @@ theorem paramRep_ok {w : ℕ} {ty : VTy} {r : Rep2} (h : paramRep cc w ty = some
     simp only [Option.some.injEq] at h
     subst h
     have := wbound_sound hcc hb
-    exact ⟨⟨rfl, by simp, this.1, this.2⟩, by simp [VTy.fits]; omega⟩
+    exact ⟨⟨rfl, by simp, this.1, this.2⟩, by simp [ValueType.fits]; omega⟩
 
-theorem initReps_ok : ∀ (ps : List (ℕ × VTy)) (ws : List ℕ) (reps0 : List (ℕ × Rep2)),
+theorem initReps_ok : ∀ (ps : List (ℕ × ValueType)) (ws : List ℕ) (reps0 : List (ℕ × Rep2)),
     initReps cc ps ws = some reps0 →
     EnvOK σ reps0 ((ps.zip ((ws.map fun i => (σ i).val).map fun x => (x : F))).map
         fun ((id, ty), x) => (id, (x, ty))) ∧
@@ -741,9 +741,9 @@ theorem initReps_ok : ∀ (ps : List (ℕ × VTy)) (ws : List ℕ) (reps0 : List
     · simpa [cast_val] using hfit
     · exact hf e he
 
-theorem fold_ok2 : ∀ (body : List Ins) (reps : List (ℕ × Rep2)) (env : Env), EnvOK σ reps env →
+theorem fold_ok2 : ∀ (body : List Instruction) (reps : List (ℕ × Rep2)) (env : Env), EnvOK σ reps env →
     ∀ reps', body.foldlM (step2 cc) reps = some reps' →
-      ∃ env', body.foldlM Ins.run env = some env' ∧ EnvOK σ reps' env'
+      ∃ env', body.foldlM Instruction.run env = some env' ∧ EnvOK σ reps' env'
   | [], reps, env, hE, reps', h => by
     simp only [List.foldlM_nil, Option.pure_def, Option.some.injEq] at h
     subst h; exact ⟨env, rfl, hE⟩
@@ -755,7 +755,7 @@ theorem fold_ok2 : ∀ (body : List Ins) (reps : List (ℕ × Rep2)) (env : Env)
     exact ⟨env', by simp [List.foldlM_cons, he1, he'], hE'⟩
 
 theorem rets_ok {reps : List (ℕ × Rep2)} {env : Env} (hE : EnvOK σ reps env) :
-    ∀ (rs : List ℕ) (os : List Opnd), rs.length = os.length →
+    ∀ (rs : List ℕ) (os : List Operand), rs.length = os.length →
       (rs.zip os).all (fun (r, o) => retOK cc reps r o) = true →
       ∃ vs, os.mapM (fun o => (o.value env).map Prod.fst) = some vs ∧
         rs.map (fun i => (σ i).val) = vs.map ZMod.val
@@ -779,13 +779,13 @@ theorem rets_ok {reps : List (ℕ × Rep2)} {env : Env} (hE : EnvOK σ reps env)
 end
 
 /-- Acceptance by the checker implies the circuit implements the program. -/
-theorem checkProg2_sound (P : Prog2) (C : AcirFn) (h : checkProg2 P C = true) :
-    SoundFn C (ProgSpec2 P) := by
+theorem checkProg2_sound (P : Program) (C : AcirFunction) (h : checkProg2 P C = true) :
+    SoundFunction C (ProgramSpec P) := by
   intro σ hσ
-  have hcc : ∀ d ∈ C.cs.map Cstr.canon, d.sat σ := by
+  have hcc : ∀ d ∈ C.constraints.map Constraint.canon, d.Holds σ := by
     intro d hd
     obtain ⟨c, hc, rfl⟩ := List.mem_map.1 hd
-    exact (Cstr.canon_sat σ c).2 (hσ c hc)
+    exact (Constraint.canon_sat σ c).2 (hσ c hc)
   unfold checkProg2 at h
   simp only [Bool.and_eq_true, decide_eq_true_eq] at h
   obtain ⟨⟨hin, hret⟩, h⟩ := h
@@ -799,14 +799,14 @@ theorem checkProg2_sound (P : Prog2) (C : AcirFn) (h : checkProg2 P C = true) :
       obtain ⟨env, hrun, hE⟩ := fold_ok2 hcc P.body reps0 _ hE0 reps hfold
       obtain ⟨vs, hvs, hm⟩ := rets_ok hcc hE C.returns P.rets hret h
       refine ⟨by simp [hin], hfit, vs, ?_, hm⟩
-      simp only [Prog2.eval, Option.bind_eq_bind]
+      simp only [Program.eval, Option.bind_eq_bind]
       rw [hrun]
       simpa using hvs
 
 /-- The test programs: the checker accepts every one outside
 `uncoveredPrograms`, decided by evaluation in the kernel. -/
 theorem testPrograms_claims :
-    ∀ e ∈ testPrograms, e.name ∉ uncoveredPrograms → SoundFn e.fn (ProgSpec2 e.prog) := by
+    ∀ e ∈ testPrograms, e.name ∉ uncoveredPrograms → SoundFunction e.fn (ProgramSpec e.prog) := by
   have hc : testPrograms.all (fun e =>
       decide (e.name ∈ uncoveredPrograms) || checkProg2 e.prog e.fn) = true := by
     decide +kernel

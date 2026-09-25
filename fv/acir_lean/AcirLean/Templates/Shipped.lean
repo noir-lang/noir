@@ -18,20 +18,20 @@ into its `u = 0` check.
 namespace AcirLean
 
 /-- Keep the first occurrence of each constraint. -/
-def dropRepeats : List Cstr → List Cstr
+def dropRepeats : List Constraint → List Constraint
   | [] => []
   | c :: cs => c :: (dropRepeats cs).filter (fun d => d != c)
 
-def shippedDivT (n : ℕ) : AcirFn := { acirDivT n with cs := dropRepeats (acirDivT n).cs }
+def shippedDiv (n : ℕ) : AcirFunction := { acirGenDiv n with constraints := dropRepeats (acirGenDiv n).constraints }
 
-def shippedLtT (n : ℕ) : AcirFn := { acirLtT n with cs := dropRepeats (acirLtT n).cs }
+def shippedLt (n : ℕ) : AcirFunction := { acirGenLt n with constraints := dropRepeats (acirGenLt n).constraints }
 
-def shippedSignedLtT (n : ℕ) : AcirFn :=
-  { acirSignedLtT n with cs := dropRepeats (acirSignedLtT n).cs }
+def shippedSignedLt (n : ℕ) : AcirFunction :=
+  { acirGenSignedLt n with constraints := dropRepeats (acirGenSignedLt n).constraints }
 
-/-- `acirTruncT n` for `n < 128` with `N' n = 0`: repeats dropped, and the guard
+/-- `acirGenTruncate n` for `n < 128` with `N' n = 0`: repeats dropped, and the guard
 `r*y + R'*y - u = 0, u = 0` inlined to `r*y + R'*y = 0`. -/
-def truncInlinedT (n : ℕ) : List Cstr :=
+def truncInlinedGadget (n : ℕ) : List Constraint :=
   [ .range 2 (254 - n), .range 3 n,
     .zero [⟨1, [0]⟩, ⟨-(2 ^ n : ℕ), [2]⟩, ⟨-1, [3]⟩],
     .zero [⟨(q0 n : ℤ), []⟩, ⟨-1, [2]⟩, ⟨-1, [4]⟩],
@@ -41,8 +41,8 @@ def truncInlinedT (n : ℕ) : List Cstr :=
     .zero [⟨1, [3, 6]⟩, ⟨(R' n : ℤ), [6]⟩],
     .zero [⟨1, [1]⟩, ⟨-1, [3]⟩] ]
 
-def shippedTruncT (n : ℕ) : AcirFn :=
-  { acirTruncT n with
-    cs := if n ≠ 128 ∧ N' n = 0 then truncInlinedT n else dropRepeats (acirTruncT n).cs }
+def shippedTruncate (n : ℕ) : AcirFunction :=
+  { acirGenTruncate n with
+    constraints := if n ≠ 128 ∧ N' n = 0 then truncInlinedGadget n else dropRepeats (acirGenTruncate n).constraints }
 
 end AcirLean

@@ -10,11 +10,11 @@ import AcirLean.Proofs.Basic
 
 namespace AcirLean
 
-instance instDecidableCstrSatProofs (σ : ℕ → F) (c : Cstr) : Decidable (c.sat σ) := by
-  cases c <;> unfold Cstr.sat <;> unfold Range <;> infer_instance
+instance instDecidableCstrSatProofs (σ : ℕ → F) (c : Constraint) : Decidable (c.Holds σ) := by
+  cases c <;> unfold Constraint.Holds <;> unfold Range <;> infer_instance
 
-instance instDecidableAllSat (σ : ℕ → F) (cs : List Cstr) : Decidable (AllSat σ cs) := by
-  unfold AllSat; infer_instance
+instance instDecidableAllSat (σ : ℕ → F) (cs : List Constraint) : Decidable (AllHold σ cs) := by
+  unfold AllHold; infer_instance
 
 instance instDecidableInputsFit (σ : ℕ → F) (inputs : List (ℕ × ℕ)) :
     Decidable (InputsFit σ inputs) := by
@@ -55,23 +55,23 @@ def geWitness : ℕ → F
   | 4 => ((2 ^ 128 - 1 : ℕ) : F)
   | _ => 0
 
-theorem divVarT_satisfiable {n : ℕ} (hn : n ∈ pinnedWidths) :
-    Satisfiable (divVarT n) [(0, n), (1, n)] := by
+theorem divVarGadget_satisfiable {n : ℕ} (hn : n ∈ pinnedWidths) :
+    Satisfiable (divVarGadget n) [(0, n), (1, n)] := by
   simp only [pinnedWidths, List.mem_cons, List.not_mem_nil, or_false] at hn
   rcases hn with rfl | rfl | rfl | rfl | rfl <;> exact ⟨divWitness, by decide +kernel⟩
 
-theorem divPredT_satisfiable {n : ℕ} (hn : n ∈ pinnedWidths) :
-    Satisfiable (divPredT n) [(0, n), (1, n)] := by
+theorem divPredGadget_satisfiable {n : ℕ} (hn : n ∈ pinnedWidths) :
+    Satisfiable (divPredGadget n) [(0, n), (1, n)] := by
   simp only [pinnedWidths, List.mem_cons, List.not_mem_nil, or_false] at hn
   rcases hn with rfl | rfl | rfl | rfl | rfl <;> exact ⟨divPredWitness, by decide +kernel⟩
 
-theorem truncT_satisfiable {k : ℕ} (hk : k ∈ pinnedWidths) : Satisfiable (truncT k) [] := by
+theorem truncateGadget_satisfiable {k : ℕ} (hk : k ∈ pinnedWidths) : Satisfiable (truncateGadget k) [] := by
   refine ⟨truncWitness k, ?_⟩
   simp only [pinnedWidths, List.mem_cons, List.not_mem_nil, or_false] at hk
   rcases hk with rfl | rfl | rfl | rfl | rfl <;> decide +kernel
 
-theorem moreThanEqT_satisfiable {m : ℕ} (hm : m ∈ pinnedWidths) :
-    Satisfiable (moreThanEqT m) [(0, m), (1, m)] := by
+theorem moreThanEqGadget_satisfiable {m : ℕ} (hm : m ∈ pinnedWidths) :
+    Satisfiable (moreThanEqGadget m) [(0, m), (1, m)] := by
   simp only [pinnedWidths, List.mem_cons, List.not_mem_nil, or_false] at hm
   rcases hm with rfl | rfl | rfl | rfl | rfl <;> exact ⟨geWitness, by decide +kernel⟩
 

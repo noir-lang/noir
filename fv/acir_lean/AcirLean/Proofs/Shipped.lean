@@ -11,23 +11,23 @@ replaces. -/
 
 namespace AcirLean
 
-theorem mem_dropRepeats {c : Cstr} : ∀ {l : List Cstr}, c ∈ dropRepeats l ↔ c ∈ l
+theorem mem_dropRepeats {c : Constraint} : ∀ {l : List Constraint}, c ∈ dropRepeats l ↔ c ∈ l
   | [] => by simp [dropRepeats]
   | d :: cs => by
     simp only [dropRepeats, List.mem_cons, List.mem_filter, bne_iff_ne, ne_eq]
     rw [mem_dropRepeats]
     by_cases h : c = d <;> simp [h]
 
-theorem allSat_dropRepeats (σ : ℕ → F) (l : List Cstr) :
-    AllSat σ (dropRepeats l) ↔ AllSat σ l := by
-  simp only [AllSat, mem_dropRepeats]
+theorem allHold_dropRepeats (σ : ℕ → F) (l : List Constraint) :
+    AllHold σ (dropRepeats l) ↔ AllHold σ l := by
+  simp only [AllHold, mem_dropRepeats]
 
-theorem truncInlinedT_sound {n : ℕ} (hn1 : 2 ≤ n) (hn : n ≤ 125) (hN : N' n = 0) (σ : ℕ → F)
-    (h : AllSat σ (truncInlinedT n)) : (σ 1).val = (σ 0).val % 2 ^ n := by
+theorem truncInlinedGadget_sound {n : ℕ} (hn1 : 2 ≤ n) (hn : n ≤ 125) (hN : N' n = 0) (σ : ℕ → F)
+    (h : AllHold σ (truncInlinedGadget n)) : (σ 1).val = (σ 0).val % 2 ^ n := by
   have hbits : bits (2 ^ n) = n + 1 := Nat.size_pow
   have hmq : 254 - bits (2 ^ n) + 1 = 254 - n := by rw [hbits]; omega
   have hmr : bits (2 ^ n - 1) = n := bits_pow_sub_one (by omega)
-  unfold truncInlinedT AllSat at h
+  unfold truncInlinedGadget AllHold at h
   have r2 := h (.range 2 (254 - n)) (by simp)
   have r3 := h (.range 3 n) (by simp)
   have e1 := h (.zero [⟨1, [0]⟩, ⟨-(2 ^ n : ℕ), [2]⟩, ⟨-1, [3]⟩]) (by simp)
@@ -37,7 +37,7 @@ theorem truncInlinedT_sound {n : ℕ} (hn1 : 2 ≤ n) (hn : n ≤ 125) (hN : N' 
   have e4 := h (.zero [⟨1, [2, 6]⟩, ⟨-(q0 n : ℤ), [6]⟩]) (by simp)
   have e5 := h (.zero [⟨1, [3, 6]⟩, ⟨(R' n : ℤ), [6]⟩]) (by simp)
   have e6 := h (.zero [⟨1, [1]⟩, ⟨-1, [3]⟩]) (by simp)
-  simp only [Cstr.sat, Term.eval, List.map, List.prod_cons, List.prod_nil,
+  simp only [Constraint.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
     List.sum_cons, List.sum_nil] at e1 e2 e3 e4 e5 e6 r2 r3 r4
   push_cast at e1 e2 e3 e4 e5 e6
   have ht : σ 4 = ((q0 n : ℕ) : F) - σ 2 := by linear_combination -e2
@@ -59,28 +59,28 @@ theorem truncInlinedT_sound {n : ℕ} (hn1 : 2 ≤ n) (hn : n ≤ 125) (hN : N' 
   rw [show σ 1 = σ 3 by linear_combination e6, hr]
 
 theorem shipped_sound {n : ℕ} (hn : n ∈ pinnedWidths) :
-    SoundFn (shippedDivT n) (Computes2 n (BinOp.eval .div)) ∧
-    SoundFn (shippedLtT n) (Computes2 n (BinOp.eval .lt)) ∧
-    SoundFn (shippedTruncT n) (Computes1 (· % 2 ^ n)) ∧
-    SoundFn (shippedSignedLtT n)
-      (Computes2 n fun a b => if sint n a < sint n b then 1 else 0) := by
-  refine ⟨fun σ h => acirDivT_sound hn σ ((allSat_dropRepeats σ _).1 h),
-    fun σ h => acirLtT_sound hn σ ((allSat_dropRepeats σ _).1 h), ?_,
-    fun σ h => acirSignedLtT_sound hn σ ((allSat_dropRepeats σ _).1 h)⟩
+    SoundFunction (shippedDiv n) (Computes2 n (SsaBinOp.eval .div)) ∧
+    SoundFunction (shippedLt n) (Computes2 n (SsaBinOp.eval .lt)) ∧
+    SoundFunction (shippedTruncate n) (Computes1 (· % 2 ^ n)) ∧
+    SoundFunction (shippedSignedLt n)
+      (Computes2 n fun a b => if toSigned n a < toSigned n b then 1 else 0) := by
+  refine ⟨fun σ h => acirGenDiv_sound hn σ ((allHold_dropRepeats σ _).1 h),
+    fun σ h => acirGenLt_sound hn σ ((allHold_dropRepeats σ _).1 h), ?_,
+    fun σ h => acirGenSignedLt_sound hn σ ((allHold_dropRepeats σ _).1 h)⟩
   intro σ h
-  unfold shippedTruncT at h ⊢
+  unfold shippedTruncate at h ⊢
   split_ifs at h with hc
   · have hn64 : n ≤ 64 := by rcases pinned_cases hn with h' | h' <;> [omega; exact absurd h' hc.1]
     have hbd := pinned_bounds hn
-    simp only [acirTruncT, List.map, Computes1]
-    exact truncInlinedT_sound (by omega) (by omega) hc.2 σ h
-  · exact acirTruncT_sound hn σ ((allSat_dropRepeats σ _).1 h)
+    simp only [acirGenTruncate, List.map, Computes1]
+    exact truncInlinedGadget_sound (by omega) (by omega) hc.2 σ h
+  · exact acirGenTruncate_sound hn σ ((allHold_dropRepeats σ _).1 h)
 
 /-! ### Honest witnesses for the shipped circuits -/
 
 theorem shipped_satisfiable {n : ℕ} (hn : n ∈ pinnedWidths) :
-    SatisfiableFn (shippedDivT n) ∧ SatisfiableFn (shippedLtT n) ∧
-      SatisfiableFn (shippedTruncT n) ∧ SatisfiableFn (shippedSignedLtT n) := by
+    SatisfiableFunction (shippedDiv n) ∧ SatisfiableFunction (shippedLt n) ∧
+      SatisfiableFunction (shippedTruncate n) ∧ SatisfiableFunction (shippedSignedLt n) := by
   refine ⟨⟨acirDivWitness, ?_⟩, ⟨acirLtWitness, ?_⟩, ⟨acirTruncWitness n, ?_⟩,
     ⟨acirSignedLtWitness n, ?_⟩⟩ <;>
   simp only [pinnedWidths, List.mem_cons, List.not_mem_nil, or_false] at hn <;>

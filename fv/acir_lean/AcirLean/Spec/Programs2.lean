@@ -11,7 +11,7 @@ import AcirLean.Spec.Semantics
 
 The final SSA of a Noir `main` function made of one block of scalar
 instructions: arithmetic, comparisons, `not`, casts, truncation, range checks
-and assertions over `Field` and fixed-width integers. `Prog2.render` prints it
+and assertions over `Field` and fixed-width integers. `Program.render` prints it
 in the syntax `Ssa`'s `Display` uses, which is how the pin ties a program here
 to the SSA `nargo compile` actually produced.
 
@@ -22,57 +22,57 @@ two's-complement bit pattern.
 
 namespace AcirLean
 
-inductive VTy where
+inductive ValueType where
   | field
   | uint (n : ℕ)
   | sint (n : ℕ)
   deriving DecidableEq
 
 /-- An SSA value, or a typed constant (its integer value). -/
-inductive Opnd where
+inductive Operand where
   | var (id : ℕ)
-  | const (v : ℕ) (ty : VTy)
+  | const (v : ℕ) (ty : ValueType)
   deriving DecidableEq
 
-inductive BOp where
+inductive BinaryOp where
   | add | sub | mul | div | mod | lt | eq
   deriving DecidableEq
 
-inductive Ins where
+inductive Instruction where
   /-- `v<dst> = [unchecked_]<op> <a>, <b>` -/
-  | bin (dst : ℕ) (op : BOp) (unchecked : Bool) (a b : Opnd)
+  | bin (dst : ℕ) (op : BinaryOp) (unchecked : Bool) (a b : Operand)
   /-- `v<dst> = not <a>` -/
-  | not (dst : ℕ) (a : Opnd)
+  | not (dst : ℕ) (a : Operand)
   /-- `v<dst> = cast <a> as <ty>` -/
-  | cast (dst : ℕ) (a : Opnd) (ty : VTy)
+  | cast (dst : ℕ) (a : Operand) (ty : ValueType)
   /-- `v<dst> = truncate <a> to <bits> bits, max_bit_size: <maxBits>` -/
-  | truncate (dst : ℕ) (a : Opnd) (bits maxBits : ℕ)
+  | truncate (dst : ℕ) (a : Operand) (bits maxBits : ℕ)
   /-- `constrain <a> == <b>[, "<msg>"]` -/
-  | constrain (a b : Opnd) (msg : Option String)
+  | constrain (a b : Operand) (msg : Option String)
   /-- `range_check <a> to <bits> bits[, "<msg>"]` -/
-  | rangeCheck (a : Opnd) (bits : ℕ) (msg : Option String)
+  | rangeCheck (a : Operand) (bits : ℕ) (msg : Option String)
   deriving DecidableEq
 
 /-- `<header>` / `b0(<params>):` / `<body>` / `return <rets>` / `}`. -/
-structure Prog2 where
+structure Program where
   header : String
-  params : List (ℕ × VTy)
-  body : List Ins
-  rets : List Opnd
+  params : List (ℕ × ValueType)
+  body : List Instruction
+  rets : List Operand
   deriving DecidableEq
 
 /-! ## Printing -/
 
-def VTy.render : VTy → String
+def ValueType.render : ValueType → String
   | .field => "Field"
   | .uint n => s!"u{n}"
   | .sint n => s!"i{n}"
 
-def Opnd.render : Opnd → String
+def Operand.render : Operand → String
   | .var id => s!"v{id}"
   | .const v ty => s!"{ty.render} {v}"
 
-def BOp.name : BOp → String
+def BinaryOp.name : BinaryOp → String
   | .add => "add" | .sub => "sub" | .mul => "mul" | .div => "div" | .mod => "mod"
   | .lt => "lt" | .eq => "eq"
 
@@ -80,7 +80,7 @@ def msgSuffix : Option String → String
   | none => ""
   | some m => s!", \"{m}\""
 
-def Ins.render : Ins → String
+def Instruction.render : Instruction → String
   | .bin d op u a b =>
     s!"    v{d} = {if u then "unchecked_" else ""}{op.name} {a.render}, {b.render}"
   | .not d a => s!"    v{d} = not {a.render}"
@@ -89,35 +89,35 @@ def Ins.render : Ins → String
   | .constrain a b m => s!"    constrain {a.render} == {b.render}{msgSuffix m}"
   | .rangeCheck a k m => s!"    range_check {a.render} to {k} bits{msgSuffix m}"
 
-def Prog2.render (P : Prog2) : List String :=
+def Program.render (P : Program) : List String :=
   let params := ", ".intercalate (P.params.map fun (id, ty) => s!"v{id}: {ty.render}")
   let ret := if P.rets.isEmpty then "    return"
-    else "    return " ++ ", ".intercalate (P.rets.map Opnd.render)
-  [P.header, s!"  b0({params}):"] ++ P.body.map Ins.render ++ [ret, "}"]
+    else "    return " ++ ", ".intercalate (P.rets.map Operand.render)
+  [P.header, s!"  b0({params}):"] ++ P.body.map Instruction.render ++ [ret, "}"]
 
 /-! ## Meaning -/
 
 /-- The value fits its type. -/
-def VTy.fits : VTy → F → Bool
+def ValueType.fits : ValueType → F → Bool
   | .field, _ => true
   | .uint n, x => decide (x.val < 2 ^ n)
   | .sint n, x => decide (x.val < 2 ^ n)
 
 /-- Values of the SSA variables so far. -/
-abbrev Env := List (ℕ × (F × VTy))
+abbrev Env := List (ℕ × (F × ValueType))
 
-def Opnd.value (env : Env) : Opnd → Option (F × VTy)
+def Operand.value (env : Env) : Operand → Option (F × ValueType)
   | .var id => env.lookup id
   | .const v ty => some ((v : F), ty)
 
 /-- `1` or `0`, as a `u1`. -/
-def flag (b : Bool) : F × VTy := (if b then 1 else 0, .uint 1)
+def flag (b : Bool) : F × ValueType := (if b then 1 else 0, .uint 1)
 
 /-- A binary instruction on `x` and `y`, both of `x`'s type. Integer arithmetic
 fails when the result does not fit (unchecked arithmetic included: it is only
 meaningful when the compiler has shown it cannot overflow), and division fails
 on a zero divisor. `Field` supports `add`, `sub`, `mul` and `eq`. -/
-def BOp.apply (op : BOp) (x y : F) : VTy → Option (F × VTy)
+def BinaryOp.apply (op : BinaryOp) (x y : F) : ValueType → Option (F × ValueType)
   | .field =>
     match op with
     | .add => some (x + y, .field)
@@ -142,7 +142,7 @@ def BOp.apply (op : BOp) (x y : F) : VTy → Option (F × VTy)
 /-- Run one instruction. `cast` fails if the value does not fit the new type,
 `truncate` keeps the low `bits` bits, and `constrain` and `range_check` fail
 when their condition does not hold. -/
-def Ins.run (env : Env) : Ins → Option Env
+def Instruction.run (env : Env) : Instruction → Option Env
   | .bin d op _ a b => do
     let (x, tx) ← a.value env
     let (y, _) ← b.value env
@@ -168,23 +168,23 @@ def Ins.run (env : Env) : Ins → Option Env
     if x.val < 2 ^ k then some env else none
 
 /-- Bind the parameters, run the body, and read the return values. -/
-def Prog2.eval (P : Prog2) (ins : List F) : Option (List F) := do
+def Program.eval (P : Program) (ins : List F) : Option (List F) := do
   let env0 : Env := (P.params.zip ins).map fun ((id, ty), x) => (id, (x, ty))
-  let env ← P.body.foldlM Ins.run env0
+  let env ← P.body.foldlM Instruction.run env0
   P.rets.mapM fun o => (o.value env).map Prod.fst
 
 /-- A circuit implements the function: it takes one input per parameter,
 enforces each parameter's type, and returns exactly what the function returns
 (so it rejects every input on which the function fails). -/
-def ProgSpec2 (P : Prog2) : List ℕ → List ℕ → Prop := fun ins outs =>
+def ProgramSpec (P : Program) : List ℕ → List ℕ → Prop := fun ins outs =>
   ins.length = P.params.length ∧
     (∀ e ∈ P.params.zip ins, e.1.2.fits (e.2 : F) = true) ∧
     ∃ vs, P.eval (ins.map fun x => (x : F)) = some vs ∧ outs = vs.map ZMod.val
 
 /-- A test program: its final SSA and the circuit `nargo compile` shipped. -/
-structure ProgEntry where
+structure TestProgram where
   name : String
-  prog : Prog2
-  fn : AcirFn
+  prog : Program
+  fn : AcirFunction
 
 end AcirLean

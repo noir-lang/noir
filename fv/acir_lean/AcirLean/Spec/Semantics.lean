@@ -30,34 +30,37 @@ abbrev F := ZMod p
 /-- `RANGE { num_bits := k }`: the witness value is a `k`-bit integer. -/
 def Range (x : F) (k : ℕ) : Prop := x.val < 2 ^ k
 
-/-- A monomial `coef * w_1 * … * w_m` over witness indices `ws`. -/
+/-- A monomial `coef * w_1 * … * w_m`: a coefficient times the product of the
+listed witnesses (a constant term lists none). -/
 structure Term where
   coef : ℤ
-  ws : List ℕ
+  witnesses : List ℕ
   deriving DecidableEq
 
-/-- One ACIR constraint: an `AssertZero` polynomial (a sum of terms), or a
-`RANGE` check on witness `w`. -/
-inductive Cstr where
-  | zero (ts : List Term)
-  | range (w k : ℕ)
+/-- One ACIR constraint: an `AssertZero` polynomial (a sum of terms that must
+be `0`), or a `RANGE` check that `witness` fits in `bits` bits. -/
+inductive Constraint where
+  | zero (terms : List Term)
+  | range (witness bits : ℕ)
   deriving DecidableEq
 
-/-- The value of a term under the witness assignment `σ`. -/
-def Term.eval (σ : ℕ → F) (t : Term) : F := (t.coef : F) * (t.ws.map σ).prod
+/-- The value of a term under the witness assignment `σ` (`σ i` is the value the
+prover put in witness `i`). -/
+def Term.eval (σ : ℕ → F) (t : Term) : F := (t.coef : F) * (t.witnesses.map σ).prod
 
 /-- A constraint holds: the polynomial is `0`, or the range check passes. -/
-def Cstr.sat (σ : ℕ → F) : Cstr → Prop
-  | .zero ts => (ts.map (Term.eval σ)).sum = 0
-  | .range w k => Range (σ w) k
+def Constraint.Holds (σ : ℕ → F) : Constraint → Prop
+  | .zero terms => (terms.map (Term.eval σ)).sum = 0
+  | .range witness bits => Range (σ witness) bits
 
 /-- Every constraint in the list holds. -/
-def AllSat (σ : ℕ → F) (cs : List Cstr) : Prop := ∀ c ∈ cs, c.sat σ
+def AllHold (σ : ℕ → F) (constraints : List Constraint) : Prop :=
+  ∀ c ∈ constraints, c.Holds σ
 
 /-- An ACIR function as ACIR generation emits it: its constraints, and the
 witnesses holding its parameters and its return values. -/
-structure AcirFn where
-  cs : List Cstr
+structure AcirFunction where
+  constraints : List Constraint
   inputs : List ℕ
   returns : List ℕ
 

@@ -17,30 +17,30 @@ instruction `i - k` otherwise.
 
 namespace AcirLean
 
-inductive UOp where
+inductive CorpusOp where
   | div
   | lt
   deriving DecidableEq
 
 /-- `v<result> = <op> v<a>, v<b>`. -/
-structure UInstr where
-  op : UOp
+structure CorpusInstruction where
+  op : CorpusOp
   a : ℕ
   b : ℕ
   deriving DecidableEq
 
 /-- `acir(inline) fn main f0 { b0(v0: u<width>, …): <body> return v<ret> }`. -/
-structure UProg where
+structure CorpusProgram where
   width : ℕ
   nparams : ℕ
-  body : List UInstr
+  body : List CorpusInstruction
   ret : ℕ
   deriving DecidableEq
 
 /-- Run the program on the parameter values: `div` is integer division and
 fails on a zero divisor, `lt` is `1` or `0`. -/
-def UProg.eval (P : UProg) (ins : List ℕ) : Option ℕ :=
-  let step (vals : Option (List ℕ)) (i : UInstr) : Option (List ℕ) :=
+def CorpusProgram.eval (P : CorpusProgram) (ins : List ℕ) : Option ℕ :=
+  let step (vals : Option (List ℕ)) (i : CorpusInstruction) : Option (List ℕ) :=
     vals.bind fun vs =>
       let x := vs.getD i.a 0
       let y := vs.getD i.b 0
@@ -52,15 +52,15 @@ def UProg.eval (P : UProg) (ins : List ℕ) : Option ℕ :=
 /-- A circuit implements the program: it takes `nparams` inputs, enforces that
 each is an `n`-bit integer, and returns exactly what the program returns (so it
 rejects inputs the program fails on). -/
-def ProgSpec (P : UProg) : List ℕ → List ℕ → Prop := fun ins outs =>
+def CorpusSpec (P : CorpusProgram) : List ℕ → List ℕ → Prop := fun ins outs =>
   ins.length = P.nparams ∧ (∀ x ∈ ins, x < 2 ^ P.width) ∧
     ∃ v, P.eval ins = some v ∧ outs = [v]
 
 /-- A program, the circuit `nargo compile` ships for it, and a witness ACVM
 solved for it. -/
 structure CorpusEntry where
-  prog : UProg
-  fn : AcirFn
+  prog : CorpusProgram
+  fn : AcirFunction
   witness : List (ℕ × ℕ)
 
 /-- The solved witness as an assignment (unlisted witnesses are `0`). -/

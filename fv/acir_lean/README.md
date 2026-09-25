@@ -85,7 +85,7 @@ The reviewed Lean is about 750 lines, mostly comments. The notation you need:
     witness satisfying the circuit, the inputs fit their parameter types, the
     final SSA runs without failing on them (no overflow, no zero divisor, no
     failed `constrain` or `range_check`), and the circuit's return witnesses
-    hold what it returns (`ProgSpec2` in `Spec/Programs2.lean`).
+    hold what it returns (`ProgramSpec` in `Spec/Programs2.lean`).
 
 The `eq` gadget these use is sound only because the BN254 scalar field modulus
 is prime; `Proofs/Prime.lean` proves that with a Pratt certificate.
@@ -97,7 +97,7 @@ Claim 9 is not proved program by program. `Proofs/Checker.lean` defines
 (or `1 - w`) holds each value, and requires each instruction's proved gadget
 template, placed on a block of fresh witnesses, to appear among circuit `C`'s
 constraints (in a canonical form proved to preserve meaning). `checkProg_sound`
-proves once that acceptance implies `SoundFn C (ProgSpec P)`; the corpus claim
+proves once that acceptance implies `SoundFunction C (CorpusSpec P)`; the corpus claim
 is then one evaluation of `checkProg` over the corpus. Adding programs to the
 corpus needs no new proof, only programs the checker accepts.
 
@@ -145,9 +145,9 @@ redundant (a repeated constraint, a range check implied by another bound, and
 ## What is proved
 
 The claims cover the pinned widths (8, 16, 32, 64 and 128 bits). Most proofs
-in `Proofs/` hold for every width: `divVarT_sound` and `divPredT_sound` for
-`n ≤ 126`, `truncT_sound` for `2 ≤ k ≤ 125`, `moreThanEqT_sound` for
-`1 ≤ m ≤ 128`, and `signedLtT_correct` for `n ≥ 1`; 128-bit division and
+in `Proofs/` hold for every width: `divVarGadget_sound` and `divPredGadget_sound` for
+`n ≤ 126`, `truncateGadget_sound` for `2 ≤ k ≤ 125`, `moreThanEqGadget_sound` for
+`1 ≤ m ≤ 128`, and `signedLtSsa_correct` for `n ≥ 1`; 128-bit division and
 truncation take different branches and have their own proofs.
 `Examples/Bug7895.lean` shows that truncation without the `q ≤ q0` bound
 accepts a forged witness, and `Examples/RangeOptimizerBug.lean` shows the same
@@ -155,7 +155,7 @@ for a range optimizer that drops a parameter's range check.
 
 The whole-function claims are proved by composition: `Templates/Programs.lean`
 builds each compiled function from the gadget templates placed at new witness
-indices (`Cstr.rename`), the pin checks that this is exactly what ACIR
+indices (`Constraint.rename`), the pin checks that this is exactly what ACIR
 generation emits, and `Proofs/Programs.lean` applies each gadget's theorem at
 its new indices and chains the results.
 

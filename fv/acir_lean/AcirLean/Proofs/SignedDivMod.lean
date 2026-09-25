@@ -42,11 +42,11 @@ theorem abs_val {x s : F} {N : ℕ} (hN : 2 * N < p) (hx : x.val < 2 * N)
   · rw [if_neg (by omega), show x - 2 * x * 1 + ((2 * N : ℕ) : F) * 1 = ((2 * N : ℕ) : F) - x by ring,
       ZMod.val_sub (by rw [val_natCast_of_lt hN]; omega), val_natCast_of_lt hN]
 
-/-- `sint` as `|x|` and a sign. -/
+/-- `toSigned` as `|x|` and a sign. -/
 theorem sint_cases {n x : ℕ} (hn : 1 ≤ n) (hx : x < 2 ^ n) :
-    (x < 2 ^ (n - 1) ∧ sint n x = x) ∨
-      (2 ^ (n - 1) ≤ x ∧ sint n x = -((2 ^ n - x : ℕ) : ℤ)) := by
-  unfold sint
+    (x < 2 ^ (n - 1) ∧ toSigned n x = x) ∨
+      (2 ^ (n - 1) ≤ x ∧ toSigned n x = -((2 ^ n - x : ℕ) : ℤ)) := by
+  unfold toSigned
   split_ifs with h
   · exact Or.inl ⟨h, rfl⟩
   · right; refine ⟨by omega, ?_⟩
@@ -72,11 +72,11 @@ theorem two_pow_pred {n : ℕ} (hn : 1 ≤ n) : 2 ^ n = 2 * 2 ^ (n - 1) := by
   simp [pow_succ]; ring
 
 theorem signedPrefix_facts {n : ℕ} (hn1 : 2 ≤ n) (hn : n ≤ 64) (σ : ℕ → F)
-    (h : AllSat σ (signedPrefixT n)) : PrefixFacts n σ := by
+    (h : AllHold σ (signedDivModShared n)) : PrefixFacts n σ := by
   have h2 : 2 ^ n = 2 * 2 ^ (n - 1) := two_pow_pred (by omega)
   have hp : 2 ^ n < p := pow_lt_p (by omega)
   have hp2 : 2 * 2 ^ (n - 1) < p := by omega
-  unfold signedPrefixT AllSat at h
+  unfold signedDivModShared AllHold at h
   have r0 := h (.range 0 n) (by simp)
   have r1 := h (.range 1 n) (by simp)
   have e3 := h (.zero [⟨1, []⟩, ⟨-1, [0, 3]⟩, ⟨(2 ^ (n - 1) : ℕ), [3]⟩, ⟨-1, [4]⟩]) (by simp)
@@ -98,10 +98,10 @@ theorem signedPrefix_facts {n : ℕ} (hn1 : 2 ≤ n) (hn : n ≤ 64) (σ : ℕ �
   have r15 := h (.range 15 n) (by simp)
   have e13 := h (.zero [⟨1, [0]⟩, ⟨-2, [0, 7]⟩, ⟨(2 ^ n : ℕ), [7]⟩, ⟨-1, [12, 13]⟩,
     ⟨-1, [14]⟩]) (by simp)
-  simp only [Cstr.sat, Term.eval, List.map, List.prod_cons, List.prod_nil,
+  simp only [Constraint.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
     List.sum_cons, List.sum_nil, Range, Int.cast_natCast, Int.cast_neg, Int.cast_one,
     Int.cast_ofNat, mul_one, one_mul, add_zero] at e3 e4 e5 e6 e7 e8 e9 e10 e11 e12 e13
-  simp only [Cstr.sat, Range] at r0 r1 r7 r8 r9 r10 r13 r14 r15
+  simp only [Constraint.Holds, Range] at r0 r1 r7 r8 r9 r10 r13 r14 r15
   -- the sign bits
   have sa := sign_split (x := σ 0) (s := σ 7) (r := σ 8) (N := 2 ^ (n - 1)) hp2 (by omega) r8
     (by linear_combination e8)
@@ -142,14 +142,14 @@ theorem signedPrefix_facts {n : ℕ} (hn1 : 2 ≤ n) (hn : n ≤ 64) (σ : ℕ �
     by rw [hB]; rfl, by rw [← show (σ 12).val = absN n (σ 1).val by rw [hB]; rfl]; exact hB0,
     by rw [hdiv.1]; rfl, by rw [hdiv.2]; rfl⟩
 
-theorem encode_nat {n Q : ℕ} (h : Q < 2 ^ n) : encode n Q = Q := by
-  unfold encode
+theorem encode_nat {n Q : ℕ} (h : Q < 2 ^ n) : toBitPattern n Q = Q := by
+  unfold toBitPattern
   rw [Int.emod_eq_of_lt (by omega) (by exact_mod_cast h)]
   simp
 
 theorem encode_neg {n Q : ℕ} (h0 : 0 < Q) (h : Q ≤ 2 ^ n) :
-    encode n (-(Q : ℤ)) = 2 ^ n - Q := by
-  unfold encode
+    toBitPattern n (-(Q : ℤ)) = 2 ^ n - Q := by
+  unfold toBitPattern
   have hc : ((2 ^ n - Q : ℕ) : ℤ) = (2 : ℤ) ^ n - Q := by push_cast [Nat.cast_sub h]; ring
   have : (-(Q : ℤ)) % 2 ^ n = ((2 ^ n - Q : ℕ) : ℤ) := by
     rw [show (-(Q : ℤ)) = ((2 ^ n - Q : ℕ) : ℤ) + (-1) * 2 ^ n by rw [hc]; ring,
@@ -160,8 +160,8 @@ theorem encode_neg {n Q : ℕ} (h0 : 0 < Q) (h : Q ≤ 2 ^ n) :
 
 /-- A signed pattern's magnitude and sign. -/
 theorem sint_abs {n x : ℕ} (hn : 1 ≤ n) (hx : x < 2 ^ n) :
-    (x < 2 ^ (n - 1) ∧ absN n x = x ∧ sint n x = (absN n x : ℤ)) ∨
-      (2 ^ (n - 1) ≤ x ∧ absN n x = 2 ^ n - x ∧ sint n x = -(absN n x : ℤ)) := by
+    (x < 2 ^ (n - 1) ∧ absN n x = x ∧ toSigned n x = (absN n x : ℤ)) ∨
+      (2 ^ (n - 1) ≤ x ∧ absN n x = 2 ^ n - x ∧ toSigned n x = -(absN n x : ℤ)) := by
   unfold absN
   rcases sint_cases hn hx with ⟨h1, h2⟩ | ⟨h1, h2⟩
   · exact Or.inl ⟨h1, if_pos h1, by rw [h2, if_pos h1]⟩
@@ -173,7 +173,7 @@ theorem absN_le {n x : ℕ} (hn : 1 ≤ n) (hx : x < 2 ^ n) : absN n x ≤ 2 ^ (
 
 /-- The overflow case in terms of the patterns. -/
 theorem overflow_iff {n a b : ℕ} (hn : 1 ≤ n) (ha : a < 2 ^ n) (hb : b < 2 ^ n) :
-    (sint n a = -2 ^ (n - 1) ∧ sint n b = -1) → (a = 2 ^ (n - 1) ∧ b = 2 ^ n - 1) := by
+    (toSigned n a = -2 ^ (n - 1) ∧ toSigned n b = -1) → (a = 2 ^ (n - 1) ∧ b = 2 ^ n - 1) := by
   have h2 := two_pow_pred hn
   rintro ⟨h1, h2'⟩
   rcases sint_abs hn ha with ⟨_, ea, sa⟩ | ⟨la, ea, sa⟩ <;>
@@ -193,13 +193,13 @@ theorem overflow_iff {n a b : ℕ} (hn : 1 ≤ n) (ha : a < 2 ^ n) (hb : b < 2 ^
     omega
 
 theorem sint_of_lt {n x : ℕ} (hn : 1 ≤ n) (hx : x < 2 ^ n) (h : x < 2 ^ (n - 1)) :
-    sint n x = (absN n x : ℤ) := by
+    toSigned n x = (absN n x : ℤ) := by
   rcases sint_abs hn hx with ⟨_, _, e⟩ | ⟨h', _, _⟩
   · exact e
   · omega
 
 theorem sint_of_ge {n x : ℕ} (hn : 1 ≤ n) (hx : x < 2 ^ n) (h : 2 ^ (n - 1) ≤ x) :
-    sint n x = -(absN n x : ℤ) := by
+    toSigned n x = -(absN n x : ℤ) := by
   rcases sint_abs hn hx with ⟨h', _, _⟩ | ⟨_, _, e⟩
   · omega
   · exact e
@@ -228,17 +228,17 @@ theorem tmod_signs (A B : ℕ) :
   · rw [Int.neg_tmod, ← Int.ofNat_tmod]
   · rw [Int.neg_tmod, Int.tmod_neg, ← Int.ofNat_tmod]
 
-theorem shippedSDivT_sound {n : ℕ} (hn : n ∈ signedWidths) :
-    SoundFn (shippedSDivT n) (SignedOp n Int.tdiv) := by
+theorem shippedSignedDiv_sound {n : ℕ} (hn : n ∈ signedWidths) :
+    SoundFunction (shippedSignedDiv n) (SignedOp n Int.tdiv) := by
   intro σ h
   have hbd : 8 ≤ n ∧ n ≤ 64 := by
     simp only [signedWidths, List.mem_cons, List.not_mem_nil, or_false] at hn; omega
   have h2 := two_pow_pred (n := n) (by omega)
   have hp : 2 ^ n < p := pow_lt_p (by omega)
-  simp only [shippedSDivT, allSat_append] at h
+  simp only [shippedSignedDiv, allHold_append] at h
   obtain ⟨hpre, ht⟩ := h
   have PF := signedPrefix_facts (by omega) hbd.2 σ hpre
-  unfold AllSat at ht
+  unfold AllHold at ht
   have t1 := ht (.zero [⟨(2 ^ (n - 1) : ℕ), []⟩, ⟨-1, [13]⟩, ⟨-1, [16]⟩]) (by simp)
   have t2 := ht (.zero [⟨1, [7]⟩, ⟨-2, [7, 9]⟩, ⟨1, [9]⟩, ⟨-1, [17]⟩]) (by simp)
   have t3 := ht (.zero [⟨1, []⟩, ⟨-1, [13, 18]⟩, ⟨-1, [19]⟩]) (by simp)
@@ -246,7 +246,7 @@ theorem shippedSDivT_sound {n : ℕ} (hn : n ∈ signedWidths) :
   have t5 := ht (.zero [⟨1, [13]⟩, ⟨2, [16, 17]⟩, ⟨-1, [20]⟩]) (by simp)
   have t6 := ht (.zero [⟨1, []⟩, ⟨-1, [19]⟩, ⟨-1, [21]⟩]) (by simp)
   have t7 := ht (.zero [⟨1, [2]⟩, ⟨-1, [20, 21]⟩]) (by simp)
-  simp only [Cstr.sat, Term.eval, List.map, List.prod_cons, List.prod_nil,
+  simp only [Constraint.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
     List.sum_cons, List.sum_nil, Int.cast_natCast, Int.cast_neg, Int.cast_one,
     Int.cast_ofNat, mul_one, one_mul, add_zero] at t1 t2 t3 t4 t5 t6 t7
   simp only [List.map, SignedOp]
@@ -273,7 +273,7 @@ theorem shippedSDivT_sound {n : ℕ} (hn : n ∈ signedWidths) :
     rw [hret, flag.1 h13, sub_self, mul_zero, ZMod.val_zero]
     rcases sint_abs (n := n) (by omega) PF.ha with ⟨_, _, ea⟩ | ⟨_, _, ea⟩ <;>
     rcases sint_abs (n := n) (by omega) PF.hb with ⟨_, _, eb⟩ | ⟨_, _, eb⟩ <;>
-    rw [ea, eb] <;> (first | rw [dpp] | rw [dpn] | rw [dnp] | rw [dnn]) <;> rw [hQ0] <;> simp [encode]
+    rw [ea, eb] <;> (first | rw [dpp] | rw [dpn] | rw [dnp] | rw [dnn]) <;> rw [hQ0] <;> simp [toBitPattern]
   · have h13 : σ 13 ≠ 0 := fun h0 => by
       have := congrArg ZMod.val h0; rw [ZMod.val_zero, PF.hq] at this; omega
     rw [hret, flag.2 h13, sub_zero, mul_one, hs]
@@ -292,23 +292,23 @@ theorem shippedSDivT_sound {n : ℕ} (hn : n ∈ signedWidths) :
       simp only [mul_one, one_add_one_eq_two, sub_self, mul_zero, add_zero]
       rw [PF.hq, encode_nat (by omega)]
 
-theorem shippedSModT_sound {n : ℕ} (hn : n ∈ signedWidths) :
-    SoundFn (shippedSModT n) (SignedOp n Int.tmod) := by
+theorem shippedSignedMod_sound {n : ℕ} (hn : n ∈ signedWidths) :
+    SoundFunction (shippedSignedMod n) (SignedOp n Int.tmod) := by
   intro σ h
   have hbd : 8 ≤ n ∧ n ≤ 64 := by
     simp only [signedWidths, List.mem_cons, List.not_mem_nil, or_false] at hn; omega
   have h2 := two_pow_pred (n := n) (by omega)
   have hp : 2 ^ n < p := pow_lt_p (by omega)
-  simp only [shippedSModT, allSat_append] at h
+  simp only [shippedSignedMod, allHold_append] at h
   obtain ⟨hpre, ht⟩ := h
   have PF := signedPrefix_facts (by omega) hbd.2 σ hpre
-  unfold AllSat at ht
+  unfold AllHold at ht
   have m1 := ht (.zero [⟨1, []⟩, ⟨-1, [14, 16]⟩, ⟨-1, [17]⟩]) (by simp)
   have m2 := ht (.zero [⟨1, [14, 17]⟩]) (by simp)
   have m3 := ht (.zero [⟨(2 ^ n : ℕ), [7]⟩, ⟨-2, [7, 14]⟩, ⟨1, [14]⟩, ⟨-1, [18]⟩]) (by simp)
   have m4 := ht (.zero [⟨1, []⟩, ⟨-1, [17]⟩, ⟨-1, [19]⟩]) (by simp)
   have m5 := ht (.zero [⟨1, [2]⟩, ⟨-1, [18, 19]⟩]) (by simp)
-  simp only [Cstr.sat, Term.eval, List.map, List.prod_cons, List.prod_nil,
+  simp only [Constraint.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
     List.sum_cons, List.sum_nil, Int.cast_natCast, Int.cast_neg, Int.cast_one,
     Int.cast_ofNat, mul_one, one_mul, add_zero] at m1 m2 m3 m4 m5
   simp only [List.map, SignedOp]
@@ -333,7 +333,7 @@ theorem shippedSModT_sound {n : ℕ} (hn : n ∈ signedWidths) :
     rcases sint_abs (n := n) (by omega) PF.ha with ⟨_, _, ea⟩ | ⟨_, _, ea⟩ <;>
     rcases sint_abs (n := n) (by omega) PF.hb with ⟨_, _, eb⟩ | ⟨_, _, eb⟩ <;>
     rw [ea, eb] <;> (first | rw [mpp] | rw [mpn] | rw [mnp] | rw [mnn]) <;> rw [hR0] <;>
-      simp [encode]
+      simp [toBitPattern]
   · have h14 : σ 14 ≠ 0 := fun h0 => by
       have := congrArg ZMod.val h0; rw [ZMod.val_zero, PF.hr] at this; omega
     rw [hret, flag.2 h14, sub_zero, mul_one]
@@ -386,7 +386,7 @@ def smodWitness (n : ℕ) : ℕ → F
   | _ => 0
 
 theorem signed_satisfiable {n : ℕ} (hn : n ∈ signedWidths) :
-    SatisfiableFn (shippedSDivT n) ∧ SatisfiableFn (shippedSModT n) := by
+    SatisfiableFunction (shippedSignedDiv n) ∧ SatisfiableFunction (shippedSignedMod n) := by
   refine ⟨⟨sdivWitness n, ?_⟩, ⟨smodWitness n, ?_⟩⟩ <;>
   simp only [signedWidths, List.mem_cons, List.not_mem_nil, or_false] at hn <;>
   rcases hn with rfl | rfl | rfl | rfl <;> decide +kernel

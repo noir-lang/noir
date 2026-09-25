@@ -35,18 +35,18 @@ theorem isort_perm {α : Type} (le : α → α → Bool) : ∀ l : List α, (iso
   | [] => .refl _
   | x :: xs => (insertBy_perm le x _).trans ((isort_perm le xs).cons x)
 
-def Cstr.canon : Cstr → Cstr
+def Constraint.canon : Constraint → Constraint
   | .range w k => .range w k
   | .zero ts =>
-    let ts := (ts.map fun t => (⟨modP t.coef, isort (fun a b => decide (a ≤ b)) t.ws⟩ : Term))
-    let ts := isort (fun a b => listLe a.ws b.ws) (ts.filter fun t => t.coef != 0)
+    let ts := (ts.map fun t => (⟨modP t.coef, isort (fun a b => decide (a ≤ b)) t.witnesses⟩ : Term))
+    let ts := isort (fun a b => witnessListLe a.witnesses b.witnesses) (ts.filter fun t => t.coef != 0)
     let neg : Bool := match ts with
       | t :: _ => decide (t.coef > ((p - 1) / 2 : ℕ))
       | [] => false
-    .zero (if neg then ts.map (fun t => (⟨modP (-t.coef), t.ws⟩ : Term)) else ts)
+    .zero (if neg then ts.map (fun t => (⟨modP (-t.coef), t.witnesses⟩ : Term)) else ts)
 
 theorem eval_modP (σ : ℕ → F) (t : Term) :
-    Term.eval σ ⟨modP t.coef, isort (fun a b => decide (a ≤ b)) t.ws⟩ = Term.eval σ t := by
+    Term.eval σ ⟨modP t.coef, isort (fun a b => decide (a ≤ b)) t.witnesses⟩ = Term.eval σ t := by
   unfold Term.eval modP
   rw [ZMod.intCast_mod]
   congr 1
@@ -67,13 +67,13 @@ theorem sum_map_neg (f : Term → F) : ∀ l : List Term,
   | [] => by simp
   | t :: l => by simp [sum_map_neg f l]; ring
 
-theorem Cstr.canon_sat (σ : ℕ → F) (c : Cstr) : c.canon.sat σ ↔ c.sat σ := by
+theorem Constraint.canon_sat (σ : ℕ → F) (c : Constraint) : c.canon.Holds σ ↔ c.Holds σ := by
   cases c with
   | range w k => rfl
   | zero ts =>
-    simp only [Cstr.canon, Cstr.sat]
-    set ts1 := ts.map fun t => (⟨modP t.coef, isort (fun a b => decide (a ≤ b)) t.ws⟩ : Term)
-    set ts2 := isort (fun a b => listLe a.ws b.ws) (ts1.filter fun t => t.coef != 0)
+    simp only [Constraint.canon, Constraint.Holds]
+    set ts1 := ts.map fun t => (⟨modP t.coef, isort (fun a b => decide (a ≤ b)) t.witnesses⟩ : Term)
+    set ts2 := isort (fun a b => witnessListLe a.witnesses b.witnesses) (ts1.filter fun t => t.coef != 0)
     have h1 : (ts1.map (Term.eval σ)).sum = (ts.map (Term.eval σ)).sum := by
       simp only [ts1, List.map_map]
       congr 1
@@ -81,7 +81,7 @@ theorem Cstr.canon_sat (σ : ℕ → F) (c : Cstr) : c.canon.sat σ ↔ c.sat σ
     have h2 : (ts2.map (Term.eval σ)).sum = (ts.map (Term.eval σ)).sum := by
       rw [((isort_perm _ _).map _).sum_eq, sum_filter_nonzero σ ts1, h1]
       intro t _ ht; simp [Term.eval, ht]
-    have hneg : ((ts2.map fun t => (⟨modP (-t.coef), t.ws⟩ : Term)).map (Term.eval σ)).sum =
+    have hneg : ((ts2.map fun t => (⟨modP (-t.coef), t.witnesses⟩ : Term)).map (Term.eval σ)).sum =
         -(ts2.map (Term.eval σ)).sum := by
       rw [List.map_map, ← sum_map_neg]
       congr 1

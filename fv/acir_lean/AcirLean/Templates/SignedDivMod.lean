@@ -23,7 +23,7 @@ namespace AcirLean
 
 /-- The constraints `div` and `mod` share: the overflow check, the sign bits,
 `|b|`, and the unsigned division of `|a|` by `|b|`. -/
-def signedPrefixT (n : ℕ) : List Cstr :=
+def signedDivModShared (n : ℕ) : List Constraint :=
   [ .range 0 n, .range 1 n,
     .zero [⟨1, []⟩, ⟨-1, [0, 3]⟩, ⟨(2 ^ (n - 1) : ℕ), [3]⟩, ⟨-1, [4]⟩],
     .zero [⟨1, [0, 4]⟩, ⟨-(2 ^ (n - 1) : ℕ), [4]⟩],
@@ -42,8 +42,8 @@ def signedPrefixT (n : ℕ) : List Cstr :=
     .zero [⟨1, [0]⟩, ⟨-2, [0, 7]⟩, ⟨(2 ^ n : ℕ), [7]⟩, ⟨-1, [12, 13]⟩, ⟨-1, [14]⟩] ]
 
 /-- `fn main(v0: i<n>, v1: i<n>) -> i<n> { v0 / v1 }`, as shipped. -/
-def shippedSDivT (n : ℕ) : AcirFn where
-  cs := signedPrefixT n ++
+def shippedSignedDiv (n : ℕ) : AcirFunction where
+  constraints := signedDivModShared n ++
     [ .zero [⟨(2 ^ (n - 1) : ℕ), []⟩, ⟨-1, [13]⟩, ⟨-1, [16]⟩],
       .zero [⟨1, [7]⟩, ⟨-2, [7, 9]⟩, ⟨1, [9]⟩, ⟨-1, [17]⟩],
       .zero [⟨1, []⟩, ⟨-1, [13, 18]⟩, ⟨-1, [19]⟩],
@@ -55,8 +55,8 @@ def shippedSDivT (n : ℕ) : AcirFn where
   returns := [2]
 
 /-- `fn main(v0: i<n>, v1: i<n>) -> i<n> { v0 % v1 }`, as shipped. -/
-def shippedSModT (n : ℕ) : AcirFn where
-  cs := signedPrefixT n ++
+def shippedSignedMod (n : ℕ) : AcirFunction where
+  constraints := signedDivModShared n ++
     [ .zero [⟨1, []⟩, ⟨-1, [14, 16]⟩, ⟨-1, [17]⟩],
       .zero [⟨1, [14, 17]⟩],
       .zero [⟨(2 ^ n : ℕ), [7]⟩, ⟨-2, [7, 14]⟩, ⟨1, [14]⟩, ⟨-1, [18]⟩],

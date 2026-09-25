@@ -6,7 +6,7 @@ Usage: gen_programs.py <ssa-dir> <circuits.txt> <outside-out> <lean-out> <golden
 <ssa-dir> holds `<name>.ssa`, the `--show-ssa-pass` output of `nargo compile`;
 <circuits.txt> is what the `dump_artifacts` test prints for the artifacts. For
 every program whose final SSA is one ACIR `main` with one block of scalar
-instructions, writes a `ProgEntry` (its SSA and its shipped circuit) to
+instructions, writes a `TestProgram` (its SSA and its shipped circuit) to
 <lean-out> and the text Lean prints for it to <golden-out>. The other programs
 are listed in <outside-out> with the reason. Run by `regen_programs.sh`.
 Nothing here is trusted: `check.sh` requires Lean's printout of the data to
@@ -27,7 +27,7 @@ TY = r"(Field|u\d+|i\d+)"
 def ty(t):
     if t == "Field":
         return ".field"
-    return f".{'uint' if t[0] == 'u' else 'sint'} {t[1:]}"
+    return f".{'uint' if t[0] == 'u' else 'toSigned'} {t[1:]}"
 
 
 def opnd(s):
@@ -136,7 +136,7 @@ def lean_fn(lines):
             returns = line[8:]
         else:
             raise ValueError(f"opcode {line[:40]}")
-    return f"{{ cs := [{', '.join(cs)}], inputs := {inputs}, returns := {returns} }}"
+    return f"{{ constraints := [{', '.join(cs)}], inputs := {inputs}, returns := {returns} }}"
 
 
 def main():
@@ -159,7 +159,7 @@ def main():
             continue
         idx = len(entries)
         entries.append(
-            f"def prog{idx} : ProgEntry where\n"
+            f"def prog{idx} : TestProgram where\n"
             f"  name := \"{name}\"\n"
             f"  prog := {{ header := \"{header}\", params := [{', '.join(params)}], body := [{', '.join(body)}], rets := [{', '.join(f'({r})' for r in rets)}] }}\n"
             f"  fn := {fn}\n"
@@ -174,7 +174,7 @@ def main():
                 "`test_programs.golden`, and allows only plain definitions here.\n-/\n\n"
                 "import AcirLean.Spec.Programs2\n\nnamespace AcirLean\n\n")
         f.write("\n".join(entries))
-        f.write("\ndef testPrograms : List ProgEntry := [" +
+        f.write("\ndef testPrograms : List TestProgram := [" +
                 ", ".join(f"prog{i}" for i in range(len(entries))) + "]\n\nend AcirLean\n")
     open(expected_out, "w").write("\n".join(expected) + "\n")
     if pinned is None:
