@@ -64,33 +64,20 @@
 //! - per value, in `allocation_sites`, and inherited for block parameters when arguments all match to the same site
 //! - per `points_to` sets, in `points_to_sites`, if all write to a pointer have the same site.
 //!
-//! A second pass will conservatively associate allocation sites to load operations,
-//! when the `points_to` sets of the loaded address have a known allocation site.
-//! It is important to skip load operations during pass 1 so that store operations are not polluted by transient load results.
-//! The points-to-set sites are computed using stored values only — load results stay `NoAllocation` in pass 1 (less precise but sound).
-//! Pass 2 then propagates those points-to sites into to the load results.
+//! Load and `ArrayGet` results are never given a site: the cell they read may have been written
+//! by another activation of the function, by a caller, or by a callee the analysis cannot see.
 //!
 //! #### Must Alias
-//! Two values sharing the same `Known(site)` only must-alias if that static
-//! `Allocate` instruction fires at most once per program execution. Otherwise
-//! the same site corresponds to distinct runtime cells across calls, and
-//! trusting the site as an equality check would be unsound.
+//! Sites only flow through SSA values of one function (`Allocate` results, block parameters,
+//! `IfElse` results), so two values sharing the same `Known(site)` come from the same activation
+//! of that function. They must-alias if that `Allocate` fires at most once per activation.
 //!
-//! A site is *untrusted* when it can fire multiple times. We track this in:
-//! - `loop_allocates` — `Allocate`s sitting inside a CFG loop in their
-//!   defining function: each iteration produces a fresh cell.
-//! - `untrusted_site_functions` — functions whose body itself runs more than
-//!   once per execution. This is seeded with the recursive (self- and
-//!   mutually-recursive) functions from the call graph and extended during
-//!   pass 1 with callee-side replication: a callee whose `return_values`
-//!   slot is reused and a callee invoked from a loop block
-//!   in the caller. Pass 1 walks functions caller-before-callee in
-//!   call-graph topological order so this propagates transitively — when
-//!   analyzing an already-untrusted function, every block is treated as a
-//!   loop block, marking every nested callee untrusted in turn.
+//! A site is *untrusted* when it can fire multiple times in one activation:
+//! `loop_allocates` records the `Allocate`s sitting inside a CFG loop, where each
+//! iteration produces a fresh cell. Functions in `untrusted_site_functions` (recursive,
+//! called from several sites or from a loop) have all their `Allocate`s recorded there too.
 //!
-//! `must_alias` rejects sites caught by either filter; only trusted sites
-//! survive as equivalence keys.
+//! `must_alias` rejects `loop_allocates` sites; only trusted sites survive as equivalence keys.
 //!
 //! ## References
 //!
@@ -154,9 +141,6 @@ pub(crate) struct AliasAnalysis {
     /// This is used to recover precision by saying that two values having
     /// two distinct allocation sites cannot alias.
     allocation_sites: HashMap<GlobalValueId, AllocationLattice>,
-
-    /// Functions whose body may run more than once per program execution.
-    untrusted_site_functions: HashSet<FunctionId>,
 
     /// Individual `Allocate` instructions inside loops. Each iteration
     /// of a loop produces a fresh cell, so the static site must not pin
@@ -294,18 +278,11 @@ impl AliasAnalysis {
     }
 
     /// Extract the allocation site if it is trusted:
-    /// A site is untrusted if multiple runtime cells may share it.
-    /// This happens when:
-    /// - the defining function may be called multiple times (e.g. recursion), or
-    /// - the allocation is done inside a loop.
+    /// A site is untrusted if multiple runtime cells of the same activation may share it,
+    /// which happens when the allocation is recorded in `loop_allocates`.
     fn is_trusted(&self, allocation_site: AllocationLattice) -> Option<GlobalValueId> {
         match allocation_site {
-            AllocationLattice::Known(site)
-                if !(self.untrusted_site_functions.contains(&site.func_id())
-                    || self.loop_allocates.contains(&site)) =>
-            {
-                Some(site)
-            }
+            AllocationLattice::Known(site) if !self.loop_allocates.contains(&site) => Some(site),
             _ => None,
         }
     }
@@ -424,7 +401,7 @@ impl AliasAnalysisContext {
             analysis.analyze_function(ssa, function);
         }
 
-        // Pass 2: propagate sites for Load / ArrayGet from the allocation site of their address's pointees
+        // Pass 2: recompute block-parameter and `IfElse` sites
         for function in &functions {
             analysis.refine_allocation_sites(function, ssa.is_entry_point(function.id()));
         }
@@ -447,16 +424,12 @@ impl AliasAnalysisContext {
             points_to: analysis.points_to,
             class_sizes: None,
             allocation_sites: analysis.allocation_sites,
-            untrusted_site_functions: analysis.untrusted_site_functions,
             loop_allocates: analysis.loop_allocates,
         }
     }
 
-    /// Pass 2: refine allocation site information using the post-pass-1 state of `points_to_sites`
-    /// to recover precision for load operations (and non-store instructions).
-    /// This pass must be done after the first one to benefit from `points_to_sites` computations.
-    /// Stores sites must NOT be handled here because this can impact Load sites,
-    /// and this would require a fixed-point computation. They are explicitly added as an empty case.
+    /// Pass 2: recompute the allocation sites of block parameters and `IfElse` results,
+    /// now that every value has a pass-1 site.
     fn refine_allocation_sites(&mut self, function: &Function, is_entry_point: bool) {
         let cfg = ControlFlowGraph::with_function(function);
         let blocks = PostOrder::with_cfg(&cfg).into_vec_reverse();
@@ -465,12 +438,6 @@ impl AliasAnalysisContext {
             for inst_id in function.dfg[block_id].instructions() {
                 let results = function.dfg.instruction_results(*inst_id);
                 match &function.dfg[*inst_id] {
-                    Instruction::Load { address } => {
-                        self.set_pointer_allocation_site(function, results[0], *address);
-                    }
-                    Instruction::ArrayGet { array, .. } => {
-                        self.set_pointer_allocation_site(function, results[0], *array);
-                    }
                     Instruction::IfElse { then_value, else_value, .. } => {
                         self.allocation_site_for_ifelse(
                             function,
@@ -486,35 +453,6 @@ impl AliasAnalysisContext {
                 }
             }
         }
-    }
-
-    /// Assign a known allocation site to the result of a load operation
-    /// if the loaded address points to a known site.
-    fn set_pointer_allocation_site(
-        &mut self,
-        function: &Function,
-        result: ValueId,
-        container: ValueId,
-    ) {
-        if !function.dfg.type_of_value(result).contains_reference() {
-            return;
-        }
-        let result_global = GlobalValueId::new(function, result);
-        let site = self.get_pointer_allocation_site(function, container);
-        self.set_allocation(result_global, site);
-    }
-
-    /// Retrieve a `pointer allocation site`, i.e the site of the elements pointed by it
-    fn get_pointer_allocation_site(
-        &mut self,
-        function: &Function,
-        pointer: ValueId,
-    ) -> AllocationLattice {
-        let pointer_global = GlobalValueId::new(function, pointer);
-        let pointee =
-            self.get_pointee(pointer_global).expect("ICE - Pointer does not reference a value");
-        let pointee_root = self.aliases.find(pointee);
-        *self.points_to_sites.get(&pointee_root).unwrap_or(&AllocationLattice::NoAllocation)
     }
 
     /// Compute the IfElse-result site as the join of the two branches'
@@ -3427,11 +3365,8 @@ mod tests {
     }
 
     #[test]
-    fn must_alias_via_load_single_store() {
-        // Pass 2 propagates the pointee_sites lattice into Load results.
-        // When only `v1` has been stored at `*v0`, `pointee_sites[*v0]` is
-        // `Known(v1)`, so the loaded value inherits site `Some(v1)` and
-        // must-aliases v1.
+    fn may_alias_via_load_single_store() {
+        // `v2` is loaded from `*v0` after `v1` was stored there, so it is `v1`.
         let src = "
         acir(inline) fn main f0 {
           b0():
@@ -3445,15 +3380,83 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let allocs = collect_allocates(&ssa);
         let loads = collect_loads(&ssa);
-        let analysis = analyze_main(&ssa);
-        assert!(analysis.must_alias(allocs[1], loads[0]));
+        let mut analysis = analyze_main(&ssa);
+        assert!(analysis.may_alias(ssa.main(), allocs[1], loads[0]));
+    }
+
+    #[test]
+    fn may_alias_via_array_get_single_make_array() {
+        // Every element of `v1` is `v0`, so `v2 = array_get v1` is `v0`.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = make_array [v0, v0] : [&mut Field; 2]
+            v2 = array_get v1, index u32 0 -> &mut Field
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let allocs = collect_allocates(&ssa);
+        let gets = collect_array_gets(&ssa);
+        let mut analysis = analyze_main(&ssa);
+        assert!(analysis.may_alias(ssa.main(), allocs[0], gets[0]));
+    }
+
+    #[test]
+    fn may_alias_ifelse_over_load_result() {
+        // `v3` is loaded from `*v2` after `v1` was stored there, so both
+        // branches of `v5` are `v1`.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = allocate -> &mut Field
+            v2 = allocate -> &mut &mut Field
+            store v1 at v2
+            v3 = load v2 -> &mut Field
+            v4 = not v0
+            v5 = if v0 then v1 else (if v4) v3
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let allocs = collect_allocates(&ssa);
+        let ifelse_results = collect_ifelse_results(&ssa);
+        let mut analysis = analyze_main(&ssa);
+        assert!(analysis.may_alias(ssa.main(), allocs[0], ifelse_results[0]));
+    }
+
+    #[test]
+    fn may_alias_through_chain_passed_to_foreign_call() {
+        // The foreign call receives `v2` but does not change the chain, so
+        // after it `v3 = load v2` is `v1` and `v4 = load v3` is `v0`.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = allocate -> &mut &mut Field
+            store v0 at v1
+            v2 = allocate -> &mut &mut &mut Field
+            store v1 at v2
+            call oracle_op(v2)
+            v3 = load v2 -> &mut &mut Field
+            v4 = load v3 -> &mut Field
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let allocs = collect_allocates(&ssa);
+        let loads = collect_loads(&ssa);
+        let mut analysis = analyze_main(&ssa);
+        // loads[0] = v3 (load v2), loads[1] = v4 (load v3)
+        assert!(analysis.may_alias(ssa.main(), allocs[1], loads[0]));
+        assert!(analysis.may_alias(ssa.main(), allocs[0], loads[1]));
     }
 
     #[test]
     fn must_alias_via_load_mixed_stores_false() {
-        // Two distinct allocations have been stored at `*v0`, so the lattice
-        // collapses to `NoAllocation`. Pass 2 sets no site on the loaded value
-        // and must_alias returns false.
+        // Two distinct allocations have been stored at `*v0`; the loaded
+        // value has no site and must_alias returns false.
         let src = "
         acir(inline) fn main f0 {
           b0():
@@ -3472,51 +3475,6 @@ mod tests {
         let analysis = analyze_main(&ssa);
         assert!(!analysis.must_alias(allocs[1], loads[0]));
         assert!(!analysis.must_alias(allocs[2], loads[0]));
-    }
-
-    #[test]
-    fn must_alias_via_array_get_single_make_array() {
-        // `MakeArray` joins each element's site into the array's pointee
-        // class. When every element is `v0`, the lattice is `Known(v0)` and
-        // `array_get` inherits site `Some(v0)`.
-        let src = "
-        acir(inline) fn main f0 {
-          b0():
-            v0 = allocate -> &mut Field
-            v1 = make_array [v0, v0] : [&mut Field; 2]
-            v2 = array_get v1, index u32 0 -> &mut Field
-            return
-        }
-        ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let allocs = collect_allocates(&ssa);
-        let gets = collect_array_gets(&ssa);
-        let analysis = analyze_main(&ssa);
-        assert!(analysis.must_alias(allocs[0], gets[0]));
-    }
-
-    #[test]
-    fn must_alias_ifelse_over_load_result() {
-        // Pass 2b: an IfElse over a load result picks up the load's site
-        // (set by pass 2a). Both branches resolve to `Some(v1)`, so the
-        // IfElse result must-aliases v1.
-        let src = "
-        acir(inline) fn main f0 {
-          b0(v0: u1):
-            v1 = allocate -> &mut Field
-            v2 = allocate -> &mut &mut Field
-            store v1 at v2
-            v3 = load v2 -> &mut Field
-            v4 = not v0
-            v5 = if v0 then v1 else (if v4) v3
-            return
-        }
-        ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let allocs = collect_allocates(&ssa);
-        let ifelse_results = collect_ifelse_results(&ssa);
-        let analysis = analyze_main(&ssa);
-        assert!(analysis.must_alias(allocs[0], ifelse_results[0]));
     }
 
     /// loop-Allocate
@@ -3563,37 +3521,6 @@ mod tests {
     }
 
     #[test]
-    fn foreign_call_preserves_local_sites_under_no_escape() {
-        // A foreign call cannot reenter program code, so it does not flag
-        // the calling function as recursive. Combined with the no-escape
-        // invariant — function-local allocations cannot leak into the
-        // caller's pointee chains — sites stored before the call survive,
-        // and post-call loads through the chain still must-alias the
-        // originally stored values.
-        let src = "
-        brillig(inline) fn main f0 {
-          b0():
-            v0 = allocate -> &mut Field
-            v1 = allocate -> &mut &mut Field
-            store v0 at v1
-            v2 = allocate -> &mut &mut &mut Field
-            store v1 at v2
-            call oracle_op(v2)
-            v3 = load v2 -> &mut &mut Field
-            v4 = load v3 -> &mut Field
-            return
-        }
-        ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let allocs = collect_allocates(&ssa);
-        let loads = collect_loads(&ssa);
-        let analysis = analyze_main(&ssa);
-        // loads[0] = v3 (load v2), loads[1] = v4 (load v3)
-        assert!(analysis.must_alias(allocs[1], loads[0]));
-        assert!(analysis.must_alias(allocs[0], loads[1]));
-    }
-
-    #[test]
     fn entry_point_parameter_pointees_are_poisoned() {
         // For entry-point parameters the "caller" is external and may
         // have stashed any value into the parameters' pointee chains
@@ -3619,8 +3546,7 @@ mod tests {
         let allocs = collect_allocates(&ssa);
         let loads = collect_loads(&ssa);
         let analysis = analyze_main(&ssa);
-        // The store happened *after* the entry-point poison, so the
-        // class is NoAllocation; the load's result has no site.
+        // The load's result has no site.
         assert!(!analysis.must_alias(allocs[0], loads[0]));
     }
 
@@ -3631,7 +3557,7 @@ mod tests {
     acir(inline) fn main f0 {
       b0(v0: &mut &mut Field):
         v1 = allocate -> &mut Field
-        v2 = load v0 -> &mut Field   // v2.site = External after pass 2
+        v2 = load v0 -> &mut Field
         return
     }
     ";
@@ -3646,17 +3572,10 @@ mod tests {
     /// Multi-call-site site propagation
     ///
     /// Steensgaard merges all call sites of `f1` into a single alias
-    /// class, so `points_to_sites` for `f1::outer`'s pointee class —
-    /// set to `Known(f1::inner)` by the store inside `f1` — becomes
-    /// the site of every load through any call result. Pass 2 writes
-    /// `Known(f1::inner)` into both `main.v1` (load through the first
-    /// call's result) and `main.v3` (load through the second call's
-    /// result). The two `inner` cells are distinct at runtime — each
-    /// call to `f1` allocates a fresh one — so `must_alias` between
-    /// them must be `false`. `is_trusted` enforces this by also
-    /// rejecting sites in `untrusted_site_functions`, which is
-    /// populated as soon as a callee's `return_values` slot is reused
-    /// by a second call site.
+    /// class, so `main.v1` (load through the first call's result) and
+    /// `main.v3` (load through the second call's result) share a class.
+    /// The two `inner` cells are distinct at runtime — each call to `f1`
+    /// allocates a fresh one — so `must_alias` between them must be `false`.
     #[test]
     fn must_alias_sound_on_multi_call_site_non_recursive_callee() {
         let src = "
@@ -3723,14 +3642,8 @@ mod tests {
         let loads = collect_loads(&ssa);
         let analysis = analyze_main(&ssa);
         // Only one Load instruction (in b1), but it executes once per
-        // iteration. Two iterations see two distinct `f1::inner` cells.
-        // Because the analysis associates a *single* GlobalValueId with
-        // the load, we cannot assert across iterations directly here —
-        // but the trusted site `Known(f1::inner)` is enough to fool any
-        // consumer that compares loads across iterations via must_alias.
-        // The companion load_store_forwarding test exercises that path.
-        // We assert here that the load's site is *not* a trusted one —
-        // i.e. that nothing trusts `Known(f1::inner)` for this load.
+        // iteration. Two iterations see two distinct `f1::inner` cells,
+        // so the load's site must not be a trusted one.
         assert!(
             analysis.get_trusted_allocation_site(loads[0]).is_none(),
             "the load's allocation site is trusted, but each loop \

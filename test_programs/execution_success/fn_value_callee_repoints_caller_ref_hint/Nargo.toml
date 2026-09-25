@@ -1,0 +1,6 @@
+[package]
+name = "fn_value_callee_repoints_caller_ref_hint"
+type = "bin"
+authors = [""]
+
+[dependencies]
