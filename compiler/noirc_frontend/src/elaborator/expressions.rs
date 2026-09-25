@@ -68,13 +68,35 @@ impl Elaborator<'_> {
         expr: Expression,
         target_type: Option<&Type>,
     ) -> (ExprId, Type) {
+        let unconstrained_argument = false;
+        self.elaborate_expression_with_target_type_and_runtime(
+            expr,
+            target_type,
+            unconstrained_argument,
+        )
+    }
+
+    /// [`Self::elaborate_expression_with_target_type`] for an expression that may itself be an
+    /// argument of a call to an unconstrained function.
+    ///
+    /// `unconstrained_argument` describes `expr` alone: it reaches a lambda written directly as the
+    /// argument (possibly parenthesized) and nothing nested inside it. A lambda in a block, a
+    /// tuple, or another lambda's body is not the value being passed, so it is elaborated with the
+    /// runtime its own target type asks for.
+    fn elaborate_expression_with_target_type_and_runtime(
+        &mut self,
+        expr: Expression,
+        target_type: Option<&Type>,
+        unconstrained_argument: bool,
+    ) -> (ExprId, Type) {
         if !self.inc_recursion_depth(expr.location) {
             let id = self.interner.push_expr_full(HirExpression::Error, expr.location, Type::Error);
             return (id, Type::Error);
         }
 
-        let ((id, typ), has_errors) =
-            self.with_error_guard(|this| this.elaborate_expression_inner(expr, target_type));
+        let ((id, typ), has_errors) = self.with_error_guard(|this| {
+            this.elaborate_expression_inner(expr, target_type, unconstrained_argument)
+        });
 
         self.dec_recursion_depth();
 
@@ -98,18 +120,31 @@ impl Elaborator<'_> {
     ///
     /// The resulting type is then unified against the expected type so that a potential
     /// lambda following this argument can have more concrete types.
+    ///
+    /// `callee_unconstrained` is whether the function being called is unconstrained, in which case
+    /// a lambda written as this argument will run inside it and is elaborated as unconstrained (see
+    /// `elaborate_lambda_with_target_type`).
     fn elaborate_call_argument(
         &mut self,
         arg: Expression,
         expected_type: Option<&Type>,
+        callee_unconstrained: bool,
         is_macro_call: bool,
     ) -> (ExprId, Type) {
         let (arg, typ) = if is_macro_call {
             self.elaborate_in_comptime_context(|this| {
-                this.elaborate_expression_with_target_type(arg, expected_type)
+                this.elaborate_expression_with_target_type_and_runtime(
+                    arg,
+                    expected_type,
+                    callee_unconstrained,
+                )
             })
         } else {
-            self.elaborate_expression_with_target_type(arg, expected_type)
+            self.elaborate_expression_with_target_type_and_runtime(
+                arg,
+                expected_type,
+                callee_unconstrained,
+            )
         };
 
         if let Some(expected_type) = expected_type {
@@ -124,6 +159,7 @@ impl Elaborator<'_> {
         &mut self,
         expr: Expression,
         target_type: Option<&Type>,
+        unconstrained_argument: bool,
     ) -> (ExprId, Type) {
         let is_integer_literal = matches!(expr.kind, ExpressionKind::Literal(Literal::Integer(..)));
 
@@ -147,10 +183,14 @@ impl Elaborator<'_> {
             ExpressionKind::Variable(variable) => return self.elaborate_variable(variable),
             ExpressionKind::Tuple(tuple) => self.elaborate_tuple(tuple, target_type),
             ExpressionKind::Lambda(lambda) => {
-                self.elaborate_lambda_with_target_type(*lambda, target_type)
+                self.elaborate_lambda_with_target_type(*lambda, target_type, unconstrained_argument)
             }
             ExpressionKind::Parenthesized(expr) => {
-                return self.elaborate_expression_with_target_type(*expr, target_type);
+                return self.elaborate_expression_with_target_type_and_runtime(
+                    *expr,
+                    target_type,
+                    unconstrained_argument,
+                );
             }
             ExpressionKind::Quote(quote) => self.elaborate_quote(quote, expr.location),
             ExpressionKind::Comptime(block, _) => {
@@ -850,15 +890,13 @@ impl Elaborator<'_> {
                 (None, false)
             };
 
-        // When calling an unconstrained function, we can elaborate lambda arguments to be unconstrained.
-        let enclosing_unconstrained_args = self.item.body.enter_call_arguments(unconstrained);
-
         let mut arguments = Vec::with_capacity(call.arguments.len());
         let args = vecmap(call.arguments.into_iter().enumerate(), |(arg_index, arg)| {
             let location = arg.location;
             let expected_type = func_arg_types.and_then(|args| args.get(arg_index));
 
-            let (arg, typ) = self.elaborate_call_argument(arg, expected_type, is_macro_call);
+            let (arg, typ) =
+                self.elaborate_call_argument(arg, expected_type, unconstrained, is_macro_call);
 
             arguments.push(arg);
             (typ, arg, location)
@@ -866,8 +904,6 @@ impl Elaborator<'_> {
 
         let hir_call = HirCallExpression { func, arguments, location, is_macro_call };
         let typ = self.type_check_call(&hir_call, func_type, args, location);
-
-        self.item.body.exit_call_arguments(enclosing_unconstrained_args);
 
         (hir_call, typ)
     }
@@ -1027,18 +1063,14 @@ impl Elaborator<'_> {
 
         let is_macro_call = method_call.is_macro_call;
 
-        // A method call is a call: as in `elaborate_call_inner`, when the method is unconstrained
-        // we can elaborate lambda arguments to be unconstrained, over the same span -- the
-        // argument list and the type check that follows it.
-        let enclosing_unconstrained_args = self.item.body.enter_call_arguments(unconstrained);
-
         for (arg_index, arg) in method_call.arguments.into_iter().enumerate() {
             let location = arg.location;
             // The argument types also contain the object type as the first argument.
             // Thus, we need to add one when indexing the argument types to match them up with method arguments.
             let expected_type = func_arg_types.and_then(|args| args.get(arg_index + 1));
 
-            let (arg, typ) = self.elaborate_call_argument(arg, expected_type, is_macro_call);
+            let (arg, typ) =
+                self.elaborate_call_argument(arg, expected_type, unconstrained, is_macro_call);
 
             arguments.push(arg);
             function_args.push((typ, arg, location));
@@ -1058,8 +1090,6 @@ impl Elaborator<'_> {
         // Type check the new call now that it has been changed from a method call
         // to a function call. This way we avoid duplicating code.
         let typ = self.type_check_call(&function_call, func_type, function_args, location);
-
-        self.item.body.exit_call_arguments(enclosing_unconstrained_args);
 
         // Argument unification may have made some constraints pushed by `type_check_variable`
         // concrete. Resolve those now so any associated-type variables they bind are
@@ -1723,11 +1753,19 @@ impl Elaborator<'_> {
         (HirExpression::Tuple(element_ids), Type::Tuple(element_types))
     }
 
+    /// Elaborates a lambda against the type of the slot it is written into.
+    ///
+    /// A lambda written directly as an argument of a call to an unconstrained function
+    /// (`unconstrained_argument`) runs inside that function, so it is elaborated as unconstrained
+    /// even when the parameter is spelled `fn(..)`. The resulting `unconstrained fn` to `fn`
+    /// mismatch against the parameter is exempted by `unify_call_argument_with_coercions`, which
+    /// covers exactly that argument position.
     #[tracing::instrument(level = "trace", skip_all)]
     fn elaborate_lambda_with_target_type(
         &mut self,
         lambda: Lambda,
         target_type: Option<&Type>,
+        unconstrained_argument: bool,
     ) -> (HirExpression, Type) {
         let target_type = target_type.map(|typ| typ.follow_bindings());
 
@@ -1735,7 +1773,7 @@ impl Elaborator<'_> {
             self.elaborate_lambda_with_parameter_type_hints(
                 lambda,
                 Some(&args),
-                unconstrained || self.item.body.in_unconstrained_args(),
+                unconstrained || unconstrained_argument,
             )
         } else {
             self.elaborate_lambda_with_parameter_type_hints(lambda, None, false)
