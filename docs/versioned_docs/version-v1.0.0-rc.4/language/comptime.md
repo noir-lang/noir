@@ -141,7 +141,7 @@ fn returning_versus_macro_insertion() {
     }
 }
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/mod.nr#L157-L177" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L157-L177</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/mod.nr#L158-L178" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L158-L178</a></sub></sup>
 
 
 For those familiar with quoting from other languages (primarily lisps), Noir's `quote` is actually a _quasiquote_.
@@ -253,7 +253,7 @@ fn concatenate_test() {
     }
 }
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/mod.nr#L292-L325" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L292-L325</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/mod.nr#L293-L326" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L293-L326</a></sub></sup>
 
 
 ### $crate
@@ -331,7 +331,7 @@ comptime fn derive_field_count(s: TypeDefinition) -> Quoted {
     }
 }
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/mod.nr#L179-L201" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L179-L201</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/mod.nr#L180-L202" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L180-L202</a></sub></sup>
 
 
 ### Calling annotations with additional arguments
@@ -348,10 +348,10 @@ struct MyStruct {
 comptime fn assert_field_is_type(s: TypeDefinition, typ: Type) {
     // Assert the first field in `s` has type `typ`
     let fields = s.fields([]);
-    assert_eq(fields[0].1, typ);
+    assert_eq(fields[0].typ(), typ);
 }
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/mod.nr#L203-L214" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L203-L214</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/mod.nr#L204-L215" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L204-L215</a></sub></sup>
 
 
 If an argument is a path and the corresponding parameter is typed `TraitDefinition` or
@@ -389,7 +389,7 @@ comptime fn assert_three_args(_s: TypeDefinition, args: [Field]) {
     assert_eq(args.len(), 3);
 }
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/mod.nr#L216-L226" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L216-L226</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/mod.nr#L217-L227" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L217-L227</a></sub></sup>
 
 
 ### Attribute Evaluation Order
@@ -468,22 +468,22 @@ The following is an incomplete list of some `comptime` types along with some use
     - Returns true if `self` implements the given trait constraint
 - `Expr`: A syntactically valid expression. Can be used to recur on a program's parse tree to inspect how it is structured.
   - Methods:
-    - `fn as_function_call(self) -> Option<(Expr, [Expr])>`
-      - If this is a function call expression, return `(function, arguments)`
+    - `fn as_function_call(self) -> Option<FunctionCallExpression>`
+      - If this is a function call expression, return its function and arguments
     - `fn as_block(self) -> Option<[Expr]>`
       - If this is a block, return each statement in the block
 - `FunctionDefinition`: A function definition
   - Methods:
-    - `fn parameters(self) -> [(Quoted, Type)]`
-      - Returns a vector of `(name, type)` pairs for each parameter
+    - `fn parameters(self) -> [FunctionParameter]`
+      - Returns each parameter's name and type
 - `TypeDefinition`: A struct or enum definition
   - Methods:
     - `fn as_type(self) -> Type`
       - Returns this `TypeDefinition` as a `Type`. Any generics are kept as-is
-    - `fn generics(self) -> [Quoted]`
-      - Return the name of each generic on this struct
-    - `fn fields(self) -> [(Quoted, Type)]`
-      - Return the name and type of each field
+    - `fn generics(self) -> [TypeGeneric]`
+      - Return each generic parameter on this type
+    - `fn fields(self) -> [StructField]`
+      - Return the name, type, and visibility of each field
 - `TraitConstraint`: A trait constraint such as `From<Field>`
 - `TypedExpr`: A type-checked expression.
 - `UnresolvedType`: A syntactic notation that refers to a Noir type that hasn't been resolved yet
@@ -550,7 +550,7 @@ pub comptime fn derive(s: TypeDefinition, traits: [TraitDefinition]) -> Quoted {
     result
 }
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/mod.nr#L59-L92" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L59-L92</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/mod.nr#L60-L93" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L60-L93</a></sub></sup>
 
 
 Registering a derive function could be done as follows:
@@ -561,7 +561,7 @@ pub comptime fn derive_via(t: TraitDefinition, f: DeriveFunction) {
     assert(HANDLERS.insert(t, f), f"A derive_via function has already been registered for {t}");
 }
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/mod.nr#L94-L101" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L94-L101</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/mod.nr#L95-L102" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L95-L102</a></sub></sup>
 
 
 ```rust title="big-derive-usage-example" showLineNumbers 
@@ -623,7 +623,7 @@ comptime fn derive_do_nothing_alt(s: TypeDefinition) -> Quoted {
     )
 }
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/mod.nr#L228-L286" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L228-L286</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/mod.nr#L229-L287" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L229-L287</a></sub></sup>
 
 
 ---
