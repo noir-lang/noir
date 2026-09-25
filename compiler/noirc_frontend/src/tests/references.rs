@@ -339,6 +339,24 @@ fn disallows_writing_through_immutable_reborrow_of_mutable_reference() {
 }
 
 #[test]
+fn disallows_mut_reborrow_through_immutable_reference() {
+    // Reborrowing `&mut *p` from an immutable `&T` reference must be rejected: it would
+    // hand out write access to data reachable only through a `&` reference.
+    let src = r#"
+    fn main() {
+        let f: u64 = 10;
+        let p = &f;
+        let p1 = &mut *p;
+                      ^^ Cannot take a mutable reference to a value behind a `&` reference
+                      ~~ A `&` reference grants read-only access to the value behind it
+        *p1 = 15;
+        assert(f == 15);
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn disallows_mutating_non_mutable_nested_reference_in_tuple_1() {
     let src = r#"
     fn main() {
@@ -402,6 +420,27 @@ fn disallows_mutable_reference_to_member_behind_immutable_reference() {
         let m = &mut (*r).x;
                      ^^^^^^ Cannot take a mutable reference to a value behind a `&` reference
                      ~~~~~~ A `&` reference grants read-only access to the value behind it
+        let _ = m;
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn disallows_mutable_reference_to_member_behind_immutable_reference_implicit_deref() {
+    // Implicit-deref spelling of the program in
+    // `disallows_mutable_reference_to_member_behind_immutable_reference`:
+    // `r.x` auto-derefs `r`, so this is the same program as `&mut (*r).x`.
+    let src = r#"
+    struct Foo {
+        x: Field,
+    }
+    fn main() {
+        let foo = Foo { x: 1 };
+        let r = &foo;
+        let m = &mut r.x;
+                     ^^^ Cannot take a mutable reference to a value behind a `&` reference
+                     ~~~ A `&` reference grants read-only access to the value behind it
         let _ = m;
     }
     "#;
@@ -499,6 +538,68 @@ fn mutable_reference_auto_borrow_rejected() {
     }
     "#;
     check_errors(src);
+}
+
+// Calling a `&mut self` method on a struct field reached through an immutable `&`
+// reference must be rejected, just like a direct assignment through the same path
+// (`outer_ref.inner.value = 99;`) is.
+#[test]
+fn disallows_mut_self_receiver_through_immutable_reference_field() {
+    let src = r#"
+    struct Inner {
+        value: Field,
+    }
+
+    impl Inner {
+        fn bump_and_read(&mut self) -> Field {
+            self.value = 99;
+            self.value
+        }
+    }
+
+    struct Outer {
+        inner: Inner,
+    }
+
+    fn main() {
+        let outer = Outer { inner: Inner { value: 1 } };
+        let outer_ref = &outer;
+        let _ = outer_ref.inner.bump_and_read();
+                ^^^^^^^^^ `outer_ref` is a `&` reference, so it cannot be written to
+    }
+    "#;
+    check_errors(src);
+}
+
+// The same call through a `&mut` reference is legal: the `&mut self` write reaches the
+// referenced field, so it must be accepted.
+#[test]
+fn allows_mut_self_receiver_through_mutable_reference_field() {
+    let src = r#"
+    struct Inner {
+        value: Field,
+    }
+
+    impl Inner {
+        fn bump_and_read(&mut self) -> Field {
+            self.value = 99;
+            self.value
+        }
+    }
+
+    struct Outer {
+        inner: Inner,
+    }
+
+    fn main() {
+        let mut outer = Outer { inner: Inner { value: 1 } };
+        let outer_ref = &mut outer;
+        let returned = outer_ref.inner.bump_and_read();
+        assert(returned == 99);
+        assert(outer.inner.value == 99);
+    }
+    "#;
+    assert_no_errors(src);
 }
 
 #[test]
@@ -862,4 +963,16 @@ fn can_mutate_mutable_reference_inside_immutable_reference() {
     }
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn cannot_mutate_immutable_variable_that_is_a_mutable_reference() {
+    let src = r#"
+    fn main() {
+        let x = &mut 1;
+        let _ = &mut x;
+                     ^ Cannot mutate immutable variable `x`
+    }
+    "#;
+    check_errors(src);
 }
