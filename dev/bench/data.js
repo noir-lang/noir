@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790351323803,
+  "lastUpdate": 1790354416863,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22960,48 +22960,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "52dc6239fb3312c498b56c4c47d63ef2dfc6bb75",
-          "message": "chore(frontend): cover comptime-only types in comptime structs and enums (#13738)",
-          "timestamp": "2026-09-15T14:26:59Z",
-          "tree_id": "bf9f6e75eeb4450a0ae0cb9345b61dfc1846a043",
-          "url": "https://github.com/noir-lang/noir/commit/52dc6239fb3312c498b56c4c47d63ef2dfc6bb75"
-        },
-        "date": 1789483801816,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 174396,
-            "range": "± 465",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 137553,
-            "range": "± 1104",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2336408,
-            "range": "± 37102",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "e864cf379d3cfadd912473ca40e3c6c6a6b29afc",
           "message": "chore(frontend): declare the impl-trait restriction with the struct's and enum's context (#13739)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
@@ -25044,6 +25002,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 1637798,
             "range": "± 8104",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6ef39c9efe6b6fe229188bf5c6fc021dc70b29b4",
+          "message": "chore(ci): compile aztec-node's aztec-nr and noir-contracts against the PR's nargo (#13791)",
+          "timestamp": "2026-09-25T16:19:39Z",
+          "tree_id": "3d1741f880d32f8dc18058c1cdcc15f69b72d16d",
+          "url": "https://github.com/noir-lang/noir/commit/6ef39c9efe6b6fe229188bf5c6fc021dc70b29b4"
+        },
+        "date": 1790354328666,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 168212,
+            "range": "± 1062",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136701,
+            "range": "± 6865",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2647363,
+            "range": "± 3252",
             "unit": "ns/iter"
           }
         ]
