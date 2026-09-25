@@ -27,7 +27,7 @@ TY = r"(Field|u\d+|i\d+)"
 def ty(t):
     if t == "Field":
         return ".field"
-    return f".{'uint' if t[0] == 'u' else 'toSigned'} {t[1:]}"
+    return f".{'uint' if t[0] == 'u' else 'sint'} {t[1:]}"
 
 
 def opnd(s):
@@ -129,14 +129,14 @@ def lean_fn(lines):
             cs.append(f".range {w} {k}")
         elif line.startswith("zero "):
             terms = [t.split("*") for t in line[5:].split(" + ")] if line != "zero " else []
-            cs.append(".zero [" + ", ".join(f"⟨{c}, {ws}⟩" for c, ws in terms) + "]")
+            cs.append(".assertZero [" + ", ".join(f"⟨{c}, {ws}⟩" for c, ws in terms) + "]")
         elif line.startswith("inputs "):
             inputs = line[7:]
         elif line.startswith("returns "):
             returns = line[8:]
         else:
             raise ValueError(f"opcode {line[:40]}")
-    return f"{{ constraints := [{', '.join(cs)}], inputs := {inputs}, returns := {returns} }}"
+    return f"{{ opcodes := [{', '.join(cs)}], parameters := {inputs}, returnValues := {returns} }}"
 
 
 def main():

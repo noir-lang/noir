@@ -35,15 +35,15 @@ theorem isort_perm {α : Type} (le : α → α → Bool) : ∀ l : List α, (iso
   | [] => .refl _
   | x :: xs => (insertBy_perm le x _).trans ((isort_perm le xs).cons x)
 
-def Constraint.canon : Constraint → Constraint
+def Opcode.canon : Opcode → Opcode
   | .range w k => .range w k
-  | .zero ts =>
+  | .assertZero ts =>
     let ts := (ts.map fun t => (⟨modP t.coef, isort (fun a b => decide (a ≤ b)) t.witnesses⟩ : Term))
     let ts := isort (fun a b => witnessListLe a.witnesses b.witnesses) (ts.filter fun t => t.coef != 0)
     let neg : Bool := match ts with
       | t :: _ => decide (t.coef > ((p - 1) / 2 : ℕ))
       | [] => false
-    .zero (if neg then ts.map (fun t => (⟨modP (-t.coef), t.witnesses⟩ : Term)) else ts)
+    .assertZero (if neg then ts.map (fun t => (⟨modP (-t.coef), t.witnesses⟩ : Term)) else ts)
 
 theorem eval_modP (σ : ℕ → F) (t : Term) :
     Term.eval σ ⟨modP t.coef, isort (fun a b => decide (a ≤ b)) t.witnesses⟩ = Term.eval σ t := by
@@ -67,11 +67,11 @@ theorem sum_map_neg (f : Term → F) : ∀ l : List Term,
   | [] => by simp
   | t :: l => by simp [sum_map_neg f l]; ring
 
-theorem Constraint.canon_sat (σ : ℕ → F) (c : Constraint) : c.canon.Holds σ ↔ c.Holds σ := by
+theorem Opcode.canon_sat (σ : ℕ → F) (c : Opcode) : c.canon.Holds σ ↔ c.Holds σ := by
   cases c with
   | range w k => rfl
-  | zero ts =>
-    simp only [Constraint.canon, Constraint.Holds]
+  | assertZero ts =>
+    simp only [Opcode.canon, Opcode.Holds]
     set ts1 := ts.map fun t => (⟨modP t.coef, isort (fun a b => decide (a ≤ b)) t.witnesses⟩ : Term)
     set ts2 := isort (fun a b => witnessListLe a.witnesses b.witnesses) (ts1.filter fun t => t.coef != 0)
     have h1 : (ts1.map (Term.eval σ)).sum = (ts.map (Term.eval σ)).sum := by

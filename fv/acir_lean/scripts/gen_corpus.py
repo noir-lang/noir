@@ -56,7 +56,7 @@ def lean_entry(idx, lines):
             for t in line[5:].split(" + "):
                 c, ws = t.split("*")
                 terms.append(f"⟨{c}, {ws}⟩")
-            cs.append(".zero [" + ", ".join(terms) + "]")
+            cs.append(".assertZero [" + ", ".join(terms) + "]")
         elif line.startswith("inputs "):
             inputs = line[len("inputs "):]
         elif line.startswith("returns "):
@@ -67,7 +67,7 @@ def lean_entry(idx, lines):
     return (
         f"def corpus{idx} : CorpusEntry where\n"
         f"  prog := {{ width := {width}, nparams := {nparams}, body := [{', '.join(body)}], ret := {ret} }}\n"
-        f"  fn := {{ constraints := [{', '.join(cs)}], inputs := {inputs}, returns := {returns} }}\n"
+        f"  fn := {{ opcodes := [{', '.join(cs)}], parameters := {inputs}, returnValues := {returns} }}\n"
         f"  witness := [{', '.join(witness)}]\n"
     )
 

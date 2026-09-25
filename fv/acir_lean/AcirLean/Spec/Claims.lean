@@ -26,11 +26,11 @@ def InputsFit (σ : ℕ → F) (inputs : List (ℕ × ℕ)) : Prop :=
   ∀ iw ∈ inputs, (σ iw.1).val < 2 ^ iw.2
 
 /-- For every witness assignment, the constraints and input types imply `spec`. -/
-def Sound (T : List Constraint) (inputs : List (ℕ × ℕ)) (spec : (ℕ → F) → Prop) : Prop :=
+def Sound (T : List Opcode) (inputs : List (ℕ × ℕ)) (spec : (ℕ → F) → Prop) : Prop :=
   ∀ σ : ℕ → F, AllHold σ T → InputsFit σ inputs → spec σ
 
 /-- Some witness assignment meets every constraint and input type. -/
-def Satisfiable (T : List Constraint) (inputs : List (ℕ × ℕ)) : Prop :=
+def Satisfiable (T : List Opcode) (inputs : List (ℕ × ℕ)) : Prop :=
   ∃ σ : ℕ → F, AllHold σ T ∧ InputsFit σ inputs
 
 /-- `a / b` and `a % b` on integers. Witnesses: `0 = a, 1 = b, 3 = q, 4 = r`. -/
@@ -63,12 +63,12 @@ def ComputesSignedLt (f : SsaFunction) (n : ℕ) : Prop :=
 the integer values of `f`'s inputs and return values. There is no other
 assumption: in particular the inputs' types are enforced by `f`'s own
 constraints, not assumed. -/
-def SoundFunction (f : AcirFunction) (spec : List ℕ → List ℕ → Prop) : Prop :=
-  ∀ σ : ℕ → F, AllHold σ f.constraints →
-    spec (f.inputs.map fun i => (σ i).val) (f.returns.map fun i => (σ i).val)
+def SoundFunction (f : Circuit) (spec : List ℕ → List ℕ → Prop) : Prop :=
+  ∀ σ : ℕ → F, AllHold σ f.opcodes →
+    spec (f.parameters.map fun i => (σ i).val) (f.returnValues.map fun i => (σ i).val)
 
 /-- Some witness assignment satisfies `f`'s constraints. -/
-def SatisfiableFunction (f : AcirFunction) : Prop := ∃ σ : ℕ → F, AllHold σ f.constraints
+def SatisfiableFunction (f : Circuit) : Prop := ∃ σ : ℕ → F, AllHold σ f.opcodes
 
 /-- Two `n`-bit inputs `a`, `b` and one return value equal to `g a b`. The
 inputs' width is part of the promise: a circuit that let a parameter of type
@@ -166,7 +166,7 @@ def AllClaims : Prop :=
     SoundFunction (shippedSignedDiv n) (SignedOp n Int.tdiv) ∧ SatisfiableFunction (shippedSignedDiv n)) ∧
   (∀ n ∈ signedWidths,
     SoundFunction (shippedSignedMod n) (SignedOp n Int.tmod) ∧ SatisfiableFunction (shippedSignedMod n)) ∧
-  (∀ e ∈ corpus, SoundFunction e.fn (CorpusSpec e.prog) ∧ AllHold e.assignment e.fn.constraints) ∧
+  (∀ e ∈ corpus, SoundFunction e.fn (CorpusSpec e.prog) ∧ AllHold e.assignment e.fn.opcodes) ∧
   (∀ e ∈ testPrograms, e.name ∉ uncoveredPrograms → SoundFunction e.fn (ProgramSpec e.prog))
 
 end AcirLean

@@ -27,13 +27,13 @@ inductive Rep where
   | notw (w : ℕ)
   deriving DecidableEq
 
-def present (cc : List Constraint) (c : Constraint) : Bool := decide (c.canon ∈ cc)
+def present (cc : List Opcode) (c : Opcode) : Bool := decide (c.canon ∈ cc)
 
 def divMap (wa wb s : ℕ) : List ℕ := [wa, wb, s, s + 1, s + 2, s + 3, s + 4, s + 5, s + 6, s + 7]
 def ltMap (wa wb s : ℕ) : List ℕ := [wa, wb, s, s + 1, s + 2]
 
 /-- The instruction's template found at fresh block `s`, and where its result lives. -/
-def instrRep (n : ℕ) (cc : List Constraint) (reps : List Rep) (i : CorpusInstruction) (s : ℕ) : Option Rep :=
+def instrRep (n : ℕ) (cc : List Opcode) (reps : List Rep) (i : CorpusInstruction) (s : ℕ) : Option Rep :=
   match reps[i.a]?, reps[i.b]? with
   | some (.wit wa), some (.wit wb) =>
     match i.op with
@@ -45,30 +45,30 @@ def instrRep (n : ℕ) (cc : List Constraint) (reps : List Rep) (i : CorpusInstr
       then some (.notw s) else none
   | _, _ => none
 
-def findStart (n : ℕ) (cc : List Constraint) (reps : List Rep) (i : CorpusInstruction) (bound : ℕ) : Option ℕ :=
+def findStart (n : ℕ) (cc : List Opcode) (reps : List Rep) (i : CorpusInstruction) (bound : ℕ) : Option ℕ :=
   (List.range bound).find? fun s => (instrRep n cc reps i s).isSome
 
-def stepRep (n : ℕ) (cc : List Constraint) (bound : ℕ) (st : Option (List Rep)) (i : CorpusInstruction) :
+def stepRep (n : ℕ) (cc : List Opcode) (bound : ℕ) (st : Option (List Rep)) (i : CorpusInstruction) :
     Option (List Rep) :=
   st.bind fun reps =>
     (findStart n cc reps i bound).bind fun s => (instrRep n cc reps i s).map (reps ++ [·])
 
-def Constraint.witnesses : Constraint → List ℕ
-  | .zero ts => ts.flatMap (·.witnesses)
+def Opcode.witnesses : Opcode → List ℕ
+  | .assertZero ts => ts.flatMap (·.witnesses)
   | .range w _ => [w]
 
-def maxWitness (C : AcirFunction) : ℕ := (C.constraints.flatMap Constraint.witnesses).foldl max 0
+def maxWitness (C : Circuit) : ℕ := (C.opcodes.flatMap Opcode.witnesses).foldl max 0
 
-def returnOK (cc : List Constraint) (r : ℕ) : Rep → Bool
-  | .wit w => present cc (.zero [⟨1, [r]⟩, ⟨-1, [w]⟩])
-  | .notw w => present cc (.zero [⟨1, []⟩, ⟨-1, [r]⟩, ⟨-1, [w]⟩])
+def returnOK (cc : List Opcode) (r : ℕ) : Rep → Bool
+  | .wit w => present cc (.assertZero [⟨1, [r]⟩, ⟨-1, [w]⟩])
+  | .notw w => present cc (.assertZero [⟨1, []⟩, ⟨-1, [r]⟩, ⟨-1, [w]⟩])
 
-def checkProg (P : CorpusProgram) (C : AcirFunction) : Bool :=
+def checkProg (P : CorpusProgram) (C : Circuit) : Bool :=
   let n := P.width
-  let cc := C.constraints.map Constraint.canon
-  decide (n ∈ pinnedWidths) && decide (C.inputs.length = P.nparams) &&
-    C.inputs.all (fun w => present cc (.range w n)) &&
-    match C.returns, P.body.foldl (stepRep n cc (maxWitness C + 1)) (some (C.inputs.map .wit)) with
+  let cc := C.opcodes.map Opcode.canon
+  decide (n ∈ pinnedWidths) && decide (C.parameters.length = P.nparams) &&
+    C.parameters.all (fun w => present cc (.range w n)) &&
+    match C.returnValues, P.body.foldl (stepRep n cc (maxWitness C + 1)) (some (C.parameters.map .wit)) with
     | [r], some reps =>
       match reps[P.ret]? with
       | some rep => returnOK cc r rep
@@ -93,14 +93,14 @@ def RepOK (n : ℕ) (σ : ℕ → F) : Rep → ℕ → Prop
   | .wit w, v => (σ w).val = v ∧ v < 2 ^ n
   | .notw w, v => (1 - σ w).val = v
 
-theorem present_sat {cc : List Constraint} {σ : ℕ → F} (hcc : ∀ d ∈ cc, d.Holds σ) {c : Constraint}
+theorem present_sat {cc : List Opcode} {σ : ℕ → F} (hcc : ∀ d ∈ cc, d.Holds σ) {c : Opcode}
     (h : present cc c = true) : c.Holds σ :=
-  (Constraint.canon_sat σ c).1 (hcc _ (of_decide_eq_true h))
+  (Opcode.canon_sat σ c).1 (hcc _ (of_decide_eq_true h))
 
-theorem template_sat {cc : List Constraint} {σ : ℕ → F} (hcc : ∀ d ∈ cc, d.Holds σ) {T : List Constraint}
+theorem template_sat {cc : List Opcode} {σ : ℕ → F} (hcc : ∀ d ∈ cc, d.Holds σ) {T : List Opcode}
     {f : ℕ → ℕ} (h : T.all (fun c => present cc (c.rename f)) = true) : AllHold (σ ∘ f) T := by
   intro c hc
-  exact (Constraint.holds_rename σ f c).1 (present_sat hcc (List.all_eq_true.1 h c hc))
+  exact (Opcode.holds_rename σ f c).1 (present_sat hcc (List.all_eq_true.1 h c hc))
 
 theorem forall2_get {n : ℕ} {σ : ℕ → F} :
     ∀ {reps : List Rep} {vals : List ℕ}, List.Forall₂ (RepOK n σ) reps vals →
@@ -111,7 +111,7 @@ theorem forall2_get {n : ℕ} {σ : ℕ → F} :
   | _ :: _, _ :: _, .cons _ ht, k + 1, r, h => by
     simpa using forall2_get ht (by simpa using h)
 
-theorem instr_ok {n : ℕ} (hn : n ∈ pinnedWidths) {cc : List Constraint} {σ : ℕ → F}
+theorem instr_ok {n : ℕ} (hn : n ∈ pinnedWidths) {cc : List Opcode} {σ : ℕ → F}
     (hcc : ∀ d ∈ cc, d.Holds σ) {reps : List Rep} {vals : List ℕ}
     (hf : List.Forall₂ (RepOK n σ) reps vals) {i : CorpusInstruction} {s : ℕ} {r : Rep}
     (h : instrRep n cc reps i s = some r) :
@@ -127,8 +127,8 @@ theorem instr_ok {n : ℕ} (hn : n ∈ pinnedWidths) {cc : List Constraint} {σ 
     · -- div
       rename_i hall
       have hT := template_sat hcc hall
-      have e1 := hT (.zero [⟨1, []⟩, ⟨-1, [1, 2]⟩]) (by simp [divVarGadget])
-      simp only [Constraint.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil, List.sum_cons,
+      have e1 := hT (.assertZero [⟨1, []⟩, ⟨-1, [1, 2]⟩]) (by simp [divVarGadget])
+      simp only [Opcode.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil, List.sum_cons,
         List.sum_nil, Function.comp, witnessAt, divMap] at e1
       have hy0 : y ≠ 0 := by
         intro h0
@@ -136,7 +136,7 @@ theorem instr_ok {n : ℕ} (hn : n ∈ pinnedWidths) {cc : List Constraint} {σ 
         simp [this] at e1
       have hq : (σ (s + 1)).val = x / y ∧ (σ (s + 1)).val < 2 ^ n := by
         have r3 := hT (.range 3 n) (by simp [divVarGadget])
-        simp only [Constraint.Holds, Range, Function.comp, witnessAt, divMap] at r3
+        simp only [Opcode.Holds, Range, Function.comp, witnessAt, divMap] at r3
         refine ⟨?_, by simpa using r3⟩
         rcases pinned_cases hn with h' | rfl
         · have := (divVarGadget_sound (by omega) _ hT (by simpa [witnessAt, divMap, hyv] using hyn)).1
@@ -156,7 +156,7 @@ theorem instr_ok {n : ℕ} (hn : n ∈ pinnedWidths) {cc : List Constraint} {σ 
       exact ⟨_, by simp [evalStep, hop, hx, hy], not_ge hge⟩
   next => simp at h
 
-theorem fold_ok {n : ℕ} (hn : n ∈ pinnedWidths) {cc : List Constraint} {σ : ℕ → F}
+theorem fold_ok {n : ℕ} (hn : n ∈ pinnedWidths) {cc : List Opcode} {σ : ℕ → F}
     (hcc : ∀ d ∈ cc, d.Holds σ) (bound : ℕ) :
     ∀ (body : List CorpusInstruction) (reps : List Rep) (vals : List ℕ),
       List.Forall₂ (RepOK n σ) reps vals → ∀ reps',
@@ -193,25 +193,25 @@ theorem fold_ok {n : ℕ} (hn : n ∈ pinnedWidths) {cc : List Constraint} {σ :
           obtain ⟨vals', h1, h2⟩ := fold_ok hn hcc bound body _ _ hf' reps' h
           exact ⟨vals', by simp only [List.foldl_cons, hv]; exact h1, h2⟩
 
-theorem checkProg_sound (P : CorpusProgram) (C : AcirFunction) (h : checkProg P C = true) :
+theorem checkProg_sound (P : CorpusProgram) (C : Circuit) (h : checkProg P C = true) :
     SoundFunction C (CorpusSpec P) := by
   intro σ hσ
-  have hcc : ∀ d ∈ C.constraints.map Constraint.canon, d.Holds σ := by
+  have hcc : ∀ d ∈ C.opcodes.map Opcode.canon, d.Holds σ := by
     intro d hd
     obtain ⟨c, hc, rfl⟩ := List.mem_map.1 hd
-    exact (Constraint.canon_sat σ c).2 (hσ c hc)
+    exact (Opcode.canon_sat σ c).2 (hσ c hc)
   unfold checkProg at h
   simp only [Bool.and_eq_true, decide_eq_true_eq] at h
   obtain ⟨⟨⟨hn, hlen⟩, hin⟩, hrest⟩ := h
   -- the parameters
-  have hparams : List.Forall₂ (RepOK P.width σ) (C.inputs.map .wit)
-      (C.inputs.map fun i => (σ i).val) := by
+  have hparams : List.Forall₂ (RepOK P.width σ) (C.parameters.map .wit)
+      (C.parameters.map fun i => (σ i).val) := by
     rw [List.forall₂_map_left_iff, List.forall₂_map_right_iff]
     apply List.forall₂_same.2
     intro w hw
     refine ⟨rfl, ?_⟩
     have := present_sat hcc (List.all_eq_true.1 hin w hw)
-    simpa [Constraint.Holds, Range] using this
+    simpa [Opcode.Holds, Range] using this
   split at hrest
   next r reps hret hfold =>
     split at hrest
@@ -222,20 +222,20 @@ theorem checkProg_sound (P : CorpusProgram) (C : AcirFunction) (h : checkProg P 
       · intro x hx
         obtain ⟨w, hw, rfl⟩ := List.mem_map.1 hx
         have := present_sat hcc (List.all_eq_true.1 hin w hw)
-        simpa [Constraint.Holds, Range] using this
+        simpa [Opcode.Holds, Range] using this
       · rw [eval_eq, hv]; simpa using hvv
       · rw [hret]
         simp only [List.map_cons, List.map_nil, List.cons.injEq, and_true]
         cases rep with
         | wit w =>
           have e := present_sat hcc hrest
-          simp only [Constraint.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
+          simp only [Opcode.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
             List.sum_cons, List.sum_nil] at e
           rw [show σ r = σ w by push_cast at e; linear_combination e]
           exact hok.1
         | notw w =>
           have e := present_sat hcc hrest
-          simp only [Constraint.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
+          simp only [Opcode.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
             List.sum_cons, List.sum_nil] at e
           rw [show σ r = 1 - σ w by push_cast at e; linear_combination -e]
           exact hok
@@ -245,8 +245,8 @@ theorem checkProg_sound (P : CorpusProgram) (C : AcirFunction) (h : checkProg P 
 /-- The corpus: the checker accepts every program's circuit, and ACVM's witness
 satisfies it. Both are decided by evaluation in the kernel. -/
 theorem corpus_claims :
-    ∀ e ∈ corpus, SoundFunction e.fn (CorpusSpec e.prog) ∧ AllHold e.assignment e.fn.constraints := by
-  have hc : corpus.all (fun e => checkProg e.prog e.fn && decide (AllHold e.assignment e.fn.constraints)) =
+    ∀ e ∈ corpus, SoundFunction e.fn (CorpusSpec e.prog) ∧ AllHold e.assignment e.fn.opcodes := by
+  have hc : corpus.all (fun e => checkProg e.prog e.fn && decide (AllHold e.assignment e.fn.opcodes)) =
       true := by decide +kernel
   intro e he
   have := List.all_eq_true.1 hc e he

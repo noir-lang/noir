@@ -50,9 +50,9 @@ def witnessListLe : List ℕ → List ℕ → Bool
 def coefValue (c : ℤ) : ℕ := (c % (p : ℤ)).toNat
 
 /-- One constraint in canonical form (see the module comment). -/
-def Constraint.render : Constraint → String
+def Opcode.render : Opcode → String
   | .range w k => s!"range {w} {k}"
-  | .zero ts =>
+  | .assertZero ts =>
     let ts := ts.map (fun t => { t with witnesses := t.witnesses.mergeSort (· ≤ ·) })
     let ts := (ts.filter (fun t => coefValue t.coef ≠ 0)).mergeSort (fun a b => witnessListLe a.witnesses b.witnesses)
     let neg : Bool := match ts with
@@ -64,9 +64,9 @@ def Constraint.render : Constraint → String
     "zero " ++ " + ".intercalate body
 
 /-- An ACIR function: its constraints, then its input and return witnesses. -/
-def AcirFunction.render (f : AcirFunction) : List String :=
+def Circuit.render (f : Circuit) : List String :=
   let ws (l : List ℕ) := ",".intercalate (l.map toString)
-  f.constraints.map Constraint.render ++ [s!"inputs [{ws f.inputs}]", s!"returns [{ws f.returns}]"]
+  f.opcodes.map Opcode.render ++ [s!"inputs [{ws f.parameters}]", s!"returns [{ws f.returnValues}]"]
 
 /-- A straight-line program as `Ssa`'s `Display` prints it. -/
 def CorpusProgram.render (P : CorpusProgram) : List String :=
@@ -92,8 +92,8 @@ def renderTestPrograms : String :=
 
 /-- The golden file: one `# <gadget> <width>` section per pinned width. -/
 def renderAll : String :=
-  let sec (title : String) (cs : List Constraint) :=
-    s!"# {title}\n" ++ "\n".intercalate (cs.map Constraint.render)
+  let sec (title : String) (cs : List Opcode) :=
+    s!"# {title}\n" ++ "\n".intercalate (cs.map Opcode.render)
   let secs := pinnedWidths.map (fun n => sec s!"div_var {n}" (divVarGadget n)) ++
     pinnedWidths.map (fun n => sec s!"div_var_predicated {n}" (divPredGadget n)) ++
     pinnedWidths.map (fun k => sec s!"truncate_field {k}" (truncateGadget k)) ++

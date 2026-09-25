@@ -11,14 +11,14 @@ replaces. -/
 
 namespace AcirLean
 
-theorem mem_dropRepeats {c : Constraint} : ∀ {l : List Constraint}, c ∈ dropRepeats l ↔ c ∈ l
+theorem mem_dropRepeats {c : Opcode} : ∀ {l : List Opcode}, c ∈ dropRepeats l ↔ c ∈ l
   | [] => by simp [dropRepeats]
   | d :: cs => by
     simp only [dropRepeats, List.mem_cons, List.mem_filter, bne_iff_ne, ne_eq]
     rw [mem_dropRepeats]
     by_cases h : c = d <;> simp [h]
 
-theorem allHold_dropRepeats (σ : ℕ → F) (l : List Constraint) :
+theorem allHold_dropRepeats (σ : ℕ → F) (l : List Opcode) :
     AllHold σ (dropRepeats l) ↔ AllHold σ l := by
   simp only [AllHold, mem_dropRepeats]
 
@@ -30,14 +30,14 @@ theorem truncInlinedGadget_sound {n : ℕ} (hn1 : 2 ≤ n) (hn : n ≤ 125) (hN 
   unfold truncInlinedGadget AllHold at h
   have r2 := h (.range 2 (254 - n)) (by simp)
   have r3 := h (.range 3 n) (by simp)
-  have e1 := h (.zero [⟨1, [0]⟩, ⟨-(2 ^ n : ℕ), [2]⟩, ⟨-1, [3]⟩]) (by simp)
-  have e2 := h (.zero [⟨(q0 n : ℤ), []⟩, ⟨-1, [2]⟩, ⟨-1, [4]⟩]) (by simp)
+  have e1 := h (.assertZero [⟨1, [0]⟩, ⟨-(2 ^ n : ℕ), [2]⟩, ⟨-1, [3]⟩]) (by simp)
+  have e2 := h (.assertZero [⟨(q0 n : ℤ), []⟩, ⟨-1, [2]⟩, ⟨-1, [4]⟩]) (by simp)
   have r4 := h (.range 4 (254 - n)) (by simp)
-  have e3 := h (.zero [⟨1, []⟩, ⟨1, [2, 5]⟩, ⟨-(q0 n : ℤ), [5]⟩, ⟨-1, [6]⟩]) (by simp)
-  have e4 := h (.zero [⟨1, [2, 6]⟩, ⟨-(q0 n : ℤ), [6]⟩]) (by simp)
-  have e5 := h (.zero [⟨1, [3, 6]⟩, ⟨(R' n : ℤ), [6]⟩]) (by simp)
-  have e6 := h (.zero [⟨1, [1]⟩, ⟨-1, [3]⟩]) (by simp)
-  simp only [Constraint.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
+  have e3 := h (.assertZero [⟨1, []⟩, ⟨1, [2, 5]⟩, ⟨-(q0 n : ℤ), [5]⟩, ⟨-1, [6]⟩]) (by simp)
+  have e4 := h (.assertZero [⟨1, [2, 6]⟩, ⟨-(q0 n : ℤ), [6]⟩]) (by simp)
+  have e5 := h (.assertZero [⟨1, [3, 6]⟩, ⟨(R' n : ℤ), [6]⟩]) (by simp)
+  have e6 := h (.assertZero [⟨1, [1]⟩, ⟨-1, [3]⟩]) (by simp)
+  simp only [Opcode.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
     List.sum_cons, List.sum_nil] at e1 e2 e3 e4 e5 e6 r2 r3 r4
   push_cast at e1 e2 e3 e4 e5 e6
   have ht : σ 4 = ((q0 n : ℕ) : F) - σ 2 := by linear_combination -e2

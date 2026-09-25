@@ -14,16 +14,16 @@ exists (`buggy_truncation_not_sound`): the `q ≤ q0` bound is load-bearing.
 
 namespace AcirLean
 
-def truncBugT (k : ℕ) : List Constraint :=
+def truncBugT (k : ℕ) : List Opcode :=
   [ .range 1 (254 - k), .range 2 k, .range 1 (254 - k), .range 2 k, .range 2 k,
-    .zero [⟨1, [0]⟩, ⟨-(2 ^ k : ℕ), [1]⟩, ⟨-1, [2]⟩],
-    .zero [⟨1, []⟩, ⟨1, [1, 3]⟩, ⟨-(q0 k : ℤ), [3]⟩, ⟨-1, [4]⟩],
-    .zero [⟨1, [1, 4]⟩, ⟨-(q0 k : ℤ), [4]⟩],
-    .zero [⟨1, [2, 4]⟩, ⟨(R' k : ℤ), [4]⟩, ⟨-1, [5]⟩],
-    if N' k = 0 then .zero [⟨1, [5]⟩] else .range 5 (N' k) ]
+    .assertZero [⟨1, [0]⟩, ⟨-(2 ^ k : ℕ), [1]⟩, ⟨-1, [2]⟩],
+    .assertZero [⟨1, []⟩, ⟨1, [1, 3]⟩, ⟨-(q0 k : ℤ), [3]⟩, ⟨-1, [4]⟩],
+    .assertZero [⟨1, [1, 4]⟩, ⟨-(q0 k : ℤ), [4]⟩],
+    .assertZero [⟨1, [2, 4]⟩, ⟨(R' k : ℤ), [4]⟩, ⟨-1, [5]⟩],
+    if N' k = 0 then .assertZero [⟨1, [5]⟩] else .range 5 (N' k) ]
 
-instance instDecidableCstrSatExample (σ : ℕ → F) (c : Constraint) : Decidable (c.Holds σ) := by
-  cases c <;> unfold Constraint.Holds <;> unfold Range <;> infer_instance
+instance instDecidableCstrSatExample (σ : ℕ → F) (c : Opcode) : Decidable (c.Holds σ) := by
+  cases c <;> unfold Opcode.Holds <;> unfold Range <;> infer_instance
 
 /-- The forged assignment for `x as u64`: pick `q = q0 + 1`, so `2^64 * q`
 wraps past `p` and lands on `x = 2^64 - p % 2^64` with remainder `r = 0`. -/

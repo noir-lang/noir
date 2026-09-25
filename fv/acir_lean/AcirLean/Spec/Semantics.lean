@@ -37,31 +37,39 @@ structure Term where
   witnesses : List ℕ
   deriving DecidableEq
 
-/-- One ACIR constraint: an `AssertZero` polynomial (a sum of terms that must
-be `0`), or a `RANGE` check that `witness` fits in `bits` bits. -/
-inductive Constraint where
-  | zero (terms : List Term)
-  | range (witness bits : ℕ)
+/-- A polynomial over witnesses: the sum of its terms. Rust's `Expression`
+splits the same thing into `mul_terms`, `linear_combinations` and `q_c`; here
+every term is a coefficient times any number of witnesses. -/
+abbrev Expression := List Term
+
+/-- The ACIR opcodes this development covers (Rust's `Opcode`):
+`AssertZero(expr)`, which requires `expr` to be `0`, and the `RANGE` black box,
+which requires `witness` to fit in `numBits` bits. -/
+inductive Opcode where
+  | assertZero (expr : Expression)
+  | range (witness numBits : ℕ)
   deriving DecidableEq
 
 /-- The value of a term under the witness assignment `σ` (`σ i` is the value the
 prover put in witness `i`). -/
 def Term.eval (σ : ℕ → F) (t : Term) : F := (t.coef : F) * (t.witnesses.map σ).prod
 
-/-- A constraint holds: the polynomial is `0`, or the range check passes. -/
-def Constraint.Holds (σ : ℕ → F) : Constraint → Prop
-  | .zero terms => (terms.map (Term.eval σ)).sum = 0
-  | .range witness bits => Range (σ witness) bits
+/-- An opcode holds: its expression's terms add up to `0`, or the range check
+passes. -/
+def Opcode.Holds (σ : ℕ → F) : Opcode → Prop
+  | .assertZero expr => (expr.map (Term.eval σ)).sum = 0
+  | .range witness numBits => Range (σ witness) numBits
 
-/-- Every constraint in the list holds. -/
-def AllHold (σ : ℕ → F) (constraints : List Constraint) : Prop :=
-  ∀ c ∈ constraints, c.Holds σ
+/-- Every opcode in the list holds. -/
+def AllHold (σ : ℕ → F) (opcodes : List Opcode) : Prop :=
+  ∀ c ∈ opcodes, c.Holds σ
 
-/-- An ACIR function as ACIR generation emits it: its constraints, and the
-witnesses holding its parameters and its return values. -/
-structure AcirFunction where
-  constraints : List Constraint
-  inputs : List ℕ
-  returns : List ℕ
+/-- An ACIR circuit (Rust's `Circuit`): its opcodes, the witnesses holding its
+parameters (private and public, in witness order), and the witnesses holding
+its return values. -/
+structure Circuit where
+  opcodes : List Opcode
+  parameters : List ℕ
+  returnValues : List ℕ
 
 end AcirLean

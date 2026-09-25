@@ -79,29 +79,29 @@ theorem signedPrefix_facts {n : ℕ} (hn1 : 2 ≤ n) (hn : n ≤ 64) (σ : ℕ �
   unfold signedDivModShared AllHold at h
   have r0 := h (.range 0 n) (by simp)
   have r1 := h (.range 1 n) (by simp)
-  have e3 := h (.zero [⟨1, []⟩, ⟨-1, [0, 3]⟩, ⟨(2 ^ (n - 1) : ℕ), [3]⟩, ⟨-1, [4]⟩]) (by simp)
-  have e4 := h (.zero [⟨1, [0, 4]⟩, ⟨-(2 ^ (n - 1) : ℕ), [4]⟩]) (by simp)
-  have e5 := h (.zero [⟨1, []⟩, ⟨-1, [1, 5]⟩, ⟨(2 ^ n - 1 : ℕ), [5]⟩, ⟨-1, [6]⟩]) (by simp)
-  have e6 := h (.zero [⟨1, [1, 6]⟩, ⟨-(2 ^ n - 1 : ℕ), [6]⟩]) (by simp)
-  have e7 := h (.zero [⟨1, [4, 6]⟩]) (by simp)
+  have e3 := h (.assertZero [⟨1, []⟩, ⟨-1, [0, 3]⟩, ⟨(2 ^ (n - 1) : ℕ), [3]⟩, ⟨-1, [4]⟩]) (by simp)
+  have e4 := h (.assertZero [⟨1, [0, 4]⟩, ⟨-(2 ^ (n - 1) : ℕ), [4]⟩]) (by simp)
+  have e5 := h (.assertZero [⟨1, []⟩, ⟨-1, [1, 5]⟩, ⟨(2 ^ n - 1 : ℕ), [5]⟩, ⟨-1, [6]⟩]) (by simp)
+  have e6 := h (.assertZero [⟨1, [1, 6]⟩, ⟨-(2 ^ n - 1 : ℕ), [6]⟩]) (by simp)
+  have e7 := h (.assertZero [⟨1, [4, 6]⟩]) (by simp)
   have r7 := h (.range 7 1) (by simp)
   have r8 := h (.range 8 (n - 1)) (by simp)
-  have e8 := h (.zero [⟨1, [0]⟩, ⟨-(2 ^ (n - 1) : ℕ), [7]⟩, ⟨-1, [8]⟩]) (by simp)
+  have e8 := h (.assertZero [⟨1, [0]⟩, ⟨-(2 ^ (n - 1) : ℕ), [7]⟩, ⟨-1, [8]⟩]) (by simp)
   have r9 := h (.range 9 1) (by simp)
   have r10 := h (.range 10 (n - 1)) (by simp)
-  have e9 := h (.zero [⟨1, [1]⟩, ⟨-(2 ^ (n - 1) : ℕ), [9]⟩, ⟨-1, [10]⟩]) (by simp)
-  have e10 := h (.zero [⟨1, [1]⟩, ⟨-2, [1, 9]⟩, ⟨(2 ^ n : ℕ), [9]⟩, ⟨-1, [12]⟩]) (by simp)
-  have e11 := h (.zero [⟨1, []⟩, ⟨-1, [11, 12]⟩]) (by simp)
+  have e9 := h (.assertZero [⟨1, [1]⟩, ⟨-(2 ^ (n - 1) : ℕ), [9]⟩, ⟨-1, [10]⟩]) (by simp)
+  have e10 := h (.assertZero [⟨1, [1]⟩, ⟨-2, [1, 9]⟩, ⟨(2 ^ n : ℕ), [9]⟩, ⟨-1, [12]⟩]) (by simp)
+  have e11 := h (.assertZero [⟨1, []⟩, ⟨-1, [11, 12]⟩]) (by simp)
   have r13 := h (.range 13 n) (by simp)
   have r14 := h (.range 14 n) (by simp)
-  have e12 := h (.zero [⟨1, []⟩, ⟨-1, [12]⟩, ⟨1, [14]⟩, ⟨1, [15]⟩]) (by simp)
+  have e12 := h (.assertZero [⟨1, []⟩, ⟨-1, [12]⟩, ⟨1, [14]⟩, ⟨1, [15]⟩]) (by simp)
   have r15 := h (.range 15 n) (by simp)
-  have e13 := h (.zero [⟨1, [0]⟩, ⟨-2, [0, 7]⟩, ⟨(2 ^ n : ℕ), [7]⟩, ⟨-1, [12, 13]⟩,
+  have e13 := h (.assertZero [⟨1, [0]⟩, ⟨-2, [0, 7]⟩, ⟨(2 ^ n : ℕ), [7]⟩, ⟨-1, [12, 13]⟩,
     ⟨-1, [14]⟩]) (by simp)
-  simp only [Constraint.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
+  simp only [Opcode.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
     List.sum_cons, List.sum_nil, Range, Int.cast_natCast, Int.cast_neg, Int.cast_one,
     Int.cast_ofNat, mul_one, one_mul, add_zero] at e3 e4 e5 e6 e7 e8 e9 e10 e11 e12 e13
-  simp only [Constraint.Holds, Range] at r0 r1 r7 r8 r9 r10 r13 r14 r15
+  simp only [Opcode.Holds, Range] at r0 r1 r7 r8 r9 r10 r13 r14 r15
   -- the sign bits
   have sa := sign_split (x := σ 0) (s := σ 7) (r := σ 8) (N := 2 ^ (n - 1)) hp2 (by omega) r8
     (by linear_combination e8)
@@ -239,14 +239,14 @@ theorem shippedSignedDiv_sound {n : ℕ} (hn : n ∈ signedWidths) :
   obtain ⟨hpre, ht⟩ := h
   have PF := signedPrefix_facts (by omega) hbd.2 σ hpre
   unfold AllHold at ht
-  have t1 := ht (.zero [⟨(2 ^ (n - 1) : ℕ), []⟩, ⟨-1, [13]⟩, ⟨-1, [16]⟩]) (by simp)
-  have t2 := ht (.zero [⟨1, [7]⟩, ⟨-2, [7, 9]⟩, ⟨1, [9]⟩, ⟨-1, [17]⟩]) (by simp)
-  have t3 := ht (.zero [⟨1, []⟩, ⟨-1, [13, 18]⟩, ⟨-1, [19]⟩]) (by simp)
-  have t4 := ht (.zero [⟨1, [13, 19]⟩]) (by simp)
-  have t5 := ht (.zero [⟨1, [13]⟩, ⟨2, [16, 17]⟩, ⟨-1, [20]⟩]) (by simp)
-  have t6 := ht (.zero [⟨1, []⟩, ⟨-1, [19]⟩, ⟨-1, [21]⟩]) (by simp)
-  have t7 := ht (.zero [⟨1, [2]⟩, ⟨-1, [20, 21]⟩]) (by simp)
-  simp only [Constraint.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
+  have t1 := ht (.assertZero [⟨(2 ^ (n - 1) : ℕ), []⟩, ⟨-1, [13]⟩, ⟨-1, [16]⟩]) (by simp)
+  have t2 := ht (.assertZero [⟨1, [7]⟩, ⟨-2, [7, 9]⟩, ⟨1, [9]⟩, ⟨-1, [17]⟩]) (by simp)
+  have t3 := ht (.assertZero [⟨1, []⟩, ⟨-1, [13, 18]⟩, ⟨-1, [19]⟩]) (by simp)
+  have t4 := ht (.assertZero [⟨1, [13, 19]⟩]) (by simp)
+  have t5 := ht (.assertZero [⟨1, [13]⟩, ⟨2, [16, 17]⟩, ⟨-1, [20]⟩]) (by simp)
+  have t6 := ht (.assertZero [⟨1, []⟩, ⟨-1, [19]⟩, ⟨-1, [21]⟩]) (by simp)
+  have t7 := ht (.assertZero [⟨1, [2]⟩, ⟨-1, [20, 21]⟩]) (by simp)
+  simp only [Opcode.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
     List.sum_cons, List.sum_nil, Int.cast_natCast, Int.cast_neg, Int.cast_one,
     Int.cast_ofNat, mul_one, one_mul, add_zero] at t1 t2 t3 t4 t5 t6 t7
   simp only [List.map, SignedOp]
@@ -303,12 +303,12 @@ theorem shippedSignedMod_sound {n : ℕ} (hn : n ∈ signedWidths) :
   obtain ⟨hpre, ht⟩ := h
   have PF := signedPrefix_facts (by omega) hbd.2 σ hpre
   unfold AllHold at ht
-  have m1 := ht (.zero [⟨1, []⟩, ⟨-1, [14, 16]⟩, ⟨-1, [17]⟩]) (by simp)
-  have m2 := ht (.zero [⟨1, [14, 17]⟩]) (by simp)
-  have m3 := ht (.zero [⟨(2 ^ n : ℕ), [7]⟩, ⟨-2, [7, 14]⟩, ⟨1, [14]⟩, ⟨-1, [18]⟩]) (by simp)
-  have m4 := ht (.zero [⟨1, []⟩, ⟨-1, [17]⟩, ⟨-1, [19]⟩]) (by simp)
-  have m5 := ht (.zero [⟨1, [2]⟩, ⟨-1, [18, 19]⟩]) (by simp)
-  simp only [Constraint.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
+  have m1 := ht (.assertZero [⟨1, []⟩, ⟨-1, [14, 16]⟩, ⟨-1, [17]⟩]) (by simp)
+  have m2 := ht (.assertZero [⟨1, [14, 17]⟩]) (by simp)
+  have m3 := ht (.assertZero [⟨(2 ^ n : ℕ), [7]⟩, ⟨-2, [7, 14]⟩, ⟨1, [14]⟩, ⟨-1, [18]⟩]) (by simp)
+  have m4 := ht (.assertZero [⟨1, []⟩, ⟨-1, [17]⟩, ⟨-1, [19]⟩]) (by simp)
+  have m5 := ht (.assertZero [⟨1, [2]⟩, ⟨-1, [18, 19]⟩]) (by simp)
+  simp only [Opcode.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
     List.sum_cons, List.sum_nil, Int.cast_natCast, Int.cast_neg, Int.cast_one,
     Int.cast_ofNat, mul_one, one_mul, add_zero] at m1 m2 m3 m4 m5
   simp only [List.map, SignedOp]

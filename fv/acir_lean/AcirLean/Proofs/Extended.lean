@@ -24,7 +24,7 @@ theorem split64 {x xu xr : F} (hu : Range xu 64) (hr : Range xr 64)
   · rw [he]; push_cast; ring
 
 section
-attribute [local simp] Constraint.Holds Term.eval List.map List.prod_cons List.prod_nil
+attribute [local simp] Opcode.Holds Term.eval List.map List.prod_cons List.prod_nil
   List.sum_cons List.sum_nil
 
 theorem divVarGadget128_sound (σ : ℕ → F) (h : AllHold σ (divVarGadget 128))
@@ -32,20 +32,20 @@ theorem divVarGadget128_sound (σ : ℕ → F) (h : AllHold σ (divVarGadget 128
     (σ 3).val = (σ 0).val / (σ 1).val ∧ (σ 4).val = (σ 0).val % (σ 1).val := by
   unfold divVarGadget AllHold at h
   rw [if_pos rfl] at h
-  have e1 := h (.zero [⟨1, []⟩, ⟨-1, [1, 2]⟩]) (by simp)
+  have e1 := h (.assertZero [⟨1, []⟩, ⟨-1, [1, 2]⟩]) (by simp)
   have r3 := h (.range 3 128) (by simp)
   have r4 := h (.range 4 128) (by simp)
-  have e2 := h (.zero [⟨1, []⟩, ⟨-1, [1]⟩, ⟨1, [4]⟩, ⟨1, [5]⟩]) (by simp)
+  have e2 := h (.assertZero [⟨1, []⟩, ⟨-1, [1]⟩, ⟨1, [4]⟩, ⟨1, [5]⟩]) (by simp)
   have r5 := h (.range 5 128) (by simp)
-  have e3 := h (.zero [⟨1, [0]⟩, ⟨-1, [1, 3]⟩, ⟨-1, [4]⟩]) (by simp)
+  have e3 := h (.assertZero [⟨1, [0]⟩, ⟨-1, [1, 3]⟩, ⟨-1, [4]⟩]) (by simp)
   have r6 := h (.range 6 64) (by simp)
   have r7 := h (.range 7 64) (by simp)
-  have e4 := h (.zero [⟨1, [3]⟩, ⟨-(2 ^ 64 : ℕ), [6]⟩, ⟨-1, [7]⟩]) (by simp)
+  have e4 := h (.assertZero [⟨1, [3]⟩, ⟨-(2 ^ 64 : ℕ), [6]⟩, ⟨-1, [7]⟩]) (by simp)
   have r8 := h (.range 8 64) (by simp)
   have r9 := h (.range 9 64) (by simp)
-  have e5 := h (.zero [⟨1, [1]⟩, ⟨-(2 ^ 64 : ℕ), [8]⟩, ⟨-1, [9]⟩]) (by simp)
-  have e6 := h (.zero [⟨1, [6, 8]⟩]) (by simp)
-  simp only [Constraint.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
+  have e5 := h (.assertZero [⟨1, [1]⟩, ⟨-(2 ^ 64 : ℕ), [8]⟩, ⟨-1, [9]⟩]) (by simp)
+  have e6 := h (.assertZero [⟨1, [6, 8]⟩]) (by simp)
+  simp only [Opcode.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
     List.sum_cons, List.sum_nil] at e1 e2 e3 e4 e5 e6 r3 r4 r5 r6 r7 r8 r9
   push_cast at e1 e2 e3 e4 e5 e6
   refine div_var128_sound hb (inv := σ 2) (qu := σ 6) (qr := σ 7) (bu := σ 8) (br := σ 9)
@@ -58,24 +58,24 @@ theorem divVarGadget128_sound (σ : ℕ → F) (h : AllHold σ (divVarGadget 128
 /-- The prefix every `divPredGadget n` shares: with the predicate on, it is the
 unpredicated constraint set with `inv = z`. -/
 theorem divPred_base {n : ℕ} (σ : ℕ → F) (hp : σ 2 = 1)
-    (h : ∀ c ∈ ([ .zero [⟨1, []⟩, ⟨-1, [1, 3]⟩, ⟨-1, [4]⟩],
-      .zero [⟨1, [1, 4]⟩],
-      .zero [⟨1, [2, 4]⟩],
+    (h : ∀ c ∈ ([ .assertZero [⟨1, []⟩, ⟨-1, [1, 3]⟩, ⟨-1, [4]⟩],
+      .assertZero [⟨1, [1, 4]⟩],
+      .assertZero [⟨1, [2, 4]⟩],
       .range 5 n, .range 6 n, .range 5 n, .range 6 n,
-      .zero [⟨1, [1]⟩, ⟨-1, [2]⟩, ⟨-1, [6]⟩, ⟨-1, [7]⟩],
+      .assertZero [⟨1, [1]⟩, ⟨-1, [2]⟩, ⟨-1, [6]⟩, ⟨-1, [7]⟩],
       .range 7 n,
-      .zero [⟨1, [1, 5]⟩, ⟨1, [6]⟩, ⟨-1, [8]⟩],
-      .zero [⟨1, [0, 2]⟩, ⟨-1, [2, 8]⟩] ] : List Constraint), c.Holds σ) :
+      .assertZero [⟨1, [1, 5]⟩, ⟨1, [6]⟩, ⟨-1, [8]⟩],
+      .assertZero [⟨1, [0, 2]⟩, ⟨-1, [2, 8]⟩] ] : List Opcode), c.Holds σ) :
     DivVarConstraints n (σ 0) (σ 1) (σ 5) (σ 6) (σ 3) := by
-  have e1 := h (.zero [⟨1, []⟩, ⟨-1, [1, 3]⟩, ⟨-1, [4]⟩]) (by simp)
-  have e3 := h (.zero [⟨1, [2, 4]⟩]) (by simp)
+  have e1 := h (.assertZero [⟨1, []⟩, ⟨-1, [1, 3]⟩, ⟨-1, [4]⟩]) (by simp)
+  have e3 := h (.assertZero [⟨1, [2, 4]⟩]) (by simp)
   have r5 := h (.range 5 n) (by simp)
   have r6 := h (.range 6 n) (by simp)
-  have e4 := h (.zero [⟨1, [1]⟩, ⟨-1, [2]⟩, ⟨-1, [6]⟩, ⟨-1, [7]⟩]) (by simp)
+  have e4 := h (.assertZero [⟨1, [1]⟩, ⟨-1, [2]⟩, ⟨-1, [6]⟩, ⟨-1, [7]⟩]) (by simp)
   have r7 := h (.range 7 n) (by simp)
-  have e5 := h (.zero [⟨1, [1, 5]⟩, ⟨1, [6]⟩, ⟨-1, [8]⟩]) (by simp)
-  have e6 := h (.zero [⟨1, [0, 2]⟩, ⟨-1, [2, 8]⟩]) (by simp)
-  simp only [Constraint.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
+  have e5 := h (.assertZero [⟨1, [1, 5]⟩, ⟨1, [6]⟩, ⟨-1, [8]⟩]) (by simp)
+  have e6 := h (.assertZero [⟨1, [0, 2]⟩, ⟨-1, [2, 8]⟩]) (by simp)
+  simp only [Opcode.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
     List.sum_cons, List.sum_nil] at e1 e3 e4 e5 e6 r5 r6 r7
   push_cast at e1 e3 e4 e5 e6
   rw [hp] at e3 e4 e6
@@ -99,12 +99,12 @@ theorem divPredGadget128_sound (σ : ℕ → F) (h : AllHold σ (divPredGadget 1
   have base := divPred_base (n := 128) σ hp (fun c hc => h c (List.mem_append_left _ hc))
   have r9 := h (.range 9 64) (by simp)
   have r10 := h (.range 10 64) (by simp)
-  have e7 := h (.zero [⟨1, [2, 5]⟩, ⟨-(2 ^ 64 : ℕ), [2, 9]⟩, ⟨-1, [2, 10]⟩]) (by simp)
+  have e7 := h (.assertZero [⟨1, [2, 5]⟩, ⟨-(2 ^ 64 : ℕ), [2, 9]⟩, ⟨-1, [2, 10]⟩]) (by simp)
   have r12 := h (.range 12 64) (by simp)
   have r13 := h (.range 13 64) (by simp)
-  have e8 := h (.zero [⟨1, [1, 2]⟩, ⟨-(2 ^ 64 : ℕ), [2, 12]⟩, ⟨-1, [2, 13]⟩]) (by simp)
-  have e9 := h (.zero [⟨1, [9, 12]⟩]) (by simp)
-  simp only [Constraint.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
+  have e8 := h (.assertZero [⟨1, [1, 2]⟩, ⟨-(2 ^ 64 : ℕ), [2, 12]⟩, ⟨-1, [2, 13]⟩]) (by simp)
+  have e9 := h (.assertZero [⟨1, [9, 12]⟩]) (by simp)
+  simp only [Opcode.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
     List.sum_cons, List.sum_nil] at e7 e8 e9 r9 r10 r12 r13
   push_cast at e7 e8 e9
   rw [hp] at e7 e8
@@ -118,16 +118,16 @@ theorem truncateGadget128_sound (σ : ℕ → F) (h : AllHold σ (truncateGadget
   rw [if_pos rfl] at h
   have r1 := h (.range 1 126) (by simp)
   have r2 := h (.range 2 128) (by simp)
-  have e1 := h (.zero [⟨(2 ^ 128 - 1 : ℕ), []⟩, ⟨-1, [2]⟩, ⟨-1, [3]⟩]) (by simp)
+  have e1 := h (.assertZero [⟨(2 ^ 128 - 1 : ℕ), []⟩, ⟨-1, [2]⟩, ⟨-1, [3]⟩]) (by simp)
   have r3 := h (.range 3 128) (by simp)
-  have e2 := h (.zero [⟨1, [0]⟩, ⟨-(2 ^ 128 : ℕ), [1]⟩, ⟨-1, [2]⟩]) (by simp)
-  have e3 := h (.zero [⟨(Rq 128 : ℤ), []⟩, ⟨1, [1]⟩, ⟨-1, [4]⟩]) (by simp)
+  have e2 := h (.assertZero [⟨1, [0]⟩, ⟨-(2 ^ 128 : ℕ), [1]⟩, ⟨-1, [2]⟩]) (by simp)
+  have e3 := h (.assertZero [⟨(Rq 128 : ℤ), []⟩, ⟨1, [1]⟩, ⟨-1, [4]⟩]) (by simp)
   have r4 := h (.range 4 (bits (q0 128))) (by simp)
-  have e4 := h (.zero [⟨1, []⟩, ⟨1, [1, 5]⟩, ⟨-(q0 128 : ℤ), [5]⟩, ⟨-1, [6]⟩]) (by simp)
-  have e5 := h (.zero [⟨1, [1, 6]⟩, ⟨-(q0 128 : ℤ), [6]⟩]) (by simp)
-  have e6 := h (.zero [⟨1, [2, 6]⟩, ⟨(R' 128 : ℤ), [6]⟩, ⟨-1, [7]⟩]) (by simp)
+  have e4 := h (.assertZero [⟨1, []⟩, ⟨1, [1, 5]⟩, ⟨-(q0 128 : ℤ), [5]⟩, ⟨-1, [6]⟩]) (by simp)
+  have e5 := h (.assertZero [⟨1, [1, 6]⟩, ⟨-(q0 128 : ℤ), [6]⟩]) (by simp)
+  have e6 := h (.assertZero [⟨1, [2, 6]⟩, ⟨(R' 128 : ℤ), [6]⟩, ⟨-1, [7]⟩]) (by simp)
   have r7 := h (.range 7 (N' 128)) (by simp)
-  simp only [Constraint.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
+  simp only [Opcode.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
     List.sum_cons, List.sum_nil] at e1 e2 e3 e4 e5 e6 r1 r2 r3 r4 r7
   push_cast at e1 e2 e3 e4 e5 e6
   have hbits : bits (2 ^ 128) = 129 := Nat.size_pow
@@ -173,11 +173,11 @@ theorem moreThanEqGadget_sound {m : ℕ} (hm : 1 ≤ m) (hm128 : m ≤ 128) (σ 
     · subst h128
       have r2 := h (.range 2 1) (by simp)
       have r3 := h (.range 3 128) (by simp)
-      have e1 := h (.zero [⟨(2 ^ 128 - 1 : ℕ), []⟩, ⟨-1, [3]⟩, ⟨-1, [4]⟩]) (by simp)
+      have e1 := h (.assertZero [⟨(2 ^ 128 - 1 : ℕ), []⟩, ⟨-1, [3]⟩, ⟨-1, [4]⟩]) (by simp)
       have r4 := h (.range 4 128) (by simp)
-      have e2 := h (.zero [⟨(2 ^ 128 : ℕ), []⟩, ⟨1, [0]⟩, ⟨-1, [1]⟩, ⟨-(2 ^ 128 : ℕ), [2]⟩,
+      have e2 := h (.assertZero [⟨(2 ^ 128 : ℕ), []⟩, ⟨1, [0]⟩, ⟨-1, [1]⟩, ⟨-(2 ^ 128 : ℕ), [2]⟩,
         ⟨-1, [3]⟩]) (by simp)
-      simp only [Constraint.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
+      simp only [Opcode.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
         List.sum_cons, List.sum_nil] at e1 e2 r2 r3 r4
       push_cast at e1 e2
       refine ⟨by rw [hbits]; simpa using r2, by rw [hmr]; exact r3, ?_, ?_⟩
@@ -188,9 +188,9 @@ theorem moreThanEqGadget_sound {m : ℕ} (hm : 1 ≤ m) (hm128 : m ≤ 128) (σ 
       · push_cast; linear_combination e2
     · have r2 := h (.range 2 1) (by simp)
       have r3 := h (.range 3 m) (by simp)
-      have e2 := h (.zero [⟨(2 ^ m : ℕ), []⟩, ⟨1, [0]⟩, ⟨-1, [1]⟩, ⟨-(2 ^ m : ℕ), [2]⟩,
+      have e2 := h (.assertZero [⟨(2 ^ m : ℕ), []⟩, ⟨1, [0]⟩, ⟨-1, [1]⟩, ⟨-(2 ^ m : ℕ), [2]⟩,
         ⟨-1, [3]⟩]) (by simp)
-      simp only [Constraint.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
+      simp only [Opcode.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
         List.sum_cons, List.sum_nil] at e2 r2 r3
       push_cast at e2
       refine ⟨by rw [hbits]; simpa using r2, by rw [hmr]; exact r3, ?_, ?_⟩

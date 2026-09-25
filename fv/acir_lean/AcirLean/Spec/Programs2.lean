@@ -185,6 +185,6 @@ def ProgramSpec (P : Program) : List ℕ → List ℕ → Prop := fun ins outs =
 structure TestProgram where
   name : String
   prog : Program
-  fn : AcirFunction
+  fn : Circuit
 
 end AcirLean

@@ -68,8 +68,8 @@ theorem eval_collect (σ : ℕ → F) : ∀ P : Poly, (collect P).eval σ = P.ev
 
 theorem key_sat (σ : ℕ → F) (P : Poly) : (key P).Holds σ ↔ P.eval σ = 0 := by
   unfold key
-  rw [Constraint.canon_sat]
-  simp only [Constraint.Holds]
+  rw [Opcode.canon_sat]
+  simp only [Opcode.Holds]
   rw [← eval_collect σ P]; rfl
 
 theorem comb_mem {f : Poly → Poly → Poly} {as bs : List Poly} {X : Poly}
@@ -80,14 +80,14 @@ theorem comb_mem {f : Poly → Poly → Poly} {as bs : List Poly} {X : Poly}
 
 
 section
-variable {cc : List Constraint} {σ : ℕ → F} (hcc : ∀ c ∈ cc, c.Holds σ)
+variable {cc : List Opcode} {σ : ℕ → F} (hcc : ∀ c ∈ cc, c.Holds σ)
 include hcc
 
 theorem holdsZ_sound {P : Poly} (h : holdsZ cc P = true) : P.eval σ = 0 := by
   rw [← key_sat]
   unfold holdsZ at h
   split at h
-  · next he => rw [he]; simp [Constraint.Holds]
+  · next he => rw [he]; simp [Opcode.Holds]
   · exact hcc _ (of_decide_eq_true h)
 
 theorem matV_sound {P : Poly} {w : ℕ} (h : matV cc P = some w) : σ w = P.eval σ := by
@@ -122,7 +122,7 @@ theorem wbound_sound {w L M : ℕ} (h : wbound cc w = some (L, M)) :
         simp only [Option.some.injEq] at hcM
         subst hv; subst hcM
         have := hcc _ hc
-        simp only [Constraint.Holds, Range] at this
+        simp only [Opcode.Holds, Range] at this
         omega
       · simp at hcM
     · simp at hcM
@@ -220,7 +220,7 @@ theorem flag_ok (σ : ℕ → F) (alts : List Poly) (b : Bool) (L : ℕ) (hL : L
   cases b <;> simp [flag, ZMod.val_one]
 
 section
-variable {cc : List Constraint} {σ : ℕ → F} (hcc : ∀ c ∈ cc, c.Holds σ)
+variable {cc : List Opcode} {σ : ℕ → F} (hcc : ∀ c ∈ cc, c.Holds σ)
 include hcc
 
 theorem checked_sound {alts : List Poly} {x : F} (h : ∀ P ∈ alts, P.eval σ = x) {n L M : ℕ}
@@ -329,7 +329,7 @@ theorem eqFlags_sound {a b : Rep2} {x y : F}
 end
 
 section
-variable {cc : List Constraint} {σ : ℕ → F} (hcc : ∀ c ∈ cc, c.Holds σ)
+variable {cc : List Opcode} {σ : ℕ → F} (hcc : ∀ c ∈ cc, c.Holds σ)
 include hcc
 
 theorem truncOK_sound {k q r : ℕ} {x : F} (h : truncOK cc k q r = true)
@@ -395,7 +395,7 @@ theorem truncOK_sound {k q r : ℕ} {x : F} (h : truncOK cc k q r = true)
 end
 
 section
-variable {cc : List Constraint} {σ : ℕ → F} (hcc : ∀ c ∈ cc, c.Holds σ)
+variable {cc : List Opcode} {σ : ℕ → F} (hcc : ∀ c ∈ cc, c.Holds σ)
 include hcc
 
 theorem truncRep_sound {a : Rep2} {x : F} {tx : ValueType} (ha : RepOK2 σ a (x, tx)) (k : ℕ) :
@@ -597,7 +597,7 @@ theorem opRep_ok {σ : ℕ → F} {reps : List (ℕ × Rep2)} {env : Env} (hE : 
     · simp [ZMod.val_natCast]
 
 section
-variable {cc : List Constraint} {σ : ℕ → F} (hcc : ∀ c ∈ cc, c.Holds σ)
+variable {cc : List Opcode} {σ : ℕ → F} (hcc : ∀ c ∈ cc, c.Holds σ)
 include hcc
 
 theorem step2_ok {reps : List (ℕ × Rep2)} {env : Env} (hE : EnvOK σ reps env) {i : Instruction}
@@ -690,7 +690,7 @@ theorem step2_ok {reps : List (ℕ × Rep2)} {env : Env} (hE : EnvOK σ reps env
 end
 
 section
-variable {cc : List Constraint} {σ : ℕ → F} (hcc : ∀ c ∈ cc, c.Holds σ)
+variable {cc : List Opcode} {σ : ℕ → F} (hcc : ∀ c ∈ cc, c.Holds σ)
 include hcc
 
 theorem paramRep_ok {w : ℕ} {ty : ValueType} {r : Rep2} (h : paramRep cc w ty = some r) :
@@ -779,13 +779,13 @@ theorem rets_ok {reps : List (ℕ × Rep2)} {env : Env} (hE : EnvOK σ reps env)
 end
 
 /-- Acceptance by the checker implies the circuit implements the program. -/
-theorem checkProg2_sound (P : Program) (C : AcirFunction) (h : checkProg2 P C = true) :
+theorem checkProg2_sound (P : Program) (C : Circuit) (h : checkProg2 P C = true) :
     SoundFunction C (ProgramSpec P) := by
   intro σ hσ
-  have hcc : ∀ d ∈ C.constraints.map Constraint.canon, d.Holds σ := by
+  have hcc : ∀ d ∈ C.opcodes.map Opcode.canon, d.Holds σ := by
     intro d hd
     obtain ⟨c, hc, rfl⟩ := List.mem_map.1 hd
-    exact (Constraint.canon_sat σ c).2 (hσ c hc)
+    exact (Opcode.canon_sat σ c).2 (hσ c hc)
   unfold checkProg2 at h
   simp only [Bool.and_eq_true, decide_eq_true_eq] at h
   obtain ⟨⟨hin, hret⟩, h⟩ := h
@@ -795,9 +795,9 @@ theorem checkProg2_sound (P : Program) (C : AcirFunction) (h : checkProg2 P C = 
     split at h
     · simp at h
     · next reps hfold =>
-      obtain ⟨hE0, hfit⟩ := initReps_ok hcc P.params C.inputs reps0 hinit
+      obtain ⟨hE0, hfit⟩ := initReps_ok hcc P.params C.parameters reps0 hinit
       obtain ⟨env, hrun, hE⟩ := fold_ok2 hcc P.body reps0 _ hE0 reps hfold
-      obtain ⟨vs, hvs, hm⟩ := rets_ok hcc hE C.returns P.rets hret h
+      obtain ⟨vs, hvs, hm⟩ := rets_ok hcc hE C.returnValues P.rets hret h
       refine ⟨by simp [hin], hfit, vs, ?_, hm⟩
       simp only [Program.eval, Option.bind_eq_bind]
       rw [hrun]

@@ -20,7 +20,7 @@ The layout is the review policy, and `scripts/check.sh` enforces it in CI.
 | `scripts/check.sh`, `.github/workflows/fv-lean.yml` | **REVIEWED** | The enforcement itself. |
 | `compiler/.../acir_context/fv_templates.rs` | **REVIEWED** | The Rust half of the pin. |
 | `scripts/regen_programs.sh`, `.github/workflows/fv-test-programs.yml` | **REVIEWED** | Rebuild `test_programs.golden` from `nargo compile` output; CI fails if the committed copy is stale. |
-| `AcirLean/Templates/` | pinned, ignore | Constraint lists, SSA and test programs, checked byte-for-byte against the golden files. Plain definitions only. |
+| `AcirLean/Templates/` | pinned, ignore | Opcode lists, SSA and test programs, checked byte-for-byte against the golden files. Plain definitions only. |
 | `AcirLean/Proofs/` | machine-checked, ignore | Lean checks every proof, and nothing here can change what `Spec/` states. |
 | `AcirLean/Examples/` | ignore | Demonstrations, not part of the claims. |
 
@@ -155,7 +155,7 @@ for a range optimizer that drops a parameter's range check.
 
 The whole-function claims are proved by composition: `Templates/Programs.lean`
 builds each compiled function from the gadget templates placed at new witness
-indices (`Constraint.rename`), the pin checks that this is exactly what ACIR
+indices (`Opcode.rename`), the pin checks that this is exactly what ACIR
 generation emits, and `Proofs/Programs.lean` applies each gadget's theorem at
 its new indices and chains the results.
 

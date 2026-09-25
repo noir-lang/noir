@@ -60,7 +60,7 @@ def CorpusSpec (P : CorpusProgram) : List ℕ → List ℕ → Prop := fun ins o
 solved for it. -/
 structure CorpusEntry where
   prog : CorpusProgram
-  fn : AcirFunction
+  fn : Circuit
   witness : List (ℕ × ℕ)
 
 /-- The solved witness as an assignment (unlisted witnesses are `0`). -/

@@ -10,10 +10,10 @@ import AcirLean.Proofs.Basic
 
 namespace AcirLean
 
-instance instDecidableCstrSatProofs (σ : ℕ → F) (c : Constraint) : Decidable (c.Holds σ) := by
-  cases c <;> unfold Constraint.Holds <;> unfold Range <;> infer_instance
+instance instDecidableCstrSatProofs (σ : ℕ → F) (c : Opcode) : Decidable (c.Holds σ) := by
+  cases c <;> unfold Opcode.Holds <;> unfold Range <;> infer_instance
 
-instance instDecidableAllSat (σ : ℕ → F) (cs : List Constraint) : Decidable (AllHold σ cs) := by
+instance instDecidableAllSat (σ : ℕ → F) (cs : List Opcode) : Decidable (AllHold σ cs) := by
   unfold AllHold; infer_instance
 
 instance instDecidableInputsFit (σ : ℕ → F) (inputs : List (ℕ × ℕ)) :

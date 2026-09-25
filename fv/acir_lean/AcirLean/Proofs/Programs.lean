@@ -16,20 +16,20 @@ theorem Term.eval_rename (σ : ℕ → F) (f : ℕ → ℕ) (t : Term) :
     (t.rename f).eval σ = t.eval (σ ∘ f) := by
   simp [Term.rename, Term.eval, List.map_map]
 
-theorem Constraint.holds_rename (σ : ℕ → F) (f : ℕ → ℕ) (c : Constraint) :
+theorem Opcode.holds_rename (σ : ℕ → F) (f : ℕ → ℕ) (c : Opcode) :
     (c.rename f).Holds σ ↔ c.Holds (σ ∘ f) := by
   cases c with
-  | zero ts =>
-    simp only [Constraint.rename, Constraint.Holds, List.map_map]
+  | assertZero ts =>
+    simp only [Opcode.rename, Opcode.Holds, List.map_map]
     rw [show Term.eval σ ∘ Term.rename f = Term.eval (σ ∘ f) from
       funext (Term.eval_rename σ f)]
-  | range w k => simp [Constraint.rename, Constraint.Holds]
+  | range w k => simp [Opcode.rename, Opcode.Holds]
 
-theorem allHold_rename (σ : ℕ → F) (f : ℕ → ℕ) (cs : List Constraint) :
-    AllHold σ (cs.map (Constraint.rename f)) ↔ AllHold (σ ∘ f) cs := by
-  simp [AllHold, Constraint.holds_rename]
+theorem allHold_rename (σ : ℕ → F) (f : ℕ → ℕ) (cs : List Opcode) :
+    AllHold σ (cs.map (Opcode.rename f)) ↔ AllHold (σ ∘ f) cs := by
+  simp [AllHold, Opcode.holds_rename]
 
-theorem allHold_append (σ : ℕ → F) (a b : List Constraint) :
+theorem allHold_append (σ : ℕ → F) (a b : List Opcode) :
     AllHold σ (a ++ b) ↔ AllHold σ a ∧ AllHold σ b := by
   simp only [AllHold, List.mem_append]
   exact ⟨fun h => ⟨fun c hc => h c (Or.inl hc), fun c hc => h c (Or.inr hc)⟩,
@@ -71,8 +71,8 @@ theorem acirGenDiv_sound {n : ℕ} (hn : n ∈ pinnedWidths) :
   obtain ⟨⟨hin, hg⟩, hl⟩ := h
   have ha := hin (.range 0 n) (by simp)
   have hb := hin (.range 1 n) (by simp)
-  have e := hl (.zero [⟨1, [2]⟩, ⟨-1, [4]⟩]) (by simp)
-  simp only [Constraint.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
+  have e := hl (.assertZero [⟨1, [2]⟩, ⟨-1, [4]⟩]) (by simp)
+  simp only [Opcode.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
     List.sum_cons, List.sum_nil, Range] at e ha hb
   push_cast at e
   have hq : ((σ ∘ witnessAt [0, 1, 3, 4, 5, 6, 7, 8, 9, 10]) 3).val =
@@ -95,8 +95,8 @@ theorem acirGenLt_sound {n : ℕ} (hn : n ∈ pinnedWidths) :
   obtain ⟨⟨hin, hg⟩, hl⟩ := h
   have ha := hin (.range 0 n) (by simp)
   have hb := hin (.range 1 n) (by simp)
-  have e := hl (.zero [⟨1, []⟩, ⟨-1, [2]⟩, ⟨-1, [3]⟩]) (by simp)
-  simp only [Constraint.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
+  have e := hl (.assertZero [⟨1, []⟩, ⟨-1, [2]⟩, ⟨-1, [3]⟩]) (by simp)
+  simp only [Opcode.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
     List.sum_cons, List.sum_nil, Range] at e ha hb
   push_cast at e
   have hbd := pinned_bounds hn
@@ -115,8 +115,8 @@ theorem acirGenTruncate_sound {n : ℕ} (hn : n ∈ pinnedWidths) :
   intro σ h
   simp only [acirGenTruncate, allHold_append, allHold_rename] at h
   obtain ⟨hg, hl⟩ := h
-  have e := hl (.zero [⟨1, [1]⟩, ⟨-1, [3]⟩]) (by simp)
-  simp only [Constraint.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
+  have e := hl (.assertZero [⟨1, [1]⟩, ⟨-1, [3]⟩]) (by simp)
+  simp only [Opcode.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
     List.sum_cons, List.sum_nil] at e
   push_cast at e
   have hr : ((σ ∘ witnessAt [0, 2, 3, 4, 5, 6, 7, 8]) 2).val =
@@ -138,8 +138,8 @@ theorem divPow2Gadget_sound {n j : ℕ} (hj : 1 ≤ j) (hjn : j < n) (hn : n ≤
   have hr : bits (2 ^ j - 1) = j := bits_pow_sub_one hj
   have r1 := h (.range 1 (n - j)) (by simp [divPow2Gadget])
   have r2 := h (.range 2 j) (by simp [divPow2Gadget])
-  have e := h (.zero [⟨1, [0]⟩, ⟨-(2 ^ j : ℕ), [1]⟩, ⟨-1, [2]⟩]) (by simp [divPow2Gadget])
-  simp only [Constraint.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
+  have e := h (.assertZero [⟨1, [0]⟩, ⟨-(2 ^ j : ℕ), [1]⟩, ⟨-1, [2]⟩]) (by simp [divPow2Gadget])
+  simp only [Opcode.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
     List.sum_cons, List.sum_nil] at e r1 r2
   push_cast at e
   have c : DivConstConstraints n (2 ^ j) (σ 0) (σ 1) (σ 2) := by
@@ -163,10 +163,10 @@ theorem acirGenSignedLt_sound {n : ℕ} (hn : n ∈ pinnedWidths) :
   obtain ⟨⟨⟨⟨hin, hd1⟩, hd2⟩, hge⟩, hl⟩ := h
   have ha := hin (.range 0 n) (by simp)
   have hb := hin (.range 1 n) (by simp)
-  have ex := hl (.zero [⟨1, [3]⟩, ⟨-2, [3, 5]⟩, ⟨1, [5]⟩, ⟨-1, [x]⟩]) (by simp)
-  have ey := hl (.zero [⟨1, []⟩, ⟨-1, [7]⟩, ⟨-1, [x + 1]⟩]) (by simp)
-  have er := hl (.zero [⟨1, [2]⟩, ⟨-1, [x]⟩, ⟨2, [x, x + 1]⟩, ⟨-1, [x + 1]⟩]) (by simp)
-  simp only [Constraint.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
+  have ex := hl (.assertZero [⟨1, [3]⟩, ⟨-2, [3, 5]⟩, ⟨1, [5]⟩, ⟨-1, [x]⟩]) (by simp)
+  have ey := hl (.assertZero [⟨1, []⟩, ⟨-1, [7]⟩, ⟨-1, [x + 1]⟩]) (by simp)
+  have er := hl (.assertZero [⟨1, [2]⟩, ⟨-1, [x]⟩, ⟨2, [x, x + 1]⟩, ⟨-1, [x + 1]⟩]) (by simp)
+  simp only [Opcode.Holds, Term.eval, List.map, List.prod_cons, List.prod_nil,
     List.sum_cons, List.sum_nil, Range] at ex ey er ha hb
   push_cast at ex ey er
   -- the sign bits
@@ -203,8 +203,8 @@ namespace AcirLean
 
 /-! ### Honest witnesses for the compiled functions -/
 
-instance instDecidableAllSatFn (σ : ℕ → F) (f : AcirFunction) : Decidable (AllHold σ f.constraints) :=
-  instDecidableAllSat σ f.constraints
+instance instDecidableAllSatFn (σ : ℕ → F) (f : Circuit) : Decidable (AllHold σ f.opcodes) :=
+  instDecidableAllSat σ f.opcodes
 
 /-- `0 / 1`: `inv = 1`, and at `u128` the divisor's low half `1`. -/
 def acirDivWitness : ℕ → F
