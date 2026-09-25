@@ -229,19 +229,27 @@ fails on any difference.
 
 To rebuild the test-program data from the current compiler (about 6 minutes:
 it builds `nargo`, compiles every execution-success program, and prints each
-shipped circuit through `fv_templates.rs`):
+shipped circuit through `fv_templates.rs`), then re-check the proofs:
 
 ```sh
-(cd fv/acir_lean && ./scripts/regen_programs.sh && ./scripts/check.sh)
+just fv-regen       # the programs already proved: fixes a failing `FV test programs` job
+just fv-regen-all   # also adds test programs that are not in the proofs yet
+just fv-check       # only re-check the proofs (what `FV Lean` runs)
 ```
+
+Adding a test program needs none of these: CI only checks the programs already
+in the proofs. `just fv-regen-all` brings new ones in; if the checker rejects
+one, `fv-check` fails until it is listed, with the reason, in
+`uncoveredPrograms` (`Spec/Claims.lean`).
 
 This writes `Templates/TestPrograms.lean`, `test_programs.golden` and
 `test_programs.outside`. Two CI checks keep them honest:
 
-- `FV test programs` (`.github/workflows/fv-test-programs.yml`) runs this
-  script on every pull request, in parallel with the other workflows, and fails
-  if the result differs from the committed files. A compiler change that alters
-  any of these circuits therefore has to commit the rebuilt data.
+- `FV test programs` (`.github/workflows/fv-test-programs.yml`) rebuilds the
+  programs already in the proofs on every pull request, in parallel with the
+  other workflows, and fails if any of their SSA or circuits changed. A compiler
+  change that alters one of them therefore has to commit the rebuilt data
+  (`just fv-regen`).
 - `FV Lean` (`check.sh`) requires the Lean data to print exactly
   `test_programs.golden`, and the checker to accept every program outside
   `uncoveredPrograms`, so rebuilt data with a circuit the checker cannot prove

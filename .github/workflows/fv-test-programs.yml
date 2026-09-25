@@ -54,7 +54,7 @@ jobs:
       - name: Check it matches the committed data
         run: |
           if ! git diff --exit-code --stat -- fv/acir_lean/AcirLean/Templates/TestPrograms.lean fv/acir_lean/test_programs.golden; then
-            echo "::error::fv/acir_lean's test-program data is stale. Run fv/acir_lean/scripts/regen_programs.sh and commit the result; fv/acir_lean/scripts/check.sh must still pass."
+            echo "::error::fv/acir_lean's test-program data is stale. Run 'just fv-regen' and commit the result."
             git diff -- fv/acir_lean/test_programs.golden | head -100
             exit 1
           fi
