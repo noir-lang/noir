@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.0.0-rc.4](https://github.com/noir-lang/noir/compare/v1.0.0-rc.3...v1.0.0-rc.4) (2026-09-25)
+
+
+### Bug Fixes
+
+* Attach the logical OOB payload whenever the memory-op index is scaled ([#13776](https://github.com/noir-lang/noir/issues/13776)) ([952378f](https://github.com/noir-lang/noir/commit/952378fc0d72883c578149e9f00b757d9516b711))
+* **frontend:** Evaluate a numeric type alias used as a value from its resolved type ([#13790](https://github.com/noir-lang/noir/issues/13790)) ([351c3e1](https://github.com/noir-lang/noir/commit/351c3e108ed66c160afee4afd106fadb912ca3a5))
+* **frontend:** Only mark a lambda unconstrained when it is itself an unconstrained call's argument ([#13785](https://github.com/noir-lang/noir/issues/13785)) ([581508f](https://github.com/noir-lang/noir/commit/581508fd56454541bf6fa9fc840ef24fdbddef7d))
+* Keep sibling `where` bounds on one trait from sharing associated types ([#13777](https://github.com/noir-lang/noir/issues/13777)) ([ac75dfa](https://github.com/noir-lang/noir/commit/ac75dfa5c762a5ec522e8b43c99cb444fd42bb70))
+* **ownership:** Compute moves with backward liveness ([#13781](https://github.com/noir-lang/noir/issues/13781)) ([ee3e1ae](https://github.com/noir-lang/noir/commit/ee3e1aef7b659e3c550b8a78012c5112ee1a8de3))
+* **ownership:** Make the `killed` loop rescue a per-read decision ([#13779](https://github.com/noir-lang/noir/issues/13779)) ([1f9b52b](https://github.com/noir-lang/noir/commit/1f9b52bd951b62bd104d7dcbc9193698077db75f))
+* **ssa:** Do not derive must-alias allocation sites through memory ([#13789](https://github.com/noir-lang/noir/issues/13789)) ([0a896ca](https://github.com/noir-lang/noir/commit/0a896cab925b368767387446f5fbef0f60f4a970))
+
 ## [1.0.0-rc.3](https://github.com/noir-lang/noir/compare/v1.0.0-rc.2...v1.0.0-rc.3) (2026-09-18)
 
 
