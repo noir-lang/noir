@@ -1,0 +1,6 @@
+[package]
+name = "numeric_alias_composed_generic_value"
+type = "bin"
+authors = [""]
+
+[dependencies]

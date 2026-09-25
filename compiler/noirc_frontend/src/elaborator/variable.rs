@@ -5,10 +5,7 @@ use itertools::Itertools;
 
 use super::Elaborator;
 use crate::TypeAlias;
-use crate::ast::{
-    Expression, ExpressionKind, GenericTypeArgs, Ident, Path, PathKind, TypePath,
-    UnresolvedTypeExpression,
-};
+use crate::ast::{Expression, ExpressionKind, GenericTypeArgs, Ident, Path, PathKind, TypePath};
 use crate::elaborator::TypedPath;
 use crate::elaborator::function_context::BindableTypeVariableKind;
 use crate::elaborator::path_resolution::{
@@ -173,87 +170,55 @@ impl Elaborator<'_> {
         let (hir_ident, item) = match variable_resolution {
             Some(VariableResolution::Expression(id, typ)) => return (id, typ, false, location),
             Some(VariableResolution::TypeAlias(type_alias_id)) => {
-                // A type alias to a numeric generics is considered like a variable,
-                // but it is not a real variable so it does not resolve to a valid Identifier.
-                // In order to handle this, we retrieve the numeric generics expression that the type aliases to.
+                // A numeric type alias is used like a variable, but it is not a real variable,
+                // so it has no `DefinitionId` to refer to. It stands for the type it was resolved
+                // to when the alias was defined (see `define_type_alias`), which is also what the
+                // alias means in type positions such as `[Field; Alias]`.
+                //
+                // Do not re-elaborate the alias body here: that would resolve the names in it
+                // against the use site's locals, parameters, generics and module rather than
+                // the alias's own, so the same alias could evaluate to a different number in
+                // value position than in type position.
                 let type_alias = self.interner.get_type_alias(type_alias_id);
-                let alias_module_id = type_alias.borrow().module_id;
-                if let Some(type_alias_expr) = &type_alias.borrow().numeric_expr {
-                    // Extract the declared numeric type from the type alias's kind.
-                    let declared_type = match type_alias.borrow().typ.kind() {
-                        Kind::Numeric(declared_type) => declared_type,
-                        _ => Box::new(Type::Error),
+                let type_alias = type_alias.borrow();
+                if type_alias.numeric_expr.is_some() {
+                    let declared_type = match type_alias.typ.kind() {
+                        Kind::Numeric(declared_type) => *declared_type,
+                        _ => Type::Error,
                     };
-                    let declared_type = *declared_type;
-                    let var_expr = UnresolvedTypeExpression::to_expression_kind(type_alias_expr);
 
-                    // The expression we create for this particular instantiation of the numeric type alias
-                    // must have the same location as the path that refers to it.
-                    let var_expr = Expression::new(var_expr, location);
-
-                    // Resolve turbofish generics for the type alias.
-                    // `resolved_turbofish` contains already-resolved types from
-                    // validate_path, so we use resolve_alias_turbofish_generics
-                    // directly which accepts resolved types.
-                    let alias_generics = &type_alias.borrow().generics;
-                    let alias_generic_types = vecmap(alias_generics, |generic| {
+                    let alias_generic_types = vecmap(&type_alias.generics, |generic| {
                         self.interner.next_type_variable_with_kind(generic.kind())
                     });
                     let mut errors = Vec::new();
-                    let type_alias_ref = type_alias.borrow();
                     let resolved_generics = self.resolve_alias_turbofish_generics(
-                        &type_alias_ref,
+                        &type_alias,
                         alias_generic_types,
                         resolved_turbofish,
                         location,
                         &mut errors,
                     );
                     self.push_errors(errors);
+                    let value = type_alias.get_type(&resolved_generics);
+                    let name = type_alias.name.to_string();
+                    drop(type_alias);
 
-                    // Introduce alias generics into scope so the numeric expression
-                    // resolves them correctly (not to globals or other variables
-                    // that happen to share the same name). Bind each generic's type
-                    // variable to the turbofish-resolved type.
-                    self.push_scope();
-                    for (generic, resolved_type) in
-                        alias_generics.iter().zip_eq(resolved_generics.iter())
-                    {
-                        if let Kind::Numeric(numeric_type) = &generic.kind() {
-                            let id = self.interner.next_type_variable_id();
-                            let type_var = TypeVariable::unbound(id, generic.kind());
-                            type_var.bind(resolved_type.clone());
-                            let definition =
-                                DefinitionKind::NumericGeneric(type_var, numeric_type.clone());
-                            let ident = Ident::new(generic.name.to_string(), generic.location);
-                            let hir_ident = self.add_variable_decl(
-                                ident, false, // mutable
-                                true,  // allow_shadowing
-                                false, // warn_if_unused
-                                false, // warn_if_not_mutated
-                                definition,
-                            );
-                            self.interner.push_definition_type(hir_ident.id, *numeric_type.clone());
-                        }
-                    }
+                    // Expose the value as a numeric generic bound to it: that is how a value
+                    // standing for a type-level number is evaluated, both by the monomorphizer
+                    // and by the comptime interpreter.
+                    let type_var_id = self.interner.next_type_variable_id();
+                    let kind = Kind::Numeric(Box::new(declared_type.clone()));
+                    let type_var = TypeVariable::unbound(type_var_id, kind);
+                    type_var.bind(value);
+                    let definition =
+                        DefinitionKind::NumericGeneric(type_var, Box::new(declared_type.clone()));
+                    let definition_id =
+                        self.interner.push_definition(name, false, false, definition, location);
+                    self.interner.push_definition_type(definition_id, declared_type.clone());
 
-                    // The alias's numeric expression has already been kind-checked at
-                    // alias-definition time (see `convert_expression_type`), which is
-                    // where any "value does not fit" diagnostic is emitted. Drop any
-                    // literals queued for the function-context fit check during
-                    // re-elaboration so the same overflow is not reported twice.
-                    let literals_before = self.integer_literal_expr_ids_len();
-                    // Re-elaborate the alias body in the alias's defining module
-                    // so unqualified names resolve against the alias's scope,
-                    // not the caller's. Mirrors `define_type_alias` in mod.rs.
-                    let (id, typ) =
-                        self.in_module(alias_module_id, |this| this.elaborate_expression(var_expr));
-                    self.truncate_integer_literal_expr_ids(literals_before);
-                    self.pop_scope();
-
-                    // Unify the expression's type with the declared type from the type alias
-                    // to ensure proper type checking.
-                    self.unify_or_type_mismatch(&typ, &declared_type, type_alias_expr.location());
-
+                    let ident = HirIdent::non_trait_method(definition_id, location);
+                    let expr = HirExpression::Ident(ident, None);
+                    let id = self.interner.push_expr_full(expr, location, declared_type.clone());
                     return (id, declared_type, false, location);
                 }
                 (None, None)

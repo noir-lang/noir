@@ -490,6 +490,299 @@ mod tests {
         assert_verifier_rejects(src);
     }
 
+    /// A swap whose rotated-in value is the source's own mutated storage.
+    /// `t = a; a = c; c = t; c[0] += 10` lowers to the header parameters
+    /// `(v33, v34)` permuted on the back-edge as `(v34, v24)`, where `v24` is
+    /// the `array_set` of `v33`. In iteration `k`, `v33` holds what `v34` held
+    /// in `k-1` and `v34` holds what `v33` held, so the pair shares storage in
+    /// `k` only if it did in `k-1`; it enters the loop with two distinct
+    /// `make_array`s, so it never does. The `array_set v33` therefore cannot be
+    /// observed through `v34`, and the loop-exit read of `v33` sees the storage
+    /// the back-edge rebound it to, not the mutated one.
+    #[test]
+    fn end_to_end_swap_with_mutated_sibling_is_accepted() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0():
+                v4 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+                v9 = make_array [Field 4, Field 5, Field 6] : [Field; 3]
+                jmp b1(u32 0, v4, v9)
+              b1(v12: u32, v33: [Field; 3], v34: [Field; 3]):
+                v13 = lt v12, u32 3
+                jmpif v13 then: b2(), else: b3()
+              b2():
+                v20 = array_get v33, index u32 0 -> Field
+                v22 = add v20, Field 10
+                v24 = array_set v33, index u32 0, value v22
+                v25 = unchecked_add v12, u32 1
+                jmp b1(v25, v34, v24)
+              b3():
+                v27 = array_get v33, index u32 0 -> Field
+                v31 = array_get v34, index u32 0 -> Field
+                v32 = add v27, v31
+                return v32
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "v33 and v34 enter the loop distinct and the back-edge only permutes them, so \
+             they never share storage and v34 is dropped from v33's alias-set",
+        );
+    }
+
+    /// The three-way rotation `t = a; a = b; b = c; c = t` with a write to the
+    /// rotated array. Each header parameter receives another one's storage on
+    /// the back-edge, so no pair ever shares storage; accepted for the same
+    /// reason as [`Self::end_to_end_swap_with_mutated_sibling_is_accepted`].
+    #[test]
+    fn end_to_end_three_way_rotation_with_write_is_accepted() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0():
+                v1 = make_array [Field 1] : [Field; 1]
+                v2 = make_array [Field 2] : [Field; 1]
+                v3 = make_array [Field 3] : [Field; 1]
+                jmp b1(u32 0, v1, v2, v3)
+              b1(v10: u32, v11: [Field; 1], v12: [Field; 1], v13: [Field; 1]):
+                v14 = lt v10, u32 4
+                jmpif v14 then: b2(), else: b3()
+              b2():
+                v15 = array_set v11, index u32 0, value Field 9
+                v16 = array_get v12, index u32 0 -> Field
+                v17 = array_get v13, index u32 0 -> Field
+                v18 = unchecked_add v10, u32 1
+                jmp b1(v18, v12, v13, v15)
+              b3():
+                v19 = array_get v11, index u32 0 -> Field
+                return v19
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "the back-edge rotates three pairwise-distinct header parameters, so none of them \
+             ever shares storage with the one the array_set mutates",
+        );
+    }
+
+    /// The swap of [`Self::end_to_end_swap_with_mutated_sibling_is_accepted`],
+    /// but the pre-header passes the same array to both header parameters. They
+    /// share storage in the first iteration, so the `array_set v33` is observed
+    /// by the `array_get v34` that follows it.
+    #[test]
+    fn end_to_end_swap_with_mutated_sibling_and_shared_entry_is_rejected() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0():
+                v4 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+                jmp b1(u32 0, v4, v4)
+              b1(v12: u32, v33: [Field; 3], v34: [Field; 3]):
+                v13 = lt v12, u32 3
+                jmpif v13 then: b2(), else: b3()
+              b2():
+                v24 = array_set v33, index u32 0, value Field 10
+                v26 = array_get v34, index u32 0 -> Field
+                constrain v26 == Field 1
+                v25 = unchecked_add v12, u32 1
+                jmp b1(v25, v34, v24)
+              b3():
+                return
+            }"#;
+        assert_verifier_rejects(src);
+    }
+
+    /// A join of two swap-excluded header parameters may be either of them.
+    /// `v11` and `v12` never share storage with each other, but the join
+    /// parameter `v20` is `v11` on one path and `v12` on the other, so neither
+    /// may be dropped from `v20`'s alias-set. On the `b4` path the `array_set
+    /// v20` mutates `v11`'s storage in place and the `array_get v11` observes
+    /// it.
+    #[test]
+    fn end_to_end_join_of_swapped_params_keeps_both_aliases_is_rejected() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: u1):
+                v1 = make_array [Field 1] : [Field; 1]
+                v2 = make_array [Field 2] : [Field; 1]
+                jmp b1(u32 0, v1, v2)
+              b1(v10: u32, v11: [Field; 1], v12: [Field; 1]):
+                v13 = lt v10, u32 3
+                jmpif v13 then: b2(), else: b7()
+              b2():
+                jmpif v0 then: b4(), else: b5()
+              b4():
+                jmp b6(v11)
+              b5():
+                jmp b6(v12)
+              b6(v20: [Field; 1]):
+                v21 = array_set v20, index u32 0, value Field 9
+                v22 = array_get v11, index u32 0 -> Field
+                constrain v22 == Field 1
+                v23 = unchecked_add v10, u32 1
+                jmp b1(v23, v12, v11)
+              b7():
+                return
+            }"#;
+        assert_verifier_rejects(src);
+    }
+
+    /// A swap that passes the source's pre-mutation value, not the `array_set`
+    /// result, to the sibling. `v33` and `v34` never share storage, but the
+    /// back-edge hands `v33` itself to `v34`, so after the in-place `array_set
+    /// v33` the loop-exit read of `v34` observes the mutation where it should
+    /// see `v33`'s original contents.
+    #[test]
+    fn end_to_end_swap_passing_the_pre_mutation_source_is_rejected() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0():
+                v4 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+                v9 = make_array [Field 4, Field 5, Field 6] : [Field; 3]
+                jmp b1(u32 0, v4, v9)
+              b1(v12: u32, v33: [Field; 3], v34: [Field; 3]):
+                v13 = lt v12, u32 3
+                jmpif v13 then: b2(), else: b3()
+              b2():
+                v24 = array_set v33, index u32 0, value Field 10
+                v25 = unchecked_add v12, u32 1
+                jmp b1(v25, v34, v33)
+              b3():
+                v31 = array_get v34, index u32 0 -> Field
+                return v31
+            }"#;
+        assert_verifier_rejects(src);
+    }
+
+    /// An inner loop whose back-edge rebinds its parameter to the outer loop's
+    /// swapped sibling. `v4` never shares storage with `v3`, and `v7` enters the
+    /// inner loop as `v3`, but from the second inner iteration on `v7` is `v4`:
+    /// the `array_set v7` then mutates `v4`'s storage in place and the
+    /// `array_get v4` observes it. `v7` must not inherit `v3`'s exclusion of
+    /// `v4`.
+    #[test]
+    fn end_to_end_inner_back_edge_rebinding_to_excluded_sibling_is_rejected() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: u1):
+                v1 = make_array [Field 0] : [Field; 1]
+                v2 = make_array [Field 1] : [Field; 1]
+                jmp b1(v1, v2, u32 0)
+              b1(v3: [Field; 1], v4: [Field; 1], v5: u32):
+                v6 = lt v5, u32 3
+                jmpif v6 then: b2(), else: b8()
+              b2():
+                jmp b3(v3, u32 0)
+              b3(v7: [Field; 1], v8: u32):
+                v9 = lt v8, u32 3
+                jmpif v9 then: b4(), else: b6()
+              b4():
+                v10 = array_set v7, index u32 0, value Field 7
+                v11 = array_get v4, index u32 0 -> Field
+                constrain v11 == Field 1
+                v12 = add v8, u32 1
+                jmp b3(v4, v12)
+              b6():
+                v14 = make_array [Field 2] : [Field; 1]
+                v15 = add v5, u32 1
+                jmp b1(v4, v14, v15)
+              b8():
+                return
+            }"#;
+        assert_verifier_rejects(src);
+    }
+
+    /// A swap through branches. `v51` and `v52` can only reach the same back-edge
+    /// position on a path that raised the storage's reference count on the way
+    /// (`inc_rc v52` in `b5`, `inc_rc v15` in `b8`), and a raised count makes
+    /// the `array_set` there copy. So no pair of header parameters ever shares
+    /// storage with a reference count of 1, and the `array_set v20` cannot be
+    /// observed through `v15`.
+    #[test]
+    fn end_to_end_branching_swap_protected_by_inc_rc_is_accepted() {
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0(v0: u1):
+                v3 = make_array [Field 1, Field 2] : [Field; 2]
+                v7 = make_array [Field 3, Field 4] : [Field; 2]
+                jmp b1(u32 0, v3, v7)
+              b1(v11: u32, v51: [Field; 2], v52: [Field; 2]):
+                v12 = lt v11, u32 4
+                jmpif v12 then: b2(), else: b3()
+              b2():
+                jmpif v0 then: b4(), else: b5()
+              b3():
+                v35 = array_get v51, index u32 0 -> Field
+                v44 = array_get v52, index u32 0 -> Field
+                v50 = add v35, v44
+                return v50
+              b4():
+                jmp b6(v51)
+              b5():
+                inc_rc v52
+                jmp b6(v52)
+              b6(v15: [Field; 2]):
+                v17 = truncate v11 to 1 bits, max_bit_size: 32
+                v18 = eq v17, u32 0
+                jmpif v18 then: b7(), else: b8()
+              b7():
+                jmp b9(v52)
+              b8():
+                inc_rc v15
+                jmp b9(v15)
+              b9(v20: [Field; 2]):
+                v24 = array_get v20, index u32 0 -> Field
+                v25 = add v24, Field 1
+                v27 = array_set v20, index u32 0, value v25
+                v29 = array_get v15, index u32 1 -> Field
+                v30 = add v29, Field 1
+                v32 = array_set v15, index u32 1, value v30
+                v33 = unchecked_add v11, u32 1
+                jmp b1(v33, v27, v32)
+            }"#;
+        assert_verifier_accepts_because(
+            src,
+            "every path on which v51 and v52 could meet raises the reference count first, so \
+             they never share storage that an array_set could write in place",
+        );
+    }
+
+    #[test]
+    fn end_to_end_double_feed_after_forwarded_inc_rc_is_rejected() {
+        // `copied` is fresh storage with RC 1. Feeding it to both loop-carried
+        // array parameters makes `a` and `b` share storage in the next
+        // iteration, so `array_set a` mutates in place and the read of `b`
+        // observes the write.
+        let src = r#"
+            brillig(inline) fn main f0 {
+              b0():
+                v1 = make_array [Field 1] : [Field; 1]
+                v2 = make_array [Field 2] : [Field; 1]
+                jmp b1(u32 0, v1, v2)
+              b1(i: u32, a: [Field; 1], b: [Field; 1]):
+                cond = lt i, u32 2
+                jmpif cond then: b2(), else: b9()
+              b2():
+                before = array_get b, index u32 0 -> Field
+                written = array_set a, index u32 0, value Field 9
+                after = array_get b, index u32 0 -> Field
+                constrain before == after
+                next = add i, u32 1
+                first = eq i, u32 0
+                jmpif first then: b3(), else: b6()
+              b3():
+                inc_rc written
+                jmp b4(written)
+              b4(p: [Field; 1]):
+                copied = array_set p, index u32 0, value Field 7
+                jmp b1(next, copied, copied)
+              b6():
+                jmp b1(next, b, written)
+              b9():
+                return
+            }"#;
+        let ssa = Ssa::from_str(src).expect("SSA parses");
+        let result = ssa.interpret(Vec::new());
+        assert!(result.is_err(), "unprotected sharing must corrupt the second iteration");
+        assert_verifier_rejects(src);
+    }
+
     /// ACIR functions are skipped: `inc_rc` / `dec_rc` are no-ops in ACIR and
     /// `array_set` always produces a fresh array.
     #[test]
