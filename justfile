@@ -242,3 +242,17 @@ spellcheck:
 # Checks that relative links in the design/ docs point to files that exist
 check-design-links:
     ./scripts/check_design_links.sh
+
+# Formal verification (fv/acir_lean). These need elan; `fv/acir_lean/README.md` has the details.
+
+# Builds the Lean proofs and runs every check of CI's `FV Lean` job
+fv-check:
+    cd fv/acir_lean && ./scripts/check.sh
+
+# Rebuilds the proved test programs from the current compiler (CI's `FV test programs`), then fv-check
+fv-regen:
+    cd fv/acir_lean && FV_PINNED=1 ./scripts/regen_programs.sh && ./scripts/check.sh
+
+# Like fv-regen, also adding test programs that are not in the proofs yet
+fv-regen-all:
+    cd fv/acir_lean && ./scripts/regen_programs.sh && ./scripts/check.sh

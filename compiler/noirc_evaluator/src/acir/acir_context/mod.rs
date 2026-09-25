@@ -33,6 +33,8 @@ use crate::{
 
 mod black_box;
 mod brillig_call;
+#[cfg(test)]
+mod fv_templates;
 mod generated_acir;
 
 use super::{

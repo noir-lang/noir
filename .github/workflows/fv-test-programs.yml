@@ -1,0 +1,60 @@
+name: FV test programs
+
+# Rebuilds the programs `fv/acir_lean` proves (the final SSA and shipped circuit
+# of each program listed in `fv/acir_lean/test_programs.golden`) from the
+# current compiler and fails if any differs from what is committed. Any
+# compiler, stdlib or test-program change can change those circuits, so this
+# runs on every pull request, as its own workflow, in parallel with the `Test`
+# workflow. New test programs do not fail it: they are added to the proofs by
+# running `regen_programs.sh` without `FV_PINNED`.
+
+on:
+  pull_request:
+  merge_group:
+  push:
+    branches:
+      - master
+
+permissions: {}
+
+# This will cancel previous runs when a branch or PR is updated
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  regen-programs:
+    name: Test-program data is current
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Delete android SDK
+        run: sudo rm -rf /usr/local/lib/android/sdk
+
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.89.0
+        with:
+          targets: x86_64-unknown-linux-gnu
+
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          key: fv-test-programs
+          cache-on-failure: true
+          save-if: ${{ github.event_name != 'merge_group' }}
+
+      - name: Rebuild the pinned test programs
+        working-directory: fv/acir_lean
+        run: FV_PINNED=1 ./scripts/regen_programs.sh
+
+      - name: Check it matches the committed data
+        run: |
+          if ! git diff --exit-code --stat -- fv/acir_lean/AcirLean/Templates/TestPrograms.lean fv/acir_lean/test_programs.golden; then
+            echo "::error::fv/acir_lean's test-program data is stale. Run 'just fv-regen' and commit the result."
+            git diff -- fv/acir_lean/test_programs.golden | head -100
+            exit 1
+          fi
