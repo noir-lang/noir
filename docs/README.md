@@ -79,10 +79,10 @@ yarn serve
 
 ## Adding, Moving or Removing a Page
 
-Every page URL is recorded in `routes.snapshot.json`, and CI fails if one of them stops being
-served without somewhere for its readers to go. External sites, blog posts and search results link
-straight at these URLs, and Docusaurus' own broken-link check cannot see them — it only validates
-links inside this site.
+Every page URL is recorded in `routes.snapshot.json`, and `yarn build` fails if one of them stops
+being served without somewhere for its readers to go. External sites, blog posts and search results
+link straight at these URLs, and Docusaurus' own broken-link check cannot see them — it only
+validates links inside this site.
 
 When you rename, move or delete a page:
 
@@ -91,19 +91,18 @@ When you rename, move or delete a page:
    there are site-relative and version-agnostic: `/guides/oracles`, not `/docs/guides/oracles`.
    If the content has no successor anywhere, record the URL in `removed-urls.json` with a reason
    instead, and it will be allowed to 404.
-2. Refresh the snapshot and check it:
+2. Refresh the snapshot, which runs a full build with the snapshot rewritten from it:
 
 ```sh
-yarn build
 yarn routes:snapshot
-yarn routes:check
 ```
 
-`yarn routes:check` also fails when a redirect points at a page that no longer exists, so the table
-cannot rot into a chain of 301s ending in a 404.
+The build also fails when a redirect points at a page that no longer exists, so the table cannot
+rot into a chain of 301s ending in a 404.
 
 Adding a page needs step 2 as well — the snapshot lists every page, so a new one makes it stale
-and `yarn routes:check` fails until it is regenerated. A new page needs no redirect.
+and `yarn build` fails until it is regenerated. A new page needs no redirect. `yarn dev` does not
+check the snapshot.
 
 Versioned snapshots under `versioned_docs/` are not covered: their URLs are frozen at release and
 keep working on their own.
@@ -166,6 +165,5 @@ All commands should be run from the `docs` directory:
 | `yarn serve` | Serve built site locally |
 | `yarn version::stables` | Update stable versions list |
 | `yarn cut_version <VERSION>` | Cut a new versioned docs snapshot |
-| `yarn routes:snapshot` | Refresh the page-URL snapshot after a build |
-| `yarn routes:check` | Verify no page URL lost its redirect |
+| `yarn routes:snapshot` | Build the site and refresh the page-URL snapshot |
 | `yarn clean` | Clean build artifacts |

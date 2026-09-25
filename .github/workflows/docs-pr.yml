@@ -109,10 +109,6 @@ jobs:
           ENV: staging # not really a secret, it will show in the footer anyway
         run: yarn build
 
-      - name: Check every removed docs URL still has a redirect
-        working-directory: docs
-        run: yarn routes:check
-
       - name: Upload artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:

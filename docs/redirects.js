@@ -1,6 +1,6 @@
 // Documentation URLs that external sites, blog posts and search results still point at, each
 // mapped to the page that now holds the content. `docusaurus.config.ts` renders these into the
-// Netlify `_redirects` file as 301s, and `scripts/check_routes_snapshot.js` reads them to verify
+// Netlify `_redirects` file as 301s, and `plugins/routes-snapshot.js` reads them to verify
 // that no page can be removed without one.
 //
 // Netlify applies rules in order and stops at the first match, so the generated rules are

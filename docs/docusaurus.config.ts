@@ -1,6 +1,7 @@
 import type { Config } from '@docusaurus/types';
 const versions = require("./versions.json");
 const { legacyPathRedirects } = require('./redirects');
+const routesSnapshot = require('./plugins/routes-snapshot');
 const { themes } = require('prism-react-renderer');
 const lightTheme = themes.github;
 const darkTheme = themes.dracula;
@@ -163,6 +164,8 @@ export default {
         };
       },
     }),
+    // `docusaurus start` serves pages as they are edited, so only builds check the snapshot
+    ...(process.env.ENV === 'dev' ? [] : [routesSnapshot]),
     // Create Netlify redirects only for production/staging
     () => ({
       name: 'netlify-redirects',

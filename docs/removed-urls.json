@@ -1,4 +1,4 @@
 {
-  "note": "Docs pages that are allowed to 404 because the content has no successor anywhere in the docs. Anything with a successor belongs in redirects.js instead, so readers and search results land on the replacement. Each entry is {\"path\": \"/old/page\", \"reason\": \"why it has no successor\"}, with the path site-relative and version-agnostic. scripts/check_routes_snapshot.js reads this file.",
+  "note": "Docs pages that are allowed to 404 because the content has no successor anywhere in the docs. Anything with a successor belongs in redirects.js instead, so readers and search results land on the replacement. Each entry is {\"path\": \"/old/page\", \"reason\": \"why it has no successor\"}, with the path site-relative and version-agnostic. plugins/routes-snapshot.js reads this file.",
   "urls": []
 }
