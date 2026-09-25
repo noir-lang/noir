@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["arg_can_store_reference","base_ident_of_field_access","find_variables_to_move","local_occurs_in","type_can_store_reference","type_contains_reference"],"struct":["LivenessContext"],"type":["Live"]};

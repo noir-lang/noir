@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["arg_can_store_reference","base_ident_of_field_access","local_occurs_in","rhs_cannot_alias","type_can_store_reference","type_contains_reference"],"struct":["LastUseContext"]};
