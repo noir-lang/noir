@@ -1,12 +1,10 @@
-use std::collections::{HashMap, HashSet};
-
 use async_lsp::lsp_types::TextEdit;
 use fm::FileId;
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
     ParsedModule,
-    ast::{Ident, ItemVisibility, UseTree, UseTreeKind},
-    hir::def_map::Namespace,
+    ast::{Ident, ItemVisibility, UseTree},
+    fix::use_tree_without_unused_imports,
     parser::{Item, ItemKind},
 };
 
@@ -33,106 +31,42 @@ impl CodeActionFinder<'_> {
             return;
         }
 
-        if has_unused_import(use_tree, unused_imports) {
-            let byte_span = span.start() as usize..span.end() as usize;
-            let Some(range) = byte_span_to_range(self.files, self.file, byte_span) else {
-                return;
-            };
+        // The map is keyed by `(name, location)` because two distinct `use`s can import the same
+        // name (into different namespaces), so the location is matched too — otherwise a used
+        // import would be reported unused just for sharing a name with an unused one.
+        let is_unused = |ident: &Ident| {
+            unused_imports
+                .keys()
+                .any(|(name, location)| name == ident && *location == ident.location())
+        };
 
-            let (use_tree, removed_count) =
-                use_tree_without_unused_import(use_tree, unused_imports);
-            let (title, new_text) = match use_tree {
-                Some(use_tree) => (
-                    if removed_count == 1 {
-                        "Remove unused import".to_string()
-                    } else {
-                        "Remove unused imports".to_string()
-                    },
-                    use_tree_to_string(use_tree, visibility, self.nesting),
-                ),
-                None => ("Remove the whole `use` item".to_string(), "".to_string()),
-            };
-
-            let text_edit = TextEdit { range, new_text };
-            self.unused_imports_text_edits.push(text_edit.clone());
-
-            let code_action = self.new_quick_fix(title, text_edit);
-            self.code_actions.push(code_action);
+        let (use_tree, removed_count) = use_tree_without_unused_imports(use_tree, &is_unused);
+        if removed_count == 0 {
+            return;
         }
-    }
-}
 
-/// Whether `ident` names an unused import. The map is keyed by `(name, location)` because two
-/// distinct `use`s can import the same name (into different namespaces), so the location is matched
-/// too — otherwise a used import would be reported unused just for sharing a name with an unused one.
-fn is_unused_import(
-    ident: &Ident,
-    unused_imports: &HashMap<(Ident, Location), HashSet<Namespace>>,
-) -> bool {
-    unused_imports.keys().any(|(name, location)| name == ident && *location == ident.location())
-}
+        let byte_span = span.start() as usize..span.end() as usize;
+        let Some(range) = byte_span_to_range(self.files, self.file, byte_span) else {
+            return;
+        };
 
-fn has_unused_import(
-    use_tree: &UseTree,
-    unused_imports: &HashMap<(Ident, Location), HashSet<Namespace>>,
-) -> bool {
-    match &use_tree.kind {
-        UseTreeKind::Path(name, alias) => {
-            let ident = alias.as_ref().unwrap_or(name);
-            is_unused_import(ident, unused_imports)
-        }
-        UseTreeKind::List(use_trees) => {
-            use_trees.iter().any(|use_tree| has_unused_import(use_tree, unused_imports))
-        }
-    }
-}
+        let (title, new_text) = match use_tree {
+            Some(use_tree) => (
+                if removed_count == 1 {
+                    "Remove unused import".to_string()
+                } else {
+                    "Remove unused imports".to_string()
+                },
+                use_tree_to_string(use_tree, visibility, self.nesting),
+            ),
+            None => ("Remove the whole `use` item".to_string(), "".to_string()),
+        };
 
-/// Returns a new `UseTree` with all the unused imports removed, and the number of removed imports.
-fn use_tree_without_unused_import(
-    use_tree: &UseTree,
-    unused_imports: &HashMap<(Ident, Location), HashSet<Namespace>>,
-) -> (Option<UseTree>, usize) {
-    match &use_tree.kind {
-        UseTreeKind::Path(name, alias) => {
-            let ident = alias.as_ref().unwrap_or(name);
-            if is_unused_import(ident, unused_imports) {
-                (None, 1)
-            } else {
-                (Some(use_tree.clone()), 0)
-            }
-        }
-        UseTreeKind::List(use_trees) => {
-            let mut new_use_trees: Vec<UseTree> = Vec::new();
-            let mut total_count = 0;
+        let text_edit = TextEdit { range, new_text };
+        self.unused_imports_text_edits.push(text_edit.clone());
 
-            for use_tree in use_trees {
-                let (new_use_tree, count) =
-                    use_tree_without_unused_import(use_tree, unused_imports);
-                if let Some(new_use_tree) = new_use_tree {
-                    new_use_trees.push(new_use_tree);
-                }
-                total_count += count;
-            }
-
-            let new_use_tree = if new_use_trees.is_empty() {
-                None
-            } else if new_use_trees.len() == 1 {
-                let new_use_tree = new_use_trees.remove(0);
-
-                let mut prefix = use_tree.prefix.clone();
-                prefix.segments.extend(new_use_tree.prefix.segments);
-
-                Some(UseTree { prefix, kind: new_use_tree.kind, location: use_tree.location })
-            } else {
-                Some(UseTree {
-                    prefix: use_tree.prefix.clone(),
-                    kind: UseTreeKind::List(new_use_trees),
-                    location: use_tree.location,
-                })
-            };
-
-            (new_use_tree, total_count)
-        }
+        let code_action = self.new_quick_fix(title, text_edit);
+        self.code_actions.push(code_action);
     }
 }
 
@@ -286,6 +220,35 @@ mod tests {
             pub fn foo() {}
             pub fn bar() {}
             pub fn baz() {}
+        }
+        use moo::bar;
+
+        fn main() {
+            bar();
+        }
+        "#;
+
+        assert_code_action(title, src, expected);
+    }
+
+    #[test]
+    fn test_removes_unused_self_import() {
+        let title = "Remove unused import";
+
+        let src = r#"
+        mod moo {
+            pub fn bar() {}
+        }
+        use moo::{se>|<lf, bar};
+
+        fn main() {
+            bar();
+        }
+        "#;
+
+        let expected = r#"
+        mod moo {
+            pub fn bar() {}
         }
         use moo::bar;
 
