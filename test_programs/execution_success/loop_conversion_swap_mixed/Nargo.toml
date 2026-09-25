@@ -1,0 +1,6 @@
+[package]
+name = "loop_conversion_swap_mixed"
+type = "bin"
+authors = [""]
+
+[dependencies]

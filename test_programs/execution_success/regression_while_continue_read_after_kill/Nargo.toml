@@ -1,0 +1,6 @@
+[package]
+name = "regression_while_continue_read_after_kill"
+type = "bin"
+authors = [""]
+
+[dependencies]
