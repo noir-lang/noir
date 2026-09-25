@@ -19,7 +19,7 @@ The layout is the review policy, and `scripts/check.sh` enforces it in CI.
 | `Check.lean`, `EmitTemplates.lean`, `EmitPrograms.lean` | **REVIEWED** | The entry points: the final check, and the two golden-file writers. |
 | `scripts/check.sh`, `.github/workflows/fv-lean.yml` | **REVIEWED** | The enforcement itself. |
 | `compiler/.../acir_context/fv_templates.rs` | **REVIEWED** | The Rust half of the pin. |
-| `scripts/regen_programs.sh` | **REVIEWED** | Writes `test_programs.golden` from `nargo compile` output. CI does not run it (see below). |
+| `scripts/regen_programs.sh`, `.github/workflows/fv-test-programs.yml` | **REVIEWED** | Rebuild `test_programs.golden` from `nargo compile` output; CI fails if the committed copy is stale. |
 | `AcirLean/Templates/` | pinned, ignore | Constraint lists, SSA and test programs, checked byte-for-byte against the golden files. Plain definitions only. |
 | `AcirLean/Proofs/` | machine-checked, ignore | Lean checks every proof, and nothing here can change what `Spec/` states. |
 | `AcirLean/Examples/` | ignore | Demonstrations, not part of the claims. |
@@ -163,8 +163,6 @@ Not yet covered:
 
 - programs outside the scalar subset: arrays and ACIR memory, references,
   calls, black boxes and control flow in the checker;
-- `test_programs.golden` being current: CI checks the Lean data against it, but
-  does not rebuild it from `nargo compile` (see below);
 - the ACVM optimization passes on programs outside the pinned corpus: the
   optimized circuits are checked program by program, not the passes in
   general;
@@ -238,11 +236,16 @@ shipped circuit through `fv_templates.rs`):
 ```
 
 This writes `Templates/TestPrograms.lean`, `test_programs.golden` and
-`test_programs.outside`. CI checks that the Lean data prints exactly
-`test_programs.golden`, but it does not run this script, so after a compiler
-change the golden file keeps describing the circuits of the commit it was built
-from until someone reruns it. If the rebuilt data has a program the checker no
-longer accepts, `check.sh` fails.
+`test_programs.outside`. Two CI checks keep them honest:
+
+- `FV test programs` (`.github/workflows/fv-test-programs.yml`) runs this
+  script on every pull request, in parallel with the other workflows, and fails
+  if the result differs from the committed files. A compiler change that alters
+  any of these circuits therefore has to commit the rebuilt data.
+- `FV Lean` (`check.sh`) requires the Lean data to print exactly
+  `test_programs.golden`, and the checker to accept every program outside
+  `uncoveredPrograms`, so rebuilt data with a circuit the checker cannot prove
+  sound fails there.
 
 To see a soundness bug caught, delete the `q ≤ q0` bound in
 `euclidean_division_var` (the `bound_constraint_with_offset(quotient_var,

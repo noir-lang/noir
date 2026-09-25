@@ -1,0 +1,58 @@
+name: FV test programs
+
+# Rebuilds `fv/acir_lean`'s test-program data (the final SSA and shipped circuit
+# of each program in `test_programs/execution_success`) from the current
+# compiler and fails if it differs from what is committed. Any compiler, stdlib
+# or test-program change can change those circuits, so this runs on every pull
+# request, as its own workflow, in parallel with the `Test` workflow.
+
+on:
+  pull_request:
+  merge_group:
+  push:
+    branches:
+      - master
+
+permissions: {}
+
+# This will cancel previous runs when a branch or PR is updated
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  regen-programs:
+    name: Test-program data is current
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Delete android SDK
+        run: sudo rm -rf /usr/local/lib/android/sdk
+
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.89.0
+        with:
+          targets: x86_64-unknown-linux-gnu
+
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          key: fv-test-programs
+          cache-on-failure: true
+          save-if: ${{ github.event_name != 'merge_group' }}
+
+      - name: Rebuild the test-program data
+        working-directory: fv/acir_lean
+        run: ./scripts/regen_programs.sh
+
+      - name: Check it matches the committed data
+        run: |
+          if ! git diff --exit-code --stat -- fv/acir_lean; then
+            echo "::error::fv/acir_lean's test-program data is stale. Run fv/acir_lean/scripts/regen_programs.sh and commit the result; fv/acir_lean/scripts/check.sh must still pass."
+            git diff -- fv/acir_lean/test_programs.outside fv/acir_lean/test_programs.golden | head -100
+            exit 1
+          fi
