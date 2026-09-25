@@ -1,10 +1,12 @@
 name: FV test programs
 
-# Rebuilds `fv/acir_lean`'s test-program data (the final SSA and shipped circuit
-# of each program in `test_programs/execution_success`) from the current
-# compiler and fails if it differs from what is committed. Any compiler, stdlib
-# or test-program change can change those circuits, so this runs on every pull
-# request, as its own workflow, in parallel with the `Test` workflow.
+# Rebuilds the programs `fv/acir_lean` proves (the final SSA and shipped circuit
+# of each program listed in `fv/acir_lean/test_programs.golden`) from the
+# current compiler and fails if any differs from what is committed. Any
+# compiler, stdlib or test-program change can change those circuits, so this
+# runs on every pull request, as its own workflow, in parallel with the `Test`
+# workflow. New test programs do not fail it: they are added to the proofs by
+# running `regen_programs.sh` without `FV_PINNED`.
 
 on:
   pull_request:
@@ -45,14 +47,14 @@ jobs:
           cache-on-failure: true
           save-if: ${{ github.event_name != 'merge_group' }}
 
-      - name: Rebuild the test-program data
+      - name: Rebuild the pinned test programs
         working-directory: fv/acir_lean
-        run: ./scripts/regen_programs.sh
+        run: FV_PINNED=1 ./scripts/regen_programs.sh
 
       - name: Check it matches the committed data
         run: |
-          if ! git diff --exit-code --stat -- fv/acir_lean; then
+          if ! git diff --exit-code --stat -- fv/acir_lean/AcirLean/Templates/TestPrograms.lean fv/acir_lean/test_programs.golden; then
             echo "::error::fv/acir_lean's test-program data is stale. Run fv/acir_lean/scripts/regen_programs.sh and commit the result; fv/acir_lean/scripts/check.sh must still pass."
-            git diff -- fv/acir_lean/test_programs.outside fv/acir_lean/test_programs.golden | head -100
+            git diff -- fv/acir_lean/test_programs.golden | head -100
             exit 1
           fi

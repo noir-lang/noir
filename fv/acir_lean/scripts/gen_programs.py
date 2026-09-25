@@ -11,6 +11,11 @@ instructions, writes a `ProgEntry` (its SSA and its shipped circuit) to
 are listed in <outside-out> with the reason. Run by `regen_programs.sh`.
 Nothing here is trusted: `check.sh` requires Lean's printout of the data to
 equal <golden-out>.
+
+With FV_PINNED set, keeps only the programs <golden-out> already lists and
+leaves <outside-out> alone: CI uses this to check that the pinned programs'
+SSA and circuits are unchanged without failing every time a test program is
+added.
 """
 import os
 import re
@@ -137,8 +142,14 @@ def lean_fn(lines):
 def main():
     ssa_dir, circ_path, names_out, lean_out, expected_out = sys.argv[1:6]
     circs = circuits(circ_path)
+    pinned = None
+    if os.environ.get("FV_PINNED"):
+        pinned = [l[len("# program "):] for l in open(expected_out).read().splitlines()
+                  if l.startswith("# program ")]
     entries, skipped, expected = [], [], []
     for name in sorted(circs):
+        if pinned is not None and name not in pinned:
+            continue
         try:
             lines = main_fn(open(os.path.join(ssa_dir, name + ".ssa")).read())
             header, params, body, rets = program(lines)
@@ -166,8 +177,13 @@ def main():
         f.write("\ndef testPrograms : List ProgEntry := [" +
                 ", ".join(f"prog{i}" for i in range(len(entries))) + "]\n\nend AcirLean\n")
     open(expected_out, "w").write("\n".join(expected) + "\n")
-    open(names_out, "w").write("\n".join(skipped) + "\n")
-    print(f"{len(entries)} programs in the subset, {len(skipped)} outside it")
+    if pinned is None:
+        open(names_out, "w").write("\n".join(skipped) + "\n")
+        print(f"{len(entries)} programs in the subset, {len(skipped)} outside it")
+    else:
+        print(f"{len(entries)} of the {len(pinned)} pinned programs rebuilt")
+        for line in skipped:
+            print(f"pinned program left the subset: {line}")
 
 
 main()

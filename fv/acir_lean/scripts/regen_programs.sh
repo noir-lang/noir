@@ -6,7 +6,9 @@
 #   test_programs.golden                   what Lean must print for them,
 #   test_programs.outside                  the others, with the reason.
 # `scripts/check.sh` then requires the Lean data to print exactly
-# `test_programs.golden`. Needs `cargo` and `python3`.
+# `test_programs.golden`. With FV_PINNED=1 it rebuilds only the programs
+# `test_programs.golden` already lists (see `gen_programs.py`). Needs `cargo`
+# and `python3`.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 root=$(cd ../.. && pwd)
