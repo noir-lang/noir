@@ -79,10 +79,14 @@ yarn serve
 
 ## Adding, Moving or Removing a Page
 
-Every page URL is recorded in `routes.snapshot.json`, and `yarn build` fails if one of them stops
-being served without somewhere for its readers to go. External sites, blog posts and search results
-link straight at these URLs, and Docusaurus' own broken-link check cannot see them — it only
-validates links inside this site.
+Every page URL the docs have served is recorded in `routes.snapshot.json`, and `yarn build` fails
+if one of them stops being served without somewhere for its readers to go. External sites, blog
+posts and search results link straight at these URLs, and Docusaurus' own broken-link check cannot
+see them — it only validates links inside this site.
+
+The snapshot is append-only. `yarn routes:snapshot` adds new pages but never drops a removed one, so
+regenerating it cannot silence a missing redirect, and deleting a redirect later fails the build
+too. Removing an entry by hand shows up in review as a deleted line in `routes.snapshot.json`.
 
 When you rename, move or delete a page:
 
@@ -91,7 +95,7 @@ When you rename, move or delete a page:
    there are site-relative and version-agnostic: `/guides/oracles`, not `/docs/guides/oracles`.
    If the content has no successor anywhere, record the URL in `removed-urls.json` with a reason
    instead, and it will be allowed to 404.
-2. Refresh the snapshot, which runs a full build with the snapshot rewritten from it:
+2. Refresh the snapshot, which runs a full build and adds any new pages to it:
 
 ```sh
 yarn routes:snapshot
@@ -165,5 +169,5 @@ All commands should be run from the `docs` directory:
 | `yarn serve` | Serve built site locally |
 | `yarn version::stables` | Update stable versions list |
 | `yarn cut_version <VERSION>` | Cut a new versioned docs snapshot |
-| `yarn routes:snapshot` | Build the site and refresh the page-URL snapshot |
+| `yarn routes:snapshot` | Build the site and add new pages to the page-URL snapshot |
 | `yarn clean` | Clean build artifacts |

@@ -1,16 +1,23 @@
-// Fails the build when a docs page that used to be served has no redirect pointing at its
-// successor, and when a redirect in `redirects.js` points at a page that no longer exists.
+// Fails the build when a docs URL that has ever been served stops resolving: it is no longer a
+// page and no redirect in `redirects.js` covers it. Also fails when a redirect in `redirects.js`
+// points at a page that no longer exists.
 //
 // External sites, blog posts and search results link straight at page URLs, and `onBrokenLinks`
 // cannot see them — it only validates links inside this site. `routes.snapshot.json` records the
-// URL of every page in the unversioned (`current`) docs so a removal can be noticed at all.
+// URL of every page the unversioned (`current`) docs have served, so a removal can be noticed at
+// all.
+//
+// The snapshot is append-only: refreshing it adds new pages and never drops a removed one. A
+// removed URL therefore stays checked forever, so neither regenerating the snapshot nor a later
+// edit to `redirects.js` can quietly turn it into a 404. Dropping an entry takes a hand edit that
+// shows up in review as a deleted line.
 //
 // The routes come from the docs plugin's loaded content rather than from walking `docs/`, so the
 // snapshot follows `slug:` and `id:` frontmatter, `routeBasePath`, and anything else that decides
 // a page's URL. A path-based model would miss a frontmatter `slug:` edit, which changes a URL with
 // no file rename at all.
 //
-// `ROUTES_SNAPSHOT=update` rewrites the snapshot from the build instead of checking it.
+// `ROUTES_SNAPSHOT=update` adds the build's new pages to the snapshot, then checks as usual.
 
 const fs = require('fs');
 const path = require('path');
@@ -163,11 +170,11 @@ function checkRoutes(paths) {
     ...new Set([...checkRemovedPaths(removed, currentPaths, readAllowlist()), ...checkRedirectTargets(currentPaths)]),
   ];
 
-  if (removed.length > 0 || added.length > 0) {
+  if (added.length > 0) {
     errors.push(
-      `${SNAPSHOT_FILE} is out of date: ${added.length} page(s) added, ${removed.length} removed.\n` +
+      `${SNAPSHOT_FILE} is missing ${added.length} new page(s).\n` +
         'Run `yarn routes:snapshot` in docs/ and commit the result.\n' +
-        [...added.map((p) => `  + ${p}`), ...removed.map((p) => `  - ${p}`)].join('\n'),
+        added.map((p) => `  + ${p}`).join('\n'),
     );
   }
 
@@ -185,9 +192,9 @@ function routesSnapshotPlugin() {
       const paths = currentVersionPaths(docsContent);
 
       if (process.env.ROUTES_SNAPSHOT === 'update') {
-        writeSnapshot(paths);
-        console.log(`Wrote ${paths.length} paths to ${SNAPSHOT_FILE}.`);
-        return;
+        const snapshot = new Set([...(readSnapshot() || []), ...paths]);
+        writeSnapshot([...snapshot].sort());
+        console.log(`Wrote ${snapshot.size} paths to ${SNAPSHOT_FILE}.`);
       }
 
       const errors = checkRoutes(paths);
@@ -195,7 +202,7 @@ function routesSnapshotPlugin() {
         for (const error of errors) console.error(`::error::${error}`);
         throw new Error(`${errors.length} docs route problem(s); see above.`);
       }
-      console.log(`${SNAPSHOT_FILE} is up to date (${paths.length} paths).`);
+      console.log(`${SNAPSHOT_FILE} covers every page (${paths.length} served).`);
     },
   };
 }
