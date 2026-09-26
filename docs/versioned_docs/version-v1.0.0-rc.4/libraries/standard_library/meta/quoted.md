@@ -26,13 +26,16 @@ Example:
 fn test_expr_as_function_call() {
     comptime {
         let expr = quote { foo(42) }.as_expr().unwrap();
-        let (_function, args) = expr.as_function_call().unwrap();
+        let function_call = expr.as_function_call().unwrap();
+        assert_eq(function_call.function().quoted(), quote { foo });
+
+        let args = function_call.arguments();
         assert_eq(args.len(), 1);
-        assert_eq(args[0].as_integer().unwrap(), 42);
+        assert_eq(args[0].as_integer().unwrap().value(), 42);
     }
 }
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/noir_test_success/comptime_expr/src/main.nr#L213-L223" target="_blank" rel="noopener noreferrer">Source code: test_programs/noir_test_success/comptime_expr/src/main.nr#L213-L223</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/test_programs/noir_test_success/comptime_expr/src/main.nr#L227-L240" target="_blank" rel="noopener noreferrer">Source code: test_programs/noir_test_success/comptime_expr/src/main.nr#L227-L240</a></sub></sup>
 
 
 ### as_module

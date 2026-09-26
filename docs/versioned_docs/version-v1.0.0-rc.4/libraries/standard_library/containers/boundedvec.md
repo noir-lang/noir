@@ -448,7 +448,7 @@ let vec1: BoundedVec<u32, 4> = BoundedVec::from_parts([1, 2, 3, 1], 3);
 let vec2: BoundedVec<u32, 4> = BoundedVec::from_parts([1, 2, 3, 2], 3);
 assert_eq(vec1, vec2);
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/bounded_vec.nr#L1314-L1323" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/bounded_vec.nr#L1314-L1323</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/bounded_vec.nr#L1285-L1294" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/bounded_vec.nr#L1285-L1294</a></sub></sup>
 
 
 ### map
@@ -465,7 +465,7 @@ Example:
 let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
 let result = vec.map(|value| value * 2);
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/bounded_vec.nr#L944-L947" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/bounded_vec.nr#L944-L947</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/bounded_vec.nr#L915-L918" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/bounded_vec.nr#L915-L918</a></sub></sup>
 
 
 ### mapi
@@ -483,7 +483,7 @@ Example:
 let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
 let result = vec.mapi(|i, value| i + value * 2);
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/bounded_vec.nr#L1007-L1010" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/bounded_vec.nr#L1007-L1010</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/bounded_vec.nr#L978-L981" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/bounded_vec.nr#L978-L981</a></sub></sup>
 
 
 ### for_each
@@ -500,7 +500,7 @@ Example:
 let vec: BoundedVec<u32, 3> = BoundedVec::from_array([1, 2, 3]);
 vec.for_each(|value| { *acc_ref += value; });
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/bounded_vec.nr#L1065-L1068" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/bounded_vec.nr#L1065-L1068</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/bounded_vec.nr#L1036-L1039" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/bounded_vec.nr#L1036-L1039</a></sub></sup>
 
 
 ### for_eachi
@@ -517,7 +517,7 @@ Example:
 let vec: BoundedVec<u32, 3> = BoundedVec::from_array([1, 2, 3]);
 vec.for_eachi(|i, value| { *acc_ref += i * value; });
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/bounded_vec.nr#L1139-L1142" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/bounded_vec.nr#L1139-L1142</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/bounded_vec.nr#L1110-L1113" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/bounded_vec.nr#L1110-L1113</a></sub></sup>
 
 
 ### any

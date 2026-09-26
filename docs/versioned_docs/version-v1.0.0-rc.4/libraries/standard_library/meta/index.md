@@ -14,7 +14,7 @@ and types used for inspecting and modifying Noir programs.
 ```rust title="type_of" showLineNumbers 
 pub comptime fn type_of<T>(x: T) -> Type {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/mod.nr#L31-L33" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L31-L33</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/mod.nr#L32-L34" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L32-L34</a></sub></sup>
 
 
 Returns the type of a variable at compile-time.
@@ -34,7 +34,7 @@ comptime {
 ```rust title="unquote" showLineNumbers 
 pub comptime fn unquote(code: Quoted) -> Quoted {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/mod.nr#L23-L25" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L23-L25</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/mod.nr#L24-L26" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L24-L26</a></sub></sup>
 
 
 Unquotes the passed-in token stream where this function was called.
@@ -58,7 +58,7 @@ pub comptime fn error<let N: u32, T, let N2: u32, T2>(
     _location: Location,
 ) {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/mod.nr#L39-L45" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L39-L45</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/mod.nr#L40-L46" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L40-L46</a></sub></sup>
 
 
 Issues an error diagnostic at the given [`Location`](./location.md) with the given primary message
@@ -92,7 +92,7 @@ pub comptime fn warn<let N: u32, T, let N2: u32, T2>(
     _location: Location,
 ) {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/mod.nr#L51-L57" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L51-L57</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/mod.nr#L52-L58" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L52-L58</a></sub></sup>
 
 
 Issues a warning diagnostic at the given [`Location`](./location.md) with the given primary message
@@ -120,7 +120,7 @@ comptime fn deprecated_notice(f: FunctionDefinition) {
 #[varargs]
 pub comptime fn derive(s: TypeDefinition, traits: [TraitDefinition]) -> Quoted {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/mod.nr#L76-L79" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L76-L79</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/mod.nr#L77-L80" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L77-L80</a></sub></sup>
 
 
 Attribute placed on type definitions.
@@ -150,7 +150,7 @@ fn main() {
 ```rust title="derive_via_signature" showLineNumbers 
 pub comptime fn derive_via(t: TraitDefinition, f: DeriveFunction) {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/mod.nr#L96-L98" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L96-L98</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/mod.nr#L97-L99" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L97-L99</a></sub></sup>
 
 
 Attribute placed on trait definitions.
@@ -223,7 +223,7 @@ pub comptime fn make_trait_impl<Env1, Env2>(
     body: fn[Env2](Quoted) -> Quoted,
 ) -> Quoted {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/mod.nr#L115-L124" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L115-L124</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/mod.nr#L116-L125" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/mod.nr#L116-L125</a></sub></sup>
 
 
 A helper function to more easily create trait impls while deriving traits.
