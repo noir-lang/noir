@@ -169,29 +169,15 @@ impl Methods {
         match function_typ.instantiate(interner).0 {
             Type::Function(args, _, _, _) => {
                 if check_self_param {
-                    if let Some(object) = args.first() {
-                        if object.try_unify_with_default_bindings(typ).is_ok() {
-                            return true;
-                        }
-
-                        // Handle auto-dereferencing `&T` and `&mut T` into `T`
-                        if let Type::Reference(object, _mutable) = object
-                            && object.try_unify_with_default_bindings(typ).is_ok()
-                        {
-                            return true;
-                        }
+                    if let Some(object) = args.first()
+                        && Self::receiver_type_matches(object, typ)
+                    {
+                        return true;
                     }
                 } else {
                     let method_type = func_meta.instantiate(method_type, interner);
 
-                    if method_type.try_unify_with_default_bindings(typ).is_ok() {
-                        return true;
-                    }
-
-                    // Handle auto-dereferencing `&T` and `&mut T` into `T`
-                    if let Type::Reference(method_type, _mutable) = method_type.as_ref()
-                        && method_type.try_unify_with_default_bindings(typ).is_ok()
-                    {
+                    if Self::receiver_type_matches(method_type.as_ref(), typ) {
                         return true;
                     }
                 }
@@ -201,5 +187,29 @@ impl Methods {
         }
 
         false
+    }
+
+    fn receiver_type_matches(receiver_type: &Type, typ: &Type) -> bool {
+        let mut receiver_type = receiver_type.clone();
+
+        loop {
+            if receiver_type.try_unify_with_default_bindings(typ).is_ok() {
+                return true;
+            }
+
+            let followed = receiver_type.follow_bindings();
+            if followed != receiver_type {
+                receiver_type = followed;
+                continue;
+            }
+
+            // Handle auto-dereferencing `&T` and `&mut T` into `T`, including aliases to
+            // references and nested references.
+            if let Type::Reference(inner, _mutable) = receiver_type {
+                receiver_type = *inner;
+            } else {
+                return false;
+            }
+        }
     }
 }
