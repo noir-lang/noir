@@ -888,8 +888,8 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 Ok(())
             }
             Instruction::Not(id) => self.interpret_not(*id, results[0]),
-            Instruction::Truncate { value, bit_size, max_bit_size } => {
-                self.interpret_truncate(*value, *bit_size, *max_bit_size, results[0])
+            Instruction::Truncate { value, bit_size, max_bit_size: _ } => {
+                self.interpret_truncate(*value, *bit_size, results[0])
             }
             Instruction::Constrain(lhs_id, rhs_id, constrain_error) => {
                 let lhs = self.lookup(*lhs_id)?;
@@ -1014,13 +1014,16 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         &mut self,
         value_id: ValueId,
         bit_size: u32,
-        max_bit_size: u32,
         result: ValueId,
     ) -> IResult<()> {
         let value = self.lookup_numeric(value_id, "truncate")?;
         let typ = value.get_type();
+
+        // Keeping zero bits of a value leaves nothing, so the result is 0. This is what
+        // `truncate_field`, the simplifier, ACIR and Brillig all define it as.
         if bit_size == 0 {
-            return Err(internal(InternalError::TruncateToZeroBits { value_id, max_bit_size }));
+            let zero = NumericValue::int_from_field(FieldElement::zero(), typ)?;
+            return self.define(result, Value::Numeric(zero));
         }
 
         if value.as_bool().is_some() {
