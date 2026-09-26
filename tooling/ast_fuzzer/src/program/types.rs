@@ -54,6 +54,12 @@ pub fn can_be_matched(typ: &Type) -> bool {
 /// Collect all the sub-types produced by a type.
 ///
 /// It's like a _power set_ of the type.
+///
+/// This is what the producer index in [`Scope`](super::scope::Scope) is built from, so it
+/// decides which variables are offered for a target type. It should stay in step with
+/// `FunctionContext::gen_expr_from_source`: a type listed here that the generator cannot
+/// actually reach costs coverage, because the chosen producer yields nothing and the
+/// expression falls back to a literal.
 pub fn types_produced(typ: &Type) -> HashSet<Type> {
     /// Recursively visit subtypes.
     fn visit(acc: &mut HashSet<Type>, typ: &Type) {
@@ -66,6 +72,10 @@ pub fn types_produced(typ: &Type) -> HashSet<Type> {
 
         match typ {
             Type::Array(len, item_type) => {
+                // `as_vector` turns a fixed-size array into a dynamically sized one.
+                // Only the vector itself is produced, not what the vector in turn
+                // produces, because that is as far as a single conversion gets us.
+                acc.insert(Type::Vector(item_type.clone()));
                 if *len > 0 {
                     visit(acc, item_type);
                 }
@@ -82,8 +92,11 @@ pub fn types_produced(typ: &Type) -> HashSet<Type> {
                     visit(acc, item_type);
                 }
             }
-            Type::String(_) => {
-                // Maybe it could produce substrings, but it would be an overkill to enumerate.
+            Type::String(len) => {
+                // `str_as_bytes` reinterprets the string as the array of its bytes.
+                // Maybe it could also produce substrings, but it would be an overkill
+                // to enumerate.
+                acc.insert(Type::Array(*len, Rc::new(U8)));
             }
             Type::Field => {
                 // There are `try_to_*` methods, but let's consider only what is safe.
