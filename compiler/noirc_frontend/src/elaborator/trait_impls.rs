@@ -3,7 +3,7 @@
 use std::rc::Rc;
 
 use crate::{
-    Kind, NamedGeneric, ResolvedGeneric, Shared, TypeBindings, TypeVariable,
+    Kind, NamedGeneric, ResolvedGeneric, Shared, TypeBindings, TypeVariable, TypeVariableId,
     ast::{GenericTypeArgs, Ident, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
     elaborator::{
         PathResolutionMode, WildcardDisallowedContext,
@@ -539,11 +539,11 @@ impl Elaborator<'_> {
             }
         }
 
-        bindings.extend(pair_implicit_associated_generics(
+        pair_implicit_associated_generics(
             &method.trait_constraints,
             &override_meta.trait_constraints,
-            &bindings,
-        ));
+            &mut bindings,
+        );
 
         let mut substituted_method_ids = HashSet::default();
         for method_constraint in &method.trait_constraints {
@@ -1181,12 +1181,42 @@ impl Elaborator<'_> {
 }
 
 /// Bind each anonymous generic that a trait method's `where` clause desugared for an
-/// unspecified associated item to the one its override desugared for the same item.
+/// unspecified associated item to the one its override desugared for the same item, adding
+/// each pair to `bindings`.
 ///
 /// `where B: Bar` on a trait method and on its override each expand to `where B: Bar<N = _>`
 /// with their own fresh type variable standing in for `_`. Both denote the same projection,
 /// but they are distinct type variables, so the two constraint sets only compare equal once
 /// the pairs are bound together.
+///
+/// A bound on another bound's associated item, like `<B as Bar>::T: Baz` or
+/// `C: Qux<<B as Bar>::T>`, carries a placeholder in its object type or its ordered generics,
+/// so it only finds its override once that placeholder is paired. Bounds may name each other
+/// in any clause order and to any depth, so passes run until one pairs nothing new. Every pass
+/// but the last adds a binding keyed by a declaration placeholder, and a `where` clause has
+/// finitely many of those, so the loop terminates.
+fn pair_implicit_associated_generics(
+    declaration_constraints: &[TraitConstraint],
+    override_constraints: &[TraitConstraint],
+    bindings: &mut TypeBindings,
+) {
+    let placeholder_homes = placeholder_homes(override_constraints);
+
+    loop {
+        let paired = pair_implicit_associated_generics_pass(
+            declaration_constraints,
+            override_constraints,
+            &placeholder_homes,
+            bindings,
+        );
+        if !paired {
+            break;
+        }
+    }
+}
+
+/// One pass of [`pair_implicit_associated_generics`] over the declaration's clause, returning
+/// whether it paired anything.
 ///
 /// Only two placeholders are ever paired, and only when the override's placeholder was
 /// desugared for the very constraint being matched. An override that pins the associated item
@@ -1195,48 +1225,17 @@ impl Elaborator<'_> {
 /// Bar>::N>` the second constraint names the placeholder of the first, and pairing the
 /// declaration's independent placeholder for `C::N` with it would hide the equation the
 /// override adds.
-fn pair_implicit_associated_generics(
+fn pair_implicit_associated_generics_pass(
     declaration_constraints: &[TraitConstraint],
     override_constraints: &[TraitConstraint],
-    bindings: &TypeBindings,
-) -> TypeBindings {
-    let implicit_placeholder = |typ: &Type| match typ {
-        Type::NamedGeneric(generic)
-            if generic.implicit && generic.type_var.borrow().is_unbound() =>
-        {
-            Some(generic.type_var.clone())
-        }
-        _ => None,
-    };
-
-    // The index of the override constraint each override placeholder was desugared for.
-    //
-    // A projection like `<B as Bar>::N` only resolves once `B: Bar` has been resolved and
-    // assumed, so the first constraint in clause order to name a placeholder is the one that
-    // introduced it and every later mention is one the author wrote.
-    let mut placeholder_home = HashMap::default();
-    for (index, constraint) in override_constraints.iter().enumerate() {
-        for named in &constraint.trait_bound.trait_generics.named {
-            if let Some(type_var) = implicit_placeholder(&named.typ) {
-                placeholder_home.entry(type_var.id()).or_insert(index);
-            }
-        }
-    }
-
-    let mut pairs = TypeBindings::default();
+    placeholder_homes: &HashMap<TypeVariableId, usize>,
+    bindings: &mut TypeBindings,
+) -> bool {
+    let mut paired = false;
 
     for declaration in declaration_constraints {
-        let object_type = declaration.typ.substitute(bindings).follow_bindings();
-        let ordered = vecmap(&declaration.trait_bound.trait_generics.ordered, |generic| {
-            generic.substitute(bindings)
-        });
-
         let Some((override_index, override_constraint)) =
-            override_constraints.iter().enumerate().find(|(_, override_constraint)| {
-                override_constraint.trait_bound.trait_id == declaration.trait_bound.trait_id
-                    && override_constraint.typ.follow_bindings() == object_type
-                    && override_constraint.trait_bound.trait_generics.ordered == ordered
-            })
+            matching_override_constraint(declaration, override_constraints, bindings)
         else {
             continue;
         };
@@ -1247,7 +1246,7 @@ fn pair_implicit_associated_generics(
             };
             // A declaration placeholder the trait's clause itself mentions in several bounds
             // keeps its first pairing, so a mismatch is reported at the later bound.
-            if pairs.contains_key(&type_var.id()) {
+            if bindings.contains_key(&type_var.id()) {
                 continue;
             }
             let Some(override_named) = override_constraint
@@ -1262,16 +1261,68 @@ fn pair_implicit_associated_generics(
             let Some(override_type_var) = implicit_placeholder(&override_named.typ) else {
                 continue;
             };
-            if placeholder_home.get(&override_type_var.id()) != Some(&override_index) {
+            if placeholder_homes.get(&override_type_var.id()) != Some(&override_index) {
                 continue;
             }
 
             let kind = type_var.kind();
-            pairs.insert(type_var.id(), (type_var, kind, override_named.typ.clone()));
+            bindings.insert(type_var.id(), (type_var, kind, override_named.typ.clone()));
+            paired = true;
         }
     }
 
-    pairs
+    paired
+}
+
+/// The override constraint that denotes the same bound as `declaration` once `bindings` are
+/// substituted into it, along with its index in the override's clause.
+fn matching_override_constraint<'constraints>(
+    declaration: &TraitConstraint,
+    override_constraints: &'constraints [TraitConstraint],
+    bindings: &TypeBindings,
+) -> Option<(usize, &'constraints TraitConstraint)> {
+    let object_type = declaration.typ.substitute(bindings).follow_bindings();
+    let ordered = vecmap(&declaration.trait_bound.trait_generics.ordered, |generic| {
+        generic.substitute(bindings)
+    });
+
+    override_constraints.iter().enumerate().find(|(_, override_constraint)| {
+        override_constraint.trait_bound.trait_id == declaration.trait_bound.trait_id
+            && override_constraint.typ.follow_bindings() == object_type
+            && override_constraint.trait_bound.trait_generics.ordered == ordered
+    })
+}
+
+/// The index of the constraint each placeholder in `constraints` was desugared for.
+///
+/// A projection like `<B as Bar>::N` only resolves once `B: Bar` has been resolved and
+/// assumed, so the first constraint in clause order to name a placeholder is the one that
+/// introduced it and every later mention is one the author wrote.
+fn placeholder_homes(constraints: &[TraitConstraint]) -> HashMap<TypeVariableId, usize> {
+    let mut homes = HashMap::default();
+
+    for (index, constraint) in constraints.iter().enumerate() {
+        for named in &constraint.trait_bound.trait_generics.named {
+            if let Some(type_var) = implicit_placeholder(&named.typ) {
+                homes.entry(type_var.id()).or_insert(index);
+            }
+        }
+    }
+
+    homes
+}
+
+/// The type variable of `typ` when it is a still-unbound placeholder that a `where` clause
+/// desugared for an associated item it left unspecified.
+fn implicit_placeholder(typ: &Type) -> Option<TypeVariable> {
+    match typ {
+        Type::NamedGeneric(generic)
+            if generic.implicit && generic.type_var.borrow().is_unbound() =>
+        {
+            Some(generic.type_var.clone())
+        }
+        _ => None,
+    }
 }
 
 /// Returns true if the impl-level `where` constraint and the method-level
