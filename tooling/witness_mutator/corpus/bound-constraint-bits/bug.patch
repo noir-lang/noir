@@ -1,0 +1,15 @@
+diff --git a/compiler/noirc_evaluator/src/acir/acir_context/mod.rs b/compiler/noirc_evaluator/src/acir/acir_context/mod.rs
+index 59b8ab35869..2357f3459cc 100644
+--- a/compiler/noirc_evaluator/src/acir/acir_context/mod.rs
++++ b/compiler/noirc_evaluator/src/acir/acir_context/mod.rs
+@@ -1043,8 +1043,8 @@ impl<F: AcirField> AcirContext<F> {
+         // Rearranging `2^(bits) - 1 < p - 2^(bits)` gives the condition `bits + 1 < log2(p)` for the constraints
+         // to be valid.
+         assert!(
+-            bits + 1 < F::max_num_bits(),
+-            "range check with bit size + 1 >= the prime field bit size is not implemented yet"
++            bits < F::max_num_bits(),
++            "range check with bit size >= the prime field size is not implemented yet"
+         );
+ 
+         // If `rhs` is a constant, we can try to optimize the operation by shifting `lhs + offset` such that if
