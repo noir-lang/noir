@@ -334,6 +334,34 @@ fn module_def_id_is_visible_impl(
     true
 }
 
+/// Returns an item's visibility constrained by the visibility of the module it is declared in and
+/// that module's ancestors. A `pub` item inside a private module is not externally reachable, so
+/// lint checks should treat it as private unless a visible re-export later marks it as referenced.
+pub fn effective_item_visibility(
+    interner: &NodeInterner,
+    module_id: ModuleId,
+    visibility: ItemVisibility,
+) -> ItemVisibility {
+    let mut effective_visibility = visibility;
+    let mut current_module_id = Some(module_id);
+
+    while let Some(module_id) = current_module_id {
+        let Some(attributes) = interner.try_module_attributes(module_id) else {
+            break;
+        };
+
+        effective_visibility = effective_visibility.min(attributes.visibility);
+        if effective_visibility == ItemVisibility::Private {
+            break;
+        }
+
+        current_module_id =
+            attributes.parent.map(|local_id| ModuleId { krate: module_id.krate, local_id });
+    }
+
+    effective_visibility
+}
+
 /// Finds a visible reexport for any ancestor module of the given `ModuleDefId`,
 pub fn get_ancestor_module_reexport(
     module_def_id: ModuleDefId,
