@@ -47,9 +47,12 @@ impl Context {
             }
 
             // If it's an ArrayGet we'll deal with groups of it in case the array type is a composite type,
-            // and adjust `next_out_of_bounds_index` and `possible_index_out_of_bounds_indexes` accordingly
+            // and adjust `next_out_of_bounds_index` and `possible_index_out_of_bounds_indexes` accordingly.
+            // When a whole group collapses into a single check, `group_bound` tells us which index
+            // that check has to bound (see `GroupBound`).
+            let mut group_bound = None;
             if let Instruction::ArrayGet { array, .. } = instruction {
-                handle_array_get_group(
+                group_bound = handle_array_get_group(
                     function,
                     array,
                     index,
@@ -106,8 +109,29 @@ impl Context {
                 // we cast to a higher bitsize, which we expect should fit any overflown index type.
                 let length_type = NumericType::unsigned(64);
 
+                // A single check standing in for a whole group has to bound the largest index that
+                // group touches, which is not necessarily this instruction's own index.
+                let index = match group_bound {
+                    Some(GroupBound { base, offset }) => {
+                        let offset_type = function.dfg.type_of_value(base).unwrap_numeric();
+                        let offset =
+                            function.dfg.make_constant(u128::from(offset).into(), offset_type);
+                        // Unchecked: mirrors the offset arithmetic `ssa_gen` emits for a composite
+                        // read. In ACIR indices are field elements so this cannot wrap, and the
+                        // cast to `u64` below is what catches an index that outgrew its type.
+                        let bound = function.dfg.insert_instruction_and_results(
+                            Instruction::binary(BinaryOp::Add { unchecked: true }, base, offset),
+                            block_id,
+                            None,
+                            call_stack,
+                        );
+                        bound.first()
+                    }
+                    None => *index,
+                };
+
                 let index = function.dfg.insert_instruction_and_results(
-                    Instruction::Cast(*index, length_type),
+                    Instruction::Cast(index, length_type),
                     block_id,
                     None,
                     call_stack,
@@ -174,6 +198,17 @@ pub(super) fn should_insert_oob_check(function: &Function, instruction: &Instruc
     }
 }
 
+/// The index that a group's single replacement constraint has to bound.
+///
+/// Every read in a group shares one common `base` index and differs from it only by a constant
+/// `offset`, so bounding `base + offset` for the *largest* offset in the group also bounds every
+/// other read in it. That largest read is not necessarily the one the constraint is emitted at,
+/// so the index to bound is built explicitly rather than taken from the current instruction.
+struct GroupBound {
+    base: ValueId,
+    offset: u64,
+}
+
 /// Handle the case when an `ArrayGet` is potentially out-of-bounds and the array contains composite types
 /// by figuring out whether all `ArrayGet` of different parts of the complex item are unused, and if so
 /// then insert a single constraint to replace all of them.
@@ -183,6 +218,9 @@ pub(super) fn should_insert_oob_check(function: &Function, instruction: &Instruc
 /// will see that as a signal that the current index is out of bounds and it should insert a constraint.
 /// Then, the next a `ArrayGet`s in the group will be re-inserted, but they won't be treated as potentially
 /// OOB any more, and shall be removed in the next DIE pass as simply unused.
+///
+/// Returns the index that constraint has to bound, when that is not simply the current
+/// instruction's own index; see [`GroupBound`].
 fn handle_array_get_group(
     function: &Function,
     // The array from which we are getting an item.
@@ -196,16 +234,14 @@ fn handle_array_get_group(
     possible_index_out_of_bounds_indexes: &mut Vec<usize>,
     // All the instructions in this block.
     instructions: &[InstructionId],
-) {
-    if function.dfg.try_get_array_length(*array).is_none() {
-        // Nothing to do for vectors
-        return;
-    }
+) -> Option<GroupBound> {
+    // Nothing to do for vectors
+    function.dfg.try_get_array_length(*array)?;
 
     let element_size = function.dfg.type_of_value(*array).element_size().to_usize();
     if element_size <= 1 {
         // Not a composite type
-        return;
+        return None;
     }
 
     // It's a composite type.
@@ -230,23 +266,31 @@ fn handle_array_get_group(
     //    `possible_index_out_of_bounds_indexes` and they won't be removed, nothing to do here
     // b) all of the array_get instructions are unused: in this case we can replace **all**
     //    of them with just one constrain: no need to do one per array_get
-    // c) some of the array_get instructions are unused, but not all: in this case
-    //    we don't need to insert any constrain, because on a later stage array bound checks
-    //    will be performed anyway. We'll let DIE remove the unused ones, without replacing
-    //    them with bounds checks, and leave the used ones.
+    // c) some of the array_get instructions are unused, but not all: in this case we may not
+    //    need to insert any constrain, because the reads that stay carry ACIR's implicit bound
+    //    check. We'll let DIE remove the unused ones, without replacing them with bounds checks,
+    //    and leave the used ones.
+    //
+    // In both b) and c) one bound check has to stand in for several reads, and that is only sound
+    // if it bounds the *largest* index in the group: the reads share a common base index, so
+    // `base + offset < length` implies `base + smaller_offset < length` but says nothing about a
+    // larger offset. (ACIR indices are field elements, so this arithmetic does not wrap around;
+    // see the `unchecked` comment in `codegen_array_index`.) So in b) the constraint is emitted on
+    // the largest index of the group, and in c) it can be skipped only when a read that stays
+    // behind is itself at least as large as every read being removed.
     //
     // To check in which scenario we are we can get from `possible_index_out_of_bounds_indexes`
     // (starting from `next_out_of_bounds_index`) while we are in the group ranges
     // (1..=5 in the example above)
     let Some(out_of_bounds_index) = *next_out_of_bounds_index else {
         // No next unused instruction, so this is case a) and nothing needs to be done here
-        return;
+        return None;
     };
 
     if index != out_of_bounds_index {
         // The next index is not the one for the current instructions,
         // so we are in case a), and nothing needs to be done here
-        return;
+        return None;
     }
 
     // The flattened reads of a single composite `array_get` all share one common base index
@@ -260,7 +304,7 @@ fn handle_array_get_group(
     // `base + k`. Its trailing reads are still offset from the original `base`, not from each
     // other, so a `first_index + k` comparison would wrongly split a legitimate group.
     let Instruction::ArrayGet { index: first_index, .. } = function.dfg[instructions[index]] else {
-        return;
+        return None;
     };
     let (base, base_offset) = index_base_and_offset(&function.dfg, first_index);
 
@@ -275,6 +319,14 @@ fn handle_array_get_group(
     // How many unused instructions are in this group? We know the current instruction is unused.
     let mut unused_count = 1;
     let mut group_count = 1;
+
+    // The largest offset from the common base among the reads that are being removed: the single
+    // replacement constraint has to bound this one to cover all of them.
+    let mut max_removed_offset = base_offset;
+    // The largest offset from the common base among the reads that stay behind. Each of those
+    // still carries ACIR's implicit bound check on its own index, which covers every removed read
+    // at a smaller or equal offset.
+    let mut max_kept_offset: Option<u64> = None;
 
     for (i, next_id) in instructions.iter().enumerate().take(max_index + 1).skip(index + 1) {
         let next_instruction = &function.dfg[*next_id];
@@ -292,10 +344,14 @@ fn handle_array_get_group(
                 if function.dfg.is_safe_index(*next_index, *next_array) {
                     break;
                 }
-                // Require that this `array_get` reads another slot of the *same* composite
-                // element: it must share the group's common base index and sit within one
-                // `element_size` window of it. Otherwise it is an independent access on the
-                // same array and must keep its own OOB check.
+                // Require that this `array_get` reads a nearby slot of the same composite access:
+                // it must share the group's common base index and sit within one `element_size`
+                // window of it. Otherwise it is an independent access on the same array and must
+                // keep its own OOB check. Note that this window does not establish that the two
+                // reads land in the same element (offsets `1` and `3` are two apart yet address
+                // different elements of a 3-field array), which is why the emitted constraint
+                // bounds the group's largest index rather than assuming that bounding any one
+                // read of the group bounds the others.
                 let (next_base, next_offset) = index_base_and_offset(&function.dfg, *next_index);
                 if next_base != base
                     || next_offset == base_offset
@@ -310,14 +366,17 @@ fn handle_array_get_group(
                 let Some(out_of_bounds_index) = *next_out_of_bounds_index else {
                     // This ArrayGet is not recorded as a potential OOB; we know it's OOB, so this means it's not unused.
                     // That means we can let the built-in OOB check take care of it.
+                    max_kept_offset = Some(next_offset);
                     break;
                 };
                 if out_of_bounds_index == i {
                     unused_count += 1;
+                    max_removed_offset = max_removed_offset.max(next_offset);
                     continue;
                 } else {
                     // The next OOB index is for some other array, not this one; the last array get
                     // reading this array is not OOB or not unused.
+                    max_kept_offset = Some(next_offset);
                     break;
                 }
             }
@@ -328,26 +387,42 @@ fn handle_array_get_group(
         }
     }
 
-    if unused_count == group_count {
-        // We are in case b): we need to insert just one constrain.
-        // Since we popped all of the group indexes, and given that we
-        // are analyzing the first instruction in the group, we can
-        // set `next_out_of_bounds_index` to the current index:
-        // then a check will be inserted, and no other check will be
-        // inserted for the rest of the group.
-        *next_out_of_bounds_index = Some(index);
-    } else {
-        // We are in case c): some of the instructions are unused.
+    if unused_count != group_count
+        && max_kept_offset.is_some_and(|kept_offset| kept_offset >= max_removed_offset)
+    {
+        // We are in case c) and a read that stays behind bounds the whole group by itself.
         // We don't need to insert any checks, and given that we already popped
         // all of the indexes in the group, there's nothing else to do here.
+        return None;
     }
+
+    // We are in case b), or in case c) with a removed read that no surviving read bounds:
+    // either way we need to insert exactly one constrain, on the largest index of the group.
+    // Since we popped all of the group indexes, and given that we are analyzing the first
+    // instruction in the group, we can set `next_out_of_bounds_index` to the current index:
+    // then a check will be inserted, and no other check will be inserted for the rest of the group.
+    if unused_count != group_count {
+        // The pop that ended the group belongs to a later instruction, so put it back.
+        if let Some(pending) = next_out_of_bounds_index.take() {
+            possible_index_out_of_bounds_indexes.push(pending);
+        }
+    }
+    *next_out_of_bounds_index = Some(index);
+
+    // The current instruction's own index is `base + base_offset`, so it only needs to be
+    // replaced when some other read of the group reaches further.
+    (max_removed_offset != base_offset).then_some(GroupBound { base, offset: max_removed_offset })
 }
 
 /// Decompose an array index into its `(common_base, offset)`. The SSA generator emits each
 /// flattened read of one composite `array_get` as `add(common_base, constant_offset)` (see the
 /// example in [`handle_array_get_group`]); a bare index, or any index that is not such an add,
-/// is treated as the base with offset 0. Two reads belong to the same composite access when they
-/// share a common base and their offsets sit within one `element_size` window of each other.
+/// is treated as the base with offset 0.
+///
+/// Note that the offset is only meaningful *relative to another offset over the same base*: a base
+/// is not known to be aligned to an element boundary, so an offset says nothing about which element
+/// of the array the index lands in. [`handle_array_get_group`] only relies on the ordering of two
+/// offsets over a common base, which holds for every producer this recognises.
 fn index_base_and_offset(dfg: &DataFlowGraph, index: ValueId) -> (ValueId, u64) {
     let Value::Instruction { instruction, .. } = dfg[index] else {
         return (index, 0);
