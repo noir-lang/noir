@@ -2783,13 +2783,18 @@ impl<'a> FunctionContext<'a> {
     /// Random decision whether to allow "Index out of bounds" errors to happen
     /// on a specific array or vector access operation.
     ///
-    /// If [`Config::avoid_index_out_of_bounds`] is turned on, then this is always `true`.
+    /// If [`Config::avoid_index_out_of_bounds`] is turned on, then this is always `true`;
+    /// otherwise the decision is left to chance, which is what lets a campaign explore
+    /// out-of-bounds behaviour at all.
     ///
-    /// It also returns `true` when `in_no_dynamic` mode is on, because an overflowing
-    /// index might not be simplified out of the SSA in ACIR, and end up being considered
-    /// a dynamic index, and leave reference allocations until ACIR gen, where they fail.
+    /// This deliberately does *not* consult `in_no_dynamic`. That flag exists to keep the
+    /// generator from emitting a *dynamic* index into a reference-carrying item, which
+    /// `verify_no_dynamic_indices_to_references` rejects with a clean error. Whether an index
+    /// is *out of bounds* is a separate property: a `u32` literal is non-dynamic whether or
+    /// not it is in range, so bounding it here bought no protection from that validator and
+    /// only removed a class of valid programs from the generator's reach.
     fn avoid_index_out_of_bounds(&self, u: &mut Unstructured) -> arbitrary::Result<bool> {
-        if self.config().avoid_index_out_of_bounds || self.in_no_dynamic {
+        if self.config().avoid_index_out_of_bounds {
             return Ok(true);
         }
         // Avoid OOB with 90% chance.
@@ -2803,6 +2808,60 @@ mod tests {
     use noirc_frontend::monomorphization::ast::{FuncId, Type};
 
     use crate::program::{Context, FunctionContext, freq::Freqs, types};
+
+    /// `Config::avoid_index_out_of_bounds` is documented as *the* switch controlling whether
+    /// out-of-bounds indices are generated. It used to be disjoined with `in_no_dynamic`, which
+    /// made it inoperative for every constrained vector whose item type contains a reference:
+    /// setting the config to `false` changed the left operand of an `||` whose right operand was
+    /// already `true`, so that class was generated with probability zero at every configuration.
+    #[test]
+    fn oob_config_is_honoured_in_no_dynamic_mode() {
+        // Varied, deterministic entropy: enough for many `u.ratio(9, 10)` draws, and not
+        // all-zero, which `ratio` would otherwise resolve the same way every time.
+        let data: Vec<u8> = (0..4096u32).map(|i| (i.wrapping_mul(97) >> 3) as u8).collect();
+
+        for in_no_dynamic in [false, true] {
+            let mut u = Unstructured::new(&data);
+            let mut ctx = Context::default();
+            ctx.config.avoid_index_out_of_bounds = false;
+            ctx.gen_main_decl(&mut u);
+            let mut function_ctx = FunctionContext::new(&mut ctx, FuncId(0));
+            function_ctx.in_no_dynamic = in_no_dynamic;
+
+            // With the config off, the decision must be left to chance in both modes.
+            let mut unbounded = 0;
+            for _ in 0..200 {
+                if !function_ctx.avoid_index_out_of_bounds(&mut u).unwrap() {
+                    unbounded += 1;
+                }
+            }
+            assert!(
+                unbounded > 0,
+                "with `avoid_index_out_of_bounds: false` some indices must be left out of bounds \
+                 (in_no_dynamic = {in_no_dynamic}); `in_no_dynamic` is about *dynamic* indices, \
+                 not out-of-range ones"
+            );
+        }
+    }
+
+    /// With the config on, bounding is unconditional — this is the default, and it is what
+    /// keeps the nightly targets free of trivial out-of-bounds noise.
+    #[test]
+    fn oob_config_on_always_bounds() {
+        let data: Vec<u8> = (0..4096u32).map(|i| (i.wrapping_mul(97) >> 3) as u8).collect();
+        let mut u = Unstructured::new(&data);
+        let mut ctx = Context::default();
+        ctx.config.avoid_index_out_of_bounds = true;
+        ctx.gen_main_decl(&mut u);
+        let mut function_ctx = FunctionContext::new(&mut ctx, FuncId(0));
+
+        for in_no_dynamic in [false, true] {
+            function_ctx.in_no_dynamic = in_no_dynamic;
+            for _ in 0..200 {
+                assert!(function_ctx.avoid_index_out_of_bounds(&mut u).unwrap());
+            }
+        }
+    }
 
     #[test]
     fn test_loop() {
