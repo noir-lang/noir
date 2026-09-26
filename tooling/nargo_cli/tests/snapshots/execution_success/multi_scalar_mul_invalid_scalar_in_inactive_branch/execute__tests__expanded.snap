@@ -1,0 +1,24 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use std::embedded_curve_ops::{EmbeddedCurvePoint, EmbeddedCurveScalar, multi_scalar_mul};
+
+fn main(
+    over_limb_lo: Field,
+    over_limb_hi: Field,
+    over_order_lo: Field,
+    over_order_hi: Field,
+    active: bool,
+) {
+    if active {
+        let generator: EmbeddedCurvePoint = EmbeddedCurvePoint::generator();
+        let over_limb: EmbeddedCurveScalar = EmbeddedCurveScalar::new(over_limb_lo, over_limb_hi);
+        let result: EmbeddedCurvePoint = multi_scalar_mul([generator], [over_limb]);
+        assert(!result.is_infinite());
+        let over_order: EmbeddedCurveScalar =
+            EmbeddedCurveScalar::new(over_order_lo, over_order_hi);
+        let result: EmbeddedCurvePoint = multi_scalar_mul([generator], [over_order]);
+        assert(!result.is_infinite());
+    }
+}

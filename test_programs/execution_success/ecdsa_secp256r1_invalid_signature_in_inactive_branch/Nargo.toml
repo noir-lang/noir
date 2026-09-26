@@ -1,0 +1,7 @@
+[package]
+name = "ecdsa_secp256r1_invalid_signature_in_inactive_branch"
+description = "ECDSA secp256r1 verification of malformed signatures inside a branch which is never taken"
+type = "bin"
+authors = [""]
+
+[dependencies]
