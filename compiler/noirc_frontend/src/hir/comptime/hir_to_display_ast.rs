@@ -11,7 +11,6 @@ use crate::ast::{
     UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression, WhileStatement,
 };
 use crate::ast::{ConstrainExpression, Expression, Statement, StatementKind};
-use crate::hir::comptime::field_to_signed_bigint;
 use crate::hir_def::expr::{
     Constructor, HirArrayLiteral, HirBlockExpression, HirExpression, HirIdent, HirLiteral, HirMatch,
 };
@@ -284,7 +283,7 @@ impl Constructor {
             Constructor::False => ExpressionKind::Literal(Literal::Bool(false)),
             Constructor::Unit => ExpressionKind::Literal(Literal::Unit),
             Constructor::Int(value) => {
-                ExpressionKind::Literal(Literal::Integer(field_to_signed_bigint(value), None))
+                ExpressionKind::Literal(Literal::Integer(value.clone(), None))
             }
             Constructor::Tuple(_) => ExpressionKind::Tuple(arguments),
             Constructor::Variant(typ, index) => {
