@@ -14,8 +14,12 @@
 //! It runs in two passes; the second recovers some precision and is not mandatory.
 //!
 //! # Preconditions
-//! The analysis should be done after defunctionalization and lower ACIR references,
-//! but it is not mandatory. If not, you will just lose precision.
+//! The analysis should be done after defunctionalization and lower ACIR references.
+//! Before defunctionalization, a call through a function value is summarized from its
+//! argument types only (see "Unresolved Calls"), and a function reached only through a
+//! function value has no call site linking its parameters to its callers' arguments.
+//! Neither is sound, so consumers such as load-store forwarding do not query the analysis
+//! while such calls remain.
 //! The analysis assumes global values do not hold reference and will panic if they do.
 //!
 //! Supporting globals with reference would not be too difficult:
@@ -41,8 +45,8 @@
 //!
 //! ### Function pointers
 //! Function pointers are not handled here, contrary to the textbook approach.
-//! This is because defunctionalization is run early in the Ssa workflow, so it is probably
-//! not worth the additional complexity
+//! Defunctionalization runs early in the Ssa workflow and turns them into direct calls,
+//! so the analysis is only relied upon after it.
 //!
 //! ### Type-based filtering
 //! May-alias queries use type information to recover some of the precision lost due to field-insensitivity
