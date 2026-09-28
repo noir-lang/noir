@@ -1,0 +1,6 @@
+[package]
+name = "numeric_alias_lib"
+type = "lib"
+authors = [""]
+
+[dependencies]

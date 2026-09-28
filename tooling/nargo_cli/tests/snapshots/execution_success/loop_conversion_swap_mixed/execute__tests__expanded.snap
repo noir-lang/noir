@@ -1,0 +1,16 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn main(bytes: [u8; 2], text: str<2>, n: u32) {
+    let mut bytes: [u8; 2] = bytes;
+    let mut text: str<2> = text;
+    for _i in 0_u32..n {
+        let previous: str<2> = bytes.as_str_unchecked();
+        bytes = text.as_bytes();
+        text = previous;
+    }
+    bytes[0_u32] = bytes[0_u32] + 1_u8;
+    assert(text.as_bytes() == [65_u8, 66_u8]);
+    assert(bytes == [68_u8, 68_u8]);
+}

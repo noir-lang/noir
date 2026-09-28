@@ -1025,6 +1025,86 @@ fn numeric_alias_turbofish_resolves_correctly() {
 }
 
 #[test]
+fn numeric_alias_value_ignores_use_site_bindings() {
+    // In value position a numeric alias evaluates to what it means in type position. Names in
+    // its body refer to the alias's own scope: no parameter, `let`, closure parameter or numeric
+    // generic at the use site can capture them.
+    let src = r#"
+    mod lib {
+        pub global N: u32 = 2;
+        pub type Size: u32 = N;
+    }
+
+    comptime fn numeric_generic<let N: u32>() -> u32 {
+        lib::Size
+    }
+
+    comptime fn parameter(N: u32) -> u32 {
+        lib::Size + N
+    }
+
+    fn main() {
+        comptime {
+            assert(numeric_generic::<9>() == 2);
+            assert(parameter(5) == 7);
+            let f = |N: u32| lib::Size + N;
+            assert(f(5) == 7);
+            let N: u32 = 7;
+            assert(lib::Size == 2);
+            assert(N == 7);
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn numeric_alias_composed_generic_value_uses_own_generic() {
+    // `Double::<N>` inside `Quad`'s body refers to `Quad`'s generic `N`, never to the global `N`.
+    let src = r#"
+    global N: u32 = 2;
+    type Double<let N: u32>: u32 = N * 2;
+    type Quad<let N: u32>: u32 = Double::<N> + Double::<N>;
+
+    comptime fn quad<let M: u32>() -> u32 {
+        Quad::<M>
+    }
+
+    fn length<let L: u32>(_: [u8; L]) -> u32 {
+        L
+    }
+
+    fn main() {
+        comptime {
+            assert(Quad::<3> == 12);
+            assert(quad::<3>() == 12);
+            let a: [u8; Quad::<3>] = [0; 12];
+            assert(length(a) == Quad::<3>);
+            assert(N == 2);
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn numeric_alias_composed_generic_value_without_same_named_item() {
+    let src = r#"
+    type Double<let N: u32>: u32 = N * 2;
+    type Quad<let N: u32>: u32 = Double::<N> + Double::<N>;
+
+    fn main() {
+        let x: u32 = Quad::<3>;
+        assert(x == 12);
+        comptime {
+            assert(Quad::<3> == 12);
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn numeric_alias_in_range_expression() {
     // Numeric type alias should work in range expressions (value position)
     let src = r#"

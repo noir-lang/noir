@@ -489,19 +489,19 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.load_store_forwarding();
 
-        // The store to v2 (alias of v0) does not let stale `Field 1` be
-        // forwarded. Pass-2 site propagation sets v2's allocation site to v0
-        // (the array's pointee class has the singleton site `v0`), so
-        // `must_alias(v0, v2)` fires: the first store is dead, the second
-        // store updates the must-aliased entry, and the load forwards the
-        // current value `Field 2`.
+        // The store to v2 (may-alias of v0) does not let stale `Field 1` be
+        // forwarded. `v2` is read out of an array, so it has no allocation site
+        // and is not keyed as `v0`: both stores and the load are kept. The
+        // `array_get` is only folded to `v0` by the simplification afterwards.
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0():
             v0 = allocate -> &mut Field
-            v1 = make_array [v0] : [&mut Field; 1]
+            store Field 1 at v0
+            v2 = make_array [v0] : [&mut Field; 1]
             store Field 2 at v0
-            return Field 2
+            v4 = load v0 -> Field
+            return v4
         }
         ");
     }
@@ -1413,15 +1413,10 @@ mod tests {
         ");
     }
 
-    /// `load_store_forwarding` incorrectly forwards a store across two call
-    /// sites of a non-recursive callee. Each call to `f1` allocates a
-    /// fresh `inner` cell; the store at `v1` writes to the first call's
-    /// `inner`, and the load at `v4` reads through the second call's
-    /// `inner`. Because pass 2 of `alias_analysis` assigns
-    /// `Known(f1::inner)` to both `v1` and `v3` — and `is_trusted` does
-    /// not account for multi-call-site amplification of a non-recursive
-    /// callee — the forwarding pass keys both under the same trusted
-    /// site and replaces `v4` with `Field 1`.
+    /// Each call to `f1` allocates a fresh `inner` cell; the store at `v1`
+    /// writes to the first call's `inner`, and the load at `v4` reads
+    /// through the second call's `inner`, so `v1` and `v3` must not be
+    /// keyed as the same cell.
     ///
     /// Sound output: `v4 = load v3 -> Field` must remain (or fold to
     /// `Field 0`, the value `f1` stores into `inner` on every entry).
@@ -2001,5 +1996,237 @@ mod tests {
             assert_pass_does_not_affect_execution(ssa, vec![], |ssa| ssa.load_store_forwarding());
 
         assert_eq!(result.unwrap(), vec![Value::field(99_u128.into())]);
+    }
+
+    /// `set` is reached only through a function value. `v1 = load v0` reads the caller's cell
+    /// before `store v2 at v0` re-points `*v0` to the local `v2`, so `v1` and `v2` are
+    /// different cells: `store Field 0 at v2` is live and `load v2` must read `Field 0`.
+    #[test]
+    fn function_value_callee_loaded_param_is_not_its_own_allocation() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = call f1(f2) -> Field
+            return v0
+        }
+        brillig(inline) fn h f1 {
+          b0(v0: function):
+            v1 = allocate -> &mut Field
+            store Field 0 at v1
+            v2 = allocate -> &mut &mut Field
+            store v1 at v2
+            v3 = call v0(v2) -> Field
+            v4 = load v1 -> Field
+            v5 = mul v4, Field 10
+            v6 = add v3, v5
+            return v6
+        }
+        brillig(inline) fn set f2 {
+          b0(v0: &mut &mut Field):
+            v1 = load v0 -> &mut Field
+            v2 = allocate -> &mut Field
+            store Field 0 at v2
+            store v2 at v0
+            store Field 7 at v1
+            v3 = load v2 -> Field
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let (_, result) =
+            assert_pass_does_not_affect_execution(ssa, vec![], |ssa| ssa.load_store_forwarding());
+        assert_eq!(result.unwrap(), vec![Value::field(70_u128.into())]);
+    }
+
+    /// `set`, called through a function value from `g`, re-points `*v2` to its own cell, so
+    /// `v3 = load v2` is no longer `v1`: `store Field 6 at v3` does not overwrite `v1`.
+    #[test]
+    fn function_value_callee_repoints_caller_reference() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = call f1(f2) -> Field
+            return v0
+        }
+        brillig(inline) fn h f1 {
+          b0(v0: function):
+            v1 = allocate -> &mut Field
+            store Field 0 at v1
+            v2 = allocate -> &mut &mut Field
+            store v1 at v2
+            call f3(v2, v0)
+            v3 = load v2 -> &mut Field
+            store Field 5 at v1
+            store Field 6 at v3
+            v4 = load v1 -> Field
+            return v4
+        }
+        brillig(inline) fn set f2 {
+          b0(v0: &mut &mut Field):
+            v1 = allocate -> &mut Field
+            store v1 at v0
+            return
+        }
+        brillig(inline) fn g f3 {
+          b0(v0: &mut &mut Field, v1: function):
+            call v1(v0)
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let (_, result) =
+            assert_pass_does_not_affect_execution(ssa, vec![], |ssa| ssa.load_store_forwarding());
+        assert_eq!(result.unwrap(), vec![Value::field(5_u128.into())]);
+    }
+
+    /// `v31 = load v3` is `v2` at runtime, so `store Field 7 at v31` overwrites
+    /// `store Field 5 at v2` and `load v2` must read `Field 7`. The `if`/`make_array`
+    /// shapes around it merge several alias classes into the class of `*v3`.
+    #[test]
+    fn load_through_merged_alias_classes_sees_later_store() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = not v0
+            v2 = allocate -> &mut Field
+            store Field 1 at v2
+            v3 = allocate -> &mut &mut Field
+            store v2 at v3
+            v4 = allocate -> &mut &mut &mut Field
+            store v3 at v4
+            v5 = make_array [v4, v3] : [(&mut &mut &mut Field, &mut &mut Field); 1]
+            v6 = allocate -> &mut &mut Field
+            v7 = allocate -> &mut &mut Field
+            v8 = if v0 then v6 else (if v1) v7
+            v11 = allocate -> &mut Field
+            v12 = allocate -> &mut Field
+            v13 = allocate -> &mut Field
+            v14 = allocate -> &mut Field
+            v21 = if v0 then v11 else (if v1) v12
+            v22 = if v0 then v13 else (if v1) v14
+            v25 = if v0 then v21 else (if v1) v22
+            store v11 at v6
+            v30 = if v0 then v3 else (if v1) v6
+            jmp b1()
+          b1():
+            v31 = load v3 -> &mut Field
+            store Field 5 at v2
+            store Field 7 at v31
+            v32 = load v2 -> Field
+            return v32
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let (_, result) =
+            assert_pass_does_not_affect_execution(ssa, vec![Value::bool(true)], |ssa| {
+                ssa.load_store_forwarding()
+            });
+        assert_eq!(result.unwrap(), vec![Value::field(7_u128.into())]);
+    }
+
+    /// `f1` is an entry point, so it may be called from outside the program. `v5 = load v3`
+    /// is `v2` again after the call, so `store v1 at v5` overwrites `store v0 at v2`.
+    #[test]
+    fn load_after_entry_point_call_sees_store_through_reloaded_reference() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v2 = allocate -> &mut Field
+            v3 = allocate -> &mut &mut Field
+            store v2 at v3
+            call f1(v3)
+            v5 = load v3 -> &mut Field
+            store v0 at v2
+            store v1 at v5
+            v6 = load v2 -> Field
+            return v6
+        }
+        acir(fold) fn f1 f1 {
+          b0(v0: &mut &mut Field):
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let inputs = vec![Value::field(11_u128.into()), Value::field(22_u128.into())];
+        let (_, result) =
+            assert_pass_does_not_affect_execution(ssa, inputs, |ssa| ssa.load_store_forwarding());
+        assert_eq!(result.unwrap(), vec![Value::field(22_u128.into())]);
+    }
+
+    /// `v7 = load v5` reads `v2` (reloaded after an entry-point call), so the
+    /// preceding `store v0 at v2` is live.
+    #[test]
+    fn store_before_entry_point_call_reload_is_live() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v2 = allocate -> &mut Field
+            v3 = allocate -> &mut &mut Field
+            store v2 at v3
+            call f1(v3)
+            v5 = load v3 -> &mut Field
+            store v0 at v2
+            v7 = load v5 -> Field
+            store v1 at v2
+            return v7
+        }
+        acir(fold) fn f1 f1 {
+          b0(v0: &mut &mut Field):
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let inputs = vec![Value::field(11_u128.into()), Value::field(22_u128.into())];
+        let (_, result) =
+            assert_pass_does_not_affect_execution(ssa, inputs, |ssa| ssa.load_store_forwarding());
+        assert_eq!(result.unwrap(), vec![Value::field(11_u128.into())]);
+    }
+
+    /// `v1` and `v2` come from an entry-point parameter and may be the same cell, so after
+    /// `store v3 at v1` the reference `v4 = load v2` may be `v3`: `store Field 99 at v4`
+    /// may overwrite `store Field 5 at v3`, and `load v3` cannot be forwarded.
+    #[test]
+    fn entry_point_reference_params_may_share_a_cell() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [&mut &mut Field; 2]):
+            v1 = call f1(v0) -> Field
+            return v1
+        }
+        acir(inline) fn f1 f1 {
+          b0(v0: [&mut &mut Field; 2]):
+            v1 = array_get v0, index u32 0 -> &mut &mut Field
+            v2 = array_get v0, index u32 1 -> &mut &mut Field
+            v3 = allocate -> &mut Field
+            store v3 at v1
+            v4 = load v2 -> &mut Field
+            store Field 5 at v3
+            store Field 99 at v4
+            v5 = load v3 -> Field
+            return v5
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
+    }
+
+    /// `v0` is an entry-point parameter; after `store v3 at v0`, `v4 = load v0` is `v3`,
+    /// so `store v2 at v4` overwrites `store v1 at v3` and `load v3` reads `v2`.
+    #[test]
+    fn entry_point_reference_param_reloaded_in_later_block() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: &mut &mut Field, v1: Field, v2: Field):
+            v3 = allocate -> &mut Field
+            store v3 at v0
+            jmp b1()
+          b1():
+            v4 = load v0 -> &mut Field
+            store v1 at v3
+            store v2 at v4
+            v5 = load v3 -> Field
+            return v5
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
     }
 }

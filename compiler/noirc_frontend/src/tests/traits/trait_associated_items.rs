@@ -3020,3 +3020,233 @@ fn associated_type_bound_is_assumed_in_trait_default_method() {
     ";
     assert_no_errors(src);
 }
+
+// Two `where` bounds naming one trait at different ordered generics — `T: Foo<u8>` and
+// `T: Foo<u32>` — are distinct bounds, each carrying its own associated types. The assumed
+// trait-impl entry the compiler records for one must stay untouched when the other is
+// registered, so a projection through either reads the associated type its own bound states.
+
+#[test]
+fn sibling_bounds_on_one_trait_keep_their_own_associated_types() {
+    // `<T as Foo<u8>>::Assoc` is `u8`. If registering `T: M32b` — whose implied
+    // `Foo<u32, Assoc = u32>` is already satisfied by `T: M32a` — writes onto the `Foo<u8>`
+    // entry instead, the projection becomes `u32` and the body no longer type-checks.
+    let src = "
+    pub trait Foo<A> {
+        type Assoc;
+    }
+
+    pub trait M8: Foo<u8, Assoc = u8> {}
+    pub trait M32a: Foo<u32, Assoc = u32> {}
+    pub trait M32b: Foo<u32, Assoc = u32> {}
+
+    pub struct S {}
+
+    impl Foo<u8> for S {
+        type Assoc = u8;
+    }
+    impl Foo<u32> for S {
+        type Assoc = u32;
+    }
+    impl M8 for S {}
+    impl M32a for S {}
+    impl M32b for S {}
+
+    pub fn u8_assoc<T>(x: <T as Foo<u8>>::Assoc) -> u8
+    where
+        T: M8,
+        T: M32a,
+        T: M32b,
+    {
+        x
+    }
+
+    fn main() {
+        let _ = u8_assoc::<S>(7);
+    }
+    ";
+    assert_no_errors(src);
+}
+
+#[test]
+fn super_trait_bound_stays_findable_beside_a_sibling_bound_on_the_same_trait() {
+    // `T: M8` supplies `Foo<u8, Assoc = u8>`. The blanket impl satisfies the `Foo<u32>` bound
+    // beside it, so registering that bound reconciles rather than pushing a new entry; it must
+    // reconcile into a `Foo<u32>` entry and leave `Foo<u8>`'s findable by `Foo::<u8>::get`.
+    let src = "
+    pub trait Foo<A> {
+        type Assoc;
+        fn get(self) -> Self::Assoc;
+    }
+
+    impl<U> Foo<u32> for U {
+        type Assoc = u32;
+
+        fn get(self) -> u32 {
+            4294967295
+        }
+    }
+
+    pub trait M8: Foo<u8, Assoc = u8> {}
+
+    pub struct S {}
+
+    impl Foo<u8> for S {
+        type Assoc = u8;
+
+        fn get(self) -> u8 {
+            7
+        }
+    }
+    impl M8 for S {}
+
+    pub fn f<T>(x: T) -> u8
+    where
+        T: M8,
+        T: Foo<u32, Assoc = u32>,
+    {
+        Foo::<u8>::get(x)
+    }
+
+    fn main() {
+        let _ = f(S {});
+    }
+    ";
+    assert_no_errors(src);
+}
+
+#[test]
+fn repeating_a_bound_does_not_change_a_sibling_bounds_associated_type() {
+    // The repeated `T: Foo<u8, Assoc = u8>` is satisfied by the bound above it, so it is
+    // reconciled into an existing entry. That entry must be the `Foo<u8>` one, not the
+    // `Foo<u32>` one listed first, which `Foo::<u32>::get` still reads.
+    let src = "
+    pub trait Foo<A> {
+        type Assoc;
+        fn get(self) -> Self::Assoc;
+    }
+
+    pub struct S {}
+
+    impl Foo<u32> for S {
+        type Assoc = u32;
+
+        fn get(self) -> u32 {
+            4294967295
+        }
+    }
+    impl Foo<u8> for S {
+        type Assoc = u8;
+
+        fn get(self) -> u8 {
+            7
+        }
+    }
+
+    pub fn f<T>(x: T) -> u32
+    where
+        T: Foo<u32, Assoc = u32>,
+        T: Foo<u8, Assoc = u8>,
+        T: Foo<u8, Assoc = u8>,
+    {
+        Foo::<u32>::get(x)
+    }
+
+    fn main() {
+        let _ = f(S {});
+    }
+    ";
+    assert_no_errors(src);
+}
+
+#[test]
+fn sibling_bound_on_one_trait_is_rejected_when_it_makes_the_body_ill_typed() {
+    // The counterpart of the test above: `f` promises `u8` but returns `<T as Foo<u32>>::Assoc`,
+    // which is `u32`. Collapsing the repeated `Foo<u8>` bound onto the `Foo<u32>` entry would
+    // rebind that projection to `u8` and let this ill-typed program through `nargo check`.
+    let src = r#"
+    pub trait Foo<A> {
+        type Assoc;
+        fn get(self) -> Self::Assoc;
+    }
+
+    pub struct S {}
+
+    impl Foo<u32> for S {
+        type Assoc = u32;
+
+        fn get(self) -> u32 {
+            4294967295
+        }
+    }
+    impl Foo<u8> for S {
+        type Assoc = u8;
+
+        fn get(self) -> u8 {
+            7
+        }
+    }
+
+    pub fn f<T>(x: T) -> u8
+    where
+        T: Foo<u32, Assoc = u32>,
+        T: Foo<u8, Assoc = u8>,
+        T: Foo<u8, Assoc = u8>,
+    {
+        Foo::<u32>::get(x)
+        ^^^^^^^^^^^^^^^ No matching impl found for `T: Foo<u32, Assoc = u8>`
+        ~~~~~~~~~~~~~~~ No impl for `T: Foo<u32, Assoc = u8>`
+    }
+
+    fn main() {
+        let _ = f(S {});
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn sibling_bounds_on_one_trait_without_an_overlapping_impl() {
+    // Control for the tests above: here neither `Foo<u32>` bound is satisfiable at registration
+    // time, so no reconciliation is attempted at all and two entries are pushed. This shape
+    // must keep compiling however the reconciliation path changes.
+    let src = "
+    pub trait Foo<A> {
+        type Assoc;
+        fn get(self) -> Self::Assoc;
+    }
+
+    pub trait M8: Foo<u8, Assoc = u8> {}
+
+    pub struct S {}
+
+    impl Foo<u8> for S {
+        type Assoc = u8;
+
+        fn get(self) -> u8 {
+            7
+        }
+    }
+    impl Foo<u32> for S {
+        type Assoc = u32;
+
+        fn get(self) -> u32 {
+            4294967295
+        }
+    }
+    impl M8 for S {}
+
+    pub fn f<T>(x: T) -> u8
+    where
+        T: M8,
+        T: Foo<u32, Assoc = u32>,
+    {
+        Foo::<u8>::get(x)
+    }
+
+    fn main() {
+        let _ = f(S {});
+    }
+    ";
+    assert_no_errors(src);
+}

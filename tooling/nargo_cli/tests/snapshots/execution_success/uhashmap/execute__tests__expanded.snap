@@ -248,7 +248,7 @@ unconstrained fn doc_tests() {
     };
     entries_examples(&map);
     iter_examples(map);
-    map.retain(|k: Field, v: Field| -> bool { (k != 0_Field) & (v != 0_Field) });
+    map.retain(unconstrained |k: Field, v: Field| -> bool { (k != 0_Field) & (v != 0_Field) });
     let mut map1: UHashMap<Field, u64, BuildHasherDefault<Poseidon2Hasher>> =
         UHashMap::<Field, u64, BuildHasherDefault<Poseidon2Hasher>>::default();
     let mut map2: UHashMap<Field, u64, BuildHasherDefault<Poseidon2Hasher>> =
@@ -303,7 +303,7 @@ unconstrained fn entries_examples(
 unconstrained fn iter_examples(
     mut map: UHashMap<Field, Field, BuildHasherDefault<Poseidon2Hasher>>,
 ) {
-    map.iter_mut(|k: Field, v: Field| -> (Field, Field) (k + 1_Field, v * 2_Field));
-    map.iter_keys_mut(|k: Field| -> Field { k * 2_Field });
-    map.iter_values_mut(|v: Field| -> Field { v / 2_Field });
+    map.iter_mut(unconstrained |k: Field, v: Field| -> (Field, Field) (k + 1_Field, v * 2_Field));
+    map.iter_keys_mut(unconstrained |k: Field| -> Field { k * 2_Field });
+    map.iter_values_mut(unconstrained |v: Field| -> Field { v / 2_Field });
 }

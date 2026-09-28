@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Failed constraint
+  ┌─ src/main.nr:5:5
+  │
+5 │     assert(MAX_LEN <= numeric_alias_lib::Cap);
+  │     -----------------------------------------
+  │
+  = Call stack:
+    1: main
+            at src/main.nr:5:5
+
+Failed to solve program: 'Cannot satisfy constraint'

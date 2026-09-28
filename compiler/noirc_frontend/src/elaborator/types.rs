@@ -2294,13 +2294,51 @@ impl Elaborator<'_> {
     ) {
         let mut errors = Vec::new();
         actual.unify_with_coercions(expected, expression, location, self, &mut errors, make_error);
+        self.push_errors(errors);
+    }
 
-        // When passing lambdas to unconstrained functions that don't explicitly state
-        // that they expect unconstrained lambdas, ignore the coercion.
-        if self.item.body.in_unconstrained_args() {
-            errors.retain(|err| {
-                !matches!(err, CompilationError::TypeError(TypeCheckError::UnsafeFn { .. }))
-            });
+    /// [`Self::unify_with_coercions`] for a call argument checked against the callee's declared
+    /// parameter type.
+    ///
+    /// A lambda written as an argument of a call to an unconstrained function is elaborated as
+    /// unconstrained, whether or not the parameter it is checked against says so (see
+    /// `elaborate_lambda_with_target_type`). When `callee_unconstrained`, the
+    /// unconstrained-to-constrained coercion is therefore permitted here, under the same condition
+    /// that creates it.
+    ///
+    /// Do not extend this to other unifications reached while elaborating the argument. An
+    /// argument is consumed by the callee, but a `let`, an assignment, a struct field or a return
+    /// nested inside the argument's syntax writes a slot that outlives the call, and an
+    /// unconstrained function reaching such a slot is the mismatch `UnsafeFn` exists to report.
+    pub(super) fn unify_call_argument_with_coercions(
+        &mut self,
+        actual: &Type,
+        expected: &Type,
+        expression: ExprId,
+        location: Location,
+        callee_unconstrained: bool,
+        make_error: impl FnOnce(&Elaborator) -> CompilationError,
+    ) {
+        let mut errors = Vec::new();
+
+        if callee_unconstrained {
+            actual.unify_with_coercions_allowing_unconstrained_fn(
+                expected,
+                expression,
+                location,
+                self,
+                &mut errors,
+                make_error,
+            );
+        } else {
+            actual.unify_with_coercions(
+                expected,
+                expression,
+                location,
+                self,
+                &mut errors,
+                make_error,
+            );
         }
 
         self.push_errors(errors);
@@ -2468,6 +2506,7 @@ impl Elaborator<'_> {
         &mut self,
         fn_params: &[Type],
         fn_ret: &Type,
+        callee_unconstrained: bool,
         callsite_args: &[(Type, ExprId, Location)],
         location: Location,
     ) -> Type {
@@ -2481,13 +2520,20 @@ impl Elaborator<'_> {
         }
 
         for (param, (arg, arg_expr_id, arg_location)) in fn_params.iter().zip_eq(callsite_args) {
-            self.unify_with_coercions(arg, param, *arg_expr_id, *arg_location, |elaborator| {
-                CompilationError::TypeError(elaborator.new_type_mismatch_error(
-                    arg,
-                    param,
-                    *arg_location,
-                ))
-            });
+            self.unify_call_argument_with_coercions(
+                arg,
+                param,
+                *arg_expr_id,
+                *arg_location,
+                callee_unconstrained,
+                |elaborator| {
+                    CompilationError::TypeError(elaborator.new_type_mismatch_error(
+                        arg,
+                        param,
+                        *arg_location,
+                    ))
+                },
+            );
         }
 
         fn_ret.clone()
@@ -2522,8 +2568,8 @@ impl Elaborator<'_> {
             }
             // The closure env is ignored on purpose: call arguments never place
             // constraints on closure environments.
-            Type::Function(parameters, ret, _env, _unconstrained) => {
-                self.bind_function_type_impl(parameters, ret, &args, location)
+            Type::Function(parameters, ret, _env, unconstrained) => {
+                self.bind_function_type_impl(parameters, ret, *unconstrained, &args, location)
             }
             Type::Error => Type::Error,
             found => {

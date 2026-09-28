@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Assertion failed: Index out of bounds, array has size 4, but index was 10
+  ┌─ src/main.nr:9:5
+  │
+9 │     arr[i].a = [];
+  │     ------
+  │
+  = Call stack:
+    1: main
+            at src/main.nr:9:5
+
+Failed assertion

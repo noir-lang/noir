@@ -1,0 +1,5 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+[fn_value_callee_reads_then_repoints_ref_param] Circuit output: 0x46

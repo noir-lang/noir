@@ -837,6 +837,38 @@ fn expands_numeric_type_alias_used_as_value_with_turbofish() {
 }
 
 #[test]
+fn expands_generic_numeric_type_alias_used_as_value_as_operand() {
+    // In a generic function the alias's value is a type-level expression. It is printed in
+    // parentheses so it keeps its meaning as an operand, with suffixed literals. A value that
+    // doesn't depend on generics is folded to a single suffixed literal.
+    let src = r#"
+    type Sum<let A: u32, let B: u32>: u32 = A + B;
+
+    fn foo<let N: u32, let M: u32>(x: u32) -> u32 {
+        x - Sum::<N, M> + Sum::<M, 1>
+    }
+
+    fn main() {
+        let _ = foo::<1, 2>(10);
+        let _ = Sum::<3, 4>;
+    }
+    "#;
+    let expanded = assert_no_errors_and_to_string(src);
+    insta::assert_snapshot!(expanded, @r"
+    type Sum<let A: u32, let B: u32>: u32 = A + B;
+
+    fn foo<let N: u32, let M: u32>(x: u32) -> u32 {
+        (x - (N + M)) + (M + 1_u32)
+    }
+
+    fn main() {
+        let _: u32 = foo::<1, 2>(10_u32);
+        let _: u32 = 7_u32;
+    }
+    ");
+}
+
+#[test]
 fn expands_associated_constant_over_self_type_with_concrete_annotation() {
     let src = r#"
     trait Foo {

@@ -1,0 +1,6 @@
+[package]
+name = "trait_sibling_bounds_associated_types"
+type = "bin"
+authors = [""]
+
+[dependencies]

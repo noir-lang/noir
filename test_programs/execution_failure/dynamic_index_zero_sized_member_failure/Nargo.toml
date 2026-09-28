@@ -1,0 +1,6 @@
+[package]
+name = "dynamic_index_zero_sized_member_failure"
+type = "bin"
+authors = [""]
+
+[dependencies]
