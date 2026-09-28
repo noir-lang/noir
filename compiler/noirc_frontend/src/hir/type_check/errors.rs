@@ -105,6 +105,17 @@ pub enum TypeCheckError {
     AssertionParameterCountMismatch { kind: ConstrainKind, found: usize, location: Location },
     #[error("{item} expects {expected} generics but {found} were given")]
     GenericCountMismatch { item: String, expected: usize, found: usize, location: Location },
+    #[error(
+        "`{method}` declares its generic `{generic}` with a different kind from trait `{trait_name}`"
+    )]
+    TraitImplGenericKindMismatch {
+        method: String,
+        trait_name: String,
+        generic: String,
+        expected: Kind,
+        found: Kind,
+        location: Location,
+    },
     #[error("{item} has incompatible `unconstrained`")]
     UnconstrainedMismatch { item: String, expected: bool, location: Location },
     #[error("Only integer and Field types may be casted to")]
@@ -344,6 +355,7 @@ impl TypeCheckError {
             | TypeCheckError::ParameterCountMismatch { location, .. }
             | TypeCheckError::AssertionParameterCountMismatch { location, .. }
             | TypeCheckError::GenericCountMismatch { location, .. }
+            | TypeCheckError::TraitImplGenericKindMismatch { location, .. }
             | TypeCheckError::UnconstrainedMismatch { location, .. }
             | TypeCheckError::UnsupportedCast { location }
             | TypeCheckError::UnsupportedFieldCast { location }
@@ -562,6 +574,26 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 let was_or_were = if *found == 1 { "was" } else { "were" };
                 let msg = format!("{item} expects {expected} generic{empty_or_s} but {found} {was_or_were} given");
                 Diagnostic::simple_error(msg, String::new(), *location)
+            }
+            TypeCheckError::TraitImplGenericKindMismatch {
+                method,
+                trait_name,
+                generic,
+                expected,
+                found,
+                location,
+            } => {
+                let describe = |kind: &Kind| match kind {
+                    Kind::Numeric(typ) => format!("a numeric generic of type `{typ}`"),
+                    _ => "a type parameter".to_string(),
+                };
+                let msg = format!(
+                    "`{method}` declares its generic `{generic}` as {}, but trait `{trait_name}` declares {}",
+                    describe(found),
+                    describe(expected),
+                );
+                let secondary = format!("expected {}", describe(expected));
+                Diagnostic::simple_error(msg, secondary, *location)
             }
             TypeCheckError::UnconstrainedMismatch { item, expected, location } => {
                 let msg = if *expected {

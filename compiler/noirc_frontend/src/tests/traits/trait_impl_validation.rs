@@ -632,21 +632,17 @@ fn trait_impl_method_numeric_generic_for_bounded_type_parameter() {
     trait Marker {}
     trait MyTrait {
         fn f<T>(self, x: T)
-           ~ definition of `f` from trait
         where
             T: Marker;
     }
     impl MyTrait for Field {
         fn f<let Q: u32>(_self: Self, _x: Field)
-           ^ Expected type fn(Field, _) -> (), found type fn(Field, Field) -> ()
-                 ^^^^^^ Type provided when a numeric generic was expected
-                 ~~~~~~ the numeric generic is not of type `u32`
+                 ^^^^^^ `f` declares its generic `Q` as a numeric generic of type `u32`, but trait `MyTrait` declares a type parameter
+                 ~~~~~~ expected a type parameter
         where
             Q: Marker,
             ^ Expected type, found numeric generic
             ~ not a type
-               ^^^^^^ impl has stricter requirements than trait
-               ~~~~~~ impl has extra requirement `error: Marker`
         {}
     }
     fn main() {}
@@ -662,9 +658,8 @@ fn trait_impl_method_type_parameter_for_numeric_generic() {
     }
     impl MyTrait for Field {
         fn f<T>(_self: Self) -> [Field; 1] {
-           ^ Expected type fn(Field) -> [Field; _], found type fn(Field) -> [Field; 1]
-             ^ Expected type, found numeric generic
-             ~ not a type
+             ^ `f` declares its generic `T` as a type parameter, but trait `MyTrait` declares a numeric generic of type `u32`
+             ~ expected a numeric generic of type `u32`
             [0]
         }
     }
@@ -681,8 +676,8 @@ fn trait_impl_method_numeric_generic_of_different_type() {
     }
     impl MyTrait for Field {
         fn f<let N: u64>(_self: Self) -> Field {
-                 ^^^^^^ The numeric generic is not of type `u64`
-                 ~~~~~~ expected `u64`, found `u32`
+                 ^^^^^^ `f` declares its generic `N` as a numeric generic of type `u64`, but trait `MyTrait` declares a numeric generic of type `u32`
+                 ~~~~~~ expected a numeric generic of type `u32`
             0
         }
     }
