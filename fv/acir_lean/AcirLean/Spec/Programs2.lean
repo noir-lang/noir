@@ -163,13 +163,15 @@ def BinaryOp.apply (op : BinaryOp) (unchecked : Bool) (x y : F) :
       | .eq => if x.val < 2 ^ n ∧ y.val < 2 ^ n then some (flag (x = y)) else none
       | _ => none
 
-/-- Run one instruction, as Noir's SSA interpreter does in an ACIR function:
-* `not` flips the `n` bits of a `u<n>` that fits its type;
-* `cast` keeps the value and changes its type. The interpreter relabels any
-  value; this definition fails when the value does not fit the new type, which
-  again can only make a program unprovable;
+/-- Run one instruction, as Noir's SSA interpreter does in an ACIR function
+(`interpret_instruction`):
+* `not` on an `n`-bit integer reduces the value to its low `n` bits and flips
+  them: `2^n - 1 - (x mod 2^n)`. A `u1` above `1` fails (the interpreter
+  asserts a `u1` is `0` or `1`);
+* `cast` keeps the value and changes its type, without checking that it fits
+  (the interpreter relabels, and a later `truncate` makes it fit);
 * `truncate` keeps the low `bits` bits. It fails for `0` bits and for a `u1`
-  above `1`, where the interpreter has special cases;
+  above `1`, as the interpreter does;
 * `constrain` and `range_check` fail when their condition does not hold. -/
 def Instruction.run (env : Env) : Instruction → Option Env
   | .bin d op u a b => do
@@ -180,13 +182,13 @@ def Instruction.run (env : Env) : Instruction → Option Env
   | .not d a => do
     let (x, tx) ← a.value env
     match tx with
-    | .uint n =>
-      if x.val < 2 ^ n then some ((d, (((2 ^ n - 1 - x.val : ℕ) : F), .uint n)) :: env)
-      else none
-    | _ => none
+    | .uint n | .sint n =>
+      if tx = .uint 1 ∧ 2 ≤ x.val then none
+      else some ((d, (((2 ^ n - 1 - x.val % 2 ^ n : ℕ) : F), tx)) :: env)
+    | .field => none
   | .cast d a ty => do
     let (x, _) ← a.value env
-    if ty.fits x then some ((d, (x, ty)) :: env) else none
+    some ((d, (x, ty)) :: env)
   | .truncate d a k _ => do
     let (x, tx) ← a.value env
     if 0 < k ∧ (tx = .uint 1 → x.val < 2) then

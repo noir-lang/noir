@@ -737,7 +737,10 @@ theorem step2_ok {reps : List (ℕ × Rep2)} {env : Env} (hE : EnvOK σ reps env
       have hv : ((2 ^ n - 1 - x.val : ℕ) : F).val = 2 ^ n - 1 - x.val := val_natCast_of_lt (by omega)
       have hxn : x.val < 2 ^ n := by omega
       refine ⟨(d, (((2 ^ n - 1 - x.val : ℕ) : F), .uint n)) :: env,
-        by simp [Instruction.run, hx, hxn],
+        by
+          have hmod : x.val % 2 ^ n = x.val := Nat.mod_eq_of_lt hxn
+          have h1' : n = 1 → x.val ≤ 1 := fun h => by subst h; omega
+          simp [Instruction.run, hx, hmod]; exact h1',
         .cons ⟨rfl, rfl, ?_, ?_, ?_⟩ hE⟩
       · intro P hP'
         obtain ⟨Q, hQ, rfl⟩ := List.mem_map.1 hP'
@@ -751,13 +754,9 @@ theorem step2_ok {reps : List (ℕ × Rep2)} {env : Env} (hE : EnvOK σ reps env
     obtain ⟨ra, hra, h⟩ := h
     obtain ⟨⟨x, tx⟩, hx, ⟨hty, hP, hL, hM⟩⟩ := opRep_ok hE hra
     simp only at hty hP hL hM
-    split_ifs at h with hc
     simp only [Option.some.injEq] at h
     subst h
-    have hfit : ty.fits x = true := by
-      cases ty <;> simp only [castOK, decide_eq_true_eq] at hc <;>
-        simp only [ValueType.fits, decide_eq_true_eq] <;> omega
-    exact ⟨(d, (x, ty)) :: env, by simp [Instruction.run, hx, hfit], .cons ⟨rfl, rfl, hP, hL, hM⟩ hE⟩
+    exact ⟨(d, (x, ty)) :: env, by simp [Instruction.run, hx], .cons ⟨rfl, rfl, hP, hL, hM⟩ hE⟩
   | truncate d a k m =>
     simp only [step2, Option.bind_eq_bind, Option.bind_eq_some_iff] at h
     obtain ⟨ra, hra, h⟩ := h

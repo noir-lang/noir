@@ -430,7 +430,7 @@ def BinaryOp.apply (op : BinaryOp) (unchecked : Bool) (x y : F) :
     - `lt` and `eq` are 1 or 0.
 - **`i<n>`:** unchecked `add`/`sub`/`mul` (field arithmetic, as above) and `eq`. The `expand_signed_math` pass rewrites every other signed operation into unsigned ones before the SSA reaches ACIR.
 
-About "first requires both operands to fit": Noir's interpreter reduces an operand that doesn't fit before `div`, `lt` and so on. Lean fails instead. This is one of the three places where Lean is stricter than Noir; the other two are `cast` and `truncate`, below. Being stricter can never prove anything wrong. Where Lean fails and Noir doesn't, the program can't be proved, and `FV Lean` fails in CI until the program is listed in `uncoveredPrograms` with a reason.
+About "first requires both operands to fit": Noir's interpreter reduces an operand that doesn't fit before `div`, `lt` and so on. Lean fails instead. This is the only place where Lean is stricter than Noir. Being stricter can never prove anything wrong. Where Lean fails and Noir doesn't, the program can't be proved, and `FV Lean` fails in CI until the program is listed in `uncoveredPrograms` with a reason.
 
 ```lean
 def Instruction.run (env : Env) : Instruction → Option Env
@@ -439,9 +439,9 @@ def Instruction.run (env : Env) : Instruction → Option Env
 Running one instruction:
 
 - **`bin`:** read both operands, apply the operation, and store the result as `v{dst}`. It fails if the operation fails.
-- **`not`:** on a `u<n>` that fits in n bits, the result is `2^n − 1 − x` (flip all n bits); otherwise it fails.
-- **`cast`:** keep the value and change the type, but *fail* if the value doesn't fit the new type. Noir just relabels, so this is stricter.
-- **`truncate`:** keep the low `bits` bits: `x mod 2^bits`. It fails for a truncation to 0 bits and for a `u1` above 1, where Noir has special cases.
+- **`not`:** on an n-bit integer (`u<n>` or `i<n>`), reduce the value to its low n bits and flip them: `2^n − 1 − (x mod 2^n)`. On `Field` it fails, and so does a `u1` above 1, as in Noir (whose interpreter asserts a `u1` is 0 or 1).
+- **`cast`:** keep the value and change the type, without checking that it fits, exactly like Noir. A value that doesn't fit its new type is later brought into range by a `truncate`.
+- **`truncate`:** keep the low `bits` bits: `x mod 2^bits`. Like Noir, it fails for a truncation to 0 bits and for a `u1` above 1.
 - **`constrain a == b`:** fail unless `a = b`.
 - **`range_check a to k bits`:** fail unless `a < 2^k`.
 
@@ -698,7 +698,7 @@ Lean prints every axiom the proof relies on, and `#guard_msgs` fails the build u
 
 1. **Semantics.** Are `p`, `Range`, `Opcode.Holds` and `AllHold` the true meaning of ACIR `AssertZero` and `RANGE`?
 2. **SSA meaning** (`Programs2.lean`, `Programs.lean`, `Ssa.lean`). Does each instruction mean what Noir means?
-   - Where Lean is stricter than Noir (operands that don't fit their type, `cast`, the `truncate` special cases), that's safe: it only makes some programs unprovable, and CI says so.
+   - Where Lean is stricter than Noir (only: operands that don't fit their type), that's safe: it only makes some programs unprovable, and CI says so.
    - Where it's *looser* or *different*, that's a bug to flag.
 3. **Specs** (`Claims.lean`). Does each spec say what you'd want it to? Look for:
    - a missing condition;

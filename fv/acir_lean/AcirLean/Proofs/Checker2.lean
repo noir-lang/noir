@@ -284,12 +284,6 @@ def truncRep (cc : List Opcode) (a : Rep2) (k : ℕ) : Rep2 :=
       fun (q, r) => truncOK cc k q r).map (pvar ·.2)
   ⟨same ++ rs, a.ty, 0, min a.M (2 ^ k - 1)⟩
 
-def castOK (ty : ValueType) (M : ℕ) : Bool :=
-  match ty with
-  | .field => true
-  | .uint m => decide (M < 2 ^ m)
-  | .sint m => decide (M < 2 ^ m)
-
 def eqHolds (cc : List Opcode) (a b : Rep2) : Bool :=
   (forms cc a.alts).any fun Xa => (forms cc b.alts).any fun Xb => eqVia cc Xa Xb
 
@@ -313,7 +307,7 @@ def step2 (cc : List Opcode) (reps : List (ℕ × Rep2)) : Instruction → Optio
     | _ => none
   | .cast d a ty => do
     let ra ← opRep reps a
-    if castOK ty ra.M then some ((d, ⟨ra.alts, ty, ra.L, ra.M⟩) :: reps) else none
+    some ((d, ⟨ra.alts, ty, ra.L, ra.M⟩) :: reps)
   | .truncate d a k _ => do
     let ra ← opRep reps a
     if 0 < k ∧ (ra.ty = .uint 1 → ra.M < 2) then some ((d, truncRep cc ra k) :: reps)
