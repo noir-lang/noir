@@ -113,11 +113,27 @@ def Operand.value (env : Env) : Operand → Option (F × ValueType)
 /-- `1` or `0`, as a `u1`. -/
 def flag (b : Bool) : F × ValueType := (if b then 1 else 0, .uint 1)
 
-/-- A binary instruction on `x` and `y`, both of `x`'s type. Integer arithmetic
-fails when the result does not fit (unchecked arithmetic included: it is only
-meaningful when the compiler has shown it cannot overflow), and division fails
-on a zero divisor. `Field` supports `add`, `sub`, `mul` and `eq`. -/
-def BinaryOp.apply (op : BinaryOp) (x y : F) : ValueType → Option (F × ValueType)
+/-- `add`, `sub` and `mul` in the field. -/
+def fieldArith : BinaryOp → F → F → Option F
+  | .add, x, y => some (x + y)
+  | .sub, x, y => some (x - y)
+  | .mul, x, y => some (x * y)
+  | _, _, _ => none
+
+/-- A binary instruction on `x` and `y`, both of `x`'s type, as Noir's SSA
+interpreter evaluates it in an ACIR function (`evaluate_integer_binary`):
+* on `Field`: `add`, `sub`, `mul` and `eq`;
+* unchecked `add`, `sub` and `mul` on integers are field arithmetic: the result
+  keeps the type but may exceed its width, until a later `truncate`;
+* every other integer operation requires both operands to fit their type. The
+  interpreter reduces them first; failing instead can only make a program
+  unprovable, never give it a different value. Checked arithmetic then fails
+  when the result does not fit, and `div` and `mod` fail on a zero divisor.
+
+Signed integers support unchecked arithmetic and `eq`: `expand_signed_math`
+rewrites their other operations before the SSA reaches ACIR. -/
+def BinaryOp.apply (op : BinaryOp) (unchecked : Bool) (x y : F) :
+    ValueType → Option (F × ValueType)
   | .field =>
     match op with
     | .add => some (x + y, .field)
@@ -126,39 +142,56 @@ def BinaryOp.apply (op : BinaryOp) (x y : F) : ValueType → Option (F × ValueT
     | .eq => some (flag (x = y))
     | _ => none
   | .uint n =>
-    match op with
-    | .add => if x.val + y.val < 2 ^ n then some (((x.val + y.val : ℕ) : F), .uint n) else none
-    | .sub => if y.val ≤ x.val then some (((x.val - y.val : ℕ) : F), .uint n) else none
-    | .mul => if x.val * y.val < 2 ^ n then some (((x.val * y.val : ℕ) : F), .uint n) else none
-    | .div => if y.val = 0 then none else some (((x.val / y.val : ℕ) : F), .uint n)
-    | .mod => if y.val = 0 then none else some (((x.val % y.val : ℕ) : F), .uint n)
-    | .lt => some (flag (x.val < y.val))
-    | .eq => some (flag (x = y))
-  | .sint _ =>
-    match op with
-    | .eq => some (flag (x = y))
-    | _ => none
+    match unchecked, fieldArith op x y with
+    | true, some r => some (r, .uint n)
+    | _, _ =>
+      if x.val < 2 ^ n ∧ y.val < 2 ^ n then
+        match op with
+        | .add => if x.val + y.val < 2 ^ n then some (((x.val + y.val : ℕ) : F), .uint n) else none
+        | .sub => if y.val ≤ x.val then some (((x.val - y.val : ℕ) : F), .uint n) else none
+        | .mul => if x.val * y.val < 2 ^ n then some (((x.val * y.val : ℕ) : F), .uint n) else none
+        | .div => if y.val = 0 then none else some (((x.val / y.val : ℕ) : F), .uint n)
+        | .mod => if y.val = 0 then none else some (((x.val % y.val : ℕ) : F), .uint n)
+        | .lt => some (flag (x.val < y.val))
+        | .eq => some (flag (x = y))
+      else none
+  | .sint n =>
+    match unchecked, fieldArith op x y with
+    | true, some r => some (r, .sint n)
+    | _, _ =>
+      match op with
+      | .eq => if x.val < 2 ^ n ∧ y.val < 2 ^ n then some (flag (x = y)) else none
+      | _ => none
 
-/-- Run one instruction. `cast` fails if the value does not fit the new type,
-`truncate` keeps the low `bits` bits, and `constrain` and `range_check` fail
-when their condition does not hold. -/
+/-- Run one instruction, as Noir's SSA interpreter does in an ACIR function:
+* `not` flips the `n` bits of a `u<n>` that fits its type;
+* `cast` keeps the value and changes its type. The interpreter relabels any
+  value; this definition fails when the value does not fit the new type, which
+  again can only make a program unprovable;
+* `truncate` keeps the low `bits` bits. It fails for `0` bits and for a `u1`
+  above `1`, where the interpreter has special cases;
+* `constrain` and `range_check` fail when their condition does not hold. -/
 def Instruction.run (env : Env) : Instruction → Option Env
-  | .bin d op _ a b => do
+  | .bin d op u a b => do
     let (x, tx) ← a.value env
     let (y, _) ← b.value env
-    let r ← op.apply x y tx
+    let r ← op.apply u x y tx
     some ((d, r) :: env)
   | .not d a => do
     let (x, tx) ← a.value env
     match tx with
-    | .uint n => some ((d, (((2 ^ n - 1 - x.val : ℕ) : F), .uint n)) :: env)
+    | .uint n =>
+      if x.val < 2 ^ n then some ((d, (((2 ^ n - 1 - x.val : ℕ) : F), .uint n)) :: env)
+      else none
     | _ => none
   | .cast d a ty => do
     let (x, _) ← a.value env
     if ty.fits x then some ((d, (x, ty)) :: env) else none
   | .truncate d a k _ => do
     let (x, tx) ← a.value env
-    some ((d, (((x.val % 2 ^ k : ℕ) : F), tx)) :: env)
+    if 0 < k ∧ (tx = .uint 1 → x.val < 2) then
+      some ((d, (((x.val % 2 ^ k : ℕ) : F), tx)) :: env)
+    else none
   | .constrain a b _ => do
     let (x, _) ← a.value env
     let (y, _) ← b.value env

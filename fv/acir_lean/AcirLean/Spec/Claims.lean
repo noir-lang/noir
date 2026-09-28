@@ -99,12 +99,9 @@ def SignedOp (n : ℕ) (op : ℤ → ℤ → ℤ) : List ℕ → List ℕ → Pr
 * `arithmetic_binary_operations` divides `Field`s, which `Program.eval` does not
   define;
 * `regression_8519` truncates a `Field` to 128 bits, whose remainder bound
-  takes a shape the checker does not handle;
-* `vector_pop_back_simplify` adds `c * x` and `(1 - c) * y` for a boolean `c`
-  unchecked; that this cannot overflow needs a case split on `c` that interval
-  bounds do not make. -/
+  takes a shape the checker does not handle. -/
 def uncoveredPrograms : List String :=
-  ["arithmetic_binary_operations", "regression_8519", "vector_pop_back_simplify"]
+  ["arithmetic_binary_operations", "regression_8519"]
 
 /-- The whole promise, for every pinned width `n`:
 * `euclidean_division_var(a, b, n)` with `a`, `b` both `n`-bit computes

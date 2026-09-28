@@ -191,7 +191,9 @@ def eqFlags (cc : List Opcode) (a b : Rep2) : List ℕ :=
 def checked (cc : List Opcode) (alts : List Poly) (n : ℕ) : Option (ℕ × ℕ) :=
   alts.findSome? fun P => (pbound cc P).filter fun (_, M) => M < 2 ^ n
 
-def binRep (cc : List Opcode) (op : BinaryOp) (a b : Rep2) : Option Rep2 :=
+/-- Every binary instruction other than unchecked integer arithmetic, on
+operands that fit their type. -/
+def checkedRep (cc : List Opcode) (op : BinaryOp) (a b : Rep2) : Option Rep2 :=
   let comb f as bs := comb f (forms cc as) (forms cc bs)
   match op, a.ty with
   | .eq, _ => some ⟨(eqFlags cc a b).map pvar, .uint 1, 0, 1⟩
@@ -224,6 +226,38 @@ def binRep (cc : List Opcode) (op : BinaryOp) (a b : Rep2) : Option Rep2 :=
       some ⟨(geFlags cc a b m).map fun q => psub (pconst 1) (pvar q), .uint 1, 0, 1⟩
     else none
   | _, _ => none
+
+/-- Unchecked `add`, `sub` or `mul` on integers: field arithmetic, with bounds
+that hold when it cannot wrap around `p`. -/
+def uncheckedRep (cc : List Opcode) (op : BinaryOp) (a b : Rep2) : Option Rep2 :=
+  let comb f as bs := comb f (forms cc as) (forms cc bs)
+  match op with
+  | .add =>
+    let alts := comb (· ++ ·) a.alts b.alts
+    some (if a.M + b.M < p then ⟨alts, a.ty, a.L + b.L, a.M + b.M⟩ else ⟨alts, a.ty, 0, p - 1⟩)
+  | .sub =>
+    let alts := comb psub a.alts b.alts
+    some (if b.M ≤ a.L then ⟨alts, a.ty, a.L - b.M, a.M - b.L⟩ else ⟨alts, a.ty, 0, p - 1⟩)
+  | .mul =>
+    let alts := comb pmul a.alts b.alts
+    some (if a.M * b.M < p then ⟨alts, a.ty, a.L * b.L, a.M * b.M⟩ else ⟨alts, a.ty, 0, p - 1⟩)
+  | _ => none
+
+def isArith : BinaryOp → Bool
+  | .add | .sub | .mul => true
+  | _ => false
+
+/-- Both operands fit their integer type. -/
+def fitsBoth (a b : Rep2) : Bool :=
+  match a.ty with
+  | .field => true
+  | .uint n => decide (a.M < 2 ^ n ∧ b.M < 2 ^ n)
+  | .sint n => decide (a.M < 2 ^ n ∧ b.M < 2 ^ n)
+
+def binRep (cc : List Opcode) (op : BinaryOp) (u : Bool) (a b : Rep2) : Option Rep2 :=
+  match a.ty, u && isArith op with
+  | .uint _, true | .sint _, true => uncheckedRep cc op a b
+  | _, _ => if fitsBoth a b then checkedRep cc op a b else none
 
 /-- `r ≤ Mr < 2^k`, `x = 2^k q + r`, and `2^k q + r < p`: either from the bound
 on `q`, or, for `q ≤ p / 2^k`, from a flag `y = [q = p / 2^k]` with `(r + d) y`
@@ -263,10 +297,10 @@ def rangeHolds (cc : List Opcode) (a : Rep2) (k : ℕ) : Bool :=
   decide (a.M < 2 ^ k) || (checked cc a.alts k).isSome
 
 def step2 (cc : List Opcode) (reps : List (ℕ × Rep2)) : Instruction → Option (List (ℕ × Rep2))
-  | .bin d op _ a b => do
+  | .bin d op u a b => do
     let ra ← opRep reps a
     let rb ← opRep reps b
-    let r ← binRep cc op ra rb
+    let r ← binRep cc op u ra rb
     some ((d, r) :: reps)
   | .not d a => do
     let ra ← opRep reps a
@@ -282,7 +316,8 @@ def step2 (cc : List Opcode) (reps : List (ℕ × Rep2)) : Instruction → Optio
     if castOK ty ra.M then some ((d, ⟨ra.alts, ty, ra.L, ra.M⟩) :: reps) else none
   | .truncate d a k _ => do
     let ra ← opRep reps a
-    some ((d, truncRep cc ra k) :: reps)
+    if 0 < k ∧ (ra.ty = .uint 1 → ra.M < 2) then some ((d, truncRep cc ra k) :: reps)
+    else none
   | .constrain a b _ => do
     let ra ← opRep reps a
     let rb ← opRep reps b

@@ -8,7 +8,9 @@
 #      data contains plain definitions only;
 #   4. `templates.golden` is exactly what the pinned templates print, and
 #      `test_programs.golden` exactly what the pinned test programs print;
-#   5. `Check.lean`: the final theorem proves exactly `AcirLean.AllClaims` from
+#   5. `REVIEWING.md` quotes the reviewed Lean verbatim and mentions each of
+#      its definitions (`scripts/check_reviewing.py`);
+#   6. `Check.lean`: the final theorem proves exactly `AcirLean.AllClaims` from
 #      Lean's three standard axioms.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -58,6 +60,8 @@ if ! cmp -s "$generated" test_programs.golden; then
   diff "$generated" test_programs.golden | head -20 >&2
   exit 1
 fi
+
+python3 scripts/check_reviewing.py
 
 lake env lean Check.lean
 

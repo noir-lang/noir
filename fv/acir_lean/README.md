@@ -6,18 +6,20 @@ division (with and without a predicate), truncation and comparison
 SSA `expand_signed_math` emits for signed `lt`, and soundness of whole
 functions as ACIR generation compiles them, both before and after the ACVM
 optimization passes, plus a pin that keeps those proofs attached to the Rust
-code. A checker proved sound once also covers 124 real programs from
+code. A checker proved sound once also covers 125 real programs from
 `test_programs/execution_success`, as `nargo compile` ships them.
 
 ## What you must review, and what you can ignore
 
 The layout is the review policy, and `scripts/check.sh` enforces it in CI.
+**[`REVIEWING.md`](REVIEWING.md) walks through every reviewed Lean definition
+for a reader who does not know Lean.**
 
 | Path | Status | Why |
 |---|---|---|
 | `AcirLean/Spec/` | **REVIEWED** | What an ACIR constraint and an SSA instruction mean, the golden printer, and the claims. Nothing checks these against intent. |
 | `Check.lean`, `EmitTemplates.lean`, `EmitPrograms.lean` | **REVIEWED** | The entry points: the final check, and the two golden-file writers. |
-| `scripts/check.sh`, `.github/workflows/fv-lean.yml` | **REVIEWED** | The enforcement itself. |
+| `scripts/check.sh`, `scripts/check_reviewing.py`, `.github/workflows/fv-lean.yml` | **REVIEWED** | The enforcement itself. |
 | `compiler/.../acir_context/fv_templates.rs` | **REVIEWED** | The Rust half of the pin. |
 | `scripts/regen_programs.sh`, `.github/workflows/fv-test-programs.yml` | **REVIEWED** | Rebuild `test_programs.golden` from `nargo compile` output; CI fails if the committed copy is stale. |
 | `AcirLean/Templates/` | pinned, ignore | Opcode lists, SSA and test programs, checked byte-for-byte against the golden files. Plain definitions only. |
@@ -35,11 +37,14 @@ three standard axioms. `check.sh` additionally fails if:
 - any file uses `sorry`, `admit`, `axiom`, `native_decide`, `unsafe`,
   `implemented_by`, `@[extern` or a kernel-check bypass;
 - `templates.golden` or `test_programs.golden` differs from what
-  `Spec/Pin.lean` prints.
+  `Spec/Pin.lean` prints;
+- `REVIEWING.md` quotes a line that is no longer in the reviewed Lean, or does
+  not mention one of its definitions.
 
 ### Reading the reviewed Lean
 
-The reviewed Lean is about 750 lines, mostly comments. The notation you need:
+The reviewed Lean is about 750 lines, mostly comments. [`REVIEWING.md`](REVIEWING.md)
+explains it line by line; the short version of the notation:
 
 | Lean | Meaning |
 |---|---|
@@ -80,7 +85,7 @@ The reviewed Lean is about 750 lines, mostly comments. The notation you need:
    enforces its parameters' types and returns what the program computes, and
    the witness ACVM solved for it satisfies its circuit;
 10. every scalar program from `test_programs/execution_success` in
-    `Templates/TestPrograms.lean`, except the three in `uncoveredPrograms`, is
+    `Templates/TestPrograms.lean`, except the two in `uncoveredPrograms`, is
     implemented by the circuit `nargo compile` ships for it: for every
     witness satisfying the circuit, the inputs fit their parameter types, the
     final SSA runs without failing on them (no overflow, no zero divisor, no
@@ -118,9 +123,13 @@ polynomials over the circuit's witnesses that evaluate to it, and bounds on its
 integer value. Each instruction is accepted by a local rule instead of a fixed
 template, because the optimizer merges, reorders and drops constraints:
 
-- arithmetic with no possible overflow, from the operands' bounds, stays a
-  polynomial; otherwise a witness equal to the result must be range-checked
-  below `2^n` (for `sub`, below `p - b`'s bound, so a wrapped result fails it);
+- unchecked `add`, `sub` and `mul` are field arithmetic, as in Noir's SSA
+  interpreter: the result stays a polynomial, with bounds only where it cannot
+  wrap around `p`;
+- checked arithmetic with no possible overflow, from the operands' bounds,
+  stays a polynomial; otherwise a witness equal to the result must be
+  range-checked below `2^n` (for `sub`, below `p - b`'s bound, so a wrapped
+  result fails it);
 - `div`, `mod`, `lt` and `truncate` need witnesses `q`, `r` with a constraint
   `a = b q + r` (or `2^m + a - b = 2^m q + r`), bounds on `q` and `r` that rule
   out wraparound, and `r < b`; truncating a `Field` also needs the `q ≤ p / 2^k`
@@ -135,10 +144,11 @@ Which witnesses play which role is found by untrusted searches, and every
 candidate is checked against the circuit before a rule uses it. Of the 544
 execution-success programs that `nargo compile` builds, 127 are in the scalar
 subset (the rest use arrays, references, several ACIR functions, calls, black
-boxes or several blocks; the reason for each is in `test_programs.outside`). The checker accepts 124 of them. The
-three it does not are listed in `uncoveredPrograms` in `Spec/Claims.lean`
-with the reason. Removing any single constraint from the 124 circuits makes
-the checker reject in 378 of 385 cases; the other 7 constraints are
+boxes or several blocks; the reason for each is in `test_programs.outside`).
+The checker accepts 125 of them. The two it does not are listed in
+`uncoveredPrograms` in `Spec/Claims.lean` with the reason. Removing any single
+constraint from the 125 circuits makes the checker reject in 387 of 394 cases;
+the other 7 constraints are
 redundant (a repeated constraint, a range check implied by another bound, and
 `b · inv = 1` in a division that already proves `r < b`).
 

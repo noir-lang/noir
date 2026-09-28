@@ -76,6 +76,15 @@ When changing a potentially niche or subtle part of the language, compiler, or t
 - **Record new decisions.** If a change introduces a non-obvious design decision that isn't
   captured anywhere, add it to the appropriate file in `design/` (or create a new one).
 
+## Formal Verification (`fv/acir_lean`)
+
+`fv/acir_lean` holds Lean proofs that ACIR circuits the compiler emits are not
+underconstrained. `fv/acir_lean/CLAUDE.md` has the rules for working there. The
+one that applies beyond that directory: a change to the reviewed Lean
+(`fv/acir_lean/AcirLean/Spec/` or `fv/acir_lean/Check.lean`) must update
+`fv/acir_lean/REVIEWING.md`, the plain-English guide reviewers read, in the
+same PR. `just fv-check` fails if it has fallen behind.
+
 ## Build & Development Commands
 
 The project uses `just` as a task runner and `cargo` for Rust builds. Minimum Rust version: 1.89.0. Run `just --list` to see all available commands.

@@ -423,9 +423,9 @@ theorem truncRep_sound {a : Rep2} {x : F} {tx : ValueType} (ha : RepOK2 σ a (x,
     have := Nat.mod_le x.val (2 ^ k)
     omega
 
-theorem binRep_sound {op : BinaryOp} {a b r : Rep2} {x y : F} {tx ty : ValueType}
-    (h : binRep cc op a b = some r) (ha : RepOK2 σ a (x, tx)) (hb : RepOK2 σ b (y, ty)) :
-    ∃ v, op.apply x y tx = some v ∧ RepOK2 σ r v := by
+theorem checkedRep_sound {op : BinaryOp} {a b r : Rep2} {x y : F} {tx ty : ValueType}
+    (h : checkedRep cc op a b = some r) (ha : RepOK2 σ a (x, tx)) (hb : RepOK2 σ b (y, ty))
+    (hf : fitsBoth a b = true) : ∃ v, op.apply false x y tx = some v ∧ RepOK2 σ r v := by
   obtain ⟨hta, hPa, hLa, hMa⟩ := ha
   obtain ⟨-, hPb, hLb, hMb⟩ := hb
   simp only at hta hPa hLa hMa hPb hLb hMb
@@ -445,118 +445,226 @@ theorem binRep_sound {op : BinaryOp} {a b r : Rep2} {x y : F} {tx ty : ValueType
   have hmul := @hcomb pmul (· * ·) (fun A B => eval_pmul σ A B)
   obtain ⟨aalts, aty, aL, aM⟩ := a
   simp only at hadd hsub hmul hFa hLa hMa ⊢
-  cases op <;> cases aty <;> simp only [binRep, BinaryOp.apply, Option.some.injEq, reduceCtorEq] at h ⊢
-  case add.field =>
-    subst h
-    exact ⟨_, rfl, rfl, hadd, Nat.zero_le _, by dsimp only; have := ZMod.val_lt (x + y); omega⟩
-  case sub.field =>
-    subst h
-    exact ⟨_, rfl, rfl, hsub, Nat.zero_le _, by dsimp only; have := ZMod.val_lt (x - y); omega⟩
-  case mul.field =>
-    subst h
-    exact ⟨_, rfl, rfl, hmul, Nat.zero_le _, by dsimp only; have := ZMod.val_lt (x * y); omega⟩
-  case add.uint n =>
-    have hc : ((x.val + y.val : ℕ) : F) = x + y := by push_cast [cast_val]; rfl
-    split_ifs at h with h1 h2
-    · simp only [Option.some.injEq] at h; subst h
-      rw [if_pos (by omega)]
-      refine ⟨_, rfl, rfl, fun P hP => by rw [hadd P hP, hc], ?_, ?_⟩ <;>
-        simp only [val_natCast_of_lt (show x.val + y.val < p by omega)] <;> omega
-    · obtain ⟨⟨L, M⟩, hk, rfl⟩ := Option.map_eq_some_iff.1 h
-      have hv : (x + y).val = x.val + y.val := ZMod.val_add_of_lt (by omega)
-      have := checked_sound hcc hadd hk
-      rw [hv] at this
-      rw [if_pos (by omega)]
-      refine ⟨_, rfl, rfl, fun P hP => by rw [hadd P hP, hc], ?_, ?_⟩ <;>
-        simp only [val_natCast_of_lt (show x.val + y.val < p by omega)] <;> omega
-  case mul.uint n =>
-    have hc : ((x.val * y.val : ℕ) : F) = x * y := by push_cast [cast_val]; rfl
-    have hle : x.val * y.val ≤ aM * b.M := Nat.mul_le_mul hMa hMb
-    split_ifs at h with h1 h2
-    · simp only [Option.some.injEq] at h; subst h
-      rw [if_pos (by omega)]
-      refine ⟨_, rfl, rfl, fun P hP => by rw [hmul P hP, hc], ?_, ?_⟩ <;>
-        simp only [val_natCast_of_lt (show x.val * y.val < p by omega)]
+  cases aty with
+  | field =>
+    cases op <;> simp only [checkedRep, BinaryOp.apply, Option.some.injEq, reduceCtorEq] at h ⊢
+    case add =>
+      subst h
+      exact ⟨_, rfl, rfl, hadd, Nat.zero_le _, by dsimp only; have := ZMod.val_lt (x + y); omega⟩
+    case sub =>
+      subst h
+      exact ⟨_, rfl, rfl, hsub, Nat.zero_le _, by dsimp only; have := ZMod.val_lt (x - y); omega⟩
+    case mul =>
+      subst h
+      exact ⟨_, rfl, rfl, hmul, Nat.zero_le _, by dsimp only; have := ZMod.val_lt (x * y); omega⟩
+    all_goals
+      subst h
+      refine ⟨_, rfl, flag_ok σ _ _ 0 rfl ?_⟩
+      intro P hP
+      obtain ⟨w, hw, rfl⟩ := List.mem_map.1 hP
+      rw [eval_pvar]
+      exact eqFlags_sound hcc hFa hFb hw
+
+  | uint n =>
+    simp only [fitsBoth, decide_eq_true_eq] at hf
+    have hxn : x.val < 2 ^ n := by omega
+    have hyn : y.val < 2 ^ n := by omega
+    cases op <;> simp only [checkedRep, BinaryOp.apply, fieldArith, hxn, hyn, and_self, if_true,
+      Option.some.injEq, reduceCtorEq] at h ⊢
+    case add =>
+      have hc : ((x.val + y.val : ℕ) : F) = x + y := by push_cast [cast_val]; rfl
+      split_ifs at h with h1 h2
+      · simp only [Option.some.injEq] at h; subst h
+        rw [if_pos (by omega)]
+        refine ⟨_, rfl, rfl, fun P hP => by rw [hadd P hP, hc], ?_, ?_⟩ <;>
+          simp only [val_natCast_of_lt (show x.val + y.val < p by omega)] <;> omega
+      · obtain ⟨⟨L, M⟩, hk, rfl⟩ := Option.map_eq_some_iff.1 h
+        have hv : (x + y).val = x.val + y.val := ZMod.val_add_of_lt (by omega)
+        have := checked_sound hcc hadd hk
+        rw [hv] at this
+        rw [if_pos (by omega)]
+        refine ⟨_, rfl, rfl, fun P hP => by rw [hadd P hP, hc], ?_, ?_⟩ <;>
+          simp only [val_natCast_of_lt (show x.val + y.val < p by omega)] <;> omega
+    case mul =>
+      have hc : ((x.val * y.val : ℕ) : F) = x * y := by push_cast [cast_val]; rfl
+      have hle : x.val * y.val ≤ aM * b.M := Nat.mul_le_mul hMa hMb
+      split_ifs at h with h1 h2
+      · simp only [Option.some.injEq] at h; subst h
+        rw [if_pos (by omega)]
+        refine ⟨_, rfl, rfl, fun P hP => by rw [hmul P hP, hc], ?_, ?_⟩ <;>
+          simp only [val_natCast_of_lt (show x.val * y.val < p by omega)]
+        · exact Nat.mul_le_mul hLa hLb
+        · exact hle
+      · obtain ⟨⟨L, M⟩, hk, rfl⟩ := Option.map_eq_some_iff.1 h
+        have hv : (x * y).val = x.val * y.val := ZMod.val_mul_of_lt (by omega)
+        have := checked_sound hcc hmul hk
+        rw [hv] at this
+        rw [if_pos (by omega)]
+        refine ⟨_, rfl, rfl, fun P hP => by rw [hmul P hP, hc], ?_, ?_⟩ <;>
+          simp only [val_natCast_of_lt (show x.val * y.val < p by omega)] <;> omega
+    case sub =>
+      split_ifs at h with h1
+      · simp only [Option.some.injEq] at h; subst h
+        have hyx : y.val ≤ x.val := by omega
+        have hc : ((x.val - y.val : ℕ) : F) = x - y := by push_cast [Nat.cast_sub hyx, cast_val]; rfl
+        rw [if_pos hyx]
+        refine ⟨_, rfl, rfl, fun P hP => by rw [hsub P hP, hc], ?_, ?_⟩ <;>
+          simp only [val_natCast_of_lt (show x.val - y.val < p by omega)] <;> omega
+      · obtain ⟨⟨L, M⟩, hk, h⟩ := Option.bind_eq_some_iff.1 h
+        split_ifs at h with h2
+        simp only [Option.some.injEq] at h; subst h
+        have := checked_sound hcc hsub hk
+        have hyx := sub_noWrap this.2.1 hMb h2
+        have hc : ((x.val - y.val : ℕ) : F) = x - y := by push_cast [Nat.cast_sub hyx, cast_val]; rfl
+        have hv : (x - y).val = x.val - y.val := ZMod.val_sub hyx
+        rw [hv] at this
+        rw [if_pos hyx]
+        refine ⟨_, rfl, rfl, fun P hP => by rw [hsub P hP, hc], ?_, ?_⟩ <;>
+          simp only [val_natCast_of_lt (show x.val - y.val < p by omega)] <;> omega
+    case div =>
+      split_ifs at h with he
+      simp only [Option.some.injEq] at h; subst h
+      cases hl : euclid cc ⟨aalts, .uint n, aL, aM⟩ b with
+      | nil => simp [hl] at he
+      | cons s rest =>
+        have hs := euclid_sound hcc hFa hFb hLb hMb (show (s.1, s.2) ∈ _ by rw [hl]; simp)
+        rw [if_neg hs.1]
+        have hdp : x.val / y.val < p := lt_of_le_of_lt (Nat.div_le_self _ _) hxp
+        refine ⟨_, rfl, rfl, ?_, Nat.zero_le _, ?_⟩
+        · intro P hP
+          obtain ⟨⟨q, r⟩, hqr, rfl⟩ := List.mem_map.1 hP
+          have := euclid_sound hcc hFa hFb hLb hMb (show (q, r) ∈ _ by rw [hl]; exact hqr)
+          rw [eval_pvar, ← this.2.1, cast_val]
+        · simp only [val_natCast_of_lt hdp]
+          exact le_trans (Nat.div_le_self _ _) hMa
+    case mod =>
+      split_ifs at h with he
+      simp only [Option.some.injEq] at h; subst h
+      cases hl : euclid cc ⟨aalts, .uint n, aL, aM⟩ b with
+      | nil => simp [hl] at he
+      | cons s rest =>
+        have hs := euclid_sound hcc hFa hFb hLb hMb (show (s.1, s.2) ∈ _ by rw [hl]; simp)
+        rw [if_neg hs.1]
+        have hmp : x.val % y.val < p := lt_of_le_of_lt (Nat.mod_le _ _) hxp
+        refine ⟨_, rfl, rfl, ?_, Nat.zero_le _, ?_⟩
+        · intro P hP
+          obtain ⟨⟨q, r⟩, hqr, rfl⟩ := List.mem_map.1 hP
+          have := euclid_sound hcc hFa hFb hLb hMb (show (q, r) ∈ _ by rw [hl]; exact hqr)
+          rw [eval_pvar, ← this.2.2, cast_val]
+        · simp only [val_natCast_of_lt hmp]
+          have := Nat.mod_lt x.val (Nat.pos_of_ne_zero hs.1)
+          have := Nat.mod_le x.val y.val
+          omega
+    case lt =>
+      split_ifs at h with h1
+      simp only [Option.some.injEq] at h; subst h
+      refine ⟨_, rfl, flag_ok σ _ _ 0 rfl ?_⟩
+      intro P hP
+      obtain ⟨q, hq, rfl⟩ := List.mem_map.1 hP
+      have := geFlags_sound hcc hFa hFb (by omega) (by omega) h1.2.2 hq
+      simp only [eval_psub, eval_pconst, eval_pvar, this, flag]
+      by_cases hxy : x.val < y.val
+      · simp [hxy, show ¬ y.val ≤ x.val by omega]
+      · simp [hxy, show y.val ≤ x.val by omega]
+    all_goals
+      subst h
+      refine ⟨_, rfl, flag_ok σ _ _ 0 rfl ?_⟩
+      intro P hP
+      obtain ⟨w, hw, rfl⟩ := List.mem_map.1 hP
+      rw [eval_pvar]
+      exact eqFlags_sound hcc hFa hFb hw
+
+  | sint n =>
+    simp only [fitsBoth, decide_eq_true_eq] at hf
+    have hxn : x.val < 2 ^ n := by omega
+    have hyn : y.val < 2 ^ n := by omega
+    cases op <;> simp only [checkedRep, BinaryOp.apply, fieldArith, hxn, hyn, and_self, if_true,
+      Option.some.injEq, reduceCtorEq] at h ⊢
+    all_goals
+      subst h
+      refine ⟨_, rfl, flag_ok σ _ _ 0 rfl ?_⟩
+      intro P hP
+      obtain ⟨w, hw, rfl⟩ := List.mem_map.1 hP
+      rw [eval_pvar]
+      exact eqFlags_sound hcc hFa hFb hw
+
+
+theorem uncheckedRep_sound {op : BinaryOp} {a b r : Rep2} {x y : F} {ty : ValueType}
+    (h : uncheckedRep cc op a b = some r) (ha : RepOK2 σ a (x, a.ty)) (hb : RepOK2 σ b (y, ty)) :
+    ∃ z, fieldArith op x y = some z ∧ RepOK2 σ r (z, a.ty) := by
+  obtain ⟨-, hPa, hLa, hMa⟩ := ha
+  obtain ⟨-, hPb, hLb, hMb⟩ := hb
+  simp only at hPa hLa hMa hPb hLb hMb
+  have hFa := forms_sound hcc hPa
+  have hFb := forms_sound hcc hPb
+  have hcomb : ∀ {f : Poly → Poly → Poly} {g : F → F → F},
+      (∀ A B, (f A B).eval σ = g (A.eval σ) (B.eval σ)) →
+      ∀ P ∈ comb f (forms cc a.alts) (forms cc b.alts), P.eval σ = g x y := by
+    intro f g hfg P hP
+    obtain ⟨A, hA, B, hB, rfl⟩ := comb_mem hP
+    rw [hfg, hFa A hA, hFb B hB]
+  have hxp := ZMod.val_lt x
+  have hyp := ZMod.val_lt y
+  cases op <;> simp only [uncheckedRep, fieldArith, Option.some.injEq, reduceCtorEq] at h ⊢
+  case add =>
+    have hadd := @hcomb (· ++ ·) (· + ·) (fun A B => Poly.eval_append σ A B)
+    have := ZMod.val_lt (x + y)
+    split_ifs at h with h1 <;> subst h
+    · have hv : (x + y).val = x.val + y.val := ZMod.val_add_of_lt (by omega)
+      exact ⟨_, rfl, rfl, hadd, by dsimp only; omega, by dsimp only; omega⟩
+    · exact ⟨_, rfl, rfl, hadd, Nat.zero_le _, by dsimp only; omega⟩
+  case sub =>
+    have hsub := @hcomb psub (· - ·) (fun A B => eval_psub σ A B)
+    have := ZMod.val_lt (x - y)
+    split_ifs at h with h1 <;> subst h
+    · have hv : (x - y).val = x.val - y.val := ZMod.val_sub (by omega)
+      exact ⟨_, rfl, rfl, hsub, by dsimp only; omega, by dsimp only; omega⟩
+    · exact ⟨_, rfl, rfl, hsub, Nat.zero_le _, by dsimp only; omega⟩
+  case mul =>
+    have hmul := @hcomb pmul (· * ·) (fun A B => eval_pmul σ A B)
+    have := ZMod.val_lt (x * y)
+    have hle : x.val * y.val ≤ a.M * b.M := Nat.mul_le_mul hMa hMb
+    split_ifs at h with h1 <;> subst h
+    · have hv : (x * y).val = x.val * y.val := ZMod.val_mul_of_lt (by omega)
+      refine ⟨_, rfl, rfl, hmul, ?_, ?_⟩ <;> dsimp only <;> rw [hv]
       · exact Nat.mul_le_mul hLa hLb
       · exact hle
-    · obtain ⟨⟨L, M⟩, hk, rfl⟩ := Option.map_eq_some_iff.1 h
-      have hv : (x * y).val = x.val * y.val := ZMod.val_mul_of_lt (by omega)
-      have := checked_sound hcc hmul hk
-      rw [hv] at this
-      rw [if_pos (by omega)]
-      refine ⟨_, rfl, rfl, fun P hP => by rw [hmul P hP, hc], ?_, ?_⟩ <;>
-        simp only [val_natCast_of_lt (show x.val * y.val < p by omega)] <;> omega
-  case sub.uint n =>
-    split_ifs at h with h1
-    · simp only [Option.some.injEq] at h; subst h
-      have hyx : y.val ≤ x.val := by omega
-      have hc : ((x.val - y.val : ℕ) : F) = x - y := by push_cast [Nat.cast_sub hyx, cast_val]; rfl
-      rw [if_pos hyx]
-      refine ⟨_, rfl, rfl, fun P hP => by rw [hsub P hP, hc], ?_, ?_⟩ <;>
-        simp only [val_natCast_of_lt (show x.val - y.val < p by omega)] <;> omega
-    · obtain ⟨⟨L, M⟩, hk, h⟩ := Option.bind_eq_some_iff.1 h
-      split_ifs at h with h2
-      simp only [Option.some.injEq] at h; subst h
-      have := checked_sound hcc hsub hk
-      have hyx := sub_noWrap this.2.1 hMb h2
-      have hc : ((x.val - y.val : ℕ) : F) = x - y := by push_cast [Nat.cast_sub hyx, cast_val]; rfl
-      have hv : (x - y).val = x.val - y.val := ZMod.val_sub hyx
-      rw [hv] at this
-      rw [if_pos hyx]
-      refine ⟨_, rfl, rfl, fun P hP => by rw [hsub P hP, hc], ?_, ?_⟩ <;>
-        simp only [val_natCast_of_lt (show x.val - y.val < p by omega)] <;> omega
-  case div.uint n =>
-    split_ifs at h with he
-    simp only [Option.some.injEq] at h; subst h
-    cases hl : euclid cc ⟨aalts, .uint n, aL, aM⟩ b with
-    | nil => simp [hl] at he
-    | cons s rest =>
-      have hs := euclid_sound hcc hFa hFb hLb hMb (show (s.1, s.2) ∈ _ by rw [hl]; simp)
-      rw [if_neg hs.1]
-      have hdp : x.val / y.val < p := lt_of_le_of_lt (Nat.div_le_self _ _) hxp
-      refine ⟨_, rfl, rfl, ?_, Nat.zero_le _, ?_⟩
-      · intro P hP
-        obtain ⟨⟨q, r⟩, hqr, rfl⟩ := List.mem_map.1 hP
-        have := euclid_sound hcc hFa hFb hLb hMb (show (q, r) ∈ _ by rw [hl]; exact hqr)
-        rw [eval_pvar, ← this.2.1, cast_val]
-      · simp only [val_natCast_of_lt hdp]
-        exact le_trans (Nat.div_le_self _ _) hMa
-  case mod.uint n =>
-    split_ifs at h with he
-    simp only [Option.some.injEq] at h; subst h
-    cases hl : euclid cc ⟨aalts, .uint n, aL, aM⟩ b with
-    | nil => simp [hl] at he
-    | cons s rest =>
-      have hs := euclid_sound hcc hFa hFb hLb hMb (show (s.1, s.2) ∈ _ by rw [hl]; simp)
-      rw [if_neg hs.1]
-      have hmp : x.val % y.val < p := lt_of_le_of_lt (Nat.mod_le _ _) hxp
-      refine ⟨_, rfl, rfl, ?_, Nat.zero_le _, ?_⟩
-      · intro P hP
-        obtain ⟨⟨q, r⟩, hqr, rfl⟩ := List.mem_map.1 hP
-        have := euclid_sound hcc hFa hFb hLb hMb (show (q, r) ∈ _ by rw [hl]; exact hqr)
-        rw [eval_pvar, ← this.2.2, cast_val]
-      · simp only [val_natCast_of_lt hmp]
-        have := Nat.mod_lt x.val (Nat.pos_of_ne_zero hs.1)
-        have := Nat.mod_le x.val y.val
-        omega
-  case lt.uint n =>
-    split_ifs at h with h1
-    simp only [Option.some.injEq] at h; subst h
-    refine ⟨_, rfl, flag_ok σ _ _ 0 rfl ?_⟩
-    intro P hP
-    obtain ⟨q, hq, rfl⟩ := List.mem_map.1 hP
-    have := geFlags_sound hcc hFa hFb (by omega) (by omega) h1.2.2 hq
-    simp only [eval_psub, eval_pconst, eval_pvar, this, flag]
-    by_cases hxy : x.val < y.val
-    · simp [hxy, show ¬ y.val ≤ x.val by omega]
-    · simp [hxy, show y.val ≤ x.val by omega]
-  all_goals
-    subst h
-    refine ⟨_, rfl, flag_ok σ _ _ 0 rfl ?_⟩
-    intro P hP
-    obtain ⟨w, hw, rfl⟩ := List.mem_map.1 hP
-    rw [eval_pvar]
-    exact eqFlags_sound hcc hFa hFb hw
+    · exact ⟨_, rfl, rfl, hmul, Nat.zero_le _, by dsimp only; omega⟩
+
+theorem binRep_sound {op : BinaryOp} {u : Bool} {a b r : Rep2} {x y : F} {tx ty : ValueType}
+    (h : binRep cc op u a b = some r) (ha : RepOK2 σ a (x, tx)) (hb : RepOK2 σ b (y, ty)) :
+    ∃ v, op.apply u x y tx = some v ∧ RepOK2 σ r v := by
+  have hta : a.ty = tx := ha.1
+  subst hta
+  unfold binRep at h
+  split at h
+  · next n hty hu =>
+    obtain ⟨z, hz, hok⟩ := uncheckedRep_sound hcc h ha hb
+    simp only [Bool.and_eq_true] at hu
+    refine ⟨_, ?_, hok⟩
+    rw [hty, hu.1]
+    simp [BinaryOp.apply, hz]
+  · next n hty hu =>
+    obtain ⟨z, hz, hok⟩ := uncheckedRep_sound hcc h ha hb
+    simp only [Bool.and_eq_true] at hu
+    refine ⟨_, ?_, hok⟩
+    rw [hty, hu.1]
+    simp [BinaryOp.apply, hz]
+  · next hn1 hn2 =>
+    split_ifs at h with hf
+    obtain ⟨v, hv, hok⟩ := checkedRep_sound hcc h ha hb hf
+    refine ⟨v, ?_, hok⟩
+    rw [← hv]
+    cases u
+    · rfl
+    · cases hty : a.ty with
+      | field => rfl
+      | uint n =>
+        have := hn1 n hty
+        cases op <;> simp_all [isArith, BinaryOp.apply, fieldArith]
+      | sint n =>
+        have := hn2 n hty
+        cases op <;> simp_all [isArith, BinaryOp.apply, fieldArith]
 
 end
 
@@ -627,7 +735,9 @@ theorem step2_ok {reps : List (ℕ × Rep2)} {env : Env} (hE : EnvOK σ reps env
       subst hty
       have hxp : x.val ≤ 2 ^ n - 1 := by omega
       have hv : ((2 ^ n - 1 - x.val : ℕ) : F).val = 2 ^ n - 1 - x.val := val_natCast_of_lt (by omega)
-      refine ⟨(d, (((2 ^ n - 1 - x.val : ℕ) : F), .uint n)) :: env, by simp [Instruction.run, hx],
+      have hxn : x.val < 2 ^ n := by omega
+      refine ⟨(d, (((2 ^ n - 1 - x.val : ℕ) : F), .uint n)) :: env,
+        by simp [Instruction.run, hx, hxn],
         .cons ⟨rfl, rfl, ?_, ?_, ?_⟩ hE⟩
       · intro P hP'
         obtain ⟨Q, hQ, rfl⟩ := List.mem_map.1 hP'
@@ -652,9 +762,15 @@ theorem step2_ok {reps : List (ℕ × Rep2)} {env : Env} (hE : EnvOK σ reps env
     simp only [step2, Option.bind_eq_bind, Option.bind_eq_some_iff] at h
     obtain ⟨ra, hra, h⟩ := h
     obtain ⟨⟨x, tx⟩, hx, hok⟩ := opRep_ok hE hra
+    split_ifs at h with hk
     simp only [Option.some.injEq] at h
     subst h
-    exact ⟨(d, (((x.val % 2 ^ k : ℕ) : F), tx)) :: env, by simp [Instruction.run, hx],
+    have hg : 0 < k ∧ (tx = .uint 1 → x.val < 2) := by
+      obtain ⟨hty, -, -, hM⟩ := hok
+      simp only at hty hM
+      exact ⟨hk.1, fun h1 => by have := hk.2 (hty.trans h1); omega⟩
+    exact ⟨(d, (((x.val % 2 ^ k : ℕ) : F), tx)) :: env,
+      by simp only [Instruction.run, hx, Option.bind_eq_bind, Option.bind_some]; rw [if_pos hg],
       .cons ⟨rfl, truncRep_sound hcc hok k⟩ hE⟩
   | constrain a b m =>
     simp only [step2, Option.bind_eq_bind, Option.bind_eq_some_iff] at h
