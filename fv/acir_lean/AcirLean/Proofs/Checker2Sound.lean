@@ -933,10 +933,10 @@ theorem step2_ok {reps : List (ℕ × Rep2)} {env : Env} (hE : EnvOK σ reps env
     split_ifs at h with hk
     simp only [Option.some.injEq] at h
     subst h
-    have hg : 0 < k ∧ (tx = .uint 1 → x.val < 2) := by
+    have hg : k = 0 ∨ (tx = .uint 1 → x.val < 2) := by
       obtain ⟨hty, -, -, hM⟩ := hok
       simp only at hty hM
-      exact ⟨hk.1, fun h1 => by have := hk.2 (hty.trans h1); omega⟩
+      exact .inr fun h1 => by have := hk.2 (hty.trans h1); omega
     exact ⟨(d, (((x.val % 2 ^ k : ℕ) : F), tx)) :: env,
       by simp only [Instruction.run, hx, Option.bind_eq_bind, Option.bind_some]; rw [if_pos hg],
       .cons ⟨rfl, truncRep_sound hcc hok k⟩ hE⟩

@@ -195,8 +195,8 @@ def BinaryOp.apply (op : BinaryOp) (unchecked : Bool) (x y : F) :
   asserts a `u1` is `0` or `1`);
 * `cast` keeps the value and changes its type, without checking that it fits
   (the interpreter relabels, and a later `truncate` makes it fit);
-* `truncate` keeps the low `bits` bits. It fails for `0` bits and for a `u1`
-  above `1`, as the interpreter does;
+* `truncate` keeps the low `bits` bits, so truncating to `0` bits gives `0`.
+  Otherwise it fails for a `u1` above `1`, as the interpreter does;
 * `constrain` fails unless its operands are equal;
 * `range_check` fails unless the value is below `2^bits`. It also fails for
   `0` bits and for a `u1` above `1`, as the interpreter does. -/
@@ -218,7 +218,7 @@ def Instruction.run (env : Env) : Instruction → Option Env
     some ((d, (x, ty)) :: env)
   | .truncate d a k _ => do
     let (x, tx) ← a.value env
-    if 0 < k ∧ (tx = .uint 1 → x.val < 2) then
+    if k = 0 ∨ (tx = .uint 1 → x.val < 2) then
       some ((d, (((x.val % 2 ^ k : ℕ) : F), tx)) :: env)
     else none
   | .constrain a b _ => do

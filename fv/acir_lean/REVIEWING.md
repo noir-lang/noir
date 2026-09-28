@@ -461,7 +461,7 @@ Running one instruction:
 - **`bin`:** read both operands, apply the operation, and store the result as `v{dst}`. It fails if the operation fails.
 - **`not`:** on an n-bit integer (`u<n>` or `i<n>`), reduce the value to its low n bits and flip them: `2^n − 1 − (x mod 2^n)`. On `Field` it fails, and so does a `u1` above 1, as in Noir (whose interpreter asserts a `u1` is 0 or 1).
 - **`cast`:** keep the value and change the type, without checking that it fits, exactly like Noir. A value that doesn't fit its new type is later brought into range by a `truncate`.
-- **`truncate`:** keep the low `bits` bits: `x mod 2^bits`. Like Noir, it fails for a truncation to 0 bits and for a `u1` above 1.
+- **`truncate`:** keep the low `bits` bits: `x mod 2^bits`, so truncating to 0 bits gives 0. Otherwise, like Noir, it fails for a `u1` above 1.
 - **`constrain a == b`:** fail unless `a = b`.
 - **`range_check a to k bits`:** fail unless `a < 2^k`. Like Noir, it also fails for 0 bits and for a `u1` above 1.
 
