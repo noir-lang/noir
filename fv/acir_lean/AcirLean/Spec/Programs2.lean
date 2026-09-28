@@ -197,7 +197,9 @@ def BinaryOp.apply (op : BinaryOp) (unchecked : Bool) (x y : F) :
   (the interpreter relabels, and a later `truncate` makes it fit);
 * `truncate` keeps the low `bits` bits. It fails for `0` bits and for a `u1`
   above `1`, as the interpreter does;
-* `constrain` and `range_check` fail when their condition does not hold. -/
+* `constrain` fails unless its operands are equal;
+* `range_check` fails unless the value is below `2^bits`. It also fails for
+  `0` bits and for a `u1` above `1`, as the interpreter does. -/
 def Instruction.run (env : Env) : Instruction → Option Env
   | .bin d op u a b => do
     let (x, tx) ← a.value env
@@ -224,8 +226,8 @@ def Instruction.run (env : Env) : Instruction → Option Env
     let (y, _) ← b.value env
     if x = y then some env else none
   | .rangeCheck a k _ => do
-    let (x, _) ← a.value env
-    if x.val < 2 ^ k then some env else none
+    let (x, tx) ← a.value env
+    if 0 < k ∧ x.val < 2 ^ k ∧ (tx = .uint 1 → x.val < 2) then some env else none
 
 /-- Bind the parameters, run the body, and read the return values. -/
 def Program.eval (P : Program) (ins : List F) : Option (List F) := do

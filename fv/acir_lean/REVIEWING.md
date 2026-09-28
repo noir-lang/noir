@@ -463,9 +463,9 @@ Running one instruction:
 - **`cast`:** keep the value and change the type, without checking that it fits, exactly like Noir. A value that doesn't fit its new type is later brought into range by a `truncate`.
 - **`truncate`:** keep the low `bits` bits: `x mod 2^bits`. Like Noir, it fails for a truncation to 0 bits and for a `u1` above 1.
 - **`constrain a == b`:** fail unless `a = b`.
-- **`range_check a to k bits`:** fail unless `a < 2^k`.
+- **`range_check a to k bits`:** fail unless `a < 2^k`. Like Noir, it also fails for 0 bits and for a `u1` above 1.
 
-**Check each against Noir's SSA interpreter.** In particular, `not`, `truncate` and the overflow rules.
+**Check each against Noir's SSA interpreter.** In particular, `not`, `truncate` and the overflow rules. You don't have to do this alone: `EmitSemantics.lean` runs `Instruction.run` on a grid of edge-case values for every instruction and type, and the Rust test `fv_semantics.rs` fails unless Noir's interpreter gives the same result on every one (see "How the SSA meaning stays attached to Noir" in `README.md`). What the test cannot tell you is whether the grid is wide enough, so glance at `values` in `EmitSemantics.lean` too.
 
 ```lean
 def Program.eval (P : Program) (ins : List F) : Option (List F) := do

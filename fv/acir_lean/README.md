@@ -18,9 +18,9 @@ for a reader who does not know Lean.**
 | Path | Status | Why |
 |---|---|---|
 | `AcirLean/Spec/` | **REVIEWED** | What an ACIR constraint and an SSA instruction mean, the golden printer, and the claims. Nothing checks these against intent. |
-| `Check.lean`, `EmitTemplates.lean`, `EmitPrograms.lean` | **REVIEWED** | The entry points: the final check, and the two golden-file writers. |
+| `Check.lean`, `EmitTemplates.lean`, `EmitPrograms.lean`, `EmitSemantics.lean` | **REVIEWED** | The entry points: the final check, and the three golden-file writers. |
 | `scripts/check.sh`, `scripts/check_reviewing.py`, `.github/workflows/fv-lean.yml` | **REVIEWED** | The enforcement itself. |
-| `compiler/.../acir_context/fv_templates.rs` | **REVIEWED** | The Rust half of the pin. |
+| `compiler/.../acir_context/fv_templates.rs`, `fv_semantics.rs` | **REVIEWED** | The Rust halves of the pins. |
 | `scripts/regen_programs.sh`, `.github/workflows/fv-test-programs.yml` | **REVIEWED** | Rebuild `test_programs.golden` from `nargo compile` output; CI fails if the committed copy is stale. |
 | `AcirLean/Templates/` | pinned, ignore | Opcode lists, SSA and test programs, checked byte-for-byte against the golden files. Plain definitions only. |
 | `AcirLean/Proofs/` | machine-checked, ignore | Lean checks every proof, and nothing here can change what `Spec/` states. |
@@ -37,7 +37,8 @@ three standard axioms. `check.sh` additionally fails if:
 - any file uses `sorry`, `admit`, `axiom`, `native_decide`, `unsafe`,
   `implemented_by`, `@[extern` or a kernel-check bypass;
 - `templates.golden` or `test_programs.golden` differs from what
-  `Spec/Pin.lean` prints;
+  `Spec/Pin.lean` prints, or `ssa_semantics.golden` from what
+  `EmitSemantics.lean` prints;
 - `REVIEWING.md` quotes a line that is no longer in the reviewed Lean, or does
   not mention one of its definitions.
 
@@ -201,6 +202,33 @@ change to a pinned gadget fails the Rust test; making it pass means changing
 file from Lean, and that only passes `Check.lean` if `AllClaims` is still
 provable. An unsound change cannot be (see `Examples/Bug7895.lean`).
 
+## How the SSA meaning stays attached to Noir
+
+`Spec/Programs2.lean` states by hand what each SSA instruction computes, and
+every claim about a test program rests on it. A mistake there would make the
+proofs prove the wrong thing, so it is tested against Noir's own reference
+semantics, the SSA interpreter:
+
+1. `EmitSemantics.lean` runs `Instruction.run` on a fixed grid (every binary
+   operation, checked and unchecked, `not`, `cast`, `truncate`, `constrain`
+   and `range_check`, on `Field`, `u1`, `u8`…`u128` and `i8`…`i64`, over edge
+   values such as `0`, `2^n - 1`, `2^n` and `p - 1`) and writes the results to
+   `ssa_semantics.golden`. `check.sh` fails unless the file is current.
+2. `fv_semantics.rs` (`cargo test -p noirc_evaluator --lib fv_semantics`) runs
+   each of those functions and calls through Noir's SSA parser, validator and
+   interpreter, and fails unless every result, including every failure, is the
+   same.
+
+The grid leaves out only what never reaches ACIR generation: signed checked
+arithmetic and signed `div`, `mod` and `lt` (rewritten by
+`expand_signed_math`), and SSA the validator rejects. After a change to
+`Instruction.run` or to the interpreter:
+
+```sh
+cd fv/acir_lean && lake env lean --run EmitSemantics.lean ssa_semantics.golden
+cargo test -p noirc_evaluator --lib fv_semantics
+```
+
 ## Running locally
 
 Install Lean via elan (the toolchain version comes from `lean-toolchain`):
@@ -213,7 +241,7 @@ Then, from the repository root:
 
 ```sh
 (cd fv/acir_lean && ./scripts/check.sh)                  # ~2 min first run (Mathlib cache download), ~20 s after
-cargo test -p noirc_evaluator --lib fv_templates         # Rust side of the pin
+cargo test -p noirc_evaluator --lib fv_                  # Rust side of the pins
 ```
 
 After a change to the corpus programs in `fv_templates.rs`, regenerate the

@@ -957,11 +957,13 @@ theorem step2_ok {reps : List (ℕ × Rep2)} {env : Env} (hE : EnvOK σ reps env
   | rangeCheck a k m =>
     simp only [step2, Option.bind_eq_bind, Option.bind_eq_some_iff] at h
     obtain ⟨ra, hra, h⟩ := h
-    obtain ⟨⟨x, tx⟩, hx, ⟨_, hPa, _, hMa⟩⟩ := opRep_ok hE hra
-    simp only at hPa hMa
-    split_ifs at h with hr
+    obtain ⟨⟨x, tx⟩, hx, ⟨hty, hPa, _, hMa⟩⟩ := opRep_ok hE hra
+    simp only at hty hPa hMa
+    split_ifs at h with hg
+    obtain ⟨hk0, hu1, hr⟩ := hg
     simp only [Option.some.injEq] at h
     subst h
+    have hu1' : tx = .uint 1 → x.val ≤ 1 := fun h1 => by have := hu1 (hty.trans h1); omega
     have hk : x.val < 2 ^ k := by
       unfold rangeHolds at hr
       rcases Bool.or_eq_true_iff.1 hr with hr | hr
@@ -969,7 +971,7 @@ theorem step2_ok {reps : List (ℕ × Rep2)} {env : Env} (hE : EnvOK σ reps env
       · obtain ⟨⟨L, M⟩, hc⟩ := Option.isSome_iff_exists.1 hr
         have := checked_sound hcc hPa hc
         omega
-    exact ⟨env, by simp [Instruction.run, hx, hk], hE⟩
+    exact ⟨env, by simp only [Instruction.run, hx, Option.bind_eq_bind, Option.bind_some]; rw [if_pos ⟨hk0, hk, fun h1 => by have := hu1' h1; omega⟩], hE⟩
 
 end
 

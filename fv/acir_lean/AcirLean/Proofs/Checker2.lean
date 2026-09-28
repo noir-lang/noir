@@ -338,7 +338,7 @@ def step2 (cc : List Opcode) (reps : List (ℕ × Rep2)) : Instruction → Optio
     if eqHolds cc ra rb then some reps else none
   | .rangeCheck a k _ => do
     let ra ← opRep reps a
-    if rangeHolds cc ra k then some reps else none
+    if 0 < k ∧ (ra.ty = .uint 1 → ra.M < 2) ∧ rangeHolds cc ra k then some reps else none
 
 def paramRep (cc : List Opcode) (w : ℕ) : ValueType → Option Rep2
   | .field => some ⟨[pvar w], .field, 0, p - 1⟩

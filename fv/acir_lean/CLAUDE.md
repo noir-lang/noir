@@ -38,6 +38,13 @@ it must never compute a different value or succeed where the interpreter fails.
 State any such difference in the definition's doc comment and in
 `REVIEWING.md`.
 
+`cargo test -p noirc_evaluator --lib fv_semantics` checks this on a fixed grid
+of values: it replays `ssa_semantics.golden`, written by `EmitSemantics.lean`,
+through the interpreter. After changing `Instruction.run`, regenerate the file
+with `lake env lean --run EmitSemantics.lean ssa_semantics.golden` and run that
+test. When the test reports a difference, fix the spec (and the proofs), not the
+golden file. When the spec gains a new instruction or type, add it to the grid.
+
 ## Commands
 
 - `just fv-check`: build the proofs and run every check of the `FV Lean` job.
