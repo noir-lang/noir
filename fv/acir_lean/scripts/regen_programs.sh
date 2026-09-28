@@ -7,14 +7,20 @@
 #   test_programs.outside                  the others, with the reason.
 # `scripts/check.sh` then requires the Lean data to print exactly
 # `test_programs.golden`. With FV_PINNED=1 it rebuilds only the programs
-# `test_programs.golden` already lists (see `gen_programs.py`). Needs `cargo`
-# and `python3`.
+# `testProgramNames` (`AcirLean/Spec/Coverage.lean`) lists, and fails
+# if any of them cannot be rebuilt (see `gen_programs.py`). FV_WORK=<dir>
+# keeps the compiled dumps there. Needs `cargo` and `python3`.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 root=$(cd ../.. && pwd)
 target=${CARGO_TARGET_DIR:-$root/target}
-work=$(mktemp -d)
-trap 'rm -rf "$work"' EXIT
+if [ -n "${FV_WORK:-}" ]; then
+  work=$FV_WORK
+  mkdir -p "$work"
+else
+  work=$(mktemp -d)
+  trap 'rm -rf "$work"' EXIT
+fi
 
 (cd "$root" && cargo build --release -p nargo_cli)
 nargo=$target/release/nargo

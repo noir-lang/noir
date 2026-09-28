@@ -50,9 +50,14 @@ golden file. When the spec gains a new instruction or type, add it to the grid.
 - `just fv-check`: build the proofs and run every check of the `FV Lean` job.
 - `just fv-regen`: rebuild the proved test programs from the current compiler,
   when the `FV test programs` job reports that one of their circuits changed.
-- `just fv-regen-all`: also bring in test programs that are not proved yet. A
+- `just fv-regen-all`: also bring in test programs that are not proved yet,
+  adding them to `testProgramNames` (`AcirLean/Spec/Coverage.lean`). A
   program the checker rejects makes `fv-check` fail until it is listed, with
   the reason, in `uncoveredPrograms` (`AcirLean/Spec/Claims.lean`).
+
+When `just fv-regen` fails because a covered program no longer compiles or no
+longer fits the subset, do not work around it: either extend the checker, or
+remove the name from `testProgramNames` and say why in the PR.
 
 Never use `sorry`, `axiom`, `native_decide` or other escape hatches;
 `scripts/check.sh` rejects them.

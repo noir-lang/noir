@@ -589,7 +589,7 @@ def Satisfiable (T : List Opcode) (inputs : List (ℕ × ℕ)) : Prop :=
   ∃ σ : ℕ → F, AllHold σ T ∧ InputsFit σ inputs
 ```
 
-"*Some* σ satisfies everything". This guards against a vacuous claim: a contradictory circuit (say, one containing `1 = 0`) would make `Sound` trivially true. Proving `Satisfiable` shows that isn't the case.
+"*Some* σ satisfies everything". This guards against a vacuous claim: a contradictory circuit (say, one containing `1 = 0`) would make `Sound` trivially true. Proving `Satisfiable` shows that isn't the case. It is *not* completeness: it says one witness works, not that every valid input has one. A circuit that wrongly rejects some honest inputs can still satisfy every claim here.
 
 ```lean
 def divSpec (σ : ℕ → F) : Prop :=
@@ -674,6 +674,12 @@ def uncoveredPrograms : List String :=
 
 The test programs deliberately left out of the claim, each with its reason in the comment above. **Check:** that the reasons are acceptable, and that the list doesn't grow silently in future PRs.
 
+```lean
+def testProgramNames : List String :=
+```
+
+This one lives in `Spec/Coverage.lean`: the names of the test programs in `testPrograms`, sorted, one per line. The program data itself is generated and unreviewed, so this list is what pins down *which* programs the claim is about. `AllClaims` requires the generated programs to be exactly these, so a program can only drop out of the claim by being deleted here, in a reviewed diff. The regeneration script reads this list too, and refuses to write anything if one of the listed programs no longer compiles or no longer fits the supported subset. **Check:** in a PR, that any name removed from this list was removed on purpose.
+
 ### `AllClaims`: the entire promise, one conjunction
 
 Every line below is joined with `∧` ("and"). Read each one as a sentence.
@@ -690,6 +696,7 @@ Every line below is joined with `∧` ("and"). Read each one as a sentence.
 | `… shippedDiv … shippedLt … shippedTruncate … shippedSignedLt …` | The same four, **after the ACVM optimizer**, as `nargo compile` actually ships them. |
 | `∀ n ∈ signedWidths, SoundFunction (shippedSignedDiv n) (SignedOp n Int.tdiv) …` and `…shippedSignedMod… Int.tmod` | Signed `/` and `%`, as shipped, are correct and reject a zero divisor and `MIN / -1`. |
 | `∀ e ∈ corpus, SoundFunction e.fn (CorpusSpec e.prog) ∧ AllHold e.assignment e.fn.opcodes` | Every corpus program's shipped circuit implements it, and ACVM's real witness satisfies that circuit. |
+| `testPrograms.map TestProgram.name = testProgramNames` | The generated test programs are exactly the ones the reviewed list names. |
 | `∀ e ∈ testPrograms, e.name ∉ uncoveredPrograms → SoundFunction e.fn (ProgramSpec e.prog)` | Every real test program in `testPrograms` (except those in `uncoveredPrograms`) is implemented by its shipped circuit. |
 
 Names like `divVarGadget n` and `shippedDiv n` refer to constraint lists in `Templates/`. Those aren't reviewed, because the pin makes them equal to the compiler's real output.
@@ -724,7 +731,7 @@ Lean prints every axiom the proof relies on, and `#guard_msgs` fails the build u
    - a missing condition;
    - an input assumption that shouldn't be there (only the gadget `Sound` claims assume input types);
    - wrong witness numbers.
-4. **Scope.** Are `pinnedWidths`, `signedWidths` and `uncoveredPrograms` acceptable?
+4. **Scope.** Are `pinnedWidths`, `signedWidths` and `uncoveredPrograms` acceptable? Did any name leave `testProgramNames`?
 5. **Printer** (`Pin.lean` and the `render` functions). Is it faithful? If it prints the same text for two different things, the pin could be fooled.
 
 Everything outside this list is either checked by Lean (`Proofs/`) or compared byte-for-byte with the compiler (`Templates/`).

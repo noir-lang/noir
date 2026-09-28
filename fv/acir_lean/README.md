@@ -177,8 +177,12 @@ Not yet covered:
 - the ACVM optimization passes on programs outside the pinned corpus: the
   optimized circuits are checked program by program, not the passes in
   general;
-- bitwise operations on more than one bit, and completeness (an honest witness
-  exists) for the test programs.
+- bitwise operations on more than one bit;
+- completeness: that every valid input has a witness the circuit accepts.
+  What is proved alongside soundness is non-vacuity (`Satisfiable`: some
+  witness meets every constraint), which rules out a contradictory circuit
+  making a claim trivially true, but not a circuit that rejects some valid
+  inputs.
 
 Trusted: the Lean kernel and its three standard axioms, plus the reviewed
 files above.
@@ -276,9 +280,15 @@ just fv-check       # only re-check the proofs (what `FV Lean` runs)
 ```
 
 Adding a test program needs none of these: CI only checks the programs already
-in the proofs. `just fv-regen-all` brings new ones in; if the checker rejects
-one, `fv-check` fails until it is listed, with the reason, in
-`uncoveredPrograms` (`Spec/Claims.lean`).
+in the proofs, the ones `testProgramNames` (`Spec/Coverage.lean`) lists.
+`just fv-regen-all` brings new ones in and adds them to that list, a change to
+the reviewed spec; if the checker rejects one, `fv-check` fails until it is
+listed, with the reason, in `uncoveredPrograms` (`Spec/Claims.lean`).
+
+`just fv-regen` never drops a program. If one of the listed programs no longer
+compiles or no longer fits the supported subset, it fails and writes nothing;
+taking the program out of the claims means deleting its name from
+`testProgramNames`, which a reviewer sees.
 
 This writes `Templates/TestPrograms.lean`, `test_programs.golden` and
 `test_programs.outside`. Two CI checks keep them honest:
@@ -289,9 +299,10 @@ This writes `Templates/TestPrograms.lean`, `test_programs.golden` and
   change that alters one of them therefore has to commit the rebuilt data
   (`just fv-regen`).
 - `FV Lean` (`check.sh`) requires the Lean data to print exactly
-  `test_programs.golden`, and the checker to accept every program outside
+  `test_programs.golden`, to hold exactly the programs `testProgramNames`
+  lists, and the checker to accept every program outside
   `uncoveredPrograms`, so rebuilt data with a circuit the checker cannot prove
-  sound fails there.
+  sound, or with a program missing, fails there.
 
 To see a soundness bug caught, delete the `q ≤ q0` bound in
 `euclidean_division_var` (the `bound_constraint_with_offset(quotient_var,

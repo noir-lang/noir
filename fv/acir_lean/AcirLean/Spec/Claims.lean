@@ -5,6 +5,7 @@ to this directory needs careful review.
 -/
 
 import AcirLean.Spec.Pin
+import AcirLean.Spec.Coverage
 
 /-!
 # Claims: everything this project promises
@@ -12,8 +13,10 @@ import AcirLean.Spec.Pin
 Every claim has one shape, `Sound T inputs spec`: for every witness
 assignment, if every constraint in the pinned list `T` holds and every
 declared input fits its type, then `spec` holds. There is no slot for any
-other assumption. Each claim is paired with `Satisfiable T inputs` (an honest
+other assumption. Each claim is paired with `Satisfiable T inputs` (some
 witness meets every constraint), so the assumptions cannot be contradictory.
+That is non-vacuity, not completeness: nothing here says that every valid
+input has a witness the circuit accepts.
 
 `AllClaims` is the whole promise. `Check.lean` requires a proof of exactly this
 proposition using only Lean's standard axioms.
@@ -121,8 +124,8 @@ def uncoveredPrograms : List String :=
   and `MIN / -1`;
 * every program in the corpus, as shipped, implements it (`CorpusSpec`), and
   the witness ACVM solved for it satisfies its circuit;
-* every scalar program from `test_programs/execution_success` in
-  `testPrograms`, except `uncoveredPrograms`, is implemented by the circuit
+* `testPrograms` holds exactly the programs named in `testProgramNames`, and
+  every one of them except `uncoveredPrograms` is implemented by the circuit
   `nargo compile` ships for it (`ProgramSpec`);
 * no constraint list is contradictory. -/
 def AllClaims : Prop :=
@@ -164,6 +167,7 @@ def AllClaims : Prop :=
   (∀ n ∈ signedWidths,
     SoundFunction (shippedSignedMod n) (SignedOp n Int.tmod) ∧ SatisfiableFunction (shippedSignedMod n)) ∧
   (∀ e ∈ corpus, SoundFunction e.fn (CorpusSpec e.prog) ∧ AllHold e.assignment e.fn.opcodes) ∧
+  testPrograms.map TestProgram.name = testProgramNames ∧
   (∀ e ∈ testPrograms, e.name ∉ uncoveredPrograms → SoundFunction e.fn (ProgramSpec e.prog))
 
 end AcirLean
