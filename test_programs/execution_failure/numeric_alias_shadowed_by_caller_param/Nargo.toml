@@ -1,0 +1,6 @@
+[package]
+name = "numeric_alias_shadowed_by_caller_param"
+type = "bin"
+authors = [""]
+
+[dependencies]

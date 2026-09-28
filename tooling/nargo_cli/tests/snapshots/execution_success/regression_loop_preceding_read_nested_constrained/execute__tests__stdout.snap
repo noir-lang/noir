@@ -1,0 +1,5 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+[regression_loop_preceding_read_nested_constrained] Circuit output: 1797

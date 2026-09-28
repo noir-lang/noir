@@ -1,0 +1,6 @@
+[package]
+name = "fn_value_callee_reads_then_repoints_ref_param"
+type = "bin"
+authors = [""]
+
+[dependencies]

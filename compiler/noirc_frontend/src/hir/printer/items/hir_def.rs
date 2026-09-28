@@ -826,6 +826,32 @@ impl ItemPrinter<'_, '_> {
         self.show_hir_ident(ident, None);
     }
 
+    /// Shows a type-level number as an expression of type `numeric_type`. Literals get
+    /// `numeric_type` as their suffix so they can't be inferred as a different type, and every
+    /// operation is parenthesized so the expression keeps its meaning as an operand.
+    fn show_numeric_type_as_value(&mut self, typ: &Type, numeric_type: &Type) {
+        let typ = typ.follow_bindings();
+        if let Type::Constant(constant) = typ.canonicalize() {
+            self.push_str(&constant.to_string());
+            self.push('_');
+            self.show_type(numeric_type);
+            return;
+        }
+        match typ {
+            Type::InfixExpr(lhs, op, rhs, _) => {
+                self.push('(');
+                self.show_numeric_type_as_value(&lhs, numeric_type);
+                self.push(' ');
+                self.push_str(&op.to_string());
+                self.push(' ');
+                self.show_numeric_type_as_value(&rhs, numeric_type);
+                self.push(')');
+            }
+            Type::CheckedCast { from: _, to } => self.show_numeric_type_as_value(&to, numeric_type),
+            other => self.show_type(&other),
+        }
+    }
+
     fn show_hir_ident(&mut self, ident: HirIdent, expr_id: Option<ExprId>) {
         let instantiation_bindings = if let Some(expr_id) = expr_id {
             self.interner.try_get_instantiation_bindings(expr_id)
@@ -1002,21 +1028,21 @@ impl ItemPrinter<'_, '_> {
                 self.push_str(name);
             }
             DefinitionKind::NumericGeneric(ref type_var, ref numeric_type) => {
-                // When a numeric type alias's parameter is used as a value (`AliasN::<1>`),
-                // the definition's type variable is bound to the resolved value and the bare
-                // name doesn't resolve at the use site (or worse, resolves to something else
-                // with the same name). Print the value instead, suffixed with its numeric
-                // type so it can't be inferred as a different one.
-                if let TypeBinding::Bound(binding) = &*type_var.borrow()
-                    && let Type::Constant(constant) = binding.follow_bindings()
-                {
-                    self.push_str(&constant.to_string());
-                    self.push('_');
-                    self.show_type(numeric_type);
-                    return;
+                // When a numeric type alias is used as a value (`Alias`, `AliasN::<1>`), the
+                // definition's type variable is bound to the value the alias stands for, and
+                // the bare name doesn't resolve at the use site (or worse, resolves to
+                // something else with the same name). Print the value instead.
+                let binding = match &*type_var.borrow() {
+                    TypeBinding::Bound(binding) => Some(binding.follow_bindings()),
+                    TypeBinding::Unbound(..) => None,
+                };
+                match binding {
+                    Some(Type::TypeVariable(..)) | None => {
+                        let name = self.interner.definition_name(ident.id);
+                        self.push_str(name);
+                    }
+                    Some(binding) => self.show_numeric_type_as_value(&binding, numeric_type),
                 }
-                let name = self.interner.definition_name(ident.id);
-                self.push_str(name);
             }
             DefinitionKind::Local(..) => {
                 let name = self.interner.definition_name(ident.id);
