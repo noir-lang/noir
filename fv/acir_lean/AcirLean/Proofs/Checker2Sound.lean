@@ -129,15 +129,28 @@ theorem wbound_sound {w L M : ℕ} (h : wbound cc w = some (L, M)) :
 
 theorem pbound_sound {P : Poly} {L M : ℕ} (h : pbound cc P = some (L, M)) :
     L ≤ (P.eval σ).val ∧ (P.eval σ).val ≤ M := by
+  have viaMat : (matV cc P).bind (wbound cc) = some (L, M) →
+      L ≤ (P.eval σ).val ∧ (P.eval σ).val ≤ M := fun h => by
+    obtain ⟨w, hw, hb⟩ := Option.bind_eq_some_iff.1 h
+    rw [← matV_sound hcc hw]
+    exact wbound_sound hcc hb
   unfold pbound at h
   split at h
   · next hz =>
     simp only [Option.some.injEq, Prod.mk.injEq] at h
     obtain ⟨rfl, rfl⟩ := h
     rw [holdsZ_sound hcc hz]; simp
-  · obtain ⟨w, hw, hb⟩ := Option.bind_eq_some_iff.1 h
-    rw [← matV_sound hcc hw]
-    exact wbound_sound hcc hb
+  · split at h
+    · next c _ =>
+      split_ifs at h with hc
+      · simp only [Option.some.injEq, Prod.mk.injEq] at h
+        obtain ⟨rfl, rfl⟩ := h
+        have e := holdsZ_sound hcc hc.2
+        simp only [eval_psub, eval_pconst] at e
+        have : P.eval σ = ((c : ℕ) : F) := by push_cast at e ⊢; linear_combination e
+        rw [this, val_natCast_of_lt hc.1]; omega
+      · exact viaMat h
+    · exact viaMat h
 
 theorem forms_sound {alts : List Poly} {x : F} (h : ∀ P ∈ alts, P.eval σ = x) :
     ∀ X ∈ forms cc alts, X.eval σ = x := by
@@ -423,9 +436,40 @@ theorem truncRep_sound {a : Rep2} {x : F} {tx : ValueType} (ha : RepOK2 σ a (x,
     have := Nat.mod_le x.val (2 ^ k)
     omega
 
+/-- Every binary instruction but unchecked arithmetic, on operands that fit
+their type and without wraparound: what `checkedRep` proves, and what
+`BinaryOp.apply` agrees with there (`apply_of_fitApply`). -/
+def fitApply (op : BinaryOp) (x y : F) : ValueType → Option (F × ValueType)
+  | .field =>
+    match op with
+    | .add => some (x + y, .field)
+    | .sub => some (x - y, .field)
+    | .mul => some (x * y, .field)
+    | .eq => some (flag (x = y))
+    | _ => none
+  | .uint n =>
+    if x.val < 2 ^ n ∧ y.val < 2 ^ n then
+      match op with
+      | .add =>
+        if x.val + y.val < 2 ^ n ∧ x.val + y.val < p then some (((x.val + y.val : ℕ) : F), .uint n)
+        else none
+      | .sub => if y.val ≤ x.val then some (((x.val - y.val : ℕ) : F), .uint n) else none
+      | .mul =>
+        if x.val * y.val < 2 ^ n ∧ x.val * y.val < p then some (((x.val * y.val : ℕ) : F), .uint n)
+        else none
+      | .div => if y.val = 0 then none else some (((x.val / y.val : ℕ) : F), .uint n)
+      | .mod => if y.val = 0 then none else some (((x.val % y.val : ℕ) : F), .uint n)
+      | .lt => some (flag (x.val < y.val))
+      | .eq => some (flag (x = y))
+    else none
+  | .sint n =>
+    match op with
+    | .eq => if x.val < 2 ^ n ∧ y.val < 2 ^ n then some (flag (x = y)) else none
+    | _ => none
+
 theorem checkedRep_sound {op : BinaryOp} {a b r : Rep2} {x y : F} {tx ty : ValueType}
     (h : checkedRep cc op a b = some r) (ha : RepOK2 σ a (x, tx)) (hb : RepOK2 σ b (y, ty))
-    (hf : fitsBoth a b = true) : ∃ v, op.apply false x y tx = some v ∧ RepOK2 σ r v := by
+    (hf : fitsBoth a b = true) : ∃ v, fitApply op x y tx = some v ∧ RepOK2 σ r v := by
   obtain ⟨hta, hPa, hLa, hMa⟩ := ha
   obtain ⟨-, hPb, hLb, hMb⟩ := hb
   simp only at hta hPa hLa hMa hPb hLb hMb
@@ -447,7 +491,7 @@ theorem checkedRep_sound {op : BinaryOp} {a b r : Rep2} {x y : F} {tx ty : Value
   simp only at hadd hsub hmul hFa hLa hMa ⊢
   cases aty with
   | field =>
-    cases op <;> simp only [checkedRep, BinaryOp.apply, Option.some.injEq, reduceCtorEq] at h ⊢
+    cases op <;> simp only [checkedRep, fitApply, Option.some.injEq, reduceCtorEq] at h ⊢
     case add =>
       subst h
       exact ⟨_, rfl, rfl, hadd, Nat.zero_le _, by dsimp only; have := ZMod.val_lt (x + y); omega⟩
@@ -469,7 +513,7 @@ theorem checkedRep_sound {op : BinaryOp} {a b r : Rep2} {x y : F} {tx ty : Value
     simp only [fitsBoth, decide_eq_true_eq] at hf
     have hxn : x.val < 2 ^ n := by omega
     have hyn : y.val < 2 ^ n := by omega
-    cases op <;> simp only [checkedRep, BinaryOp.apply, fieldArith, hxn, hyn, and_self, if_true,
+    cases op <;> simp only [checkedRep, fitApply, hxn, hyn, and_self, if_true,
       Option.some.injEq, reduceCtorEq] at h ⊢
     case add =>
       have hc : ((x.val + y.val : ℕ) : F) = x + y := by push_cast [cast_val]; rfl
@@ -578,7 +622,7 @@ theorem checkedRep_sound {op : BinaryOp} {a b r : Rep2} {x y : F} {tx ty : Value
     simp only [fitsBoth, decide_eq_true_eq] at hf
     have hxn : x.val < 2 ^ n := by omega
     have hyn : y.val < 2 ^ n := by omega
-    cases op <;> simp only [checkedRep, BinaryOp.apply, fieldArith, hxn, hyn, and_self, if_true,
+    cases op <;> simp only [checkedRep, fitApply, hxn, hyn, and_self, if_true,
       Option.some.injEq, reduceCtorEq] at h ⊢
     all_goals
       subst h
@@ -631,6 +675,102 @@ theorem uncheckedRep_sound {op : BinaryOp} {a b r : Rep2} {x y : F} {ty : ValueT
       · exact hle
     · exact ⟨_, rfl, rfl, hmul, Nat.zero_le _, by dsimp only; omega⟩
 
+omit hcc in
+theorem apply_of_fitApply {op : BinaryOp} {u : Bool} {x y : F} {t : ValueType}
+    {v : F × ValueType} (h : fitApply op x y t = some v)
+    (hu : (t ≠ .field → (u && isArith op) = false) ∨ (t = .uint 1 ∧ op ≠ .add)) :
+    op.apply u x y t = some v := by
+  have hxp := ZMod.val_lt x
+  have hyp := ZMod.val_lt y
+  have hinj : ∀ a b : F, (a.val = b.val) ↔ a = b := fun a b => ZMod.val_injective _ |>.eq_iff
+  cases t with
+  | field =>
+    cases op <;> simp only [fitApply, reduceCtorEq] at h <;> simpa [BinaryOp.apply] using h
+  | sint n =>
+    cases op <;> simp only [fitApply, reduceCtorEq] at h
+    split_ifs at h with hf
+    rw [← h]
+    simp [BinaryOp.apply, lowBits, Nat.mod_eq_of_lt hf.1, Nat.mod_eq_of_lt hf.2, hinj]
+  | uint n =>
+    simp only [fitApply] at h
+    by_cases hf : x.val < 2 ^ n ∧ y.val < 2 ^ n
+    swap
+    · simp [hf] at h
+    rw [if_pos hf] at h
+    obtain ⟨hx, hy⟩ := hf
+    have cadd : ((x.val + y.val : ℕ) : F) = x + y := by push_cast [cast_val]; rfl
+    have cmul : ((x.val * y.val : ℕ) : F) = x * y := by push_cast [cast_val]; rfl
+    have csub : y.val ≤ x.val → ((x.val - y.val : ℕ) : F) = x - y := fun hle => by
+      push_cast [Nat.cast_sub hle, cast_val]; rfl
+    have vadd : x.val + y.val < p → (x + y).val = x.val + y.val := ZMod.val_add_of_lt
+    have vmul : x.val * y.val < p → (x * y).val = x.val * y.val := ZMod.val_mul_of_lt
+    have vsub : y.val ≤ x.val → (x - y).val = x.val - y.val := ZMod.val_sub
+    have mx : x.val % 2 ^ n = x.val := Nat.mod_eq_of_lt hx
+    have my : y.val % 2 ^ n = y.val := Nat.mod_eq_of_lt hy
+    by_cases hn1 : n = 1
+    · subst hn1
+      simp only [pow_one] at hx hy
+      rcases val_bit hx with rfl | rfl <;> rcases val_bit hy with rfl | rfl <;>
+        cases u <;> cases op <;>
+        simp_all [BinaryOp.apply, u1Apply, flag, isArith, ZMod.val_one, ZMod.val_zero]
+    have hu' : u = false ∨ isArith op = false := by
+      rcases hu with hu | ⟨hu, _⟩
+      · have hu := hu (by simp)
+        cases u <;> simp_all
+      · simp at hu; exact absurd hu hn1
+    have happ : ∀ {w}, (match op, fieldArith op x y with
+        | .div, _ =>
+          if lowBits n y = 0 then none else some (((lowBits n x / lowBits n y : ℕ) : F), .uint n)
+        | .mod, _ =>
+          if lowBits n y = 0 then none else some (((lowBits n x % lowBits n y : ℕ) : F), .uint n)
+        | .lt, _ => some (flag (lowBits n x < lowBits n y))
+        | .eq, _ => some (flag (lowBits n x = lowBits n y))
+        | _, some r =>
+          if u then some (r, .uint n)
+          else if r.val < 2 ^ n ∧ (op = .mul → n = 128 → x.val * y.val < 2 ^ 128) then
+            some (r, .uint n)
+          else none
+        | _, none => none) = some w → op.apply u x y (.uint n) = some w := by
+      intro w hw
+      rcases n with _ | _ | k
+      · exact hw
+      · exact absurd rfl hn1
+      · exact hw
+    apply happ
+    cases op <;> dsimp only at h
+    · obtain rfl : u = false := by simpa [isArith] using hu'
+      split_ifs at h with h1
+      simp only [Option.some.injEq] at h
+      subst h
+      simp [fieldArith, vadd h1.2, h1.1, cadd]
+    · obtain rfl : u = false := by simpa [isArith] using hu'
+      split_ifs at h with h1
+      simp only [Option.some.injEq] at h
+      subst h
+      have := vsub h1
+      simp [fieldArith, this, csub h1]
+      omega
+    · obtain rfl : u = false := by simpa [isArith] using hu'
+      split_ifs at h with h1
+      simp only [Option.some.injEq] at h
+      subst h
+      simp [fieldArith, vmul h1.2, h1.1, cmul]
+      intro hn; subst hn; exact h1.1
+    · split_ifs at h with h1
+      simp only [Option.some.injEq] at h
+      subst h
+      simp [lowBits, mx, my, h1]
+    · split_ifs at h with h1
+      simp only [Option.some.injEq] at h
+      subst h
+      simp [lowBits, mx, my, h1]
+    · simp only [Option.some.injEq] at h
+      subst h
+      simp [lowBits, mx, my]
+    · simp only [Option.some.injEq] at h
+      subst h
+      simp [lowBits, mx, my, hinj]
+
 theorem binRep_sound {op : BinaryOp} {u : Bool} {a b r : Rep2} {x y : F} {tx ty : ValueType}
     (h : binRep cc op u a b = some r) (ha : RepOK2 σ a (x, tx)) (hb : RepOK2 σ b (y, ty)) :
     ∃ v, op.apply u x y tx = some v ∧ RepOK2 σ r v := by
@@ -638,33 +778,62 @@ theorem binRep_sound {op : BinaryOp} {u : Bool} {a b r : Rep2} {x y : F} {tx ty 
   subst hta
   unfold binRep at h
   split at h
+  · next hty hu =>
+    split_ifs at h with hf hadd
+    · subst hadd
+      obtain ⟨⟨L, M⟩, hk, rfl⟩ := Option.map_eq_some_iff.1 h
+      obtain ⟨-, hPa, hLa, hMa⟩ := ha
+      obtain ⟨-, hPb, hLb, hMb⟩ := hb
+      simp only at hPa hMa hPb hMb
+      simp only [fitsBoth, hty, pow_one, decide_eq_true_eq, not_not] at hf
+      have hx : x.val < 2 := by omega
+      have hy : y.val < 2 := by omega
+      have hsum : ∀ P ∈ comb (· ++ ·) (forms cc a.alts) (forms cc b.alts), P.eval σ = x + y := by
+        intro P hP
+        obtain ⟨A, hA, B, hB, rfl⟩ := comb_mem hP
+        rw [Poly.eval_append, forms_sound hcc hPa A hA, forms_sound hcc hPb B hB]
+      obtain ⟨hL, hM, hM2⟩ := checked_sound hcc hsum hk
+      simp only [Bool.and_eq_true] at hu
+      rw [hty, hu.1]
+      rcases val_bit hx with rfl | rfl <;> rcases val_bit hy with rfl | rfl
+      · refine ⟨flag false, by simp [BinaryOp.apply, u1Apply, flag], rfl, ?_, ?_, ?_⟩ <;>
+          simp_all [flag]
+      · refine ⟨flag true, by simp [BinaryOp.apply, u1Apply, flag, ZMod.val_one], rfl, ?_, ?_, ?_⟩ <;>
+          simp_all [flag, ZMod.val_one]
+      · refine ⟨flag true, by simp [BinaryOp.apply, u1Apply, flag, ZMod.val_one], rfl, ?_, ?_, ?_⟩ <;>
+          simp_all [flag, ZMod.val_one]
+      · exfalso
+        have : ((1 : F) + 1).val = 2 := by
+          rw [ZMod.val_add_of_lt (by simp [ZMod.val_one]; norm_num [p])]; simp [ZMod.val_one]
+        omega
+    · obtain ⟨v, hv, hok⟩ := checkedRep_sound hcc h ha hb (by simpa using hf)
+      exact ⟨v, apply_of_fitApply hv (.inr ⟨hty, hadd⟩), hok⟩
+  · next n hn1 hty hu =>
+    obtain ⟨z, hz, hok⟩ := uncheckedRep_sound hcc h ha hb
+    simp only [Bool.and_eq_true] at hu
+    refine ⟨_, ?_, hok⟩
+    rw [hty, hu.1]
+    rcases n with _ | _ | k
+    · cases op <;> simp_all [BinaryOp.apply, fieldArith]
+    · exact absurd rfl hn1
+    · cases op <;> simp_all [BinaryOp.apply, fieldArith]
   · next n hty hu =>
     obtain ⟨z, hz, hok⟩ := uncheckedRep_sound hcc h ha hb
     simp only [Bool.and_eq_true] at hu
     refine ⟨_, ?_, hok⟩
     rw [hty, hu.1]
-    simp [BinaryOp.apply, hz]
-  · next n hty hu =>
-    obtain ⟨z, hz, hok⟩ := uncheckedRep_sound hcc h ha hb
-    simp only [Bool.and_eq_true] at hu
-    refine ⟨_, ?_, hok⟩
-    rw [hty, hu.1]
-    simp [BinaryOp.apply, hz]
-  · next hn1 hn2 =>
+    cases op <;> simp_all [BinaryOp.apply, fieldArith]
+  · next h1 h2 h3 =>
     split_ifs at h with hf
     obtain ⟨v, hv, hok⟩ := checkedRep_sound hcc h ha hb hf
-    refine ⟨v, ?_, hok⟩
-    rw [← hv]
-    cases u
+    refine ⟨v, apply_of_fitApply hv (.inl fun hne => ?_), hok⟩
+    cases hu : u && isArith op
     · rfl
-    · cases hty : a.ty with
-      | field => rfl
-      | uint n =>
-        have := hn1 n hty
-        cases op <;> simp_all [isArith, BinaryOp.apply, fieldArith]
-      | sint n =>
-        have := hn2 n hty
-        cases op <;> simp_all [isArith, BinaryOp.apply, fieldArith]
+    · exfalso
+      cases hty : a.ty with
+      | field => exact hne hty
+      | uint n => exact h2 n hty hu
+      | sint n => exact h3 n hty hu
 
 end
 

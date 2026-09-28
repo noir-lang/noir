@@ -96,8 +96,8 @@ def SignedOp (n : ℕ) (op : ℤ → ℤ → ℤ) : List ℕ → List ℕ → Pr
   | _, _ => False
 
 /-- Test programs in `testPrograms` that the claims leave out, with the reason:
-* `arithmetic_binary_operations` divides `Field`s, which `Program.eval` does not
-  define;
+* `arithmetic_binary_operations` divides `Field`s, which the checker has no
+  rule for;
 * `regression_8519` truncates a `Field` to 128 bits, whose remainder bound
   takes a shape the checker does not handle. -/
 def uncoveredPrograms : List String :=

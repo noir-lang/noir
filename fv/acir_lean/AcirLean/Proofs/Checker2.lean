@@ -103,9 +103,21 @@ def matSearch (cc : List Opcode) (P : Poly) : Option ℕ :=
 def matV (cc : List Opcode) (P : Poly) : Option ℕ :=
   (matSearch cc P).filter fun w => holdsZ cc (psub (pvar w) P)
 
-/-- Bounds on `P`'s integer value: `P = 0`, or a bounded witness equals `P`. -/
+/-- The constant `P` is, if its non-constant terms cancel out. -/
+def constPoly (P : Poly) : Option ℕ :=
+  match (collect P).filter (fun t => modP t.coef != 0) with
+  | [] => some 0
+  | [⟨c, []⟩] => some (modP c).toNat
+  | _ => none
+
+/-- Bounds on `P`'s integer value: `P = 0`, `P` is a constant, or a bounded
+witness equals `P`. -/
 def pbound (cc : List Opcode) (P : Poly) : Option (ℕ × ℕ) :=
-  if holdsZ cc P then some (0, 0) else (matV cc P).bind (wbound cc)
+  if holdsZ cc P then some (0, 0) else
+  match constPoly P with
+  | some c =>
+    if c < p ∧ holdsZ cc (psub P (pconst c)) then some (c, c) else (matV cc P).bind (wbound cc)
+  | none => (matV cc P).bind (wbound cc)
 
 /-- Witnesses equal to the polynomials, and the polynomials. -/
 def forms (cc : List Opcode) (alts : List Poly) : List Poly :=
@@ -254,8 +266,16 @@ def fitsBoth (a b : Rep2) : Bool :=
   | .uint n => decide (a.M < 2 ^ n ∧ b.M < 2 ^ n)
   | .sint n => decide (a.M < 2 ^ n ∧ b.M < 2 ^ n)
 
+/-- `u1` arithmetic is boolean: unchecked `add` is `xor`, which is the sum when
+the sum is below `2`; unchecked `sub` and `mul` mean the same as checked. -/
 def binRep (cc : List Opcode) (op : BinaryOp) (u : Bool) (a b : Rep2) : Option Rep2 :=
   match a.ty, u && isArith op with
+  | .uint 1, true =>
+    if ¬fitsBoth a b then none
+    else if op = .add then
+      let alts := comb (· ++ ·) (forms cc a.alts) (forms cc b.alts)
+      (checked cc alts 1).map fun (L, M) => ⟨alts, .uint 1, L, M⟩
+    else checkedRep cc op a b
   | .uint _, true | .sint _, true => uncheckedRep cc op a b
   | _, _ => if fitsBoth a b then checkedRep cc op a b else none
 

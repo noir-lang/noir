@@ -120,18 +120,40 @@ def fieldArith : BinaryOp → F → F → Option F
   | .mul, x, y => some (x * y)
   | _, _, _ => none
 
-/-- A binary instruction on `x` and `y`, both of `x`'s type, as Noir's SSA
-interpreter evaluates it in an ACIR function (`evaluate_integer_binary`):
-* on `Field`: `add`, `sub`, `mul` and `eq`;
-* unchecked `add`, `sub` and `mul` on integers are field arithmetic: the result
-  keeps the type but may exceed its width, until a later `truncate`;
-* every other integer operation requires both operands to fit their type. The
-  interpreter reduces them first; failing instead can only make a program
-  unprovable, never give it a different value. Checked arithmetic then fails
-  when the result does not fit, and `div` and `mod` fail on a zero divisor.
+/-- The low `n` bits of `x`. The interpreter reduces integer operands to their
+type's width this way (`truncate_field`) before dividing or comparing them. -/
+def lowBits (n : ℕ) (x : F) : ℕ := x.val % 2 ^ n
 
-Signed integers support unchecked arithmetic and `eq`: `expand_signed_math`
-rewrites their other operations before the SSA reaches ACIR. -/
+/-- A binary instruction on two `u1` values, as booleans
+(`interpret_u1_binary_op`). Unchecked `add` is `xor`, checked `add` fails on
+`1 + 1`, and `sub` fails on `0 - 1` whether checked or not. -/
+def u1Apply (op : BinaryOp) (unchecked x y : Bool) : Option Bool :=
+  match op with
+  | .add => if !unchecked && x && y then none else some (x ^^ y)
+  | .sub => if !x && y then none else some (x ^^ y)
+  | .mul => some (x && y)
+  | .div => if y then some x else none
+  | .mod => if y then some false else none
+  | .lt => some (!x && y)
+  | .eq => some (x == y)
+
+/-- A binary instruction on `x` and `y`, both of `x`'s type, as Noir's SSA
+interpreter evaluates it in an ACIR function (`evaluate_binary`):
+* `Field`: `add`, `sub`, `mul` and `div` in the field (`div` fails on a zero
+  divisor), `lt` on the integer values, `eq`; `mod` is not defined;
+* `u1`: both values must be `0` or `1` (the interpreter asserts it), then
+  `u1Apply`;
+* other `u<n>`: unchecked `add`, `sub` and `mul` are field arithmetic, and the
+  result keeps the type even if it no longer fits (a later `truncate` brings it
+  back). Checked `add`, `sub` and `mul` compute the same field result and fail
+  unless it fits in `n` bits; a checked `u128` `mul` also fails when the
+  product of the unreduced values reaches `2^128`. `div`, `mod`, `lt` and `eq`
+  act on the operands' low `n` bits, and `div` and `mod` fail on a zero
+  divisor;
+* `i<n>`: unchecked `add`, `sub` and `mul` as for `u<n>`, and `eq` on the low
+  `n` bits. The interpreter also defines their checked arithmetic, `div`,
+  `mod` and `lt`, but `expand_signed_math` rewrites those before the SSA
+  reaches ACIR, so they are left undefined here. -/
 def BinaryOp.apply (op : BinaryOp) (unchecked : Bool) (x y : F) :
     ValueType → Option (F × ValueType)
   | .field =>
@@ -139,29 +161,32 @@ def BinaryOp.apply (op : BinaryOp) (unchecked : Bool) (x y : F) :
     | .add => some (x + y, .field)
     | .sub => some (x - y, .field)
     | .mul => some (x * y, .field)
+    | .div => if y = 0 then none else some (x * y⁻¹, .field)
+    | .lt => some (flag (x.val < y.val))
     | .eq => some (flag (x = y))
-    | _ => none
+    | .mod => none
+  | .uint 1 =>
+    if x.val < 2 ∧ y.val < 2 then (u1Apply op unchecked (x.val = 1) (y.val = 1)).map flag
+    else none
   | .uint n =>
-    match unchecked, fieldArith op x y with
-    | true, some r => some (r, .uint n)
-    | _, _ =>
-      if x.val < 2 ^ n ∧ y.val < 2 ^ n then
-        match op with
-        | .add => if x.val + y.val < 2 ^ n then some (((x.val + y.val : ℕ) : F), .uint n) else none
-        | .sub => if y.val ≤ x.val then some (((x.val - y.val : ℕ) : F), .uint n) else none
-        | .mul => if x.val * y.val < 2 ^ n then some (((x.val * y.val : ℕ) : F), .uint n) else none
-        | .div => if y.val = 0 then none else some (((x.val / y.val : ℕ) : F), .uint n)
-        | .mod => if y.val = 0 then none else some (((x.val % y.val : ℕ) : F), .uint n)
-        | .lt => some (flag (x.val < y.val))
-        | .eq => some (flag (x = y))
+    match op, fieldArith op x y with
+    | .div, _ =>
+      if lowBits n y = 0 then none else some (((lowBits n x / lowBits n y : ℕ) : F), .uint n)
+    | .mod, _ =>
+      if lowBits n y = 0 then none else some (((lowBits n x % lowBits n y : ℕ) : F), .uint n)
+    | .lt, _ => some (flag (lowBits n x < lowBits n y))
+    | .eq, _ => some (flag (lowBits n x = lowBits n y))
+    | _, some r =>
+      if unchecked then some (r, .uint n)
+      else if r.val < 2 ^ n ∧ (op = .mul → n = 128 → x.val * y.val < 2 ^ 128) then
+        some (r, .uint n)
       else none
+    | _, none => none
   | .sint n =>
-    match unchecked, fieldArith op x y with
-    | true, some r => some (r, .sint n)
-    | _, _ =>
-      match op with
-      | .eq => if x.val < 2 ^ n ∧ y.val < 2 ^ n then some (flag (x = y)) else none
-      | _ => none
+    match op, fieldArith op x y with
+    | .eq, _ => some (flag (lowBits n x = lowBits n y))
+    | _, some r => if unchecked then some (r, .sint n) else none
+    | _, none => none
 
 /-- Run one instruction, as Noir's SSA interpreter does in an ACIR function
 (`interpret_instruction`):

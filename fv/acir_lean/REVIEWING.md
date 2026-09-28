@@ -410,27 +410,47 @@ def fieldArith : BinaryOp → F → F → Option F
 `add`, `sub` and `mul` done in the field (mod p); `none` for any other operation.
 
 ```lean
+def lowBits (n : ℕ) (x : F) : ℕ := x.val % 2 ^ n
+```
+
+The low n bits of a value. Noir's interpreter reduces integer operands this way (`truncate_field`) before dividing or comparing them, so a value that has grown past its type's width (after an unchecked operation) is read by its low bits.
+
+```lean
+def u1Apply (op : BinaryOp) (unchecked x y : Bool) : Option Bool :=
+  | .add => if !unchecked && x && y then none else some (x ^^ y)
+  | .sub => if !x && y then none else some (x ^^ y)
+  | .mul => some (x && y)
+  | .div => if y then some x else none
+  | .mod => if y then some false else none
+  | .lt => some (!x && y)
+  | .eq => some (x == y)
+```
+
+Operations on `u1` values, treated as booleans, exactly as Noir's `interpret_u1_binary_op` does. `^^` is xor, `&&` and, `!` not. Note that unchecked `add` is xor (so `1 + 1` gives 0), checked `add` fails on `1 + 1`, and `sub` fails on `0 - 1` whether checked or not.
+
+```lean
 def BinaryOp.apply (op : BinaryOp) (unchecked : Bool) (x y : F) :
     ValueType → Option (F × ValueType)
 ```
 
-**This is the key definition: what each binary operation does**, following Noir's SSA interpreter for ACIR functions (`evaluate_integer_binary`). It is organised by the operand's type.
+**This is the key definition: what each binary operation does**, following Noir's SSA interpreter for ACIR functions (`evaluate_binary`). It is organised by the operand's type.
 
 - **`Field`:**
   - `add`, `sub` and `mul` are field arithmetic (wrap mod p);
-  - `eq` gives 1 if equal, else 0;
-  - anything else is `none`. That makes the program fail, so a program that uses it (for example `Field` division) can't be proved, and CI fails until it is listed in `uncoveredPrograms`. Nothing wrong gets proved.
-- **`u<n>`**, in two cases:
-  - **Unchecked `add`, `sub`, `mul`** (`unchecked_add` and friends) are field arithmetic, exactly like Noir: they never fail, and the result keeps the type even if it no longer fits (a later `truncate` brings it back).
-  - **Everything else** first requires both operands to fit in n bits. Then:
-    - `add` fails unless `x + y < 2^n` (overflow is an error);
-    - `sub` fails if `y > x`;
-    - `mul` fails unless `x·y < 2^n`;
-    - `div` and `mod` fail on a zero divisor, otherwise integer `/` and `%`;
-    - `lt` and `eq` are 1 or 0.
-- **`i<n>`:** unchecked `add`/`sub`/`mul` (field arithmetic, as above) and `eq`. The `expand_signed_math` pass rewrites every other signed operation into unsigned ones before the SSA reaches ACIR.
+  - `div` multiplies by the inverse (`x * y⁻¹`) and fails if `y` is 0;
+  - `lt` compares the integer values, and `eq` tests equality (1 or 0);
+  - `mod` isn't defined for `Field` in Noir either, so it fails.
+- **`u1`:** both values must be 0 or 1 (Noir's interpreter asserts it), then `u1Apply` above.
+- **Other `u<n>`:**
+  - **Unchecked `add`, `sub`, `mul`** (`unchecked_add` and friends) are field arithmetic: they never fail, and the result keeps the type even if it no longer fits (a later `truncate` brings it back).
+  - **Checked `add`, `sub`, `mul`** compute the same field result and fail unless it fits in n bits. So `sub` fails when `y > x`, and `add`/`mul` fail on overflow. A checked `u128` `mul` also fails when the product of the two values reaches `2^128`, a check Noir adds because that product could otherwise wrap around p and land back in range.
+  - **`div` and `mod`** use the operands' low n bits (`lowBits`) and fail on a zero divisor.
+  - **`lt` and `eq`** compare the low n bits and give 1 or 0.
+- **`i<n>`:** unchecked `add`/`sub`/`mul` (field arithmetic, as above) and `eq` on the low n bits. Noir's interpreter also defines signed checked arithmetic, `div`, `mod` and `lt`, but the `expand_signed_math` pass rewrites all of them into unsigned operations before the SSA reaches ACIR, so this definition leaves them out: a program using them would fail here, and CI would report it.
 
-About "first requires both operands to fit": Noir's interpreter reduces an operand that doesn't fit before `div`, `lt` and so on. Lean fails instead. This is the only place where Lean is stricter than Noir. Being stricter can never prove anything wrong. Where Lean fails and Noir doesn't, the program can't be proved, and `FV Lean` fails in CI until the program is listed in `uncoveredPrograms` with a reason.
+`fieldArith` above is just the `add`/`sub`/`mul` part, shared by the integer cases.
+
+**Check this definition against Noir's interpreter** (`evaluate_binary`, `interpret_u1_binary_op`, `evaluate_integer_binary` and `eval_constant_binary_op` in `compiler/noirc_evaluator/src/ssa/`). It should match case by case.
 
 ```lean
 def Instruction.run (env : Env) : Instruction → Option Env
@@ -698,7 +718,7 @@ Lean prints every axiom the proof relies on, and `#guard_msgs` fails the build u
 
 1. **Semantics.** Are `p`, `Range`, `Opcode.Holds` and `AllHold` the true meaning of ACIR `AssertZero` and `RANGE`?
 2. **SSA meaning** (`Programs2.lean`, `Programs.lean`, `Ssa.lean`). Does each instruction mean what Noir means?
-   - Where Lean is stricter than Noir (only: operands that don't fit their type), that's safe: it only makes some programs unprovable, and CI says so.
+   - The only place Lean leaves something undefined that Noir defines is signed checked arithmetic, `div`, `mod` and `lt`, which never reach ACIR. Failing there is safe: it can only make a program unprovable, and CI says so.
    - Where it's *looser* or *different*, that's a bug to flag.
 3. **Specs** (`Claims.lean`). Does each spec say what you'd want it to? Look for:
    - a missing condition;
