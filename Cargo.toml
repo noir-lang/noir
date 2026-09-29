@@ -45,6 +45,7 @@ members = [
     # Utility crates
     "utils/iter-extended",
 
+    "tooling/compiler_profiler",
     "tooling/ssa_cli",
 ]
 default-members = [
