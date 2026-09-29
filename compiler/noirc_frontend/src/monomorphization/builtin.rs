@@ -360,8 +360,8 @@ impl Monomorphizer<'_> {
             return Ok(Some(match HandledOpcode::from_builtin(*opcode) {
                 Some(HandledOpcode::CheckedTransmute) => {
                     assert_eq!(arguments.len(), 1);
-                    let parameter_type = self.interner.id_type(arguments[0]).follow_bindings();
-                    let result_type = self.interner.id_type(expr_id).follow_bindings();
+                    let parameter_type = self.expr_type(arguments[0]).follow_bindings();
+                    let result_type = self.expr_type(*expr_id).follow_bindings();
                     self.check_transmute(&parameter_type, &result_type, location)?;
                     argument_values[0].clone()
                 }
