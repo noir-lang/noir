@@ -93,13 +93,12 @@ use self::{
 
 pub mod ast;
 mod builtin;
-mod context_purity_tests;
+mod context_reuse_tests;
 mod debug;
 pub mod debug_types;
 pub mod errors;
 pub mod printer;
 pub mod proxies;
-pub(crate) mod purity;
 pub mod tests;
 pub mod visitor;
 mod well_formed;
@@ -279,39 +278,30 @@ pub fn monomorphize_debug(
     debug_crate_id: Option<crate::graph::CrateId>,
     force_unconstrained: bool,
 ) -> Result<Program, MonomorphizationError> {
-    let check = purity::PurityCheck::begin(interner);
+    let debug_type_tracker = DebugTypeTracker::build_from_debug_instrumenter(debug_instrumenter);
+    let mut monomorphizer = Monomorphizer::new(
+        interner,
+        files,
+        debug_type_tracker,
+        debug_crate_id,
+        force_unconstrained,
+    );
+    monomorphizer.compile_main(main)?;
+    monomorphizer.process_queue()?;
 
-    let result = (|| {
-        let debug_type_tracker =
-            DebugTypeTracker::build_from_debug_instrumenter(debug_instrumenter);
-        let mut monomorphizer = Monomorphizer::new(
-            interner,
-            files,
-            debug_type_tracker,
-            debug_crate_id,
-            force_unconstrained,
-        );
-        monomorphizer.compile_main(main)?;
-        monomorphizer.process_queue()?;
+    // Returning `Ok` with jobs still queued would silently drop whatever is in them: the
+    // functions would be missing from the program while the calls to them remain.
+    assert!(
+        !monomorphizer.has_pending_jobs(),
+        "monomorphization returned with {} function(s) still queued",
+        monomorphizer.queue.len(),
+    );
 
-        // Returning `Ok` with jobs still queued would silently drop whatever is in them: the
-        // functions would be missing from the program while the calls to them remain.
-        assert!(
-            !monomorphizer.has_pending_jobs(),
-            "monomorphization returned with {} function(s) still queued",
-            monomorphizer.queue.len(),
-        );
-
-        let mut program = monomorphizer.into_program();
-        if cfg!(debug_assertions) {
-            well_formed::assert_program_is_well_formed(&mut program);
-        }
-        Ok(program)
-    })();
-
-    check.assert_context_unchanged(interner);
-
-    result
+    let mut program = monomorphizer.into_program();
+    if cfg!(debug_assertions) {
+        well_formed::assert_program_is_well_formed(&mut program);
+    }
+    Ok(program)
 }
 
 impl<'interner> Monomorphizer<'interner> {

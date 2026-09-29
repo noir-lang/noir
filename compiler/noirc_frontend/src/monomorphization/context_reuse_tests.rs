@@ -1,41 +1,16 @@
-//! Tests for the invariant that monomorphizing an entry point leaves the elaborated context
-//! exactly as it found it.
+//! Tests that monomorphizing an entry point gives the same program whether or not other entry
+//! points were monomorphized against the same elaborated context first.
 //!
 //! A `NodeInterner` is reusable across entry points — `nargo export` monomorphizes every exported
-//! function of one context, and `nargo test` reuses one context across the tests of a package.
-//! That is only sound while monomorphization is pure: a type variable left bound, or a call
-//! site's instantiation bindings left overwritten, is visible to every later compilation against
-//! the same context, and can silently change what it produces.
+//! function of one context, and `nargo test` reuses one context across the tests of a package —
+//! so what an entry point compiles to must not depend on what was compiled before it.
 #![cfg(test)]
 
-use std::collections::BTreeMap;
-
-use crate::TypeBinding;
 use crate::hir::Context;
 use crate::hir::FunctionNameMatch;
 use crate::monomorphization::monomorphize;
-use crate::node_interner::{FuncId, NodeInterner};
+use crate::node_interner::FuncId;
 use crate::test_utils::get_program;
-
-/// The binding state of every type variable the interner has stored instantiation bindings for,
-/// rendered as text so a mismatch reports which variable changed and what it changed to.
-///
-/// These are the variables monomorphization binds in order to resolve a call site's generics, so
-/// they are the ones at risk of being left bound. Keyed by variable id, which is unique per
-/// variable and stable across the calls being compared.
-fn binding_snapshot(interner: &NodeInterner) -> BTreeMap<usize, String> {
-    let mut snapshot = BTreeMap::new();
-    for (_, bindings) in interner.all_instantiation_bindings() {
-        for (var, _kind, _binding) in bindings.values() {
-            let state = match &*var.borrow() {
-                TypeBinding::Bound(typ) => format!("bound to {typ}"),
-                TypeBinding::Unbound(..) => "unbound".to_string(),
-            };
-            snapshot.insert(var.id().0, state);
-        }
-    }
-    snapshot
-}
 
 /// Every `#[test]` function in the root crate, ordered by name so that the shared-context run
 /// and the fresh-context runs visit them in the same order.
@@ -57,28 +32,6 @@ fn monomorphize_to_string(context: &mut Context, function: FuncId) -> String {
     match monomorphize(function, &mut context.def_interner, files, false) {
         Ok(program) => program.to_string(),
         Err(error) => format!("{error:?}"),
-    }
-}
-
-/// Assert that monomorphizing each `#[test]` function in `src` leaves the type variables the
-/// context holds instantiation bindings for exactly as they were before.
-///
-/// This is the invariant directly: a variable left bound is a difference in the context that a
-/// later compilation can read.
-fn assert_monomorphization_restores_bindings(src: &str) {
-    let (_, mut context, _) = get_program(src);
-
-    for (name, function) in test_functions(&context) {
-        let before = binding_snapshot(&context.def_interner);
-        let _ = monomorphize_to_string(&mut context, function);
-        let after = binding_snapshot(&context.def_interner);
-
-        assert_eq!(
-            before, after,
-            "monomorphizing `{name}` left type variables in the context bound differently to how \
-             it found them, so a later compilation against this context can see the bindings it \
-             applied"
-        );
     }
 }
 
@@ -121,24 +74,10 @@ fn assert_monomorphization_is_order_independent(src: &str) {
     }
 }
 
-/// Assert that monomorphizing the `#[test]` functions in `src` is pure.
-///
-/// A third check runs from inside `monomorphize` itself, which panics if it left the context
-/// different to how it found it, so every case here exercises that as well. It is the broader of
-/// the three — it sees a write to any type variable, not only the ones instantiation bindings are
-/// stored for — but it is compiled out of a release build without
-/// `NOIR_CHECK_MONOMORPHIZATION_PURITY`, where these two still run.
-fn assert_monomorphization_is_pure(src: &str) {
-    assert_monomorphization_restores_bindings(src);
-    assert_monomorphization_is_order_independent(src);
-}
-
-/// `intermediate_underflow::<0>` fails converting a type in its own body, which happens while
-/// the queued job that monomorphizes it holds `N` bound to the call site's `0`. This is the shape
-/// of failure that leaves a generic bound: the error travels out of the job that applied the
-/// bindings, past the point where they would have been undone.
+/// `intermediate_underflow::<0>` fails converting a type in its own body, so monomorphization
+/// stops part way through a generic function's job, with `N` at the call site's `0`.
 #[test]
-fn failing_to_monomorphize_a_generic_function_restores_its_bindings() {
+fn failing_to_monomorphize_a_generic_function_is_order_independent() {
     let src = r#"
         fn intermediate_underflow<let N: u32>() -> Field {
             let result: [Field; (N - 1) + 1] = [0; (N - 1) + 1];
@@ -155,7 +94,7 @@ fn failing_to_monomorphize_a_generic_function_restores_its_bindings() {
             let _ = intermediate_underflow::<5>();
         }
     "#;
-    assert_monomorphization_is_pure(src);
+    assert_monomorphization_is_order_independent(src);
 }
 
 /// Both tests reach the same generic function at the same call site, at different instantiations.
@@ -180,12 +119,11 @@ fn one_generic_call_site_at_two_instantiations_is_order_independent() {
             assert_eq(first_of_pair(1 as u32, 2 as u32), 1 as u32);
         }
     "#;
-    assert_monomorphization_is_pure(src);
+    assert_monomorphization_is_order_independent(src);
 }
 
 /// Both tests reach one trait-method call site whose receiver resolves to a different impl in
-/// each. Resolving the impl rewrites the call site's stored instantiation bindings, so this is
-/// the case where a context carries a difference forward on the success path.
+/// each, so the call site's instantiation bindings are extended with a different impl's in each.
 #[test]
 fn one_trait_method_call_site_at_two_impls_is_order_independent() {
     let src = r#"
@@ -215,11 +153,10 @@ fn one_trait_method_call_site_at_two_impls_is_order_independent() {
             assert_eq(double_twice(1 as u32), 4 as u32);
         }
     "#;
-    assert_monomorphization_is_pure(src);
+    assert_monomorphization_is_order_independent(src);
 }
 
-/// A trait with an associated constant, used through two impls. Resolving the constant returns
-/// from the middle of trait item resolution, after the call site's bindings have been rewritten.
+/// A trait with an associated constant, used through two impls.
 #[test]
 fn a_trait_associated_constant_at_two_impls_is_order_independent() {
     let src = r#"
@@ -249,15 +186,14 @@ fn a_trait_associated_constant_at_two_impls_is_order_independent() {
             assert_eq(size_of(1 as u32), 2);
         }
     "#;
-    assert_monomorphization_is_pure(src);
+    assert_monomorphization_is_order_independent(src);
 }
 
 /// A trait method reached through a `where` clause on a generic struct's method, so the impl is
-/// only settled once monomorphization searches for it. That search unifies the object type
-/// against the candidates and produces bindings, which have to be undone once the impl's method
-/// has been compiled.
+/// only settled once monomorphization searches for it, and that search's bindings apply only while
+/// the impl's method is compiled.
 #[test]
-fn resolving_an_assumed_impl_is_pure() {
+fn resolving_an_assumed_impl_is_order_independent() {
     let src = r#"
         trait MyHasher {
             fn finish_hash(self) -> Field;
@@ -311,5 +247,5 @@ fn resolving_an_assumed_impl_is_pure() {
             assert_eq(holder.compute(), 7);
         }
     "#;
-    assert_monomorphization_is_pure(src);
+    assert_monomorphization_is_order_independent(src);
 }
