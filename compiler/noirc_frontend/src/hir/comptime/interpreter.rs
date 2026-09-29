@@ -900,47 +900,33 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     /// Lazily resolves the trait's method metas (so that downstream helpers like
     /// `bind_trait_impl_func_generics_to_trait_func_generics` can read them),
     /// then delegates to `resolve_trait_item` from the monomorphization module.
+    ///
+    /// Returns the resolved item and the instantiation bindings of `id` extended with the impl's.
     fn resolve_trait_item(
         &mut self,
         item: TraitItemId,
         id: ExprId,
-    ) -> Result<crate::monomorphization::TraitItem, InterpreterError> {
+    ) -> Result<(crate::monomorphization::TraitItem, TypeBindings), InterpreterError> {
         self.elaborator.resolve_trait_method_metas_for(item.trait_id);
-        let (item, impl_search_bindings) = resolve_trait_item(self.elaborator.interner, item, id)?;
+        let resolved = resolve_trait_item(self.elaborator.interner, item, id)?;
         // The interpreter runs during elaboration, where solving a trait constraint is supposed
         // to commit the inference variables it resolved — the same thing `check_trait_constraints`
         // does for a constraint solved by the type checker.
-        impl_search_bindings.commit();
-        Ok(item)
+        BoundTypeVariables::apply(&resolved.impl_search_bindings).commit();
+        Ok((resolved.item, resolved.instantiation_bindings))
     }
 
     fn evaluate_trait_item(&mut self, item: TraitItemId, id: ExprId) -> IResult<Value> {
         let typ = self.elaborator.interner.id_type(id).follow_bindings();
 
-        // `resolve_trait_item_impl` extends the call expression's stored instantiation
-        // bindings with the resolved impl's bindings (and, for shared default methods,
-        // pins the trait's `Self` to the impl's concrete self type). Snapshot and restore
-        // around the call so the same expression — visited again under a different
-        // monomorphization context — sees the elaboration-time bindings rather than
-        // leftover impl-specific entries from a previous visit. This mirrors the snapshot
-        // logic in `resolve_trait_item_expr` on the monomorphization side.
-        let saved_bindings = self.elaborator.interner.try_get_instantiation_bindings(id).cloned();
-        let resolved = self.resolve_trait_item(item, id);
-
-        let result = match resolved? {
-            crate::monomorphization::TraitItem::Method(func_id) => {
-                let bindings = self.elaborator.interner.get_instantiation_bindings(id).clone();
+        match self.resolve_trait_item(item, id)? {
+            (crate::monomorphization::TraitItem::Method(func_id), bindings) => {
                 Ok(Value::Function(func_id, typ, Rc::new(bindings)))
             }
-            crate::monomorphization::TraitItem::Constant { id: _, expected_type, value } => {
+            (crate::monomorphization::TraitItem::Constant { id: _, expected_type, value }, _) => {
                 self.evaluate_numeric_generic(&value, &expected_type, id)
             }
-        };
-
-        if let Some(saved) = saved_bindings {
-            self.elaborator.interner.store_instantiation_bindings(id, saved);
         }
-        result
     }
 
     fn evaluate_literal(&mut self, literal: HirLiteral, id: ExprId) -> IResult<Value> {
@@ -1111,8 +1097,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             .unwrap_or_else(|| panic!("Interpreter::evaluate_overloaded_infix: expected operator method to be resolved for {:?}", infix.operator));
         let operator = infix.operator.kind;
 
-        let method_id = self.resolve_trait_item(method, id)?.unwrap_method();
-        let type_bindings = self.elaborator.interner.get_instantiation_bindings(id).clone();
+        let (method, type_bindings) = self.resolve_trait_item(method, id)?;
+        let method_id = method.unwrap_method();
 
         let lhs = (lhs, self.elaborator.interner.expr_location(&infix.lhs));
         let rhs = (rhs, self.elaborator.interner.expr_location(&infix.rhs));
@@ -1142,8 +1128,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let method =
             prefix.trait_method_id.expect("ice: expected prefix operator trait at this point");
 
-        let method_id = self.resolve_trait_item(method, id)?.unwrap_method();
-        let type_bindings = self.elaborator.interner.get_instantiation_bindings(id).clone();
+        let (method, type_bindings) = self.resolve_trait_item(method, id)?;
+        let method_id = method.unwrap_method();
 
         let rhs = (rhs, self.elaborator.interner.expr_location(&prefix.rhs));
 
