@@ -21,7 +21,7 @@ mod value;
 pub use display::{tokens_to_string, tokens_to_string_with_indent};
 pub use errors::{ComptimeError, InterpreterError};
 pub use integer::Integer;
-pub(crate) use integer::{bigint_to_field, field_to_signed_bigint};
+pub use integer::{bigint_to_field, field_to_signed_bigint};
 pub(crate) use interpreter::evaluate_cast_one_step;
 pub use interpreter::{EvaluationTracker, Interpreter};
 pub use value::{FormatStringFragment, Value};
