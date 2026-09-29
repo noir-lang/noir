@@ -7,8 +7,7 @@
 # HIGH (a compiler-inserted hint is underconstrained), PROGRAM (the program returns an
 # unconstrained call's output without checking it), WITNESS (no return value moves but the rest of
 # the witness does), INERT (the free value is read by nothing), none, timeout, or
-# skipped (no Prover.toml, or honest execution failed — programs needing an oracle cannot be
-# searched without their foreign call transcript).
+# skipped (honest execution failed, or the program takes inputs and has no Prover.toml).
 set -uo pipefail
 
 subdir=${1:-execution_success}
@@ -22,9 +21,10 @@ export mutator="$root/target/debug/noir-witness-mutator"
 export max_candidates=${MAX_CANDIDATES:-2000}
 
 one() {
-  local dir=$1 name
+  local dir=$1 name inputs=()
   name=$(basename "$dir")
-  [ -f "$dir/Prover.toml" ] || { printf '%s\tskipped\tno Prover.toml\n' "$name"; return; }
+  # A program whose main takes no parameters needs no Prover.toml.
+  [ -f "$dir/Prover.toml" ] && inputs=(--prover-file "$dir/Prover.toml")
 
   rm -rf "$dir/target"
   if ! timeout "$per_program_timeout" "$nargo" compile --program-dir "$dir" >/dev/null 2>&1; then
@@ -37,7 +37,7 @@ one() {
 
   local output status
   output=$(timeout "$per_program_timeout" "$mutator" --artifact-path "$artifact" \
-    --prover-file "$dir/Prover.toml" --max-candidates "$max_candidates" 2>&1)
+    "${inputs[@]}" --max-candidates "$max_candidates" 2>&1)
   status=$?
   rm -rf "$dir/target"
 

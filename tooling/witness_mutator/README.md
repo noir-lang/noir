@@ -10,6 +10,9 @@ nargo compile --program-dir <dir>
 noir-witness-mutator --artifact-path <dir>/target/<pkg>.json --prover-file <dir>/Prover.toml
 ```
 
+`--prover-file` is optional: a program whose `main` takes no parameters has nothing to supply, and
+is searched with an empty input map.
+
 For a contract artifact, pick the function with `--contract-fn <name>`; the tool lists the
 available names if you leave it out. For a program that calls oracles, give it a host with
 `--oracle-resolver <url>`, the same flag `nargo execute` takes.
@@ -141,8 +144,8 @@ matters for a bug hunt is that *some* input exposes it, and that a clean compile
 | `PROGRAM` | 55 | 49 have an `unconstrained fn main`, whose result nothing can constrain; the other 6 return an `unsafe` call's value unchecked |
 | `WITNESS` | 3 | free values that move part of the witness without reaching an output |
 | `INERT` | 52 | mostly `directive_invert` with a zero input, the expected benign case |
-| none | 370 | |
-| skipped | 66 | 65 have no `Prover.toml`; one fails to execute |
+| none | 435 | |
+| skipped | 1 | honest execution fails |
 
 Zero `HIGH` on a clean compiler is the property that makes the grade worth acting on. The
 `PROGRAM` findings are a useful check that the search works at all: it rediscovered, from execution

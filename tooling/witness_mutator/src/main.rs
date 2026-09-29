@@ -4,6 +4,7 @@ use clap::Parser;
 use color_eyre::eyre::{Context, Result, bail};
 use noir_artifact_cli::{Artifact, fs::inputs::read_inputs_from_file};
 use noir_witness_mutator::{OracleConfig, Report, Severity, search, source::location_of};
+use noirc_abi::InputMap;
 use noirc_artifacts::program::CompiledProgram;
 use std::path::PathBuf;
 
@@ -15,8 +16,10 @@ struct Args {
     artifact_path: PathBuf,
 
     /// Path to the Prover.toml holding the program's inputs.
+    ///
+    /// Optional: a program whose `main` takes no parameters has nothing to supply.
     #[clap(long, short)]
-    prover_file: PathBuf,
+    prover_file: Option<PathBuf>,
 
     /// Name of the function to search, when the artifact is a contract.
     #[clap(long)]
@@ -70,8 +73,18 @@ fn main() -> Result<()> {
         }
     };
 
-    let (input_map, _) = read_inputs_from_file(&args.prover_file, &program.abi)
-        .with_context(|| format!("reading {}", args.prover_file.display()))?;
+    let input_map = match &args.prover_file {
+        Some(path) => {
+            read_inputs_from_file(path, &program.abi)
+                .with_context(|| format!("reading {}", path.display()))?
+                .0
+        }
+        None if program.abi.parameters.is_empty() => InputMap::new(),
+        None => bail!(
+            "this program takes {} input(s); pass --prover-file",
+            program.abi.parameters.len()
+        ),
+    };
     let initial_witness = program.abi.encode(&input_map, None)?;
 
     let oracles = OracleConfig {
