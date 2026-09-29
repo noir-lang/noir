@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790686244989,
+  "lastUpdate": 1790686370296,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22951,48 +22951,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "413caa65906fd45281bbfd3f9604cfeb5201033c",
-          "message": "chore(frontend): decompose the elaborator's ItemContext into sub-contexts (#13742)",
-          "timestamp": "2026-09-16T11:01:05Z",
-          "tree_id": "63638a8d396277922dcce55eeff1eea2caf1ad56",
-          "url": "https://github.com/noir-lang/noir/commit/413caa65906fd45281bbfd3f9604cfeb5201033c"
-        },
-        "date": 1789557801217,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 167670,
-            "range": "± 956",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 137069,
-            "range": "± 6011",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2630675,
-            "range": "± 24742",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -25044,6 +25002,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 1758058,
             "range": "± 9362",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c2c5a8138e45defe4dd8f23a5dd9a3b108dadcc1",
+          "message": "chore(ssa): use checked_div when computing vector length in interpreter (#13808)",
+          "timestamp": "2026-09-29T13:48:47+01:00",
+          "tree_id": "060f08dd3f0f650e7ee7e274f964023bdb866729",
+          "url": "https://github.com/noir-lang/noir/commit/c2c5a8138e45defe4dd8f23a5dd9a3b108dadcc1"
+        },
+        "date": 1790686282308,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 170733,
+            "range": "± 417",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 139559,
+            "range": "± 5036",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2650944,
+            "range": "± 17139",
             "unit": "ns/iter"
           }
         ]
