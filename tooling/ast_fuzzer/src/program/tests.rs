@@ -42,14 +42,8 @@ fn generate_ssa_from_body(body: Expression) -> ssa_gen::Ssa {
         allow_constant_return: false,
     };
 
-    let program = Program {
-        functions: vec![func],
-        return_location: None,
-        globals: Default::default(),
-        debug_variables: Default::default(),
-        debug_functions: Default::default(),
-        debug_types: Default::default(),
-    };
+    let program =
+        Program { functions: vec![func], return_location: None, globals: Default::default() };
 
     ssa_gen::generate_ssa(program).unwrap()
 }

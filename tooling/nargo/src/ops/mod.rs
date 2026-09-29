@@ -1,7 +1,6 @@
 pub use self::check::check_program;
 pub use self::compile::{
-    check_crate_and_report_errors, collect_errors, compile_contract, compile_program,
-    compile_program_with_debug_instrumenter, report_errors,
+    check_crate_and_report_errors, collect_errors, compile_contract, compile_program, report_errors,
 };
 pub use self::execute::{execute_program, execute_program_with_profiling};
 pub use self::fuzz::{

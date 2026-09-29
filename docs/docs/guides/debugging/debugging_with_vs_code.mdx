@@ -36,25 +36,15 @@ Another way of starting the debugger is to press `F5` on the file you want to de
 
 Once the debugger has started you should see something like this:
 
-You should see something like this:
-
 ![Debugger launched](@site/static/img/debugger/1-started.png)
 
 Let's inspect the state of the program. For that, we open VS Code's _Debug pane_. Look for this icon:
 
 ![Debug pane icon](@site/static/img/debugger/2-icon.png)
 
-You will now see two categories of variables: Locals and Witness Map.
+The _Variables_ section lists the locals of your program. At this point in execution it only holds the arguments of `main`, populated from your project's `Prover.toml` file, but as we step through the code it will get populated by `result`, `digest`, etc.
 
 ![Debug pane expanded](@site/static/img/debugger/3-debug-pane.png)
-
-1. **Locals**: variables of your program. At this point in execution this section is empty, but as we step through the code it will get populated by `x`, `result`, `digest`, etc.
-
-2. **Witness map**: these are initially populated from your project's `Prover.toml` file. In this example, they will be used to populate `x` and `result` at the beginning of the `main` function.
-
-Most of the time you will probably be focusing mostly on locals, as they represent the high level state of your program.
-
-You might be interested in inspecting the witness map in case you are trying to solve a really low level issue in the compiler or runtime itself, so this concerns mostly advanced or niche users.
 
 Let's step through the program, by using the debugger buttons or their corresponding keyboard shortcuts.
 

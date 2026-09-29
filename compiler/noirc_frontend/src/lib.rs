@@ -13,7 +13,6 @@
 #![allow(clippy::mutable_key_type, clippy::result_large_err)]
 
 pub mod ast;
-pub mod debug;
 pub mod elaborator;
 pub mod error_reporting;
 pub mod graph;

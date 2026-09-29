@@ -31,7 +31,6 @@ const ALLOWED_VIOLATIONS: &[(&str, &str)] = &[
     ("noirc_driver", "noirc_abi"),
     ("noirc_driver", "noirc_artifacts"),
     ("noirc_evaluator", "noirc_artifacts"),
-    ("noirc_frontend", "noirc_artifacts"),
 ];
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]

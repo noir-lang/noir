@@ -13,7 +13,6 @@ use serde::{Deserialize, Deserializer, Serializer, de::Visitor};
 
 pub mod contract;
 pub mod debug;
-mod debug_vars;
 pub mod program;
 pub mod ssa;
 
