@@ -14,12 +14,11 @@
 //! It runs in two passes; the second recovers some precision and is not mandatory.
 //!
 //! # Preconditions
-//! The analysis should be done after defunctionalization and lower ACIR references.
-//! Before defunctionalization, a call through a function value is summarized from its
-//! argument types only (see "Unresolved Calls"), and a function reached only through a
-//! function value has no call site linking its parameters to its callers' arguments.
-//! Neither is sound, so consumers such as load-store forwarding do not query the analysis
-//! while such calls remain.
+//! The analysis must be done after defunctionalization, and panics on a call through a
+//! function value. Such a call has no callee body to follow, and the function it reaches has
+//! no call site linking its parameters to the caller's arguments, so no sound answer exists.
+//! It should also be done after lower ACIR references, but that is not mandatory: if not,
+//! you will just lose precision.
 //! The analysis assumes global values do not hold reference and will panic if they do.
 //!
 //! Supporting globals with reference would not be too difficult:
@@ -46,7 +45,7 @@
 //! ### Function pointers
 //! Function pointers are not handled here, contrary to the textbook approach.
 //! Defunctionalization runs early in the Ssa workflow and turns them into direct calls,
-//! so the analysis is only relied upon after it.
+//! which the analysis requires (see "Preconditions").
 //!
 //! ### Type-based filtering
 //! May-alias queries use type information to recover some of the precision lost due to field-insensitivity
@@ -55,7 +54,6 @@
 //! Unresolved function calls are not handled in Steensgaard analysis, however not all functions
 //! are known in a Noir program (e.g Foreign calls). We add support for such unresolved calls
 //! through a conservative analysis based on the function's signature. This allows us to support:
-//! - high-order functions before defunctionalization
 //! - foreign calls (although passing references to foreign calls is not allowed)
 //! - single function analysis (although not recommended)
 //!
@@ -637,7 +635,7 @@ impl AliasAnalysisContext {
         function: &Function,
         block_id: BasicBlockId,
         ssa: &Ssa,
-        mut ignore_allocations_in_block: bool,
+        ignore_allocations_in_block: bool,
     ) {
         let block = &function.dfg[block_id];
 
@@ -698,16 +696,11 @@ impl AliasAnalysisContext {
                         Value::ForeignFunction { .. } => {
                             self.unresolved_call(function, arguments, results);
                         }
-                        // Fallthrough for unresolved functions whose function body
-                        // is not available, via a conservative type-based analysis.
-                        _ => {
-                            self.unresolved_call(function, arguments, results);
-                            // Conservatively assume that any function called
-                            // may put us in indirect recursive calls
-                            self.untrusted_site_functions.insert(function.id());
-                            // no need to continue collecting the in-loop allocations
-                            ignore_allocations_in_block = true;
-                        }
+                        // A call through a function value: see "Preconditions".
+                        _ => panic!(
+                            "alias analysis requires defunctionalized SSA, but `{}` calls a function value",
+                            function.name()
+                        ),
                     }
                 }
                 Instruction::ArrayGet { array, .. } => {
@@ -2921,7 +2914,7 @@ mod tests {
 
     // ============================================================
     // `unresolved_call` — conservative handling of opaque calls
-    // (foreign functions / unresolved function pointers).
+    // (foreign functions and entry-point parameters).
     // Tests exercise the four cases of the cascade:
     //   1. Same type         → merge_alias
     //   2. Containment       → merge_reference

@@ -40,13 +40,6 @@ use crate::ssa::{
 impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn load_store_forwarding(mut self) -> Ssa {
-        // The alias analysis cannot see through a call to a function value: it knows neither
-        // what the callee writes through the caller's arguments nor which arguments reach the
-        // callee's parameters. Its answers are only sound once defunctionalization has turned
-        // every such call into a direct call, so until then the pass leaves the SSA unchanged.
-        if self.has_calls_through_function_values() {
-            return self;
-        }
         let mut analysis = AliasAnalysis::analyze(&self);
         // Formal parameter types of every function. The call handler uses the
         // callee's formal type — not the caller-side argument type — to decide
@@ -74,24 +67,6 @@ impl Ssa {
             function.simplify_instructions();
         }
         self
-    }
-
-    /// Whether any reachable call targets a function value rather than a known function,
-    /// intrinsic or foreign function.
-    fn has_calls_through_function_values(&self) -> bool {
-        self.functions.values().any(|function| {
-            function.reachable_blocks().into_iter().any(|block| {
-                function.dfg[block].instructions().iter().any(|instruction| {
-                    let Instruction::Call { func, .. } = &function.dfg[*instruction] else {
-                        return false;
-                    };
-                    !matches!(
-                        function.dfg[*func],
-                        Value::Function(_) | Value::Intrinsic(_) | Value::ForeignFunction { .. }
-                    )
-                })
-            })
-        })
     }
 }
 
@@ -2057,7 +2032,7 @@ mod tests {
             return v3
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = Ssa::from_str(src).unwrap().defunctionalize().unwrap();
         let (_, result) =
             assert_pass_does_not_affect_execution(ssa, vec![], |ssa| ssa.load_store_forwarding());
         assert_eq!(result.unwrap(), vec![Value::field(70_u128.into())]);
@@ -2098,7 +2073,7 @@ mod tests {
             return
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = Ssa::from_str(src).unwrap().defunctionalize().unwrap();
         let (_, result) =
             assert_pass_does_not_affect_execution(ssa, vec![], |ssa| ssa.load_store_forwarding());
         assert_eq!(result.unwrap(), vec![Value::field(5_u128.into())]);
@@ -2257,8 +2232,8 @@ mod tests {
 
     /// `apply` passes the same cell `v2` to both reference parameters of `check` through a
     /// function value, so `store v2 at v1` overwrites the `Field 1` stored at `v0` and the
-    /// constraint fails for any input other than 1. The alias analysis cannot link `check`'s
-    /// parameters to `apply`'s arguments until defunctionalization makes the call direct.
+    /// constraint fails for any input other than 1. After defunctionalization the dispatch
+    /// call links `check`'s parameters to `apply`'s arguments, so the load stays.
     #[test]
     fn keeps_constraint_when_function_value_receives_aliased_references() {
         let src = "
@@ -2283,7 +2258,7 @@ mod tests {
             return
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = Ssa::from_str(src).unwrap().defunctionalize().unwrap();
 
         let (_, result) =
             assert_pass_does_not_affect_execution(ssa, vec![Value::field(5_u128.into())], |ssa| {
@@ -2292,9 +2267,9 @@ mod tests {
         assert!(result.is_err());
     }
 
-    /// `set` stores `vb` two levels below `p2`, so after the call `p1` holds `vb` and
-    /// `store Field 6 at x` overwrites `vb`. The alias analysis cannot see what a callee
-    /// reached through a function value writes, so the final load must stay.
+    /// `set`, reached through a function value, stores `v2` two levels below `v4`, so after
+    /// the call `v3` holds `v2` and `store Field 6 at v5` overwrites `v2`. After
+    /// defunctionalization the analysis follows `set`'s body, so the final load stays.
     #[test]
     fn keeps_load_when_function_value_stores_argument_two_levels_deep() {
         let src = "
@@ -2327,45 +2302,35 @@ mod tests {
             return
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = Ssa::from_str(src).unwrap().defunctionalize().unwrap();
 
         let (_, result) =
             assert_pass_does_not_affect_execution(ssa, vec![], |ssa| ssa.load_store_forwarding());
         assert_eq!(result.unwrap(), vec![Value::field(6_u128.into())]);
     }
 
-    /// Once defunctionalization has made every call direct, the pass forwards through the
-    /// same shape: the parameters of `check` are unified with `apply`'s arguments.
+    /// The alias analysis has no sound answer for a call through a function value, so
+    /// running the pass before defunctionalization is a pipeline bug and must fail loudly.
     #[test]
-    fn keeps_constraint_after_defunctionalization() {
+    #[should_panic(expected = "alias analysis requires defunctionalized SSA")]
+    fn panics_on_calls_through_function_values() {
         let src = "
-        acir(inline) fn main f0 {
-          b0(v0: Field):
-            call f1(f2, v0)
-            return
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = call f1(f2) -> Field
+            return v0
         }
-        acir(inline) fn apply f1 {
-          b0(v0: function, v1: Field):
-            v2 = allocate -> &mut Field
-            store Field 0 at v2
-            call v0(v2, v2, v1)
-            return
+        brillig(inline) fn h f1 {
+          b0(v0: function):
+            v1 = call v0() -> Field
+            return v1
         }
-        acir(inline) fn check f2 {
-          b0(v0: &mut Field, v1: &mut Field, v2: Field):
-            store Field 1 at v0
-            store v2 at v1
-            v4 = load v0 -> Field
-            constrain v4 == Field 1
-            return
+        brillig(inline) fn one f2 {
+          b0():
+            return Field 1
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap().defunctionalize().unwrap();
-
-        let (_, result) =
-            assert_pass_does_not_affect_execution(ssa, vec![Value::field(5_u128.into())], |ssa| {
-                ssa.load_store_forwarding()
-            });
-        assert!(result.is_err());
+        let ssa = Ssa::from_str(src).unwrap();
+        let _ = ssa.load_store_forwarding();
     }
 }
