@@ -150,7 +150,7 @@ pub struct Monomorphizer<'interner> {
     finished_functions: BTreeMap<FuncId, Function>,
 
     /// Used to reference existing definitions in the HIR.
-    interner: &'interner mut NodeInterner,
+    interner: &'interner NodeInterner,
 
     lambda_envs_stack: Vec<LambdaContext>,
 
@@ -250,7 +250,7 @@ fn entry_point_field_count_saturating(typ: &ast::Type) -> u64 {
 #[tracing::instrument(level = "trace", skip(main, interner))]
 pub fn monomorphize(
     main: node_interner::FuncId,
-    interner: &mut NodeInterner,
+    interner: &NodeInterner,
     force_unconstrained: bool,
 ) -> Result<Program, MonomorphizationError> {
     monomorphize_debug(main, interner, &DebugInstrumenter::default(), None, force_unconstrained)
@@ -262,7 +262,7 @@ pub fn monomorphize(
 /// to inspect values via debug functions.
 pub fn monomorphize_debug(
     main: node_interner::FuncId,
-    interner: &mut NodeInterner,
+    interner: &NodeInterner,
     debug_instrumenter: &DebugInstrumenter,
     debug_crate_id: Option<crate::graph::CrateId>,
     force_unconstrained: bool,
@@ -290,7 +290,7 @@ pub fn monomorphize_debug(
 
 impl<'interner> Monomorphizer<'interner> {
     pub fn new(
-        interner: &'interner mut NodeInterner,
+        interner: &'interner NodeInterner,
         debug_type_tracker: DebugTypeTracker,
         debug_crate_id: Option<crate::graph::CrateId>,
         force_unconstrained: bool,
@@ -1847,8 +1847,8 @@ impl<'interner> Monomorphizer<'interner> {
                 .expect("non-comptime globals are lowered to HIR when they are resolved")
                 .map_err(MonomorphizationError::InterpreterError)?;
 
-            // The global's HIR carries its polymorphic type. The caller pushed the use-site's instantiation bindings before
-            // entering this path, so `follow_bindings` on any `NamedGeneric` inside that type
+            // The global's HIR carries its polymorphic type. The caller put the use-site's
+            // instantiation bindings in the substitution, so any `NamedGeneric` inside that type
             // resolves to the concrete instantiation type when monomorphization walks it.
             let expr = self.expr(expr)?;
 

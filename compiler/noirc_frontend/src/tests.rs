@@ -303,7 +303,7 @@ fn check_errors_with_options(src: &str, monomorphize: bool, options: GetProgramO
     let secondary_spans_with_errors = to_message_map(secondary_spans_with_errors);
 
     let src = code_lines.join("\n");
-    let (_, mut context, errors) = get_program_with_options(&src, options);
+    let (_, context, errors) = get_program_with_options(&src, options);
     let mut errors = errors.iter().map(CustomDiagnostic::from).collect::<Vec<_>>();
 
     if !options.allow_elaborator_errors && !errors.is_empty() {
@@ -316,7 +316,7 @@ fn check_errors_with_options(src: &str, monomorphize: bool, options: GetProgramO
             panic!("get_monomorphized: test program contains no 'main' function")
         });
 
-        let result = crate::monomorphization::monomorphize(main, &mut context.def_interner, false);
+        let result = crate::monomorphization::monomorphize(main, &context.def_interner, false);
         match result {
             Ok(_) => {
                 if primary_spans_with_errors.is_empty() {
