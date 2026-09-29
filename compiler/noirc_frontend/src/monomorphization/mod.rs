@@ -65,7 +65,7 @@ use crate::{
         expr::*,
         function::Parameters,
         stmt::{HirAssignStatement, HirLValue, HirLetStatement, HirPattern, HirStatement},
-        types::{BoundTypeVariables, resolve_type_bindings},
+        types::resolve_type_bindings,
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitImplKind},
 };
@@ -3472,9 +3472,9 @@ pub fn compute_impl_bindings(
 ///
 /// Searching for an impl unifies the object type against the candidates, and the bindings that
 /// search produces have to be in force while the impl's method is compiled — references to the
-/// trait's generics inside it resolve through them. They are returned rather than applied so the
-/// caller decides how long they last; see [`BoundTypeVariables::commit`] for when keeping them is
-/// the right answer.
+/// trait's generics inside it resolve through them. They are returned rather than applied: the
+/// monomorphizer adds them to its substitution while it compiles the method, and the comptime
+/// interpreter, which runs during type checking, commits them.
 fn resolve_trait_item_impl(
     interner: &NodeInterner,
     method_id: TraitItemId,
@@ -3517,8 +3517,6 @@ fn resolve_trait_item_impl(
                 TraitLookupMode::Default,
             ) {
                 Ok((TraitImplKind::Normal(impl_id), bindings, instantiation_bindings)) => {
-                    let guard = BoundTypeVariables::apply(&bindings);
-
                     // The extra bindings come from impl lookup, similar to what's done when
                     // solving trait constraints in the frontend (see `check_trait_constraints`).
                     let instantiation_bindings = impl_instantiation_bindings(
@@ -3528,7 +3526,6 @@ fn resolve_trait_item_impl(
                         expr_id,
                         instantiation_bindings,
                     );
-                    drop(guard);
                     Ok((impl_id, bindings, instantiation_bindings))
                 }
                 Ok((TraitImplKind::Assumed { .. }, ..)) => {
@@ -3741,11 +3738,10 @@ pub(crate) fn resolve_trait_item(
                 let id = *id;
                 let expected_type = expected_type.clone();
 
-                // Apply the expression's instantiation bindings, with the impl search's bindings
-                // in force.
-                let guard = BoundTypeVariables::apply(&impl_search_bindings);
+                // Apply the expression's instantiation bindings. Any of the impl search's
+                // variables left in the value are resolved by the caller, which has the search's
+                // bindings in force.
                 let value = item.typ.force_substitute(&instantiation_bindings);
-                drop(guard);
 
                 let item = TraitItem::Constant { id, expected_type, value };
                 return Ok(ResolvedTraitItem {

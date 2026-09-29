@@ -406,9 +406,10 @@ pub enum QuotedType {
     Location,
 }
 
-/// A list of (`TypeVariableId`, Kind)'s to bind to a type. Storing the
-/// `TypeVariable` in addition to the matching `TypeVariableId` allows
-/// the binding to later be undone if needed.
+/// A list of (`TypeVariableId`, Kind)'s to bind to a type. The `TypeVariable` is stored alongside
+/// its `TypeVariableId` so that type checking can commit the bindings to it
+/// ([`Type::apply_type_bindings`]); passes over an elaborated program apply them with
+/// [`Type::substitute`] instead.
 pub type TypeBindings = HashMap<TypeVariableId, (TypeVariable, Kind, Type)>;
 
 /// Resolve all indirections in a set of type bindings by calling
@@ -1042,9 +1043,9 @@ impl TypeVariable {
     /// binding, as that would cause an infinitely recursive type.
     ///
     /// This is type checking's binding: it commits, and it refuses to overwrite a binding that is
-    /// already there, which is what makes it unable to produce the kind of write a later pass has
-    /// to undo. A pass that does need to bind over an existing binding goes through
-    /// [`BoundTypeVariables`], which is the only other way in.
+    /// already there, so each type variable is written at most once. A pass over an
+    /// already-elaborated program does not write type variables at all; it applies its own
+    /// substitution with [`Type::substitute`] or [`Type::force_substitute`].
     pub(crate) fn bind(&self, typ: Type) {
         let id = match &*self.1.borrow() {
             TypeBinding::Bound(binding) => {
@@ -1089,28 +1090,6 @@ impl TypeVariable {
     /// Borrows this `TypeVariable` to (e.g.) manually match on the inner `TypeBinding`.
     pub fn borrow(&self) -> std::cell::Ref<TypeBinding> {
         self.1.borrow()
-    }
-
-    /// Bind this type variable to `typ`, returning the contents that were replaced so that
-    /// they can later be handed back to [`Self::restore`].
-    ///
-    /// Returns `None` when the occurs check rejects `typ` and nothing was written, so that a
-    /// caller recording an undo log records an entry exactly when a write happened.
-    ///
-    /// Private to this module, which is the whole point: a `TypeVariable`'s binding is shared
-    /// with every `Type` that mentions it, so an unrestored write is visible to the whole
-    /// program. The [`BoundTypeVariables`] guard defined below is the only way the rest of the
-    /// compiler can write a binding it means to take back.
-    fn replace(&self, typ: Type) -> Option<TypeBinding> {
-        if typ.occurs(self.id()) {
-            return None;
-        }
-        Some(std::mem::replace(&mut *self.1.borrow_mut(), TypeBinding::Bound(typ)))
-    }
-
-    /// Put back contents previously taken by [`Self::replace`].
-    fn restore(&self, previous: TypeBinding) {
-        *self.1.borrow_mut() = previous;
     }
 
     pub fn kind(&self) -> Kind {
@@ -1225,72 +1204,6 @@ impl TypeBinding {
 /// A unique ID used to differentiate different type variables
 #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct TypeVariableId(pub usize);
-
-/// A set of type variable bindings applied to the shared HIR, undone when this guard is dropped.
-///
-/// A `TypeVariable` holds its binding in an `Rc<RefCell<_>>` shared with every `Type` that
-/// mentions it, including the types held by the `NodeInterner`. Binding one is therefore a
-/// mutation of the elaborated program that a shared reference to the interner does nothing to
-/// prevent, and a binding left behind is visible to every later compilation against that same
-/// interner.
-///
-/// This guard restores the contents each cell held before it was written, rather than reverting
-/// to `Unbound`, so a variable that some outer scope had already bound is put back the way it
-/// was. Bindings are undone in reverse order, matching the order guards in the same scope are
-/// dropped in, so nesting guards is correct without any bookkeeping at the call site.
-///
-/// Note that `let _ = BoundTypeVariables::apply(..)` drops the guard immediately and so undoes
-/// the bindings before the following statement runs. Bind it to a named local (`let _guard = ..`)
-/// to hold the bindings for the rest of the scope.
-#[derive(Debug)]
-#[must_use = "dropping this guard immediately undoes the bindings it applied"]
-pub struct BoundTypeVariables {
-    /// Each cell written, paired with the contents it held beforehand, in the order written.
-    saved: Vec<(TypeVariable, TypeBinding)>,
-}
-
-impl BoundTypeVariables {
-    /// Apply every binding in `bindings` to the shared HIR.
-    pub fn apply(bindings: &TypeBindings) -> Self {
-        let saved = bindings
-            .values()
-            .filter_map(|(var, _kind, binding)| {
-                var.replace(binding.clone()).map(|previous| (var.clone(), previous))
-            })
-            .collect();
-        Self { saved }
-    }
-
-    /// Bind a single type variable to `typ`.
-    pub fn bind(var: &TypeVariable, typ: Type) -> Self {
-        let saved = var.replace(typ).map(|previous| (var.clone(), previous));
-        Self { saved: saved.into_iter().collect() }
-    }
-
-    /// A guard holding no bindings, for the branches of a call site where there is nothing to
-    /// bind but the guard still has to be held to the end of the scope.
-    pub fn none() -> Self {
-        Self { saved: Vec::new() }
-    }
-
-    /// Keep these bindings: give up the ability to undo them and leave them in the shared HIR.
-    ///
-    /// This is what type checking wants — solving a trait constraint commits the inference
-    /// variables it resolved, and the elaborated program is supposed to carry that. It is not
-    /// what a pass reading an already-elaborated program wants, so committing should be a
-    /// deliberate, visible choice rather than the default.
-    pub fn commit(mut self) {
-        self.saved.clear();
-    }
-}
-
-impl Drop for BoundTypeVariables {
-    fn drop(&mut self) {
-        for (var, previous) in self.saved.drain(..).rev() {
-            var.restore(previous);
-        }
-    }
-}
 
 impl std::fmt::Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -2284,8 +2197,8 @@ impl Type {
     ///
     /// Permanently is the operative word: this is for type checking, where solving a constraint
     /// commits the inference variables it resolved and the elaborated program is meant to carry
-    /// that. A pass reading an already-elaborated program wants [`BoundTypeVariables`] instead, so
-    /// that the bindings last only as long as it needs them.
+    /// that. A pass reading an already-elaborated program applies bindings with
+    /// [`Type::substitute`] or [`Type::force_substitute`] instead.
     pub fn apply_type_bindings(bindings: TypeBindings) {
         for (type_variable, _kind, binding) in bindings.into_values() {
             type_variable.bind(binding);
