@@ -9,6 +9,7 @@
 pub mod derive;
 pub mod directives;
 pub mod hints;
+pub mod oracles;
 pub mod source;
 pub mod strategy;
 
@@ -18,13 +19,25 @@ use acir::{
     native_types::{Witness, WitnessMap},
 };
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
-use nargo::foreign_calls::{DefaultForeignCallBuilder, layers};
-use std::collections::BTreeMap;
+use nargo::foreign_calls::{
+    DefaultForeignCallBuilder, ForeignCallExecutor, layers, transcript::LoggingForeignCallExecutor,
+};
+use std::{collections::BTreeMap, path::PathBuf};
 
 use crate::{
     hints::{HintSite, hint_sites, program_with_override},
+    oracles::{LoggedCall, Replay, parse_transcript},
     strategy::candidates,
 };
+
+/// Where the honest run's oracle calls are answered from.
+#[derive(Clone, Debug, Default)]
+pub struct OracleConfig {
+    /// JSON-RPC host to ask, as `nargo execute --oracle-resolver` takes.
+    pub resolver_url: Option<String>,
+    pub root_path: Option<PathBuf>,
+    pub package_name: Option<String>,
+}
 
 /// What a second witness means.
 ///
@@ -78,6 +91,9 @@ pub struct Finding {
     /// How many witnesses other than this call's own outputs take a different value. A free value
     /// that nothing reads moves nothing; one the program computes with drags the rest along.
     pub blast_radius: usize,
+    /// How many oracle calls this witness makes with different arguments than the honest run. The
+    /// proof is the same either way, so this is what the outside world would see differently.
+    pub oracle_divergences: usize,
     pub witness: WitnessMap<FieldElement>,
 }
 
@@ -100,6 +116,8 @@ pub struct Report {
     /// A circuit with no return values gives a verifier nothing to compare, so no finding in it can
     /// be graded by its effect on the output.
     pub has_return_values: bool,
+    /// Oracle calls the honest run made, all of which the search answered from its recording.
+    pub oracle_calls: usize,
 }
 
 impl Report {
@@ -108,27 +126,43 @@ impl Report {
     }
 }
 
-fn solve(
+fn solve<E: ForeignCallExecutor<FieldElement>>(
     program: &Program<FieldElement>,
     initial_witness: WitnessMap<FieldElement>,
+    foreign_calls: &mut E,
 ) -> Option<WitnessMap<FieldElement>> {
-    let mut foreign_call_executor = DefaultForeignCallBuilder {
+    let mut stack =
+        nargo::ops::execute_program(program, initial_witness, &Bn254BlackBoxSolver, foreign_calls)
+            .ok()?;
+    stack.pop().map(|item| item.witness)
+}
+
+/// Execute honestly, recording every oracle call so the search can answer the rest offline.
+fn honest_run(
+    program: &Program<FieldElement>,
+    initial_witness: WitnessMap<FieldElement>,
+    oracles: &OracleConfig,
+) -> Result<(WitnessMap<FieldElement>, Vec<LoggedCall>), String> {
+    let host = DefaultForeignCallBuilder {
         output: std::io::sink(),
-        enable_mocks: false,
-        resolver_url: None,
-        root_path: None,
-        package_name: None,
+        enable_mocks: true,
+        resolver_url: oracles.resolver_url.clone(),
+        root_path: oracles.root_path.clone(),
+        package_name: oracles.package_name.clone(),
     }
     .build_with_base(layers::Unhandled);
 
-    let mut stack = nargo::ops::execute_program(
-        program,
-        initial_witness,
-        &Bn254BlackBoxSolver,
-        &mut foreign_call_executor,
-    )
-    .ok()?;
-    stack.pop().map(|item| item.witness)
+    let mut recorder = LoggingForeignCallExecutor::new(host, Vec::new());
+    let witness = solve(program, initial_witness, &mut recorder).ok_or_else(|| {
+        if oracles.resolver_url.is_some() {
+            "honest execution failed; the oracle host may have rejected a call".to_string()
+        } else {
+            "honest execution failed; if this program calls oracles, pass --oracle-resolver"
+                .to_string()
+        }
+    })?;
+
+    Ok((witness, parse_transcript(&recorder.output)?))
 }
 
 /// Search `program` for a second witness of `initial_witness`.
@@ -140,9 +174,9 @@ pub fn search(
     program: &Program<FieldElement>,
     initial_witness: WitnessMap<FieldElement>,
     limit: usize,
+    oracles: &OracleConfig,
 ) -> Result<Report, String> {
-    let honest = solve(program, initial_witness.clone())
-        .ok_or_else(|| "honest execution failed".to_string())?;
+    let (honest, transcript) = honest_run(program, initial_witness.clone(), oracles)?;
 
     let sites = hint_sites(program, 0, &honest);
     let known: BTreeMap<Witness, FieldElement> =
@@ -156,7 +190,8 @@ pub fn search(
     for candidate in candidates {
         let site = &sites[candidate.site_index];
         let modified = program_with_override(program, site, &candidate.values);
-        let Some(witness) = solve(&modified, initial_witness.clone()) else {
+        let mut replay = Replay::new(transcript.clone());
+        let Some(witness) = solve(&modified, initial_witness.clone(), &mut replay) else {
             continue;
         };
         if witness == honest {
@@ -194,6 +229,7 @@ pub fn search(
             changed_outputs,
             changes_return,
             blast_radius,
+            oracle_divergences: replay.divergences().len(),
             witness,
         };
 
@@ -214,5 +250,6 @@ pub fn search(
         sites: sites.len(),
         candidates_tried,
         has_return_values: !return_witnesses.is_empty(),
+        oracle_calls: transcript.len(),
     })
 }

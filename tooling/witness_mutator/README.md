@@ -10,6 +10,10 @@ nargo compile --program-dir <dir>
 noir-witness-mutator --artifact-path <dir>/target/<pkg>.json --prover-file <dir>/Prover.toml
 ```
 
+For a contract artifact, pick the function with `--contract-fn <name>`; the tool lists the
+available names if you leave it out. For a program that calls oracles, give it a host with
+`--oracle-resolver <url>`, the same flag `nargo execute` takes.
+
 It exits non-zero when a compiler-inserted hint turns out to be underconstrained.
 
 ## How it works
@@ -83,6 +87,26 @@ hint on `a + k*p` yields the outputs a dishonest prover would supply:
 This family is the only one that can supply every output of a call at once, which is what a
 many-limbed decomposition needs.
 
+## Oracle calls
+
+An oracle call suspends execution and asks a host process a question, so without a host the honest
+run cannot finish and there is no witness to mutate. `--oracle-resolver <url>` points at one.
+
+The host is asked **once**. The honest run's calls and answers are recorded, and every candidate is
+answered from that recording. This is not an optimisation: the search re-executes the program once
+per candidate, and a host with state — Aztec's PXE, for one — can answer the same question
+differently on the hundredth ask. A candidate would then differ from the honest run for reasons
+that have nothing to do with the mutation under test, which is exactly the comparison the search
+depends on.
+
+Replay matches calls by name rather than by position, because a mutated witness can change how many
+times a loop runs. When a candidate asks the same question with different arguments, it gets the
+recorded answer and the finding reports the divergence: same proof, different traffic to the
+outside world.
+
+An `unconstrained fn` called from an `unsafe` block is *not* an oracle — it runs locally in the
+Brillig VM and needs no host.
+
 ## What it does not do yet
 
 - Only the first ACIR function is searched; programs that use `Call` opcodes are covered only in
@@ -118,7 +142,7 @@ matters for a bug hunt is that *some* input exposes it, and that a clean compile
 | `WITNESS` | 3 | free values that move part of the witness without reaching an output |
 | `INERT` | 52 | mostly `directive_invert` with a zero input, the expected benign case |
 | none | 370 | |
-| skipped | 66 | no `Prover.toml`, or honest execution needs an oracle transcript |
+| skipped | 66 | 65 have no `Prover.toml`; one fails to execute |
 
 Zero `HIGH` on a clean compiler is the property that makes the grade worth acting on. The
 `PROGRAM` findings are a useful check that the search works at all: it rediscovered, from execution

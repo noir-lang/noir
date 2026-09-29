@@ -27,7 +27,7 @@ serde_json.workspace = true
 acir.workspace = true
 acvm.workspace = true
 bn254_blackbox_solver.workspace = true
-nargo.workspace = true
+nargo = { workspace = true, features = ["rpc"] }
 noir_artifact_cli.workspace = true
 noirc_abi.workspace = true
 noirc_artifacts.workspace = true
