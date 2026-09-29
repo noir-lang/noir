@@ -576,3 +576,211 @@ fn impl_stricter_than_trait_equating_associated_constants_with_bounds_reordered(
     "#;
     check_errors(src);
 }
+
+#[test]
+fn impl_bounding_associated_type_of_another_bound_is_not_stricter() {
+    let src = r#"
+    trait Bar {
+        type T;
+    }
+
+    trait Baz {
+        type U;
+    }
+
+    trait Foo {
+        fn foo<B>(b: B) where B: Bar, <B as Bar>::T: Baz;
+    }
+
+    impl Foo for Field {
+        fn foo<B>(_: B) where B: Bar, <B as Bar>::T: Baz {}
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn impl_bounding_associated_type_of_a_later_bound_is_not_stricter() {
+    let src = r#"
+    trait Bar {
+        type T;
+    }
+
+    trait Baz {
+        type U;
+    }
+
+    trait Foo {
+        fn foo<B>(b: B) where <B as Bar>::T: Baz, B: Bar;
+    }
+
+    impl Foo for Field {
+        fn foo<B>(_: B) where <B as Bar>::T: Baz, B: Bar {}
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn impl_bounding_nested_associated_type_is_not_stricter() {
+    let src = r#"
+    trait Bar {
+        type T;
+    }
+
+    trait Baz {
+        type U;
+    }
+
+    trait Quux {
+        type V;
+    }
+
+    trait Foo {
+        fn foo<B>(b: B) where B: Bar, <B as Bar>::T: Baz, <<B as Bar>::T as Baz>::U: Quux;
+    }
+
+    impl Foo for Field {
+        fn foo<B>(_: B) where B: Bar, <B as Bar>::T: Baz, <<B as Bar>::T as Baz>::U: Quux {}
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn impl_bounding_nested_associated_type_before_its_root_bound_is_not_stricter() {
+    let src = r#"
+    trait Bar {
+        type T;
+    }
+
+    trait Baz {
+        type U;
+    }
+
+    trait Quux {
+        type V;
+    }
+
+    trait Foo {
+        fn foo<B>(b: B) where <B as Bar>::T: Baz, <<B as Bar>::T as Baz>::U: Quux, B: Bar;
+    }
+
+    impl Foo for Field {
+        fn foo<B>(_: B) where <B as Bar>::T: Baz, <<B as Bar>::T as Baz>::U: Quux, B: Bar {}
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn impl_passing_associated_type_of_another_bound_as_trait_generic_is_not_stricter() {
+    let src = r#"
+    trait Bar {
+        type T;
+    }
+
+    trait Qux<X> {
+        type U;
+    }
+
+    trait Foo {
+        fn foo<B, C>(b: B, c: C) where B: Bar, C: Qux<<B as Bar>::T>;
+    }
+
+    impl Foo for Field {
+        fn foo<B, C>(_: B, _: C) where B: Bar, C: Qux<<B as Bar>::T> {}
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn impl_passing_associated_constant_of_another_bound_as_trait_generic_is_not_stricter() {
+    let src = r#"
+    trait Bar {
+        let N: u32;
+    }
+
+    trait Qux<let M: u32> {
+        type U;
+    }
+
+    trait Foo {
+        fn foo<B, C>(b: B, c: C) where B: Bar, C: Qux<<B as Bar>::N>;
+    }
+
+    impl Foo for Field {
+        fn foo<B, C>(_: B, _: C) where B: Bar, C: Qux<<B as Bar>::N> {}
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn impl_stricter_than_trait_pinning_associated_type_of_a_bound_on_an_associated_type() {
+    let src = r#"
+    trait Bar {
+        type T;
+    }
+
+    trait Baz {
+        type U;
+    }
+
+    trait Foo {
+        fn foo<B>(b: B) where B: Bar, <B as Bar>::T: Baz;
+           ~~~ definition of `foo` from trait
+    }
+
+    impl Foo for Field {
+        fn foo<B>(_: B) where B: Bar, <B as Bar>::T: Baz<U = u8> {}
+                                                     ^^^ impl has stricter requirements than trait
+                                                     ~~~ impl has extra requirement `<B as Bar>::T: Baz<U = u8>`
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn impl_stricter_than_trait_equating_associated_types_alongside_a_bound_on_an_associated_type() {
+    // `<B as Bar>::T: Baz` is listed before `B: Bar`, so it only pairs after `B: Bar` does. The
+    // equation `C` adds must still be reported.
+    let src = r#"
+    trait Bar {
+        type T;
+    }
+
+    trait Baz {
+        type U;
+    }
+
+    trait Foo {
+        fn foo<B, C>(b: B, c: C) where <B as Bar>::T: Baz, B: Bar, C: Bar;
+           ~~~ definition of `foo` from trait
+    }
+
+    impl Foo for Field {
+        fn foo<B, C>(_: B, _: C) where <B as Bar>::T: Baz, B: Bar, C: Bar<T = <B as Bar>::T> {}
+                                                                      ^^^ impl has stricter requirements than trait
+                                                                      ~~~ impl has extra requirement `C: Bar<T = <B as Bar>::T>`
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
