@@ -174,18 +174,22 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         self.unbind_generics_from_previous_function();
         let instantiation_guard = BoundTypeVariables::apply(&instantiation_bindings);
 
-        let impl_bindings =
-            match compute_impl_bindings(self.elaborator.interner, trait_method, function, location)
-            {
-                Ok(impl_bindings) => impl_bindings,
-                Err(error) => {
-                    self.elaborator.pop_interpreter_call_stack();
-                    drop(instantiation_guard);
-                    self.rebind_generics_from_previous_function();
-                    debug_assert_eq!(self.bound_generics_depth(), depth);
-                    return Err(error);
-                }
-            };
+        let impl_bindings = match compute_impl_bindings(
+            self.elaborator.interner,
+            trait_method,
+            function,
+            &instantiation_bindings,
+            location,
+        ) {
+            Ok(impl_bindings) => impl_bindings,
+            Err(error) => {
+                self.elaborator.pop_interpreter_call_stack();
+                drop(instantiation_guard);
+                self.rebind_generics_from_previous_function();
+                debug_assert_eq!(self.bound_generics_depth(), depth);
+                return Err(error);
+            }
+        };
         let impl_guard = BoundTypeVariables::apply(&impl_bindings);
 
         self.remember_function_bindings(&instantiation_bindings, &impl_bindings);
@@ -908,7 +912,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         id: ExprId,
     ) -> Result<(crate::monomorphization::TraitItem, TypeBindings), InterpreterError> {
         self.elaborator.resolve_trait_method_metas_for(item.trait_id);
-        let resolved = resolve_trait_item(self.elaborator.interner, item, id)?;
+        let resolved =
+            resolve_trait_item(self.elaborator.interner, item, id, &TypeBindings::default())?;
         // The interpreter runs during elaboration, where solving a trait constraint is supposed
         // to commit the inference variables it resolved — the same thing `check_trait_constraints`
         // does for a constraint solved by the type checker.
