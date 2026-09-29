@@ -1036,6 +1036,7 @@ pub mod test_utils {
         if !errors.is_empty() {
             return Err(ElaboratorError::Compile(errors));
         }
+        elaborator.interner.lower_global_values(elaborator.files);
 
         // Mirror `Context::interpret_function`: enter the interpreter with the module of the
         // function being run rather than relying on the module the elaborator happened to leave set.
@@ -1058,13 +1059,8 @@ pub mod test_utils {
                 .map_err(ElaboratorError::HIRConvert),
         })?;
 
-        let mut monomorphizer = Monomorphizer::new(
-            elaborator.interner,
-            elaborator.files,
-            DebugTypeTracker::default(),
-            None,
-            false,
-        );
+        let mut monomorphizer =
+            Monomorphizer::new(elaborator.interner, DebugTypeTracker::default(), None, false);
         let expr = monomorphizer.expr(expr_id).expect("monomorphization error while converting interpreter execution result, should not be possible");
         Ok(expr)
     }

@@ -4,11 +4,13 @@ use noirc_errors::Location;
 use noirc_printable_type::PrintableType;
 use num_traits::ToPrimitive;
 
+use crate::ast::IntegerBitSize;
 use crate::debug::{SourceFieldId, SourceVarId};
 use crate::hir_def::expr::*;
-use crate::node_interner::{DefinitionKind, ExprId};
+use crate::node_interner::DefinitionKind;
+use crate::shared::Signedness;
 
-use super::ast::{Expression, Ident};
+use super::ast::{Expression, Ident, Literal, Type};
 use super::{MonomorphizationError, Monomorphizer};
 
 const DEBUG_MEMBER_ASSIGN_PREFIX: &str = "__debug_member_assign_";
@@ -91,8 +93,7 @@ impl Monomorphizer<'_> {
         let source_var_id = source_var_id.to_u128().expect("var id too large").into();
         // then update the ID used for tracking at runtime
         let var_id = self.debug_type_tracker.insert_var(source_var_id, &var_type);
-        let interned_var_id = self.intern_var_id(var_id, &call.location);
-        arguments[DEBUG_VAR_ID_ARG_SLOT] = self.expr(interned_var_id)?;
+        arguments[DEBUG_VAR_ID_ARG_SLOT] = var_id_literal(var_id, call.location);
         Ok(())
     }
 
@@ -100,7 +101,7 @@ impl Monomorphizer<'_> {
     /// Given the `source_var_id` we search for the last assigned debug `var_id` and
     /// replace it instead.
     fn patch_debug_var_drop(
-        &mut self,
+        &self,
         call: &HirCallExpression,
         arguments: &mut [Expression],
     ) -> Result<(), MonomorphizationError> {
@@ -115,8 +116,7 @@ impl Monomorphizer<'_> {
             .debug_type_tracker
             .get_var_id(source_var_id)
             .unwrap_or_else(|| unreachable!("failed to find debug variable"));
-        let interned_var_id = self.intern_var_id(var_id, &call.location);
-        arguments[DEBUG_VAR_ID_ARG_SLOT] = self.expr(interned_var_id)?;
+        arguments[DEBUG_VAR_ID_ARG_SLOT] = var_id_literal(var_id, call.location);
         Ok(())
     }
 
@@ -127,7 +127,7 @@ impl Monomorphizer<'_> {
     /// structs to positions in the runtime tuple, since all structs are
     /// replaced by tuples during compilation.
     fn patch_debug_member_assign(
-        &mut self,
+        &self,
         call: &HirCallExpression,
         arguments: &mut [Expression],
         arity: usize,
@@ -166,13 +166,9 @@ impl Monomorphizer<'_> {
                         });
 
                     cursor_type = element_type_at_index(cursor_type, field_index);
-                    let integer = HirLiteral::Integer(field_index.into());
-                    let index_id = self.interner.push_expr_full(
-                        HirExpression::Literal(integer),
-                        call.location,
-                        crate::Type::FieldElement,
+                    arguments[DEBUG_MEMBER_FIELD_INDEX_ARG_SLOT + i] = Expression::Literal(
+                        Literal::Integer((field_index as u128).into(), Type::Field, call.location),
                     );
-                    arguments[DEBUG_MEMBER_FIELD_INDEX_ARG_SLOT + i] = self.expr(index_id)?;
                 } else {
                     // array/string element using constant index
                     cursor_type = element_type_at_index(cursor_type, index as usize);
@@ -187,17 +183,15 @@ impl Monomorphizer<'_> {
             .debug_type_tracker
             .get_var_id(source_var_id)
             .unwrap_or_else(|| unreachable!("failed to find debug variable"));
-        let interned_var_id = self.intern_var_id(var_id, &call.location);
-        arguments[DEBUG_VAR_ID_ARG_SLOT] = self.expr(interned_var_id)?;
+        arguments[DEBUG_VAR_ID_ARG_SLOT] = var_id_literal(var_id, call.location);
         Ok(())
     }
+}
 
-    fn intern_var_id(&mut self, var_id: DebugVarId, location: &Location) -> ExprId {
-        let var_id_literal = HirLiteral::Integer(var_id.0.into());
-        let expression = HirExpression::Literal(var_id_literal);
-        let typ = crate::Type::u32();
-        self.interner.push_expr_full(expression, *location, typ)
-    }
+/// A `u32` literal holding `var_id`.
+fn var_id_literal(var_id: DebugVarId, location: Location) -> Expression {
+    let u32_type = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
+    Expression::Literal(Literal::Integer(u128::from(var_id.0).into(), u32_type, location))
 }
 
 fn element_type_at_index(printable_type: &PrintableType, i: usize) -> &PrintableType {

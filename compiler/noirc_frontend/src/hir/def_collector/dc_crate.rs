@@ -564,6 +564,7 @@ impl DefCollector {
 
         let more_errors =
             Elaborator::elaborate(context, crate_id, def_collector.items, cli_options);
+        context.def_interner.lower_global_values(context.file_manager.as_file_map());
 
         errors.extend(more_errors);
     }

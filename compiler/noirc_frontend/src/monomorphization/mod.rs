@@ -72,7 +72,6 @@ use crate::{
 use crate::{NamedGeneric, TypeVariable, TypeVariableId};
 use acvm::{FieldElement, acir::AcirField};
 use ast::{GlobalId, IdentId, While};
-use fm::FileMap;
 use iter_extended::{btree_map, try_vecmap, vecmap};
 use itertools::Itertools;
 use noirc_errors::Location;
@@ -151,8 +150,7 @@ pub struct Monomorphizer<'interner> {
     finished_functions: BTreeMap<FuncId, Function>,
 
     /// Used to reference existing definitions in the HIR.
-    interner: &'interner mut NodeInterner,
-    files: &'interner FileMap,
+    interner: &'interner NodeInterner,
 
     lambda_envs_stack: Vec<LambdaContext>,
 
@@ -252,18 +250,10 @@ fn entry_point_field_count_saturating(typ: &ast::Type) -> u64 {
 #[tracing::instrument(level = "trace", skip(main, interner))]
 pub fn monomorphize(
     main: node_interner::FuncId,
-    interner: &mut NodeInterner,
-    files: &FileMap,
+    interner: &NodeInterner,
     force_unconstrained: bool,
 ) -> Result<Program, MonomorphizationError> {
-    monomorphize_debug(
-        main,
-        interner,
-        files,
-        &DebugInstrumenter::default(),
-        None,
-        force_unconstrained,
-    )
+    monomorphize_debug(main, interner, &DebugInstrumenter::default(), None, force_unconstrained)
 }
 
 /// A more general entry-point for the monomorphization pass containing an optional
@@ -272,20 +262,14 @@ pub fn monomorphize(
 /// to inspect values via debug functions.
 pub fn monomorphize_debug(
     main: node_interner::FuncId,
-    interner: &mut NodeInterner,
-    files: &FileMap,
+    interner: &NodeInterner,
     debug_instrumenter: &DebugInstrumenter,
     debug_crate_id: Option<crate::graph::CrateId>,
     force_unconstrained: bool,
 ) -> Result<Program, MonomorphizationError> {
     let debug_type_tracker = DebugTypeTracker::build_from_debug_instrumenter(debug_instrumenter);
-    let mut monomorphizer = Monomorphizer::new(
-        interner,
-        files,
-        debug_type_tracker,
-        debug_crate_id,
-        force_unconstrained,
-    );
+    let mut monomorphizer =
+        Monomorphizer::new(interner, debug_type_tracker, debug_crate_id, force_unconstrained);
     monomorphizer.compile_main(main)?;
     monomorphizer.process_queue()?;
 
@@ -306,8 +290,7 @@ pub fn monomorphize_debug(
 
 impl<'interner> Monomorphizer<'interner> {
     pub fn new(
-        interner: &'interner mut NodeInterner,
-        files: &'interner FileMap,
+        interner: &'interner NodeInterner,
         debug_type_tracker: DebugTypeTracker,
         debug_crate_id: Option<crate::graph::CrateId>,
         force_unconstrained: bool,
@@ -324,7 +307,6 @@ impl<'interner> Monomorphizer<'interner> {
             next_function_id: 0,
             next_ident_id: 0,
             interner,
-            files,
             lambda_envs_stack: Vec::new(),
             return_location: None,
             debug_type_tracker,
@@ -1851,24 +1833,22 @@ impl<'interner> Monomorphizer<'interner> {
             };
             ast::Expression::Ident(ident)
         } else {
-            // Globals have been evaluated with the comptime interpreter. Convert that value to HIR.
-            let (expr, contains_function) = if let GlobalValue::Resolved(value) =
-                global.value.clone()
-            {
-                let contains_function = value.contains_function_or_closure();
-                let expr = value
-                    .into_runtime_hir_expression(self.interner, self.files, global.location)
-                    .map_err(MonomorphizationError::InterpreterError)?;
-                (expr, contains_function)
-            } else {
+            // Globals have been evaluated with the comptime interpreter, and that value lowered to
+            // HIR once elaboration finished.
+            let GlobalValue::Resolved(value) = &global.value else {
                 unreachable!(
                     "All global values should be resolved at compile time and before monomorphization"
                 );
             };
+            let contains_function = value.contains_function_or_closure();
+            let expr = global
+                .runtime_value
+                .clone()
+                .expect("resolved globals are lowered to HIR once elaboration finishes")
+                .map_err(MonomorphizationError::InterpreterError)?;
 
-            // The freshly-built HIR from `into_runtime_hir_expression` carries the global's
-            // polymorphic type. The caller pushed the use-site's instantiation bindings before
-            // entering this path, so `follow_bindings` on any `NamedGeneric` inside that type
+            // The global's HIR carries its polymorphic type. The caller put the use-site's
+            // instantiation bindings in the substitution, so any `NamedGeneric` inside that type
             // resolves to the concrete instantiation type when monomorphization walks it.
             let expr = self.expr(expr)?;
 

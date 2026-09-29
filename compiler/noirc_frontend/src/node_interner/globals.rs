@@ -1,4 +1,4 @@
-use fm::FileId;
+use fm::{FileId, FileMap};
 use noirc_errors::Location;
 
 use crate::{
@@ -6,7 +6,7 @@ use crate::{
     graph::CrateId,
     hir::{comptime, def_map::LocalModuleId},
     hir_def::stmt::{HirLetStatement, HirStatement},
-    node_interner::{DefinitionId, DefinitionInfo, DefinitionKind, Node, StmtId},
+    node_interner::{DefinitionId, DefinitionInfo, DefinitionKind, ExprId, Node, StmtId},
     token::SecondaryAttribute,
 };
 
@@ -27,6 +27,9 @@ pub struct GlobalInfo {
     pub location: Location,
     pub let_statement: StmtId,
     pub value: GlobalValue,
+    /// The resolved value lowered to runtime HIR by [`NodeInterner::lower_global_values`], or the
+    /// error lowering it produced. `None` until then.
+    pub runtime_value: Option<Result<ExprId, comptime::InterpreterError>>,
     /// `true` if this global is the synthetic global a fieldless enum variant
     /// (e.g. `Foo::Spam`) is lowered to, rather than a user-declared global.
     pub is_enum_variant: bool,
@@ -74,6 +77,7 @@ impl NodeInterner {
             location,
             visibility,
             value: GlobalValue::Unresolved,
+            runtime_value: None,
             is_enum_variant: false,
         });
         self.global_attributes.insert(id, attributes);
@@ -108,6 +112,27 @@ impl NodeInterner {
     /// (e.g. `Foo::Spam`) is lowered to, as opposed to a user-declared global.
     pub fn is_enum_variant_global(&self, global_id: GlobalId) -> bool {
         self.get_global(global_id).is_enum_variant
+    }
+
+    /// Lower the value of every resolved global that has not been lowered yet to runtime HIR, for
+    /// monomorphization to read.
+    ///
+    /// A global's value is fixed once it is resolved, so each is lowered once. An error is kept
+    /// rather than reported: only a global used in runtime code needs a runtime value, and
+    /// monomorphization reports the error when it reaches one.
+    pub(crate) fn lower_global_values(&mut self, files: &FileMap) {
+        for index in 0..self.globals.len() {
+            let global = &self.globals[index];
+            let GlobalValue::Resolved(value) = &global.value else {
+                continue;
+            };
+            if global.runtime_value.is_some() {
+                continue;
+            }
+            let (value, location) = (value.clone(), global.location);
+            let lowered = value.into_runtime_hir_expression(self, files, location);
+            self.globals[index].runtime_value = Some(lowered);
+        }
     }
 
     pub fn get_global_mut(&mut self, global_id: GlobalId) -> &mut GlobalInfo {
