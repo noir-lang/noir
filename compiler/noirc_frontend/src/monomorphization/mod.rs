@@ -512,26 +512,25 @@ impl<'interner> Monomorphizer<'interner> {
         self.locals.get(&id).copied().map(Definition::Local)
     }
 
-    /// Retrieve the definition for the given function.
+    /// Retrieve the definition for the given function, referenced by `expr_id` with the given
+    /// instantiation `bindings`.
     ///
     /// If the given function has yet to be monomorphized, we'll create its new id now and return
     /// that while queueing the full function to be monomorphized later.
+    #[allow(clippy::too_many_arguments)]
     fn lookup_function(
         &mut self,
         id: node_interner::FuncId,
         expr_id: ExprId,
         typ: &HirType,
         turbofish_generics: &[HirType],
+        bindings: Option<TypeBindings>,
         trait_method: Option<TraitItemId>,
         evaluate_builtin: bool,
     ) -> Result<Definition, MonomorphizationError> {
         let typ = typ.follow_bindings();
         let turbofish_generics = vecmap(turbofish_generics, |typ| typ.follow_bindings());
-        let bindings_key = self
-            .instantiation_bindings(expr_id)
-            .as_ref()
-            .map(Self::canonicalize_bindings)
-            .unwrap_or_default();
+        let bindings_key = bindings.as_ref().map(Self::canonicalize_bindings).unwrap_or_default();
         let is_unconstrained = self.is_unconstrained(id);
 
         let definition = match self
@@ -597,8 +596,17 @@ impl<'interner> Monomorphizer<'interner> {
                         }
                     }
                     FunctionKind::Normal | FunctionKind::TraitFunctionWithoutBody => {
-                        let id =
-                            self.queue_function(id, expr_id, typ, turbofish_generics, trait_method);
+                        let bindings = bindings
+                            .expect("ICE: queued function reference has no instantiation bindings");
+                        let location = self.interner.expr_location(&expr_id);
+                        let id = self.queue_function_with_bindings(
+                            id,
+                            location,
+                            Self::follow_bindings(&bindings),
+                            typ,
+                            turbofish_generics,
+                            trait_method,
+                        );
                         Definition::Function(id)
                     }
                     FunctionKind::Oracle => {
@@ -1720,11 +1728,13 @@ impl<'interner> Monomorphizer<'interner> {
         generics: Option<Vec<HirType>>,
         evaluate_builtin: bool,
     ) -> Result<ast::Expression, MonomorphizationError> {
+        let bindings = self.instantiation_bindings(expr_id);
         let definition = self.lookup_function(
             func_id,
             expr_id,
             typ,
             &generics.unwrap_or_default(),
+            bindings,
             None,
             evaluate_builtin,
         )?;
@@ -2300,47 +2310,14 @@ impl<'interner> Monomorphizer<'interner> {
         trait_item_id: TraitItemId,
         use_current_runtime: bool,
     ) -> Result<ast::Expression, MonomorphizationError> {
-        // `resolve_trait_item_impl` extends the call expression's stored
-        // instantiation bindings with the resolved impl's bindings (so the
-        // ensuing `queue_function` call sees them) and writes the result back
-        // to the interner. The same call expression can be visited again
-        // under a different monomorphization context when its receiver type
-        // is generic and gets resolved to different concrete types across
-        // monomorphization contexts; on the second visit the freshly-extended
-        // bindings would otherwise inherit impl-specific entries from the
-        // first visit. Snapshot and restore here so each visit starts from
-        // the elaboration-time bindings.
-        //
-        // The restore has to happen on every path out of the resolution below, not just the one
-        // that reaches the end of it: `resolve_trait_item` writes the extended bindings before it
-        // can go on to fail with `NoTraitItemInImpl`, and the associated-constant case returns
-        // early on success. Doing the work in a separate call keeps both of those inside the
-        // snapshot.
-        let saved_bindings = self.interner.try_get_instantiation_bindings(expr_id).cloned();
-        let result = self.resolve_trait_item_expr_with_impl_bindings(
-            expr_id,
-            function_type,
-            trait_item_id,
-            use_current_runtime,
-        );
-        self.interner.restore_instantiation_bindings(expr_id, saved_bindings);
-        result
-    }
-
-    /// The body of [`Self::resolve_trait_item_expr`], which runs with the call expression's
-    /// instantiation bindings extended by the resolved impl's.
-    fn resolve_trait_item_expr_with_impl_bindings(
-        &mut self,
-        expr_id: ExprId,
-        function_type: HirType,
-        trait_item_id: TraitItemId,
-        use_current_runtime: bool,
-    ) -> Result<ast::Expression, MonomorphizationError> {
-        // Held for the rest of this function: the impl search's bindings have to stay applied
-        // while the impl's method is compiled, and are undone once it has been.
-        let (item, _impl_search_bindings) =
+        let ResolvedTraitItem { item, impl_search_bindings, instantiation_bindings } =
             resolve_trait_item(self.interner, trait_item_id, expr_id)
                 .map_err(MonomorphizationError::InterpreterError)?;
+
+        // Held for the rest of this function: the impl search's bindings have to stay applied
+        // while the impl's method is compiled, and are undone once it has been.
+        let _impl_search_bindings = BoundTypeVariables::apply(&impl_search_bindings);
+        let instantiation_bindings = self.bindings(&instantiation_bindings);
 
         let func_id = match item {
             TraitItem::Method(func_id) => func_id,
@@ -2356,7 +2333,15 @@ impl<'interner> Monomorphizer<'interner> {
         self.monomorphize_constrained_and_unconstrained(
             use_current_runtime,
             self.force_unconstrained,
-            |this| this.resolve_trait_method_expr(func_id, expr_id, function_type, trait_item_id),
+            |this| {
+                this.resolve_trait_method_expr(
+                    func_id,
+                    instantiation_bindings,
+                    expr_id,
+                    function_type,
+                    trait_item_id,
+                )
+            },
         )
     }
 
@@ -2365,6 +2350,7 @@ impl<'interner> Monomorphizer<'interner> {
     fn resolve_trait_method_expr(
         &mut self,
         func_id: node_interner::FuncId,
+        instantiation_bindings: TypeBindings,
         expr_id: ExprId,
         function_type: HirType,
         trait_item_id: TraitItemId,
@@ -2372,8 +2358,15 @@ impl<'interner> Monomorphizer<'interner> {
         let location = self.interner.expr_location(&expr_id);
         let typ = Rc::new(Self::convert_type(&function_type, location)?);
 
-        let Definition::Function(func_id) =
-            self.lookup_function(func_id, expr_id, &function_type, &[], Some(trait_item_id), true)?
+        let Definition::Function(func_id) = self.lookup_function(
+            func_id,
+            expr_id,
+            &function_type,
+            &[],
+            Some(instantiation_bindings),
+            Some(trait_item_id),
+            true,
+        )?
         else {
             unreachable!();
         };
@@ -2706,32 +2699,6 @@ impl<'interner> Monomorphizer<'interner> {
             }
             _ => unreachable!("logging expr {:?} is not supported", hir_argument),
         }
-    }
-
-    /// Look up the instantiation bindings of a function expression and enqueue it for monomorphization.
-    ///
-    /// Returns the monomorphized ID assigned to the function.
-    fn queue_function(
-        &mut self,
-        id: node_interner::FuncId,
-        expr_id: ExprId,
-        function_type: HirType,
-        turbofish_generics: Vec<HirType>,
-        trait_method: Option<TraitItemId>,
-    ) -> FuncId {
-        let location = self.interner.expr_location(&expr_id);
-        let bindings = self
-            .instantiation_bindings(expr_id)
-            .expect("ICE: queued function reference has no instantiation bindings");
-        let bindings = Self::follow_bindings(&bindings);
-        self.queue_function_with_bindings(
-            id,
-            location,
-            bindings,
-            function_type,
-            turbofish_generics,
-            trait_method,
-        )
     }
 
     /// Store the definition of a function and enqueue it for monomorphization.
@@ -3465,18 +3432,21 @@ pub fn compute_impl_bindings(
     Ok(bindings)
 }
 
-/// Resolve a trait item to a particular impl, returning the ID of that impl or an error on failure.
+/// Resolve a trait item referenced by `expr_id` to a particular impl.
+///
+/// Returns the ID of that impl, the bindings the impl search produced, and the instantiation
+/// bindings of `expr_id` extended with the impl's (see [`impl_instantiation_bindings`]).
 ///
 /// Searching for an impl unifies the object type against the candidates, and the bindings that
-/// search produces have to stay applied while the impl's method is compiled — references to the
-/// trait's generics inside it resolve through them. They are returned as a guard rather than
-/// committed so the caller decides how long they live; see [`BoundTypeVariables::commit`] for
-/// when keeping them is the right answer.
+/// search produces have to be in force while the impl's method is compiled — references to the
+/// trait's generics inside it resolve through them. They are returned rather than applied so the
+/// caller decides how long they last; see [`BoundTypeVariables::commit`] for when keeping them is
+/// the right answer.
 fn resolve_trait_item_impl(
-    interner: &mut NodeInterner,
+    interner: &NodeInterner,
     method_id: TraitItemId,
     expr_id: ExprId,
-) -> Result<(node_interner::TraitImplId, BoundTypeVariables), InterpreterError> {
+) -> Result<(node_interner::TraitImplId, TypeBindings, TypeBindings), InterpreterError> {
     let trait_impl = interner.get_selected_impl_for_expression(expr_id).ok_or_else(|| {
         let location = interner.expr_location(&expr_id);
         InterpreterError::NoImpl { location }
@@ -3484,14 +3454,14 @@ fn resolve_trait_item_impl(
 
     match trait_impl {
         TraitImplKind::Normal(impl_id) => {
-            record_impl_instantiation_bindings(
+            let instantiation_bindings = impl_instantiation_bindings(
                 interner,
                 method_id,
                 impl_id,
                 expr_id,
                 TypeBindings::default(),
             );
-            Ok((impl_id, BoundTypeVariables::none()))
+            Ok((impl_id, TypeBindings::default(), instantiation_bindings))
         }
         TraitImplKind::Prepared { .. } => {
             unreachable!("ICE: Prepared trait impl should have been replaced by a Normal one")
@@ -3511,14 +3481,15 @@ fn resolve_trait_item_impl(
 
                     // The extra bindings come from impl lookup, similar to what's done when
                     // solving trait constraints in the frontend (see `check_trait_constraints`).
-                    record_impl_instantiation_bindings(
+                    let instantiation_bindings = impl_instantiation_bindings(
                         interner,
                         method_id,
                         impl_id,
                         expr_id,
                         instantiation_bindings,
                     );
-                    Ok((impl_id, guard))
+                    drop(guard);
+                    Ok((impl_id, bindings, instantiation_bindings))
                 }
                 Ok((TraitImplKind::Assumed { .. }, ..)) => {
                     Err(InterpreterError::NoImpl { location })
@@ -3558,17 +3529,17 @@ fn resolve_trait_item_impl(
     }
 }
 
-/// Apply all instantiation bindings needed once a concrete impl has been chosen for a
-/// trait-method call expression: merge in any bindings discovered during impl lookup,
-/// connect the impl method's direct generics to the trait method's generics, bind the
-/// trait's `Self` to the impl's self type when applicable, and store the result back.
-fn record_impl_instantiation_bindings(
-    interner: &mut NodeInterner,
+/// The instantiation bindings of a trait-method call expression once a concrete impl has been
+/// chosen for it: the expression's own, plus any discovered during impl lookup, plus the
+/// bindings connecting the impl method's direct generics to the trait method's generics, plus
+/// the trait's `Self` bound to the impl's self type when applicable.
+fn impl_instantiation_bindings(
+    interner: &NodeInterner,
     method_id: TraitItemId,
     impl_id: node_interner::TraitImplId,
     expr_id: ExprId,
     extra_bindings: TypeBindings,
-) {
+) -> TypeBindings {
     let mut bindings = interner.get_instantiation_bindings(expr_id).clone();
     bindings.extend(extra_bindings);
     bind_trait_impl_func_generics_to_trait_func_generics(
@@ -3578,7 +3549,7 @@ fn record_impl_instantiation_bindings(
         &mut bindings,
     );
     bind_trait_self_to_impl_self(interner, method_id, impl_id, &mut bindings);
-    interner.store_instantiation_bindings(expr_id, bindings);
+    bindings
 }
 
 /// Bind the trait's `Self` type variable to the impl's concrete self type when the impl's
@@ -3703,11 +3674,12 @@ fn bind_trait_impl_func_generics_to_trait_func_generics(
 ///
 /// Error if the name cannot be matched to anything.
 pub(crate) fn resolve_trait_item(
-    interner: &mut NodeInterner,
+    interner: &NodeInterner,
     method_id: TraitItemId,
     expr_id: ExprId,
-) -> Result<(TraitItem, BoundTypeVariables), InterpreterError> {
-    let (impl_id, impl_search_bindings) = resolve_trait_item_impl(interner, method_id, expr_id)?;
+) -> Result<ResolvedTraitItem, InterpreterError> {
+    let (impl_id, impl_search_bindings, instantiation_bindings) =
+        resolve_trait_item_impl(interner, method_id, expr_id)?;
 
     let name = interner.definition_name(method_id.item_id);
     let impl_ = interner.get_trait_implementation(impl_id);
@@ -3715,7 +3687,8 @@ pub(crate) fn resolve_trait_item(
 
     for method in &impl_.methods {
         if interner.function_name(method) == name {
-            return Ok((TraitItem::Method(*method), impl_search_bindings));
+            let item = TraitItem::Method(*method);
+            return Ok(ResolvedTraitItem { item, impl_search_bindings, instantiation_bindings });
         }
     }
 
@@ -3727,24 +3700,35 @@ pub(crate) fn resolve_trait_item(
                 let id = *id;
                 let expected_type = expected_type.clone();
 
-                // We also need to apply any instantiation bindings if the expression has any
-                let instantiation_bindings = interner.try_get_instantiation_bindings(expr_id);
-                let value = if let Some(instantiation_bindings) = instantiation_bindings {
-                    item.typ.force_substitute(instantiation_bindings)
-                } else {
-                    item.typ.clone()
-                };
+                // Apply the expression's instantiation bindings, with the impl search's bindings
+                // in force.
+                let guard = BoundTypeVariables::apply(&impl_search_bindings);
+                let value = item.typ.force_substitute(&instantiation_bindings);
+                drop(guard);
 
-                return Ok((
-                    TraitItem::Constant { id, expected_type, value },
+                let item = TraitItem::Constant { id, expected_type, value };
+                return Ok(ResolvedTraitItem {
+                    item,
                     impl_search_bindings,
-                ));
+                    instantiation_bindings,
+                });
             }
         }
     }
 
     let location = interner.expr_location(&expr_id);
     Err(InterpreterError::NoTraitItemInImpl { item_name: name.to_string(), location })
+}
+
+/// A trait item resolved to the item of a particular impl by [`resolve_trait_item`].
+pub(crate) struct ResolvedTraitItem {
+    pub(crate) item: TraitItem,
+    /// The bindings produced by searching for the impl, which have to be in force while the item
+    /// is used.
+    pub(crate) impl_search_bindings: TypeBindings,
+    /// The instantiation bindings of the expression referring to the item, extended with the
+    /// impl's.
+    pub(crate) instantiation_bindings: TypeBindings,
 }
 
 pub(crate) enum TraitItem {
