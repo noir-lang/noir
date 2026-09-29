@@ -123,11 +123,13 @@ pub struct Interpreter<'local, 'interner> {
     /// unbind the generic completely instead of resetting it to its previous binding.
     bound_generics: Vec<BoundGenerics>,
 
-    /// Bindings for the generics of the function being interpreted. Every type this interpreter
-    /// reads from the HIR of that function goes through [`Self::ty`], which applies them.
+    /// Bindings for the generics of the function being interpreted: a call's instantiation and
+    /// impl bindings, or the bindings a closure was created under.
     ///
-    /// Always empty: generics are bound in place by the guards `call_function` holds and by
-    /// [`Self::bound_generics`], so a type read from the HIR already sees them.
+    /// The same bindings are also written into the shared HIR (the top of
+    /// [`Self::bound_generics`] holds them), and it is those writes that the types this
+    /// interpreter reads resolve through. In debug builds [`Self::ty`] checks that applying this
+    /// substitution to a type, with the frame's writes taken out, resolves it to the same type.
     substitution: TypeBindings,
 
     /// Current evaluation depth.
@@ -164,7 +166,35 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     /// This is the one way the interpreter reads a type from the HIR of the function it is
     /// interpreting: [`Self::expr_type`] and [`Self::bindings`] are shorthands for it.
     pub(super) fn ty(&self, typ: &Type) -> Type {
-        typ.substitute(&self.substitution)
+        if cfg!(debug_assertions) {
+            self.assert_substitution_resolves(typ);
+        }
+        typ.clone()
+    }
+
+    /// Assert that [`Self::substitution`] alone resolves `typ` to the type the frame's bindings in
+    /// the shared HIR resolve it to.
+    fn assert_substitution_resolves(&self, typ: &Type) {
+        // `follow_bindings` expects an instantiated type; a polymorphic global's HIR still
+        // carries its quantifier, so check the type underneath it.
+        if let Type::Forall(_, typ) = typ {
+            return self.assert_substitution_resolves(typ);
+        }
+        let through_bindings = typ.follow_bindings();
+        // Only the top frame is bound: entering a call or closure takes the frame below it out.
+        let frame = self.bound_generics.last();
+        if let Some(frame) = frame {
+            frame.remove();
+        }
+        let through_substitution = typ.substitute(&self.substitution).follow_bindings();
+        if let Some(frame) = frame {
+            frame.apply();
+        }
+        assert_eq!(
+            through_bindings, through_substitution,
+            "comptime interpreter: the substitution resolves `{typ:?}` differently from the bound \
+             type variables"
+        );
     }
 
     /// The type of the expression `id` as seen from the function being interpreted.
@@ -231,6 +261,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let impl_guard = BoundTypeVariables::apply(&impl_bindings);
 
         self.remember_function_bindings(&instantiation_bindings, &impl_bindings);
+        let mut frame = instantiation_bindings;
+        frame.extend(impl_bindings);
+        let caller_substitution = std::mem::replace(&mut self.substitution, frame);
 
         if let Some(tracker) = self.elaborator.evaluation_tracker.as_mut() {
             tracker.track_function_call(function, location);
@@ -238,6 +271,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         let result = self.call_function_inner(function, arguments, location);
 
+        self.substitution = caller_substitution;
         self.elaborator.pop_interpreter_call_stack();
         drop(impl_guard);
         drop(instantiation_guard);
@@ -435,9 +469,13 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             closure.bindings.apply();
 
             this.remember_closure_bindings(&closure.bindings);
+            let caller_substitution =
+                std::mem::replace(&mut this.substitution, closure.substitution.clone());
 
             let result =
                 this.call_closure_inner(closure.lambda, closure.env, arguments, call_location);
+
+            this.substitution = caller_substitution;
 
             this.elaborator.pop_interpreter_call_stack();
 
@@ -1456,6 +1494,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             function_scope: self.current_function,
             module_scope,
             bindings,
+            substitution: self.substitution.clone(),
         };
         Ok(Value::Closure(Box::new(closure)))
     }
