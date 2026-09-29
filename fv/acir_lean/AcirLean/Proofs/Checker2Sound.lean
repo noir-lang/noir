@@ -839,11 +839,18 @@ end
 
 /-! ## Programs -/
 
-def EnvOK (σ : ℕ → F) (reps : List (ℕ × Rep2)) (env : Env) : Prop :=
-  List.Forall₂ (fun a b => a.1 = b.1 ∧ RepOK2 σ a.2 b.2) reps env
+/-- A value is where its representation says: a scalar, or an array whose
+scalars are, position by position. -/
+@[reducible] def ValOK (σ : ℕ → F) : RVal → Value → Prop
+  | .scalar r, .scalar v => RepOK2 σ r v
+  | .array rs, .array xs => List.Forall₂ (RepOK2 σ) rs xs
+  | _, _ => False
 
-theorem lookup_ok {σ : ℕ → F} : ∀ {reps : List (ℕ × Rep2)} {env : Env}, EnvOK σ reps env →
-    ∀ {id : ℕ} {r : Rep2}, reps.lookup id = some r → ∃ v, env.lookup id = some v ∧ RepOK2 σ r v
+def EnvOK (σ : ℕ → F) (reps : Reps) (env : Env) : Prop :=
+  List.Forall₂ (fun a b => a.1 = b.1 ∧ ValOK σ a.2 b.2) reps env
+
+theorem lookup_ok {σ : ℕ → F} : ∀ {reps : Reps} {env : Env}, EnvOK σ reps env →
+    ∀ {id : ℕ} {r : RVal}, reps.lookup id = some r → ∃ v, env.lookup id = some v ∧ ValOK σ r v
   | [], [], _, _, _, h => by simp at h
   | (i, a) :: _, (j, v) :: _, .cons ⟨hij, hok⟩ ht, id, r, h => by
     simp only at hij
@@ -857,28 +864,136 @@ theorem lookup_ok {σ : ℕ → F} : ∀ {reps : List (ℕ × Rep2)} {env : Env}
       simp only [List.lookup, hne] at h ⊢
       exact lookup_ok ht h
 
-theorem opRep_ok {σ : ℕ → F} {reps : List (ℕ × Rep2)} {env : Env} (hE : EnvOK σ reps env)
+theorem constRep_ok (σ : ℕ → F) (c : ℕ) (ty : ValueType) :
+    RepOK2 σ (constRep c ty) ((c : F), ty) := by
+  refine ⟨rfl, ?_, ?_, ?_⟩
+  · intro P hP
+    simp only [constRep, List.mem_singleton] at hP
+    subst hP
+    simp
+  · simp [constRep, ZMod.val_natCast]
+  · simp [constRep, ZMod.val_natCast]
+
+theorem opRep_ok {σ : ℕ → F} {reps : Reps} {env : Env} (hE : EnvOK σ reps env)
     {o : Operand} {r : Rep2} (h : opRep reps o = some r) :
     ∃ v, o.value env = some v ∧ RepOK2 σ r v := by
   cases o with
-  | var id => exact lookup_ok hE h
+  | var id =>
+    simp only [opRep] at h
+    split at h
+    · next r' hl =>
+      simp only [Option.some.injEq] at h
+      subst h
+      obtain ⟨v, hv, hok⟩ := lookup_ok hE hl
+      cases v with
+      | scalar v => exact ⟨v, by simp [Operand.value, hv], hok⟩
+      | array xs => exact hok.elim
+    · simp at h
   | const c ty =>
     simp only [opRep, Option.some.injEq] at h
     subst h
-    refine ⟨((c : F), ty), rfl, rfl, ?_, ?_, ?_⟩
-    · intro P hP
-      simp only [List.mem_singleton] at hP
-      subst hP
-      simp
-    · simp [ZMod.val_natCast]
-    · simp [ZMod.val_natCast]
+    exact ⟨((c : F), ty), rfl, constRep_ok σ c ty⟩
+
+theorem opArr_ok {σ : ℕ → F} {reps : Reps} {env : Env} (hE : EnvOK σ reps env)
+    {o : Operand} {rs : List Rep2} (h : opArr reps o = some rs) :
+    ∃ xs, o.array env = some xs ∧ List.Forall₂ (RepOK2 σ) rs xs := by
+  cases o with
+  | var id =>
+    simp only [opArr] at h
+    split at h
+    · next rs' hl =>
+      simp only [Option.some.injEq] at h
+      subst h
+      obtain ⟨v, hv, hok⟩ := lookup_ok hE hl
+      cases v with
+      | scalar v => exact hok.elim
+      | array xs => exact ⟨xs, by simp [Operand.array, hv], hok⟩
+    · simp at h
+  | const c ty => simp [opArr] at h
+
+/-- The scalars of a returned operand evaluate to its flat values. -/
+def FlatOK (σ : ℕ → F) (r : Rep2) (x : F) : Prop := ∀ P ∈ r.alts, P.eval σ = x
+
+theorem opFlat_ok {σ : ℕ → F} {reps : Reps} {env : Env} (hE : EnvOK σ reps env)
+    {o : Operand} {rs : List Rep2} (h : opFlat reps o = some rs) :
+    ∃ xs, o.flat env = some xs ∧ List.Forall₂ (FlatOK σ) rs xs := by
+  cases o with
+  | var id =>
+    simp only [opFlat] at h
+    split at h
+    · next r hl =>
+      simp only [Option.some.injEq] at h
+      subst h
+      obtain ⟨v, hv, hok⟩ := lookup_ok hE hl
+      cases v with
+      | scalar v => exact ⟨[v.1], by simp [Operand.flat, hv], .cons hok.2.1 .nil⟩
+      | array xs => exact hok.elim
+    · next rs' hl =>
+      simp only [Option.some.injEq] at h
+      subst h
+      obtain ⟨v, hv, hok⟩ := lookup_ok hE hl
+      cases v with
+      | scalar v => exact hok.elim
+      | array xs =>
+        refine ⟨xs.map Prod.fst, by simp [Operand.flat, hv], ?_⟩
+        rw [List.forall₂_map_right_iff]
+        exact hok.imp fun _ _ h => h.2.1
+    · simp at h
+  | const c ty =>
+    simp only [opFlat, Option.some.injEq] at h
+    subst h
+    exact ⟨[(c : F)], rfl, .cons (constRep_ok σ c ty).2.1 .nil⟩
+
+theorem forall₂_getElem? {α β : Type} {R : α → β → Prop} :
+    ∀ {as : List α} {bs : List β}, List.Forall₂ R as bs →
+      ∀ {j : ℕ} {a : α}, as[j]? = some a → ∃ b, bs[j]? = some b ∧ R a b
+  | [], [], .nil, _, _, h => by simp at h
+  | _ :: _, b :: _, .cons hab ht, 0, a, h => by
+    simp only [List.getElem?_cons_zero, Option.some.injEq] at h
+    subst h
+    exact ⟨b, rfl, hab⟩
+  | _ :: _, _ :: _, .cons _ ht, j + 1, a, h => by
+    simpa using forall₂_getElem? ht (by simpa using h)
+
+theorem forall₂_set {α β : Type} {R : α → β → Prop} {a : α} {b : β} (hab : R a b) :
+    ∀ {as : List α} {bs : List β}, List.Forall₂ R as bs →
+      ∀ (j : ℕ), List.Forall₂ R (as.set j a) (bs.set j b)
+  | [], [], .nil, _ => by simp
+  | _ :: _, _ :: _, .cons _ ht, 0 => by simpa using List.Forall₂.cons hab ht
+  | _ :: _, _ :: _, .cons h1 ht, j + 1 => by simpa using List.Forall₂.cons h1 (forall₂_set hab ht j)
+
+theorem opReps_ok {σ : ℕ → F} {reps : Reps} {env : Env} (hE : EnvOK σ reps env) :
+    ∀ (es : List Operand) (rs : List Rep2), es.mapM (opRep reps) = some rs →
+      ∃ xs, es.mapM (·.value env) = some xs ∧ List.Forall₂ (RepOK2 σ) rs xs
+  | [], rs, h => by
+    simp only [List.mapM_nil, Option.pure_def, Option.some.injEq] at h
+    subst h
+    exact ⟨[], rfl, .nil⟩
+  | e :: es, rs, h => by
+    simp only [List.mapM_cons, Option.pure_def, Option.bind_eq_bind, Option.bind_eq_some_iff,
+      Option.some.injEq] at h
+    obtain ⟨r, hr, rs', hrs', rfl⟩ := h
+    obtain ⟨x, hx, hok⟩ := opRep_ok hE hr
+    obtain ⟨xs, hxs, hall⟩ := opReps_ok hE es rs' hrs'
+    exact ⟨x :: xs, by simp [List.mapM_cons, hx, hxs], .cons hok hall⟩
+
+theorem constIdx_some {len j : ℕ} {i : Operand} (h : constIdx len i = some j) :
+    i = .const j (.uint 32) ∧ j < len ∧ j < p := by
+  unfold constIdx at h
+  split at h
+  · next c =>
+    split_ifs at h with hc
+    simp only [Option.some.injEq] at h
+    subst h
+    exact ⟨rfl, hc⟩
+  · simp at h
 
 section
 variable {cc : List Opcode} {σ : ℕ → F} (hcc : ∀ c ∈ cc, c.Holds σ)
 include hcc
 
-theorem step2_ok {reps : List (ℕ × Rep2)} {env : Env} (hE : EnvOK σ reps env) {i : Instruction}
-    {reps' : List (ℕ × Rep2)} (h : step2 cc reps i = some reps') :
+theorem step2_ok {reps : Reps} {env : Env} (hE : EnvOK σ reps env) {i : Instruction}
+    {reps' : Reps} (h : step2 cc reps i = some reps') :
     ∃ env', i.run env = some env' ∧ EnvOK σ reps' env' := by
   cases i with
   | bin d op u a b =>
@@ -889,7 +1004,7 @@ theorem step2_ok {reps : List (ℕ × Rep2)} {env : Env} (hE : EnvOK σ reps env
     obtain ⟨v, hv, hokv⟩ := binRep_sound hcc hr hokx hoky
     simp only [Option.some.injEq] at h
     subst h
-    exact ⟨(d, v) :: env, by simp [Instruction.run, hx, hy, hv], .cons ⟨rfl, hokv⟩ hE⟩
+    exact ⟨(d, .scalar v) :: env, by simp [Instruction.run, hx, hy, hv], .cons ⟨rfl, hokv⟩ hE⟩
   | not d a =>
     simp only [step2, Option.bind_eq_bind, Option.bind_eq_some_iff] at h
     obtain ⟨ra, hra, h⟩ := h
@@ -905,7 +1020,7 @@ theorem step2_ok {reps : List (ℕ × Rep2)} {env : Env} (hE : EnvOK σ reps env
       have hxp : x.val ≤ 2 ^ n - 1 := by omega
       have hv : ((2 ^ n - 1 - x.val : ℕ) : F).val = 2 ^ n - 1 - x.val := val_natCast_of_lt (by omega)
       have hxn : x.val < 2 ^ n := by omega
-      refine ⟨(d, (((2 ^ n - 1 - x.val : ℕ) : F), .uint n)) :: env,
+      refine ⟨(d, .scalar (((2 ^ n - 1 - x.val : ℕ) : F), .uint n)) :: env,
         by
           have hmod : x.val % 2 ^ n = x.val := Nat.mod_eq_of_lt hxn
           have h1' : n = 1 → x.val ≤ 1 := fun h => by subst h; omega
@@ -925,7 +1040,7 @@ theorem step2_ok {reps : List (ℕ × Rep2)} {env : Env} (hE : EnvOK σ reps env
     simp only at hty hP hL hM
     simp only [Option.some.injEq] at h
     subst h
-    exact ⟨(d, (x, ty)) :: env, by simp [Instruction.run, hx], .cons ⟨rfl, rfl, hP, hL, hM⟩ hE⟩
+    exact ⟨(d, .scalar (x, ty)) :: env, by simp [Instruction.run, hx], .cons ⟨rfl, rfl, hP, hL, hM⟩ hE⟩
   | truncate d a k m =>
     simp only [step2, Option.bind_eq_bind, Option.bind_eq_some_iff] at h
     obtain ⟨ra, hra, h⟩ := h
@@ -937,7 +1052,7 @@ theorem step2_ok {reps : List (ℕ × Rep2)} {env : Env} (hE : EnvOK σ reps env
       obtain ⟨hty, -, -, hM⟩ := hok
       simp only at hty hM
       exact .inr fun h1 => by have := hk.2 (hty.trans h1); omega
-    exact ⟨(d, (((x.val % 2 ^ k : ℕ) : F), tx)) :: env,
+    exact ⟨(d, .scalar (((x.val % 2 ^ k : ℕ) : F), tx)) :: env,
       by simp only [Instruction.run, hx, Option.bind_eq_bind, Option.bind_some]; rw [if_pos hg],
       .cons ⟨rfl, truncRep_sound hcc hok k⟩ hE⟩
   | constrain a b m =>
@@ -972,6 +1087,38 @@ theorem step2_ok {reps : List (ℕ × Rep2)} {env : Env} (hE : EnvOK σ reps env
         have := checked_sound hcc hPa hc
         omega
     exact ⟨env, by simp only [Instruction.run, hx, Option.bind_eq_bind, Option.bind_some]; rw [if_pos ⟨hk0, hk, fun h1 => by have := hu1' h1; omega⟩], hE⟩
+  | arrayGet d a i ty =>
+    simp only [step2, Option.bind_eq_bind, Option.bind_eq_some_iff] at h
+    obtain ⟨rs, hrs, j, hj, r, hr, h⟩ := h
+    simp only [Option.some.injEq] at h
+    subst h
+    obtain ⟨xs, hxs, hall⟩ := opArr_ok hE hrs
+    obtain ⟨rfl, hjl, hjp⟩ := constIdx_some hj
+    obtain ⟨x, hx, hok⟩ := forall₂_getElem? hall hr
+    have hlen := hall.length_eq
+    have hi : (Operand.const j (.uint 32)).value env = some ((j : F), .uint 32) := rfl
+    obtain ⟨_, hxj⟩ := List.getElem?_eq_some_iff.1 hx
+    refine ⟨(d, .scalar x) :: env, ?_, .cons ⟨rfl, hok⟩ hE⟩
+    simp [Instruction.run, hxs, hi, arrayIndex, val_natCast_of_lt hjp, ← hlen, hjl, hxj]
+  | arraySet d m a i v =>
+    simp only [step2, Option.bind_eq_bind, Option.bind_eq_some_iff] at h
+    obtain ⟨rs, hrs, j, hj, r, hr, h⟩ := h
+    simp only [Option.some.injEq] at h
+    subst h
+    obtain ⟨xs, hxs, hall⟩ := opArr_ok hE hrs
+    obtain ⟨rfl, hjl, hjp⟩ := constIdx_some hj
+    obtain ⟨x, hx, hok⟩ := opRep_ok hE hr
+    have hlen := hall.length_eq
+    have hi : (Operand.const j (.uint 32)).value env = some ((j : F), .uint 32) := rfl
+    refine ⟨(d, .array (xs.set j x)) :: env, ?_, .cons ⟨rfl, forall₂_set hok hall j⟩ hE⟩
+    simp [Instruction.run, hxs, hi, arrayIndex, val_natCast_of_lt hjp, ← hlen, hjl, hx]
+  | makeArray d es ty =>
+    simp only [step2, Option.bind_eq_bind, Option.bind_eq_some_iff] at h
+    obtain ⟨rs, hrs, h⟩ := h
+    simp only [Option.some.injEq] at h
+    subst h
+    obtain ⟨xs, hxs, hall⟩ := opReps_ok hE es rs hrs
+    exact ⟨(d, .array xs) :: env, by simp [Instruction.run, hxs], .cons ⟨rfl, hall⟩ hE⟩
 
 end
 
@@ -1004,30 +1151,95 @@ theorem paramRep_ok {w : ℕ} {ty : ValueType} {r : Rep2} (h : paramRep cc w ty 
     have := wbound_sound hcc hb
     exact ⟨⟨rfl, by simp, this.1, this.2⟩, by simp [ValueType.fits]; omega⟩
 
-theorem initReps_ok : ∀ (ps : List (ℕ × ValueType)) (ws : List ℕ) (reps0 : List (ℕ × Rep2)),
-    initReps cc ps ws = some reps0 →
-    EnvOK σ reps0 ((ps.zip ((ws.map fun i => (σ i).val).map fun x => (x : F))).map
-        fun ((id, ty), x) => (id, (x, ty))) ∧
-      ∀ e ∈ ps.zip (ws.map fun i => (σ i).val), e.1.2.fits (e.2 : F) = true
-  | [], _, reps0, h => by
-    simp only [initReps, Option.some.injEq] at h; subst h; simp [EnvOK]
-  | _ :: _, [], reps0, h => by
-    simp only [initReps, Option.some.injEq] at h; subst h; simp [EnvOK]
-  | (id, ty) :: ps, w :: ws, reps0, h => by
-    simp only [initReps, Option.bind_eq_bind, Option.bind_eq_some_iff] at h
-    obtain ⟨r, hr, rest, hrest, h⟩ := h
-    simp only [Option.some.injEq] at h
+theorem paramReps_ok : ∀ (l : List (ValueType × ℕ)) (rs : List Rep2),
+    l.mapM (fun (ty, w) => paramRep cc w ty) = some rs →
+      List.Forall₂ (fun r (e : ValueType × ℕ) => RepOK2 σ r (σ e.2, e.1)) rs l ∧
+        ∀ e ∈ l, e.1.fits (σ e.2) = true
+  | [], rs, h => by
+    simp only [List.mapM_nil, Option.pure_def, Option.some.injEq] at h
     subst h
+    exact ⟨.nil, by simp⟩
+  | (ty, w) :: l, rs, h => by
+    simp only [List.mapM_cons, Option.pure_def, Option.bind_eq_bind, Option.bind_eq_some_iff,
+      Option.some.injEq] at h
+    obtain ⟨r, hr, rs', hrs', rfl⟩ := h
     obtain ⟨hok, hfit⟩ := paramRep_ok hcc hr
-    obtain ⟨hE, hf⟩ := initReps_ok ps ws rest hrest
-    refine ⟨.cons ⟨rfl, by simpa [cast_val] using hok⟩ hE, ?_⟩
+    obtain ⟨hall, hf⟩ := paramReps_ok l rs' hrs'
+    refine ⟨.cons hok hall, ?_⟩
     intro e he
-    simp only [List.map_cons, List.zip_cons_cons, List.mem_cons] at he
+    simp only [List.mem_cons] at he
     rcases he with rfl | he
-    · simpa [cast_val] using hfit
+    · exact hfit
     · exact hf e he
 
-theorem fold_ok2 : ∀ (body : List Instruction) (reps : List (ℕ × Rep2)) (env : Env), EnvOK σ reps env →
+omit hcc in
+theorem take_zip_map (f : ℕ → F) : ∀ (ts : List ValueType) (ws : List ℕ),
+    ((ws.map f).take ts.length).zip ts = (ts.zip ws).map fun (ty, w) => (f w, ty)
+  | [], _ => by simp
+  | _ :: _, [] => by simp
+  | ty :: ts, w :: ws => by simp [take_zip_map f ts ws]
+
+omit hcc in
+theorem mem_zip_append {α β : Type} {e : α × β} :
+    ∀ (a b : List α) (v : List β), e ∈ (a ++ b).zip v → e ∈ a.zip v ∨ e ∈ b.zip (v.drop a.length)
+  | [], _, _, h => .inr (by simpa using h)
+  | _ :: _, _, [], h => by simp at h
+  | x :: a, b, y :: v, h => by
+    simp only [List.cons_append, List.zip_cons_cons, List.mem_cons] at h
+    rcases h with rfl | h
+    · exact .inl (by simp)
+    · rcases mem_zip_append a b v h with h | h
+      · exact .inl (by simp [h])
+      · exact .inr (by simpa using h)
+
+theorem initReps_ok : ∀ (ps : List (ℕ × ParamType)) (ws : List ℕ) (reps0 : Reps),
+    initReps cc ps ws = some reps0 →
+    EnvOK σ reps0 (bindParams ps (ws.map σ)) ∧
+      ∀ e ∈ (ps.flatMap (·.2.flat)).zip (ws.map σ), e.1.fits e.2 = true
+  | [], _, reps0, h => by
+    simp only [initReps, Option.some.injEq] at h; subst h; simp [EnvOK, bindParams]
+  | (id, t) :: ps, ws, reps0, h => by
+    simp only [initReps, Option.bind_eq_bind, Option.bind_eq_some_iff] at h
+    obtain ⟨rs, hrs, rest, hrest, h⟩ := h
+    obtain ⟨hall, hfit⟩ := paramReps_ok hcc _ rs hrs
+    obtain ⟨hE, hf⟩ := initReps_ok ps (ws.drop t.flat.length) rest hrest
+    have hxs := take_zip_map σ t.flat ws
+    have hvals : List.Forall₂ (RepOK2 σ) rs (((ws.map σ).take t.flat.length).zip t.flat) := by
+      rw [hxs, List.forall₂_map_right_iff]
+      exact hall
+    have hdrop : (ws.map σ).drop t.flat.length = (ws.drop t.flat.length).map σ := by
+      simp [List.map_drop]
+    refine ⟨?_, ?_⟩
+    · cases t with
+      | scalar ty =>
+        rcases rs with _ | ⟨r, _ | ⟨r2, rs⟩⟩
+        · simp at h
+        · simp only [Option.some.injEq] at h
+          subst h
+          obtain ⟨b, u', hb, hu', hu⟩ := List.forall₂_cons_left_iff.1 hvals
+          rw [List.forall₂_nil_left_iff] at hu'
+          subst hu'
+          have hhead : (((ws.map σ).take (ParamType.scalar ty).flat.length).zip
+              (ParamType.scalar ty).flat).headD (0, .field) = b := by rw [hu]; rfl
+          simp only [bindParams]
+          rw [hhead, hdrop]
+          exact .cons ⟨rfl, hb⟩ hE
+        · simp at h
+      | array ts n =>
+        simp only [Option.some.injEq] at h
+        subst h
+        simp only [bindParams, hdrop]
+        exact .cons ⟨rfl, hvals⟩ hE
+    · intro e he
+      simp only [List.flatMap_cons] at he
+      rcases mem_zip_append _ _ _ he with he | he
+      · rw [List.zip_map_right] at he
+        obtain ⟨⟨ty, w⟩, hmem, rfl⟩ := List.mem_map.1 he
+        exact hfit (ty, w) hmem
+      · rw [hdrop] at he
+        exact hf e he
+
+theorem fold_ok2 : ∀ (body : List Instruction) (reps : Reps) (env : Env), EnvOK σ reps env →
     ∀ reps', body.foldlM (step2 cc) reps = some reps' →
       ∃ env', body.foldlM Instruction.run env = some env' ∧ EnvOK σ reps' env'
   | [], reps, env, hE, reps', h => by
@@ -1040,27 +1252,61 @@ theorem fold_ok2 : ∀ (body : List Instruction) (reps : List (ℕ × Rep2)) (en
     obtain ⟨env', he', hE'⟩ := fold_ok2 body reps1 env1 hE1 reps' h2
     exact ⟨env', by simp [List.foldlM_cons, he1, he'], hE'⟩
 
-theorem rets_ok {reps : List (ℕ × Rep2)} {env : Env} (hE : EnvOK σ reps env) :
-    ∀ (rs : List ℕ) (os : List Operand), rs.length = os.length →
-      (rs.zip os).all (fun (r, o) => retOK cc reps r o) = true →
-      ∃ vs, os.mapM (fun o => (o.value env).map Prod.fst) = some vs ∧
-        rs.map (fun i => (σ i).val) = vs.map ZMod.val
-  | [], [], _, _ => ⟨[], rfl, rfl⟩
-  | r :: rs, o :: os, hl, h => by
+omit hcc in
+theorem opFlats_ok {reps : Reps} {env : Env} (hE : EnvOK σ reps env) :
+    ∀ (os : List Operand) (rss : List (List Rep2)), os.mapM (opFlat reps) = some rss →
+      ∃ xss, os.mapM (·.flat env) = some xss ∧ List.Forall₂ (List.Forall₂ (FlatOK σ)) rss xss
+  | [], rss, h => by
+    simp only [List.mapM_nil, Option.pure_def, Option.some.injEq] at h
+    subst h
+    exact ⟨[], rfl, .nil⟩
+  | o :: os, rss, h => by
+    simp only [List.mapM_cons, Option.pure_def, Option.bind_eq_bind, Option.bind_eq_some_iff,
+      Option.some.injEq] at h
+    obtain ⟨rs, hr, rss', hrss', rfl⟩ := h
+    obtain ⟨xs, hx, hok⟩ := opFlat_ok hE hr
+    obtain ⟨xss, hxss, hall⟩ := opFlats_ok hE os rss' hrss'
+    exact ⟨xs :: xss, by simp [List.mapM_cons, hx, hxss], .cons hok hall⟩
+
+omit hcc in
+theorem forall₂_flatten {α β : Type} {R : α → β → Prop} :
+    ∀ {as : List (List α)} {bs : List (List β)}, List.Forall₂ (List.Forall₂ R) as bs →
+      List.Forall₂ R as.flatten bs.flatten
+  | [], [], .nil => .nil
+  | _ :: _, _ :: _, .cons h ht => by
+    simpa using List.rel_append h (forall₂_flatten ht)
+
+theorem retWits_ok : ∀ (ws : List ℕ) (rs : List Rep2) (xs : List F),
+    List.Forall₂ (FlatOK σ) rs xs → ws.length = rs.length →
+      (ws.zip rs).all (fun (w, r) => retOK cc w r) = true →
+      ws.map (fun i => (σ i).val) = xs.map ZMod.val
+  | [], [], [], _, _, _ => rfl
+  | w :: ws, r :: rs, x :: xs, .cons hr ht, hl, h => by
     simp only [List.zip_cons_cons, List.all_cons, Bool.and_eq_true] at h
     obtain ⟨h1, h2⟩ := h
-    obtain ⟨vs, hvs, hm⟩ := rets_ok hE rs os (by simpa using hl) h2
-    unfold retOK at h1
-    split at h1
-    · next ro hro =>
-      obtain ⟨⟨x, tx⟩, hx, ⟨_, hP, _, _⟩⟩ := opRep_ok hE hro
-      simp only at hP
-      obtain ⟨X, hX, he⟩ := List.any_eq_true.1 h1
-      have := eqVia_sound hcc he
-      rw [eval_pvar, forms_sound hcc hP X hX] at this
-      refine ⟨x :: vs, by simp [List.mapM_cons, hx, hvs], ?_⟩
-      simp [hm, this]
-    · simp at h1
+    have hrest := retWits_ok ws rs xs ht (by simpa using hl) h2
+    obtain ⟨X, hX, he⟩ := List.any_eq_true.1 h1
+    have := eqVia_sound hcc he
+    rw [eval_pvar, forms_sound hcc hr X hX] at this
+    simp [hrest, this]
+  | [], _ :: _, _, _, hl, _ => by simp at hl
+  | _ :: _, [], _, _, hl, _ => by simp at hl
+  | _ :: _, _ :: _, [], h, _, _ => by cases h
+  | [], [], _ :: _, h, _, _ => by cases h
+
+theorem rets_ok {reps : Reps} {env : Env} (hE : EnvOK σ reps env) (ws : List ℕ) (os : List Operand)
+    (h : retsOK cc reps ws os = true) :
+    ∃ vs, (do let outs ← os.mapM (·.flat env); some outs.flatten) = some vs ∧
+      ws.map (fun i => (σ i).val) = vs.map ZMod.val := by
+  unfold retsOK at h
+  split at h
+  · simp at h
+  · next rss hrss =>
+    simp only [Bool.and_eq_true, decide_eq_true_eq] at h
+    obtain ⟨hl, hall⟩ := h
+    obtain ⟨xss, hxss, hok⟩ := opFlats_ok hE os rss hrss
+    exact ⟨xss.flatten, by simp [hxss],
+      retWits_ok hcc ws rss.flatten xss.flatten (forall₂_flatten hok) hl hall⟩
 
 end
 
@@ -1074,7 +1320,7 @@ theorem checkProg2_sound (P : Program) (C : Circuit) (h : checkProg2 P C = true)
     exact (Opcode.canon_sat σ c).2 (hσ c hc)
   unfold checkProg2 at h
   simp only [Bool.and_eq_true, decide_eq_true_eq] at h
-  obtain ⟨⟨hin, hret⟩, h⟩ := h
+  obtain ⟨hin, h⟩ := h
   split at h
   · simp at h
   · next reps0 hinit =>
@@ -1083,11 +1329,23 @@ theorem checkProg2_sound (P : Program) (C : Circuit) (h : checkProg2 P C = true)
     · next reps hfold =>
       obtain ⟨hE0, hfit⟩ := initReps_ok hcc P.params C.parameters reps0 hinit
       obtain ⟨env, hrun, hE⟩ := fold_ok2 hcc P.body reps0 _ hE0 reps hfold
-      obtain ⟨vs, hvs, hm⟩ := rets_ok hcc hE C.returnValues P.rets hret h
-      refine ⟨by simp [hin], hfit, vs, ?_, hm⟩
-      simp only [Program.eval, Option.bind_eq_bind]
-      rw [hrun]
-      simpa using hvs
+      obtain ⟨vs, hvs, hm⟩ := rets_ok hcc hE C.returnValues P.rets h
+      have hins : ∀ l : List ℕ, List.flatMap (fun a : ℕ => [(a : F)]) (l.map fun i => (σ i).val) =
+          l.map σ := by
+        intro l; induction l <;> simp_all [cast_val]
+      refine ⟨by simp [hin], ?_, vs, ?_, hm⟩
+      · intro e he
+        rw [List.zip_map_right] at he
+        obtain ⟨⟨ty, w⟩, hmem, rfl⟩ := List.mem_map.1 he
+        have := hfit (ty, σ w) (by
+          rw [List.zip_map_right]; exact List.mem_map.2 ⟨(ty, w), hmem, rfl⟩)
+        simpa [cast_val] using this
+      · have heval : ∀ l : List F, l = C.parameters.map σ → P.eval l = some vs := by
+          rintro l rfl
+          simp only [Program.eval, Option.bind_eq_bind]
+          rw [hrun]
+          simpa using hvs
+        exact heval _ (by simpa using hins C.parameters)
 
 /-- The test programs: the checker accepts every one outside
 `uncoveredPrograms`, and its solved witness satisfies its circuit, decided by

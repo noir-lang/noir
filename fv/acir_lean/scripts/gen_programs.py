@@ -27,11 +27,61 @@ import sys
 
 TY = r"(Field|u\d+|i\d+)"
 
+# Larger programs make the kernel check slow; they are listed as outside.
+MAX_OPCODES = 250
+
 
 def ty(t):
     if t == "Field":
         return ".field"
     return f".{'uint' if t[0] == 'u' else 'sint'} {t[1:]}"
+
+
+def lean_list(items):
+    """A Lean list literal, split into chunks so long lists elaborate."""
+    items = list(items)
+    if len(items) <= 64:
+        return "[" + ", ".join(items) + "]"
+    chunks = [items[i:i + 64] for i in range(0, len(items), 64)]
+    return "(" + " ++ ".join("[" + ", ".join(c) + "]" for c in chunks) + ")"
+
+
+def split_top(s):
+    """Split on commas outside brackets and parentheses."""
+    out, depth, cur = [], 0, ""
+    for ch in s:
+        if ch in "[(":
+            depth += 1
+        elif ch in "])":
+            depth -= 1
+        if ch == "," and depth == 0:
+            out.append(cur.strip())
+            cur = ""
+        else:
+            cur += ch
+    if cur.strip():
+        out.append(cur.strip())
+    return out
+
+
+def pty(t):
+    t = t.strip()
+    if re.fullmatch(TY, t):
+        return f"(.scalar ({ty(t)}))"
+    m = re.fullmatch(r"\[(.*); (\d+)\]", t)
+    if not m:
+        raise ValueError(f"type {t}")
+    elems = m.group(1)
+    if elems.startswith("("):
+        if not elems.endswith(")"):
+            raise ValueError(f"type {t}")
+        elems = split_top(elems[1:-1])
+    else:
+        elems = [elems]
+    for e in elems:
+        if not re.fullmatch(TY, e):
+            raise ValueError(f"type {t}")
+    return f"(.array [{', '.join(ty(e) for e in elems)}] {m.group(2)})"
 
 
 def opnd(s):
@@ -76,6 +126,19 @@ def instr(line):
     m = re.fullmatch(r"range_check (.+) to (\d+) bits(.*)", l)
     if m:
         return f".rangeCheck ({opnd(m.group(1))}) {m.group(2)} {msg(m.group(3))}"
+    m = re.fullmatch(r"v(\d+) = array_get ([^,]+), index (.+) -> " + TY, l)
+    if m:
+        return (f".arrayGet {m.group(1)} ({opnd(m.group(2))}) ({opnd(m.group(3))}) "
+                f"({ty(m.group(4))})")
+    m = re.fullmatch(r"v(\d+) = array_set (mut )?([^,]+), index ([^,]+), value (.+)", l)
+    if m:
+        u = "true" if m.group(2) else "false"
+        return (f".arraySet {m.group(1)} {u} ({opnd(m.group(3))}) ({opnd(m.group(4))}) "
+                f"({opnd(m.group(5))})")
+    m = re.fullmatch(r"v(\d+) = make_array \[(.*)\] : (.+)", l)
+    if m:
+        es = [f"({opnd(e)})" for e in split_top(m.group(2))]
+        return f".makeArray {m.group(1)} {lean_list(es)} {pty(m.group(3))}"
     raise ValueError(f"instruction {l}")
 
 
@@ -97,16 +160,21 @@ def program(lines):
     if not m:
         raise ValueError("block header")
     params = []
-    for p in filter(None, [x.strip() for x in m.group(1).split(",")]):
-        pm = re.fullmatch(r"v(\d+): " + TY, p)
+    for p in split_top(m.group(1)):
+        pm = re.fullmatch(r"v(\d+): (.+)", p)
         if not pm:
             raise ValueError(f"parameter {p}")
-        params.append(f"({pm.group(1)}, {ty(pm.group(2))})")
+        try:
+            params.append(f"({pm.group(1)}, {pty(pm.group(2))})")
+        except ValueError:
+            raise ValueError(f"parameter {p}")
     if lines[-1] != "}" or not lines[-2].startswith("    return"):
         raise ValueError("more than one block")
+    if len(lines) > MAX_OPCODES:
+        raise ValueError(f"more than {MAX_OPCODES} instructions")
     body = [instr(l) for l in lines[2:-2]]
     rets = lines[-2][len("    return"):].strip()
-    rets = [opnd(r) for r in rets.split(",")] if rets else []
+    rets = [opnd(r) for r in split_top(rets)] if rets else []
     return header, params, body, rets
 
 
@@ -126,6 +194,8 @@ def circuits(path):
 
 
 def lean_fn(lines):
+    if len(lines) > MAX_OPCODES + 2:
+        raise ValueError(f"more than {MAX_OPCODES} opcodes")
     cs = []
     for line in lines:
         if line == "solved" or line.startswith("witness "):
@@ -142,7 +212,7 @@ def lean_fn(lines):
             returns = line[8:]
         else:
             raise ValueError(f"opcode {line[:40]}")
-    return f"{{ opcodes := [{', '.join(cs)}], parameters := {inputs}, returnValues := {returns} }}"
+    return f"{{ opcodes := {lean_list(cs)}, parameters := {inputs}, returnValues := {returns} }}"
 
 
 COVERAGE = "AcirLean/Spec/Coverage.lean"
@@ -181,7 +251,7 @@ def main():
         entries.append(
             f"def prog{idx} : TestProgram where\n"
             f"  name := \"{name}\"\n"
-            f"  prog := {{ header := \"{header}\", params := [{', '.join(params)}], body := [{', '.join(body)}], rets := [{', '.join(f'({r})' for r in rets)}] }}\n"
+            f"  prog := {{ header := \"{header}\", params := [{', '.join(params)}], body := {lean_list(body)}, rets := [{', '.join(f'({r})' for r in rets)}] }}\n"
             f"  fn := {fn}\n"
             f"  witness := [{', '.join(f'({w}, {v})' for w, v in witness)}]\n"
         )
