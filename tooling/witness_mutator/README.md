@@ -136,15 +136,15 @@ matters for a bug hunt is that *some* input exposes it, and that a clean compile
 ## Sweep over the test suite
 
 `sweep.sh` runs the search over a `test_programs` directory. On unmodified `master`, over
-`execution_success` (546 programs, 2000 candidates and 120s per program):
+`execution_success` (562 programs, 2000 candidates and 120s per program):
 
 | grade | programs | what they are |
 | --- | --- | --- |
 | `HIGH` | 0 | no compiler-emitted circuit was found to be weaker than its source |
-| `PROGRAM` | 55 | 49 have an `unconstrained fn main`, whose result nothing can constrain; the other 6 return an `unsafe` call's value unchecked |
+| `PROGRAM` | 61 | 55 have an `unconstrained fn main`, whose result nothing can constrain; the other 6 return an `unsafe` call's value unchecked |
 | `WITNESS` | 3 | free values that move part of the witness without reaching an output |
-| `INERT` | 52 | mostly `directive_invert` with a zero input, the expected benign case |
-| none | 435 | |
+| `INERT` | 52 | 48 of them `directive_invert` with a zero input, the expected benign case |
+| none | 445 | |
 | skipped | 1 | honest execution fails |
 
 Zero `HIGH` on a clean compiler is the property that makes the grade worth acting on. The
