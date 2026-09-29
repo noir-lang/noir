@@ -192,29 +192,9 @@ pub struct Monomorphizer<'interner> {
     force_unconstrained: bool,
 
     /// Bindings for the generics of the function being monomorphized: the union of every set
-    /// passed to a live [`Self::with_bindings`] call.
-    ///
-    /// The same bindings are also written into the shared HIR by the guards in [`Self::guards`],
-    /// and it is those writes that the types this pass reads resolve through. In debug builds
-    /// [`Self::ty`] checks that applying this substitution to a type, with the guards' writes
-    /// taken out, resolves it to the same type.
+    /// passed to a live [`Self::with_bindings`] call. Every type this pass reads from the HIR goes
+    /// through [`Self::ty`], which applies them.
     substitution: TypeBindings,
-
-    /// The guards applied by the live [`Self::with_bindings`] calls, outermost first.
-    guards: Guards,
-}
-
-/// The [`BoundTypeVariables`] guards held by a [`Monomorphizer`], outermost first.
-///
-/// Dropping undoes them innermost first, the reverse of the order they were applied in, so the
-/// shared HIR is left as it was found even when monomorphization unwinds from a panic.
-#[derive(Default)]
-struct Guards(Vec<BoundTypeVariables>);
-
-impl Drop for Guards {
-    fn drop(&mut self) {
-        while self.0.pop().is_some() {}
-    }
 }
 
 /// Using nested `HashMaps` here lets us avoid cloning `HirTypes` when calling `.get()`
@@ -363,7 +343,6 @@ impl<'interner> Monomorphizer<'interner> {
             force_brillig: force_unconstrained,
             force_unconstrained,
             substitution: TypeBindings::default(),
-            guards: Guards::default(),
         }
     }
 
@@ -371,43 +350,26 @@ impl<'interner> Monomorphizer<'interner> {
     ///
     /// This is the one way this pass reads an HIR type: [`Self::expr_type`] and
     /// [`Self::definition_type`] are shorthands for it.
+    ///
+    /// The substitution takes precedence over any binding a type variable already has: a
+    /// generic that elaboration bound to another generic (a trait method's `Self`, say) still
+    /// resolves to the type this function is being monomorphized for.
     fn ty(&self, typ: &Type) -> Type {
-        if cfg!(debug_assertions) {
-            self.assert_substitution_resolves(typ);
+        // A polymorphic global's HIR keeps its quantifier, and its quantified variables are the
+        // ones the use site binds, so substitute underneath it.
+        if let Type::Forall(variables, typ) = typ {
+            return Type::Forall(variables.clone(), Box::new(self.ty(typ)));
         }
-        typ.clone()
+        typ.force_substitute(&self.substitution)
     }
 
-    /// Assert that [`Self::substitution`] alone resolves `typ` to the type the guards' writes
-    /// resolve it to.
-    fn assert_substitution_resolves(&self, typ: &Type) {
-        // `follow_bindings` expects an instantiated type; a polymorphic global's HIR still
-        // carries its quantifier, so check the type underneath it.
-        if let Type::Forall(_, typ) = typ {
-            return self.assert_substitution_resolves(typ);
-        }
-        let through_guards = typ.follow_bindings();
-        let through_substitution = BoundTypeVariables::without(&self.guards.0, || {
-            typ.substitute(&self.substitution).follow_bindings()
-        });
-        assert_eq!(
-            through_guards, through_substitution,
-            "monomorphization: the substitution resolves `{typ:?}` differently from the bound \
-             type variables"
-        );
-    }
-
-    /// Run `f` with `bindings` in force: written into the shared HIR by a guard, and added to
-    /// [`Self::substitution`]. Both are taken back when `f` returns.
+    /// Run `f` with `bindings` added to [`Self::substitution`], and take them back out when it
+    /// returns.
     fn with_bindings<T>(&mut self, bindings: TypeBindings, f: impl FnOnce(&mut Self) -> T) -> T {
         let saved_substitution = self.substitution.clone();
-        self.guards.0.push(BoundTypeVariables::apply(&bindings));
         self.substitution.extend(bindings);
-
         let result = f(self);
-
         self.substitution = saved_substitution;
-        self.guards.0.pop();
         result
     }
 
@@ -458,9 +420,14 @@ impl<'interner> Monomorphizer<'interner> {
         // The impl bindings are computed with the instantiation bindings in force: unifying the
         // trait method's type with the impl method's reads the generics they bind.
         self.with_bindings(bindings, |this| {
-            let impl_bindings =
-                compute_impl_bindings(this.interner, trait_method, next_fn_id, location)
-                    .map_err(MonomorphizationError::InterpreterError)?;
+            let impl_bindings = compute_impl_bindings(
+                this.interner,
+                trait_method,
+                next_fn_id,
+                &this.substitution,
+                location,
+            )
+            .map_err(MonomorphizationError::InterpreterError)?;
             this.with_bindings(impl_bindings, |this| this.function(next_fn_id, new_id, location))
         })?;
 
@@ -2375,7 +2342,7 @@ impl<'interner> Monomorphizer<'interner> {
         use_current_runtime: bool,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let ResolvedTraitItem { item, impl_search_bindings, instantiation_bindings } =
-            resolve_trait_item(self.interner, trait_item_id, expr_id)
+            resolve_trait_item(self.interner, trait_item_id, expr_id, &self.substitution)
                 .map_err(MonomorphizationError::InterpreterError)?;
 
         // The impl search's bindings have to stay in force while the impl's method is compiled.
@@ -2814,13 +2781,9 @@ impl<'interner> Monomorphizer<'interner> {
         new_id
     }
 
-    /// Follow any type variable links within the given `TypeBindings` to produce
-    /// a new `TypeBindings` that won't be changed when bindings are pushed or popped
-    /// during {perform,undo}_`monomorphization_bindings`.
-    ///
-    /// Without this, a monomorphized type may fail to propagate passed more than 2
-    /// function calls deep since it is possible for a previous link in the chain to
-    /// unbind a type variable that was previously bound.
+    /// Follow any type variable links within the given `TypeBindings`, so that each bound type
+    /// is fully resolved: a queued job's bindings, and the cache key made from them, then do not
+    /// depend on type variables that type checking solved.
     pub fn follow_bindings(bindings: &TypeBindings) -> TypeBindings {
         bindings
             .iter()
@@ -3481,21 +3444,25 @@ fn unwrap_enum_type(
 /// (e.g. `Eq::eq` for `[T; N]`) will fail to re-apply the correct type bindings during
 /// monomorphization.
 ///
-/// The bindings are returned rather than applied; apply them with
-/// [`BoundTypeVariables::apply`], which undoes them again when its guard is dropped.
+/// Both method types are read through `substitution`, the bindings in force at the call site.
+/// The result is returned rather than applied.
 pub fn compute_impl_bindings(
     interner: &NodeInterner,
     trait_method: Option<TraitItemId>,
     impl_method: node_interner::FuncId,
+    substitution: &TypeBindings,
     location: Location,
 ) -> Result<TypeBindings, InterpreterError> {
     let mut bindings = TypeBindings::default();
 
     if let Some(trait_method) = trait_method {
-        let mut trait_method_type =
-            interner.definition_type(trait_method.item_id).as_monotype().clone();
+        let mut trait_method_type = interner
+            .definition_type(trait_method.item_id)
+            .as_monotype()
+            .force_substitute(substitution);
 
-        let mut impl_method_type = interner.function_meta(&impl_method).typ.as_monotype().clone();
+        let mut impl_method_type =
+            interner.function_meta(&impl_method).typ.as_monotype().force_substitute(substitution);
 
         // Make each NamedGeneric in this type bindable by replacing it with a TypeVariable
         // with the same internal id, binding.
@@ -3530,6 +3497,7 @@ fn resolve_trait_item_impl(
     interner: &NodeInterner,
     method_id: TraitItemId,
     expr_id: ExprId,
+    substitution: &TypeBindings,
 ) -> Result<(node_interner::TraitImplId, TypeBindings, TypeBindings), InterpreterError> {
     let trait_impl = interner.get_selected_impl_for_expression(expr_id).ok_or_else(|| {
         let location = interner.expr_location(&expr_id);
@@ -3553,11 +3521,17 @@ fn resolve_trait_item_impl(
         TraitImplKind::Assumed { object_type, trait_generics } => {
             let location = interner.expr_location(&expr_id);
 
+            let object_type = object_type.force_substitute(substitution);
+            let ordered = vecmap(&trait_generics.ordered, |typ| typ.force_substitute(substitution));
+            let named = vecmap(&trait_generics.named, |named| crate::hir_def::traits::NamedType {
+                name: named.name.clone(),
+                typ: named.typ.force_substitute(substitution),
+            });
             match interner.try_lookup_trait_implementation(
                 &object_type,
                 method_id.trait_id,
-                &trait_generics.ordered,
-                &trait_generics.named,
+                &ordered,
+                &named,
                 TraitLookupMode::Default,
             ) {
                 Ok((TraitImplKind::Normal(impl_id), bindings, instantiation_bindings)) => {
@@ -3761,9 +3735,10 @@ pub(crate) fn resolve_trait_item(
     interner: &NodeInterner,
     method_id: TraitItemId,
     expr_id: ExprId,
+    substitution: &TypeBindings,
 ) -> Result<ResolvedTraitItem, InterpreterError> {
     let (impl_id, impl_search_bindings, instantiation_bindings) =
-        resolve_trait_item_impl(interner, method_id, expr_id)?;
+        resolve_trait_item_impl(interner, method_id, expr_id, substitution)?;
 
     let name = interner.definition_name(method_id.item_id);
     let impl_ = interner.get_trait_implementation(impl_id);
