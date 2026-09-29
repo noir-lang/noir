@@ -1,5 +1,6 @@
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
+use std::process::ExitStatus;
 
 use crate::flock::FileLock;
 
@@ -76,6 +77,15 @@ pub(crate) fn lock_git_deps() -> std::io::Result<FileLock> {
     FileLock::new(&nargo_crates().join(".package-cache"), "git dependencies cache")
 }
 
+fn ensure_clone_succeeded(loc: &Path, status: ExitStatus) -> Result<(), String> {
+    if status.success() {
+        return Ok(());
+    }
+
+    let _ = std::fs::remove_dir_all(loc);
+    Err(format!("git clone failed with status {status}"))
+}
+
 /// XXX: I'd prefer to use a GitHub library however, there
 /// does not seem to be an easy way to download a repo at a specific
 /// tag
@@ -95,7 +105,7 @@ pub(crate) fn clone_git_repo(url: &str, tag: &str) -> Result<PathBuf, String> {
         return Ok(loc);
     }
 
-    Command::new("git")
+    let status = Command::new("git")
         .arg("-c")
         .arg("advice.detachedHead=false")
         .arg("clone")
@@ -106,7 +116,9 @@ pub(crate) fn clone_git_repo(url: &str, tag: &str) -> Result<PathBuf, String> {
         .arg(base.as_str())
         .arg(&loc)
         .status()
-        .expect("git clone command failed to start");
+        .map_err(|err| format!("failed to start git clone: {err}"))?;
+
+    ensure_clone_succeeded(&loc, status)?;
 
     Ok(loc)
 }
@@ -116,11 +128,12 @@ mod tests {
     use std::collections::BTreeSet;
     use std::fs;
     use std::path::{Path, PathBuf};
+    use std::process::{Command, Stdio};
 
     use test_case::test_case;
     use url::Url;
 
-    use super::{collect_cached_git_dependencies, resolve_folder_name};
+    use super::{collect_cached_git_dependencies, ensure_clone_succeeded, resolve_folder_name};
 
     #[test_case("https://github.com/noir-lang/noir-bignum/"; "with slash")]
     #[test_case("https://github.com/noir-lang/noir-bignum"; "without slash")]
@@ -197,5 +210,25 @@ mod tests {
         let found = collect_cached_git_dependencies(&missing);
 
         assert!(found.is_empty());
+    }
+
+    #[test]
+    fn failed_clone_returns_an_error_and_removes_the_destination() {
+        let cache = tempfile::tempdir().unwrap();
+        let destination = cache.path().join("incomplete-clone");
+        fs::create_dir(&destination).unwrap();
+
+        let status = Command::new("git")
+            .args(["rev-parse", "--verify", "this-ref-does-not-exist"])
+            .current_dir(cache.path())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .unwrap();
+
+        let error = ensure_clone_succeeded(&destination, status).unwrap_err();
+
+        assert!(error.starts_with("git clone failed with status"));
+        assert!(!destination.exists());
     }
 }
