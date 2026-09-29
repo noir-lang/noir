@@ -1295,6 +1295,32 @@ impl BoundTypeVariables {
     pub fn commit(mut self) {
         self.saved.clear();
     }
+
+    /// Run `f` with the writes of every guard in `guards` taken back out of the shared HIR, so
+    /// that `f` sees each cell as it was before any of them wrote it, then put the writes back.
+    ///
+    /// `guards` is ordered outermost first, the order the guards were applied in.
+    pub(crate) fn without<T>(guards: &[BoundTypeVariables], f: impl FnOnce() -> T) -> T {
+        /// Puts back the contents taken out, on the way out of a panic as well as a return.
+        struct Reapply(Vec<(TypeVariable, TypeBinding)>);
+
+        impl Drop for Reapply {
+            fn drop(&mut self) {
+                for (var, binding) in self.0.drain(..).rev() {
+                    var.restore(binding);
+                }
+            }
+        }
+
+        let mut taken = Reapply(Vec::new());
+        for guard in guards.iter().rev() {
+            for (var, previous) in guard.saved.iter().rev() {
+                taken.0.push((var.clone(), var.borrow().clone()));
+                var.restore(previous.clone());
+            }
+        }
+        f()
+    }
 }
 
 impl Drop for BoundTypeVariables {
