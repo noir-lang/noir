@@ -227,7 +227,7 @@ def geFlags (cc : List Opcode) (a b : Rep2) (m : ℕ) : List ℕ :=
 /-- `eq`: the flag `a - b = 0`. -/
 def eqFlags (cc : List Opcode) (a b : Rep2) : List ℕ :=
   (forms cc a.alts).flatMap fun Xa => (forms cc b.alts).flatMap fun Xb =>
-    zeroFlags cc (psub Xa Xb)
+    (forms cc [psub Xa Xb]).flatMap (zeroFlags cc)
 
 /-- A bounded witness equal to one of the polynomials, below `2^n`. -/
 def checked (cc : List Opcode) (alts : List Poly) (n : ℕ) : Option (ℕ × ℕ) :=
@@ -296,6 +296,25 @@ def fitsBoth (a b : Rep2) : Bool :=
   | .uint n => decide (a.M < 2 ^ n ∧ b.M < 2 ^ n)
   | .sint n => decide (a.M < 2 ^ n ∧ b.M < 2 ^ n)
 
+/-- The constant terms of the constraints, with both signs. -/
+def constTerms (cc : List Opcode) : List ℕ :=
+  cc.flatMap fun c => match c with
+    | .assertZero ts => ts.flatMap fun t =>
+      if t.witnesses.isEmpty then [(modP t.coef).toNat, (modP (-t.coef)).toNat] else []
+    | .range _ _ => []
+
+/-- A checked `add` on `u<n>` whose operands' bounds are too loose to show they
+fit: the field sum, which the circuit must show is below `2^n`, through a
+bounded witness or a constraint fixing it to a constant. -/
+def addRep (cc : List Opcode) (n : ℕ) (a b : Rep2) : Option Rep2 :=
+  let alts := comb (· ++ ·) (forms cc a.alts) (forms cc b.alts)
+  match checked cc alts n with
+  | some (L, M) => some ⟨alts, .uint n, L, M⟩
+  | none =>
+    (alts.findSome? fun P => (constTerms cc).find? fun c =>
+      decide (c < 2 ^ n) && decide (c < p) && holdsZ cc (psub P (pconst c))).map
+      fun c => ⟨alts, .uint n, c, c⟩
+
 /-- `u1` arithmetic is boolean: unchecked `add` is `xor`, which is the sum when
 the sum is below `2`; unchecked `sub` and `mul` mean the same as checked. -/
 def binRep (cc : List Opcode) (op : BinaryOp) (u : Bool) (a b : Rep2) : Option Rep2 :=
@@ -307,7 +326,11 @@ def binRep (cc : List Opcode) (op : BinaryOp) (u : Bool) (a b : Rep2) : Option R
       (checked cc alts 1).map fun (L, M) => ⟨alts, .uint 1, L, M⟩
     else checkedRep cc op a b
   | .uint _, true | .sint _, true => uncheckedRep cc op a b
-  | _, _ => if fitsBoth a b then checkedRep cc op a b else none
+  | _, _ =>
+    if fitsBoth a b then checkedRep cc op a b
+    else match a.ty, op with
+      | .uint n, .add => if n = 1 then none else addRep cc n a b
+      | _, _ => none
 
 /-- `r ≤ Mr < 2^k`, `x = 2^k q + r`, and `2^k q + r < p`: either from the bound
 on `q`, or, for `q ≤ p / 2^k`, from a flag `y = [q = p / 2^k]` with `(r + d) y`

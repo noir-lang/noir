@@ -6,7 +6,7 @@ division (with and without a predicate), truncation and comparison
 SSA `expand_signed_math` emits for signed `lt`, and soundness of whole
 functions as ACIR generation compiles them, both before and after the ACVM
 optimization passes, plus a pin that keeps those proofs attached to the Rust
-code. A checker proved sound once also covers 144 real programs from
+code. A checker proved sound once also covers 146 real programs from
 `test_programs/execution_success`, as `nargo compile` ships them.
 
 ## What you must review, and what you can ignore
@@ -148,7 +148,7 @@ supported subset: one block of scalar instructions, plus arrays of scalars and
 tuples read and written at constant indices. The rest use arrays at dynamic
 indices (ACIR memory), references, several ACIR functions, calls, black boxes,
 several blocks, or more than 250 instructions; the reason for each is in
-`test_programs.outside`. The checker accepts 144 of them. The six it does not
+`test_programs.outside`. The checker accepts 146 of them. The four it does not
 are listed in `uncoveredPrograms` in `Spec/Claims.lean` with the reason.
 Removing any single constraint from the 125 circuits without arrays makes the
 checker reject in 387 of 394 cases;
