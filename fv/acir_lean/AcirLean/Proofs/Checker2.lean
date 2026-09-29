@@ -154,9 +154,39 @@ structure Rep2 where
   L : ℕ
   M : ℕ
 
-def opRep (reps : List (ℕ × Rep2)) : Operand → Option Rep2
-  | .var id => reps.lookup id
-  | .const v ty => some ⟨[pconst v], ty, v % p, v % p⟩
+/-- Where each SSA value lives: a scalar, or an array's scalars in flat order. -/
+inductive RVal where
+  | scalar (r : Rep2)
+  | array (rs : List Rep2)
+
+abbrev Reps := List (ℕ × RVal)
+
+def constRep (v : ℕ) (ty : ValueType) : Rep2 := ⟨[pconst v], ty, v % p, v % p⟩
+
+def opRep (reps : Reps) : Operand → Option Rep2
+  | .var id => match reps.lookup id with
+    | some (.scalar r) => some r
+    | _ => none
+  | .const v ty => some (constRep v ty)
+
+def opArr (reps : Reps) : Operand → Option (List Rep2)
+  | .var id => match reps.lookup id with
+    | some (.array rs) => some rs
+    | _ => none
+  | .const _ _ => none
+
+/-- An operand's scalars, in flat order. -/
+def opFlat (reps : Reps) : Operand → Option (List Rep2)
+  | .var id => match reps.lookup id with
+    | some (.scalar r) => some [r]
+    | some (.array rs) => some rs
+    | none => none
+  | .const v ty => some [constRep v ty]
+
+/-- A constant `u32` index below `len`. -/
+def constIdx (len : ℕ) : Operand → Option ℕ
+  | .const c (.uint 32) => if c < len ∧ c < p then some c else none
+  | _ => none
 
 /-- `y` with `1 ∓ t z - y = 0` and `t y = 0`: `y` is the flag `t = 0`. -/
 def zeroFlags (cc : List Opcode) (t : Poly) : List ℕ :=
@@ -310,27 +340,27 @@ def eqHolds (cc : List Opcode) (a b : Rep2) : Bool :=
 def rangeHolds (cc : List Opcode) (a : Rep2) (k : ℕ) : Bool :=
   decide (a.M < 2 ^ k) || (checked cc a.alts k).isSome
 
-def step2 (cc : List Opcode) (reps : List (ℕ × Rep2)) : Instruction → Option (List (ℕ × Rep2))
+def step2 (cc : List Opcode) (reps : Reps) : Instruction → Option Reps
   | .bin d op u a b => do
     let ra ← opRep reps a
     let rb ← opRep reps b
     let r ← binRep cc op u ra rb
-    some ((d, r) :: reps)
+    some ((d, .scalar r) :: reps)
   | .not d a => do
     let ra ← opRep reps a
     match ra.ty with
     | .uint n =>
       if ra.M < 2 ^ n ∧ 2 ^ n ≤ p then
-        some ((d, ⟨ra.alts.map (psub (pconst (2 ^ n - 1 : ℕ))), .uint n,
+        some ((d, .scalar ⟨ra.alts.map (psub (pconst (2 ^ n - 1 : ℕ))), .uint n,
           2 ^ n - 1 - ra.M, 2 ^ n - 1 - ra.L⟩) :: reps)
       else none
     | _ => none
   | .cast d a ty => do
     let ra ← opRep reps a
-    some ((d, ⟨ra.alts, ty, ra.L, ra.M⟩) :: reps)
+    some ((d, .scalar ⟨ra.alts, ty, ra.L, ra.M⟩) :: reps)
   | .truncate d a k _ => do
     let ra ← opRep reps a
-    if 0 < k ∧ (ra.ty = .uint 1 → ra.M < 2) then some ((d, truncRep cc ra k) :: reps)
+    if 0 < k ∧ (ra.ty = .uint 1 → ra.M < 2) then some ((d, .scalar (truncRep cc ra k)) :: reps)
     else none
   | .constrain a b _ => do
     let ra ← opRep reps a
@@ -339,6 +369,19 @@ def step2 (cc : List Opcode) (reps : List (ℕ × Rep2)) : Instruction → Optio
   | .rangeCheck a k _ => do
     let ra ← opRep reps a
     if 0 < k ∧ (ra.ty = .uint 1 → ra.M < 2) ∧ rangeHolds cc ra k then some reps else none
+  | .arrayGet d a i _ => do
+    let rs ← opArr reps a
+    let j ← constIdx rs.length i
+    let r ← rs[j]?
+    some ((d, .scalar r) :: reps)
+  | .arraySet d _ a i v => do
+    let rs ← opArr reps a
+    let j ← constIdx rs.length i
+    let r ← opRep reps v
+    some ((d, .array (rs.set j r)) :: reps)
+  | .makeArray d es _ => do
+    let rs ← es.mapM (opRep reps)
+    some ((d, .array rs) :: reps)
 
 def paramRep (cc : List Opcode) (w : ℕ) : ValueType → Option Rep2
   | .field => some ⟨[pvar w], .field, 0, p - 1⟩
@@ -347,26 +390,36 @@ def paramRep (cc : List Opcode) (w : ℕ) : ValueType → Option Rep2
   | .sint n => (wbound cc w).bind fun (L, M) =>
     if M < 2 ^ n then some ⟨[pvar w], .sint n, L, M⟩ else none
 
-def initReps (cc : List Opcode) : List (ℕ × ValueType) → List ℕ → Option (List (ℕ × Rep2))
-  | (id, ty) :: ps, w :: ws => do
-    let r ← paramRep cc w ty
-    let rest ← initReps cc ps ws
-    some ((id, r) :: rest)
-  | _, _ => some []
+/-- Each parameter's scalars take the next input witnesses, in order. -/
+def initReps (cc : List Opcode) : List (ℕ × ParamType) → List ℕ → Option Reps
+  | [], _ => some []
+  | (id, t) :: ps, ws => do
+    let rs ← (t.flat.zip ws).mapM fun (ty, w) => paramRep cc w ty
+    let rest ← initReps cc ps (ws.drop t.flat.length)
+    match t, rs with
+    | .scalar _, [r] => some ((id, .scalar r) :: rest)
+    | .array _ _, rs => some ((id, .array rs) :: rest)
+    | _, _ => none
 
-def retOK (cc : List Opcode) (reps : List (ℕ × Rep2)) (r : ℕ) (o : Operand) : Bool :=
-  match opRep reps o with
-  | some ro => (forms cc ro.alts).any fun X => eqVia cc (pvar r) X
+/-- Return witness `w` equals scalar `r`. -/
+def retOK (cc : List Opcode) (w : ℕ) (r : Rep2) : Bool :=
+  (forms cc r.alts).any fun X => eqVia cc (pvar w) X
+
+/-- The return witnesses are the returned values' scalars, in order. -/
+def retsOK (cc : List Opcode) (reps : Reps) (ws : List ℕ) (os : List Operand) : Bool :=
+  match os.mapM (opFlat reps) with
   | none => false
+  | some rss => decide (ws.length = rss.flatten.length) &&
+    (ws.zip rss.flatten).all fun (w, r) => retOK cc w r
 
 def checkProg2 (P : Program) (C : Circuit) : Bool :=
   let cc := C.opcodes.map Opcode.canon
-  decide (C.parameters.length = P.params.length) && decide (C.returnValues.length = P.rets.length) &&
+  decide (C.parameters.length = P.inputTypes.length) &&
     match initReps cc P.params C.parameters with
     | none => false
     | some reps0 =>
       match P.body.foldlM (step2 cc) reps0 with
       | none => false
-      | some reps => (C.returnValues.zip P.rets).all fun (r, o) => retOK cc reps r o
+      | some reps => retsOK cc reps C.returnValues P.rets
 
 end AcirLean

@@ -6,7 +6,7 @@ division (with and without a predicate), truncation and comparison
 SSA `expand_signed_math` emits for signed `lt`, and soundness of whole
 functions as ACIR generation compiles them, both before and after the ACVM
 optimization passes, plus a pin that keeps those proofs attached to the Rust
-code. A checker proved sound once also covers 125 real programs from
+code. A checker proved sound once also covers 144 real programs from
 `test_programs/execution_success`, as `nargo compile` ships them.
 
 ## What you must review, and what you can ignore
@@ -85,8 +85,8 @@ explains it line by line; the short version of the notation:
    programs of `div` and `lt` on `u8`, `u64` and `u128`), as shipped,
    enforces its parameters' types and returns what the program computes, and
    the witness ACVM solved for it satisfies its circuit;
-10. every scalar program from `test_programs/execution_success` in
-    `Templates/TestPrograms.lean`, except the two in `uncoveredPrograms`, is
+10. every program from `test_programs/execution_success` in
+    `Templates/TestPrograms.lean`, except those in `uncoveredPrograms`, is
     implemented by the circuit `nargo compile` ships for it: for every
     witness satisfying the circuit, the inputs fit their parameter types, the
     final SSA runs without failing on them (no overflow, no zero divisor, no
@@ -142,13 +142,16 @@ template, because the optimizer merges, reorders and drops constraints:
   constant, since the optimizer drops such range checks as implied.
 
 Which witnesses play which role is found by untrusted searches, and every
-candidate is checked against the circuit before a rule uses it. Of the 544
-execution-success programs that `nargo compile` builds, 127 are in the scalar
-subset (the rest use arrays, references, several ACIR functions, calls, black
-boxes or several blocks; the reason for each is in `test_programs.outside`).
-The checker accepts 125 of them. The two it does not are listed in
-`uncoveredPrograms` in `Spec/Claims.lean` with the reason. Removing any single
-constraint from the 125 circuits makes the checker reject in 387 of 394 cases;
+candidate is checked against the circuit before a rule uses it. Of the 560
+execution-success programs that `nargo compile` builds, 150 are in the
+supported subset: one block of scalar instructions, plus arrays of scalars and
+tuples read and written at constant indices. The rest use arrays at dynamic
+indices (ACIR memory), references, several ACIR functions, calls, black boxes,
+several blocks, or more than 250 instructions; the reason for each is in
+`test_programs.outside`. The checker accepts 144 of them. The six it does not
+are listed in `uncoveredPrograms` in `Spec/Claims.lean` with the reason.
+Removing any single constraint from the 125 circuits without arrays makes the
+checker reject in 387 of 394 cases;
 the other 7 constraints are
 redundant (a repeated constraint, a range check implied by another bound, and
 `b · inv = 1` in a division that already proves `r < b`).
@@ -172,7 +175,8 @@ its new indices and chains the results.
 
 Not yet covered:
 
-- programs outside the scalar subset: arrays and ACIR memory, references,
+- programs outside the supported subset: arrays at dynamic indices (ACIR
+  memory), nested arrays, references,
   calls, black boxes and control flow in the checker;
 - the ACVM optimization passes on programs outside the pinned corpus: the
   optimized circuits are checked program by program, not the passes in

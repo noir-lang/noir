@@ -6,6 +6,9 @@ Rust test `fv_semantics.rs` runs each line through Noir's SSA interpreter and
 fails unless the interpreter gives the same result, so the reviewed meaning of
 the SSA is checked against the compiler's own reference semantics.
 
+Arrays are covered by building one with `make_array` and reading and writing it
+with constant indices, so every case still takes and returns scalars.
+
 The grid leaves out what never reaches ACIR generation: checked signed
 arithmetic and signed `div`, `mod` and `lt` (rewritten by `expand_signed_math`;
 the spec leaves them undefined), and what Noir's SSA validator rejects: `lt`
@@ -45,11 +48,11 @@ def Case.ssa (c : Case) : String :=
   let ret := if c.rets.isEmpty then "return"
     else "return " ++ ", ".intercalate (c.rets.map Operand.render)
   let body := c.body.map fun i => i.render.trimAsciiStart.toString
-  s!"b0({params}): {"; ".intercalate (body ++ [ret])}"
+  s!"b0({params}): {" | ".intercalate (body ++ [ret])}"
 
 /-- `fail`, `ok` for no return values, or each return value as `<type> <value>`. -/
 def Case.result (c : Case) (args : List ℕ) : String :=
-  let env0 : Env := (c.params.zip args).map fun ((id, ty), x) => (id, ((x : F), ty))
+  let env0 : Env := (c.params.zip args).map fun ((id, ty), x) => (id, .scalar ((x : F), ty))
   match c.body.foldlM Instruction.run env0 >>= fun env => c.rets.mapM (Operand.value env) with
   | none => "fail"
   | some [] => "ok"
@@ -98,8 +101,23 @@ def constrainCases : List Case := do
   let ty ← types
   pure ⟨[(0, ty), (1, ty)], [.constrain (.var 0) (.var 1) none], [], pairs ty⟩
 
+/-- An array of two values of type `ty`, then `array_get` at every position and
+one past the end, and `array_set` at every position followed by a read of the
+position it wrote. -/
+def arrayCases : List Case := do
+  let ty ← types
+  let mk : Instruction := .makeArray 2 [.var 0, .var 1] (.array [ty] 2)
+  let calls := [[1, 2], [0, 1]].map fun l => l.map fun k => (values ty).getD k 0
+  let gets := [0, 1, 2].map fun k =>
+    (⟨[(0, ty), (1, ty)], [mk, .arrayGet 3 (.var 2) (.const k (.uint 32)) ty], [.var 3], calls⟩ : Case)
+  let sets := [0, 1].map fun k =>
+    (⟨[(0, ty), (1, ty)],
+      [mk, .arraySet 3 false (.var 2) (.const k (.uint 32)) (.var 0),
+        .arrayGet 4 (.var 3) (.const (1 - k) (.uint 32)) ty], [.var 4], calls⟩ : Case)
+  gets ++ sets
+
 def render : String :=
-  String.join ((binaryCases ++ unaryCases ++ constrainCases).map Case.lines)
+  String.join ((binaryCases ++ unaryCases ++ constrainCases ++ arrayCases).map Case.lines)
 
 end AcirLean.SemanticsTable
 

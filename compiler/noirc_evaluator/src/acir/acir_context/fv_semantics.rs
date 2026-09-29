@@ -67,7 +67,7 @@ fn outcome(ssa: &Ssa, args: Vec<Value>) -> String {
     }
 }
 
-/// `b0(v0: T, ...): <instruction>; ...; return ...` as a one-block ACIR function,
+/// `b0(v0: T, ...): <instruction> | ... | return ...` as a one-block ACIR function,
 /// or why the SSA parser or validator rejects it.
 fn parse(line: &str) -> Result<(Ssa, Vec<NumericType>), String> {
     let (block, rest) = line.split_once("): ").unwrap();
@@ -77,7 +77,7 @@ fn parse(line: &str) -> Result<(Ssa, Vec<NumericType>), String> {
     } else {
         params.split(", ").map(|p| numeric_type(p.split_once(": ").unwrap().1)).collect()
     };
-    let body = rest.split("; ").map(|line| format!("    {line}\n")).collect::<String>();
+    let body = rest.split(" | ").map(|line| format!("    {line}\n")).collect::<String>();
     let src = format!("acir(inline) fn main f0 {{\n  {block}):\n{body}}}\n");
     match quietly(|| Ssa::from_str(&src)) {
         Ok(Ok(ssa)) => Ok((ssa, types)),
