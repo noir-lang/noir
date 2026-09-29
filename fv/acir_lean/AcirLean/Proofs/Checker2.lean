@@ -94,10 +94,27 @@ def matCands (cc : List Opcode) : List ℕ :=
     | .assertZero ts => singles ts
     | _ => []
 
+/-- Witnesses `w` whose constraint `w - P = 0` is in the circuit. Such a
+constraint has about one term more than `P`, which rules most constraints out
+before any `key` is computed. `matSearch` still picks the first of them in
+`matCands` order, since later rules may depend on which witness it picks. -/
+def eqCands (cc : List Opcode) (P : Poly) : List ℕ :=
+  let n := match key P with
+    | .assertZero ts => ts.length
+    | _ => 0
+  cc.flatMap fun c => match c with
+    | .assertZero ts =>
+      if n ≤ ts.length + 1 ∧ ts.length ≤ n + 1 then
+        (singles ts).filter fun w => decide (key (psub (pvar w) P) = c)
+      else []
+    | _ => []
+
 def matSearch (cc : List Opcode) (P : Poly) : Option ℕ :=
-  match collect P with
+  match (collect P).filter (fun t => modP t.coef != 0) with
   | [⟨1, [w]⟩] => some w
-  | _ => (matCands cc).find? fun w => holdsZ cc (psub (pvar w) P)
+  | _ =>
+    let found := eqCands cc P
+    (matCands cc).find? (· ∈ found)
 
 /-- A witness equal to `P`. -/
 def matV (cc : List Opcode) (P : Poly) : Option ℕ :=
@@ -142,7 +159,7 @@ def comb (f : Poly → Poly → Poly) (as bs : List Poly) : List Poly :=
 /-- `P = Q`, directly or through a witness equal to both. -/
 def eqVia (cc : List Opcode) (P Q : Poly) : Bool :=
   holdsZ cc (psub P Q) ||
-    (matCands cc).any fun w => holdsZ cc (psub P (pvar w)) && holdsZ cc (psub (pvar w) Q)
+    (eqCands cc P).any fun w => holdsZ cc (psub P (pvar w)) && holdsZ cc (psub (pvar w) Q)
 
 /-! ## The rules -/
 
