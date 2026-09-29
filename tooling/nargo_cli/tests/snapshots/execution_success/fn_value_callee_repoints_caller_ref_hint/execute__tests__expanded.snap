@@ -1,0 +1,28 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn set(r: &mut &mut Field) {
+    let mut c: Field = 0_Field;
+    *r = &mut c;
+}
+
+fn g(q: &mut &mut Field, f: fn(&mut &mut Field)) {
+    f(q);
+}
+
+unconstrained fn h(f: fn(&mut &mut Field)) -> Field {
+    let mut a: Field = 0_Field;
+    let mut p: &mut Field = &mut a;
+    g(&mut p, f);
+    let x: &mut Field = p;
+    a = 5_Field;
+    *x = 6_Field;
+    a
+}
+
+fn main() {
+    // Safety: comment added by `nargo expand`
+    let v: Field = unsafe { h(set) };
+    assert(v == 5_Field);
+}

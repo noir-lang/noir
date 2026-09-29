@@ -1,5 +1,5 @@
-//! The part of an item's context that only a function body can have: the loop, `unsafe` block,
-//! lambda and call-argument scopes an expression sits in.
+//! The part of an item's context that only a function body can have: the loop, `unsafe` block
+//! and lambda scopes an expression sits in.
 
 use crate::elaborator::{LambdaContext, Loop};
 
@@ -29,8 +29,8 @@ impl EnclosingUnsafeBlock {
 /// Where in a function body the elaborator currently is.
 ///
 /// Every field here belongs to a scope nested inside the item - a loop, an `unsafe` block, a
-/// lambda, a call's arguments - so each is entered and left in pairs, rather than set once for
-/// the item. An item with no body leaves this [`Default`].
+/// lambda - so each is entered and left in pairs, rather than set once for the item. An item
+/// with no body leaves this [`Default`].
 #[derive(Default)]
 pub(crate) struct BodyContext {
     current_loop: Option<Loop>,
@@ -41,9 +41,6 @@ pub(crate) struct BodyContext {
     lambda_stack: Vec<LambdaContext>,
 
     unsafe_block_status: UnsafeBlockStatus,
-
-    /// True if we are elaborating arguments of a function call to an unconstrained function.
-    in_unconstrained_args: bool,
 
     /// If greater than 0, field visibility errors won't be reported.
     /// This is used when elaborating a comptime expression that is a struct constructor
@@ -124,24 +121,6 @@ impl BodyContext {
             }
             UnsafeBlockStatus::InUnsafeBlockWithUnconstrainedCalls => true,
         }
-    }
-
-    /// Enters the arguments of a call to a function that is unconstrained or not, returning the
-    /// enclosing call's status so it can be handed back to [`Self::exit_call_arguments`].
-    #[must_use]
-    pub(crate) fn enter_call_arguments(&mut self, unconstrained: bool) -> bool {
-        std::mem::replace(&mut self.in_unconstrained_args, unconstrained)
-    }
-
-    /// Leaves a call's arguments, reinstating the enclosing call's status.
-    pub(crate) fn exit_call_arguments(&mut self, enclosing_unconstrained: bool) {
-        self.in_unconstrained_args = enclosing_unconstrained;
-    }
-
-    /// Whether the expression being elaborated is an argument of a call to an unconstrained
-    /// function.
-    pub(crate) fn in_unconstrained_args(&self) -> bool {
-        self.in_unconstrained_args
     }
 
     /// Enters a lambda body, whose captures are collected until [`Self::exit_lambda`].

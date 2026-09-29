@@ -2300,12 +2300,13 @@ impl Elaborator<'_> {
     /// [`Self::unify_with_coercions`] for a call argument checked against the callee's declared
     /// parameter type.
     ///
-    /// Inside the argument list of a call to an unconstrained function the elaborator makes
-    /// lambdas unconstrained, whether or not the parameter they are checked against says so
-    /// (see `elaborate_lambda_with_target_type`). The unconstrained-to-constrained coercion is
-    /// therefore permitted here, under the same condition that creates it.
+    /// A lambda written as an argument of a call to an unconstrained function is elaborated as
+    /// unconstrained, whether or not the parameter it is checked against says so (see
+    /// `elaborate_lambda_with_target_type`). When `callee_unconstrained`, the
+    /// unconstrained-to-constrained coercion is therefore permitted here, under the same condition
+    /// that creates it.
     ///
-    /// Do not extend this to other unifications reached while elaborating the argument list. An
+    /// Do not extend this to other unifications reached while elaborating the argument. An
     /// argument is consumed by the callee, but a `let`, an assignment, a struct field or a return
     /// nested inside the argument's syntax writes a slot that outlives the call, and an
     /// unconstrained function reaching such a slot is the mismatch `UnsafeFn` exists to report.
@@ -2315,11 +2316,12 @@ impl Elaborator<'_> {
         expected: &Type,
         expression: ExprId,
         location: Location,
+        callee_unconstrained: bool,
         make_error: impl FnOnce(&Elaborator) -> CompilationError,
     ) {
         let mut errors = Vec::new();
 
-        if self.item.body.in_unconstrained_args() {
+        if callee_unconstrained {
             actual.unify_with_coercions_allowing_unconstrained_fn(
                 expected,
                 expression,
@@ -2504,6 +2506,7 @@ impl Elaborator<'_> {
         &mut self,
         fn_params: &[Type],
         fn_ret: &Type,
+        callee_unconstrained: bool,
         callsite_args: &[(Type, ExprId, Location)],
         location: Location,
     ) -> Type {
@@ -2522,6 +2525,7 @@ impl Elaborator<'_> {
                 param,
                 *arg_expr_id,
                 *arg_location,
+                callee_unconstrained,
                 |elaborator| {
                     CompilationError::TypeError(elaborator.new_type_mismatch_error(
                         arg,
@@ -2564,8 +2568,8 @@ impl Elaborator<'_> {
             }
             // The closure env is ignored on purpose: call arguments never place
             // constraints on closure environments.
-            Type::Function(parameters, ret, _env, _unconstrained) => {
-                self.bind_function_type_impl(parameters, ret, &args, location)
+            Type::Function(parameters, ret, _env, unconstrained) => {
+                self.bind_function_type_impl(parameters, ret, *unconstrained, &args, location)
             }
             Type::Error => Type::Error,
             found => {

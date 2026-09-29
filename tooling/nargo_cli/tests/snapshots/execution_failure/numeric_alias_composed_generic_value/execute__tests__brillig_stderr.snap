@@ -1,0 +1,22 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+warning: unused global N
+  ┌─ src/main.nr:1:8
+  │
+1 │ global N: u32 = 2;
+  │        - unused global
+  │
+
+error: Failed to solve program: 'Failed to solve brillig function'
+  ┌─ src/main.nr:8:5
+  │
+8 │     assert(x == Quad::<3>);
+  │     ----------------------
+  │
+  = Call stack:
+    1: main
+            at src/main.nr:8:5
+
+Failed to solve program: 'Failed to solve brillig function'

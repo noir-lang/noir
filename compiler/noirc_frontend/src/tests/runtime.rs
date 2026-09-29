@@ -719,10 +719,9 @@ fn can_pass_unconstrained_fn_to_unconstrained_function_expecting_constrained_fn(
     assert_no_errors(src);
 }
 
-/// A lambda in the argument list of an unconstrained call is elaborated as unconstrained even
-/// when it is nested inside a further method call, because a method call does not reset
-/// `in_unconstrained_args` the way a plain call does. The mismatch against that method's
-/// constrained parameter is one the compiler creates for itself, so it stays exempt.
+/// A lambda passed to a constrained method is elaborated constrained even when the method call is
+/// itself an argument of an unconstrained call: only the lambda's own callee decides its runtime,
+/// so it matches the method's parameter with no coercion at all.
 ///
 /// `noir-bignum` spells this as `batch_invert_slice(&params, x.map(|bn| bn.get_limbs()))`, where
 /// `batch_invert_slice` is unconstrained and `map` is not.
@@ -751,8 +750,8 @@ fn can_pass_lambda_to_a_method_call_nested_in_unconstrained_call_args() {
 }
 
 /// The same lambda reached through a plain constrained call instead of a method call: the inner
-/// call resets `in_unconstrained_args`, so the lambda is elaborated constrained and matches the
-/// parameter with no coercion at all. Nothing is exempted here, and nothing needs to be.
+/// call is constrained, so the lambda is elaborated constrained and matches the parameter with no
+/// coercion at all. Nothing is exempted here, and nothing needs to be.
 #[test]
 fn can_pass_lambda_to_a_constrained_call_nested_in_unconstrained_call_args() {
     let src = r#"
@@ -883,7 +882,7 @@ fn vector_in_deferred_struct_returned_in_a_format_string() {
     check_errors(src);
 }
 
-/// A method call manages `in_unconstrained_args` exactly as a plain call does, so passing a named
+/// A method call exempts its arguments exactly as a plain call does, so passing a named
 /// unconstrained function to an unconstrained callee expecting a constrained `fn(..)` works
 /// whichever way the call is spelled.
 #[test]
@@ -933,9 +932,8 @@ fn can_pass_lambda_taking_mutable_reference_to_unconstrained_method() {
     assert_no_errors(src);
 }
 
-/// Conversely a *constrained* method resets the flag, so a lambda in its argument list is
-/// elaborated constrained even when the method call is itself nested inside an unconstrained
-/// call's arguments. Without that reset the lambda is compiled to Brillig and the constrained
+/// Conversely a lambda passed to a *constrained* method is elaborated constrained even when the
+/// method call is itself nested inside an unconstrained call's arguments. Without that reset the lambda is compiled to Brillig and the constrained
 /// method dispatches into it, which `check_for_missing_brillig_constraints` reports as a `bug:`.
 #[test]
 fn lambda_passed_to_constrained_method_inside_unconstrained_call_args_stays_constrained() {
@@ -957,6 +955,88 @@ fn lambda_passed_to_constrained_method_inside_unconstrained_call_args_stays_cons
     }
 
     unconstrained fn expect_field(_v: Field) {}
+    "#;
+    assert_no_errors(src);
+}
+
+/// Only a lambda written as the argument itself runs inside the unconstrained callee. A lambda
+/// declared in that lambda's body gets the runtime its own annotation asks for, the same as it
+/// would inside an `unconstrained fn` body.
+#[test]
+fn does_not_consider_lambda_body_as_unconstrained_when_inside_unconstrained_call_argument_1() {
+    let src = r#"
+    unconstrained fn sink(f: fn() -> Field) -> Field {
+        f()
+    }
+
+    fn main() -> pub Field {
+        // Safety: testing
+        unsafe {
+            sink(|| {
+                let inner: fn(Field) -> Field = |w: Field| w;
+                inner(3)
+            })
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// A lambda in a block that computes the argument is not the argument either.
+#[test]
+fn does_not_consider_lambda_body_as_unconstrained_when_inside_unconstrained_call_argument_2() {
+    let src = r#"
+    unconstrained fn sink(f: fn() -> Field) -> Field {
+        f()
+    }
+
+    fn main() -> pub Field {
+        // Safety: testing
+        unsafe {
+            sink({
+                let _: fn(Field) -> Field = |w: Field| w;
+                || 1
+            })
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// A lambda inside a tuple argument is checked against the tuple element's type, so it is
+/// elaborated with the runtime that element asks for.
+#[test]
+fn lambda_in_tuple_argument_of_unconstrained_call_takes_the_element_runtime() {
+    let src = r#"
+    unconstrained fn sink(fs: (fn(Field) -> Field, Field)) -> Field {
+        (fs.0)(fs.1)
+    }
+
+    fn main(x: Field) -> pub Field {
+        // Safety: testing
+        unsafe { sink((|v: Field| v + 1, x)) }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Parentheses around a lambda argument do not change what is being passed.
+#[test]
+fn parenthesized_lambda_passed_to_unconstrained_function_is_unconstrained() {
+    let src = r#"
+    fn main() {
+        // Safety: testing
+        unsafe {
+            expect_regular((|| {
+                let mut i = 0;
+                while i < 3 {
+                    i += 1;
+                }
+            }))
+        };
+    }
+
+    unconstrained fn expect_regular(_func: fn() -> ()) {}
     "#;
     assert_no_errors(src);
 }

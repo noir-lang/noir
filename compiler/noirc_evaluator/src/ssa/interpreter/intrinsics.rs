@@ -39,7 +39,7 @@ impl<W: Write> Interpreter<'_, W> {
                     None => {
                         let element_types = array.element_types.len();
                         let slots = array.elements.borrow().len();
-                        if element_types == 0 { 0 } else { (slots / element_types) as u32 }
+                        slots.checked_div(element_types).unwrap_or(0) as u32
                     }
                 };
                 Ok(vec![Value::u32(length)])

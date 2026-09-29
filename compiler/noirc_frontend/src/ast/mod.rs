@@ -14,7 +14,6 @@ mod traits;
 mod type_alias;
 mod visitor;
 
-use noirc_errors::Located;
 use noirc_errors::Location;
 use num_bigint::BigInt;
 pub use visitor::AttributeTarget;
@@ -521,31 +520,6 @@ impl UnresolvedTypeExpression {
             ExpressionKind::AsTraitPath(path) => Ok(UnresolvedTypeExpression::AsTraitPath(path)),
             ExpressionKind::Parenthesized(expr) => Self::from_expr_helper(*expr),
             _ => Err(expr),
-        }
-    }
-
-    pub fn to_expression_kind(&self) -> ExpressionKind {
-        match self {
-            UnresolvedTypeExpression::Variable(path) => ExpressionKind::Variable(path.clone()),
-            UnresolvedTypeExpression::Constant(int, suffix, _) => {
-                ExpressionKind::Literal(Literal::Integer(int.clone(), *suffix))
-            }
-            UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, location) => {
-                ExpressionKind::Infix(Box::new(InfixExpression {
-                    lhs: Expression { kind: lhs.to_expression_kind(), location: *location },
-                    operator: Located::from(*location, op.operator_to_binary_op_kind_helper()),
-                    rhs: Expression { kind: rhs.to_expression_kind(), location: *location },
-                }))
-            }
-            UnresolvedTypeExpression::Negation(rhs, location) => {
-                ExpressionKind::Prefix(Box::new(PrefixExpression {
-                    operator: UnaryOp::Minus,
-                    rhs: Expression { kind: rhs.to_expression_kind(), location: *location },
-                }))
-            }
-            UnresolvedTypeExpression::AsTraitPath(path) => {
-                ExpressionKind::AsTraitPath(Box::new(*path.clone()))
-            }
         }
     }
 

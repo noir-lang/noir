@@ -801,6 +801,24 @@ fn truncate() {
     assert_eq!(value, from_constant(constant.into(), NumericType::unsigned(32)));
 }
 
+/// Keeping zero bits of a value leaves nothing, so the result is 0. `truncate_field`, the
+/// simplifier, ACIR and Brillig all agree on that, so the interpreter has to as well: Constant
+/// Folding rewrites `truncate u32 5 to 0 bits` to `u32 0`, and an interpreter that rejects the
+/// instruction disagrees with the SSA the compiler itself produces.
+#[test]
+fn truncate_to_zero_bits() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = truncate u32 5 to 0 bits, max_bit_size: 32
+            return v0
+        }
+    ",
+    );
+    assert_eq!(value, from_constant(0_u128.into(), NumericType::unsigned(32)));
+}
+
 /// Truncating a *negative* signed value performs no sign-specific logic: it reduces the
 /// value's two's-complement field representation modulo `2^bit_size`, i.e. it keeps the
 /// low `bit_size` bits. The result keeps the original signed type, so it is the masked
