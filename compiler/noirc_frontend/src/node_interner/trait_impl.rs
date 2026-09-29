@@ -631,7 +631,7 @@ impl NodeInterner {
                     return false;
                 };
 
-                let impl_generic = named_impl_generic.typ.force_substitute(&instantiation_bindings);
+                let impl_generic = named_impl_generic.typ.substitute(&instantiation_bindings);
 
                 trait_generic.typ.try_unify(&impl_generic, &mut fresh_bindings).is_ok()
             });
@@ -722,20 +722,17 @@ impl NodeInterner {
         recursion_limit: u32,
     ) -> Result<(), (TraitConstraint, ImplSearchErrorKind)> {
         for constraint in where_clause {
-            // Instantiation bindings are generally safe to force substitute into the same type.
-            // This is needed here to undo any bindings done to trait methods by monomorphization.
-            // Otherwise, an impl for any (A, B) could get narrowed to only an impl for e.g. (u8, u16).
             let constraint_type =
-                constraint.typ.force_substitute(instantiation_bindings).substitute(type_bindings);
+                constraint.typ.substitute(instantiation_bindings).substitute(type_bindings);
 
             let trait_generics =
                 vecmap(&constraint.trait_bound.trait_generics.ordered, |generic| {
-                    generic.force_substitute(instantiation_bindings).substitute(type_bindings)
+                    generic.substitute(instantiation_bindings).substitute(type_bindings)
                 });
 
             let trait_associated_types =
                 vecmap(&constraint.trait_bound.trait_generics.named, |generic| {
-                    let typ = generic.typ.force_substitute(instantiation_bindings);
+                    let typ = generic.typ.substitute(instantiation_bindings);
                     NamedType { name: generic.name.clone(), typ: typ.substitute(type_bindings) }
                 });
 

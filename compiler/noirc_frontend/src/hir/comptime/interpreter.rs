@@ -162,17 +162,13 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     ///
     /// This is the one way the interpreter reads a type from the HIR of the function it is
     /// interpreting: [`Self::expr_type`] and [`Self::bindings`] are shorthands for it.
-    ///
-    /// The substitution takes precedence over any binding a type variable already has, so a
-    /// generic that elaboration bound to another generic still resolves to the type this frame
-    /// binds it to.
     pub(super) fn ty(&self, typ: &Type) -> Type {
         // A polymorphic global's HIR keeps its quantifier, and its quantified variables are the
         // ones the use site binds, so substitute underneath it.
         if let Type::Forall(variables, typ) = typ {
             return Type::Forall(variables.clone(), Box::new(self.ty(typ)));
         }
-        typ.force_substitute(&self.substitution)
+        typ.substitute(&self.substitution)
     }
 
     /// The type of the expression `id` as seen from the function being interpreted.
