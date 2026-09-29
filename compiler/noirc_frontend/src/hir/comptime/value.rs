@@ -27,7 +27,6 @@ use crate::{
         HirArrayLiteral, HirConstructorExpression, HirEnumConstructorExpression, HirExpression,
         HirIdent, HirLambda, HirLiteral, ImplKind,
     },
-    hir_def::types::BoundGenerics,
     node_interner::{ExprId, FuncId, NodeInterner, StmtId, TraitId, TraitImplId, TypeId},
     parser::{Item, Parser},
     token::{FmtStrFragment, IntegerTypeSuffix, LocatedToken, Token, Tokens},
@@ -97,10 +96,6 @@ pub struct Closure {
     pub typ: Type,
     pub function_scope: Option<FuncId>,
     pub module_scope: ModuleId,
-    /// The type bindings where the closure was created.
-    /// This is needed because when the closure is interpreted, those type bindings
-    /// need to be restored.
-    pub(crate) bindings: BoundGenerics,
     /// The interpreter's substitution where the closure was created, which is the one its body
     /// is interpreted under.
     pub(crate) substitution: TypeBindings,
@@ -185,22 +180,14 @@ impl Value {
                 Value::Function(id, f(&typ), Rc::new(bindings))
             }
             Value::Closure(closure) => {
-                let Closure {
-                    lambda,
-                    env,
-                    typ,
-                    function_scope,
-                    module_scope,
-                    bindings,
-                    substitution,
-                } = *closure;
+                let Closure { lambda, env, typ, function_scope, module_scope, substitution } =
+                    *closure;
                 let closure = Closure {
                     lambda,
                     env: map_all(env),
                     typ: f(&typ),
                     function_scope,
                     module_scope,
-                    bindings,
                     substitution,
                 };
                 Value::Closure(Box::new(closure))
