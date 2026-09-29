@@ -212,11 +212,11 @@ struct Test<'a> {
 /// produces the same result for every test in that package, so a worker holds onto the context it
 /// built and reuses it for the next test from the same package.
 ///
-/// Reuse rests on monomorphization leaving the context exactly as it found it, which the frontend
-/// guarantees and asserts in `noirc_frontend::monomorphization::context_purity_tests`: the type
-/// variables it binds and the instantiation bindings it rewrites are restored on every path out,
-/// success or error. A context is dropped when a test unwinds, which escapes those restores, and
-/// `--no-context-reuse` turns sharing off for a whole run.
+/// Reuse rests on monomorphization not changing what an elaborated context already holds: it
+/// resolves generics through a substitution of its own rather than by binding the context's type
+/// variables. `noirc_frontend::monomorphization::context_reuse_tests` asserts that a test compiles
+/// to the same program whatever was compiled against the context before it. A context is dropped
+/// when a test unwinds, and `--no-context-reuse` turns sharing off for a whole run.
 struct CachedContext<'a> {
     package: &'a Package,
     context: Context<'a, 'a>,
