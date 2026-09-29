@@ -826,6 +826,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let typ =
                     self.elaborator.interner.find_associated_type_for_impl(*trait_impl_id, name);
                 let typ = typ.expect("Expected to find associated type");
+                // The value can mention the impl's generics (`A + B` in
+                // `impl<let A: u32, let B: u32>`), which the frame's substitution binds.
+                let typ = self.ty(typ);
                 let location = self.elaborator.interner.expr_location(&id);
                 match typ.evaluate_to_integer(&typ.kind(), location) {
                     Ok(value) => self.evaluate_integer_literal(value.to_bigint(), id),
@@ -885,6 +888,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 Ok(Value::Function(func_id, typ, Rc::new(bindings)))
             }
             (crate::monomorphization::TraitItem::Constant { id: _, expected_type, value }, _) => {
+                // The value can mention the generics of the function being interpreted, e.g.
+                // `A + B` for `Self::N` inside a method of `impl<let A: u32, let B: u32>`.
+                let value = self.ty(&value);
                 self.evaluate_numeric_generic(&value, &expected_type, id)
             }
         }
