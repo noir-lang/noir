@@ -112,15 +112,11 @@ def SignedOp (n : ℕ) (op : ℤ → ℤ → ℤ) : List ℕ → List ℕ → Pr
   rule for;
 * `regression_8519` truncates a `Field` to 128 bits, whose remainder bound
   takes a shape the checker does not handle;
-* `array_eq` and `global_consts` assert that a product of `eq` flags is `0`,
-  which the checker cannot yet show from the circuit;
-* `array_if_cond_simple` does a checked `add` on a conditional select
-  `c + (1 - c) * x`, which the checker cannot yet bound;
-* `regression_9329` checks signed overflow with
-  `constrain (eq a b) * b == b`, which the checker cannot yet follow. -/
+* `array_eq` and `global_consts` multiply 32 `eq` flags together. The checker
+  accepts both, but it keeps every rewritten form of the running product, and
+  checking that in the kernel takes more than 15 minutes. -/
 def uncoveredPrograms : List String :=
-  ["arithmetic_binary_operations", "array_eq", "array_if_cond_simple", "global_consts",
-   "regression_8519", "regression_9329"]
+  ["arithmetic_binary_operations", "array_eq", "global_consts", "regression_8519"]
 
 /-- The whole promise, for every pinned width `n`:
 * `euclidean_division_var(a, b, n)` with `a`, `b` both `n`-bit computes

@@ -333,8 +333,14 @@ theorem eqFlags_sound {a b : Rep2} {x y : F}
     {w : ℕ} (h : w ∈ eqFlags cc a b) : σ w = (flag (decide (x = y))).1 := by
   obtain ⟨Xa, hXa, h⟩ := List.mem_flatMap.1 h
   obtain ⟨Xb, hXb, h⟩ := List.mem_flatMap.1 h
+  obtain ⟨T, hT, h⟩ := List.mem_flatMap.1 h
+  have hTv : T.eval σ = x - y := by
+    refine forms_sound hcc (fun P hP => ?_) T hT
+    simp only [List.mem_singleton] at hP
+    subst hP
+    simp [eval_psub, hFa Xa hXa, hFb Xb hXb]
   have hz := zeroFlags_sound hcc h
-  simp only [eval_psub, hFa Xa hXa, hFb Xb hXb, sub_eq_zero] at hz
+  simp only [hTv, sub_eq_zero] at hz
   by_cases hxy : x = y
   · simp [flag, hxy, hz.1 hxy]
   · simp [flag, hxy, hz.2 (sub_ne_zero.2 hxy)]
@@ -825,15 +831,59 @@ theorem binRep_sound {op : BinaryOp} {u : Bool} {a b r : Rep2} {x y : F} {tx ty 
     cases op <;> simp_all [BinaryOp.apply, fieldArith]
   · next h1 h2 h3 =>
     split_ifs at h with hf
-    obtain ⟨v, hv, hok⟩ := checkedRep_sound hcc h ha hb hf
-    refine ⟨v, apply_of_fitApply hv (.inl fun hne => ?_), hok⟩
-    cases hu : u && isArith op
-    · rfl
-    · exfalso
-      cases hty : a.ty with
-      | field => exact hne hty
-      | uint n => exact h2 n hty hu
-      | sint n => exact h3 n hty hu
+    · obtain ⟨v, hv, hok⟩ := checkedRep_sound hcc h ha hb hf
+      refine ⟨v, apply_of_fitApply hv (.inl fun hne => ?_), hok⟩
+      cases hu : u && isArith op
+      · rfl
+      · exfalso
+        cases hty : a.ty with
+        | field => exact hne hty
+        | uint n => exact h2 n hty hu
+        | sint n => exact h3 n hty hu
+    · split at h
+      · next _ _ n hty =>
+        split_ifs at h with hn1
+        unfold addRep at h
+        obtain ⟨-, hPa, -, -⟩ := ha
+        obtain ⟨-, hPb, -, -⟩ := hb
+        have hsum : ∀ P ∈ comb (· ++ ·) (forms cc a.alts) (forms cc b.alts), P.eval σ = x + y := by
+          intro P hP
+          obtain ⟨A, hA, B, hB, rfl⟩ := comb_mem hP
+          rw [Poly.eval_append, forms_sound hcc hPa A hA, forms_sound hcc hPb B hB]
+        have hbd : ∃ L M, L ≤ (x + y).val ∧ (x + y).val ≤ M ∧ M < 2 ^ n ∧
+            r = ⟨comb (· ++ ·) (forms cc a.alts) (forms cc b.alts), .uint n, L, M⟩ := by
+          dsimp only at h
+          split at h
+          · next L M hk =>
+            simp only [Option.some.injEq] at h
+            obtain ⟨hL, hM, hM2⟩ := checked_sound hcc hsum hk
+            exact ⟨L, M, hL, hM, hM2, h.symm⟩
+          · obtain ⟨c, hc, rfl⟩ := Option.map_eq_some_iff.1 h
+            obtain ⟨P, hP, hf⟩ := List.exists_of_findSome?_eq_some hc
+            have hf' := List.find?_some hf
+            simp only [Bool.and_eq_true, decide_eq_true_eq] at hf'
+            obtain ⟨⟨hcn, hcp⟩, hz⟩ := hf'
+            have h0 := holdsZ_sound hcc hz
+            simp only [eval_psub, eval_pconst, hsum P hP, Int.cast_natCast] at h0
+            have hv : (x + y).val = c := by
+              rw [show x + y = (c : F) by linear_combination h0]
+              exact val_natCast_of_lt hcp
+            exact ⟨c, c, by omega, by omega, hcn, rfl⟩
+        obtain ⟨L, M, hL, hM, hM2, rfl⟩ := hbd
+        have hu : (u && isArith .add) = false := by
+          cases hu : u && isArith .add
+          · rfl
+          · exact (h2 n hty hu).elim
+        have hu' : u = false := by simpa [isArith] using hu
+        have hlt : (x + y).val < 2 ^ n := by omega
+        refine ⟨(x + y, .uint n), ?_, rfl, hsum, hL, hM⟩
+        rw [hty, hu']
+        rcases n with _ | _ | k
+        · have h0 : (x + y).val = 0 := by simpa using hlt
+          simp [BinaryOp.apply, fieldArith, h0]
+        · exact absurd rfl hn1
+        · simp [BinaryOp.apply, fieldArith, hlt]
+      · simp at h
 
 end
 
