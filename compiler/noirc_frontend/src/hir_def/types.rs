@@ -2797,23 +2797,36 @@ impl Type {
     /// Follow bindings if this is a type variable or generic to the first non-type-variable
     /// type. Unlike `follow_bindings`, this won't recursively follow any bindings on any
     /// fields or arguments of this type.
-    pub fn follow_bindings_shallow(&self) -> Cow<Type> {
+    ///
+    /// Borrows from `self` unless it has to expand a type alias on the way, since a bound type
+    /// variable's binding can be read in place.
+    pub fn follow_bindings_shallow(&self) -> Cow<'_, Type> {
+        /// One step of following: the type this one stands for, if it stands for another.
+        fn step(typ: &Type) -> Option<Cow<'_, Type>> {
+            match typ {
+                Type::TypeVariable(var)
+                | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) => match var.binding() {
+                    TypeBinding::Bound(bound) => Some(Cow::Borrowed(bound)),
+                    TypeBinding::Unbound(..) => None,
+                },
+                Type::Alias(alias_def, generics) => {
+                    Some(Cow::Owned(alias_def.borrow().get_type(generics)))
+                }
+                _ => None,
+            }
+        }
+
         let mut this = Cow::Borrowed(self);
         for _ in 0..TYPE_RECURSION_LIMIT {
-            match this.as_ref() {
-                Type::TypeVariable(var)
-                | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) => {
-                    if let TypeBinding::Bound(typ) = var.binding() {
-                        this = Cow::Owned(typ.clone());
-                    } else {
-                        return this;
-                    }
-                }
-                Type::Alias(alias_def, generics) => {
-                    let typ = alias_def.borrow().get_type(generics);
-                    this = Cow::Owned(typ);
-                }
-                _ => return this,
+            let next = match &this {
+                Cow::Borrowed(typ) => step(typ),
+                // A type reached through an alias expansion is owned, so what it stands for has to
+                // be owned too.
+                Cow::Owned(typ) => step(typ).map(|next| Cow::Owned(next.into_owned())),
+            };
+            match next {
+                Some(next) => this = next,
+                None => return this,
             }
         }
         panic!("Type recursion limit reached - types are too large")

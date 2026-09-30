@@ -2542,18 +2542,15 @@ impl Elaborator<'_> {
     #[tracing::instrument(level = "trace", skip_all)]
     fn bind_function_type(
         &mut self,
-        function: Type,
+        function: &Type,
         args: Vec<(Type, ExprId, Location)>,
         location: Location,
     ) -> Type {
         // Could do a single unification for the entire function type, but matching beforehand
         // lets us issue a more precise error on the individual argument that fails to type check.
+        // Following bindings leaves a type variable here only if it is unbound.
         match function.follow_bindings_shallow().as_ref() {
             Type::TypeVariable(binding) if binding.kind().is_normal_or_any() => {
-                if let TypeBinding::Bound(typ) = binding.binding() {
-                    return self.bind_function_type(typ.clone(), args, location);
-                }
-
                 let ret = self.interner.next_type_variable();
                 let args = vecmap(args, |(arg, _, _)| arg);
                 let env_type = self.interner.next_type_variable();
@@ -3650,7 +3647,7 @@ impl Elaborator<'_> {
         let crossing_runtime_boundary =
             self.check_call_runtime_boundary(call.func, &func_type, &args, location);
 
-        let return_type = self.bind_function_type(func_type, args, location);
+        let return_type = self.bind_function_type(&func_type, args, location);
 
         if crossing_runtime_boundary {
             self.check_unconstrained_call_return(&return_type, location);

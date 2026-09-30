@@ -649,8 +649,8 @@ mod tests {
         assert!(matches!(rhs, Type::Constant(..)));
 
         // ensure result kinds are the same as the original kind
-        assert_eq!(lhs.kind().into_owned(), field_element_kind);
-        assert_eq!(rhs.kind().into_owned(), field_element_kind);
+        assert_eq!(*lhs.kind(), field_element_kind);
+        assert_eq!(*rhs.kind(), field_element_kind);
 
         // ensure results are the same
         assert_eq!(lhs, rhs);
