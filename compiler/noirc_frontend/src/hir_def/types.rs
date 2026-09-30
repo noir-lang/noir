@@ -2797,23 +2797,36 @@ impl Type {
     /// Follow bindings if this is a type variable or generic to the first non-type-variable
     /// type. Unlike `follow_bindings`, this won't recursively follow any bindings on any
     /// fields or arguments of this type.
-    pub fn follow_bindings_shallow(&self) -> Cow<Type> {
+    ///
+    /// Borrows from `self` unless it has to expand a type alias on the way, since a bound type
+    /// variable's binding can be read in place.
+    pub fn follow_bindings_shallow(&self) -> Cow<'_, Type> {
+        /// One step of following: the type this one stands for, if it stands for another.
+        fn step(typ: &Type) -> Option<Cow<'_, Type>> {
+            match typ {
+                Type::TypeVariable(var)
+                | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) => match var.binding() {
+                    TypeBinding::Bound(bound) => Some(Cow::Borrowed(bound)),
+                    TypeBinding::Unbound(..) => None,
+                },
+                Type::Alias(alias_def, generics) => {
+                    Some(Cow::Owned(alias_def.borrow().get_type(generics)))
+                }
+                _ => None,
+            }
+        }
+
         let mut this = Cow::Borrowed(self);
         for _ in 0..TYPE_RECURSION_LIMIT {
-            match this.as_ref() {
-                Type::TypeVariable(var)
-                | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) => {
-                    if let TypeBinding::Bound(typ) = var.binding() {
-                        this = Cow::Owned(typ.clone());
-                    } else {
-                        return this;
-                    }
-                }
-                Type::Alias(alias_def, generics) => {
-                    let typ = alias_def.borrow().get_type(generics);
-                    this = Cow::Owned(typ);
-                }
-                _ => return this,
+            let next = match &this {
+                Cow::Borrowed(typ) => step(typ),
+                // A type reached through an alias expansion is owned, so what it stands for has to
+                // be owned too.
+                Cow::Owned(typ) => step(typ).map(|next| Cow::Owned(next.into_owned())),
+            };
+            match next {
+                Some(next) => this = next,
+                None => return this,
             }
         }
         panic!("Type recursion limit reached - types are too large")
@@ -3580,6 +3593,66 @@ mod tests {
             let nested = checked_cast(cast);
             assert_eq!(typ, nested);
             assert_eq!(hash_of(&typ), hash_of(&nested), "{typ:?} and {nested:?} hash differently");
+        }
+    }
+
+    /// `follow_bindings_shallow` stops only at a type that stands for no other type: never at a
+    /// bound type variable or named generic, and never at an alias. `bind_function_type` relies on
+    /// this: it treats a type variable it gets back as unbound and binds it.
+    #[test]
+    fn follow_bindings_shallow_stops_only_at_a_type_standing_for_no_other() {
+        fn alias_of(typ: Type) -> Type {
+            let mut modules = noirc_arena::Arena::default();
+            let module_id = ModuleId {
+                krate: crate::graph::CrateId::Root(0),
+                local_id: crate::hir::def_map::LocalModuleId::new(modules.insert(())),
+            };
+            let name = Ident::new("Alias".to_string(), Location::dummy());
+            let alias = TypeAlias::new(
+                TypeAliasId(0),
+                name,
+                Location::dummy(),
+                typ,
+                Vec::new(),
+                ItemVisibility::Public,
+                false,
+                module_id,
+            );
+            Type::Alias(Shared::new(alias), Vec::new())
+        }
+
+        fn stops_at_a_type_standing_for_no_other(typ: &Type) -> bool {
+            match typ {
+                Type::TypeVariable(var)
+                | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) => {
+                    var.binding().is_unbound()
+                }
+                Type::Alias(..) => false,
+                _ => true,
+            }
+        }
+
+        let unbound = TypeVariable::unbound(TypeVariableId(0), Kind::Normal);
+        let named = |var: TypeVariable| {
+            Type::NamedGeneric(NamedGeneric::new(var, false, &Rc::new("T".to_string()), None, None))
+        };
+        let bound = |id, typ| Type::TypeVariable(TypeVariable::bound(TypeVariableId(id), typ));
+
+        let chains = [
+            Type::TypeVariable(unbound.clone()),
+            bound(1, Type::FieldElement),
+            bound(2, bound(3, Type::TypeVariable(unbound.clone()))),
+            named(TypeVariable::bound(TypeVariableId(4), Type::Bool)),
+            alias_of(bound(5, Type::FieldElement)),
+            bound(6, alias_of(named(TypeVariable::bound(TypeVariableId(7), Type::Unit)))),
+            bound(8, alias_of(Type::TypeVariable(unbound))),
+        ];
+        for typ in chains {
+            let followed = typ.follow_bindings_shallow();
+            assert!(
+                stops_at_a_type_standing_for_no_other(&followed),
+                "follow_bindings_shallow stopped at {followed:?} for {typ:?}"
+            );
         }
     }
 
