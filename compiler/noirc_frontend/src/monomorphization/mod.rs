@@ -350,17 +350,13 @@ impl<'interner> Monomorphizer<'interner> {
     ///
     /// This is the one way this pass reads an HIR type: [`Self::expr_type`] and
     /// [`Self::definition_type`] are shorthands for it.
-    ///
-    /// The substitution takes precedence over any binding a type variable already has: a
-    /// generic that elaboration bound to another generic (a trait method's `Self`, say) still
-    /// resolves to the type this function is being monomorphized for.
     fn ty(&self, typ: &Type) -> Type {
         // A polymorphic global's HIR keeps its quantifier, and its quantified variables are the
         // ones the use site binds, so substitute underneath it.
         if let Type::Forall(variables, typ) = typ {
             return Type::Forall(variables.clone(), Box::new(self.ty(typ)));
         }
-        typ.force_substitute(&self.substitution)
+        typ.substitute(&self.substitution)
     }
 
     /// Run `f` with `bindings` added to [`Self::substitution`], and take them back out when it
@@ -3399,13 +3395,11 @@ pub fn compute_impl_bindings(
     let mut bindings = TypeBindings::default();
 
     if let Some(trait_method) = trait_method {
-        let mut trait_method_type = interner
-            .definition_type(trait_method.item_id)
-            .as_monotype()
-            .force_substitute(substitution);
+        let mut trait_method_type =
+            interner.definition_type(trait_method.item_id).as_monotype().substitute(substitution);
 
         let mut impl_method_type =
-            interner.function_meta(&impl_method).typ.as_monotype().force_substitute(substitution);
+            interner.function_meta(&impl_method).typ.as_monotype().substitute(substitution);
 
         // Make each NamedGeneric in this type bindable by replacing it with a TypeVariable
         // with the same internal id, binding.
@@ -3464,11 +3458,11 @@ fn resolve_trait_item_impl(
         TraitImplKind::Assumed { object_type, trait_generics } => {
             let location = interner.expr_location(&expr_id);
 
-            let object_type = object_type.force_substitute(substitution);
-            let ordered = vecmap(&trait_generics.ordered, |typ| typ.force_substitute(substitution));
+            let object_type = object_type.substitute(substitution);
+            let ordered = vecmap(&trait_generics.ordered, |typ| typ.substitute(substitution));
             let named = vecmap(&trait_generics.named, |named| crate::hir_def::traits::NamedType {
                 name: named.name.clone(),
-                typ: named.typ.force_substitute(substitution),
+                typ: named.typ.substitute(substitution),
             });
             match interner.try_lookup_trait_implementation(
                 &object_type,
@@ -3702,7 +3696,7 @@ pub(crate) fn resolve_trait_item(
                 // Apply the expression's instantiation bindings. Any of the impl search's
                 // variables left in the value are resolved by the caller, which has the search's
                 // bindings in force.
-                let value = item.typ.force_substitute(&instantiation_bindings);
+                let value = item.typ.substitute(&instantiation_bindings);
 
                 let item = TraitItem::Constant { id, expected_type, value };
                 return Ok(ResolvedTraitItem {
