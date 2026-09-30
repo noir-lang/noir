@@ -680,7 +680,7 @@ fn gather_named_type_vars(typ: &Type, type_vars: &mut BTreeSet<(String, Kind)>) 
             }
         }
         Type::NamedGeneric(NamedGeneric { type_var, name, .. }) => {
-            type_vars.insert((name.to_string(), type_var.kind()));
+            type_vars.insert((name.to_string(), type_var.kind().into_owned()));
         }
         Type::CheckedCast { from, to: _ } => {
             gather_named_type_vars(from, type_vars);

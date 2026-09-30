@@ -40,7 +40,12 @@ impl Generic for TraitId {
     }
 
     fn generic_kinds(&self, interner: &NodeInterner) -> Vec<Kind> {
-        interner.get_trait(*self).generics.iter().map(|generic| generic.kind()).collect()
+        interner
+            .get_trait(*self)
+            .generics
+            .iter()
+            .map(|generic| generic.kind().into_owned())
+            .collect()
     }
 
     fn accepts_named_type_args(&self) -> bool {
@@ -67,7 +72,7 @@ impl Generic for TypeAliasId {
             .borrow()
             .generics
             .iter()
-            .map(|generic| generic.kind())
+            .map(|generic| generic.kind().into_owned())
             .collect()
     }
 
@@ -90,7 +95,7 @@ impl Generic for Ref<'_, DataType> {
     }
 
     fn generic_kinds(&self, _interner: &NodeInterner) -> Vec<Kind> {
-        self.generics.iter().map(|generic| generic.kind()).collect()
+        self.generics.iter().map(|generic| generic.kind().into_owned()).collect()
     }
 
     fn accepts_named_type_args(&self) -> bool {
@@ -112,7 +117,12 @@ impl Generic for FuncId {
     }
 
     fn generic_kinds(&self, interner: &NodeInterner) -> Vec<Kind> {
-        interner.function_meta(self).direct_generics.iter().map(|generic| generic.kind()).collect()
+        interner
+            .function_meta(self)
+            .direct_generics
+            .iter()
+            .map(|generic| generic.kind().into_owned())
+            .collect()
     }
 
     fn accepts_named_type_args(&self) -> bool {

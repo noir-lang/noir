@@ -241,7 +241,7 @@ impl NodeInterner {
         let substitutions = impl_generics
             .into_iter()
             .map(|typevar| {
-                let typevar_kind = typevar.kind();
+                let typevar_kind = typevar.kind().into_owned();
                 let typevar_id = typevar.id();
                 let substitution = (
                     typevar,

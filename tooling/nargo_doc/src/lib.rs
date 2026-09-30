@@ -269,8 +269,8 @@ impl DocItemBuilder<'_> {
                 for associated_type in &trait_.associated_types {
                     let name = associated_type.name.to_string();
 
-                    if let Kind::Numeric(numeric_type) = associated_type.kind() {
-                        let r#type = self.convert_type(&numeric_type);
+                    if let Kind::Numeric(numeric_type) = &*associated_type.kind() {
+                        let r#type = self.convert_type(numeric_type);
                         associated_constants.push(AssociatedConstant { name, r#type });
                     } else {
                         let bounds = if let Some(trait_bounds) =
@@ -400,7 +400,7 @@ impl DocItemBuilder<'_> {
     fn convert_impl(&mut self, impl_: expand_items::Impl) -> Impl {
         let generics = vecmap(impl_.generics, |generic| {
             let name = generic.name.as_ref().clone();
-            let numeric = self.kind_to_numeric(generic.kind());
+            let numeric = self.kind_to_numeric(&generic.kind());
             Generic { name, numeric }
         });
         let r#type = self.convert_type(&impl_.typ);
@@ -426,7 +426,7 @@ impl DocItemBuilder<'_> {
         let trait_impl = trait_impl.borrow();
 
         let generics = vecmap(item_trait_impl.generics, |(name, kind)| {
-            let numeric = self.kind_to_numeric(kind);
+            let numeric = self.kind_to_numeric(&kind);
             Generic { name, numeric }
         });
         let where_clause = vecmap(&trait_impl.where_clause, |constraint| {
@@ -691,15 +691,15 @@ impl DocItemBuilder<'_> {
     }
 
     fn convert_generic(&self, generic: &ResolvedGeneric) -> Generic {
-        let numeric = self.kind_to_numeric(generic.kind());
+        let numeric = self.kind_to_numeric(&generic.kind());
         let name = generic.name.to_string();
         Generic { name, numeric }
     }
 
-    fn kind_to_numeric(&self, kind: Kind) -> Option<Type> {
+    fn kind_to_numeric(&self, kind: &Kind) -> Option<Type> {
         match kind {
             Kind::Any | Kind::Normal | Kind::IntegerOrField | Kind::Integer => None,
-            Kind::Numeric(typ) => Some(self.convert_type(&typ)),
+            Kind::Numeric(typ) => Some(self.convert_type(typ)),
         }
     }
 

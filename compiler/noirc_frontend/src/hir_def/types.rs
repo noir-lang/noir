@@ -537,7 +537,7 @@ impl ResolvedGeneric {
         Type::NamedGeneric(NamedGeneric::new(self.type_var, false, &self.name, as_trait, None))
     }
 
-    pub fn kind(&self) -> Kind {
+    pub fn kind(&self) -> Cow<'_, Kind> {
         self.type_var.kind()
     }
 }
@@ -663,7 +663,10 @@ impl DataType {
             let generics = self.generics.iter().zip_eq(generic_args);
             let substitutions = generics
                 .map(|(old, new)| {
-                    (old.type_var.id(), (old.type_var.clone(), old.type_var.kind(), new.clone()))
+                    (
+                        old.type_var.id(),
+                        (old.type_var.clone(), old.type_var.kind().into_owned(), new.clone()),
+                    )
                 })
                 .collect();
 
@@ -735,7 +738,10 @@ impl DataType {
             .iter()
             .zip_eq(generic_args)
             .map(|(old, new)| {
-                (old.type_var.id(), (old.type_var.clone(), old.type_var.kind(), new.clone()))
+                (
+                    old.type_var.id(),
+                    (old.type_var.clone(), old.type_var.kind().into_owned(), new.clone()),
+                )
             })
             .collect()
     }
@@ -790,7 +796,9 @@ impl DataType {
     /// Instantiate this struct type, returning a Vec of the new generic args (in
     /// the same order as self.generics)
     pub fn instantiate(&self, interner: &mut NodeInterner) -> Vec<Type> {
-        vecmap(&self.generics, |generic| interner.next_type_variable_with_kind(generic.kind()))
+        vecmap(&self.generics, |generic| {
+            interner.next_type_variable_with_kind(generic.kind().into_owned())
+        })
     }
 
     /// Returns the function type of the variant at the given index of this enum.
@@ -922,7 +930,10 @@ impl TypeAlias {
             .iter()
             .zip_eq(generic_args)
             .map(|(old, new)| {
-                (old.type_var.id(), (old.type_var.clone(), old.type_var.kind(), new.clone()))
+                (
+                    old.type_var.id(),
+                    (old.type_var.clone(), old.type_var.kind().into_owned(), new.clone()),
+                )
             })
             .collect();
 
@@ -1113,7 +1124,7 @@ impl TypeVariable {
     /// Its kind is `typ`'s kind, as for any bound type variable.
     pub fn bound(id: TypeVariableId, typ: Type) -> Self {
         assert!(!typ.occurs(id), "type variable {} occurs within {typ:?}", id.0);
-        let unbound = TypeBinding::Unbound(id, typ.kind());
+        let unbound = TypeBinding::Unbound(id, typ.kind().into_owned());
         TypeVariable(id, BindingCell::new(unbound, OnceLock::from(TypeBinding::Bound(typ))))
     }
 
@@ -1152,7 +1163,7 @@ impl TypeVariable {
         if !binding.kind().unifies(kind) {
             return Err(TypeCheckError::TypeKindMismatch {
                 expected_kind: kind.clone(),
-                expr_kind: binding.kind(),
+                expr_kind: binding.kind().into_owned(),
                 expr_location: location,
             });
         }
@@ -1177,10 +1188,12 @@ impl TypeVariable {
         self.1.get()
     }
 
-    pub fn kind(&self) -> Kind {
+    /// This variable's kind: the kind it was created with while unbound, and its binding's kind
+    /// once bound. Borrowed wherever the kind is stored rather than computed.
+    pub fn kind(&self) -> Cow<'_, Kind> {
         match self.binding() {
             TypeBinding::Bound(binding) => binding.kind(),
-            TypeBinding::Unbound(_, type_var_kind) => type_var_kind.clone(),
+            TypeBinding::Unbound(_, type_var_kind) => Cow::Borrowed(type_var_kind),
         }
     }
 
@@ -1683,17 +1696,21 @@ impl Type {
         }
     }
 
-    pub fn kind(&self) -> Kind {
+    /// This type's kind. Borrowed when it comes from a type variable's stored kind, which is the
+    /// case that would otherwise copy a numeric kind's `Box<Type>`.
+    pub fn kind(&self) -> Cow<'_, Kind> {
         match self {
             Type::CheckedCast { to, .. } => to.kind(),
             Type::NamedGeneric(NamedGeneric { type_var, .. }) => type_var.kind(),
-            Type::Constant(int) => Kind::Numeric(Box::new(int.get_type())),
+            Type::Constant(int) => Cow::Owned(Kind::Numeric(Box::new(int.get_type()))),
             Type::TypeVariable(var) => match var.binding() {
                 TypeBinding::Bound(typ) => typ.kind(),
-                TypeBinding::Unbound(_, type_var_kind) => type_var_kind.clone(),
+                TypeBinding::Unbound(_, type_var_kind) => Cow::Borrowed(type_var_kind),
             },
-            Type::InfixExpr(lhs, _op, rhs, _) => lhs.infix_kind(rhs),
-            Type::Alias(def, generics) => def.borrow().get_type(generics).kind(),
+            Type::InfixExpr(lhs, _op, rhs, _) => Cow::Owned(lhs.infix_kind(rhs)),
+            Type::Alias(def, generics) => {
+                Cow::Owned(def.borrow().get_type(generics).kind().into_owned())
+            }
             // This is a concrete FieldElement, not an IntegerOrField
             Type::FieldElement
             | Type::Integer(..)
@@ -1709,8 +1726,8 @@ impl Type {
             | Type::Function(..)
             | Type::Reference(..)
             | Type::Forall(..)
-            | Type::Quoted(..) => Kind::Normal,
-            Type::Error => Kind::Any,
+            | Type::Quoted(..) => Cow::Owned(Kind::Normal),
+            Type::Error => Cow::Owned(Kind::Any),
         }
     }
 
@@ -1811,7 +1828,11 @@ impl Type {
     fn infix_kind(&self, other: &Self) -> Kind {
         let self_kind = self.kind();
         let other_kind = other.kind();
-        if self_kind.unifies(&other_kind) { self_kind } else { Kind::numeric(Type::Error) }
+        if self_kind.unifies(&other_kind) {
+            self_kind.into_owned()
+        } else {
+            Kind::numeric(Type::Error)
+        }
     }
 
     /// Creates an `InfixExpr`.
@@ -2257,12 +2278,12 @@ impl Type {
         if this.occurs(target_id) {
             Err(UnificationError)
         } else {
-            bindings.insert(target_id, (var.clone(), this.kind(), this));
+            bindings.insert(target_id, (var.clone(), this.kind().into_owned(), this));
             Ok(())
         }
     }
 
-    fn get_inner_type_variable(&self) -> Option<(&TypeVariable, Kind)> {
+    fn get_inner_type_variable(&self) -> Option<(&TypeVariable, Cow<'_, Kind>)> {
         match self {
             Type::TypeVariable(var) => Some((var, var.kind())),
             Type::NamedGeneric(NamedGeneric { type_var, .. }) => Some((type_var, type_var.kind())),
@@ -2405,7 +2426,11 @@ impl Type {
             Type::Forall(typevars, typ) => {
                 for var in typevars {
                     bindings.entry(var.id()).or_insert_with(|| {
-                        (var.clone(), var.kind(), interner.next_type_variable_with_kind(var.kind()))
+                        (
+                            var.clone(),
+                            var.kind().into_owned(),
+                            interner.next_type_variable_with_kind(var.kind().into_owned()),
+                        )
                     });
                 }
                 let instantiated = typ.substitute(&bindings);
@@ -2436,8 +2461,9 @@ impl Type {
         let replacements = typevars
             .iter()
             .map(|var| {
-                let new = interner.next_type_variable_with_kind(var.kind());
-                (var.id(), (var.clone(), var.kind(), new))
+                let kind = var.kind().into_owned();
+                let new = interner.next_type_variable_with_kind(kind.clone());
+                (var.id(), (var.clone(), kind, new))
             })
             .collect();
 
@@ -2478,7 +2504,7 @@ impl Type {
                 let mut replacements: TypeBindings = typevars
                     .iter()
                     .map(|var| {
-                        let kind = var.kind();
+                        let kind = var.kind().into_owned();
                         let binding = if direct_generic_ids.contains(&var.id()) {
                             turbofish_iter.next().expect("direct_count == turbofish_types.len()")
                         } else {
@@ -3281,7 +3307,7 @@ impl std::fmt::Debug for Type {
             Type::Error => write!(f, "error"),
             Type::CheckedCast { to, .. } => write!(f, "{to:?}"),
             Type::NamedGeneric(NamedGeneric { type_var, name, original_type_var_id, .. }) => {
-                match type_var.kind() {
+                match &*type_var.kind() {
                     Kind::Any | Kind::Normal | Kind::Integer | Kind::IntegerOrField => {
                         write!(f, "{name}{type_var:?}")?;
                     }
@@ -3432,7 +3458,7 @@ impl std::hash::Hash for Type {
 impl PartialEq for Type {
     fn eq(&self, other: &Self) -> bool {
         if let Some((variable, kind)) = self.get_inner_type_variable() {
-            if kind != other.kind() {
+            if *kind != *other.kind() {
                 return false;
             }
             if let TypeBinding::Bound(typ) = variable.binding() {
@@ -3441,7 +3467,7 @@ impl PartialEq for Type {
         }
 
         if let Some((variable, other_kind)) = other.get_inner_type_variable() {
-            if self.kind() != other_kind {
+            if *self.kind() != *other_kind {
                 return false;
             }
             if let TypeBinding::Bound(typ) = variable.binding() {

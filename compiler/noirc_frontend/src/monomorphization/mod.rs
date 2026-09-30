@@ -670,7 +670,7 @@ impl<'interner> Monomorphizer<'interner> {
         let mut bindings = TypeBindings::default();
         if let Some((self_type, trait_id)) = self.interner.get_function_trait(f) {
             let self_type_typevar = self.interner.get_trait(trait_id).self_type_typevar.clone();
-            let kind = self_type_typevar.kind();
+            let kind = self_type_typevar.kind().into_owned();
             bindings.insert(self_type_typevar.id(), (self_type_typevar, kind, self_type));
         }
         bindings
@@ -2211,7 +2211,7 @@ impl<'interner> Monomorphizer<'interner> {
             // are not lowerable runtime value types and would hit `convert_type`'s
             // `unreachable!`. They reach `check_type` through numeric generic bindings, so
             // tolerate them here rather than delegating.
-            _ if matches!(typ.kind(), Kind::Numeric(..)) => Ok(()),
+            _ if matches!(*typ.kind(), Kind::Numeric(..)) => Ok(()),
             _ => Self::convert_type_helper(typ.as_ref(), location, seen_types).map(|_| ()),
         }
     }
@@ -3575,7 +3575,7 @@ fn bind_trait_self_to_impl_self(
 
     let trait_def = interner.get_trait(method_id.trait_id);
     let self_typevar = trait_def.self_type_typevar.clone();
-    let kind = self_typevar.kind();
+    let kind = self_typevar.kind().into_owned();
     let impl_self_type = impl_.typ.clone();
     bindings.insert(self_typevar.id(), (self_typevar, kind, impl_self_type));
 }
@@ -3654,7 +3654,7 @@ fn bind_trait_impl_func_generics_to_trait_func_generics(
         bindings.entry(trait_impl_generic.id()).or_insert_with(|| {
             (
                 trait_impl_generic.clone(),
-                trait_impl_generic.kind(),
+                trait_impl_generic.kind().into_owned(),
                 Type::TypeVariable(trait_func_generic.type_var.clone()),
             )
         });

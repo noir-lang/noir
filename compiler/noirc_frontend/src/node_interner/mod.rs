@@ -1525,7 +1525,7 @@ impl NodeInterner {
     ) {
         // Wrap the named generics in type variables to be able to refer them as type variables
         for associated_type in &associated_types {
-            let Kind::Numeric(numeric_type) = associated_type.typ.kind() else {
+            let Kind::Numeric(numeric_type) = associated_type.typ.kind().into_owned() else {
                 continue;
             };
 
@@ -1673,7 +1673,7 @@ impl NodeInterner {
         let self_type_var = the_trait.self_type_typevar.clone();
         bindings.insert(
             self_type_var.id(),
-            (self_type_var.clone(), self_type_var.kind(), impl_self_type.clone()),
+            (self_type_var.clone(), self_type_var.kind().into_owned(), impl_self_type.clone()),
         );
 
         for (trait_generic, trait_impl_generic) in trait_generics.iter().zip_eq(trait_impl_generics)
@@ -1681,7 +1681,7 @@ impl NodeInterner {
             let type_var = trait_generic.type_var.clone();
             bindings.insert(
                 type_var.id(),
-                (type_var, trait_generic.kind(), trait_impl_generic.clone()),
+                (type_var, trait_generic.kind().into_owned(), trait_impl_generic.clone()),
             );
         }
 
@@ -1705,7 +1705,7 @@ impl NodeInterner {
             let type_variable = trait_type.type_var.clone();
             bindings.insert(
                 type_variable.id(),
-                (type_variable, trait_type.kind(), impl_type.typ.clone()),
+                (type_variable, trait_type.kind().into_owned(), impl_type.typ.clone()),
             );
         }
 

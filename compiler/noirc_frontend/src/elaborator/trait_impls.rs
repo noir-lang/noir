@@ -529,13 +529,11 @@ impl Elaborator<'_> {
             let trait_fn_kind = trait_fn_generic.kind();
             let arg = impl_fn_resolved_generic.clone().into_named_generic(None);
 
-            if self.check_kind(
-                trait_fn_kind.clone(),
-                &arg.kind(),
-                impl_fn_resolved_generic.location,
-            ) {
-                bindings
-                    .insert(trait_fn_generic.id(), (trait_fn_generic.clone(), trait_fn_kind, arg));
+            if self.check_kind(&trait_fn_kind, &arg.kind(), impl_fn_resolved_generic.location) {
+                bindings.insert(
+                    trait_fn_generic.id(),
+                    (trait_fn_generic.clone(), trait_fn_kind.into_owned(), arg),
+                );
             }
         }
 
@@ -789,7 +787,7 @@ impl Elaborator<'_> {
         // (which are stored in the trait's where clause as constraints on Self)
         // get checked against the concrete impl type.
         let self_var = the_trait.self_type_typevar.clone();
-        let self_kind = self_var.kind();
+        let self_kind = self_var.kind().into_owned();
         let mut bindings = TypeBindings::default();
         bindings.insert(self_var.id(), (self_var, self_kind, object_type.clone()));
         bind_ordered_generics(&the_trait.generics, ordered_generics, &mut bindings);
@@ -888,7 +886,7 @@ impl Elaborator<'_> {
                 {
                     let type_var_id = type_var.id();
                     let new_type_var_id = self.interner.next_type_variable_id();
-                    let kind = type_var.kind();
+                    let kind = type_var.kind().into_owned();
                     let new_type_var = TypeVariable::unbound(new_type_var_id, kind.clone());
                     named_type.typ = Type::TypeVariable(new_type_var.clone());
                     bindings.insert(type_var_id, (new_type_var, kind, named_type.typ.clone()));
@@ -1266,7 +1264,7 @@ fn pair_implicit_associated_generics(
                 continue;
             }
 
-            let kind = type_var.kind();
+            let kind = type_var.kind().into_owned();
             pairs.insert(type_var.id(), (type_var, kind, override_named.typ.clone()));
         }
     }

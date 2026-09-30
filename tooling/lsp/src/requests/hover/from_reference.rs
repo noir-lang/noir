@@ -695,7 +695,7 @@ fn format_generics_impl(generics: &[ResolvedGeneric], only_show_names: bool, str
         if only_show_names {
             string.push_str(&generic.name);
         } else {
-            match generic.kind() {
+            match &*generic.kind() {
                 noirc_frontend::Kind::Any | noirc_frontend::Kind::Normal => {
                     string.push_str(&generic.name);
                 }

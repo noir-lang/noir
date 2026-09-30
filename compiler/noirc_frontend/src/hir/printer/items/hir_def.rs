@@ -1005,9 +1005,9 @@ impl ItemPrinter<'_, '_> {
                         && let Type::Constant(constant) = named_type.typ.follow_bindings()
                     {
                         self.push_str(&constant.to_string());
-                        if let Kind::Numeric(numeric_type) = named_type.typ.kind() {
+                        if let Kind::Numeric(numeric_type) = &*named_type.typ.kind() {
                             self.push('_');
-                            self.show_type(&numeric_type);
+                            self.show_type(numeric_type);
                         }
                         return;
                     }
