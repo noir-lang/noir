@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790770249774,
+  "lastUpdate": 1790770304668,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22981,48 +22981,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "6ca1c62bd2833984fd0cfc1eac52354e1e147335",
-          "message": "chore(frontend): scope the interpreter's module switch to a closure too (#13753)",
-          "timestamp": "2026-09-16T13:52:39Z",
-          "tree_id": "9165f02f9b3550d804119fb21aa174fc797e9eef",
-          "url": "https://github.com/noir-lang/noir/commit/6ca1c62bd2833984fd0cfc1eac52354e1e147335"
-        },
-        "date": 1789568163918,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 166922,
-            "range": "± 1837",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 135230,
-            "range": "± 607",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2647636,
-            "range": "± 1696",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "ff66e0770d4c6c87a7e3c139343c652abd21277e",
           "message": "chore(frontend): fold the elaborator's data type walk into Type::visit_reachable (#13757)",
           "timestamp": "2026-09-16T15:21:15Z",
@@ -25064,6 +25022,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2645842,
             "range": "± 9973",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "d613d2030cdd886a178217e72dfe07bc5e604301",
+          "message": "chore(deps): bump fast-uri from 3.1.6 to 3.1.8 in /docs (#13795)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-09-30T11:47:10Z",
+          "tree_id": "ce608a89d42c1672e0075b0331cd01f7df447082",
+          "url": "https://github.com/noir-lang/noir/commit/d613d2030cdd886a178217e72dfe07bc5e604301"
+        },
+        "date": 1790770215711,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 167043,
+            "range": "± 1118",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 135457,
+            "range": "± 4674",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2646818,
+            "range": "± 6600",
             "unit": "ns/iter"
           }
         ]
