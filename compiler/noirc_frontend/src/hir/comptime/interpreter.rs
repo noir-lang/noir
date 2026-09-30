@@ -165,7 +165,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     ///
     /// This is the one way the interpreter reads a type from the HIR of the function it is
     /// interpreting: [`Self::expr_type`] and [`Self::bindings`] are shorthands for it.
-    pub(super) fn ty(&self, typ: &Type) -> Type {
+    fn ty(&self, typ: &Type) -> Type {
         if cfg!(debug_assertions) {
             self.assert_substitution_resolves(typ);
         }
@@ -211,7 +211,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 
     /// `value` with every type it holds as seen from the function being interpreted.
-    pub(super) fn value(&self, value: Value) -> Value {
+    fn value(&self, value: Value) -> Value {
         if self.substitution.is_empty() {
             return value;
         }

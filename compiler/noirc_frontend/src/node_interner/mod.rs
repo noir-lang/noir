@@ -996,7 +996,7 @@ impl NodeInterner {
     }
 
     /// Remember the [`TypeBindings`] used during the instantiation of an expression.
-    pub fn store_instantiation_bindings(
+    pub(crate) fn store_instantiation_bindings(
         &mut self,
         expr_id: ExprId,
         instantiation_bindings: TypeBindings,
@@ -1004,11 +1004,11 @@ impl NodeInterner {
         self.instantiation_bindings.insert(expr_id, instantiation_bindings);
     }
 
-    pub fn get_instantiation_bindings(&self, expr_id: ExprId) -> &TypeBindings {
+    pub(crate) fn get_instantiation_bindings(&self, expr_id: ExprId) -> &TypeBindings {
         &self.instantiation_bindings[&expr_id]
     }
 
-    pub fn try_get_instantiation_bindings(&self, expr_id: ExprId) -> Option<&TypeBindings> {
+    pub(crate) fn try_get_instantiation_bindings(&self, expr_id: ExprId) -> Option<&TypeBindings> {
         self.instantiation_bindings.get(&expr_id)
     }
 

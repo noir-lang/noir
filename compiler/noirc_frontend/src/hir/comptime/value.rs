@@ -164,7 +164,7 @@ impl Value {
     ///
     /// Tuple and struct fields are copied into new cells. A pointer is kept as it is, since the
     /// cell it points to may be shared with other values.
-    pub(crate) fn map_types(self, f: &impl Fn(&Type) -> Type) -> Value {
+    pub(super) fn map_types(self, f: &impl Fn(&Type) -> Type) -> Value {
         let map_all = |values: Vec<Value>| vecmap(values, |value| value.map_types(f));
         let map_shared = |value: Shared<Value>| Shared::new(value.unwrap_or_clone().map_types(f));
         match self {
