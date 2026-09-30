@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790791688546,
+  "lastUpdate": 1790797841513,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22976,48 +22976,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "92ec619cd769974d542a39b86735aea3f132fcc9",
-          "message": "fix(nargo_fmt): format `&&` as two reference layers instead of panicking (#13762)",
-          "timestamp": "2026-09-17T16:06:21Z",
-          "tree_id": "a0e1f4468c7ac3f8f93e25d775b1e07c51fac7b8",
-          "url": "https://github.com/noir-lang/noir/commit/92ec619cd769974d542a39b86735aea3f132fcc9"
-        },
-        "date": 1789662469110,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 168776,
-            "range": "± 620",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 136634,
-            "range": "± 419",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2648736,
-            "range": "± 4922",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -25069,6 +25027,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2647102,
             "range": "± 15101",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1612892d53e1d52d2cbf180c2f06ac962c03d654",
+          "message": "chore(frontend): hold type variable bindings in a write-once `Arc<OnceLock>` cell (#13846)",
+          "timestamp": "2026-09-30T19:26:33Z",
+          "tree_id": "7d19e0dc4ced208e4c91b9b9a105b4dc84bcc08e",
+          "url": "https://github.com/noir-lang/noir/commit/1612892d53e1d52d2cbf180c2f06ac962c03d654"
+        },
+        "date": 1790797751921,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 126986,
+            "range": "± 1462",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 112816,
+            "range": "± 3398",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3046401,
+            "range": "± 6609",
             "unit": "ns/iter"
           }
         ]
