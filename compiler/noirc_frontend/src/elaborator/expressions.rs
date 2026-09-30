@@ -629,7 +629,7 @@ impl Elaborator<'_> {
             && let UnaryOp::Dereference { .. } = deref.operator
         {
             let inner_type = self.interner.id_type(deref.rhs);
-            if matches!(inner_type.follow_bindings(), Type::Reference(_, inner_mutable) if inner_mutable == mutable)
+            if matches!(inner_type.follow_bindings_shallow().as_ref(), Type::Reference(_, inner_mutable) if *inner_mutable == mutable)
             {
                 return (deref.rhs, inner_type);
             }

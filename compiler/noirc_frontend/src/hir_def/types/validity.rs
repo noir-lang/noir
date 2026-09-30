@@ -115,7 +115,7 @@ impl Type {
     /// Returns `None` if this type and its nested types are all valid program inputs.
     pub(crate) fn program_validity(&self, output: bool) -> Option<InvalidType> {
         // Unit can always be returned from functions
-        if output && matches!(self.follow_bindings(), Type::Unit) {
+        if output && matches!(self.follow_bindings_shallow().as_ref(), Type::Unit) {
             return None;
         }
 
