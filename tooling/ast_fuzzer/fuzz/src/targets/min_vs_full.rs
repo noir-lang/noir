@@ -9,12 +9,16 @@ use crate::{
 use arbitrary::{Arbitrary, Unstructured};
 use color_eyre::eyre;
 use noir_ast_fuzzer::compare::{CompareOptions, ComparePipelines};
-use noir_ast_fuzzer::{compare::CompareResult, rewrite::change_all_functions_into_unconstrained};
+use noir_ast_fuzzer::{
+    Config, compare::CompareResult, rewrite::change_all_functions_into_unconstrained,
+};
 use noirc_evaluator::ssa::minimal_passes;
 
 pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
     let passes = minimal_passes();
-    let config = default_config(u)?;
+    // This target asserts that the minimally- and fully-compiled builds of a program agree,
+    // which `#[no_predicates]` breaks by design: see [`Config::avoid_no_predicates`].
+    let config = Config { avoid_no_predicates: true, ..default_config(u)? };
 
     let inputs = ComparePipelines::arb(
         u,
