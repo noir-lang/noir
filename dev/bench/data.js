@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790778897441,
+  "lastUpdate": 1790779251313,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19314,80 +19314,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "eec7eae13f2d288a5d0c2814eda50ec48b90a99a",
-          "message": "chore(frontend): read a trait impl's `Self` type from its item context (#13740)",
-          "timestamp": "2026-09-15T15:56:47Z",
-          "tree_id": "b1da176e389dea10f3d6964ed334408151c86d69",
-          "url": "https://github.com/noir-lang/noir/commit/eec7eae13f2d288a5d0c2814eda50ec48b90a99a"
-        },
-        "date": 1789490015399,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_fnd_noir-protocol-circuits_crates_blob",
-            "value": 143,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_fnd_noir-protocol-circuits_crates_private-kernel-lib",
-            "value": 506,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_fnd_noir-protocol-circuits_crates_types",
-            "value": 31,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_noir-lang_noir-bignum_",
-            "value": 73,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_noir-lang_noir_bigcurve_",
-            "value": 214,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_noir-lang_noir_json_parser_",
-            "value": 10,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_noir-lang_sha256_",
-            "value": 25,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_noir-lang_sha512_",
-            "value": 12,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_zkpassport_noir-ecdsa_",
-            "value": 4,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_zkpassport_noir_rsa_",
-            "value": 2,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -22962,6 +22888,80 @@ window.BENCHMARK_DATA = {
           {
             "name": "test_report_zkpassport_noir-ecdsa_",
             "value": 4,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_zkpassport_noir_rsa_",
+            "value": 2,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "62076cd82d555818f4a1b4d5aaf5f2f8004f9f49",
+          "message": "chore(deps): bump brace-expansion from 1.1.16 to 1.1.21 in /docs (#13831)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-09-30T15:22:18+01:00",
+          "tree_id": "93f03ab331f0e0c0cdc348eafcf13d15db5ccfe4",
+          "url": "https://github.com/noir-lang/noir/commit/62076cd82d555818f4a1b4d5aaf5f2f8004f9f49"
+        },
+        "date": 1790779162046,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_fnd_noir-protocol-circuits_crates_blob",
+            "value": 149,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_fnd_noir-protocol-circuits_crates_private-kernel-lib",
+            "value": 487,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_fnd_noir-protocol-circuits_crates_types",
+            "value": 36,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_noir-lang_noir-bignum_",
+            "value": 63,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_noir-lang_noir_bigcurve_",
+            "value": 307,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_noir-lang_noir_json_parser_",
+            "value": 10,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_noir-lang_sha256_",
+            "value": 25,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_noir-lang_sha512_",
+            "value": 9,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_zkpassport_noir-ecdsa_",
+            "value": 2,
             "unit": "s"
           },
           {
