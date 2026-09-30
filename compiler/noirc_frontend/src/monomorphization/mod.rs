@@ -337,11 +337,21 @@ impl<'interner> Monomorphizer<'interner> {
 
     /// Run `f` with `bindings` added to [`Self::substitution`], and take them back out when it
     /// returns.
+    ///
+    /// Only the entries `bindings` touches are saved and restored, so the cost is proportional to
+    /// `bindings` rather than to the whole substitution.
     fn with_bindings<T>(&mut self, bindings: TypeBindings, f: impl FnOnce(&mut Self) -> T) -> T {
-        let saved_substitution = self.substitution.clone();
-        self.substitution.extend(bindings);
+        let overwritten: Vec<_> = bindings
+            .into_iter()
+            .map(|(id, binding)| (id, self.substitution.insert(id, binding)))
+            .collect();
         let result = f(self);
-        self.substitution = saved_substitution;
+        for (id, previous) in overwritten {
+            match previous {
+                Some(binding) => self.substitution.insert(id, binding),
+                None => self.substitution.remove(&id),
+            };
+        }
         result
     }
 
