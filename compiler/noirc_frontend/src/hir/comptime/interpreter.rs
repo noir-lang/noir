@@ -49,7 +49,7 @@ use crate::hir::Context;
 use crate::hir::comptime::Integer;
 use crate::hir::comptime::value::FormatStringFragment;
 use crate::hir::def_map::ModuleId;
-use crate::hir_def::types::{BoundTypeVariables, resolve_type_bindings};
+use crate::hir_def::types::resolve_type_bindings;
 use crate::monomorphization::{compute_impl_bindings, resolve_trait_item};
 use crate::node_interner::GlobalValue;
 use crate::shared::{Builtin, ForeignCall, Signedness};
@@ -876,7 +876,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         // The interpreter runs during elaboration, where solving a trait constraint is supposed
         // to commit the inference variables it resolved — the same thing `check_trait_constraints`
         // does for a constraint solved by the type checker.
-        BoundTypeVariables::apply(&resolved.impl_search_bindings).commit();
+        Type::apply_type_bindings(resolved.impl_search_bindings);
         Ok((resolved.item, self.bindings(&resolved.instantiation_bindings)))
     }
 
