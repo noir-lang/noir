@@ -45,8 +45,8 @@ use crate::{
     },
     modules::{get_ancestor_module_reexport, module_def_id_is_visible},
     node_interner::{
-        DependencyId, ExprId, FuncId, GlobalValue, TraitId, TraitImplId, TraitImplKind,
-        TraitItemId, TraitLookupMode,
+        DependencyId, ExprId, FuncId, GlobalValue, NodeInterner, TraitId, TraitImplId,
+        TraitImplKind, TraitItemId, TraitLookupMode,
     },
     shared::Signedness,
 };
@@ -490,13 +490,19 @@ impl Elaborator<'_> {
                 Ok((
                     TraitImplKind::Normal(parent_impl_id)
                     | TraitImplKind::Prepared(parent_impl_id, _),
-                    _,
-                    _,
+                    search_bindings,
+                    instantiation_bindings,
                 )) => {
                     if let Some(typ) =
                         self.interner.find_associated_type_for_impl(parent_impl_id, name)
                     {
-                        return Some(typ.clone());
+                        // The parent impl may be generic: read its declared type for this
+                        // impl's `Self` type.
+                        let substitution = NodeInterner::matched_impl_substitution(
+                            search_bindings,
+                            instantiation_bindings,
+                        );
+                        return Some(typ.substitute(&substitution));
                     }
                 }
                 Ok((TraitImplKind::Assumed { trait_generics, .. }, _, _)) => {

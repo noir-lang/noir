@@ -461,6 +461,23 @@ impl NodeInterner {
         Ok((impl_kind, instantiation_bindings))
     }
 
+    /// The substitution that reads a type declared inside an impl matched by
+    /// [`Self::try_lookup_trait_implementation`] (an associated type, or one of the impl's trait
+    /// generics) as the type it has for the object type that was searched.
+    ///
+    /// The search instantiates the impl's generics with fresh type variables
+    /// (`instantiation_bindings`) and solves those against the object type (`search_bindings`), so
+    /// a declared type has to go through both: `M` becomes a fresh variable, which becomes the
+    /// object type's argument.
+    pub(crate) fn matched_impl_substitution(
+        search_bindings: TypeBindings,
+        instantiation_bindings: TypeBindings,
+    ) -> TypeBindings {
+        let mut substitution = instantiation_bindings;
+        substitution.extend(search_bindings);
+        substitution
+    }
+
     /// Similar to `lookup_trait_implementation` but does not apply any type bindings on success.
     /// On error returns either:
     /// - 1+ failing trait constraints, including the original.

@@ -687,3 +687,128 @@ fn lookup_associated_type_in_parent_impls_dependency_cycle() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn inherited_associated_type_from_generic_parent_impl_uses_concrete_impl() {
+    // `Self::Out` in the child impl names the parent impl's `Out`, which is `[u8; 8]` for `S<8>`.
+    let src = r#"
+    trait P { type Out; }
+    trait C: P { fn g(a: Self::Out) -> u32; }
+    struct S<let M: u32> {}
+    fn len<let N: u32>(_a: [u8; N]) -> u32 { N }
+    impl<let M: u32> P for S<M> { type Out = [u8; M]; }
+    impl C for S<8> { fn g(a: Self::Out) -> u32 { len(a) } }
+
+    fn main() {
+        let z: [u8; 8] = [0; 8];
+        let _ = S::<8>::g(z);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn inherited_associated_type_from_generic_parent_impl_uses_generic_child_impl() {
+    let src = r#"
+    trait P { type Out; }
+    trait C: P { fn g(a: Self::Out) -> u32; }
+    struct S<let M: u32> {}
+    fn len<let N: u32>(_a: [u8; N]) -> u32 { N }
+    impl<let M: u32> P for S<M> { type Out = [u8; M]; }
+    impl<let K: u32> C for S<K> { fn g(a: Self::Out) -> u32 { len(a) } }
+
+    fn main() {
+        let z: [u8; 8] = [0; 8];
+        let _ = S::<8>::g(z);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn impl_method_may_spell_out_inherited_associated_type_from_generic_parent_impl() {
+    // The trait declares `g` with `Self::Out`; the impl writes the parent impl's `Out` for
+    // `S<K>` out in full.
+    let src = r#"
+    trait P { type Out; }
+    trait C: P { fn g(a: Self::Out) -> u32; }
+    struct S<let M: u32> {}
+    fn len<let N: u32>(_a: [u8; N]) -> u32 { N }
+    impl<let M: u32> P for S<M> { type Out = [u8; M]; }
+    impl<let K: u32> C for S<K> { fn g(a: [u8; K]) -> u32 { len(a) } }
+
+    fn main() {
+        let z: [u8; 8] = [0; 8];
+        let _ = S::<8>::g(z);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn inherited_associated_type_from_generic_parent_impl_monomorphizes() {
+    let src = r#"
+    trait P { type Out; fn p() -> u32; }
+    trait C: P { fn g(a: Self::Out) -> u32; }
+    struct S<let M: u32> {}
+    fn len<let N: u32>(_a: [u8; N]) -> u32 { N }
+    impl<let M: u32> P for S<M> {
+        type Out = [u8; M];
+        fn p() -> u32 {
+            let y: [u8; M] = zeroed();
+            S::<M>::g(y)
+        }
+    }
+    impl<let K: u32> C for S<K> { fn g(a: Self::Out) -> u32 { len(a) * 1000 + K } }
+
+    fn main() -> pub (u32, u32) {
+        (S::<16>::p(), S::<3>::p())
+    }
+    "#;
+    crate::test_utils::get_monomorphized_with_stdlib(src, &[stdlib_src::ZEROED])
+        .expect("program should monomorphize");
+}
+
+#[test]
+fn inherited_associated_type_from_generic_parent_impl_in_comptime() {
+    // Inside `impl P for S<16>`, `S::<8>::width` still expects `[u8; 8]`, so `zeroed()` must
+    // produce an 8-element array rather than one of the enclosing impl's length.
+    let src = r#"
+    trait P { type Out; fn p() -> u32; }
+    trait C: P { fn width(a: Self::Out) -> u32; }
+    struct S<let M: u32> {}
+    fn len<let N: u32>(_a: [u8; N]) -> u32 { N }
+    impl<let M: u32> P for S<M> {
+        type Out = [u8; M];
+        fn p() -> u32 { S::<8>::width(zeroed()) }
+    }
+    impl<let K: u32> C for S<K> { fn width(a: Self::Out) -> u32 { len(a) } }
+
+    fn main() {
+        comptime {
+            assert_eq(S::<16>::p(), 8);
+        }
+    }
+    "#;
+    check_errors_with_stdlib(src, [stdlib_src::ZEROED]);
+}
+
+#[test]
+fn inherited_associated_type_from_generic_parent_impl_rejects_other_instance() {
+    // Inside `impl P for S<M>`, `S::<8>::g` expects `[u8; 8]`, which a `[u8; M]` is not.
+    let src = r#"
+    trait P { type Out; fn p(y: Self::Out) -> u32; }
+    trait C: P { fn g(a: Self::Out) -> u32; }
+    struct S<let M: u32> {}
+    fn len<let N: u32>(_a: [u8; N]) -> u32 { N }
+    impl<let M: u32> P for S<M> {
+        type Out = [u8; M];
+        fn p(y: [u8; M]) -> u32 { S::<8>::g(y) }
+                                            ^ Expected type [u8; 8], found type [u8; M]
+    }
+    impl<let K: u32> C for S<K> { fn g(a: Self::Out) -> u32 { len(a) } }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}

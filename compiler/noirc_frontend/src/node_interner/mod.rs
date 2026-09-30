@@ -2,6 +2,7 @@ use std::hash::Hash;
 use std::marker::Copy;
 
 use fm::FileId;
+use iter_extended::vecmap;
 use itertools::Itertools;
 use noirc_arena::{Arena, Index};
 use noirc_errors::{Location, Span};
@@ -1641,6 +1642,7 @@ impl NodeInterner {
             trait_id,
             impl_id,
             trait_impl_generics,
+            &TypeBindings::default(),
             impl_self_type,
             TYPE_RECURSION_LIMIT,
             &mut visited,
@@ -1650,12 +1652,15 @@ impl NodeInterner {
         bindings
     }
 
+    /// `impl_substitution` reads the types declared in impl `impl_id` (its associated types) as
+    /// the types they have for `impl_self_type`. `trait_impl_generics` are already read that way.
     #[allow(clippy::too_many_arguments)]
     fn trait_to_impl_bindings_helper(
         &self,
         trait_id: TraitId,
         impl_id: TraitImplId,
         trait_impl_generics: &[Type],
+        impl_substitution: &TypeBindings,
         impl_self_type: &Type,
         recursion_limit: u32,
         visited: &mut HashSet<TraitImplId>,
@@ -1703,10 +1708,8 @@ impl NodeInterner {
             };
 
             let type_variable = trait_type.type_var.clone();
-            bindings.insert(
-                type_variable.id(),
-                (type_variable, trait_type.kind(), impl_type.typ.clone()),
-            );
+            let impl_type = impl_type.typ.substitute(impl_substitution);
+            bindings.insert(type_variable.id(), (type_variable, trait_type.kind(), impl_type));
         }
 
         // Now collect bindings from the associated types of every parent trait that
@@ -1715,27 +1718,37 @@ impl NodeInterner {
         for parent_bound in &parent_bounds {
             // Find the implementation, if it exists.
             let trait_id = parent_bound.trait_id;
-            match self.lookup_trait_implementation(
+            match self.try_lookup_trait_implementation(
                 impl_self_type,
                 trait_id,
                 &parent_bound.trait_generics.ordered,
                 &parent_bound.trait_generics.named,
+                TraitLookupMode::IgnoreAssumed,
             ) {
-                Ok(
-                    (TraitImplKind::Normal(impl_id), _) | (TraitImplKind::Prepared(impl_id, _), _),
-                ) => {
-                    let ordered_generics = self.get_ordered_generics_for_impl(impl_id);
+                Ok((
+                    TraitImplKind::Normal(impl_id) | TraitImplKind::Prepared(impl_id, _),
+                    search_bindings,
+                    instantiation_bindings,
+                )) => {
+                    // The parent impl may be generic: read what it declares for this `Self` type.
+                    let substitution =
+                        Self::matched_impl_substitution(search_bindings, instantiation_bindings);
+                    let ordered_generics =
+                        vecmap(self.get_ordered_generics_for_impl(impl_id), |typ| {
+                            typ.substitute(&substitution)
+                        });
                     self.trait_to_impl_bindings_helper(
                         trait_id,
                         impl_id,
-                        ordered_generics,
+                        &ordered_generics,
+                        &substitution,
                         impl_self_type,
                         recursion_limit,
                         visited,
                         bindings,
                     );
                 }
-                Ok((TraitImplKind::Assumed { .. }, _)) => {
+                Ok((TraitImplKind::Assumed { .. }, ..)) => {
                     // We can ignore Assumed, as it most likely doesn't contribute any bindings,
                     // and we can expect some kind of error due to the missing parent impl.
                 }
