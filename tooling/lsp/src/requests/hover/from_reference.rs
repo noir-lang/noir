@@ -883,7 +883,7 @@ impl TypeLinksGatherer<'_> {
     }
 
     fn gather_type_variable_links(&mut self, var: &TypeVariable) {
-        let var = &*var.borrow();
+        let var = var.binding();
         match var {
             TypeBinding::Bound(typ) => {
                 self.gather_type_links(typ);

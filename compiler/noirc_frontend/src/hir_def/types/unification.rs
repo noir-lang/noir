@@ -131,7 +131,7 @@ impl Type {
                 alias.try_unify_with_flags(other, flags, bindings)
             }
 
-            (TypeVariable(var), other) | (other, TypeVariable(var)) => match &*var.borrow() {
+            (TypeVariable(var), other) | (other, TypeVariable(var)) => match var.binding() {
                 TypeBinding::Bound(typ) => {
                     if typ.is_numeric_value() {
                         other.try_unify_to_type_variable(var, flags, bindings, |bindings| {
@@ -207,9 +207,9 @@ impl Type {
 
             (NamedGeneric(types::NamedGeneric { type_var, .. }), other)
             | (other, NamedGeneric(types::NamedGeneric { type_var, .. }))
-                if !type_var.borrow().is_unbound() =>
+                if !type_var.binding().is_unbound() =>
             {
-                if let TypeBinding::Bound(link) = &*type_var.borrow() {
+                if let TypeBinding::Bound(link) = type_var.binding() {
                     link.try_unify_with_flags(other, flags, bindings)
                 } else {
                     unreachable!("If guard ensures binding is bound")
@@ -221,8 +221,8 @@ impl Type {
                 NamedGeneric(types::NamedGeneric { type_var: binding_b, .. }),
             ) => {
                 // Bound NamedGenerics are caught by the check above
-                assert!(binding_a.borrow().is_unbound());
-                assert!(binding_b.borrow().is_unbound());
+                assert!(binding_a.binding().is_unbound());
+                assert!(binding_b.binding().is_unbound());
 
                 if binding_a.0 == binding_b.0 {
                     binding_a.kind().unify(&binding_b.kind())
@@ -328,7 +328,7 @@ impl Type {
         // bind to the given type or not.
         bind_variable: impl FnOnce(&mut TypeBindings) -> Result<(), UnificationError>,
     ) -> Result<(), UnificationError> {
-        match &*type_variable.borrow() {
+        match type_variable.binding() {
             // If it is already bound, unify against what it is bound to
             TypeBinding::Bound(link) => link.try_unify_with_flags(self, flags, bindings),
             TypeBinding::Unbound(id, _) => {
@@ -407,7 +407,7 @@ impl Type {
             // Check if it's `A + rhs = other` or `A - rhs = other`
             if let (Some(op_a_inverse), Type::TypeVariable(lhs_lhs_var)) =
                 (lhs_op_inverse, lhs_lhs.as_ref())
-                && lhs_lhs_var.1.borrow().is_unbound()
+                && lhs_lhs_var.binding().is_unbound()
             {
                 // We can say that `A = other - rhs` or `A = other + rhs` respectively
                 let new_rhs = Self::with_canonicalization_obligation(Type::infix_expr(
@@ -426,7 +426,7 @@ impl Type {
             // Check if it's `lhs + B = other`
             if let (BinaryTypeOperator::Addition, Type::TypeVariable(lhs_rhs_var)) =
                 (lhs_op, lhs_rhs.as_ref())
-                && lhs_rhs_var.1.borrow().is_unbound()
+                && lhs_rhs_var.binding().is_unbound()
             {
                 // We can say that `B = other - lhs`
                 let new_rhs = Self::with_canonicalization_obligation(Type::inverted_infix_expr(
@@ -445,7 +445,7 @@ impl Type {
             // Check if it's `lhs - B = other`
             if let (BinaryTypeOperator::Subtraction, Type::TypeVariable(lhs_rhs_var)) =
                 (lhs_op, lhs_rhs.as_ref())
-                && lhs_rhs_var.1.borrow().is_unbound()
+                && lhs_rhs_var.binding().is_unbound()
             {
                 // We can say that `B = lhs - other`
                 let new_rhs = Self::with_canonicalization_obligation(Type::inverted_infix_expr(

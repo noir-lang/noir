@@ -1018,7 +1018,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                 match &typ {
                     Type::TypeVariable(type_var)
                     | Type::NamedGeneric(NamedGeneric { type_var, .. })
-                        if type_var.borrow().is_unbound() =>
+                        if type_var.binding().is_unbound() =>
                     {
                         false
                     }

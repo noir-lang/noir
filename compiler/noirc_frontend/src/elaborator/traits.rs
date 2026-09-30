@@ -903,7 +903,7 @@ impl Elaborator<'_> {
         }
 
         if let Type::TypeVariable(self_var) = object
-            && self_var.borrow().is_unbound()
+            && self_var.binding().is_unbound()
             && self.item.impl_context.current_trait().is_some()
         {
             // This would end up duplicating parent trait bounds we turned into where clauses on Self.

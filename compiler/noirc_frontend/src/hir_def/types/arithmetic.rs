@@ -162,7 +162,7 @@ impl Type {
 
                 Type::CheckedCast { from: Box::new(from), to: Box::new(to) }
             }
-            Type::TypeVariable(type_var) => match &*type_var.borrow() {
+            Type::TypeVariable(type_var) => match type_var.binding() {
                 TypeBinding::Bound(binding) => {
                     binding.canonicalize_helper(found_checked_cast, run_simplifications)
                 }
