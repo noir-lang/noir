@@ -1,5 +1,5 @@
 use std::collections::BTreeSet;
-use std::rc::Rc;
+use std::sync::Arc;
 
 use acvm::FieldElement;
 use iter_extended::vecmap;
@@ -243,7 +243,7 @@ pub enum TypeCheckError {
     #[error("`{item}` has no associated type named `{name}`")]
     NoSuchNamedTypeArg { name: Ident, item: String },
     #[error("`{item}` is missing the associated type `{name}`")]
-    MissingNamedTypeArg { name: Rc<String>, item: String, location: Location },
+    MissingNamedTypeArg { name: Arc<String>, item: String, location: Location },
     #[error("Binding `{typ}` here to the `_` inside would create a cyclic type")]
     CyclicType { typ: Type, location: Location },
     #[error("Type annotations required before indexing this array or vector")]

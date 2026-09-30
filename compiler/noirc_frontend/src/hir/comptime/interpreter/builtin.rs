@@ -3,7 +3,7 @@
 //! defined in `noir_stdlib/src/meta/*`
 use std::{
     hash::{Hash as _, Hasher as _},
-    rc::Rc,
+    sync::Arc,
 };
 
 use crate::hir::comptime::bigint_to_field;
@@ -390,7 +390,7 @@ fn array_as_str_unchecked(arguments: Vec<(Value, Location)>, location: Location)
 
     let array = get_array(argument)?.0;
     let string_bytes = try_vecmap(array, |byte| get_u8((byte, location)))?;
-    Ok(Value::String(Rc::new(string_bytes)))
+    Ok(Value::String(Arc::new(string_bytes)))
 }
 
 fn as_vector(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
@@ -699,7 +699,7 @@ fn named_attribute_args_value(
                 .map(|arg| {
                     let arg_location = arg.location;
                     let token = Token::InternedExpr(interner.push_expression_kind(arg.kind));
-                    Value::Quoted(Rc::new(vec![LocatedToken::new(token, arg_location)]))
+                    Value::Quoted(Arc::new(vec![LocatedToken::new(token, arg_location)]))
                 })
                 .collect();
             Value::Vector(args, quoted_vec_type.clone())
@@ -814,7 +814,7 @@ fn type_def_fields(
     if let Some(struct_fields) = struct_def.get_fields(&generic_args) {
         for (field_name, field_type, visibility) in struct_fields {
             let token = LocatedToken::new(Token::Ident(field_name), location);
-            let name = Shared::new(Value::Quoted(Rc::new(vec![token])));
+            let name = Shared::new(Value::Quoted(Arc::new(vec![token])));
             let field_type = Shared::new(Value::Type(field_type));
             let visibility = Shared::new(visibility_to_quoted(visibility, location));
             fields.push_back(Value::Tuple(vec![name, field_type, visibility]));
@@ -851,7 +851,7 @@ fn type_def_fields_as_written(
     if let Some(struct_fields) = struct_def.get_fields_as_written() {
         for field in struct_fields {
             let token = LocatedToken::new(Token::Ident(field.name.to_string()), location);
-            let name = Shared::new(Value::Quoted(Rc::new(vec![token])));
+            let name = Shared::new(Value::Quoted(Arc::new(vec![token])));
 
             let typ = Shared::new(Value::Type(field.typ));
             let visibility = Shared::new(visibility_to_quoted(field.visibility, location));
@@ -902,7 +902,7 @@ fn type_def_name(
 
     let name = Token::Ident(the_struct.borrow().name.to_string());
     let token = LocatedToken::new(name, location);
-    Ok(Value::Quoted(Rc::new(vec![token])))
+    Ok(Value::Quoted(Arc::new(vec![token])))
 }
 
 fn vector_remove(
@@ -1125,7 +1125,7 @@ fn quoted_tokens(arguments: Vec<(Value, Location)>, location: Location) -> IResu
     let value = get_quoted(argument)?;
 
     Ok(Value::Vector(
-        value.iter().map(|token| Value::Quoted(Rc::new(vec![token.clone()]))).collect(),
+        value.iter().map(|token| Value::Quoted(Arc::new(vec![token.clone()]))).collect(),
         Type::Vector(Box::new(Type::Quoted(QuotedType::Quoted))),
     ))
 }
@@ -1601,7 +1601,7 @@ fn zeroed(return_type: Type, location: Location) -> Value {
         Type::Bool => Value::Bool(false),
         Type::String(length_type) => {
             if let Ok(length) = length_type.evaluate_to_u32(location) {
-                Value::String(Rc::new(vec![0u8; length as usize]))
+                Value::String(Arc::new(vec![0u8; length as usize]))
             } else {
                 // Assume we can resolve the length later
                 Value::Zeroed(Type::String(length_type))
@@ -1612,7 +1612,7 @@ fn zeroed(return_type: Type, location: Location) -> Value {
             let typ = Type::FmtString(length_type, captures);
             if let Ok(length) = length {
                 let fragments = vec![FormatStringFragment::String("\0".repeat(length as usize))];
-                Value::FormatString(Rc::new(fragments), typ, length)
+                Value::FormatString(Arc::new(fragments), typ, length)
             } else {
                 // Assume we can resolve the length later
                 Value::Zeroed(typ)
@@ -1630,7 +1630,7 @@ fn zeroed(return_type: Type, location: Location) -> Value {
 
                 for (field_name, field_type, _) in fields {
                     let field_value = Shared::new(zeroed(field_type, location));
-                    values.insert(Rc::new(field_name), field_value);
+                    values.insert(Arc::new(field_name), field_value);
                 }
 
                 drop(typ);
@@ -1956,7 +1956,7 @@ fn expr_as_for(
             if let ForRange::Array(array) = for_statement.range {
                 let token = Token::Ident(for_statement.identifier.into_string());
                 let token = LocatedToken::new(token, location);
-                let identifier = Shared::new(Value::Quoted(Rc::new(vec![token])));
+                let identifier = Shared::new(Value::Quoted(Arc::new(vec![token])));
                 let array = Shared::new(Value::expression(array.kind));
                 let body = Shared::new(Value::expression(for_statement.block.kind));
                 Some(Value::Tuple(vec![identifier, array, body]))
@@ -1981,7 +1981,7 @@ fn expr_as_for_range(
             if let ForRange::Range(bounds) = for_statement.range {
                 let token = Token::Ident(for_statement.identifier.into_string());
                 let token = LocatedToken::new(token, location);
-                let identifier = Shared::new(Value::Quoted(Rc::new(vec![token])));
+                let identifier = Shared::new(Value::Quoted(Arc::new(vec![token])));
                 let from = Shared::new(Value::expression(bounds.start.kind));
                 let to = Shared::new(Value::expression(bounds.end.kind));
                 let inclusive = Shared::new(Value::Bool(bounds.inclusive));
@@ -2554,7 +2554,7 @@ fn fmtstr_as_ctstring(
     let self_argument = check_one_argument(arguments, location)?;
     let (fragments, _, _) = get_format_string(self_argument)?;
     let bytes = fragments_to_bytes(&fragments, interner, files);
-    Ok(Value::CtString(Rc::new(bytes)))
+    Ok(Value::CtString(Arc::new(bytes)))
 }
 
 // fn quoted_contents(self) -> Quoted
@@ -2568,7 +2568,7 @@ fn fmtstr_quoted_contents(
     let (fragments, _, _) = get_format_string(self_argument)?;
     let string = fragments_to_string(&fragments, interner, files);
     let tokens = lex(&string, location);
-    Ok(Value::Quoted(Rc::new(tokens)))
+    Ok(Value::Quoted(Arc::new(tokens)))
 }
 
 // fn fresh_type_variable() -> Type
@@ -2812,7 +2812,7 @@ fn function_def_name(
     let name = interner.function_name(&func_id).to_string();
     let token = Token::Ident(name);
     let token = LocatedToken::new(token, location);
-    let tokens = Rc::new(vec![token]);
+    let tokens = Arc::new(vec![token]);
     Ok(Value::Quoted(tokens))
 }
 
@@ -2837,7 +2837,7 @@ fn function_def_parameters(
         .map(|(hir_pattern, typ)| {
             let tokens = hir_pattern_to_tokens(interpreter.elaborator.interner, &hir_pattern);
             let tokens = vecmap(tokens, |token| LocatedToken::new(token, location));
-            let name = Shared::new(Value::Quoted(Rc::new(tokens)));
+            let name = Shared::new(Value::Quoted(Arc::new(tokens)));
             let typ = Shared::new(Value::Type(typ));
             Value::Tuple(vec![name, typ])
         })
@@ -3013,7 +3013,7 @@ fn module_name(
     let name = &interner.module_attributes(module_id).name;
     let token = Token::Ident(name.clone());
     let token = LocatedToken::new(token, location);
-    let tokens = Rc::new(vec![token]);
+    let tokens = Arc::new(vec![token]);
     Ok(Value::Quoted(tokens))
 }
 
@@ -3159,8 +3159,8 @@ pub(crate) fn option(option_type: Type, value: Option<Value>, location: Location
     };
 
     let mut fields = HashMap::default();
-    fields.insert(Rc::new("_is_some".to_string()), Shared::new(is_some));
-    fields.insert(Rc::new("_value".to_string()), Shared::new(value));
+    fields.insert(Arc::new("_is_some".to_string()), Shared::new(is_some));
+    fields.insert(Arc::new("_value".to_string()), Shared::new(value));
     Value::Struct(fields, option_type)
 }
 
@@ -3184,7 +3184,7 @@ fn ctstring_append(arguments: Vec<(Value, Location)>, location: Location) -> IRe
 
     let mut bytes = self_bytes.as_ref().clone();
     bytes.extend_from_slice(&other_bytes);
-    Ok(Value::CtString(Rc::new(bytes)))
+    Ok(Value::CtString(Arc::new(bytes)))
 }
 
 fn derive_generators(
@@ -3216,8 +3216,8 @@ fn derive_generators(
         starting_index,
     );
 
-    let x_field_name: Rc<String> = Rc::new("x".to_owned());
-    let y_field_name: Rc<String> = Rc::new("y".to_owned());
+    let x_field_name: Arc<String> = Arc::new("x".to_owned());
+    let y_field_name: Arc<String> = Arc::new("y".to_owned());
     let mut results = Vector::new();
     for generator in generators {
         let x = FieldElement::from_repr(generator.x);

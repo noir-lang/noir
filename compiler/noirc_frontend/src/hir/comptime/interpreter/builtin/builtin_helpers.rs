@@ -3,7 +3,7 @@
 //! These functions may implement error checking for argument count, type-check an
 //! argument for a specific type, returning its value, etc.
 use std::hash::Hash;
-use std::{hash::Hasher, rc::Rc};
+use std::{hash::Hasher, sync::Arc};
 
 use acvm::FieldElement;
 use fm::FileMap;
@@ -211,7 +211,7 @@ pub(crate) fn get_struct_fields(
 /// Get a specific field of a struct and apply a decoder function on it.
 pub(crate) fn get_struct_field<T>(
     field_name: &str,
-    struct_fields: &HashMap<Rc<String>, Shared<Value>>,
+    struct_fields: &HashMap<Arc<String>, Shared<Value>>,
     struct_type: &Type,
     location: Location,
     f: impl Fn((Value, Location)) -> IResult<T>,
@@ -281,7 +281,7 @@ pub(crate) fn get_fixed_array_map<T, const N: usize>(
     })
 }
 
-pub(crate) fn get_str((value, location): (Value, Location)) -> IResult<Rc<Vec<u8>>> {
+pub(crate) fn get_str((value, location): (Value, Location)) -> IResult<Arc<Vec<u8>>> {
     match value {
         Value::String(bytes) => Ok(bytes),
         value => {
@@ -291,7 +291,7 @@ pub(crate) fn get_str((value, location): (Value, Location)) -> IResult<Rc<Vec<u8
     }
 }
 
-pub(crate) fn get_ctstring((value, location): (Value, Location)) -> IResult<Rc<Vec<u8>>> {
+pub(crate) fn get_ctstring((value, location): (Value, Location)) -> IResult<Arc<Vec<u8>>> {
     match value {
         Value::CtString(bytes) => Ok(bytes),
         value => type_mismatch(value, Type::Quoted(QuotedType::CtString), location),
@@ -361,7 +361,7 @@ pub(crate) fn get_expr(
 
 pub(crate) fn get_format_string(
     (value, location): (Value, Location),
-) -> IResult<(Rc<Vec<FormatStringFragment>>, Type, u32)> {
+) -> IResult<(Arc<Vec<FormatStringFragment>>, Type, u32)> {
     match value {
         Value::FormatString(fragments, typ, length) => Ok((fragments, typ, length)),
         value => type_mismatch(value, "fmtstr", location),
@@ -433,7 +433,7 @@ pub(crate) fn get_typed_expr((value, location): (Value, Location)) -> IResult<Ty
     }
 }
 
-pub(crate) fn get_quoted((value, location): (Value, Location)) -> IResult<Rc<Vec<LocatedToken>>> {
+pub(crate) fn get_quoted((value, location): (Value, Location)) -> IResult<Arc<Vec<LocatedToken>>> {
     match value {
         Value::Quoted(tokens) => Ok(tokens),
         value => type_mismatch(value, Type::Quoted(QuotedType::Quoted), location),
@@ -728,10 +728,10 @@ pub(super) fn quote_ident(ident: &Ident, location: Location) -> Value {
     Value::Quoted(ident_to_tokens(ident, location))
 }
 
-fn ident_to_tokens(ident: &Ident, location: Location) -> Rc<Vec<LocatedToken>> {
+fn ident_to_tokens(ident: &Ident, location: Location) -> Arc<Vec<LocatedToken>> {
     let token = Token::Ident(ident.to_string());
     let token = LocatedToken::new(token, location);
-    Rc::new(vec![token])
+    Arc::new(vec![token])
 }
 
 /// A deterministic hasher used for the comptime `hash` builtins.
@@ -848,7 +848,7 @@ pub(crate) fn to_struct(
     typ: Type,
 ) -> Value {
     let fields =
-        fields.into_iter().map(|(k, v)| (Rc::new(k.to_string()), Shared::new(v))).collect();
+        fields.into_iter().map(|(k, v)| (Arc::new(k.to_string()), Shared::new(v))).collect();
     Value::Struct(fields, typ)
 }
 
@@ -866,7 +866,7 @@ pub(crate) fn new_unary_op(operator: UnaryOp, typ: Type) -> Option<Value> {
     };
 
     let mut fields = HashMap::default();
-    fields.insert(Rc::new("op".to_string()), Shared::new(Value::field(unary_op_value.into())));
+    fields.insert(Arc::new("op".to_string()), Shared::new(Value::field(unary_op_value.into())));
 
     Some(Value::Struct(fields, typ))
 }
@@ -876,7 +876,7 @@ pub(crate) fn new_binary_op(operator: &BinaryOp, typ: Type) -> Value {
     let binary_op_value = operator.contents as u128;
 
     let mut fields = HashMap::default();
-    fields.insert(Rc::new("op".to_string()), Shared::new(Value::field(binary_op_value.into())));
+    fields.insert(Arc::new("op".to_string()), Shared::new(Value::field(binary_op_value.into())));
 
     Value::Struct(fields, typ)
 }
@@ -893,7 +893,7 @@ pub(crate) fn visibility_to_quoted(visibility: ItemVisibility, location: Locatio
         ItemVisibility::Public => vec![Token::Keyword(Keyword::Pub)],
     };
     let tokens = vecmap(tokens, |token| LocatedToken::new(token, location));
-    Value::Quoted(Rc::new(tokens))
+    Value::Quoted(Arc::new(tokens))
 }
 
 /// Renders format string fragments to bytes.

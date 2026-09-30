@@ -9,13 +9,14 @@ use color_eyre::eyre;
 use iter_extended::vecmap;
 use itertools::Itertools;
 use noirc_abi::{Abi, AbiType, InputMap, Sign, errors::AbiError, input_parser::InputValue};
+use noirc_evaluator::ssa::interpreter::shared::Shared;
 use noirc_evaluator::ssa::{
     self,
     interpreter::{InterpreterOptions, value::Value},
     ir::{instruction::BinaryOp, types::NumericType},
     ssa_gen::Ssa,
 };
-use noirc_frontend::{Shared, monomorphization::ast::Program};
+use noirc_frontend::monomorphization::ast::Program;
 use regex::Regex;
 
 use crate::{Config, arb_program, compare::logging, input::arb_inputs_from_ssa, program_abi};

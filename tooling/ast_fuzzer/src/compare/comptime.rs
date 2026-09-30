@@ -1,8 +1,8 @@
 //! Compare an arbitrary AST executed as Noir with the comptime
 //! interpreter vs compiled into bytecode and ran through a VM.
+use std::collections::BTreeMap;
 use std::path::Path;
-use std::rc::Rc;
-use std::{cell::RefCell, collections::BTreeMap};
+use std::sync::{Arc, Mutex};
 
 use acir::FieldElement;
 use acir::native_types::WitnessMap;
@@ -55,12 +55,12 @@ fn prepare_snippet(source: String) -> (Context<'static, 'static>, CrateId) {
 /// Use `force_brillig` to test it as an unconstrained function without having to change the code.
 /// This is useful for methods that use the `runtime::is_unconstrained()` method to change their behavior.
 /// (copied from `nargo_cli/tests/common.rs`)
-fn prepare_and_compile_snippet<W: std::io::Write + 'static>(
+fn prepare_and_compile_snippet<W: std::io::Write + Send + 'static>(
     source: String,
     force_brillig: bool,
     output: W,
 ) -> (CompilationResult<CompiledProgram>, W) {
-    let output = Rc::new(RefCell::new(output));
+    let output = Arc::new(Mutex::new(output));
     let (mut context, root_crate_id) = prepare_snippet(source);
     context.set_comptime_printing(output.clone());
     let options = CompileOptions {
@@ -72,7 +72,8 @@ fn prepare_and_compile_snippet<W: std::io::Write + 'static>(
     };
     let res = compile_main(&mut context, root_crate_id, &options, None);
     drop(context);
-    let output = Rc::into_inner(output).expect("context is gone").into_inner();
+    let output =
+        Arc::into_inner(output).expect("context is gone").into_inner().expect("not poisoned");
     (res, output)
 }
 
@@ -144,11 +145,14 @@ impl CompareComptime {
             Self::exec_bytecode(&self.ssa.artifact.program, initial_witness.clone());
 
         let source = comptime_source(&self.source);
-        let output = Rc::new(RefCell::new(Vec::new()));
+        let output = Arc::new(Mutex::new(Vec::new()));
 
         // Take the printed output.
-        let printed = |output: Rc<RefCell<Vec<u8>>>| {
-            let output = Rc::into_inner(output).expect("context is gone").into_inner();
+        let printed = |output: Arc<Mutex<Vec<u8>>>| {
+            let output = Arc::into_inner(output)
+                .expect("context is gone")
+                .into_inner()
+                .expect("not poisoned");
             String::from_utf8(output).expect("not UTF-8")
         };
 
@@ -334,8 +338,7 @@ impl HasPrograms for CompareComptime {
 
 #[cfg(test)]
 mod tests {
-    use std::cell::RefCell;
-    use std::rc::Rc;
+    use std::sync::{Arc, Mutex};
 
     use noirc_frontend::elaborator::test_utils::interpret;
 
@@ -358,7 +361,7 @@ fn func_1(a: str<2>) -> [u8; 2] {
 }
 "#,
         );
-        let output = Rc::new(RefCell::new(Vec::new()));
+        let output = Arc::new(Mutex::new(Vec::new()));
         interpret(&source, output)
             .expect("`str::as_bytes` should resolve against the comptime shim");
     }

@@ -7,10 +7,9 @@
 //! without any bookkeeping: a request enqueued after a document change is processed after
 //! the re-check that change triggered, so it always sees up-to-date compiler state.
 //!
-//! Compiler state cannot cross threads (`NodeInterner` transitively contains `Rc`), which
-//! rules out type-checking on a helper thread and handing the result back. Instead the
-//! state is created on the thread that processes messages and never leaves it; only
-//! messages (jobs and their `Send` results) cross the thread boundary.
+//! The state is created on the thread that processes messages and never leaves it; only
+//! messages (jobs and their `Send` results) cross the thread boundary. Keeping every job on
+//! that one thread is what serializes them, which is where the ordering guarantee comes from.
 
 use std::future::Future;
 use std::pin::Pin;

@@ -24,10 +24,9 @@ use fm::{FileId, FileManager};
 use iter_extended::vecmap;
 use noirc_errors::Location;
 use std::borrow::Cow;
-use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::PathBuf;
-use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 
 use self::def_map::TestFunction;
 
@@ -36,6 +35,16 @@ pub type ParsedFiles = HashMap<FileId, (ParsedModule, Vec<ParserError>)>;
 /// Helper object which groups together several useful context objects used
 /// during name resolution. Once name resolution is finished, only the
 /// `def_interner` is required for type inference and monomorphization.
+// An elaborated `Context` is read, not written, by monomorphization and everything after it, so
+// one elaboration can be shared between threads that each compile a different entry point.
+const _: () = {
+    const fn assert_sync<T: Sync>() {}
+    assert_sync::<Context<'static, 'static>>();
+};
+
+/// Where comptime code's `print` and `println` write to.
+pub type ComptimeOutput = Arc<Mutex<dyn std::io::Write + Send>>;
+
 pub struct Context<'file_manager, 'parsed_files> {
     pub def_interner: NodeInterner,
     pub crate_graph: CrateGraph,
@@ -69,7 +78,7 @@ pub struct Context<'file_manager, 'parsed_files> {
     pub count_array_copies: bool,
 
     /// Writer for comptime prints.
-    pub interpreter_output: Option<Rc<RefCell<dyn std::io::Write>>>,
+    pub interpreter_output: Option<ComptimeOutput>,
 
     /// Tracks comptime expression locations to facilitate code coverage.
     pub evaluation_tracker: Option<EvaluationTracker>,
@@ -110,7 +119,7 @@ impl Context<'_, '_> {
             parsed_files: Cow::Owned(parsed_files),
             package_build_path: PathBuf::default(),
             count_array_copies: false,
-            interpreter_output: Some(Rc::new(RefCell::new(std::io::stdout()))),
+            interpreter_output: Some(Arc::new(Mutex::new(std::io::stdout()))),
             required_unstable_features: BTreeMap::new(),
             unresolved_globals: Deferred::default(),
             evaluation_tracker: None,
@@ -133,7 +142,7 @@ impl Context<'_, '_> {
             parsed_files: Cow::Borrowed(parsed_files),
             package_build_path: PathBuf::default(),
             count_array_copies: false,
-            interpreter_output: Some(Rc::new(RefCell::new(std::io::stdout()))),
+            interpreter_output: Some(Arc::new(Mutex::new(std::io::stdout()))),
             required_unstable_features: BTreeMap::new(),
             unresolved_globals: Deferred::default(),
             evaluation_tracker: None,
@@ -161,7 +170,7 @@ impl Context<'_, '_> {
             parsed_files: Cow::Borrowed(parsed_files),
             package_build_path: PathBuf::default(),
             count_array_copies: false,
-            interpreter_output: Some(Rc::new(RefCell::new(std::io::stdout()))),
+            interpreter_output: Some(Arc::new(Mutex::new(std::io::stdout()))),
             required_unstable_features: BTreeMap::new(),
             unresolved_globals: Deferred::default(),
             evaluation_tracker: None,
@@ -329,7 +338,7 @@ impl Context<'_, '_> {
             }
 
             // Check for name collisions of this generic
-            let name = Rc::new(ident.to_string());
+            let name = Arc::new(ident.to_string());
 
             ResolvedGeneric { name, type_var, location }
         })
@@ -348,7 +357,7 @@ impl Context<'_, '_> {
         self.interpreter_output = None;
     }
 
-    pub fn set_comptime_printing(&mut self, output: Rc<RefCell<dyn std::io::Write>>) {
+    pub fn set_comptime_printing(&mut self, output: ComptimeOutput) {
         self.interpreter_output = Some(output);
     }
 }

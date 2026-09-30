@@ -1,6 +1,6 @@
 use core::str;
 use std::path::Path;
-use std::rc::Rc;
+use std::sync::Arc;
 use std::vec;
 
 use acvm::{AcirField, FieldElement};
@@ -693,7 +693,7 @@ impl ModCollector<'_> {
                             context.def_interner.push_definition_type(definition_id, typ);
 
                             associated_constant_ids.insert(name.to_string(), definition_id);
-                            let name = Rc::new(name.to_string());
+                            let name = Arc::new(name.to_string());
                             associated_types.push(ResolvedGeneric { name, type_var, location });
                         }
                     }
@@ -713,7 +713,7 @@ impl ModCollector<'_> {
                         } else {
                             let type_variable_id = context.def_interner.next_type_variable_id();
                             associated_types.push(ResolvedGeneric {
-                                name: Rc::new(name.to_string()),
+                                name: Arc::new(name.to_string()),
                                 type_var: TypeVariable::unbound(type_variable_id, Kind::Normal),
                                 location: name.location(),
                             });

@@ -1,6 +1,6 @@
 //! Generic parameter resolution and type parameter handling.
 
-use std::rc::Rc;
+use std::sync::Arc;
 
 use iter_extended::vecmap;
 use itertools::Itertools;
@@ -44,7 +44,7 @@ impl Elaborator<'_> {
                     is_error = true;
                     let id = self.interner.next_type_variable_id();
                     let kind = self.resolve_generic_kind(generic);
-                    (TypeVariable::unbound(id, kind), Rc::new("(error)".into()))
+                    (TypeVariable::unbound(id, kind), Arc::new("(error)".into()))
                 }
             };
 
@@ -111,14 +111,14 @@ impl Elaborator<'_> {
     pub(super) fn resolve_generic(
         &mut self,
         generic: &UnresolvedGeneric,
-    ) -> Result<(TypeVariable, Rc<String>), ResolverError> {
+    ) -> Result<(TypeVariable, Arc<String>), ResolverError> {
         // Map the generic to a fresh type variable
         match generic.ident() {
             IdentOrQuotedType::Ident(ident) => {
                 let id = self.interner.next_type_variable_id();
                 let kind = self.resolve_generic_kind(generic);
                 let typevar = TypeVariable::unbound(id, kind);
-                let name = Rc::new(ident.to_string());
+                let name = Arc::new(ident.to_string());
                 Ok((typevar, name))
             }
             IdentOrQuotedType::Quoted(id, location) => {

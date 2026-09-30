@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
+use super::shared::Shared;
 use acvm::{AcirField, FieldElement, acir::brillig::lengths::SemanticLength};
 use iter_extended::{try_vecmap, vecmap};
-use noirc_frontend::Shared;
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{

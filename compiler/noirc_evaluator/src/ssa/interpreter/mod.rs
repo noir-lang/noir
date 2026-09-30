@@ -23,13 +23,14 @@ use acvm::{AcirField, FieldElement};
 use errors::{InternalError, InterpreterError, MAX_UNSIGNED_BIT_SIZE};
 use iter_extended::{try_vecmap, vecmap};
 use itertools::Itertools;
-use noirc_frontend::Shared;
 use num_bigint::BigUint;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use shared::Shared;
 use value::{ArrayValue, NumericValue, ReferenceValue, StorageIdentity};
 
 pub mod errors;
 mod intrinsics;
+pub mod shared;
 pub(crate) mod tests;
 pub mod value;
 

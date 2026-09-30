@@ -325,7 +325,7 @@ fn run_fuzzing_harness<S: BlackBoxFunctionSolver<FieldElement> + Default>(
     let output_sink: Box<dyn Write> =
         if show_output { Box::new(std::io::stdout()) } else { Box::new(std::io::empty()) };
     nargo::ops::run_fuzzing_harness::<S, _, _>(
-        &mut context,
+        &context,
         fuzzing_harness,
         show_output,
         output_sink,

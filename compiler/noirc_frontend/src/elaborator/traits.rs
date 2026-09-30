@@ -166,7 +166,7 @@
 
 use std::{
     collections::{BTreeMap, BTreeSet},
-    rc::Rc,
+    sync::Arc,
 };
 
 use iter_extended::vecmap;
@@ -531,7 +531,7 @@ impl Elaborator<'_> {
         generics.push(new_generic.clone());
 
         let name = format!("{IMPL_TRAIT_PARAMETER_NAME_PREFIX}{trait_path}");
-        let generic_type = new_generic.into_named_generic(&Rc::new(name), None);
+        let generic_type = new_generic.into_named_generic(&Arc::new(name), None);
         let trait_bound = TraitBound { trait_path, trait_generics };
 
         if let Some(trait_bound) = self.resolve_trait_bound(&trait_bound) {
@@ -769,7 +769,7 @@ impl Elaborator<'_> {
                         .id();
 
                     let fresh_type = type_var.clone().into_implicit_named_generic(
-                        &Rc::new(named_type.name.to_string()),
+                        &Arc::new(named_type.name.to_string()),
                         Some((object_name.as_str(), parent_trait_name.as_str())),
                         assoc_type_id,
                     );
@@ -1016,7 +1016,7 @@ impl Elaborator<'_> {
                         &UnresolvedGeneric::from(Ident::from(SELF_TYPE_NAME)),
                         name_location,
                         &ResolvedGeneric {
-                            name: Rc::new(SELF_TYPE_NAME.to_string()),
+                            name: Arc::new(SELF_TYPE_NAME.to_string()),
                             type_var: self_typevar,
                             location: name_location,
                         },

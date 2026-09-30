@@ -450,7 +450,7 @@ mod tests {
 
         let n = Type::NamedGeneric(NamedGeneric {
             type_var: TypeVariable::unbound(TypeVariableId(0), Kind::u32()),
-            name: std::rc::Rc::new("N".to_owned()),
+            name: std::sync::Arc::new("N".to_owned()),
             implicit: false,
             original_type_var_id: None,
         });
@@ -480,7 +480,7 @@ mod tests {
     fn u32_generic(id: u32, name: &str) -> Type {
         Type::NamedGeneric(NamedGeneric {
             type_var: TypeVariable::unbound(TypeVariableId(id as usize), Kind::u32()),
-            name: std::rc::Rc::new(name.to_owned()),
+            name: std::sync::Arc::new(name.to_owned()),
             implicit: false,
             original_type_var_id: None,
         })

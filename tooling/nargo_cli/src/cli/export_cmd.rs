@@ -7,7 +7,6 @@ use noirc_frontend::hir::ParsedFiles;
 use rayon::prelude::*;
 
 use fm::FileManager;
-use iter_extended::try_vecmap;
 use nargo::package::Package;
 use nargo::prepare_package;
 use nargo::workspace::Workspace;
@@ -75,13 +74,16 @@ fn compile_exported_functions(
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
     check_crate_and_report_errors(&mut context, crate_id, compile_options)?;
 
+    let context = context;
     let exported_functions = context.get_all_exported_functions_in_crate(&crate_id);
 
-    let exported_programs = try_vecmap(
-        exported_functions,
-        |(function_name, function_id)| -> Result<(String, CompiledProgram), CompileError> {
+    // Each exported function monomorphizes against the one elaborated context, which it only
+    // reads, so they compile in parallel.
+    let exported_programs = exported_functions
+        .into_par_iter()
+        .map(|(function_name, function_id)| -> Result<(String, CompiledProgram), CompileError> {
             // TODO: We should to refactor how to deal with compilation errors to avoid this.
-            let program = compile_no_check(&mut context, compile_options, function_id, None, false)
+            let program = compile_no_check(&context, compile_options, function_id, None, false)
                 .map_err(|error| vec![CustomDiagnostic::from(error)]);
 
             let program = report_errors(
@@ -93,8 +95,8 @@ fn compile_exported_functions(
             )?;
 
             Ok((function_name, program))
-        },
-    )?;
+        })
+        .collect::<Result<Vec<_>, _>>()?;
 
     let export_dir = workspace.export_directory_path();
     for (function_name, program) in exported_programs {

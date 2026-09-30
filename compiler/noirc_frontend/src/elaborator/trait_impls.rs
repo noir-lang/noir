@@ -1,6 +1,6 @@
 //! Trait implementation collection, method matching, and coherence checking.
 
-use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::{
     Kind, NamedGeneric, ResolvedGeneric, Shared, TypeBindings, TypeVariable,
@@ -1132,7 +1132,7 @@ impl Elaborator<'_> {
             let new_generic_id = self.interner.next_type_variable_id();
             let type_var = TypeVariable::unbound(new_generic_id, kind.clone());
             let typ = type_var.into_named_generic(
-                &Rc::new(name.to_string()),
+                &Arc::new(name.to_string()),
                 trait_name.as_ref().map(|tn| (object.as_str(), tn.as_str())),
             );
             let typ = self.interner.push_quoted_type(typ);

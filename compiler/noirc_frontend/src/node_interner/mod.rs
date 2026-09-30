@@ -219,7 +219,7 @@ pub struct NodeInterner {
     globals: Vec<GlobalInfo>,
     global_attributes: HashMap<GlobalId, Vec<SecondaryAttribute>>,
 
-    next_type_variable_id: std::cell::Cell<usize>,
+    next_type_variable_id: std::sync::atomic::AtomicUsize,
 
     /// A map from a type and method name to a function id for the method.
     /// This can resolve to potentially multiple methods if the same method name is
@@ -519,7 +519,7 @@ impl Default for NodeInterner {
             ordering_type: None,
             instantiation_bindings: HashMap::default(),
             field_indices: HashMap::default(),
-            next_type_variable_id: std::cell::Cell::new(0),
+            next_type_variable_id: std::sync::atomic::AtomicUsize::new(0),
             globals: Vec::new(),
             global_attributes: HashMap::default(),
             methods: HashMap::default(),
@@ -975,8 +975,7 @@ impl NodeInterner {
     }
 
     pub fn next_type_variable_id(&self) -> TypeVariableId {
-        let id = self.next_type_variable_id.get();
-        self.next_type_variable_id.set(id + 1);
+        let id = self.next_type_variable_id.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         TypeVariableId(id)
     }
 

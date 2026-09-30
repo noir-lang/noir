@@ -49,14 +49,14 @@
 //! wrapped with additional context when elaborating generated code (e.g., from attributes or
 //! comptime calls).
 
-use std::{cell::RefCell, collections::BTreeMap, collections::BTreeSet, rc::Rc};
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::{
     Type,
     elaborator::types::WildcardDisallowedContext,
     graph::CrateId,
     hir::{
-        Context,
+        ComptimeOutput, Context,
         comptime::{ComptimeError, EvaluationTracker, InterpreterError},
         def_collector::{
             dc_crate::{
@@ -194,7 +194,7 @@ pub struct Elaborator<'context> {
     pub(crate) usage_tracker: &'context mut UsageTracker,
     pub(crate) crate_graph: &'context CrateGraph,
     pub(crate) files: &'context FileMap,
-    pub(crate) interpreter_output: &'context Option<Rc<RefCell<dyn std::io::Write>>>,
+    pub(crate) interpreter_output: &'context Option<ComptimeOutput>,
     pub(crate) evaluation_tracker: Option<&'context mut EvaluationTracker>,
 
     required_unstable_features: &'context BTreeMap<CrateId, Vec<UnstableFeature>>,
@@ -298,7 +298,7 @@ impl<'context> Elaborator<'context> {
         usage_tracker: &'context mut UsageTracker,
         crate_graph: &'context CrateGraph,
         files: &'context FileMap,
-        interpreter_output: &'context Option<Rc<RefCell<dyn std::io::Write>>>,
+        interpreter_output: &'context Option<ComptimeOutput>,
         evaluation_tracker: Option<&'context mut EvaluationTracker>,
         required_unstable_features: &'context BTreeMap<CrateId, Vec<UnstableFeature>>,
         unresolved_globals: &'context mut Deferred<GlobalId, UnresolvedGlobal>,
@@ -935,9 +935,8 @@ impl<'context> Elaborator<'context> {
 
 #[cfg(feature = "test_utils")]
 pub mod test_utils {
-    use std::cell::RefCell;
     use std::io::Write;
-    use std::rc::Rc;
+    use std::sync::{Arc, Mutex};
 
     use crate::hir::comptime::InterpreterError;
     use crate::{hir::def_collector::dc_crate::CompilationError, parser::ParserError};
@@ -957,9 +956,9 @@ pub mod test_utils {
     /// the result into a monomorphized AST expression.
     ///
     /// The source is treated as root and stdlib, so stdlib snippets are allowed.
-    pub fn interpret<W: Write + 'static>(
+    pub fn interpret<W: Write + Send + 'static>(
         src: &str,
-        output: Rc<RefCell<W>>,
+        output: Arc<Mutex<W>>,
     ) -> Result<crate::monomorphization::ast::Expression, ElaboratorError> {
         use crate::elaborator::ElaboratorOptions;
         use crate::monomorphization::{Monomorphizer, debug_types::DebugTypeTracker};

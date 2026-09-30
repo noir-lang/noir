@@ -1,4 +1,4 @@
-use std::cell::Ref;
+use std::sync::RwLockReadGuard;
 
 use iter_extended::vecmap;
 
@@ -80,7 +80,7 @@ impl Generic for TypeAliasId {
     }
 }
 
-impl Generic for Ref<'_, DataType> {
+impl Generic for RwLockReadGuard<'_, DataType> {
     fn item_kind(&self) -> &'static str {
         "struct"
     }

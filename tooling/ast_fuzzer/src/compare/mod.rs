@@ -7,7 +7,8 @@ use arbitrary::{Arbitrary, Unstructured};
 use color_eyre::eyre::{self, bail};
 use itertools::Itertools;
 use noirc_evaluator::ssa::SsaEvaluatorOptions;
-use noirc_frontend::{Shared, monomorphization::ast::Program};
+use noirc_evaluator::ssa::interpreter::shared::Shared;
+use noirc_frontend::monomorphization::ast::Program;
 
 mod compiled;
 mod comptime;

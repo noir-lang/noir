@@ -1,13 +1,11 @@
 use std::{
-    cell::RefCell,
     cmp::max,
     collections::{BTreeMap, HashMap},
     fmt::Display,
     panic::catch_unwind,
     path::PathBuf,
-    rc::Rc,
     sync::{
-        Mutex,
+        Arc, Mutex,
         mpsc::{self, Sender},
     },
     thread,
@@ -48,8 +46,10 @@ pub(crate) mod formatters;
 type TestName = String;
 type PackageName = String;
 
-/// All the tests collected in a package, along with an optional baseline coverage report.
-type PackageTestsAndCoverageBaseline<'a> = (Vec<Test<'a>>, Option<lcov::Report>);
+/// All the tests collected in a package, along with an optional baseline coverage report and the
+/// package's elaborated context.
+type PackageTestsAndCoverageBaseline<'a> =
+    (Vec<Test<'a>>, Option<lcov::Report>, ElaboratedPackage<'a>);
 
 /// Run the tests for this program
 #[derive(Debug, Clone, Args)]
@@ -104,11 +104,11 @@ pub(crate) struct TestCommand {
     #[clap(long, conflicts_with("no_fuzz"))]
     only_fuzz: bool,
 
-    /// Elaborate the package again for every test rather than sharing one elaboration per thread
+    /// Elaborate the package again for every test rather than sharing one elaboration of it
     ///
     /// Sharing is a large speedup on packages with many tests, but it means a test compiles
-    /// against a context that earlier tests on the same thread have already compiled against.
-    /// Use this to check whether a surprising result depends on what ran before it.
+    /// against a context that other tests have already compiled against, or are compiling against
+    /// at the same time. Use this to check whether a surprising result depends on that.
     #[clap(long)]
     no_context_reuse: bool,
 
@@ -206,34 +206,22 @@ struct Test<'a> {
     root_path: Option<PathBuf>,
 }
 
-/// An elaborated [`Context`] kept alive across the tests a worker thread runs.
+/// A package's elaborated [`Context`], shared by every worker thread that runs one of its tests.
 ///
 /// Elaborating a package is the single most expensive part of `nargo test` on a large program and
-/// produces the same result for every test in that package, so a worker holds onto the context it
-/// built and reuses it for the next test from the same package.
+/// produces the same result for every test in that package, so each package is elaborated once,
+/// while its tests are collected, and every test compiles against that one elaboration.
 ///
-/// Reuse rests on monomorphization not changing what an elaborated context already holds: it
-/// resolves generics through a substitution of its own rather than by binding the context's type
-/// variables. `noirc_frontend::monomorphization::context_reuse_tests` asserts that a test compiles
-/// to the same program whatever was compiled against the context before it. A context is dropped
-/// when a test unwinds, and `--no-context-reuse` turns sharing off for a whole run.
-struct CachedContext<'a> {
-    package: &'a Package,
+/// Sharing rests on monomorphization only reading an elaborated context: it resolves generics
+/// through a substitution of its own rather than by binding the context's type variables, and it
+/// takes the context by shared reference. `noirc_frontend::monomorphization::context_reuse_tests`
+/// asserts that a test compiles to the same program whatever was compiled against the context
+/// before it. The `--force-comptime` and `--coverage` path runs the comptime interpreter, which
+/// does write to the context, so it elaborates a context of its own for each test, as does every
+/// test under `--no-context-reuse`.
+struct ElaboratedPackage<'a> {
     context: Context<'a, 'a>,
     crate_id: CrateId,
-}
-
-/// Whether a test left the context it compiled against fit for the next test to compile against.
-///
-/// Whether the test passed does not decide this, and neither does whether it compiled:
-/// monomorphization only reads the elaborated program, so a compilation that failed leaves the
-/// context as fit for reuse as one that succeeded. What is [`Self::Spent`] is the
-/// `--force-comptime` and `--coverage` path, which runs the comptime interpreter over the context
-/// instead of monomorphizing, and hands the context's evaluation tracker to the coverage report.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ContextState {
-    Clean,
-    Spent,
 }
 
 pub(crate) struct TestResult {
@@ -307,7 +295,7 @@ impl<'a> TestRunner<'a> {
         let packages_tests = self.collect_packages_tests()?;
 
         if self.args.list_tests {
-            for (package_name, (package_tests, _)) in packages_tests {
+            for (package_name, (package_tests, _, _)) in packages_tests {
                 for test in package_tests {
                     noirc_errors::println_to_stdout!("{} {}", package_name, test.name);
                 }
@@ -320,17 +308,25 @@ impl<'a> TestRunner<'a> {
         let mut test_count_per_package = BTreeMap::new();
         let mut coverage_per_package = BTreeMap::new();
 
-        for (package_name, (package_tests, coverage_baseline)) in packages_tests {
+        let mut elaborated_packages = BTreeMap::new();
+
+        for (package_name, (package_tests, coverage_baseline, elaborated)) in packages_tests {
             if let Some(baseline) = coverage_baseline {
                 coverage_per_package.insert(package_name.clone(), baseline);
             }
-            test_count_per_package.insert(package_name, package_tests.len());
+            test_count_per_package.insert(package_name.clone(), package_tests.len());
+            elaborated_packages.insert(package_name, elaborated);
             tests.extend(package_tests);
         }
 
         // Now run all tests in parallel, but show output for each package sequentially
         let tests_count = tests.len();
-        let all_passed = self.run_all_tests(tests, &test_count_per_package, coverage_per_package);
+        let all_passed = self.run_all_tests(
+            tests,
+            &elaborated_packages,
+            &test_count_per_package,
+            coverage_per_package,
+        );
 
         if tests_count == 0 {
             match &self.pattern {
@@ -373,12 +369,11 @@ impl<'a> TestRunner<'a> {
     fn process_chunk_of_tests<I>(
         &'a self,
         iter_tests: &Mutex<I>,
+        elaborated_packages: &BTreeMap<PackageName, ElaboratedPackage<'a>>,
         thread_sender: &Sender<(TestResult, Option<lcov::Report>)>,
     ) where
         I: Iterator<Item = Test<'a>>,
     {
-        let mut cached: Option<CachedContext<'a>> = None;
-
         loop {
             // Get next test to process from the iterator.
             let Some(test) = iter_tests.lock().unwrap().next() else {
@@ -391,31 +386,20 @@ impl<'a> TestRunner<'a> {
 
             let time_before_test = std::time::Instant::now();
 
-            // A skipped test compiles nothing, so it needs no context. Checking before the
-            // context is built keeps `--only-fuzz`, `--no-fuzz` and `--force-comptime` from
-            // elaborating a package they then never touch.
             let (status, output, test_coverage) = if self.is_filtered_out(&test) {
                 (TestStatus::Skipped, String::new(), None)
             } else {
-                // Elaborating inside the guard keeps an ICE in `check_crate` to a single failed
-                // test; escaping this closure would unwind the worker and abort the whole run.
+                // Running the test inside the guard keeps an ICE, including one while elaborating a
+                // context of the test's own, to a single failed test; escaping this closure would
+                // unwind the worker and abort the whole run. A panic leaves the shared context as
+                // it was, since nothing on the way to it writes to that context.
+                let elaborated = &elaborated_packages[&test.package_name];
                 let run = std::panic::AssertUnwindSafe(|| {
-                    let cached_context = self.cached_context_for(&mut cached, &test);
-                    self.run_test::<Bn254BlackBoxSolver>(cached_context, &test)
+                    self.run_test::<Bn254BlackBoxSolver>(elaborated, &test)
                 });
-                let unwound = catch_unwind(run);
 
-                // A panic can stop elaborating the package, or the comptime interpreter, part-way
-                // through changing the context, so a test that did not finish gives up its context
-                // however far it got.
-                let reusable = matches!(unwound, Ok((_, _, _, ContextState::Clean)))
-                    && !self.args.no_context_reuse;
-                if !reusable {
-                    cached = None;
-                }
-
-                match unwound {
-                    Ok((status, output, test_coverage, _)) => (status, output, test_coverage),
+                match catch_unwind(run) {
+                    Ok((status, output, test_coverage)) => (status, output, test_coverage),
                     Err(err) => (
                         TestStatus::Fail {
                             message:
@@ -463,6 +447,7 @@ impl<'a> TestRunner<'a> {
     fn run_all_tests(
         &self,
         tests: Vec<Test<'a>>,
+        elaborated_packages: &BTreeMap<PackageName, ElaboratedPackage<'a>>,
         test_count_per_package: &BTreeMap<PackageName, usize>,
         mut coverage_per_package: BTreeMap<PackageName, lcov::Report>,
     ) -> bool {
@@ -501,6 +486,7 @@ impl<'a> TestRunner<'a> {
                     .spawn_scoped(scope, move || {
                         self.process_chunk_of_tests(
                             iter_tests_without_arguments,
+                            elaborated_packages,
                             &test_result_thread_sender,
                         );
                         // Signal that we've finished processing the standard tests in this thread
@@ -526,6 +512,7 @@ impl<'a> TestRunner<'a> {
                     // Parallelism is handled by the fuzz tests themselves
                     self.process_chunk_of_tests(
                         iter_tests_with_arguments,
+                        elaborated_packages,
                         &test_result_thread_sender,
                     );
                 })
@@ -685,7 +672,8 @@ impl<'a> TestRunner<'a> {
         if let Some(error) = error { Err(error) } else { Ok(package_tests) }
     }
 
-    /// Compiles a single package and returns all of its tests.
+    /// Compiles a single package and returns all of its tests, together with the elaborated
+    /// context they run against.
     ///
     /// Optionally returns a tally of functions and lines that can be covered by tests.
     fn collect_package_tests(
@@ -694,7 +682,7 @@ impl<'a> TestRunner<'a> {
         foreign_call_resolver_url: Option<&'a str>,
         root_path: Option<PathBuf>,
         package_name: PackageName,
-    ) -> Result<(Vec<Test<'a>>, Option<lcov::Report>), CliError> {
+    ) -> Result<PackageTestsAndCoverageBaseline<'a>, CliError> {
         let (context, crate_id) = self.prepare_package_and_check_crate(package, true)?;
         let test_functions = self.get_tests_in_crate(&context, crate_id);
 
@@ -715,7 +703,7 @@ impl<'a> TestRunner<'a> {
         let coverage_baseline =
             self.args.coverage.then(|| coverage::baseline_in_package(&context, crate_id));
 
-        Ok((tests, coverage_baseline))
+        Ok((tests, coverage_baseline, ElaboratedPackage { context, crate_id }))
     }
 
     /// Compiles a single package and returns the checked [Context] and the root [`CrateId`].
@@ -776,40 +764,56 @@ impl<'a> TestRunner<'a> {
             || (self.args.only_fuzz && !test.has_arguments)
     }
 
-    /// Return the context to compile `test` against, elaborating `test`'s package into `cached`
-    /// unless it already holds an elaboration of that same package.
-    ///
-    /// A workspace hands its packages to the worker threads through one shared iterator, so
-    /// consecutive tests on a thread are not necessarily from the same package.
-    fn cached_context_for<'b>(
-        &'a self,
-        cached: &'b mut Option<CachedContext<'a>>,
-        test: &Test<'a>,
-    ) -> &'b mut CachedContext<'a> {
-        if !cached.as_ref().is_some_and(|cached| std::ptr::eq(cached.package, test.package)) {
-            let (context, crate_id) = self
-                .prepare_package_and_check_crate(test.package, false)
-                .expect("Any errors should have occurred when collecting test functions");
-            *cached = Some(CachedContext { package: test.package, context, crate_id });
-        }
-        cached.as_mut().expect("just populated")
+    /// Elaborate `test`'s package into a context of the test's own.
+    fn elaborate_privately(&'a self, test: &Test<'a>) -> ElaboratedPackage<'a> {
+        let (context, crate_id) = self
+            .prepare_package_and_check_crate(test.package, false)
+            .expect("Any errors should have occurred when collecting test functions");
+        ElaboratedPackage { context, crate_id }
     }
 
-    /// Runs a single test.
+    /// Runs a single test against its package's shared elaboration, or against one of its own
+    /// when it needs one.
     ///
-    /// Returns its status together with whatever was printed to stdout during the test, an
-    /// optional coverage report, and whether the context is still fit to compile another test.
+    /// Returns its status together with whatever was printed to stdout during the test and an
+    /// optional coverage report.
     fn run_test<S: BlackBoxFunctionSolver<FieldElement> + Default>(
         &'a self,
-        cached: &mut CachedContext<'a>,
+        shared: &ElaboratedPackage<'a>,
         test: &Test<'a>,
-    ) -> (TestStatus, String, Option<lcov::Report>, ContextState) {
-        let CachedContext { context, crate_id, .. } = cached;
+    ) -> (TestStatus, String, Option<lcov::Report>) {
         let fn_name = test.name.as_str();
 
-        let pattern = FunctionNameMatch::Exact(vec![fn_name.to_string()]);
-        let test_functions = context.get_all_test_functions_in_crate_matching(crate_id, &pattern);
-        let (_, test_function) = test_functions.first().expect("Test function should exist");
+        if self.args.force_comptime || self.args.coverage && !test.has_arguments {
+            let ElaboratedPackage { mut context, crate_id } = self.elaborate_privately(test);
+            let test_function = find_test_function(&context, &crate_id, fn_name);
+
+            let output = Arc::new(Mutex::new(Vec::new()));
+            context.set_comptime_printing(output.clone());
+
+            let result = context.interpret_function(test_function.id, Vec::new());
+            let status = nargo::ops::test_status_comptime_interpret_result(result, &test_function);
+
+            context.interpreter_output = None;
+            let output = Arc::try_unwrap(output).expect("context no longer has it");
+            let output = output.into_inner().expect("not poisoned");
+            let output = String::from_utf8(output).expect("not UTF-8");
+
+            let report = context.evaluation_tracker.take().map(|tracker| {
+                coverage::tracker_to_report(&tracker, test_function.id, fn_name, &context)
+            });
+
+            return (status, output, report);
+        }
+
+        let private;
+        let ElaboratedPackage { context, crate_id } = if self.args.no_context_reuse {
+            private = self.elaborate_privately(test);
+            &private
+        } else {
+            shared
+        };
+        let test_function = &find_test_function(context, crate_id, fn_name);
 
         if self.args.no_run {
             let status = match noirc_driver::compile_no_check(
@@ -822,28 +826,7 @@ impl<'a> TestRunner<'a> {
                 Ok(_) => TestStatus::Skipped,
                 Err(err) => nargo::ops::test_status_program_compile_fail(err, test_function),
             };
-            return (status, String::new(), None, ContextState::Clean);
-        }
-
-        if self.args.force_comptime || self.args.coverage && !test.has_arguments {
-            let output = Rc::new(RefCell::new(Vec::new()));
-            context.set_comptime_printing(output.clone());
-
-            let result = context.interpret_function(test_function.id, Vec::new());
-            let status = nargo::ops::test_status_comptime_interpret_result(result, test_function);
-
-            context.interpreter_output = None;
-            let output = Rc::try_unwrap(output).expect("context no longer has it");
-            let output = String::from_utf8(output.into_inner()).expect("not UTF-8");
-
-            let report = context.evaluation_tracker.take().map(|tracker| {
-                coverage::tracker_to_report(&tracker, test_function.id, fn_name, context)
-            });
-
-            // The coverage report takes ownership of the evaluation tracker, which the next test
-            // needs rebuilt, and the interpreter runs as part of elaboration, so it can change
-            // what the context holds where monomorphization only reads it.
-            return (status, output, report, ContextState::Spent);
+            return (status, String::new(), None);
         }
 
         let blackbox_solver = S::default();
@@ -886,7 +869,7 @@ impl<'a> TestRunner<'a> {
         let output_string =
             String::from_utf8(output_buffer).expect("output buffer should contain valid utf8");
 
-        (test_status, output_string, None, ContextState::Clean)
+        (test_status, output_string, None)
     }
 
     /// Display the status of a single test
@@ -907,4 +890,11 @@ impl<'a> TestRunner<'a> {
             self.args.compile_options.silence_warnings,
         )
     }
+}
+
+/// The test function named `name` in `crate_id` of `context`.
+fn find_test_function(context: &Context, crate_id: &CrateId, name: &str) -> TestFunction {
+    let pattern = FunctionNameMatch::Exact(vec![name.to_string()]);
+    let mut test_functions = context.get_all_test_functions_in_crate_matching(crate_id, &pattern);
+    test_functions.pop().expect("Test function should exist").1
 }

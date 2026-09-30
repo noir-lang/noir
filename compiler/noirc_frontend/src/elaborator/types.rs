@@ -1,7 +1,7 @@
 //! Type resolution, unification, and method resolution (for both types and traits).
 mod similarly_named_types;
 
-use std::{borrow::Cow, collections::BTreeSet, rc::Rc};
+use std::{borrow::Cow, collections::BTreeSet, sync::Arc};
 
 use acvm::{AcirField, FieldElement};
 use imbl::HashSet;
@@ -849,7 +849,7 @@ impl Elaborator<'_> {
                 self.resolve_type_args_inner(args, id, location, mode, wildcard_allowed);
             let name = self.interner.get_trait(id).name.to_string();
             let generics = TraitGenerics { ordered, named };
-            Type::TraitAsType(id, Rc::new(name), generics)
+            Type::TraitAsType(id, Arc::new(name), generics)
         } else {
             Type::Error
         }

@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
+use crate::ssa::interpreter::shared::Shared;
 use acvm::FieldElement;
 use iter_extended::vecmap;
-use noirc_frontend::Shared;
 
 use crate::ssa::{
     interpreter::{
