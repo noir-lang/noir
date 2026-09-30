@@ -146,10 +146,15 @@ def cVars : Opcode → List ℕ
 
 /-- Witnesses `q`, `r` with `E q r = 0` among the circuit's constraints. -/
 def solve2 (cc : List Opcode) (E : ℕ → ℕ → Poly) : List (ℕ × ℕ) :=
+  let n := match key (E 1000000007 1000000009) with
+    | .assertZero ts => ts.length
+    | _ => 0
   (cc.flatMap fun c => match c with
-    | .assertZero _ =>
-      let vs := (cVars c).eraseDups
-      vs.flatMap fun q => vs.filterMap fun r => if key (E q r) = c then some (q, r) else none
+    | .assertZero ts =>
+      if ts.length ≤ n ∧ n ≤ ts.length + 2 then
+        let vs := (cVars c).eraseDups
+        vs.flatMap fun q => vs.filterMap fun r => if key (E q r) = c then some (q, r) else none
+      else []
     | _ => []).filter fun (q, r) => holdsZ cc (E q r)
 
 /-- Up to four ways of combining two lists of polynomials. -/
@@ -170,11 +175,13 @@ structure Rep2 where
   ty : ValueType
   L : ℕ
   M : ℕ
+  deriving DecidableEq
 
 /-- Where each SSA value lives: a scalar, or an array's scalars in flat order. -/
 inductive RVal where
   | scalar (r : Rep2)
   | array (rs : List Rep2)
+  deriving DecidableEq
 
 abbrev Reps := List (ℕ × RVal)
 
@@ -453,12 +460,41 @@ def retsOK (cc : List Opcode) (reps : Reps) (ws : List ℕ) (os : List Operand) 
     (ws.zip rss.flatten).all fun (w, r) => retOK cc w r
 
 def checkProg2 (P : Program) (C : Circuit) : Bool :=
-  let cc := C.opcodes.map Opcode.canon
+  let cc := C.opcodes
   decide (C.parameters.length = P.inputTypes.length) &&
     match initReps cc P.params C.parameters with
     | none => false
     | some reps0 =>
       match P.body.foldlM (step2 cc) reps0 with
+      | none => false
+      | some reps => retsOK cc reps C.returnValues P.rets
+
+/-! ## Certificates
+
+`checkProg2` searches the whole circuit at every step, which is fast when
+compiled but slow in the kernel on large circuits. A certificate lists, for
+each instruction, the positions of the few constraints its step needs; the
+step then runs over those constraints only. Any sub-list of the circuit's
+constraints holds whenever the circuit does, so a wrong certificate can only
+make a step fail. -/
+
+/-- The constraints at the given positions. -/
+def pick (cc : List Opcode) (idx : List ℕ) : List Opcode := idx.filterMap (cc[·]?)
+
+/-- Run the body, each step over the constraints its certificate entry picks. -/
+def stepsWith (cc : List Opcode) : Reps → List Instruction → List (List ℕ) → Option Reps
+  | reps, [], [] => some reps
+  | reps, i :: is, ix :: ixs => (step2 (pick cc ix) reps i).bind fun r => stepsWith cc r is ixs
+  | _, _, _ => none
+
+/-- `checkProg2`, with a certificate for the body. -/
+def checkProgWith (P : Program) (C : Circuit) (cert : List (List ℕ)) : Bool :=
+  let cc := C.opcodes
+  decide (C.parameters.length = P.inputTypes.length) &&
+    match initReps cc P.params C.parameters with
+    | none => false
+    | some reps0 =>
+      match stepsWith cc reps0 P.body cert with
       | none => false
       | some reps => retsOK cc reps C.returnValues P.rets
 

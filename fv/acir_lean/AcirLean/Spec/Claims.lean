@@ -111,12 +111,9 @@ def SignedOp (n : ℕ) (op : ℤ → ℤ → ℤ) : List ℕ → List ℕ → Pr
 * `arithmetic_binary_operations` divides `Field`s, which the checker has no
   rule for;
 * `regression_8519` truncates a `Field` to 128 bits, whose remainder bound
-  takes a shape the checker does not handle;
-* `array_eq` and `global_consts` multiply 32 `eq` flags together. The checker
-  accepts both, but it keeps every rewritten form of the running product, and
-  checking that in the kernel takes more than 15 minutes. -/
+  takes a shape the checker does not handle. -/
 def uncoveredPrograms : List String :=
-  ["arithmetic_binary_operations", "array_eq", "global_consts", "regression_8519"]
+  ["arithmetic_binary_operations", "regression_8519"]
 
 /-- The whole promise, for every pinned width `n`:
 * `euclidean_division_var(a, b, n)` with `a`, `b` both `n`-bit computes

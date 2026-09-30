@@ -6,6 +6,7 @@ nothing here can change what `AcirLean/Spec/Claims.lean` states.
 import AcirLean.Proofs.Checker2
 import AcirLean.Spec.Claims
 import AcirLean.Templates.TestPrograms
+import AcirLean.Proofs.TestProgramCerts
 
 /-! Soundness of `checkProg2`, and the test programs it accepts. -/
 
@@ -1364,10 +1365,7 @@ end
 theorem checkProg2_sound (P : Program) (C : Circuit) (h : checkProg2 P C = true) :
     SoundFunction C (ProgramSpec P) := by
   intro σ hσ
-  have hcc : ∀ d ∈ C.opcodes.map Opcode.canon, d.Holds σ := by
-    intro d hd
-    obtain ⟨c, hc, rfl⟩ := List.mem_map.1 hd
-    exact (Opcode.canon_sat σ c).2 (hσ c hc)
+  have hcc : ∀ d ∈ C.opcodes, d.Holds σ := hσ
   unfold checkProg2 at h
   simp only [Bool.and_eq_true, decide_eq_true_eq] at h
   obtain ⟨hin, h⟩ := h
@@ -1397,20 +1395,88 @@ theorem checkProg2_sound (P : Program) (C : Circuit) (h : checkProg2 P C = true)
           simpa using hvs
         exact heval _ (by simpa using hins C.parameters)
 
+theorem pick_sub {cc : List Opcode} {idx : List ℕ} {c : Opcode} (h : c ∈ pick cc idx) : c ∈ cc := by
+  obtain ⟨k, -, hk⟩ := List.mem_filterMap.1 h
+  exact List.mem_of_getElem? hk
+
+theorem stepsWith_ok {cc : List Opcode} {σ : ℕ → F} (hcc : ∀ c ∈ cc, c.Holds σ) :
+    ∀ (body : List Instruction) (cert : List (List ℕ)) (reps : Reps) (env : Env), EnvOK σ reps env →
+      ∀ reps', stepsWith cc reps body cert = some reps' →
+        ∃ env', body.foldlM Instruction.run env = some env' ∧ EnvOK σ reps' env'
+  | [], [], reps, env, hE, reps', h => by
+    simp only [stepsWith, Option.some.injEq] at h
+    subst h; exact ⟨env, rfl, hE⟩
+  | i :: body, ix :: cert, reps, env, hE, reps', h => by
+    simp only [stepsWith, Option.bind_eq_some_iff] at h
+    obtain ⟨reps1, h1, h2⟩ := h
+    obtain ⟨env1, he1, hE1⟩ := step2_ok (fun c hc => hcc c (pick_sub hc)) hE h1
+    obtain ⟨env', he', hE'⟩ := stepsWith_ok hcc body cert reps1 env1 hE1 reps' h2
+    exact ⟨env', by simp [List.foldlM_cons, he1, he'], hE'⟩
+  | [], _ :: _, _, _, _, _, h => by simp [stepsWith] at h
+  | _ :: _, [], _, _, _, _, h => by simp [stepsWith] at h
+
+/-- Acceptance with a certificate implies the circuit implements the program. -/
+theorem checkProgWith_sound (P : Program) (C : Circuit) (cert : List (List ℕ)) (h : checkProgWith P C cert = true) :
+    SoundFunction C (ProgramSpec P) := by
+  intro σ hσ
+  have hcc : ∀ d ∈ C.opcodes, d.Holds σ := hσ
+  unfold checkProgWith at h
+  simp only [Bool.and_eq_true, decide_eq_true_eq] at h
+  obtain ⟨hin, h⟩ := h
+  split at h
+  · simp at h
+  · next reps0 hinit =>
+    split at h
+    · simp at h
+    · next reps hfold =>
+      obtain ⟨hE0, hfit⟩ := initReps_ok hcc P.params C.parameters reps0 hinit
+      obtain ⟨env, hrun, hE⟩ := stepsWith_ok hσ P.body cert reps0 _ hE0 reps hfold
+      obtain ⟨vs, hvs, hm⟩ := rets_ok hcc hE C.returnValues P.rets h
+      have hins : ∀ l : List ℕ, List.flatMap (fun a : ℕ => [(a : F)]) (l.map fun i => (σ i).val) =
+          l.map σ := by
+        intro l; induction l <;> simp_all [cast_val]
+      refine ⟨by simp [hin], ?_, vs, ?_, hm⟩
+      · intro e he
+        rw [List.zip_map_right] at he
+        obtain ⟨⟨ty, w⟩, hmem, rfl⟩ := List.mem_map.1 he
+        have := hfit (ty, σ w) (by
+          rw [List.zip_map_right]; exact List.mem_map.2 ⟨(ty, w), hmem, rfl⟩)
+        simpa [cast_val] using this
+      · have heval : ∀ l : List F, l = C.parameters.map σ → P.eval l = some vs := by
+          rintro l rfl
+          simp only [Program.eval, Option.bind_eq_bind]
+          rw [hrun]
+          simpa using hvs
+        exact heval _ (by simpa using hins C.parameters)
+
+theorem exists_mem_zip {α β : Type} {a : α} :
+    ∀ {l : List α} {m : List β}, l.length = m.length → a ∈ l → ∃ b, (a, b) ∈ l.zip m
+  | [], _, _, h => by simp at h
+  | _ :: _, [], hl, _ => by simp at hl
+  | x :: l, y :: m, hl, h => by
+    rcases List.mem_cons.1 h with rfl | h
+    · exact ⟨y, by simp⟩
+    · obtain ⟨b, hb⟩ := exists_mem_zip (by simpa using hl) h
+      exact ⟨b, by simp [hb]⟩
+
+-- Checking every program takes more steps than the default budget.
+set_option maxHeartbeats 2000000 in
 /-- The test programs: the checker accepts every one outside
-`uncoveredPrograms`, and its solved witness satisfies its circuit, decided by
-evaluation in the kernel. -/
+`uncoveredPrograms` with its certificate from `testProgramCerts`, and its
+solved witness satisfies its circuit, decided by evaluation in the kernel. -/
 theorem testPrograms_claims :
     ∀ e ∈ testPrograms, e.name ∉ uncoveredPrograms →
       SoundFunction e.fn (ProgramSpec e.prog) ∧ AllHold e.assignment e.fn.opcodes := by
-  have hc : testPrograms.all (fun e =>
-      decide (e.name ∈ uncoveredPrograms) ||
-        (checkProg2 e.prog e.fn && decide (AllHold e.assignment e.fn.opcodes))) = true := by
+  have hc : testPrograms.length = testProgramCerts.length ∧
+      (testPrograms.zip testProgramCerts).all (fun (e, c) =>
+        decide (e.name ∈ uncoveredPrograms) ||
+          (checkProgWith e.prog e.fn c && decide (AllHold e.assignment e.fn.opcodes))) = true := by
     decide +kernel
   intro e he hn
-  have := List.all_eq_true.1 hc e he
+  obtain ⟨c, hmem⟩ := exists_mem_zip hc.1 he
+  have := List.all_eq_true.1 hc.2 _ hmem
   simp only [Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_eq] at this
   obtain ⟨h1, h2⟩ := this.resolve_left hn
-  exact ⟨checkProg2_sound _ _ h1, h2⟩
+  exact ⟨checkProgWith_sound _ _ c h1, h2⟩
 
 end AcirLean

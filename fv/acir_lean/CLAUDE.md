@@ -60,6 +60,11 @@ golden file. When the spec gains a new instruction or type, add it to the grid.
   program the checker rejects makes `fv-check` fail until it is listed, with
   the reason, in `uncoveredPrograms` (`AcirLean/Spec/Claims.lean`).
 
+After changing the checker (`AcirLean/Proofs/Checker2.lean`) or the test-program
+data, regenerate the certificates with
+`lake env lean --run scripts/emit_certs.lean AcirLean/Proofs/TestProgramCerts.lean`
+(`just fv-regen` does it too). `check.sh` fails while they are stale.
+
 When `just fv-regen` fails because a covered program no longer compiles or no
 longer fits the subset, do not work around it: either extend the checker, or
 remove the name from `testProgramNames` and say why in the PR.

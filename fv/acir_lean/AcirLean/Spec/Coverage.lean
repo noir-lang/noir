@@ -83,6 +83,7 @@ def testProgramNames : List String :=
    "main_return",
    "match_struct_pattern_field_order",
    "missing_closure_env",
+   "modulus",
    "negated_jmpif_condition",
    "nested_array_dynamic_simple",
    "nested_array_with_refs",

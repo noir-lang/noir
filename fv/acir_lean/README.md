@@ -6,7 +6,7 @@ division (with and without a predicate), truncation and comparison
 SSA `expand_signed_math` emits for signed `lt`, and soundness of whole
 functions as ACIR generation compiles them, both before and after the ACVM
 optimization passes, plus a pin that keeps those proofs attached to the Rust
-code. A checker proved sound once also covers 146 real programs from
+code. A checker proved sound once also covers 149 real programs from
 `test_programs/execution_success`, as `nargo compile` ships them.
 
 ## What you must review, and what you can ignore
@@ -149,13 +149,23 @@ template, because the optimizer merges, reorders and drops constraints:
   constant, since the optimizer drops such range checks as implied.
 
 Which witnesses play which role is found by untrusted searches, and every
-candidate is checked against the circuit before a rule uses it. Of the 560
-execution-success programs that `nargo compile` builds, 150 are in the
+candidate is checked against the circuit before a rule uses it.
+
+The kernel does not run those searches over the whole circuit. A certificate,
+`Proofs/TestProgramCerts.lean`, lists for each instruction the positions of the
+few constraints its step needs, and the kernel runs the step over those
+constraints only (`checkProgWith`). Any sub-list of the circuit's constraints
+holds whenever the circuit does, so a wrong or stale certificate can only make
+a proof fail, never make a false claim pass. The certificate is written by
+`scripts/emit_certs.lean`, which runs the compiled checker and, for each step,
+drops every constraint the step's result does not depend on; `check.sh` fails
+if it is out of date. Of the 560
+execution-success programs that `nargo compile` builds, 151 are in the
 supported subset: one block of scalar instructions, plus arrays of scalars and
 tuples read and written at constant indices. The rest use arrays at dynamic
 indices (ACIR memory), references, several ACIR functions, calls, black boxes,
-several blocks, or more than 250 instructions; the reason for each is in
-`test_programs.outside`. The checker accepts 146 of them. The four it does not
+several blocks, or more than 1000 instructions; the reason for each is in
+`test_programs.outside`. The checker accepts 149 of them. The two it does not
 are listed in `uncoveredPrograms` in `Spec/Claims.lean` with the reason.
 Removing any single constraint from the 125 circuits without arrays makes the
 checker reject in 387 of 394 cases;
