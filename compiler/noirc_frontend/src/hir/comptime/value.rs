@@ -157,6 +157,86 @@ impl Value {
         Value::Expr(Box::new(ExprValue::Pattern(pattern)))
     }
 
+    /// This value with `f` applied to every type it holds.
+    ///
+    /// Tuple and struct fields are copied into new cells. A pointer is kept as it is, since the
+    /// cell it points to may be shared with other values.
+    pub(crate) fn map_types(self, f: &impl Fn(&Type) -> Type) -> Value {
+        let map_all = |values: Vec<Value>| vecmap(values, |value| value.map_types(f));
+        let map_shared = |value: Shared<Value>| Shared::new(value.unwrap_or_clone().map_types(f));
+        match self {
+            Value::FormatString(fragments, typ, length) => {
+                let fragments = vecmap(Rc::unwrap_or_clone(fragments), |fragment| match fragment {
+                    FormatStringFragment::Value { name, value } => {
+                        FormatStringFragment::Value { name, value: value.map_types(f) }
+                    }
+                    fragment @ FormatStringFragment::String(_) => fragment,
+                });
+                Value::FormatString(Rc::new(fragments), f(&typ), length)
+            }
+            Value::Function(id, typ, bindings) => {
+                let bindings = Rc::unwrap_or_clone(bindings)
+                    .into_iter()
+                    .map(|(id, (var, kind, binding))| (id, (var, kind, f(&binding))))
+                    .collect();
+                Value::Function(id, f(&typ), Rc::new(bindings))
+            }
+            Value::Closure(closure) => {
+                let Closure { lambda, env, typ, function_scope, module_scope, bindings } = *closure;
+                let closure = Closure {
+                    lambda,
+                    env: map_all(env),
+                    typ: f(&typ),
+                    function_scope,
+                    module_scope,
+                    bindings,
+                };
+                Value::Closure(Box::new(closure))
+            }
+            Value::Tuple(fields) => Value::Tuple(vecmap(fields, map_shared)),
+            Value::Struct(fields, typ) => {
+                let fields =
+                    fields.into_iter().map(|(name, field)| (name, map_shared(field))).collect();
+                Value::Struct(fields, f(&typ))
+            }
+            Value::Enum(tag, args, typ) => Value::Enum(tag, map_all(args), f(&typ)),
+            Value::Array(elements, typ) => Value::Array(
+                elements.into_iter().map(|element| element.map_types(f)).collect(),
+                f(&typ),
+            ),
+            Value::Vector(elements, typ) => Value::Vector(
+                elements.into_iter().map(|element| element.map_types(f)).collect(),
+                f(&typ),
+            ),
+            Value::TraitConstraint(trait_id, generics) => {
+                let ordered = vecmap(&generics.ordered, f);
+                let named = vecmap(generics.named, |named| crate::hir_def::traits::NamedType {
+                    typ: f(&named.typ),
+                    ..named
+                });
+                Value::TraitConstraint(trait_id, TraitGenerics { ordered, named })
+            }
+            Value::Type(typ) => Value::Type(f(&typ)),
+            Value::Zeroed(typ) => Value::Zeroed(f(&typ)),
+            value @ (Value::Unit
+            | Value::Bool(_)
+            | Value::Integer(_)
+            | Value::String(_)
+            | Value::CtString(_)
+            | Value::Pointer(..)
+            | Value::Quoted(_)
+            | Value::TypeDefinition(_)
+            | Value::TraitDefinition(_)
+            | Value::TraitImpl(_)
+            | Value::FunctionDefinition(_)
+            | Value::ModuleDefinition(_)
+            | Value::Expr(_)
+            | Value::TypedExpr(_)
+            | Value::UnresolvedType(_)
+            | Value::Location(_)) => value,
+        }
+    }
+
     /// Retrieves the type of this value. Types can always be determined from the value,
     /// in cases where it would be ambiguous, Values store the type directly.
     pub(crate) fn get_type(&self) -> Cow<Type> {
