@@ -658,14 +658,14 @@ fn regression_10555() {
 
     impl Trait for i32 {
         fn foo<X>() {}
-               ^ Expected type, found numeric generic
-               ~ not a type
+               ^ `foo` declares its generic `X` as a type parameter, but trait `Trait` declares a numeric generic of type `u32`
+               ~ expected a numeric generic of type `u32`
         fn bar<let X: u32>() {}
-                   ^^^^^^ Type provided when a numeric generic was expected
-                   ~~~~~~ the numeric generic is not of type `u32`
+                   ^^^^^^ `bar` declares its generic `X` as a numeric generic of type `u32`, but trait `Trait` declares a type parameter
+                   ~~~~~~ expected a type parameter
         fn baz<let X: u8>() {}
-                   ^^^^^ The numeric generic is not of type `u8`
-                   ~~~~~ expected `u8`, found `u32`
+                   ^^^^^ `baz` declares its generic `X` as a numeric generic of type `u8`, but trait `Trait` declares a numeric generic of type `u32`
+                   ~~~~~ expected a numeric generic of type `u32`
     }
 
     fn main() {}

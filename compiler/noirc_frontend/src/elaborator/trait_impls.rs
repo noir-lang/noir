@@ -527,16 +527,21 @@ impl Elaborator<'_> {
             method.direct_generics.iter().zip(&override_meta.direct_generics)
         {
             let trait_fn_kind = trait_fn_generic.kind();
-            let arg = impl_fn_resolved_generic.clone().into_named_generic(None);
-
-            if self.check_kind(
-                trait_fn_kind.clone(),
-                &arg.kind(),
-                impl_fn_resolved_generic.location,
-            ) {
-                bindings
-                    .insert(trait_fn_generic.id(), (trait_fn_generic.clone(), trait_fn_kind, arg));
+            let impl_fn_kind = impl_fn_resolved_generic.kind();
+            if !impl_fn_kind.unifies(&trait_fn_kind) {
+                let trait_name = self.interner.get_trait(trait_id).name.to_string();
+                self.push_err(TypeCheckError::TraitImplGenericKindMismatch {
+                    method: method.name.to_string(),
+                    trait_name,
+                    generic: impl_fn_resolved_generic.name.to_string(),
+                    expected: trait_fn_kind,
+                    found: impl_fn_kind,
+                    location: impl_fn_resolved_generic.location,
+                });
+                continue;
             }
+            let arg = impl_fn_resolved_generic.clone().into_named_generic(None);
+            bindings.insert(trait_fn_generic.id(), (trait_fn_generic.clone(), trait_fn_kind, arg));
         }
 
         bindings.extend(pair_implicit_associated_generics(
@@ -576,6 +581,10 @@ impl Elaborator<'_> {
             }
 
             let override_constraint_type = override_trait_constraint.typ.follow_bindings();
+            // A bound on a type that failed to resolve has already been reported.
+            if override_constraint_type == Type::Error {
+                continue;
+            }
             let mut override_trait_generics =
                 override_trait_constraint.trait_bound.trait_generics.clone();
             self.normalize_constraint_named_generics(
