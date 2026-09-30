@@ -101,6 +101,9 @@ pub struct Closure {
     /// This is needed because when the closure is interpreted, those type bindings
     /// need to be restored.
     pub(crate) bindings: BoundGenerics,
+    /// The interpreter's substitution where the closure was created, which is the one its body
+    /// is interpreted under.
+    pub(crate) substitution: TypeBindings,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Display)]
@@ -182,7 +185,15 @@ impl Value {
                 Value::Function(id, f(&typ), Rc::new(bindings))
             }
             Value::Closure(closure) => {
-                let Closure { lambda, env, typ, function_scope, module_scope, bindings } = *closure;
+                let Closure {
+                    lambda,
+                    env,
+                    typ,
+                    function_scope,
+                    module_scope,
+                    bindings,
+                    substitution,
+                } = *closure;
                 let closure = Closure {
                     lambda,
                     env: map_all(env),
@@ -190,6 +201,7 @@ impl Value {
                     function_scope,
                     module_scope,
                     bindings,
+                    substitution,
                 };
                 Value::Closure(Box::new(closure))
             }
