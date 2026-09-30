@@ -112,12 +112,8 @@ struct LambdaContext {
 /// This struct holds the FIFO queue of functions to monomorphize, which is added to
 /// whenever a new (function, type) combination is encountered.
 pub struct Monomorphizer<'interner> {
-    /// Functions are keyed by their unique ID, whether they're unconstrained, their expected type,
-    /// and any generics they have so that we can monomorphize a new version of the function for each type.
-    ///
-    /// Keying by any turbofish generics that are specified is necessary for a case where we may have a
-    /// trait generic that can be instantiated outside of a function parameter or return value.
-    functions: Functions,
+    /// The monomorphized version of each function instance seen so far. See [`FunctionKey`].
+    functions: HashMap<FunctionKey, FuncId>,
 
     /// Unlike functions, locals are only keyed by their unique ID because they are never
     /// duplicated during monomorphization. Doing so would allow them to be used polymorphically
@@ -194,21 +190,53 @@ pub struct Monomorphizer<'interner> {
     substitution: TypeBindings,
 }
 
-/// Using nested `HashMaps` here lets us avoid cloning `HirTypes` when calling `.get()`
-///
-/// Maps (interner `FuncId`, unconstrained) -> Map (Func Type) -> Map (Turbofish Generics)
-///   -> Map (Canonical Instantiation Bindings) -> monomorphized `FuncId`
-///
-/// The bindings key distinguishes calls with the same type but under different impl generics.
-type Functions = HashMap<
-    (node_interner::FuncId, /*is_unconstrained:*/ bool),
-    HashMap<HirType, HashMap<Vec<HirType>, HashMap<CanonicalBindings, FuncId>>>,
->;
-
 type HirType = Type;
 
-/// Sorted, follow-bindings-normalized view of `TypeBindings` for use as a cache key.
-type CanonicalBindings = Vec<(TypeVariableId, HirType)>;
+/// One instance of a function: a new monomorphized version is created for each distinct key.
+///
+/// Besides the function and its type, the key holds:
+/// - any turbofish generics, for a trait generic that can be instantiated outside of a function
+///   parameter or return value
+/// - the instantiation bindings, which distinguish calls with the same type but under different
+///   impl generics
+///
+/// Build one with [`FunctionKey::new`], which normalizes every part so that two references to the
+/// same instance produce equal keys.
+#[derive(PartialEq, Eq, Hash)]
+struct FunctionKey {
+    id: node_interner::FuncId,
+    is_unconstrained: bool,
+    typ: HirType,
+    turbofish_generics: Vec<HirType>,
+    /// The instantiation bindings' values, sorted by `TypeVariableId`.
+    bindings: Vec<(TypeVariableId, HirType)>,
+}
+
+impl FunctionKey {
+    /// Prerequisite: `bindings` came from [`Monomorphizer::follow_bindings`].
+    fn new(
+        id: node_interner::FuncId,
+        is_unconstrained: bool,
+        typ: &HirType,
+        turbofish_generics: &[HirType],
+        bindings: Option<&TypeBindings>,
+    ) -> Self {
+        let mut sorted_bindings: Vec<_> = bindings
+            .into_iter()
+            .flatten()
+            .map(|(id, (_var, _kind, value))| (*id, value.clone()))
+            .collect();
+        sorted_bindings.sort_by_key(|(id, _)| *id);
+
+        FunctionKey {
+            id,
+            is_unconstrained,
+            typ: typ.follow_bindings(),
+            turbofish_generics: vecmap(turbofish_generics, Type::follow_bindings),
+            bindings: sorted_bindings,
+        }
+    }
+}
 
 const MAX_TYPE_COMPLEXITY: usize = 100_000;
 
@@ -530,19 +558,12 @@ impl<'interner> Monomorphizer<'interner> {
         trait_method: Option<TraitItemId>,
         evaluate_builtin: bool,
     ) -> Result<Definition, MonomorphizationError> {
-        let typ = typ.follow_bindings();
-        let turbofish_generics = vecmap(turbofish_generics, |typ| typ.follow_bindings());
         let bindings = bindings.as_ref().map(Self::follow_bindings);
-        let bindings_key = bindings.as_ref().map(Self::canonicalize_bindings).unwrap_or_default();
         let is_unconstrained = self.is_unconstrained(id);
+        let key =
+            FunctionKey::new(id, is_unconstrained, typ, turbofish_generics, bindings.as_ref());
 
-        let definition = match self
-            .functions
-            .get(&(id, is_unconstrained))
-            .and_then(|by_func_type| by_func_type.get(&typ))
-            .and_then(|by_turbofish| by_turbofish.get(&turbofish_generics))
-            .and_then(|by_bindings| by_bindings.get(&bindings_key))
-        {
+        let definition = match self.functions.get(&key) {
             Some(id) => Definition::Function(*id),
             None => {
                 // Function has not been monomorphized yet
@@ -556,15 +577,7 @@ impl<'interner> Monomorphizer<'interner> {
                         let opcode = Self::lookup_builtin(opcode, location)?;
 
                         if evaluate_builtin {
-                            match self.try_evaluate_builtin(
-                                opcode,
-                                typ,
-                                turbofish_generics,
-                                bindings_key,
-                                is_unconstrained,
-                                id,
-                                location,
-                            )? {
+                            match self.try_evaluate_builtin(opcode, key, location)? {
                                 Some(id) => Definition::Function(id),
                                 None => Definition::LowLevel(opcode),
                             }
@@ -580,15 +593,7 @@ impl<'interner> Monomorphizer<'interner> {
                         let opcode = Self::lookup_builtin(opcode, location)?;
 
                         if evaluate_builtin {
-                            match self.try_evaluate_builtin(
-                                opcode,
-                                typ,
-                                turbofish_generics,
-                                bindings_key,
-                                is_unconstrained,
-                                id,
-                                location,
-                            )? {
+                            match self.try_evaluate_builtin(opcode, key, location)? {
                                 Some(id) => Definition::Function(id),
                                 None => Definition::Builtin(opcode),
                             }
@@ -600,13 +605,10 @@ impl<'interner> Monomorphizer<'interner> {
                         let bindings = bindings
                             .expect("ICE: queued function reference has no instantiation bindings");
                         let id = self.queue_function_with_bindings(
-                            id,
-                            location,
+                            key,
                             bindings,
-                            bindings_key,
-                            typ,
-                            turbofish_generics,
                             trait_method,
+                            location,
                         );
                         Definition::Function(id)
                     }
@@ -633,26 +635,9 @@ impl<'interner> Monomorphizer<'interner> {
         self.locals.insert(id, new_id);
     }
 
-    /// Prerequisite: `typ = typ.follow_bindings()`,
-    ///          and: `turbofish_generics = vecmap(turbofish_generics, Type::follow_bindings)`,
-    ///          and: `bindings_key` came from `canonicalize_bindings`.
-    fn define_function(
-        &mut self,
-        id: node_interner::FuncId,
-        typ: HirType,
-        turbofish_generics: Vec<HirType>,
-        bindings_key: CanonicalBindings,
-        is_unconstrained: bool,
-        new_id: FuncId,
-    ) {
-        self.functions
-            .entry((id, is_unconstrained))
-            .or_default()
-            .entry(typ)
-            .or_default()
-            .entry(turbofish_generics)
-            .or_default()
-            .insert(bindings_key, new_id);
+    /// Record `new_id` as the monomorphized version of the function instance `key`.
+    fn define_function(&mut self, key: FunctionKey, new_id: FuncId) {
+        self.functions.insert(key, new_id);
     }
 
     /// Monomorphize the `main` function, ensuring it gets the ID expected by [`Program::main_id`].
@@ -2731,35 +2716,22 @@ impl<'interner> Monomorphizer<'interner> {
         }
     }
 
-    /// Store the definition of a function and enqueue it for monomorphization.
+    /// Store the definition of the function instance `key` and enqueue it for monomorphization
+    /// with its instantiation `bindings`.
     ///
-    /// Prerequisite: `bindings` came from [`Self::follow_bindings`],
-    ///          and: `bindings_key` came from `canonicalize_bindings(&bindings)`.
+    /// Prerequisite: `key` was built from `bindings`.
     ///
     /// Returns the monomorphized ID assigned to the function.
-    #[allow(clippy::too_many_arguments)]
     fn queue_function_with_bindings(
         &mut self,
-        id: node_interner::FuncId,
-        expr_location: Location,
+        key: FunctionKey,
         bindings: TypeBindings,
-        bindings_key: CanonicalBindings,
-        function_type: HirType,
-        turbofish_generics: Vec<HirType>,
         trait_method: Option<TraitItemId>,
+        expr_location: Location,
     ) -> FuncId {
         let new_id = self.next_function_id();
-        let is_unconstrained = self.is_unconstrained(id);
-
-        self.define_function(
-            id,
-            function_type,
-            turbofish_generics,
-            bindings_key,
-            is_unconstrained,
-            new_id,
-        );
-
+        let (id, is_unconstrained) = (key.id, key.is_unconstrained);
+        self.define_function(key, new_id);
         self.queue.push_back((id, new_id, bindings, trait_method, is_unconstrained, expr_location));
         new_id
     }
@@ -2774,17 +2746,6 @@ impl<'interner> Monomorphizer<'interner> {
                 (*id, (var.clone(), kind.follow_bindings(), binding.follow_bindings()))
             })
             .collect()
-    }
-
-    /// Build the canonical cache-key form of `bindings` by sorting it by `TypeVariableId`.
-    ///
-    /// Prerequisite: `bindings` came from [`Self::follow_bindings`], so that
-    /// semantically-equivalent inputs produce identical outputs.
-    fn canonicalize_bindings(bindings: &TypeBindings) -> CanonicalBindings {
-        let mut canonical: CanonicalBindings =
-            bindings.iter().map(|(id, (_var, _kind, value))| (*id, value.clone())).collect();
-        canonical.sort_by_key(|(id, _)| *id);
-        canonical
     }
 
     fn assign(
