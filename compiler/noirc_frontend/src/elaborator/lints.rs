@@ -252,7 +252,7 @@ pub(super) fn oracle_returns_multiple_vectors(
             }
             Type::TypeVariable(type_variable)
             | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
-                match &*type_variable.borrow() {
+                match type_variable.binding() {
                     TypeBinding::Bound(binding) => {
                         vector_count(binding, type_recursion_context.recur())
                     }

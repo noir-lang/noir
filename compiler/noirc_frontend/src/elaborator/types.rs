@@ -207,7 +207,7 @@ impl Elaborator<'_> {
         typ.visit(&mut |typ| {
             if let Type::NamedGeneric(named) = typ
                 && !named.is_associated()
-                && let TypeBinding::Unbound(id, kind) = &*named.type_var.borrow()
+                && let TypeBinding::Unbound(id, kind) = named.type_var.binding()
                 && let Some(generic) = self.item.generics.find(named.name.as_str())
                 && generic.type_var.id() != *id
             {
@@ -2550,7 +2550,7 @@ impl Elaborator<'_> {
         // lets us issue a more precise error on the individual argument that fails to type check.
         match function.follow_bindings_shallow().as_ref() {
             Type::TypeVariable(binding) if binding.kind().is_normal_or_any() => {
-                if let TypeBinding::Bound(typ) = &*binding.borrow() {
+                if let TypeBinding::Bound(typ) = binding.binding() {
                     return self.bind_function_type(typ.clone(), args, location);
                 }
 
@@ -2729,7 +2729,7 @@ impl Elaborator<'_> {
             // Matches on TypeVariable must be first to follow any type
             // bindings.
             (TypeVariable(var), other) | (other, TypeVariable(var)) => {
-                if let TypeBinding::Bound(binding) = &*var.borrow() {
+                if let TypeBinding::Bound(binding) = var.binding() {
                     return self.comparator_operand_type_rules(other, binding, op, location);
                 }
 
@@ -2837,7 +2837,7 @@ impl Elaborator<'_> {
             // Matches on TypeVariable must be first so that we follow any type
             // bindings.
             (TypeVariable(int), other) | (other, TypeVariable(int)) => {
-                if let TypeBinding::Bound(binding) = &*int.borrow() {
+                if let TypeBinding::Bound(binding) = int.binding() {
                     return self.infix_operand_type_rules(binding, op, other, location);
                 }
                 let use_impl = self.bind_type_variables_for_infix(lhs_type, op, rhs_type, location);
@@ -2921,7 +2921,7 @@ impl Elaborator<'_> {
                     // Matches on TypeVariable must be first so that we follow any type
                     // bindings.
                     TypeVariable(int) => {
-                        if let TypeBinding::Bound(binding) = &*int.borrow() {
+                        if let TypeBinding::Bound(binding) = int.binding() {
                             return self.prefix_operand_type_rules(op, binding, location);
                         }
 

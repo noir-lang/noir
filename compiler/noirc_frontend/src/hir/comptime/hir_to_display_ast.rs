@@ -437,7 +437,7 @@ impl Type {
                 let name = Path::from_ident(type_def.name.clone());
                 UnresolvedTypeData::Named(name, generics, false)
             }
-            Type::TypeVariable(binding) => match &*binding.borrow() {
+            Type::TypeVariable(binding) => match binding.binding() {
                 TypeBinding::Bound(typ) => return typ.to_display_ast(),
                 TypeBinding::Unbound(id, type_var_kind) => {
                     let name = format!("var_{type_var_kind:?}_{id}");

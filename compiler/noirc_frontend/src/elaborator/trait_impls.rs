@@ -884,7 +884,7 @@ impl Elaborator<'_> {
         for named_type in named_generics.iter_mut() {
             match &named_type.typ {
                 Type::NamedGeneric(NamedGeneric { type_var, implicit: true, .. })
-                    if type_var.borrow().is_unbound() =>
+                    if type_var.binding().is_unbound() =>
                 {
                     let type_var_id = type_var.id();
                     let new_type_var_id = self.interner.next_type_variable_id();
@@ -1202,7 +1202,7 @@ fn pair_implicit_associated_generics(
 ) -> TypeBindings {
     let implicit_placeholder = |typ: &Type| match typ {
         Type::NamedGeneric(generic)
-            if generic.implicit && generic.type_var.borrow().is_unbound() =>
+            if generic.implicit && generic.type_var.binding().is_unbound() =>
         {
             Some(generic.type_var.clone())
         }

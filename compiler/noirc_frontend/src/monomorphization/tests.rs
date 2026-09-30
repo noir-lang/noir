@@ -154,10 +154,10 @@ fn assert_checked_cast_accepted_without_binding(from: &Type, to: &Type, variable
     let result = Monomorphizer::check_checked_cast(from, to, Location::dummy());
     assert!(result.is_ok(), "checking `{from} -> {to}` failed: {result:?}");
     assert!(
-        variable.borrow().is_unbound(),
+        variable.binding().is_unbound(),
         "checking `{from} -> {to}` left type variable {} as {:?}",
         variable.id().0,
-        *variable.borrow()
+        *variable.binding()
     );
 }
 
