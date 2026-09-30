@@ -1064,13 +1064,8 @@ pub mod test_utils {
         // well: this is the one other place the monomorphiser runs, and leaving it unwatched is
         // how the next leak would go unnoticed.
         let check = PurityCheck::begin(elaborator.interner);
-        let mut monomorphizer = Monomorphizer::new(
-            elaborator.interner,
-            elaborator.files,
-            DebugTypeTracker::default(),
-            None,
-            false,
-        );
+        let mut monomorphizer =
+            Monomorphizer::new(elaborator.interner, DebugTypeTracker::default(), None, false);
         let expr = monomorphizer.expr(expr_id).expect("monomorphization error while converting interpreter execution result, should not be possible");
         drop(monomorphizer);
         check.assert_context_unchanged(elaborator.interner);
