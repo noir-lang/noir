@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790765488203,
+  "lastUpdate": 1790765840671,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22971,48 +22971,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "1262bcf096480906cc22b6f0db51f66469984211",
-          "message": "chore(frontend): give the elaborator one type for deferred items (#13750)",
-          "timestamp": "2026-09-16T12:46:31Z",
-          "tree_id": "0aba01f51f9b26b9cdc026b71d1e9e53e5a68013",
-          "url": "https://github.com/noir-lang/noir/commit/1262bcf096480906cc22b6f0db51f66469984211"
-        },
-        "date": 1789564148725,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 127135,
-            "range": "± 604",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 112945,
-            "range": "± 2213",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3041149,
-            "range": "± 6391",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -25064,6 +25022,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2646954,
             "range": "± 14136",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "8bd71dedfe9ebf100c94dcc0c5d9011254ba20c9",
+          "message": "chore(frontend): lower global values to runtime HIR during elaboration (#12488)",
+          "timestamp": "2026-09-30T10:33:25Z",
+          "tree_id": "34b0574adee15ff256923c3852629a71e3984891",
+          "url": "https://github.com/noir-lang/noir/commit/8bd71dedfe9ebf100c94dcc0c5d9011254ba20c9"
+        },
+        "date": 1790765750087,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 168542,
+            "range": "± 766",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136222,
+            "range": "± 380",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2644778,
+            "range": "± 4166",
             "unit": "ns/iter"
           }
         ]
