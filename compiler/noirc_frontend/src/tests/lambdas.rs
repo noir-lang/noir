@@ -633,6 +633,23 @@ fn global_captured_closure_cannot_be_inlined() {
 }
 
 #[test]
+fn unused_global_captured_closure_is_not_an_error() {
+    // A global's value is lowered to runtime HIR when it is resolved, but a value that cannot be
+    // inlined is only an error at a runtime use of the global.
+    let src = r#"
+    global ADD_ONE: fn[(Field,)](Field) -> Field = {
+        let offset = 1;
+        |x: Field| x + offset
+    };
+
+    fn main(x: Field) -> pub Field {
+        x
+    }
+    "#;
+    crate::test_utils::get_monomorphized(src).expect("an unused global should not fail to compile");
+}
+
+#[test]
 fn macro_unquote_captured_closure_cannot_be_inlined() {
     let src = r#"
     comptime fn make_adder() -> Quoted {
