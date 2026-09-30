@@ -563,7 +563,7 @@ impl DocItemBuilder<'_> {
                 Type::TypeAlias { id, name, generics }
             }
             noirc_frontend::Type::TypeVariable(type_var) => {
-                if let TypeBinding::Bound(typ) = &*type_var.borrow() {
+                if let TypeBinding::Bound(typ) = type_var.binding() {
                     self.convert_type(typ)
                 } else {
                     Type::Generic("_".to_string())
@@ -578,7 +578,7 @@ impl DocItemBuilder<'_> {
                 Type::TraitAsType { trait_id, trait_name, ordered_generics, named_generics }
             }
             noirc_frontend::Type::NamedGeneric(NamedGeneric { name, type_var, .. }) => {
-                if let TypeBinding::Bound(typ) = &*type_var.borrow() {
+                if let TypeBinding::Bound(typ) = type_var.binding() {
                     self.convert_type(typ)
                 } else {
                     Type::Generic(name.to_string())

@@ -200,7 +200,7 @@ impl TraitConstraint {
         // comparing associated types the user bound to a concrete type (e.g. `Foo<Bar = u32>`).
         let is_unbound = |typ: &Type| match typ {
             Type::TypeVariable(var) | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) => {
-                var.borrow().is_unbound()
+                var.binding().is_unbound()
             }
             _ => false,
         };
