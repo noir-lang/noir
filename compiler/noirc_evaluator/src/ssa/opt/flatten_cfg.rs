@@ -1216,7 +1216,10 @@ impl<'f> Context<'f> {
         let protect_array_set = true;
         // The store is in the innermost branch being inlined, then or else.
         let context = self.condition_stack.last()?;
-        let branch_start = context.else_start.unwrap_or(context.then_start);
+        let branch_start = match context.phase {
+            BranchPhase::Then => context.then_start,
+            BranchPhase::Else => context.else_start.expect("ICE: else_start is set by then_stop"),
+        };
 
         self.try_optimize_array_set_merge_inner(
             value,
