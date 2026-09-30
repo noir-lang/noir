@@ -103,7 +103,7 @@ impl CodeActionFinder<'_> {
         let mut stubs = Vec::new();
 
         for (name, generic) in associated_types {
-            if let Kind::Numeric(typ) = generic.kind() {
+            if let Kind::Numeric(typ) = &*generic.kind() {
                 stubs.push(format!("{indent_string}let {name}: {typ};\n"));
             } else {
                 stubs.push(format!("{indent_string}type {name};\n"));

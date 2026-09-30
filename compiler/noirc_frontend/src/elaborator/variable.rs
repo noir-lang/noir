@@ -182,13 +182,13 @@ impl Elaborator<'_> {
                 let type_alias = self.interner.get_type_alias(type_alias_id);
                 let type_alias = type_alias.borrow();
                 if type_alias.numeric_expr.is_some() {
-                    let declared_type = match type_alias.typ.kind() {
+                    let declared_type = match type_alias.typ.kind().into_owned() {
                         Kind::Numeric(declared_type) => *declared_type,
                         _ => Type::Error,
                     };
 
                     let alias_generic_types = vecmap(&type_alias.generics, |generic| {
-                        self.interner.next_type_variable_with_kind(generic.kind())
+                        self.interner.next_type_variable_with_kind(generic.kind().into_owned())
                     });
                     let mut errors = Vec::new();
                     let resolved_generics = self.resolve_alias_turbofish_generics(
@@ -255,7 +255,7 @@ impl Elaborator<'_> {
                         let type_var = &self_resolved_generic.type_var;
                         bindings.insert(
                             type_var.id(),
-                            (type_var.clone(), type_var.kind(), self_generic),
+                            (type_var.clone(), type_var.kind().into_owned(), self_generic),
                         );
                     }
                 }
@@ -368,7 +368,7 @@ impl Elaborator<'_> {
         for (located_type, type_var) in turbofish.into_iter().zip(&typevars) {
             let type_location = located_type.location();
             let typ = self.check_type_kind(located_type.contents, &type_var.kind(), type_location);
-            bindings.insert(type_var.id(), (type_var.clone(), type_var.kind(), typ));
+            bindings.insert(type_var.id(), (type_var.clone(), type_var.kind().into_owned(), typ));
         }
     }
 
@@ -775,7 +775,7 @@ impl Elaborator<'_> {
         let impl_replacements: TypeBindings = impl_generics
             .iter()
             .map(|type_var| {
-                let kind = type_var.kind();
+                let kind = type_var.kind().into_owned();
                 let fresh = self.interner.next_type_variable_with_kind(kind.clone());
                 (type_var.id(), (type_var.clone(), kind, fresh))
             })
@@ -807,7 +807,10 @@ impl Elaborator<'_> {
         if trait_generics.len() <= impl_generics.len() {
             let impl_generics = &impl_generics[..trait_generics.len()];
             for (trait_generic, type_var) in trait_generics.into_iter().zip_eq(impl_generics) {
-                bindings.insert(type_var.id(), (type_var.clone(), type_var.kind(), trait_generic));
+                bindings.insert(
+                    type_var.id(),
+                    (type_var.clone(), type_var.kind().into_owned(), trait_generic),
+                );
             }
         } else {
             unreachable!(
@@ -832,7 +835,10 @@ impl Elaborator<'_> {
         let func_meta = self.function_meta(func_id);
         let direct_generics = vecmap(&func_meta.direct_generics, |g| g.type_var.clone());
         for (type_generic, type_var) in type_generics.into_iter().zip_eq(direct_generics) {
-            bindings.insert(type_var.id(), (type_var.clone(), type_var.kind(), type_generic));
+            bindings.insert(
+                type_var.id(),
+                (type_var.clone(), type_var.kind().into_owned(), type_generic),
+            );
         }
     }
 
@@ -881,7 +887,7 @@ impl Elaborator<'_> {
             }
             PathResolutionItem::TraitFunction(trait_id, Some(generics), _func_id) => {
                 let trait_ = self.interner.get_trait(trait_id);
-                let kinds = vecmap(&trait_.generics, |generic| generic.kind());
+                let kinds = vecmap(&trait_.generics, |generic| generic.kind().into_owned());
                 let trait_generics =
                     vecmap(&kinds, |kind| self.interner.next_type_variable_with_kind(kind.clone()));
 

@@ -626,7 +626,7 @@ fn type_def_generics(
         .iter()
         .map(|generic| {
             let generic_as_named = generic.clone().into_named_generic(None);
-            let numeric_type = match generic_as_named.kind() {
+            let numeric_type = match generic_as_named.kind().into_owned() {
                 Kind::Numeric(numeric_type) => Some(Value::Type(*numeric_type)),
                 _ => None,
             };

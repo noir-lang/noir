@@ -649,8 +649,8 @@ mod tests {
         assert!(matches!(rhs, Type::Constant(..)));
 
         // ensure result kinds are the same as the original kind
-        assert_eq!(lhs.kind(), field_element_kind);
-        assert_eq!(rhs.kind(), field_element_kind);
+        assert_eq!(lhs.kind().into_owned(), field_element_kind);
+        assert_eq!(rhs.kind().into_owned(), field_element_kind);
 
         // ensure results are the same
         assert_eq!(lhs, rhs);
@@ -845,7 +845,7 @@ mod proptests {
 
     fn infix_expr_helper(lhs_op_rhs: (Type, BinaryTypeOperator, Type)) -> Type {
         let (lhs, op, rhs) = lhs_op_rhs;
-        assert_eq!(lhs.kind(), rhs.kind());
+        assert_eq!(*lhs.kind(), *rhs.kind());
         let op = if lhs.kind().integral_maximum_size().is_none()
             && matches!(op, BinaryTypeOperator::Modulo)
         {
@@ -1026,8 +1026,8 @@ mod proptests {
             } else {
                 // ensure result kinds are the same as the original kind
                 let kind = Kind::numeric(typ);
-                prop_assert_eq!(infix.kind(), kind.clone());
-                prop_assert_eq!(infix_canonicalized.kind(), kind);
+                prop_assert_eq!(infix.kind().into_owned(), kind.clone());
+                prop_assert_eq!(infix_canonicalized.kind().into_owned(), kind);
 
                 // ensure results are the same
                 prop_assert_eq!(infix, infix_canonicalized);
@@ -1059,8 +1059,8 @@ mod proptests {
 
             // ensure result kinds are the same as the original kind
             let kind = Kind::numeric(typ);
-            prop_assert_eq!(infix.kind(), kind.clone());
-            prop_assert_eq!(infix_canonicalized.kind(), kind.clone());
+            prop_assert_eq!(infix.kind().into_owned(), kind.clone());
+            prop_assert_eq!(infix_canonicalized.kind().into_owned(), kind.clone());
 
             // ensure the results are still wrapped in CheckedCast's
             match (&infix, &infix_canonicalized) {
@@ -1069,8 +1069,8 @@ mod proptests {
                     prop_assert_eq!(from.canonicalize(), from_canonicalized.canonicalize());
 
                     // ensure to's have the same kinds
-                    prop_assert_eq!(to.kind(), kind.clone());
-                    prop_assert_eq!(to_canonicalized.kind(), kind);
+                    prop_assert_eq!(to.kind().into_owned(), kind.clone());
+                    prop_assert_eq!(to_canonicalized.kind().into_owned(), kind);
                 }
                 _ => {
                     prop_assert!(false, "expected CheckedCast");
@@ -1108,7 +1108,7 @@ mod proptests {
             // leave the expression untouched.
             let mut substitutions = TypeBindings::default();
             for (var, value) in &bindings {
-                substitutions.insert(var.id(), (var.clone(), var.kind(), value.clone()));
+                substitutions.insert(var.id(), (var.clone(), var.kind().into_owned(), value.clone()));
             }
 
             let location = Location::dummy();
@@ -1183,7 +1183,7 @@ mod proptests {
             };
 
             let infix_canonicalized = infix.canonicalize();
-            prop_assert_eq!(infix_canonicalized.kind(), kind);
+            prop_assert_eq!(infix_canonicalized.kind().into_owned(), kind);
             prop_assert!(infix.kind().unifies(&result_type.kind()));
 
             let infix_canonicalized = match infix_canonicalized {
