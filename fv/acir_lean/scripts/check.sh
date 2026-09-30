@@ -9,9 +9,12 @@
 #   4. `templates.golden` is exactly what the pinned templates print,
 #      `test_programs.golden` exactly what the pinned test programs print, and
 #      `ssa_semantics.golden` exactly what the SSA meaning computes on its grid;
-#   5. `REVIEWING.md` quotes the reviewed Lean verbatim and mentions each of
+#   5. `AcirLean/Proofs/TestProgramCerts.lean` is what `scripts/emit_certs.lean`
+#      writes for the current test programs (a stale certificate would only
+#      make a proof fail, but this says why);
+#   6. `REVIEWING.md` quotes the reviewed Lean verbatim and mentions each of
 #      its definitions (`scripts/check_reviewing.py`);
-#   6. `Check.lean`: the final theorem proves exactly `AcirLean.AllClaims` from
+#   7. `Check.lean`: the final theorem proves exactly `AcirLean.AllClaims` from
 #      Lean's three standard axioms.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -22,6 +25,17 @@ fail() {
 }
 
 lake exe cache get
+
+generated=$(mktemp)
+trap 'rm -f "$generated"' EXIT
+lake build AcirLean.Proofs.Checker2 AcirLean.Templates.TestPrograms
+lake env lean --run scripts/emit_certs.lean "$generated"
+if ! cmp -s "$generated" AcirLean/Proofs/TestProgramCerts.lean; then
+  echo "AcirLean/Proofs/TestProgramCerts.lean is out of date. Regenerate it with:" >&2
+  echo "  lake env lean --run scripts/emit_certs.lean AcirLean/Proofs/TestProgramCerts.lean" >&2
+  exit 1
+fi
+
 lake build
 
 forbidden='\b(sorry|admit|axiom)\b|native_decide|skipKernelTC|implemented_by|@\[extern|\bunsafe\b|\bdebug\.'
@@ -43,8 +57,6 @@ if grep -nE "$templates_only_defs" AcirLean/Templates/*.lean; then
   fail "AcirLean/Templates may only contain plain definitions."
 fi
 
-generated=$(mktemp)
-trap 'rm -f "$generated"' EXIT
 lake env lean --run EmitTemplates.lean "$generated"
 if ! cmp -s "$generated" templates.golden; then
   echo "templates.golden is not what the Lean templates emit." >&2

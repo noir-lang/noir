@@ -27,7 +27,7 @@ import sys
 TY = r"(Field|u\d+|i\d+)"
 
 # Larger programs make the kernel check slow; they are listed as outside.
-MAX_OPCODES = 250
+MAX_OPCODES = 1000
 
 
 def ty(t):

@@ -40,3 +40,10 @@ done
 
 python3 scripts/gen_programs.py "$work" "$work/circuits.txt" test_programs.outside \
   AcirLean/Templates/TestPrograms.lean test_programs.golden
+
+# The checker's certificates, when Lean is installed (`check.sh` requires them
+# to be current).
+if command -v lake > /dev/null; then
+  lake build AcirLean.Proofs.Checker2 AcirLean.Templates.TestPrograms
+  lake env lean --run scripts/emit_certs.lean AcirLean/Proofs/TestProgramCerts.lean
+fi

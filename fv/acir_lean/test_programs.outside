@@ -2,11 +2,11 @@ a_5_over: instruction constrain v8 != u8 0
 a_6: instruction v3 = call blake3(v0) -> [u8; 32]
 a_6_array: instruction constrain v30 != v8
 a_7: instruction v3 = call blake2s(v0) -> [u8; 32]
-a_7_function: more than 250 instructions
+a_7_function: instruction v21 = call to_le_bits(v17) -> [u1; 32]
 aes128_encrypt: instruction v31 = call aes128_encrypt(v29, v1, v2) -> [u8; 16]
 array_dedup_regression: not exactly one ACIR function
 array_dynamic: instruction enable_side_effects v23
-array_dynamic_blackbox_input: more than 250 instructions
+array_dynamic_blackbox_input: instruction v237 = call blake3(v235) -> [u8; 32]
 array_dynamic_main_output: opcode other INIT b0 = [w0, w1, w2, w3, w4, w5,
 array_dynamic_nested_blackbox_input: parameter v0: [(Field, [Field; 3], [u8; 3]); 3]
 array_len: instruction v8 = call to_le_radix(v0, u32 256) -> [u8; 8]
@@ -23,16 +23,16 @@ array_to_vector_constant_length: instruction v2 = call f1(v0) -> [Field; 1]
 array_with_refs_from_param: not exactly one ACIR function
 array_with_refs_return: not exactly one ACIR function
 as_witness: instruction call as_witness(v0)
-bench_2_to_17: more than 250 instructions
+bench_2_to_17: more than 1000 instructions
 binary_operator_overloading: instruction v12 = and v0, v1
 bit_and: instruction v8 = and v5, v7
 bit_shifts_comptime: operand i64 -1
-bit_shifts_runtime: more than 250 instructions
+bit_shifts_runtime: instruction v9 = call to_le_bits(v7) -> [u1; 6]
 bit_shifts_u128: instruction v17 = make_array b"shift: {y}, static: {static}, dynamic: {dynamic}"
 blake3: instruction v3 = call blake3(v0) -> [u8; 32]
 bool_or: instruction v2 = or v0, v1
-bounded_vec_extend_from_bounded_vec: more than 250 instructions
-bounded_vec_extend_pattern: more than 250 instructions
+bounded_vec_extend_from_bounded_vec: more than 1000 instructions
+bounded_vec_extend_pattern: more than 1000 instructions
 break_and_continue: not exactly one ACIR function
 brillig_acir_as_brillig: instruction v2 = call f1(v0) -> u32
 brillig_array_ifelse: instruction v2, v3, v4 = call f1(v0) -> (u1, [u1; 1], [u1; 1])
@@ -74,9 +74,9 @@ clone_index_object_dereference_1: not exactly one ACIR function
 clone_index_object_dereference_2: not exactly one ACIR function
 comptime_println: instruction call f1(u1 1, Field 3)
 comptime_variable_at_runtime: instruction call f1(u1 1, Field 1)
-conditional_1: more than 250 instructions
+conditional_1: more than 1000 instructions
 conditional_2: instruction enable_side_effects v4
-conditional_black_box_function_pointer_call: more than 250 instructions
+conditional_black_box_function_pointer_call: instruction v14 = call blake2s(v0) -> [u8; 32]
 conditional_regression_421: instruction enable_side_effects v4
 conditional_regression_661: instruction enable_side_effects v3
 conditional_regression_short_circuit: instruction enable_side_effects v9
@@ -97,7 +97,7 @@ ecdsa_secp256k1_invalid_pub_key_in_inactive_branch: instruction v6 = call ecdsa_
 ecdsa_secp256k1_msg_equals_order: instruction v6 = call ecdsa_secp256k1(v1, v2, v3, v0, u1 1) -> u1
 ecdsa_secp256r1: instruction v6 = call ecdsa_secp256r1(v1, v2, v3, v0, u1 1) -> u1
 ecdsa_secp256r1_3x: instruction v14 = call ecdsa_secp256r1(v1, v2, v3, v0, u1 1) -> u1
-ecdsa_secp256r1_high_s: more than 250 instructions
+ecdsa_secp256r1_high_s: more than 1000 instructions
 ecdsa_secp256r1_invalid_inputs: parameter v0: [([u8; 32], [u8; 32], [u8; 32], [u8; 64]); 4]
 ecdsa_secp256r1_invalid_pub_key_in_inactive_branch: instruction v6 = call ecdsa_secp256r1(v0, v1, v2, v3, v4) -> u1
 embedded_curve_ops: instruction v10 = call multi_scalar_mul(v5, v7, u1 1) -> [(Field, Field); 1]
@@ -135,15 +135,15 @@ import: instruction v6, v7 = call f1(v3) -> (Field, Field)
 inactive_signed_bitshift: instruction enable_side_effects v0
 inline_decompose_hint_brillig_call: operand Field -5201446015539463454305911014159497107782029740116487985773310470301159650207
 inline_never_basic: instruction constrain v0 != v1
-lambda_from_array: more than 250 instructions
-lambda_from_dynamic_if: more than 250 instructions
+lambda_from_array: more than 1000 instructions
+lambda_from_dynamic_if: instruction v10 = make_array b"!"
 lambda_from_global_array: instruction enable_side_effects v23
 lambda_from_global_tuple: instruction constrain Field 1 != v0
 lambda_taking_lambda_regression_8543: not exactly one ACIR function
 lambda_taking_lambda_with_variant: not exactly one ACIR function
 large_nested_array_merge_loop: parameter v0: [[u64; 3]; 1024]
-large_nested_array_multi_field_merge: more than 250 instructions
-large_nested_array_multi_field_merge_u64: more than 250 instructions
+large_nested_array_multi_field_merge: instruction constrain v422 != Field 0
+large_nested_array_multi_field_merge_u64: more than 1000 instructions
 last_uses_regression_8935: not exactly one ACIR function
 licm_bug_inverted_loop: not exactly one ACIR function
 loop_array_swap_aliasing_regression: not exactly one ACIR function
@@ -156,17 +156,16 @@ loop_invariant_regression: instruction enable_side_effects v7
 loop_invariant_regression_8586: instruction enable_side_effects v0
 loop_small_break: not exactly one ACIR function
 main_bool_arg: instruction constrain v4 != v6
-merkle_insert: more than 250 instructions
+merkle_insert: instruction v10 = call to_le_bits(v8) -> [u1; 3]
 modules: instruction constrain v0 != v1
 modules_more: instruction constrain v0 != v1
-modulus: more than 250 instructions
 multi_scalar_mul: not exactly one ACIR function
 mutable_and_immutable_reference_alias: not exactly one ACIR function
 mutate_array_copy: not exactly one ACIR function
 negative_associated_constants: instruction call f1(u1 1, i32 -12345)
 nested_array_call_arg_regression: instruction enable_side_effects v0
 nested_array_dynamic: parameter v0: [(Field, [Field; 3], [Field; 3]); 4]
-nested_array_in_vector: more than 250 instructions
+nested_array_in_vector: type [(Field, [Field; 3], [Field; 3])]
 nested_array_index_clone_regression: not exactly one ACIR function
 nested_array_with_refs_from_param: not exactly one ACIR function
 nested_array_with_refs_return: not exactly one ACIR function
@@ -187,8 +186,8 @@ ownership_by_value_arg_aliasing_mut_ref_regression: not exactly one ACIR functio
 pedersen_check: instruction v10, v11 = call f1(v3) -> (Field, Field)
 pedersen_commitment: instruction v8, v9 = call f1(v3) -> (Field, Field)
 pedersen_hash: instruction v7, v8 = call f1(v3) -> (Field, Field)
-poseidon_bn254_hash_width_3: more than 250 instructions
-poseidonsponge_x5_254: more than 250 instructions
+poseidon_bn254_hash_width_3: more than 1000 instructions
+poseidonsponge_x5_254: more than 1000 instructions
 predicated_composite_get_wide_slot: parameter v0: [(u8, [(u8, Field); 2]); 3]
 predicated_safe_get_stale_predicate: parameter v0: [(Field, [u8; 2]); 3]
 predicated_vector_constant_index: parameter v0: [(Field, [u8; 2]); 2]
@@ -228,7 +227,7 @@ regression_1144_1169_2399_6609: instruction enable_side_effects v36
 regression_11484: instruction call f1(u1 1, u32 16)
 regression_11659: instruction v14 = call poseidon2_permutation(v12) -> [Field; 4]
 regression_11744: parameter v0: [([Field; 2], u8); 3]
-regression_11889: more than 250 instructions
+regression_11889: more than 1000 instructions
 regression_12149: not exactly one ACIR function
 regression_12269: instruction call f1(u1 1, g3)
 regression_12317: not exactly one ACIR function
@@ -242,7 +241,7 @@ regression_2660: operand i32 -1
 regression_3051: instruction call f2(u1 1, Field 2)
 regression_3394: instruction call f1(u1 1, i8 -128)
 regression_3607: instruction enable_side_effects v2
-regression_4449: more than 250 instructions
+regression_4449: instruction v353 = call blake3(v351) -> [u8; 32]
 regression_4663: not exactly one ACIR function
 regression_4709: instruction enable_side_effects v522
 regression_5045: instruction v4 = call embedded_curve_add(Field 0, Field 5, Field 0, Field 5, v0) -> [(Field, Field); 1]
@@ -258,7 +257,7 @@ regression_6734: not exactly one ACIR function
 regression_6834: instruction enable_side_effects v3
 regression_6990: instruction v16 = make_array b"i: {i}, j: {j}"
 regression_7062: type [Field]
-regression_7128: more than 250 instructions
+regression_7128: instruction v6 = call to_be_radix(v3, u32 256) -> [u8; 32]
 regression_7143: block header
 regression_7195: instruction v3 = call f1(v0) -> Field
 regression_7323: instruction v20 = make_array b"Branch 1 should not be taken"
@@ -327,9 +326,9 @@ regression_licm_vector_mutator: not exactly one ACIR function
 regression_licm_vector_mutator_empty_loop: not exactly one ACIR function
 regression_licm_vector_mutator_wrapper: not exactly one ACIR function
 regression_loop_preceding_read_nested: not exactly one ACIR function
-regression_loop_preceding_read_nested_constrained: more than 250 instructions
+regression_loop_preceding_read_nested_constrained: opcode other INIT b0 = [w2, w3, w4]
 regression_loop_preceding_read_reassign: not exactly one ACIR function
-regression_loop_preceding_read_reassign_constrained: more than 250 instructions
+regression_loop_preceding_read_reassign_constrained: opcode other INIT b0 = [w2, w3, w4]
 regression_loop_preceding_read_while_condition: not exactly one ACIR function
 regression_loop_read_after_kill: not exactly one ACIR function
 regression_loop_unroll_header_instructions: instruction constrain v4 != Field 0
@@ -356,7 +355,7 @@ shift_left_rhs_value_casted_from_smaller_type: instruction v7 = call to_le_bits(
 signed_arithmetic: operand i32 -3
 signed_cmp: instruction constrain v1 != u8 0
 signed_comparison: instruction v10 = xor v7, v9
-signed_div: more than 250 instructions
+signed_div: instruction v34 = xor v32, v33
 signed_division: instruction v32 = xor v30, v31
 signed_inactive_division_by_zero: instruction enable_side_effects v2
 signed_integer_or_max: instruction v2 = or v0, i8 127
@@ -365,14 +364,14 @@ simple_2d_array: parameter v2: [[Field; 2]; 2]
 simple_bitwise: instruction v5 = xor v0, v1
 simple_print: instruction call f2(u1 1, v0)
 simple_radix: instruction v2 = call to_le_bits(v0) -> [u1; 3]
-simple_shield: more than 250 instructions
+simple_shield: instruction v16 = call multi_scalar_mul(v11, v13, u1 1) -> [(Field, Field); 1]
 static_assert_empty_loop: instruction v1 = call f1() -> [Field; 0]
 strings: instruction call f4(u1 1, Field 10)
 struct_inputs: instruction constrain v0 != v2
 submodules: instruction v2 = or v0, v1
 to_be_bytes: instruction v3 = call to_be_radix(v0, u32 256) -> [u8; 31]
 to_bytes_consistent: instruction v3 = call to_be_radix(v0, u32 256) -> [u8; 31]
-to_bytes_integration: more than 250 instructions
+to_bytes_integration: more than 1000 instructions
 to_le_bytes: instruction v4 = call to_le_radix(v0, u32 256) -> [u8; 31]
 two_array_chain_mutation: opcode other INIT b0 = [w32, w32, w32, w32, w32
 type_aliases: instruction constrain Field 1 != v2
@@ -384,7 +383,7 @@ unroll_loop_header_result_used_after_loop: not exactly one ACIR function
 unroll_loop_regression: not exactly one ACIR function
 unrolling_regression_8333: type [[u8; 32]; 2]
 vector_coercion: type [(i32, u8)]
-vector_dynamic_index: more than 250 instructions
+vector_dynamic_index: type [Field]
 vector_dynamic_insert: instruction v3, v4 = call as_vector(v1) -> (u32, [Field])
 vector_insert_after_dynamic_read: type [(Field, [Field; 2])]
 vector_insert_empty_oob: type [u32]

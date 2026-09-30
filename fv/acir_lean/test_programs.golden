@@ -1552,6 +1552,871 @@ acir(inline) predicate_pure fn main f0 {
 zero 42*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[0]
 inputs [0]
 returns []
+# program modulus
+acir(inline) predicate_pure fn main f0 {
+  b0(v0: [u8; 32], v1: [u1; 254]):
+    v3 = array_get v0, index u32 0 -> u8
+    constrain u8 48 == v3
+    v6 = array_get v0, index u32 1 -> u8
+    constrain u8 100 == v6
+    v9 = array_get v0, index u32 2 -> u8
+    constrain u8 78 == v9
+    v12 = array_get v0, index u32 3 -> u8
+    constrain u8 114 == v12
+    v15 = array_get v0, index u32 4 -> u8
+    constrain u8 225 == v15
+    v18 = array_get v0, index u32 5 -> u8
+    constrain u8 49 == v18
+    v21 = array_get v0, index u32 6 -> u8
+    constrain u8 160 == v21
+    v24 = array_get v0, index u32 7 -> u8
+    constrain u8 41 == v24
+    v27 = array_get v0, index u32 8 -> u8
+    constrain u8 184 == v27
+    v30 = array_get v0, index u32 9 -> u8
+    constrain u8 80 == v30
+    v33 = array_get v0, index u32 10 -> u8
+    constrain u8 69 == v33
+    v36 = array_get v0, index u32 11 -> u8
+    constrain u8 182 == v36
+    v39 = array_get v0, index u32 12 -> u8
+    constrain u8 129 == v39
+    v42 = array_get v0, index u32 13 -> u8
+    constrain u8 129 == v42
+    v44 = array_get v0, index u32 14 -> u8
+    constrain u8 88 == v44
+    v47 = array_get v0, index u32 15 -> u8
+    constrain u8 93 == v47
+    v50 = array_get v0, index u32 16 -> u8
+    constrain u8 40 == v50
+    v53 = array_get v0, index u32 17 -> u8
+    constrain u8 51 == v53
+    v56 = array_get v0, index u32 18 -> u8
+    constrain u8 232 == v56
+    v59 = array_get v0, index u32 19 -> u8
+    constrain u8 72 == v59
+    v62 = array_get v0, index u32 20 -> u8
+    constrain u8 121 == v62
+    v65 = array_get v0, index u32 21 -> u8
+    constrain u8 185 == v65
+    v68 = array_get v0, index u32 22 -> u8
+    constrain u8 112 == v68
+    v71 = array_get v0, index u32 23 -> u8
+    constrain u8 145 == v71
+    v74 = array_get v0, index u32 24 -> u8
+    constrain u8 67 == v74
+    v77 = array_get v0, index u32 25 -> u8
+    constrain u8 225 == v77
+    v79 = array_get v0, index u32 26 -> u8
+    constrain u8 245 == v79
+    v82 = array_get v0, index u32 27 -> u8
+    constrain u8 147 == v82
+    v85 = array_get v0, index u32 28 -> u8
+    constrain u8 240 == v85
+    v88 = array_get v0, index u32 29 -> u8
+    constrain u8 0 == v88
+    v91 = array_get v0, index u32 30 -> u8
+    constrain u8 0 == v91
+    v93 = array_get v0, index u32 31 -> u8
+    constrain u8 1 == v93
+    v95 = array_get v1, index u32 0 -> u1
+    constrain u1 1 == v95
+    v97 = array_get v1, index u32 1 -> u1
+    constrain u1 1 == v97
+    v98 = array_get v1, index u32 2 -> u1
+    constrain u1 0 == v98
+    v100 = array_get v1, index u32 3 -> u1
+    constrain u1 0 == v100
+    v101 = array_get v1, index u32 4 -> u1
+    constrain u1 0 == v101
+    v102 = array_get v1, index u32 5 -> u1
+    constrain u1 0 == v102
+    v103 = array_get v1, index u32 6 -> u1
+    constrain u1 0 == v103
+    v104 = array_get v1, index u32 7 -> u1
+    constrain u1 1 == v104
+    v105 = array_get v1, index u32 8 -> u1
+    constrain u1 1 == v105
+    v106 = array_get v1, index u32 9 -> u1
+    constrain u1 0 == v106
+    v107 = array_get v1, index u32 10 -> u1
+    constrain u1 0 == v107
+    v108 = array_get v1, index u32 11 -> u1
+    constrain u1 1 == v108
+    v109 = array_get v1, index u32 12 -> u1
+    constrain u1 0 == v109
+    v110 = array_get v1, index u32 13 -> u1
+    constrain u1 0 == v110
+    v111 = array_get v1, index u32 14 -> u1
+    constrain u1 0 == v111
+    v112 = array_get v1, index u32 15 -> u1
+    constrain u1 1 == v112
+    v113 = array_get v1, index u32 16 -> u1
+    constrain u1 0 == v113
+    v114 = array_get v1, index u32 17 -> u1
+    constrain u1 0 == v114
+    v115 = array_get v1, index u32 18 -> u1
+    constrain u1 1 == v115
+    v116 = array_get v1, index u32 19 -> u1
+    constrain u1 1 == v116
+    v117 = array_get v1, index u32 20 -> u1
+    constrain u1 1 == v117
+    v118 = array_get v1, index u32 21 -> u1
+    constrain u1 0 == v118
+    v119 = array_get v1, index u32 22 -> u1
+    constrain u1 0 == v119
+    v120 = array_get v1, index u32 23 -> u1
+    constrain u1 1 == v120
+    v121 = array_get v1, index u32 24 -> u1
+    constrain u1 1 == v121
+    v122 = array_get v1, index u32 25 -> u1
+    constrain u1 1 == v122
+    v123 = array_get v1, index u32 26 -> u1
+    constrain u1 0 == v123
+    v124 = array_get v1, index u32 27 -> u1
+    constrain u1 0 == v124
+    v125 = array_get v1, index u32 28 -> u1
+    constrain u1 1 == v125
+    v126 = array_get v1, index u32 29 -> u1
+    constrain u1 0 == v126
+    v127 = array_get v1, index u32 30 -> u1
+    constrain u1 1 == v127
+    v128 = array_get v1, index u32 31 -> u1
+    constrain u1 1 == v128
+    v130 = array_get v1, index u32 32 -> u1
+    constrain u1 1 == v130
+    v132 = array_get v1, index u32 33 -> u1
+    constrain u1 0 == v132
+    v134 = array_get v1, index u32 34 -> u1
+    constrain u1 0 == v134
+    v136 = array_get v1, index u32 35 -> u1
+    constrain u1 0 == v136
+    v138 = array_get v1, index u32 36 -> u1
+    constrain u1 0 == v138
+    v140 = array_get v1, index u32 37 -> u1
+    constrain u1 1 == v140
+    v142 = array_get v1, index u32 38 -> u1
+    constrain u1 0 == v142
+    v144 = array_get v1, index u32 39 -> u1
+    constrain u1 0 == v144
+    v146 = array_get v1, index u32 40 -> u1
+    constrain u1 1 == v146
+    v148 = array_get v1, index u32 41 -> u1
+    constrain u1 1 == v148
+    v150 = array_get v1, index u32 42 -> u1
+    constrain u1 0 == v150
+    v152 = array_get v1, index u32 43 -> u1
+    constrain u1 0 == v152
+    v154 = array_get v1, index u32 44 -> u1
+    constrain u1 0 == v154
+    v156 = array_get v1, index u32 45 -> u1
+    constrain u1 1 == v156
+    v158 = array_get v1, index u32 46 -> u1
+    constrain u1 1 == v158
+    v160 = array_get v1, index u32 47 -> u1
+    constrain u1 0 == v160
+    v162 = array_get v1, index u32 48 -> u1
+    constrain u1 1 == v162
+    v164 = array_get v1, index u32 49 -> u1
+    constrain u1 0 == v164
+    v166 = array_get v1, index u32 50 -> u1
+    constrain u1 0 == v166
+    v168 = array_get v1, index u32 51 -> u1
+    constrain u1 0 == v168
+    v170 = array_get v1, index u32 52 -> u1
+    constrain u1 0 == v170
+    v172 = array_get v1, index u32 53 -> u1
+    constrain u1 0 == v172
+    v174 = array_get v1, index u32 54 -> u1
+    constrain u1 0 == v174
+    v176 = array_get v1, index u32 55 -> u1
+    constrain u1 0 == v176
+    v178 = array_get v1, index u32 56 -> u1
+    constrain u1 1 == v178
+    v180 = array_get v1, index u32 57 -> u1
+    constrain u1 0 == v180
+    v182 = array_get v1, index u32 58 -> u1
+    constrain u1 1 == v182
+    v184 = array_get v1, index u32 59 -> u1
+    constrain u1 0 == v184
+    v186 = array_get v1, index u32 60 -> u1
+    constrain u1 0 == v186
+    v188 = array_get v1, index u32 61 -> u1
+    constrain u1 1 == v188
+    v190 = array_get v1, index u32 62 -> u1
+    constrain u1 1 == v190
+    v192 = array_get v1, index u32 63 -> u1
+    constrain u1 0 == v192
+    v194 = array_get v1, index u32 64 -> u1
+    constrain u1 1 == v194
+    v196 = array_get v1, index u32 65 -> u1
+    constrain u1 1 == v196
+    v198 = array_get v1, index u32 66 -> u1
+    constrain u1 1 == v198
+    v200 = array_get v1, index u32 67 -> u1
+    constrain u1 0 == v200
+    v202 = array_get v1, index u32 68 -> u1
+    constrain u1 0 == v202
+    v204 = array_get v1, index u32 69 -> u1
+    constrain u1 0 == v204
+    v206 = array_get v1, index u32 70 -> u1
+    constrain u1 0 == v206
+    v208 = array_get v1, index u32 71 -> u1
+    constrain u1 1 == v208
+    v210 = array_get v1, index u32 72 -> u1
+    constrain u1 0 == v210
+    v212 = array_get v1, index u32 73 -> u1
+    constrain u1 1 == v212
+    v214 = array_get v1, index u32 74 -> u1
+    constrain u1 0 == v214
+    v216 = array_get v1, index u32 75 -> u1
+    constrain u1 0 == v216
+    v218 = array_get v1, index u32 76 -> u1
+    constrain u1 0 == v218
+    v220 = array_get v1, index u32 77 -> u1
+    constrain u1 0 == v220
+    v222 = array_get v1, index u32 78 -> u1
+    constrain u1 0 == v222
+    v224 = array_get v1, index u32 79 -> u1
+    constrain u1 1 == v224
+    v226 = array_get v1, index u32 80 -> u1
+    constrain u1 0 == v226
+    v228 = array_get v1, index u32 81 -> u1
+    constrain u1 0 == v228
+    v230 = array_get v1, index u32 82 -> u1
+    constrain u1 0 == v230
+    v232 = array_get v1, index u32 83 -> u1
+    constrain u1 1 == v232
+    v234 = array_get v1, index u32 84 -> u1
+    constrain u1 0 == v234
+    v236 = array_get v1, index u32 85 -> u1
+    constrain u1 1 == v236
+    v238 = array_get v1, index u32 86 -> u1
+    constrain u1 1 == v238
+    v240 = array_get v1, index u32 87 -> u1
+    constrain u1 0 == v240
+    v242 = array_get v1, index u32 88 -> u1
+    constrain u1 1 == v242
+    v244 = array_get v1, index u32 89 -> u1
+    constrain u1 1 == v244
+    v246 = array_get v1, index u32 90 -> u1
+    constrain u1 0 == v246
+    v248 = array_get v1, index u32 91 -> u1
+    constrain u1 1 == v248
+    v250 = array_get v1, index u32 92 -> u1
+    constrain u1 1 == v250
+    v252 = array_get v1, index u32 93 -> u1
+    constrain u1 0 == v252
+    v254 = array_get v1, index u32 94 -> u1
+    constrain u1 1 == v254
+    v256 = array_get v1, index u32 95 -> u1
+    constrain u1 0 == v256
+    v258 = array_get v1, index u32 96 -> u1
+    constrain u1 0 == v258
+    v260 = array_get v1, index u32 97 -> u1
+    constrain u1 0 == v260
+    v262 = array_get v1, index u32 98 -> u1
+    constrain u1 0 == v262
+    v264 = array_get v1, index u32 99 -> u1
+    constrain u1 0 == v264
+    v266 = array_get v1, index u32 100 -> u1
+    constrain u1 0 == v266
+    v268 = array_get v1, index u32 101 -> u1
+    constrain u1 1 == v268
+    v270 = array_get v1, index u32 102 -> u1
+    constrain u1 1 == v270
+    v272 = array_get v1, index u32 103 -> u1
+    constrain u1 0 == v272
+    v274 = array_get v1, index u32 104 -> u1
+    constrain u1 0 == v274
+    v276 = array_get v1, index u32 105 -> u1
+    constrain u1 0 == v276
+    v278 = array_get v1, index u32 106 -> u1
+    constrain u1 0 == v278
+    v280 = array_get v1, index u32 107 -> u1
+    constrain u1 0 == v280
+    v282 = array_get v1, index u32 108 -> u1
+    constrain u1 0 == v282
+    v284 = array_get v1, index u32 109 -> u1
+    constrain u1 1 == v284
+    v286 = array_get v1, index u32 110 -> u1
+    constrain u1 0 == v286
+    v288 = array_get v1, index u32 111 -> u1
+    constrain u1 1 == v288
+    v290 = array_get v1, index u32 112 -> u1
+    constrain u1 0 == v290
+    v292 = array_get v1, index u32 113 -> u1
+    constrain u1 1 == v292
+    v294 = array_get v1, index u32 114 -> u1
+    constrain u1 1 == v294
+    v296 = array_get v1, index u32 115 -> u1
+    constrain u1 0 == v296
+    v298 = array_get v1, index u32 116 -> u1
+    constrain u1 0 == v298
+    v300 = array_get v1, index u32 117 -> u1
+    constrain u1 0 == v300
+    v302 = array_get v1, index u32 118 -> u1
+    constrain u1 0 == v302
+    v304 = array_get v1, index u32 119 -> u1
+    constrain u1 1 == v304
+    v306 = array_get v1, index u32 120 -> u1
+    constrain u1 0 == v306
+    v308 = array_get v1, index u32 121 -> u1
+    constrain u1 1 == v308
+    v310 = array_get v1, index u32 122 -> u1
+    constrain u1 1 == v310
+    v312 = array_get v1, index u32 123 -> u1
+    constrain u1 1 == v312
+    v314 = array_get v1, index u32 124 -> u1
+    constrain u1 0 == v314
+    v316 = array_get v1, index u32 125 -> u1
+    constrain u1 1 == v316
+    v318 = array_get v1, index u32 126 -> u1
+    constrain u1 0 == v318
+    v320 = array_get v1, index u32 127 -> u1
+    constrain u1 0 == v320
+    v322 = array_get v1, index u32 128 -> u1
+    constrain u1 1 == v322
+    v324 = array_get v1, index u32 129 -> u1
+    constrain u1 0 == v324
+    v326 = array_get v1, index u32 130 -> u1
+    constrain u1 1 == v326
+    v328 = array_get v1, index u32 131 -> u1
+    constrain u1 0 == v328
+    v330 = array_get v1, index u32 132 -> u1
+    constrain u1 0 == v330
+    v332 = array_get v1, index u32 133 -> u1
+    constrain u1 0 == v332
+    v334 = array_get v1, index u32 134 -> u1
+    constrain u1 0 == v334
+    v336 = array_get v1, index u32 135 -> u1
+    constrain u1 0 == v336
+    v338 = array_get v1, index u32 136 -> u1
+    constrain u1 1 == v338
+    v340 = array_get v1, index u32 137 -> u1
+    constrain u1 1 == v340
+    v342 = array_get v1, index u32 138 -> u1
+    constrain u1 0 == v342
+    v344 = array_get v1, index u32 139 -> u1
+    constrain u1 0 == v344
+    v346 = array_get v1, index u32 140 -> u1
+    constrain u1 1 == v346
+    v348 = array_get v1, index u32 141 -> u1
+    constrain u1 1 == v348
+    v350 = array_get v1, index u32 142 -> u1
+    constrain u1 1 == v350
+    v352 = array_get v1, index u32 143 -> u1
+    constrain u1 1 == v352
+    v354 = array_get v1, index u32 144 -> u1
+    constrain u1 1 == v354
+    v356 = array_get v1, index u32 145 -> u1
+    constrain u1 0 == v356
+    v358 = array_get v1, index u32 146 -> u1
+    constrain u1 1 == v358
+    v360 = array_get v1, index u32 147 -> u1
+    constrain u1 0 == v360
+    v362 = array_get v1, index u32 148 -> u1
+    constrain u1 0 == v362
+    v364 = array_get v1, index u32 149 -> u1
+    constrain u1 0 == v364
+    v366 = array_get v1, index u32 150 -> u1
+    constrain u1 0 == v366
+    v368 = array_get v1, index u32 151 -> u1
+    constrain u1 1 == v368
+    v370 = array_get v1, index u32 152 -> u1
+    constrain u1 0 == v370
+    v372 = array_get v1, index u32 153 -> u1
+    constrain u1 0 == v372
+    v374 = array_get v1, index u32 154 -> u1
+    constrain u1 1 == v374
+    v376 = array_get v1, index u32 155 -> u1
+    constrain u1 0 == v376
+    v378 = array_get v1, index u32 156 -> u1
+    constrain u1 0 == v378
+    v380 = array_get v1, index u32 157 -> u1
+    constrain u1 0 == v380
+    v382 = array_get v1, index u32 158 -> u1
+    constrain u1 0 == v382
+    v384 = array_get v1, index u32 159 -> u1
+    constrain u1 1 == v384
+    v386 = array_get v1, index u32 160 -> u1
+    constrain u1 1 == v386
+    v388 = array_get v1, index u32 161 -> u1
+    constrain u1 1 == v388
+    v390 = array_get v1, index u32 162 -> u1
+    constrain u1 1 == v390
+    v392 = array_get v1, index u32 163 -> u1
+    constrain u1 0 == v392
+    v394 = array_get v1, index u32 164 -> u1
+    constrain u1 0 == v394
+    v396 = array_get v1, index u32 165 -> u1
+    constrain u1 1 == v396
+    v398 = array_get v1, index u32 166 -> u1
+    constrain u1 1 == v398
+    v400 = array_get v1, index u32 167 -> u1
+    constrain u1 0 == v400
+    v402 = array_get v1, index u32 168 -> u1
+    constrain u1 1 == v402
+    v404 = array_get v1, index u32 169 -> u1
+    constrain u1 1 == v404
+    v406 = array_get v1, index u32 170 -> u1
+    constrain u1 1 == v406
+    v408 = array_get v1, index u32 171 -> u1
+    constrain u1 0 == v408
+    v410 = array_get v1, index u32 172 -> u1
+    constrain u1 0 == v410
+    v412 = array_get v1, index u32 173 -> u1
+    constrain u1 1 == v412
+    v414 = array_get v1, index u32 174 -> u1
+    constrain u1 0 == v414
+    v416 = array_get v1, index u32 175 -> u1
+    constrain u1 1 == v416
+    v418 = array_get v1, index u32 176 -> u1
+    constrain u1 1 == v418
+    v420 = array_get v1, index u32 177 -> u1
+    constrain u1 1 == v420
+    v422 = array_get v1, index u32 178 -> u1
+    constrain u1 0 == v422
+    v424 = array_get v1, index u32 179 -> u1
+    constrain u1 0 == v424
+    v426 = array_get v1, index u32 180 -> u1
+    constrain u1 0 == v426
+    v428 = array_get v1, index u32 181 -> u1
+    constrain u1 0 == v428
+    v430 = array_get v1, index u32 182 -> u1
+    constrain u1 1 == v430
+    v432 = array_get v1, index u32 183 -> u1
+    constrain u1 0 == v432
+    v434 = array_get v1, index u32 184 -> u1
+    constrain u1 0 == v434
+    v436 = array_get v1, index u32 185 -> u1
+    constrain u1 1 == v436
+    v438 = array_get v1, index u32 186 -> u1
+    constrain u1 0 == v438
+    v440 = array_get v1, index u32 187 -> u1
+    constrain u1 0 == v440
+    v442 = array_get v1, index u32 188 -> u1
+    constrain u1 0 == v442
+    v444 = array_get v1, index u32 189 -> u1
+    constrain u1 1 == v444
+    v446 = array_get v1, index u32 190 -> u1
+    constrain u1 0 == v446
+    v448 = array_get v1, index u32 191 -> u1
+    constrain u1 1 == v448
+    v450 = array_get v1, index u32 192 -> u1
+    constrain u1 0 == v450
+    v452 = array_get v1, index u32 193 -> u1
+    constrain u1 0 == v452
+    v454 = array_get v1, index u32 194 -> u1
+    constrain u1 0 == v454
+    v456 = array_get v1, index u32 195 -> u1
+    constrain u1 0 == v456
+    v458 = array_get v1, index u32 196 -> u1
+    constrain u1 1 == v458
+    v460 = array_get v1, index u32 197 -> u1
+    constrain u1 1 == v460
+    v462 = array_get v1, index u32 198 -> u1
+    constrain u1 1 == v462
+    v464 = array_get v1, index u32 199 -> u1
+    constrain u1 1 == v464
+    v466 = array_get v1, index u32 200 -> u1
+    constrain u1 1 == v466
+    v468 = array_get v1, index u32 201 -> u1
+    constrain u1 0 == v468
+    v470 = array_get v1, index u32 202 -> u1
+    constrain u1 0 == v470
+    v472 = array_get v1, index u32 203 -> u1
+    constrain u1 0 == v472
+    v474 = array_get v1, index u32 204 -> u1
+    constrain u1 0 == v474
+    v476 = array_get v1, index u32 205 -> u1
+    constrain u1 1 == v476
+    v478 = array_get v1, index u32 206 -> u1
+    constrain u1 1 == v478
+    v480 = array_get v1, index u32 207 -> u1
+    constrain u1 1 == v480
+    v482 = array_get v1, index u32 208 -> u1
+    constrain u1 1 == v482
+    v484 = array_get v1, index u32 209 -> u1
+    constrain u1 1 == v484
+    v486 = array_get v1, index u32 210 -> u1
+    constrain u1 0 == v486
+    v488 = array_get v1, index u32 211 -> u1
+    constrain u1 1 == v488
+    v490 = array_get v1, index u32 212 -> u1
+    constrain u1 0 == v490
+    v492 = array_get v1, index u32 213 -> u1
+    constrain u1 1 == v492
+    v494 = array_get v1, index u32 214 -> u1
+    constrain u1 1 == v494
+    v496 = array_get v1, index u32 215 -> u1
+    constrain u1 0 == v496
+    v498 = array_get v1, index u32 216 -> u1
+    constrain u1 0 == v498
+    v500 = array_get v1, index u32 217 -> u1
+    constrain u1 1 == v500
+    v502 = array_get v1, index u32 218 -> u1
+    constrain u1 0 == v502
+    v504 = array_get v1, index u32 219 -> u1
+    constrain u1 0 == v504
+    v506 = array_get v1, index u32 220 -> u1
+    constrain u1 1 == v506
+    v508 = array_get v1, index u32 221 -> u1
+    constrain u1 1 == v508
+    v510 = array_get v1, index u32 222 -> u1
+    constrain u1 1 == v510
+    v512 = array_get v1, index u32 223 -> u1
+    constrain u1 1 == v512
+    v514 = array_get v1, index u32 224 -> u1
+    constrain u1 1 == v514
+    v516 = array_get v1, index u32 225 -> u1
+    constrain u1 1 == v516
+    v518 = array_get v1, index u32 226 -> u1
+    constrain u1 0 == v518
+    v520 = array_get v1, index u32 227 -> u1
+    constrain u1 0 == v520
+    v522 = array_get v1, index u32 228 -> u1
+    constrain u1 0 == v522
+    v524 = array_get v1, index u32 229 -> u1
+    constrain u1 0 == v524
+    v526 = array_get v1, index u32 230 -> u1
+    constrain u1 0 == v526
+    v528 = array_get v1, index u32 231 -> u1
+    constrain u1 0 == v528
+    v530 = array_get v1, index u32 232 -> u1
+    constrain u1 0 == v530
+    v532 = array_get v1, index u32 233 -> u1
+    constrain u1 0 == v532
+    v534 = array_get v1, index u32 234 -> u1
+    constrain u1 0 == v534
+    v536 = array_get v1, index u32 235 -> u1
+    constrain u1 0 == v536
+    v538 = array_get v1, index u32 236 -> u1
+    constrain u1 0 == v538
+    v540 = array_get v1, index u32 237 -> u1
+    constrain u1 0 == v540
+    v542 = array_get v1, index u32 238 -> u1
+    constrain u1 0 == v542
+    v544 = array_get v1, index u32 239 -> u1
+    constrain u1 0 == v544
+    v546 = array_get v1, index u32 240 -> u1
+    constrain u1 0 == v546
+    v548 = array_get v1, index u32 241 -> u1
+    constrain u1 0 == v548
+    v550 = array_get v1, index u32 242 -> u1
+    constrain u1 0 == v550
+    v552 = array_get v1, index u32 243 -> u1
+    constrain u1 0 == v552
+    v554 = array_get v1, index u32 244 -> u1
+    constrain u1 0 == v554
+    v556 = array_get v1, index u32 245 -> u1
+    constrain u1 0 == v556
+    v558 = array_get v1, index u32 246 -> u1
+    constrain u1 0 == v558
+    v560 = array_get v1, index u32 247 -> u1
+    constrain u1 0 == v560
+    v562 = array_get v1, index u32 248 -> u1
+    constrain u1 0 == v562
+    v564 = array_get v1, index u32 249 -> u1
+    constrain u1 0 == v564
+    v566 = array_get v1, index u32 250 -> u1
+    constrain u1 0 == v566
+    v568 = array_get v1, index u32 251 -> u1
+    constrain u1 0 == v568
+    v570 = array_get v1, index u32 252 -> u1
+    constrain u1 0 == v570
+    v572 = array_get v1, index u32 253 -> u1
+    constrain u1 1 == v572
+    return
+}
+zero 48*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[0]
+zero 100*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[1]
+zero 78*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[2]
+zero 114*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[3]
+zero 225*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[4]
+zero 49*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[5]
+zero 160*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[6]
+zero 41*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[7]
+zero 184*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[8]
+zero 80*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[9]
+zero 69*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[10]
+zero 182*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[11]
+zero 129*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[12]
+zero 129*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[13]
+zero 88*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[14]
+zero 93*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[15]
+zero 40*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[16]
+zero 51*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[17]
+zero 232*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[18]
+zero 72*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[19]
+zero 121*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[20]
+zero 185*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[21]
+zero 112*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[22]
+zero 145*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[23]
+zero 67*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[24]
+zero 225*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[25]
+zero 245*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[26]
+zero 147*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[27]
+zero 240*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[28]
+zero 1*[29]
+zero 1*[30]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[31]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[32]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[33]
+zero 1*[34]
+zero 1*[35]
+zero 1*[36]
+zero 1*[37]
+zero 1*[38]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[39]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[40]
+zero 1*[41]
+zero 1*[42]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[43]
+zero 1*[44]
+zero 1*[45]
+zero 1*[46]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[47]
+zero 1*[48]
+zero 1*[49]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[50]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[51]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[52]
+zero 1*[53]
+zero 1*[54]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[55]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[56]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[57]
+zero 1*[58]
+zero 1*[59]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[60]
+zero 1*[61]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[62]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[63]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[64]
+zero 1*[65]
+zero 1*[66]
+zero 1*[67]
+zero 1*[68]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[69]
+zero 1*[70]
+zero 1*[71]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[72]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[73]
+zero 1*[74]
+zero 1*[75]
+zero 1*[76]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[77]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[78]
+zero 1*[79]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[80]
+zero 1*[81]
+zero 1*[82]
+zero 1*[83]
+zero 1*[84]
+zero 1*[85]
+zero 1*[86]
+zero 1*[87]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[88]
+zero 1*[89]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[90]
+zero 1*[91]
+zero 1*[92]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[93]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[94]
+zero 1*[95]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[96]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[97]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[98]
+zero 1*[99]
+zero 1*[100]
+zero 1*[101]
+zero 1*[102]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[103]
+zero 1*[104]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[105]
+zero 1*[106]
+zero 1*[107]
+zero 1*[108]
+zero 1*[109]
+zero 1*[110]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[111]
+zero 1*[112]
+zero 1*[113]
+zero 1*[114]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[115]
+zero 1*[116]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[117]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[118]
+zero 1*[119]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[120]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[121]
+zero 1*[122]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[123]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[124]
+zero 1*[125]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[126]
+zero 1*[127]
+zero 1*[128]
+zero 1*[129]
+zero 1*[130]
+zero 1*[131]
+zero 1*[132]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[133]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[134]
+zero 1*[135]
+zero 1*[136]
+zero 1*[137]
+zero 1*[138]
+zero 1*[139]
+zero 1*[140]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[141]
+zero 1*[142]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[143]
+zero 1*[144]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[145]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[146]
+zero 1*[147]
+zero 1*[148]
+zero 1*[149]
+zero 1*[150]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[151]
+zero 1*[152]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[153]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[154]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[155]
+zero 1*[156]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[157]
+zero 1*[158]
+zero 1*[159]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[160]
+zero 1*[161]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[162]
+zero 1*[163]
+zero 1*[164]
+zero 1*[165]
+zero 1*[166]
+zero 1*[167]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[168]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[169]
+zero 1*[170]
+zero 1*[171]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[172]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[173]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[174]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[175]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[176]
+zero 1*[177]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[178]
+zero 1*[179]
+zero 1*[180]
+zero 1*[181]
+zero 1*[182]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[183]
+zero 1*[184]
+zero 1*[185]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[186]
+zero 1*[187]
+zero 1*[188]
+zero 1*[189]
+zero 1*[190]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[191]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[192]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[193]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[194]
+zero 1*[195]
+zero 1*[196]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[197]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[198]
+zero 1*[199]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[200]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[201]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[202]
+zero 1*[203]
+zero 1*[204]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[205]
+zero 1*[206]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[207]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[208]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[209]
+zero 1*[210]
+zero 1*[211]
+zero 1*[212]
+zero 1*[213]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[214]
+zero 1*[215]
+zero 1*[216]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[217]
+zero 1*[218]
+zero 1*[219]
+zero 1*[220]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[221]
+zero 1*[222]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[223]
+zero 1*[224]
+zero 1*[225]
+zero 1*[226]
+zero 1*[227]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[228]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[229]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[230]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[231]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[232]
+zero 1*[233]
+zero 1*[234]
+zero 1*[235]
+zero 1*[236]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[237]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[238]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[239]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[240]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[241]
+zero 1*[242]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[243]
+zero 1*[244]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[245]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[246]
+zero 1*[247]
+zero 1*[248]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[249]
+zero 1*[250]
+zero 1*[251]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[252]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[253]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[254]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[255]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[256]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[257]
+zero 1*[258]
+zero 1*[259]
+zero 1*[260]
+zero 1*[261]
+zero 1*[262]
+zero 1*[263]
+zero 1*[264]
+zero 1*[265]
+zero 1*[266]
+zero 1*[267]
+zero 1*[268]
+zero 1*[269]
+zero 1*[270]
+zero 1*[271]
+zero 1*[272]
+zero 1*[273]
+zero 1*[274]
+zero 1*[275]
+zero 1*[276]
+zero 1*[277]
+zero 1*[278]
+zero 1*[279]
+zero 1*[280]
+zero 1*[281]
+zero 1*[282]
+zero 1*[283]
+zero 1*[284]
+zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[285]
+inputs [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122,123,124,125,126,127,128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,160,161,162,163,164,165,166,167,168,169,170,171,172,173,174,175,176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191,192,193,194,195,196,197,198,199,200,201,202,203,204,205,206,207,208,209,210,211,212,213,214,215,216,217,218,219,220,221,222,223,224,225,226,227,228,229,230,231,232,233,234,235,236,237,238,239,240,241,242,243,244,245,246,247,248,249,250,251,252,253,254,255,256,257,258,259,260,261,262,263,264,265,266,267,268,269,270,271,272,273,274,275,276,277,278,279,280,281,282,283,284,285]
+returns []
 # program negated_jmpif_condition
 acir(inline) predicate_pure fn main f0 {
   b0(v0: Field):
