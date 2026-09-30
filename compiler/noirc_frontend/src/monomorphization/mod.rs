@@ -504,7 +504,7 @@ impl<'interner> Monomorphizer<'interner> {
         self.locals.get(&id).copied().map(Definition::Local)
     }
 
-    /// Retrieve the definition for the given function, referenced by `expr_id` with the given
+    /// Retrieve the definition for the given function, referenced at `location` with the given
     /// instantiation `bindings`.
     ///
     /// If the given function has yet to be monomorphized, we'll create its new id now and return
@@ -513,7 +513,7 @@ impl<'interner> Monomorphizer<'interner> {
     fn lookup_function(
         &mut self,
         id: node_interner::FuncId,
-        expr_id: ExprId,
+        location: Location,
         typ: &HirType,
         turbofish_generics: &[HirType],
         bindings: Option<TypeBindings>,
@@ -542,7 +542,6 @@ impl<'interner> Monomorphizer<'interner> {
                         let opcode = attribute.kind.foreign().expect(
                             "ICE: function marked as foreign, but attribute kind does not match this",
                         );
-                        let location = self.interner.expr_location(&expr_id);
                         let opcode = Self::lookup_builtin(opcode, location)?;
 
                         if evaluate_builtin {
@@ -567,7 +566,6 @@ impl<'interner> Monomorphizer<'interner> {
                         let opcode = attribute.kind.builtin().expect(
                             "ICE: function marked as builtin, but attribute kind does not match this",
                         );
-                        let location = self.interner.expr_location(&expr_id);
                         let opcode = Self::lookup_builtin(opcode, location)?;
 
                         if evaluate_builtin {
@@ -590,7 +588,6 @@ impl<'interner> Monomorphizer<'interner> {
                     FunctionKind::Normal | FunctionKind::TraitFunctionWithoutBody => {
                         let bindings = bindings
                             .expect("ICE: queued function reference has no instantiation bindings");
-                        let location = self.interner.expr_location(&expr_id);
                         let id = self.queue_function_with_bindings(
                             id,
                             location,
@@ -1734,7 +1731,7 @@ impl<'interner> Monomorphizer<'interner> {
         let bindings = self.instantiation_bindings(expr_id);
         let definition = self.lookup_function(
             func_id,
-            expr_id,
+            self.interner.expr_location(&expr_id),
             typ,
             &generics.unwrap_or_default(),
             bindings,
@@ -2381,7 +2378,7 @@ impl<'interner> Monomorphizer<'interner> {
 
         let Definition::Function(func_id) = self.lookup_function(
             func_id,
-            expr_id,
+            location,
             &function_type,
             &[],
             Some(instantiation_bindings),
