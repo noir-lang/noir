@@ -77,7 +77,7 @@
 <a href=#77 id=77 data-nosnippet>77</a>    src: <span class="kw-2">&amp;</span>str,
 <a href=#78 id=78 data-nosnippet>78</a>    options: GetProgramOptions,
 <a href=#79 id=79 data-nosnippet>79</a>) -&gt; <span class="prelude-ty">Result</span>&lt;Program, MonomorphizationError&gt; {
-<a href=#80 id=80 data-nosnippet>80</a>    <span class="kw">let </span>(_parsed_module, <span class="kw-2">mut </span>context, errors) = get_program_with_options(src, options);
+<a href=#80 id=80 data-nosnippet>80</a>    <span class="kw">let </span>(_parsed_module, context, errors) = get_program_with_options(src, options);
 <a href=#81 id=81 data-nosnippet>81</a>
 <a href=#82 id=82 data-nosnippet>82</a>    <span class="kw">let </span>only_warnings = errors.iter().all(|err| !err.is_error());
 <a href=#83 id=83 data-nosnippet>83</a>    <span class="kw">let </span>has_defs = !context.def_maps.is_empty();
@@ -93,7 +93,7 @@
 <a href=#93 id=93 data-nosnippet>93</a>        .get_main_function(context.root_crate_id())
 <a href=#94 id=94 data-nosnippet>94</a>        .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">"get_monomorphized: test program contains no 'main' function"</span>));
 <a href=#95 id=95 data-nosnippet>95</a>
-<a href=#96 id=96 data-nosnippet>96</a>    monomorphize(main, <span class="kw-2">&amp;mut </span>context.def_interner, <span class="bool-val">false</span>)
+<a href=#96 id=96 data-nosnippet>96</a>    monomorphize(main, <span class="kw-2">&amp;</span>context.def_interner, <span class="bool-val">false</span>)
 <a href=#97 id=97 data-nosnippet>97</a>}
 <a href=#98 id=98 data-nosnippet>98</a>
 <a href=#99 id=99 data-nosnippet>99</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>has_parser_error(errors: <span class="kw-2">&amp;</span>[CompilationError]) -&gt; bool {

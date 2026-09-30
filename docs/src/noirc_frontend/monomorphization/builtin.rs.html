@@ -360,8 +360,8 @@
 <a href=#360 id=360 data-nosnippet>360</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="prelude-val">Some</span>(<span class="kw">match </span>HandledOpcode::from_builtin(<span class="kw-2">*</span>opcode) {
 <a href=#361 id=361 data-nosnippet>361</a>                <span class="prelude-val">Some</span>(HandledOpcode::CheckedTransmute) =&gt; {
 <a href=#362 id=362 data-nosnippet>362</a>                    <span class="macro">assert_eq!</span>(arguments.len(), <span class="number">1</span>);
-<a href=#363 id=363 data-nosnippet>363</a>                    <span class="kw">let </span>parameter_type = <span class="self">self</span>.interner.id_type(arguments[<span class="number">0</span>]).follow_bindings();
-<a href=#364 id=364 data-nosnippet>364</a>                    <span class="kw">let </span>result_type = <span class="self">self</span>.interner.id_type(expr_id).follow_bindings();
+<a href=#363 id=363 data-nosnippet>363</a>                    <span class="kw">let </span>parameter_type = <span class="self">self</span>.expr_type(arguments[<span class="number">0</span>]).follow_bindings();
+<a href=#364 id=364 data-nosnippet>364</a>                    <span class="kw">let </span>result_type = <span class="self">self</span>.expr_type(<span class="kw-2">*</span>expr_id).follow_bindings();
 <a href=#365 id=365 data-nosnippet>365</a>                    <span class="self">self</span>.check_transmute(<span class="kw-2">&amp;</span>parameter_type, <span class="kw-2">&amp;</span>result_type, location)<span class="question-mark">?</span>;
 <a href=#366 id=366 data-nosnippet>366</a>                    argument_values[<span class="number">0</span>].clone()
 <a href=#367 id=367 data-nosnippet>367</a>                }

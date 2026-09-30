@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"mod":["expr","function","stmt","traits","type_variable_writes","types"]};
+window.SIDEBAR_ITEMS = {"mod":["expr","function","stmt","traits","types"]};

@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["checking_enabled","describe_bindings_drift","describe_size_drift","fingerprint","hash_of"],"struct":["PurityCheck","State"]};
