@@ -223,19 +223,6 @@ struct CachedContext<'a> {
     crate_id: CrateId,
 }
 
-/// Whether a test left the context it compiled against fit for the next test to compile against.
-///
-/// Whether the test passed does not decide this, and neither does whether it compiled:
-/// monomorphization only reads the elaborated program, so a compilation that failed leaves the
-/// context as fit for reuse as one that succeeded. What is [`Self::Spent`] is the
-/// `--force-comptime` and `--coverage` path, which runs the comptime interpreter over the context
-/// instead of monomorphizing, and hands the context's evaluation tracker to the coverage report.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum ContextState {
-    Clean,
-    Spent,
-}
-
 pub(crate) struct TestResult {
     name: TestName,
     package_name: PackageName,
@@ -405,17 +392,15 @@ impl<'a> TestRunner<'a> {
                 });
                 let unwound = catch_unwind(run);
 
-                // A panic can stop elaborating the package, or the comptime interpreter, part-way
-                // through changing the context, so a test that did not finish gives up its context
-                // however far it got.
-                let reusable = matches!(unwound, Ok((_, _, _, ContextState::Clean)))
-                    && !self.args.no_context_reuse;
-                if !reusable {
+                // Compiling a test only reads the context, so whether it passed or even compiled
+                // leaves the context fit for the next test. Interpreting one does not: see
+                // `Self::interprets`. A test that did not finish gives up its context too.
+                if self.args.no_context_reuse || self.interprets(&test) || unwound.is_err() {
                     cached = None;
                 }
 
                 match unwound {
-                    Ok((status, output, test_coverage, _)) => (status, output, test_coverage),
+                    Ok((status, output, test_coverage)) => (status, output, test_coverage),
                     Err(err) => (
                         TestStatus::Fail {
                             message:
@@ -776,6 +761,15 @@ impl<'a> TestRunner<'a> {
             || (self.args.only_fuzz && !test.has_arguments)
     }
 
+    /// Whether `test` runs through the comptime interpreter rather than being compiled.
+    ///
+    /// The interpreter runs as part of elaboration, so it can change what the context holds, and
+    /// the coverage report takes ownership of the context's evaluation tracker. Either way the
+    /// context is not fit for the next test.
+    fn interprets(&self, test: &Test<'a>) -> bool {
+        !self.args.no_run && (self.args.force_comptime || self.args.coverage && !test.has_arguments)
+    }
+
     /// Return the context to compile `test` against, elaborating `test`'s package into `cached`
     /// unless it already holds an elaboration of that same package.
     ///
@@ -797,20 +791,58 @@ impl<'a> TestRunner<'a> {
 
     /// Runs a single test.
     ///
-    /// Returns its status together with whatever was printed to stdout during the test, an
-    /// optional coverage report, and whether the context is still fit to compile another test.
+    /// Returns its status together with whatever was printed to stdout during the test and an
+    /// optional coverage report.
     fn run_test<S: BlackBoxFunctionSolver<FieldElement> + Default>(
         &'a self,
         cached: &mut CachedContext<'a>,
         test: &Test<'a>,
-    ) -> (TestStatus, String, Option<lcov::Report>, ContextState) {
+    ) -> (TestStatus, String, Option<lcov::Report>) {
         let CachedContext { context, crate_id, .. } = cached;
-        let fn_name = test.name.as_str();
 
-        let pattern = FunctionNameMatch::Exact(vec![fn_name.to_string()]);
+        let pattern = FunctionNameMatch::Exact(vec![test.name.to_string()]);
         let test_functions = context.get_all_test_functions_in_crate_matching(crate_id, &pattern);
         let (_, test_function) = test_functions.first().expect("Test function should exist");
 
+        if self.interprets(test) {
+            self.run_interpreted_test(context, test, test_function)
+        } else {
+            let (status, output) = self.run_compiled_test::<S>(context, test, test_function);
+            (status, output, None)
+        }
+    }
+
+    /// Runs `test_function` in the comptime interpreter, collecting its coverage if requested.
+    fn run_interpreted_test(
+        &'a self,
+        context: &mut Context<'a, 'a>,
+        test: &Test<'a>,
+        test_function: &TestFunction,
+    ) -> (TestStatus, String, Option<lcov::Report>) {
+        let output = Rc::new(RefCell::new(Vec::new()));
+        context.set_comptime_printing(output.clone());
+
+        let result = context.interpret_function(test_function.id, Vec::new());
+        let status = nargo::ops::test_status_comptime_interpret_result(result, test_function);
+
+        context.interpreter_output = None;
+        let output = Rc::try_unwrap(output).expect("context no longer has it");
+        let output = String::from_utf8(output.into_inner()).expect("not UTF-8");
+
+        let report = context.evaluation_tracker.take().map(|tracker| {
+            coverage::tracker_to_report(&tracker, test_function.id, test.name.as_str(), context)
+        });
+
+        (status, output, report)
+    }
+
+    /// Compiles `test_function` and, unless `--no-run` is set, executes or fuzzes it.
+    fn run_compiled_test<S: BlackBoxFunctionSolver<FieldElement> + Default>(
+        &'a self,
+        context: &Context<'a, 'a>,
+        test: &Test<'a>,
+        test_function: &TestFunction,
+    ) -> (TestStatus, String) {
         if self.args.no_run {
             let status = match noirc_driver::compile_no_check(
                 context,
@@ -822,28 +854,7 @@ impl<'a> TestRunner<'a> {
                 Ok(_) => TestStatus::Skipped,
                 Err(err) => nargo::ops::test_status_program_compile_fail(err, test_function),
             };
-            return (status, String::new(), None, ContextState::Clean);
-        }
-
-        if self.args.force_comptime || self.args.coverage && !test.has_arguments {
-            let output = Rc::new(RefCell::new(Vec::new()));
-            context.set_comptime_printing(output.clone());
-
-            let result = context.interpret_function(test_function.id, Vec::new());
-            let status = nargo::ops::test_status_comptime_interpret_result(result, test_function);
-
-            context.interpreter_output = None;
-            let output = Rc::try_unwrap(output).expect("context no longer has it");
-            let output = String::from_utf8(output.into_inner()).expect("not UTF-8");
-
-            let report = context.evaluation_tracker.take().map(|tracker| {
-                coverage::tracker_to_report(&tracker, test_function.id, fn_name, context)
-            });
-
-            // The coverage report takes ownership of the evaluation tracker, which the next test
-            // needs rebuilt, and the interpreter runs as part of elaboration, so it can change
-            // what the context holds where monomorphization only reads it.
-            return (status, output, report, ContextState::Spent);
+            return (status, String::new());
         }
 
         let blackbox_solver = S::default();
@@ -886,7 +897,7 @@ impl<'a> TestRunner<'a> {
         let output_string =
             String::from_utf8(output_buffer).expect("output buffer should contain valid utf8");
 
-        (test_status, output_string, None, ContextState::Clean)
+        (test_status, output_string)
     }
 
     /// Display the status of a single test
