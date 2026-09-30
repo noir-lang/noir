@@ -374,6 +374,15 @@ struct ConditionalContext {
     /// `Else`. Tracking on which phase we are allows us to assert the processing
     /// is done as expected.
     phase: BranchPhase,
+    /// Position in the target block of the first instruction emitted for the then branch.
+    ///
+    /// Instructions are only appended to the target block during flattening, so the
+    /// instructions at or after this position are exactly those emitted since the `jmpif`.
+    then_start: usize,
+    /// Position in the target block of the first instruction emitted for the else branch.
+    ///
+    /// To be filled in by `then_stop`.
+    else_start: Option<usize>,
 }
 
 /// Flattens the control flow graph of the function such that it is left with a
@@ -466,6 +475,11 @@ impl<'f> Context<'f> {
         } else {
             condition
         }
+    }
+
+    /// Number of instructions currently in the target block.
+    fn target_block_len(&self) -> usize {
+        self.inserter.function.dfg[self.target_block].instructions().len()
     }
 
     /// Returns the current condition
@@ -678,6 +692,8 @@ impl<'f> Context<'f> {
             local_allocations,
             jmpif_else_arguments,
             phase: BranchPhase::Then,
+            then_start: self.target_block_len(),
+            else_start: None,
         };
         // Clear merge provenance from previous conditionals at this nesting level.
         // Provenance from a previous conditional's merges must not be re-used by
@@ -729,6 +745,7 @@ impl<'f> Context<'f> {
         // All local allocations on the stopped 'then_branch' go out of scope.
         self.local_allocations.clear();
         cond_context.else_branch = Some(else_branch);
+        cond_context.else_start = Some(self.target_block_len());
         self.reset_predicated_values(&mut cond_context);
         self.condition_stack.push(cond_context);
 
@@ -944,6 +961,7 @@ impl<'f> Context<'f> {
                     else_arg,
                     cond_context.then_branch.condition,
                     cond_context.call_stack,
+                    cond_context.then_start,
                 ) {
                     return optimized;
                 }
@@ -1196,6 +1214,9 @@ impl<'f> Context<'f> {
         // already accounts for the condition, and array_set in ACIR is
         // protected by memory ops (predicated_index/predicated_store_value).
         let protect_array_set = true;
+        // The store is in the innermost branch being inlined, then or else.
+        let context = self.condition_stack.last()?;
+        let branch_start = context.else_start.unwrap_or(context.then_start);
 
         self.try_optimize_array_set_merge_inner(
             value,
@@ -1203,6 +1224,7 @@ impl<'f> Context<'f> {
             condition,
             call_stack,
             protect_array_set,
+            branch_start,
             |this, array| this.was_loaded_from_address(array, address),
         )
     }
@@ -1238,6 +1260,7 @@ impl<'f> Context<'f> {
         else_value: ValueId,
         then_condition: ValueId,
         call_stack: CallStackId,
+        branch_start: usize,
     ) -> Option<ValueId> {
         self.try_optimize_array_set_merge_inner(
             then_value,
@@ -1245,6 +1268,7 @@ impl<'f> Context<'f> {
             then_condition,
             call_stack,
             false,
+            branch_start,
             |_, array| array == else_value,
         )
     }
@@ -1257,6 +1281,7 @@ impl<'f> Context<'f> {
         then_condition: ValueId,
         condition_call_stack: CallStackId,
         protect_array_set: bool,
+        branch_start: usize,
         is_base_array: impl Fn(&Self, ValueId) -> bool,
     ) -> Option<ValueId> {
         // If the condition along which we would merge is a constant 1 or 0,
@@ -1351,8 +1376,17 @@ impl<'f> Context<'f> {
                     );
                 }
 
-                // Remember the potentially superseded chain.
-                self.superseded_array_sets.extend(superseded);
+                // Remember the potentially superseded chain, restricted to the `array_set`s emitted
+                // while inlining this branch. Their bounds checks only fail when the branch is
+                // taken, and so do those of the merged replacements. An `array_set` emitted before
+                // the `jmpif` runs under a weaker predicate: removing it would drop its bounds check
+                // whenever the branch is not taken.
+                let superseded: HashSet<InstructionId> = superseded.into_iter().collect();
+                let emitted_in_branch = self.inserter.function.dfg[self.target_block]
+                    .instructions()[branch_start..]
+                    .iter()
+                    .filter(|id| superseded.contains(id));
+                self.superseded_array_sets.extend(emitted_in_branch);
 
                 return Some(result);
             }
@@ -3275,6 +3309,56 @@ mod tests {
             return
         }
         ");
+    }
+
+    /// An `array_set` emitted before the `jmpif` fails unconditionally when its index is out of
+    /// bounds. The array-merge optimization walks back through it to reach the `else` value, but
+    /// must not remove it: the merged replacement only checks the index when the branch is taken.
+    #[test]
+    fn array_set_merge_keeps_bounds_check_of_array_set_before_branch() {
+        let merge_route = "
+          acir(inline) predicate_pure fn main f0 {
+            b0(v0: [Field; 4], v1: u32, v2: u1):
+              v4 = array_set v0, index v1, value Field 7
+              jmpif v2 then: b1(), else: b2()
+            b1():
+              jmp b3(v4)
+            b2():
+              jmp b3(v0)
+            b3(v5: [Field; 4]):
+              return v5
+          }
+        ";
+        let store_route = "
+          acir(inline) predicate_pure fn main f0 {
+            b0(v0: [Field; 4], v1: u32, v2: u1):
+              v3 = allocate -> &mut [Field; 4]
+              store v0 at v3
+              v4 = load v3 -> [Field; 4]
+              v6 = array_set v4, index v1, value Field 7
+              jmpif v2 then: b1(), else: b2()
+            b1():
+              store v6 at v3
+              jmp b2()
+            b2():
+              v7 = load v3 -> [Field; 4]
+              return v7
+          }
+        ";
+
+        use crate::ssa::interpreter::value::Value;
+        use acvm::FieldElement;
+
+        for src in [merge_route, store_route] {
+            let ssa = Ssa::from_str(src).unwrap();
+            let array = Value::array(
+                (1..=4).map(|i| Value::field(FieldElement::from(i as u128))).collect(),
+                vec![Type::field()],
+            );
+            let args = vec![array, Value::u32(10), Value::bool(false)];
+            let (_, result) = assert_pass_does_not_affect_execution(ssa, args, Ssa::flatten_cfg);
+            assert!(result.is_err(), "out-of-bounds array_set before the branch must still fail");
+        }
     }
 
     #[test]
