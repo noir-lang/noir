@@ -28,7 +28,7 @@ fn test_functions(context: &Context) -> Vec<(String, FuncId)> {
 /// Monomorphize `function` against `context`, returning the program it produced or the error it
 /// failed with, both rendered as text so the two can be compared and displayed.
 fn monomorphize_to_string(context: &mut Context, function: FuncId) -> String {
-    match monomorphize(function, &mut context.def_interner, false) {
+    match monomorphize(function, &context.def_interner, false) {
         Ok(program) => program.to_string(),
         Err(error) => format!("{error:?}"),
     }

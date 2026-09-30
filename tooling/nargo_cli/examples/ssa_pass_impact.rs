@@ -248,7 +248,7 @@ fn compile_into_program(
     let Some(main) = context.get_main_function(&crate_id) else {
         return Ok((None, warnings));
     };
-    let program = monomorphize(main, &mut context.def_interner, false)
+    let program = monomorphize(main, &context.def_interner, false)
         .map_err(|error| vec![CustomDiagnostic::from(error)])?;
     Ok((Some(program), warnings))
 }
