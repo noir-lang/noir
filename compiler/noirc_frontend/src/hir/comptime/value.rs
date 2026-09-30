@@ -10,7 +10,7 @@ use noirc_errors::Location;
 use strum_macros::Display;
 
 use crate::{
-    QuotedType, Shared, Type, TypeBindings,
+    QuotedType, Type, TypeBindings,
     ast::{
         ArrayLiteral, BlockExpression, CallExpression, ConstructorExpression, Expression,
         ExpressionKind, Ident, LValue, LetStatement, MethodCallExpression, Path, PathKind,
@@ -35,6 +35,7 @@ use rustc_hash::FxHashMap as HashMap;
 use rustc_hash::FxHashSet as HashSet;
 
 use super::{
+    ValueCell,
     display::tokens_to_string,
     errors::{IResult, InterpreterError},
 };
@@ -56,14 +57,14 @@ pub enum Value {
 
     /// Tuple elements are automatically shared to support projection into a tuple:
     /// `let elem = &mut tuple.0` should mutate the original element.
-    Tuple(Vec<Shared<Value>>),
+    Tuple(Vec<ValueCell>),
 
     /// Struct elements are automatically shared to support projection:
     /// `let elem = &mut my_struct.field` should mutate the original element.
     Struct(StructFields, Type),
 
     Enum(/*tag*/ usize, /*args*/ Vec<Value>, Type),
-    Pointer(Shared<Value>, /* auto_deref */ bool, /* mutable */ bool),
+    Pointer(ValueCell, /* auto_deref */ bool, /* mutable */ bool),
     Array(Vector<Value>, Type),
     Vector(Vector<Value>, Type),
     Quoted(Rc<Vec<LocatedToken>>),
@@ -87,7 +88,7 @@ pub enum FormatStringFragment {
     Value { name: String, value: Value },
 }
 
-pub(super) type StructFields = HashMap<Rc<String>, Shared<Value>>;
+pub(super) type StructFields = HashMap<Rc<String>, ValueCell>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Closure {
@@ -139,6 +140,18 @@ impl Value {
     int_constructor!(i32, I32);
     int_constructor!(i64, I64);
 
+    pub fn tuple(elements: Vec<Value>) -> Self {
+        Value::Tuple(vecmap(elements, ValueCell::new))
+    }
+
+    pub fn struct_from_fields(
+        fields: impl IntoIterator<Item = (String, Value)>,
+        typ: Type,
+    ) -> Self {
+        let fields = fields.into_iter().map(|(name, value)| (Rc::new(name), ValueCell::new(value)));
+        Value::Struct(fields.collect(), typ)
+    }
+
     pub(crate) fn expression(expr: ExpressionKind) -> Self {
         Value::Expr(Box::new(ExprValue::Expression(expr)))
     }
@@ -161,7 +174,7 @@ impl Value {
     /// cell it points to may be shared with other values.
     pub(crate) fn map_types(self, f: &impl Fn(&Type) -> Type) -> Value {
         let map_all = |values: Vec<Value>| vecmap(values, |value| value.map_types(f));
-        let map_shared = |value: Shared<Value>| Shared::new(value.unwrap_or_clone().map_types(f));
+        let map_cell = |value: ValueCell| ValueCell::new(value.unwrap_or_clone().map_types(f));
         match self {
             Value::FormatString(fragments, typ, length) => {
                 let fragments = vecmap(Rc::unwrap_or_clone(fragments), |fragment| match fragment {
@@ -192,10 +205,10 @@ impl Value {
                 };
                 Value::Closure(Box::new(closure))
             }
-            Value::Tuple(fields) => Value::Tuple(vecmap(fields, map_shared)),
+            Value::Tuple(fields) => Value::Tuple(vecmap(fields, map_cell)),
             Value::Struct(fields, typ) => {
                 let fields =
-                    fields.into_iter().map(|(name, field)| (name, map_shared(field))).collect();
+                    fields.into_iter().map(|(name, field)| (name, map_cell(field))).collect();
                 Value::Struct(fields, f(&typ))
             }
             Value::Enum(tag, args, typ) => Value::Enum(tag, map_all(args), f(&typ)),
@@ -877,11 +890,11 @@ impl Value {
     pub(crate) fn move_struct(self) -> Value {
         match self {
             Value::Tuple(fields) => Value::Tuple(vecmap(fields, |field| {
-                Shared::new(field.unwrap_or_clone().move_struct())
+                ValueCell::new(field.unwrap_or_clone().move_struct())
             })),
             Value::Struct(fields, typ) => {
                 let fields = fields.into_iter().map(|(name, field)| {
-                    (name, Shared::new(field.unwrap_or_clone().move_struct()))
+                    (name, ValueCell::new(field.unwrap_or_clone().move_struct()))
                 });
                 Value::Struct(fields.collect(), typ)
             }

@@ -47,6 +47,7 @@ use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, UnaryOp};
 use crate::elaborator::{Elaborator, ElaboratorOptions};
 use crate::hir::Context;
 use crate::hir::comptime::Integer;
+use crate::hir::comptime::ValueCell;
 use crate::hir::comptime::value::FormatStringFragment;
 use crate::hir::def_map::ModuleId;
 use crate::hir_def::types::resolve_type_bindings;
@@ -55,7 +56,7 @@ use crate::node_interner::GlobalValue;
 use crate::shared::{Builtin, ForeignCall, Signedness};
 use crate::token::{FmtStrFragment, Tokens};
 use crate::{
-    Shared, Type, TypeBindings,
+    Type, TypeBindings,
     hir_def::{
         expr::{
             HirArrayLiteral, HirBlockExpression, HirCallExpression, HirCastExpression,
@@ -544,7 +545,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         match pattern {
             HirPattern::Identifier(identifier) => {
                 let argument = if mutable {
-                    Value::Pointer(Shared::new(argument), true, true)
+                    Value::Pointer(ValueCell::new(argument), true, true)
                 } else {
                     argument
                 };
@@ -1172,7 +1173,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             .fields
             .into_iter()
             .map(|(name, expr)| {
-                let field_value = Shared::new(self.evaluate(expr)?);
+                let field_value = ValueCell::new(self.evaluate(expr)?);
                 Ok((Rc::new(name.into_string()), field_value))
             })
             .collect::<Result<_, _>>()?;
@@ -1215,7 +1216,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     /// Given a value, return the struct/tuple field with the given name, automatically dereferencing any
     /// pointers found.
-    fn get_field(&mut self, value: Value, id: ExprId, name: &String) -> IResult<Shared<Value>> {
+    fn get_field(&mut self, value: Value, id: ExprId, name: &String) -> IResult<ValueCell> {
         let typ = match value {
             Value::Struct(fields, struct_type) => match fields.get(name) {
                 Some(field) => return Ok(field.clone()),
@@ -1350,7 +1351,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 
     fn evaluate_tuple(&mut self, tuple: Vec<ExprId>) -> IResult<Value> {
-        let fields = try_vecmap(tuple, |field| Ok(Shared::new(self.evaluate(field)?)))?;
+        let fields = try_vecmap(tuple, |field| Ok(ValueCell::new(self.evaluate(field)?)))?;
         Ok(Value::Tuple(fields))
     }
 
@@ -1482,11 +1483,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
                 match object_value {
                     Value::Tuple(mut fields) => {
-                        fields[index] = Shared::new(rhs);
+                        fields[index] = ValueCell::new(rhs);
                         self.store_lvalue(*object, Value::Tuple(fields))
                     }
                     Value::Struct(mut fields, typ) => {
-                        fields.insert(Rc::new(field_name.into_string()), Shared::new(rhs));
+                        fields.insert(Rc::new(field_name.into_string()), ValueCell::new(rhs));
                         self.store_lvalue(*object, Value::Struct(fields, typ.follow_bindings()))
                     }
                     value => {
@@ -1522,7 +1523,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     /// ```
     /// we must flatten the store to store to each individual field so that any existing
     /// references, such as `b` above, will also reflect the mutation.
-    fn store_flattened(lvalue: &Shared<Value>, rvalue: Value) {
+    fn store_flattened(lvalue: &ValueCell, rvalue: Value) {
         let lvalue_ref = lvalue.borrow();
         match (&*lvalue_ref, rvalue) {
             (Value::Struct(lvalue_fields, _), Value::Struct(mut rvalue_fields, _)) => {
@@ -1934,7 +1935,7 @@ fn evaluate_prefix_with_value(rhs: Value, operator: UnaryOp, location: Location)
             // the value in a fresh reference.
             match rhs {
                 Value::Pointer(elem, true, _) => Ok(Value::Pointer(elem, false, mutable)),
-                other => Ok(Value::Pointer(Shared::new(other), false, mutable)),
+                other => Ok(Value::Pointer(ValueCell::new(other), false, mutable)),
             }
         }
         UnaryOp::Dereference { implicitly_added: _ } => match rhs {

@@ -23,13 +23,14 @@ use acvm::{AcirField, FieldElement};
 use errors::{InternalError, InterpreterError, MAX_UNSIGNED_BIT_SIZE};
 use iter_extended::{try_vecmap, vecmap};
 use itertools::Itertools;
-use noirc_frontend::Shared;
 use num_bigint::BigUint;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use shared_cell::SharedCell;
 use value::{ArrayValue, NumericValue, ReferenceValue, StorageIdentity};
 
 pub mod errors;
 mod intrinsics;
+mod shared_cell;
 pub(crate) mod tests;
 pub mod value;
 
@@ -1224,7 +1225,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         }
     }
 
-    /// Reset the value's `Shared` states in each array within. This is used to mimic each
+    /// Reset the value's `SharedCell` states in each array within. This is used to mimic each
     /// invocation of the brillig vm, or of a separate ACIR circuit, receiving and returning
     /// fresh values. No matter the history of this value
     /// (e.g. even if they were previously returned from another brillig function) the reference
@@ -1245,8 +1246,8 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 for element in &mut elements {
                     Self::reset_array_state(element)?;
                 }
-                array_value.elements = Shared::new(elements);
-                array_value.rc = Shared::new(1);
+                array_value.elements = SharedCell::new(elements);
+                array_value.rc = SharedCell::new(1);
                 Ok(())
             }
         }
@@ -1301,14 +1302,14 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
     /// In the ACIR runtime a nested array must be a fresh copy rather than a shared handle:
     /// `array_get` returns a fresh nested array and `array_set` stores a fresh copy of an
     /// array-valued element. Otherwise a later mutable array set on the source array would
-    /// also mutate the value produced here, since both would share the same `Shared` handle.
+    /// also mutate the value produced here, since both would share the same `SharedCell` handle.
     /// In the Brillig runtime this aliasing is expected, so the value is cloned as-is.
     fn copy_nested_array_in_acir(&self, value: &Value) -> Value {
         if !self.in_unconstrained_context()
             && let Some(array) = value.as_array_or_vector()
         {
             return Value::ArrayOrVector(ArrayValue {
-                elements: Shared::new(array.elements.borrow().to_vec()),
+                elements: SharedCell::new(array.elements.borrow().to_vec()),
                 rc: array.rc,
                 element_types: array.element_types,
                 length: array.length,
@@ -1449,8 +1450,8 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 }
                 let mut elements = array.elements.borrow().to_vec();
                 elements[index as usize] = value;
-                let elements = Shared::new(elements);
-                let rc = Shared::new(1);
+                let elements = SharedCell::new(elements);
+                let rc = SharedCell::new(1);
                 let element_types = array.element_types.clone();
                 let length = array.length;
                 Value::ArrayOrVector(ArrayValue { elements, rc, element_types, length })
@@ -1578,8 +1579,8 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         }
 
         let array = Value::ArrayOrVector(ArrayValue {
-            elements: Shared::new(elements),
-            rc: Shared::new(1),
+            elements: SharedCell::new(elements),
+            rc: SharedCell::new(1),
             element_types,
             length,
         });
