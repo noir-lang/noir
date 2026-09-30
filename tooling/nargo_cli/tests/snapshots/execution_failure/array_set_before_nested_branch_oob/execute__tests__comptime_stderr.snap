@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Index out of bounds: 4294967295 is out of bounds for the array of length 4
+  ┌─ src/main.nr:4:5
+  │
+4 │     x[j] = 7;
+  │     ----
+  │
+
+Error interpreting main function
