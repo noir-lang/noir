@@ -1032,6 +1032,14 @@ impl TypeVariable {
         TypeVariable(id, Shared::new(TypeBinding::Unbound(id, type_var_kind)))
     }
 
+    /// A type variable that is bound to `typ` from the start.
+    ///
+    /// Its kind is `typ`'s kind, as for any bound type variable.
+    pub fn bound(id: TypeVariableId, typ: Type) -> Self {
+        assert!(!typ.occurs(id), "type variable {} occurs within {typ:?}", id.0);
+        TypeVariable(id, Shared::new(TypeBinding::Bound(typ)))
+    }
+
     pub fn id(&self) -> TypeVariableId {
         self.0
     }
