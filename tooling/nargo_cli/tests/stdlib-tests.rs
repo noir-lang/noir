@@ -108,7 +108,7 @@ fn run_stdlib_tests(force: Force, inliner_aggressiveness: i64) {
                     let result = std::panic::catch_unwind(move || {
                         run_test(
                             &bn254_blackbox_solver::Bn254BlackBoxSolver,
-                            &mut context,
+                            &context,
                             &test_function,
                             std::io::stdout(),
                             &CompileOptions {

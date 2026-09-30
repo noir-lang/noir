@@ -845,7 +845,7 @@ pub fn filter_relevant_files(
 #[tracing::instrument(level = "trace", skip_all, fields(function_name = context.function_name(&main_function)))]
 #[allow(clippy::result_large_err)]
 pub fn compile_no_check(
-    context: &mut Context,
+    context: &Context,
     options: &CompileOptions,
     main_function: FuncId,
     cached_program: Option<CompiledProgram>,
