@@ -227,7 +227,7 @@
 <a href=#227 id=227 data-nosnippet>227</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>introduce_generics_into_scope(<span class="kw-2">&amp;mut </span><span class="self">self</span>, all_generics: Vec&lt;ResolvedGeneric&gt;) {
 <a href=#228 id=228 data-nosnippet>228</a>        <span class="comment">// Introduce all numeric generics into scope
 <a href=#229 id=229 data-nosnippet>229</a>        </span><span class="kw">for </span>generic <span class="kw">in </span><span class="kw-2">&amp;</span>all_generics {
-<a href=#230 id=230 data-nosnippet>230</a>            <span class="kw">if let </span>Kind::Numeric(typ) = <span class="kw-2">&amp;</span>generic.kind() {
+<a href=#230 id=230 data-nosnippet>230</a>            <span class="kw">if let </span>Kind::Numeric(typ) = <span class="kw-2">&amp;*</span>generic.kind() {
 <a href=#231 id=231 data-nosnippet>231</a>                <span class="kw">let </span>definition =
 <a href=#232 id=232 data-nosnippet>232</a>                    DefinitionKind::NumericGeneric(generic.type_var.clone(), typ.clone());
 <a href=#233 id=233 data-nosnippet>233</a>                <span class="kw">let </span>ident = Ident::new(generic.name.to_string(), generic.location);

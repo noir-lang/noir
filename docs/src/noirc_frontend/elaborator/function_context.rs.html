@@ -326,7 +326,7 @@
 <a href=#326 id=326 data-nosnippet>326</a>                        <span class="kw">let </span>generic_name = generic.name.to_string();
 <a href=#327 id=327 data-nosnippet>327</a>                        <span class="kw">let </span>item_kind = <span class="string">"struct"</span>;
 <a href=#328 id=328 data-nosnippet>328</a>                        <span class="kw">let </span>item_name = data_type.borrow().name.to_string();
-<a href=#329 id=329 data-nosnippet>329</a>                        <span class="kw">let </span>is_numeric = <span class="macro">matches!</span>(generic.type_var.kind(), Kind::Numeric(..));
+<a href=#329 id=329 data-nosnippet>329</a>                        <span class="kw">let </span>is_numeric = <span class="macro">matches!</span>(<span class="kw-2">*</span>generic.type_var.kind(), Kind::Numeric(..));
 <a href=#330 id=330 data-nosnippet>330</a>                        <span class="self">self</span>.push_err(TypeCheckError::TypeAnnotationNeededOnItem {
 <a href=#331 id=331 data-nosnippet>331</a>                            location,
 <a href=#332 id=332 data-nosnippet>332</a>                            generic_name,
@@ -363,7 +363,7 @@
 <a href=#363 id=363 data-nosnippet>363</a>                                    <span class="kw">let </span>item_name =
 <a href=#364 id=364 data-nosnippet>364</a>                                        <span class="self">self</span>.interner.definition_name(definition_id).to_string();
 <a href=#365 id=365 data-nosnippet>365</a>                                    <span class="kw">let </span>is_numeric =
-<a href=#366 id=366 data-nosnippet>366</a>                                        <span class="macro">matches!</span>(generic.type_var.kind(), Kind::Numeric(..));
+<a href=#366 id=366 data-nosnippet>366</a>                                        <span class="macro">matches!</span>(<span class="kw-2">*</span>generic.type_var.kind(), Kind::Numeric(..));
 <a href=#367 id=367 data-nosnippet>367</a>                                    <span class="self">self</span>.push_err(TypeCheckError::TypeAnnotationNeededOnItem {
 <a href=#368 id=368 data-nosnippet>368</a>                                        location,
 <a href=#369 id=369 data-nosnippet>369</a>                                        generic_name: generic.name.to_string(),
@@ -389,7 +389,7 @@
 <a href=#389 id=389 data-nosnippet>389</a>                                    all_generics.find(|generic| generic.type_var.id() == id);
 <a href=#390 id=390 data-nosnippet>390</a>                                <span class="kw">if let </span><span class="prelude-val">Some</span>(generic) = generic {
 <a href=#391 id=391 data-nosnippet>391</a>                                    <span class="kw">let </span>is_numeric =
-<a href=#392 id=392 data-nosnippet>392</a>                                        <span class="macro">matches!</span>(generic.type_var.kind(), Kind::Numeric(..));
+<a href=#392 id=392 data-nosnippet>392</a>                                        <span class="macro">matches!</span>(<span class="kw-2">*</span>generic.type_var.kind(), Kind::Numeric(..));
 <a href=#393 id=393 data-nosnippet>393</a>                                    <span class="self">self</span>.push_err(TypeCheckError::TypeAnnotationNeededOnItem {
 <a href=#394 id=394 data-nosnippet>394</a>                                        location,
 <a href=#395 id=395 data-nosnippet>395</a>                                        generic_name: generic.name.to_string(),
@@ -422,7 +422,7 @@
 <a href=#422 id=422 data-nosnippet>422</a>                                drop(def);
 <a href=#423 id=423 data-nosnippet>423</a>                                <span class="kw">if let </span><span class="prelude-val">Some</span>(generic) = generic {
 <a href=#424 id=424 data-nosnippet>424</a>                                    <span class="kw">let </span>is_numeric =
-<a href=#425 id=425 data-nosnippet>425</a>                                        <span class="macro">matches!</span>(generic.type_var.kind(), Kind::Numeric(..));
+<a href=#425 id=425 data-nosnippet>425</a>                                        <span class="macro">matches!</span>(<span class="kw-2">*</span>generic.type_var.kind(), Kind::Numeric(..));
 <a href=#426 id=426 data-nosnippet>426</a>                                    <span class="self">self</span>.push_err(TypeCheckError::TypeAnnotationNeededOnItem {
 <a href=#427 id=427 data-nosnippet>427</a>                                        location,
 <a href=#428 id=428 data-nosnippet>428</a>                                        generic_name: generic.name.to_string(),

@@ -427,9 +427,9 @@
 <a href=#427 id=427 data-nosnippet>427</a>        <span class="self">self</span>.show_generics(<span class="kw-2">&amp;</span>type_alias.generics);
 <a href=#428 id=428 data-nosnippet>428</a>        <span class="comment">// A numeric type alias (`type Double&lt;let N: u32&gt;: u32 = N * 2;`) must spell out its
 <a href=#429 id=429 data-nosnippet>429</a>        // numeric type, otherwise the right-hand side is rejected as a type expression.
-<a href=#430 id=430 data-nosnippet>430</a>        </span><span class="kw">if let </span>Kind::Numeric(numeric_type) = type_alias.typ.kind() {
+<a href=#430 id=430 data-nosnippet>430</a>        </span><span class="kw">if let </span>Kind::Numeric(numeric_type) = <span class="kw-2">&amp;*</span>type_alias.typ.kind() {
 <a href=#431 id=431 data-nosnippet>431</a>            <span class="self">self</span>.push_str(<span class="string">": "</span>);
-<a href=#432 id=432 data-nosnippet>432</a>            <span class="self">self</span>.show_type(<span class="kw-2">&amp;</span>numeric_type);
+<a href=#432 id=432 data-nosnippet>432</a>            <span class="self">self</span>.show_type(numeric_type);
 <a href=#433 id=433 data-nosnippet>433</a>        }
 <a href=#434 id=434 data-nosnippet>434</a>        <span class="self">self</span>.push_str(<span class="string">" = "</span>);
 <a href=#435 id=435 data-nosnippet>435</a>        <span class="self">self</span>.show_type(<span class="kw-2">&amp;</span>type_alias.typ);
@@ -474,11 +474,11 @@
 <a href=#474 id=474 data-nosnippet>474</a>
 <a href=#475 id=475 data-nosnippet>475</a>            <span class="self">self</span>.write_indent();
 <a href=#476 id=476 data-nosnippet>476</a>
-<a href=#477 id=477 data-nosnippet>477</a>            <span class="kw">if let </span>Kind::Numeric(numeric_type) = associated_type.kind() {
+<a href=#477 id=477 data-nosnippet>477</a>            <span class="kw">if let </span>Kind::Numeric(numeric_type) = <span class="kw-2">&amp;*</span>associated_type.kind() {
 <a href=#478 id=478 data-nosnippet>478</a>                <span class="self">self</span>.push_str(<span class="string">"let "</span>);
 <a href=#479 id=479 data-nosnippet>479</a>                <span class="self">self</span>.push_str(<span class="kw-2">&amp;</span>associated_type.name);
 <a href=#480 id=480 data-nosnippet>480</a>                <span class="self">self</span>.push_str(<span class="string">": "</span>);
-<a href=#481 id=481 data-nosnippet>481</a>                <span class="self">self</span>.show_type(<span class="kw-2">&amp;</span>numeric_type);
+<a href=#481 id=481 data-nosnippet>481</a>                <span class="self">self</span>.show_type(numeric_type);
 <a href=#482 id=482 data-nosnippet>482</a>            } <span class="kw">else </span>{
 <a href=#483 id=483 data-nosnippet>483</a>                <span class="self">self</span>.push_str(<span class="string">"type "</span>);
 <a href=#484 id=484 data-nosnippet>484</a>                <span class="self">self</span>.push_str(<span class="kw-2">&amp;</span>associated_type.name);
@@ -571,7 +571,7 @@
 <a href=#571 id=571 data-nosnippet>571</a>
 <a href=#572 id=572 data-nosnippet>572</a>            <span class="self">self</span>.write_indent();
 <a href=#573 id=573 data-nosnippet>573</a>
-<a href=#574 id=574 data-nosnippet>574</a>            <span class="kw">if let </span>Kind::Numeric(numeric_type) = named_type.typ.kind() {
+<a href=#574 id=574 data-nosnippet>574</a>            <span class="kw">if let </span>Kind::Numeric(numeric_type) = <span class="kw-2">&amp;*</span>named_type.typ.kind() {
 <a href=#575 id=575 data-nosnippet>575</a>                <span class="self">self</span>.push_str(<span class="string">"let "</span>);
 <a href=#576 id=576 data-nosnippet>576</a>                <span class="self">self</span>.push_str(<span class="kw-2">&amp;</span>named_type.name.to_string());
 <a href=#577 id=577 data-nosnippet>577</a>                <span class="self">self</span>.push_str(<span class="string">": "</span>);
@@ -580,14 +580,14 @@
 <a href=#580 id=580 data-nosnippet>580</a>                // the whole declaration — annotation, value and the value's type suffix —
 <a href=#581 id=581 data-nosnippet>581</a>                // since the value is a numeric type expression subject to the same rule.
 <a href=#582 id=582 data-nosnippet>582</a>                </span><span class="kw">let </span>self_type = <span class="self">self</span>.self_type.take();
-<a href=#583 id=583 data-nosnippet>583</a>                <span class="self">self</span>.show_type(<span class="kw-2">&amp;</span>numeric_type);
+<a href=#583 id=583 data-nosnippet>583</a>                <span class="self">self</span>.show_type(numeric_type);
 <a href=#584 id=584 data-nosnippet>584</a>                <span class="self">self</span>.push_str(<span class="string">" = "</span>);
 <a href=#585 id=585 data-nosnippet>585</a>                <span class="comment">// An unsuffixed literal in this position is checked as `u32`, so a constant
 <a href=#586 id=586 data-nosnippet>586</a>                // of any other numeric type needs its type suffix.
 <a href=#587 id=587 data-nosnippet>587</a>                </span><span class="kw">if let </span>Type::Constant(constant) = named_type.typ.follow_bindings() {
 <a href=#588 id=588 data-nosnippet>588</a>                    <span class="self">self</span>.push_str(<span class="kw-2">&amp;</span>constant.to_string());
 <a href=#589 id=589 data-nosnippet>589</a>                    <span class="self">self</span>.push(<span class="string">'_'</span>);
-<a href=#590 id=590 data-nosnippet>590</a>                    <span class="self">self</span>.show_type(<span class="kw-2">&amp;</span>numeric_type);
+<a href=#590 id=590 data-nosnippet>590</a>                    <span class="self">self</span>.show_type(numeric_type);
 <a href=#591 id=591 data-nosnippet>591</a>                } <span class="kw">else </span>{
 <a href=#592 id=592 data-nosnippet>592</a>                    <span class="self">self</span>.show_type(<span class="kw-2">&amp;</span>named_type.typ);
 <a href=#593 id=593 data-nosnippet>593</a>                }

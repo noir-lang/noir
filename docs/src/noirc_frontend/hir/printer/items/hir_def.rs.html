@@ -1005,9 +1005,9 @@
 <a href=#1005 id=1005 data-nosnippet>1005</a>                        &amp;&amp; <span class="kw">let </span>Type::Constant(constant) = named_type.typ.follow_bindings()
 <a href=#1006 id=1006 data-nosnippet>1006</a>                    {
 <a href=#1007 id=1007 data-nosnippet>1007</a>                        <span class="self">self</span>.push_str(<span class="kw-2">&amp;</span>constant.to_string());
-<a href=#1008 id=1008 data-nosnippet>1008</a>                        <span class="kw">if let </span>Kind::Numeric(numeric_type) = named_type.typ.kind() {
+<a href=#1008 id=1008 data-nosnippet>1008</a>                        <span class="kw">if let </span>Kind::Numeric(numeric_type) = <span class="kw-2">&amp;*</span>named_type.typ.kind() {
 <a href=#1009 id=1009 data-nosnippet>1009</a>                            <span class="self">self</span>.push(<span class="string">'_'</span>);
-<a href=#1010 id=1010 data-nosnippet>1010</a>                            <span class="self">self</span>.show_type(<span class="kw-2">&amp;</span>numeric_type);
+<a href=#1010 id=1010 data-nosnippet>1010</a>                            <span class="self">self</span>.show_type(numeric_type);
 <a href=#1011 id=1011 data-nosnippet>1011</a>                        }
 <a href=#1012 id=1012 data-nosnippet>1012</a>                        <span class="kw">return</span>;
 <a href=#1013 id=1013 data-nosnippet>1013</a>                    }

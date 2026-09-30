@@ -241,7 +241,7 @@
 <a href=#241 id=241 data-nosnippet>241</a>        <span class="kw">let </span>substitutions = impl_generics
 <a href=#242 id=242 data-nosnippet>242</a>            .into_iter()
 <a href=#243 id=243 data-nosnippet>243</a>            .map(|typevar| {
-<a href=#244 id=244 data-nosnippet>244</a>                <span class="kw">let </span>typevar_kind = typevar.kind();
+<a href=#244 id=244 data-nosnippet>244</a>                <span class="kw">let </span>typevar_kind = typevar.kind().into_owned();
 <a href=#245 id=245 data-nosnippet>245</a>                <span class="kw">let </span>typevar_id = typevar.id();
 <a href=#246 id=246 data-nosnippet>246</a>                <span class="kw">let </span>substitution = (
 <a href=#247 id=247 data-nosnippet>247</a>                    typevar,

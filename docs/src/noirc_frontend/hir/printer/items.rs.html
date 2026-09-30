@@ -680,7 +680,7 @@
 <a href=#680 id=680 data-nosnippet>680</a>            }
 <a href=#681 id=681 data-nosnippet>681</a>        }
 <a href=#682 id=682 data-nosnippet>682</a>        Type::NamedGeneric(NamedGeneric { type_var, name, .. }) =&gt; {
-<a href=#683 id=683 data-nosnippet>683</a>            type_vars.insert((name.to_string(), type_var.kind()));
+<a href=#683 id=683 data-nosnippet>683</a>            type_vars.insert((name.to_string(), type_var.kind().into_owned()));
 <a href=#684 id=684 data-nosnippet>684</a>        }
 <a href=#685 id=685 data-nosnippet>685</a>        Type::CheckedCast { from, to: <span class="kw">_ </span>} =&gt; {
 <a href=#686 id=686 data-nosnippet>686</a>            gather_named_type_vars(from, type_vars);

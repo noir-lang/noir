@@ -269,8 +269,8 @@
 <a href=#269 id=269 data-nosnippet>269</a>                <span class="kw">for </span>associated_type <span class="kw">in </span><span class="kw-2">&amp;</span>trait_.associated_types {
 <a href=#270 id=270 data-nosnippet>270</a>                    <span class="kw">let </span>name = associated_type.name.to_string();
 <a href=#271 id=271 data-nosnippet>271</a>
-<a href=#272 id=272 data-nosnippet>272</a>                    <span class="kw">if let </span>Kind::Numeric(numeric_type) = associated_type.kind() {
-<a href=#273 id=273 data-nosnippet>273</a>                        <span class="kw">let </span>r#type = <span class="self">self</span>.convert_type(<span class="kw-2">&amp;</span>numeric_type);
+<a href=#272 id=272 data-nosnippet>272</a>                    <span class="kw">if let </span>Kind::Numeric(numeric_type) = <span class="kw-2">&amp;*</span>associated_type.kind() {
+<a href=#273 id=273 data-nosnippet>273</a>                        <span class="kw">let </span>r#type = <span class="self">self</span>.convert_type(numeric_type);
 <a href=#274 id=274 data-nosnippet>274</a>                        associated_constants.push(AssociatedConstant { name, r#type });
 <a href=#275 id=275 data-nosnippet>275</a>                    } <span class="kw">else </span>{
 <a href=#276 id=276 data-nosnippet>276</a>                        <span class="kw">let </span>bounds = <span class="kw">if let </span><span class="prelude-val">Some</span>(trait_bounds) =
@@ -400,7 +400,7 @@
 <a href=#400 id=400 data-nosnippet>400</a>    <span class="kw">fn </span>convert_impl(<span class="kw-2">&amp;mut </span><span class="self">self</span>, impl_: expand_items::Impl) -&gt; Impl {
 <a href=#401 id=401 data-nosnippet>401</a>        <span class="kw">let </span>generics = vecmap(impl_.generics, |generic| {
 <a href=#402 id=402 data-nosnippet>402</a>            <span class="kw">let </span>name = generic.name.as_ref().clone();
-<a href=#403 id=403 data-nosnippet>403</a>            <span class="kw">let </span>numeric = <span class="self">self</span>.kind_to_numeric(generic.kind());
+<a href=#403 id=403 data-nosnippet>403</a>            <span class="kw">let </span>numeric = <span class="self">self</span>.kind_to_numeric(<span class="kw-2">&amp;</span>generic.kind());
 <a href=#404 id=404 data-nosnippet>404</a>            Generic { name, numeric }
 <a href=#405 id=405 data-nosnippet>405</a>        });
 <a href=#406 id=406 data-nosnippet>406</a>        <span class="kw">let </span>r#type = <span class="self">self</span>.convert_type(<span class="kw-2">&amp;</span>impl_.typ);
@@ -426,7 +426,7 @@
 <a href=#426 id=426 data-nosnippet>426</a>        <span class="kw">let </span>trait_impl = trait_impl.borrow();
 <a href=#427 id=427 data-nosnippet>427</a>
 <a href=#428 id=428 data-nosnippet>428</a>        <span class="kw">let </span>generics = vecmap(item_trait_impl.generics, |(name, kind)| {
-<a href=#429 id=429 data-nosnippet>429</a>            <span class="kw">let </span>numeric = <span class="self">self</span>.kind_to_numeric(kind);
+<a href=#429 id=429 data-nosnippet>429</a>            <span class="kw">let </span>numeric = <span class="self">self</span>.kind_to_numeric(<span class="kw-2">&amp;</span>kind);
 <a href=#430 id=430 data-nosnippet>430</a>            Generic { name, numeric }
 <a href=#431 id=431 data-nosnippet>431</a>        });
 <a href=#432 id=432 data-nosnippet>432</a>        <span class="kw">let </span>where_clause = vecmap(<span class="kw-2">&amp;</span>trait_impl.where_clause, |constraint| {
@@ -691,15 +691,15 @@
 <a href=#691 id=691 data-nosnippet>691</a>    }
 <a href=#692 id=692 data-nosnippet>692</a>
 <a href=#693 id=693 data-nosnippet>693</a>    <span class="kw">fn </span>convert_generic(<span class="kw-2">&amp;</span><span class="self">self</span>, generic: <span class="kw-2">&amp;</span>ResolvedGeneric) -&gt; Generic {
-<a href=#694 id=694 data-nosnippet>694</a>        <span class="kw">let </span>numeric = <span class="self">self</span>.kind_to_numeric(generic.kind());
+<a href=#694 id=694 data-nosnippet>694</a>        <span class="kw">let </span>numeric = <span class="self">self</span>.kind_to_numeric(<span class="kw-2">&amp;</span>generic.kind());
 <a href=#695 id=695 data-nosnippet>695</a>        <span class="kw">let </span>name = generic.name.to_string();
 <a href=#696 id=696 data-nosnippet>696</a>        Generic { name, numeric }
 <a href=#697 id=697 data-nosnippet>697</a>    }
 <a href=#698 id=698 data-nosnippet>698</a>
-<a href=#699 id=699 data-nosnippet>699</a>    <span class="kw">fn </span>kind_to_numeric(<span class="kw-2">&amp;</span><span class="self">self</span>, kind: Kind) -&gt; <span class="prelude-ty">Option</span>&lt;Type&gt; {
+<a href=#699 id=699 data-nosnippet>699</a>    <span class="kw">fn </span>kind_to_numeric(<span class="kw-2">&amp;</span><span class="self">self</span>, kind: <span class="kw-2">&amp;</span>Kind) -&gt; <span class="prelude-ty">Option</span>&lt;Type&gt; {
 <a href=#700 id=700 data-nosnippet>700</a>        <span class="kw">match </span>kind {
 <a href=#701 id=701 data-nosnippet>701</a>            Kind::Any | Kind::Normal | Kind::IntegerOrField | Kind::Integer =&gt; <span class="prelude-val">None</span>,
-<a href=#702 id=702 data-nosnippet>702</a>            Kind::Numeric(typ) =&gt; <span class="prelude-val">Some</span>(<span class="self">self</span>.convert_type(<span class="kw-2">&amp;</span>typ)),
+<a href=#702 id=702 data-nosnippet>702</a>            Kind::Numeric(typ) =&gt; <span class="prelude-val">Some</span>(<span class="self">self</span>.convert_type(typ)),
 <a href=#703 id=703 data-nosnippet>703</a>        }
 <a href=#704 id=704 data-nosnippet>704</a>    }
 <a href=#705 id=705 data-nosnippet>705</a>

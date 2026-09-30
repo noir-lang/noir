@@ -649,8 +649,8 @@
 <a href=#649 id=649 data-nosnippet>649</a>        <span class="macro">assert!</span>(<span class="macro">matches!</span>(rhs, Type::Constant(..)));
 <a href=#650 id=650 data-nosnippet>650</a>
 <a href=#651 id=651 data-nosnippet>651</a>        <span class="comment">// ensure result kinds are the same as the original kind
-<a href=#652 id=652 data-nosnippet>652</a>        </span><span class="macro">assert_eq!</span>(lhs.kind(), field_element_kind);
-<a href=#653 id=653 data-nosnippet>653</a>        <span class="macro">assert_eq!</span>(rhs.kind(), field_element_kind);
+<a href=#652 id=652 data-nosnippet>652</a>        </span><span class="macro">assert_eq!</span>(<span class="kw-2">*</span>lhs.kind(), field_element_kind);
+<a href=#653 id=653 data-nosnippet>653</a>        <span class="macro">assert_eq!</span>(<span class="kw-2">*</span>rhs.kind(), field_element_kind);
 <a href=#654 id=654 data-nosnippet>654</a>
 <a href=#655 id=655 data-nosnippet>655</a>        <span class="comment">// ensure results are the same
 <a href=#656 id=656 data-nosnippet>656</a>        </span><span class="macro">assert_eq!</span>(lhs, rhs);
@@ -845,7 +845,7 @@
 <a href=#845 id=845 data-nosnippet>845</a>
 <a href=#846 id=846 data-nosnippet>846</a>    <span class="kw">fn </span>infix_expr_helper(lhs_op_rhs: (Type, BinaryTypeOperator, Type)) -&gt; Type {
 <a href=#847 id=847 data-nosnippet>847</a>        <span class="kw">let </span>(lhs, op, rhs) = lhs_op_rhs;
-<a href=#848 id=848 data-nosnippet>848</a>        <span class="macro">assert_eq!</span>(lhs.kind(), rhs.kind());
+<a href=#848 id=848 data-nosnippet>848</a>        <span class="macro">assert_eq!</span>(<span class="kw-2">*</span>lhs.kind(), <span class="kw-2">*</span>rhs.kind());
 <a href=#849 id=849 data-nosnippet>849</a>        <span class="kw">let </span>op = <span class="kw">if </span>lhs.kind().integral_maximum_size().is_none()
 <a href=#850 id=850 data-nosnippet>850</a>            &amp;&amp; <span class="macro">matches!</span>(op, BinaryTypeOperator::Modulo)
 <a href=#851 id=851 data-nosnippet>851</a>        {
@@ -1026,8 +1026,8 @@
 <a href=#1026 id=1026 data-nosnippet>1026</a>            } <span class="kw">else </span>{
 <a href=#1027 id=1027 data-nosnippet>1027</a>                <span class="comment">// ensure result kinds are the same as the original kind
 <a href=#1028 id=1028 data-nosnippet>1028</a>                </span><span class="kw">let </span>kind = Kind::numeric(typ);
-<a href=#1029 id=1029 data-nosnippet>1029</a>                <span class="macro">prop_assert_eq!</span>(infix.kind(), kind.clone());
-<a href=#1030 id=1030 data-nosnippet>1030</a>                <span class="macro">prop_assert_eq!</span>(infix_canonicalized.kind(), kind);
+<a href=#1029 id=1029 data-nosnippet>1029</a>                <span class="macro">prop_assert_eq!</span>(<span class="kw-2">&amp;*</span>infix.kind(), <span class="kw-2">&amp;</span>kind);
+<a href=#1030 id=1030 data-nosnippet>1030</a>                <span class="macro">prop_assert_eq!</span>(<span class="kw-2">&amp;*</span>infix_canonicalized.kind(), <span class="kw-2">&amp;</span>kind);
 <a href=#1031 id=1031 data-nosnippet>1031</a>
 <a href=#1032 id=1032 data-nosnippet>1032</a>                <span class="comment">// ensure results are the same
 <a href=#1033 id=1033 data-nosnippet>1033</a>                </span><span class="macro">prop_assert_eq!</span>(infix, infix_canonicalized);
@@ -1059,8 +1059,8 @@
 <a href=#1059 id=1059 data-nosnippet>1059</a>
 <a href=#1060 id=1060 data-nosnippet>1060</a>            <span class="comment">// ensure result kinds are the same as the original kind
 <a href=#1061 id=1061 data-nosnippet>1061</a>            </span><span class="kw">let </span>kind = Kind::numeric(typ);
-<a href=#1062 id=1062 data-nosnippet>1062</a>            <span class="macro">prop_assert_eq!</span>(infix.kind(), kind.clone());
-<a href=#1063 id=1063 data-nosnippet>1063</a>            <span class="macro">prop_assert_eq!</span>(infix_canonicalized.kind(), kind.clone());
+<a href=#1062 id=1062 data-nosnippet>1062</a>            <span class="macro">prop_assert_eq!</span>(<span class="kw-2">&amp;*</span>infix.kind(), <span class="kw-2">&amp;</span>kind);
+<a href=#1063 id=1063 data-nosnippet>1063</a>            <span class="macro">prop_assert_eq!</span>(<span class="kw-2">&amp;*</span>infix_canonicalized.kind(), <span class="kw-2">&amp;</span>kind);
 <a href=#1064 id=1064 data-nosnippet>1064</a>
 <a href=#1065 id=1065 data-nosnippet>1065</a>            <span class="comment">// ensure the results are still wrapped in CheckedCast's
 <a href=#1066 id=1066 data-nosnippet>1066</a>            </span><span class="kw">match </span>(<span class="kw-2">&amp;</span>infix, <span class="kw-2">&amp;</span>infix_canonicalized) {
@@ -1069,8 +1069,8 @@
 <a href=#1069 id=1069 data-nosnippet>1069</a>                    </span><span class="macro">prop_assert_eq!</span>(from.canonicalize(), from_canonicalized.canonicalize());
 <a href=#1070 id=1070 data-nosnippet>1070</a>
 <a href=#1071 id=1071 data-nosnippet>1071</a>                    <span class="comment">// ensure to's have the same kinds
-<a href=#1072 id=1072 data-nosnippet>1072</a>                    </span><span class="macro">prop_assert_eq!</span>(to.kind(), kind.clone());
-<a href=#1073 id=1073 data-nosnippet>1073</a>                    <span class="macro">prop_assert_eq!</span>(to_canonicalized.kind(), kind);
+<a href=#1072 id=1072 data-nosnippet>1072</a>                    </span><span class="macro">prop_assert_eq!</span>(<span class="kw-2">&amp;*</span>to.kind(), <span class="kw-2">&amp;</span>kind);
+<a href=#1073 id=1073 data-nosnippet>1073</a>                    <span class="macro">prop_assert_eq!</span>(<span class="kw-2">&amp;*</span>to_canonicalized.kind(), <span class="kw-2">&amp;</span>kind);
 <a href=#1074 id=1074 data-nosnippet>1074</a>                }
 <a href=#1075 id=1075 data-nosnippet>1075</a>                <span class="kw">_ </span>=&gt; {
 <a href=#1076 id=1076 data-nosnippet>1076</a>                    <span class="macro">prop_assert!</span>(<span class="bool-val">false</span>, <span class="string">"expected CheckedCast"</span>);
@@ -1108,7 +1108,7 @@
 <a href=#1108 id=1108 data-nosnippet>1108</a>            // leave the expression untouched.
 <a href=#1109 id=1109 data-nosnippet>1109</a>            </span><span class="kw">let </span><span class="kw-2">mut </span>substitutions = TypeBindings::default();
 <a href=#1110 id=1110 data-nosnippet>1110</a>            <span class="kw">for </span>(var, value) <span class="kw">in </span><span class="kw-2">&amp;</span>bindings {
-<a href=#1111 id=1111 data-nosnippet>1111</a>                substitutions.insert(var.id(), (var.clone(), var.kind(), value.clone()));
+<a href=#1111 id=1111 data-nosnippet>1111</a>                substitutions.insert(var.id(), (var.clone(), var.kind().into_owned(), value.clone()));
 <a href=#1112 id=1112 data-nosnippet>1112</a>            }
 <a href=#1113 id=1113 data-nosnippet>1113</a>
 <a href=#1114 id=1114 data-nosnippet>1114</a>            <span class="kw">let </span>location = Location::dummy();
@@ -1183,7 +1183,7 @@
 <a href=#1183 id=1183 data-nosnippet>1183</a>            };
 <a href=#1184 id=1184 data-nosnippet>1184</a>
 <a href=#1185 id=1185 data-nosnippet>1185</a>            <span class="kw">let </span>infix_canonicalized = infix.canonicalize();
-<a href=#1186 id=1186 data-nosnippet>1186</a>            <span class="macro">prop_assert_eq!</span>(infix_canonicalized.kind(), kind);
+<a href=#1186 id=1186 data-nosnippet>1186</a>            <span class="macro">prop_assert_eq!</span>(<span class="kw-2">&amp;*</span>infix_canonicalized.kind(), <span class="kw-2">&amp;</span>kind);
 <a href=#1187 id=1187 data-nosnippet>1187</a>            <span class="macro">prop_assert!</span>(infix.kind().unifies(<span class="kw-2">&amp;</span>result_type.kind()));
 <a href=#1188 id=1188 data-nosnippet>1188</a>
 <a href=#1189 id=1189 data-nosnippet>1189</a>            <span class="kw">let </span>infix_canonicalized = <span class="kw">match </span>infix_canonicalized {

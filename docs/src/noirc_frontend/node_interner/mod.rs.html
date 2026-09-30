@@ -1525,7 +1525,7 @@
 <a href=#1525 id=1525 data-nosnippet>1525</a>    ) {
 <a href=#1526 id=1526 data-nosnippet>1526</a>        <span class="comment">// Wrap the named generics in type variables to be able to refer them as type variables
 <a href=#1527 id=1527 data-nosnippet>1527</a>        </span><span class="kw">for </span>associated_type <span class="kw">in </span><span class="kw-2">&amp;</span>associated_types {
-<a href=#1528 id=1528 data-nosnippet>1528</a>            <span class="kw">let </span>Kind::Numeric(numeric_type) = associated_type.typ.kind() <span class="kw">else </span>{
+<a href=#1528 id=1528 data-nosnippet>1528</a>            <span class="kw">let </span>Kind::Numeric(numeric_type) = associated_type.typ.kind().into_owned() <span class="kw">else </span>{
 <a href=#1529 id=1529 data-nosnippet>1529</a>                <span class="kw">continue</span>;
 <a href=#1530 id=1530 data-nosnippet>1530</a>            };
 <a href=#1531 id=1531 data-nosnippet>1531</a>
@@ -1673,7 +1673,7 @@
 <a href=#1673 id=1673 data-nosnippet>1673</a>        <span class="kw">let </span>self_type_var = the_trait.self_type_typevar.clone();
 <a href=#1674 id=1674 data-nosnippet>1674</a>        bindings.insert(
 <a href=#1675 id=1675 data-nosnippet>1675</a>            self_type_var.id(),
-<a href=#1676 id=1676 data-nosnippet>1676</a>            (self_type_var.clone(), self_type_var.kind(), impl_self_type.clone()),
+<a href=#1676 id=1676 data-nosnippet>1676</a>            (self_type_var.clone(), self_type_var.kind().into_owned(), impl_self_type.clone()),
 <a href=#1677 id=1677 data-nosnippet>1677</a>        );
 <a href=#1678 id=1678 data-nosnippet>1678</a>
 <a href=#1679 id=1679 data-nosnippet>1679</a>        <span class="kw">for </span>(trait_generic, trait_impl_generic) <span class="kw">in </span>trait_generics.iter().zip_eq(trait_impl_generics)
@@ -1681,7 +1681,7 @@
 <a href=#1681 id=1681 data-nosnippet>1681</a>            <span class="kw">let </span>type_var = trait_generic.type_var.clone();
 <a href=#1682 id=1682 data-nosnippet>1682</a>            bindings.insert(
 <a href=#1683 id=1683 data-nosnippet>1683</a>                type_var.id(),
-<a href=#1684 id=1684 data-nosnippet>1684</a>                (type_var, trait_generic.kind(), trait_impl_generic.clone()),
+<a href=#1684 id=1684 data-nosnippet>1684</a>                (type_var, trait_generic.kind().into_owned(), trait_impl_generic.clone()),
 <a href=#1685 id=1685 data-nosnippet>1685</a>            );
 <a href=#1686 id=1686 data-nosnippet>1686</a>        }
 <a href=#1687 id=1687 data-nosnippet>1687</a>
@@ -1705,7 +1705,7 @@
 <a href=#1705 id=1705 data-nosnippet>1705</a>            <span class="kw">let </span>type_variable = trait_type.type_var.clone();
 <a href=#1706 id=1706 data-nosnippet>1706</a>            bindings.insert(
 <a href=#1707 id=1707 data-nosnippet>1707</a>                type_variable.id(),
-<a href=#1708 id=1708 data-nosnippet>1708</a>                (type_variable, trait_type.kind(), impl_type.typ.clone()),
+<a href=#1708 id=1708 data-nosnippet>1708</a>                (type_variable, trait_type.kind().into_owned(), impl_type.typ.clone()),
 <a href=#1709 id=1709 data-nosnippet>1709</a>            );
 <a href=#1710 id=1710 data-nosnippet>1710</a>        }
 <a href=#1711 id=1711 data-nosnippet>1711</a>

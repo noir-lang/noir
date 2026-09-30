@@ -468,7 +468,7 @@
 <a href=#468 id=468 data-nosnippet>468</a>                // so add it by creating a fresh type variable.
 <a href=#469 id=469 data-nosnippet>469</a>                </span><span class="kw">let </span>new_generic_id = <span class="self">self</span>.interner.next_type_variable_id();
 <a href=#470 id=470 data-nosnippet>470</a>                <span class="kw">let </span>kind = associated_type.type_var.kind();
-<a href=#471 id=471 data-nosnippet>471</a>                <span class="kw">let </span>type_var = TypeVariable::unbound(new_generic_id, kind);
+<a href=#471 id=471 data-nosnippet>471</a>                <span class="kw">let </span>type_var = TypeVariable::unbound(new_generic_id, kind.into_owned());
 <a href=#472 id=472 data-nosnippet>472</a>
 <a href=#473 id=473 data-nosnippet>473</a>                <span class="kw">let </span>location = bound.trait_path.location;
 <a href=#474 id=474 data-nosnippet>474</a>                <span class="kw">let </span>typ = type_var.clone().into_implicit_named_generic(
@@ -758,7 +758,7 @@
 <a href=#758 id=758 data-nosnippet>758</a>                <span class="kw">let </span>named = vecmap(<span class="kw-2">&amp;</span>instantiated.trait_generics.named, |named_type| {
 <a href=#759 id=759 data-nosnippet>759</a>                    <span class="kw">let </span>fresh_id = <span class="self">self</span>.interner.next_type_variable_id();
 <a href=#760 id=760 data-nosnippet>760</a>                    <span class="kw">let </span>kind = named_type.typ.kind();
-<a href=#761 id=761 data-nosnippet>761</a>                    <span class="kw">let </span>type_var = TypeVariable::unbound(fresh_id, kind);
+<a href=#761 id=761 data-nosnippet>761</a>                    <span class="kw">let </span>type_var = TypeVariable::unbound(fresh_id, kind.into_owned());
 <a href=#762 id=762 data-nosnippet>762</a>
 <a href=#763 id=763 data-nosnippet>763</a>                    <span class="kw">let </span>assoc_type_id = parent_trait
 <a href=#764 id=764 data-nosnippet>764</a>                        .associated_types
@@ -1437,159 +1437,165 @@
 <a href=#1437 id=1437 data-nosnippet>1437</a>        {
 <a href=#1438 id=1438 data-nosnippet>1438</a>            <span class="kw">let </span>trait_fn_kind = trait_fn_generic.kind();
 <a href=#1439 id=1439 data-nosnippet>1439</a>            <span class="kw">let </span>arg = impl_fn_generic.clone().into_named_generic(name, <span class="prelude-val">None</span>);
-<a href=#1440 id=1440 data-nosnippet>1440</a>            bindings.insert(trait_fn_generic.id(), (trait_fn_generic.clone(), trait_fn_kind, arg));
-<a href=#1441 id=1441 data-nosnippet>1441</a>        }
-<a href=#1442 id=1442 data-nosnippet>1442</a>
-<a href=#1443 id=1443 data-nosnippet>1443</a>        <span class="comment">// A `where` clause such as `where Self::Target: Mappable` introduces an implicit generic
-<a href=#1444 id=1444 data-nosnippet>1444</a>        // for each of `Mappable`'s associated types. Once the constraint's object type is rigid
-<a href=#1445 id=1445 data-nosnippet>1445</a>        // for this impl (e.g. `Self::Target` becomes `bool`), the chained projection
-<a href=#1446 id=1446 data-nosnippet>1446</a>        // `&lt;Self::Target as Mappable&gt;::Target` has a single answer via the real impl
-<a href=#1447 id=1447 data-nosnippet>1447</a>        // (`&lt;bool as Mappable&gt;::Target = u32`). Bind each such implicit generic to that answer so
-<a href=#1448 id=1448 data-nosnippet>1448</a>        // the trait method's signature matches the impl method's already-normalized signature.
-<a href=#1449 id=1449 data-nosnippet>1449</a>        // This handles cases the `original_type_var_id` shortcut below cannot, since that shortcut
-<a href=#1450 id=1450 data-nosnippet>1450</a>        // assumes the projection's object is `Self` rather than a further associated type.
-<a href=#1451 id=1451 data-nosnippet>1451</a>        </span><span class="kw">for </span>constraint <span class="kw">in </span><span class="kw-2">&amp;</span>trait_fn_meta.trait_constraints {
-<a href=#1452 id=1452 data-nosnippet>1452</a>            <span class="kw">let </span>object_type = constraint.typ.substitute(<span class="kw-2">&amp;</span>bindings);
-<a href=#1453 id=1453 data-nosnippet>1453</a>            <span class="kw">let </span>trait_bound = <span class="kw-2">&amp;</span>constraint.trait_bound;
-<a href=#1454 id=1454 data-nosnippet>1454</a>            <span class="kw">let </span>ordered = vecmap(<span class="kw-2">&amp;</span>trait_bound.trait_generics.ordered, |generic| {
-<a href=#1455 id=1455 data-nosnippet>1455</a>                generic.substitute(<span class="kw-2">&amp;</span>bindings)
-<a href=#1456 id=1456 data-nosnippet>1456</a>            });
-<a href=#1457 id=1457 data-nosnippet>1457</a>            <span class="kw">for </span>named_arg <span class="kw">in </span><span class="kw-2">&amp;</span>trait_bound.trait_generics.named {
-<a href=#1458 id=1458 data-nosnippet>1458</a>                <span class="kw">let </span>Type::NamedGeneric(NamedGeneric { type_var, .. }) = <span class="kw-2">&amp;</span>named_arg.typ <span class="kw">else </span>{
-<a href=#1459 id=1459 data-nosnippet>1459</a>                    <span class="kw">continue</span>;
-<a href=#1460 id=1460 data-nosnippet>1460</a>                };
-<a href=#1461 id=1461 data-nosnippet>1461</a>                <span class="kw">if </span>bindings.contains_key(<span class="kw-2">&amp;</span>type_var.id()) {
+<a href=#1440 id=1440 data-nosnippet>1440</a>            bindings.insert(
+<a href=#1441 id=1441 data-nosnippet>1441</a>                trait_fn_generic.id(),
+<a href=#1442 id=1442 data-nosnippet>1442</a>                (trait_fn_generic.clone(), trait_fn_kind.into_owned(), arg),
+<a href=#1443 id=1443 data-nosnippet>1443</a>            );
+<a href=#1444 id=1444 data-nosnippet>1444</a>        }
+<a href=#1445 id=1445 data-nosnippet>1445</a>
+<a href=#1446 id=1446 data-nosnippet>1446</a>        <span class="comment">// A `where` clause such as `where Self::Target: Mappable` introduces an implicit generic
+<a href=#1447 id=1447 data-nosnippet>1447</a>        // for each of `Mappable`'s associated types. Once the constraint's object type is rigid
+<a href=#1448 id=1448 data-nosnippet>1448</a>        // for this impl (e.g. `Self::Target` becomes `bool`), the chained projection
+<a href=#1449 id=1449 data-nosnippet>1449</a>        // `&lt;Self::Target as Mappable&gt;::Target` has a single answer via the real impl
+<a href=#1450 id=1450 data-nosnippet>1450</a>        // (`&lt;bool as Mappable&gt;::Target = u32`). Bind each such implicit generic to that answer so
+<a href=#1451 id=1451 data-nosnippet>1451</a>        // the trait method's signature matches the impl method's already-normalized signature.
+<a href=#1452 id=1452 data-nosnippet>1452</a>        // This handles cases the `original_type_var_id` shortcut below cannot, since that shortcut
+<a href=#1453 id=1453 data-nosnippet>1453</a>        // assumes the projection's object is `Self` rather than a further associated type.
+<a href=#1454 id=1454 data-nosnippet>1454</a>        </span><span class="kw">for </span>constraint <span class="kw">in </span><span class="kw-2">&amp;</span>trait_fn_meta.trait_constraints {
+<a href=#1455 id=1455 data-nosnippet>1455</a>            <span class="kw">let </span>object_type = constraint.typ.substitute(<span class="kw-2">&amp;</span>bindings);
+<a href=#1456 id=1456 data-nosnippet>1456</a>            <span class="kw">let </span>trait_bound = <span class="kw-2">&amp;</span>constraint.trait_bound;
+<a href=#1457 id=1457 data-nosnippet>1457</a>            <span class="kw">let </span>ordered = vecmap(<span class="kw-2">&amp;</span>trait_bound.trait_generics.ordered, |generic| {
+<a href=#1458 id=1458 data-nosnippet>1458</a>                generic.substitute(<span class="kw-2">&amp;</span>bindings)
+<a href=#1459 id=1459 data-nosnippet>1459</a>            });
+<a href=#1460 id=1460 data-nosnippet>1460</a>            <span class="kw">for </span>named_arg <span class="kw">in </span><span class="kw-2">&amp;</span>trait_bound.trait_generics.named {
+<a href=#1461 id=1461 data-nosnippet>1461</a>                <span class="kw">let </span>Type::NamedGeneric(NamedGeneric { type_var, .. }) = <span class="kw-2">&amp;</span>named_arg.typ <span class="kw">else </span>{
 <a href=#1462 id=1462 data-nosnippet>1462</a>                    <span class="kw">continue</span>;
-<a href=#1463 id=1463 data-nosnippet>1463</a>                }
-<a href=#1464 id=1464 data-nosnippet>1464</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(normalized) = elaborator.normalize_rigid_associated_type(
-<a href=#1465 id=1465 data-nosnippet>1465</a>                    <span class="kw-2">&amp;</span>object_type,
-<a href=#1466 id=1466 data-nosnippet>1466</a>                    trait_bound.trait_id,
-<a href=#1467 id=1467 data-nosnippet>1467</a>                    <span class="kw-2">&amp;</span>ordered,
-<a href=#1468 id=1468 data-nosnippet>1468</a>                    named_arg.name.as_str(),
-<a href=#1469 id=1469 data-nosnippet>1469</a>                ) {
-<a href=#1470 id=1470 data-nosnippet>1470</a>                    bindings.insert(type_var.id(), (type_var.clone(), type_var.kind(), normalized));
-<a href=#1471 id=1471 data-nosnippet>1471</a>                }
-<a href=#1472 id=1472 data-nosnippet>1472</a>            }
-<a href=#1473 id=1473 data-nosnippet>1473</a>        }
-<a href=#1474 id=1474 data-nosnippet>1474</a>
-<a href=#1475 id=1475 data-nosnippet>1475</a>        <span class="comment">// There is special handling expected for parent traits. Say we have code like this:
-<a href=#1476 id=1476 data-nosnippet>1476</a>        //
-<a href=#1477 id=1477 data-nosnippet>1477</a>        //    trait Foo { type Bar; }                                       // `Bar`     becomes `Bar'1`
-<a href=#1478 id=1478 data-nosnippet>1478</a>        //    trait Bar: Foo { fn foo_bar() -&gt; &lt;Self as Foo&gt;::Bar }         // `foo_bar` becomes `forall '7 '3. fn() -&gt; Self::Bar'7 ~&gt; '1`, with '1 being NamedGeneric::original_type_var
-<a href=#1479 id=1479 data-nosnippet>1479</a>        //    struct Baz {}
-<a href=#1480 id=1480 data-nosnippet>1480</a>        //    impl Foo for Baz { type Bar = u32; }                          // `Bar`     becomes `&lt;Baz as Foo&gt;::Bar'5 -&gt; u32`
-<a href=#1481 id=1481 data-nosnippet>1481</a>        //    impl Bar for Baz { fn foo_bar() -&gt; &lt;Self as Foo&gt;::Bar { 0 } } // `foo_bar` becomes `fn() -&gt; &lt;Baz as Foo&gt;::Bar'5 -&gt; u32`
+<a href=#1463 id=1463 data-nosnippet>1463</a>                };
+<a href=#1464 id=1464 data-nosnippet>1464</a>                <span class="kw">if </span>bindings.contains_key(<span class="kw-2">&amp;</span>type_var.id()) {
+<a href=#1465 id=1465 data-nosnippet>1465</a>                    <span class="kw">continue</span>;
+<a href=#1466 id=1466 data-nosnippet>1466</a>                }
+<a href=#1467 id=1467 data-nosnippet>1467</a>                <span class="kw">if let </span><span class="prelude-val">Some</span>(normalized) = elaborator.normalize_rigid_associated_type(
+<a href=#1468 id=1468 data-nosnippet>1468</a>                    <span class="kw-2">&amp;</span>object_type,
+<a href=#1469 id=1469 data-nosnippet>1469</a>                    trait_bound.trait_id,
+<a href=#1470 id=1470 data-nosnippet>1470</a>                    <span class="kw-2">&amp;</span>ordered,
+<a href=#1471 id=1471 data-nosnippet>1471</a>                    named_arg.name.as_str(),
+<a href=#1472 id=1472 data-nosnippet>1472</a>                ) {
+<a href=#1473 id=1473 data-nosnippet>1473</a>                    bindings.insert(
+<a href=#1474 id=1474 data-nosnippet>1474</a>                        type_var.id(),
+<a href=#1475 id=1475 data-nosnippet>1475</a>                        (type_var.clone(), type_var.kind().into_owned(), normalized),
+<a href=#1476 id=1476 data-nosnippet>1476</a>                    );
+<a href=#1477 id=1477 data-nosnippet>1477</a>                }
+<a href=#1478 id=1478 data-nosnippet>1478</a>            }
+<a href=#1479 id=1479 data-nosnippet>1479</a>        }
+<a href=#1480 id=1480 data-nosnippet>1480</a>
+<a href=#1481 id=1481 data-nosnippet>1481</a>        <span class="comment">// There is special handling expected for parent traits. Say we have code like this:
 <a href=#1482 id=1482 data-nosnippet>1482</a>        //
-<a href=#1483 id=1483 data-nosnippet>1483</a>        // We want to verify that the two `foo_bar` methods have compatible metas without having to do any further bindings during unification,
-<a href=#1484 id=1484 data-nosnippet>1484</a>        // which would be rejected by `check_function_type_matches_expected_type`. To do so we must add a replacement from '7 to '5.
-<a href=#1485 id=1485 data-nosnippet>1485</a>        // For this to happen we expect that `bindings` will contain a '1-to-'5 replacement, which will apply to '7, because '1 is its original.
-<a href=#1486 id=1486 data-nosnippet>1486</a>        </span>trait_fn_meta.typ.visit(<span class="kw-2">&amp;mut </span>|typ| {
-<a href=#1487 id=1487 data-nosnippet>1487</a>            <span class="kw">if let </span>Type::NamedGeneric(NamedGeneric {
-<a href=#1488 id=1488 data-nosnippet>1488</a>                type_var,
-<a href=#1489 id=1489 data-nosnippet>1489</a>                original_type_var_id: <span class="prelude-val">Some</span>(original_id),
-<a href=#1490 id=1490 data-nosnippet>1490</a>                ..
-<a href=#1491 id=1491 data-nosnippet>1491</a>            }) = typ
-<a href=#1492 id=1492 data-nosnippet>1492</a>                &amp;&amp; !bindings.contains_key(<span class="kw-2">&amp;</span>type_var.id())
-<a href=#1493 id=1493 data-nosnippet>1493</a>                &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(replacement) = bindings.get(original_id)
-<a href=#1494 id=1494 data-nosnippet>1494</a>            {
-<a href=#1495 id=1495 data-nosnippet>1495</a>                bindings.insert(type_var.id(), replacement.clone());
-<a href=#1496 id=1496 data-nosnippet>1496</a>            }
-<a href=#1497 id=1497 data-nosnippet>1497</a>            <span class="bool-val">true
-<a href=#1498 id=1498 data-nosnippet>1498</a>        </span>});
-<a href=#1499 id=1499 data-nosnippet>1499</a>
-<a href=#1500 id=1500 data-nosnippet>1500</a>        <span class="kw">let </span>(declaration_type, <span class="kw">_</span>) = trait_fn_meta.typ.instantiate_with_bindings(bindings, interner);
-<a href=#1501 id=1501 data-nosnippet>1501</a>
-<a href=#1502 id=1502 data-nosnippet>1502</a>        check_function_type_matches_expected_type(
-<a href=#1503 id=1503 data-nosnippet>1503</a>            elaborator,
-<a href=#1504 id=1504 data-nosnippet>1504</a>            <span class="kw-2">&amp;</span>declaration_type,
-<a href=#1505 id=1505 data-nosnippet>1505</a>            meta,
-<a href=#1506 id=1506 data-nosnippet>1506</a>            method_name,
-<a href=#1507 id=1507 data-nosnippet>1507</a>            noir_function,
-<a href=#1508 id=1508 data-nosnippet>1508</a>            trait_info.name.as_str(),
-<a href=#1509 id=1509 data-nosnippet>1509</a>            <span class="kw-2">&amp;mut </span>errors,
-<a href=#1510 id=1510 data-nosnippet>1510</a>        );
-<a href=#1511 id=1511 data-nosnippet>1511</a>    } <span class="kw">else </span>{
-<a href=#1512 id=1512 data-nosnippet>1512</a>        errors.push(TypeCheckError::expecting_other_error(
-<a href=#1513 id=1513 data-nosnippet>1513</a>            <span class="string">"check_trait_impl_method_matches_declaration: missing trait method function"</span>,
-<a href=#1514 id=1514 data-nosnippet>1514</a>            meta.name.location,
-<a href=#1515 id=1515 data-nosnippet>1515</a>        ));
-<a href=#1516 id=1516 data-nosnippet>1516</a>    }
-<a href=#1517 id=1517 data-nosnippet>1517</a>
-<a href=#1518 id=1518 data-nosnippet>1518</a>    errors
-<a href=#1519 id=1519 data-nosnippet>1519</a>}
-<a href=#1520 id=1520 data-nosnippet>1520</a>
-<a href=#1521 id=1521 data-nosnippet>1521</a><span class="doccomment">/// Check the given function type matches the expected one.
-<a href=#1522 id=1522 data-nosnippet>1522</a>///
-<a href=#1523 id=1523 data-nosnippet>1523</a>/// This is used to check if a trait impl's function type matches the declared function in the
-<a href=#1524 id=1524 data-nosnippet>1524</a>/// original trait declaration - while handling the appropriate generic substitutions.
-<a href=#1525 id=1525 data-nosnippet>1525</a></span><span class="kw">fn </span>check_function_type_matches_expected_type(
-<a href=#1526 id=1526 data-nosnippet>1526</a>    elaborator: <span class="kw-2">&amp;</span>Elaborator,
-<a href=#1527 id=1527 data-nosnippet>1527</a>    expected: <span class="kw-2">&amp;</span>Type,
-<a href=#1528 id=1528 data-nosnippet>1528</a>    meta: <span class="kw-2">&amp;</span>FuncMeta,
-<a href=#1529 id=1529 data-nosnippet>1529</a>    method_name: <span class="kw-2">&amp;</span>str,
-<a href=#1530 id=1530 data-nosnippet>1530</a>    noir_function: <span class="kw-2">&amp;</span>NoirFunction,
-<a href=#1531 id=1531 data-nosnippet>1531</a>    trait_name: <span class="kw-2">&amp;</span>str,
-<a href=#1532 id=1532 data-nosnippet>1532</a>    errors: <span class="kw-2">&amp;mut </span>Vec&lt;TypeCheckError&gt;,
-<a href=#1533 id=1533 data-nosnippet>1533</a>) {
-<a href=#1534 id=1534 data-nosnippet>1534</a>    <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
-<a href=#1535 id=1535 data-nosnippet>1535</a>    <span class="kw">let </span>actual = meta.typ.as_monotype();
-<a href=#1536 id=1536 data-nosnippet>1536</a>    <span class="kw">let </span>location = meta.name.location;
-<a href=#1537 id=1537 data-nosnippet>1537</a>    <span class="kw">if let </span>(
-<a href=#1538 id=1538 data-nosnippet>1538</a>        Type::Function(params_a, ret_a, env_a, unconstrained_a),
-<a href=#1539 id=1539 data-nosnippet>1539</a>        Type::Function(params_b, ret_b, env_b, unconstrained_b),
-<a href=#1540 id=1540 data-nosnippet>1540</a>    ) = (expected, actual)
-<a href=#1541 id=1541 data-nosnippet>1541</a>    {
-<a href=#1542 id=1542 data-nosnippet>1542</a>        <span class="comment">// Shouldn't need to unify envs, they should always be equal since they're both free functions
-<a href=#1543 id=1543 data-nosnippet>1543</a>        </span><span class="macro">assert_eq!</span>(env_a, env_b, <span class="string">"envs should match as they're both free functions"</span>);
-<a href=#1544 id=1544 data-nosnippet>1544</a>
-<a href=#1545 id=1545 data-nosnippet>1545</a>        <span class="kw">if </span>unconstrained_a != unconstrained_b {
-<a href=#1546 id=1546 data-nosnippet>1546</a>            errors.push(TypeCheckError::UnconstrainedMismatch {
-<a href=#1547 id=1547 data-nosnippet>1547</a>                item: method_name.to_string(),
-<a href=#1548 id=1548 data-nosnippet>1548</a>                expected: <span class="kw-2">*</span>unconstrained_a,
-<a href=#1549 id=1549 data-nosnippet>1549</a>                location,
-<a href=#1550 id=1550 data-nosnippet>1550</a>            });
-<a href=#1551 id=1551 data-nosnippet>1551</a>        }
-<a href=#1552 id=1552 data-nosnippet>1552</a>
-<a href=#1553 id=1553 data-nosnippet>1553</a>        <span class="kw">if </span>params_a.len() == params_b.len() {
-<a href=#1554 id=1554 data-nosnippet>1554</a>            <span class="kw">for </span>(i, (a, b)) <span class="kw">in </span>params_a.iter().zip_eq(params_b.iter()).enumerate() {
-<a href=#1555 id=1555 data-nosnippet>1555</a>                <span class="kw">if </span>a.try_unify(b, <span class="kw-2">&amp;mut </span>bindings).is_err() {
-<a href=#1556 id=1556 data-nosnippet>1556</a>                    <span class="kw">let </span>parameter_location = noir_function.def.parameters.get(i);
-<a href=#1557 id=1557 data-nosnippet>1557</a>                    <span class="kw">let </span>parameter_location = parameter_location.map(|param| param.typ.location);
-<a href=#1558 id=1558 data-nosnippet>1558</a>                    <span class="kw">let </span>parameter_location =
-<a href=#1559 id=1559 data-nosnippet>1559</a>                        parameter_location.unwrap_or_else(|| meta.parameters.<span class="number">0</span>[i].<span class="number">0</span>.location());
-<a href=#1560 id=1560 data-nosnippet>1560</a>
-<a href=#1561 id=1561 data-nosnippet>1561</a>                    errors.push(TypeCheckError::TraitMethodParameterTypeMismatch {
-<a href=#1562 id=1562 data-nosnippet>1562</a>                        method_name: method_name.to_string(),
-<a href=#1563 id=1563 data-nosnippet>1563</a>                        expected_typ: a.to_string(),
-<a href=#1564 id=1564 data-nosnippet>1564</a>                        actual_typ: b.to_string(),
-<a href=#1565 id=1565 data-nosnippet>1565</a>                        parameter_location,
-<a href=#1566 id=1566 data-nosnippet>1566</a>                        parameter_index: i + <span class="number">1</span>,
-<a href=#1567 id=1567 data-nosnippet>1567</a>                    });
-<a href=#1568 id=1568 data-nosnippet>1568</a>                }
-<a href=#1569 id=1569 data-nosnippet>1569</a>            }
-<a href=#1570 id=1570 data-nosnippet>1570</a>
-<a href=#1571 id=1571 data-nosnippet>1571</a>            <span class="kw">if </span>ret_b.try_unify(ret_a, <span class="kw-2">&amp;mut </span>bindings).is_err() {
-<a href=#1572 id=1572 data-nosnippet>1572</a>                errors.push(elaborator.new_type_mismatch_error(
-<a href=#1573 id=1573 data-nosnippet>1573</a>                    ret_b,
-<a href=#1574 id=1574 data-nosnippet>1574</a>                    ret_a,
-<a href=#1575 id=1575 data-nosnippet>1575</a>                    meta.return_type.location(),
-<a href=#1576 id=1576 data-nosnippet>1576</a>                ));
-<a href=#1577 id=1577 data-nosnippet>1577</a>            }
-<a href=#1578 id=1578 data-nosnippet>1578</a>        } <span class="kw">else </span>{
-<a href=#1579 id=1579 data-nosnippet>1579</a>            errors.push(TypeCheckError::MismatchTraitImplNumParameters {
-<a href=#1580 id=1580 data-nosnippet>1580</a>                actual_num_parameters: params_b.len(),
-<a href=#1581 id=1581 data-nosnippet>1581</a>                expected_num_parameters: params_a.len(),
-<a href=#1582 id=1582 data-nosnippet>1582</a>                trait_name: trait_name.to_string(),
-<a href=#1583 id=1583 data-nosnippet>1583</a>                method_name: method_name.to_string(),
-<a href=#1584 id=1584 data-nosnippet>1584</a>                location,
-<a href=#1585 id=1585 data-nosnippet>1585</a>            });
-<a href=#1586 id=1586 data-nosnippet>1586</a>        }
-<a href=#1587 id=1587 data-nosnippet>1587</a>    }
-<a href=#1588 id=1588 data-nosnippet>1588</a>
-<a href=#1589 id=1589 data-nosnippet>1589</a>    <span class="comment">// If result bindings is not empty, a type variable was bound which means the two
-<a href=#1590 id=1590 data-nosnippet>1590</a>    // signatures were not a perfect match. Note that this relies on us already binding
-<a href=#1591 id=1591 data-nosnippet>1591</a>    // all the expected generics to each other prior to this check.
-<a href=#1592 id=1592 data-nosnippet>1592</a>    </span><span class="kw">if </span>!bindings.is_empty() {
-<a href=#1593 id=1593 data-nosnippet>1593</a>        errors.push(elaborator.new_type_mismatch_error(actual, expected, location));
-<a href=#1594 id=1594 data-nosnippet>1594</a>    }
-<a href=#1595 id=1595 data-nosnippet>1595</a>}</code></pre></div></section></main></body></html>
+<a href=#1483 id=1483 data-nosnippet>1483</a>        //    trait Foo { type Bar; }                                       // `Bar`     becomes `Bar'1`
+<a href=#1484 id=1484 data-nosnippet>1484</a>        //    trait Bar: Foo { fn foo_bar() -&gt; &lt;Self as Foo&gt;::Bar }         // `foo_bar` becomes `forall '7 '3. fn() -&gt; Self::Bar'7 ~&gt; '1`, with '1 being NamedGeneric::original_type_var
+<a href=#1485 id=1485 data-nosnippet>1485</a>        //    struct Baz {}
+<a href=#1486 id=1486 data-nosnippet>1486</a>        //    impl Foo for Baz { type Bar = u32; }                          // `Bar`     becomes `&lt;Baz as Foo&gt;::Bar'5 -&gt; u32`
+<a href=#1487 id=1487 data-nosnippet>1487</a>        //    impl Bar for Baz { fn foo_bar() -&gt; &lt;Self as Foo&gt;::Bar { 0 } } // `foo_bar` becomes `fn() -&gt; &lt;Baz as Foo&gt;::Bar'5 -&gt; u32`
+<a href=#1488 id=1488 data-nosnippet>1488</a>        //
+<a href=#1489 id=1489 data-nosnippet>1489</a>        // We want to verify that the two `foo_bar` methods have compatible metas without having to do any further bindings during unification,
+<a href=#1490 id=1490 data-nosnippet>1490</a>        // which would be rejected by `check_function_type_matches_expected_type`. To do so we must add a replacement from '7 to '5.
+<a href=#1491 id=1491 data-nosnippet>1491</a>        // For this to happen we expect that `bindings` will contain a '1-to-'5 replacement, which will apply to '7, because '1 is its original.
+<a href=#1492 id=1492 data-nosnippet>1492</a>        </span>trait_fn_meta.typ.visit(<span class="kw-2">&amp;mut </span>|typ| {
+<a href=#1493 id=1493 data-nosnippet>1493</a>            <span class="kw">if let </span>Type::NamedGeneric(NamedGeneric {
+<a href=#1494 id=1494 data-nosnippet>1494</a>                type_var,
+<a href=#1495 id=1495 data-nosnippet>1495</a>                original_type_var_id: <span class="prelude-val">Some</span>(original_id),
+<a href=#1496 id=1496 data-nosnippet>1496</a>                ..
+<a href=#1497 id=1497 data-nosnippet>1497</a>            }) = typ
+<a href=#1498 id=1498 data-nosnippet>1498</a>                &amp;&amp; !bindings.contains_key(<span class="kw-2">&amp;</span>type_var.id())
+<a href=#1499 id=1499 data-nosnippet>1499</a>                &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(replacement) = bindings.get(original_id)
+<a href=#1500 id=1500 data-nosnippet>1500</a>            {
+<a href=#1501 id=1501 data-nosnippet>1501</a>                bindings.insert(type_var.id(), replacement.clone());
+<a href=#1502 id=1502 data-nosnippet>1502</a>            }
+<a href=#1503 id=1503 data-nosnippet>1503</a>            <span class="bool-val">true
+<a href=#1504 id=1504 data-nosnippet>1504</a>        </span>});
+<a href=#1505 id=1505 data-nosnippet>1505</a>
+<a href=#1506 id=1506 data-nosnippet>1506</a>        <span class="kw">let </span>(declaration_type, <span class="kw">_</span>) = trait_fn_meta.typ.instantiate_with_bindings(bindings, interner);
+<a href=#1507 id=1507 data-nosnippet>1507</a>
+<a href=#1508 id=1508 data-nosnippet>1508</a>        check_function_type_matches_expected_type(
+<a href=#1509 id=1509 data-nosnippet>1509</a>            elaborator,
+<a href=#1510 id=1510 data-nosnippet>1510</a>            <span class="kw-2">&amp;</span>declaration_type,
+<a href=#1511 id=1511 data-nosnippet>1511</a>            meta,
+<a href=#1512 id=1512 data-nosnippet>1512</a>            method_name,
+<a href=#1513 id=1513 data-nosnippet>1513</a>            noir_function,
+<a href=#1514 id=1514 data-nosnippet>1514</a>            trait_info.name.as_str(),
+<a href=#1515 id=1515 data-nosnippet>1515</a>            <span class="kw-2">&amp;mut </span>errors,
+<a href=#1516 id=1516 data-nosnippet>1516</a>        );
+<a href=#1517 id=1517 data-nosnippet>1517</a>    } <span class="kw">else </span>{
+<a href=#1518 id=1518 data-nosnippet>1518</a>        errors.push(TypeCheckError::expecting_other_error(
+<a href=#1519 id=1519 data-nosnippet>1519</a>            <span class="string">"check_trait_impl_method_matches_declaration: missing trait method function"</span>,
+<a href=#1520 id=1520 data-nosnippet>1520</a>            meta.name.location,
+<a href=#1521 id=1521 data-nosnippet>1521</a>        ));
+<a href=#1522 id=1522 data-nosnippet>1522</a>    }
+<a href=#1523 id=1523 data-nosnippet>1523</a>
+<a href=#1524 id=1524 data-nosnippet>1524</a>    errors
+<a href=#1525 id=1525 data-nosnippet>1525</a>}
+<a href=#1526 id=1526 data-nosnippet>1526</a>
+<a href=#1527 id=1527 data-nosnippet>1527</a><span class="doccomment">/// Check the given function type matches the expected one.
+<a href=#1528 id=1528 data-nosnippet>1528</a>///
+<a href=#1529 id=1529 data-nosnippet>1529</a>/// This is used to check if a trait impl's function type matches the declared function in the
+<a href=#1530 id=1530 data-nosnippet>1530</a>/// original trait declaration - while handling the appropriate generic substitutions.
+<a href=#1531 id=1531 data-nosnippet>1531</a></span><span class="kw">fn </span>check_function_type_matches_expected_type(
+<a href=#1532 id=1532 data-nosnippet>1532</a>    elaborator: <span class="kw-2">&amp;</span>Elaborator,
+<a href=#1533 id=1533 data-nosnippet>1533</a>    expected: <span class="kw-2">&amp;</span>Type,
+<a href=#1534 id=1534 data-nosnippet>1534</a>    meta: <span class="kw-2">&amp;</span>FuncMeta,
+<a href=#1535 id=1535 data-nosnippet>1535</a>    method_name: <span class="kw-2">&amp;</span>str,
+<a href=#1536 id=1536 data-nosnippet>1536</a>    noir_function: <span class="kw-2">&amp;</span>NoirFunction,
+<a href=#1537 id=1537 data-nosnippet>1537</a>    trait_name: <span class="kw-2">&amp;</span>str,
+<a href=#1538 id=1538 data-nosnippet>1538</a>    errors: <span class="kw-2">&amp;mut </span>Vec&lt;TypeCheckError&gt;,
+<a href=#1539 id=1539 data-nosnippet>1539</a>) {
+<a href=#1540 id=1540 data-nosnippet>1540</a>    <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
+<a href=#1541 id=1541 data-nosnippet>1541</a>    <span class="kw">let </span>actual = meta.typ.as_monotype();
+<a href=#1542 id=1542 data-nosnippet>1542</a>    <span class="kw">let </span>location = meta.name.location;
+<a href=#1543 id=1543 data-nosnippet>1543</a>    <span class="kw">if let </span>(
+<a href=#1544 id=1544 data-nosnippet>1544</a>        Type::Function(params_a, ret_a, env_a, unconstrained_a),
+<a href=#1545 id=1545 data-nosnippet>1545</a>        Type::Function(params_b, ret_b, env_b, unconstrained_b),
+<a href=#1546 id=1546 data-nosnippet>1546</a>    ) = (expected, actual)
+<a href=#1547 id=1547 data-nosnippet>1547</a>    {
+<a href=#1548 id=1548 data-nosnippet>1548</a>        <span class="comment">// Shouldn't need to unify envs, they should always be equal since they're both free functions
+<a href=#1549 id=1549 data-nosnippet>1549</a>        </span><span class="macro">assert_eq!</span>(env_a, env_b, <span class="string">"envs should match as they're both free functions"</span>);
+<a href=#1550 id=1550 data-nosnippet>1550</a>
+<a href=#1551 id=1551 data-nosnippet>1551</a>        <span class="kw">if </span>unconstrained_a != unconstrained_b {
+<a href=#1552 id=1552 data-nosnippet>1552</a>            errors.push(TypeCheckError::UnconstrainedMismatch {
+<a href=#1553 id=1553 data-nosnippet>1553</a>                item: method_name.to_string(),
+<a href=#1554 id=1554 data-nosnippet>1554</a>                expected: <span class="kw-2">*</span>unconstrained_a,
+<a href=#1555 id=1555 data-nosnippet>1555</a>                location,
+<a href=#1556 id=1556 data-nosnippet>1556</a>            });
+<a href=#1557 id=1557 data-nosnippet>1557</a>        }
+<a href=#1558 id=1558 data-nosnippet>1558</a>
+<a href=#1559 id=1559 data-nosnippet>1559</a>        <span class="kw">if </span>params_a.len() == params_b.len() {
+<a href=#1560 id=1560 data-nosnippet>1560</a>            <span class="kw">for </span>(i, (a, b)) <span class="kw">in </span>params_a.iter().zip_eq(params_b.iter()).enumerate() {
+<a href=#1561 id=1561 data-nosnippet>1561</a>                <span class="kw">if </span>a.try_unify(b, <span class="kw-2">&amp;mut </span>bindings).is_err() {
+<a href=#1562 id=1562 data-nosnippet>1562</a>                    <span class="kw">let </span>parameter_location = noir_function.def.parameters.get(i);
+<a href=#1563 id=1563 data-nosnippet>1563</a>                    <span class="kw">let </span>parameter_location = parameter_location.map(|param| param.typ.location);
+<a href=#1564 id=1564 data-nosnippet>1564</a>                    <span class="kw">let </span>parameter_location =
+<a href=#1565 id=1565 data-nosnippet>1565</a>                        parameter_location.unwrap_or_else(|| meta.parameters.<span class="number">0</span>[i].<span class="number">0</span>.location());
+<a href=#1566 id=1566 data-nosnippet>1566</a>
+<a href=#1567 id=1567 data-nosnippet>1567</a>                    errors.push(TypeCheckError::TraitMethodParameterTypeMismatch {
+<a href=#1568 id=1568 data-nosnippet>1568</a>                        method_name: method_name.to_string(),
+<a href=#1569 id=1569 data-nosnippet>1569</a>                        expected_typ: a.to_string(),
+<a href=#1570 id=1570 data-nosnippet>1570</a>                        actual_typ: b.to_string(),
+<a href=#1571 id=1571 data-nosnippet>1571</a>                        parameter_location,
+<a href=#1572 id=1572 data-nosnippet>1572</a>                        parameter_index: i + <span class="number">1</span>,
+<a href=#1573 id=1573 data-nosnippet>1573</a>                    });
+<a href=#1574 id=1574 data-nosnippet>1574</a>                }
+<a href=#1575 id=1575 data-nosnippet>1575</a>            }
+<a href=#1576 id=1576 data-nosnippet>1576</a>
+<a href=#1577 id=1577 data-nosnippet>1577</a>            <span class="kw">if </span>ret_b.try_unify(ret_a, <span class="kw-2">&amp;mut </span>bindings).is_err() {
+<a href=#1578 id=1578 data-nosnippet>1578</a>                errors.push(elaborator.new_type_mismatch_error(
+<a href=#1579 id=1579 data-nosnippet>1579</a>                    ret_b,
+<a href=#1580 id=1580 data-nosnippet>1580</a>                    ret_a,
+<a href=#1581 id=1581 data-nosnippet>1581</a>                    meta.return_type.location(),
+<a href=#1582 id=1582 data-nosnippet>1582</a>                ));
+<a href=#1583 id=1583 data-nosnippet>1583</a>            }
+<a href=#1584 id=1584 data-nosnippet>1584</a>        } <span class="kw">else </span>{
+<a href=#1585 id=1585 data-nosnippet>1585</a>            errors.push(TypeCheckError::MismatchTraitImplNumParameters {
+<a href=#1586 id=1586 data-nosnippet>1586</a>                actual_num_parameters: params_b.len(),
+<a href=#1587 id=1587 data-nosnippet>1587</a>                expected_num_parameters: params_a.len(),
+<a href=#1588 id=1588 data-nosnippet>1588</a>                trait_name: trait_name.to_string(),
+<a href=#1589 id=1589 data-nosnippet>1589</a>                method_name: method_name.to_string(),
+<a href=#1590 id=1590 data-nosnippet>1590</a>                location,
+<a href=#1591 id=1591 data-nosnippet>1591</a>            });
+<a href=#1592 id=1592 data-nosnippet>1592</a>        }
+<a href=#1593 id=1593 data-nosnippet>1593</a>    }
+<a href=#1594 id=1594 data-nosnippet>1594</a>
+<a href=#1595 id=1595 data-nosnippet>1595</a>    <span class="comment">// If result bindings is not empty, a type variable was bound which means the two
+<a href=#1596 id=1596 data-nosnippet>1596</a>    // signatures were not a perfect match. Note that this relies on us already binding
+<a href=#1597 id=1597 data-nosnippet>1597</a>    // all the expected generics to each other prior to this check.
+<a href=#1598 id=1598 data-nosnippet>1598</a>    </span><span class="kw">if </span>!bindings.is_empty() {
+<a href=#1599 id=1599 data-nosnippet>1599</a>        errors.push(elaborator.new_type_mismatch_error(actual, expected, location));
+<a href=#1600 id=1600 data-nosnippet>1600</a>    }
+<a href=#1601 id=1601 data-nosnippet>1601</a>}</code></pre></div></section></main></body></html>

@@ -2058,7 +2058,7 @@
 <a href=#2058 id=2058 data-nosnippet>2058</a>
 <a href=#2059 id=2059 data-nosnippet>2059</a>        <span class="kw">let </span>the_trait = <span class="self">self</span>.interner.get_trait(constraint.trait_bound.trait_id);
 <a href=#2060 id=2060 data-nosnippet>2060</a>        <span class="kw">let </span>self_type = the_trait.self_type_typevar.clone();
-<a href=#2061 id=2061 data-nosnippet>2061</a>        <span class="kw">let </span>kind = the_trait.self_type_typevar.kind();
+<a href=#2061 id=2061 data-nosnippet>2061</a>        <span class="kw">let </span>kind = the_trait.self_type_typevar.kind().into_owned();
 <a href=#2062 id=2062 data-nosnippet>2062</a>
 <a href=#2063 id=2063 data-nosnippet>2063</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(definition) =
 <a href=#2064 id=2064 data-nosnippet>2064</a>            the_trait.find_method_or_constant(path.impl_item.as_str(), <span class="self">self</span>.interner)
