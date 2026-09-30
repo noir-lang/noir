@@ -3596,6 +3596,66 @@ mod tests {
         }
     }
 
+    /// `follow_bindings_shallow` stops only at a type that stands for no other type: never at a
+    /// bound type variable or named generic, and never at an alias. `bind_function_type` relies on
+    /// this: it treats a type variable it gets back as unbound and binds it.
+    #[test]
+    fn follow_bindings_shallow_stops_only_at_a_type_standing_for_no_other() {
+        fn alias_of(typ: Type) -> Type {
+            let mut modules = noirc_arena::Arena::default();
+            let module_id = ModuleId {
+                krate: crate::graph::CrateId::Root(0),
+                local_id: crate::hir::def_map::LocalModuleId::new(modules.insert(())),
+            };
+            let name = Ident::new("Alias".to_string(), Location::dummy());
+            let alias = TypeAlias::new(
+                TypeAliasId(0),
+                name,
+                Location::dummy(),
+                typ,
+                Vec::new(),
+                ItemVisibility::Public,
+                false,
+                module_id,
+            );
+            Type::Alias(Shared::new(alias), Vec::new())
+        }
+
+        fn stops_at_a_type_standing_for_no_other(typ: &Type) -> bool {
+            match typ {
+                Type::TypeVariable(var)
+                | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) => {
+                    var.binding().is_unbound()
+                }
+                Type::Alias(..) => false,
+                _ => true,
+            }
+        }
+
+        let unbound = TypeVariable::unbound(TypeVariableId(0), Kind::Normal);
+        let named = |var: TypeVariable| {
+            Type::NamedGeneric(NamedGeneric::new(var, false, &Rc::new("T".to_string()), None, None))
+        };
+        let bound = |id, typ| Type::TypeVariable(TypeVariable::bound(TypeVariableId(id), typ));
+
+        let chains = [
+            Type::TypeVariable(unbound.clone()),
+            bound(1, Type::FieldElement),
+            bound(2, bound(3, Type::TypeVariable(unbound.clone()))),
+            named(TypeVariable::bound(TypeVariableId(4), Type::Bool)),
+            alias_of(bound(5, Type::FieldElement)),
+            bound(6, alias_of(named(TypeVariable::bound(TypeVariableId(7), Type::Unit)))),
+            bound(8, alias_of(Type::TypeVariable(unbound))),
+        ];
+        for typ in chains {
+            let followed = typ.follow_bindings_shallow();
+            assert!(
+                stops_at_a_type_standing_for_no_other(&followed),
+                "follow_bindings_shallow stopped at {followed:?} for {typ:?}"
+            );
+        }
+    }
+
     /// Creates a tuple type nested to the specified depth.
     /// For example, depth 3 creates: (((Field,),),)
     fn create_nested_tuple(depth: usize) -> Type {
