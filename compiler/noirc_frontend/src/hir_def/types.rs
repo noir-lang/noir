@@ -1046,7 +1046,20 @@ struct BindingCell {
 }
 
 impl BindingCell {
-    // `Type` is not yet `Send + Sync`, so neither is this cell, which is what the lint flags.
+    // `clippy::arc_with_non_send_sync` fires because `BindingCell` holds a `Type`, and `Type` is
+    // not `Send + Sync` (it reaches `Rc`s and `RefCell`s through `Shared`). Allowing it is sound:
+    //
+    // - The lint is about wasted cost, not memory safety. `Arc<T>` is only `Send` or `Sync` when
+    //   `T: Send + Sync`, so the compiler derives `Arc<BindingCell>`, and with it `TypeVariable`
+    //   and `Type`, as neither. Any attempt to move or share one across threads is a compile
+    //   error, exactly as it would be with an `Rc`.
+    // - That guarantee cannot be overridden from within this crate: it is `#![forbid(unsafe_code)]`,
+    //   so there is no `unsafe impl Send`/`Sync` to make the auto traits lie.
+    // - The cell's own interior mutability is a `OnceLock`, which is thread-safe by itself. The
+    //   only thing keeping the cell off other threads is its `Type` payload, so it becomes
+    //   `Send + Sync` with no further change as soon as `Type` does.
+    //
+    // What the `Arc` costs over an `Rc` in the meantime is an atomic refcount on clone and drop.
     #[allow(clippy::arc_with_non_send_sync)]
     fn new(unbound: TypeBinding, bound: OnceLock<TypeBinding>) -> Arc<Self> {
         Arc::new(BindingCell { unbound, bound })
