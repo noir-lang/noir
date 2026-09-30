@@ -1064,16 +1064,11 @@
 <a href=#1064 id=1064 data-nosnippet>1064</a>        // well: this is the one other place the monomorphiser runs, and leaving it unwatched is
 <a href=#1065 id=1065 data-nosnippet>1065</a>        // how the next leak would go unnoticed.
 <a href=#1066 id=1066 data-nosnippet>1066</a>        </span><span class="kw">let </span>check = PurityCheck::begin(elaborator.interner);
-<a href=#1067 id=1067 data-nosnippet>1067</a>        <span class="kw">let </span><span class="kw-2">mut </span>monomorphizer = Monomorphizer::new(
-<a href=#1068 id=1068 data-nosnippet>1068</a>            elaborator.interner,
-<a href=#1069 id=1069 data-nosnippet>1069</a>            elaborator.files,
-<a href=#1070 id=1070 data-nosnippet>1070</a>            DebugTypeTracker::default(),
-<a href=#1071 id=1071 data-nosnippet>1071</a>            <span class="prelude-val">None</span>,
-<a href=#1072 id=1072 data-nosnippet>1072</a>            <span class="bool-val">false</span>,
-<a href=#1073 id=1073 data-nosnippet>1073</a>        );
-<a href=#1074 id=1074 data-nosnippet>1074</a>        <span class="kw">let </span>expr = monomorphizer.expr(expr_id).expect(<span class="string">"monomorphization error while converting interpreter execution result, should not be possible"</span>);
-<a href=#1075 id=1075 data-nosnippet>1075</a>        drop(monomorphizer);
-<a href=#1076 id=1076 data-nosnippet>1076</a>        check.assert_context_unchanged(elaborator.interner);
-<a href=#1077 id=1077 data-nosnippet>1077</a>        <span class="prelude-val">Ok</span>(expr)
-<a href=#1078 id=1078 data-nosnippet>1078</a>    }
-<a href=#1079 id=1079 data-nosnippet>1079</a>}</code></pre></div></section></main></body></html>
+<a href=#1067 id=1067 data-nosnippet>1067</a>        <span class="kw">let </span><span class="kw-2">mut </span>monomorphizer =
+<a href=#1068 id=1068 data-nosnippet>1068</a>            Monomorphizer::new(elaborator.interner, DebugTypeTracker::default(), <span class="prelude-val">None</span>, <span class="bool-val">false</span>);
+<a href=#1069 id=1069 data-nosnippet>1069</a>        <span class="kw">let </span>expr = monomorphizer.expr(expr_id).expect(<span class="string">"monomorphization error while converting interpreter execution result, should not be possible"</span>);
+<a href=#1070 id=1070 data-nosnippet>1070</a>        drop(monomorphizer);
+<a href=#1071 id=1071 data-nosnippet>1071</a>        check.assert_context_unchanged(elaborator.interner);
+<a href=#1072 id=1072 data-nosnippet>1072</a>        <span class="prelude-val">Ok</span>(expr)
+<a href=#1073 id=1073 data-nosnippet>1073</a>    }
+<a href=#1074 id=1074 data-nosnippet>1074</a>}</code></pre></div></section></main></body></html>

@@ -341,9 +341,9 @@
 <a href=#341 id=341 data-nosnippet>341</a>        <span class="kw">let </span>statement_id = <span class="self">self</span>.interner.get_global(global_id).let_statement;
 <a href=#342 id=342 data-nosnippet>342</a>        <span class="self">self</span>.interner.replace_statement(statement_id, let_statement);
 <a href=#343 id=343 data-nosnippet>343</a>
-<a href=#344 id=344 data-nosnippet>344</a>        <span class="kw">let </span>global = <span class="self">self</span>.interner.get_global_mut(global_id);
-<a href=#345 id=345 data-nosnippet>345</a>        global.value = GlobalValue::Resolved(Value::Enum(variant_index, Vec::new(), typ));
-<a href=#346 id=346 data-nosnippet>346</a>        global.is_enum_variant = <span class="bool-val">true</span>;
+<a href=#344 id=344 data-nosnippet>344</a>        <span class="kw">let </span>value = Value::Enum(variant_index, Vec::new(), typ);
+<a href=#345 id=345 data-nosnippet>345</a>        <span class="self">self</span>.interner.resolve_global(global_id, value, <span class="bool-val">false</span>, <span class="self">self</span>.files);
+<a href=#346 id=346 data-nosnippet>346</a>        <span class="self">self</span>.interner.get_global_mut(global_id).is_enum_variant = <span class="bool-val">true</span>;
 <a href=#347 id=347 data-nosnippet>347</a>
 <a href=#348 id=348 data-nosnippet>348</a>        <span class="self">Self</span>::get_module_mut(<span class="self">self</span>.def_maps, type_id.module_id())
 <a href=#349 id=349 data-nosnippet>349</a>            .declare_global(name.clone(), enum_.visibility, global_id)
