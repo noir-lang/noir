@@ -23,7 +23,15 @@ use noirc_evaluator::ssa::ssa_gen;
 use noirc_frontend::monomorphization::ast::Program;
 
 pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
-    let config = Config { avoid_overflow: u.arbitrary()?, ..Config::default() };
+    // `avoid_index_out_of_bounds` is randomized rather than left at its default of `true`.
+    // This target does not execute the program, it only checks that each pass leaves the SSA
+    // well-formed, so an always-failing bounds assertion is harmless here — and an index the
+    // pipeline cannot simplify is exactly the kind of shape that has broken passes before.
+    let config = Config {
+        avoid_overflow: u.arbitrary()?,
+        avoid_index_out_of_bounds: u.ratio(3, 4)?,
+        ..Config::default()
+    };
     let program = arb_program(u, config)?;
 
     let result = validate_each_pass(&program);
