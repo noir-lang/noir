@@ -2463,8 +2463,15 @@ impl Type {
             }
         };
 
-        let substitute_binding = |binding: &TypeVariable| match &*binding.borrow() {
-            TypeBinding::Bound(binding) => binding.substitute(type_bindings),
+        let substitute_binding = |type_var: &TypeVariable| match &*type_var.borrow() {
+            TypeBinding::Bound(binding) => {
+                debug_assert!(
+                    !type_bindings.contains_key(&type_var.id()),
+                    "while substituting: type variable {:?} is bound to {binding:?} but also has a replacement in the substitution; substitute follows the binding and ignores the replacement",
+                    type_var.id(),
+                );
+                binding.substitute(type_bindings)
+            }
             TypeBinding::Unbound(id, _) => match type_bindings.get(id) {
                 Some((_, kind, replacement)) => {
                     assert!(
@@ -2473,7 +2480,7 @@ impl Type {
                         kind,
                         replacement.kind()
                     );
-                    recur_on_binding(binding.id(), replacement)
+                    recur_on_binding(type_var.id(), replacement)
                 }
                 None => self.clone(),
             },
@@ -3448,6 +3455,21 @@ impl PartialEq for Type {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A substitution that maps a type variable which is already bound would be silently ignored
+    /// for that variable, so debug builds reject it.
+    #[test]
+    #[cfg(debug_assertions)]
+    #[should_panic(expected = "also has a replacement in the substitution")]
+    fn substituting_a_bound_type_variable_panics() {
+        let type_var = TypeVariable::unbound(TypeVariableId(0), Kind::Normal);
+        type_var.bind(Type::FieldElement);
+
+        let mut bindings = TypeBindings::default();
+        bindings.insert(type_var.id(), (type_var.clone(), Kind::Normal, Type::Bool));
+
+        Type::TypeVariable(type_var).substitute(&bindings);
+    }
 
     /// `Type::eq` unwraps a `CheckedCast` and compares its `to` type, so any type that is equal to
     /// a `CheckedCast` must also hash the same as it. Monomorphization keys its function cache on
