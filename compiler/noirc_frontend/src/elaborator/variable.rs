@@ -207,9 +207,7 @@ impl Elaborator<'_> {
                     // standing for a type-level number is evaluated, both by the monomorphizer
                     // and by the comptime interpreter.
                     let type_var_id = self.interner.next_type_variable_id();
-                    let kind = Kind::Numeric(Box::new(declared_type.clone()));
-                    let type_var = TypeVariable::unbound(type_var_id, kind);
-                    type_var.bind(value);
+                    let type_var = TypeVariable::bound(type_var_id, value);
                     let definition =
                         DefinitionKind::NumericGeneric(type_var, Box::new(declared_type.clone()));
                     let definition_id =
