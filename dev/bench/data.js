@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790779626858,
+  "lastUpdate": 1790779675411,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22985,48 +22985,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "c65318eef48ff039a2e2341a9233f13243d2a0f7",
-          "message": "fix(nargo): keep caller frames when a nested ACIR call returns (#13691)",
-          "timestamp": "2026-09-17T15:09:23Z",
-          "tree_id": "39f37352fc5cc4cb40f9f045859dcc2e4d989a8c",
-          "url": "https://github.com/noir-lang/noir/commit/c65318eef48ff039a2e2341a9233f13243d2a0f7"
-        },
-        "date": 1789659049957,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 167788,
-            "range": "± 1767",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 135629,
-            "range": "± 3309",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2644988,
-            "range": "± 4969",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "dea5841562a427d7b25c688b36a11b7dfb8702ac",
           "message": "fix(ssa): make the interpreter's `array_len` count elements, not flattened slots (#13686)",
@@ -25069,6 +25027,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3043959,
             "range": "± 5528",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f90a070deba0b7e5a68b7e4f491e7b65d41cfb5f",
+          "message": "chore(deps): bump @nomicfoundation/hardhat-keystore from 3.0.13 to 3.1.0 in the hardhat group (#13798)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-09-30T14:22:39Z",
+          "tree_id": "597c50c5f34ed27308d35210c60360fd02eab9bc",
+          "url": "https://github.com/noir-lang/noir/commit/f90a070deba0b7e5a68b7e4f491e7b65d41cfb5f"
+        },
+        "date": 1790779585624,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 168224,
+            "range": "± 958",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136912,
+            "range": "± 3773",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2645153,
+            "range": "± 25302",
             "unit": "ns/iter"
           }
         ]
