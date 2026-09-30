@@ -77,7 +77,7 @@ pub fn get_monomorphized_with_options(
     src: &str,
     options: GetProgramOptions,
 ) -> Result<Program, MonomorphizationError> {
-    let (_parsed_module, mut context, errors) = get_program_with_options(src, options);
+    let (_parsed_module, context, errors) = get_program_with_options(src, options);
 
     let only_warnings = errors.iter().all(|err| !err.is_error());
     let has_defs = !context.def_maps.is_empty();
@@ -93,7 +93,7 @@ pub fn get_monomorphized_with_options(
         .get_main_function(context.root_crate_id())
         .unwrap_or_else(|| panic!("get_monomorphized: test program contains no 'main' function"));
 
-    monomorphize(main, &mut context.def_interner, context.file_manager.as_file_map(), false)
+    monomorphize(main, &context.def_interner, false)
 }
 
 pub(crate) fn has_parser_error(errors: &[CompilationError]) -> bool {

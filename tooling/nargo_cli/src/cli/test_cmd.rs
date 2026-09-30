@@ -212,11 +212,11 @@ struct Test<'a> {
 /// produces the same result for every test in that package, so a worker holds onto the context it
 /// built and reuses it for the next test from the same package.
 ///
-/// Reuse rests on monomorphization leaving the context exactly as it found it, which the frontend
-/// guarantees and asserts in `noirc_frontend::monomorphization::context_purity_tests`: the type
-/// variables it binds and the instantiation bindings it rewrites are restored on every path out,
-/// success or error. A context is dropped when a test unwinds, which escapes those restores, and
-/// `--no-context-reuse` turns sharing off for a whole run.
+/// Reuse rests on monomorphization not changing what an elaborated context already holds: it
+/// resolves generics through a substitution of its own rather than by binding the context's type
+/// variables. `noirc_frontend::monomorphization::context_reuse_tests` asserts that a test compiles
+/// to the same program whatever was compiled against the context before it. A context is dropped
+/// when a test unwinds, and `--no-context-reuse` turns sharing off for a whole run.
 struct CachedContext<'a> {
     package: &'a Package,
     context: Context<'a, 'a>,
@@ -226,8 +226,8 @@ struct CachedContext<'a> {
 /// Whether a test left the context it compiled against fit for the next test to compile against.
 ///
 /// Whether the test passed does not decide this, and neither does whether it compiled:
-/// monomorphization restores the bindings it made on every path out, so a compilation that failed
-/// leaves the context no worse off than one that succeeded. What is [`Self::Spent`] is the
+/// monomorphization only reads the elaborated program, so a compilation that failed leaves the
+/// context as fit for reuse as one that succeeded. What is [`Self::Spent`] is the
 /// `--force-comptime` and `--coverage` path, which runs the comptime interpreter over the context
 /// instead of monomorphizing, and hands the context's evaluation tracker to the coverage report.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -405,8 +405,9 @@ impl<'a> TestRunner<'a> {
                 });
                 let unwound = catch_unwind(run);
 
-                // Monomorphization's restores are unwound past rather than run by a panic, so a
-                // test that did not finish gives up its context however far it got.
+                // A panic can stop elaborating the package, or the comptime interpreter, part-way
+                // through changing the context, so a test that did not finish gives up its context
+                // however far it got.
                 let reusable = matches!(unwound, Ok((_, _, _, ContextState::Clean)))
                     && !self.args.no_context_reuse;
                 if !reusable {
@@ -840,8 +841,8 @@ impl<'a> TestRunner<'a> {
             });
 
             // The coverage report takes ownership of the evaluation tracker, which the next test
-            // needs rebuilt, and the purity the reuse rests on is monomorphization's rather than
-            // the interpreter's.
+            // needs rebuilt, and the interpreter runs as part of elaboration, so it can change
+            // what the context holds where monomorphization only reads it.
             return (status, output, report, ContextState::Spent);
         }
 

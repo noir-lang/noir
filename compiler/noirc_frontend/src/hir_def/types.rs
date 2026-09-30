@@ -27,7 +27,6 @@ use crate::shared::Signedness;
 use crate::{ast::Ident, node_interner::TypeId};
 
 use super::traits::NamedType;
-use super::type_variable_writes;
 
 mod arithmetic;
 pub(crate) mod recursion;
@@ -1055,7 +1054,6 @@ impl TypeVariable {
         };
 
         assert!(!typ.occurs(id), "{self:?} occurs within {typ:?}");
-        type_variable_writes::record(self);
         *self.1.borrow_mut() = TypeBinding::Bound(typ);
     }
 
@@ -1083,18 +1081,9 @@ impl TypeVariable {
         if binding.occurs(id) {
             Err(TypeCheckError::CyclicType { location, typ: binding })
         } else {
-            type_variable_writes::record(self);
             *self.1.borrow_mut() = TypeBinding::Bound(binding);
             Ok(())
         }
-    }
-
-    /// Whether `other` is a handle on the same binding as this one, so that writing through
-    /// either is visible through both.
-    ///
-    /// Compares the allocation rather than the contents, which `PartialEq` does.
-    pub(crate) fn shares_binding_with(&self, other: &TypeVariable) -> bool {
-        self.1.as_ptr() == other.1.as_ptr()
     }
 
     /// Borrows this `TypeVariable` to (e.g.) manually match on the inner `TypeBinding`.
@@ -1116,13 +1105,11 @@ impl TypeVariable {
         if typ.occurs(self.id()) {
             return None;
         }
-        type_variable_writes::record(self);
         Some(std::mem::replace(&mut *self.1.borrow_mut(), TypeBinding::Bound(typ)))
     }
 
     /// Put back contents previously taken by [`Self::replace`].
     fn restore(&self, previous: TypeBinding) {
-        type_variable_writes::record(self);
         *self.1.borrow_mut() = previous;
     }
 

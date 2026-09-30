@@ -8,11 +8,11 @@ use crate::{
     Type,
     ast::IntegerBitSize,
     monomorphization::{
-        CanonicalBindings, Monomorphizer,
+        FunctionKey, Monomorphizer,
         ast::{self, Definition, FuncId, Function, InlineType},
         errors::MonomorphizationError,
     },
-    node_interner::{self, ExprId},
+    node_interner::ExprId,
     shared::{Builtin, Signedness, Visibility},
     token::FmtStrFragment,
 };
@@ -48,27 +48,17 @@ impl Monomorphizer<'_> {
     /// Try to evaluate certain builtin functions (just the function itself) given their type.
     /// All builtins are function types, so the evaluated result will always be a new function or None.
     ///
-    /// Prerequisite: `typ = typ.follow_bindings()`,
-    ///          and: `turbofish_generics = vecmap(turbofish_generics, Type::follow_bindings)`,
-    ///          and: `bindings_key` was produced by `Monomorphizer::canonicalize_bindings`.
-    #[expect(clippy::too_many_arguments)]
+    /// `key` is the function instance being evaluated; the new function is recorded under it.
     pub(super) fn try_evaluate_builtin(
         &mut self,
         builtin: Builtin,
-        typ: Type,
-        turbofish_generics: Vec<Type>,
-        bindings_key: CanonicalBindings,
-        is_unconstrained: bool,
-        id: node_interner::FuncId,
+        key: FunctionKey,
         location: Location,
     ) -> Result<Option<FuncId>, MonomorphizationError> {
         let Some(opcode) = HandledOpcode::from_builtin(builtin) else { return Ok(None) };
 
-        let (parameter_types, return_type, env, unconstrained) = match typ {
-            Type::Function(parameters, ret, env, unconstrained) => {
-                (parameters, ret, env, unconstrained)
-            }
-            other => unreachable!("Expected built-in to be a function, found {other:?}"),
+        let Type::Function(parameter_types, return_type, _env, _unconstrained) = &key.typ else {
+            unreachable!("Expected built-in to be a function, found {:?}", key.typ);
         };
 
         let converted_return_type = Self::convert_type(return_type.as_ref(), location)?;
@@ -117,21 +107,13 @@ impl Monomorphizer<'_> {
                 body,
                 return_type: converted_return_type,
                 return_visibility: Visibility::Private,
-                unconstrained: is_unconstrained,
+                unconstrained: key.is_unconstrained,
                 inline_type: InlineType::InlineAlways,
                 is_entry_point: false,
                 allow_constant_return: false,
             },
         );
-        let typ = Type::Function(parameter_types, return_type, env, unconstrained);
-        self.define_function(
-            id,
-            typ,
-            turbofish_generics,
-            bindings_key,
-            is_unconstrained,
-            new_function_id,
-        );
+        self.define_function(key, new_function_id);
         Ok(Some(new_function_id))
     }
 
@@ -360,8 +342,8 @@ impl Monomorphizer<'_> {
             return Ok(Some(match HandledOpcode::from_builtin(*opcode) {
                 Some(HandledOpcode::CheckedTransmute) => {
                     assert_eq!(arguments.len(), 1);
-                    let parameter_type = self.interner.id_type(arguments[0]).follow_bindings();
-                    let result_type = self.interner.id_type(expr_id).follow_bindings();
+                    let parameter_type = self.expr_type(arguments[0]).follow_bindings();
+                    let result_type = self.expr_type(*expr_id).follow_bindings();
                     self.check_transmute(&parameter_type, &result_type, location)?;
                     argument_values[0].clone()
                 }
