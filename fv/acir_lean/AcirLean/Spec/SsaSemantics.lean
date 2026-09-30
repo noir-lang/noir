@@ -38,14 +38,14 @@ inductive ParamType where
   | array (elems : List ValueType) (len : ℕ)
   deriving DecidableEq
 
-/-- An SSA value, or a typed constant (its integer value). -/
+/-- An SSA value, or a typed constant as SSA prints it (see `constVal`). -/
 inductive Operand where
   | var (id : ℕ)
-  | const (v : ℕ) (ty : ValueType)
+  | const (v : ℤ) (ty : ValueType)
   deriving DecidableEq
 
 inductive BinaryOp where
-  | add | sub | mul | div | mod | lt | eq
+  | add | sub | mul | div | mod | lt | eq | xor
   deriving DecidableEq
 
 inductive Instruction where
@@ -59,6 +59,8 @@ inductive Instruction where
   | truncate (dst : ℕ) (a : Operand) (bits maxBits : ℕ)
   /-- `constrain <a> == <b>[, "<msg>"]` -/
   | constrain (a b : Operand) (msg : Option String)
+  /-- `constrain <a> != <b>[, "<msg>"]` -/
+  | constrainNe (a b : Operand) (msg : Option String)
   /-- `range_check <a> to <bits> bits[, "<msg>"]` -/
   | rangeCheck (a : Operand) (bits : ℕ) (msg : Option String)
   /-- `v<dst> = array_get <a>, index <i> -> <ty>` -/
@@ -95,7 +97,7 @@ def Operand.render : Operand → String
 
 def BinaryOp.name : BinaryOp → String
   | .add => "add" | .sub => "sub" | .mul => "mul" | .div => "div" | .mod => "mod"
-  | .lt => "lt" | .eq => "eq"
+  | .lt => "lt" | .eq => "eq" | .xor => "xor"
 
 def msgSuffix : Option String → String
   | none => ""
@@ -108,6 +110,7 @@ def Instruction.render : Instruction → String
   | .cast d a ty => s!"    v{d} = cast {a.render} as {ty.render}"
   | .truncate d a k m => s!"    v{d} = truncate {a.render} to {k} bits, max_bit_size: {m}"
   | .constrain a b m => s!"    constrain {a.render} == {b.render}{msgSuffix m}"
+  | .constrainNe a b m => s!"    constrain {a.render} != {b.render}{msgSuffix m}"
   | .rangeCheck a k m => s!"    range_check {a.render} to {k} bits{msgSuffix m}"
   | .arrayGet d a i ty => s!"    v{d} = array_get {a.render}, index {i.render} -> {ty.render}"
   | .arraySet d m a i v =>
@@ -142,12 +145,18 @@ inductive Value where
 /-- Values of the SSA variables so far. -/
 abbrev Env := List (ℕ × Value)
 
+/-- A constant's value: a signed integer is its two's-complement bit pattern
+(`i8 -1` is `255`); any other constant is its value mod `p`. -/
+def constVal : ValueType → ℤ → F
+  | .sint n, v => ((v % 2 ^ n).toNat : F)
+  | _, v => (v : F)
+
 /-- A scalar operand's value. -/
 def Operand.value (env : Env) : Operand → Option (F × ValueType)
   | .var id => match env.lookup id with
     | some (.scalar v) => some v
     | _ => none
-  | .const v ty => some ((v : F), ty)
+  | .const v ty => some (constVal ty v, ty)
 
 /-- An array operand's scalars. -/
 def Operand.array (env : Env) : Operand → Option (List (F × ValueType))
@@ -162,7 +171,7 @@ def Operand.flat (env : Env) : Operand → Option (List F)
     | some (.scalar v) => some [v.1]
     | some (.array xs) => some (xs.map Prod.fst)
     | none => none
-  | .const v _ => some [(v : F)]
+  | .const v ty => some [constVal ty v]
 
 /-- An array index: a `u32` below the array's length (the interpreter reads it
 with `as_u32` and fails past the end). -/
@@ -195,6 +204,7 @@ def u1Apply (op : BinaryOp) (unchecked x y : Bool) : Option Bool :=
   | .mod => if y then some false else none
   | .lt => some (!x && y)
   | .eq => some (x == y)
+  | .xor => some (x ^^ y)
 
 /-- A binary instruction on `x` and `y`, both of `x`'s type, as Noir's SSA
 interpreter evaluates it in an ACIR function (`evaluate_binary`):
@@ -212,7 +222,10 @@ interpreter evaluates it in an ACIR function (`evaluate_binary`):
 * `i<n>`: unchecked `add`, `sub` and `mul` as for `u<n>`, and `eq` on the low
   `n` bits. The interpreter also defines their checked arithmetic, `div`,
   `mod` and `lt`, but `expand_signed_math` rewrites those before the SSA
-  reaches ACIR, so they are left undefined here. -/
+  reaches ACIR, so they are left undefined here;
+* `xor` is defined on `u1` only (through `u1Apply`). The interpreter also
+  defines it bitwise on wider integers, which ACIR computes with a black-box
+  function this spec does not model. -/
 def BinaryOp.apply (op : BinaryOp) (unchecked : Bool) (x y : F) :
     ValueType → Option (F × ValueType)
   | .field =>
@@ -223,7 +236,7 @@ def BinaryOp.apply (op : BinaryOp) (unchecked : Bool) (x y : F) :
     | .div => if y = 0 then none else some (x * y⁻¹, .field)
     | .lt => some (flag (x.val < y.val))
     | .eq => some (flag (x = y))
-    | .mod => none
+    | .mod | .xor => none
   | .uint 1 =>
     if x.val < 2 ∧ y.val < 2 then (u1Apply op unchecked (x.val = 1) (y.val = 1)).map flag
     else none
@@ -256,7 +269,8 @@ def BinaryOp.apply (op : BinaryOp) (unchecked : Bool) (x y : F) :
   (the interpreter relabels, and a later `truncate` makes it fit);
 * `truncate` keeps the low `bits` bits, so truncating to `0` bits gives `0`.
   Otherwise it fails for a `u1` above `1`, as the interpreter does;
-* `constrain` fails unless its operands are equal;
+* `constrain` fails unless its operands are equal, and `constrain !=` fails if
+  they are equal;
 * `array_get` reads the scalar at a flat position, and `array_set` returns a
   copy of the array with that position replaced (arrays are values in ACIR
   functions, so `mut` does not change the result). Both fail unless the index
@@ -289,6 +303,10 @@ def Instruction.run (env : Env) : Instruction → Option Env
     let (x, _) ← a.value env
     let (y, _) ← b.value env
     if x = y then some env else none
+  | .constrainNe a b _ => do
+    let (x, _) ← a.value env
+    let (y, _) ← b.value env
+    if x = y then none else some env
   | .rangeCheck a k _ => do
     let (x, tx) ← a.value env
     if 0 < k ∧ x.val < 2 ^ k ∧ (tx = .uint 1 → x.val < 2) then some env else none

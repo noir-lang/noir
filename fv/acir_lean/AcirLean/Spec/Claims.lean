@@ -111,9 +111,20 @@ def SignedOp (n : ℕ) (op : ℤ → ℤ → ℤ) : List ℕ → List ℕ → Pr
 * `arithmetic_binary_operations` divides `Field`s, which the checker has no
   rule for;
 * `regression_8519` truncates a `Field` to 128 bits, whose remainder bound
-  takes a shape the checker does not handle. -/
+  takes a shape the checker does not handle;
+* `bit_shifts_comptime`, `regression_8726`, `signed_div` and `signed_division`
+  divide in ways the division rule does not match yet (a constant divisor of
+  `2^62`, a value divided by itself, the division `expand_signed_math` emits);
+* `regression_12473` and `signed_cmp` compare with `lt` in a shape the
+  comparison rule does not match yet;
+* `a_6_array` does a checked `add` and `signed_arithmetic` range-checks a
+  product, where the checker cannot yet bound the result;
+* `unary_operator_overloading` applies `not` to a signed integer, which the
+  checker handles for unsigned integers only. -/
 def uncoveredPrograms : List String :=
-  ["arithmetic_binary_operations", "regression_8519"]
+  ["a_6_array", "arithmetic_binary_operations", "bit_shifts_comptime", "regression_12473",
+   "regression_8519", "regression_8726", "signed_arithmetic", "signed_cmp", "signed_div",
+   "signed_division", "unary_operator_overloading"]
 
 /-- The whole promise, for every pinned width `n`:
 * `euclidean_division_var(a, b, n)` with `a`, `b` both `n`-bit computes

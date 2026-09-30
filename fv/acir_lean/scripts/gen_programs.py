@@ -90,8 +90,8 @@ def opnd(s):
     if m:
         return f".var {m.group(1)}"
     m = re.fullmatch(TY + r" (-?\d+)", s)
-    if m and not m.group(2).startswith("-"):
-        return f".const {m.group(2)} ({ty(m.group(1))})"
+    if m:
+        return f".const ({m.group(2)}) ({ty(m.group(1))})"
     raise ValueError(f"operand {s}")
 
 
@@ -107,7 +107,7 @@ def msg(rest):
 
 def instr(line):
     l = line.strip()
-    m = re.fullmatch(r"v(\d+) = (unchecked_)?(add|sub|mul|div|mod|lt|eq) ([^,]+), (.+)", l)
+    m = re.fullmatch(r"v(\d+) = (unchecked_)?(add|sub|mul|div|mod|lt|eq|xor) ([^,]+), (.+)", l)
     if m:
         u = "true" if m.group(2) else "false"
         return f".bin {m.group(1)} .{m.group(3)} {u} ({opnd(m.group(4))}) ({opnd(m.group(5))})"
@@ -123,6 +123,9 @@ def instr(line):
     m = re.fullmatch(r"constrain ([^=]+) == ([^,]+)(.*)", l)
     if m:
         return f".constrain ({opnd(m.group(1))}) ({opnd(m.group(2))}) {msg(m.group(3))}"
+    m = re.fullmatch(r"constrain ([^=!]+) != ([^,]+)(.*)", l)
+    if m:
+        return f".constrainNe ({opnd(m.group(1))}) ({opnd(m.group(2))}) {msg(m.group(3))}"
     m = re.fullmatch(r"range_check (.+) to (\d+) bits(.*)", l)
     if m:
         return f".rangeCheck ({opnd(m.group(1))}) {m.group(2)} {msg(m.group(3))}"

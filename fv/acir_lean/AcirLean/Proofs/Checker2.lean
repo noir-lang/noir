@@ -185,7 +185,9 @@ inductive RVal where
 
 abbrev Reps := List (ℕ × RVal)
 
-def constRep (v : ℕ) (ty : ValueType) : Rep2 := ⟨[pconst v], ty, v % p, v % p⟩
+def constRep (v : ℤ) (ty : ValueType) : Rep2 :=
+  let c := (constVal ty v).val
+  ⟨[pconst c], ty, c, c⟩
 
 def opRep (reps : Reps) : Operand → Option Rep2
   | .var id => match reps.lookup id with
@@ -209,7 +211,7 @@ def opFlat (reps : Reps) : Operand → Option (List Rep2)
 
 /-- A constant `u32` index below `len`. -/
 def constIdx (len : ℕ) : Operand → Option ℕ
-  | .const c (.uint 32) => if c < len ∧ c < p then some c else none
+  | .const c (.uint 32) => if 0 ≤ c ∧ c < len ∧ c < p then some c.toNat else none
   | _ => none
 
 /-- `y` with `1 ∓ t z - y = 0` and `t y = 0`: `y` is the flag `t = 0`. -/
@@ -283,7 +285,7 @@ def checkedRep (cc : List Opcode) (op : BinaryOp) (a b : Rep2) : Option Rep2 :=
       if M + b.M < p then some ⟨alts, .uint n, L, M⟩ else none
   | .div, .uint n =>
     let sols := euclid cc a b
-    if sols.isEmpty then none else some ⟨sols.map (pvar ·.1), .uint n, 0, a.M⟩
+    if sols.isEmpty then none else some ⟨sols.map (pvar ·.1), .uint n, 0, a.M / max b.L 1⟩
   | .mod, .uint n =>
     let sols := euclid cc a b
     if sols.isEmpty then none else some ⟨sols.map (pvar ·.2), .uint n, 0, min a.M (b.M - 1)⟩
@@ -339,6 +341,11 @@ def addRep (cc : List Opcode) (n : ℕ) (a b : Rep2) : Option Rep2 :=
       decide (c < 2 ^ n) && decide (c < p) && holdsZ cc (psub P (pconst c))).map
       fun c => ⟨alts, .uint n, c, c⟩
 
+/-- `xor` on `u1`: `x + y - 2 x y`. -/
+def xorRep (cc : List Opcode) (a b : Rep2) : Rep2 :=
+  ⟨comb (fun A B => psub (A ++ B) (pscale 2 (pmul A B))) (forms cc a.alts) (forms cc b.alts),
+    .uint 1, 0, 1⟩
+
 /-- `u1` arithmetic is boolean: unchecked `add` is `xor`, which is the sum when
 the sum is below `2`; unchecked `sub` and `mul` mean the same as checked. -/
 def binRep (cc : List Opcode) (op : BinaryOp) (u : Bool) (a b : Rep2) : Option Rep2 :=
@@ -351,7 +358,8 @@ def binRep (cc : List Opcode) (op : BinaryOp) (u : Bool) (a b : Rep2) : Option R
     else checkedRep cc op a b
   | .uint _, true | .sint _, true => uncheckedRep cc op a b
   | _, _ =>
-    if fitsBoth a b then checkedRep cc op a b
+    if op = .xor then (if a.ty = .uint 1 ∧ fitsBoth a b then some (xorRep cc a b) else none)
+    else if fitsBoth a b then checkedRep cc op a b
     else match a.ty, op with
       | .uint n, .add => if n = 1 then none else addRep cc n a b
       | _, _ => none
@@ -384,6 +392,13 @@ def truncRep (cc : List Opcode) (a : Rep2) (k : ℕ) : Rep2 :=
 def eqHolds (cc : List Opcode) (a b : Rep2) : Bool :=
   (forms cc a.alts).any fun Xa => (forms cc b.alts).any fun Xb => eqVia cc Xa Xb
 
+/-- `a ≠ b`: some witness `z` has `(a - b) z = ±1`, directly or through a
+witness equal to `a - b`. -/
+def neHolds (cc : List Opcode) (a b : Rep2) : Bool :=
+  (forms cc a.alts).any fun Xa => (forms cc b.alts).any fun Xb =>
+    (forms cc [psub Xa Xb]).any fun D => (cc.flatMap cVars).any fun z =>
+      holdsZ cc (psub (pconst 1) (pmul D (pvar z))) || holdsZ cc (pconst 1 ++ pmul D (pvar z))
+
 def rangeHolds (cc : List Opcode) (a : Rep2) (k : ℕ) : Bool :=
   decide (a.M < 2 ^ k) || (checked cc a.alts k).isSome
 
@@ -413,6 +428,10 @@ def step2 (cc : List Opcode) (reps : Reps) : Instruction → Option Reps
     let ra ← opRep reps a
     let rb ← opRep reps b
     if eqHolds cc ra rb then some reps else none
+  | .constrainNe a b _ => do
+    let ra ← opRep reps a
+    let rb ← opRep reps b
+    if neHolds cc ra rb then some reps else none
   | .rangeCheck a k _ => do
     let ra ← opRep reps a
     if 0 < k ∧ (ra.ty = .uint 1 → ra.M < 2) ∧ rangeHolds cc ra k then some reps else none

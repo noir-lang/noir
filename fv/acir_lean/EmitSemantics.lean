@@ -69,9 +69,10 @@ def binaryOps : ValueType → List (BinaryOp × Bool)
   | .field =>
     [(.add, false), (.add, true), (.sub, false), (.sub, true), (.mul, false), (.mul, true),
      (.div, false), (.mod, false), (.eq, false)]
-  | .uint _ =>
+  | .uint n =>
     [(.add, false), (.add, true), (.sub, false), (.sub, true), (.mul, false), (.mul, true),
-     (.div, false), (.mod, false), (.lt, false), (.eq, false)]
+     (.div, false), (.mod, false), (.lt, false), (.eq, false)] ++
+    (if n = 1 then [(.xor, false)] else [])
 
 def pairs (ty : ValueType) : List (List ℕ) := do
   let x ← values ty
@@ -99,7 +100,18 @@ def unaryCases : List Case := do
 
 def constrainCases : List Case := do
   let ty ← types
-  pure ⟨[(0, ty), (1, ty)], [.constrain (.var 0) (.var 1) none], [], pairs ty⟩
+  [⟨[(0, ty), (1, ty)], [.constrain (.var 0) (.var 1) none], [], pairs ty⟩,
+   ⟨[(0, ty), (1, ty)], [.constrainNe (.var 0) (.var 1) none], [], pairs ty⟩]
+
+/-- Negative constants of each signed type (`-1` and the minimum), added to and
+compared with every value. -/
+def negativeCases : List Case := do
+  let n ← [8, 16, 32, 64]
+  let ty := ValueType.sint n
+  let c ← [-1, -(2 ^ (n - 1) : ℤ)]
+  let xs := (values ty).map fun x => [x]
+  [⟨[(0, ty)], [.bin 1 .add true (.var 0) (.const c ty)], [.var 1], xs⟩,
+   ⟨[(0, ty)], [.bin 1 .eq false (.var 0) (.const c ty)], [.var 1], xs⟩]
 
 /-- An array of two values of type `ty`, then `array_get` at every position and
 one past the end, and `array_set` at every position followed by a read of the
@@ -117,7 +129,8 @@ def arrayCases : List Case := do
   gets ++ sets
 
 def render : String :=
-  String.join ((binaryCases ++ unaryCases ++ constrainCases ++ arrayCases).map Case.lines)
+  String.join ((binaryCases ++ unaryCases ++ constrainCases ++ negativeCases ++ arrayCases).map
+    Case.lines)
 
 end AcirLean.SemanticsTable
 

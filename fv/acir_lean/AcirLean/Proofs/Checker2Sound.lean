@@ -468,6 +468,7 @@ def fitApply (op : BinaryOp) (x y : F) : ValueType → Option (F × ValueType)
       | .mod => if y.val = 0 then none else some (((x.val % y.val : ℕ) : F), .uint n)
       | .lt => some (flag (x.val < y.val))
       | .eq => some (flag (x = y))
+      | .xor => none
     else none
   | .sint n =>
     match op with
@@ -587,7 +588,7 @@ theorem checkedRep_sound {op : BinaryOp} {a b r : Rep2} {x y : F} {tx ty : Value
           have := euclid_sound hcc hFa hFb hLb hMb (show (q, r) ∈ _ by rw [hl]; exact hqr)
           rw [eval_pvar, ← this.2.1, cast_val]
         · simp only [val_natCast_of_lt hdp]
-          exact le_trans (Nat.div_le_self _ _) hMa
+          exact Nat.div_le_div hMa (max_le hLb (Nat.one_le_iff_ne_zero.2 hs.1)) (by omega)
     case mod =>
       split_ifs at h with he
       simp only [Option.some.injEq] at h; subst h
@@ -744,7 +745,7 @@ theorem apply_of_fitApply {op : BinaryOp} {u : Bool} {x y : F} {t : ValueType}
       · exact absurd rfl hn1
       · exact hw
     apply happ
-    cases op <;> dsimp only at h
+    cases op <;> (try dsimp only at h)
     · obtain rfl : u = false := by simpa [isArith] using hu'
       split_ifs at h with h1
       simp only [Option.some.injEq] at h
@@ -777,6 +778,7 @@ theorem apply_of_fitApply {op : BinaryOp} {u : Bool} {x y : F} {t : ValueType}
     · simp only [Option.some.injEq] at h
       subst h
       simp [lowBits, mx, my, hinj]
+    · simp at h
 
 theorem binRep_sound {op : BinaryOp} {u : Bool} {a b r : Rep2} {x y : F} {tx ty : ValueType}
     (h : binRep cc op u a b = some r) (ha : RepOK2 σ a (x, tx)) (hb : RepOK2 σ b (y, ty)) :
@@ -831,6 +833,43 @@ theorem binRep_sound {op : BinaryOp} {u : Bool} {a b r : Rep2} {x y : F} {tx ty 
     rw [hty, hu.1]
     cases op <;> simp_all [BinaryOp.apply, fieldArith]
   · next h1 h2 h3 =>
+    by_cases hxo : op = .xor
+    · subst hxo
+      simp only [if_true] at h
+      split_ifs at h with hc
+      simp only [Option.some.injEq] at h
+      subst h
+      obtain ⟨hty1, hf⟩ := hc
+      obtain ⟨-, hPa, -, hMa⟩ := ha
+      obtain ⟨-, hPb, -, hMb⟩ := hb
+      simp only at hPa hMa hPb hMb
+      simp only [fitsBoth, hty1, pow_one, decide_eq_true_eq] at hf
+      have hx : x.val < 2 := by omega
+      have hy : y.val < 2 := by omega
+      have hv : ∀ P ∈ comb (fun A B => psub (A ++ B) (pscale 2 (pmul A B)))
+          (forms cc a.alts) (forms cc b.alts), P.eval σ = x + y - 2 * (x * y) := by
+        intro P hP
+        obtain ⟨A, hA, B, hB, rfl⟩ := comb_mem hP
+        simp [forms_sound hcc hPa A hA, forms_sound hcc hPb B hB]
+      rw [hty1]
+      have h2 : (2 : F) ≠ 0 := by
+        intro h0
+        have := congrArg ZMod.val h0
+        rw [ZMod.val_zero, show (2 : F) = ((2 : ℕ) : F) by norm_num,
+          ZMod.val_natCast_of_lt (by norm_num [p])] at this
+        omega
+      have hflag : ∀ bx : Bool, (flag bx).1.val ≤ 1 := fun bx => by
+        cases bx <;> simp [flag, ZMod.val_one]
+      rcases val_bit hx with rfl | rfl <;> rcases val_bit hy with rfl | rfl
+      · refine ⟨flag false, by simp [BinaryOp.apply, u1Apply, flag], rfl,
+          fun P hP => by rw [hv P hP]; simp [flag], Nat.zero_le _, hflag _⟩
+      · refine ⟨flag true, by simp [BinaryOp.apply, u1Apply, flag, ZMod.val_one], rfl,
+          fun P hP => by rw [hv P hP]; simp [flag], Nat.zero_le _, hflag _⟩
+      · refine ⟨flag true, by simp [BinaryOp.apply, u1Apply, flag, ZMod.val_one], rfl,
+          fun P hP => by rw [hv P hP]; simp [flag], Nat.zero_le _, hflag _⟩
+      · refine ⟨flag false, by simp [BinaryOp.apply, u1Apply, flag, ZMod.val_one], rfl,
+          fun P hP => by rw [hv P hP]; simp [flag]; ring, Nat.zero_le _, hflag _⟩
+    simp only [hxo, if_false] at h
     split_ifs at h with hf
     · obtain ⟨v, hv, hok⟩ := checkedRep_sound hcc h ha hb hf
       refine ⟨v, apply_of_fitApply hv (.inl fun hne => ?_), hok⟩
@@ -915,15 +954,15 @@ theorem lookup_ok {σ : ℕ → F} : ∀ {reps : Reps} {env : Env}, EnvOK σ rep
       simp only [List.lookup, hne] at h ⊢
       exact lookup_ok ht h
 
-theorem constRep_ok (σ : ℕ → F) (c : ℕ) (ty : ValueType) :
-    RepOK2 σ (constRep c ty) ((c : F), ty) := by
+theorem constRep_ok (σ : ℕ → F) (c : ℤ) (ty : ValueType) :
+    RepOK2 σ (constRep c ty) (constVal ty c, ty) := by
   refine ⟨rfl, ?_, ?_, ?_⟩
   · intro P hP
     simp only [constRep, List.mem_singleton] at hP
     subst hP
-    simp
-  · simp [constRep, ZMod.val_natCast]
-  · simp [constRep, ZMod.val_natCast]
+    simp [cast_val]
+  · simp [constRep]
+  · simp [constRep]
 
 theorem opRep_ok {σ : ℕ → F} {reps : Reps} {env : Env} (hE : EnvOK σ reps env)
     {o : Operand} {r : Rep2} (h : opRep reps o = some r) :
@@ -943,7 +982,7 @@ theorem opRep_ok {σ : ℕ → F} {reps : Reps} {env : Env} (hE : EnvOK σ reps 
   | const c ty =>
     simp only [opRep, Option.some.injEq] at h
     subst h
-    exact ⟨((c : F), ty), rfl, constRep_ok σ c ty⟩
+    exact ⟨(constVal ty c, ty), rfl, constRep_ok σ c ty⟩
 
 theorem opArr_ok {σ : ℕ → F} {reps : Reps} {env : Env} (hE : EnvOK σ reps env)
     {o : Operand} {rs : List Rep2} (h : opArr reps o = some rs) :
@@ -993,7 +1032,7 @@ theorem opFlat_ok {σ : ℕ → F} {reps : Reps} {env : Env} (hE : EnvOK σ reps
   | const c ty =>
     simp only [opFlat, Option.some.injEq] at h
     subst h
-    exact ⟨[(c : F)], rfl, .cons (constRep_ok σ c ty).2.1 .nil⟩
+    exact ⟨[constVal ty c], rfl, .cons (constRep_ok σ c ty).2.1 .nil⟩
 
 theorem forall₂_getElem? {α β : Type} {R : α → β → Prop} :
     ∀ {as : List α} {bs : List β}, List.Forall₂ R as bs →
@@ -1029,14 +1068,15 @@ theorem opReps_ok {σ : ℕ → F} {reps : Reps} {env : Env} (hE : EnvOK σ reps
     exact ⟨x :: xs, by simp [List.mapM_cons, hx, hxs], .cons hok hall⟩
 
 theorem constIdx_some {len j : ℕ} {i : Operand} (h : constIdx len i = some j) :
-    i = .const j (.uint 32) ∧ j < len ∧ j < p := by
+    i = .const (j : ℤ) (.uint 32) ∧ j < len ∧ j < p := by
   unfold constIdx at h
   split at h
   · next c =>
     split_ifs at h with hc
     simp only [Option.some.injEq] at h
     subst h
-    exact ⟨rfl, hc⟩
+    obtain ⟨h0, hl, hp⟩ := hc
+    refine ⟨by rw [Int.toNat_of_nonneg h0], by omega, by omega⟩
   · simp at h
 
 section
@@ -1120,6 +1160,32 @@ theorem step2_ok {reps : Reps} {env : Env} (hE : EnvOK σ reps env) {i : Instruc
     simp only at hPa hPb
     rw [forms_sound hcc hPa Xa hXa, forms_sound hcc hPb Xb hXb] at hxy
     exact ⟨env, by simp [Instruction.run, hx, hy, hxy], hE⟩
+  | constrainNe a b m =>
+    simp only [step2, Option.bind_eq_bind, Option.bind_eq_some_iff] at h
+    obtain ⟨ra, hra, rb, hrb, h⟩ := h
+    obtain ⟨⟨x, tx⟩, hx, ⟨_, hPa, _, _⟩⟩ := opRep_ok hE hra
+    obtain ⟨⟨y, ty⟩, hy, ⟨_, hPb, _, _⟩⟩ := opRep_ok hE hrb
+    split_ifs at h with he
+    simp only [Option.some.injEq] at h
+    subst h
+    simp only at hPa hPb
+    obtain ⟨Xa, hXa, he⟩ := List.any_eq_true.1 he
+    obtain ⟨Xb, hXb, he⟩ := List.any_eq_true.1 he
+    obtain ⟨D, hD, he⟩ := List.any_eq_true.1 he
+    obtain ⟨z, -, he⟩ := List.any_eq_true.1 he
+    have hDv : D.eval σ = x - y := by
+      refine forms_sound hcc (fun P hP => ?_) D hD
+      simp only [List.mem_singleton] at hP
+      subst hP
+      simp [forms_sound hcc hPa Xa hXa, forms_sound hcc hPb Xb hXb]
+    have hne : x ≠ y := by
+      intro hxy
+      rcases Bool.or_eq_true_iff.1 he with he | he
+      · have := holdsZ_sound hcc he
+        simp [hDv, hxy] at this
+      · have := holdsZ_sound hcc he
+        simp [hDv, hxy] at this
+    exact ⟨env, by simp [Instruction.run, hx, hy, hne], hE⟩
   | rangeCheck a k m =>
     simp only [step2, Option.bind_eq_bind, Option.bind_eq_some_iff] at h
     obtain ⟨ra, hra, h⟩ := h
@@ -1147,7 +1213,8 @@ theorem step2_ok {reps : Reps} {env : Env} (hE : EnvOK σ reps env) {i : Instruc
     obtain ⟨rfl, hjl, hjp⟩ := constIdx_some hj
     obtain ⟨x, hx, hok⟩ := forall₂_getElem? hall hr
     have hlen := hall.length_eq
-    have hi : (Operand.const j (.uint 32)).value env = some ((j : F), .uint 32) := rfl
+    have hi : (Operand.const (j : ℤ) (.uint 32)).value env = some ((j : F), .uint 32) := by
+      simp [Operand.value, constVal]
     obtain ⟨_, hxj⟩ := List.getElem?_eq_some_iff.1 hx
     refine ⟨(d, .scalar x) :: env, ?_, .cons ⟨rfl, hok⟩ hE⟩
     simp [Instruction.run, hxs, hi, arrayIndex, val_natCast_of_lt hjp, ← hlen, hjl, hxj]
@@ -1160,7 +1227,8 @@ theorem step2_ok {reps : Reps} {env : Env} (hE : EnvOK σ reps env) {i : Instruc
     obtain ⟨rfl, hjl, hjp⟩ := constIdx_some hj
     obtain ⟨x, hx, hok⟩ := opRep_ok hE hr
     have hlen := hall.length_eq
-    have hi : (Operand.const j (.uint 32)).value env = some ((j : F), .uint 32) := rfl
+    have hi : (Operand.const (j : ℤ) (.uint 32)).value env = some ((j : F), .uint 32) := by
+      simp [Operand.value, constVal]
     refine ⟨(d, .array (xs.set j x)) :: env, ?_, .cons ⟨rfl, forall₂_set hok hall j⟩ hE⟩
     simp [Instruction.run, hxs, hi, arrayIndex, val_natCast_of_lt hjp, ← hlen, hjl, hx]
   | makeArray d es ty =>

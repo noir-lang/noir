@@ -340,14 +340,14 @@ A parameter's type: a scalar, or an array. `array [u8] 5` is `[u8; 5]`, and `arr
 ```lean
 inductive Operand where
   | var (id : ℕ)
-  | const (v : ℕ) (ty : ValueType)
+  | const (v : ℤ) (ty : ValueType)
 ```
 
-An operand: a variable `v12`, or a constant like `u32 7`. Constants are natural numbers only; the data generator refuses negative constants.
+An operand: a variable `v12`, or a constant like `u32 7` or `i8 -1`, holding the number as SSA prints it (`constVal` below turns it into a field element).
 
 ```lean
 inductive BinaryOp where
-  | add | sub | mul | div | mod | lt | eq
+  | add | sub | mul | div | mod | lt | eq | xor
 ```
 
 The binary operations covered.
@@ -359,13 +359,14 @@ inductive Instruction where
   | cast (dst : ℕ) (a : Operand) (ty : ValueType)
   | truncate (dst : ℕ) (a : Operand) (bits maxBits : ℕ)
   | constrain (a b : Operand) (msg : Option String)
+  | constrainNe (a b : Operand) (msg : Option String)
   | rangeCheck (a : Operand) (bits : ℕ) (msg : Option String)
   | arrayGet (dst : ℕ) (a i : Operand) (ty : ValueType)
   | arraySet (dst : ℕ) (isMut : Bool) (a i v : Operand)
   | makeArray (dst : ℕ) (elems : List Operand) (ty : ParamType)
 ```
 
-The nine kinds of instruction. Each has a doc comment showing its SSA text, for example ``v3 = unchecked_add v1, v2``.
+The ten kinds of instruction. Each has a doc comment showing its SSA text, for example ``v3 = unchecked_add v1, v2``.
 
 ```lean
 structure Program where
@@ -415,6 +416,14 @@ abbrev Env := List (ℕ × Value)
 A value is a scalar (a field element and its type) or an array (its scalars in that flat order). The program's state is a list of `(variable id, value)`.
 
 ```lean
+def constVal : ValueType → ℤ → F
+  | .sint n, v => ((v % 2 ^ n).toNat : F)
+  | _, v => (v : F)
+```
+
+A constant's value. A signed constant becomes its two's-complement bit pattern: `i8 -1` is 255 and `i8 -128` is 128, the same way signed values are stored everywhere else. Any other constant is just the number, mod p. **Check:** that this is how Noir stores signed constants; `fv_semantics.rs` compares it with the interpreter for `-1` and the minimum of every signed type.
+
+```lean
 def Operand.value (env : Env) : Operand → Option (F × ValueType)
 ```
 
@@ -454,6 +463,7 @@ def u1Apply (op : BinaryOp) (unchecked x y : Bool) : Option Bool :=
   | .mod => if y then some false else none
   | .lt => some (!x && y)
   | .eq => some (x == y)
+  | .xor => some (x ^^ y)
 ```
 
 Operations on `u1` values, treated as booleans, exactly as Noir's `interpret_u1_binary_op` does. `^^` is xor, `&&` and, `!` not. Note that unchecked `add` is xor (so `1 + 1` gives 0), checked `add` fails on `1 + 1`, and `sub` fails on `0 - 1` whether checked or not.
@@ -476,6 +486,7 @@ def BinaryOp.apply (op : BinaryOp) (unchecked : Bool) (x y : F) :
   - **Checked `add`, `sub`, `mul`** compute the same field result and fail unless it fits in n bits. So `sub` fails when `y > x`, and `add`/`mul` fail on overflow. A checked `u128` `mul` also fails when the product of the two values reaches `2^128`, a check Noir adds because that product could otherwise wrap around p and land back in range.
   - **`div` and `mod`** use the operands' low n bits (`lowBits`) and fail on a zero divisor.
   - **`lt` and `eq`** compare the low n bits and give 1 or 0.
+- **`xor`** is defined on `u1` only, through `u1Apply`. Noir's interpreter also defines it bitwise on wider integers, but ACIR computes that with a black-box function this spec doesn't model, so it fails here.
 - **`i<n>`:** unchecked `add`/`sub`/`mul` (field arithmetic, as above) and `eq` on the low n bits. Noir's interpreter also defines signed checked arithmetic, `div`, `mod` and `lt`, but the `expand_signed_math` pass rewrites all of them into unsigned operations before the SSA reaches ACIR, so this definition leaves them out: a program using them would fail here, and CI would report it.
 
 `fieldArith` above is just the `add`/`sub`/`mul` part, shared by the integer cases.
@@ -493,6 +504,7 @@ Running one instruction:
 - **`cast`:** keep the value and change the type, without checking that it fits, exactly like Noir. A value that doesn't fit its new type is later brought into range by a `truncate`.
 - **`truncate`:** keep the low `bits` bits: `x mod 2^bits`, so truncating to 0 bits gives 0. Otherwise, like Noir, it fails for a `u1` above 1.
 - **`constrain a == b`:** fail unless `a = b`.
+- **`constrain a != b`:** fail if `a = b`.
 - **`range_check a to k bits`:** fail unless `a < 2^k`. Like Noir, it also fails for 0 bits and for a `u1` above 1.
 - **`array_get a, index i`:** read the scalar at position `i`; fail if `arrayIndex` does.
 - **`array_set a, index i, value v`:** a copy of `a` with position `i` replaced by `v`; fail if `arrayIndex` does. In an ACIR function arrays are values, so `mut` doesn't change the result.
@@ -726,7 +738,9 @@ The spec for signed `/` and `%`. It requires:
 
 ```lean
 def uncoveredPrograms : List String :=
-  ["arithmetic_binary_operations", "regression_8519"]
+  ["a_6_array", "arithmetic_binary_operations", "bit_shifts_comptime", "regression_12473",
+   "regression_8519", "regression_8726", "signed_arithmetic", "signed_cmp", "signed_div",
+   "signed_division", "unary_operator_overloading"]
 ```
 
 The test programs deliberately left out of the claim, each with its reason in the comment above. **Check:** that the reasons are acceptable, and that the list doesn't grow silently in future PRs.
