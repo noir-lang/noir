@@ -174,7 +174,7 @@
 <a href=#174 id=174 data-nosnippet>174</a>            Type::TypeVariable(type_variable)
 <a href=#175 id=175 data-nosnippet>175</a>            | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) =&gt; {
 <a href=#176 id=176 data-nosnippet>176</a>                <span class="comment">// Cloned out so that no borrow of the type variable is held while `visit` runs.
-<a href=#177 id=177 data-nosnippet>177</a>                </span><span class="kw">let </span>bound = <span class="kw">match </span><span class="kw-2">&amp;*</span>type_variable.borrow() {
+<a href=#177 id=177 data-nosnippet>177</a>                </span><span class="kw">let </span>bound = <span class="kw">match </span>type_variable.binding() {
 <a href=#178 id=178 data-nosnippet>178</a>                    TypeBinding::Bound(bound) =&gt; bound.clone(),
 <a href=#179 id=179 data-nosnippet>179</a>                    TypeBinding::Unbound(..) =&gt; <span class="kw">return </span><span class="bool-val">false</span>,
 <a href=#180 id=180 data-nosnippet>180</a>                };

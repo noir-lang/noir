@@ -2062,7 +2062,7 @@
 <a href=#2062 id=2062 data-nosnippet>2062</a>            }
 <a href=#2063 id=2063 data-nosnippet>2063</a>            HirType::NamedGeneric(NamedGeneric { type_var, .. })
 <a href=#2064 id=2064 data-nosnippet>2064</a>            | HirType::TypeVariable(type_var) =&gt; {
-<a href=#2065 id=2065 data-nosnippet>2065</a>                <span class="kw">if let </span>TypeBinding::Bound(binding) = <span class="kw-2">&amp;*</span>type_var.borrow() {
+<a href=#2065 id=2065 data-nosnippet>2065</a>                <span class="kw">if let </span>TypeBinding::Bound(binding) = type_var.binding() {
 <a href=#2066 id=2066 data-nosnippet>2066</a>                    <span class="kw">return </span><span class="self">Self</span>::convert_type_helper(binding, location, seen_types);
 <a href=#2067 id=2067 data-nosnippet>2067</a>                }
 <a href=#2068 id=2068 data-nosnippet>2068</a>                <span class="comment">// This used to default to Field, but doing so could result in an invalid SSA.

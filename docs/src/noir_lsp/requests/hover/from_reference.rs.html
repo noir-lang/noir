@@ -883,7 +883,7 @@
 <a href=#883 id=883 data-nosnippet>883</a>    }
 <a href=#884 id=884 data-nosnippet>884</a>
 <a href=#885 id=885 data-nosnippet>885</a>    <span class="kw">fn </span>gather_type_variable_links(<span class="kw-2">&amp;mut </span><span class="self">self</span>, var: <span class="kw-2">&amp;</span>TypeVariable) {
-<a href=#886 id=886 data-nosnippet>886</a>        <span class="kw">let </span>var = <span class="kw-2">&amp;*</span>var.borrow();
+<a href=#886 id=886 data-nosnippet>886</a>        <span class="kw">let </span>var = var.binding();
 <a href=#887 id=887 data-nosnippet>887</a>        <span class="kw">match </span>var {
 <a href=#888 id=888 data-nosnippet>888</a>            TypeBinding::Bound(typ) =&gt; {
 <a href=#889 id=889 data-nosnippet>889</a>                <span class="self">self</span>.gather_type_links(typ);

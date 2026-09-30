@@ -131,7 +131,7 @@
 <a href=#131 id=131 data-nosnippet>131</a>                alias.try_unify_with_flags(other, flags, bindings)
 <a href=#132 id=132 data-nosnippet>132</a>            }
 <a href=#133 id=133 data-nosnippet>133</a>
-<a href=#134 id=134 data-nosnippet>134</a>            (TypeVariable(var), other) | (other, TypeVariable(var)) =&gt; <span class="kw">match </span><span class="kw-2">&amp;*</span>var.borrow() {
+<a href=#134 id=134 data-nosnippet>134</a>            (TypeVariable(var), other) | (other, TypeVariable(var)) =&gt; <span class="kw">match </span>var.binding() {
 <a href=#135 id=135 data-nosnippet>135</a>                TypeBinding::Bound(typ) =&gt; {
 <a href=#136 id=136 data-nosnippet>136</a>                    <span class="kw">if </span>typ.is_numeric_value() {
 <a href=#137 id=137 data-nosnippet>137</a>                        other.try_unify_to_type_variable(var, flags, bindings, |bindings| {
@@ -207,9 +207,9 @@
 <a href=#207 id=207 data-nosnippet>207</a>
 <a href=#208 id=208 data-nosnippet>208</a>            (NamedGeneric(types::NamedGeneric { type_var, .. }), other)
 <a href=#209 id=209 data-nosnippet>209</a>            | (other, NamedGeneric(types::NamedGeneric { type_var, .. }))
-<a href=#210 id=210 data-nosnippet>210</a>                <span class="kw">if </span>!type_var.borrow().is_unbound() =&gt;
+<a href=#210 id=210 data-nosnippet>210</a>                <span class="kw">if </span>!type_var.binding().is_unbound() =&gt;
 <a href=#211 id=211 data-nosnippet>211</a>            {
-<a href=#212 id=212 data-nosnippet>212</a>                <span class="kw">if let </span>TypeBinding::Bound(link) = <span class="kw-2">&amp;*</span>type_var.borrow() {
+<a href=#212 id=212 data-nosnippet>212</a>                <span class="kw">if let </span>TypeBinding::Bound(link) = type_var.binding() {
 <a href=#213 id=213 data-nosnippet>213</a>                    link.try_unify_with_flags(other, flags, bindings)
 <a href=#214 id=214 data-nosnippet>214</a>                } <span class="kw">else </span>{
 <a href=#215 id=215 data-nosnippet>215</a>                    <span class="macro">unreachable!</span>(<span class="string">"If guard ensures binding is bound"</span>)
@@ -221,8 +221,8 @@
 <a href=#221 id=221 data-nosnippet>221</a>                NamedGeneric(types::NamedGeneric { type_var: binding_b, .. }),
 <a href=#222 id=222 data-nosnippet>222</a>            ) =&gt; {
 <a href=#223 id=223 data-nosnippet>223</a>                <span class="comment">// Bound NamedGenerics are caught by the check above
-<a href=#224 id=224 data-nosnippet>224</a>                </span><span class="macro">assert!</span>(binding_a.borrow().is_unbound());
-<a href=#225 id=225 data-nosnippet>225</a>                <span class="macro">assert!</span>(binding_b.borrow().is_unbound());
+<a href=#224 id=224 data-nosnippet>224</a>                </span><span class="macro">assert!</span>(binding_a.binding().is_unbound());
+<a href=#225 id=225 data-nosnippet>225</a>                <span class="macro">assert!</span>(binding_b.binding().is_unbound());
 <a href=#226 id=226 data-nosnippet>226</a>
 <a href=#227 id=227 data-nosnippet>227</a>                <span class="kw">if </span>binding_a.<span class="number">0 </span>== binding_b.<span class="number">0 </span>{
 <a href=#228 id=228 data-nosnippet>228</a>                    binding_a.kind().unify(<span class="kw-2">&amp;</span>binding_b.kind())
@@ -328,7 +328,7 @@
 <a href=#328 id=328 data-nosnippet>328</a>        // bind to the given type or not.
 <a href=#329 id=329 data-nosnippet>329</a>        </span>bind_variable: <span class="kw">impl </span>FnOnce(<span class="kw-2">&amp;mut </span>TypeBindings) -&gt; <span class="prelude-ty">Result</span>&lt;(), UnificationError&gt;,
 <a href=#330 id=330 data-nosnippet>330</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), UnificationError&gt; {
-<a href=#331 id=331 data-nosnippet>331</a>        <span class="kw">match </span><span class="kw-2">&amp;*</span>type_variable.borrow() {
+<a href=#331 id=331 data-nosnippet>331</a>        <span class="kw">match </span>type_variable.binding() {
 <a href=#332 id=332 data-nosnippet>332</a>            <span class="comment">// If it is already bound, unify against what it is bound to
 <a href=#333 id=333 data-nosnippet>333</a>            </span>TypeBinding::Bound(link) =&gt; link.try_unify_with_flags(<span class="self">self</span>, flags, bindings),
 <a href=#334 id=334 data-nosnippet>334</a>            TypeBinding::Unbound(id, <span class="kw">_</span>) =&gt; {
@@ -407,7 +407,7 @@
 <a href=#407 id=407 data-nosnippet>407</a>            <span class="comment">// Check if it's `A + rhs = other` or `A - rhs = other`
 <a href=#408 id=408 data-nosnippet>408</a>            </span><span class="kw">if let </span>(<span class="prelude-val">Some</span>(op_a_inverse), Type::TypeVariable(lhs_lhs_var)) =
 <a href=#409 id=409 data-nosnippet>409</a>                (lhs_op_inverse, lhs_lhs.as_ref())
-<a href=#410 id=410 data-nosnippet>410</a>                &amp;&amp; lhs_lhs_var.<span class="number">1</span>.borrow().is_unbound()
+<a href=#410 id=410 data-nosnippet>410</a>                &amp;&amp; lhs_lhs_var.binding().is_unbound()
 <a href=#411 id=411 data-nosnippet>411</a>            {
 <a href=#412 id=412 data-nosnippet>412</a>                <span class="comment">// We can say that `A = other - rhs` or `A = other + rhs` respectively
 <a href=#413 id=413 data-nosnippet>413</a>                </span><span class="kw">let </span>new_rhs = <span class="self">Self</span>::with_canonicalization_obligation(Type::infix_expr(
@@ -426,7 +426,7 @@
 <a href=#426 id=426 data-nosnippet>426</a>            <span class="comment">// Check if it's `lhs + B = other`
 <a href=#427 id=427 data-nosnippet>427</a>            </span><span class="kw">if let </span>(BinaryTypeOperator::Addition, Type::TypeVariable(lhs_rhs_var)) =
 <a href=#428 id=428 data-nosnippet>428</a>                (lhs_op, lhs_rhs.as_ref())
-<a href=#429 id=429 data-nosnippet>429</a>                &amp;&amp; lhs_rhs_var.<span class="number">1</span>.borrow().is_unbound()
+<a href=#429 id=429 data-nosnippet>429</a>                &amp;&amp; lhs_rhs_var.binding().is_unbound()
 <a href=#430 id=430 data-nosnippet>430</a>            {
 <a href=#431 id=431 data-nosnippet>431</a>                <span class="comment">// We can say that `B = other - lhs`
 <a href=#432 id=432 data-nosnippet>432</a>                </span><span class="kw">let </span>new_rhs = <span class="self">Self</span>::with_canonicalization_obligation(Type::inverted_infix_expr(
@@ -445,7 +445,7 @@
 <a href=#445 id=445 data-nosnippet>445</a>            <span class="comment">// Check if it's `lhs - B = other`
 <a href=#446 id=446 data-nosnippet>446</a>            </span><span class="kw">if let </span>(BinaryTypeOperator::Subtraction, Type::TypeVariable(lhs_rhs_var)) =
 <a href=#447 id=447 data-nosnippet>447</a>                (lhs_op, lhs_rhs.as_ref())
-<a href=#448 id=448 data-nosnippet>448</a>                &amp;&amp; lhs_rhs_var.<span class="number">1</span>.borrow().is_unbound()
+<a href=#448 id=448 data-nosnippet>448</a>                &amp;&amp; lhs_rhs_var.binding().is_unbound()
 <a href=#449 id=449 data-nosnippet>449</a>            {
 <a href=#450 id=450 data-nosnippet>450</a>                <span class="comment">// We can say that `B = lhs - other`
 <a href=#451 id=451 data-nosnippet>451</a>                </span><span class="kw">let </span>new_rhs = <span class="self">Self</span>::with_canonicalization_obligation(Type::inverted_infix_expr(

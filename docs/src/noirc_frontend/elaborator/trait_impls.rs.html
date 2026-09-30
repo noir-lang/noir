@@ -884,7 +884,7 @@
 <a href=#884 id=884 data-nosnippet>884</a>        <span class="kw">for </span>named_type <span class="kw">in </span>named_generics.iter_mut() {
 <a href=#885 id=885 data-nosnippet>885</a>            <span class="kw">match </span><span class="kw-2">&amp;</span>named_type.typ {
 <a href=#886 id=886 data-nosnippet>886</a>                Type::NamedGeneric(NamedGeneric { type_var, implicit: <span class="bool-val">true</span>, .. })
-<a href=#887 id=887 data-nosnippet>887</a>                    <span class="kw">if </span>type_var.borrow().is_unbound() =&gt;
+<a href=#887 id=887 data-nosnippet>887</a>                    <span class="kw">if </span>type_var.binding().is_unbound() =&gt;
 <a href=#888 id=888 data-nosnippet>888</a>                {
 <a href=#889 id=889 data-nosnippet>889</a>                    <span class="kw">let </span>type_var_id = type_var.id();
 <a href=#890 id=890 data-nosnippet>890</a>                    <span class="kw">let </span>new_type_var_id = <span class="self">self</span>.interner.next_type_variable_id();
@@ -1202,7 +1202,7 @@
 <a href=#1202 id=1202 data-nosnippet>1202</a>) -&gt; TypeBindings {
 <a href=#1203 id=1203 data-nosnippet>1203</a>    <span class="kw">let </span>implicit_placeholder = |typ: <span class="kw-2">&amp;</span>Type| <span class="kw">match </span>typ {
 <a href=#1204 id=1204 data-nosnippet>1204</a>        Type::NamedGeneric(generic)
-<a href=#1205 id=1205 data-nosnippet>1205</a>            <span class="kw">if </span>generic.implicit &amp;&amp; generic.type_var.borrow().is_unbound() =&gt;
+<a href=#1205 id=1205 data-nosnippet>1205</a>            <span class="kw">if </span>generic.implicit &amp;&amp; generic.type_var.binding().is_unbound() =&gt;
 <a href=#1206 id=1206 data-nosnippet>1206</a>        {
 <a href=#1207 id=1207 data-nosnippet>1207</a>            <span class="prelude-val">Some</span>(generic.type_var.clone())
 <a href=#1208 id=1208 data-nosnippet>1208</a>        }

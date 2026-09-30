@@ -252,7 +252,7 @@
 <a href=#252 id=252 data-nosnippet>252</a>            }
 <a href=#253 id=253 data-nosnippet>253</a>            Type::TypeVariable(type_variable)
 <a href=#254 id=254 data-nosnippet>254</a>            | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) =&gt; {
-<a href=#255 id=255 data-nosnippet>255</a>                <span class="kw">match </span><span class="kw-2">&amp;*</span>type_variable.borrow() {
+<a href=#255 id=255 data-nosnippet>255</a>                <span class="kw">match </span>type_variable.binding() {
 <a href=#256 id=256 data-nosnippet>256</a>                    TypeBinding::Bound(binding) =&gt; {
 <a href=#257 id=257 data-nosnippet>257</a>                        vector_count(binding, type_recursion_context.recur())
 <a href=#258 id=258 data-nosnippet>258</a>                    }

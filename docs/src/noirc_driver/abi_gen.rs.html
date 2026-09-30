@@ -90,7 +90,7 @@
 <a href=#90 id=90 data-nosnippet>90</a>        }
 <a href=#91 id=91 data-nosnippet>91</a>        Type::TypeVariable(binding) =&gt; {
 <a href=#92 id=92 data-nosnippet>92</a>            <span class="kw">if </span>binding.is_integer() || binding.is_integer_or_field() {
-<a href=#93 id=93 data-nosnippet>93</a>                <span class="kw">match </span><span class="kw-2">&amp;*</span>binding.borrow() {
+<a href=#93 id=93 data-nosnippet>93</a>                <span class="kw">match </span>binding.binding() {
 <a href=#94 id=94 data-nosnippet>94</a>                    TypeBinding::Bound(typ) =&gt; abi_type_from_hir_type(context, typ),
 <a href=#95 id=95 data-nosnippet>95</a>                    TypeBinding::Unbound(_id, _kind) =&gt; {
 <a href=#96 id=96 data-nosnippet>96</a>                        abi_type_from_hir_type(context, <span class="kw-2">&amp;</span>Type::default_int_or_field_type())

@@ -563,7 +563,7 @@
 <a href=#563 id=563 data-nosnippet>563</a>                Type::TypeAlias { id, name, generics }
 <a href=#564 id=564 data-nosnippet>564</a>            }
 <a href=#565 id=565 data-nosnippet>565</a>            noirc_frontend::Type::TypeVariable(type_var) =&gt; {
-<a href=#566 id=566 data-nosnippet>566</a>                <span class="kw">if let </span>TypeBinding::Bound(typ) = <span class="kw-2">&amp;*</span>type_var.borrow() {
+<a href=#566 id=566 data-nosnippet>566</a>                <span class="kw">if let </span>TypeBinding::Bound(typ) = type_var.binding() {
 <a href=#567 id=567 data-nosnippet>567</a>                    <span class="self">self</span>.convert_type(typ)
 <a href=#568 id=568 data-nosnippet>568</a>                } <span class="kw">else </span>{
 <a href=#569 id=569 data-nosnippet>569</a>                    Type::Generic(<span class="string">"_"</span>.to_string())
@@ -578,7 +578,7 @@
 <a href=#578 id=578 data-nosnippet>578</a>                Type::TraitAsType { trait_id, trait_name, ordered_generics, named_generics }
 <a href=#579 id=579 data-nosnippet>579</a>            }
 <a href=#580 id=580 data-nosnippet>580</a>            noirc_frontend::Type::NamedGeneric(NamedGeneric { name, type_var, .. }) =&gt; {
-<a href=#581 id=581 data-nosnippet>581</a>                <span class="kw">if let </span>TypeBinding::Bound(typ) = <span class="kw-2">&amp;*</span>type_var.borrow() {
+<a href=#581 id=581 data-nosnippet>581</a>                <span class="kw">if let </span>TypeBinding::Bound(typ) = type_var.binding() {
 <a href=#582 id=582 data-nosnippet>582</a>                    <span class="self">self</span>.convert_type(typ)
 <a href=#583 id=583 data-nosnippet>583</a>                } <span class="kw">else </span>{
 <a href=#584 id=584 data-nosnippet>584</a>                    Type::Generic(name.to_string())

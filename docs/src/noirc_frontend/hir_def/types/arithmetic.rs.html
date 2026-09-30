@@ -162,7 +162,7 @@
 <a href=#162 id=162 data-nosnippet>162</a>
 <a href=#163 id=163 data-nosnippet>163</a>                Type::CheckedCast { from: Box::new(from), to: Box::new(to) }
 <a href=#164 id=164 data-nosnippet>164</a>            }
-<a href=#165 id=165 data-nosnippet>165</a>            Type::TypeVariable(type_var) =&gt; <span class="kw">match </span><span class="kw-2">&amp;*</span>type_var.borrow() {
+<a href=#165 id=165 data-nosnippet>165</a>            Type::TypeVariable(type_var) =&gt; <span class="kw">match </span>type_var.binding() {
 <a href=#166 id=166 data-nosnippet>166</a>                TypeBinding::Bound(binding) =&gt; {
 <a href=#167 id=167 data-nosnippet>167</a>                    binding.canonicalize_helper(found_checked_cast, run_simplifications)
 <a href=#168 id=168 data-nosnippet>168</a>                }

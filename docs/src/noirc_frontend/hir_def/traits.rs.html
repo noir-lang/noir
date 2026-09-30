@@ -200,7 +200,7 @@
 <a href=#200 id=200 data-nosnippet>200</a>        // comparing associated types the user bound to a concrete type (e.g. `Foo&lt;Bar = u32&gt;`).
 <a href=#201 id=201 data-nosnippet>201</a>        </span><span class="kw">let </span>is_unbound = |typ: <span class="kw-2">&amp;</span>Type| <span class="kw">match </span>typ {
 <a href=#202 id=202 data-nosnippet>202</a>            Type::TypeVariable(var) | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) =&gt; {
-<a href=#203 id=203 data-nosnippet>203</a>                var.borrow().is_unbound()
+<a href=#203 id=203 data-nosnippet>203</a>                var.binding().is_unbound()
 <a href=#204 id=204 data-nosnippet>204</a>            }
 <a href=#205 id=205 data-nosnippet>205</a>            <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
 <a href=#206 id=206 data-nosnippet>206</a>        };

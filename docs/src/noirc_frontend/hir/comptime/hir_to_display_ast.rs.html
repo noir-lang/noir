@@ -437,7 +437,7 @@
 <a href=#437 id=437 data-nosnippet>437</a>                <span class="kw">let </span>name = Path::from_ident(type_def.name.clone());
 <a href=#438 id=438 data-nosnippet>438</a>                UnresolvedTypeData::Named(name, generics, <span class="bool-val">false</span>)
 <a href=#439 id=439 data-nosnippet>439</a>            }
-<a href=#440 id=440 data-nosnippet>440</a>            Type::TypeVariable(binding) =&gt; <span class="kw">match </span><span class="kw-2">&amp;*</span>binding.borrow() {
+<a href=#440 id=440 data-nosnippet>440</a>            Type::TypeVariable(binding) =&gt; <span class="kw">match </span>binding.binding() {
 <a href=#441 id=441 data-nosnippet>441</a>                TypeBinding::Bound(typ) =&gt; <span class="kw">return </span>typ.to_display_ast(),
 <a href=#442 id=442 data-nosnippet>442</a>                TypeBinding::Unbound(id, type_var_kind) =&gt; {
 <a href=#443 id=443 data-nosnippet>443</a>                    <span class="kw">let </span>name = <span class="macro">format!</span>(<span class="string">"var_{type_var_kind:?}_{id}"</span>);

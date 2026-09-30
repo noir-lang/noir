@@ -532,7 +532,7 @@
 <a href=#532 id=532 data-nosnippet>532</a>            parts.push(string_part(<span class="string">"&amp;mut "</span>));
 <a href=#533 id=533 data-nosnippet>533</a>            push_type_parts(typ, parts, files);
 <a href=#534 id=534 data-nosnippet>534</a>        }
-<a href=#535 id=535 data-nosnippet>535</a>        Type::TypeVariable(binding) =&gt; <span class="kw">match </span><span class="kw-2">&amp;*</span>binding.borrow() {
+<a href=#535 id=535 data-nosnippet>535</a>        Type::TypeVariable(binding) =&gt; <span class="kw">match </span>binding.binding() {
 <a href=#536 id=536 data-nosnippet>536</a>            TypeBinding::Unbound(<span class="kw">_</span>, kind) =&gt; <span class="kw">match </span>kind {
 <a href=#537 id=537 data-nosnippet>537</a>                Kind::Any | Kind::Normal | Kind::Numeric(..) =&gt; {
 <a href=#538 id=538 data-nosnippet>538</a>                    push_type_variable_parts(binding, parts, files);
@@ -569,7 +569,7 @@
 <a href=#569 id=569 data-nosnippet>569</a>    parts: <span class="kw-2">&amp;mut </span>Vec&lt;InlayHintLabelPart&gt;,
 <a href=#570 id=570 data-nosnippet>570</a>    files: <span class="kw-2">&amp;</span>FileMap,
 <a href=#571 id=571 data-nosnippet>571</a>) {
-<a href=#572 id=572 data-nosnippet>572</a>    <span class="kw">let </span>var = <span class="kw-2">&amp;*</span>var.borrow();
+<a href=#572 id=572 data-nosnippet>572</a>    <span class="kw">let </span>var = var.binding();
 <a href=#573 id=573 data-nosnippet>573</a>    <span class="kw">match </span>var {
 <a href=#574 id=574 data-nosnippet>574</a>        TypeBinding::Bound(typ) =&gt; {
 <a href=#575 id=575 data-nosnippet>575</a>            push_type_parts(typ, parts, files);

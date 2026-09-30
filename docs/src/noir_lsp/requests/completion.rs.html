@@ -642,7 +642,7 @@
 <a href=#642 id=642 data-nosnippet>642</a>                <span class="self">self</span>.complete_tuple_fields(types, self_prefix);
 <a href=#643 id=643 data-nosnippet>643</a>            }
 <a href=#644 id=644 data-nosnippet>644</a>            Type::TypeVariable(var) | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) =&gt; {
-<a href=#645 id=645 data-nosnippet>645</a>                <span class="kw">if let </span>TypeBinding::Bound(typ) = <span class="kw-2">&amp;*</span>var.borrow() {
+<a href=#645 id=645 data-nosnippet>645</a>                <span class="kw">if let </span>TypeBinding::Bound(typ) = var.binding() {
 <a href=#646 id=646 data-nosnippet>646</a>                    <span class="kw">return </span><span class="self">self</span>.complete_type_fields_and_methods(
 <a href=#647 id=647 data-nosnippet>647</a>                        typ,
 <a href=#648 id=648 data-nosnippet>648</a>                        prefix,
@@ -1980,7 +1980,7 @@
 <a href=#1980 id=1980 data-nosnippet>1980</a>        }
 <a href=#1981 id=1981 data-nosnippet>1981</a>        Type::Alias(alias_type, generics) =&gt; <span class="prelude-val">Some</span>(alias_type.borrow().get_type(generics)),
 <a href=#1982 id=1982 data-nosnippet>1982</a>        Type::TypeVariable(var) | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) =&gt; {
-<a href=#1983 id=1983 data-nosnippet>1983</a>            <span class="kw">match </span><span class="kw-2">&amp;*</span>var.borrow() {
+<a href=#1983 id=1983 data-nosnippet>1983</a>            <span class="kw">match </span>var.binding() {
 <a href=#1984 id=1984 data-nosnippet>1984</a>                TypeBinding::Bound(typ) =&gt; get_field_type(typ, name),
 <a href=#1985 id=1985 data-nosnippet>1985</a>                TypeBinding::Unbound(..) =&gt; <span class="prelude-val">None</span>,
 <a href=#1986 id=1986 data-nosnippet>1986</a>            }
@@ -1997,7 +1997,7 @@
 <a href=#1997 id=1997 data-nosnippet>1997</a>            get_array_element_type(typ)
 <a href=#1998 id=1998 data-nosnippet>1998</a>        }
 <a href=#1999 id=1999 data-nosnippet>1999</a>        Type::TypeVariable(var) | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) =&gt; {
-<a href=#2000 id=2000 data-nosnippet>2000</a>            <span class="kw">match </span><span class="kw-2">&amp;*</span>var.borrow() {
+<a href=#2000 id=2000 data-nosnippet>2000</a>            <span class="kw">match </span>var.binding() {
 <a href=#2001 id=2001 data-nosnippet>2001</a>                TypeBinding::Bound(typ) =&gt; get_array_element_type(typ.clone()),
 <a href=#2002 id=2002 data-nosnippet>2002</a>                TypeBinding::Unbound(..) =&gt; <span class="prelude-val">None</span>,
 <a href=#2003 id=2003 data-nosnippet>2003</a>            }

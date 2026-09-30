@@ -237,7 +237,7 @@
 <a href=#237 id=237 data-nosnippet>237</a>                | Type::NamedGeneric(NamedGeneric { type_var, .. }) =&gt; {
 <a href=#238 id=238 data-nosnippet>238</a>                    <span class="comment">// Unbound TypeVariable and Generic are allowed here as they can only result from
 <a href=#239 id=239 data-nosnippet>239</a>                    // generics being declared on the function itself, but we produce a different error in that case.
-<a href=#240 id=240 data-nosnippet>240</a>                    </span><span class="kw">if let </span>TypeBinding::Bound(typ) = <span class="kw-2">&amp;*</span>type_var.borrow() {
+<a href=#240 id=240 data-nosnippet>240</a>                    </span><span class="kw">if let </span>TypeBinding::Bound(typ) = type_var.binding() {
 <a href=#241 id=241 data-nosnippet>241</a>                        helper(typ, allow_empty_arrays, type_recursion_context.recur())
 <a href=#242 id=242 data-nosnippet>242</a>                    } <span class="kw">else </span>{
 <a href=#243 id=243 data-nosnippet>243</a>                        <span class="prelude-val">None
@@ -350,7 +350,7 @@
 <a href=#350 id=350 data-nosnippet>350</a>            | Type::NamedGeneric(NamedGeneric { type_var, .. }) =&gt; {
 <a href=#351 id=351 data-nosnippet>351</a>                <span class="comment">// Unbound TypeVariable and Generic are allowed here as they can only result from
 <a href=#352 id=352 data-nosnippet>352</a>                // generics being declared on the function itself, but we produce a different error in that case.
-<a href=#353 id=353 data-nosnippet>353</a>                </span><span class="kw">if let </span>TypeBinding::Bound(typ) = <span class="kw-2">&amp;*</span>type_var.borrow() {
+<a href=#353 id=353 data-nosnippet>353</a>                </span><span class="kw">if let </span>TypeBinding::Bound(typ) = type_var.binding() {
 <a href=#354 id=354 data-nosnippet>354</a>                    typ.non_inlined_function_input_validity_helper(type_recursion_context.recur())
 <a href=#355 id=355 data-nosnippet>355</a>                } <span class="kw">else </span>{
 <a href=#356 id=356 data-nosnippet>356</a>                    <span class="prelude-val">None
@@ -382,7 +382,7 @@
 <a href=#382 id=382 data-nosnippet>382</a>            | Type::Error =&gt; <span class="bool-val">true</span>,
 <a href=#383 id=383 data-nosnippet>383</a>
 <a href=#384 id=384 data-nosnippet>384</a>            Type::TypeVariable(type_var) | Type::NamedGeneric(NamedGeneric { type_var, .. }) =&gt; {
-<a href=#385 id=385 data-nosnippet>385</a>                <span class="kw">if let </span>TypeBinding::Bound(typ) = <span class="kw-2">&amp;*</span>type_var.borrow() {
+<a href=#385 id=385 data-nosnippet>385</a>                <span class="kw">if let </span>TypeBinding::Bound(typ) = type_var.binding() {
 <a href=#386 id=386 data-nosnippet>386</a>                    typ.is_valid_for_unconstrained_boundary_helper(type_recursion_context.recur())
 <a href=#387 id=387 data-nosnippet>387</a>                } <span class="kw">else </span>{
 <a href=#388 id=388 data-nosnippet>388</a>                    <span class="bool-val">true

@@ -878,7 +878,7 @@
 <a href=#878 id=878 data-nosnippet>878</a>                    <span class="kw">return</span>;
 <a href=#879 id=879 data-nosnippet>879</a>                } <span class="kw">else </span>{
 <a href=#880 id=880 data-nosnippet>880</a>                    <span class="kw">match </span><span class="kw-2">&amp;</span>constraint.typ {
-<a href=#881 id=881 data-nosnippet>881</a>                        Type::TypeVariable(type_var) <span class="kw">if </span>type_var.borrow().is_unbound() =&gt; {
+<a href=#881 id=881 data-nosnippet>881</a>                        Type::TypeVariable(type_var) <span class="kw">if </span>type_var.binding().is_unbound() =&gt; {
 <a href=#882 id=882 data-nosnippet>882</a>                            <span class="comment">// The trait's own `Self` type variable can only stay unbound inside
 <a href=#883 id=883 data-nosnippet>883</a>                            // that trait's body, where the item is reachable as `Self::item`.
 <a href=#884 id=884 data-nosnippet>884</a>                            </span><span class="kw">if </span><span class="self">self</span>.trait_self_typevar == <span class="prelude-val">Some</span>(type_var.id()) {
@@ -930,7 +930,7 @@
 <a href=#930 id=930 data-nosnippet>930</a>                    </span><span class="kw">if let </span><span class="prelude-val">Some</span>(instantiation_bindings) = instantiation_bindings {
 <a href=#931 id=931 data-nosnippet>931</a>                        <span class="kw">let </span>self_type = self_type.substitute(instantiation_bindings);
 <a href=#932 id=932 data-nosnippet>932</a>                        <span class="kw">let </span>unbound = <span class="kw">if let </span>Type::TypeVariable(type_var) = <span class="kw-2">&amp;</span>self_type {
-<a href=#933 id=933 data-nosnippet>933</a>                            type_var.borrow().is_unbound()
+<a href=#933 id=933 data-nosnippet>933</a>                            type_var.binding().is_unbound()
 <a href=#934 id=934 data-nosnippet>934</a>                        } <span class="kw">else </span>{
 <a href=#935 id=935 data-nosnippet>935</a>                            <span class="bool-val">false
 <a href=#936 id=936 data-nosnippet>936</a>                        </span>};
@@ -1032,7 +1032,7 @@
 <a href=#1032 id=1032 data-nosnippet>1032</a>                // definition's type variable is bound to the value the alias stands for, and
 <a href=#1033 id=1033 data-nosnippet>1033</a>                // the bare name doesn't resolve at the use site (or worse, resolves to
 <a href=#1034 id=1034 data-nosnippet>1034</a>                // something else with the same name). Print the value instead.
-<a href=#1035 id=1035 data-nosnippet>1035</a>                </span><span class="kw">let </span>binding = <span class="kw">match </span><span class="kw-2">&amp;*</span>type_var.borrow() {
+<a href=#1035 id=1035 data-nosnippet>1035</a>                </span><span class="kw">let </span>binding = <span class="kw">match </span>type_var.binding() {
 <a href=#1036 id=1036 data-nosnippet>1036</a>                    TypeBinding::Bound(binding) =&gt; <span class="prelude-val">Some</span>(binding.follow_bindings()),
 <a href=#1037 id=1037 data-nosnippet>1037</a>                    TypeBinding::Unbound(..) =&gt; <span class="prelude-val">None</span>,
 <a href=#1038 id=1038 data-nosnippet>1038</a>                };

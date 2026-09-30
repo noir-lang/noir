@@ -207,7 +207,7 @@
 <a href=#207 id=207 data-nosnippet>207</a>        typ.visit(<span class="kw-2">&amp;mut </span>|typ| {
 <a href=#208 id=208 data-nosnippet>208</a>            <span class="kw">if let </span>Type::NamedGeneric(named) = typ
 <a href=#209 id=209 data-nosnippet>209</a>                &amp;&amp; !named.is_associated()
-<a href=#210 id=210 data-nosnippet>210</a>                &amp;&amp; <span class="kw">let </span>TypeBinding::Unbound(id, kind) = <span class="kw-2">&amp;*</span>named.type_var.borrow()
+<a href=#210 id=210 data-nosnippet>210</a>                &amp;&amp; <span class="kw">let </span>TypeBinding::Unbound(id, kind) = named.type_var.binding()
 <a href=#211 id=211 data-nosnippet>211</a>                &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(generic) = <span class="self">self</span>.item.generics.find(named.name.as_str())
 <a href=#212 id=212 data-nosnippet>212</a>                &amp;&amp; generic.type_var.id() != <span class="kw-2">*</span>id
 <a href=#213 id=213 data-nosnippet>213</a>            {
@@ -2550,7 +2550,7 @@
 <a href=#2550 id=2550 data-nosnippet>2550</a>        // lets us issue a more precise error on the individual argument that fails to type check.
 <a href=#2551 id=2551 data-nosnippet>2551</a>        </span><span class="kw">match </span>function.follow_bindings_shallow().as_ref() {
 <a href=#2552 id=2552 data-nosnippet>2552</a>            Type::TypeVariable(binding) <span class="kw">if </span>binding.kind().is_normal_or_any() =&gt; {
-<a href=#2553 id=2553 data-nosnippet>2553</a>                <span class="kw">if let </span>TypeBinding::Bound(typ) = <span class="kw-2">&amp;*</span>binding.borrow() {
+<a href=#2553 id=2553 data-nosnippet>2553</a>                <span class="kw">if let </span>TypeBinding::Bound(typ) = binding.binding() {
 <a href=#2554 id=2554 data-nosnippet>2554</a>                    <span class="kw">return </span><span class="self">self</span>.bind_function_type(typ.clone(), args, location);
 <a href=#2555 id=2555 data-nosnippet>2555</a>                }
 <a href=#2556 id=2556 data-nosnippet>2556</a>
@@ -2729,7 +2729,7 @@
 <a href=#2729 id=2729 data-nosnippet>2729</a>            <span class="comment">// Matches on TypeVariable must be first to follow any type
 <a href=#2730 id=2730 data-nosnippet>2730</a>            // bindings.
 <a href=#2731 id=2731 data-nosnippet>2731</a>            </span>(TypeVariable(var), other) | (other, TypeVariable(var)) =&gt; {
-<a href=#2732 id=2732 data-nosnippet>2732</a>                <span class="kw">if let </span>TypeBinding::Bound(binding) = <span class="kw-2">&amp;*</span>var.borrow() {
+<a href=#2732 id=2732 data-nosnippet>2732</a>                <span class="kw">if let </span>TypeBinding::Bound(binding) = var.binding() {
 <a href=#2733 id=2733 data-nosnippet>2733</a>                    <span class="kw">return </span><span class="self">self</span>.comparator_operand_type_rules(other, binding, op, location);
 <a href=#2734 id=2734 data-nosnippet>2734</a>                }
 <a href=#2735 id=2735 data-nosnippet>2735</a>
@@ -2837,7 +2837,7 @@
 <a href=#2837 id=2837 data-nosnippet>2837</a>            <span class="comment">// Matches on TypeVariable must be first so that we follow any type
 <a href=#2838 id=2838 data-nosnippet>2838</a>            // bindings.
 <a href=#2839 id=2839 data-nosnippet>2839</a>            </span>(TypeVariable(int), other) | (other, TypeVariable(int)) =&gt; {
-<a href=#2840 id=2840 data-nosnippet>2840</a>                <span class="kw">if let </span>TypeBinding::Bound(binding) = <span class="kw-2">&amp;*</span>int.borrow() {
+<a href=#2840 id=2840 data-nosnippet>2840</a>                <span class="kw">if let </span>TypeBinding::Bound(binding) = int.binding() {
 <a href=#2841 id=2841 data-nosnippet>2841</a>                    <span class="kw">return </span><span class="self">self</span>.infix_operand_type_rules(binding, op, other, location);
 <a href=#2842 id=2842 data-nosnippet>2842</a>                }
 <a href=#2843 id=2843 data-nosnippet>2843</a>                <span class="kw">let </span>use_impl = <span class="self">self</span>.bind_type_variables_for_infix(lhs_type, op, rhs_type, location);
@@ -2921,7 +2921,7 @@
 <a href=#2921 id=2921 data-nosnippet>2921</a>                    <span class="comment">// Matches on TypeVariable must be first so that we follow any type
 <a href=#2922 id=2922 data-nosnippet>2922</a>                    // bindings.
 <a href=#2923 id=2923 data-nosnippet>2923</a>                    </span>TypeVariable(int) =&gt; {
-<a href=#2924 id=2924 data-nosnippet>2924</a>                        <span class="kw">if let </span>TypeBinding::Bound(binding) = <span class="kw-2">&amp;*</span>int.borrow() {
+<a href=#2924 id=2924 data-nosnippet>2924</a>                        <span class="kw">if let </span>TypeBinding::Bound(binding) = int.binding() {
 <a href=#2925 id=2925 data-nosnippet>2925</a>                            <span class="kw">return </span><span class="self">self</span>.prefix_operand_type_rules(op, binding, location);
 <a href=#2926 id=2926 data-nosnippet>2926</a>                        }
 <a href=#2927 id=2927 data-nosnippet>2927</a>
