@@ -72,10 +72,11 @@ side may still contain an unbound-but-defaultable generic, which the surrounding
 
 `check_checked_cast` unifies `from` with `to` into a local set of bindings and evaluates both
 sides with those bindings substituted in, without ever applying them. The type variables in a
-`CheckedCast` are shared with the elaborated program, and monomorphization must leave that
-program as it found it (see `compiler/noirc_frontend/src/monomorphization/purity.rs`): a binding
-committed here would be visible to every later compilation against the same context. An unbound
-variable on either side is therefore resolved for the purpose of the check only.
+`CheckedCast` are shared with the elaborated program, and monomorphization leaves that program
+as it found it (it resolves generics through a substitution of its own rather than by binding
+them): a binding committed here would be visible to every later compilation against the same
+context. An unbound variable on either side is therefore resolved for the purpose of the check
+only.
 
 ## `X * 0` folds only when `X` is a variable
 
