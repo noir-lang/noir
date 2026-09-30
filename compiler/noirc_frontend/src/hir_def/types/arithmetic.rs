@@ -1026,8 +1026,8 @@ mod proptests {
             } else {
                 // ensure result kinds are the same as the original kind
                 let kind = Kind::numeric(typ);
-                prop_assert_eq!(infix.kind().into_owned(), kind.clone());
-                prop_assert_eq!(infix_canonicalized.kind().into_owned(), kind);
+                prop_assert_eq!(&*infix.kind(), &kind);
+                prop_assert_eq!(&*infix_canonicalized.kind(), &kind);
 
                 // ensure results are the same
                 prop_assert_eq!(infix, infix_canonicalized);
@@ -1059,8 +1059,8 @@ mod proptests {
 
             // ensure result kinds are the same as the original kind
             let kind = Kind::numeric(typ);
-            prop_assert_eq!(infix.kind().into_owned(), kind.clone());
-            prop_assert_eq!(infix_canonicalized.kind().into_owned(), kind.clone());
+            prop_assert_eq!(&*infix.kind(), &kind);
+            prop_assert_eq!(&*infix_canonicalized.kind(), &kind);
 
             // ensure the results are still wrapped in CheckedCast's
             match (&infix, &infix_canonicalized) {
@@ -1069,8 +1069,8 @@ mod proptests {
                     prop_assert_eq!(from.canonicalize(), from_canonicalized.canonicalize());
 
                     // ensure to's have the same kinds
-                    prop_assert_eq!(to.kind().into_owned(), kind.clone());
-                    prop_assert_eq!(to_canonicalized.kind().into_owned(), kind);
+                    prop_assert_eq!(&*to.kind(), &kind);
+                    prop_assert_eq!(&*to_canonicalized.kind(), &kind);
                 }
                 _ => {
                     prop_assert!(false, "expected CheckedCast");
@@ -1183,7 +1183,7 @@ mod proptests {
             };
 
             let infix_canonicalized = infix.canonicalize();
-            prop_assert_eq!(infix_canonicalized.kind().into_owned(), kind);
+            prop_assert_eq!(&*infix_canonicalized.kind(), &kind);
             prop_assert!(infix.kind().unifies(&result_type.kind()));
 
             let infix_canonicalized = match infix_canonicalized {
