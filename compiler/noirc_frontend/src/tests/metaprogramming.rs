@@ -1745,6 +1745,66 @@ fn unifies_macro_call_type_with_variable_type_in_comptime_block() {
     assert_no_errors(src);
 }
 
+#[test]
+fn unifies_macro_call_type_in_closure_body_with_variable_type_in_comptime_block() {
+    let src = r#"
+    comptime fn unquote(code: Quoted) -> Quoted {
+        code
+    }
+
+    struct Foo<let N: u32> {}
+
+    impl<let N: u32> Foo<N> {
+        fn len(_self: Self) -> u32 {
+            N
+        }
+    }
+
+    fn main() -> pub u32 {
+        comptime {
+            let c = || unquote!(quote { Foo::<10> {} });
+            let foo: Foo<_> = c();
+            foo.len()
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn macro_call_type_in_closure_body_is_visible_after_the_closure_returns() {
+    let stdlib = r#"
+        #[builtin(type_of)]
+        pub comptime fn type_of<T>(_x: T) -> Type {}
+
+        impl Type {
+            #[builtin(type_eq)]
+            pub comptime fn eq(self, _other: Self) -> bool {}
+        }
+
+        impl Quoted {
+            #[builtin(quoted_as_type)]
+            pub comptime fn as_type(self) -> Type {}
+        }
+    "#;
+    let src = r#"
+    struct S { a: u8 }
+
+    comptime fn make_s() -> Quoted {
+        quote { S { a: 1 } }
+    }
+
+    fn main() {
+        comptime {
+            let c = || make_s!();
+            let x = c();
+            assert(type_of([x]).eq(quote { [S; 1] }.as_type()));
+        }
+    }
+    "#;
+    check_errors_with_stdlib(src, [stdlib]);
+}
+
 // Regression test for https://github.com/noir-lang/noir/issues/11575
 #[test]
 fn path_inside_module_attribute() {

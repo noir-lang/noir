@@ -32,6 +32,7 @@
 //! be called in the interpreter later on where we'd presumably halt with a similar error.
 //! [`InterpreterError::ArgumentCountMismatch`] is an example of such an error.
 
+use std::borrow::Cow;
 use std::collections::VecDeque;
 use std::{collections::hash_map::Entry, rc::Rc};
 
@@ -118,15 +119,22 @@ pub struct Interpreter<'local, 'interner> {
     current_function: Option<FuncId>,
 
     /// Bindings for the generics of the function being interpreted: a call's instantiation and
-    /// impl bindings, or the bindings a closure was created under, plus the types macro calls in
-    /// the function have produced. Every type this interpreter reads from the HIR of that
-    /// function goes through [`Self::ty`], which applies them.
+    /// impl bindings, or the bindings a closure was created under. Every type this interpreter
+    /// reads from the HIR of that function goes through [`Self::ty`], which applies them together
+    /// with [`Self::macro_call_substitution`].
     substitution: TypeBindings,
 
-    /// The type variables each macro call expression's result bound in [`Self::substitution`]
-    /// the last time it was evaluated. A macro call inside a loop can produce a value of a
-    /// different type on each iteration, so those bindings are taken back out before its type is
-    /// unified again.
+    /// The types macro calls have produced, bound to the type variables their call expressions
+    /// were given during type checking. Unlike [`Self::substitution`] this is not swapped on
+    /// function or closure calls: a macro call inside a closure body is typed by a type variable
+    /// of the function that created the closure, and that function reads the same variable (as
+    /// the closure's return type, the type of the closure call, ...) after the closure returns.
+    macro_call_substitution: TypeBindings,
+
+    /// The type variables each macro call expression's result bound in
+    /// [`Self::macro_call_substitution`] the last time it was evaluated. A macro call inside a
+    /// loop can produce a value of a different type on each iteration, so those bindings are
+    /// taken back out before its type is unified again.
     macro_call_bindings: HashMap<ExprId, Vec<TypeVariableId>>,
 
     /// Current evaluation depth.
@@ -151,6 +159,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             elaborator,
             current_function,
             substitution: TypeBindings::default(),
+            macro_call_substitution: TypeBindings::default(),
             macro_call_bindings: HashMap::default(),
             in_loop: false,
             evaluation_depth: 0,
@@ -168,7 +177,23 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         if let Type::Forall(variables, typ) = typ {
             return Type::Forall(variables.clone(), Box::new(self.ty(typ)));
         }
-        typ.substitute(&self.substitution)
+        let typ = typ.substitute(&self.substitution);
+        if self.macro_call_substitution.is_empty() {
+            typ
+        } else {
+            typ.substitute(&self.macro_call_substitution)
+        }
+    }
+
+    /// Every binding [`Self::ty`] applies, as a single map.
+    fn substitution(&self) -> Cow<'_, TypeBindings> {
+        if self.macro_call_substitution.is_empty() {
+            Cow::Borrowed(&self.substitution)
+        } else {
+            let mut substitution = self.substitution.clone();
+            substitution.extend(self.macro_call_substitution.clone());
+            Cow::Owned(substitution)
+        }
     }
 
     /// The type of the expression `id` as seen from the function being interpreted.
@@ -186,7 +211,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     /// `value` with every type it holds as seen from the function being interpreted.
     pub(super) fn value(&self, value: Value) -> Value {
-        if self.substitution.is_empty() {
+        if self.substitution.is_empty() && self.macro_call_substitution.is_empty() {
             return value;
         }
         value.map_types(&|typ| self.ty(typ))
@@ -868,7 +893,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         id: ExprId,
     ) -> Result<(crate::monomorphization::TraitItem, TypeBindings), InterpreterError> {
         self.elaborator.resolve_trait_method_metas_for(item.trait_id);
-        let resolved = resolve_trait_item(self.elaborator.interner, item, id, &self.substitution)?;
+        let resolved =
+            resolve_trait_item(self.elaborator.interner, item, id, &self.substitution())?;
         // The interpreter runs during elaboration, where solving a trait constraint is supposed
         // to commit the inference variables it resolved — the same thing `check_trait_constraints`
         // does for a constraint solved by the type checker.
@@ -1273,8 +1299,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 
     /// Macro calls are typed as type variables during type checking. Once the call has produced
-    /// a value, unify its type with the expression's and add what that solves to the frame's
-    /// substitution, so that the rest of the function sees the macro call's type.
+    /// a value, unify its type with the expression's and add what that solves to
+    /// [`Self::macro_call_substitution`], so that the rest of the function sees the macro call's
+    /// type.
     fn unify_macro_call_result_with_expected_type(
         &mut self,
         id: ExprId,
@@ -1282,7 +1309,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         result: &Value,
     ) {
         for var_id in self.macro_call_bindings.remove(&id).unwrap_or_default() {
-            self.substitution.remove(&var_id);
+            self.macro_call_substitution.remove(&var_id);
         }
 
         let expected_type = self.expr_type(id);
@@ -1292,7 +1319,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         match actual_type.try_unify(&expected_type, &mut bindings) {
             Ok(()) => {
                 self.macro_call_bindings.insert(id, bindings.keys().copied().collect());
-                self.substitution.extend(bindings);
+                self.macro_call_substitution.extend(bindings);
             }
             Err(UnificationError) => {
                 self.elaborator.push_err(self.elaborator.new_type_mismatch_error(
