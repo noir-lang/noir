@@ -157,14 +157,122 @@ def solve2 (cc : List Opcode) (E : ℕ → ℕ → Poly) : List (ℕ × ℕ) :=
       else []
     | _ => []).filter fun (q, r) => holdsZ cc (E q r)
 
-/-- Up to four ways of combining two lists of polynomials. -/
+/-- How many distinct witnesses `P` mentions. -/
+def nWits (P : Poly) : ℕ := (P.flatMap (·.witnesses)).eraseDups.length
+
+/-- Up to four ways of combining two lists of polynomials, those over the
+fewest witnesses first: combining two forms of one value built from different
+witnesses rarely matches a constraint of the circuit. -/
 def comb (f : Poly → Poly → Poly) (as bs : List Poly) : List Poly :=
-  (as.flatMap fun a => bs.map (f a)).take 4
+  (isort (fun P Q => decide (nWits P ≤ nWits Q)) (as.flatMap fun a => bs.map (f a))).take 4
 
 /-- `P = Q`, directly or through a witness equal to both. -/
 def eqVia (cc : List Opcode) (P Q : Poly) : Bool :=
   holdsZ cc (psub P Q) ||
     (eqCands cc P).any fun w => holdsZ cc (psub P (pvar w)) && holdsZ cc (psub (pvar w) Q)
+
+/-! ## Bounds by cases on bits
+
+A value such as `|x| = x + 2^n s - 2 x s`, with `s` the sign bit of `x`, has
+no useful bound term by term. Fixing each bit it mentions to `0` and to `1`,
+and bounding each case separately, gives one. -/
+
+/-- A coefficient as the integer of least absolute value it stands for mod `p`. -/
+def sc (c : ℤ) : ℤ := if modP c ≤ (p / 2 : ℕ) then modP c else modP c - p
+
+/-- Bounds on a product of witnesses, from bounds `B` on each. -/
+def mbound (B : ℕ → ℕ × ℕ) : List ℕ → ℕ × ℕ
+  | [] => (1, 1)
+  | w :: ws => ((B w).1 * (mbound B ws).1, (B w).2 * (mbound B ws).2)
+
+/-- Bounds `r` on a sum, widened by a term `c m` with `m` in bounds `b`. -/
+def addI (c : ℤ) (b : ℕ × ℕ) (r : ℤ × ℤ) : ℤ × ℤ :=
+  if 0 ≤ c then (r.1 + c * b.1, r.2 + c * b.2) else (r.1 + c * b.2, r.2 + c * b.1)
+
+/-- Integer bounds on `P`'s terms added up as integers, each coefficient read
+by `sc`. -/
+def ival (B : ℕ → ℕ × ℕ) : Poly → ℤ × ℤ
+  | [] => (0, 0)
+  | t :: ts => addI (sc t.coef) (mbound B t.witnesses) (ival B ts)
+
+/-- `P` with witness `w` replaced by the constant `v`. -/
+def fixW (w v : ℕ) (P : Poly) : Poly :=
+  P.map fun t => ⟨t.coef * (v : ℤ) ^ t.witnesses.count w, t.witnesses.filter (· != w)⟩
+
+/-- `P` with the witnesses of `A` fixed, like terms merged. -/
+def fixAll (A : List (ℕ × ℕ)) (P : Poly) : Poly :=
+  collect (A.foldr (fun (w, v) Q => fixW w v Q) P)
+
+/-- A witness's bounds: its value in `A`, else its bounds in the circuit. -/
+def bnd (cc : List Opcode) (A : List (ℕ × ℕ)) (w : ℕ) : ℕ × ℕ :=
+  match A.lookup w with
+  | some v => (v, v)
+  | none => (wbound cc w).getD (0, p - 1)
+
+/-- `ival`, if its bounds are within `[0, p)`. -/
+def natIval (B : ℕ → ℕ × ℕ) (P : Poly) : Option (ℕ × ℕ) :=
+  let r := ival B P
+  if 0 ≤ r.1 ∧ r.2 < p then some (r.1.toNat, r.2.toNat) else none
+
+/-- The product of witnesses `ws` is `0`: the circuit constrains it, or the
+product of all but one of them, to `0`. -/
+def zeroMon (cc : List Opcode) (ws : List ℕ) : Bool :=
+  holdsZ cc [⟨1, ws⟩] || ws.any fun w => holdsZ cc [⟨1, ws.erase w⟩]
+
+/-- `P` without the terms `zeroMon` shows are `0`. -/
+def dropZero (cc : List Opcode) (P : Poly) : Poly :=
+  P.filter fun t => !zeroMon cc t.witnesses
+
+/-- `w` solved for in `ts = 0`, if `ts` has the term `t = ± w` and no other
+term mentioning `w`. -/
+def solveFor (w : ℕ) (t : Term) (ts : Poly) : Poly :=
+  let rest := ts.filter (fun u => ¬w ∈ u.witnesses)
+  if modP t.coef = 1 then pscale (-1) rest else rest
+
+/-- `Q` with `w = Q`, from a constraint that, without its terms that are `0`,
+has a term `± w` and no other term mentioning `w`. -/
+def defs (cc : List Opcode) (w : ℕ) : List Poly :=
+  cc.filterMap fun c => match c with
+    | .assertZero ts =>
+      let ds := dropZero cc ts
+      match ds.find? (fun t => t.witnesses = [w]) with
+      | some t =>
+        let Q := solveFor w t ds
+        if key ds = key (psub (pvar w) Q) ∨ key ds = key (pscale (-1) (psub (pvar w) Q)) then some Q
+        else none
+      | none => none
+    | .range _ _ => none
+
+/-- `bnd`, narrowed by the first definition `w = Q` whose bounds with `A`
+fixed are in `[0, p)`. -/
+def rbnd (cc : List Opcode) (A : List (ℕ × ℕ)) (w : ℕ) : ℕ × ℕ :=
+  match (defs cc w).findSome? fun Q => natIval (bnd cc A) (fixAll A Q) with
+  | some b => (max (bnd cc A w).1 b.1, min (bnd cc A w).2 b.2)
+  | none => bnd cc A w
+
+/-- Up to two witnesses of `P` that are bits. -/
+def bitsOf (cc : List Opcode) (P : Poly) : List ℕ :=
+  ((P.flatMap (·.witnesses)).eraseDups.filter fun w => match wbound cc w with
+    | some (_, M) => decide (M ≤ 1)
+    | none => false).take 2
+
+/-- Every assignment of `0` or `1` to the witnesses. -/
+def assigns : List ℕ → List (List (ℕ × ℕ))
+  | [] => [[]]
+  | w :: ws => (assigns ws).flatMap fun A => [(w, 0) :: A, (w, 1) :: A]
+
+/-- Bounds on `P` in each case, merged. -/
+def hull : List (Option (ℕ × ℕ)) → Option (ℕ × ℕ)
+  | [] => none
+  | [b] => b
+  | b :: bs => match b, hull bs with
+    | some (l, h), some (l', h') => some (min l l', max h h')
+    | _, _ => none
+
+/-- Bounds on `P`'s value, by cases on its bits. -/
+def splitBound (cc : List Opcode) (P0 : Poly) : Option (ℕ × ℕ) :=
+  let P := dropZero cc P0
+  hull ((assigns (bitsOf cc P)).map fun A => natIval (rbnd cc A) (fixAll A P))
 
 /-! ## The rules -/
 
@@ -260,11 +368,17 @@ def checked (cc : List Opcode) (alts : List Poly) (n : ℕ) : Option (ℕ × ℕ
   alts.findSome? fun P => (pbound cc P).filter fun (_, M) => M < 2 ^ n
 
 /-- Every binary instruction other than unchecked integer arithmetic, on
-operands that fit their type. -/
+operands that fit their type. `Field` division needs a witness `z` with
+`b z = 1`, which makes `b` nonzero and `z` its inverse. -/
 def checkedRep (cc : List Opcode) (op : BinaryOp) (a b : Rep2) : Option Rep2 :=
   let comb f as bs := comb f (forms cc as) (forms cc bs)
   match op, a.ty with
   | .eq, _ => some ⟨(eqFlags cc a b).map pvar, .uint 1, 0, 1⟩
+  | .div, .field =>
+    match (forms cc b.alts).findSome? fun Xb =>
+        (cc.flatMap cVars).find? fun z => holdsZ cc (psub (pconst 1) (pmul Xb (pvar z))) with
+    | some z => some ⟨comb pmul a.alts [pvar z], .field, 0, p - 1⟩
+    | none => none
   | .add, .field => some ⟨comb (· ++ ·) a.alts b.alts, .field, 0, p - 1⟩
   | .sub, .field => some ⟨comb psub a.alts b.alts, .field, 0, p - 1⟩
   | .mul, .field => some ⟨comb pmul a.alts b.alts, .field, 0, p - 1⟩
@@ -359,10 +473,11 @@ def binRep (cc : List Opcode) (op : BinaryOp) (u : Bool) (a b : Rep2) : Option R
   | .uint _, true | .sint _, true => uncheckedRep cc op a b
   | _, _ =>
     if op = .xor then (if a.ty = .uint 1 ∧ fitsBoth a b then some (xorRep cc a b) else none)
-    else if fitsBoth a b then checkedRep cc op a b
-    else match a.ty, op with
-      | .uint n, .add => if n = 1 then none else addRep cc n a b
-      | _, _ => none
+    else match (if fitsBoth a b then checkedRep cc op a b else none) with
+      | some r => some r
+      | none => match a.ty, op with
+        | .uint n, .add => if n = 1 then none else addRep cc n a b
+        | _, _ => none
 
 /-- `r ≤ Mr < 2^k`, `x = 2^k q + r`, and `2^k q + r < p`: either from the bound
 on `q`, or, for `q ≤ p / 2^k`, from a flag `y = [q = p / 2^k]` with `(r + d) y`
@@ -402,24 +517,46 @@ def neHolds (cc : List Opcode) (a b : Rep2) : Bool :=
 def rangeHolds (cc : List Opcode) (a : Rep2) (k : ℕ) : Bool :=
   decide (a.M < 2 ^ k) || (checked cc a.alts k).isSome
 
+/-- After `range_check a` to `k` bits: the first entry for variable `a` is
+below `2^k`. -/
+def bounded (a : Operand) (k : ℕ) : Reps → Reps
+  | [] => []
+  | (i, v) :: rs =>
+    if a = .var i then
+      (i, match v with
+        | .scalar r => .scalar ⟨r.alts, r.ty, r.L, min r.M (2 ^ k - 1)⟩
+        | v => v) :: rs
+    else (i, v) :: bounded a k rs
+
+/-- An integer whose bounds do not show it fits its type, with bounds from
+`splitBound` if they are tighter. -/
+def tight (cc : List Opcode) (r : Rep2) : Rep2 :=
+  let n := match r.ty with
+    | .field => 254
+    | .uint n | .sint n => n
+  if r.ty = .field ∨ r.M < 2 ^ n then r
+  else match r.alts.findSome? (splitBound cc) with
+    | some (l, h) => ⟨r.alts, r.ty, max r.L l, min r.M h⟩
+    | none => r
+
 def step2 (cc : List Opcode) (reps : Reps) : Instruction → Option Reps
   | .bin d op u a b => do
     let ra ← opRep reps a
     let rb ← opRep reps b
     let r ← binRep cc op u ra rb
-    some ((d, .scalar r) :: reps)
+    some ((d, .scalar (tight cc r)) :: reps)
   | .not d a => do
     let ra ← opRep reps a
     match ra.ty with
-    | .uint n =>
+    | .uint n | .sint n =>
       if ra.M < 2 ^ n ∧ 2 ^ n ≤ p then
-        some ((d, .scalar ⟨ra.alts.map (psub (pconst (2 ^ n - 1 : ℕ))), .uint n,
+        some ((d, .scalar ⟨ra.alts.map (psub (pconst (2 ^ n - 1 : ℕ))), ra.ty,
           2 ^ n - 1 - ra.M, 2 ^ n - 1 - ra.L⟩) :: reps)
       else none
-    | _ => none
+    | .field => none
   | .cast d a ty => do
     let ra ← opRep reps a
-    some ((d, .scalar ⟨ra.alts, ty, ra.L, ra.M⟩) :: reps)
+    some ((d, .scalar (tight cc ⟨ra.alts, ty, ra.L, ra.M⟩)) :: reps)
   | .truncate d a k _ => do
     let ra ← opRep reps a
     if 0 < k ∧ (ra.ty = .uint 1 → ra.M < 2) then some ((d, .scalar (truncRep cc ra k)) :: reps)
@@ -434,7 +571,8 @@ def step2 (cc : List Opcode) (reps : Reps) : Instruction → Option Reps
     if neHolds cc ra rb then some reps else none
   | .rangeCheck a k _ => do
     let ra ← opRep reps a
-    if 0 < k ∧ (ra.ty = .uint 1 → ra.M < 2) ∧ rangeHolds cc ra k then some reps else none
+    if 0 < k ∧ (ra.ty = .uint 1 → ra.M < 2) ∧ rangeHolds cc ra k then some (bounded a k reps)
+    else none
   | .arrayGet d a i _ => do
     let rs ← opArr reps a
     let j ← constIdx rs.length i

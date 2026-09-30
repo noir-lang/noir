@@ -6,7 +6,7 @@ division (with and without a predicate), truncation and comparison
 SSA `expand_signed_math` emits for signed `lt`, and soundness of whole
 functions as ACIR generation compiles them, both before and after the ACVM
 optimization passes, plus a pin that keeps those proofs attached to the Rust
-code. A checker proved sound once also covers 169 real programs from
+code. A checker proved sound once also covers 179 real programs from
 `test_programs/execution_success`, as `nargo compile` ships them.
 
 ## What you must review, and what you can ignore
@@ -143,8 +143,16 @@ template, because the optimizer merges, reorders and drops constraints:
   out wraparound, and `r < b`; truncating a `Field` also needs the `q ≤ p / 2^k`
   bound and, when `q` equals it, the remainder bound — the checks
   `Examples/Bug7895.lean` is about;
+- `div` on `Field` needs a witness `z` with `b z = 1`, which makes `b` nonzero
+  and `z` its inverse;
 - `eq` needs the inverse gadget, `constrain` a constraint that equates both
   sides, and a return value a constraint that equates it with its witness;
+- `range_check` narrows the value's bounds for the instructions after it;
+- a value with no useful bounds term by term, such as `|x| = x + 2^n s - 2 x s`
+  built from `x`'s sign bit `s`, gets bounds by fixing each bit it mentions to
+  `0` and to `1`, bounding each case, and narrowing a witness through a
+  constraint that defines it; terms the circuit constrains to `0` are dropped
+  first;
 - a range check may be missing when the circuit fixes the witness to a
   constant, since the optimizer drops such range checks as implied.
 
@@ -165,13 +173,13 @@ supported subset: one block of scalar instructions, plus arrays of scalars and
 tuples read and written at constant indices. The rest use arrays at dynamic
 indices (ACIR memory), references, several ACIR functions, calls, black boxes,
 several blocks, or more than 1000 instructions; the reason for each is in
-`test_programs.outside`. The checker accepts 169 of them. The eleven it does not
-are listed in `uncoveredPrograms` in `Spec/Claims.lean` with the reason.
-Removing any single constraint from the 125 circuits without arrays makes the
-checker reject in 387 of 394 cases;
-the other 7 constraints are
-redundant (a repeated constraint, a range check implied by another bound, and
-`b · inv = 1` in a division that already proves `r < b`).
+`test_programs.outside`. The checker accepts 179 of them. The one it does not
+is listed in `uncoveredPrograms` in `Spec/Claims.lean` with the reason.
+Removing any single constraint from the 155 proved circuits without array
+parameters makes the checker reject in 989 of 1008 cases;
+the other 19 constraints are
+redundant (a constraint repeated or implied by others, a range check implied by
+another bound, and `b · inv = 1` in a division that already proves `r < b`).
 
 ## What is proved
 

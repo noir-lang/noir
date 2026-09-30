@@ -75,7 +75,8 @@ theorem key_sat (σ : ℕ → F) (P : Poly) : (key P).Holds σ ↔ P.eval σ = 0
 
 theorem comb_mem {f : Poly → Poly → Poly} {as bs : List Poly} {X : Poly}
     (h : X ∈ comb f as bs) : ∃ a ∈ as, ∃ b ∈ bs, X = f a b := by
-  obtain ⟨a, ha, hX⟩ := List.mem_flatMap.1 (List.mem_of_mem_take h)
+  obtain ⟨a, ha, hX⟩ :=
+    List.mem_flatMap.1 ((isort_perm _ _).mem_iff.1 (List.mem_of_mem_take h))
   obtain ⟨b, hb, rfl⟩ := List.mem_map.1 hX
   exact ⟨a, ha, b, hb, rfl⟩
 
@@ -193,6 +194,262 @@ theorem zeroFlags_sound {t : Poly} {y : ℕ} (h : y ∈ zeroFlags cc t) :
       simp only [eval_psub, Poly.eval_append, eval_pconst, eval_pmul, eval_pvar] at h1
       exact isZero_flag (z := -σ z) (by push_cast at h1; linear_combination h1) h2
   · simp [hty] at hy
+
+end
+
+/-! ## Bounds by cases on bits -/
+
+theorem sc_cast (c : ℤ) : ((sc c : ℤ) : F) = (c : F) := by
+  unfold sc modP
+  split_ifs
+  · exact ZMod.intCast_mod c p
+  · rw [Int.cast_sub, ZMod.intCast_mod]; simp
+
+/-- The terms of `P` added up as integers, each coefficient read by `sc`. -/
+def valZ (σ : ℕ → F) (P : Poly) : ℤ :=
+  (P.map fun t => sc t.coef * ((t.witnesses.map fun w => (σ w).val).prod : ℕ)).sum
+
+theorem eval_valZ (σ : ℕ → F) : ∀ P : Poly, P.eval σ = (valZ σ P : F)
+  | [] => by simp [valZ]
+  | t :: ts => by
+    simp only [Poly.eval_cons, valZ, List.map_cons, List.sum_cons] at *
+    rw [eval_valZ σ ts]
+    simp only [valZ]
+    push_cast
+    rw [sc_cast]
+    congr 1
+    simp only [Term.eval, List.map_map]
+    congr 2
+    exact List.map_congr_left fun w _ => by simp
+
+/-- `B` bounds every witness. -/
+def BOK (σ : ℕ → F) (B : ℕ → ℕ × ℕ) : Prop := ∀ w, (B w).1 ≤ (σ w).val ∧ (σ w).val ≤ (B w).2
+
+theorem mbound_sound {σ : ℕ → F} {B : ℕ → ℕ × ℕ} (hB : BOK σ B) : ∀ ws : List ℕ,
+    (mbound B ws).1 ≤ (ws.map fun w => (σ w).val).prod ∧
+      (ws.map fun w => (σ w).val).prod ≤ (mbound B ws).2
+  | [] => by simp [mbound]
+  | w :: ws => by
+    obtain ⟨h1, h2⟩ := mbound_sound hB ws
+    obtain ⟨h3, h4⟩ := hB w
+    simp only [mbound, List.map_cons, List.prod_cons]
+    exact ⟨Nat.mul_le_mul h3 h1, Nat.mul_le_mul h4 h2⟩
+
+theorem ival_sound {σ : ℕ → F} {B : ℕ → ℕ × ℕ} (hB : BOK σ B) : ∀ P : Poly,
+    (ival B P).1 ≤ valZ σ P ∧ valZ σ P ≤ (ival B P).2
+  | [] => by simp [ival, valZ]
+  | t :: ts => by
+    obtain ⟨h1, h2⟩ := ival_sound hB ts
+    obtain ⟨h3, h4⟩ := mbound_sound hB t.witnesses
+    simp only [valZ] at h1 h2
+    simp only [ival, addI, valZ, List.map_cons, List.sum_cons]
+    set m := (t.witnesses.map fun w => (σ w).val).prod
+    have hl : ((mbound B t.witnesses).1 : ℤ) ≤ (m : ℤ) := by exact_mod_cast h3
+    have hh : (m : ℤ) ≤ ((mbound B t.witnesses).2 : ℤ) := by exact_mod_cast h4
+    split_ifs with hc
+    · have := mul_le_mul_of_nonneg_left hl hc
+      have := mul_le_mul_of_nonneg_left hh hc
+      constructor <;> simp only <;> linarith
+    · have hc' : sc t.coef ≤ 0 := by omega
+      have := mul_le_mul_of_nonpos_left hh hc'
+      have := mul_le_mul_of_nonpos_left hl hc'
+      constructor <;> simp only <;> linarith
+
+theorem natIval_sound {σ : ℕ → F} {B : ℕ → ℕ × ℕ} (hB : BOK σ B) {P : Poly} {l h : ℕ}
+    (hn : natIval B P = some (l, h)) : l ≤ (P.eval σ).val ∧ (P.eval σ).val ≤ h := by
+  unfold natIval at hn
+  dsimp only at hn
+  split_ifs at hn with hr
+  simp only [Option.some.injEq, Prod.mk.injEq] at hn
+  obtain ⟨rfl, rfl⟩ := hn
+  obtain ⟨h1, h2⟩ := ival_sound hB P
+  have h0 : 0 ≤ valZ σ P := by omega
+  have hv : (P.eval σ).val = (valZ σ P).toNat := by
+    rw [eval_valZ, ← Int.toNat_of_nonneg h0, Int.cast_natCast]
+    exact val_natCast_of_lt (by omega)
+  rw [hv]
+  omega
+
+theorem eval_fixW {σ : ℕ → F} {w v : ℕ} (hw : σ w = (v : F)) (P : Poly) :
+    (fixW w v P).eval σ = P.eval σ := by
+  have hprod : ∀ ws : List ℕ, (ws.map σ).prod =
+      (v : F) ^ ws.count w * ((ws.filter (· != w)).map σ).prod := by
+    intro ws
+    induction ws with
+    | nil => simp
+    | cons u us ih =>
+      by_cases hu : u = w
+      · subst hu; simp [ih, hw, pow_succ]; ring
+      · have : (u != w) = true := by simpa using hu
+        simp [this, ih, hu]; ring
+  induction P with
+  | nil => simp [fixW]
+  | cons t ts ih =>
+    simp only [fixW, List.map_cons, Poly.eval_cons] at ih ⊢
+    rw [ih]
+    simp only [Term.eval]
+    rw [hprod t.witnesses]
+    push_cast; ring
+
+/-- The witnesses of `A` have the values it gives them. -/
+def AOK (σ : ℕ → F) (A : List (ℕ × ℕ)) : Prop := ∀ wv ∈ A, (σ wv.1).val = wv.2
+
+theorem eval_fixAll {σ : ℕ → F} {A : List (ℕ × ℕ)} (hA : AOK σ A) (P : Poly) :
+    (fixAll A P).eval σ = P.eval σ := by
+  unfold fixAll
+  rw [eval_collect]
+  induction A with
+  | nil => rfl
+  | cons wv A ih =>
+    obtain ⟨w, v⟩ := wv
+    simp only [List.foldr_cons]
+    have hw : σ w = (v : F) := by
+      have := hA (w, v) (by simp)
+      simp only at this
+      rw [← this, ZMod.natCast_zmod_val]
+    rw [eval_fixW hw, ih fun u hu => hA u (by simp [hu])]
+
+theorem lookup_mem {A : List (ℕ × ℕ)} {w v : ℕ} (h : A.lookup w = some v) : (w, v) ∈ A := by
+  induction A with
+  | nil => simp at h
+  | cons a A ih =>
+    obtain ⟨u, x⟩ := a
+    by_cases hw : w = u
+    · subst hw; simp [List.lookup] at h; simp [h]
+    · have : (w == u) = false := by simpa using hw
+      simp only [List.lookup, this] at h
+      exact List.mem_cons_of_mem _ (ih h)
+
+section
+variable {cc : List Opcode} {σ : ℕ → F} (hcc : ∀ c ∈ cc, c.Holds σ)
+include hcc
+
+theorem bnd_sound {A : List (ℕ × ℕ)} (hA : AOK σ A) : BOK σ (bnd cc A) := by
+  intro w
+  unfold bnd
+  split
+  · next v hv => have := hA _ (lookup_mem hv); simp only at this; omega
+  · cases hb : wbound cc w with
+    | none =>
+      have := ZMod.val_lt (σ w)
+      simp only [Option.getD_none]; omega
+    | some b => simpa using wbound_sound hcc hb
+
+theorem zeroMon_sound {ws : List ℕ} (h : zeroMon cc ws = true) : (ws.map σ).prod = 0 := by
+  unfold zeroMon at h
+  rcases Bool.or_eq_true_iff.1 h with h | h
+  · have := holdsZ_sound hcc h
+    simpa [Term.eval] using this
+  · obtain ⟨w, hw, h⟩ := List.any_eq_true.1 h
+    have := holdsZ_sound hcc h
+    simp only [Poly.eval_cons, Poly.eval_nil, add_zero, Term.eval, Int.cast_one, one_mul] at this
+    rw [((List.perm_cons_erase hw).map σ).prod_eq, List.map_cons, List.prod_cons, this, mul_zero]
+
+theorem eval_dropZero (P : Poly) : (dropZero cc P).eval σ = P.eval σ := by
+  induction P with
+  | nil => rfl
+  | cons t ts ih =>
+    unfold dropZero at ih ⊢
+    rw [List.filter_cons]
+    split
+    · rw [Poly.eval_cons, Poly.eval_cons, ih]
+    · next hz =>
+      simp only [Bool.not_eq_true'] at hz
+      rw [ih, Poly.eval_cons, Term.eval]
+      simp only [Bool.not_eq_false] at hz
+      rw [zeroMon_sound hcc hz]; simp
+
+theorem defs_sound {w : ℕ} {Q : Poly} (h : Q ∈ defs cc w) : σ w = Q.eval σ := by
+  obtain ⟨c, hc, h⟩ := List.mem_filterMap.1 h
+  split at h
+  · next ts =>
+    dsimp only at h
+    split at h
+    · next t _ =>
+      split_ifs at h with hk
+      simp only [Option.some.injEq] at h
+      subst h
+      have h0 : (key (dropZero cc ts)).Holds σ := by
+        rw [key_sat, eval_dropZero hcc]
+        exact hcc _ hc
+      rcases hk with hk | hk
+      · rw [hk, key_sat] at h0
+        simp at h0; linear_combination h0
+      · rw [hk, key_sat] at h0
+        simp at h0; linear_combination -h0
+    · simp at h
+  · simp at h
+
+theorem rbnd_sound {A : List (ℕ × ℕ)} (hA : AOK σ A) : BOK σ (rbnd cc A) := by
+  intro w
+  have hb := bnd_sound hcc hA w
+  unfold rbnd
+  split
+  · next b hf =>
+    obtain ⟨Q, hQ, hn⟩ := List.exists_of_findSome?_eq_some hf
+    have := natIval_sound (bnd_sound hcc hA) hn
+    rw [eval_fixAll hA, ← defs_sound hcc hQ] at this
+    simp only
+    omega
+  · exact hb
+
+theorem bitsOf_bit {P : Poly} {w : ℕ} (h : w ∈ bitsOf cc P) : (σ w).val ≤ 1 := by
+  have h := (List.mem_filter.1 (List.mem_of_mem_take h)).2
+  split at h
+  · next M hw => have := wbound_sound hcc hw; have := of_decide_eq_true h; omega
+  · simp at h
+
+end
+
+theorem assigns_mem {σ : ℕ → F} : ∀ ws : List ℕ, (∀ w ∈ ws, (σ w).val ≤ 1) →
+    ws.map (fun w => (w, (σ w).val)) ∈ assigns ws
+  | [], _ => by simp [assigns]
+  | w :: ws, h => by
+    have ih := assigns_mem ws fun u hu => h u (List.mem_cons_of_mem _ hu)
+    simp only [assigns, List.map_cons, List.mem_flatMap]
+    refine ⟨_, ih, ?_⟩
+    have := h w (by simp)
+    rcases Nat.le_one_iff_eq_zero_or_eq_one.1 this with h0 | h0 <;> simp [h0]
+
+theorem hull_sound : ∀ {bs : List (Option (ℕ × ℕ))} {l h : ℕ}, hull bs = some (l, h) →
+    ∀ b ∈ bs, ∃ l' h', b = some (l', h') ∧ l ≤ l' ∧ h' ≤ h
+  | [], _, _, hh => by simp [hull] at hh
+  | [b], l, h, hh => by
+    intro b' hb'
+    simp only [hull] at hh
+    simp only [List.mem_singleton] at hb'
+    subst hb'
+    exact ⟨l, h, hh, le_rfl, le_rfl⟩
+  | b :: c :: bs, l, h, hh => by
+    intro b' hb'
+    rcases hb : b with _ | ⟨l1, h1⟩ <;> rcases hr : hull (c :: bs) with _ | ⟨l2, h2⟩ <;>
+      simp [hull, hb, hr] at hh
+    obtain ⟨rfl, rfl⟩ := hh
+    rcases List.mem_cons.1 hb' with rfl | hb'
+    · exact ⟨l1, h1, hb, min_le_left _ _, le_max_left _ _⟩
+    · obtain ⟨l', h', he, hl, hh⟩ := hull_sound hr b' hb'
+      exact ⟨l', h', he, le_trans (min_le_right _ _) hl, le_trans hh (le_max_right _ _)⟩
+
+section
+variable {cc : List Opcode} {σ : ℕ → F} (hcc : ∀ c ∈ cc, c.Holds σ)
+include hcc
+
+theorem splitBound_sound {P0 : Poly} {l h : ℕ} (hs : splitBound cc P0 = some (l, h)) :
+    l ≤ (P0.eval σ).val ∧ (P0.eval σ).val ≤ h := by
+  unfold splitBound at hs
+  simp only at hs
+  set P := dropZero cc P0
+  have hP : P.eval σ = P0.eval σ := eval_dropZero hcc P0
+  set A := (bitsOf cc P).map fun w => (w, (σ w).val)
+  have hA : AOK σ A := by
+    intro wv hwv
+    obtain ⟨w, -, rfl⟩ := List.mem_map.1 hwv
+    rfl
+  have hmem : A ∈ assigns (bitsOf cc P) := assigns_mem _ fun w hw => bitsOf_bit hcc hw
+  obtain ⟨l', h', hb, hl, hh⟩ := hull_sound hs _ (List.mem_map_of_mem hmem)
+  have := natIval_sound (rbnd_sound hcc hA) hb
+  rw [eval_fixAll hA, hP] at this
+  omega
 
 end
 
@@ -452,6 +709,7 @@ def fitApply (op : BinaryOp) (x y : F) : ValueType → Option (F × ValueType)
     | .add => some (x + y, .field)
     | .sub => some (x - y, .field)
     | .mul => some (x * y, .field)
+    | .div => if y = 0 then none else some (x * y⁻¹, .field)
     | .eq => some (flag (x = y))
     | _ => none
   | .uint n =>
@@ -509,6 +767,25 @@ theorem checkedRep_sound {op : BinaryOp} {a b r : Rep2} {x y : F} {tx ty : Value
     case mul =>
       subst h
       exact ⟨_, rfl, rfl, hmul, Nat.zero_le _, by dsimp only; have := ZMod.val_lt (x * y); omega⟩
+    case div =>
+      split at h
+      · next z hz =>
+        simp only [Option.some.injEq] at h
+        subst h
+        obtain ⟨Xb, hXb, hz⟩ := List.exists_of_findSome?_eq_some hz
+        have hz2 : holdsZ cc (psub (pconst 1) (pmul Xb (pvar z))) = true :=
+          List.find?_some (p := fun z => holdsZ cc (psub (pconst 1) (pmul Xb (pvar z)))) hz
+        have h1 := holdsZ_sound hcc hz2
+        simp only [eval_psub, eval_pconst, eval_pmul, eval_pvar, hFb Xb hXb, Int.cast_one] at h1
+        have hy : y ≠ 0 := by rintro rfl; simp at h1
+        have hinv : y⁻¹ = σ z := inv_eq_of_mul_eq_one_right (by linear_combination -h1)
+        rw [if_neg hy]
+        refine ⟨_, rfl, rfl, fun P hP => ?_, Nat.zero_le _,
+          by dsimp only; have := ZMod.val_lt (x * y⁻¹); omega⟩
+        obtain ⟨A, hA, B, hB, rfl⟩ := comb_mem hP
+        have hz' : ∀ Q ∈ [pvar z], Q.eval σ = σ z := by simp
+        rw [eval_pmul, hFa A hA, forms_sound hcc hz' B hB, hinv]
+      · simp at h
     all_goals
       subst h
       refine ⟨_, rfl, flag_ok σ _ _ 0 rfl ?_⟩
@@ -794,7 +1071,7 @@ theorem binRep_sound {op : BinaryOp} {u : Bool} {a b r : Rep2} {x y : F} {tx ty 
       obtain ⟨-, hPa, hLa, hMa⟩ := ha
       obtain ⟨-, hPb, hLb, hMb⟩ := hb
       simp only at hPa hMa hPb hMb
-      simp only [fitsBoth, hty, pow_one, decide_eq_true_eq, not_not] at hf
+      simp only [fitsBoth, hty, pow_one, decide_eq_true_eq] at hf
       have hx : x.val < 2 := by omega
       have hy : y.val < 2 := by omega
       have hsum : ∀ P ∈ comb (· ++ ·) (forms cc a.alts) (forms cc b.alts), P.eval σ = x + y := by
@@ -870,8 +1147,12 @@ theorem binRep_sound {op : BinaryOp} {u : Bool} {a b r : Rep2} {x y : F} {tx ty 
       · refine ⟨flag false, by simp [BinaryOp.apply, u1Apply, flag, ZMod.val_one], rfl,
           fun P hP => by rw [hv P hP]; simp [flag]; ring, Nat.zero_le _, hflag _⟩
     simp only [hxo, if_false] at h
-    split_ifs at h with hf
-    · obtain ⟨v, hv, hok⟩ := checkedRep_sound hcc h ha hb hf
+    split at h
+    · next r' hc =>
+      simp only [Option.some.injEq] at h
+      subst h
+      split_ifs at hc with hf
+      obtain ⟨v, hv, hok⟩ := checkedRep_sound hcc hc ha hb hf
       refine ⟨v, apply_of_fitApply hv (.inl fun hne => ?_), hok⟩
       cases hu : u && isArith op
       · rfl
@@ -881,7 +1162,7 @@ theorem binRep_sound {op : BinaryOp} {u : Bool} {a b r : Rep2} {x y : F} {tx ty 
         | uint n => exact h2 n hty hu
         | sint n => exact h3 n hty hu
     · split at h
-      · next _ _ n hty =>
+      · next n hty _ =>
         split_ifs at h with hn1
         unfold addRep at h
         obtain ⟨-, hPa, -, -⟩ := ha
@@ -953,6 +1234,41 @@ theorem lookup_ok {σ : ℕ → F} : ∀ {reps : Reps} {env : Env}, EnvOK σ rep
     · have hne : (id == i) = false := by simpa using hid
       simp only [List.lookup, hne] at h ⊢
       exact lookup_ok ht h
+
+theorem value_cons {a : Operand} {i : ℕ} {u : Value} {env : Env} (ha : a ≠ .var i) :
+    a.value ((i, u) :: env) = a.value env := by
+  cases a with
+  | var id =>
+    have : (id == i) = false := by
+      simp only [beq_eq_false_iff_ne, ne_eq]
+      rintro rfl
+      exact ha rfl
+    simp [Operand.value, List.lookup, this]
+  | const v ty => rfl
+
+theorem bounded_ok {σ : ℕ → F} : ∀ {reps : Reps} {env : Env}, EnvOK σ reps env →
+    ∀ {a : Operand} {k : ℕ} {x : F} {tx : ValueType}, a.value env = some (x, tx) → x.val < 2 ^ k →
+    EnvOK σ (bounded a k reps) env
+  | [], [], _, _, _, _, _, _, _ => .nil
+  | (i, v) :: rs, (j, u) :: es, .cons ⟨hij, hok⟩ ht, a, k, x, tx, hx, hk => by
+    simp only at hij
+    subst hij
+    unfold bounded
+    split_ifs with ha
+    · subst ha
+      refine .cons ⟨rfl, ?_⟩ ht
+      cases u with
+      | scalar w =>
+        simp only [Operand.value, List.lookup, BEq.rfl, Option.some.injEq] at hx
+        subst hx
+        cases v with
+        | scalar r =>
+          obtain ⟨h1, h2, h3, h4⟩ := hok
+          exact ⟨h1, h2, h3, le_min h4 (by simp only at hk ⊢; omega)⟩
+        | array rs => exact hok.elim
+      | array xs => simp [Operand.value, List.lookup] at hx
+    · rw [value_cons ha] at hx
+      exact .cons ⟨rfl, hok⟩ (bounded_ok ht hx hk)
 
 theorem constRep_ok (σ : ℕ → F) (c : ℤ) (ty : ValueType) :
     RepOK2 σ (constRep c ty) (constVal ty c, ty) := by
@@ -1083,6 +1399,20 @@ section
 variable {cc : List Opcode} {σ : ℕ → F} (hcc : ∀ c ∈ cc, c.Holds σ)
 include hcc
 
+theorem tight_ok {r : Rep2} {v : F × ValueType} (h : RepOK2 σ r v) : RepOK2 σ (tight cc r) v := by
+  unfold tight
+  dsimp only
+  split_ifs
+  · exact h
+  · split
+    · next b hf =>
+      obtain ⟨P, hP, hs⟩ := List.exists_of_findSome?_eq_some hf
+      have := splitBound_sound hcc hs
+      obtain ⟨h1, h2, h3, h4⟩ := h
+      rw [h2 P hP] at this
+      exact ⟨h1, h2, by simp only; omega, by simp only; omega⟩
+    · exact h
+
 theorem step2_ok {reps : Reps} {env : Env} (hE : EnvOK σ reps env) {i : Instruction}
     {reps' : Reps} (h : step2 cc reps i = some reps') :
     ∃ env', i.run env = some env' ∧ EnvOK σ reps' env' := by
@@ -1095,35 +1425,42 @@ theorem step2_ok {reps : Reps} {env : Env} (hE : EnvOK σ reps env) {i : Instruc
     obtain ⟨v, hv, hokv⟩ := binRep_sound hcc hr hokx hoky
     simp only [Option.some.injEq] at h
     subst h
-    exact ⟨(d, .scalar v) :: env, by simp [Instruction.run, hx, hy, hv], .cons ⟨rfl, hokv⟩ hE⟩
+    exact ⟨(d, .scalar v) :: env, by simp [Instruction.run, hx, hy, hv],
+      .cons ⟨rfl, tight_ok hcc hokv⟩ hE⟩
   | not d a =>
     simp only [step2, Option.bind_eq_bind, Option.bind_eq_some_iff] at h
     obtain ⟨ra, hra, h⟩ := h
     obtain ⟨⟨x, tx⟩, hx, ⟨hty, hP, hL, hM⟩⟩ := opRep_ok hE hra
     simp only at hty hP hL hM
-    split at h
-    · next n hn =>
+    have hnot : ∀ n ty, ty = tx → (tx = .uint n ∨ tx = .sint n) →
+        (if ra.M < 2 ^ n ∧ 2 ^ n ≤ p then some ((d, RVal.scalar ⟨ra.alts.map (psub (pconst (2 ^ n - 1 : ℕ))),
+          ty, 2 ^ n - 1 - ra.M, 2 ^ n - 1 - ra.L⟩) :: reps) else none) = some reps' →
+        ∃ env', (Instruction.not d a).run env = some env' ∧ EnvOK σ reps' env' := by
+      intro n ty hty' hn h
       split_ifs at h with h1
       simp only [Option.some.injEq] at h
       subst h
-      rw [hn] at hty
-      subst hty
       have hxp : x.val ≤ 2 ^ n - 1 := by omega
-      have hv : ((2 ^ n - 1 - x.val : ℕ) : F).val = 2 ^ n - 1 - x.val := val_natCast_of_lt (by omega)
+      have hv : ((2 ^ n - 1 - x.val : ℕ) : F).val = 2 ^ n - 1 - x.val :=
+        val_natCast_of_lt (by omega)
       have hxn : x.val < 2 ^ n := by omega
-      refine ⟨(d, .scalar (((2 ^ n - 1 - x.val : ℕ) : F), .uint n)) :: env,
-        by
-          have hmod : x.val % 2 ^ n = x.val := Nat.mod_eq_of_lt hxn
-          have h1' : n = 1 → x.val ≤ 1 := fun h => by subst h; omega
-          simp [Instruction.run, hx, hmod]; exact h1',
-        .cons ⟨rfl, rfl, ?_, ?_, ?_⟩ hE⟩
+      have hmod : x.val % 2 ^ n = x.val := Nat.mod_eq_of_lt hxn
+      refine ⟨(d, .scalar (((2 ^ n - 1 - x.val : ℕ) : F), tx)) :: env, ?_,
+        .cons ⟨rfl, hty', ?_, ?_, ?_⟩ hE⟩
+      · rcases hn with rfl | rfl
+        · have h1' : n = 1 → x.val ≤ 1 := fun h => by subst h; omega
+          simp [Instruction.run, hx, hmod]; exact h1'
+        · simp [Instruction.run, hx, hmod]
       · intro P hP'
         obtain ⟨Q, hQ, rfl⟩ := List.mem_map.1 hP'
         simp only [eval_psub, eval_pconst, hP Q hQ, Int.cast_natCast]
         rw [Nat.cast_sub hxp, cast_val]
       · simp only [hv]; omega
       · simp only [hv]; omega
+    rcases hr : ra.ty with _ | n | n <;> rw [hr] at h
     · simp at h
+    · exact hnot n _ (hr.symm.trans hty) (.inl (hty.symm.trans hr)) h
+    · exact hnot n _ (hr.symm.trans hty) (.inr (hty.symm.trans hr)) h
   | cast d a ty =>
     simp only [step2, Option.bind_eq_bind, Option.bind_eq_some_iff] at h
     obtain ⟨ra, hra, h⟩ := h
@@ -1131,7 +1468,8 @@ theorem step2_ok {reps : Reps} {env : Env} (hE : EnvOK σ reps env) {i : Instruc
     simp only at hty hP hL hM
     simp only [Option.some.injEq] at h
     subst h
-    exact ⟨(d, .scalar (x, ty)) :: env, by simp [Instruction.run, hx], .cons ⟨rfl, rfl, hP, hL, hM⟩ hE⟩
+    exact ⟨(d, .scalar (x, ty)) :: env, by simp [Instruction.run, hx],
+      .cons ⟨rfl, tight_ok hcc ⟨rfl, hP, hL, hM⟩⟩ hE⟩
   | truncate d a k m =>
     simp only [step2, Option.bind_eq_bind, Option.bind_eq_some_iff] at h
     obtain ⟨ra, hra, h⟩ := h
@@ -1203,7 +1541,8 @@ theorem step2_ok {reps : Reps} {env : Env} (hE : EnvOK σ reps env) {i : Instruc
       · obtain ⟨⟨L, M⟩, hc⟩ := Option.isSome_iff_exists.1 hr
         have := checked_sound hcc hPa hc
         omega
-    exact ⟨env, by simp only [Instruction.run, hx, Option.bind_eq_bind, Option.bind_some]; rw [if_pos ⟨hk0, hk, fun h1 => by have := hu1' h1; omega⟩], hE⟩
+    exact ⟨env, by simp only [Instruction.run, hx, Option.bind_eq_bind, Option.bind_some]; rw [if_pos ⟨hk0, hk, fun h1 => by have := hu1' h1; omega⟩],
+      bounded_ok hE hx hk⟩
   | arrayGet d a i ty =>
     simp only [step2, Option.bind_eq_bind, Option.bind_eq_some_iff] at h
     obtain ⟨rs, hrs, j, hj, r, hr, h⟩ := h
