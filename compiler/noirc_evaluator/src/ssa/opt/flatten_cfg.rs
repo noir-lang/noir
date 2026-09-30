@@ -140,6 +140,8 @@
 //!   ... b3 instructions ...
 //! ```
 
+use std::ops::Range;
+
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use acvm::{FieldElement, acir::AcirField, acir::BlackBoxFunc};
@@ -952,6 +954,10 @@ impl<'f> Context<'f> {
         });
         let block = self.target_block;
 
+        // Positions in the target block of the instructions emitted for the then branch.
+        let then_instructions = cond_context.then_start
+            ..cond_context.else_start.expect("ICE: else_start is set by then_stop");
+
         // Cannot include this in the previous vecmap since it requires exclusive access to self
         let args =
             vecmap(args, |(then_arg, else_arg)| {
@@ -961,7 +967,7 @@ impl<'f> Context<'f> {
                     else_arg,
                     cond_context.then_branch.condition,
                     cond_context.call_stack,
-                    cond_context.then_start,
+                    then_instructions.clone(),
                 ) {
                     return optimized;
                 }
@@ -1220,6 +1226,7 @@ impl<'f> Context<'f> {
             BranchPhase::Then => context.then_start,
             BranchPhase::Else => context.else_start.expect("ICE: else_start is set by then_stop"),
         };
+        let branch_instructions = branch_start..self.target_block_len();
 
         self.try_optimize_array_set_merge_inner(
             value,
@@ -1227,7 +1234,7 @@ impl<'f> Context<'f> {
             condition,
             call_stack,
             protect_array_set,
-            branch_start,
+            branch_instructions,
             |this, array| this.was_loaded_from_address(array, address),
         )
     }
@@ -1263,7 +1270,7 @@ impl<'f> Context<'f> {
         else_value: ValueId,
         then_condition: ValueId,
         call_stack: CallStackId,
-        branch_start: usize,
+        branch_instructions: Range<usize>,
     ) -> Option<ValueId> {
         self.try_optimize_array_set_merge_inner(
             then_value,
@@ -1271,7 +1278,7 @@ impl<'f> Context<'f> {
             then_condition,
             call_stack,
             false,
-            branch_start,
+            branch_instructions,
             |_, array| array == else_value,
         )
     }
@@ -1284,7 +1291,7 @@ impl<'f> Context<'f> {
         then_condition: ValueId,
         condition_call_stack: CallStackId,
         protect_array_set: bool,
-        branch_start: usize,
+        branch_instructions: Range<usize>,
         is_base_array: impl Fn(&Self, ValueId) -> bool,
     ) -> Option<ValueId> {
         // If the condition along which we would merge is a constant 1 or 0,
@@ -1386,7 +1393,7 @@ impl<'f> Context<'f> {
                 // whenever the branch is not taken.
                 let superseded: HashSet<InstructionId> = superseded.into_iter().collect();
                 let emitted_in_branch = self.inserter.function.dfg[self.target_block]
-                    .instructions()[branch_start..]
+                    .instructions()[branch_instructions]
                     .iter()
                     .filter(|id| superseded.contains(id));
                 self.superseded_array_sets.extend(emitted_in_branch);
