@@ -226,8 +226,8 @@ struct CachedContext<'a> {
 /// Whether a test left the context it compiled against fit for the next test to compile against.
 ///
 /// Whether the test passed does not decide this, and neither does whether it compiled:
-/// monomorphization restores the bindings it made on every path out, so a compilation that failed
-/// leaves the context no worse off than one that succeeded. What is [`Self::Spent`] is the
+/// monomorphization only reads the elaborated program, so a compilation that failed leaves the
+/// context as fit for reuse as one that succeeded. What is [`Self::Spent`] is the
 /// `--force-comptime` and `--coverage` path, which runs the comptime interpreter over the context
 /// instead of monomorphizing, and hands the context's evaluation tracker to the coverage report.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -405,8 +405,9 @@ impl<'a> TestRunner<'a> {
                 });
                 let unwound = catch_unwind(run);
 
-                // Monomorphization's restores are unwound past rather than run by a panic, so a
-                // test that did not finish gives up its context however far it got.
+                // A panic can stop elaborating the package, or the comptime interpreter, part-way
+                // through changing the context, so a test that did not finish gives up its context
+                // however far it got.
                 let reusable = matches!(unwound, Ok((_, _, _, ContextState::Clean)))
                     && !self.args.no_context_reuse;
                 if !reusable {
@@ -840,8 +841,8 @@ impl<'a> TestRunner<'a> {
             });
 
             // The coverage report takes ownership of the evaluation tracker, which the next test
-            // needs rebuilt, and the purity the reuse rests on is monomorphization's rather than
-            // the interpreter's.
+            // needs rebuilt, and the interpreter runs as part of elaboration, so it can change
+            // what the context holds where monomorphization only reads it.
             return (status, output, report, ContextState::Spent);
         }
 
