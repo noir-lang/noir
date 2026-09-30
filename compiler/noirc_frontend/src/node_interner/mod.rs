@@ -35,7 +35,7 @@ use crate::ResolvedGenerics;
 use crate::TraitAssociatedType;
 use crate::ast::{BinaryOpKind, ItemVisibility};
 use crate::hir_def::traits::{Impl, Trait, TraitConstraint, TraitImpl};
-use crate::hir_def::types::{BoundTypeVariables, DataType, Kind, Type};
+use crate::hir_def::types::{DataType, Kind, Type};
 use crate::hir_def::{
     expr::HirExpression,
     function::{FuncMeta, HirFunction},
@@ -324,12 +324,6 @@ pub struct NodeInterner {
     /// Tracks statements that encountered errors during elaboration.
     /// Used by the interpreter to skip evaluation of errored statements.
     pub(crate) stmts_with_errors: HashSet<StmtId>,
-
-    /// Associates type bindings that resulted from unifying the type of a macro call expression
-    /// with the expected type at the callsite.
-    /// Since a single macro call expression might end up having different types across loop
-    /// iterations, before unifying its type we undo bindings from the last time we unified it.
-    pub(crate) macro_call_expression_bindings: HashMap<ExprId, BoundTypeVariables>,
 }
 
 /// A trait implementation is either a normal implementation that is present in the source
@@ -550,7 +544,6 @@ impl Default for NodeInterner {
             primitive_docs: HashMap::default(),
             exprs_with_errors: HashSet::default(),
             stmts_with_errors: HashSet::default(),
-            macro_call_expression_bindings: HashMap::default(),
         }
     }
 }

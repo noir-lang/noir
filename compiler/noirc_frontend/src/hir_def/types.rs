@@ -1044,7 +1044,7 @@ impl TypeVariable {
     /// This is type checking's binding: it commits, and it refuses to overwrite a binding that is
     /// already there, which is what makes it unable to produce the kind of write a later pass has
     /// to undo. A pass that does need to bind over an existing binding goes through
-    /// [`BoundTypeVariables`] or [`BoundGenerics`], which are the only other way in.
+    /// [`BoundTypeVariables`], which is the only other way in.
     pub(crate) fn bind(&self, typ: Type) {
         let id = match &*self.1.borrow() {
             TypeBinding::Bound(binding) => {
@@ -1099,8 +1099,8 @@ impl TypeVariable {
     ///
     /// Private to this module, which is the whole point: a `TypeVariable`'s binding is shared
     /// with every `Type` that mentions it, so an unrestored write is visible to the whole
-    /// program. The guards defined below are the only way the rest of the compiler can write a
-    /// binding it means to take back, and each says in its name how long the write lasts.
+    /// program. The [`BoundTypeVariables`] guard defined below is the only way the rest of the
+    /// compiler can write a binding it means to take back.
     fn replace(&self, typ: Type) -> Option<TypeBinding> {
         if typ.occurs(self.id()) {
             return None;
@@ -1288,61 +1288,6 @@ impl Drop for BoundTypeVariables {
     fn drop(&mut self) {
         for (var, previous) in self.saved.drain(..).rev() {
             var.restore(previous);
-        }
-    }
-}
-
-/// Type variable bindings that are applied and taken back at points that are not a scope.
-///
-/// The comptime interpreter binds a function's generics for the length of a call, and a nested
-/// call to the same generic function binds those same variables to its own instantiation — so it
-/// keeps a stack of these and takes the frame below out of force while an inner one is live. It
-/// also copies the set in force into every closure it builds, because a closure called later has
-/// to reinstate the bindings it was created under.
-///
-/// [`BoundTypeVariables`] is the right thing wherever the bindings last exactly as long as a
-/// scope: it restores what it overwrote when it is dropped, so nothing has to be paired up by
-/// hand. That does not fit here. A set copied into a closure is applied somewhere unrelated to
-/// where it was built, and there is no earlier state to go back to, so [`Self::remove`] returns
-/// each variable to unbound. Sound only because whatever else had those variables bound was taken
-/// out of force first, which is what the interpreter's stack is for.
-///
-/// The two of them exist so that the writes themselves stay private to this module: a caller
-/// picks between a guard that undoes itself and a set that says in its name it is the interpreter
-/// call-frame one, rather than reaching for a bare setter.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub(crate) struct BoundGenerics {
-    bindings: HashMap<TypeVariable, (Type, Kind)>,
-}
-
-impl BoundGenerics {
-    /// Record `var` as bound to `typ`, resolved through whatever bindings are in force now.
-    ///
-    /// Recording does not apply the binding. The interpreter applies a call's bindings through a
-    /// [`BoundTypeVariables`] guard and records them here as well, so that a nested call can take
-    /// them out of force and put them back.
-    pub(crate) fn remember(&mut self, var: &TypeVariable, typ: &Type, kind: &Kind) {
-        self.bindings.insert(var.clone(), (typ.follow_bindings(), kind.clone()));
-    }
-
-    /// Record everything `other` holds, each resolved through the bindings in force now.
-    pub(crate) fn remember_all(&mut self, other: &BoundGenerics) {
-        for (var, (typ, kind)) in &other.bindings {
-            self.remember(var, typ, kind);
-        }
-    }
-
-    /// Put every binding in this set into force.
-    pub(crate) fn apply(&self) {
-        for (var, (typ, _kind)) in &self.bindings {
-            var.replace(typ.clone());
-        }
-    }
-
-    /// Take every binding in this set out of force, returning each variable to unbound.
-    pub(crate) fn remove(&self) {
-        for (var, (_typ, kind)) in &self.bindings {
-            var.restore(TypeBinding::Unbound(var.id(), kind.clone()));
         }
     }
 }
