@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790847596379,
+  "lastUpdate": 1790848452249,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22985,48 +22985,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "7a575d9e4e5af8949098463f38e96c74a90f1c58",
-          "message": "chore: remove the SSA fuzzer (#13766)",
-          "timestamp": "2026-09-18T13:21:53Z",
-          "tree_id": "0ca78335b815d277dee928ca2ac4417ab70ce1dc",
-          "url": "https://github.com/noir-lang/noir/commit/7a575d9e4e5af8949098463f38e96c74a90f1c58"
-        },
-        "date": 1789739112921,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 164958,
-            "range": "± 322",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 137163,
-            "range": "± 2281",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2126067,
-            "range": "± 1058",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "ff6ae96b17601ccb59979ae6b4a2bad69926c055",
           "message": "fix(artifact_cli): report an empty `--witness-file` as an input error (#13679)",
@@ -25069,6 +25027,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 1726721,
             "range": "± 58952",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "91fc34ef692616db2677633f1f5153b085c4b849",
+          "message": "chore(deps): bump axios from 1.18.0 to 1.20.0 in /docs (#13847)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-10-01T09:29:50Z",
+          "tree_id": "f66ebf4b94d1646061918a92b97dad20a8fc9a49",
+          "url": "https://github.com/noir-lang/noir/commit/91fc34ef692616db2677633f1f5153b085c4b849"
+        },
+        "date": 1790848363407,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 167558,
+            "range": "± 615",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 135866,
+            "range": "± 2817",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2647772,
+            "range": "± 4090",
             "unit": "ns/iter"
           }
         ]
