@@ -9,9 +9,8 @@
 //!   followed by a corresponding truncate instruction with the expected bit sizes.
 //! - That every narrowing cast is preceded by an instruction proving the value
 //!   being cast fits into the destination type.
-//! - That every `vector_insert` / `vector_remove` (and Brillig `vector_pop_back` /
-//!   `vector_pop_front`) is preceded by a bounds check on its index or length, or has
-//!   arguments known to be in range (see [`vector_bounds`]).
+//! - That every `vector_insert` / `vector_remove` is preceded, in its block, by a bounds
+//!   check on its index (see [`vector_bounds`]).
 //! - That neither a `Truncate` nor a checked signed add/sub/mul consumes the result of an
 //!   unchecked signed `Sub` (which may have underflowed to a field-negative value).
 //!
@@ -1283,7 +1282,7 @@ impl<'f> Validator<'f> {
         // Like the narrowing-cast guard, bounds checks are a property of generated/simplified
         // SSA that passes may legitimately rewrite into shapes this rule does not recognise.
         if self.full {
-            vector_bounds::validate_vector_bounds_guards(self.function);
+            vector_bounds::validate_vector_bounds_checks(self.function);
         }
     }
 

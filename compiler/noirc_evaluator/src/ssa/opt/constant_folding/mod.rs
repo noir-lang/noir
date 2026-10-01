@@ -1228,8 +1228,6 @@ mod test {
         brillig(inline) predicate_pure fn main f0 {
           b0():
             v1, v2 = call f1() -> (u32, [u32])
-            v3 = lt u32 0, v1
-            constrain v3 == u1 1
             v5, v6, v7 = call vector_pop_front(v1, v2) -> (u32, u32, [u32])
             v8, v9 = call f1() -> (u32, [u32])
             v10 = array_get v9, index u32 0 -> u32
@@ -1335,8 +1333,6 @@ mod test {
             v1 = make_array [u32 100, u32 200] : [u32]
             v2 = array_set v1, index u32 0, value u32 300
             v3, v4 = call f1(u32 2, v2) -> (u32, [u32])
-            v9 = lt u32 0, v3
-            constrain v9 == u1 1
             v5, v6, v7 = call vector_pop_front(v3, v4) -> (u32, u32, [u32])
             v8 = make_array [u32 100, u32 200] : [u32]
             return v8
@@ -4064,9 +4060,9 @@ mod test {
             v6, v7 = call as_vector(v0) -> (u32, [u8])
             v11, v12 = call vector_push_front(u32 2, v7, u8 9) -> (u32, [u8])
             v13 = lt u32 1, v11
-            constrain v13 == u1 1
             jmpif v1 then: b1(), else: b2()
           b1():
+            constrain v13 == u1 1
             v14, v15 = call {intrinsic} -> (u32, [u8])
             v17 = lt u32 0, v14
             constrain v17 == u1 1
@@ -4077,6 +4073,7 @@ mod test {
           b3(v3: u8):
             return v3
           b4():
+            constrain v13 == u1 1
             v20, v21 = call {intrinsic} -> (u32, [u8])
             v22 = lt u32 0, v20
             constrain v22 == u1 1
