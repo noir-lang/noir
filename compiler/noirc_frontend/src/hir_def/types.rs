@@ -1202,10 +1202,10 @@ impl TypeVariable {
     pub fn is_integer(&self) -> bool {
         match self.binding() {
             TypeBinding::Bound(binding) => {
-                matches!(binding.follow_bindings(), Type::Integer(..))
+                matches!(binding.follow_bindings_shallow().as_ref(), Type::Integer(..))
             }
             TypeBinding::Unbound(_, type_var_kind) => {
-                matches!(type_var_kind.follow_bindings(), Kind::Integer)
+                matches!(type_var_kind, Kind::Integer)
             }
         }
     }
@@ -1215,10 +1215,13 @@ impl TypeVariable {
     pub fn is_integer_or_field(&self) -> bool {
         match self.binding() {
             TypeBinding::Bound(binding) => {
-                matches!(binding.follow_bindings(), Type::Integer(..) | Type::FieldElement)
+                matches!(
+                    binding.follow_bindings_shallow().as_ref(),
+                    Type::Integer(..) | Type::FieldElement
+                )
             }
             TypeBinding::Unbound(_, type_var_kind) => {
-                matches!(type_var_kind.follow_bindings(), Kind::IntegerOrField)
+                matches!(type_var_kind, Kind::IntegerOrField)
             }
         }
     }
@@ -1227,7 +1230,10 @@ impl TypeVariable {
     pub fn is_signed(&self) -> bool {
         match self.binding() {
             TypeBinding::Bound(binding) => {
-                matches!(binding.follow_bindings(), Type::Integer(Signedness::Signed, _))
+                matches!(
+                    binding.follow_bindings_shallow().as_ref(),
+                    Type::Integer(Signedness::Signed, _)
+                )
             }
             TypeBinding::Unbound(..) => false,
         }
@@ -1237,7 +1243,10 @@ impl TypeVariable {
     pub fn is_unsigned(&self) -> bool {
         match self.binding() {
             TypeBinding::Bound(binding) => {
-                matches!(binding.follow_bindings(), Type::Integer(Signedness::Unsigned, _))
+                matches!(
+                    binding.follow_bindings_shallow().as_ref(),
+                    Type::Integer(Signedness::Unsigned, _)
+                )
             }
             TypeBinding::Unbound(..) => false,
         }
@@ -2264,9 +2273,9 @@ impl Type {
         }
 
         let this = self.substitute(bindings).follow_bindings();
-        if let Some((binding, kind)) = this.get_inner_type_variable() {
-            match binding.binding() {
-                TypeBinding::Bound(typ) => return typ.try_bind_to(var, bindings, &kind),
+        if let Some(inner) = this.get_inner_type_variable() {
+            match inner.binding() {
+                TypeBinding::Bound(typ) => return typ.try_bind_to(var, bindings, &typ.kind()),
                 // Don't recursively bind the same id to itself
                 TypeBinding::Unbound(id, _) if *id == target_id => return Ok(()),
                 TypeBinding::Unbound(..) => (),
@@ -2283,10 +2292,10 @@ impl Type {
         }
     }
 
-    fn get_inner_type_variable(&self) -> Option<(&TypeVariable, Cow<'_, Kind>)> {
+    fn get_inner_type_variable(&self) -> Option<&TypeVariable> {
         match self {
-            Type::TypeVariable(var) => Some((var, var.kind())),
-            Type::NamedGeneric(NamedGeneric { type_var, .. }) => Some((type_var, type_var.kind())),
+            Type::TypeVariable(var) => Some(var),
+            Type::NamedGeneric(NamedGeneric { type_var, .. }) => Some(type_var),
             Type::CheckedCast { to, .. } => to.get_inner_type_variable(),
             _ => None,
         }
@@ -3396,11 +3405,12 @@ impl std::hash::Hash for Type {
             return to.hash(state);
         }
 
-        if let Some((variable, kind)) = self.get_inner_type_variable() {
-            kind.hash(state);
-            if let TypeBinding::Bound(typ) = variable.binding() {
-                typ.hash(state);
-                return;
+        // A bound type variable compares equal to the type it is bound to, so it hashes as that
+        // type too.
+        if let Some(variable) = self.get_inner_type_variable() {
+            match variable.binding() {
+                TypeBinding::Bound(typ) => return typ.hash(state),
+                TypeBinding::Unbound(_, kind) => kind.hash(state),
             }
         }
 
@@ -3470,21 +3480,25 @@ impl std::hash::Hash for Type {
 
 impl PartialEq for Type {
     fn eq(&self, other: &Self) -> bool {
-        if let Some((variable, kind)) = self.get_inner_type_variable() {
-            if *kind != *other.kind() {
-                return false;
-            }
-            if let TypeBinding::Bound(typ) = variable.binding() {
-                return typ == other;
+        if let Some(variable) = self.get_inner_type_variable() {
+            match variable.binding() {
+                TypeBinding::Bound(typ) => return typ.kind() == other.kind() && typ == other,
+                TypeBinding::Unbound(_, kind) => {
+                    if *kind != *other.kind() {
+                        return false;
+                    }
+                }
             }
         }
 
-        if let Some((variable, other_kind)) = other.get_inner_type_variable() {
-            if *self.kind() != *other_kind {
-                return false;
-            }
-            if let TypeBinding::Bound(typ) = variable.binding() {
-                return self == typ;
+        if let Some(variable) = other.get_inner_type_variable() {
+            match variable.binding() {
+                TypeBinding::Bound(typ) => return self.kind() == typ.kind() && self == typ,
+                TypeBinding::Unbound(_, other_kind) => {
+                    if *self.kind() != *other_kind {
+                        return false;
+                    }
+                }
             }
         }
 
@@ -3653,6 +3667,26 @@ mod tests {
                 stops_at_a_type_standing_for_no_other(&followed),
                 "follow_bindings_shallow stopped at {followed:?} for {typ:?}"
             );
+        }
+    }
+
+    /// A bound type variable is equal to the type it is bound to, so it must hash the same as that
+    /// type, for the same reason as `checked_cast_hashes_as_its_target_type`.
+    #[test]
+    fn bound_type_variable_hashes_as_its_binding() {
+        fn hash_of(typ: &Type) -> u64 {
+            use std::hash::{DefaultHasher, Hash, Hasher};
+
+            let mut hasher = DefaultHasher::new();
+            typ.hash(&mut hasher);
+            hasher.finish()
+        }
+
+        let unbound = Type::TypeVariable(TypeVariable::unbound(TypeVariableId(0), Kind::Normal));
+        for typ in [Type::FieldElement, Type::constant_u32(3), Type::Vector(Box::new(unbound))] {
+            let bound = Type::TypeVariable(TypeVariable::bound(TypeVariableId(1), typ.clone()));
+            assert_eq!(typ, bound);
+            assert_eq!(hash_of(&typ), hash_of(&bound), "{typ:?} and {bound:?} hash differently");
         }
     }
 

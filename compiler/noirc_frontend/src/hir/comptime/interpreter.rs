@@ -173,7 +173,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     /// The type of the expression `id` as seen from the function being interpreted.
     fn expr_type(&self, id: ExprId) -> Type {
-        self.ty(&self.elaborator.interner.id_type(id))
+        self.elaborator.interner.try_id_type(id).map_or(Type::Error, |typ| self.ty(typ))
     }
 
     /// `bindings` with each bound type as seen from the function being interpreted.
@@ -1188,7 +1188,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         id: ExprId,
     ) -> IResult<Value> {
         let fields = try_vecmap(constructor.arguments, |arg| self.evaluate(arg))?;
-        let typ = self.ty(self.elaborator.interner.id_type(id).unwrap_forall().1).follow_bindings();
+        let typ = self
+            .elaborator
+            .interner
+            .try_id_type(id)
+            .map_or(Type::Error, |typ| self.ty(typ.unwrap_forall().1))
+            .follow_bindings();
         Ok(Value::Enum(constructor.variant_index, fields, typ))
     }
 

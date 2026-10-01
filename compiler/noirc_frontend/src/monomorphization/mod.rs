@@ -381,12 +381,12 @@ impl<'interner> Monomorphizer<'interner> {
 
     /// The type of the expression `id` as seen from the function being monomorphized.
     fn expr_type(&self, id: ExprId) -> Type {
-        self.ty(&self.interner.id_type(id))
+        self.interner.try_id_type(id).map_or(Type::Error, |typ| self.ty(typ))
     }
 
     /// The type of the definition `id` as seen from the function being monomorphized.
     fn definition_type(&self, id: node_interner::DefinitionId) -> Type {
-        self.ty(&self.interner.definition_type(id))
+        self.interner.try_definition_type(id).map_or(Type::Error, |typ| self.ty(typ))
     }
 
     /// The instantiation bindings of the expression `id`, if it has any, with each bound type
@@ -1286,7 +1286,8 @@ impl<'interner> Monomorphizer<'interner> {
         expr: ExprId,
         target_type: &Type,
     ) -> Result<ast::Expression, MonomorphizationError> {
-        let forced = matches!(target_type.follow_bindings(), Type::Function(_, _, _, true));
+        let forced =
+            matches!(target_type.follow_bindings_shallow().as_ref(), Type::Function(_, _, _, true));
         self.expr_with_force_unconstrained(expr, forced)
     }
 

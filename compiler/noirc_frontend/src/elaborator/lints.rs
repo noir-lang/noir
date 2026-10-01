@@ -558,7 +558,7 @@ pub(crate) fn check_varargs(
     let Some((pattern, typ, _)) = func.parameters.0.last() else {
         return Some(ResolverError::VarargsOnFunctionWithNoParameters { location });
     };
-    if !matches!(typ.follow_bindings(), Type::Vector(..)) {
+    if !matches!(typ.follow_bindings_shallow().as_ref(), Type::Vector(..)) {
         let location = pattern.location();
         return Some(ResolverError::VarargsLastParameterIsNotAVector { location });
     }
