@@ -1866,23 +1866,80 @@ theorem exists_mem_zip {α β : Type} {a : α} :
     · obtain ⟨b, hb⟩ := exists_mem_zip (by simpa using hl) h
       exact ⟨b, by simp [hb]⟩
 
--- Checking every program takes more steps than the default budget.
+theorem all_of_batches {α : Type} (f : α → Bool) (n : ℕ) :
+    ∀ (m : ℕ) (l : List α), l.length ≤ n * m →
+      (∀ k < m, ((l.drop (n * k)).take n).all f = true) → l.all f = true
+  | 0, l, hl, _ => by
+    have : l = [] := List.eq_nil_of_length_eq_zero (by simpa using hl)
+    subst this; rfl
+  | m + 1, l, hl, h => by
+    rw [← List.take_append_drop n l, List.all_append, Bool.and_eq_true]
+    refine ⟨by simpa using h 0 (by omega), all_of_batches f n m (l.drop n) ?_ fun k hk => ?_⟩
+    · simp only [List.length_drop]
+      rw [Nat.mul_succ] at hl
+      omega
+    · have := h (k + 1) (by omega)
+      rw [List.drop_drop]
+      rwa [Nat.mul_succ, Nat.add_comm] at this
+
+/-- One test program passes: it is in `uncoveredPrograms`, or the checker accepts
+it with its certificate and its solved witness satisfies its circuit. -/
+def testProgramOK (ec : TestProgram × List (List ℕ)) : Bool :=
+  decide (ec.1.name ∈ uncoveredPrograms) ||
+    (checkProgWith ec.1.prog ec.1.fn ec.2 && decide (AllHold ec.1.assignment ec.1.fn.opcodes))
+
+/-- Programs `20 k` to `20 k + 19` pass. The kernel checks one batch per
+theorem: it keeps everything it computes until the theorem is done, so
+checking all programs in one theorem needs more memory than a CI runner has. -/
+abbrev testProgramOK.batch (k : ℕ) : Prop :=
+  (((testPrograms.zip testProgramCerts).drop (20 * k)).take 20).all testProgramOK = true
+
 set_option maxHeartbeats 2000000 in
+theorem testPrograms_batch0 : testProgramOK.batch 0 := by decide +kernel
+
+set_option maxHeartbeats 2000000 in
+theorem testPrograms_batch1 : testProgramOK.batch 1 := by decide +kernel
+
+set_option maxHeartbeats 2000000 in
+theorem testPrograms_batch2 : testProgramOK.batch 2 := by decide +kernel
+
+set_option maxHeartbeats 2000000 in
+theorem testPrograms_batch3 : testProgramOK.batch 3 := by decide +kernel
+
+set_option maxHeartbeats 2000000 in
+theorem testPrograms_batch4 : testProgramOK.batch 4 := by decide +kernel
+
+set_option maxHeartbeats 2000000 in
+theorem testPrograms_batch5 : testProgramOK.batch 5 := by decide +kernel
+
+set_option maxHeartbeats 2000000 in
+theorem testPrograms_batch6 : testProgramOK.batch 6 := by decide +kernel
+
+set_option maxHeartbeats 2000000 in
+theorem testPrograms_batch7 : testProgramOK.batch 7 := by decide +kernel
+
+set_option maxHeartbeats 2000000 in
+theorem testPrograms_batch8 : testProgramOK.batch 8 := by decide +kernel
+
 /-- The test programs: the checker accepts every one outside
 `uncoveredPrograms` with its certificate from `testProgramCerts`, and its
 solved witness satisfies its circuit, decided by evaluation in the kernel. -/
 theorem testPrograms_claims :
     ∀ e ∈ testPrograms, e.name ∉ uncoveredPrograms →
       SoundFunction e.fn (ProgramSpec e.prog) ∧ AllHold e.assignment e.fn.opcodes := by
-  have hc : testPrograms.length = testProgramCerts.length ∧
-      (testPrograms.zip testProgramCerts).all (fun (e, c) =>
-        decide (e.name ∈ uncoveredPrograms) ||
-          (checkProgWith e.prog e.fn c && decide (AllHold e.assignment e.fn.opcodes))) = true := by
+  have hlen : testPrograms.length = testProgramCerts.length ∧
+      (testPrograms.zip testProgramCerts).length ≤ 20 * 9 := by
     decide +kernel
+  have hall : (testPrograms.zip testProgramCerts).all testProgramOK = true :=
+    all_of_batches testProgramOK 20 9 _ hlen.2 fun k hk => by
+      interval_cases k
+      exacts [testPrograms_batch0, testPrograms_batch1, testPrograms_batch2,
+        testPrograms_batch3, testPrograms_batch4, testPrograms_batch5, testPrograms_batch6,
+        testPrograms_batch7, testPrograms_batch8]
   intro e he hn
-  obtain ⟨c, hmem⟩ := exists_mem_zip hc.1 he
-  have := List.all_eq_true.1 hc.2 _ hmem
-  simp only [Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_eq] at this
+  obtain ⟨c, hmem⟩ := exists_mem_zip hlen.1 he
+  have := List.all_eq_true.1 hall _ hmem
+  simp only [testProgramOK, Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_eq] at this
   obtain ⟨h1, h2⟩ := this.resolve_left hn
   exact ⟨checkProgWith_sound _ _ c h1, h2⟩
 
