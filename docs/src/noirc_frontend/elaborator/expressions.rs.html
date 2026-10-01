@@ -629,7 +629,7 @@
 <a href=#629 id=629 data-nosnippet>629</a>            &amp;&amp; <span class="kw">let </span>UnaryOp::Dereference { .. } = deref.operator
 <a href=#630 id=630 data-nosnippet>630</a>        {
 <a href=#631 id=631 data-nosnippet>631</a>            <span class="kw">let </span>inner_type = <span class="self">self</span>.interner.id_type(deref.rhs);
-<a href=#632 id=632 data-nosnippet>632</a>            <span class="kw">if </span><span class="macro">matches!</span>(inner_type.follow_bindings(), Type::Reference(<span class="kw">_</span>, inner_mutable) <span class="kw">if </span>inner_mutable == mutable)
+<a href=#632 id=632 data-nosnippet>632</a>            <span class="kw">if </span><span class="macro">matches!</span>(inner_type.follow_bindings_shallow().as_ref(), Type::Reference(<span class="kw">_</span>, inner_mutable) <span class="kw">if </span><span class="kw-2">*</span>inner_mutable == mutable)
 <a href=#633 id=633 data-nosnippet>633</a>            {
 <a href=#634 id=634 data-nosnippet>634</a>                <span class="kw">return </span>(deref.rhs, inner_type);
 <a href=#635 id=635 data-nosnippet>635</a>            }
