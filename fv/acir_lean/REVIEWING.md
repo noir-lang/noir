@@ -766,8 +766,8 @@ The spec for signed `/` and `%`. It requires:
 ```lean
 def uncoveredPrograms : List String :=
   ["function_ref", "regression_10008", "regression_1144_1169_2399_6609", "regression_3607",
-   "regression_6834", "regression_8235", "regression_8261", "regression_8329", "regression_8519",
-   "regression_9594", "regression_9971", "signed_inactive_division_by_zero"]
+   "regression_6834", "regression_8261", "regression_8519", "regression_9971",
+   "signed_inactive_division_by_zero"]
 ```
 
 The test programs deliberately left out of the claim, each with its reason in the comment above. **Check:** that the reasons are acceptable, and that the list doesn't grow silently in future PRs.

@@ -611,13 +611,13 @@ def fixOps (A : List (ℕ × ℕ)) : Opcode → Opcode
   | .range x k => .range x k
 
 /-- Witness `w` is `0` or `1`: a range check or constant shows it, or an SSA
-scalar known to be at most `1` is `w`. -/
+scalar known to be at most `1` equals `w`. -/
 def isBit (cc : List Opcode) (reps : Reps) (w : ℕ) : Bool :=
   (match wbound cc w with
     | some (_, M) => decide (M ≤ 1)
     | none => false) ||
   reps.any fun (_, v) => match v with
-    | .scalar r => decide (r.M ≤ 1) && r.alts.contains (pvar w)
+    | .scalar r => decide (r.M ≤ 1) && (forms cc r.alts).contains (pvar w)
     | .array _ => false
 
 /-- The witness values a flag `P` (known to be `0` or `1`) forces when it is
@@ -720,9 +720,12 @@ def initReps (cc : List Opcode) : List (ℕ × ParamType) → List ℕ → Optio
     | .array _ _, rs => some ((id, .array rs) :: rest)
     | _, _ => none
 
-/-- Return witness `w` equals scalar `r`. -/
+/-- Return witness `w` equals scalar `r`: directly, or once the witnesses that
+single constraints fix (`closeFix`) are substituted. -/
 def retOK (cc : List Opcode) (w : ℕ) (r : Rep2) : Bool :=
-  (forms cc r.alts).any fun X => eqVia cc (pvar w) X
+  (forms cc r.alts).any fun X => eqVia cc (pvar w) X ||
+    let A := closeFix cc []
+    holdsZ (cc.map (fixOps A)) (fixAll A (psub (pvar w) X))
 
 /-- The return witnesses are the returned values' scalars, in order. -/
 def retsOK (cc : List Opcode) (reps : Reps) (ws : List ℕ) (os : List Operand) : Bool :=

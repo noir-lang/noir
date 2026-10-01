@@ -1674,7 +1674,7 @@ theorem isBit_sound {reps : Reps} {env : Env} (hE : EnvOK σ reps env) {w : ℕ}
       simp only [Bool.and_eq_true, decide_eq_true_eq, List.contains_iff_mem] at h
       obtain ⟨x, hx⟩ := envOK_mem hE hmem
       obtain ⟨-, hP, -, hM⟩ := hx
-      have := hP _ h.2
+      have := forms_sound hcc hP _ h.2
       rw [eval_pvar] at this
       rw [this]; omega
     | array rs => simp at h
@@ -2133,9 +2133,15 @@ theorem retWits_ok : ∀ (ws : List ℕ) (rs : List Rep2) (xs : List F),
     obtain ⟨h1, h2⟩ := h
     have hrest := retWits_ok ws rs xs ht (by simpa using hl) h2
     obtain ⟨X, hX, he⟩ := List.any_eq_true.1 h1
-    have := eqVia_sound hcc he
-    rw [eval_pvar, forms_sound hcc hr X hX] at this
-    simp [hrest, this]
+    have hwX : σ w = X.eval σ := by
+      rcases Bool.or_eq_true_iff.1 he with he | he
+      · have := eqVia_sound hcc he; rwa [eval_pvar] at this
+      · have hA := closeFix_sound hcc (A := []) (fun _ h => by simp at h)
+        have := holdsZ_sound (fixedHold hcc hA) he
+        rw [eval_fixAll hA] at this
+        simp at this; linear_combination this
+    rw [forms_sound hcc hr X hX] at hwX
+    simp [hrest, hwX]
   | [], _ :: _, _, _, hl, _ => by simp at hl
   | _ :: _, [], _, _, hl, _ => by simp at hl
   | _ :: _, _ :: _, [], h, _, _ => by cases h

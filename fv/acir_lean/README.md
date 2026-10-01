@@ -6,7 +6,7 @@ division (with and without a predicate), truncation and comparison
 SSA `expand_signed_math` emits for signed `lt`, and soundness of whole
 functions as ACIR generation compiles them, both before and after the ACVM
 optimization passes, plus a pin that keeps those proofs attached to the Rust
-code. A checker proved sound once also covers 200 real programs from
+code. A checker proved sound once also covers 203 real programs from
 `test_programs/execution_success`, as `nargo compile` ships them.
 
 ## What you must review, and what you can ignore
@@ -147,7 +147,8 @@ template, because the optimizer merges, reorders and drops constraints:
 - `div` on `Field` needs a witness `z` with `b z = 1`, which makes `b` nonzero
   and `z` its inverse;
 - `eq` needs the inverse gadget, `constrain` a constraint that equates both
-  sides, and a return value a constraint that equates it with its witness;
+  sides, and a return value a constraint that equates it with its witness,
+  possibly once the witnesses single constraints fix are substituted;
 - `range_check` narrows the value's bounds for the instructions after it;
 - a value with no useful bounds term by term, such as `|x| = x + 2^n s - 2 x s`
   built from `x`'s sign bit `s`, gets bounds by fixing each bit it mentions to
@@ -181,7 +182,7 @@ supported subset: one block of scalar instructions, plus arrays of scalars and
 tuples read and written at constant indices. The rest use arrays at dynamic
 indices (ACIR memory), references, several ACIR functions, calls, black boxes,
 several blocks, or more than 1000 instructions; the reason for each is in
-`test_programs.outside`. The checker accepts 200 of them. The twelve it does not
+`test_programs.outside`. The checker accepts 203 of them. The nine it does not
 are listed in `uncoveredPrograms` in `Spec/Claims.lean` with the reason.
 Removing any single constraint from the 171 proved circuits without array
 parameters makes the checker reject in 1106 of 1125 cases;
