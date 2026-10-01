@@ -16,6 +16,7 @@ excluded_dirs=(
     # For circuits which use #[fold]: circuit_buf_to_acir_format: expected single function in ACIR program
     "fold_2_to_17"
     "fold_after_inlined_calls"
+    "fold_array_ownership"
     "fold_basic"
     "fold_basic_nested_call"
     "fold_call_witness_condition"

@@ -1,0 +1,63 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+global G: [Field; 3] = [0x01, 0x02, 0x03];
+
+fn main(
+    i: u32,
+    v: Field,
+    a: [Field; 3],
+    ) -> pub ((Field, Field, [Field; 3]), (Field, [Field; 3]), ([Field; 3], [Field; 3]), ([Field; 3], [Field; 3])) {
+    (
+        callee_writes_argument(a, i), caller_writes_global(i, v),
+        fold_returns_one_array_twice(i, v), brillig_returns_one_array_twice(a, i, v),
+    )
+}
+
+fn callee_writes_argument(a: [Field; 3], i: u32) -> (Field, Field, [Field; 3]) {
+    let b: Field = sum_after_write(a, i);
+    let c: Field = sum_after_write(a, (i + 1_u32) % 3_u32);
+    (b, c, a)
+}
+
+fn caller_writes_global(i: u32, v: Field) -> (Field, [Field; 3]) {
+    let mut t: [Field; 3] = G;
+    t[i] = v;
+    let r: Field = read_global(i);
+    (r, t)
+}
+
+fn fold_returns_one_array_twice(i: u32, v: Field) -> ([Field; 3], [Field; 3]) {
+    let (mut p, q): ([Field; 3], [Field; 3]) = dup_fold([4_Field, 5_Field, 6_Field]);
+    p[i] = v;
+    (p, q)
+}
+
+fn brillig_returns_one_array_twice(a: [Field; 3], i: u32, v: Field) -> ([Field; 3], [Field; 3]) {
+    // Safety: comment added by `nargo expand`
+    let (mut p, q): ([Field; 3], [Field; 3]) = unsafe { dup_brillig(a) };
+    p[i] = v;
+    (p, q)
+}
+
+#[fold]
+fn sum_after_write(arr: [Field; 3], i: u32) -> Field {
+    let mut a: [Field; 3] = arr;
+    a[i] = a[i] + 5_Field;
+    (a[0_u32] + a[1_u32]) + a[2_u32]
+}
+
+#[fold]
+fn read_global(i: u32) -> Field {
+    G[i]
+}
+
+#[fold]
+fn dup_fold(m: [Field; 3]) -> ([Field; 3], [Field; 3]) {
+    (m, m)
+}
+
+unconstrained fn dup_brillig(m: [Field; 3]) -> ([Field; 3], [Field; 3]) {
+    (m, m)
+}

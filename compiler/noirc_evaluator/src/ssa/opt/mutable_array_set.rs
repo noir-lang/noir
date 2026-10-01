@@ -4,6 +4,10 @@
 //! is the last time we use this version of the array, we can mutate it in place, and avoid
 //! having to make a copy of it.
 //!
+//! The analysis is per function, and parameters are treated like any other array. That is
+//! sound because by the time this pass runs every ACIR function is `main` or an entry point
+//! (`#[fold]`), which is compiled to its own circuit and so owns its inputs.
+//!
 //! This optimization only applies to ACIR. In Brillig we use ref-counting to decide when
 //! there are no other references to an array.
 //! This pass assumes that Load and Store instructions have been previously removed.
@@ -553,6 +557,57 @@ mod tests {
             v13 = array_get v9, index u32 0 -> [Field; 4]
             v14 = array_get v13, index u32 2 -> Field
             return v14, v12
+        }
+        ");
+    }
+
+    // A fold function is a separate circuit that owns its parameters, so the write to `v0` in
+    // `f1` may be marked mutable even though `main` reads the array it passed in afterwards.
+    #[test]
+    fn mutates_fold_parameter_without_affecting_caller() {
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u32):
+                v1 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+                v2 = call f1(v1, v0) -> Field
+                v3 = call f1(v1, v0) -> Field
+                return v2, v3, v1
+            }
+            acir(fold) fn g f1 {
+              b0(v0: [Field; 3], v1: u32):
+                v2 = array_get v0, index v1 -> Field
+                v3 = add v2, Field 5
+                v4 = array_set v0, index v1, value v3
+                v5 = array_get v4, index u32 0 -> Field
+                return v5
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let (ssa, value) = assert_pass_does_not_affect_execution(
+            ssa,
+            vec![Value::u32(0)],
+            Ssa::mutable_array_set_optimization,
+        );
+        let value = value.unwrap();
+        assert_eq!(value[0], Value::field(6_u32.into()));
+        assert_eq!(value[1], Value::field(6_u32.into()));
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v4 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+            v6 = call f1(v4, v0) -> Field
+            v7 = call f1(v4, v0) -> Field
+            return v6, v7, v4
+        }
+        acir(fold) fn g f1 {
+          b0(v0: [Field; 3], v1: u32):
+            v2 = array_get v0, index v1 -> Field
+            v4 = add v2, Field 5
+            v5 = array_set mut v0, index v1, value v4
+            v7 = array_get v5, index u32 0 -> Field
+            return v7
         }
         ");
     }
