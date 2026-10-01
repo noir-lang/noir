@@ -243,6 +243,7 @@ fn errors_on_clashing_const_generic_and_parameter_name() {
 fn non_entry_point_main() {
     let src = r#"
     mod moo {
+        #[allow(dead_code)]
         pub fn main() -> i32 {
             1
         }
