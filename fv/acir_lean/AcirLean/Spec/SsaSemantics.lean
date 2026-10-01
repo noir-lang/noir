@@ -69,6 +69,8 @@ inductive Instruction where
   | arraySet (dst : ℕ) (isMut : Bool) (a i v : Operand)
   /-- `v<dst> = make_array [<elems>] : <ty>` -/
   | makeArray (dst : ℕ) (elems : List Operand) (ty : ParamType)
+  /-- `enable_side_effects <c>` -/
+  | enableSideEffects (c : Operand)
   deriving DecidableEq
 
 /-- `<header>` / `b0(<params>):` / `<body>` / `return <rets>` / `}`. -/
@@ -117,6 +119,7 @@ def Instruction.render : Instruction → String
     s!"    v{d} = array_set {if m then "mut " else ""}{a.render}, index {i.render}, value {v.render}"
   | .makeArray d es ty =>
     s!"    v{d} = make_array [{", ".intercalate (es.map Operand.render)}] : {ty.render}"
+  | .enableSideEffects c => s!"    enable_side_effects {c.render}"
 
 def Program.render (P : Program) : List String :=
   let params := ", ".intercalate (P.params.map fun (id, ty) => s!"v{id}: {ty.render}")
@@ -260,8 +263,9 @@ def BinaryOp.apply (op : BinaryOp) (unchecked : Bool) (x y : F) :
     | _, some r => if unchecked then some (r, .sint n) else none
     | _, none => none
 
-/-- Run one instruction, as Noir's SSA interpreter does in an ACIR function
-(`interpret_instruction`):
+/-- Run one instruction with side effects enabled, as Noir's SSA interpreter
+does in an ACIR function (`interpret_instruction`); `Instruction.step` handles
+`enable_side_effects` and disabled side effects:
 * `not` on an `n`-bit integer reduces the value to its low `n` bits and flips
   them: `2^n - 1 - (x mod 2^n)`. A `u1` above `1` fails (the interpreter
   asserts a `u1` is `0` or `1`);
@@ -325,6 +329,46 @@ def Instruction.run (env : Env) : Instruction → Option Env
   | .makeArray d es _ => do
     let xs ← es.mapM (·.value env)
     some ((d, .array xs) :: env)
+  | .enableSideEffects _ => some env
+
+/-- The binary instructions Noir's interpreter skips while side effects are
+disabled (`requires_acir_gen_predicate`), given the first operand's type:
+checked `add`, `sub` and `mul` on integers, and `div` and `mod`. The
+interpreter reads the type from the second operand; the two agree in every
+program it accepts. -/
+def BinaryOp.predicated (op : BinaryOp) (unchecked : Bool) (ty : ValueType) : Bool :=
+  match op with
+  | .add | .sub | .mul => !unchecked && ty != .field
+  | .div | .mod => true
+  | _ => false
+
+/-- Run one instruction with the side-effects flag `s.2`, as the interpreter
+does (`side_effects_enabled`):
+* `enable_side_effects c` sets the flag to `c`, which must be a `u1` holding
+  `0` or `1`;
+* while the flag is off, a `predicated` binary instruction gives `0` of its
+  type, `constrain !=` does nothing, and `array_set` returns the array
+  unchanged;
+* everything else, including `constrain ==` and `range_check`, runs as
+  `Instruction.run` says whatever the flag. -/
+def Instruction.step (s : Env × Bool) (i : Instruction) : Option (Env × Bool) :=
+  match i, s.2 with
+  | .enableSideEffects c, _ => do
+    let (x, tx) ← c.value s.1
+    if tx = .uint 1 ∧ x.val < 2 then some (s.1, decide (x.val = 1)) else none
+  | .bin d op u a b, false => do
+    let (_, tx) ← a.value s.1
+    let _ ← b.value s.1
+    if op.predicated u tx then some ((d, .scalar (0, tx)) :: s.1, false)
+    else (i.run s.1).map (·, false)
+  | .constrainNe a b _, false => do
+    let _ ← a.value s.1
+    let _ ← b.value s.1
+    some (s.1, false)
+  | .arraySet d _ a _ _, false => do
+    let xs ← a.array s.1
+    some ((d, .array xs) :: s.1, false)
+  | i, en => (i.run s.1).map (·, en)
 
 /-- Bind each parameter to its scalars, taken in order from `ins`. -/
 def bindParams : List (ℕ × ParamType) → List F → Env
@@ -338,9 +382,10 @@ def bindParams : List (ℕ × ParamType) → List F → Env
 /-- The scalar types of all the parameters, in order. -/
 def Program.inputTypes (P : Program) : List ValueType := P.params.flatMap (·.2.flat)
 
-/-- Bind the parameters, run the body, and read the return values' scalars. -/
+/-- Bind the parameters, run the body with side effects enabled at the start,
+and read the return values' scalars. -/
 def Program.eval (P : Program) (ins : List F) : Option (List F) := do
-  let env ← P.body.foldlM Instruction.run (bindParams P.params ins)
+  let (env, _) ← P.body.foldlM Instruction.step (bindParams P.params ins, true)
   let outs ← P.rets.mapM (·.flat env)
   some outs.flatten
 

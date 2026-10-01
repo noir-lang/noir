@@ -108,10 +108,22 @@ def SignedOp (n : ℕ) (op : ℤ → ℤ → ℤ) : List ℕ → List ℕ → Pr
   | _, _ => False
 
 /-- Test programs in `testPrograms` that the claims leave out, with the reason:
-`regression_8519` truncates a `Field` to 128 bits, whose remainder bound takes
-a shape the checker does not handle. -/
+* `regression_8519` truncates a `Field` to 128 bits, whose remainder bound
+  takes a shape the checker does not handle;
+* `regression_1144_1169_2399_6609`, `regression_3607`, `regression_6834`,
+  `regression_8261`, `regression_8329`, `regression_9971` and
+  `signed_inactive_division_by_zero` do checked arithmetic, `div` or `mod`
+  while side effects may be disabled, and the circuit constrains it in a shape
+  the checker does not match yet (split across an intermediate witness, or
+  under a flag such as `(1 - a)(1 - b)`);
+* `regression_10008` constrains a value the checker finds no polynomial for;
+* `function_ref`, `regression_8235` and `regression_9594` return a value the
+  circuit outputs as a constant only because an assertion fixes an input, which
+  the return-value rule does not use. -/
 def uncoveredPrograms : List String :=
-  ["regression_8519"]
+  ["function_ref", "regression_10008", "regression_1144_1169_2399_6609", "regression_3607",
+   "regression_6834", "regression_8235", "regression_8261", "regression_8329", "regression_8519",
+   "regression_9594", "regression_9971", "signed_inactive_division_by_zero"]
 
 /-- The whole promise, for every pinned width `n`:
 * `euclidean_division_var(a, b, n)` with `a`, `b` both `n`-bit computes

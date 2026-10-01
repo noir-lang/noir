@@ -3,7 +3,7 @@ a_7: instruction v3 = call blake2s(v0) -> [u8; 32]
 a_7_function: instruction v21 = call to_le_bits(v17) -> [u1; 32]
 aes128_encrypt: instruction v31 = call aes128_encrypt(v29, v1, v2) -> [u8; 16]
 array_dedup_regression: not exactly one ACIR function
-array_dynamic: instruction enable_side_effects v23
+array_dynamic: opcode other INIT b0 = [w0, w1, w2, w3, w4]
 array_dynamic_blackbox_input: instruction v237 = call blake3(v235) -> [u8; 32]
 array_dynamic_main_output: opcode other INIT b0 = [w0, w1, w2, w3, w4, w5,
 array_dynamic_nested_blackbox_input: parameter v0: [(Field, [Field; 3], [u8; 3]); 3]
@@ -71,12 +71,8 @@ clone_index_object_dereference_2: not exactly one ACIR function
 comptime_println: instruction call f1(u1 1, Field 3)
 comptime_variable_at_runtime: instruction call f1(u1 1, Field 1)
 conditional_1: more than 1000 instructions
-conditional_2: instruction enable_side_effects v4
 conditional_black_box_function_pointer_call: instruction v14 = call blake2s(v0) -> [u8; 32]
-conditional_regression_421: instruction enable_side_effects v4
-conditional_regression_661: instruction enable_side_effects v3
-conditional_regression_short_circuit: instruction enable_side_effects v9
-conditional_regression_underflow: instruction enable_side_effects v2
+conditional_regression_short_circuit: instruction v23 = call blake3(v2) -> [u8; 32]
 conditional_vector_insert_at_end_of_vector: type [(u32, [Field; 2])]
 constant_folding_mutated_returned_array_bug: not exactly one ACIR function
 databus: block header
@@ -114,24 +110,22 @@ fold_out_of_order_calls: not exactly one ACIR function
 fold_unreachable_call: not exactly one ACIR function
 for_loop_inclusive_empty_range: not exactly one ACIR function
 for_loop_inclusive_with_break: not exactly one ACIR function
-function_ref: instruction enable_side_effects v17
-global_nested_array_call_arg_regression: instruction enable_side_effects v4
+global_nested_array_call_arg_regression: operand g2
 global_nested_array_regression_9270: operand g8
 global_var_entry_point_used_in_another_entry: instruction call f1(v3, v4)
 global_var_func_with_multiple_entry_points: instruction call f1(v3, v4)
 global_var_multiple_entry_points_nested: instruction call f1(v2, v3)
 global_var_regression_entry_points: instruction v521 = call f1(v518) -> Field
-global_var_regression_simple: instruction enable_side_effects v12
+global_var_regression_simple: instruction v14 = call f1(v8, Field 2) -> u1
 global_vector_rc_regression_8259: type [u1]
-higher_order_mutable_references: instruction enable_side_effects v13
+higher_order_mutable_references: instruction call f1(v0, v1)
 hint_black_box: instruction v9 = call black_box(u32 10) -> u32
-if_else_chain: instruction enable_side_effects v4
 immutable_ref_to_unconstrained: instruction v3 = call f1(v0) -> Field
 import: instruction v6, v7 = call f1(v3) -> (Field, Field)
-inactive_signed_bitshift: instruction enable_side_effects v0
+inactive_signed_bitshift: instruction v10 = call to_le_bits(v8) -> [u1; 4]
 lambda_from_array: more than 1000 instructions
 lambda_from_dynamic_if: instruction v10 = make_array b"!"
-lambda_from_global_array: instruction enable_side_effects v23
+lambda_from_global_array: opcode other INIT b0 = [w2, w3, w4, w5]
 lambda_taking_lambda_regression_8543: not exactly one ACIR function
 lambda_taking_lambda_with_variant: not exactly one ACIR function
 large_nested_array_merge_loop: parameter v0: [[u64; 3]; 1024]
@@ -143,16 +137,14 @@ loop_break_regression_8319: not exactly one ACIR function
 loop_buffer_rotation_aliasing_regression: not exactly one ACIR function
 loop_conversion_swap_mixed: not exactly one ACIR function
 loop_conversion_swap_roundtrip: not exactly one ACIR function
-loop_invariant_nested_deep: instruction enable_side_effects v0
-loop_invariant_regression: instruction enable_side_effects v7
-loop_invariant_regression_8586: instruction enable_side_effects v0
+loop_invariant_regression: instruction call f1(u32 4, v2, u32 2)
 loop_small_break: not exactly one ACIR function
 merkle_insert: instruction v10 = call to_le_bits(v8) -> [u1; 3]
 multi_scalar_mul: not exactly one ACIR function
 mutable_and_immutable_reference_alias: not exactly one ACIR function
 mutate_array_copy: not exactly one ACIR function
 negative_associated_constants: instruction call f1(u1 1, i32 -12345)
-nested_array_call_arg_regression: instruction enable_side_effects v0
+nested_array_call_arg_regression: opcode other INIT b0 = [w4, w4, w4]
 nested_array_dynamic: parameter v0: [(Field, [Field; 3], [Field; 3]); 4]
 nested_array_in_vector: type [(Field, [Field; 3], [Field; 3])]
 nested_array_index_clone_regression: not exactly one ACIR function
@@ -181,7 +173,6 @@ predicated_vector_constant_index: parameter v0: [(Field, [u8; 2]); 2]
 predicated_vector_constant_index_truncate: parameter v0: [(Field, [u8; 2]); 3]
 primitive_type_alias_method: instruction v2 = call to_le_bits(v0) -> [u1; 8]
 print_composite_array: type [[(Field, Field); 1]; 2]
-ref_in_unconstrained_function_pointer: instruction enable_side_effects v10
 ref_to_ref_in_array_write_through_call_brillig: not exactly one ACIR function
 ref_to_ref_merged_alias_classes: not exactly one ACIR function
 reference_cancelling: instruction call f1(u1 1, u1 1)
@@ -189,27 +180,23 @@ reference_counts_inliner_0: instruction call f2(u1 1, Field 0)
 reference_counts_inliner_max: instruction call f2(u1 1, Field 0)
 reference_counts_inliner_min: instruction call f2(u1 1, Field 0)
 reference_counts_vectors_inliner_0: instruction call f3(u1 1, Field 0)
-regression_10008: instruction enable_side_effects v1
 regression_10141: instruction v24 = make_array b"Index out of bounds, array has size 1, but index was {}"
 regression_10156: instruction call f4(u1 1, Field 2, Field 3)
 regression_10158: instruction call f1(u1 1, Field 2, Field 3, u32 10)
 regression_10170: type [u32]
-regression_10180: instruction enable_side_effects v15
 regression_10197: type [(Field, [Field; 2])]
 regression_10198: type [()]
-regression_10307: instruction enable_side_effects v2
 regression_10446: instruction v4 = make_array b"SE"
 regression_10466: instruction call f1(u1 1, u32 2)
 regression_10516: not exactly one ACIR function
 regression_10917: not exactly one ACIR function
-regression_10923: instruction enable_side_effects v5
+regression_10923: instruction v8 = call f1(v6) -> Field
 regression_10975: instruction call black_box()
 regression_10977: instruction v3, v4 = call as_vector(v1) -> (u32, [Field])
 regression_11048: parameter v0: [(Field, [u32; 3]); 2]
 regression_11294: not exactly one ACIR function
 regression_11402: parameter v0: [(u1, [u8; 2]); 2]
 regression_11440: instruction v2 = make_array b"KR"
-regression_1144_1169_2399_6609: instruction enable_side_effects v36
 regression_11484: instruction call f1(u1 1, u32 16)
 regression_11659: instruction v14 = call poseidon2_permutation(v12) -> [Field; 4]
 regression_11744: parameter v0: [([Field; 2], u8); 3]
@@ -224,13 +211,12 @@ regression_13040: not exactly one ACIR function
 regression_1457_array_set_nested_shared: type [[Field; 1]; 1]
 regression_3051: instruction call f2(u1 1, Field 2)
 regression_3394: instruction call f1(u1 1, i8 -128)
-regression_3607: instruction enable_side_effects v2
 regression_4449: instruction v353 = call blake3(v351) -> [u8; 32]
 regression_4663: not exactly one ACIR function
-regression_4709: instruction enable_side_effects v522
+regression_4709: instruction v524 = call f1(v518, Field 8388993) -> u1
 regression_5045: instruction v4 = call embedded_curve_add(Field 0, Field 5, Field 0, Field 5, v0) -> [(Field, Field); 1]
 regression_5252: parameter v2: [[Field; 20]; 3]
-regression_5435: instruction enable_side_effects v1
+regression_5435: instruction call f1()
 regression_5615: not exactly one ACIR function
 regression_6285: instruction v13 = make_array b"x's value: {x}"
 regression_6451: instruction call as_witness(v1)
@@ -238,7 +224,6 @@ regression_6674_1: not exactly one ACIR function
 regression_6674_2: not exactly one ACIR function
 regression_6674_3: not exactly one ACIR function
 regression_6734: not exactly one ACIR function
-regression_6834: instruction enable_side_effects v3
 regression_6990: instruction v16 = make_array b"i: {i}, j: {j}"
 regression_7062: type [Field]
 regression_7128: instruction v6 = call to_be_radix(v3, u32 256) -> [u8; 32]
@@ -250,23 +235,15 @@ regression_7744: instruction v4 = call embedded_curve_add(Field 0, Field 5, Fiel
 regression_8009: not exactly one ACIR function
 regression_8011: not exactly one ACIR function
 regression_8174: not exactly one ACIR function
-regression_8235: instruction enable_side_effects v0
 regression_8236: opcode other INIT b0 = [w0, w1, w2]
-regression_8261: instruction enable_side_effects v15
-regression_8329: instruction enable_side_effects v6
-regression_8558: instruction enable_side_effects v1
-regression_8662: instruction enable_side_effects v16
 regression_8729: instruction v17 = call f1() -> u1
 regression_8755: not exactly one ACIR function
-regression_8874: instruction enable_side_effects v0
 regression_8926: not exactly one ACIR function
 regression_8980: not exactly one ACIR function
 regression_9037: not exactly one ACIR function
 regression_9047: instruction v2 = make_array b"ok"
 regression_9119: not exactly one ACIR function
 regression_9160: type [[u1; 1]; 1]
-regression_9193: instruction enable_side_effects v0
-regression_9208: instruction enable_side_effects v4
 regression_9271: type [(u128, u1, [u32; 2])]
 regression_9294: instruction call f2(u1 1, v8, Field 40)
 regression_9303: not exactly one ACIR function
@@ -274,33 +251,26 @@ regression_9312: type [Field]
 regression_9415: not exactly one ACIR function
 regression_9439: not exactly one ACIR function
 regression_9455: not exactly one ACIR function
-regression_9467: instruction enable_side_effects v0
 regression_9496: type [u32]
 regression_9538: not exactly one ACIR function
 regression_9541: instruction v8 = call to_le_bits(v6) -> [u1; 5]
-regression_9544: instruction enable_side_effects v5
-regression_9546: instruction enable_side_effects v6
+regression_9544: instruction v13 = call to_le_bits(v11) -> [u1; 6]
 regression_9578: not exactly one ACIR function
 regression_9593: instruction v3 = make_array b"Cc"
-regression_9594: instruction enable_side_effects v0
 regression_9657: not exactly one ACIR function
 regression_9725_1: not exactly one ACIR function
 regression_9758: not exactly one ACIR function
-regression_9764: instruction enable_side_effects v4
-regression_9804: instruction enable_side_effects v1
 regression_9860: parameter v0: [[u32; 4]; 4]
-regression_9888: instruction enable_side_effects v13
 regression_9907: type [[Field; 1]; 1]
-regression_9971: instruction enable_side_effects v1
 regression_brillig_const_fold_self_dedup: not exactly one ACIR function
 regression_capacity_tracker: instruction v4, v5 = call as_vector(v2) -> (u32, [Field])
 regression_claude_1019: instruction v3 = call to_le_radix(v0, u32 256) -> [u8; 0]
 regression_claude_1124: block header
 regression_claude_1201: instruction v3 = call f1(v0, v1) -> [u8; 2]
-regression_claude_1654: instruction enable_side_effects v1
+regression_claude_1654: opcode other INIT b0 = [w3, w4, w5, w6]
 regression_claude_1721: instruction v4, v5 = call as_vector(v0) -> (u32, [u8])
 regression_dominated_truncate: instruction v3 = call f1(v0, v1) -> Field
-regression_field_div_truncate: instruction enable_side_effects v9
+regression_field_div_truncate: instruction v11 = call f1(Field 42, v3) -> u1
 regression_for_exit_edge: not exactly one ACIR function
 regression_licm_induction_var: not exactly one ACIR function
 regression_licm_vector_mutator: not exactly one ACIR function
@@ -332,9 +302,7 @@ regression_while_condition_continue_killed: not exactly one ACIR function
 regression_while_condition_killed: not exactly one ACIR function
 regression_while_continue_read_after_kill: not exactly one ACIR function
 shift_left_rhs_value_casted_from_smaller_type: instruction v7 = call to_le_bits(v5) -> [u1; 6]
-signed_inactive_division_by_zero: instruction enable_side_effects v2
 signed_integer_or_max: instruction v2 = or v0, i8 127
-signed_overflow_in_else_regression_8617: instruction enable_side_effects v2
 simple_2d_array: parameter v2: [[Field; 2]; 2]
 simple_bitwise: instruction v6 = or v0, v1
 simple_print: instruction call f2(u1 1, v0)
@@ -374,7 +342,7 @@ vector_push_back_remove_if_else_bug: type [Field]
 vector_regex: instruction v0 = make_array &b""
 vector_remove_oob_index_invalid_pred: type [u32]
 vector_remove_oob_invalid_pred: instruction v5, v6 = call as_vector(v1) -> (u32, [u32])
-vectors: instruction enable_side_effects v6
+vectors: type [Field]
 while_cond_clone_regression: not exactly one ACIR function
 while_loop_break_regression_8521: not exactly one ACIR function
 xor: opcode other BLACKBOX::XOR lhs: w0, rhs: w1, ou

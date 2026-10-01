@@ -340,10 +340,15 @@ def remLt (cc : List Opcode) (Xb : Poly) (b : Rep2) (r Mr : ℕ) : Bool :=
     | some (_, M') => decide (M' < b.M + d) && decide (Mr + d < p)
     | none => false)
 
+/-- The polynomials, and witnesses a constraint equates with one of them. -/
+def aliases (cc : List Opcode) (Xs : List Poly) : List Poly :=
+  Xs ++ Xs.flatMap fun X =>
+    ((eqCands cc X).filter fun w => holdsZ cc (psub (pvar w) X)).map pvar
+
 /-- Witnesses `q`, `r` with `a = b q + r`, `r < b` and no wraparound: the
 quotient and remainder of `a`'s integer value by `b`'s. -/
 def euclid (cc : List Opcode) (a b : Rep2) : List (ℕ × ℕ) :=
-  (forms cc a.alts).flatMap fun Xa => (forms cc b.alts).flatMap fun Xb =>
+  (aliases cc (forms cc a.alts)).flatMap fun Xa => (forms cc b.alts).flatMap fun Xb =>
     (solve2 cc fun q r => psub (psub Xa (pmul Xb (pvar q))) (pvar r)).filter fun (q, r) =>
       match wbound cc q, wbound cc r with
       | some (_, Mq), some (_, Mr) => decide (b.M * Mq + Mr < p) && remLt cc Xb b r Mr
@@ -586,6 +591,116 @@ def step2 (cc : List Opcode) (reps : Reps) : Instruction → Option Reps
   | .makeArray d es _ => do
     let rs ← es.mapM (opRep reps)
     some ((d, .array rs) :: reps)
+  | .enableSideEffects _ => some reps
+
+/-! ## Side effects
+
+The checker tracks the side-effects flag as `none` (on) or `some (P, A)`: the
+flag's value is `P`, which is `0` or `1`, and when it is `1` the witnesses in
+`A` hold the values `A` gives them. ACIR generation multiplies what an
+affected instruction constrains by the flag, so with the flag `1` the
+constraints, with `A` substituted, read as without a flag; with the flag `0`
+they hold trivially. An affected instruction is therefore checked over the
+constraints with `A` substituted, and its result is `P` times what that check
+finds: the result when the flag is on, and `0`, as the interpreter gives, when
+it is off. -/
+
+/-- `c` with the witnesses of `A` fixed, in canonical form. -/
+def fixOps (A : List (ℕ × ℕ)) : Opcode → Opcode
+  | .assertZero ts => key (fixAll A ts)
+  | .range x k => .range x k
+
+/-- Witness `w` is `0` or `1`: a range check or constant shows it, or an SSA
+scalar known to be at most `1` is `w`. -/
+def isBit (cc : List Opcode) (reps : Reps) (w : ℕ) : Bool :=
+  (match wbound cc w with
+    | some (_, M) => decide (M ≤ 1)
+    | none => false) ||
+  reps.any fun (_, v) => match v with
+    | .scalar r => decide (r.M ≤ 1) && r.alts.contains (pvar w)
+    | .array _ => false
+
+/-- The witness values a flag `P` (known to be `0` or `1`) forces when it is
+`1`: `w = 1` for `P = w`, `w = 0` for `P = 1 - w`, and, for bits `w₁` and
+`w₂`, both `1` for `P = w₁ w₂` and `w₁ = 1`, `w₂ = 0` for `P = w₁ (1 - w₂)`. -/
+def flagFix (cc : List Opcode) (reps : Reps) (P : Poly) : Option (List (ℕ × ℕ)) :=
+  match collect P with
+  | [⟨1, [w]⟩] => some [(w, 1)]
+  | [⟨c, [w]⟩, ⟨1, []⟩] => if modP c = p - 1 then some [(w, 0)] else none
+  | [⟨1, [w₁, w₂]⟩] =>
+    if isBit cc reps w₁ ∧ isBit cc reps w₂ then some [(w₁, 1), (w₂, 1)] else none
+  | [⟨c, [w₁, w₂]⟩, ⟨1, [w]⟩] =>
+    if modP c = p - 1 ∧ isBit cc reps w₁ ∧ isBit cc reps w₂ then
+      if w = w₁ then some [(w₁, 1), (w₂, 0)]
+      else if w = w₂ then some [(w₂, 1), (w₁, 0)] else none
+    else none
+  | _ => none
+
+/-- Witness values that follow from a constraint once the witnesses of `A`
+are fixed: a constraint left with one term `k w` gives `w = 0`, and one left
+as `c ± w` gives `w = ∓c`. -/
+def deduce (cc : List Opcode) (A : List (ℕ × ℕ)) : List (ℕ × ℕ) :=
+  cc.filterMap fun c => match c with
+    | .assertZero ts =>
+      match (fixAll A ts).filter (fun t => modP t.coef != 0) with
+      | [⟨_, [w]⟩] => some (w, 0)
+      | [⟨k, [w]⟩, ⟨c, []⟩] =>
+        if modP k = 1 then some (w, (modP (-c)).toNat)
+        else if modP k = p - 1 then some (w, (modP c).toNat) else none
+      | _ => none
+    | .range _ _ => none
+
+/-- `A` and what two rounds of `deduce` add to it. -/
+def closeFix (cc : List Opcode) (A : List (ℕ × ℕ)) : List (ℕ × ℕ) :=
+  let A₁ := A ++ deduce cc A
+  A₁ ++ deduce cc A₁
+
+/-- A `u1` flag known to be `0` or `1`, as a polynomial and what it forces. -/
+def flagOf (cc : List Opcode) (reps : Reps) (r : Rep2) : Option (Poly × List (ℕ × ℕ)) :=
+  if r.ty = .uint 1 ∧ r.M ≤ 1 then
+    let Fs := forms cc r.alts
+    let As := Fs.filterMap (flagFix cc reps)
+    match Fs.find? fun P => (flagFix cc reps P).isSome with
+    | some P => some (P, closeFix cc As.flatten)
+    | none => none
+  else none
+
+/-- `r` with the witnesses of `A` fixed: what `r` is when they hold those values. -/
+def fixRep (A : List (ℕ × ℕ)) (r : Rep2) : Rep2 := ⟨r.alts.map (fixAll A), r.ty, r.L, r.M⟩
+
+abbrev Flag := Option (Poly × List (ℕ × ℕ))
+
+/-- One instruction, with the side-effects flag. -/
+def stepP (cc : List Opcode) (s : Reps × Flag) (i : Instruction) : Option (Reps × Flag) :=
+  match i with
+  | .enableSideEffects c =>
+    if c = .const 1 (.uint 1) then some (s.1, none) else do
+      let r ← opRep s.1 c
+      let f ← flagOf cc s.1 r
+      some (s.1, some f)
+  | .bin d op u a b =>
+    match s.2 with
+    | some (P, A) => do
+      let ra ← opRep s.1 a
+      let rb ← opRep s.1 b
+      if op.predicated u ra.ty then
+        let r ← binRep (cc.map (fixOps A)) op u (fixRep A ra) (fixRep A rb)
+        some ((d, .scalar ⟨r.alts.map (pmul P), ra.ty, 0, r.M⟩) :: s.1, some (P, A))
+      else (step2 cc s.1 i).map (·, some (P, A))
+    | none => (step2 cc s.1 i).map (·, none)
+  | .constrainNe a b _ =>
+    match s.2 with
+    | some (P, A) => do
+      let ra ← opRep s.1 a
+      let rb ← opRep s.1 b
+      if neHolds (cc.map (fixOps A)) (fixRep A ra) (fixRep A rb) then some (s.1, some (P, A))
+      else none
+    | none => (step2 cc s.1 i).map (·, none)
+  | .arraySet .. =>
+    match s.2 with
+    | some _ => none
+    | none => (step2 cc s.1 i).map (·, none)
+  | i => (step2 cc s.1 i).map (·, s.2)
 
 def paramRep (cc : List Opcode) (w : ℕ) : ValueType → Option Rep2
   | .field => some ⟨[pvar w], .field, 0, p - 1⟩
@@ -622,9 +737,9 @@ def checkProg2 (P : Program) (C : Circuit) : Bool :=
     match initReps cc P.params C.parameters with
     | none => false
     | some reps0 =>
-      match P.body.foldlM (step2 cc) reps0 with
+      match P.body.foldlM (stepP cc) (reps0, none) with
       | none => false
-      | some reps => retsOK cc reps C.returnValues P.rets
+      | some (reps, _) => retsOK cc reps C.returnValues P.rets
 
 /-! ## Certificates
 
@@ -639,9 +754,10 @@ make a step fail. -/
 def pick (cc : List Opcode) (idx : List ℕ) : List Opcode := idx.filterMap (cc[·]?)
 
 /-- Run the body, each step over the constraints its certificate entry picks. -/
-def stepsWith (cc : List Opcode) : Reps → List Instruction → List (List ℕ) → Option Reps
-  | reps, [], [] => some reps
-  | reps, i :: is, ix :: ixs => (step2 (pick cc ix) reps i).bind fun r => stepsWith cc r is ixs
+def stepsWith (cc : List Opcode) :
+    Reps × Flag → List Instruction → List (List ℕ) → Option (Reps × Flag)
+  | s, [], [] => some s
+  | s, i :: is, ix :: ixs => (stepP (pick cc ix) s i).bind fun r => stepsWith cc r is ixs
   | _, _, _ => none
 
 /-- `checkProg2`, with a certificate for the body. -/
@@ -651,8 +767,8 @@ def checkProgWith (P : Program) (C : Circuit) (cert : List (List ℕ)) : Bool :=
     match initReps cc P.params C.parameters with
     | none => false
     | some reps0 =>
-      match stepsWith cc reps0 P.body cert with
+      match stepsWith cc (reps0, none) P.body cert with
       | none => false
-      | some reps => retsOK cc reps C.returnValues P.rets
+      | some (reps, _) => retsOK cc reps C.returnValues P.rets
 
 end AcirLean

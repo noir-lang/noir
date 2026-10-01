@@ -13,15 +13,16 @@ import AcirLean.Templates.TestPrograms
 
 open AcirLean
 
-/-- Positions in `keep` whose removal leaves `step2`'s result unchanged are
+/-- Positions in `keep` whose removal leaves `stepP`'s result unchanged are
 dropped, in shrinking blocks. -/
-partial def shrink (cc : List Opcode) (reps : Reps) (i : Instruction) (want : Option Reps)
+partial def shrink (cc : List Opcode) (reps : Reps × Flag) (i : Instruction)
+    (want : Option (Reps × Flag))
     (keep : Array ℕ) (block : ℕ) (at_ : ℕ) : Array ℕ :=
   if block == 0 then keep
   else if at_ ≥ keep.size then shrink cc reps i want keep (block / 2) 0
   else
     let trial := keep.extract 0 at_ ++ keep.extract (at_ + block) keep.size
-    if step2 (pick cc trial.toList) reps i == want then shrink cc reps i want trial block at_
+    if stepP (pick cc trial.toList) reps i == want then shrink cc reps i want trial block at_
     else shrink cc reps i want keep block (at_ + block)
 
 /-- One entry per instruction, as far as the checker gets. -/
@@ -29,10 +30,10 @@ def cert (e : TestProgram) : List (List ℕ) := Id.run do
   let cc := e.fn.opcodes
   let all := (List.range cc.length).toArray
   let some reps0 := initReps cc e.prog.params e.fn.parameters | return []
-  let mut reps := reps0
+  let mut reps : Reps × Flag := (reps0, none)
   let mut out := #[]
   for i in e.prog.body do
-    let want := step2 cc reps i
+    let want := stepP cc reps i
     match want with
     | none => return out.toList
     | some r =>

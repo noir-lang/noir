@@ -164,6 +164,17 @@ theorem forms_sound {alts : List Poly} {x : F} (h : ∀ P ∈ alts, P.eval σ = 
     rw [eval_pvar, matV_sound hcc hw, h P hP]
   · exact h X hX
 
+theorem aliases_sound {Xs : List Poly} {x : F} (h : ∀ X ∈ Xs, X.eval σ = x) :
+    ∀ Y ∈ aliases cc Xs, Y.eval σ = x := by
+  intro Y hY
+  rcases List.mem_append.1 hY with hY | hY
+  · exact h Y hY
+  · obtain ⟨X, hX, hY⟩ := List.mem_flatMap.1 hY
+    obtain ⟨w, hw, rfl⟩ := List.mem_map.1 hY
+    have := holdsZ_sound hcc (List.mem_filter.1 hw).2
+    simp only [eval_psub, eval_pvar] at this
+    rw [eval_pvar, ← h X hX]; linear_combination this
+
 theorem solve2_sound {E : ℕ → ℕ → Poly} {q r : ℕ} (h : (q, r) ∈ solve2 cc E) :
     (E q r).eval σ = 0 :=
   holdsZ_sound hcc (List.mem_filter.1 h).2
@@ -510,7 +521,7 @@ theorem euclid_sound {a b : Rep2} {x y : F}
   obtain ⟨Xb, hXb, h⟩ := List.mem_flatMap.1 h
   obtain ⟨hs, hc⟩ := List.mem_filter.1 h
   have e := solve2_sound hcc hs
-  simp only [eval_psub, eval_pmul, eval_pvar, hFa Xa hXa, hFb Xb hXb] at e
+  simp only [eval_psub, eval_pmul, eval_pvar, aliases_sound hcc hFa Xa hXa, hFb Xb hXb] at e
   rcases hq : wbound cc q with _ | ⟨Lq, Mq⟩ <;> rcases hr : wbound cc r with _ | ⟨Lr, Mr⟩ <;>
     simp only [hq, hr, Bool.false_eq_true] at hc
   · simp only [Bool.and_eq_true, decide_eq_true_eq] at hc
@@ -1577,12 +1588,390 @@ theorem step2_ok {reps : Reps} {env : Env} (hE : EnvOK σ reps env) {i : Instruc
     subst h
     obtain ⟨xs, hxs, hall⟩ := opReps_ok hE es rs hrs
     exact ⟨(d, .array xs) :: env, by simp [Instruction.run, hxs], .cons ⟨rfl, hall⟩ hE⟩
+  | enableSideEffects c =>
+    simp only [step2, Option.some.injEq] at h
+    subst h
+    exact ⟨env, rfl, hE⟩
 
 end
+
+/-! ## Side effects -/
+
+theorem modP_cast (c : ℤ) : ((modP c : ℤ) : F) = (c : F) := by
+  unfold modP; exact ZMod.intCast_mod c p
+
+theorem modP_nonneg (c : ℤ) : 0 ≤ modP c := Int.emod_nonneg _ (by norm_num [p])
+
+theorem modP_lt (c : ℤ) : modP c < p := Int.emod_lt_of_pos _ (by norm_num [p])
+
+theorem cast_modP_toNat (c : ℤ) : (((modP c).toNat : ℕ) : F) = (c : F) := by
+  rw [← modP_cast, ← Int.toNat_of_nonneg (modP_nonneg c)]; push_cast; rfl
+
+theorem val_modP_toNat (c : ℤ) : (((modP c).toNat : ℕ) : F).val = (modP c).toNat :=
+  val_natCast_of_lt (by have := modP_lt c; have := modP_nonneg c; omega)
+
+theorem neg_one_of_modP {c : ℤ} (h : modP c = p - 1) : (c : F) = -1 := by
+  rw [← modP_cast, h]; push_cast; simp
+
+theorem eq_zero_of_modP {c : ℤ} (h : modP c = 0) : (c : F) = 0 := by
+  rw [← modP_cast, h]; simp
+
+theorem eval_filter_modP (σ : ℕ → F) : ∀ P : Poly,
+    Poly.eval σ (P.filter fun t => modP t.coef != 0) = P.eval σ
+  | [] => rfl
+  | t :: ts => by
+    rw [List.filter_cons]
+    split
+    · simp [eval_filter_modP σ ts]
+    · next h =>
+      have : modP t.coef = 0 := by simpa using h
+      simp [eval_filter_modP σ ts, Term.eval, eq_zero_of_modP this]
+
+theorem fixOps_holds {σ : ℕ → F} {A : List (ℕ × ℕ)} (hA : AOK σ A) {c : Opcode}
+    (h : c.Holds σ) : (fixOps A c).Holds σ := by
+  cases c with
+  | assertZero ts =>
+    simp only [fixOps]
+    rw [key_sat, eval_fixAll hA]
+    exact h
+  | range x k => exact h
+
+theorem fixRep_ok {σ : ℕ → F} {A : List (ℕ × ℕ)} (hA : AOK σ A) {r : Rep2} {v : F × ValueType}
+    (h : RepOK2 σ r v) : RepOK2 σ (fixRep A r) v := by
+  obtain ⟨h1, h2, h3, h4⟩ := h
+  refine ⟨h1, fun P hP => ?_, h3, h4⟩
+  obtain ⟨Q, hQ, rfl⟩ := List.mem_map.1 hP
+  rw [eval_fixAll hA, h2 Q hQ]
+
+theorem envOK_mem {σ : ℕ → F} : ∀ {reps : Reps} {env : Env}, EnvOK σ reps env →
+    ∀ {i : ℕ} {r : Rep2}, (i, .scalar r) ∈ reps → ∃ v, RepOK2 σ r v
+  | [], [], _, _, _, h => by simp at h
+  | (j, a) :: rs, (k, b) :: es, .cons ⟨_, hok⟩ ht, i, r, h => by
+    rcases List.mem_cons.1 h with h | h
+    · simp only [Prod.mk.injEq] at h
+      obtain ⟨-, rfl⟩ := h
+      cases b with
+      | scalar v => exact ⟨v, hok⟩
+      | array xs => exact hok.elim
+    · exact envOK_mem ht h
+
+theorem val_le_one {u : F} (h : u.val ≤ 1) : u = 0 ∨ u = 1 := val_bit (by omega)
 
 section
 variable {cc : List Opcode} {σ : ℕ → F} (hcc : ∀ c ∈ cc, c.Holds σ)
 include hcc
+
+theorem isBit_sound {reps : Reps} {env : Env} (hE : EnvOK σ reps env) {w : ℕ}
+    (h : isBit cc reps w = true) : (σ w).val ≤ 1 := by
+  unfold isBit at h
+  rcases Bool.or_eq_true_iff.1 h with h | h
+  · split at h
+    · next M hw => have := wbound_sound hcc hw; have := of_decide_eq_true h; omega
+    · simp at h
+  · obtain ⟨⟨i, v⟩, hmem, h⟩ := List.any_eq_true.1 h
+    cases v with
+    | scalar r =>
+      simp only [Bool.and_eq_true, decide_eq_true_eq, List.contains_iff_mem] at h
+      obtain ⟨x, hx⟩ := envOK_mem hE hmem
+      obtain ⟨-, hP, -, hM⟩ := hx
+      have := hP _ h.2
+      rw [eval_pvar] at this
+      rw [this]; omega
+    | array rs => simp at h
+
+theorem flagFix_sound {reps : Reps} {env : Env} (hE : EnvOK σ reps env) {P : Poly}
+    {A : List (ℕ × ℕ)} (h : flagFix cc reps P = some A) (h1 : P.eval σ = 1) : AOK σ A := by
+  rw [← eval_collect] at h1
+  unfold flagFix at h
+  split at h
+  · next w hc =>
+    simp only [Option.some.injEq] at h; subst h
+    rw [hc] at h1
+    simp [Term.eval] at h1
+    intro wv hwv; simp at hwv; subst hwv; simp [h1, ZMod.val_one]
+  · next c w hc =>
+    split_ifs at h with hm
+    simp only [Option.some.injEq] at h; subst h
+    rw [hc] at h1
+    simp [Term.eval, neg_one_of_modP hm] at h1
+    intro wv hwv; simp at hwv; subst hwv
+    simp only
+    have : σ w = 0 := by first | exact h1 | linear_combination -h1 | linear_combination h1
+    simp [this]
+  · next w₁ w₂ hc =>
+    split_ifs at h with hb
+    simp only [Option.some.injEq] at h; subst h
+    rw [hc] at h1
+    simp [Term.eval] at h1
+    have b1 := val_le_one (isBit_sound hcc hE hb.1)
+    have b2 := val_le_one (isBit_sound hcc hE hb.2)
+    intro wv hwv
+    simp at hwv
+    rcases b1 with e1 | e1 <;> rcases b2 with e2 | e2 <;> simp [e1, e2] at h1
+    rcases hwv with rfl | rfl <;> simp [e1, e2, ZMod.val_one]
+  · next c w₁ w₂ w hc =>
+    split_ifs at h with hb hw hw'
+    · simp only [Option.some.injEq] at h; subst h; subst hw
+      rw [hc] at h1
+      simp [Term.eval, neg_one_of_modP hb.1] at h1
+      have b1 := val_le_one (isBit_sound hcc hE hb.2.1)
+      have b2 := val_le_one (isBit_sound hcc hE hb.2.2)
+      intro wv hwv
+      simp at hwv
+      rcases b1 with e1 | e1 <;> rcases b2 with e2 | e2 <;> simp [e1, e2] at h1
+      rcases hwv with rfl | rfl <;> simp [e1, e2, ZMod.val_one]
+    · simp only [Option.some.injEq] at h; subst h; subst hw'
+      rw [hc] at h1
+      simp [Term.eval, neg_one_of_modP hb.1] at h1
+      have b1 := val_le_one (isBit_sound hcc hE hb.2.1)
+      have b2 := val_le_one (isBit_sound hcc hE hb.2.2)
+      intro wv hwv
+      simp at hwv
+      rcases b1 with e1 | e1 <;> rcases b2 with e2 | e2 <;> simp [e1, e2] at h1
+      rcases hwv with rfl | rfl <;> simp [e1, e2, ZMod.val_one]
+  · simp at h
+
+theorem deduce_sound {A : List (ℕ × ℕ)} (hA : AOK σ A) : AOK σ (deduce cc A) := by
+  intro wv hwv
+  obtain ⟨c, hc, h⟩ := List.mem_filterMap.1 hwv
+  split at h
+  · next ts =>
+    have e : Poly.eval σ ((fixAll A ts).filter fun t => modP t.coef != 0) = 0 := by
+      rw [eval_filter_modP, eval_fixAll hA]; exact hcc _ hc
+    have hmem : ∀ t ∈ (fixAll A ts).filter (fun t => modP t.coef != 0), modP t.coef ≠ 0 := by
+      intro t ht; simpa using (List.mem_filter.1 ht).2
+    split at h
+    · next k w hf =>
+      simp only [Option.some.injEq] at h; subst h
+      rw [hf] at e hmem
+      have hk := hmem ⟨k, [w]⟩ (by simp)
+      have hk' : (k : F) ≠ 0 := fun h0 => hk (by
+        have := (ZMod.intCast_zmod_eq_zero_iff_dvd k p).1 h0
+        simpa [modP] using Int.emod_eq_zero_of_dvd this)
+      have e' : (k : F) * σ w = 0 := by simpa [Term.eval] using e
+      rcases mul_eq_zero.1 e' with e' | e'
+      · exact absurd e' hk'
+      · simp [e']
+    · next k w c' hf =>
+      rw [hf] at e
+      simp [Term.eval] at e
+      split_ifs at h with h1 h2
+      · simp only [Option.some.injEq] at h; subst h
+        simp only
+        have hk : (k : F) = 1 := by rw [← modP_cast, h1]; simp
+        have : σ w = ((modP (-c')).toNat : F) := by
+          rw [cast_modP_toNat]; push_cast; rw [hk] at e; linear_combination e
+        rw [this, val_modP_toNat]
+      · simp only [Option.some.injEq] at h; subst h
+        simp only
+        have hk : (k : F) = -1 := neg_one_of_modP h2
+        have : σ w = ((modP c').toNat : F) := by
+          rw [cast_modP_toNat]; rw [hk] at e; linear_combination -e
+        rw [this, val_modP_toNat]
+    · simp at h
+  · simp at h
+
+theorem closeFix_sound {A : List (ℕ × ℕ)} (hA : AOK σ A) : AOK σ (closeFix cc A) := by
+  have h1 : AOK σ (A ++ deduce cc A) := fun wv hwv => by
+    rcases List.mem_append.1 hwv with h | h
+    · exact hA wv h
+    · exact deduce_sound hcc hA wv h
+  intro wv hwv
+  rcases List.mem_append.1 hwv with h | h
+  · exact h1 wv h
+  · exact deduce_sound hcc h1 wv h
+
+theorem flagOf_sound {reps : Reps} {env : Env} (hE : EnvOK σ reps env) {r : Rep2}
+    {x : F} {tx : ValueType} (hr : RepOK2 σ r (x, tx)) {P : Poly} {A : List (ℕ × ℕ)}
+    (h : flagOf cc reps r = some (P, A)) :
+    tx = .uint 1 ∧ x.val ≤ 1 ∧ P.eval σ = x ∧ (x = 1 → AOK σ A) := by
+  obtain ⟨hty, hP, -, hM⟩ := hr
+  unfold flagOf at h
+  split_ifs at h with hc
+  dsimp only at h
+  split at h
+  · next Q hQ =>
+    simp only [Option.some.injEq, Prod.mk.injEq] at h
+    obtain ⟨rfl, rfl⟩ := h
+    have hF := forms_sound hcc hP
+    refine ⟨by simp only at hty; rw [← hty]; exact hc.1, by simp only at hM; omega, hF _ (List.mem_of_find?_eq_some hQ), fun hx1 => ?_⟩
+    apply closeFix_sound hcc
+    intro wv hwv
+    obtain ⟨A', hA', hwv⟩ := List.mem_flatten.1 hwv
+    obtain ⟨Q', hQ', hfix⟩ := List.mem_filterMap.1 hA'
+    exact flagFix_sound hcc hE hfix (by rw [hF Q' hQ', hx1]) wv hwv
+  · simp at h
+
+end
+
+/-- What the checker's side-effects flag says about the interpreter's. -/
+def FlagOK (σ : ℕ → F) : Flag → Bool → Prop
+  | none, en => en = true
+  | some (P, A), en => (P.eval σ = 1 ∧ en = true ∧ AOK σ A) ∨ (P.eval σ = 0 ∧ en = false)
+
+theorem predicated_ty {op : BinaryOp} {u : Bool} {x y : F} {t : ValueType} {v : F × ValueType}
+    (hp : op.predicated u t = true) (h : op.apply u x y t = some v) : v.2 = t := by
+  cases t with
+  | field =>
+    cases op <;> simp [BinaryOp.predicated] at hp <;> simp [BinaryOp.apply] at h <;>
+      (try split_ifs at h) <;> (try simp_all) <;> rw [← h.2]
+  | uint n =>
+    rcases n with _ | _ | n <;> cases op <;> simp [BinaryOp.predicated] at hp <;>
+      simp [BinaryOp.apply, fieldArith] at h <;> (try split_ifs at h) <;> (try split at h) <;>
+      (try simp_all [flag]) <;>
+      first
+        | (rw [← h.2])
+        | (rw [← h])
+        | (obtain ⟨-, ⟨-, h⟩ | ⟨-, h⟩⟩ := h <;> rw [← h])
+        | (obtain ⟨-, h⟩ := h; rw [← h])
+  | sint n =>
+    cases op <;> simp [BinaryOp.predicated] at hp <;> simp [BinaryOp.apply, fieldArith] at h <;>
+      simp_all
+
+theorem step_true {env : Env} {i : Instruction} (hi : ∀ c, i ≠ .enableSideEffects c) :
+    Instruction.step (env, true) i = (i.run env).map (·, true) := by
+  cases i <;> first | rfl | exact absurd rfl (hi _)
+
+theorem step_plain {env : Env} {en : Bool} {i : Instruction} (hi : ∀ c, i ≠ .enableSideEffects c)
+    (hb : ∀ d op u a b, i ≠ .bin d op u a b) (hn : ∀ a b m, i ≠ .constrainNe a b m)
+    (hs : ∀ d m a j v, i ≠ .arraySet d m a j v) :
+    Instruction.step (env, en) i = (i.run env).map (·, en) := by
+  cases en
+  · cases i <;> first | rfl | exact absurd rfl (hi _) | exact absurd rfl (hb _ _ _ _ _) | exact absurd rfl (hn _ _ _) | exact absurd rfl (hs _ _ _ _ _)
+  · exact step_true hi
+
+section
+variable {cc : List Opcode} {σ : ℕ → F} (hcc : ∀ c ∈ cc, c.Holds σ)
+include hcc
+
+theorem neHolds_sound {a b : Rep2} {x y : F} {tx ty : ValueType} (ha : RepOK2 σ a (x, tx))
+    (hb : RepOK2 σ b (y, ty)) (he : neHolds cc a b = true) : x ≠ y := by
+  obtain ⟨_, hPa, _, _⟩ := ha
+  obtain ⟨_, hPb, _, _⟩ := hb
+  simp only at hPa hPb
+  obtain ⟨Xa, hXa, he⟩ := List.any_eq_true.1 he
+  obtain ⟨Xb, hXb, he⟩ := List.any_eq_true.1 he
+  obtain ⟨D, hD, he⟩ := List.any_eq_true.1 he
+  obtain ⟨z, -, he⟩ := List.any_eq_true.1 he
+  have hDv : D.eval σ = x - y := by
+    refine forms_sound hcc (fun P hP => ?_) D hD
+    simp only [List.mem_singleton] at hP
+    subst hP
+    simp [forms_sound hcc hPa Xa hXa, forms_sound hcc hPb Xb hXb]
+  intro hxy
+  rcases Bool.or_eq_true_iff.1 he with he | he
+  · have := holdsZ_sound hcc he
+    simp [hDv, hxy] at this
+  · have := holdsZ_sound hcc he
+    simp [hDv, hxy] at this
+
+theorem fixedHold {A : List (ℕ × ℕ)} (hA : AOK σ A) : ∀ c ∈ cc.map (fixOps A), c.Holds σ := by
+  intro c hc
+  obtain ⟨c0, hc0, rfl⟩ := List.mem_map.1 hc
+  exact fixOps_holds hA (hcc c0 hc0)
+
+theorem stepP_ok {reps : Reps} {env : Env} {f : Flag} {en : Bool} (hE : EnvOK σ reps env)
+    (hF : FlagOK σ f en) {i : Instruction} {s' : Reps × Flag} (h : stepP cc (reps, f) i = some s') :
+    ∃ env' en', Instruction.step (env, en) i = some (env', en') ∧ EnvOK σ s'.1 env' ∧
+      FlagOK σ s'.2 en' := by
+  -- An instruction the flag does not affect: `step2`.
+  have plain : ∀ {i : Instruction} {f : Flag}, FlagOK σ f en →
+      (Instruction.step (env, en) i = (i.run env).map (·, en)) →
+      (step2 cc reps i).map (·, f) = some s' →
+      ∃ env' en', Instruction.step (env, en) i = some (env', en') ∧ EnvOK σ s'.1 env' ∧
+        FlagOK σ s'.2 en' := by
+    intro i f hF hs h
+    obtain ⟨reps', h2, rfl⟩ := Option.map_eq_some_iff.1 h
+    obtain ⟨env', he, hE'⟩ := step2_ok hcc hE h2
+    exact ⟨env', en, by rw [hs, he]; rfl, hE', hF⟩
+  cases i with
+  | enableSideEffects c =>
+    simp only [stepP] at h
+    split_ifs at h with hc
+    · subst hc
+      simp only [Option.some.injEq] at h
+      subst h
+      exact ⟨env, true, by simp [Instruction.step, Operand.value, constVal, ZMod.val_one], hE, rfl⟩
+    · simp only [Option.bind_eq_bind, Option.bind_eq_some_iff, Option.some.injEq] at h
+      obtain ⟨r, hr, ⟨P, A⟩, hf, rfl⟩ := h
+      obtain ⟨⟨x, tx⟩, hx, hok⟩ := opRep_ok hE hr
+      obtain ⟨hty, hxle, hPx, hA⟩ := flagOf_sound hcc hE hok hf
+      refine ⟨env, decide (x.val = 1), ?_, hE, ?_⟩
+      · simp [Instruction.step, hx, hty]; omega
+      · rcases val_le_one hxle with rfl | rfl
+        · exact Or.inr ⟨hPx, by simp⟩
+        · exact Or.inl ⟨hPx, by simp [ZMod.val_one], hA rfl⟩
+  | bin d op u a b =>
+    cases f with
+    | none =>
+      simp only [FlagOK] at hF; subst hF
+      exact plain (f := none) rfl (step_true (by intro c; simp)) (by simpa [stepP] using h)
+    | some PA =>
+      obtain ⟨P, A⟩ := PA
+      simp only [stepP, Option.bind_eq_bind, Option.bind_eq_some_iff] at h
+      obtain ⟨ra, hra, rb, hrb, h⟩ := h
+      obtain ⟨⟨x, tx⟩, hx, hokx⟩ := opRep_ok hE hra
+      obtain ⟨⟨y, ty⟩, hy, hoky⟩ := opRep_ok hE hrb
+      have htx : ra.ty = tx := hokx.1
+      split_ifs at h with hpred
+      · obtain ⟨r, hr, h⟩ := Option.bind_eq_some_iff.1 h
+        simp only [Option.some.injEq] at h
+        subst h
+        rw [htx] at hpred
+        rcases hF with ⟨hP1, rfl, hA⟩ | ⟨hP0, rfl⟩
+        · obtain ⟨v, hv, hokv⟩ :=
+            binRep_sound (fixedHold hcc hA) hr (fixRep_ok hA hokx) (fixRep_ok hA hoky)
+          refine ⟨(d, .scalar v) :: env, true, ?_, .cons ⟨rfl, ?_⟩ hE, Or.inl ⟨hP1, rfl, hA⟩⟩
+          · rw [step_true (by intro c; simp)]
+            simp [Instruction.run, hx, hy, hv]
+          · refine ⟨?_, fun Q hQ => ?_, Nat.zero_le _, hokv.2.2.2⟩
+            · show ra.ty = v.2
+              rw [htx]; exact (predicated_ty hpred hv).symm
+            · obtain ⟨R, hR, rfl⟩ := List.mem_map.1 hQ
+              rw [eval_pmul, hP1, one_mul, hokv.2.1 R hR]
+        · refine ⟨(d, .scalar (0, tx)) :: env, false, ?_, .cons ⟨rfl, ?_⟩ hE, Or.inr ⟨hP0, rfl⟩⟩
+          · simp [Instruction.step, hx, hy, hpred]
+          · refine ⟨htx, fun Q hQ => ?_, by simp, by simp⟩
+            obtain ⟨R, hR, rfl⟩ := List.mem_map.1 hQ
+            rw [eval_pmul, hP0, zero_mul]
+      · rw [htx] at hpred
+        refine plain (f := some (P, A)) hF ?_ h
+        cases en
+        · simp [Instruction.step, hx, hy, hpred]
+        · exact step_true (by intro c; simp)
+  | constrainNe a b m =>
+    cases f with
+    | none =>
+      simp only [FlagOK] at hF; subst hF
+      exact plain (f := none) rfl (step_true (by intro c; simp)) (by simpa [stepP] using h)
+    | some PA =>
+      obtain ⟨P, A⟩ := PA
+      simp only [stepP, Option.bind_eq_bind, Option.bind_eq_some_iff] at h
+      obtain ⟨ra, hra, rb, hrb, h⟩ := h
+      obtain ⟨⟨x, tx⟩, hx, hokx⟩ := opRep_ok hE hra
+      obtain ⟨⟨y, ty⟩, hy, hoky⟩ := opRep_ok hE hrb
+      split_ifs at h with hne
+      simp only [Option.some.injEq] at h
+      subst h
+      rcases hF with ⟨hP1, rfl, hA⟩ | ⟨hP0, rfl⟩
+      · have := neHolds_sound (fixedHold hcc hA) (fixRep_ok hA hokx) (fixRep_ok hA hoky) hne
+        refine ⟨env, true, ?_, hE, Or.inl ⟨hP1, rfl, hA⟩⟩
+        rw [step_true (by intro c; simp)]
+        simp [Instruction.run, hx, hy, this]
+      · exact ⟨env, false, by simp [Instruction.step, hx, hy], hE, Or.inr ⟨hP0, rfl⟩⟩
+  | arraySet d m a j v =>
+    cases f with
+    | none =>
+      simp only [FlagOK] at hF; subst hF
+      exact plain (f := none) rfl (step_true (by intro c; simp)) (by simpa [stepP] using h)
+    | some PA => simp [stepP] at h
+  | not d a => exact plain hF (step_plain (by simp) (by simp) (by simp) (by simp)) (by simpa [stepP] using h)
+  | cast d a ty => exact plain hF (step_plain (by simp) (by simp) (by simp) (by simp)) (by simpa [stepP] using h)
+  | truncate d a k mb => exact plain hF (step_plain (by simp) (by simp) (by simp) (by simp)) (by simpa [stepP] using h)
+  | constrain a b m => exact plain hF (step_plain (by simp) (by simp) (by simp) (by simp)) (by simpa [stepP] using h)
+  | rangeCheck a k m => exact plain hF (step_plain (by simp) (by simp) (by simp) (by simp)) (by simpa [stepP] using h)
+  | arrayGet d a j ty => exact plain hF (step_plain (by simp) (by simp) (by simp) (by simp)) (by simpa [stepP] using h)
+  | makeArray d es ty => exact plain hF (step_plain (by simp) (by simp) (by simp) (by simp)) (by simpa [stepP] using h)
 
 theorem paramRep_ok {w : ℕ} {ty : ValueType} {r : Rep2} (h : paramRep cc w ty = some r) :
     RepOK2 σ r (σ w, ty) ∧ ty.fits (σ w) = true := by
@@ -1697,18 +2086,18 @@ theorem initReps_ok : ∀ (ps : List (ℕ × ParamType)) (ws : List ℕ) (reps0 
       · rw [hdrop] at he
         exact hf e he
 
-theorem fold_ok2 : ∀ (body : List Instruction) (reps : Reps) (env : Env), EnvOK σ reps env →
-    ∀ reps', body.foldlM (step2 cc) reps = some reps' →
-      ∃ env', body.foldlM Instruction.run env = some env' ∧ EnvOK σ reps' env'
-  | [], reps, env, hE, reps', h => by
+theorem fold_ok2 : ∀ (body : List Instruction) (st : Reps × Flag) (env : Env) (en : Bool),
+    EnvOK σ st.1 env → FlagOK σ st.2 en → ∀ st', body.foldlM (stepP cc) st = some st' →
+      ∃ env' en', body.foldlM Instruction.step (env, en) = some (env', en') ∧ EnvOK σ st'.1 env'
+  | [], st, env, en, hE, _, st', h => by
     simp only [List.foldlM_nil, Option.pure_def, Option.some.injEq] at h
-    subst h; exact ⟨env, rfl, hE⟩
-  | i :: body, reps, env, hE, reps', h => by
+    subst h; exact ⟨env, en, rfl, hE⟩
+  | i :: body, st, env, en, hE, hF, st', h => by
     simp only [List.foldlM_cons, Option.bind_eq_bind, Option.bind_eq_some_iff] at h
-    obtain ⟨reps1, h1, h2⟩ := h
-    obtain ⟨env1, he1, hE1⟩ := step2_ok hcc hE h1
-    obtain ⟨env', he', hE'⟩ := fold_ok2 body reps1 env1 hE1 reps' h2
-    exact ⟨env', by simp [List.foldlM_cons, he1, he'], hE'⟩
+    obtain ⟨st1, h1, h2⟩ := h
+    obtain ⟨env1, en1, he1, hE1, hF1⟩ := stepP_ok hcc hE hF h1
+    obtain ⟨env', en', he', hE'⟩ := fold_ok2 body st1 env1 en1 hE1 hF1 st' h2
+    exact ⟨env', en', by simp [List.foldlM_cons, he1, he'], hE'⟩
 
 omit hcc in
 theorem opFlats_ok {reps : Reps} {env : Env} (hE : EnvOK σ reps env) :
@@ -1781,9 +2170,9 @@ theorem checkProg2_sound (P : Program) (C : Circuit) (h : checkProg2 P C = true)
   · next reps0 hinit =>
     split at h
     · simp at h
-    · next reps hfold =>
+    · next reps f hfold =>
       obtain ⟨hE0, hfit⟩ := initReps_ok hcc P.params C.parameters reps0 hinit
-      obtain ⟨env, hrun, hE⟩ := fold_ok2 hcc P.body reps0 _ hE0 reps hfold
+      obtain ⟨env, en, hrun, hE⟩ := fold_ok2 hcc P.body (reps0, none) _ true hE0 rfl (reps, f) hfold
       obtain ⟨vs, hvs, hm⟩ := rets_ok hcc hE C.returnValues P.rets h
       have hins : ∀ l : List ℕ, List.flatMap (fun a : ℕ => [(a : F)]) (l.map fun i => (σ i).val) =
           l.map σ := by
@@ -1807,20 +2196,20 @@ theorem pick_sub {cc : List Opcode} {idx : List ℕ} {c : Opcode} (h : c ∈ pic
   exact List.mem_of_getElem? hk
 
 theorem stepsWith_ok {cc : List Opcode} {σ : ℕ → F} (hcc : ∀ c ∈ cc, c.Holds σ) :
-    ∀ (body : List Instruction) (cert : List (List ℕ)) (reps : Reps) (env : Env), EnvOK σ reps env →
-      ∀ reps', stepsWith cc reps body cert = some reps' →
-        ∃ env', body.foldlM Instruction.run env = some env' ∧ EnvOK σ reps' env'
-  | [], [], reps, env, hE, reps', h => by
+    ∀ (body : List Instruction) (cert : List (List ℕ)) (st : Reps × Flag) (env : Env) (en : Bool),
+      EnvOK σ st.1 env → FlagOK σ st.2 en → ∀ st', stepsWith cc st body cert = some st' →
+        ∃ env' en', body.foldlM Instruction.step (env, en) = some (env', en') ∧ EnvOK σ st'.1 env'
+  | [], [], st, env, en, hE, _, st', h => by
     simp only [stepsWith, Option.some.injEq] at h
-    subst h; exact ⟨env, rfl, hE⟩
-  | i :: body, ix :: cert, reps, env, hE, reps', h => by
+    subst h; exact ⟨env, en, rfl, hE⟩
+  | i :: body, ix :: cert, st, env, en, hE, hF, st', h => by
     simp only [stepsWith, Option.bind_eq_some_iff] at h
-    obtain ⟨reps1, h1, h2⟩ := h
-    obtain ⟨env1, he1, hE1⟩ := step2_ok (fun c hc => hcc c (pick_sub hc)) hE h1
-    obtain ⟨env', he', hE'⟩ := stepsWith_ok hcc body cert reps1 env1 hE1 reps' h2
-    exact ⟨env', by simp [List.foldlM_cons, he1, he'], hE'⟩
-  | [], _ :: _, _, _, _, _, h => by simp [stepsWith] at h
-  | _ :: _, [], _, _, _, _, h => by simp [stepsWith] at h
+    obtain ⟨st1, h1, h2⟩ := h
+    obtain ⟨env1, en1, he1, hE1, hF1⟩ := stepP_ok (fun c hc => hcc c (pick_sub hc)) hE hF h1
+    obtain ⟨env', en', he', hE'⟩ := stepsWith_ok hcc body cert st1 env1 en1 hE1 hF1 st' h2
+    exact ⟨env', en', by simp [List.foldlM_cons, he1, he'], hE'⟩
+  | [], _ :: _, _, _, _, _, _, _, h => by simp [stepsWith] at h
+  | _ :: _, [], _, _, _, _, _, _, h => by simp [stepsWith] at h
 
 /-- Acceptance with a certificate implies the circuit implements the program. -/
 theorem checkProgWith_sound (P : Program) (C : Circuit) (cert : List (List ℕ)) (h : checkProgWith P C cert = true) :
@@ -1835,9 +2224,10 @@ theorem checkProgWith_sound (P : Program) (C : Circuit) (cert : List (List ℕ))
   · next reps0 hinit =>
     split at h
     · simp at h
-    · next reps hfold =>
+    · next reps f hfold =>
       obtain ⟨hE0, hfit⟩ := initReps_ok hcc P.params C.parameters reps0 hinit
-      obtain ⟨env, hrun, hE⟩ := stepsWith_ok hσ P.body cert reps0 _ hE0 reps hfold
+      obtain ⟨env, en, hrun, hE⟩ :=
+        stepsWith_ok hσ P.body cert (reps0, none) _ true hE0 rfl (reps, f) hfold
       obtain ⟨vs, hvs, hm⟩ := rets_ok hcc hE C.returnValues P.rets h
       have hins : ∀ l : List ℕ, List.flatMap (fun a : ℕ => [(a : F)]) (l.map fun i => (σ i).val) =
           l.map σ := by
@@ -1921,6 +2311,12 @@ theorem testPrograms_batch7 : testProgramOK.batch 7 := by decide +kernel
 set_option maxHeartbeats 2000000 in
 theorem testPrograms_batch8 : testProgramOK.batch 8 := by decide +kernel
 
+set_option maxHeartbeats 2000000 in
+theorem testPrograms_batch9 : testProgramOK.batch 9 := by decide +kernel
+
+set_option maxHeartbeats 2000000 in
+theorem testPrograms_batch10 : testProgramOK.batch 10 := by decide +kernel
+
 /-- The test programs: the checker accepts every one outside
 `uncoveredPrograms` with its certificate from `testProgramCerts`, and its
 solved witness satisfies its circuit, decided by evaluation in the kernel. -/
@@ -1928,14 +2324,12 @@ theorem testPrograms_claims :
     ∀ e ∈ testPrograms, e.name ∉ uncoveredPrograms →
       SoundFunction e.fn (ProgramSpec e.prog) ∧ AllHold e.assignment e.fn.opcodes := by
   have hlen : testPrograms.length = testProgramCerts.length ∧
-      (testPrograms.zip testProgramCerts).length ≤ 20 * 9 := by
+      (testPrograms.zip testProgramCerts).length ≤ 20 * 11 := by
     decide +kernel
   have hall : (testPrograms.zip testProgramCerts).all testProgramOK = true :=
-    all_of_batches testProgramOK 20 9 _ hlen.2 fun k hk => by
+    all_of_batches testProgramOK 20 11 _ hlen.2 fun k hk => by
       interval_cases k
-      exacts [testPrograms_batch0, testPrograms_batch1, testPrograms_batch2,
-        testPrograms_batch3, testPrograms_batch4, testPrograms_batch5, testPrograms_batch6,
-        testPrograms_batch7, testPrograms_batch8]
+      exacts [testPrograms_batch0, testPrograms_batch1, testPrograms_batch2, testPrograms_batch3, testPrograms_batch4, testPrograms_batch5, testPrograms_batch6, testPrograms_batch7, testPrograms_batch8, testPrograms_batch9, testPrograms_batch10]
   intro e he hn
   obtain ⟨c, hmem⟩ := exists_mem_zip hlen.1 he
   have := List.all_eq_true.1 hall _ hmem

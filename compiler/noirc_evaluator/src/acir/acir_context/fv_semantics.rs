@@ -1,5 +1,5 @@
 //! Pins the meaning of SSA instructions assumed by the Lean proofs
-//! (`Instruction.run` in `fv/acir_lean/AcirLean/Spec/SsaSemantics.lean`) against Noir's
+//! (`Instruction.step` in `fv/acir_lean/AcirLean/Spec/SsaSemantics.lean`) against Noir's
 //! SSA interpreter. `ssa_semantics.golden` is produced by `EmitSemantics.lean`: each
 //! one-instruction function followed by the calls made to it and the result Lean
 //! computes. Every call is replayed here through the interpreter, and the test fails
@@ -137,7 +137,7 @@ fn ssa_meaning_in_lean_matches_the_interpreter() {
     assert!(
         mismatches.is_empty(),
         "The Lean meaning of {} of {calls} SSA calls differs from Noir's SSA interpreter.\n\
-         Fix `Instruction.run` in fv/acir_lean/AcirLean/Spec/SsaSemantics.lean (and the proofs), \
+         Fix `Instruction.run` or `Instruction.step` in fv/acir_lean/AcirLean/Spec/SsaSemantics.lean (and the proofs), \
          then regenerate with `lake env lean --run EmitSemantics.lean ssa_semantics.golden`.\n\n{}",
         mismatches.len(),
         mismatches.iter().take(30).cloned().collect::<Vec<_>>().join("\n")

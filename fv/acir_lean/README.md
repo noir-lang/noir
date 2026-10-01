@@ -6,7 +6,7 @@ division (with and without a predicate), truncation and comparison
 SSA `expand_signed_math` emits for signed `lt`, and soundness of whole
 functions as ACIR generation compiles them, both before and after the ACVM
 optimization passes, plus a pin that keeps those proofs attached to the Rust
-code. A checker proved sound once also covers 179 real programs from
+code. A checker proved sound once also covers 200 real programs from
 `test_programs/execution_success`, as `nargo compile` ships them.
 
 ## What you must review, and what you can ignore
@@ -125,7 +125,8 @@ Claim 10 comes from a second checker, `checkProg2` in `Proofs/Checker2.lean`,
 proved sound once in `Proofs/Checker2Sound.lean`. It takes the final SSA of a
 program whose `main` is one block of scalar instructions (`add`, `sub`, `mul`,
 `div`, `mod`, `lt`, `eq`, `xor` on `u1`, `not`, `cast`, `truncate`, `constrain` (`==` and `!=`),
-`range_check`, checked or unchecked, over `Field`, `u<n>` and `i<n>`) and the
+`range_check`, checked or unchecked, over `Field`, `u<n>` and `i<n>`, and
+`enable_side_effects`) and the
 optimized circuit `nargo compile` ships. For each SSA value it keeps some
 polynomials over the circuit's witnesses that evaluate to it, and bounds on its
 integer value. Each instruction is accepted by a local rule instead of a fixed
@@ -154,7 +155,14 @@ template, because the optimizer merges, reorders and drops constraints:
   constraint that defines it; terms the circuit constrains to `0` are dropped
   first;
 - a range check may be missing when the circuit fixes the witness to a
-  constant, since the optimizer drops such range checks as implied.
+  constant, since the optimizer drops such range checks as implied;
+- after `enable_side_effects c`, the checker tracks `c` as a polynomial `P`
+  that is `0` or `1`, and the witness values `P = 1` forces (`w = 1` for
+  `P = w`, `w = 0` for `P = 1 - w`, and so on, plus what single constraints
+  then fix). An instruction the flag affects is checked over the constraints
+  with those values substituted, which is how they read when the flag is on,
+  and its result is `P` times what that check finds: the right value when the
+  flag is on, and `0`, as the interpreter gives, when it is off.
 
 Which witnesses play which role is found by untrusted searches, and every
 candidate is checked against the circuit before a rule uses it.
@@ -168,15 +176,15 @@ a proof fail, never make a false claim pass. The certificate is written by
 `scripts/emit_certs.lean`, which runs the compiled checker and, for each step,
 drops every constraint the step's result does not depend on; `check.sh` fails
 if it is out of date. Of the 560
-execution-success programs that `nargo compile` builds, 180 are in the
+execution-success programs that `nargo compile` builds, 212 are in the
 supported subset: one block of scalar instructions, plus arrays of scalars and
 tuples read and written at constant indices. The rest use arrays at dynamic
 indices (ACIR memory), references, several ACIR functions, calls, black boxes,
 several blocks, or more than 1000 instructions; the reason for each is in
-`test_programs.outside`. The checker accepts 179 of them. The one it does not
-is listed in `uncoveredPrograms` in `Spec/Claims.lean` with the reason.
-Removing any single constraint from the 155 proved circuits without array
-parameters makes the checker reject in 989 of 1008 cases;
+`test_programs.outside`. The checker accepts 200 of them. The twelve it does not
+are listed in `uncoveredPrograms` in `Spec/Claims.lean` with the reason.
+Removing any single constraint from the 171 proved circuits without array
+parameters makes the checker reject in 1106 of 1125 cases;
 the other 19 constraints are
 redundant (a constraint repeated or implied by others, a range check implied by
 another bound, and `b · inv = 1` in a division that already proves `r < b`).

@@ -364,9 +364,10 @@ inductive Instruction where
   | arrayGet (dst : ℕ) (a i : Operand) (ty : ValueType)
   | arraySet (dst : ℕ) (isMut : Bool) (a i v : Operand)
   | makeArray (dst : ℕ) (elems : List Operand) (ty : ParamType)
+  | enableSideEffects (c : Operand)
 ```
 
-The ten kinds of instruction. Each has a doc comment showing its SSA text, for example ``v3 = unchecked_add v1, v2``.
+The eleven kinds of instruction. Each has a doc comment showing its SSA text, for example ``v3 = unchecked_add v1, v2``.
 
 ```lean
 structure Program where
@@ -509,14 +510,40 @@ Running one instruction:
 - **`array_get a, index i`:** read the scalar at position `i`; fail if `arrayIndex` does.
 - **`array_set a, index i, value v`:** a copy of `a` with position `i` replaced by `v`; fail if `arrayIndex` does. In an ACIR function arrays are values, so `mut` doesn't change the result.
 - **`make_array [..]`:** the array of the listed scalars.
+- **`enable_side_effects`:** does nothing here; `Instruction.step` below handles it.
 
-**Check each against Noir's SSA interpreter.** In particular, `not`, `truncate` and the overflow rules. You don't have to do this alone: `EmitSemantics.lean` runs `Instruction.run` on a grid of edge-case values for every instruction and type, and the Rust test `fv_semantics.rs` fails unless Noir's interpreter gives the same result on every one (see "How the SSA meaning stays attached to Noir" in `README.md`). What the test cannot tell you is whether the grid is wide enough, so glance at `values` in `EmitSemantics.lean` too.
+**Check each against Noir's SSA interpreter.** In particular, `not`, `truncate` and the overflow rules. You don't have to do this alone: `EmitSemantics.lean` runs every instruction on a grid of edge-case values for every instruction and type, and the Rust test `fv_semantics.rs` fails unless Noir's interpreter gives the same result on every one (see "How the SSA meaning stays attached to Noir" in `README.md`). What the test cannot tell you is whether the grid is wide enough, so glance at `values` in `EmitSemantics.lean` too.
+
+```lean
+def BinaryOp.predicated (op : BinaryOp) (unchecked : Bool) (ty : ValueType) : Bool :=
+  match op with
+  | .add | .sub | .mul => !unchecked && ty != .field
+  | .div | .mod => true
+  | _ => false
+```
+
+The binary operations that side effects affect: checked `add`, `sub` and `mul` on integers, and `div` and `mod` on any type. This is Noir's `requires_acir_gen_predicate` for the operations the spec has. **Check:** against that function in `compiler/noirc_evaluator/src/ssa/ir/instruction.rs`.
+
+```lean
+def Instruction.step (s : Env × Bool) (i : Instruction) : Option (Env × Bool) :=
+```
+
+`Instruction.run` with Noir's side-effects flag, the `Bool` in the state. Noir compiles `if`/`else` by running both branches, and turns the flag off for the branch that isn't taken, so its failures don't count:
+
+- **`enable_side_effects c`** sets the flag to `c`, which must be a `u1` holding 0 or 1.
+- **While the flag is off:**
+  - an affected binary operation (`predicated`) gives 0 of its type instead of running;
+  - `constrain a != b` does nothing;
+  - `array_set` returns the array unchanged.
+- **Everything else runs as `Instruction.run` says, whatever the flag.** That includes `constrain a == b` and `range_check`: Noir enforces them even in a branch that isn't taken, because the compiler has already rewritten them to hold trivially there.
+
+**Check:** against `side_effects_enabled` and `interpret_instruction` in `compiler/noirc_evaluator/src/ssa/interpreter/mod.rs`. The comparison test covers this too: the grid runs every affected instruction with the flag off.
 
 ```lean
 def bindParams : List (ℕ × ParamType) → List F → Env
 def Program.inputTypes (P : Program) : List ValueType := P.params.flatMap (·.2.flat)
 def Program.eval (P : Program) (ins : List F) : Option (List F) := do
-  let env ← P.body.foldlM Instruction.run (bindParams P.params ins)
+  let (env, _) ← P.body.foldlM Instruction.step (bindParams P.params ins, true)
   let outs ← P.rets.mapM (·.flat env)
   some outs.flatten
 ```
@@ -524,7 +551,7 @@ def Program.eval (P : Program) (ins : List F) : Option (List F) := do
 Running a whole program:
 
 1. bind the parameters to the inputs (`bindParams`): each parameter takes as many inputs as it has scalars, in order, so an array parameter `[u8; 3]` takes the next three;
-2. run the instructions in order, stopping as soon as one fails;
+2. run the instructions in order with `Instruction.step`, side effects on at the start, stopping as soon as one fails;
 3. read the return values, flattened the same way.
 
 `inputTypes` lists the scalar type of every input, in the same order.
@@ -738,7 +765,9 @@ The spec for signed `/` and `%`. It requires:
 
 ```lean
 def uncoveredPrograms : List String :=
-  ["regression_8519"]
+  ["function_ref", "regression_10008", "regression_1144_1169_2399_6609", "regression_3607",
+   "regression_6834", "regression_8235", "regression_8261", "regression_8329", "regression_8519",
+   "regression_9594", "regression_9971", "signed_inactive_division_by_zero"]
 ```
 
 The test programs deliberately left out of the claim, each with its reason in the comment above. **Check:** that the reasons are acceptable, and that the list doesn't grow silently in future PRs.

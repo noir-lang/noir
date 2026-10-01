@@ -1,6 +1,6 @@
 /-
 REVIEWED: trusted entry point. Writes `ssa_semantics.golden`: what
-`Instruction.run` (`AcirLean/Spec/SsaSemantics.lean`) computes for every
+`Instruction.step` (`AcirLean/Spec/SsaSemantics.lean`) computes for every
 instruction kind, on every type, over a fixed grid of edge-case values. The
 Rust test `fv_semantics.rs` runs each line through Noir's SSA interpreter and
 fails unless the interpreter gives the same result, so the reviewed meaning of
@@ -8,12 +8,15 @@ the SSA is checked against the compiler's own reference semantics.
 
 Arrays are covered by building one with `make_array` and reading and writing it
 with constant indices, so every case still takes and returns scalars.
+Disabled side effects are covered by `enable_side_effects` on a `u1`
+parameter that is `0`, in front of each instruction it affects.
 
 The grid leaves out what never reaches ACIR generation: checked signed
 arithmetic and signed `div`, `mod` and `lt` (rewritten by `expand_signed_math`;
 the spec leaves them undefined), and what Noir's SSA validator rejects: `lt`
-and `not` on `Field`, and a narrowing `cast` that is not preceded by a
-`truncate` to the destination's width.
+and `not` on `Field`, a narrowing `cast` that is not preceded by a
+`truncate` to the destination's width, and `enable_side_effects` on anything
+but a `u1`.
 -/
 
 import AcirLean.Spec.SsaSemantics
@@ -53,7 +56,8 @@ def Case.ssa (c : Case) : String :=
 /-- `fail`, `ok` for no return values, or each return value as `<type> <value>`. -/
 def Case.result (c : Case) (args : List ℕ) : String :=
   let env0 : Env := (c.params.zip args).map fun ((id, ty), x) => (id, .scalar ((x : F), ty))
-  match c.body.foldlM Instruction.run env0 >>= fun env => c.rets.mapM (Operand.value env) with
+  match c.body.foldlM Instruction.step (env0, true) >>= fun (env, _) =>
+      c.rets.mapM (Operand.value env) with
   | none => "fail"
   | some [] => "ok"
   | some vs => ", ".intercalate (vs.map fun (x, ty) => s!"{ty.render} {x.val}")
@@ -128,9 +132,30 @@ def arrayCases : List Case := do
         .arrayGet 4 (.var 3) (.const (1 - k) (.uint 32)) ty], [.var 4], calls⟩ : Case)
   gets ++ sets
 
+/-- `enable_side_effects` on a `u1` parameter holding each of its edge-case
+values (the SSA validator rejects any other type). -/
+def enableCases : List Case :=
+  [⟨[(0, .uint 1)], [.enableSideEffects (.var 0)], [], (values (.uint 1)).map fun x => [x]⟩]
+
+/-- Every instruction side effects affect, behind `enable_side_effects v2`
+with `v2 = 0`: binary instructions on each type, `constrain !=`, and
+`array_set` at every position and one past the end. -/
+def disabledCases : List Case := do
+  let ty ← types
+  let off (body : List Instruction) (rets : List Operand) (calls : List (List ℕ)) : Case :=
+    ⟨[(0, ty), (1, ty), (2, .uint 1)], .enableSideEffects (.var 2) :: body, rets,
+      calls.map (· ++ [0])⟩
+  let mk : Instruction := .makeArray 3 [.var 0, .var 1] (.array [ty] 2)
+  let arrayCalls := [[1, 2], [0, 1]].map fun l => l.map fun k => (values ty).getD k 0
+  ((binaryOps ty).map fun (op, u) => off [.bin 3 op u (.var 0) (.var 1)] [.var 3] (pairs ty)) ++
+    [off [.constrainNe (.var 0) (.var 1) none] [] (pairs ty)] ++
+    [0, 1, 2].map fun k =>
+      off [mk, .arraySet 4 false (.var 3) (.const k (.uint 32)) (.var 1),
+        .arrayGet 5 (.var 4) (.const 0 (.uint 32)) ty] [.var 5] arrayCalls
+
 def render : String :=
-  String.join ((binaryCases ++ unaryCases ++ constrainCases ++ negativeCases ++ arrayCases).map
-    Case.lines)
+  String.join ((binaryCases ++ unaryCases ++ constrainCases ++ negativeCases ++ arrayCases ++
+    enableCases ++ disabledCases).map Case.lines)
 
 end AcirLean.SemanticsTable
 

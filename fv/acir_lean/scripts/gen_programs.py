@@ -142,6 +142,9 @@ def instr(line):
     if m:
         es = [f"({opnd(e)})" for e in split_top(m.group(2))]
         return f".makeArray {m.group(1)} {lean_list(es)} {pty(m.group(3))}"
+    m = re.fullmatch(r"enable_side_effects (.+)", l)
+    if m:
+        return f".enableSideEffects ({opnd(m.group(1))})"
     raise ValueError(f"instruction {l}")
 
 
