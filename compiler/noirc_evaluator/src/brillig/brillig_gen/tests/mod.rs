@@ -25,6 +25,7 @@ mod binary;
 mod black_box;
 mod call;
 mod coalescing;
+mod jmp;
 mod memory;
 mod spill;
 mod truncate;
