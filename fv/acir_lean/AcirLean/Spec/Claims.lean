@@ -108,12 +108,21 @@ def SignedOp (n : ℕ) (op : ℤ → ℤ → ℤ) : List ℕ → List ℕ → Pr
   | _, _ => False
 
 /-- Test programs in `testPrograms` that the claims leave out, with the reason:
-* `arithmetic_binary_operations` divides `Field`s, which the checker has no
-  rule for;
 * `regression_8519` truncates a `Field` to 128 bits, whose remainder bound
-  takes a shape the checker does not handle. -/
+  takes a shape the checker does not handle;
+* `regression_1144_1169_2399_6609`, `regression_3607`, `regression_6834`,
+  `regression_8261`, `regression_9971` and `signed_inactive_division_by_zero`
+  do checked arithmetic, `div` or `mod` while side effects may be disabled,
+  and the circuit constrains it in a shape the checker does not match yet
+  (split across an intermediate witness, or relying on a bit squared being
+  itself);
+* `regression_10008` constrains a value the checker finds no polynomial for;
+* `function_ref` returns a value whose polynomial equals the circuit's output
+  only once a bit squared is replaced by itself. -/
 def uncoveredPrograms : List String :=
-  ["arithmetic_binary_operations", "regression_8519"]
+  ["function_ref", "regression_10008", "regression_1144_1169_2399_6609", "regression_3607",
+   "regression_6834", "regression_8261", "regression_8519", "regression_9971",
+   "signed_inactive_division_by_zero"]
 
 /-- The whole promise, for every pinned width `n`:
 * `euclidean_division_var(a, b, n)` with `a`, `b` both `n`-bit computes

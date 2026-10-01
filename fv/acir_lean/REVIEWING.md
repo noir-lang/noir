@@ -327,19 +327,27 @@ inductive ValueType where
   | sint (n : ℕ)
 ```
 
-A value's type: `Field`, `u<n>` or `i<n>`.
+A scalar's type: `Field`, `u<n>` or `i<n>`.
+
+```lean
+inductive ParamType where
+  | scalar (t : ValueType)
+  | array (elems : List ValueType) (len : ℕ)
+```
+
+A parameter's type: a scalar, or an array. `array [u8] 5` is `[u8; 5]`, and `array [Field, u8] 3` is an array of three tuples, `[(Field, u8); 3]`. Arrays of arrays aren't covered; the data generator refuses them.
 
 ```lean
 inductive Operand where
   | var (id : ℕ)
-  | const (v : ℕ) (ty : ValueType)
+  | const (v : ℤ) (ty : ValueType)
 ```
 
-An operand: a variable `v12`, or a constant like `u32 7`. Constants are natural numbers only; the data generator refuses negative constants.
+An operand: a variable `v12`, or a constant like `u32 7` or `i8 -1`, holding the number as SSA prints it (`constVal` below turns it into a field element).
 
 ```lean
 inductive BinaryOp where
-  | add | sub | mul | div | mod | lt | eq
+  | add | sub | mul | div | mod | lt | eq | xor
 ```
 
 The binary operations covered.
@@ -351,15 +359,20 @@ inductive Instruction where
   | cast (dst : ℕ) (a : Operand) (ty : ValueType)
   | truncate (dst : ℕ) (a : Operand) (bits maxBits : ℕ)
   | constrain (a b : Operand) (msg : Option String)
+  | constrainNe (a b : Operand) (msg : Option String)
   | rangeCheck (a : Operand) (bits : ℕ) (msg : Option String)
+  | arrayGet (dst : ℕ) (a i : Operand) (ty : ValueType)
+  | arraySet (dst : ℕ) (isMut : Bool) (a i v : Operand)
+  | makeArray (dst : ℕ) (elems : List Operand) (ty : ParamType)
+  | enableSideEffects (c : Operand)
 ```
 
-The six kinds of instruction. Each has a doc comment showing its SSA text, for example ``v3 = unchecked_add v1, v2``.
+The eleven kinds of instruction. Each has a doc comment showing its SSA text, for example ``v3 = unchecked_add v1, v2``.
 
 ```lean
 structure Program where
   header : String
-  params : List (ℕ × ValueType)
+  params : List (ℕ × ParamType)
   body : List Instruction
   rets : List Operand
 ```
@@ -368,7 +381,7 @@ A function has a header line, typed parameters, a body, and the returned operand
 
 ### The printer (lines ~60–96)
 
-`ValueType.render`, `Operand.render`, `BinaryOp.name`, `msgSuffix`, `Instruction.render` and `Program.render` print the program back as SSA text, for example `"    v{d} = truncate {a} to {k} bits, max_bit_size: {m}"`. CI compares that text with what `nargo compile` actually printed, character by character.
+`ValueType.render`, `ParamType.render`, `Operand.render`, `BinaryOp.name`, `msgSuffix`, `Instruction.render` and `Program.render` print the program back as SSA text, for example `"    v{d} = truncate {a} to {k} bits, max_bit_size: {m}"`. CI compares that text with what `nargo compile` actually printed, character by character.
 **Check:** only that the printer is faithful. If a field were printed but ignored by the meaning below, a real difference could slip past. (Every field here is used.)
 
 ### The meaning
@@ -386,18 +399,43 @@ When a value "fits" its type:
 - a `u<n>` or `i<n>` value must be below 2^n. Signed values are stored as bit patterns, so -1 in `i8` is 255.
 
 ```lean
-abbrev Env := List (ℕ × (F × ValueType))
+def ParamType.flat : ParamType → List ValueType
+  | .scalar t => [t]
+  | .array ts n => (List.replicate n ts).flatten
 ```
 
-The program's state: a list of `(variable id, (value, type))`.
+The types of a parameter's scalars, in order. `[(Field, u8); 2]` flattens to `Field, u8, Field, u8`. This is also how SSA numbers an array's positions: element `i`'s field `j` of a `k`-field tuple is at `i * k + j`.
+
+```lean
+inductive Value where
+  | scalar (v : F × ValueType)
+  | array (xs : List (F × ValueType))
+
+abbrev Env := List (ℕ × Value)
+```
+
+A value is a scalar (a field element and its type) or an array (its scalars in that flat order). The program's state is a list of `(variable id, value)`.
+
+```lean
+def constVal : ValueType → ℤ → F
+  | .sint n, v => ((v % 2 ^ n).toNat : F)
+  | _, v => (v : F)
+```
+
+A constant's value. A signed constant becomes its two's-complement bit pattern: `i8 -1` is 255 and `i8 -128` is 128, the same way signed values are stored everywhere else. Any other constant is just the number, mod p. **Check:** that this is how Noir stores signed constants; `fv_semantics.rs` compares it with the interpreter for `-1` and the minimum of every signed type.
 
 ```lean
 def Operand.value (env : Env) : Operand → Option (F × ValueType)
-  | .var id => env.lookup id
-  | .const v ty => some ((v : F), ty)
 ```
 
-Reading an operand: look the variable up, or use the constant.
+Reading a scalar operand: look the variable up (it must hold a scalar), or use the constant. `Operand.array` reads an array operand the same way, and `Operand.flat` reads either kind as a list of field elements, which is what a returned value becomes in the circuit.
+
+```lean
+def arrayIndex (i : F × ValueType) (len : ℕ) : Option ℕ :=
+  if i.2 = .uint 32 ∧ i.1.val < len then some i.1.val else none
+```
+
+An array index must be a `u32` below the array's length, as in Noir's interpreter (which reads it with `as_u32` and fails past the end).
 
 ```lean
 def flag (b : Bool) : F × ValueType := (if b then 1 else 0, .uint 1)
@@ -426,6 +464,7 @@ def u1Apply (op : BinaryOp) (unchecked x y : Bool) : Option Bool :=
   | .mod => if y then some false else none
   | .lt => some (!x && y)
   | .eq => some (x == y)
+  | .xor => some (x ^^ y)
 ```
 
 Operations on `u1` values, treated as booleans, exactly as Noir's `interpret_u1_binary_op` does. `^^` is xor, `&&` and, `!` not. Note that unchecked `add` is xor (so `1 + 1` gives 0), checked `add` fails on `1 + 1`, and `sub` fails on `0 - 1` whether checked or not.
@@ -448,6 +487,7 @@ def BinaryOp.apply (op : BinaryOp) (unchecked : Bool) (x y : F) :
   - **Checked `add`, `sub`, `mul`** compute the same field result and fail unless it fits in n bits. So `sub` fails when `y > x`, and `add`/`mul` fail on overflow. A checked `u128` `mul` also fails when the product of the two values reaches `2^128`, a check Noir adds because that product could otherwise wrap around p and land back in range.
   - **`div` and `mod`** use the operands' low n bits (`lowBits`) and fail on a zero divisor.
   - **`lt` and `eq`** compare the low n bits and give 1 or 0.
+- **`xor`** is defined on `u1` only, through `u1Apply`. Noir's interpreter also defines it bitwise on wider integers, but ACIR computes that with a black-box function this spec doesn't model, so it fails here.
 - **`i<n>`:** unchecked `add`/`sub`/`mul` (field arithmetic, as above) and `eq` on the low n bits. Noir's interpreter also defines signed checked arithmetic, `div`, `mod` and `lt`, but the `expand_signed_math` pass rewrites all of them into unsigned operations before the SSA reaches ACIR, so this definition leaves them out: a program using them would fail here, and CI would report it.
 
 `fieldArith` above is just the `add`/`sub`/`mul` part, shared by the integer cases.
@@ -465,34 +505,68 @@ Running one instruction:
 - **`cast`:** keep the value and change the type, without checking that it fits, exactly like Noir. A value that doesn't fit its new type is later brought into range by a `truncate`.
 - **`truncate`:** keep the low `bits` bits: `x mod 2^bits`, so truncating to 0 bits gives 0. Otherwise, like Noir, it fails for a `u1` above 1.
 - **`constrain a == b`:** fail unless `a = b`.
+- **`constrain a != b`:** fail if `a = b`.
 - **`range_check a to k bits`:** fail unless `a < 2^k`. Like Noir, it also fails for 0 bits and for a `u1` above 1.
+- **`array_get a, index i`:** read the scalar at position `i`; fail if `arrayIndex` does.
+- **`array_set a, index i, value v`:** a copy of `a` with position `i` replaced by `v`; fail if `arrayIndex` does. In an ACIR function arrays are values, so `mut` doesn't change the result.
+- **`make_array [..]`:** the array of the listed scalars.
+- **`enable_side_effects`:** does nothing here; `Instruction.step` below handles it.
 
-**Check each against Noir's SSA interpreter.** In particular, `not`, `truncate` and the overflow rules. You don't have to do this alone: `EmitSemantics.lean` runs `Instruction.run` on a grid of edge-case values for every instruction and type, and the Rust test `fv_semantics.rs` fails unless Noir's interpreter gives the same result on every one (see "How the SSA meaning stays attached to Noir" in `README.md`). What the test cannot tell you is whether the grid is wide enough, so glance at `values` in `EmitSemantics.lean` too.
+**Check each against Noir's SSA interpreter.** In particular, `not`, `truncate` and the overflow rules. You don't have to do this alone: `EmitSemantics.lean` runs every instruction on a grid of edge-case values for every instruction and type, and the Rust test `fv_semantics.rs` fails unless Noir's interpreter gives the same result on every one (see "How the SSA meaning stays attached to Noir" in `README.md`). What the test cannot tell you is whether the grid is wide enough, so glance at `values` in `EmitSemantics.lean` too.
 
 ```lean
+def BinaryOp.predicated (op : BinaryOp) (unchecked : Bool) (ty : ValueType) : Bool :=
+  match op with
+  | .add | .sub | .mul => !unchecked && ty != .field
+  | .div | .mod => true
+  | _ => false
+```
+
+The binary operations that side effects affect: checked `add`, `sub` and `mul` on integers, and `div` and `mod` on any type. This is Noir's `requires_acir_gen_predicate` for the operations the spec has. **Check:** against that function in `compiler/noirc_evaluator/src/ssa/ir/instruction.rs`.
+
+```lean
+def Instruction.step (s : Env × Bool) (i : Instruction) : Option (Env × Bool) :=
+```
+
+`Instruction.run` with Noir's side-effects flag, the `Bool` in the state. Noir compiles `if`/`else` by running both branches, and turns the flag off for the branch that isn't taken, so its failures don't count:
+
+- **`enable_side_effects c`** sets the flag to `c`, which must be a `u1` holding 0 or 1.
+- **While the flag is off:**
+  - an affected binary operation (`predicated`) gives 0 of its type instead of running;
+  - `constrain a != b` does nothing;
+  - `array_set` returns the array unchanged.
+- **Everything else runs as `Instruction.run` says, whatever the flag.** That includes `constrain a == b` and `range_check`: Noir enforces them even in a branch that isn't taken, because the compiler has already rewritten them to hold trivially there.
+
+**Check:** against `side_effects_enabled` and `interpret_instruction` in `compiler/noirc_evaluator/src/ssa/interpreter/mod.rs`. The comparison test covers this too: the grid runs every affected instruction with the flag off.
+
+```lean
+def bindParams : List (ℕ × ParamType) → List F → Env
+def Program.inputTypes (P : Program) : List ValueType := P.params.flatMap (·.2.flat)
 def Program.eval (P : Program) (ins : List F) : Option (List F) := do
-  let env0 : Env := (P.params.zip ins).map fun ((id, ty), x) => (id, (x, ty))
-  let env ← P.body.foldlM Instruction.run env0
-  P.rets.mapM fun o => (o.value env).map Prod.fst
+  let (env, _) ← P.body.foldlM Instruction.step (bindParams P.params ins, true)
+  let outs ← P.rets.mapM (·.flat env)
+  some outs.flatten
 ```
 
 Running a whole program:
 
-1. bind each parameter to its input;
-2. run the instructions in order, stopping as soon as one fails;
-3. read the return values.
+1. bind the parameters to the inputs (`bindParams`): each parameter takes as many inputs as it has scalars, in order, so an array parameter `[u8; 3]` takes the next three;
+2. run the instructions in order with `Instruction.step`, side effects on at the start, stopping as soon as one fails;
+3. read the return values, flattened the same way.
+
+`inputTypes` lists the scalar type of every input, in the same order.
 
 ```lean
 def ProgramSpec (P : Program) : List ℕ → List ℕ → Prop := fun ins outs =>
-  ins.length = P.params.length ∧
-    (∀ e ∈ P.params.zip ins, e.1.2.fits (e.2 : F) = true) ∧
+  ins.length = P.inputTypes.length ∧
+    (∀ e ∈ P.inputTypes.zip ins, e.1.fits (e.2 : F) = true) ∧
     ∃ vs, P.eval (ins.map fun x => (x : F)) = some vs ∧ outs = vs.map ZMod.val
 ```
 
 **The promise for the real test programs.** For the circuit's input values and output values:
 
-1. there is one input per parameter;
-2. every input fits its parameter's type;
+1. there is one input per parameter scalar (an array parameter has one input per element);
+2. every input fits its scalar's type;
 3. the program runs to the end without failing (no overflow, no zero divisor, no failed `constrain`), and the circuit's outputs equal the program's return values.
 
 This is the same shape as `CorpusSpec`, just for richer programs.
@@ -691,7 +765,9 @@ The spec for signed `/` and `%`. It requires:
 
 ```lean
 def uncoveredPrograms : List String :=
-  ["arithmetic_binary_operations", "regression_8519"]
+  ["function_ref", "regression_10008", "regression_1144_1169_2399_6609", "regression_3607",
+   "regression_6834", "regression_8261", "regression_8519", "regression_9971",
+   "signed_inactive_division_by_zero"]
 ```
 
 The test programs deliberately left out of the claim, each with its reason in the comment above. **Check:** that the reasons are acceptable, and that the list doesn't grow silently in future PRs.

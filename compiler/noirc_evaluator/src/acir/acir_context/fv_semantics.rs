@@ -1,5 +1,5 @@
 //! Pins the meaning of SSA instructions assumed by the Lean proofs
-//! (`Instruction.run` in `fv/acir_lean/AcirLean/Spec/SsaSemantics.lean`) against Noir's
+//! (`Instruction.step` in `fv/acir_lean/AcirLean/Spec/SsaSemantics.lean`) against Noir's
 //! SSA interpreter. `ssa_semantics.golden` is produced by `EmitSemantics.lean`: each
 //! one-instruction function followed by the calls made to it and the result Lean
 //! computes. Every call is replayed here through the interpreter, and the test fails
@@ -67,7 +67,7 @@ fn outcome(ssa: &Ssa, args: Vec<Value>) -> String {
     }
 }
 
-/// `b0(v0: T, ...): <instruction>; ...; return ...` as a one-block ACIR function,
+/// `b0(v0: T, ...): <instruction> | ... | return ...` as a one-block ACIR function,
 /// or why the SSA parser or validator rejects it.
 fn parse(line: &str) -> Result<(Ssa, Vec<NumericType>), String> {
     let (block, rest) = line.split_once("): ").unwrap();
@@ -77,7 +77,7 @@ fn parse(line: &str) -> Result<(Ssa, Vec<NumericType>), String> {
     } else {
         params.split(", ").map(|p| numeric_type(p.split_once(": ").unwrap().1)).collect()
     };
-    let body = rest.split("; ").map(|line| format!("    {line}\n")).collect::<String>();
+    let body = rest.split(" | ").map(|line| format!("    {line}\n")).collect::<String>();
     let src = format!("acir(inline) fn main f0 {{\n  {block}):\n{body}}}\n");
     match quietly(|| Ssa::from_str(&src)) {
         Ok(Ok(ssa)) => Ok((ssa, types)),
@@ -137,7 +137,7 @@ fn ssa_meaning_in_lean_matches_the_interpreter() {
     assert!(
         mismatches.is_empty(),
         "The Lean meaning of {} of {calls} SSA calls differs from Noir's SSA interpreter.\n\
-         Fix `Instruction.run` in fv/acir_lean/AcirLean/Spec/SsaSemantics.lean (and the proofs), \
+         Fix `Instruction.run` or `Instruction.step` in fv/acir_lean/AcirLean/Spec/SsaSemantics.lean (and the proofs), \
          then regenerate with `lake env lean --run EmitSemantics.lean ssa_semantics.golden`.\n\n{}",
         mismatches.len(),
         mismatches.iter().take(30).cloned().collect::<Vec<_>>().join("\n")
