@@ -5,7 +5,7 @@ of `fv_templates.rs`; `templates.golden` (printed from this data by
 `nargo compile` ships. `scripts/check.sh` allows only plain definitions here.
 -/
 
-import AcirLean.Spec.Programs
+import AcirLean.Spec.Corpus
 
 namespace AcirLean
 

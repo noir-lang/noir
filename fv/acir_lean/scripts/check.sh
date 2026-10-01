@@ -41,8 +41,8 @@ imports_outside() {
 }
 bad=$(imports_outside AcirLean/Spec '^(Mathlib(\..*)?|AcirLean\.Spec\..*|AcirLean\.Templates\..*)$')
 [ -z "$bad" ] || fail "AcirLean/Spec imports unreviewed modules: $bad"
-bad=$(imports_outside AcirLean/Templates '^(Mathlib(\..*)?|AcirLean\.Spec\.(Semantics|Ssa|Programs|Programs2)|AcirLean\.Templates\..*)$')
-[ -z "$bad" ] || fail "AcirLean/Templates imports modules other than Mathlib, Spec.Semantics, Spec.Ssa, Spec.Programs, Spec.Programs2 and Templates: $bad"
+bad=$(imports_outside AcirLean/Templates '^(Mathlib(\..*)?|AcirLean\.Spec\.(Semantics|Ssa|Corpus|SsaSemantics)|AcirLean\.Templates\..*)$')
+[ -z "$bad" ] || fail "AcirLean/Templates imports modules other than Mathlib, Spec.Semantics, Spec.Ssa, Spec.Corpus, Spec.SsaSemantics and Templates: $bad"
 
 python3 scripts/check_templates.py
 

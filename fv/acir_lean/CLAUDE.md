@@ -32,7 +32,7 @@ the explanation of anything you change.
 
 ## The SSA meaning must match Noir
 
-`AcirLean/Spec/Programs2.lean` says what each SSA instruction does. It must
+`AcirLean/Spec/SsaSemantics.lean` says what each SSA instruction does. It must
 agree with Noir's SSA interpreter
 (`compiler/noirc_evaluator/src/ssa/interpreter/`) for ACIR functions. It may
 fail where the interpreter succeeds, which only makes a program unprovable, but

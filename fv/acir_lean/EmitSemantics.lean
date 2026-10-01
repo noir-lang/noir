@@ -1,6 +1,6 @@
 /-
 REVIEWED: trusted entry point. Writes `ssa_semantics.golden`: what
-`Instruction.run` (`AcirLean/Spec/Programs2.lean`) computes for every
+`Instruction.run` (`AcirLean/Spec/SsaSemantics.lean`) computes for every
 instruction kind, on every type, over a fixed grid of edge-case values. The
 Rust test `fv_semantics.rs` runs each line through Noir's SSA interpreter and
 fails unless the interpreter gives the same result, so the reviewed meaning of
@@ -13,7 +13,7 @@ and `not` on `Field`, and a narrowing `cast` that is not preceded by a
 `truncate` to the destination's width.
 -/
 
-import AcirLean.Spec.Programs2
+import AcirLean.Spec.SsaSemantics
 
 namespace AcirLean.SemanticsTable
 

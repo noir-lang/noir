@@ -5,7 +5,7 @@ nothing here can change what `AcirLean/Spec/Claims.lean` states.
 
 import AcirLean.Proofs.Checker
 import AcirLean.Proofs.SignedDivMod
-import AcirLean.Spec.Programs2
+import AcirLean.Spec.SsaSemantics
 
 /-!
 # The checker for scalar programs

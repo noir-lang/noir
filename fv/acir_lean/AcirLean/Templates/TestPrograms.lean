@@ -5,7 +5,7 @@ final SSA and the shipped circuits of `test_programs/execution_success`;
 `test_programs.golden`, and allows only plain definitions here.
 -/
 
-import AcirLean.Spec.Programs2
+import AcirLean.Spec.SsaSemantics
 
 namespace AcirLean
 

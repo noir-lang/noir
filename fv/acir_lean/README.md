@@ -35,7 +35,7 @@ three standard axioms. `check.sh` additionally fails if:
   no keyword other than `def` and `abbrev` declares anything, and no definition
   has a dotted name such as `Int.tdiv` that could stand in for one the claims
   use), or imports anything beyond `Templates/`, `Spec/Semantics.lean`,
-  `Spec/Ssa.lean`, `Spec/Programs.lean`, `Spec/Programs2.lean` and Mathlib;
+  `Spec/Ssa.lean`, `Spec/Corpus.lean`, `Spec/SsaSemantics.lean` and Mathlib;
 - any file, `lakefile.toml` included, uses `sorry`, `admit`, `axiom`,
   `native_decide`, `unsafe`, `implemented_by`, `@[extern` or a kernel-check
   bypass, or `lakefile.toml` passes options to Lean;
@@ -95,7 +95,7 @@ explains it line by line; the short version of the notation:
     witness satisfying the circuit, the inputs fit their parameter types, the
     final SSA runs without failing on them (no overflow, no zero divisor, no
     failed `constrain` or `range_check`), and the circuit's return witnesses
-    hold what it returns (`ProgramSpec` in `Spec/Programs2.lean`); and the
+    hold what it returns (`ProgramSpec` in `Spec/SsaSemantics.lean`); and the
     witness `nargo execute` solves from its `Prover.toml` satisfies that
     circuit, so the claim cannot hold just because the circuit is
     contradictory.
@@ -215,7 +215,7 @@ provable. An unsound change cannot be (see `Examples/Bug7895.lean`).
 
 ## How the SSA meaning stays attached to Noir
 
-`Spec/Programs2.lean` states by hand what each SSA instruction computes, and
+`Spec/SsaSemantics.lean` states by hand what each SSA instruction computes, and
 every claim about a test program rests on it. A mistake there would make the
 proofs prove the wrong thing, so it is tested against Noir's own reference
 semantics, the SSA interpreter:

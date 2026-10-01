@@ -4,7 +4,7 @@ nothing here can change what `AcirLean/Spec/Claims.lean` states.
 -/
 
 import AcirLean.Proofs.Canon
-import AcirLean.Spec.Programs
+import AcirLean.Spec.Corpus
 import AcirLean.Templates.Corpus
 
 /-!

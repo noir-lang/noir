@@ -250,7 +250,7 @@ The rest of the file (`IntType.render`, `SsaOperand.render`, `SsaBinOp.render`, 
 
 ---
 
-## Part 3 — `Programs.lean`: small `div`/`lt` programs (~70 lines)
+## Part 3 — `Corpus.lean`: small `div`/`lt` programs (~70 lines)
 
 This file is for the 66-program "corpus": straight-line programs of `u<n>` division and comparison.
 
@@ -314,7 +314,7 @@ Each corpus entry is a program, the circuit the compiler shipped for it, and the
 
 ---
 
-## Part 4 — `Programs2.lean`: what real SSA programs mean (~190 lines)
+## Part 4 — `SsaSemantics.lean`: what real SSA programs mean (~190 lines)
 
 **This is the file most worth a careful read.** It defines the meaning of the SSA for the real test programs. If an instruction's meaning here is wrong, the proof proves the wrong thing.
 
@@ -746,7 +746,7 @@ Lean prints every axiom the proof relies on, and `#guard_msgs` fails the build u
 ## Review checklist: what to actually look for
 
 1. **Semantics.** Are `p`, `Range`, `Opcode.Holds` and `AllHold` the true meaning of ACIR `AssertZero` and `RANGE`?
-2. **SSA meaning** (`Programs2.lean`, `Programs.lean`, `Ssa.lean`). Does each instruction mean what Noir means?
+2. **SSA meaning** (`SsaSemantics.lean`, `Programs.lean`, `Ssa.lean`). Does each instruction mean what Noir means?
    - The only place Lean leaves something undefined that Noir defines is signed checked arithmetic, `div`, `mod` and `lt`, which never reach ACIR. Failing there is safe: it can only make a program unprovable, and CI says so.
    - Where it's *looser* or *different*, that's a bug to flag.
 3. **Specs** (`Claims.lean`). Does each spec say what you'd want it to? Look for:

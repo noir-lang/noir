@@ -202,7 +202,7 @@ def main():
                 "final SSA and the shipped circuits of `test_programs/execution_success`;\n"
                 "`scripts/check.sh` requires Lean's printout of this data to equal\n"
                 "`test_programs.golden`, and allows only plain definitions here.\n-/\n\n"
-                "import AcirLean.Spec.Programs2\n\nnamespace AcirLean\n\n")
+                "import AcirLean.Spec.SsaSemantics\n\nnamespace AcirLean\n\n")
         f.write("\n".join(entries))
         f.write("\ndef testPrograms : List TestProgram := [" +
                 ", ".join(f"prog{i}" for i in range(len(entries))) + "]\n\nend AcirLean\n")
