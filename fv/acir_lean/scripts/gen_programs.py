@@ -197,12 +197,11 @@ def circuits(path):
 
 
 def lean_fn(lines):
+    lines = [l for l in lines if l != "solved" and not l.startswith("witness ")]
     if len(lines) > MAX_OPCODES + 2:
         raise ValueError(f"more than {MAX_OPCODES} opcodes")
     cs = []
     for line in lines:
-        if line == "solved" or line.startswith("witness "):
-            continue
         if line.startswith("range "):
             _, w, k = line.split()
             cs.append(f".range {w} {k}")
@@ -252,11 +251,13 @@ def main():
             continue
         idx = len(entries)
         entries.append(
+            f"def witness{idx} : List (ℕ × ℕ) :=\n"
+            f"  {lean_list([f'({w}, {v})' for w, v in witness])}\n\n"
             f"def prog{idx} : TestProgram where\n"
             f"  name := \"{name}\"\n"
             f"  prog := {{ header := \"{header}\", params := [{', '.join(params)}], body := {lean_list(body)}, rets := [{', '.join(f'({r})' for r in rets)}] }}\n"
             f"  fn := {fn}\n"
-            f"  witness := [{', '.join(f'({w}, {v})' for w, v in witness)}]\n"
+            f"  witness := witness{idx}\n"
         )
         names.append(name)
         expected.append(f"# program {name}")
