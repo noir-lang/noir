@@ -1987,6 +1987,83 @@ fn globals_are_not_shared_between_brillig_invocations() {
     assert_eq!(result, vec![Value::u32(12), Value::u32(12)]);
 }
 
+/// An `acir(fold)` function is compiled to its own circuit, which materializes its array
+/// parameters as fresh witnesses, so the `array_set mut` that Mutable Array Set Optimizations
+/// places on a fold parameter must not reach the caller's array.
+#[test]
+fn acir_entry_point_owns_its_array_arguments() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0():
+        v0 = make_array [u32 1, u32 2, u32 3] : [u32; 3]
+        v1 = call f1(v0) -> [u32; 3]
+        v2 = call f1(v0) -> [u32; 3]
+        return v0, v1, v2
+    }
+    acir(fold) fn g f1 {
+      b0(v0: [u32; 3]):
+        v1 = array_get v0, index u32 0 -> u32
+        v2 = add v1, u32 5
+        v3 = array_set mut v0, index u32 0, value v2
+        return v3
+    }
+    ";
+    let values = expect_values(src);
+    let unchanged = from_u32_vector(&[1, 2, 3], NumericType::unsigned(32));
+    let written = from_u32_vector(&[6, 2, 3], NumericType::unsigned(32));
+    assert_eq!(values, vec![unchanged, written.clone(), written]);
+}
+
+/// Each ACIR circuit materializes its own copy of the globals, so an in-place write to a
+/// global in `main` must not be visible to an `acir(fold)` callee that reads the same global.
+#[test]
+fn constrained_in_place_write_to_global_is_not_visible_to_fold_callee() {
+    let src = "
+    g0 = make_array [Field 1, Field 2] : [Field; 2]
+    acir(inline) fn main f0 {
+      b0(v0: u32, v1: Field):
+        v2 = array_set mut g0, index v0, value v1
+        v3 = call f1(v0) -> Field
+        v4 = array_get v2, index v0 -> Field
+        return v3, v4
+    }
+    acir(fold) fn f f1 {
+      b0(v0: u32):
+        v1 = array_get g0, index v0 -> Field
+        return v1
+    }
+    ";
+    let values = expect_values_with_args(src, vec![Value::u32(1), Value::field(50_u128.into())]);
+    assert_eq!(values, vec![Value::field(2_u128.into()), Value::field(50_u128.into())]);
+}
+
+/// Both a Brillig call and an `acir(fold)` call hand back freshly materialized outputs, so
+/// a callee returning the same array twice gives its constrained caller two independent arrays.
+#[test]
+fn call_results_crossing_an_entry_point_boundary_do_not_alias() {
+    for callee in ["brillig(inline)", "acir(fold)"] {
+        let src = format!(
+            "
+        acir(inline) fn main f0 {{
+          b0(v0: u32, v1: u32):
+            v2 = make_array [u32 1, u32 2, u32 3] : [u32; 3]
+            v3, v4 = call f1(v2) -> ([u32; 3], [u32; 3])
+            v5 = array_set mut v3, index v0, value v1
+            return v5, v4
+        }}
+        {callee} fn dup f1 {{
+          b0(v0: [u32; 3]):
+            return v0, v0
+        }}
+        "
+        );
+        let values = expect_values_with_args(&src, vec![Value::u32(1), Value::u32(50)]);
+        let written = from_u32_vector(&[1, 50, 3], NumericType::unsigned(32));
+        let unchanged = from_u32_vector(&[1, 2, 3], NumericType::unsigned(32));
+        assert_eq!(values, vec![written, unchanged], "callee runtime: {callee}");
+    }
+}
+
 #[test]
 fn allow_empty_zst_array() {
     let src = r#"  
