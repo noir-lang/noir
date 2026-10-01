@@ -15,7 +15,7 @@ use super::{LockType, PackageOptions, WorkspaceCommand};
 use crate::cli::execute_cmd::interpret::run_comptime;
 use crate::errors::CliError;
 
-mod interpret;
+pub(crate) mod interpret;
 
 /// Executes a circuit to calculate its return value
 #[derive(Debug, Clone, Args)]

@@ -210,7 +210,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let mut instantiation_bindings = self.bindings(&instantiation_bindings);
         resolve_type_bindings(&mut instantiation_bindings);
 
-        self.elaborator.push_interpreter_call_stack(location)?;
+        self.elaborator.push_interpreter_call_stack(location, self.current_function)?;
 
         let impl_bindings = match compute_impl_bindings(
             self.elaborator.interner,
@@ -377,6 +377,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             // Ignore debugger functions
             } else if oracle.starts_with("__debug") {
                 Ok(Value::Unit)
+            } else if let Some(mut executor) = self.elaborator.comptime_oracle_executor.take() {
+                let args = arguments.into_iter().map(|(v, _)| v).collect();
+                let result = executor.execute_oracle(oracle, args, &return_type, location);
+                self.elaborator.comptime_oracle_executor = Some(executor);
+                result
             } else {
                 let item = format!("Comptime evaluation for oracle functions like '{oracle}'");
                 Err(InterpreterError::Unimplemented { item, location })
@@ -406,7 +411,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         arguments: Vec<(Value, Location)>,
         call_location: Location,
     ) -> IResult<Value> {
-        self.elaborator.push_interpreter_call_stack(call_location)?;
+        self.elaborator.push_interpreter_call_stack(call_location, self.current_function)?;
 
         // Resolve the closure body in the scope of the function it was originally evaluated in.
         self.in_module(closure.module_scope, |this| {
@@ -1396,6 +1401,19 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             return Err(InterpreterError::SkippedDueToEarlierErrors);
         }
 
+        if let Some(mut debugger) = self.elaborator.comptime_debugger.take() {
+            let context = super::DebugContext {
+                location: self.elaborator.interner.id_location(statement),
+                interner: self.elaborator.interner,
+                files: self.elaborator.files,
+                call_stack: self.elaborator.interpreter_call_stack(),
+                current_function: self.current_function,
+                call_stack_functions: self.elaborator.interpreter_call_stack_functions(),
+            };
+            debugger.on_statement(context);
+            self.elaborator.comptime_debugger = Some(debugger);
+        }
+
         match self.elaborator.interner.statement(&statement) {
             HirStatement::Let(let_) => self.evaluate_let(let_),
             HirStatement::Assign(assign) => self.evaluate_assign(assign),
@@ -1976,6 +1994,27 @@ impl Context<'_, '_> {
         main_id: FuncId,
         args: Vec<(Value, Location)>,
     ) -> IResult<Value> {
+        self.interpret_function_inner(main_id, args, None, None)
+    }
+
+    /// Like `interpret_function`, but with a debugger and optional oracle executor attached.
+    pub fn interpret_function_with_debugger<'a>(
+        &'a mut self,
+        main_id: FuncId,
+        args: Vec<(Value, Location)>,
+        debugger: Box<dyn super::ComptimeDebugger + 'a>,
+        oracle_executor: Option<Box<dyn super::ComptimeOracleExecutor + 'a>>,
+    ) -> IResult<Value> {
+        self.interpret_function_inner(main_id, args, Some(debugger), oracle_executor)
+    }
+
+    fn interpret_function_inner<'a>(
+        &'a mut self,
+        main_id: FuncId,
+        args: Vec<(Value, Location)>,
+        debugger: Option<Box<dyn super::ComptimeDebugger + 'a>>,
+        oracle_executor: Option<Box<dyn super::ComptimeOracleExecutor + 'a>>,
+    ) -> IResult<Value> {
         let func_meta = self.def_interner.function_meta(&main_id);
         let crate_id = func_meta.source_crate;
         let local_id = func_meta.source_module;
@@ -1991,6 +2030,8 @@ impl Context<'_, '_> {
         let module_id = ModuleId { krate: crate_id, local_id };
 
         let mut elaborator = Elaborator::from_context(self, crate_id, cli_options);
+        elaborator.comptime_debugger = debugger;
+        elaborator.comptime_oracle_executor = oracle_executor;
         elaborator.setup_interpreter_for(module_id, |interpreter| {
             let instantiation_bindings = TypeBindings::default();
             interpreter.call_function(main_id, args, instantiation_bindings, location)
