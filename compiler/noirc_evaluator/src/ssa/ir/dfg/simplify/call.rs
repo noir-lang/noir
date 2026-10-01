@@ -1500,6 +1500,7 @@ mod tests {
         acir(inline) fn main func {
           b0(v0: u32):
             v1 = make_array [Field 3, Field 4] : [Field]
+            constrain u1 0 == u1 1
             v10, v11 = call vector_insert(u32 2, v1, u32 3, Field 2) -> (u32, [Field])
             return v10, v11
         }

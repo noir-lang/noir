@@ -213,6 +213,8 @@ mod tests {
             store Field 10 at v1
             store Field 20 at v2
             v3 = make_array [v1, v2] : [&mut Field]
+            v8 = lt v0, u32 2
+            constrain v8 == u1 1
             v4, v5, v6 = call vector_remove(u32 2, v3, v0) -> (u32, [&mut Field], &mut Field)
             store Field 77 at v2
             v7 = load v6 -> Field
@@ -234,6 +236,8 @@ mod tests {
             store Field 10 at v1
             store Field 20 at v2
             v3 = make_array [v1, v2] : [&mut Field]
+            v6 = lt v0, u32 3
+            constrain v6 == u1 1
             v4, v5 = call vector_insert(u32 2, v3, v0, v1) -> (u32, [&mut Field])
             return u1 0
         }"#;

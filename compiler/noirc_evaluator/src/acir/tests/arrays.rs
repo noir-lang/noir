@@ -92,6 +92,8 @@ fn zero_width_array_set_result_must_not_observe_a_later_mutable_set() {
         v4 = add v0, Field 1
         v5 = make_array [v0, v3, v4, v3] : [(Field, [Field; 0])]
         v6 = add v0, Field 2
+        v12 = lt v2, u32 3
+        constrain v12 == u1 1
         v7, v8 = call vector_insert(u32 2, v5, v2, v6, v3) -> (u32, [(Field, [Field; 0])])
         v9 = array_set v8, index u32 3, value v3
         v10 = array_set mut v8, index u32 0, value v1

@@ -847,6 +847,8 @@ mod tests {
             r#"
             brillig(inline) fn mutator f0 {{
               b0(v0: u32, v1: [Field]):
+                v6 = lt u32 0, v0
+                constrain v6 == u1 1
                 {call}
                 return
             }}

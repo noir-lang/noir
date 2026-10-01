@@ -40,11 +40,23 @@ fn ssa_to_acir_program_with_debug_info(src: &str) -> (Program<FieldElement>, Vec
     try_ssa_to_acir(src).expect("Should compile manually written SSA into ACIR")
 }
 
+/// Like [`ssa_to_acir_program`], for SSA that is only valid between passes
+/// (see [`Ssa::from_str_after_passes`]).
+fn ssa_after_passes_to_acir_program(src: &str) -> Program<FieldElement> {
+    let ssa = Ssa::from_str_after_passes(src).unwrap();
+    try_parsed_ssa_to_acir(ssa).expect("Should compile manually written SSA into ACIR").0
+}
+
 /// Attempts to convert SSA to ACIR, returning the error if compilation fails.
 pub(crate) fn try_ssa_to_acir(
     src: &str,
 ) -> Result<(Program<FieldElement>, Vec<DebugInfo>), RuntimeError> {
-    let ssa = Ssa::from_str(src).unwrap();
+    try_parsed_ssa_to_acir(Ssa::from_str(src).unwrap())
+}
+
+fn try_parsed_ssa_to_acir(
+    ssa: Ssa,
+) -> Result<(Program<FieldElement>, Vec<DebugInfo>), RuntimeError> {
     let arg_size_and_visibilities = ssa
         .functions
         .iter()

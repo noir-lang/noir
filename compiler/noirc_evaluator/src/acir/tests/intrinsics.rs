@@ -1,6 +1,6 @@
 use acvm::assert_circuit_snapshot;
 
-use crate::acir::tests::{ssa_to_acir_program, try_ssa_to_acir};
+use crate::acir::tests::{ssa_after_passes_to_acir_program, ssa_to_acir_program, try_ssa_to_acir};
 
 #[test]
 fn vector_push_back_known_length() {
@@ -647,7 +647,8 @@ fn vector_insert_no_predicate() {
         return
     }
     ";
-    let program = ssa_to_acir_program(src);
+    // No bounds check precedes the call, so the circuit only holds what `vector_insert` lowers to.
+    let program = ssa_after_passes_to_acir_program(src);
 
     // Insert does comparisons on every index for the value that should be written into the resulting vector
     //
@@ -741,7 +742,8 @@ fn vector_remove() {
         return
     }
     ";
-    let program = ssa_to_acir_program(src);
+    // No bounds check precedes the call, so the circuit only holds what `vector_remove` lowers to.
+    let program = ssa_after_passes_to_acir_program(src);
 
     // Remove does comparisons on every index for the value that should be written into the resulting vector
     // You can see how w1 is asserted to equal 2
@@ -1053,8 +1055,9 @@ fn vector_insert_affected_by_predicate() {
     }
     ";
 
-    let program_side_effects = ssa_to_acir_program(src_side_effects);
-    let program_no_side_effects = ssa_to_acir_program(src_no_side_effects);
+    // Neither program checks the insert index `v0` against the vector length.
+    let program_side_effects = ssa_after_passes_to_acir_program(src_side_effects);
+    let program_no_side_effects = ssa_after_passes_to_acir_program(src_no_side_effects);
     assert_ne!(program_side_effects, program_no_side_effects);
 }
 
@@ -1074,6 +1077,8 @@ fn vector_insert_after_dynamic_read_of_non_homogenous_vector() {
         v19 = unchecked_mul v1, u32 2
         v20 = array_get v14, index v19 -> Field
         v23 = make_array [Field 11, Field 12] : [Field; 2]
+        v25 = lt v0, u32 4
+        constrain v25 == u1 1
         v28, v29 = call vector_insert(u32 3, v14, v0, Field 10, v23) -> (u32, [(Field, [Field; 2])])
         return
     }
@@ -1172,8 +1177,9 @@ fn vector_remove_affected_by_predicate() {
     }
     ";
 
-    let program_side_effects = ssa_to_acir_program(src_side_effects);
-    let program_no_side_effects = ssa_to_acir_program(src_no_side_effects);
+    // Index 1 is out of bounds for the 1-element vector, which only a disabled predicate allows.
+    let program_side_effects = ssa_after_passes_to_acir_program(src_side_effects);
+    let program_no_side_effects = ssa_after_passes_to_acir_program(src_no_side_effects);
     assert_ne!(program_side_effects, program_no_side_effects);
 }
 

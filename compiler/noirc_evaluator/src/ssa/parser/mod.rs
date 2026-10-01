@@ -59,6 +59,16 @@ impl Ssa {
         Self::from_str_impl(src, false, false, false)
     }
 
+    /// Creates an Ssa object from the given string, validating it only against the rules that must
+    /// hold between passes. For SSA in a shape only an optimization pass produces, such as
+    /// flattened SSA or SSA consumed by ACIR generation.
+    #[cfg(test)]
+    pub(crate) fn from_str_after_passes(src: &str) -> Result<Ssa, SsaErrorWithSource> {
+        let ssa = Self::from_str_no_validation(src)?;
+        crate::ssa::ssa_gen::validate_ssa(&ssa, false);
+        Ok(ssa)
+    }
+
     /// Creates an Ssa object from the given string but trying to simplify
     /// each parsed instruction as it's inserted into the final SSA.
     ///

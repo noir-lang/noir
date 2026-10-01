@@ -9,6 +9,9 @@
 //!   followed by a corresponding truncate instruction with the expected bit sizes.
 //! - That every narrowing cast is preceded by an instruction proving the value
 //!   being cast fits into the destination type.
+//! - That every `vector_insert` / `vector_remove` (and Brillig `vector_pop_back` /
+//!   `vector_pop_front`) is preceded by a bounds check on its index or length, or has
+//!   arguments known to be in range (see [`vector_bounds`]).
 //! - That neither a `Truncate` nor a checked signed add/sub/mul consumes the result of an
 //!   unchecked signed `Sub` (which may have underflowed to a field-negative value).
 //!
@@ -35,6 +38,7 @@ pub(crate) mod dynamic_array_indices;
 pub(crate) mod flatten_post_check;
 #[cfg(debug_assertions)]
 pub(crate) mod rc_invariant;
+mod vector_bounds;
 
 use crate::ssa::{
     ir::{
@@ -1274,6 +1278,12 @@ impl<'f> Validator<'f> {
                 self.check_calls_in_constrained(*instruction);
             }
             validate_block_terminator(self.function, block);
+        }
+
+        // Like the narrowing-cast guard, bounds checks are a property of generated/simplified
+        // SSA that passes may legitimately rewrite into shapes this rule does not recognise.
+        if self.full {
+            vector_bounds::validate_vector_bounds_guards(self.function);
         }
     }
 
