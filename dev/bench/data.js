@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790851373942,
+  "lastUpdate": 1790872845629,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22986,48 +22986,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "52b209057616ccb93843d368b1c012e7745db840",
-          "message": "fix(frontend): don't cancel the repeated term of `N - (M + N)` in `new_infix_expr` (#13768)",
-          "timestamp": "2026-09-18T13:56:07Z",
-          "tree_id": "2e62a5647401cb01a689f402dc712d10ef91a13d",
-          "url": "https://github.com/noir-lang/noir/commit/52b209057616ccb93843d368b1c012e7745db840"
-        },
-        "date": 1789740914479,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 150544,
-            "range": "± 687",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 117435,
-            "range": "± 2047",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2049447,
-            "range": "± 4858",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "133f45213c7a58cd6cc1d9f8f612aa06aaafb2b6",
           "message": "fix(frontend): keep the derivation of a solved numeric generic for checking (#13662)",
           "timestamp": "2026-09-18T17:28:02Z",
@@ -25069,6 +25027,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2645298,
             "range": "± 6221",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "945ec3d2cf35ad8eaae23fcc573671ac982d2b83",
+          "message": "fix(ssa): give entry-point callees their own arrays in the SSA interpreter (#13859)",
+          "timestamp": "2026-10-01T16:18:04Z",
+          "tree_id": "5fa9a81d6ecf4560bc65840ee4725bccc7cdc20e",
+          "url": "https://github.com/noir-lang/noir/commit/945ec3d2cf35ad8eaae23fcc573671ac982d2b83"
+        },
+        "date": 1790872752503,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 168440,
+            "range": "± 491",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136466,
+            "range": "± 4109",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2645374,
+            "range": "± 6307",
             "unit": "ns/iter"
           }
         ]
