@@ -21,6 +21,7 @@ use num_bigint::BigUint;
 use super::{AcirContext, BrilligStdLib};
 use crate::brillig::BrilligOptions;
 use crate::ssa::ssa_gen::Ssa;
+use acvm::acir::circuit::Circuit;
 
 /// One constraint in the canonical text form shared with the Lean emitter:
 /// `zero c*[i,j] + c*[i] + c*[]` (terms sorted by witness list, merged, zero
@@ -78,6 +79,26 @@ fn canonical(opcodes: &[Opcode<FieldElement>]) -> Vec<String> {
     out
 }
 
+/// `pinnedWidths` in `fv/acir_lean/AcirLean/Spec/Pin.lean`.
+const PINNED_WIDTHS: [u32; 5] = [8, 16, 32, 64, 128];
+
+/// `signedWidths` in `fv/acir_lean/AcirLean/Spec/Pin.lean`.
+const SIGNED_WIDTHS: [u32; 4] = [8, 16, 32, 64];
+
+/// `fn main(v0: u<n>, v1: u<n>) { <op> v0, v1 }` for `div` or `lt`.
+fn unsigned_binary_source(op: &str, n: u32) -> String {
+    format!(
+        "acir(inline) fn main f0 {{\n  b0(v0: u{n}, v1: u{n}):\n    v2 = {op} v0, v1\n    return v2\n}}\n"
+    )
+}
+
+/// `fn main(v0: Field) -> u<n> { v0 as u<n> }`.
+fn truncate_source(n: u32) -> String {
+    format!(
+        "acir(inline) fn main f0 {{\n  b0(v0: Field):\n    v1 = truncate v0 to {n} bits, max_bit_size: 254\n    v2 = cast v1 as u{n}\n    return v2\n}}\n"
+    )
+}
+
 fn div_var(bit_size: u32) -> Vec<String> {
     let mut context = AcirContext::<FieldElement>::new(BrilligStdLib::default());
     let lhs = context.add_variable();
@@ -87,7 +108,7 @@ fn div_var(bit_size: u32) -> Vec<String> {
     canonical(context.acir_ir.opcodes())
 }
 
-fn truncate_field(bits: u32) -> Vec<String> {
+fn truncate_var(bits: u32) -> Vec<String> {
     let mut context = AcirContext::<FieldElement>::new(BrilligStdLib::default());
     let lhs = context.add_variable();
     context.truncate_var(lhs, bits, FieldElement::max_num_bits()).unwrap();
@@ -146,17 +167,21 @@ fn shipped_of(src: &str) -> Vec<String> {
 
 fn shipped_of_ssa(ssa: Ssa) -> Vec<String> {
     let (program, _) = crate::acir::tests::try_ssa_value_to_acir(ssa).unwrap();
-    let circuit = &program.functions[0];
+    circuit_lines(&program.functions[0])
+}
+
+/// A circuit's canonical constraints, then its input witnesses (private and
+/// public, in witness order) and its return witnesses: the form
+/// `Spec/Semantics.lean`'s `Circuit` is printed in.
+fn circuit_lines(circuit: &Circuit<FieldElement>) -> Vec<String> {
+    let mut inputs: Vec<u32> = circuit.private_parameters.iter().map(|w| w.0).collect();
+    inputs.extend(circuit.public_parameters.0.iter().map(|w| w.0));
+    inputs.sort_unstable();
+    let returns: Vec<u32> = circuit.return_values.0.iter().map(|w| w.0).collect();
+    let join = |ws: &[u32]| ws.iter().map(u32::to_string).collect::<Vec<_>>().join(",");
     let mut lines = canonical(&circuit.opcodes);
-    let witnesses = |ws: Vec<u32>| ws.iter().map(u32::to_string).collect::<Vec<_>>().join(",");
-    lines.push(format!(
-        "inputs [{}]",
-        witnesses(circuit.private_parameters.iter().map(|w| w.0).collect())
-    ));
-    lines.push(format!(
-        "returns [{}]",
-        witnesses(circuit.return_values.0.iter().map(|w| w.0).collect())
-    ));
+    lines.push(format!("inputs [{}]", join(&inputs)));
+    lines.push(format!("returns [{}]", join(&returns)));
     lines
 }
 
@@ -244,77 +269,83 @@ fn corpus_entry(width: u32, body: &[Instruction]) -> Vec<String> {
     lines
 }
 
+/// Compiles an SSA function and prints the circuit.
+type Compile = fn(&str) -> Vec<String>;
+
 fn emitted() -> String {
     let mut sections = Vec::new();
-    for n in [8, 16, 32, 64, 128] {
-        sections.push(format!("# div_var {n}\n{}", div_var(n).join("\n")));
+    let mut section = |name: &str, n: u32, lines: Vec<String>| {
+        sections.push(format!("# {name} {n}\n{}", lines.join("\n")));
+    };
+    for n in PINNED_WIDTHS {
+        section("div_var", n, div_var(n));
     }
-    for n in [8, 16, 32, 64, 128] {
-        sections.push(format!("# div_var_predicated {n}\n{}", div_var_predicated(n).join("\n")));
+    for n in PINNED_WIDTHS {
+        section("div_var_predicated", n, div_var_predicated(n));
     }
-    for k in [8, 16, 32, 64, 128] {
-        sections.push(format!("# truncate_field {k}\n{}", truncate_field(k).join("\n")));
+    for n in PINNED_WIDTHS {
+        section("truncate_field", n, truncate_var(n));
     }
-    for n in [8, 16, 32, 64, 128] {
-        sections.push(format!("# more_than_eq {n}\n{}", more_than_eq(n).join("\n")));
+    for n in PINNED_WIDTHS {
+        section("more_than_eq", n, more_than_eq(n));
     }
-    for n in [8, 16, 32, 64, 128] {
-        sections.push(format!("# signed_lt {n}\n{}", signed_lt(n).join("\n")));
+    for n in PINNED_WIDTHS {
+        section("signed_lt", n, signed_lt(n));
     }
-    for n in [8, 16, 32, 64, 128] {
-        let src = format!(
-            "acir(inline) fn main f0 {{\n  b0(v0: u{n}, v1: u{n}):\n    v2 = div v0, v1\n    return v2\n}}\n"
-        );
-        sections.push(format!("# acir_div {n}\n{}", acir_of(&src).join("\n")));
+    // The same four functions, as ACIR generation emits them and then as
+    // `nargo compile` ships them.
+    let functions = |n: u32| {
+        [
+            ("div", unsigned_binary_source("div", n)),
+            ("lt", unsigned_binary_source("lt", n)),
+            ("truncate", truncate_source(n)),
+            ("signed_lt", signed_lt(n).join("\n") + "\n"),
+        ]
+    };
+    let stages: [(&str, Compile); 2] = [("acir", acir_of), ("shipped", shipped_of)];
+    for (stage, compile) in stages {
+        for index in 0..4 {
+            for n in PINNED_WIDTHS {
+                let (name, src) = &functions(n)[index];
+                section(&format!("{stage}_{name}"), n, compile(src));
+            }
+        }
     }
-    for n in [8, 16, 32, 64, 128] {
-        let src = format!(
-            "acir(inline) fn main f0 {{\n  b0(v0: u{n}, v1: u{n}):\n    v2 = lt v0, v1\n    return v2\n}}\n"
-        );
-        sections.push(format!("# acir_lt {n}\n{}", acir_of(&src).join("\n")));
+    for n in SIGNED_WIDTHS {
+        section("shipped_signed_div", n, shipped_signed("div", n));
     }
-    for n in [8, 16, 32, 64, 128] {
-        let src = format!(
-            "acir(inline) fn main f0 {{\n  b0(v0: Field):\n    v1 = truncate v0 to {n} bits, max_bit_size: 254\n    v2 = cast v1 as u{n}\n    return v2\n}}\n"
-        );
-        sections.push(format!("# acir_truncate {n}\n{}", acir_of(&src).join("\n")));
-    }
-    for n in [8, 16, 32, 64, 128] {
-        let ssa = signed_lt(n).join("\n") + "\n";
-        sections.push(format!("# acir_signed_lt {n}\n{}", acir_of(&ssa).join("\n")));
-    }
-    for n in [8, 16, 32, 64, 128] {
-        let src = format!(
-            "acir(inline) fn main f0 {{\n  b0(v0: u{n}, v1: u{n}):\n    v2 = div v0, v1\n    return v2\n}}\n"
-        );
-        sections.push(format!("# shipped_div {n}\n{}", shipped_of(&src).join("\n")));
-    }
-    for n in [8, 16, 32, 64, 128] {
-        let src = format!(
-            "acir(inline) fn main f0 {{\n  b0(v0: u{n}, v1: u{n}):\n    v2 = lt v0, v1\n    return v2\n}}\n"
-        );
-        sections.push(format!("# shipped_lt {n}\n{}", shipped_of(&src).join("\n")));
-    }
-    for n in [8, 16, 32, 64, 128] {
-        let src = format!(
-            "acir(inline) fn main f0 {{\n  b0(v0: Field):\n    v1 = truncate v0 to {n} bits, max_bit_size: 254\n    v2 = cast v1 as u{n}\n    return v2\n}}\n"
-        );
-        sections.push(format!("# shipped_truncate {n}\n{}", shipped_of(&src).join("\n")));
-    }
-    for n in [8, 16, 32, 64, 128] {
-        let ssa = signed_lt(n).join("\n") + "\n";
-        sections.push(format!("# shipped_signed_lt {n}\n{}", shipped_of(&ssa).join("\n")));
-    }
-    for n in [8, 16, 32, 64] {
-        sections.push(format!("# shipped_signed_div {n}\n{}", shipped_signed("div", n).join("\n")));
-    }
-    for n in [8, 16, 32, 64] {
-        sections.push(format!("# shipped_signed_mod {n}\n{}", shipped_signed("mod", n).join("\n")));
+    for n in SIGNED_WIDTHS {
+        section("shipped_signed_mod", n, shipped_signed("mod", n));
     }
     for (i, (width, body)) in corpus_programs().iter().enumerate() {
         sections.push(format!("# corpus {i}\n{}", corpus_entry(*width, body).join("\n")));
     }
     sections.join("\n") + "\n"
+}
+
+/// The `# <name> <n>` headers of the sections that differ between `a` and `b`.
+fn differing_sections(a: &str, b: &str) -> Vec<String> {
+    let split = |text: &str| {
+        let mut sections: Vec<(String, String)> = Vec::new();
+        for line in text.lines() {
+            if let Some(name) = line.strip_prefix("# ") {
+                sections.push((name.to_string(), String::new()));
+            } else if let Some((_, body)) = sections.last_mut() {
+                body.push_str(line);
+                body.push('\n');
+            }
+        }
+        sections
+    };
+    let (a, b) = (split(a), split(b));
+    let mut names: Vec<String> = a
+        .iter()
+        .filter(|section| !b.contains(section))
+        .chain(b.iter().filter(|section| !a.contains(section)))
+        .map(|(name, _)| name.clone())
+        .collect();
+    names.dedup();
+    names
 }
 
 #[test]
@@ -324,19 +355,33 @@ fn integer_gadgets_match_lean_templates() {
     let emitted = emitted();
     if emitted != golden {
         panic!(
-            "integer gadget constraints differ from the Lean-proved templates.\n\
-             templates.golden is generated from fv/acir_lean and checked by \
-             fv/acir_lean/scripts/check.sh: editing it by hand fails that check. \
-             Update AcirLean/Templates/Gadgets.lean and the proofs to match the new constraints, \
-             then regenerate the golden file from Lean.\n\
-             --- emitted ---\n{emitted}"
+            "The circuits pinned in fv/acir_lean/templates.golden changed. Sections that differ:\n  {}\n\n\
+             templates.golden is printed by Lean from AcirLean/Templates/, so never edit it by hand.\n\
+             * `corpus` sections: run `just fv-regen-corpus`.\n\
+             * any other section: update the matching definition in fv/acir_lean/AcirLean/Templates/ \
+             (Gadgets.lean, Programs.lean, Shipped.lean, Signed.lean or SignedDivMod.lean) and the \
+             proofs to the new constraints, then run \
+             `lake env lean --run EmitTemplates.lean templates.golden` in fv/acir_lean.\n\
+             `just fv-check` then checks the proofs.",
+            differing_sections(&emitted, golden).join("\n  ")
         );
     }
 }
 
+/// Writes what `integer_gadgets_match_lean_templates` compares with
+/// `templates.golden` to the file named by `FV_EMITTED`. Used to regenerate the
+/// corpus data in `fv/acir_lean`.
+#[test]
+#[ignore = "run by `just fv-regen-corpus`"]
+fn dump_emitted() {
+    std::fs::write(std::env::var("FV_EMITTED").unwrap(), emitted()).unwrap();
+}
+
 /// Prints, for each `nargo` artifact listed in the file named by `FV_ARTIFACTS`,
 /// the canonical constraints of its main circuit and its input and return
-/// witnesses. Used to regenerate `fv/acir_lean` test-program data.
+/// witnesses, then, if `nargo execute` solved it (the `.gz` file next to the
+/// artifact), `solved` and one `witness <i> <v>` line per witness. Used to
+/// regenerate `fv/acir_lean` test-program data.
 #[test]
 #[ignore = "run by fv/acir_lean/scripts/regen_programs.sh"]
 fn dump_artifacts() {
@@ -345,17 +390,20 @@ fn dump_artifacts() {
         let json = std::fs::read_to_string(path).unwrap();
         let artifact: noirc_artifacts::program::ProgramArtifact =
             serde_json::from_str(&json).unwrap();
-        let circuit = &artifact.bytecode.functions[0];
-        let mut inputs: Vec<u32> = circuit.private_parameters.iter().map(|w| w.0).collect();
-        inputs.extend(circuit.public_parameters.0.iter().map(|w| w.0));
-        inputs.sort_unstable();
-        let returns: Vec<u32> = circuit.return_values.0.iter().map(|w| w.0).collect();
-        let join = |ws: &[u32]| ws.iter().map(u32::to_string).collect::<Vec<_>>().join(",");
         println!("# artifact {path}");
-        for line in canonical(&circuit.opcodes) {
+        for line in circuit_lines(&artifact.bytecode.functions[0]) {
             println!("{line}");
         }
-        println!("inputs [{}]", join(&inputs));
-        println!("returns [{}]", join(&returns));
+        let witness_path = std::path::Path::new(path).with_extension("gz");
+        if let Ok(bytes) = std::fs::read(witness_path) {
+            let stack = acvm::acir::native_types::WitnessStack::<FieldElement>::deserialize(&bytes)
+                .unwrap();
+            let main = stack.peek().unwrap();
+            assert_eq!(main.index, 0, "the last witness on the stack is main's");
+            println!("solved");
+            for (w, v) in main.witness.clone() {
+                println!("witness {} {}", w.0, BigUint::from_bytes_be(&v.to_be_bytes()));
+            }
+        }
     }
 }

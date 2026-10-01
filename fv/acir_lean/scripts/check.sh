@@ -4,8 +4,9 @@
 #   2. no proof escape hatch appears anywhere (`sorry`, custom axioms,
 #      `native_decide`, kernel-check bypasses, ...);
 #   3. the reviewed spec (`AcirLean/Spec/`) and the pinned data
-#      (`AcirLean/Templates/`) never import unreviewed proof code, and the pinned
-#      data contains plain definitions only;
+#      (`AcirLean/Templates/`) never import unreviewed proof code, the pinned
+#      data contains plain definitions only (`scripts/check_templates.py`), and
+#      `lakefile.toml` passes no options to Lean;
 #   4. `templates.golden` is exactly what the pinned templates print,
 #      `test_programs.golden` exactly what the pinned test programs print, and
 #      `ssa_semantics.golden` exactly what the SSA meaning computes on its grid;
@@ -25,8 +26,13 @@ lake exe cache get
 lake build
 
 forbidden='\b(sorry|admit|axiom)\b|native_decide|skipKernelTC|implemented_by|@\[extern|\bunsafe\b|\bdebug\.'
-if grep -rnE "$forbidden" AcirLean AcirLean.lean Check.lean EmitTemplates.lean EmitPrograms.lean EmitSemantics.lean; then
+if grep -rnE "$forbidden" AcirLean AcirLean.lean Check.lean EmitTemplates.lean EmitPrograms.lean EmitSemantics.lean lakefile.toml; then
   fail "Forbidden proof escape hatch found."
+fi
+# Options set here would apply to every module `lake build` compiles, and
+# `#print axioms` in Check.lean would not show them.
+if grep -nE '(leanOptions|moreLeanArgs|weakLeanArgs|moreServerOptions|moreGlobalServerArgs)' lakefile.toml; then
+  fail "lakefile.toml may not pass options or arguments to Lean."
 fi
 
 imports_outside() {
@@ -38,10 +44,7 @@ bad=$(imports_outside AcirLean/Spec '^(Mathlib(\..*)?|AcirLean\.Spec\..*|AcirLea
 bad=$(imports_outside AcirLean/Templates '^(Mathlib(\..*)?|AcirLean\.Spec\.(Semantics|Ssa|Programs|Programs2)|AcirLean\.Templates\..*)$')
 [ -z "$bad" ] || fail "AcirLean/Templates imports modules other than Mathlib, Spec.Semantics, Spec.Ssa, Spec.Programs, Spec.Programs2 and Templates: $bad"
 
-templates_only_defs='^\s*(@\[|instance|notation|infix|infixl|infixr|prefix|postfix|macro|macro_rules|syntax|elab|attribute|set_option|open|local|scoped|theorem|lemma|opaque|partial|initialize|builtin_initialize)\b'
-if grep -nE "$templates_only_defs" AcirLean/Templates/*.lean; then
-  fail "AcirLean/Templates may only contain plain definitions."
-fi
+python3 scripts/check_templates.py
 
 generated=$(mktemp)
 trap 'rm -f "$generated"' EXIT

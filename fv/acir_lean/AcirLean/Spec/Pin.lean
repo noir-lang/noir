@@ -26,9 +26,12 @@ in the same syntax; `scripts/check.sh` fails unless it equals
 `test_programs.golden`, which `scripts/regen_programs.sh` writes from
 `nargo compile` output.
 
-Canonical form: `zero c*[i,j] + c*[i] + c*[]` with each term's witnesses
-sorted, terms sorted by witness list, zero terms dropped, and the sign chosen so the first coefficient is at
-most `(p-1)/2`; or `range i k`.
+Canonical form (`Opcode.canon`): `zero c*[i,j] + c*[i] + c*[]` with each
+term's witnesses sorted, coefficients reduced to `[0, p)`, zero terms dropped,
+terms sorted by witness list, and the sign chosen so the first coefficient is
+at most `(p-1)/2`; or `range i k`. Terms over the same witnesses are not
+merged: Rust merges them, so a constraint with two such terms prints
+differently on the two sides and fails the pin.
 -/
 
 namespace AcirLean
@@ -46,22 +49,40 @@ def witnessListLe : List ℕ → List ℕ → Bool
   | _ :: _, [] => false
   | a :: as, b :: bs => if a < b then true else if b < a then false else witnessListLe as bs
 
-/-- An integer coefficient as a field element's integer value, in `[0, p)`. -/
-def coefValue (c : ℤ) : ℕ := (c % (p : ℤ)).toNat
+/-- An integer coefficient reduced to a field element's integer value, in `[0, p)`. -/
+def modP (c : ℤ) : ℤ := c % (p : ℤ)
 
-/-- One constraint in canonical form (see the module comment). -/
-def Opcode.render : Opcode → String
+/-- Insert `x` before the first element it is `le`. -/
+def insertBy {α : Type} (le : α → α → Bool) (x : α) : List α → List α
+  | [] => [x]
+  | y :: ys => if le x y then x :: y :: ys else y :: insertBy le x ys
+
+/-- Insertion sort, by structural recursion so the kernel can evaluate it. -/
+def isort {α : Type} (le : α → α → Bool) : List α → List α
+  | [] => []
+  | x :: xs => insertBy le x (isort le xs)
+
+/-- A constraint in canonical form (see the module comment). `Opcode.canon_sat`
+(`Proofs/Canon.lean`) proves that a constraint holds exactly when its canonical
+form does, so nothing about this definition needs checking by eye except that
+it matches `fv_templates.rs`'s `canonical`, which the golden files check. -/
+def Opcode.canon : Opcode → Opcode
+  | .range w k => .range w k
+  | .assertZero ts =>
+    let ts := (ts.map fun t => (⟨modP t.coef, isort (fun a b => decide (a ≤ b)) t.witnesses⟩ : Term))
+    let ts := isort (fun a b => witnessListLe a.witnesses b.witnesses) (ts.filter fun t => t.coef != 0)
+    let neg : Bool := match ts with
+      | t :: _ => decide (t.coef > ((p - 1) / 2 : ℕ))
+      | [] => false
+    .assertZero (if neg then ts.map (fun t => (⟨modP (-t.coef), t.witnesses⟩ : Term)) else ts)
+
+/-- One constraint, printed in canonical form. -/
+def Opcode.render (c : Opcode) : String :=
+  match c.canon with
   | .range w k => s!"range {w} {k}"
   | .assertZero ts =>
-    let ts := ts.map (fun t => { t with witnesses := t.witnesses.mergeSort (· ≤ ·) })
-    let ts := (ts.filter (fun t => coefValue t.coef ≠ 0)).mergeSort (fun a b => witnessListLe a.witnesses b.witnesses)
-    let neg : Bool := match ts with
-      | t :: _ => decide (coefValue t.coef > (p - 1) / 2)
-      | [] => false
-    let body := ts.map fun t =>
-      let c := if neg then coefValue (-t.coef) else coefValue t.coef
-      s!"{c}*[{",".intercalate (t.witnesses.map toString)}]"
-    "zero " ++ " + ".intercalate body
+    "zero " ++ " + ".intercalate (ts.map fun t =>
+      s!"{t.coef.toNat}*[{",".intercalate (t.witnesses.map toString)}]")
 
 /-- An ACIR function: its constraints, then its input and return witnesses. -/
 def Circuit.render (f : Circuit) : List String :=
@@ -82,40 +103,38 @@ def CorpusProgram.render (P : CorpusProgram) : List String :=
 def CorpusEntry.render (e : CorpusEntry) : List String :=
   e.prog.render ++ e.fn.render ++ e.witness.map fun (w, v) => s!"witness {w} {v}"
 
-/-- A test program: its SSA, then its shipped circuit. -/
+/-- A test program: its SSA, its shipped circuit, then its solved witness. -/
 def TestProgram.render (e : TestProgram) : List String :=
-  s!"# program {e.name}" :: e.prog.render ++ e.fn.render
+  s!"# program {e.name}" :: e.prog.render ++ e.fn.render ++
+    "solved" :: e.witness.map fun (w, v) => s!"witness {w} {v}"
 
 /-- `test_programs.golden`: every test program in `testPrograms`. -/
 def renderTestPrograms : String :=
   "".intercalate (testPrograms.map fun e => "\n".intercalate e.render ++ "\n")
 
-/-- The golden file: one `# <gadget> <width>` section per pinned width. -/
+/-- The golden file: one `# <name> <width>` section per pinned width and
+function, then the corpus. -/
 def renderAll : String :=
-  let sec (title : String) (cs : List Opcode) :=
-    s!"# {title}\n" ++ "\n".intercalate (cs.map Opcode.render)
-  let secs := pinnedWidths.map (fun n => sec s!"div_var {n}" (divVarGadget n)) ++
-    pinnedWidths.map (fun n => sec s!"div_var_predicated {n}" (divPredGadget n)) ++
-    pinnedWidths.map (fun k => sec s!"truncate_field {k}" (truncateGadget k)) ++
-    pinnedWidths.map (fun m => sec s!"more_than_eq {m}" (moreThanEqGadget m)) ++
-    pinnedWidths.map (fun n => s!"# signed_lt {n}\n" ++ "\n".intercalate (signedLtSsa n).render) ++
-    pinnedWidths.map (fun n => s!"# acir_div {n}\n" ++ "\n".intercalate (acirGenDiv n).render) ++
-    pinnedWidths.map (fun n => s!"# acir_lt {n}\n" ++ "\n".intercalate (acirGenLt n).render) ++
-    pinnedWidths.map (fun n =>
-      s!"# acir_truncate {n}\n" ++ "\n".intercalate (acirGenTruncate n).render) ++
-    pinnedWidths.map (fun n =>
-      s!"# acir_signed_lt {n}\n" ++ "\n".intercalate (acirGenSignedLt n).render) ++
-    pinnedWidths.map (fun n => s!"# shipped_div {n}\n" ++ "\n".intercalate (shippedDiv n).render) ++
-    pinnedWidths.map (fun n => s!"# shipped_lt {n}\n" ++ "\n".intercalate (shippedLt n).render) ++
-    pinnedWidths.map (fun n =>
-      s!"# shipped_truncate {n}\n" ++ "\n".intercalate (shippedTruncate n).render) ++
-    pinnedWidths.map (fun n =>
-      s!"# shipped_signed_lt {n}\n" ++ "\n".intercalate (shippedSignedLt n).render) ++
-    signedWidths.map (fun n =>
-      s!"# shipped_signed_div {n}\n" ++ "\n".intercalate (shippedSignedDiv n).render) ++
-    signedWidths.map (fun n =>
-      s!"# shipped_signed_mod {n}\n" ++ "\n".intercalate (shippedSignedMod n).render) ++
-    corpus.zipIdx.map (fun (e, i) => s!"# corpus {i}\n" ++ "\n".intercalate e.render)
+  let sec (title : String) (lines : List String) := s!"# {title}\n" ++ "\n".intercalate lines
+  let each (ws : List ℕ) (name : String) (lines : ℕ → List String) :=
+    ws.map fun n => sec s!"{name} {n}" (lines n)
+  let secs :=
+    each pinnedWidths "div_var" (fun n => (divVarGadget n).map Opcode.render) ++
+    each pinnedWidths "div_var_predicated" (fun n => (divPredGadget n).map Opcode.render) ++
+    each pinnedWidths "truncate_field" (fun k => (truncateGadget k).map Opcode.render) ++
+    each pinnedWidths "more_than_eq" (fun m => (moreThanEqGadget m).map Opcode.render) ++
+    each pinnedWidths "signed_lt" (fun n => (signedLtSsa n).render) ++
+    each pinnedWidths "acir_div" (fun n => (acirGenDiv n).render) ++
+    each pinnedWidths "acir_lt" (fun n => (acirGenLt n).render) ++
+    each pinnedWidths "acir_truncate" (fun n => (acirGenTruncate n).render) ++
+    each pinnedWidths "acir_signed_lt" (fun n => (acirGenSignedLt n).render) ++
+    each pinnedWidths "shipped_div" (fun n => (shippedDiv n).render) ++
+    each pinnedWidths "shipped_lt" (fun n => (shippedLt n).render) ++
+    each pinnedWidths "shipped_truncate" (fun n => (shippedTruncate n).render) ++
+    each pinnedWidths "shipped_signed_lt" (fun n => (shippedSignedLt n).render) ++
+    each signedWidths "shipped_signed_div" (fun n => (shippedSignedDiv n).render) ++
+    each signedWidths "shipped_signed_mod" (fun n => (shippedSignedMod n).render) ++
+    corpus.zipIdx.map (fun (e, i) => sec s!"corpus {i}" e.render)
   "\n".intercalate secs ++ "\n"
 
 end AcirLean

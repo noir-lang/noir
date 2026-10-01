@@ -19,7 +19,7 @@ for a reader who does not know Lean.**
 |---|---|---|
 | `AcirLean/Spec/` | **REVIEWED** | What an ACIR constraint and an SSA instruction mean, the golden printer, and the claims. Nothing checks these against intent. |
 | `Check.lean`, `EmitTemplates.lean`, `EmitPrograms.lean`, `EmitSemantics.lean` | **REVIEWED** | The entry points: the final check, and the three golden-file writers. |
-| `scripts/check.sh`, `scripts/check_reviewing.py`, `.github/workflows/fv-lean.yml` | **REVIEWED** | The enforcement itself. |
+| `scripts/check.sh`, `scripts/check_reviewing.py`, `scripts/check_templates.py`, `.github/workflows/fv-lean.yml` | **REVIEWED** | The enforcement itself. |
 | `compiler/.../acir_context/fv_templates.rs`, `fv_semantics.rs` | **REVIEWED** | The Rust halves of the pins. |
 | `scripts/regen_programs.sh`, `.github/workflows/fv-test-programs.yml` | **REVIEWED** | Rebuild `test_programs.golden` from `nargo compile` output; CI fails if the committed copy is stale. |
 | `AcirLean/Templates/` | pinned, ignore | Opcode lists, SSA and test programs, checked byte-for-byte against the golden files. Plain definitions only. |
@@ -31,11 +31,14 @@ The whole promise is one proposition, `AllClaims` in `Spec/Claims.lean`.
 three standard axioms. `check.sh` additionally fails if:
 
 - `Spec/` imports anything outside `Spec/`, `Templates/` and Mathlib;
-- `Templates/` contains anything but plain definitions, or imports anything
-  beyond `Templates/`, `Spec/Semantics.lean`, `Spec/Ssa.lean`,
-  `Spec/Programs.lean`, `Spec/Programs2.lean` and Mathlib;
-- any file uses `sorry`, `admit`, `axiom`, `native_decide`, `unsafe`,
-  `implemented_by`, `@[extern` or a kernel-check bypass;
+- `Templates/` contains anything but plain definitions (`scripts/check_templates.py`:
+  no keyword other than `def` and `abbrev` declares anything, and no definition
+  has a dotted name such as `Int.tdiv` that could stand in for one the claims
+  use), or imports anything beyond `Templates/`, `Spec/Semantics.lean`,
+  `Spec/Ssa.lean`, `Spec/Programs.lean`, `Spec/Programs2.lean` and Mathlib;
+- any file, `lakefile.toml` included, uses `sorry`, `admit`, `axiom`,
+  `native_decide`, `unsafe`, `implemented_by`, `@[extern` or a kernel-check
+  bypass, or `lakefile.toml` passes options to Lean;
 - `templates.golden` or `test_programs.golden` differs from what
   `Spec/Pin.lean` prints, or `ssa_semantics.golden` from what
   `EmitSemantics.lean` prints;
@@ -70,7 +73,8 @@ explains it line by line; the short version of the notation:
    when the first operand is less than the second as signed integers;
 6. whole functions, as ACIR generation compiles them, enforce their
    parameters' types and return their SSA meaning for every satisfying
-   witness, with no assumption on the inputs: `div` and `lt` on `u<n>`, a
+   witness, with no assumption on the inputs: `div` (rejecting a zero
+   divisor) and `lt` on `u<n>`, a
    field truncated to `u<n>`, and signed `lt` on `i<n>` compiled end to end
    after `expand_signed_math`;
 7. the same holds for the optimized circuits `nargo compile` ships
@@ -91,7 +95,10 @@ explains it line by line; the short version of the notation:
     witness satisfying the circuit, the inputs fit their parameter types, the
     final SSA runs without failing on them (no overflow, no zero divisor, no
     failed `constrain` or `range_check`), and the circuit's return witnesses
-    hold what it returns (`ProgramSpec` in `Spec/Programs2.lean`).
+    hold what it returns (`ProgramSpec` in `Spec/Programs2.lean`); and the
+    witness `nargo execute` solves from its `Prover.toml` satisfies that
+    circuit, so the claim cannot hold just because the circuit is
+    contradictory.
 
 The `eq` gadget these use is sound only because the BN254 scalar field modulus
 is prime; `Proofs/Prime.lean` proves that with a Pratt certificate.
@@ -248,14 +255,17 @@ Then, from the repository root:
 cargo test -p noirc_evaluator --lib fv_                  # Rust side of the pins
 ```
 
-After a change to the corpus programs in `fv_templates.rs`, regenerate the
+After a change to the corpus programs in `fv_templates.rs`, or a compiler
+change that alters their circuits or ACVM's witness for them, regenerate the
 Lean data from the Rust output (the converter is untrusted; the pin checks its
 output):
 
 ```sh
-cargo test -p noirc_evaluator --lib fv_templates 2>&1 | sed -n '/--- emitted ---/,/^note:/p' | sed '1d;$d' | sed '$d' > /tmp/emitted.txt
-(cd fv/acir_lean && ./scripts/gen_corpus.py /tmp/emitted.txt > AcirLean/Templates/Corpus.lean)
+just fv-regen-corpus
 ```
+
+When `integer_gadgets_match_lean_templates` fails, its message lists the
+sections of `templates.golden` that changed and what to do for each.
 
 After an intentional change to a pinned gadget:
 

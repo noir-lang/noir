@@ -243,10 +243,17 @@ def ProgramSpec (P : Program) : List ℕ → List ℕ → Prop := fun ins outs =
     (∀ e ∈ P.params.zip ins, e.1.2.fits (e.2 : F) = true) ∧
     ∃ vs, P.eval (ins.map fun x => (x : F)) = some vs ∧ outs = vs.map ZMod.val
 
-/-- A test program: its final SSA and the circuit `nargo compile` shipped. -/
+/-- A test program: its final SSA, the circuit `nargo compile` shipped, and
+the witness `nargo execute` solved for it from its `Prover.toml`, as
+`(witness, value)` pairs. -/
 structure TestProgram where
   name : String
   prog : Program
   fn : Circuit
+  witness : List (ℕ × ℕ)
+
+/-- The solved witness as an assignment (unlisted witnesses are `0`). -/
+def TestProgram.assignment (e : TestProgram) (i : ℕ) : F :=
+  ((e.witness.lookup i).getD 0 : ℕ)
 
 end AcirLean

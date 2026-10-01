@@ -256,3 +256,14 @@ fv-regen:
 # Like fv-regen, also adding test programs that are not in the proofs yet
 fv-regen-all:
     cd fv/acir_lean && ./scripts/regen_programs.sh && ./scripts/check.sh
+
+# Rebuilds the corpus programs (AcirLean/Templates/Corpus.lean) from the current compiler, then fv-check
+fv-regen-corpus:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    emitted=$(mktemp)
+    trap 'rm -f "$emitted"' EXIT
+    FV_EMITTED="$emitted" cargo test -p noirc_evaluator --lib fv_templates::dump_emitted -- --ignored
+    cd fv/acir_lean
+    ./scripts/gen_corpus.py "$emitted" > AcirLean/Templates/Corpus.lean
+    ./scripts/check.sh

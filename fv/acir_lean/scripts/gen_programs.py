@@ -6,7 +6,8 @@ Usage: gen_programs.py <ssa-dir> <circuits.txt> <outside-out> <lean-out> <golden
 <ssa-dir> holds `<name>.ssa`, the `--show-ssa-pass` output of `nargo compile`;
 <circuits.txt> is what the `dump_artifacts` test prints for the artifacts. For
 every program whose final SSA is one ACIR `main` with one block of scalar
-instructions, writes a `TestProgram` (its SSA and its shipped circuit) to
+instructions, writes a `TestProgram` (its SSA, its shipped circuit and the
+witness `nargo execute` solved for it) to
 <lean-out> and the text Lean prints for it to <golden-out>. The other programs
 are listed in <outside-out> with the reason. Run by `regen_programs.sh`.
 Nothing here is trusted: `check.sh` requires Lean's printout of the data to
@@ -127,6 +128,8 @@ def circuits(path):
 def lean_fn(lines):
     cs = []
     for line in lines:
+        if line == "solved" or line.startswith("witness "):
+            continue
         if line.startswith("range "):
             _, w, k = line.split()
             cs.append(f".range {w} {k}")
@@ -168,6 +171,9 @@ def main():
             lines = main_fn(open(os.path.join(ssa_dir, name + ".ssa")).read())
             header, params, body, rets = program(lines)
             fn = lean_fn(circs[name])
+            witness = [tuple(l.split()[1:]) for l in circs[name] if l.startswith("witness ")]
+            if "solved" not in circs[name]:
+                raise ValueError("nargo execute did not solve it")
         except ValueError as e:
             skipped.append(f"{name}: {e}")
             continue
@@ -177,6 +183,7 @@ def main():
             f"  name := \"{name}\"\n"
             f"  prog := {{ header := \"{header}\", params := [{', '.join(params)}], body := [{', '.join(body)}], rets := [{', '.join(f'({r})' for r in rets)}] }}\n"
             f"  fn := {fn}\n"
+            f"  witness := [{', '.join(f'({w}, {v})' for w, v in witness)}]\n"
         )
         names.append(name)
         expected.append(f"# program {name}")

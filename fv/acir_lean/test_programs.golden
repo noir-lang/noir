@@ -7,6 +7,9 @@ acir(inline) pure fn main f0 {
 zero 1*[0,0] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[1]
 inputs [0]
 returns [1]
+solved
+witness 0 1
+witness 1 1
 # program a_1_mul
 acir(inline) predicate_pure fn main f0 {
   b0(v0: u32, v1: u32, v2: u32):
@@ -31,6 +34,14 @@ range 6 32
 zero 1*[2] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[6]
 inputs [0,1,2]
 returns []
+solved
+witness 0 3
+witness 1 4
+witness 2 429981696
+witness 3 12
+witness 4 144
+witness 5 20736
+witness 6 429981696
 # program a_2_div
 acir(inline) predicate_pure fn main f0 {
   b0(v0: u32, v1: u32, v2: u32):
@@ -65,6 +76,20 @@ range 12 32
 zero 1*[5] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[12]
 inputs [0,1,2]
 returns []
+solved
+witness 0 7
+witness 1 3
+witness 2 2
+witness 3 14592161914559516814830937163504850059032242933610689562465469457717205663745
+witness 4 2
+witness 5 1
+witness 6 1
+witness 7 14592161914559516814830937163504850059032242933610689562465469457717205663745
+witness 8 2
+witness 9 1
+witness 10 1
+witness 11 6
+witness 12 1
 # program a_3_add
 acir(inline) predicate_pure fn main f0 {
   b0(v0: u32, v1: u32, v2: u32):
@@ -88,6 +113,14 @@ zero 4294967305*[] + 21888242871839275222246405745257275088548364400416034343698
 zero 1*[5]
 inputs [0,1,2]
 returns []
+solved
+witness 0 3
+witness 1 4
+witness 2 7
+witness 3 7
+witness 4 56
+witness 5 0
+witness 6 4294967249
 # program a_4_sub
 acir(inline) predicate_pure fn main f0 {
   b0(v0: u32, v1: u32, v2: u32):
@@ -115,6 +148,16 @@ range 8 32
 zero 1*[2] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[4]
 inputs [0,1,2]
 returns []
+solved
+witness 0 12
+witness 1 2418266113
+witness 2 1876701195
+witness 3 79228162514264337593543950335
+witness 4 1876701195
+witness 5 5096253676302562286669017222071363378364611890515102045665222587796
+witness 6 12912578068529745698602757524087455073254931591690438499582670725825037266691
+witness 7 0
+witness 8 0
 # program arithmetic_binary_operations
 acir(inline) predicate_pure fn main f0 {
   b0(v0: Field, v1: Field, v2: Field):
@@ -147,6 +190,22 @@ zero 2*[0] + 2188824287183927522224640574525727508854836440041603434369820418657
 zero 1*[3] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[14,15]
 inputs [0,1,2]
 returns [3]
+solved
+witness 0 3
+witness 1 4
+witness 2 5
+witness 3 10
+witness 4 0
+witness 5 4
+witness 6 85500948718122168836900022442411230814642048439125134155071110103811751936
+witness 7 21888242871839275222246405745257275088548364400416034343698204186575808495361
+witness 8 0
+witness 10 2
+witness 11 0
+witness 12 18240202393199396018538671454381062573790303667013361953081836822146507079681
+witness 13 10
+witness 14 7296080957279758407415468581752425029516121466805344781232734728858602831874
+witness 15 6
 # program array_of_references_in_loop
 acir(inline) pure fn main f0 {
   b0():
@@ -155,6 +214,8 @@ acir(inline) pure fn main f0 {
 zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[0]
 inputs []
 returns [0]
+solved
+witness 0 1
 # program as_str_unchecked_with_broken_bytes
 acir(inline) pure fn main f0 {
   b0():
@@ -162,6 +223,7 @@ acir(inline) pure fn main f0 {
 }
 inputs []
 returns []
+solved
 # program assert
 acir(inline) predicate_pure fn main f0 {
   b0(v0: Field):
@@ -171,6 +233,8 @@ acir(inline) predicate_pure fn main f0 {
 zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[0]
 inputs [0]
 returns []
+solved
+witness 0 1
 # program assert_statement
 acir(inline) predicate_pure fn main f0 {
   b0(v0: Field, v1: Field):
@@ -180,6 +244,9 @@ acir(inline) predicate_pure fn main f0 {
 zero 1*[0] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[1]
 inputs [0,1]
 returns []
+solved
+witness 0 3
+witness 1 3
 # program assign_ex
 acir(inline) predicate_pure fn main f0 {
   b0(v0: Field, v1: Field):
@@ -193,6 +260,9 @@ zero 3*[] + 21888242871839275222246405745257275088548364400416034343698204186575
 zero 2*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[0,1]
 inputs [0,1]
 returns []
+solved
+witness 0 1
+witness 1 2
 # program bit_not
 acir(inline) predicate_pure fn main f0 {
   b0(v0: u32):
@@ -203,6 +273,8 @@ acir(inline) predicate_pure fn main f0 {
 zero 4*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[0]
 inputs [0]
 returns []
+solved
+witness 0 4
 # program bool_not
 acir(inline) predicate_pure fn main f0 {
   b0(v0: u1):
@@ -212,6 +284,8 @@ acir(inline) predicate_pure fn main f0 {
 zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[0]
 inputs [0]
 returns []
+solved
+witness 0 1
 # program brillig_entry_points_regression_8069
 acir(inline) pure fn main f0 {
   b0():
@@ -220,6 +294,8 @@ acir(inline) pure fn main f0 {
 zero 1*[0]
 inputs []
 returns [0]
+solved
+witness 0 0
 # program brillig_mutable_reference_lsf_bug
 acir(inline) pure fn main f0 {
   b0():
@@ -228,6 +304,8 @@ acir(inline) pure fn main f0 {
 zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[0]
 inputs []
 returns [0]
+solved
+witness 0 1
 # program cast_bool
 acir(inline) predicate_pure fn main f0 {
   b0(v0: Field, v1: Field):
@@ -237,6 +315,9 @@ acir(inline) predicate_pure fn main f0 {
 zero 1*[0] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[1]
 inputs [0,1]
 returns []
+solved
+witness 0 10
+witness 1 10
 # program cast_regression_7776
 acir(inline) pure fn main f0 {
   b0(v0: Field, v1: Field, v2: u1):
@@ -273,6 +354,24 @@ zero 1*[3] + 2188824287183927522224640574525727508854836440041603434369820418657
 zero 1*[5] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[13]
 inputs [0,1,2]
 returns [3,4,5]
+solved
+witness 0 0
+witness 1 1
+witness 2 1
+witness 3 0
+witness 4 0
+witness 5 4891460686036598784
+witness 6 85500948718122168836900022442411230814642048439125134155071110103811751936
+witness 7 0
+witness 8 0
+witness 9 0
+witness 10 1
+witness 12 1186564023676924939888766319973246049704924238154051448977
+witness 13 4891460686036598784
+witness 14 0
+witness 15 0
+witness 16 1
+witness 17 9223372036854775807
 # program cast_signed_to_u1
 acir(inline) predicate_pure fn main f0 {
   b0(v0: i32, v1: i32, v2: i32, v3: i32, v4: i32, v5: i32, v6: i32):
@@ -357,6 +456,42 @@ zero 1*[32] + 218882428718392752222464057452572750885483644004160343436982041865
 zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[34]
 inputs [0,1,2,3,4,5,6]
 returns []
+solved
+witness 0 0
+witness 1 1
+witness 2 2
+witness 3 3
+witness 4 4294967295
+witness 5 4294967294
+witness 6 4294967293
+witness 7 0
+witness 8 0
+witness 9 0
+witness 10 0
+witness 11 0
+witness 12 1
+witness 13 0
+witness 14 1
+witness 15 0
+witness 16 2
+witness 17 1
+witness 18 0
+witness 19 0
+witness 20 3
+witness 21 1
+witness 22 1
+witness 23 16777215
+witness 24 255
+witness 25 127
+witness 26 1
+witness 27 16777215
+witness 28 254
+witness 29 127
+witness 30 0
+witness 31 16777215
+witness 32 253
+witness 33 126
+witness 34 1
 # program cast_to_u128
 acir(inline) predicate_pure fn main f0 {
   b0(v0: i8):
@@ -377,6 +512,10 @@ zero 128*[] + 1*[0] + 2188824287183927522224640574525727508854836440041603434369
 zero 340282366920938463463374607431768211455*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[0] + 21888242871839275222246405745257275088208082033495095880234829579144040284417*[1]
 inputs [0]
 returns []
+solved
+witness 0 255
+witness 1 1
+witness 2 127
 # program closures_mut_ref
 acir(inline) predicate_pure fn main f0 {
   b0(v0: Field):
@@ -387,6 +526,8 @@ acir(inline) predicate_pure fn main f0 {
 zero 1*[0]
 inputs [0]
 returns []
+solved
+witness 0 0
 # program comptime_closure_bindings_1
 acir(inline) pure fn main f0 {
   b0():
@@ -394,6 +535,7 @@ acir(inline) pure fn main f0 {
 }
 inputs []
 returns []
+solved
 # program comptime_closure_bindings_2
 acir(inline) pure fn main f0 {
   b0():
@@ -401,6 +543,7 @@ acir(inline) pure fn main f0 {
 }
 inputs []
 returns []
+solved
 # program comptime_function_definition_attribute_arg
 acir(inline) predicate_pure fn main f0 {
   b0(v0: u32):
@@ -414,6 +557,10 @@ zero 4294967396*[] + 21888242871839275222246405745257275088548364400416034343698
 zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[1]
 inputs [0]
 returns []
+solved
+witness 0 50
+witness 1 1
+witness 2 50
 # program comptime_generics_binding
 acir(inline) pure fn main f0 {
   b0():
@@ -421,6 +568,7 @@ acir(inline) pure fn main f0 {
 }
 inputs []
 returns []
+solved
 # program comptime_mutated_global
 acir(inline) predicate_pure fn main f0 {
   b0(v0: Field):
@@ -430,6 +578,8 @@ acir(inline) predicate_pure fn main f0 {
 zero 5*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[0]
 inputs [0]
 returns []
+solved
+witness 0 5
 # program comptime_named_attribute_args
 acir(inline) predicate_pure fn main f0 {
   b0(v0: u32):
@@ -443,6 +593,10 @@ zero 4294967396*[] + 21888242871839275222246405745257275088548364400416034343698
 zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[1]
 inputs [0]
 returns []
+solved
+witness 0 50
+witness 1 1
+witness 2 50
 # program comptime_println_fmtstr_with_quoted
 acir(inline) pure fn main f0 {
   b0():
@@ -450,6 +604,7 @@ acir(inline) pure fn main f0 {
 }
 inputs []
 returns []
+solved
 # program comptime_quoted_hash
 acir(inline) pure fn main f0 {
   b0():
@@ -457,6 +612,7 @@ acir(inline) pure fn main f0 {
 }
 inputs []
 returns []
+solved
 # program comptime_resolve_associated_constant_scope
 acir(inline) pure fn main f0 {
   b0():
@@ -464,6 +620,7 @@ acir(inline) pure fn main f0 {
 }
 inputs []
 returns []
+solved
 # program comptime_trait_constraint_hash_and_eq
 acir(inline) pure fn main f0 {
   b0():
@@ -471,6 +628,7 @@ acir(inline) pure fn main f0 {
 }
 inputs []
 returns []
+solved
 # program conditional_regression_547
 acir(inline) pure fn main f0 {
   b0(v0: Field):
@@ -479,6 +637,9 @@ acir(inline) pure fn main f0 {
 zero 1*[0] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[1]
 inputs [0]
 returns [1]
+solved
+witness 0 1
+witness 1 1
 # program custom_entry
 acir(inline) predicate_pure fn main f0 {
   b0(v0: Field):
@@ -488,6 +649,8 @@ acir(inline) predicate_pure fn main f0 {
 zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[0]
 inputs [0]
 returns []
+solved
+witness 0 1
 # program debug_name_no_conflict
 acir(inline) pure fn main f0 {
   b0():
@@ -495,6 +658,7 @@ acir(inline) pure fn main f0 {
 }
 inputs []
 returns []
+solved
 # program defunctionalize_mut_ref_to_immut_ref_regression
 acir(inline) pure fn main f0 {
   b0(v0: u1):
@@ -504,6 +668,9 @@ range 0 1
 zero 5*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[1]
 inputs [0]
 returns [1]
+solved
+witness 0 1
+witness 1 5
 # program dereference_assignment
 acir(inline) predicate_pure fn main f0 {
   b0(v0: Field):
@@ -516,6 +683,8 @@ acir(inline) predicate_pure fn main f0 {
 }
 inputs [0]
 returns []
+solved
+witness 0 10
 # program diamond_deps_0
 acir(inline) pure fn main f0 {
   b0(v1: Field, v2: Field):
@@ -527,6 +696,10 @@ acir(inline) pure fn main f0 {
 zero 3*[] + 2*[0] + 2*[1] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[2]
 inputs [0,1]
 returns [2]
+solved
+witness 0 1
+witness 1 1
+witness 2 7
 # program division_by_max
 acir(inline) predicate_pure fn main f0 {
   b0(v0: u8):
@@ -542,6 +715,12 @@ zero 1*[0] + 2188824287183927522224640574525727508854836440041603434369820418657
 zero 1*[1] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[2]
 inputs [0]
 returns [1]
+solved
+witness 0 255
+witness 1 36
+witness 2 36
+witness 3 3
+witness 4 4
 # program dont_deduplicate_call
 acir(inline) pure fn main f0 {
   b0(v0: Field, v1: u1):
@@ -550,6 +729,9 @@ acir(inline) pure fn main f0 {
 range 1 1
 inputs [0,1]
 returns []
+solved
+witness 0 0
+witness 1 0
 # program double_neg_cond_global_var
 acir(inline) pure fn main f0 {
   b0(v1: Field):
@@ -560,6 +742,9 @@ acir(inline) pure fn main f0 {
 zero 1*[0] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[1]
 inputs [0]
 returns [1]
+solved
+witness 0 1
+witness 1 1
 # program dual_constrained_lambdas
 acir(inline) pure fn main f0 {
   b0():
@@ -567,6 +752,7 @@ acir(inline) pure fn main f0 {
 }
 inputs []
 returns []
+solved
 # program field_attribute
 acir(inline) predicate_pure fn main f0 {
   b0(v0: u32):
@@ -580,6 +766,10 @@ zero 4294967297*[] + 21888242871839275222246405745257275088548364400416034343698
 zero 1*[1]
 inputs [0]
 returns []
+solved
+witness 0 3
+witness 1 0
+witness 2 4294967294
 # program for_loop_inclusive_u8_max
 acir(inline) pure fn main f0 {
   b0():
@@ -587,6 +777,7 @@ acir(inline) pure fn main f0 {
 }
 inputs []
 returns []
+solved
 # program for_loop_signed_index_crosses_zero
 acir(inline) predicate_pure fn main f0 {
   b0(v0: u32):
@@ -632,6 +823,25 @@ zero 1*[14] + 218882428718392752222464057452572750885483644004160343436982041865
 zero 1*[1] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[16]
 inputs [0]
 returns [1]
+solved
+witness 0 0
+witness 1 794
+witness 2 197
+witness 3 0
+witness 4 197
+witness 5 221
+witness 6 395
+witness 7 0
+witness 8 395
+witness 9 419
+witness 10 594
+witness 11 0
+witness 12 594
+witness 13 618
+witness 14 794
+witness 15 0
+witness 16 794
+witness 17 818
 # program generics
 acir(inline) predicate_pure fn main f0 {
   b0(v0: Field, v1: Field):
@@ -641,6 +851,9 @@ acir(inline) predicate_pure fn main f0 {
 zero 1*[0] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[1]
 inputs [0,1]
 returns []
+solved
+witness 0 2
+witness 1 2
 # program global_string_control_char
 acir(inline) predicate_pure fn main f0 {
   b0(v4: Field):
@@ -653,6 +866,8 @@ zero 5*[] + 21888242871839275222246405745257275088548364400416034343698204186575
 zero 5*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[0]
 inputs [0]
 returns []
+solved
+witness 0 5
 # program higher_order_functions
 acir(inline) pure fn main f0 {
   b0(v0: Field):
@@ -662,6 +877,9 @@ acir(inline) pure fn main f0 {
 zero 5*[] + 1*[0] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[1]
 inputs [0]
 returns [1]
+solved
+witness 0 1
+witness 1 6
 # program lambda_env_is_copied
 acir(inline) pure fn main f0 {
   b0():
@@ -669,6 +887,7 @@ acir(inline) pure fn main f0 {
 }
 inputs []
 returns []
+solved
 # program local_module_does_not_conflict_with_debugger
 acir(inline) pure fn main f0 {
   b0():
@@ -676,6 +895,7 @@ acir(inline) pure fn main f0 {
 }
 inputs []
 returns []
+solved
 # program loop
 acir(inline) predicate_pure fn main f0 {
   b0(v0: u32):
@@ -685,6 +905,8 @@ acir(inline) predicate_pure fn main f0 {
 zero 6*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[0]
 inputs [0]
 returns []
+solved
+witness 0 6
 # program loop_carried_aliases
 acir(inline) pure fn main f0 {
   b0():
@@ -694,6 +916,9 @@ zero 3735928559*[] + 21888242871839275222246405745257275088548364400416034343698
 zero 3735928559*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[1]
 inputs []
 returns [0,1]
+solved
+witness 0 3735928559
+witness 1 3735928559
 # program main_return
 acir(inline) pure fn main f0 {
   b0(v0: Field):
@@ -702,6 +927,9 @@ acir(inline) pure fn main f0 {
 zero 1*[0] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[1]
 inputs [0]
 returns [1]
+solved
+witness 0 8
+witness 1 8
 # program match_struct_pattern_field_order
 acir(inline) predicate_pure fn main f0 {
   b0(v0: u8, v1: u8):
@@ -713,6 +941,9 @@ zero 2*[] + 21888242871839275222246405745257275088548364400416034343698204186575
 zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[0]
 inputs [0,1]
 returns []
+solved
+witness 0 1
+witness 1 2
 # program missing_closure_env
 acir(inline) predicate_pure fn main f0 {
   b0(v0: Field):
@@ -722,6 +953,8 @@ acir(inline) predicate_pure fn main f0 {
 zero 42*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[0]
 inputs [0]
 returns []
+solved
+witness 0 42
 # program negated_jmpif_condition
 acir(inline) predicate_pure fn main f0 {
   b0(v0: Field):
@@ -737,6 +970,10 @@ zero 1*[0,2] + 21888242871839275222246405745257275088548364400416034343698204186
 zero 2*[2]
 inputs [0]
 returns []
+solved
+witness 0 2
+witness 1 2736030358979909402780800718157159386068545550052004292962275523321976061952
+witness 2 0
 # program nested_array_dynamic_simple
 acir(inline) predicate_pure fn main f0 {
   b0(v0: u32):
@@ -747,6 +984,8 @@ acir(inline) predicate_pure fn main f0 {
 zero 3*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[0]
 inputs [0]
 returns []
+solved
+witness 0 3
 # program nested_array_with_refs
 acir(inline) pure fn main f0 {
   b0():
@@ -755,6 +994,8 @@ acir(inline) pure fn main f0 {
 zero 1*[0]
 inputs []
 returns [0]
+solved
+witness 0 0
 # program numeric_type_alias_inference
 acir(inline) predicate_pure fn main f0 {
   b0(v0: Field):
@@ -764,6 +1005,8 @@ acir(inline) predicate_pure fn main f0 {
 zero 5*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[0]
 inputs [0]
 returns []
+solved
+witness 0 5
 # program op_assign_desugaring
 acir(inline) pure fn main f0 {
   b0():
@@ -771,6 +1014,7 @@ acir(inline) pure fn main f0 {
 }
 inputs []
 returns []
+solved
 # program operator_overload_in_global
 acir(inline) predicate_pure fn main f0 {
   b0(v3: Field):
@@ -780,6 +1024,8 @@ acir(inline) predicate_pure fn main f0 {
 zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[0]
 inputs [0]
 returns []
+solved
+witness 0 1
 # program overlapping_dep_and_mod
 acir(inline) pure fn main f0 {
   b0():
@@ -788,6 +1034,8 @@ acir(inline) pure fn main f0 {
 zero 11*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[0]
 inputs []
 returns [0]
+solved
+witness 0 11
 # program pred_eq
 acir(inline) predicate_pure fn main f0 {
   b0(v0: Field, v1: Field):
@@ -797,6 +1045,9 @@ acir(inline) predicate_pure fn main f0 {
 zero 1*[0] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[1]
 inputs [0,1]
 returns []
+solved
+witness 0 1
+witness 1 1
 # program private_inherent_method_resolves_to_trait
 acir(inline) pure fn main f0 {
   b0():
@@ -804,6 +1055,7 @@ acir(inline) pure fn main f0 {
 }
 inputs []
 returns []
+solved
 # program ref_in_struct_in_array_write_through_call
 acir(inline) pure fn main f0 {
   b0(v0: Field, v1: Field):
@@ -813,6 +1065,10 @@ acir(inline) pure fn main f0 {
 zero 2*[1] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[2]
 inputs [0,1]
 returns [2]
+solved
+witness 0 1
+witness 1 5
+witness 2 10
 # program ref_to_ref_in_array_two_reads
 acir(inline) pure fn main f0 {
   b0(v0: Field, v1: Field):
@@ -822,6 +1078,11 @@ zero 99*[] + 2188824287183927522224640574525727508854836440041603434369820418657
 zero 99*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[3]
 inputs [0,1]
 returns [2,3]
+solved
+witness 0 1
+witness 1 5
+witness 2 99
+witness 3 99
 # program ref_to_ref_in_array_write_through_call
 acir(inline) pure fn main f0 {
   b0(v0: Field, v1: Field):
@@ -831,6 +1092,10 @@ acir(inline) pure fn main f0 {
 zero 2*[1] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[2]
 inputs [0,1]
 returns [2]
+solved
+witness 0 1
+witness 1 5
+witness 2 10
 # program reference_alias_in_array
 acir(inline) pure fn main f0 {
   b0():
@@ -838,6 +1103,7 @@ acir(inline) pure fn main f0 {
 }
 inputs []
 returns []
+solved
 # program references
 acir(inline) predicate_pure fn main f0 {
   b0(v0: Field):
@@ -848,6 +1114,8 @@ acir(inline) predicate_pure fn main f0 {
 zero 2*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[0]
 inputs [0]
 returns []
+solved
+witness 0 2
 # program regression_10452
 acir(inline) pure fn main f0 {
   b0():
@@ -855,6 +1123,7 @@ acir(inline) pure fn main f0 {
 }
 inputs []
 returns []
+solved
 # program regression_10690
 acir(inline) pure fn main f0 {
   b0():
@@ -862,6 +1131,7 @@ acir(inline) pure fn main f0 {
 }
 inputs []
 returns []
+solved
 # program regression_11463
 acir(inline) pure fn main f0 {
   b0():
@@ -869,6 +1139,7 @@ acir(inline) pure fn main f0 {
 }
 inputs []
 returns []
+solved
 # program regression_11540
 acir(inline) pure fn main f0 {
   b0():
@@ -876,6 +1147,7 @@ acir(inline) pure fn main f0 {
 }
 inputs []
 returns []
+solved
 # program regression_12034
 acir(inline) pure fn main f0 {
   b0(v3: u1):
@@ -884,6 +1156,8 @@ acir(inline) pure fn main f0 {
 range 0 1
 inputs [0]
 returns []
+solved
+witness 0 1
 # program regression_12467
 acir(inline) predicate_pure fn main f0 {
   b0(v0: u32):
@@ -895,6 +1169,9 @@ range 0 2
 zero 4*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[1]
 inputs [0]
 returns [1]
+solved
+witness 0 0
+witness 1 4
 # program regression_12467_2
 acir(inline) predicate_pure fn main f0 {
   b0(v0: u32):
@@ -908,6 +1185,10 @@ zero 4294967293*[] + 1*[0] + 218882428718392752222464057452572750885483644004160
 zero 1*[1]
 inputs [0]
 returns []
+solved
+witness 0 0
+witness 1 0
+witness 2 4294967293
 # program regression_12475
 acir(inline) pure fn main f0 {
   b0():
@@ -915,6 +1196,7 @@ acir(inline) pure fn main f0 {
 }
 inputs []
 returns []
+solved
 # program regression_12494
 acir(inline) pure fn main f0 {
   b0():
@@ -923,6 +1205,8 @@ acir(inline) pure fn main f0 {
 zero 1*[0]
 inputs []
 returns [0]
+solved
+witness 0 0
 # program regression_12572
 acir(inline) pure fn main f0 {
   b0(v0: Field):
@@ -931,6 +1215,9 @@ acir(inline) pure fn main f0 {
 zero 1*[0] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[1]
 inputs [0]
 returns [1]
+solved
+witness 0 5
+witness 1 5
 # program regression_3889
 acir(inline) pure fn main f0 {
   b0(v0: Field, v1: Field, v2: Field):
@@ -941,6 +1228,11 @@ acir(inline) pure fn main f0 {
 zero 1*[0] + 1*[1] + 1*[2] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[3]
 inputs [0,1,2]
 returns [3]
+solved
+witness 0 5
+witness 1 6
+witness 2 7
+witness 3 18
 # program regression_4088
 acir(inline) predicate_pure fn main f0 {
   b0(v0: Field):
@@ -950,6 +1242,8 @@ acir(inline) predicate_pure fn main f0 {
 zero 1*[0]
 inputs [0]
 returns []
+solved
+witness 0 0
 # program regression_4124
 acir(inline) predicate_pure fn main f0 {
   b0(v0: Field):
@@ -959,6 +1253,8 @@ acir(inline) predicate_pure fn main f0 {
 zero 1*[0]
 inputs [0]
 returns []
+solved
+witness 0 0
 # program regression_7451
 acir(inline) predicate_pure fn main f0 {
   b0(v0: u8):
@@ -968,6 +1264,8 @@ acir(inline) predicate_pure fn main f0 {
 zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[0]
 inputs [0]
 returns []
+solved
+witness 0 1
 # program regression_7962
 acir(inline) predicate_pure fn main f0 {
   b0(v0: u64):
@@ -984,6 +1282,12 @@ zero 1*[2] + 2188824287183927522224640574525727508854836440041603434369820418657
 zero 1*[1] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[4]
 inputs [0]
 returns [1]
+solved
+witness 0 18446744073709551615
+witness 1 0
+witness 2 18446744073709551614
+witness 3 9223372036854775807
+witness 4 0
 # program regression_8210
 acir(inline) pure fn main f0 {
   b0():
@@ -991,6 +1295,7 @@ acir(inline) pure fn main f0 {
 }
 inputs []
 returns []
+solved
 # program regression_8212
 acir(inline) predicate_pure fn main f0 {
   b0(v0: i8):
@@ -1011,6 +1316,10 @@ zero 128*[] + 1*[0] + 2188824287183927522224640574525727508854836440041603434369
 zero 65535*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[0] + 21888242871839275222246405745257275088548364400416034343698204186575808430337*[1]
 inputs [0]
 returns []
+solved
+witness 0 255
+witness 1 1
+witness 2 127
 # program regression_8305
 acir(inline) predicate_pure fn main f0 {
   b0(v0: i32):
@@ -1037,6 +1346,15 @@ zero 1*[2,6] + 21888242871839275222246405745257275088548364400416034343698204186
 zero 1*[1] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[5]
 inputs [0]
 returns [1]
+solved
+witness 0 4294967294
+witness 1 4294967294
+witness 2 1
+witness 3 2147483646
+witness 4 0
+witness 5 4294967294
+witness 6 1
+witness 7 2147483646
 # program regression_8519
 acir(inline) predicate_pure fn main f0 {
   b0(v0: Field):
@@ -1060,6 +1378,16 @@ zero 53438638232309528388129535304893203149*[] + 2188824287183927522224640574525
 zero 53438638232309528388129535304893203149*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[1]
 inputs [0]
 returns [1]
+solved
+witness 0 1375357403778252084
+witness 1 53438638232309528388129535304893203149
+witness 2 64323764613183177041862057485226039389
+witness 3 53438638232309528388129535304893203149
+witness 4 286843728688628935075245072126875008306
+witness 5 85070591730234615865843651857942052863
+witness 6 0
+witness 7 1
+witness 8 85070591730234615864468294454163800780
 # program regression_8739
 acir(inline) pure fn main f0 {
   b0():
@@ -1067,6 +1395,7 @@ acir(inline) pure fn main f0 {
 }
 inputs []
 returns []
+solved
 # program regression_8761
 acir(inline) pure fn main f0 {
   b0():
@@ -1075,6 +1404,8 @@ acir(inline) pure fn main f0 {
 zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[0]
 inputs []
 returns [0]
+solved
+witness 0 1
 # program regression_8779
 acir(inline) predicate_pure fn main f0 {
   b0(v0: u32):
@@ -1085,6 +1416,9 @@ zero 1*[0]
 zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[1]
 inputs [0]
 returns [1]
+solved
+witness 0 0
+witness 1 1
 # program regression_8975
 acir(inline) pure fn main f0 {
   b0():
@@ -1093,6 +1427,8 @@ acir(inline) pure fn main f0 {
 zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[0]
 inputs []
 returns [0]
+solved
+witness 0 1
 # program regression_9116
 acir(inline) pure fn main f0 {
   b0():
@@ -1100,6 +1436,7 @@ acir(inline) pure fn main f0 {
 }
 inputs []
 returns []
+solved
 # program regression_9206
 acir(inline) predicate_pure fn main f0 {
   b0(v7: u32):
@@ -1117,6 +1454,11 @@ zero 1*[2]
 zero 1*[0] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[1]
 inputs [0]
 returns [1]
+solved
+witness 0 0
+witness 1 0
+witness 2 0
+witness 3 18446744073709551614
 # program regression_9243
 acir(inline) pure fn main f0 {
   b0():
@@ -1124,6 +1466,7 @@ acir(inline) pure fn main f0 {
 }
 inputs []
 returns []
+solved
 # program regression_9725_2
 acir(inline) pure fn main f0 {
   b0():
@@ -1131,6 +1474,7 @@ acir(inline) pure fn main f0 {
 }
 inputs []
 returns []
+solved
 # program regression_foreign_proxy_generic
 acir(inline) pure fn main f0 {
   b0():
@@ -1138,6 +1482,7 @@ acir(inline) pure fn main f0 {
 }
 inputs []
 returns []
+solved
 # program regression_inner_if_else_collapse
 acir(inline) pure fn main f0 {
   b0(v0: u1):
@@ -1150,6 +1495,10 @@ zero 1*[0] + 2188824287183927522224640574525727508854836440041603434369820418657
 zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[2]
 inputs [0]
 returns [1,2]
+solved
+witness 0 0
+witness 1 0
+witness 2 1
 # program regression_mem2reg_make_array_of_refs
 acir(inline) pure fn main f0 {
   b0():
@@ -1158,6 +1507,8 @@ acir(inline) pure fn main f0 {
 zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[0]
 inputs []
 returns [0]
+solved
+witness 0 1
 # program regression_truncate_unchecked_sub
 acir(inline) predicate_pure fn main f0 {
   b0(v0: u8):
@@ -1173,6 +1524,11 @@ zero 256*[] + 218882428718392752222464057452572750885483644004160343436982041865
 zero 1*[1] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[3]
 inputs [0]
 returns [1]
+solved
+witness 0 0
+witness 1 0
+witness 2 64
+witness 3 0
 # program regression_unused_nested_array_get
 acir(inline) pure fn main f0 {
   b0():
@@ -1180,6 +1536,7 @@ acir(inline) pure fn main f0 {
 }
 inputs []
 returns []
+solved
 # program return_twice
 acir(inline) pure fn main f0 {
   b0(v0: Field):
@@ -1190,6 +1547,10 @@ zero 1*[0,0] + 21888242871839275222246405745257275088548364400416034343698204186
 zero 1*[1] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[2]
 inputs [0]
 returns [1,2]
+solved
+witness 0 10
+witness 1 100
+witness 2 100
 # program shift_right_overflow
 acir(inline) pure fn main f0 {
   b0(v0: u8):
@@ -1198,6 +1559,8 @@ acir(inline) pure fn main f0 {
 range 0 8
 inputs [0]
 returns []
+solved
+witness 0 9
 # program shl_signed_regression_9661
 acir(inline) pure fn main f0 {
   b0():
@@ -1206,6 +1569,8 @@ acir(inline) pure fn main f0 {
 zero 7*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[0]
 inputs []
 returns [0]
+solved
+witness 0 7
 # program side_effects_constrain_array
 acir(inline) predicate_pure fn main f0 {
   b0(v0: u32):
@@ -1219,6 +1584,10 @@ zero 4294967306*[] + 21888242871839275222246405745257275088548364400416034343698
 zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[1]
 inputs [0]
 returns []
+solved
+witness 0 3
+witness 1 1
+witness 2 7
 # program signed_bitshift
 acir(inline) pure fn main f0 {
   b0():
@@ -1226,6 +1595,7 @@ acir(inline) pure fn main f0 {
 }
 inputs []
 returns []
+solved
 # program signed_truncation
 acir(inline) predicate_pure fn main f0 {
   b0(v0: i64):
@@ -1250,6 +1620,14 @@ zero 4294967295*[] + 21888242871839275222246405745257275088548364400416034343698
 zero 9223372036854775807*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[0]
 inputs [0]
 returns []
+solved
+witness 0 9223372036854775807
+witness 1 36028797018963967
+witness 2 255
+witness 3 140737488355327
+witness 4 65535
+witness 5 2147483647
+witness 6 4294967295
 # program simple_comparison
 acir(inline) predicate_pure fn main f0 {
   b0(v0: Field, v1: Field):
@@ -1284,6 +1662,23 @@ zero 4294967296*[] + 1*[3] + 218882428718392752222464057452572750885483644004160
 zero 1*[14]
 inputs [0,1]
 returns []
+solved
+witness 0 3
+witness 1 4
+witness 2 0
+witness 3 3
+witness 4 5096253676302562286669017222071363378443840053029366383258766538131
+witness 5 17810825007066547342376836583976902126768647256384055704426573680634600537688
+witness 6 0
+witness 7 0
+witness 8 0
+witness 9 4
+witness 10 5096253676302562286669017222071363378443840053029366383258766538131
+witness 11 17810825007066547342376836583976902126768647256384055704426573680634600537688
+witness 12 0
+witness 13 0
+witness 14 0
+witness 15 4294967295
 # program simple_mut
 acir(inline) pure fn main f0 {
   b0(v0: Field):
@@ -1293,6 +1688,9 @@ acir(inline) pure fn main f0 {
 zero 2*[] + 1*[0] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[1]
 inputs [0]
 returns [1]
+solved
+witness 0 1
+witness 1 3
 # program simple_not
 acir(inline) pure fn main f0 {
   b0(v0: u1):
@@ -1303,6 +1701,9 @@ range 0 1
 zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[0] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[1]
 inputs [0]
 returns [1]
+solved
+witness 0 0
+witness 1 1
 # program simple_program_addition
 acir(inline) pure fn main f0 {
   b0(v0: Field):
@@ -1312,6 +1713,9 @@ acir(inline) pure fn main f0 {
 zero 1*[] + 1*[0] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[1]
 inputs [0]
 returns [1]
+solved
+witness 0 3
+witness 1 4
 # program simple_shift_left_right
 acir(inline) predicate_pure fn main f0 {
   b0(v0: u32):
@@ -1337,6 +1741,14 @@ zero 1*[4] + 2188824287183927522224640574525727508854836440041603434369820418657
 zero 1*[1] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[5]
 inputs [0]
 returns []
+solved
+witness 0 3
+witness 1 0
+witness 2 3
+witness 3 0
+witness 4 48
+witness 5 0
+witness 6 48
 # program stored_unconstrained_fn_regression
 acir(inline) pure fn main f0 {
   b0():
@@ -1344,6 +1756,7 @@ acir(inline) pure fn main f0 {
 }
 inputs []
 returns []
+solved
 # program struct
 acir(inline) predicate_pure fn main f0 {
   b0(v0: Field, v1: Field):
@@ -1355,6 +1768,9 @@ zero 1*[0]
 zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[1]
 inputs [0,1]
 returns []
+solved
+witness 0 0
+witness 1 1
 # program struct_assignment_with_shared_ref_to_field
 acir(inline) pure fn main f0 {
   b0():
@@ -1362,6 +1778,7 @@ acir(inline) pure fn main f0 {
 }
 inputs []
 returns []
+solved
 # program struct_fields_ordering
 acir(inline) predicate_pure fn main f0 {
   b0(v0: u32, v1: Field):
@@ -1373,6 +1790,9 @@ zero 5*[] + 21888242871839275222246405745257275088548364400416034343698204186575
 zero 7*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[1]
 inputs [0,1]
 returns []
+solved
+witness 0 5
+witness 1 7
 # program trait_as_return_type
 acir(inline) pure fn main f0 {
   b0(v0: u32):
@@ -1381,6 +1801,8 @@ acir(inline) pure fn main f0 {
 range 0 32
 inputs [0]
 returns []
+solved
+witness 0 5
 # program trait_associated_constant
 acir(inline) pure fn main f0 {
   b0():
@@ -1388,6 +1810,7 @@ acir(inline) pure fn main f0 {
 }
 inputs []
 returns []
+solved
 # program trait_impl_base_type
 acir(inline) predicate_pure fn main f0 {
   b0(v0: u32):
@@ -1399,6 +1822,8 @@ acir(inline) predicate_pure fn main f0 {
 zero 15*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495614*[0]
 inputs [0]
 returns []
+solved
+witness 0 5
 # program trait_sibling_bounds_associated_types
 acir(inline) predicate_pure fn main f0 {
   b0(v0: Field):
@@ -1409,6 +1834,8 @@ acir(inline) predicate_pure fn main f0 {
 zero 1*[0]
 inputs [0]
 returns []
+solved
+witness 0 0
 # program traits_in_crates_1
 acir(inline) predicate_pure fn main f0 {
   b0(v0: Field, v1: Field):
@@ -1419,6 +1846,9 @@ acir(inline) predicate_pure fn main f0 {
 zero 10*[] + 1*[0] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[1]
 inputs [0,1]
 returns []
+solved
+witness 0 1
+witness 1 11
 # program traits_in_crates_2
 acir(inline) predicate_pure fn main f0 {
   b0(v0: Field, v1: Field):
@@ -1429,6 +1859,9 @@ acir(inline) predicate_pure fn main f0 {
 zero 10*[] + 1*[0] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[1]
 inputs [0,1]
 returns []
+solved
+witness 0 1
+witness 1 11
 # program tuples
 acir(inline) predicate_pure fn main f0 {
   b0(v0: Field, v1: Field):
@@ -1440,6 +1873,9 @@ zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575
 zero 1*[1]
 inputs [0,1]
 returns []
+solved
+witness 0 1
+witness 1 0
 # program unsafe_range_constraint
 acir(inline) predicate_pure fn main f0 {
   b0(v0: Field):
@@ -1449,6 +1885,8 @@ acir(inline) predicate_pure fn main f0 {
 range 0 48
 inputs [0]
 returns []
+solved
+witness 0 3
 # program unsigned_to_signed_cast
 acir(inline) predicate_pure fn main f0 {
   b0(v0: u64):
@@ -1473,6 +1911,14 @@ zero 4294967295*[] + 21888242871839275222246405745257275088548364400416034343698
 zero 18446744073709551615*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[0]
 inputs [0]
 returns []
+solved
+witness 0 18446744073709551615
+witness 1 72057594037927935
+witness 2 255
+witness 3 281474976710655
+witness 4 65535
+witness 5 4294967295
+witness 6 4294967295
 # program vector_pop_back_simplify
 acir(inline) predicate_pure fn main f0 {
   b0(v0: u32, v1: u32, v2: u32):
@@ -1500,6 +1946,15 @@ zero 4*[] + 21888242871839275222246405745257275088548364400416034343698204186575
 zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[5]
 inputs [0,1,2]
 returns [3,4,5]
+solved
+witness 0 5
+witness 1 10
+witness 2 0
+witness 3 10
+witness 4 4
+witness 5 1
+witness 6 0
+witness 7 4294967286
 # program vector_pop_temporary_alias
 acir(inline) pure fn main f0 {
   b0():
@@ -1507,6 +1962,7 @@ acir(inline) pure fn main f0 {
 }
 inputs []
 returns []
+solved
 # program wrapping_operations
 acir(inline) predicate_pure fn main f0 {
   b0(v0: u8, v1: u8):
@@ -1557,6 +2013,24 @@ zero 1*[15,18]
 zero 1*[] + 21888242871839275222246405745257275088548364400416034343698204186575808495616*[15]
 inputs [0,1]
 returns []
+solved
+witness 0 0
+witness 1 255
+witness 2 1329227995784915872903807060280344575
+witness 3 255
+witness 4 85500948718122168836900022442411230813312820443340218282167303043531407361
+witness 5 13823525377883292355180322668502189402650216401987062423112708392772864485726
+witness 6 0
+witness 8 1
+witness 9 0
+witness 10 85500948718122168836900022442411230814642048439125134155071110103811751935
+witness 11 20184877667805090380048241874031027999945378843963424667145814755713877873389
+witness 12 0
+witness 14 254
+witness 15 1
+witness 16 85500948718122168836900022442411230814642048439125134155071110103811751682
+witness 17 20438451836867929457045094410465685948888575004451530538726144741261206308910
+witness 18 0
 # program zeroed_array_of_references
 acir(inline) pure fn main f0 {
   b0():
@@ -1564,3 +2038,4 @@ acir(inline) pure fn main f0 {
 }
 inputs []
 returns []
+solved

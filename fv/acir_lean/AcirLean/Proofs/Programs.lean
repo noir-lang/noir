@@ -65,7 +65,7 @@ theorem pinned_bounds {n : ℕ} (hn : n ∈ pinnedWidths) : 8 ≤ n ∧ n ≤ 12
 /-! ### `div` -/
 
 theorem acirGenDiv_sound {n : ℕ} (hn : n ∈ pinnedWidths) :
-    SoundFunction (acirGenDiv n) (Computes2 n (SsaBinOp.eval .div)) := by
+    SoundFunction (acirGenDiv n) (DivOp n) := by
   intro σ h
   simp only [acirGenDiv, allHold_append, allHold_rename] at h
   obtain ⟨⟨hin, hg⟩, hl⟩ := h
@@ -81,9 +81,16 @@ theorem acirGenDiv_sound {n : ℕ} (hn : n ∈ pinnedWidths) :
     rcases pinned_cases hn with h | rfl
     · exact (divVarGadget_sound (by omega) _ hg (by simpa [witnessAt] using hb)).1
     · exact (divVarGadget128_sound _ hg (by simpa [witnessAt] using hb)).1
+  have hinv := hg (.assertZero [⟨1, []⟩, ⟨-1, [1, 2]⟩]) (by simp [divVarGadget])
+  simp [Opcode.Holds, Term.eval, witnessAt] at hinv
+  have hb0 : (σ 1).val ≠ 0 := by
+    intro h0
+    have h1 : σ 1 * σ 3 = 1 := by linear_combination -hinv
+    rw [(ZMod.val_eq_zero _).1 h0] at h1
+    simp at h1
   simp [witnessAt] at hq
-  simp only [acirGenDiv, List.map, Computes2, SsaBinOp.eval]
-  refine ⟨ha, hb, ?_⟩
+  simp only [acirGenDiv, List.map, DivOp]
+  refine ⟨ha, hb, hb0, ?_⟩
   rw [show σ 2 = σ 4 by linear_combination e, hq]
 
 /-! ### `lt` -/

@@ -15,7 +15,10 @@ is its bit pattern as a natural number, so an `i8` holding `-1` is `255`.
 
 `cast` keeps the bit pattern (both ACIR generation and the SSA interpreter
 treat it as a relabelling). `div` is integer division, `lt` is `1` or `0`, and
-`xor` is bitwise.
+`xor` is bitwise. `div` by zero gives `0` here, unlike Noir; that is harmless
+because `signedLtSsa` only divides by the constant `2^(n-1)`, and the claims
+about `div` instructions use `DivOp` (`Spec/Claims.lean`), which rejects a zero
+divisor.
 -/
 
 namespace AcirLean

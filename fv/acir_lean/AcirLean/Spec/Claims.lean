@@ -80,6 +80,13 @@ def Computes2 (n : ℕ) (g : ℕ → ℕ → ℕ) : List ℕ → List ℕ → Pr
   | [a, b], [r] => a < 2 ^ n ∧ b < 2 ^ n ∧ r = g a b
   | _, _ => False
 
+/-- `div` on `u<n>`: two `n`-bit inputs, a nonzero divisor, and one return value
+equal to the quotient. Noir's SSA interpreter fails on a zero divisor, so a
+circuit that accepted one would break this. -/
+def DivOp (n : ℕ) : List ℕ → List ℕ → Prop
+  | [a, b], [r] => a < 2 ^ n ∧ b < 2 ^ n ∧ b ≠ 0 ∧ r = a / b
+  | _, _ => False
+
 /-- One input `a` and one return value, equal to `g a`. -/
 def Computes1 (g : ℕ → ℕ) : List ℕ → List ℕ → Prop
   | [a], [r] => r = g a
@@ -91,7 +98,9 @@ def toBitPattern (n : ℕ) (x : ℤ) : ℕ := (x % 2 ^ n).toNat
 /-- Signed `div` or `mod` on `i<n>`: two `n`-bit inputs, a nonzero divisor, not
 the overflowing `MIN / -1`, and the result is `op` on the signed values,
 encoded. Noir's `/` and `%` on signed integers truncate toward zero, which is
-Lean's `Int.tdiv` and `Int.tmod`. -/
+Lean's `Int.tdiv` and `Int.tmod`; `AllClaims` names them `_root_.Int.tdiv` and
+`_root_.Int.tmod` so that no definition inside `AcirLean` can stand in for
+them. -/
 def SignedOp (n : ℕ) (op : ℤ → ℤ → ℤ) : List ℕ → List ℕ → Prop
   | [a, b], [r] =>
     a < 2 ^ n ∧ b < 2 ^ n ∧ toSigned n b ≠ 0 ∧ ¬ (toSigned n a = -2 ^ (n - 1) ∧ toSigned n b = -1) ∧
@@ -115,7 +124,7 @@ def uncoveredPrograms : List String :=
 * the SSA `expand_signed_math` emits for `lt` on `i<n>` computes signed `<`;
 * whole functions, as ACIR generation compiles them, enforce their
   parameters' types and compute their SSA meaning, with no assumption on the
-  inputs: `div` and `lt` on `u<n>`, a field
+  inputs: `div` (rejecting a zero divisor) and `lt` on `u<n>`, a field
   truncated to `u<n>`, and signed `lt` on `i<n>` after `expand_signed_math`;
 * the same functions still do after `acvm::compiler::optimize`, as the
   circuits `nargo compile` ships;
@@ -126,7 +135,8 @@ def uncoveredPrograms : List String :=
   the witness ACVM solved for it satisfies its circuit;
 * `testPrograms` holds exactly the programs named in `testProgramNames`, and
   every one of them except `uncoveredPrograms` is implemented by the circuit
-  `nargo compile` ships for it (`ProgramSpec`);
+  `nargo compile` ships for it (`ProgramSpec`), and the witness `nargo execute`
+  solved for it satisfies that circuit;
 * no constraint list is contradictory. -/
 def AllClaims : Prop :=
   (∀ n ∈ pinnedWidths,
@@ -143,7 +153,7 @@ def AllClaims : Prop :=
     Satisfiable (moreThanEqGadget m) [(0, m), (1, m)]) ∧
   (∀ n ∈ pinnedWidths, ComputesSignedLt (signedLtSsa n) n) ∧
   (∀ n ∈ pinnedWidths,
-    SoundFunction (acirGenDiv n) (Computes2 n (SsaBinOp.eval .div)) ∧ SatisfiableFunction (acirGenDiv n)) ∧
+    SoundFunction (acirGenDiv n) (DivOp n) ∧ SatisfiableFunction (acirGenDiv n)) ∧
   (∀ n ∈ pinnedWidths,
     SoundFunction (acirGenLt n) (Computes2 n (SsaBinOp.eval .lt)) ∧ SatisfiableFunction (acirGenLt n)) ∧
   (∀ n ∈ pinnedWidths,
@@ -153,7 +163,7 @@ def AllClaims : Prop :=
       (Computes2 n fun a b => if toSigned n a < toSigned n b then 1 else 0) ∧
     SatisfiableFunction (acirGenSignedLt n)) ∧
   (∀ n ∈ pinnedWidths,
-    SoundFunction (shippedDiv n) (Computes2 n (SsaBinOp.eval .div)) ∧ SatisfiableFunction (shippedDiv n)) ∧
+    SoundFunction (shippedDiv n) (DivOp n) ∧ SatisfiableFunction (shippedDiv n)) ∧
   (∀ n ∈ pinnedWidths,
     SoundFunction (shippedLt n) (Computes2 n (SsaBinOp.eval .lt)) ∧ SatisfiableFunction (shippedLt n)) ∧
   (∀ n ∈ pinnedWidths,
@@ -163,11 +173,12 @@ def AllClaims : Prop :=
       (Computes2 n fun a b => if toSigned n a < toSigned n b then 1 else 0) ∧
     SatisfiableFunction (shippedSignedLt n)) ∧
   (∀ n ∈ signedWidths,
-    SoundFunction (shippedSignedDiv n) (SignedOp n Int.tdiv) ∧ SatisfiableFunction (shippedSignedDiv n)) ∧
+    SoundFunction (shippedSignedDiv n) (SignedOp n _root_.Int.tdiv) ∧ SatisfiableFunction (shippedSignedDiv n)) ∧
   (∀ n ∈ signedWidths,
-    SoundFunction (shippedSignedMod n) (SignedOp n Int.tmod) ∧ SatisfiableFunction (shippedSignedMod n)) ∧
+    SoundFunction (shippedSignedMod n) (SignedOp n _root_.Int.tmod) ∧ SatisfiableFunction (shippedSignedMod n)) ∧
   (∀ e ∈ corpus, SoundFunction e.fn (CorpusSpec e.prog) ∧ AllHold e.assignment e.fn.opcodes) ∧
   testPrograms.map TestProgram.name = testProgramNames ∧
-  (∀ e ∈ testPrograms, e.name ∉ uncoveredPrograms → SoundFunction e.fn (ProgramSpec e.prog))
+  (∀ e ∈ testPrograms, e.name ∉ uncoveredPrograms →
+    SoundFunction e.fn (ProgramSpec e.prog) ∧ AllHold e.assignment e.fn.opcodes)
 
 end AcirLean

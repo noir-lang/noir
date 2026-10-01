@@ -59,7 +59,7 @@ theorem truncInlinedGadget_sound {n : ℕ} (hn1 : 2 ≤ n) (hn : n ≤ 125) (hN 
   rw [show σ 1 = σ 3 by linear_combination e6, hr]
 
 theorem shipped_sound {n : ℕ} (hn : n ∈ pinnedWidths) :
-    SoundFunction (shippedDiv n) (Computes2 n (SsaBinOp.eval .div)) ∧
+    SoundFunction (shippedDiv n) (DivOp n) ∧
     SoundFunction (shippedLt n) (Computes2 n (SsaBinOp.eval .lt)) ∧
     SoundFunction (shippedTruncate n) (Computes1 (· % 2 ^ n)) ∧
     SoundFunction (shippedSignedLt n)

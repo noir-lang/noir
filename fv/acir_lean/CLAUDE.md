@@ -5,12 +5,14 @@ attached to the Rust.
 
 ## Reviewed and unreviewed code
 
-- `AcirLean/Spec/`, `Check.lean`, the `Emit*.lean` entry points,
-  `scripts/check.sh` and the CI workflows are **reviewed**: they state what is
-  claimed and how it is enforced. Lean cannot tell whether they match intent,
-  so keep them small and plain.
-- `AcirLean/Proofs/` is checked by Lean and `AcirLean/Templates/` is compared
-  byte-for-byte with the compiler's output; neither needs human review.
+The table in `README.md` ("What you must review") is the list of reviewed
+files: the spec in `AcirLean/Spec/`, the entry points, the enforcement
+scripts, the regeneration script, the CI workflows, and the Rust halves of the
+pins (`fv_templates.rs`, `fv_semantics.rs`). They state what is claimed and how
+it is enforced. Lean cannot tell whether they match intent, so keep them small
+and plain, and add any new file of that kind to the table.
+`AcirLean/Proofs/` is checked by Lean and `AcirLean/Templates/` is compared
+byte-for-byte with the compiler's output; neither needs human review.
 
 ## Keep `REVIEWING.md` in sync
 
@@ -48,6 +50,9 @@ golden file. When the spec gains a new instruction or type, add it to the grid.
 ## Commands
 
 - `just fv-check`: build the proofs and run every check of the `FV Lean` job.
+- `just fv-regen-corpus`: rebuild the corpus programs
+  (`AcirLean/Templates/Corpus.lean`) from `fv_templates.rs`'s output, when
+  `integer_gadgets_match_lean_templates` reports a changed `corpus` section.
 - `just fv-regen`: rebuild the proved test programs from the current compiler,
   when the `FV test programs` job reports that one of their circuits changed.
 - `just fv-regen-all`: also bring in test programs that are not proved yet,

@@ -53,6 +53,8 @@ Lean looks a lot like a functional programming language (think Haskell, OCaml or
 | `deriving DecidableEq` | Auto-derive equality comparison, like `#[derive(PartialEq, Eq)]`. |
 | `instance : …` | A trait impl. Only two small facts about `p` use it here. |
 | `namespace AcirLean … end AcirLean` | A module scope. |
+| `_root_.Int.tdiv` | The top-level `Int.tdiv`, never one defined inside `AcirLean`; like Rust's `::std::…`. |
+| `{α : Type}` | A generic type parameter, like `<T>` in Rust. |
 | `import X` | `use` another file. |
 
 ### Logic (only inside `Prop`s)
@@ -500,9 +502,13 @@ structure TestProgram where
   name : String
   prog : Program
   fn : Circuit
+  witness : List (ℕ × ℕ)
+
+def TestProgram.assignment (e : TestProgram) (i : ℕ) : F :=
+  ((e.witness.lookup i).getD 0 : ℕ)
 ```
 
-A test program: its name, its SSA, and its shipped circuit.
+A test program: its name, its SSA, its shipped circuit, and the witness `nargo execute` solved for it from its `Prover.toml`, as `(witness, value)` pairs. `TestProgram.assignment` turns that list into a value for every witness (`0` for any not listed), the same way `CorpusEntry.assignment` does for the corpus.
 
 ---
 
@@ -524,24 +530,32 @@ def witnessListLe : List ℕ → List ℕ → Bool
 Compares two lists of witness indices the way Rust sorts `Vec<u32>`. Used only to print terms in a fixed order.
 
 ```lean
-def coefValue (c : ℤ) : ℕ := (c % (p : ℤ)).toNat
+def modP (c : ℤ) : ℤ := c % (p : ℤ)
+def insertBy {α : Type} (le : α → α → Bool) (x : α) : List α → List α
+def isort {α : Type} (le : α → α → Bool) : List α → List α
 ```
 
-A coefficient reduced mod p, printed as a number in `[0, p)`.
+`modP` reduces a coefficient to `[0, p)`. `insertBy` and `isort` are a plain insertion sort.
 
 ```lean
-def Opcode.render : Opcode → String
+def Opcode.canon : Opcode → Opcode
 ```
 
-Prints one constraint in a canonical form:
+Puts one constraint in canonical form:
 
-1. sort each term's witnesses;
+1. reduce each coefficient mod p and sort each term's witnesses;
 2. drop zero terms;
 3. sort the terms;
 4. flip the overall sign if the first coefficient is in the upper half (an equation `= 0` means the same with all signs flipped).
 
-The output looks like `zero 1*[0] + 21888…616*[3]` for an `AssertZero`, or `range 5 8`. The Rust test prints the compiler's constraints the same way, so the two can be compared as text.
-**Check:** that this printing is faithful, i.e. two constraints that print the same really are the same equation. Flipping the sign or reordering doesn't change what `assertZero` means, so it's fine.
+You don't need to check by eye that this keeps the equation's meaning: `Opcode.canon_sat` in `Proofs/Canon.lean` proves that a constraint holds exactly when its canonical form does. Terms over the same witnesses are not merged; Rust merges them, so such a constraint would print differently on the two sides and fail the pin rather than pass wrongly.
+
+```lean
+def Opcode.render (c : Opcode) : String :=
+```
+
+Prints `c.canon`: `zero 1*[0] + 21888…616*[3]` for an `AssertZero`, or `range 5 8`. The Rust test prints the compiler's constraints the same way, so the two can be compared as text.
+**Check:** that printing a canonical constraint is faithful: each coefficient and witness list is printed as is.
 
 ```lean
 def Circuit.render … CorpusProgram.render … CorpusEntry.render … TestProgram.render
@@ -651,6 +665,14 @@ def Computes1 (g : ℕ → ℕ) : List ℕ → List ℕ → Prop
 The spec for a two-input function: exactly two inputs, both n-bit, and exactly one output, equal to `g a b`. The `| _, _ => False` line means any other number of inputs or outputs fails the spec, so the circuit can't sneak in an extra input.
 
 ```lean
+def DivOp (n : ℕ) : List ℕ → List ℕ → Prop
+  | [a, b], [r] => a < 2 ^ n ∧ b < 2 ^ n ∧ b ≠ 0 ∧ r = a / b
+  | _, _ => False
+```
+
+The spec for unsigned `/` on `u<n>`: two n-bit inputs, a divisor that isn't zero, and an output equal to the quotient. Noir fails on a zero divisor, so `b ≠ 0` here means a circuit that accepted `b = 0` (with any output) would break the claim. **Check:** that `b ≠ 0` is there.
+
+```lean
 def toBitPattern (n : ℕ) (x : ℤ) : ℕ := (x % 2 ^ n).toNat
 def SignedOp (n : ℕ) (op : ℤ → ℤ → ℤ) : List ℕ → List ℕ → Prop
   | [a, b], [r] =>
@@ -665,7 +687,7 @@ The spec for signed `/` and `%`. It requires:
 - it isn't the overflowing `MIN / -1`;
 - the output is the true signed result, written back as a bit pattern.
 
-`op` will be `Int.tdiv` or `Int.tmod`: division that rounds toward zero, as Noir does.
+`op` will be `Int.tdiv` or `Int.tmod`: division that rounds toward zero, as Noir does. `AllClaims` writes them `_root_.Int.tdiv` and `_root_.Int.tmod`: `_root_.` means "the one at the top level", so no definition elsewhere in the project can stand in for Lean's.
 
 ```lean
 def uncoveredPrograms : List String :=
@@ -691,13 +713,13 @@ Every line below is joined with `∧` ("and"). Read each one as a sentence.
 | `∀ k ∈ pinnedWidths, Sound (truncateGadget k) [] (truncSpec k) …` | Truncation forces `r = x mod 2^k` for *any* field element `x`, with no input assumption. This is the gadget bug #7895 was in. |
 | `… Sound (moreThanEqGadget m) … geSpec …` | The comparison gadget forces the result to be `[a ≥ b]`. |
 | `∀ n ∈ pinnedWidths, ComputesSignedLt (signedLtSsa n) n` | The SSA `expand_signed_math` makes for signed `<` is correct. |
-| `SoundFunction (acirGenDiv n) (Computes2 n (SsaBinOp.eval .div)) ∧ SatisfiableFunction …` | The whole function `fn(a: u<n>, b: u<n>) -> a / b`, as ACIR generation compiles it, is correct and enforces the input types. |
+| `SoundFunction (acirGenDiv n) (DivOp n) ∧ SatisfiableFunction …` | The whole function `fn(a: u<n>, b: u<n>) -> a / b`, as ACIR generation compiles it, is correct, enforces the input types, and rejects a zero divisor. |
 | `… acirGenLt … acirGenTruncate … acirGenSignedLt …` | The same for `lt`, truncation and signed `lt`. |
 | `… shippedDiv … shippedLt … shippedTruncate … shippedSignedLt …` | The same four, **after the ACVM optimizer**, as `nargo compile` actually ships them. |
-| `∀ n ∈ signedWidths, SoundFunction (shippedSignedDiv n) (SignedOp n Int.tdiv) …` and `…shippedSignedMod… Int.tmod` | Signed `/` and `%`, as shipped, are correct and reject a zero divisor and `MIN / -1`. |
+| `∀ n ∈ signedWidths, SoundFunction (shippedSignedDiv n) (SignedOp n _root_.Int.tdiv) …` and `…shippedSignedMod… _root_.Int.tmod` | Signed `/` and `%`, as shipped, are correct and reject a zero divisor and `MIN / -1`. |
 | `∀ e ∈ corpus, SoundFunction e.fn (CorpusSpec e.prog) ∧ AllHold e.assignment e.fn.opcodes` | Every corpus program's shipped circuit implements it, and ACVM's real witness satisfies that circuit. |
 | `testPrograms.map TestProgram.name = testProgramNames` | The generated test programs are exactly the ones the reviewed list names. |
-| `∀ e ∈ testPrograms, e.name ∉ uncoveredPrograms → SoundFunction e.fn (ProgramSpec e.prog)` | Every real test program in `testPrograms` (except those in `uncoveredPrograms`) is implemented by its shipped circuit. |
+| `∀ e ∈ testPrograms, e.name ∉ uncoveredPrograms → SoundFunction e.fn (ProgramSpec e.prog) ∧ AllHold e.assignment e.fn.opcodes` | Every real test program in `testPrograms` (except those in `uncoveredPrograms`) is implemented by its shipped circuit, and the witness `nargo execute` solved for it satisfies that circuit, so the first half can't hold just because the circuit is contradictory. |
 
 Names like `divVarGadget n` and `shippedDiv n` refer to constraint lists in `Templates/`. Those aren't reviewed, because the pin makes them equal to the compiler's real output.
 
