@@ -2032,7 +2032,7 @@
 <a href=#2032 id=2032 data-nosnippet>2032</a>            return v3
 <a href=#2033 id=2033 data-nosnippet>2033</a>        }
 <a href=#2034 id=2034 data-nosnippet>2034</a>        "</span>;
-<a href=#2035 id=2035 data-nosnippet>2035</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#2035 id=2035 data-nosnippet>2035</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap().defunctionalize().unwrap();
 <a href=#2036 id=2036 data-nosnippet>2036</a>        <span class="kw">let </span>(<span class="kw">_</span>, result) =
 <a href=#2037 id=2037 data-nosnippet>2037</a>            assert_pass_does_not_affect_execution(ssa, <span class="macro">vec!</span>[], |ssa| ssa.load_store_forwarding());
 <a href=#2038 id=2038 data-nosnippet>2038</a>        <span class="macro">assert_eq!</span>(result.unwrap(), <span class="macro">vec!</span>[Value::field(<span class="number">70_u128</span>.into())]);
@@ -2073,7 +2073,7 @@
 <a href=#2073 id=2073 data-nosnippet>2073</a>            return
 <a href=#2074 id=2074 data-nosnippet>2074</a>        }
 <a href=#2075 id=2075 data-nosnippet>2075</a>        "</span>;
-<a href=#2076 id=2076 data-nosnippet>2076</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#2076 id=2076 data-nosnippet>2076</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap().defunctionalize().unwrap();
 <a href=#2077 id=2077 data-nosnippet>2077</a>        <span class="kw">let </span>(<span class="kw">_</span>, result) =
 <a href=#2078 id=2078 data-nosnippet>2078</a>            assert_pass_does_not_affect_execution(ssa, <span class="macro">vec!</span>[], |ssa| ssa.load_store_forwarding());
 <a href=#2079 id=2079 data-nosnippet>2079</a>        <span class="macro">assert_eq!</span>(result.unwrap(), <span class="macro">vec!</span>[Value::field(<span class="number">5_u128</span>.into())]);
@@ -2229,4 +2229,108 @@
 <a href=#2229 id=2229 data-nosnippet>2229</a>        "</span>;
 <a href=#2230 id=2230 data-nosnippet>2230</a>        assert_ssa_does_not_change(src, Ssa::load_store_forwarding);
 <a href=#2231 id=2231 data-nosnippet>2231</a>    }
-<a href=#2232 id=2232 data-nosnippet>2232</a>}</code></pre></div></section></main></body></html>
+<a href=#2232 id=2232 data-nosnippet>2232</a>
+<a href=#2233 id=2233 data-nosnippet>2233</a>    <span class="doccomment">/// `apply` passes the same cell `v2` to both reference parameters of `check` through a
+<a href=#2234 id=2234 data-nosnippet>2234</a>    /// function value, so `store v2 at v1` overwrites the `Field 1` stored at `v0` and the
+<a href=#2235 id=2235 data-nosnippet>2235</a>    /// constraint fails for any input other than 1. After defunctionalization the dispatch
+<a href=#2236 id=2236 data-nosnippet>2236</a>    /// call links `check`'s parameters to `apply`'s arguments, so the load stays.
+<a href=#2237 id=2237 data-nosnippet>2237</a>    </span><span class="attr">#[test]
+<a href=#2238 id=2238 data-nosnippet>2238</a>    </span><span class="kw">fn </span>keeps_constraint_when_function_value_receives_aliased_references() {
+<a href=#2239 id=2239 data-nosnippet>2239</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#2240 id=2240 data-nosnippet>2240</a>        acir(inline) fn main f0 {
+<a href=#2241 id=2241 data-nosnippet>2241</a>          b0(v0: Field):
+<a href=#2242 id=2242 data-nosnippet>2242</a>            call f1(f2, v0)
+<a href=#2243 id=2243 data-nosnippet>2243</a>            return
+<a href=#2244 id=2244 data-nosnippet>2244</a>        }
+<a href=#2245 id=2245 data-nosnippet>2245</a>        acir(inline) fn apply f1 {
+<a href=#2246 id=2246 data-nosnippet>2246</a>          b0(v0: function, v1: Field):
+<a href=#2247 id=2247 data-nosnippet>2247</a>            v2 = allocate -&gt; &amp;mut Field
+<a href=#2248 id=2248 data-nosnippet>2248</a>            store Field 0 at v2
+<a href=#2249 id=2249 data-nosnippet>2249</a>            call v0(v2, v2, v1)
+<a href=#2250 id=2250 data-nosnippet>2250</a>            return
+<a href=#2251 id=2251 data-nosnippet>2251</a>        }
+<a href=#2252 id=2252 data-nosnippet>2252</a>        acir(inline) fn check f2 {
+<a href=#2253 id=2253 data-nosnippet>2253</a>          b0(v0: &amp;mut Field, v1: &amp;mut Field, v2: Field):
+<a href=#2254 id=2254 data-nosnippet>2254</a>            store Field 1 at v0
+<a href=#2255 id=2255 data-nosnippet>2255</a>            store v2 at v1
+<a href=#2256 id=2256 data-nosnippet>2256</a>            v4 = load v0 -&gt; Field
+<a href=#2257 id=2257 data-nosnippet>2257</a>            constrain v4 == Field 1
+<a href=#2258 id=2258 data-nosnippet>2258</a>            return
+<a href=#2259 id=2259 data-nosnippet>2259</a>        }
+<a href=#2260 id=2260 data-nosnippet>2260</a>        "</span>;
+<a href=#2261 id=2261 data-nosnippet>2261</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap().defunctionalize().unwrap();
+<a href=#2262 id=2262 data-nosnippet>2262</a>
+<a href=#2263 id=2263 data-nosnippet>2263</a>        <span class="kw">let </span>(<span class="kw">_</span>, result) =
+<a href=#2264 id=2264 data-nosnippet>2264</a>            assert_pass_does_not_affect_execution(ssa, <span class="macro">vec!</span>[Value::field(<span class="number">5_u128</span>.into())], |ssa| {
+<a href=#2265 id=2265 data-nosnippet>2265</a>                ssa.load_store_forwarding()
+<a href=#2266 id=2266 data-nosnippet>2266</a>            });
+<a href=#2267 id=2267 data-nosnippet>2267</a>        <span class="macro">assert!</span>(result.is_err());
+<a href=#2268 id=2268 data-nosnippet>2268</a>    }
+<a href=#2269 id=2269 data-nosnippet>2269</a>
+<a href=#2270 id=2270 data-nosnippet>2270</a>    <span class="doccomment">/// `set`, reached through a function value, stores `v2` two levels below `v4`, so after
+<a href=#2271 id=2271 data-nosnippet>2271</a>    /// the call `v3` holds `v2` and `store Field 6 at v5` overwrites `v2`. After
+<a href=#2272 id=2272 data-nosnippet>2272</a>    /// defunctionalization the analysis follows `set`'s body, so the final load stays.
+<a href=#2273 id=2273 data-nosnippet>2273</a>    </span><span class="attr">#[test]
+<a href=#2274 id=2274 data-nosnippet>2274</a>    </span><span class="kw">fn </span>keeps_load_when_function_value_stores_argument_two_levels_deep() {
+<a href=#2275 id=2275 data-nosnippet>2275</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#2276 id=2276 data-nosnippet>2276</a>        brillig(inline) fn main f0 {
+<a href=#2277 id=2277 data-nosnippet>2277</a>          b0():
+<a href=#2278 id=2278 data-nosnippet>2278</a>            v0 = call f1(f2) -&gt; Field
+<a href=#2279 id=2279 data-nosnippet>2279</a>            return v0
+<a href=#2280 id=2280 data-nosnippet>2280</a>        }
+<a href=#2281 id=2281 data-nosnippet>2281</a>        brillig(inline) fn h f1 {
+<a href=#2282 id=2282 data-nosnippet>2282</a>          b0(v0: function):
+<a href=#2283 id=2283 data-nosnippet>2283</a>            v1 = allocate -&gt; &amp;mut Field
+<a href=#2284 id=2284 data-nosnippet>2284</a>            store Field 0 at v1
+<a href=#2285 id=2285 data-nosnippet>2285</a>            v2 = allocate -&gt; &amp;mut Field
+<a href=#2286 id=2286 data-nosnippet>2286</a>            store Field 0 at v2
+<a href=#2287 id=2287 data-nosnippet>2287</a>            v3 = allocate -&gt; &amp;mut &amp;mut Field
+<a href=#2288 id=2288 data-nosnippet>2288</a>            store v1 at v3
+<a href=#2289 id=2289 data-nosnippet>2289</a>            v4 = allocate -&gt; &amp;mut &amp;mut &amp;mut Field
+<a href=#2290 id=2290 data-nosnippet>2290</a>            store v3 at v4
+<a href=#2291 id=2291 data-nosnippet>2291</a>            call v0(v4, v2)
+<a href=#2292 id=2292 data-nosnippet>2292</a>            v5 = load v3 -&gt; &amp;mut Field
+<a href=#2293 id=2293 data-nosnippet>2293</a>            store Field 5 at v2
+<a href=#2294 id=2294 data-nosnippet>2294</a>            store Field 6 at v5
+<a href=#2295 id=2295 data-nosnippet>2295</a>            v6 = load v2 -&gt; Field
+<a href=#2296 id=2296 data-nosnippet>2296</a>            return v6
+<a href=#2297 id=2297 data-nosnippet>2297</a>        }
+<a href=#2298 id=2298 data-nosnippet>2298</a>        brillig(inline) fn set f2 {
+<a href=#2299 id=2299 data-nosnippet>2299</a>          b0(v0: &amp;mut &amp;mut &amp;mut Field, v1: &amp;mut Field):
+<a href=#2300 id=2300 data-nosnippet>2300</a>            v2 = load v0 -&gt; &amp;mut &amp;mut Field
+<a href=#2301 id=2301 data-nosnippet>2301</a>            store v1 at v2
+<a href=#2302 id=2302 data-nosnippet>2302</a>            return
+<a href=#2303 id=2303 data-nosnippet>2303</a>        }
+<a href=#2304 id=2304 data-nosnippet>2304</a>        "</span>;
+<a href=#2305 id=2305 data-nosnippet>2305</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap().defunctionalize().unwrap();
+<a href=#2306 id=2306 data-nosnippet>2306</a>
+<a href=#2307 id=2307 data-nosnippet>2307</a>        <span class="kw">let </span>(<span class="kw">_</span>, result) =
+<a href=#2308 id=2308 data-nosnippet>2308</a>            assert_pass_does_not_affect_execution(ssa, <span class="macro">vec!</span>[], |ssa| ssa.load_store_forwarding());
+<a href=#2309 id=2309 data-nosnippet>2309</a>        <span class="macro">assert_eq!</span>(result.unwrap(), <span class="macro">vec!</span>[Value::field(<span class="number">6_u128</span>.into())]);
+<a href=#2310 id=2310 data-nosnippet>2310</a>    }
+<a href=#2311 id=2311 data-nosnippet>2311</a>
+<a href=#2312 id=2312 data-nosnippet>2312</a>    <span class="doccomment">/// The alias analysis has no sound answer for a call through a function value, so
+<a href=#2313 id=2313 data-nosnippet>2313</a>    /// running the pass before defunctionalization is a pipeline bug and must fail loudly.
+<a href=#2314 id=2314 data-nosnippet>2314</a>    </span><span class="attr">#[test]
+<a href=#2315 id=2315 data-nosnippet>2315</a>    #[should_panic(expected = <span class="string">"alias analysis requires defunctionalized SSA"</span>)]
+<a href=#2316 id=2316 data-nosnippet>2316</a>    </span><span class="kw">fn </span>panics_on_calls_through_function_values() {
+<a href=#2317 id=2317 data-nosnippet>2317</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#2318 id=2318 data-nosnippet>2318</a>        brillig(inline) fn main f0 {
+<a href=#2319 id=2319 data-nosnippet>2319</a>          b0():
+<a href=#2320 id=2320 data-nosnippet>2320</a>            v0 = call f1(f2) -&gt; Field
+<a href=#2321 id=2321 data-nosnippet>2321</a>            return v0
+<a href=#2322 id=2322 data-nosnippet>2322</a>        }
+<a href=#2323 id=2323 data-nosnippet>2323</a>        brillig(inline) fn h f1 {
+<a href=#2324 id=2324 data-nosnippet>2324</a>          b0(v0: function):
+<a href=#2325 id=2325 data-nosnippet>2325</a>            v1 = call v0() -&gt; Field
+<a href=#2326 id=2326 data-nosnippet>2326</a>            return v1
+<a href=#2327 id=2327 data-nosnippet>2327</a>        }
+<a href=#2328 id=2328 data-nosnippet>2328</a>        brillig(inline) fn one f2 {
+<a href=#2329 id=2329 data-nosnippet>2329</a>          b0():
+<a href=#2330 id=2330 data-nosnippet>2330</a>            return Field 1
+<a href=#2331 id=2331 data-nosnippet>2331</a>        }
+<a href=#2332 id=2332 data-nosnippet>2332</a>        "</span>;
+<a href=#2333 id=2333 data-nosnippet>2333</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#2334 id=2334 data-nosnippet>2334</a>        <span class="kw">let _ </span>= ssa.load_store_forwarding();
+<a href=#2335 id=2335 data-nosnippet>2335</a>    }
+<a href=#2336 id=2336 data-nosnippet>2336</a>}</code></pre></div></section></main></body></html>
