@@ -97,8 +97,9 @@ pub struct Closure {
     pub function_scope: Option<FuncId>,
     pub module_scope: ModuleId,
     /// The interpreter's substitution where the closure was created, which is the one its body
-    /// is interpreted under.
-    pub(crate) substitution: TypeBindings,
+    /// is interpreted under. It is shared with that frame, so the types macro calls in the body
+    /// produce are visible to the function that created the closure.
+    pub(crate) substitution: Shared<TypeBindings>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Display)]
