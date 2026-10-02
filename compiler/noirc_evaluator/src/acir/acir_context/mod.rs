@@ -136,6 +136,18 @@ impl<F: AcirField> AcirContext<F> {
         }
     }
 
+    /// How many `AcirVar`s exist, for `fv_hints`.
+    #[cfg(test)]
+    pub(crate) fn fv_var_count(&self) -> usize {
+        self.vars.len()
+    }
+
+    /// The expression of the `i`th `AcirVar`, for `fv_hints`.
+    #[cfg(test)]
+    pub(crate) fn fv_var_expression(&self, i: usize) -> Option<Expression<F>> {
+        self.var_to_expression(AcirVar::new(i)).ok()
+    }
+
     /// Adds a Variable to the context, whose exact value is resolved at runtime.
     pub(crate) fn add_variable(&mut self) -> AcirVar {
         let var_index = self.acir_ir.next_witness_index();
