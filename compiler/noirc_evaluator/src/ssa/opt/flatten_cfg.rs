@@ -319,6 +319,25 @@ pub(crate) struct Context<'f> {
     load_epochs: HashMap<ValueId, u32>,
 }
 
+/// How an instruction interacts with memory, for tracking `Context::memory_epoch`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum MemoryEffect {
+    Load,
+    /// The instruction may write memory through any address.
+    Write,
+    None,
+}
+
+impl MemoryEffect {
+    fn of(instruction: &Instruction) -> Self {
+        match instruction {
+            Instruction::Load { .. } => MemoryEffect::Load,
+            Instruction::Store { .. } | Instruction::Call { .. } => MemoryEffect::Write,
+            _ => MemoryEffect::None,
+        }
+    }
+}
+
 /// Tracks the origin of a merge result to collapse redundant nested merges.
 ///
 /// When nested `jmpif` blocks thread the same value through their else-arguments,
@@ -455,13 +474,13 @@ impl<'f> Context<'f> {
         let mut memory_epoch = 0;
         let mut load_epochs = HashMap::default();
         for instruction in function.dfg[target_block].instructions() {
-            match &function.dfg[*instruction] {
-                Instruction::Load { .. } => {
+            match MemoryEffect::of(&function.dfg[*instruction]) {
+                MemoryEffect::Load => {
                     let result = function.dfg.instruction_results(*instruction)[0];
                     load_epochs.insert(result, memory_epoch);
                 }
-                Instruction::Store { .. } | Instruction::Call { .. } => memory_epoch += 1,
-                _ => {}
+                MemoryEffect::Write => memory_epoch += 1,
+                MemoryEffect::None => {}
             }
         }
         (memory_epoch, load_epochs)
@@ -1508,9 +1527,7 @@ impl<'f> Context<'f> {
         let instruction = self.handle_instruction_side_effects(instruction, call_stack);
 
         let instruction_is_allocate = matches!(&instruction, Instruction::Allocate);
-        let instruction_is_load = matches!(&instruction, Instruction::Load { .. });
-        let instruction_writes_memory =
-            matches!(&instruction, Instruction::Store { .. } | Instruction::Call { .. });
+        let memory_effect = MemoryEffect::of(&instruction);
         let results = self.inserter.push_instruction_value(
             instruction,
             id,
@@ -1524,11 +1541,12 @@ impl<'f> Context<'f> {
         if instruction_is_allocate {
             self.local_allocations.insert(results.first());
         }
-        if instruction_is_load {
-            self.load_epochs.insert(results.first(), self.memory_epoch);
-        }
-        if instruction_writes_memory {
-            self.memory_epoch += 1;
+        match memory_effect {
+            MemoryEffect::Load => {
+                self.load_epochs.insert(results.first(), self.memory_epoch);
+            }
+            MemoryEffect::Write => self.memory_epoch += 1,
+            MemoryEffect::None => {}
         }
     }
 
