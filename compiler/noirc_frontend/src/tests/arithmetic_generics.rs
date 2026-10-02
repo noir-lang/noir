@@ -677,3 +677,132 @@ fn cancels_the_repeated_term_of_n_plus_m_minus_n() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn rejects_inexact_solution_of_multiplied_generic_in_return_position() {
+    // No `u32` satisfies `A * 2 = 5`, so `A` must not be solved as the truncated `5 / 2`.
+    let src = r#"
+        fn make<let A: u32>() -> [Field; A * 2] {
+            [0; A * 2]
+        }
+
+        fn main() {
+            let _x: [Field; 5] = make();
+                                 ^^^^^^ Expected type [Field; 5], found type [Field; (_ * 2)]
+                                 ^^^^ Type annotation needed
+                                 ~~~~ Could not determine the value of the generic argument `A` declared on the function `make`
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn rejects_inexact_solution_of_multiplied_generic_plus_constant() {
+    let src = r#"
+        fn make<let A: u32>() -> [Field; (A * 2) + 1] {
+            [0; (A * 2) + 1]
+        }
+
+        fn main() {
+            let _x: [Field; 6] = make();
+                                 ^^^^^^ Expected type [Field; 6], found type [Field; ((_ * 2) + 1)]
+                                 ^^^^ Type annotation needed
+                                 ~~~~ Could not determine the value of the generic argument `A` declared on the function `make`
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn rejects_inexact_solution_of_multiplied_struct_generic() {
+    let src = r#"
+        struct W<let N: u32> {}
+
+        fn make<let A: u32>() -> W<A * 3> {
+            W {}
+        }
+
+        fn main() {
+            let _w: W<7> = make();
+                           ^^^^^^ Expected type W<7>, found type W<(_ * 3)>
+                           ^^^^ Type annotation needed
+                           ~~~~ Could not determine the value of the generic argument `A` declared on the function `make`
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn rejects_inexact_solution_of_multiplied_generic_through_function_coercion() {
+    let src = r#"
+        struct W<let N: u32> {}
+
+        fn f<let N: u32>(_w: W<N * 2>) -> u32 {
+            N
+        }
+
+        fn main() {
+            let _h: fn(W<5>) -> u32 = f;
+                                      ^ Expected type fn(W<5>) -> u32, found type fn(W<(_ * 2)>) -> u32
+                                      ^ Type annotation needed
+                                      ~ Could not determine the value of the generic argument `N` declared on the function `f`
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn rejects_inexact_solution_of_multiplied_generic_through_generic_caller() {
+    // `N * 2 = M + 1` is solved symbolically as `N = (M + 1) / 2`, which only holds when
+    // `M + 1` is even. Here `M = 4`, so instantiating `check_pairs` must fail rather than
+    // run its loop over 4 entries for a value typed as holding 5.
+    let src = r#"
+        struct Checked<let N: u32> {}
+
+        fn check_pairs<let N: u32>(_c: Checked<N * 2>) -> u32 {
+            N
+        }
+
+        fn check_prefix<let M: u32>(c: Checked<M + 1>) -> u32 {
+            check_pairs(c)
+            ^^^^^^^^^^^ Arithmetic generics simplification failed: `"2"` != `(((4_u32 + 1_u32) / 2_u32) + ((4_u32 + 1_u32) % 2_u32))`
+        }
+
+        fn main() {
+            let c: Checked<5> = Checked {};
+            let _ = check_prefix(c);
+        }
+    "#;
+    check_monomorphization_error(src);
+}
+
+#[test]
+fn solves_exact_multiplied_generics() {
+    let src = r#"
+        struct Checked<let N: u32> {}
+
+        fn make<let A: u32>() -> [Field; A * 2] {
+            [0; A * 2]
+        }
+
+        fn make_odd<let A: u32>() -> [Field; (A * 2) + 1] {
+            [0; (A * 2) + 1]
+        }
+
+        fn check_pairs<let N: u32>(_c: Checked<N * 2>) -> u32 {
+            N
+        }
+
+        fn check_prefix<let M: u32>(c: Checked<M + 1>) -> u32 {
+            check_pairs(c)
+        }
+
+        fn main() {
+            let _x: [Field; 6] = make();
+            let _y: [Field; 7] = make_odd();
+            let c: Checked<6> = Checked {};
+            assert_eq(check_prefix(c), 3);
+        }
+    "#;
+    assert_no_errors(src);
+}
