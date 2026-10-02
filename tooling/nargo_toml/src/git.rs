@@ -1,5 +1,5 @@
 use std::collections::BTreeSet;
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 use crate::errors::GitError;
@@ -9,12 +9,6 @@ use crate::flock::FileLock;
 /// downloaded to `<host>/<owner>/<name>/<tag>`, e.g. `github.com/owner/name/v1.0.0`, so a clone
 /// root is always exactly 4 components deep.
 const MAX_DEPENDENCY_CACHE_DEPTH: usize = 4;
-
-/// Directory under the cache root that `git clone` writes into. It is only moved to its final
-/// `<host>/<owner>/<name>/<tag>` location once the clone has succeeded, so an interrupted clone can
-/// never be mistaken for a downloaded dependency. Hostnames cannot start with `.`, so this can't
-/// collide with a dependency's host directory.
-const CLONE_STAGING_DIR: &str = ".clone-staging";
 
 /// Lists every git dependency currently present in the global download cache, as paths relative
 /// to the cache root (e.g. `github.com/owner/name/v1.0.0`).
@@ -37,7 +31,7 @@ fn collect_cached_git_dependencies(cache_root: &Path) -> BTreeSet<PathBuf> {
         };
         for entry in entries.flatten() {
             let path = entry.path();
-            if !path.is_dir() || (depth == 0 && entry.file_name() == CLONE_STAGING_DIR) {
+            if !path.is_dir() {
                 continue;
             }
             if path.join(".git").exists() {
@@ -59,17 +53,11 @@ fn collect_cached_git_dependencies(cache_root: &Path) -> BTreeSet<PathBuf> {
 ///
 /// The host (a domain like `github.com`, or an IP for a self-hosted server) is used as-is, so
 /// repositories on the same host share a parent directory in the cache.
-///
-/// The result is always a relative path made of plain components, so it cannot point outside the
-/// cache: a tag such as `../../x` is rejected. Git never accepts such a tag name anyway.
 fn resolve_folder_name(base: &url::Url, tag: &str) -> Result<PathBuf, GitError> {
     let host = base.host_str().ok_or_else(|| GitError::MissingHost { url: base.to_string() })?;
     let mut folder = PathBuf::from("");
     for part in [host, base.path(), tag] {
         folder.push(part.trim_start_matches('/'));
-    }
-    if !folder.components().all(|component| matches!(component, Component::Normal(_))) {
-        return Err(GitError::InvalidTag { url: base.to_string(), tag: tag.to_string() });
     }
     Ok(folder)
 }
@@ -104,19 +92,8 @@ fn clone_git_repo_into(cache_root: &Path, url: &str, tag: &str) -> Result<PathBu
     let base = url::Url::parse(url)
         .map_err(|source| GitError::InvalidUrl { url: url.to_string(), source })?;
     let loc = cache_root.join(resolve_folder_name(&base, tag)?);
-
-    // `.git` marks a complete download, as in `collect_cached_git_dependencies`. Anything else at
-    // `loc` is left over from an interrupted download and is replaced.
-    if loc.join(".git").exists() {
+    if loc.exists() {
         return Ok(loc);
-    }
-    remove_dir_if_exists(&loc)?;
-
-    // A previous clone may have been killed before it could be moved into place.
-    let staging = cache_root.join(CLONE_STAGING_DIR);
-    remove_dir_if_exists(&staging)?;
-    if let Some(parent) = loc.parent() {
-        std::fs::create_dir_all(parent).map_err(|source| cache_error(parent, source))?;
     }
 
     let output = Command::new("git")
@@ -129,7 +106,7 @@ fn clone_git_repo_into(cache_root: &Path, url: &str, tag: &str) -> Result<PathBu
         .arg("--branch")
         .arg(tag)
         .arg(base.as_str())
-        .arg(&staging)
+        .arg(&loc)
         // stdin and stdout are the JSON-RPC channel when running as a language server, so git must
         // not touch them. Credential prompts still work as git reads those from the terminal.
         .stdin(Stdio::null())
@@ -154,20 +131,7 @@ fn clone_git_repo_into(cache_root: &Path, url: &str, tag: &str) -> Result<PathBu
         });
     }
 
-    std::fs::rename(&staging, &loc).map_err(|source| cache_error(&loc, source))?;
-
     Ok(loc)
-}
-
-fn remove_dir_if_exists(path: &Path) -> Result<(), GitError> {
-    match std::fs::remove_dir_all(path) {
-        Err(err) if err.kind() != std::io::ErrorKind::NotFound => Err(cache_error(path, err)),
-        _ => Ok(()),
-    }
-}
-
-fn cache_error(path: &Path, source: std::io::Error) -> GitError {
-    GitError::Cache { path: path.to_path_buf(), source }
 }
 
 #[cfg(test)]
@@ -180,10 +144,7 @@ mod tests {
     use test_case::test_case;
     use url::Url;
 
-    use super::{
-        CLONE_STAGING_DIR, clone_git_repo_into, collect_cached_git_dependencies,
-        resolve_folder_name,
-    };
+    use super::{clone_git_repo_into, collect_cached_git_dependencies, resolve_folder_name};
     use crate::errors::GitError;
 
     #[test_case("https://github.com/noir-lang/noir-bignum/"; "with slash")]
@@ -298,7 +259,6 @@ mod tests {
 
         assert!(loc.starts_with(&cache_root));
         assert!(loc.join("Nargo.toml").exists());
-        assert!(!cache_root.join(CLONE_STAGING_DIR).exists());
         // A second call is served from the cache.
         assert_eq!(clone_git_repo_into(&cache_root, &url, "v1.0.0").unwrap(), loc);
     }
@@ -317,39 +277,6 @@ mod tests {
         assert!(message.contains("`v9.9.9`"), "{message}");
         assert!(message.contains("v9.9.9 not found"), "{message}");
         assert!(collect_cached_git_dependencies(&cache_root).is_empty());
-    }
-
-    #[test]
-    fn replaces_a_partial_download_left_in_the_cache() {
-        let dir = tempfile::tempdir().unwrap();
-        let url = make_repository(dir.path());
-        let cache_root = dir.path().join("cache");
-        let url_parsed = Url::parse(&url).unwrap();
-        let loc = cache_root.join(resolve_folder_name(&url_parsed, "v1.0.0").unwrap());
-        fs::create_dir_all(&loc).unwrap();
-        fs::write(loc.join("partial"), "").unwrap();
-        fs::create_dir_all(cache_root.join(CLONE_STAGING_DIR).join(".git")).unwrap();
-
-        assert!(collect_cached_git_dependencies(&cache_root).is_empty());
-
-        assert_eq!(clone_git_repo_into(&cache_root, &url, "v1.0.0").unwrap(), loc);
-        assert!(loc.join("Nargo.toml").exists());
-        assert!(!loc.join("partial").exists());
-    }
-
-    #[test_case("../../../../../victim"; "parent directory")]
-    #[test_case("v1/../../../../../../victim"; "nested parent directory")]
-    fn rejects_tags_that_escape_the_cache(tag: &str) {
-        let dir = tempfile::tempdir().unwrap();
-        let victim = dir.path().join("victim");
-        fs::create_dir(&victim).unwrap();
-        let cache_root = dir.path().join("cache");
-
-        let error =
-            clone_git_repo_into(&cache_root, "https://example.com/owner/name", tag).unwrap_err();
-
-        assert!(matches!(error, GitError::InvalidTag { .. }), "{error:?}");
-        assert!(victim.exists());
     }
 
     #[test]

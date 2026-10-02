@@ -97,9 +97,6 @@ pub enum GitError {
     #[error("Invalid git dependency URL `{url}`: it must include a host")]
     MissingHost { url: String },
 
-    #[error("Invalid tag `{tag}` for git dependency {url}")]
-    InvalidTag { url: String, tag: String },
-
     #[error(
         "Cannot download dependency {url} at tag `{tag}`: `git` was not found. Install git and make sure it is on your PATH"
     )]
@@ -110,9 +107,6 @@ pub enum GitError {
 
     #[error("Failed to download dependency {url} at tag `{tag}`: `git clone` failed ({status}){}", if stderr.is_empty() { String::new() } else { format!(":\n{stderr}") })]
     CloneFailed { url: String, tag: String, status: ExitStatus, stderr: String },
-
-    #[error("Failed to update the git dependency cache at {path}: {source}")]
-    Cache { path: PathBuf, source: std::io::Error },
 
     #[error("Failed to lock the git dependency cache: {0}")]
     Lock(std::io::Error),
