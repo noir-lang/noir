@@ -560,7 +560,10 @@ fn does_not_error_if_type_parameter_is_used_in_trait_bound_named_generic() {
     assert_no_errors(src);
 }
 
-// TODO(https://github.com/noir-lang/noir/issues/11499): Fail with an error that mentions some type of "overflow" error
+/// Regression test for https://github.com/noir-lang/noir/issues/11499. Each impl's `where` clause
+/// requires the other, so selecting either one loops; the search gives up on depth and says so.
+/// Dropping both `where` clauses is what breaks the cycle, which is what the redundancy warnings
+/// on them point at.
 #[test]
 fn errors_on_mutually_recursive_impls() {
     let src = r#"
@@ -591,12 +594,12 @@ fn errors_on_mutually_recursive_impls() {
 
     fn main() {
         (Bar {}).foo();
-        ^^^^^^^^^^^^ No matching impl found for `Bar: Foo`
-        ~~~~~~~~~~~~ No impl for `Bar: Foo`
+        ^^^^^^^^^^^^ Overflow evaluating the trait bound `Baz: Foo`
+        ~~~~~~~~~~~~ The trait impl search recursion limit was reached
 
         (Baz {}).foo();
-        ^^^^^^^^^^^^ No matching impl found for `Baz: Foo`
-        ~~~~~~~~~~~~ No impl for `Baz: Foo`
+        ^^^^^^^^^^^^ Overflow evaluating the trait bound `Bar: Foo`
+        ~~~~~~~~~~~~ The trait impl search recursion limit was reached
     }
     "#;
     check_errors(src);
