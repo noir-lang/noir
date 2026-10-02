@@ -326,7 +326,7 @@ impl Elaborator<'_> {
                         let generic_name = generic.name.to_string();
                         let item_kind = "struct";
                         let item_name = data_type.borrow().name.to_string();
-                        let is_numeric = matches!(generic.type_var.kind(), Kind::Numeric(..));
+                        let is_numeric = matches!(*generic.type_var.kind(), Kind::Numeric(..));
                         self.push_err(TypeCheckError::TypeAnnotationNeededOnItem {
                             location,
                             generic_name,
@@ -363,7 +363,7 @@ impl Elaborator<'_> {
                                     let item_name =
                                         self.interner.definition_name(definition_id).to_string();
                                     let is_numeric =
-                                        matches!(generic.type_var.kind(), Kind::Numeric(..));
+                                        matches!(*generic.type_var.kind(), Kind::Numeric(..));
                                     self.push_err(TypeCheckError::TypeAnnotationNeededOnItem {
                                         location,
                                         generic_name: generic.name.to_string(),
@@ -389,7 +389,7 @@ impl Elaborator<'_> {
                                     all_generics.find(|generic| generic.type_var.id() == id);
                                 if let Some(generic) = generic {
                                     let is_numeric =
-                                        matches!(generic.type_var.kind(), Kind::Numeric(..));
+                                        matches!(*generic.type_var.kind(), Kind::Numeric(..));
                                     self.push_err(TypeCheckError::TypeAnnotationNeededOnItem {
                                         location,
                                         generic_name: generic.name.to_string(),
@@ -422,7 +422,7 @@ impl Elaborator<'_> {
                                 drop(def);
                                 if let Some(generic) = generic {
                                     let is_numeric =
-                                        matches!(generic.type_var.kind(), Kind::Numeric(..));
+                                        matches!(*generic.type_var.kind(), Kind::Numeric(..));
                                     self.push_err(TypeCheckError::TypeAnnotationNeededOnItem {
                                         location,
                                         generic_name: generic.name.to_string(),

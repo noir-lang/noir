@@ -82,7 +82,7 @@ fn on_test_run_request_inner(
 
             let test_result = run_test(
                 &state.solver,
-                &mut context,
+                &context,
                 &test_function,
                 std::io::stdout(),
                 &CompileOptions::default(),

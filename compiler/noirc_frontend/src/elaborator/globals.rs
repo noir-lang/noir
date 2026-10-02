@@ -26,7 +26,7 @@ use crate::{
     ast::Pattern,
     hir::{def_collector::dc_crate::UnresolvedGlobal, resolution::errors::ResolverError},
     hir_def::{expr::HirExpression, stmt::HirStatement},
-    node_interner::{DependencyId, GlobalId, GlobalValue},
+    node_interner::{DependencyId, GlobalId},
     token::SecondaryAttributeKind,
 };
 
@@ -170,6 +170,7 @@ impl Elaborator<'_> {
 
         let definition_id = global.definition_id;
         let location = global.location;
+        let comptime = let_statement.comptime;
 
         let expr = self.interner.expression(&let_statement.expression);
         if !matches!(expr, HirExpression::Error) {
@@ -197,7 +198,7 @@ impl Elaborator<'_> {
                 });
 
                 // Store the resolved value so it can be used later
-                self.interner.get_global_mut(global_id).value = GlobalValue::Resolved(value);
+                self.interner.resolve_global(global_id, value, comptime, self.files);
             }
 
             self.interner.comptime_scopes.extend(saved_scopes);

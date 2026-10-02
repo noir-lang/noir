@@ -532,7 +532,7 @@ fn push_type_parts(typ: &Type, parts: &mut Vec<InlayHintLabelPart>, files: &File
             parts.push(string_part("&mut "));
             push_type_parts(typ, parts, files);
         }
-        Type::TypeVariable(binding) => match &*binding.borrow() {
+        Type::TypeVariable(binding) => match binding.binding() {
             TypeBinding::Unbound(_, kind) => match kind {
                 Kind::Any | Kind::Normal | Kind::Numeric(..) => {
                     push_type_variable_parts(binding, parts, files);
@@ -569,7 +569,7 @@ fn push_type_variable_parts(
     parts: &mut Vec<InlayHintLabelPart>,
     files: &FileMap,
 ) {
-    let var = &*var.borrow();
+    let var = var.binding();
     match var {
         TypeBinding::Bound(typ) => {
             push_type_parts(typ, parts, files);

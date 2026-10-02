@@ -227,7 +227,7 @@ impl Elaborator<'_> {
     pub(super) fn introduce_generics_into_scope(&mut self, all_generics: Vec<ResolvedGeneric>) {
         // Introduce all numeric generics into scope
         for generic in &all_generics {
-            if let Kind::Numeric(typ) = &generic.kind() {
+            if let Kind::Numeric(typ) = &*generic.kind() {
                 let definition =
                     DefinitionKind::NumericGeneric(generic.type_var.clone(), typ.clone());
                 let ident = Ident::new(generic.name.to_string(), generic.location);

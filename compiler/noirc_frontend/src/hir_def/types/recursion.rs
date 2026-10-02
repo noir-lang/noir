@@ -174,7 +174,7 @@ impl Type {
             Type::TypeVariable(type_variable)
             | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
                 // Cloned out so that no borrow of the type variable is held while `visit` runs.
-                let bound = match &*type_variable.borrow() {
+                let bound = match type_variable.binding() {
                     TypeBinding::Bound(bound) => bound.clone(),
                     TypeBinding::Unbound(..) => return false,
                 };

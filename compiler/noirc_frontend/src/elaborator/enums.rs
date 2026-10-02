@@ -341,9 +341,9 @@ impl Elaborator<'_> {
         let statement_id = self.interner.get_global(global_id).let_statement;
         self.interner.replace_statement(statement_id, let_statement);
 
-        let global = self.interner.get_global_mut(global_id);
-        global.value = GlobalValue::Resolved(Value::Enum(variant_index, Vec::new(), typ));
-        global.is_enum_variant = true;
+        let value = Value::Enum(variant_index, Vec::new(), typ);
+        self.interner.resolve_global(global_id, value, false, self.files);
+        self.interner.get_global_mut(global_id).is_enum_variant = true;
 
         Self::get_module_mut(self.def_maps, type_id.module_id())
             .declare_global(name.clone(), enum_.visibility, global_id)

@@ -26,7 +26,7 @@ use num_bigint::BigUint;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
-    Kind, QuotedType, Shared, Type, TypeBindings,
+    Kind, QuotedType, Type, TypeBindings,
     ast::{
         ArrayLiteral, ConstrainKind, Expression, ExpressionKind, ForRange, IntegerBitSize, LValue,
         Literal, Pattern, Statement, StatementKind, UnsafeExpression,
@@ -37,7 +37,7 @@ use crate::{
     },
     hir::{
         comptime::{
-            InterpreterError, Value,
+            InterpreterError, Value, ValueCell,
             display::tokens_to_string,
             errors::IResult,
             interpreter::{
@@ -626,12 +626,12 @@ fn type_def_generics(
         .iter()
         .map(|generic| {
             let generic_as_named = generic.clone().into_named_generic(None);
-            let numeric_type = match generic_as_named.kind() {
+            let numeric_type = match generic_as_named.kind().into_owned() {
                 Kind::Numeric(numeric_type) => Some(Value::Type(*numeric_type)),
                 _ => None,
             };
-            let numeric_type = Shared::new(option(option_typ.clone(), numeric_type, location));
-            Value::Tuple(vec![Shared::new(Value::Type(generic_as_named)), numeric_type])
+            let numeric_type = ValueCell::new(option(option_typ.clone(), numeric_type, location));
+            Value::Tuple(vec![ValueCell::new(Value::Type(generic_as_named)), numeric_type])
         })
         .collect();
 
@@ -814,9 +814,9 @@ fn type_def_fields(
     if let Some(struct_fields) = struct_def.get_fields(&generic_args) {
         for (field_name, field_type, visibility) in struct_fields {
             let token = LocatedToken::new(Token::Ident(field_name), location);
-            let name = Shared::new(Value::Quoted(Rc::new(vec![token])));
-            let field_type = Shared::new(Value::Type(field_type));
-            let visibility = Shared::new(visibility_to_quoted(visibility, location));
+            let name = ValueCell::new(Value::Quoted(Rc::new(vec![token])));
+            let field_type = ValueCell::new(Value::Type(field_type));
+            let visibility = ValueCell::new(visibility_to_quoted(visibility, location));
             fields.push_back(Value::Tuple(vec![name, field_type, visibility]));
         }
     }
@@ -851,10 +851,10 @@ fn type_def_fields_as_written(
     if let Some(struct_fields) = struct_def.get_fields_as_written() {
         for field in struct_fields {
             let token = LocatedToken::new(Token::Ident(field.name.to_string()), location);
-            let name = Shared::new(Value::Quoted(Rc::new(vec![token])));
+            let name = ValueCell::new(Value::Quoted(Rc::new(vec![token])));
 
-            let typ = Shared::new(Value::Type(field.typ));
-            let visibility = Shared::new(visibility_to_quoted(field.visibility, location));
+            let typ = ValueCell::new(Value::Type(field.typ));
+            let visibility = ValueCell::new(visibility_to_quoted(field.visibility, location));
             fields.push_back(Value::Tuple(vec![name, typ, visibility]));
         }
     }
@@ -932,10 +932,10 @@ fn vector_remove(
     }
 
     // The removed element is returned by value, so it must not keep sharing interior
-    // `Shared<Value>` cells with the source vector (otherwise a `&mut` into the temporary
+    // `ValueCell` cells with the source vector (otherwise a `&mut` into the temporary
     // would write back through to the original vector).
-    let element = Shared::new(values.remove(index).move_struct());
-    Ok(Value::Tuple(vec![Shared::new(Value::Vector(values, typ)), element]))
+    let element = ValueCell::new(values.remove(index).move_struct());
+    Ok(Value::Tuple(vec![ValueCell::new(Value::Vector(values, typ)), element]))
 }
 
 fn vector_push_front(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
@@ -957,10 +957,13 @@ fn vector_pop_front(
     match values.pop_front() {
         Some(element) => {
             // The popped element is returned by value, so it must not keep sharing interior
-            // `Shared<Value>` cells with the source vector (otherwise a `&mut` into the
+            // `ValueCell` cells with the source vector (otherwise a `&mut` into the
             // temporary would write back through to the original vector).
             let element = element.move_struct();
-            Ok(Value::Tuple(vec![Shared::new(element), Shared::new(Value::Vector(values, typ))]))
+            Ok(Value::Tuple(vec![
+                ValueCell::new(element),
+                ValueCell::new(Value::Vector(values, typ)),
+            ]))
         }
         None => failing_constraint("Attempt to pop from an empty vector", location, call_stack),
     }
@@ -977,10 +980,13 @@ fn vector_pop_back(
     match values.pop_back() {
         Some(element) => {
             // The popped element is returned by value, so it must not keep sharing interior
-            // `Shared<Value>` cells with the source vector (otherwise a `&mut` into the
+            // `ValueCell` cells with the source vector (otherwise a `&mut` into the
             // temporary would write back through to the original vector).
             let element = element.move_struct();
-            Ok(Value::Tuple(vec![Shared::new(Value::Vector(values, typ)), Shared::new(element)]))
+            Ok(Value::Tuple(vec![
+                ValueCell::new(Value::Vector(values, typ)),
+                ValueCell::new(element),
+            ]))
         }
         None => failing_constraint("Attempt to pop from an empty vector", location, call_stack),
     }
@@ -1054,10 +1060,11 @@ fn quoted_as_module(
     let option_value = path.and_then(|path| {
         let path = interpreter.elaborator.validate_path(path);
         let reason = Some(ElaborateReason::EvaluatingComptimeCall("Quoted::as_module", location));
-        let module =
-            interpreter.elaborate_in_function(interpreter.current_function, reason, |elaborator| {
-                elaborator.resolve_module_by_path(path)
-            });
+        let module = interpreter.elaborator.elaborate_item_from_comptime_in_function(
+            interpreter.current_function,
+            reason,
+            |elaborator| elaborator.resolve_module_by_path(path),
+        );
         module.map(Value::ModuleDefinition)
     });
 
@@ -1080,9 +1087,12 @@ fn quoted_as_trait_constraint(
     let reason =
         Some(ElaborateReason::EvaluatingComptimeCall("Quoted::as_trait_constraint", location));
     let bound = interpreter
-        .elaborate_in_function(interpreter.current_function, reason, |elaborator| {
-            elaborator.use_trait_bound(&trait_bound)
-        })
+        .elaborator
+        .elaborate_item_from_comptime_in_function(
+            interpreter.current_function,
+            reason,
+            |elaborator| elaborator.use_trait_bound(&trait_bound),
+        )
         .ok_or(InterpreterError::FailedToResolveTraitBound { trait_bound, location })?;
 
     Ok(Value::TraitConstraint(bound.trait_id, bound.trait_generics))
@@ -1103,12 +1113,15 @@ fn quoted_as_type(
     )?;
     let reason = Some(ElaborateReason::EvaluatingComptimeCall("Quoted::as_type", location));
     let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::QuotedAsType);
-    let typ =
-        interpreter.elaborate_in_function(interpreter.current_function, reason, |elaborator| {
+    let typ = interpreter.elaborator.elaborate_item_from_comptime_in_function(
+        interpreter.current_function,
+        reason,
+        |elaborator| {
             // `Kind::Any` so a numeric type expression (e.g. `quote { 4 }`) resolves to a
             // `Type::Constant` rather than being rejected as a non-`Normal` kind.
             elaborator.use_type_with_kind(typ, &Kind::Any, wildcard_allowed)
-        });
+        },
+    );
     Ok(Value::Type(typ))
 }
 
@@ -1255,8 +1268,8 @@ fn type_as_array(
 ) -> IResult<Value> {
     type_as(arguments, return_type, location, |typ| {
         if let Type::Array(array_type, length) = typ {
-            let array_type = Shared::new(Value::Type(*array_type));
-            let length_type = Shared::new(Value::Type(*length));
+            let array_type = ValueCell::new(Value::Type(*array_type));
+            let length_type = ValueCell::new(Value::Type(*length));
             Some(Value::Tuple(vec![array_type, length_type]))
         } else {
             None
@@ -1297,8 +1310,8 @@ fn type_as_integer(
 ) -> IResult<Value> {
     type_as(arguments, return_type, location, |typ| {
         if let Type::Integer(sign, bits) = typ {
-            let sign = Shared::new(Value::Bool(sign.is_signed()));
-            let bit_size = Shared::new(Value::u8(bits.bit_size()));
+            let sign = ValueCell::new(Value::Bool(sign.is_signed()));
+            let bit_size = ValueCell::new(Value::u8(bits.bit_size()));
             Some(Value::Tuple(vec![sign, bit_size]))
         } else {
             None
@@ -1348,8 +1361,8 @@ fn type_as_data_type(
     type_as(arguments, return_type, location, |typ| {
         if let Type::DataType(struct_type, generics) = typ {
             Some(Value::Tuple(vec![
-                Shared::new(Value::TypeDefinition(struct_type.borrow().id)),
-                Shared::new(Value::Vector(
+                ValueCell::new(Value::TypeDefinition(struct_type.borrow().id)),
+                ValueCell::new(Value::Vector(
                     generics.into_iter().map(Value::Type).collect(),
                     Type::Vector(Box::new(Type::Quoted(QuotedType::Type))),
                 )),
@@ -1613,7 +1626,7 @@ fn zeroed(return_type: Type, location: Location) -> Value {
         }
         Type::Unit => Value::Unit,
         Type::Tuple(fields) => {
-            Value::Tuple(vecmap(fields, |field| Shared::new(zeroed(field, location))))
+            Value::Tuple(vecmap(fields, |field| ValueCell::new(zeroed(field, location))))
         }
         Type::DataType(data_type, generics) => {
             let typ = data_type.borrow();
@@ -1622,7 +1635,7 @@ fn zeroed(return_type: Type, location: Location) -> Value {
                 let mut values = HashMap::default();
 
                 for (field_name, field_type, _) in fields {
-                    let field_value = Shared::new(zeroed(field_type, location));
+                    let field_value = ValueCell::new(zeroed(field_type, location));
                     values.insert(Rc::new(field_name), field_value);
                 }
 
@@ -1654,7 +1667,7 @@ fn zeroed(return_type: Type, location: Location) -> Value {
         }
         Type::Reference(element, mutable) => {
             let element = zeroed(*element, location);
-            Value::Pointer(Shared::new(element), false, mutable)
+            Value::Pointer(ValueCell::new(element), false, mutable)
         }
         // Optimistically assume we can resolve this type later or that the value is unused
         Type::TypeVariable(_)
@@ -1707,7 +1720,7 @@ fn expr_as_assert(
                 } else {
                     (Some(constrain.arguments.pop().unwrap()), constrain.arguments.pop().unwrap())
                 };
-                let predicate = Shared::new(Value::expression(predicate.kind));
+                let predicate = ValueCell::new(Value::expression(predicate.kind));
 
                 let option_type = extract_option_generic_type(return_type);
                 let Type::Tuple(mut tuple_types) = option_type else {
@@ -1717,7 +1730,7 @@ fn expr_as_assert(
 
                 let option_type = tuple_types.pop().unwrap();
                 let message = message.map(|msg| Value::expression(msg.kind));
-                let message = Shared::new(option(option_type, message, location));
+                let message = ValueCell::new(option(option_type, message, location));
 
                 Some(Value::Tuple(vec![predicate, message]))
             } else {
@@ -1752,8 +1765,8 @@ fn expr_as_assert_eq(
                     )
                 };
 
-                let lhs = Shared::new(Value::expression(lhs.kind));
-                let rhs = Shared::new(Value::expression(rhs.kind));
+                let lhs = ValueCell::new(Value::expression(lhs.kind));
+                let rhs = ValueCell::new(Value::expression(rhs.kind));
 
                 let option_type = extract_option_generic_type(return_type);
                 let Type::Tuple(mut tuple_types) = option_type else {
@@ -1763,7 +1776,7 @@ fn expr_as_assert_eq(
 
                 let option_type = tuple_types.pop().unwrap();
                 let message = message.map(|message| Value::expression(message.kind));
-                let message = Shared::new(option(option_type, message, location));
+                let message = ValueCell::new(option(option_type, message, location));
 
                 Some(Value::Tuple(vec![lhs, rhs, message]))
             } else {
@@ -1784,8 +1797,8 @@ fn expr_as_assign(
 ) -> IResult<Value> {
     expr_as(interner, arguments, return_type, location, |expr| {
         if let ExprValue::Statement(StatementKind::Assign(assign)) = expr {
-            let lhs = Shared::new(Value::lvalue(assign.lvalue));
-            let rhs = Shared::new(Value::expression(assign.expression.kind));
+            let lhs = ValueCell::new(Value::lvalue(assign.lvalue));
+            let rhs = ValueCell::new(Value::expression(assign.expression.kind));
             Some(Value::Tuple(vec![lhs, rhs]))
         } else {
             None
@@ -1810,9 +1823,9 @@ fn expr_as_binary_op(
 
             tuple_types.pop().unwrap();
             let binary_op_type = tuple_types.pop().unwrap();
-            let binary_op = Shared::new(new_binary_op(&infix_expr.operator, binary_op_type));
-            let lhs = Shared::new(Value::expression(infix_expr.lhs.kind));
-            let rhs = Shared::new(Value::expression(infix_expr.rhs.kind));
+            let binary_op = ValueCell::new(new_binary_op(&infix_expr.operator, binary_op_type));
+            let lhs = ValueCell::new(Value::expression(infix_expr.lhs.kind));
+            let rhs = ValueCell::new(Value::expression(infix_expr.rhs.kind));
             Some(Value::Tuple(vec![lhs, binary_op, rhs]))
         } else {
             None
@@ -1861,8 +1874,8 @@ fn expr_as_cast(
 ) -> IResult<Value> {
     expr_as(interner, arguments, return_type, location, |expr| {
         if let ExprValue::Expression(ExpressionKind::Cast(cast)) = expr {
-            let lhs = Shared::new(Value::expression(cast.lhs.kind));
-            let typ = Shared::new(Value::UnresolvedType(cast.r#type.typ));
+            let lhs = ValueCell::new(Value::expression(cast.lhs.kind));
+            let typ = ValueCell::new(Value::UnresolvedType(cast.r#type.typ));
             Some(Value::Tuple(vec![lhs, typ]))
         } else {
             None
@@ -1916,11 +1929,11 @@ fn expr_as_constructor(
 
     let option_value =
         if let ExprValue::Expression(ExpressionKind::Constructor(constructor)) = expr_value {
-            let typ = Shared::new(Value::UnresolvedType(constructor.typ.typ));
+            let typ = ValueCell::new(Value::UnresolvedType(constructor.typ.typ));
             let fields = constructor.fields.into_iter();
             let fields = fields.map(|(name, value)| {
-                let ident = Shared::new(quote_ident(&name, location));
-                let expr = Shared::new(Value::expression(value.kind));
+                let ident = ValueCell::new(quote_ident(&name, location));
+                let expr = ValueCell::new(Value::expression(value.kind));
                 Value::Tuple(vec![ident, expr])
             });
             let fields = fields.collect();
@@ -1928,7 +1941,7 @@ fn expr_as_constructor(
                 Type::Quoted(QuotedType::Quoted),
                 Type::Quoted(QuotedType::Expr),
             ])));
-            let fields = Shared::new(Value::Vector(fields, fields_type));
+            let fields = ValueCell::new(Value::Vector(fields, fields_type));
             Some(Value::Tuple(vec![typ, fields]))
         } else {
             None
@@ -1949,9 +1962,9 @@ fn expr_as_for(
             if let ForRange::Array(array) = for_statement.range {
                 let token = Token::Ident(for_statement.identifier.into_string());
                 let token = LocatedToken::new(token, location);
-                let identifier = Shared::new(Value::Quoted(Rc::new(vec![token])));
-                let array = Shared::new(Value::expression(array.kind));
-                let body = Shared::new(Value::expression(for_statement.block.kind));
+                let identifier = ValueCell::new(Value::Quoted(Rc::new(vec![token])));
+                let array = ValueCell::new(Value::expression(array.kind));
+                let body = ValueCell::new(Value::expression(for_statement.block.kind));
                 Some(Value::Tuple(vec![identifier, array, body]))
             } else {
                 None
@@ -1974,11 +1987,11 @@ fn expr_as_for_range(
             if let ForRange::Range(bounds) = for_statement.range {
                 let token = Token::Ident(for_statement.identifier.into_string());
                 let token = LocatedToken::new(token, location);
-                let identifier = Shared::new(Value::Quoted(Rc::new(vec![token])));
-                let from = Shared::new(Value::expression(bounds.start.kind));
-                let to = Shared::new(Value::expression(bounds.end.kind));
-                let inclusive = Shared::new(Value::Bool(bounds.inclusive));
-                let body = Shared::new(Value::expression(for_statement.block.kind));
+                let identifier = ValueCell::new(Value::Quoted(Rc::new(vec![token])));
+                let from = ValueCell::new(Value::expression(bounds.start.kind));
+                let to = ValueCell::new(Value::expression(bounds.end.kind));
+                let inclusive = ValueCell::new(Value::Bool(bounds.inclusive));
+                let body = ValueCell::new(Value::expression(for_statement.block.kind));
                 Some(Value::Tuple(vec![identifier, from, to, inclusive, body]))
             } else {
                 None
@@ -1998,10 +2011,10 @@ fn expr_as_function_call(
 ) -> IResult<Value> {
     expr_as(interner, arguments, return_type, location, |expr| {
         if let ExprValue::Expression(ExpressionKind::Call(call_expression)) = expr {
-            let function = Shared::new(Value::expression(call_expression.func.kind));
+            let function = ValueCell::new(Value::expression(call_expression.func.kind));
             let arguments = call_expression.arguments.into_iter();
             let arguments = arguments.map(|argument| Value::expression(argument.kind)).collect();
-            let arguments = Shared::new(Value::Vector(
+            let arguments = ValueCell::new(Value::Vector(
                 arguments,
                 Type::Vector(Box::new(Type::Quoted(QuotedType::Expr))),
             ));
@@ -2036,9 +2049,9 @@ fn expr_as_if(
             );
 
             Some(Value::Tuple(vec![
-                Shared::new(Value::expression(if_expr.condition.kind)),
-                Shared::new(Value::expression(if_expr.consequence.kind)),
-                Shared::new(alternative),
+                ValueCell::new(Value::expression(if_expr.condition.kind)),
+                ValueCell::new(Value::expression(if_expr.consequence.kind)),
+                ValueCell::new(alternative),
             ]))
         } else {
             None
@@ -2056,8 +2069,8 @@ fn expr_as_index(
     expr_as(interner, arguments, return_type, location, |expr| {
         if let ExprValue::Expression(ExpressionKind::Index(index_expr)) = expr {
             Some(Value::Tuple(vec![
-                Shared::new(Value::expression(index_expr.collection.kind)),
-                Shared::new(Value::expression(index_expr.index.kind)),
+                ValueCell::new(Value::expression(index_expr.collection.kind)),
+                ValueCell::new(Value::expression(index_expr.index.kind)),
             ]))
         } else {
             None
@@ -2113,13 +2126,13 @@ fn expr_as_lambda(
                 .parameters
                 .into_iter()
                 .map(|(pattern, typ)| {
-                    let pattern = Shared::new(Value::pattern(pattern));
+                    let pattern = ValueCell::new(Value::pattern(pattern));
                     let typ = typ.map(|typ| Value::UnresolvedType(typ.typ));
-                    let typ = Shared::new(option(option_unresolved_type.clone(), typ, location));
+                    let typ = ValueCell::new(option(option_unresolved_type.clone(), typ, location));
                     Value::Tuple(vec![pattern, typ])
                 })
                 .collect();
-            let parameters = Shared::new(Value::Vector(
+            let parameters = ValueCell::new(Value::Vector(
                 parameters,
                 Type::Vector(Box::new(Type::Tuple(vec![
                     Type::Quoted(QuotedType::Expr),
@@ -2128,9 +2141,9 @@ fn expr_as_lambda(
             ));
 
             let return_type = lambda.return_type.map(|typ| Value::UnresolvedType(typ.typ));
-            let return_type = Shared::new(option(option_unresolved_type, return_type, location));
+            let return_type = ValueCell::new(option(option_unresolved_type, return_type, location));
 
-            let body = Shared::new(Value::expression(lambda.body.kind));
+            let body = ValueCell::new(Value::expression(lambda.body.kind));
 
             Some(Value::Tuple(vec![parameters, return_type, body]))
         } else {
@@ -2160,9 +2173,9 @@ fn expr_as_let(
             let typ = option(option_type, typ, location);
 
             Some(Value::Tuple(vec![
-                Shared::new(Value::pattern(let_statement.pattern)),
-                Shared::new(typ),
-                Shared::new(Value::expression(let_statement.expression.kind)),
+                ValueCell::new(Value::pattern(let_statement.pattern)),
+                ValueCell::new(typ),
+                ValueCell::new(Value::expression(let_statement.expression.kind)),
             ]))
         }
         _ => None,
@@ -2179,14 +2192,14 @@ fn expr_as_member_access(
     expr_as(interner, arguments, return_type, location, |expr| match expr {
         ExprValue::Expression(ExpressionKind::MemberAccess(member_access)) => {
             Some(Value::Tuple(vec![
-                Shared::new(Value::expression(member_access.lhs.kind)),
-                Shared::new(quote_ident(&member_access.rhs, location)),
+                ValueCell::new(Value::expression(member_access.lhs.kind)),
+                ValueCell::new(quote_ident(&member_access.rhs, location)),
             ]))
         }
         ExprValue::LValue(LValue::MemberAccess { object, field_name, location: _ }) => {
             Some(Value::Tuple(vec![
-                Shared::new(Value::lvalue(*object)),
-                Shared::new(quote_ident(&field_name, location)),
+                ValueCell::new(Value::lvalue(*object)),
+                ValueCell::new(quote_ident(&field_name, location)),
             ]))
         }
         _ => None,
@@ -2202,20 +2215,20 @@ fn expr_as_method_call(
 ) -> IResult<Value> {
     expr_as(interner, arguments, return_type, location, |expr| {
         if let ExprValue::Expression(ExpressionKind::MethodCall(method_call)) = expr {
-            let object = Shared::new(Value::expression(method_call.object.kind));
+            let object = ValueCell::new(Value::expression(method_call.object.kind));
 
-            let name = Shared::new(quote_ident(&method_call.method_name, location));
+            let name = ValueCell::new(quote_ident(&method_call.method_name, location));
 
             let generics = method_call.generics.unwrap_or_default().into_iter();
             let generics = generics.map(|generic| Value::UnresolvedType(generic.typ)).collect();
-            let generics = Shared::new(Value::Vector(
+            let generics = ValueCell::new(Value::Vector(
                 generics,
                 Type::Vector(Box::new(Type::Quoted(QuotedType::UnresolvedType))),
             ));
 
             let arguments = method_call.arguments.into_iter();
             let arguments = arguments.map(|argument| Value::expression(argument.kind)).collect();
-            let arguments = Shared::new(Value::Vector(
+            let arguments = ValueCell::new(Value::Vector(
                 arguments,
                 Type::Vector(Box::new(Type::Quoted(QuotedType::Expr))),
             ));
@@ -2240,8 +2253,8 @@ fn expr_as_repeated_element_array(
         ))) = expr
         {
             Some(Value::Tuple(vec![
-                Shared::new(Value::expression(repeated_element.kind)),
-                Shared::new(Value::expression(length.kind)),
+                ValueCell::new(Value::expression(repeated_element.kind)),
+                ValueCell::new(Value::expression(length.kind)),
             ]))
         } else {
             None
@@ -2262,8 +2275,8 @@ fn expr_as_repeated_element_vector(
         ))) = expr
         {
             Some(Value::Tuple(vec![
-                Shared::new(Value::expression(repeated_element.kind)),
-                Shared::new(Value::expression(length.kind)),
+                ValueCell::new(Value::expression(repeated_element.kind)),
+                ValueCell::new(Value::expression(length.kind)),
             ]))
         } else {
             None
@@ -2328,8 +2341,8 @@ fn expr_as_unary_op(
 
             tuple_types.pop().unwrap();
             let unary_op_type = tuple_types.pop().unwrap();
-            let unary_op = Shared::new(new_unary_op(prefix_expr.operator, unary_op_type)?);
-            let rhs = Shared::new(Value::expression(prefix_expr.rhs.kind));
+            let unary_op = ValueCell::new(new_unary_op(prefix_expr.operator, unary_op_type)?);
+            let rhs = ValueCell::new(Value::expression(prefix_expr.rhs.kind));
             Some(Value::Tuple(vec![unary_op, rhs]))
         } else {
             None
@@ -2445,42 +2458,47 @@ fn expr_resolve(
     let caller_module = is_some.then(|| interpreter.elaborator.module_id());
 
     let reason = Some(ElaborateReason::EvaluatingComptimeCall("Expr::resolve", location));
-    interpreter.elaborate_in_function(function_to_resolve_in, reason, |elaborator| {
-        if is_some {
-            elaborator.set_caller_module(caller_module);
-        }
+    interpreter.elaborator.elaborate_item_from_comptime_in_function(
+        function_to_resolve_in,
+        reason,
+        |elaborator| {
+            if is_some {
+                elaborator.set_caller_module(caller_module);
+            }
 
-        match expr_value {
-            ExprValue::Expression(expression_kind) => {
-                let expr = Expression { kind: expression_kind, location: self_argument_location };
-                let (expr_id, _) = elaborator.elaborate_expression(expr);
-                Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
-            }
-            ExprValue::Statement(statement_kind) => {
-                let statement =
-                    Statement { kind: statement_kind, location: self_argument_location };
-                let (stmt_id, _) = elaborator.elaborate_statement(statement);
-                Ok(Value::TypedExpr(TypedExpr::StmtId(stmt_id)))
-            }
-            ExprValue::LValue(lvalue) => {
-                let expr = lvalue.as_expression();
-                let (expr_id, _) = elaborator.elaborate_expression(expr);
-                Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
-            }
-            ExprValue::Pattern(pattern) => {
-                if let Some(expression) = pattern.try_as_expression(elaborator.interner) {
-                    let (expr_id, _) = elaborator.elaborate_expression(expression);
+            match expr_value {
+                ExprValue::Expression(expression_kind) => {
+                    let expr =
+                        Expression { kind: expression_kind, location: self_argument_location };
+                    let (expr_id, _) = elaborator.elaborate_expression(expr);
                     Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
-                } else {
-                    let expression = Value::pattern(pattern)
-                        .display(elaborator.interner, elaborator.files)
-                        .to_string();
-                    let location = self_argument_location;
-                    Err(InterpreterError::CannotResolveExpression { location, expression })
+                }
+                ExprValue::Statement(statement_kind) => {
+                    let statement =
+                        Statement { kind: statement_kind, location: self_argument_location };
+                    let (stmt_id, _) = elaborator.elaborate_statement(statement);
+                    Ok(Value::TypedExpr(TypedExpr::StmtId(stmt_id)))
+                }
+                ExprValue::LValue(lvalue) => {
+                    let expr = lvalue.as_expression();
+                    let (expr_id, _) = elaborator.elaborate_expression(expr);
+                    Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
+                }
+                ExprValue::Pattern(pattern) => {
+                    if let Some(expression) = pattern.try_as_expression(elaborator.interner) {
+                        let (expr_id, _) = elaborator.elaborate_expression(expression);
+                        Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
+                    } else {
+                        let expression = Value::pattern(pattern)
+                            .display(elaborator.interner, elaborator.files)
+                            .to_string();
+                        let location = self_argument_location;
+                        Err(InterpreterError::CannotResolveExpression { location, expression })
+                    }
                 }
             }
-        }
-    })
+        },
+    )
 }
 
 fn unwrap_expr_value(interner: &NodeInterner, expr_value: ExprValue) -> ExprValue {
@@ -2659,11 +2677,14 @@ fn function_def_as_typed_expr(
         "FunctionDefinition::as_typed_expr",
         location,
     ));
-    let typ =
-        interpreter.elaborate_in_function(interpreter.current_function, reason, |elaborator| {
+    let typ = interpreter.elaborator.elaborate_item_from_comptime_in_function(
+        interpreter.current_function,
+        reason,
+        |elaborator| {
             let bindings = TypeBindings::default();
             elaborator.type_check_variable_with_bindings(hir_ident, &expr_id, generics, bindings)
-        });
+        },
+    );
     let expr_id = interpreter.elaborator.intern_expr_type(expr_id, typ);
     Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
 }
@@ -2822,8 +2843,8 @@ fn function_def_parameters(
         .map(|(hir_pattern, typ)| {
             let tokens = hir_pattern_to_tokens(interpreter.elaborator.interner, &hir_pattern);
             let tokens = vecmap(tokens, |token| LocatedToken::new(token, location));
-            let name = Shared::new(Value::Quoted(Rc::new(tokens)));
-            let typ = Shared::new(Value::Type(typ));
+            let name = ValueCell::new(Value::Quoted(Rc::new(tokens)));
+            let typ = ValueCell::new(Value::Type(typ));
             Value::Tuple(vec![name, typ])
         })
         .collect();
@@ -3144,8 +3165,8 @@ pub(crate) fn option(option_type: Type, value: Option<Value>, location: Location
     };
 
     let mut fields = HashMap::default();
-    fields.insert(Rc::new("_is_some".to_string()), Shared::new(is_some));
-    fields.insert(Rc::new("_value".to_string()), Shared::new(value));
+    fields.insert(Rc::new("_is_some".to_string()), ValueCell::new(is_some));
+    fields.insert(Rc::new("_value".to_string()), ValueCell::new(value));
     Value::Struct(fields, option_type)
 }
 
@@ -3208,8 +3229,8 @@ fn derive_generators(
         let x = FieldElement::from_repr(generator.x);
         let y = FieldElement::from_repr(generator.y);
         let mut embedded_curve_point_fields = HashMap::default();
-        embedded_curve_point_fields.insert(x_field_name.clone(), Shared::new(Value::field(x)));
-        embedded_curve_point_fields.insert(y_field_name.clone(), Shared::new(Value::field(y)));
+        embedded_curve_point_fields.insert(x_field_name.clone(), ValueCell::new(Value::field(x)));
+        embedded_curve_point_fields.insert(y_field_name.clone(), ValueCell::new(Value::field(y)));
         let embedded_curve_point_struct =
             Value::Struct(embedded_curve_point_fields, *elements.clone());
         results.push_back(embedded_curve_point_struct);

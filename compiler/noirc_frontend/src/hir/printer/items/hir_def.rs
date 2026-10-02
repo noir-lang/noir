@@ -878,7 +878,7 @@ impl ItemPrinter<'_, '_> {
                     return;
                 } else {
                     match &constraint.typ {
-                        Type::TypeVariable(type_var) if type_var.borrow().is_unbound() => {
+                        Type::TypeVariable(type_var) if type_var.binding().is_unbound() => {
                             // The trait's own `Self` type variable can only stay unbound inside
                             // that trait's body, where the item is reachable as `Self::item`.
                             if self.trait_self_typevar == Some(type_var.id()) {
@@ -930,7 +930,7 @@ impl ItemPrinter<'_, '_> {
                     if let Some(instantiation_bindings) = instantiation_bindings {
                         let self_type = self_type.substitute(instantiation_bindings);
                         let unbound = if let Type::TypeVariable(type_var) = &self_type {
-                            type_var.borrow().is_unbound()
+                            type_var.binding().is_unbound()
                         } else {
                             false
                         };
@@ -1005,9 +1005,9 @@ impl ItemPrinter<'_, '_> {
                         && let Type::Constant(constant) = named_type.typ.follow_bindings()
                     {
                         self.push_str(&constant.to_string());
-                        if let Kind::Numeric(numeric_type) = named_type.typ.kind() {
+                        if let Kind::Numeric(numeric_type) = &*named_type.typ.kind() {
                             self.push('_');
-                            self.show_type(&numeric_type);
+                            self.show_type(numeric_type);
                         }
                         return;
                     }
@@ -1032,7 +1032,7 @@ impl ItemPrinter<'_, '_> {
                 // definition's type variable is bound to the value the alias stands for, and
                 // the bare name doesn't resolve at the use site (or worse, resolves to
                 // something else with the same name). Print the value instead.
-                let binding = match &*type_var.borrow() {
+                let binding = match type_var.binding() {
                     TypeBinding::Bound(binding) => Some(binding.follow_bindings()),
                     TypeBinding::Unbound(..) => None,
                 };

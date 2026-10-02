@@ -3250,3 +3250,57 @@ fn sibling_bounds_on_one_trait_without_an_overlapping_impl() {
     ";
     assert_no_errors(src);
 }
+
+#[test]
+fn comptime_self_associated_constant_uses_impl_generics() {
+    let src = r#"
+    pub trait Trait {
+        let N: u32;
+
+        fn foo() -> u32;
+    }
+
+    struct Foo<let A: u32, let B: u32> {}
+
+    impl<let A: u32, let B: u32> Trait for Foo<A, B> {
+        let N: u32 = A + B;
+
+        fn foo() -> u32 {
+            Self::N
+        }
+    }
+
+    fn main() {
+        comptime {
+            assert_eq(Foo::<10, 20>::foo(), 30);
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn comptime_as_trait_associated_constant_uses_function_generics() {
+    let src = r#"
+    pub trait Trait {
+        let N: u32;
+    }
+
+    struct Foo<let A: u32> {}
+
+    impl<let A: u32> Trait for Foo<A> {
+        let N: u32 = A * 2;
+    }
+
+    fn double<let M: u32>() -> u32 {
+        <Foo<M> as Trait>::N
+    }
+
+    fn main() {
+        comptime {
+            assert_eq(double::<3>(), 6);
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}

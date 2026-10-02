@@ -1,0 +1,6 @@
+[package]
+name = "fold_array_ownership"
+type = "bin"
+authors = [""]
+
+[dependencies]

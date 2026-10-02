@@ -269,19 +269,13 @@ fn compile_into_program(
     let monomorphize_result = if options.instrument_debug {
         monomorphize_debug(
             main_id,
-            &mut context.def_interner,
-            context.file_manager.as_file_map(),
+            &context.def_interner,
             &context.debug_instrumenter,
             context.debug_crate_id,
             force_unconstrained,
         )
     } else {
-        monomorphize(
-            main_id,
-            &mut context.def_interner,
-            context.file_manager.as_file_map(),
-            force_unconstrained,
-        )
+        monomorphize(main_id, &context.def_interner, force_unconstrained)
     };
 
     let program = monomorphize_result.map_err(|error| vec![CustomDiagnostic::from(error)])?;

@@ -252,7 +252,7 @@ pub(super) fn oracle_returns_multiple_vectors(
             }
             Type::TypeVariable(type_variable)
             | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
-                match &*type_variable.borrow() {
+                match type_variable.binding() {
                     TypeBinding::Bound(binding) => {
                         vector_count(binding, type_recursion_context.recur())
                     }
@@ -558,7 +558,7 @@ pub(crate) fn check_varargs(
     let Some((pattern, typ, _)) = func.parameters.0.last() else {
         return Some(ResolverError::VarargsOnFunctionWithNoParameters { location });
     };
-    if !matches!(typ.follow_bindings(), Type::Vector(..)) {
+    if !matches!(typ.follow_bindings_shallow().as_ref(), Type::Vector(..)) {
         let location = pattern.location();
         return Some(ResolverError::VarargsLastParameterIsNotAVector { location });
     }
