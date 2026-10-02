@@ -427,20 +427,7 @@ impl<'f> Context<'f> {
         branch_ends: HashMap<BasicBlockId, BasicBlockId>,
         target_block: BasicBlockId,
     ) -> Self {
-        // Instructions already in the target block are never pushed through `push_instruction`,
-        // so seed the memory epochs from them.
-        let mut memory_epoch = 0;
-        let mut load_epochs = HashMap::default();
-        for instruction in function.dfg[target_block].instructions() {
-            match &function.dfg[*instruction] {
-                Instruction::Load { .. } => {
-                    let result = function.dfg.instruction_results(*instruction)[0];
-                    load_epochs.insert(result, memory_epoch);
-                }
-                Instruction::Store { .. } | Instruction::Call { .. } => memory_epoch += 1,
-                _ => {}
-            }
-        }
+        let (memory_epoch, load_epochs) = Self::initial_memory_epochs(function, target_block);
 
         Context {
             inserter: FunctionInserter::new(function),
@@ -457,6 +444,27 @@ impl<'f> Context<'f> {
             memory_epoch,
             load_epochs,
         }
+    }
+
+    /// Computes the `memory_epoch` and `load_epochs` for the instructions already in the
+    /// target block, which are never pushed through `push_instruction`.
+    fn initial_memory_epochs(
+        function: &Function,
+        target_block: BasicBlockId,
+    ) -> (u32, HashMap<ValueId, u32>) {
+        let mut memory_epoch = 0;
+        let mut load_epochs = HashMap::default();
+        for instruction in function.dfg[target_block].instructions() {
+            match &function.dfg[*instruction] {
+                Instruction::Load { .. } => {
+                    let result = function.dfg.instruction_results(*instruction)[0];
+                    load_epochs.insert(result, memory_epoch);
+                }
+                Instruction::Store { .. } | Instruction::Call { .. } => memory_epoch += 1,
+                _ => {}
+            }
+        }
+        (memory_epoch, load_epochs)
     }
 
     /// Flatten the CFG by inlining all instructions from the queued blocks
