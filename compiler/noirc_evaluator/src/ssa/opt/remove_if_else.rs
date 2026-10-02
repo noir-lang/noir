@@ -1026,7 +1026,7 @@ mod tests {
 
         // The removal from `v3` runs under `enable_side_effects v0` with a length that is 0 when `v0`
         // is false, which only flattened SSA allows.
-        let mut ssa = Ssa::from_str_after_passes(src).unwrap();
+        let mut ssa = Ssa::from_str_no_validation(src).unwrap();
         ssa = ssa.remove_if_else().unwrap();
 
         // Here [v21, Field 3] is the result of merging the original vector (`[Field 2, Field 3]`)

@@ -1,6 +1,6 @@
 use acvm::assert_circuit_snapshot;
 
-use crate::acir::tests::{ssa_after_passes_to_acir_program, ssa_to_acir_program, try_ssa_to_acir};
+use crate::acir::tests::{ssa_to_acir_program, try_ssa_to_acir};
 
 #[test]
 fn vector_push_back_known_length() {
@@ -641,18 +641,17 @@ fn vector_insert_no_predicate() {
       b0(v0: u32, v1: u32):
         v4 = make_array [Field 2, Field 3, Field 5] : [Field]
         v6 = array_set v4, index v0, value Field 4
+        range_check v1 to 2 bits
         v10, v11 = call vector_insert(u32 3, v6, v1, Field 10) -> (u32, [Field])
-        constrain v10 == v1
         v13 = array_set mut v11, index v0, value Field 20
         return
     }
     ";
-    // No bounds check precedes the call, so the circuit only holds what `vector_insert` lowers to.
-    let program = ssa_after_passes_to_acir_program(src);
+    let program = ssa_to_acir_program(src);
 
     // Insert does comparisons on every index for the value that should be written into the resulting vector
     //
-    // You can see how w1 is asserted to equal 4
+    // You can see how w1 is range checked to be at most 3 (the vector length)
     // Memory block 1 is our original vector
     // Memory block 2 is our vector created by our insert operation. You can see its contents all start as w6 (which is equal to 0).
     // We then write into b2 four times at the appropriate shifted indices.
@@ -670,6 +669,7 @@ fn vector_insert_no_predicate() {
     INIT b0 = [w2, w3, w4]
     ASSERT w5 = 4
     WRITE b0[w0] = w5
+    BLACKBOX::RANGE input: w1, bits: 2
     ASSERT w6 = 0
     INIT b1 = [w6, w6, w6, w6]
     BRILLIG CALL func: 0, predicate: 1, inputs: [-w1 + 18446744073709551616, 18446744073709551616], outputs: [w7, w8]
@@ -712,7 +712,6 @@ fn vector_insert_no_predicate() {
     ASSERT w31 = w21*w27 - w27 + 1
     ASSERT w32 = -10*w21*w27 + w30*w31 + 10*w27
     WRITE b1[w3] = w32
-    ASSERT w1 = 4
     ASSERT w33 = 20
     WRITE b1[w0] = w33
 
@@ -735,6 +734,8 @@ fn vector_remove() {
       b0(v0: u32, v1: u32, v2: Field):
         v6 = make_array [Field 2, Field 3, Field 5] : [Field]
         v8 = array_set v6, index v0, value Field 4
+        v9 = lt v1, u32 3
+        constrain v9 == u1 1
         v11, v12, v13 = call vector_remove(u32 3, v8, v1) -> (u32, [Field], Field)
         constrain v11 == v1
         constrain v13 == v2
@@ -742,8 +743,7 @@ fn vector_remove() {
         return
     }
     ";
-    // No bounds check precedes the call, so the circuit only holds what `vector_remove` lowers to.
-    let program = ssa_after_passes_to_acir_program(src);
+    let program = ssa_to_acir_program(src);
 
     // Remove does comparisons on every index for the value that should be written into the resulting vector
     // You can see how w1 is asserted to equal 2
@@ -767,31 +767,35 @@ fn vector_remove() {
     INIT b0 = [w3, w4, w5]
     ASSERT w6 = 4
     WRITE b0[w0] = w6
+    BRILLIG CALL func: 0, predicate: 1, inputs: [w1 + 4294967293, 4294967296], outputs: [w7, w8]
+    BLACKBOX::RANGE input: w8, bits: 32
+    ASSERT w8 = w1 - 4294967296*w7 + 4294967293
     ASSERT w7 = 0
-    READ w8 = b0[w7]
-    ASSERT w9 = 1
+    ASSERT w9 = 0
     READ w10 = b0[w9]
-    READ w11 = b0[w3]
-    READ w12 = b0[w1]
-    INIT b1 = [w7, w7]
-    READ w13 = b0[w9]
-    BRILLIG CALL func: 0, predicate: 1, inputs: [-w1 + 18446744073709551616, 18446744073709551616], outputs: [w14, w15]
-    BLACKBOX::RANGE input: w14, bits: 1
-    BLACKBOX::RANGE input: w15, bits: 64
-    ASSERT w15 = -w1 - 18446744073709551616*w14 + 18446744073709551616
-    ASSERT w16 = -w8*w14 + w13*w14 + w8
-    WRITE b1[w7] = w16
-    READ w17 = b0[w3]
-    BRILLIG CALL func: 0, predicate: 1, inputs: [-w1 + 18446744073709551617, 18446744073709551616], outputs: [w18, w19]
-    BLACKBOX::RANGE input: w18, bits: 1
-    BLACKBOX::RANGE input: w19, bits: 64
-    ASSERT w19 = -w1 - 18446744073709551616*w18 + 18446744073709551617
-    ASSERT w20 = -w10*w18 + w17*w18 + w10
-    WRITE b1[w9] = w20
+    ASSERT w11 = 1
+    READ w12 = b0[w11]
+    READ w13 = b0[w3]
+    READ w14 = b0[w1]
+    INIT b1 = [w9, w9]
+    READ w15 = b0[w11]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [-w1 + 18446744073709551616, 18446744073709551616], outputs: [w16, w17]
+    BLACKBOX::RANGE input: w16, bits: 1
+    BLACKBOX::RANGE input: w17, bits: 64
+    ASSERT w17 = -w1 - 18446744073709551616*w16 + 18446744073709551616
+    ASSERT w18 = -w10*w16 + w15*w16 + w10
+    WRITE b1[w9] = w18
+    READ w19 = b0[w3]
+    BRILLIG CALL func: 0, predicate: 1, inputs: [-w1 + 18446744073709551617, 18446744073709551616], outputs: [w20, w21]
+    BLACKBOX::RANGE input: w20, bits: 1
+    BLACKBOX::RANGE input: w21, bits: 64
+    ASSERT w21 = -w1 - 18446744073709551616*w20 + 18446744073709551617
+    ASSERT w22 = -w12*w20 + w19*w20 + w12
+    WRITE b1[w11] = w22
     ASSERT w1 = 2
-    ASSERT w12 = w2
-    ASSERT w21 = 20
-    WRITE b1[w0] = w21
+    ASSERT w14 = w2
+    ASSERT w23 = 20
+    WRITE b1[w0] = w23
 
     unconstrained func 0: directive_integer_quotient
     0: @10 = const u32 2
@@ -1039,6 +1043,7 @@ fn vector_insert_affected_by_predicate() {
         v4 = make_array [Field 2, Field 3] : [Field; 2]
         v5 = make_array [Field 1, v4] : [(Field, [Field; 2])]
         v7 = array_set v5, index v0, value Field 4
+        range_check v0 to 1 bits
         enable_side_effects v1
         v9, v10 = call vector_insert(u32 1, v7, v0, Field 1, v4) -> (u32, [(Field, [Field; 2])])
         return
@@ -1050,14 +1055,14 @@ fn vector_insert_affected_by_predicate() {
         v4 = make_array [Field 2, Field 3] : [Field; 2]
         v5 = make_array [Field 1, v4] : [(Field, [Field; 2])]
         v7 = array_set v5, index v0, value Field 4
+        range_check v0 to 1 bits
         v9, v10 = call vector_insert(u32 1, v7, v0, Field 1, v4) -> (u32, [(Field, [Field; 2])])
         return
     }
     ";
 
-    // Neither program checks the insert index `v0` against the vector length.
-    let program_side_effects = ssa_after_passes_to_acir_program(src_side_effects);
-    let program_no_side_effects = ssa_after_passes_to_acir_program(src_no_side_effects);
+    let program_side_effects = ssa_to_acir_program(src_side_effects);
+    let program_no_side_effects = ssa_to_acir_program(src_no_side_effects);
     assert_ne!(program_side_effects, program_no_side_effects);
 }
 
@@ -1161,8 +1166,10 @@ fn vector_remove_affected_by_predicate() {
         v4 = make_array [Field 2, Field 3] : [Field; 2]
         v5 = make_array [Field 1, v4] : [(Field, [Field; 2])]
         v7 = array_set v5, index v0, value Field 4
+        v8 = lt v0, u32 1
+        constrain v8 == u1 1
         enable_side_effects v1
-        v9, v10, v11, v12 = call vector_remove(u32 1, v7, u32 1) -> (u32, [(Field, [Field; 2])], Field, [Field; 2])
+        v9, v10, v11, v12 = call vector_remove(u32 1, v7, v0) -> (u32, [(Field, [Field; 2])], Field, [Field; 2])
         return
     }
     ";
@@ -1172,14 +1179,15 @@ fn vector_remove_affected_by_predicate() {
         v4 = make_array [Field 2, Field 3] : [Field; 2]
         v5 = make_array [Field 1, v4] : [(Field, [Field; 2])]
         v7 = array_set v5, index v0, value Field 4
-        v9, v10, v11, v12 = call vector_remove(u32 1, v7, u32 1) -> (u32, [(Field, [Field; 2])], Field, [Field; 2])
+        v8 = lt v0, u32 1
+        constrain v8 == u1 1
+        v9, v10, v11, v12 = call vector_remove(u32 1, v7, v0) -> (u32, [(Field, [Field; 2])], Field, [Field; 2])
         return
     }
     ";
 
-    // Index 1 is out of bounds for the 1-element vector, which only a disabled predicate allows.
-    let program_side_effects = ssa_after_passes_to_acir_program(src_side_effects);
-    let program_no_side_effects = ssa_after_passes_to_acir_program(src_no_side_effects);
+    let program_side_effects = ssa_to_acir_program(src_side_effects);
+    let program_no_side_effects = ssa_to_acir_program(src_no_side_effects);
     assert_ne!(program_side_effects, program_no_side_effects);
 }
 
