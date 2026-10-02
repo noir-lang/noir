@@ -13,7 +13,7 @@ This type corresponds to `struct Name { field1: Type1, ... }` and `enum Name { V
 ```rust title="add_abi" showLineNumbers 
 pub comptime fn add_abi(self, abi_argument: CtString) {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/type_def.nr#L5-L7" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/type_def.nr#L5-L7</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/type_def.nr#L50-L52" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/type_def.nr#L50-L52</a></sub></sup>
 
 
 Adds an abi attribute to the data type with the specified argument.
@@ -23,7 +23,7 @@ Adds an abi attribute to the data type with the specified argument.
 ```rust title="as_type" showLineNumbers 
 pub comptime fn as_type(self) -> Type {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/type_def.nr#L12-L14" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/type_def.nr#L12-L14</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/type_def.nr#L57-L59" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/type_def.nr#L57-L59</a></sub></sup>
 
 
 Returns this type definition as a type in the source program. If this definition has
@@ -34,7 +34,7 @@ any generics, the generics are also included as-is.
 ```rust title="as_type_with_generics" showLineNumbers 
 pub comptime fn as_type_with_generics(self, generics: [Type]) -> Option<Type> {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/type_def.nr#L23-L25" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/type_def.nr#L23-L25</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/type_def.nr#L68-L70" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/type_def.nr#L68-L70</a></sub></sup>
 
 
 Returns a type from this type definition using the given generic arguments. Returns `Option::none()`
@@ -43,13 +43,14 @@ if an incorrect amount of generic arguments are given for this type.
 ### generics
 
 ```rust title="generics" showLineNumbers 
-pub comptime fn generics(self) -> [(Type, Option<Type>)] {}
+pub comptime fn generics(self) -> [TypeGeneric] {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/type_def.nr#L49-L51" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/type_def.nr#L49-L51</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/type_def.nr#L92-L94" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/type_def.nr#L92-L94</a></sub></sup>
 
 
-Returns each generic on this type definition. Each generic is represented as a tuple containing the type,
-and an optional containing the numeric type if it's a numeric generic.
+Returns each generic on this type definition as a `TypeGeneric`. Use `typ()` to get the
+generic's type variable. For a numeric generic, `numeric_type()` contains its numeric type;
+for other generics, it returns `None`.
 
 Example:
 
@@ -65,45 +66,47 @@ comptime fn example(foo: TypeDefinition) {
 
     // Fails because `T` isn't in scope
     // let t = quote { T }.as_type();
-    // assert_eq(foo.generics()[0].0, t);
-    assert(foo.generics()[0].1.is_none());
+    // assert_eq(foo.generics()[0].typ(), t);
+    assert(foo.generics()[0].numeric_type().is_none());
 
     // Last generic is numeric, so we have the numeric type available to us
-    assert(foo.generics()[2].1.is_some());
+    assert(foo.generics()[2].numeric_type().is_some());
 }
 ```
 
 ### fields
 
 ```rust title="fields" showLineNumbers 
-pub comptime fn fields(self, generic_args: [Type]) -> [(Quoted, Type, Quoted)] {}
+pub comptime fn fields(self, generic_args: [Type]) -> [StructField] {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/type_def.nr#L57-L59" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/type_def.nr#L57-L59</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/type_def.nr#L105-L107" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/type_def.nr#L105-L107</a></sub></sup>
 
 
-Returns (name, type, visibility) tuples of each field in this struct type.
-Any generic types used in each field type is automatically substituted with the
-provided generic arguments.
+Returns each field in this struct type as a `StructField`. Use `name()` and `typ()` to inspect
+its name and type. `visibility()` returns the field's [`ItemVisibility`](./item_visibility.md).
+Generic types used in each field type are automatically substituted with the provided generic
+arguments.
 
 ### fields_as_written
 
 ```rust title="fields_as_written" showLineNumbers 
-pub comptime fn fields_as_written(self) -> [(Quoted, Type, Quoted)] {}
+pub comptime fn fields_as_written(self) -> [StructField] {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/type_def.nr#L66-L68" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/type_def.nr#L66-L68</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/type_def.nr#L119-L121" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/type_def.nr#L119-L121</a></sub></sup>
 
 
-Returns (name, type, visibility) tuples of each field in this struct type. Each type is as-is
-with any generic arguments unchanged. Unless the field types are not needed,
-users should generally prefer to use `TypeDefinition::fields` over this
-function if possible.
+Returns each field in this struct type as a `StructField`. Use `name()` and `typ()` to inspect
+its name and type. `visibility()` returns the field's [`ItemVisibility`](./item_visibility.md).
+Each type is returned as written, with any generic arguments unchanged. Unless the field types
+are not needed, users should generally prefer to use `TypeDefinition::fields` over this function
+if possible.
 
 ### has_named_attribute
 
 ```rust title="has_named_attribute" showLineNumbers 
 pub comptime fn has_named_attribute<let N: u32>(self, name: str<N>) -> bool {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/type_def.nr#L28-L30" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/type_def.nr#L28-L30</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/type_def.nr#L73-L75" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/type_def.nr#L73-L75</a></sub></sup>
 
 
 Returns true if this type has a custom attribute with the given name.
@@ -117,7 +120,7 @@ only the built-in attribute of the given name.
 ```rust title="named_attribute_args" showLineNumbers 
 pub comptime fn named_attribute_args<let N: u32>(self, name: str<N>) -> [[Quoted]] {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/type_def.nr#L33-L35" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/type_def.nr#L33-L35</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/type_def.nr#L78-L80" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/type_def.nr#L78-L80</a></sub></sup>
 
 
 Returns the arguments of each occurrence of the attribute with the given name, as token
@@ -130,7 +133,7 @@ argument expressions, which can be spliced into generated code with `quote`.
 ```rust title="has_builtin_attribute" showLineNumbers 
 pub comptime fn has_builtin_attribute<let N: u32>(self, name: str<N>) -> bool {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/type_def.nr#L38-L40" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/type_def.nr#L38-L40</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/type_def.nr#L83-L85" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/type_def.nr#L83-L85</a></sub></sup>
 
 
 Returns true if this type has a built-in attribute with the given name.
@@ -143,7 +146,7 @@ applied comptime macros.
 ```rust title="location" showLineNumbers 
 pub comptime fn location(self) -> Location {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/type_def.nr#L42-L44" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/type_def.nr#L42-L44</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/type_def.nr#L87-L89" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/type_def.nr#L87-L89</a></sub></sup>
 
 
 Returns the source [`Location`](./location.md) where this type is defined.
@@ -154,7 +157,7 @@ This can be passed to `std::meta::error` or `std::meta::warn` to attach a diagno
 ```rust title="module" showLineNumbers 
 pub comptime fn module(self) -> Module {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/type_def.nr#L71-L73" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/type_def.nr#L71-L73</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/type_def.nr#L131-L133" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/type_def.nr#L131-L133</a></sub></sup>
 
 
 Returns the module where the type is defined.
@@ -164,7 +167,7 @@ Returns the module where the type is defined.
 ```rust title="name" showLineNumbers 
 pub comptime fn name(self) -> Quoted {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/type_def.nr#L76-L78" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/type_def.nr#L76-L78</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/type_def.nr#L136-L138" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/type_def.nr#L136-L138</a></sub></sup>
 
 
 Returns the name of this type
