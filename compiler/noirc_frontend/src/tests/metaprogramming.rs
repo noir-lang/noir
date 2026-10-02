@@ -1861,6 +1861,47 @@ fn macro_call_type_is_kept_across_a_recursive_call() {
     check_errors_with_stdlib(src, [TYPE_OF_STDLIB]);
 }
 
+#[test]
+fn macro_call_type_nested_in_closure_result_is_visible_after_the_closure_returns() {
+    let src = r#"
+    struct S { a: u8 }
+    comptime fn make_s() -> Quoted { quote { S { a: 1 } } }
+    comptime fn apply<T>(f: fn() -> T) -> (T, u32) { (f(), 1) }
+    fn main() {
+        comptime {
+            let c = || [make_s!()];
+            let (x, _) = apply(c);
+            assert(type_of([x]).eq(quote { [[S; 1]; 1] }.as_type()));
+        }
+    }
+    "#;
+    check_errors_with_stdlib(src, [TYPE_OF_STDLIB]);
+}
+
+#[test]
+fn macro_call_type_in_closure_body_is_solved_again_on_each_loop_iteration() {
+    let src = r#"
+    struct S { a: u8 }
+    comptime fn make(n: u32) -> Quoted {
+        if n == 0 { quote { S { a: 1 } } } else { quote { 1_u8 } }
+    }
+    fn main() {
+        comptime {
+            let c = |n: u32| make!(n);
+            for i in 0..2 {
+                let x = c(i);
+                if i == 0 {
+                    assert(type_of([x]).eq(quote { [S; 1] }.as_type()));
+                } else {
+                    assert(type_of([x]).eq(quote { [u8; 1] }.as_type()));
+                }
+            }
+        }
+    }
+    "#;
+    check_errors_with_stdlib(src, [TYPE_OF_STDLIB]);
+}
+
 // Regression test for https://github.com/noir-lang/noir/issues/11575
 #[test]
 fn path_inside_module_attribute() {
