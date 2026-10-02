@@ -15,7 +15,7 @@ use noirc_evaluator::ssa::{
     ir::{instruction::BinaryOp, types::NumericType},
     ssa_gen::Ssa,
 };
-use noirc_frontend::{Shared, monomorphization::ast::Program};
+use noirc_frontend::monomorphization::ast::Program;
 use regex::Regex;
 
 use crate::{Config, arb_program, compare::logging, input::arb_inputs_from_ssa, program_abi};
@@ -248,12 +248,13 @@ impl Comparable for Value {
             (Value::ArrayOrVector(a), Value::ArrayOrVector(b)) => {
                 // Ignore the RC
                 a.element_types == b.element_types
-                    && Comparable::equivalent(&a.elements, &b.elements)
+                    && Comparable::equivalent(&*a.elements.borrow(), &*b.elements.borrow())
                     && a.length == b.length
             }
             (Value::Reference(a), Value::Reference(b)) => {
                 // Ignore the original ID
-                a.element_type == b.element_type && Comparable::equivalent(&a.element, &b.element)
+                a.element_type == b.element_type
+                    && Comparable::equivalent(&*a.element.borrow(), &*b.element.borrow())
             }
             (a, b) => a == b,
         }
@@ -299,15 +300,10 @@ fn input_value_to_ssa(typ: &AbiType, input: &InputValue) -> Vec<Value> {
 }
 
 fn append_input_value_to_ssa(typ: &AbiType, input: &InputValue, values: &mut Vec<Value>) {
-    use ssa::interpreter::value::{ArrayValue, NumericValue, Value};
+    use ssa::interpreter::value::{NumericValue, Value};
     use ssa::ir::types::Type;
     let array_value = |elements: Vec<Value>, types: Vec<Type>, length: SemanticLength| {
-        Value::ArrayOrVector(ArrayValue {
-            elements: Shared::new(elements),
-            rc: Shared::new(1),
-            element_types: Arc::new(types),
-            length: Some(length),
-        })
+        Value::array_with_length(elements, types, length)
     };
     match input {
         InputValue::Field(f) => {

@@ -1,13 +1,10 @@
-use std::{
-    fmt::{Debug, Display},
-    ops::Deref,
-};
+use std::fmt::{Debug, Display};
 
 use arbitrary::{Arbitrary, Unstructured};
 use color_eyre::eyre::{self, bail};
 use itertools::Itertools;
 use noirc_evaluator::ssa::SsaEvaluatorOptions;
-use noirc_frontend::{Shared, monomorphization::ast::Program};
+use noirc_frontend::monomorphization::ast::Program;
 
 mod compiled;
 mod comptime;
@@ -64,14 +61,6 @@ impl<T: Comparable> Comparable for Option<T> {
             (None, None) => true,
             _ => false,
         }
-    }
-}
-
-impl<T: Comparable> Comparable for Shared<T> {
-    fn equivalent(a: &Self, b: &Self) -> bool {
-        let a = a.borrow();
-        let b = b.borrow();
-        Comparable::equivalent(a.deref(), b.deref())
     }
 }
 

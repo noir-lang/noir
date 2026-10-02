@@ -11,10 +11,10 @@ use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
 use siphasher::sip::SipHasher13;
 
-use crate::Shared;
 use crate::ast::{BinaryOp, ItemVisibility, UnaryOp};
 use crate::elaborator::Elaborator;
 use crate::hir::comptime::Integer;
+use crate::hir::comptime::ValueCell;
 use crate::hir::comptime::display::{tokens_to_string, value_to_bytes};
 use crate::hir::comptime::value::unwrap_rc;
 use crate::hir::comptime::value::{FormatStringFragment, StructFields};
@@ -211,7 +211,7 @@ pub(crate) fn get_struct_fields(
 /// Get a specific field of a struct and apply a decoder function on it.
 pub(crate) fn get_struct_field<T>(
     field_name: &str,
-    struct_fields: &HashMap<Rc<String>, Shared<Value>>,
+    struct_fields: &HashMap<Rc<String>, ValueCell>,
     struct_type: &Type,
     location: Location,
     f: impl Fn((Value, Location)) -> IResult<T>,
@@ -848,7 +848,7 @@ pub(crate) fn to_struct(
     typ: Type,
 ) -> Value {
     let fields =
-        fields.into_iter().map(|(k, v)| (Rc::new(k.to_string()), Shared::new(v))).collect();
+        fields.into_iter().map(|(k, v)| (Rc::new(k.to_string()), ValueCell::new(v))).collect();
     Value::Struct(fields, typ)
 }
 
@@ -866,7 +866,7 @@ pub(crate) fn new_unary_op(operator: UnaryOp, typ: Type) -> Option<Value> {
     };
 
     let mut fields = HashMap::default();
-    fields.insert(Rc::new("op".to_string()), Shared::new(Value::field(unary_op_value.into())));
+    fields.insert(Rc::new("op".to_string()), ValueCell::new(Value::field(unary_op_value.into())));
 
     Some(Value::Struct(fields, typ))
 }
@@ -876,7 +876,7 @@ pub(crate) fn new_binary_op(operator: &BinaryOp, typ: Type) -> Value {
     let binary_op_value = operator.contents as u128;
 
     let mut fields = HashMap::default();
-    fields.insert(Rc::new("op".to_string()), Shared::new(Value::field(binary_op_value.into())));
+    fields.insert(Rc::new("op".to_string()), ValueCell::new(Value::field(binary_op_value.into())));
 
     Value::Struct(fields, typ)
 }
@@ -971,10 +971,10 @@ mod tests {
 
     use super::DeterministicHasher;
     use super::{check_return_type_shape, type_shape};
-    use crate::Shared;
     use crate::Type;
     use crate::ast::IntegerBitSize;
     use crate::hir::comptime::Integer;
+    use crate::hir::comptime::ValueCell;
     use crate::hir::comptime::value::Value;
     use crate::shared::Signedness;
 
@@ -1014,8 +1014,10 @@ mod tests {
         let u8_value = Value::Integer(Integer::U8(0));
         assert!(check_return_type_shape(&u8_value, type_shape(&u32), loc).is_err());
 
-        let pair =
-            Value::Tuple(vec![Shared::new(Value::Bool(true)), Shared::new(Value::Bool(true))]);
+        let pair = Value::Tuple(vec![
+            ValueCell::new(Value::Bool(true)),
+            ValueCell::new(Value::Bool(true)),
+        ]);
         let triple = Type::Tuple(vec![Type::Bool, Type::Bool, Type::Bool]);
         assert!(check_return_type_shape(&pair, type_shape(&triple), loc).is_err());
     }
