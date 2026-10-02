@@ -1228,6 +1228,8 @@ mod test {
         brillig(inline) predicate_pure fn main f0 {
           b0():
             v1, v2 = call f1() -> (u32, [u32])
+            v3 = lt u32 0, v1
+            constrain v3 == u1 1
             v5, v6, v7 = call vector_pop_front(v1, v2) -> (u32, u32, [u32])
             v8, v9 = call f1() -> (u32, [u32])
             v10 = array_get v9, index u32 0 -> u32
@@ -1333,6 +1335,8 @@ mod test {
             v1 = make_array [u32 100, u32 200] : [u32]
             v2 = array_set v1, index u32 0, value u32 300
             v3, v4 = call f1(u32 2, v2) -> (u32, [u32])
+            v9 = lt u32 0, v3
+            constrain v9 == u1 1
             v5, v6, v7 = call vector_pop_front(v3, v4) -> (u32, u32, [u32])
             v8 = make_array [u32 100, u32 200] : [u32]
             return v8

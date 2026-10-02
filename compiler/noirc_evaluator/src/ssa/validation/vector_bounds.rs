@@ -1,14 +1,22 @@
-//! Validates that every `vector_insert` and `vector_remove` is preceded, in the same block, by a
-//! bounds check on its index.
+//! Validates that every `vector_insert`, `vector_remove`, and Brillig `vector_pop_back` /
+//! `vector_pop_front` is preceded, in the same block, by a bounds check.
 //!
 //! SSA generation emits that check right before each call (see `codegen_intrinsic_call_checks`):
-//! `index <= len` for `vector_insert(len, vector, index, ..)` and `index < len` for
-//! `vector_remove(len, vector, index)`. The builder simplifies the check as it is inserted, so the
-//! call is accepted when its requirement follows from constants or from one of these shapes
-//! earlier in the block:
+//!
+//! | call                                           | check          |
+//! |------------------------------------------------|----------------|
+//! | `vector_insert(len, vector, index, ..)`        | `index <= len` |
+//! | `vector_remove(len, vector, index)`            | `index < len`  |
+//! | `vector_pop_back/front(len, vector)` (Brillig) | `0 < len`      |
+//!
+//! ACIR pops have no check: ACIR generation handles popping from an empty vector itself.
+//!
+//! The builder simplifies the check as it is inserted, so the call is accepted when its
+//! requirement follows from constants or from one of these shapes earlier in the block:
 //!
 //! - `constrain (lt index, bound) == u1 1`, where `bound` is the length, `add len, u32 1` for an
-//!   insert, or a constant that keeps the index in range.
+//!   insert, or a constant that keeps the index in range. For a pop, `constrain (lt c, len) == u1 1`
+//!   for a constant `c`.
 //! - `range_check index to k bits` (possibly on `cast index as Field`), with `2^k` in range. This
 //!   is how ACIR checks an index against a power-of-two bound.
 //! - `constrain index == c` (possibly on `cast index as Field`), which is what `lt index, u32 1`
@@ -29,8 +37,8 @@ use crate::ssa::ir::{
     value::{Value, ValueId},
 };
 
-/// Panics if a `vector_insert` or `vector_remove` in `function` is not preceded by a bounds check
-/// in its block. See the module documentation for the accepted shapes.
+/// Panics if a vector intrinsic in `function` is not preceded by its bounds check in its block.
+/// See the module documentation for the accepted shapes.
 pub(super) fn validate_vector_bounds_checks(function: &Function) {
     let dfg = &function.dfg;
     for block in function.reachable_blocks() {
@@ -42,15 +50,27 @@ pub(super) fn validate_vector_bounds_checks(function: &Function) {
                     checks.record_range_check(dfg, *value, *max_bit_size);
                 }
                 Instruction::Call { func, arguments } => {
-                    let (intrinsic, inclusive) = match dfg[*func] {
-                        Value::Intrinsic(intrinsic @ Intrinsic::VectorInsert) => (intrinsic, true),
-                        Value::Intrinsic(intrinsic @ Intrinsic::VectorRemove) => (intrinsic, false),
+                    let Value::Intrinsic(intrinsic) = dfg[*func] else {
+                        continue;
+                    };
+                    let length = arguments[0];
+                    let checked = match intrinsic {
+                        Intrinsic::VectorInsert => {
+                            checks.index_in_bounds(dfg, arguments[2], length, true)
+                        }
+                        Intrinsic::VectorRemove => {
+                            checks.index_in_bounds(dfg, arguments[2], length, false)
+                        }
+                        Intrinsic::VectorPopBack | Intrinsic::VectorPopFront
+                            if function.runtime().is_brillig() =>
+                        {
+                            checks.is_non_empty(dfg, length)
+                        }
                         _ => continue,
                     };
-                    let (length, index) = (arguments[0], arguments[2]);
                     assert!(
-                        checks.index_in_bounds(dfg, index, length, inclusive),
-                        "{intrinsic} call in function {} is not preceded by a bounds check on its index",
+                        checked,
+                        "{intrinsic} call in function {} is not preceded by a bounds check",
                         function.id(),
                     );
                 }
@@ -94,6 +114,10 @@ impl BlockChecks {
         match (&dfg[*instruction], constant) {
             (Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Lt }), 1) => {
                 self.less_than.entry(*lhs).or_default().push(*rhs);
+                // `c < rhs` for an unsigned constant `c` means `rhs` is not zero.
+                if constant_value(dfg, *lhs).is_some() {
+                    self.non_zero.insert(*rhs);
+                }
             }
             (Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Eq }), 0)
                 if constant_value(dfg, *rhs) == Some(0) =>
@@ -120,6 +144,18 @@ impl BlockChecks {
         }
     }
 
+    /// Whether `length > 0` is known.
+    fn is_non_empty(&self, dfg: &DataFlowGraph, length: ValueId) -> bool {
+        self.always_fails
+            || self.non_zero.contains(&length)
+            || self.known_value(dfg, length).is_some_and(|length| length > 0)
+    }
+
+    /// The constant value of `value`, or the constant a constraint pins it to.
+    fn known_value(&self, dfg: &DataFlowGraph, value: ValueId) -> Option<u128> {
+        constant_value(dfg, value).or_else(|| self.equal_to.get(&value).copied())
+    }
+
     /// Whether `index < length` (or `index <= length` when `inclusive`) is known.
     fn index_in_bounds(
         &self,
@@ -131,8 +167,7 @@ impl BlockChecks {
         if self.always_fails {
             return true;
         }
-        let known =
-            |value| constant_value(dfg, value).or_else(|| self.equal_to.get(&value).copied());
+        let known = |value| self.known_value(dfg, value);
         // The exclusive upper bound on the index, when the length is known.
         let max_bound = known(length).map(|length| length + u128::from(inclusive));
 
@@ -346,5 +381,71 @@ mod tests {
              constrain v3 == u1 0
              v4, v5, v6 = call vector_remove(v1, v2, u32 0) -> (u32, [Field], Field)",
         );
+    }
+
+    /// Parses `body` as the single block of a Brillig `main` taking `v0: u32` (the length) and
+    /// `v1: [Field]` (the vector).
+    fn validate_brillig(body: &str) {
+        let src = format!(
+            "
+            brillig(inline) fn main f0 {{
+              b0(v0: u32, v1: [Field]):
+                {body}
+                return
+            }}
+            "
+        );
+        let _ = Ssa::from_str(&src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "vector_pop_back call in function f0 is not preceded by a bounds check"
+    )]
+    fn brillig_pop_back_without_check() {
+        validate_brillig("v2, v3, v4 = call vector_pop_back(v0, v1) -> (u32, [Field], Field)");
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "vector_pop_front call in function f0 is not preceded by a bounds check"
+    )]
+    fn brillig_pop_front_without_check() {
+        validate_brillig("v2, v3, v4 = call vector_pop_front(v0, v1) -> (Field, u32, [Field])");
+    }
+
+    #[test]
+    fn brillig_pop_back_with_length_checked_non_zero() {
+        validate_brillig(
+            "v2 = lt u32 0, v0
+             constrain v2 == u1 1
+             v3, v4, v5 = call vector_pop_back(v0, v1) -> (u32, [Field], Field)",
+        );
+    }
+
+    #[test]
+    fn brillig_pop_front_with_constant_non_zero_length() {
+        validate_brillig("v2, v3, v4 = call vector_pop_front(u32 2, v1) -> (Field, u32, [Field])");
+    }
+
+    #[test]
+    fn brillig_pop_back_of_empty_vector_after_failing_constraint() {
+        validate_brillig(
+            "constrain u1 0 == u1 1, \"Attempt to pop from an empty vector\"
+             v2, v3, v4 = call vector_pop_back(u32 0, v1) -> (u32, [Field], Field)",
+        );
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "vector_pop_back call in function f0 is not preceded by a bounds check"
+    )]
+    fn brillig_pop_back_of_empty_vector() {
+        validate_brillig("v2, v3, v4 = call vector_pop_back(u32 0, v1) -> (u32, [Field], Field)");
+    }
+
+    #[test]
+    fn acir_pop_back_without_check() {
+        validate("v3, v4, v5 = call vector_pop_back(v1, v2) -> (u32, [Field], Field)");
     }
 }
