@@ -3,7 +3,7 @@ use std::marker::Copy;
 
 use fm::FileId;
 use itertools::Itertools;
-use noirc_arena::{Arena, Index};
+use noirc_arena::{Arena, ArenaMap, Index};
 use noirc_errors::{Location, Span};
 use petgraph::prelude::DiGraph;
 use petgraph::prelude::NodeIndex as PetGraphIndex;
@@ -113,7 +113,7 @@ pub struct NodeInterner {
     dependency_graph_indices: HashMap<DependencyId, PetGraphIndex>,
 
     // Map each `Index` to it's own location
-    pub(crate) id_to_location: HashMap<Index, Location>,
+    pub(crate) id_to_location: ArenaMap<Location>,
 
     // Maps each DefinitionId to a DefinitionInfo.
     definitions: Vec<DefinitionInfo>,
@@ -123,7 +123,7 @@ pub struct NodeInterner {
     // This should only be used with indices from the `nodes` arena.
     // Otherwise the indices used may overwrite other existing indices.
     // Each type for each index is filled in during type checking.
-    id_to_type: HashMap<Index, Type>,
+    id_to_type: ArenaMap<Type>,
 
     // Similar to `id_to_type` but maps definitions to their type
     definition_to_type: HashMap<DefinitionId, Type>,
@@ -498,9 +498,9 @@ impl Default for NodeInterner {
             func_id_to_trait: HashMap::default(),
             dependency_graph: DiGraph::new(),
             dependency_graph_indices: HashMap::default(),
-            id_to_location: HashMap::default(),
+            id_to_location: ArenaMap::default(),
             definitions: vec![],
-            id_to_type: HashMap::default(),
+            id_to_type: ArenaMap::default(),
             definition_to_type: HashMap::default(),
             data_types: HashMap::default(),
             type_attributes: HashMap::default(),
@@ -1776,7 +1776,7 @@ impl NodeInterner {
             .iter()
             .filter(|(_, loc)| !loc.is_dummy() && files.contains(&loc.file))
             .filter(|(idx, _)| {
-                let Some(Node::Expression(expr)) = self.nodes.get(**idx) else {
+                let Some(Node::Expression(expr)) = self.nodes.get(*idx) else {
                     return false;
                 };
                 // Ignore blocks otherwise we highlight the opening brace.

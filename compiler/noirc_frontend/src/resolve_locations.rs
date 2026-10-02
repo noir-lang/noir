@@ -13,11 +13,11 @@ impl NodeInterner {
     /// so we check if the location's span is contained within the start or end
     /// of each items [Location]
     pub fn find_location_index(&self, location: Location) -> Option<impl Into<Index>> {
-        let mut location_candidate: Option<(&Index, &Location)> = None;
+        let mut location_candidate: Option<(Index, &Location)> = None;
 
         // Note: we can modify this in the future to not do a linear
         // scan by storing a separate map of the spans or by sorting the locations.
-        for (index, interned_location) in &self.id_to_location {
+        for (index, interned_location) in self.id_to_location.iter() {
             if interned_location.contains(&location) {
                 if let Some(current_location) = location_candidate {
                     if interned_location.span.is_smaller(&current_location.1.span) {
@@ -28,17 +28,17 @@ impl NodeInterner {
                 }
             }
         }
-        location_candidate.map(|(index, _location)| *index)
+        location_candidate.map(|(index, _location)| index)
     }
 
     /// Returns the [Type] of the expression that exists at the given location.
     pub fn type_at_location(&self, location: Location) -> Option<&Type> {
         // This is similar to `find_location_index` except that we skip indexes for which there is no type
-        let mut location_candidate: Option<(&Index, &Location, &Type)> = None;
+        let mut location_candidate: Option<(Index, &Location, &Type)> = None;
 
-        for (index, interned_location) in &self.id_to_location {
+        for (index, interned_location) in self.id_to_location.iter() {
             if interned_location.contains(&location)
-                && let Some(typ) = self.try_id_type(*index)
+                && let Some(typ) = self.try_id_type(index)
             {
                 if let Some(current_location) = location_candidate {
                     if interned_location.span.is_smaller(&current_location.1.span) {

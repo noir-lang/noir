@@ -84,3 +84,38 @@ impl<T> Arena<T> {
         self.vec.iter().enumerate().map(|(index, item)| (Index(index), item))
     }
 }
+
+/// Side table holding at most one `V` per [`Index`] of an [`Arena`], stored densely by index.
+///
+/// Use this instead of a hash map when most indices of the arena have an entry.
+#[derive(Clone, Debug)]
+pub struct ArenaMap<V> {
+    vec: Vec<Option<V>>,
+}
+
+impl<V> Default for ArenaMap<V> {
+    fn default() -> Self {
+        Self { vec: Vec::new() }
+    }
+}
+
+impl<V> ArenaMap<V> {
+    pub fn insert(&mut self, index: Index, value: V) {
+        if index.0 >= self.vec.len() {
+            self.vec.resize_with(index.0 + 1, || None);
+        }
+        self.vec[index.0] = Some(value);
+    }
+
+    pub fn get(&self, index: &Index) -> Option<&V> {
+        self.vec.get(index.0).and_then(Option::as_ref)
+    }
+
+    /// Iterates over the entries in index order.
+    pub fn iter(&self) -> impl Iterator<Item = (Index, &V)> {
+        self.vec
+            .iter()
+            .enumerate()
+            .filter_map(|(index, value)| value.as_ref().map(|value| (Index(index), value)))
+    }
+}
