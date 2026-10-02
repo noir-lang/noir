@@ -309,6 +309,14 @@ pub(crate) struct Context<'f> {
     /// because they have been replaced by an optimized merged array. Doing it during
     /// flattening rather than leaving it to DIE means we avoid leaving a constraint behind.
     superseded_array_sets: HashSet<InstructionId>,
+
+    /// Number of instructions that may write memory (`Store`, `Call`) in the target block so far.
+    /// Any such write may go through an alias of any address, so two loads of the same address
+    /// are only known to observe the same memory snapshot if they were emitted in the same epoch.
+    memory_epoch: u32,
+
+    /// The `memory_epoch` at which each `Load` in the target block was emitted.
+    load_epochs: HashMap<ValueId, u32>,
 }
 
 /// Tracks the origin of a merge result to collapse redundant nested merges.
@@ -419,6 +427,21 @@ impl<'f> Context<'f> {
         branch_ends: HashMap<BasicBlockId, BasicBlockId>,
         target_block: BasicBlockId,
     ) -> Self {
+        // Instructions already in the target block are never pushed through `push_instruction`,
+        // so seed the memory epochs from them.
+        let mut memory_epoch = 0;
+        let mut load_epochs = HashMap::default();
+        for instruction in function.dfg[target_block].instructions() {
+            match &function.dfg[*instruction] {
+                Instruction::Load { .. } => {
+                    let result = function.dfg.instruction_results(*instruction)[0];
+                    load_epochs.insert(result, memory_epoch);
+                }
+                Instruction::Store { .. } | Instruction::Call { .. } => memory_epoch += 1,
+                _ => {}
+            }
+        }
+
         Context {
             inserter: FunctionInserter::new(function),
             cfg,
@@ -431,6 +454,8 @@ impl<'f> Context<'f> {
             target_block,
             no_predicate: false,
             superseded_array_sets: HashSet::default(),
+            memory_epoch,
+            load_epochs,
         }
     }
 
@@ -1205,7 +1230,9 @@ impl<'f> Context<'f> {
     /// ```
     ///
     /// This works because if cond is false, the array_set just puts back the original
-    /// value, producing the same array as v1'.
+    /// value, producing the same array as v1'. It requires `v1` and `v1'` to hold the same
+    /// array: if anything may have written memory between the two loads, `v1'` can differ from
+    /// `v1` in slots other than `index`, and those differences would leak into the stored array.
     fn try_optimize_store_of_array_set(
         &mut self,
         value: ValueId,
@@ -1239,8 +1266,12 @@ impl<'f> Context<'f> {
         )
     }
 
-    /// Check if a value was the result of loading from a specific address.
+    /// Check if a value was the result of loading from a specific address, with no potential
+    /// memory write emitted since, so that it holds the same array as a fresh load of `address`.
     fn was_loaded_from_address(&self, value: ValueId, address: ValueId) -> bool {
+        if self.load_epochs.get(&value) != Some(&self.memory_epoch) {
+            return false;
+        }
         let Value::Instruction { instruction, .. } = &self.inserter.function.dfg[value] else {
             return false;
         };
@@ -1469,6 +1500,9 @@ impl<'f> Context<'f> {
         let instruction = self.handle_instruction_side_effects(instruction, call_stack);
 
         let instruction_is_allocate = matches!(&instruction, Instruction::Allocate);
+        let instruction_is_load = matches!(&instruction, Instruction::Load { .. });
+        let instruction_writes_memory =
+            matches!(&instruction, Instruction::Store { .. } | Instruction::Call { .. });
         let results = self.inserter.push_instruction_value(
             instruction,
             id,
@@ -1481,6 +1515,12 @@ impl<'f> Context<'f> {
         // values across branches for it later.
         if instruction_is_allocate {
             self.local_allocations.insert(results.first());
+        }
+        if instruction_is_load {
+            self.load_epochs.insert(results.first(), self.memory_epoch);
+        }
+        if instruction_writes_memory {
+            self.memory_epoch += 1;
         }
     }
 
@@ -2879,6 +2919,155 @@ mod tests {
                 }
             }
         }
+    }
+
+    fn assert_flatten_cfg_returns(
+        src: &str,
+        inputs: Vec<InterpreterValue>,
+        expected: InterpreterValue,
+    ) {
+        let ssa = Ssa::from_str(src).unwrap();
+        let (_, result) =
+            assert_pass_does_not_affect_execution(ssa, inputs, |ssa| ssa.flatten_cfg());
+        assert_eq!(result, Ok(vec![expected]));
+    }
+
+    fn field_array(values: &[u32]) -> InterpreterValue {
+        let elements = values.iter().map(|v| InterpreterValue::field((*v).into())).collect();
+        InterpreterValue::array(elements, vec![Type::field()])
+    }
+
+    fn bool_value(value: bool) -> InterpreterValue {
+        InterpreterValue::from_constant(u128::from(value).into(), NumericType::bool()).unwrap()
+    }
+
+    #[test]
+    fn store_of_array_set_with_base_loaded_before_store_in_same_branch() {
+        // Both stores in `b1` are based on `v3`. The second one must produce `[42, 2]`:
+        // rebuilding it on a fresh load would keep the `99` written by the first store.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 2], v1: u1):
+            v2 = allocate -> &mut [Field; 2]
+            store v0 at v2
+            jmpif v1 then: b1(), else: b2()
+          b1():
+            v3 = load v2 -> [Field; 2]
+            v4 = array_set v3, index u32 1, value Field 99
+            store v4 at v2
+            v5 = array_set v3, index u32 0, value Field 42
+            store v5 at v2
+            jmp b2()
+          b2():
+            v6 = load v2 -> [Field; 2]
+            return v6
+        }
+        ";
+        assert_flatten_cfg_returns(
+            src,
+            vec![field_array(&[1, 2]), bool_value(true)],
+            field_array(&[42, 2]),
+        );
+    }
+
+    #[test]
+    fn store_of_array_set_with_base_loaded_before_store_in_entry_block() {
+        // `v3` is loaded in the entry block before `store v6 at v2`, so it does not hold the
+        // array in `v2` when the branch stores `array_set v3`. The result must be `2`, not `50`.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3], v1: u1):
+            v2 = allocate -> &mut [Field; 3]
+            store v0 at v2
+            v3 = load v2 -> [Field; 3]
+            v6 = array_set v3, index u32 1, value Field 50
+            store v6 at v2
+            jmpif v1 then: b1(), else: b2()
+          b1():
+            v9 = array_set v3, index u32 0, value Field 7
+            store v9 at v2
+            jmp b2()
+          b2():
+            v10 = load v2 -> [Field; 3]
+            v11 = array_get v10, index u32 1 -> Field
+            return v11
+        }
+        ";
+        assert_flatten_cfg_returns(
+            src,
+            vec![field_array(&[1, 2, 3]), bool_value(true)],
+            InterpreterValue::field(2u32.into()),
+        );
+    }
+
+    #[test]
+    fn store_of_array_set_with_base_loaded_before_store_through_alias() {
+        // `v31` aliases `v2`, so `store v4 at v31` changes what a fresh load of `v2` returns
+        // even though the store's address is a different value.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 2], v1: u1, v20: u32):
+            v2 = allocate -> &mut [Field; 2]
+            store v0 at v2
+            v30 = make_array [v2, v2] : [&mut [Field; 2]; 2]
+            v31 = array_get v30, index v20 -> &mut [Field; 2]
+            jmpif v1 then: b1(), else: b2()
+          b1():
+            v3 = load v2 -> [Field; 2]
+            v4 = array_set v3, index u32 1, value Field 99
+            store v4 at v31
+            v5 = array_set v3, index u32 0, value Field 42
+            store v5 at v2
+            jmp b2()
+          b2():
+            v6 = load v2 -> [Field; 2]
+            return v6
+        }
+        ";
+        let index =
+            InterpreterValue::from_constant(0_u128.into(), NumericType::unsigned(32)).unwrap();
+        assert_flatten_cfg_returns(
+            src,
+            vec![field_array(&[1, 2]), bool_value(true), index],
+            field_array(&[42, 2]),
+        );
+    }
+
+    #[test]
+    fn store_of_array_set_merges_scalar_after_earlier_conditional_store() {
+        // Each branch loads `v2` after the previous store, so both stores merge a single
+        // element instead of the whole array.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 8], v1: u1):
+            v2 = allocate -> &mut [Field; 8]
+            store v0 at v2
+            jmpif v1 then: b1(), else: b2()
+          b1():
+            v3 = load v2 -> [Field; 8]
+            v4 = array_set v3, index u32 1, value Field 99
+            store v4 at v2
+            jmp b2()
+          b2():
+            jmpif v1 then: b3(), else: b4()
+          b3():
+            v5 = load v2 -> [Field; 8]
+            v6 = array_set v5, index u32 2, value Field 77
+            store v6 at v2
+            jmp b4()
+          b4():
+            v7 = load v2 -> [Field; 8]
+            return v7
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap().flatten_cfg();
+        let main = ssa.main();
+        let instructions = main.dfg[main.entry_block()].instructions();
+        let if_else_count = instructions
+            .iter()
+            .filter(|id| matches!(main.dfg[**id], Instruction::IfElse { .. }))
+            .count();
+        assert_eq!(if_else_count, 0, "expected scalar merges only, got:\n{ssa}");
     }
 
     #[test]

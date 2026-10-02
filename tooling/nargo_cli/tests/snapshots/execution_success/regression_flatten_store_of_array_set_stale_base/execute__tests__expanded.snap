@@ -1,0 +1,30 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(x: Field, c0: bool, c: bool, d: bool) -> pub Field {
+    let mut a: [Field; 2] = [x, 2_Field];
+    let mut b: [Field; 2] = [x, 2_Field];
+    {
+        let ___i0: [&mut [Field; 2]; 2] = [&mut a, &mut b];
+        for ___i1 in 0_u32..___i0.len() {
+            let r: &mut [Field; 2] = ___i0[___i1];
+            {
+                r[1_u32] = 3_Field;
+            }
+        }
+    };
+    if c0 { a[0_u32] = 7_Field; };
+    let old: [Field; 2] = a;
+    if c {
+        let mut t: [Field; 2] = old;
+        t[0_u32] = 9_Field;
+        a = t;
+    };
+    if d {
+        let mut t: [Field; 2] = old;
+        t[1_u32] = 5_Field;
+        a = t;
+    };
+    ((a[0_u32] * 100_Field) + a[1_u32]) + b[0_u32]
+}
