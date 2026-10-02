@@ -3512,6 +3512,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "noir_witness_mutator"
+version = "1.0.0-rc.3"
+dependencies = [
+ "acir",
+ "acvm",
+ "bn254_blackbox_solver",
+ "clap",
+ "color-eyre",
+ "nargo",
+ "noir_artifact_cli",
+ "noirc_abi",
+ "noirc_artifacts",
+ "num-bigint 0.5.1",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "noirc_abi"
 version = "1.0.0-rc.3"
 dependencies = [

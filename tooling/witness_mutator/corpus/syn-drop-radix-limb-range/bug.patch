@@ -1,0 +1,12 @@
+diff --git a/compiler/noirc_evaluator/src/acir/acir_context/generated_acir/mod.rs b/compiler/noirc_evaluator/src/acir/acir_context/generated_acir/mod.rs
+index d0ed0bd89ed..98fdef4a730 100644
+--- a/compiler/noirc_evaluator/src/acir/acir_context/generated_acir/mod.rs
++++ b/compiler/noirc_evaluator/src/acir/acir_context/generated_acir/mod.rs
+@@ -412,7 +412,6 @@ impl<F: AcirField> GeneratedAcir<F> {
+ 
+         let mut radix_pow = BigUint::from(1u128);
+         for limb_witness in &limb_witnesses {
+-            self.range_constraint(*limb_witness, bit_size)?;
+ 
+             composed_limbs = composed_limbs.add_mul(
+                 F::from_be_bytes_reduce(&radix_pow.to_bytes_be()),
