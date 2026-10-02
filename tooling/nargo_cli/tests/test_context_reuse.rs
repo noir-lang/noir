@@ -1,10 +1,9 @@
 //! Integration tests for `nargo test` sharing one elaborated `Context` between the tests a worker
 //! thread runs.
 //!
-//! Sharing is only sound while every test leaves the context as it found it. Monomorphization is
-//! what compiling a test writes to a shared `NodeInterner` through, and it restores those writes
-//! on every path out; `noirc_frontend::monomorphization::context_purity_tests` asserts that at
-//! the level of the interner, against a monomorphizer called directly.
+//! Sharing is only sound while compiling a test leaves nothing in the context that a later test can
+//! see. `noirc_frontend::monomorphization::context_reuse_tests` asserts that at the level of the
+//! monomorphizer, called directly against a shared `NodeInterner`.
 //!
 //! Asserted here is the property the runner actually depends on, through the runner itself: a
 //! test's result must not depend on which tests ran before it on the same thread. Each case
@@ -19,9 +18,7 @@ use assert_fs::fixture::ChildPath;
 use assert_fs::prelude::{FileWriteStr, PathChild};
 
 /// `a_transmute_mismatch` fails inside the generic `transmute_pair`, so the failure is raised part
-/// way through monomorphizing it, while `transmute_pair`'s generics are bound to that call's
-/// instantiation — the shape where the bindings a compilation made have furthest to travel to be
-/// restored. `#[test(should_fail)]` with no expected message reports the failure as a pass, which
+/// way through monomorphizing it, at that call's instantiation. `#[test(should_fail)]` with no expected message reports the failure as a pass, which
 /// is what makes this worth pinning through the runner: the suite is all green whatever the
 /// context carries between tests, so a difference is only visible against the isolated runs.
 const COMPILE_FAILURE_BETWEEN_TESTS: &str = r#"
@@ -60,9 +57,8 @@ fn e_transmute_field_again() {
 }
 "#;
 
-/// A suite whose tests only differ in which impl of a trait they drive. Monomorphizing a call site
-/// rewrites the instantiation bindings the interner holds for it, so each test after the first
-/// reaches a call site an earlier one has already written to and restored.
+/// A suite whose tests only differ in which impl of a trait they drive, so each test after the
+/// first reaches a trait-method call site an earlier one has already resolved to a different impl.
 const SHARED_TRAIT_CALL_SITE: &str = r#"
 fn main() {}
 

@@ -468,7 +468,7 @@ impl Elaborator<'_> {
                 // so add it by creating a fresh type variable.
                 let new_generic_id = self.interner.next_type_variable_id();
                 let kind = associated_type.type_var.kind();
-                let type_var = TypeVariable::unbound(new_generic_id, kind);
+                let type_var = TypeVariable::unbound(new_generic_id, kind.into_owned());
 
                 let location = bound.trait_path.location;
                 let typ = type_var.clone().into_implicit_named_generic(
@@ -758,7 +758,7 @@ impl Elaborator<'_> {
                 let named = vecmap(&instantiated.trait_generics.named, |named_type| {
                     let fresh_id = self.interner.next_type_variable_id();
                     let kind = named_type.typ.kind();
-                    let type_var = TypeVariable::unbound(fresh_id, kind);
+                    let type_var = TypeVariable::unbound(fresh_id, kind.into_owned());
 
                     let assoc_type_id = parent_trait
                         .associated_types
@@ -903,7 +903,7 @@ impl Elaborator<'_> {
         }
 
         if let Type::TypeVariable(self_var) = object
-            && self_var.borrow().is_unbound()
+            && self_var.binding().is_unbound()
             && self.item.impl_context.current_trait().is_some()
         {
             // This would end up duplicating parent trait bounds we turned into where clauses on Self.
@@ -1437,7 +1437,10 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
         {
             let trait_fn_kind = trait_fn_generic.kind();
             let arg = impl_fn_generic.clone().into_named_generic(name, None);
-            bindings.insert(trait_fn_generic.id(), (trait_fn_generic.clone(), trait_fn_kind, arg));
+            bindings.insert(
+                trait_fn_generic.id(),
+                (trait_fn_generic.clone(), trait_fn_kind.into_owned(), arg),
+            );
         }
 
         // A `where` clause such as `where Self::Target: Mappable` introduces an implicit generic
@@ -1467,7 +1470,10 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
                     &ordered,
                     named_arg.name.as_str(),
                 ) {
-                    bindings.insert(type_var.id(), (type_var.clone(), type_var.kind(), normalized));
+                    bindings.insert(
+                        type_var.id(),
+                        (type_var.clone(), type_var.kind().into_owned(), normalized),
+                    );
                 }
             }
         }

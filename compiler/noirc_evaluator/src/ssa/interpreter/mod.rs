@@ -23,13 +23,14 @@ use acvm::{AcirField, FieldElement};
 use errors::{InternalError, InterpreterError, MAX_UNSIGNED_BIT_SIZE};
 use iter_extended::{try_vecmap, vecmap};
 use itertools::Itertools;
-use noirc_frontend::Shared;
 use num_bigint::BigUint;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use shared_cell::SharedCell;
 use value::{ArrayValue, NumericValue, ReferenceValue, StorageIdentity};
 
 pub mod errors;
 mod intrinsics;
+mod shared_cell;
 pub(crate) mod tests;
 pub mod value;
 
@@ -1091,17 +1092,26 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         let new_results = if side_effects_enabled {
             match function {
                 Value::Function(id) => {
-                    // If we're crossing a constrained -> unconstrained boundary we have to wipe
-                    // any shared mutable fields in our arguments since brillig should conceptually
-                    // receive fresh array on each invocation.
-                    if !self.in_unconstrained_context()
-                        && self.functions[&id].runtime().is_brillig()
-                    {
+                    // A Brillig function called from constrained code, and an ACIR entry point
+                    // (a separate circuit), each receive fresh copies of their array arguments
+                    // and hand back freshly materialized outputs. Neither the callee's in-place
+                    // writes to its parameters nor the caller's in-place writes to one result
+                    // may be visible through another value.
+                    let runtime = self.functions[&id].runtime();
+                    let crosses_entry_point = !self.in_unconstrained_context()
+                        && (runtime.is_brillig() || runtime.is_entry_point());
+                    if crosses_entry_point {
                         for argument in &mut arguments {
                             Self::reset_array_state(argument)?;
                         }
                     }
-                    self.call_function(id, arguments)?
+                    let mut results = self.call_function(id, arguments)?;
+                    if crosses_entry_point {
+                        for result in &mut results {
+                            Self::reset_array_state(result)?;
+                        }
+                    }
+                    results
                 }
                 Value::Intrinsic(intrinsic) => {
                     self.call_intrinsic(intrinsic, argument_ids, results)?
@@ -1215,8 +1225,9 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         }
     }
 
-    /// Reset the value's `Shared` states in each array within. This is used to mimic each
-    /// invocation of the brillig vm receiving fresh values. No matter the history of this value
+    /// Reset the value's `SharedCell` states in each array within. This is used to mimic each
+    /// invocation of the brillig vm, or of a separate ACIR circuit, receiving and returning
+    /// fresh values. No matter the history of this value
     /// (e.g. even if they were previously returned from another brillig function) the reference
     /// count should always be 1 and it shouldn't alias any other arrays.
     fn reset_array_state(value: &mut Value) -> IResult<()> {
@@ -1235,8 +1246,8 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 for element in &mut elements {
                     Self::reset_array_state(element)?;
                 }
-                array_value.elements = Shared::new(elements);
-                array_value.rc = Shared::new(1);
+                array_value.elements = SharedCell::new(elements);
+                array_value.rc = SharedCell::new(1);
                 Ok(())
             }
         }
@@ -1291,14 +1302,14 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
     /// In the ACIR runtime a nested array must be a fresh copy rather than a shared handle:
     /// `array_get` returns a fresh nested array and `array_set` stores a fresh copy of an
     /// array-valued element. Otherwise a later mutable array set on the source array would
-    /// also mutate the value produced here, since both would share the same `Shared` handle.
+    /// also mutate the value produced here, since both would share the same `SharedCell` handle.
     /// In the Brillig runtime this aliasing is expected, so the value is cloned as-is.
     fn copy_nested_array_in_acir(&self, value: &Value) -> Value {
         if !self.in_unconstrained_context()
             && let Some(array) = value.as_array_or_vector()
         {
             return Value::ArrayOrVector(ArrayValue {
-                elements: Shared::new(array.elements.borrow().to_vec()),
+                elements: SharedCell::new(array.elements.borrow().to_vec()),
                 rc: array.rc,
                 element_types: array.element_types,
                 length: array.length,
@@ -1405,11 +1416,13 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             let is_rc_one = *array.rc.borrow() == 1;
             // A global is not the sole live reference to its storage even when its reference
             // count says so, so `is_rc_one` alone is not license to write through it — see
-            // [`Self::is_global_storage`].
+            // [`Self::is_global_storage`]. Nor is the `mutable` flag: each ACIR circuit
+            // materializes its own copy of the globals, so a write the pass allows in one
+            // circuit must not be visible to an entry point it calls.
             let should_mutate = if self.in_unconstrained_context() {
                 is_rc_one && !self.is_global_storage(storage)
             } else {
-                mutable
+                mutable && !self.is_global_storage(storage)
             };
 
             if index >= length {
@@ -1419,8 +1432,11 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             if should_mutate {
                 // In a constrained context arrays have value semantics: an in-place write
                 // here only reuses the backing store of an array value that the Mutable
-                // Array Set Optimizations pass proved dead, so it is not a caller-visible
-                // mutation and purity analysis rightly ignores it. Only in Brillig, where
+                // Array Set Optimizations pass proved dead within the current function, so
+                // it is not a caller-visible mutation and purity analysis rightly ignores it.
+                // That per-function proof covers parameters only because every ACIR function
+                // reaching that pass is an entry point that owns its inputs, which
+                // `interpret_call` models by copying arrays across the call boundary. Only in Brillig, where
                 // the reference count governs genuine sharing, is writing through
                 // argument-reachable storage observable by the caller.
                 if self.in_unconstrained_context() {
@@ -1434,8 +1450,8 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 }
                 let mut elements = array.elements.borrow().to_vec();
                 elements[index as usize] = value;
-                let elements = Shared::new(elements);
-                let rc = Shared::new(1);
+                let elements = SharedCell::new(elements);
+                let rc = SharedCell::new(1);
                 let element_types = array.element_types.clone();
                 let length = array.length;
                 Value::ArrayOrVector(ArrayValue { elements, rc, element_types, length })
@@ -1563,8 +1579,8 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         }
 
         let array = Value::ArrayOrVector(ArrayValue {
-            elements: Shared::new(elements),
-            rc: Shared::new(1),
+            elements: SharedCell::new(elements),
+            rc: SharedCell::new(1),
             element_types,
             length,
         });

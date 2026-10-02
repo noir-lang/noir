@@ -1,4 +1,4 @@
-use fm::FileId;
+use fm::{FileId, FileMap};
 use noirc_errors::Location;
 
 use crate::{
@@ -6,7 +6,7 @@ use crate::{
     graph::CrateId,
     hir::{comptime, def_map::LocalModuleId},
     hir_def::stmt::{HirLetStatement, HirStatement},
-    node_interner::{DefinitionId, DefinitionInfo, DefinitionKind, Node, StmtId},
+    node_interner::{DefinitionId, DefinitionInfo, DefinitionKind, ExprId, Node, StmtId},
     token::SecondaryAttribute,
 };
 
@@ -27,6 +27,10 @@ pub struct GlobalInfo {
     pub location: Location,
     pub let_statement: StmtId,
     pub value: GlobalValue,
+    /// The resolved value lowered to runtime HIR, or the error lowering it produced. Set by
+    /// [`NodeInterner::resolve_global`] for every global that is not `comptime`; `comptime`
+    /// globals are only reachable from comptime code, so they keep `None`.
+    pub runtime_value: Option<Result<ExprId, comptime::InterpreterError>>,
     /// `true` if this global is the synthetic global a fieldless enum variant
     /// (e.g. `Foo::Spam`) is lowered to, rather than a user-declared global.
     pub is_enum_variant: bool,
@@ -74,6 +78,7 @@ impl NodeInterner {
             location,
             visibility,
             value: GlobalValue::Unresolved,
+            runtime_value: None,
             is_enum_variant: false,
         });
         self.global_attributes.insert(id, attributes);
@@ -108,6 +113,28 @@ impl NodeInterner {
     /// (e.g. `Foo::Spam`) is lowered to, as opposed to a user-declared global.
     pub fn is_enum_variant_global(&self, global_id: GlobalId) -> bool {
         self.get_global(global_id).is_enum_variant
+    }
+
+    /// Store `value` as the resolved value of `global_id`.
+    ///
+    /// Unless the global is `comptime`, the value is also lowered to runtime HIR here, once, for
+    /// monomorphization to read. A lowering error is kept rather than reported: only a global used
+    /// in runtime code needs a runtime value, and monomorphization reports the error when it
+    /// reaches one.
+    pub(crate) fn resolve_global(
+        &mut self,
+        global_id: GlobalId,
+        value: comptime::Value,
+        comptime: bool,
+        files: &FileMap,
+    ) {
+        let runtime_value = (!comptime).then(|| {
+            let location = self.get_global(global_id).location;
+            value.clone().into_runtime_hir_expression(self, files, location)
+        });
+        let global = self.get_global_mut(global_id);
+        global.value = GlobalValue::Resolved(value);
+        global.runtime_value = runtime_value;
     }
 
     pub fn get_global_mut(&mut self, global_id: GlobalId) -> &mut GlobalInfo {

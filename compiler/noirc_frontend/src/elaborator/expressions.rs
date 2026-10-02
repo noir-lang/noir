@@ -629,7 +629,7 @@ impl Elaborator<'_> {
             && let UnaryOp::Dereference { .. } = deref.operator
         {
             let inner_type = self.interner.id_type(deref.rhs);
-            if matches!(inner_type.follow_bindings(), Type::Reference(_, inner_mutable) if inner_mutable == mutable)
+            if matches!(inner_type.follow_bindings_shallow().as_ref(), Type::Reference(_, inner_mutable) if *inner_mutable == mutable)
             {
                 return (deref.rhs, inner_type);
             }
@@ -2058,7 +2058,7 @@ impl Elaborator<'_> {
 
         let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
         let self_type = the_trait.self_type_typevar.clone();
-        let kind = the_trait.self_type_typevar.kind();
+        let kind = the_trait.self_type_typevar.kind().into_owned();
 
         let Some(definition) =
             the_trait.find_method_or_constant(path.impl_item.as_str(), self.interner)

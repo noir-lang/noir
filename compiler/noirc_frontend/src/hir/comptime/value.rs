@@ -10,7 +10,7 @@ use noirc_errors::Location;
 use strum_macros::Display;
 
 use crate::{
-    QuotedType, Shared, Type, TypeBindings,
+    QuotedType, Type, TypeBindings,
     ast::{
         ArrayLiteral, BlockExpression, CallExpression, ConstructorExpression, Expression,
         ExpressionKind, Ident, LValue, LetStatement, MethodCallExpression, Path, PathKind,
@@ -27,7 +27,6 @@ use crate::{
         HirArrayLiteral, HirConstructorExpression, HirEnumConstructorExpression, HirExpression,
         HirIdent, HirLambda, HirLiteral, ImplKind,
     },
-    hir_def::types::BoundGenerics,
     node_interner::{ExprId, FuncId, NodeInterner, StmtId, TraitId, TraitImplId, TypeId},
     parser::{Item, Parser},
     token::{FmtStrFragment, IntegerTypeSuffix, LocatedToken, Token, Tokens},
@@ -36,6 +35,7 @@ use rustc_hash::FxHashMap as HashMap;
 use rustc_hash::FxHashSet as HashSet;
 
 use super::{
+    ValueCell,
     display::tokens_to_string,
     errors::{IResult, InterpreterError},
 };
@@ -57,14 +57,14 @@ pub enum Value {
 
     /// Tuple elements are automatically shared to support projection into a tuple:
     /// `let elem = &mut tuple.0` should mutate the original element.
-    Tuple(Vec<Shared<Value>>),
+    Tuple(Vec<ValueCell>),
 
     /// Struct elements are automatically shared to support projection:
     /// `let elem = &mut my_struct.field` should mutate the original element.
     Struct(StructFields, Type),
 
     Enum(/*tag*/ usize, /*args*/ Vec<Value>, Type),
-    Pointer(Shared<Value>, /* auto_deref */ bool, /* mutable */ bool),
+    Pointer(ValueCell, /* auto_deref */ bool, /* mutable */ bool),
     Array(Vector<Value>, Type),
     Vector(Vector<Value>, Type),
     Quoted(Rc<Vec<LocatedToken>>),
@@ -88,7 +88,7 @@ pub enum FormatStringFragment {
     Value { name: String, value: Value },
 }
 
-pub(super) type StructFields = HashMap<Rc<String>, Shared<Value>>;
+pub(super) type StructFields = HashMap<Rc<String>, ValueCell>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Closure {
@@ -97,10 +97,9 @@ pub struct Closure {
     pub typ: Type,
     pub function_scope: Option<FuncId>,
     pub module_scope: ModuleId,
-    /// The type bindings where the closure was created.
-    /// This is needed because when the closure is interpreted, those type bindings
-    /// need to be restored.
-    pub(crate) bindings: BoundGenerics,
+    /// The interpreter's substitution where the closure was created, which is the one its body
+    /// is interpreted under.
+    pub(crate) substitution: TypeBindings,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Display)]
@@ -141,6 +140,18 @@ impl Value {
     int_constructor!(i32, I32);
     int_constructor!(i64, I64);
 
+    pub fn tuple(elements: Vec<Value>) -> Self {
+        Value::Tuple(vecmap(elements, ValueCell::new))
+    }
+
+    pub fn struct_from_fields(
+        fields: impl IntoIterator<Item = (String, Value)>,
+        typ: Type,
+    ) -> Self {
+        let fields = fields.into_iter().map(|(name, value)| (Rc::new(name), ValueCell::new(value)));
+        Value::Struct(fields.collect(), typ)
+    }
+
     pub(crate) fn expression(expr: ExpressionKind) -> Self {
         Value::Expr(Box::new(ExprValue::Expression(expr)))
     }
@@ -155,6 +166,87 @@ impl Value {
 
     pub(crate) fn pattern(pattern: Pattern) -> Self {
         Value::Expr(Box::new(ExprValue::Pattern(pattern)))
+    }
+
+    /// This value with `f` applied to every type it holds.
+    ///
+    /// Tuple and struct fields are copied into new cells. A pointer is kept as it is, since the
+    /// cell it points to may be shared with other values.
+    pub(crate) fn map_types(self, f: &impl Fn(&Type) -> Type) -> Value {
+        let map_all = |values: Vec<Value>| vecmap(values, |value| value.map_types(f));
+        let map_cell = |value: ValueCell| ValueCell::new(value.unwrap_or_clone().map_types(f));
+        match self {
+            Value::FormatString(fragments, typ, length) => {
+                let fragments = vecmap(Rc::unwrap_or_clone(fragments), |fragment| match fragment {
+                    FormatStringFragment::Value { name, value } => {
+                        FormatStringFragment::Value { name, value: value.map_types(f) }
+                    }
+                    fragment @ FormatStringFragment::String(_) => fragment,
+                });
+                Value::FormatString(Rc::new(fragments), f(&typ), length)
+            }
+            Value::Function(id, typ, bindings) => {
+                let bindings = Rc::unwrap_or_clone(bindings)
+                    .into_iter()
+                    .map(|(id, (var, kind, binding))| (id, (var, kind, f(&binding))))
+                    .collect();
+                Value::Function(id, f(&typ), Rc::new(bindings))
+            }
+            Value::Closure(closure) => {
+                let Closure { lambda, env, typ, function_scope, module_scope, substitution } =
+                    *closure;
+                let closure = Closure {
+                    lambda,
+                    env: map_all(env),
+                    typ: f(&typ),
+                    function_scope,
+                    module_scope,
+                    substitution,
+                };
+                Value::Closure(Box::new(closure))
+            }
+            Value::Tuple(fields) => Value::Tuple(vecmap(fields, map_cell)),
+            Value::Struct(fields, typ) => {
+                let fields =
+                    fields.into_iter().map(|(name, field)| (name, map_cell(field))).collect();
+                Value::Struct(fields, f(&typ))
+            }
+            Value::Enum(tag, args, typ) => Value::Enum(tag, map_all(args), f(&typ)),
+            Value::Array(elements, typ) => Value::Array(
+                elements.into_iter().map(|element| element.map_types(f)).collect(),
+                f(&typ),
+            ),
+            Value::Vector(elements, typ) => Value::Vector(
+                elements.into_iter().map(|element| element.map_types(f)).collect(),
+                f(&typ),
+            ),
+            Value::TraitConstraint(trait_id, generics) => {
+                let ordered = vecmap(&generics.ordered, f);
+                let named = vecmap(generics.named, |named| crate::hir_def::traits::NamedType {
+                    typ: f(&named.typ),
+                    ..named
+                });
+                Value::TraitConstraint(trait_id, TraitGenerics { ordered, named })
+            }
+            Value::Type(typ) => Value::Type(f(&typ)),
+            Value::Zeroed(typ) => Value::Zeroed(f(&typ)),
+            value @ (Value::Unit
+            | Value::Bool(_)
+            | Value::Integer(_)
+            | Value::String(_)
+            | Value::CtString(_)
+            | Value::Pointer(..)
+            | Value::Quoted(_)
+            | Value::TypeDefinition(_)
+            | Value::TraitDefinition(_)
+            | Value::TraitImpl(_)
+            | Value::FunctionDefinition(_)
+            | Value::ModuleDefinition(_)
+            | Value::Expr(_)
+            | Value::TypedExpr(_)
+            | Value::UnresolvedType(_)
+            | Value::Location(_)) => value,
+        }
     }
 
     /// Retrieves the type of this value. Types can always be determined from the value,
@@ -798,11 +890,11 @@ impl Value {
     pub(crate) fn move_struct(self) -> Value {
         match self {
             Value::Tuple(fields) => Value::Tuple(vecmap(fields, |field| {
-                Shared::new(field.unwrap_or_clone().move_struct())
+                ValueCell::new(field.unwrap_or_clone().move_struct())
             })),
             Value::Struct(fields, typ) => {
                 let fields = fields.into_iter().map(|(name, field)| {
-                    (name, Shared::new(field.unwrap_or_clone().move_struct()))
+                    (name, ValueCell::new(field.unwrap_or_clone().move_struct()))
                 });
                 Value::Struct(fields.collect(), typ)
             }

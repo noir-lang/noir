@@ -13,15 +13,28 @@ use crate::{
     tests::check_monomorphization_error_using_features,
 };
 
+/// Monomorphize `src` with the `enums` unstable feature enabled.
+fn get_monomorphized_with_enums(
+    src: &str,
+) -> Result<crate::monomorphization::ast::Program, MonomorphizationError> {
+    let features = vec![UnstableFeature::Enums];
+    let options = GetProgramOptions {
+        frontend_options: crate::elaborator::FrontendOptions {
+            enabled_unstable_features: &features,
+            ..crate::elaborator::FrontendOptions::test_default()
+        },
+        ..Default::default()
+    };
+    get_monomorphized_with_options(src, options)
+}
+
 #[test]
-fn bounded_recursive_type_errors() {
-    // We want to eventually allow bounded recursive types like this, but for now they are
-    // disallowed because they cause a panic in convert_type during monomorphization.
+fn bounded_recursive_type_monomorphizes() {
+    // `Tree<Tree<Tree<()>>>` nests `Tree` inside itself, but only to a fixed depth, so each
+    // level converts to a differently-sized tuple.
     let src = "
         fn main() {
             let _tree: Tree<Tree<Tree<()>>> = Tree::Branch(
-                                              ^^^^^^^^^^^^ Type `Tree<()>` is recursive
-                                              ~~~~~~~~~~~~ All types in Noir must have a known size at compile-time
                 Tree::Branch(Tree::Leaf, Tree::Leaf),
                 Tree::Branch(Tree::Leaf, Tree::Leaf),
             );
@@ -32,32 +45,26 @@ fn bounded_recursive_type_errors() {
             Leaf,
         }
         ";
-    let features = vec![UnstableFeature::Enums];
-    check_monomorphization_error_using_features(src, &features, false);
+    let program = get_monomorphized_with_enums(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    global Leaf$g0: (Field, ((), ()), ()) = (1, ((), ()), ());
+    fn main$f0() -> () {
+        let _tree$l0 = Branch$f1(Branch$f2(Leaf$g0, Leaf$g0), Branch$f2(Leaf$g0, Leaf$g0))
+    }
+    fn Branch$f1($0$l1: (Field, ((Field, ((), ()), ()), (Field, ((), ()), ())), ()), $1$l2: (Field, ((Field, ((), ()), ()), (Field, ((), ()), ())), ())) -> (Field, ((Field, ((Field, ((), ()), ()), (Field, ((), ()), ())), ()), (Field, ((Field, ((), ()), ()), (Field, ((), ()), ())), ())), ()) {
+        (0, ($0$l1, $1$l2), ())
+    }
+    fn Branch$f2($0$l3: (Field, ((), ()), ()), $1$l4: (Field, ((), ()), ())) -> (Field, ((Field, ((), ()), ()), (Field, ((), ()), ())), ()) {
+        (0, ($0$l3, $1$l4), ())
+    }
+    ");
 }
 
 #[test]
-fn recursive_type_with_alias_errors() {
-    // We want to eventually allow bounded recursive types like this, but for now they are
-    // disallowed because they cause a panic in convert_type during monomorphization.
-    //
-    // In the future we could lower this type to:
-    // struct OptOptUnit {
-    //     is_some: Field,
-    //     some: OptUnit,
-    //     none: (),
-    // }
-    //
-    // struct OptUnit {
-    //     is_some: Field,
-    //     some: (),
-    //     none: (),
-    // }
+fn bounded_recursive_type_through_alias_monomorphizes() {
     let src = "
         fn main() {
             let _tree: Opt<OptAlias<()>> = Opt::Some(OptAlias::None);
-                                           ^^^^^^^^^ Type `Opt<()>` is recursive
-                                           ~~~~~~~~~ All types in Noir must have a known size at compile-time
         }
 
         type OptAlias<T> = Opt<T>;
@@ -67,8 +74,16 @@ fn recursive_type_with_alias_errors() {
             None,
         }
         ";
-    let features = vec![UnstableFeature::Enums];
-    check_monomorphization_error_using_features(src, &features, false);
+    let program = get_monomorphized_with_enums(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    global None$g0: (Field, ((),), ()) = (1, (()), ());
+    fn main$f0() -> () {
+        let _tree$l0 = Some$f1(None$g0)
+    }
+    fn Some$f1($0$l1: (Field, ((),), ())) -> (Field, ((Field, ((),), ()),), ()) {
+        (0, ($0$l1), ())
+    }
+    ");
 }
 
 #[test]
@@ -139,10 +154,10 @@ fn assert_checked_cast_accepted_without_binding(from: &Type, to: &Type, variable
     let result = Monomorphizer::check_checked_cast(from, to, Location::dummy());
     assert!(result.is_ok(), "checking `{from} -> {to}` failed: {result:?}");
     assert!(
-        variable.borrow().is_unbound(),
+        variable.binding().is_unbound(),
         "checking `{from} -> {to}` left type variable {} as {:?}",
         variable.id().0,
-        *variable.borrow()
+        *variable.binding()
     );
 }
 

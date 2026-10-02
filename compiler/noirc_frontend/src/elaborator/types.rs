@@ -207,7 +207,7 @@ impl Elaborator<'_> {
         typ.visit(&mut |typ| {
             if let Type::NamedGeneric(named) = typ
                 && !named.is_associated()
-                && let TypeBinding::Unbound(id, kind) = &*named.type_var.borrow()
+                && let TypeBinding::Unbound(id, kind) = named.type_var.binding()
                 && let Some(generic) = self.item.generics.find(named.name.as_str())
                 && generic.type_var.id() != *id
             {
@@ -1148,7 +1148,7 @@ impl Elaborator<'_> {
                 let suffix = suffix.unwrap_or(crate::token::IntegerTypeSuffix::U32);
                 let typ = suffix.as_type();
 
-                if !self.check_kind(Kind::numeric(typ.clone()), expected_kind, location) {
+                if !self.check_kind(&Kind::numeric(typ.clone()), expected_kind, location) {
                     return Type::Error;
                 }
 
@@ -1258,7 +1258,7 @@ impl Elaborator<'_> {
                         }
                     }
                     rhs => {
-                        let kind = rhs.kind().into_numeric_type_or_error();
+                        let kind = rhs.kind().into_owned().into_numeric_type_or_error();
                         let int = Integer::try_from_bigint(&BigInt::ZERO, &kind)
                             .unwrap_or_else(|| Integer::Field(FieldElement::zero()));
                         let zero = Type::Constant(int);
@@ -1290,7 +1290,7 @@ impl Elaborator<'_> {
             return Type::Error;
         }
 
-        if self.check_kind(typ.kind(), expected_kind, location) { typ } else { Type::Error }
+        if self.check_kind(&typ.kind(), expected_kind, location) { typ } else { Type::Error }
     }
 
     /// Checks that `expr_kind` matches `expected_kind`, issuing an error if it does not.
@@ -1298,14 +1298,14 @@ impl Elaborator<'_> {
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn check_kind(
         &mut self,
-        expr_kind: Kind,
+        expr_kind: &Kind,
         expected_kind: &Kind,
         location: Location,
     ) -> bool {
         if !expr_kind.unifies(expected_kind) {
             self.push_err(TypeCheckError::TypeKindMismatch {
                 expected_kind: expected_kind.clone(),
-                expr_kind,
+                expr_kind: expr_kind.clone(),
                 expr_location: location,
             });
             false
@@ -2542,25 +2542,22 @@ impl Elaborator<'_> {
     #[tracing::instrument(level = "trace", skip_all)]
     fn bind_function_type(
         &mut self,
-        function: Type,
+        function: &Type,
         args: Vec<(Type, ExprId, Location)>,
         location: Location,
     ) -> Type {
         // Could do a single unification for the entire function type, but matching beforehand
         // lets us issue a more precise error on the individual argument that fails to type check.
+        // Following bindings leaves a type variable here only if it is unbound.
         match function.follow_bindings_shallow().as_ref() {
             Type::TypeVariable(binding) if binding.kind().is_normal_or_any() => {
-                if let TypeBinding::Bound(typ) = &*binding.borrow() {
-                    return self.bind_function_type(typ.clone(), args, location);
-                }
-
                 let ret = self.interner.next_type_variable();
                 let args = vecmap(args, |(arg, _, _)| arg);
                 let env_type = self.interner.next_type_variable();
                 let expected =
                     Type::Function(args, Box::new(ret.clone()), Box::new(env_type), false);
 
-                let expected_kind = expected.kind();
+                let expected_kind = expected.kind().into_owned();
                 if let Err(error) = binding.try_bind(expected, &expected_kind, location) {
                     self.push_err(error);
                 }
@@ -2729,7 +2726,7 @@ impl Elaborator<'_> {
             // Matches on TypeVariable must be first to follow any type
             // bindings.
             (TypeVariable(var), other) | (other, TypeVariable(var)) => {
-                if let TypeBinding::Bound(binding) = &*var.borrow() {
+                if let TypeBinding::Bound(binding) = var.binding() {
                     return self.comparator_operand_type_rules(other, binding, op, location);
                 }
 
@@ -2837,7 +2834,7 @@ impl Elaborator<'_> {
             // Matches on TypeVariable must be first so that we follow any type
             // bindings.
             (TypeVariable(int), other) | (other, TypeVariable(int)) => {
-                if let TypeBinding::Bound(binding) = &*int.borrow() {
+                if let TypeBinding::Bound(binding) = int.binding() {
                     return self.infix_operand_type_rules(binding, op, other, location);
                 }
                 let use_impl = self.bind_type_variables_for_infix(lhs_type, op, rhs_type, location);
@@ -2921,7 +2918,7 @@ impl Elaborator<'_> {
                     // Matches on TypeVariable must be first so that we follow any type
                     // bindings.
                     TypeVariable(int) => {
-                        if let TypeBinding::Bound(binding) = &*int.borrow() {
+                        if let TypeBinding::Bound(binding) = int.binding() {
                             return self.prefix_operand_type_rules(op, binding, location);
                         }
 
@@ -3254,7 +3251,7 @@ impl Elaborator<'_> {
             Type::Error => None,
 
             // The type variable must be unbound at this point since follow_bindings was called
-            Type::TypeVariable(var) if var.kind() == Kind::Normal => {
+            Type::TypeVariable(var) if *var.kind() == Kind::Normal => {
                 self.push_err(TypeCheckError::TypeAnnotationsNeededForMethodCall { location });
                 None
             }
@@ -3650,7 +3647,7 @@ impl Elaborator<'_> {
         let crossing_runtime_boundary =
             self.check_call_runtime_boundary(call.func, &func_type, &args, location);
 
-        let return_type = self.bind_function_type(func_type, args, location);
+        let return_type = self.bind_function_type(&func_type, args, location);
 
         if crossing_runtime_boundary {
             self.check_unconstrained_call_return(&return_type, location);
@@ -3958,14 +3955,14 @@ impl Elaborator<'_> {
 
             let self_type = the_trait.self_type_typevar.clone();
             let kind = the_trait.self_type_typevar.kind();
-            bindings.insert(self_type.id(), (self_type, kind, constraint.typ.clone()));
+            bindings.insert(self_type.id(), (self_type, kind.into_owned(), constraint.typ.clone()));
 
             for (param, arg) in
                 the_trait.generics.iter().zip(&constraint.trait_bound.trait_generics.ordered)
             {
                 bindings.insert(
                     param.type_var.id(),
-                    (param.type_var.clone(), param.kind(), arg.clone()),
+                    (param.type_var.clone(), param.kind().into_owned(), arg.clone()),
                 );
             }
 
@@ -3981,7 +3978,7 @@ impl Elaborator<'_> {
                 };
                 bindings.insert(
                     associated.type_var.id(),
-                    (associated.type_var.clone(), associated.kind(), arg.typ.clone()),
+                    (associated.type_var.clone(), associated.kind().into_owned(), arg.typ.clone()),
                 );
             }
         }
@@ -4161,6 +4158,9 @@ fn bind_named_generics(
 fn bind_generic(param: &ResolvedGeneric, arg: &Type, bindings: &mut TypeBindings) {
     // Avoid binding t = t
     if !arg.occurs(param.type_var.id()) {
-        bindings.insert(param.type_var.id(), (param.type_var.clone(), param.kind(), arg.clone()));
+        bindings.insert(
+            param.type_var.id(),
+            (param.type_var.clone(), param.kind().into_owned(), arg.clone()),
+        );
     }
 }

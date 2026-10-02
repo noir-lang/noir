@@ -74,7 +74,7 @@ impl FuzzingRunStatus {
 
 #[allow(clippy::too_many_arguments)]
 pub fn run_fuzzing_harness<'a, B, F, E>(
-    context: &mut Context,
+    context: &Context,
     fuzzing_harness: &FuzzingHarness,
     show_output: bool,
     output_sink: Box<dyn std::io::Write + 'a>,
