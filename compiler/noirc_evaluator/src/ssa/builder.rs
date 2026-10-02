@@ -268,6 +268,33 @@ impl<'local> SsaBuilder<'local> {
                     }
                     other => other,
                 })?;
+                // The reference-count aliasing invariant is not part of the syntactic ruleset
+                // above: it is what makes an in-place mutation of a copy-on-write buffer
+                // unobservable, so a pass that reuses a value whose storage has since been
+                // written produces SSA that is well-formed and wrong. Checking it after every
+                // pass is what attributes such a violation to the pass that introduced it.
+                #[cfg(debug_assertions)]
+                super::validation::rc_invariant::verify_all(&self.ssa).map_err(|e| match e {
+                    RuntimeError::CallArgAliasViolation {
+                        message,
+                        call_stack,
+                        aliased_use_call_stack,
+                    } => RuntimeError::CallArgAliasViolation {
+                        message: format!("after '{msg}': {message}"),
+                        call_stack,
+                        aliased_use_call_stack,
+                    },
+                    RuntimeError::ArraySetAliasViolation {
+                        message,
+                        call_stack,
+                        aliased_use_call_stack,
+                    } => RuntimeError::ArraySetAliasViolation {
+                        message: format!("after '{msg}': {message}"),
+                        call_stack,
+                        aliased_use_call_stack,
+                    },
+                    other => other,
+                })?;
             }
             Ok(self.print(&msg))
         } else {
@@ -333,5 +360,73 @@ fn write_to_file(bytes: &[u8], path: &Path) {
 
     if let Err(why) = file.write_all(bytes) {
         panic!("couldn't write to {display}: {why}");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{SsaBuilder, SsaPass};
+    use crate::errors::RuntimeError;
+    use crate::ssa::{Ssa, SsaLogging};
+
+    /// Brillig SSA that breaks the reference-count aliasing invariant. `f2` returns its array
+    /// parameter unchanged, so `v8` is `v4`'s buffer; `vector_push_front` writes through it in
+    /// place at reference count 1; and `v4` is then read again, observing that write. The
+    /// `inc_rc v4` sits after the write, so it protects nothing. Every rule in the syntactic
+    /// ruleset accepts this, which is what makes it the right input for checking that the
+    /// between-passes validation covers the aliasing invariant too.
+    const RC_INVARIANT_VIOLATION: &str = "
+    brillig(inline) predicate_pure fn main f0 {
+      b0(v0: Field, v1: u32):
+        v3, v4 = call f1(v0, v1) -> (u32, [Field])
+        v7, v8 = call f2(v3, v4, u32 0) -> (u32, [Field])
+        v11, v12 = call vector_push_front(v7, v8, Field 999) -> (u32, [Field])
+        inc_rc v4
+        v15 = array_get v4, index u32 0 -> Field
+        return v15, v11
+    }
+    brillig(inline) predicate_pure fn producer f1 {
+      b0(v0: Field, v1: u32):
+        v5 = eq v1, u32 0
+        jmpif v5 then: b1(), else: b2()
+      b1():
+        v6 = make_array [v0] : [Field]
+        jmp b3(u32 1, v6)
+      b2():
+        v8 = sub v1, u32 1
+        v10, v11 = call f1(v0, v8) -> (u32, [Field])
+        v13, v14 = call vector_push_back(v10, v11, v0) -> (u32, [Field])
+        jmp b3(v13, v14)
+      b3(v2: u32, v3: [Field]):
+        return v2, v3
+    }
+    brillig(inline) pure fn alias f2 {
+      b0(v0: u32, v1: [Field], v2: u32):
+        return v0, v1
+    }
+    ";
+
+    fn run_no_op_pass(validate_between_passes: bool) -> Result<Ssa, RuntimeError> {
+        let ssa = Ssa::from_str(RC_INVARIANT_VIOLATION).expect("SSA parses");
+        let builder = SsaBuilder::from_ssa(ssa, SsaLogging::None, false, false, None)
+            .with_validate_between_passes(validate_between_passes);
+        Ok(builder.run_passes(&[SsaPass::new(|ssa| ssa, "No-op")])?.finish())
+    }
+
+    #[test]
+    #[cfg(debug_assertions)]
+    fn validating_between_passes_rejects_a_reference_count_aliasing_violation() {
+        let Err(err) = run_no_op_pass(true) else {
+            panic!("the aliasing violation should be rejected");
+        };
+        assert!(
+            matches!(err, RuntimeError::CallArgAliasViolation { .. }),
+            "expected a CallArgAliasViolation, got {err:?}",
+        );
+    }
+
+    #[test]
+    fn the_syntactic_ruleset_alone_accepts_a_reference_count_aliasing_violation() {
+        run_no_op_pass(false).expect("the SSA satisfies every syntactic rule");
     }
 }
