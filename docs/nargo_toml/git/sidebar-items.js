@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["MAX_DEPENDENCY_CACHE_DEPTH"],"fn":["clone_git_repo","collect_cached_git_dependencies","git_dep_location","list_cached_git_dependencies","lock_git_deps","nargo_crates","resolve_folder_name"]};
+window.SIDEBAR_ITEMS = {"constant":["MAX_DEPENDENCY_CACHE_DEPTH"],"fn":["clone_git_repo","clone_git_repo_into","collect_cached_git_dependencies","list_cached_git_dependencies","lock_git_deps","nargo_crates","resolve_folder_name"]};

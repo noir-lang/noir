@@ -23,7 +23,7 @@
 <a href=#23 id=23 data-nosnippet>23</a><span class="kw">mod </span>git;
 <a href=#24 id=24 data-nosnippet>24</a><span class="kw">mod </span>semver;
 <a href=#25 id=25 data-nosnippet>25</a>
-<a href=#26 id=26 data-nosnippet>26</a><span class="kw">pub use </span>errors::ManifestError;
+<a href=#26 id=26 data-nosnippet>26</a><span class="kw">pub use </span>errors::{GitError, ManifestError};
 <a href=#27 id=27 data-nosnippet>27</a><span class="kw">pub use </span>git::list_cached_git_dependencies;
 <a href=#28 id=28 data-nosnippet>28</a><span class="kw">use </span>git::{clone_git_repo, lock_git_deps};
 <a href=#29 id=29 data-nosnippet>29</a>
@@ -331,7 +331,7 @@
 <a href=#331 id=331 data-nosnippet>331</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;Dependency, ManifestError&gt; {
 <a href=#332 id=332 data-nosnippet>332</a>        <span class="kw">let </span>dep = <span class="kw">match </span><span class="self">self </span>{
 <a href=#333 id=333 data-nosnippet>333</a>            <span class="self">Self</span>::Git { git, tag, directory } =&gt; {
-<a href=#334 id=334 data-nosnippet>334</a>                <span class="kw">let </span>dir_path = clone_git_repo(git, tag).map_err(ManifestError::GitError)<span class="question-mark">?</span>;
+<a href=#334 id=334 data-nosnippet>334</a>                <span class="kw">let </span>dir_path = clone_git_repo(git, tag)<span class="question-mark">?</span>;
 <a href=#335 id=335 data-nosnippet>335</a>                <span class="kw">let </span>project_path = <span class="kw">if let </span><span class="prelude-val">Some</span>(directory) = directory {
 <a href=#336 id=336 data-nosnippet>336</a>                    <span class="kw">let </span>internal_path = dir_path.join(directory).normalize();
 <a href=#337 id=337 data-nosnippet>337</a>                    <span class="kw">if </span>!internal_path.starts_with(<span class="kw-2">&amp;</span>dir_path) {
@@ -376,7 +376,7 @@
 <a href=#376 id=376 data-nosnippet>376</a>    pkg_root: <span class="kw-2">&amp;</span>Path,
 <a href=#377 id=377 data-nosnippet>377</a>    dep: <span class="kw-2">&amp;</span>DependencyConfig,
 <a href=#378 id=378 data-nosnippet>378</a>) -&gt; <span class="prelude-ty">Result</span>&lt;Dependency, ManifestError&gt; {
-<a href=#379 id=379 data-nosnippet>379</a>    <span class="kw">let </span>_lock = lock_git_deps().expect(<span class="string">"Failed to lock git dependencies cache"</span>);
+<a href=#379 id=379 data-nosnippet>379</a>    <span class="kw">let </span>_lock = lock_git_deps()<span class="question-mark">?</span>;
 <a href=#380 id=380 data-nosnippet>380</a>    dep.resolve_to_dependency(pkg_root, <span class="kw-2">&amp;mut </span>Vec::new())
 <a href=#381 id=381 data-nosnippet>381</a>}
 <a href=#382 id=382 data-nosnippet>382</a>
@@ -434,7 +434,7 @@
 <a href=#434 id=434 data-nosnippet>434</a>    assume_default_entry: bool, <span class="comment">// assume that the 'default_entry_path' exists, e.g. src/main.nr
 <a href=#435 id=435 data-nosnippet>435</a></span>) -&gt; <span class="prelude-ty">Result</span>&lt;Workspace, ManifestError&gt; {
 <a href=#436 id=436 data-nosnippet>436</a>    <span class="kw">let </span><span class="kw-2">mut </span>resolved = Vec::new();
-<a href=#437 id=437 data-nosnippet>437</a>    <span class="kw">let </span>_lock = lock_git_deps().expect(<span class="string">"Failed to lock git dependencies cache"</span>);
+<a href=#437 id=437 data-nosnippet>437</a>    <span class="kw">let </span>_lock = lock_git_deps()<span class="question-mark">?</span>;
 <a href=#438 id=438 data-nosnippet>438</a>    <span class="kw">let </span>workspace = <span class="kw">match </span>nargo_toml.config {
 <a href=#439 id=439 data-nosnippet>439</a>        Config::Package { package_config } =&gt; {
 <a href=#440 id=440 data-nosnippet>440</a>            <span class="kw">let </span>member = package_config.resolve_to_package(

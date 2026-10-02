@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["ManifestError","SemverError"]};
+window.SIDEBAR_ITEMS = {"enum":["GitError","ManifestError","SemverError"]};
