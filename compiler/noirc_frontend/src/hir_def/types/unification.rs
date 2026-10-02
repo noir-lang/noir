@@ -288,8 +288,11 @@ impl Type {
                 } else if let InfixExpr(lhs, op, rhs, _) = other {
                     if let Some(inverse) = op.approx_inverse() {
                         // Handle cases like `4 = a + b` by trying to solve to `a = 4 - b`
-                        let new_type =
-                            Type::inverted_infix_expr(Box::new(Constant(*value)), inverse, rhs);
+                        let new_type = if inverse == BinaryTypeOperator::Division {
+                            Self::exact_quotient(Box::new(Constant(*value)), rhs)?
+                        } else {
+                            Type::inverted_infix_expr(Box::new(Constant(*value)), inverse, rhs)
+                        };
 
                         // Use DoNotMoveConstants to prevent try_unify_by_moving_single_constant_term
                         // from undoing this rewrite, which would cause infinite recursion when
@@ -347,6 +350,50 @@ impl Type {
                 }
             }
         }
+    }
+
+    /// Solve `X * divisor = dividend` for `X` as `dividend / divisor`.
+    ///
+    /// Integer division truncates, so the quotient only solves the equation when `divisor`
+    /// divides `dividend` exactly: `X * 2 = 5` has no solution, and `5 / 2 = 2` is not one.
+    /// When both operands are known an inexact division is rejected here. Otherwise the quotient
+    /// carries the requirement as a `CheckedCast` whose `from` side adds the remainder back,
+    /// so it agrees with the quotient exactly when the remainder is zero. Evaluating the
+    /// binding once the generics are concrete then reports an inexact division as an error
+    /// instead of producing a smaller value than the one the equation asked for.
+    ///
+    /// Field division is exact, so field-kinded operands need neither check.
+    fn exact_quotient(dividend: Box<Type>, divisor: Box<Type>) -> Result<Type, UnificationError> {
+        let kind = dividend.infix_kind(&divisor);
+        let quotient = Type::inverted_infix_expr(
+            dividend.clone(),
+            BinaryTypeOperator::Division,
+            divisor.clone(),
+        );
+
+        let dummy_location = Location::dummy();
+        if let (Ok(dividend), Ok(divisor)) = (
+            dividend.evaluate_to_integer(&kind, dummy_location),
+            divisor.evaluate_to_integer(&kind, dummy_location),
+        ) {
+            return match BinaryTypeOperator::Modulo.function(dividend, divisor, dummy_location) {
+                Ok(remainder) if !remainder.is_zero() => Err(UnificationError),
+                _ => Ok(quotient),
+            };
+        }
+
+        if !matches!(&kind, Kind::Numeric(typ) if typ.is_integer()) {
+            return Ok(quotient);
+        }
+
+        let remainder = Type::InfixExpr(dividend, BinaryTypeOperator::Modulo, divisor, false);
+        let from = Type::InfixExpr(
+            Box::new(quotient.clone()),
+            BinaryTypeOperator::Addition,
+            Box::new(remainder),
+            false,
+        );
+        Ok(Type::CheckedCast { from: Box::new(from), to: Box::new(quotient) })
     }
 
     /// Try to unify the following equations:
@@ -515,8 +562,12 @@ impl Type {
             let lhs_rhs = lhs_rhs.substitute(bindings);
             if let Ok(value) = lhs_rhs.evaluate_to_integer(&kind, dummy_location) {
                 let lhs_rhs = Box::new(Type::Constant(value));
-                let new_rhs =
-                    Type::inverted_infix_expr(Box::new(other.clone()), lhs_op_inverse, lhs_rhs);
+                let other = Box::new(other.clone());
+                let new_rhs = if lhs_op_inverse == BinaryTypeOperator::Division {
+                    Self::exact_quotient(other, lhs_rhs)?
+                } else {
+                    Type::inverted_infix_expr(other, lhs_op_inverse, lhs_rhs)
+                };
 
                 let mut tmp_bindings = bindings.clone();
 
