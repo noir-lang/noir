@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790944601273,
+  "lastUpdate": 1790944635783,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4968,105 +4968,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "873f7459ba50adb9927504f2ce4206d84b66db75",
-          "message": "feat: report the logical out-of-bounds index from the memory op rather than a second bounds check (#13770)",
-          "timestamp": "2026-09-18T18:54:23+01:00",
-          "tree_id": "dd2755c77d502dbe257f7a8383ef64b689c6646a",
-          "url": "https://github.com/noir-lang/noir/commit/873f7459ba50adb9927504f2ce4206d84b66db75"
-        },
-        "date": 1789754694889,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 7.304,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 175,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 9.268,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-no-txs",
-            "value": 2.64,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 2.59,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 3.28,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 2.242,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 207,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 231,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 2.29,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 18.4,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 20.9,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 2.71,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.747,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.984,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "5f00343f2c3944da8430fb9a3e1b1ffc37820871",
           "message": "fix(frontend): scope the `UnsafeFn` coercion exemption to call arguments, and manage `in_unconstrained_args` across method calls (#13705)",
           "timestamp": "2026-09-18T18:10:17Z",
@@ -9901,6 +9802,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.815,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "8dd374437f53627b0e62f3739d777b77554c44b9",
+          "message": "fix(comptime): keep macro call type bindings after a closure returns (#13845)",
+          "timestamp": "2026-10-02T12:03:23Z",
+          "tree_id": "4c1ac60d45e77091dfeabb384137a1513852cc02",
+          "url": "https://github.com/noir-lang/noir/commit/8dd374437f53627b0e62f3739d777b77554c44b9"
+        },
+        "date": 1790944546880,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 7.144,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 180,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 10.68,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-no-txs",
+            "value": 3.142,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 3.06,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 3.35,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 2.736,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 196,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 223,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 3.166,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 13.62,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 18.5,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 2.798,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.942,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.798,
             "unit": "s"
           }
         ]
