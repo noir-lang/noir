@@ -308,3 +308,77 @@ fn issue_8687_trait_default_method_return_type() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn self_item_in_default_method_cannot_be_unified_with_concrete_type() {
+    let src = r#"
+    struct Narrow { v: Field }
+    struct Wide { v: Field }
+
+    trait Checked {
+        fn make(v: Field) -> Self;
+        fn validate(self) -> Field;
+        fn unused_helper() -> Field {
+            let w: Wide = Self::make(0);
+                          ^^^^^^^^^^^^^ Expected type Wide, found type Self
+            w.v
+        }
+        fn checked(self) -> Field {
+            Checked::validate(self)
+        }
+    }
+
+    impl Checked for Narrow {
+        fn make(v: Field) -> Self { Narrow { v } }
+        fn validate(self) -> Field { assert(self.v != 100); self.v }
+    }
+
+    impl Checked for Wide {
+        fn make(v: Field) -> Self { Wide { v } }
+        fn validate(self) -> Field { self.v }
+    }
+
+    fn main(w: Field) -> pub Field {
+        Narrow { v: w }.checked()
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn self_item_in_default_method_has_self_type() {
+    let src = r#"
+    trait Mk {
+        fn mk(v: Field) -> Self;
+        fn val(self) -> Field;
+        fn via_annotation(v: Field) -> Field {
+            let s: Self = Self::mk(v);
+            s.val()
+        }
+        fn via_method_call(v: Field) -> Field {
+            Self::mk(v).val()
+        }
+        fn via_trait_path(v: Field) -> Field {
+            let s = Self::mk(v);
+            Mk::val(s)
+        }
+    }
+
+    struct A { v: Field }
+
+    impl Mk for A {
+        fn mk(v: Field) -> Self { A { v } }
+        fn val(self) -> Field { self.v }
+    }
+
+    impl Mk for u8 {
+        fn mk(v: Field) -> Self { v as u8 }
+        fn val(self) -> Field { self as Field }
+    }
+
+    fn main() {
+        let _ = A::via_annotation(1) + u8::via_method_call(2) + A::via_trait_path(3);
+    }
+    "#;
+    assert_no_errors(src);
+}
