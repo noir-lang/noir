@@ -13,7 +13,7 @@ a function definition in the source program.
 ```rust title="as_typed_expr" showLineNumbers 
 pub comptime fn as_typed_expr(self) -> TypedExpr {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/function_def.nr#L3-L5" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/function_def.nr#L3-L5</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/function_def.nr#L24-L26" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/function_def.nr#L24-L26</a></sub></sup>
 
 
 Returns this function as a `TypedExpr`, which can be unquoted. For example:
@@ -28,7 +28,7 @@ let _ = quote { $typed_expr(1, 2, 3); };
 ```rust title="body" showLineNumbers 
 pub comptime fn body(self) -> Expr {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/function_def.nr#L8-L10" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/function_def.nr#L8-L10</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/function_def.nr#L29-L31" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/function_def.nr#L29-L31</a></sub></sup>
 
 
 Returns the body of the function as an expression. This is only valid
@@ -40,7 +40,7 @@ This means any functions called at compile-time are invalid targets for this met
 ```rust title="disable" showLineNumbers 
 pub comptime fn disable(self, error_message: CtString) {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/function_def.nr#L13-L15" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/function_def.nr#L13-L15</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/function_def.nr#L34-L36" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/function_def.nr#L34-L36</a></sub></sup>
 
 
 Disables calling the given function, issuing an error with the provided message if it is ever called.
@@ -82,7 +82,7 @@ the comptime documentation.
 ```rust title="has_named_attribute" showLineNumbers 
 pub comptime fn has_named_attribute<let N: u32>(self, name: str<N>) -> bool {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/function_def.nr#L18-L20" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/function_def.nr#L18-L20</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/function_def.nr#L39-L41" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/function_def.nr#L39-L41</a></sub></sup>
 
 
 Returns true if this function has a custom attribute with the given name.
@@ -97,7 +97,7 @@ of the given name.
 ```rust title="named_attribute_args" showLineNumbers 
 pub comptime fn named_attribute_args<let N: u32>(self, name: str<N>) -> [[Quoted]] {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/function_def.nr#L23-L25" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/function_def.nr#L23-L25</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/function_def.nr#L44-L46" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/function_def.nr#L44-L46</a></sub></sup>
 
 
 Returns the arguments of each occurrence of the attribute with the given name, as token
@@ -110,7 +110,7 @@ argument expressions, which can be spliced into generated code with `quote`.
 ```rust title="has_builtin_attribute" showLineNumbers 
 pub comptime fn has_builtin_attribute<let N: u32>(self, name: str<N>) -> bool {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/function_def.nr#L28-L30" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/function_def.nr#L28-L30</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/function_def.nr#L49-L51" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/function_def.nr#L49-L51</a></sub></sup>
 
 
 Returns true if this function has a built-in attribute with the given name.
@@ -124,7 +124,7 @@ identifier with a built-in does not produce a false positive.
 ```rust title="is_unconstrained" showLineNumbers 
 pub comptime fn is_unconstrained(self) -> bool {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/function_def.nr#L33-L35" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/function_def.nr#L33-L35</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/function_def.nr#L54-L56" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/function_def.nr#L54-L56</a></sub></sup>
 
 
 Returns true if this function is unconstrained.
@@ -134,7 +134,7 @@ Returns true if this function is unconstrained.
 ```rust title="location" showLineNumbers 
 pub comptime fn location(self) -> Location {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/function_def.nr#L38-L40" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/function_def.nr#L38-L40</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/function_def.nr#L59-L61" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/function_def.nr#L59-L61</a></sub></sup>
 
 
 Returns the source [`Location`](./location.md) where the function is defined.
@@ -145,7 +145,7 @@ This can be passed to `std::meta::error` or `std::meta::warn` to attach a diagno
 ```rust title="module" showLineNumbers 
 pub comptime fn module(self) -> Module {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/function_def.nr#L43-L45" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/function_def.nr#L43-L45</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/function_def.nr#L64-L66" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/function_def.nr#L64-L66</a></sub></sup>
 
 
 Returns the module where the function is defined.
@@ -155,7 +155,7 @@ Returns the module where the function is defined.
 ```rust title="name" showLineNumbers 
 pub comptime fn name(self) -> Quoted {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/function_def.nr#L48-L50" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/function_def.nr#L48-L50</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/function_def.nr#L69-L71" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/function_def.nr#L69-L71</a></sub></sup>
 
 
 Returns the name of the function.
@@ -163,19 +163,21 @@ Returns the name of the function.
 ### parameters
 
 ```rust title="parameters" showLineNumbers 
-pub comptime fn parameters(self) -> [(Quoted, Type)] {}
+pub comptime fn parameters(self) -> [FunctionParameter] {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/function_def.nr#L53-L55" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/function_def.nr#L53-L55</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/function_def.nr#L74-L76" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/function_def.nr#L74-L76</a></sub></sup>
 
 
-Returns each parameter of the function as a tuple of (parameter pattern, parameter type).
+Returns the function's declared parameters in source order as `FunctionParameter` values.
+Use `name()` to get a parameter's declared name as a `Quoted` identifier and `typ()` to get
+its `Type`.
 
 ### return_type
 
 ```rust title="return_type" showLineNumbers 
 pub comptime fn return_type(self) -> Type {}
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/function_def.nr#L58-L60" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/function_def.nr#L58-L60</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/function_def.nr#L86-L88" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/function_def.nr#L86-L88</a></sub></sup>
 
 
 The return type of the function.
@@ -183,15 +185,13 @@ The return type of the function.
 ### visibility
 
 ```rust title="visibility" showLineNumbers 
-pub comptime fn visibility(self) -> Quoted {}
+pub comptime fn visibility(self) -> ItemVisibility {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/function_def.nr#L63-L65" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/function_def.nr#L63-L65</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/function_def.nr#L91-L93" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/function_def.nr#L91-L93</a></sub></sup>
 
 
-Returns the function's visibility as a `Quoted` value, which will be one of:
-- `quote { }`: the function is private
-- `quote { pub }`: the function is `pub`
-- `quote { pub(crate) }`: the function is `pub(crate)`
+Returns the function's [`ItemVisibility`](./item_visibility.md). Use its predicate methods to
+inspect the visibility, or `as_quoted()` when generating code.
 
 ## Trait Implementations
 
