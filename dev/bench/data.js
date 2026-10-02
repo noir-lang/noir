@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790941949636,
+  "lastUpdate": 1790942811817,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22986,48 +22986,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "873f7459ba50adb9927504f2ce4206d84b66db75",
-          "message": "feat: report the logical out-of-bounds index from the memory op rather than a second bounds check (#13770)",
-          "timestamp": "2026-09-18T18:54:23+01:00",
-          "tree_id": "dd2755c77d502dbe257f7a8383ef64b689c6646a",
-          "url": "https://github.com/noir-lang/noir/commit/873f7459ba50adb9927504f2ce4206d84b66db75"
-        },
-        "date": 1789754249495,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 170664,
-            "range": "± 782",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 138291,
-            "range": "± 1860",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2648569,
-            "range": "± 4156",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "5f00343f2c3944da8430fb9a3e1b1ffc37820871",
           "message": "fix(frontend): scope the `UnsafeFn` coercion exemption to call arguments, and manage `in_unconstrained_args` across method calls (#13705)",
           "timestamp": "2026-09-18T18:10:17Z",
@@ -25069,6 +25027,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2647269,
             "range": "± 6127",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7e8c7b88853e4958e3138e81de3b1704df5bfea0",
+          "message": "fix(frontend): require exact division when solving a multiplied numeric generic (#13861)",
+          "timestamp": "2026-10-02T11:43:38Z",
+          "tree_id": "d5a1a38b73ce43983850b54cd3ea9aa2b988e14d",
+          "url": "https://github.com/noir-lang/noir/commit/7e8c7b88853e4958e3138e81de3b1704df5bfea0"
+        },
+        "date": 1790942739959,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 97822,
+            "range": "± 177",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 86779,
+            "range": "± 1058",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2361554,
+            "range": "± 1667",
             "unit": "ns/iter"
           }
         ]
