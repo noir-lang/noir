@@ -642,7 +642,7 @@ impl<'a> NodeFinder<'a> {
                 self.complete_tuple_fields(types, self_prefix);
             }
             Type::TypeVariable(var) | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) => {
-                if let TypeBinding::Bound(typ) = &*var.borrow() {
+                if let TypeBinding::Bound(typ) = var.binding() {
                     return self.complete_type_fields_and_methods(
                         typ,
                         prefix,
@@ -1980,7 +1980,7 @@ fn get_field_type(typ: &Type, name: &str) -> Option<Type> {
         }
         Type::Alias(alias_type, generics) => Some(alias_type.borrow().get_type(generics)),
         Type::TypeVariable(var) | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) => {
-            match &*var.borrow() {
+            match var.binding() {
                 TypeBinding::Bound(typ) => get_field_type(typ, name),
                 TypeBinding::Unbound(..) => None,
             }
@@ -1997,7 +1997,7 @@ fn get_array_element_type(typ: Type) -> Option<Type> {
             get_array_element_type(typ)
         }
         Type::TypeVariable(var) | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) => {
-            match &*var.borrow() {
+            match var.binding() {
                 TypeBinding::Bound(typ) => get_array_element_type(typ.clone()),
                 TypeBinding::Unbound(..) => None,
             }

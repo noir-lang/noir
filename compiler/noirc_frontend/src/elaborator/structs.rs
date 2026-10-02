@@ -56,7 +56,7 @@ impl Elaborator<'_> {
             // lazily on first read (via [Self::define_struct_fields_if_undefined])
             // or in the post-attribute drain.
             for (type_id, typ) in structs {
-                self.unresolved_struct_fields.insert(
+                self.deferred.struct_fields.register(
                     *type_id,
                     UnresolvedStructFields {
                         struct_def: typ.struct_def.clone(),
@@ -71,7 +71,7 @@ impl Elaborator<'_> {
     /// now. No-op for structs whose fields have already been resolved (either
     /// eagerly in the stdlib path or by a previous lazy resolve).
     pub(crate) fn define_struct_fields_if_undefined(&mut self, type_id: TypeId) {
-        let Some(info) = self.unresolved_struct_fields.remove(&type_id) else {
+        let Some(info) = self.deferred.struct_fields.take(&type_id) else {
             return;
         };
         self.resolve_one_struct_fields(type_id, info.module_id, &info.struct_def);
@@ -81,9 +81,7 @@ impl Elaborator<'_> {
     /// in `skip`.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_unresolved_struct_fields_skipping(&mut self, skip: &HashSet<TypeId>) {
-        let to_resolve: Vec<TypeId> =
-            self.unresolved_struct_fields.keys().copied().filter(|id| !skip.contains(id)).collect();
-        for type_id in to_resolve {
+        for type_id in self.deferred.struct_fields.keys_except(skip) {
             self.define_struct_fields_if_undefined(type_id);
         }
     }

@@ -12,7 +12,7 @@ use acvm::acir::{
     AcirField, BlackBoxFunc,
     brillig::lengths::{FlattenedLength, SemanticLength},
     circuit::{
-        AssertionPayload, ErrorSelector, ExpressionOrMemory, Opcode,
+        AssertionPayload, ErrorSelector, ExpressionOrMemory, Opcode, OpcodeLocation,
         opcodes::{AcirFunctionId, BlockId, BlockType, MemOp},
     },
     native_types::{Expression, Witness},
@@ -1367,6 +1367,35 @@ impl<F: AcirField> AcirContext<F> {
         id
     }
 
+    /// The index the next opcode pushed will take, for delimiting a range of opcodes to search
+    /// with [`AcirContext::attach_payload_to_first_memory_op`].
+    pub(crate) fn next_opcode_index(&self) -> usize {
+        self.acir_ir.opcodes.len()
+    }
+
+    /// Attaches `payload` to the first memory operation pushed at or after opcode `start`,
+    /// returning it unattached when that range holds none.
+    ///
+    /// The solver runs opcodes in order, so of the memory ops an array access lowers to, the
+    /// first is the one whose bounds check fails first and the one a message describing that
+    /// failure belongs on. Callers delimit the range so that it holds only ops indexed by the
+    /// access's own index, and pass an unattached payload on to the range that does.
+    pub(crate) fn attach_payload_to_first_memory_op(
+        &mut self,
+        start: usize,
+        payload: Option<AssertionPayload<F>>,
+    ) -> Option<AssertionPayload<F>> {
+        let payload = payload?;
+        let Some(offset) = self.acir_ir.opcodes[start..]
+            .iter()
+            .position(|opcode| matches!(opcode, Opcode::MemoryOp { .. }))
+        else {
+            return Some(payload);
+        };
+        self.acir_ir.attach_assertion_payload_at(OpcodeLocation::Acir(start + offset), payload);
+        None
+    }
+
     /// Returns a Variable that is constrained to be the result of reading
     /// from the memory `block_id` at the given `index`.
     pub(crate) fn read_from_memory(
@@ -1525,6 +1554,20 @@ impl<F: AcirField> AcirContext<F> {
         message: String,
     ) -> AssertionPayload<F> {
         self.acir_ir.generate_assertion_message_payload(message)
+    }
+
+    /// Builds the payload of an out-of-bounds failure reported in an array's logical coordinates,
+    /// rendering as `Index out of bounds, array has size <array_len>, but index was <index>`.
+    ///
+    /// `index` is an expression for the logical index, evaluated by the solver over the witness
+    /// map once the memory op it is attached to has already failed its bounds check. It is data,
+    /// not a constraint: it adds no opcode and no witness of its own.
+    pub(crate) fn generate_index_out_of_bounds_payload(
+        &mut self,
+        index: Expression<F>,
+        array_len: u32,
+    ) -> AssertionPayload<F> {
+        self.acir_ir.generate_index_out_of_bounds_payload(index, array_len)
     }
 }
 

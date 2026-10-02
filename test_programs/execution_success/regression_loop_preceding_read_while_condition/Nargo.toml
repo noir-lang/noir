@@ -1,0 +1,6 @@
+[package]
+name = "regression_loop_preceding_read_while_condition"
+type = "bin"
+authors = [""]
+
+[dependencies]

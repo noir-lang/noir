@@ -112,7 +112,7 @@ impl PrimitiveType {
     }
 
     /// Inverse of `to_type()`: converts a `Type` back to a `PrimitiveType` if possible.
-    pub fn from_type(typ: &Type) -> Option<Self> {
+    pub(crate) fn from_type(typ: &Type) -> Option<Self> {
         match typ {
             Type::Bool => Some(Self::Bool),
             Type::FieldElement => Some(Self::Field),
@@ -146,7 +146,7 @@ impl PrimitiveType {
         }
     }
 
-    pub fn to_integer_or_field(self) -> Option<Type> {
+    pub(crate) fn to_integer_or_field(self) -> Option<Type> {
         match self {
             Self::I8 => Some(Type::Integer(Signedness::Signed, IntegerBitSize::Eight)),
             Self::I16 => Some(Type::Integer(Signedness::Signed, IntegerBitSize::Sixteen)),
@@ -416,6 +416,33 @@ mod tests {
             let recovered = PrimitiveType::from_type(&typ).unwrap();
             let typ2 = recovered.to_type();
             assert_eq!(typ, typ2, "to_type(from_type(to_type({primitive:?}))) should roundtrip");
+        }
+    }
+
+    /// `lookup_by_name` ends in a catch-all `_ => None`, so a primitive whose name it does not
+    /// list still compiles: the name simply stops resolving. This pins every variant's name to
+    /// the one `name` reports, which is the name the rest of the compiler prints in diagnostics.
+    #[test]
+    fn lookup_by_name_from_name() {
+        for primitive in PrimitiveType::iter() {
+            let name = primitive.name();
+            assert_eq!(
+                PrimitiveType::lookup_by_name(name),
+                Some(primitive),
+                "lookup_by_name(name({primitive:?}) = {name:?}) should roundtrip"
+            );
+        }
+    }
+
+    /// The other direction: two variants sharing a name would make `lookup_by_name` unable to
+    /// reach one of them, which `lookup_by_name_from_name` alone would not catch.
+    #[test]
+    fn names_are_unique() {
+        let mut seen = std::collections::HashMap::new();
+        for primitive in PrimitiveType::iter() {
+            if let Some(other) = seen.insert(primitive.name(), primitive) {
+                panic!("{primitive:?} and {other:?} share the name {:?}", primitive.name());
+            }
         }
     }
 }

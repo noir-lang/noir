@@ -132,8 +132,9 @@ pub(crate) struct DataFlowGraph {
     /// When `false` (the default), a `simplify_*` routine that detects malformed input — SSA that
     /// could not arise from well-formed compilation — panics via [`bail_malformed!`][crate::ssa::ir::dfg::simplify::bail_malformed].
     /// When `true`, those routines instead emit a trace and decline to simplify, leaving the
-    /// instruction untouched. Only producers of deliberately malformed SSA (the `ssa_fuzzer`) set
-    /// this; the normal pipeline keeps it `false` so malformed SSA surfaces loudly.
+    /// instruction untouched. Only producers of deliberately malformed SSA set this (the SSA
+    /// parser's `allow_malformed` mode); the normal pipeline keeps it `false` so malformed SSA
+    /// surfaces loudly.
     #[serde(skip)]
     pub(crate) allow_malformed_simplify: bool,
 }

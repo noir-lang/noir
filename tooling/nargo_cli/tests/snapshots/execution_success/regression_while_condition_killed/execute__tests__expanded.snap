@@ -1,0 +1,16 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn main(i: u32) {
+    let mut x: [u32; 3] = [1_u32, 2_u32, 3_u32];
+    while f(x, i) {
+        x = [7_u32, 7_u32, 7_u32];
+    }
+    assert(x[0_u32] == 1_u32);
+}
+
+unconstrained fn f(mut a: [u32; 3], i: u32) -> bool {
+    a[i] = 99_u32;
+    a[1_u32] == 7_u32
+}

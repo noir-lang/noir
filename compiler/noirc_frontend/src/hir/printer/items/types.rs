@@ -123,7 +123,7 @@ impl ItemPrinter<'_, '_> {
                     self.push('>');
                 }
             }
-            Type::TypeVariable(type_variable) => match &*type_variable.borrow() {
+            Type::TypeVariable(type_variable) => match type_variable.binding() {
                 TypeBinding::Bound(typ) => {
                     self.show_type_impl(typ, as_expression);
                 }
@@ -138,7 +138,7 @@ impl ItemPrinter<'_, '_> {
                 self.show_trait_generics(generics);
             }
             Type::NamedGeneric(NamedGeneric { name, type_var, .. }) => {
-                if let TypeBinding::Bound(typ) = &*type_var.borrow() {
+                if let TypeBinding::Bound(typ) = type_var.binding() {
                     self.show_type_impl(typ, as_expression);
                 } else {
                     self.push_str(name);
@@ -223,7 +223,7 @@ impl ItemPrinter<'_, '_> {
 fn type_needs_parentheses(typ: &Type) -> bool {
     match typ {
         Type::InfixExpr(..) | Type::Function(..) | Type::TraitAsType(..) => true,
-        Type::TypeVariable(type_variable) => match &*type_variable.borrow() {
+        Type::TypeVariable(type_variable) => match type_variable.binding() {
             TypeBinding::Bound(typ) => type_needs_parentheses(typ),
             TypeBinding::Unbound(..) => false,
         },

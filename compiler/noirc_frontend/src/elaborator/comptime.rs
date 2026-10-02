@@ -99,7 +99,7 @@ impl<'context> Elaborator<'context> {
     /// Elaborate an expression from the middle of a comptime scope within a function.
     /// When this happens we require additional information to know
     /// what variables should be in scope.
-    pub fn elaborate_item_from_comptime_in_function<'a, T>(
+    pub(crate) fn elaborate_item_from_comptime_in_function<'a, T>(
         &'a mut self,
         current_function: Option<FuncId>,
         reason: Option<ElaborateReason>,
@@ -134,22 +134,6 @@ impl<'context> Elaborator<'context> {
                 elaborator.item.generics = GenericsContext::new(Vec::new(), trait_bounds);
                 elaborator.introduce_generics_into_scope(all_generics);
             }
-        })
-    }
-
-    /// Elaborate an expression from the middle of a comptime scope within a module.
-    ///
-    /// Similar to [`Self::elaborate_item_from_comptime_in_function`], but for module-level comptime code.
-    pub fn elaborate_item_from_comptime_in_module<'a, T>(
-        &'a mut self,
-        module: ModuleId,
-        reason: Option<ElaborateReason>,
-        f: impl FnOnce(&mut Elaborator<'a>) -> T,
-    ) -> T {
-        self.elaborate_item_from_comptime(reason, f, |elaborator| {
-            elaborator.item.module.set_current_item(None);
-            elaborator.crate_id = module.krate;
-            elaborator.item.module.set_local_module(module.local_id);
         })
     }
 
@@ -190,10 +174,7 @@ impl<'context> Elaborator<'context> {
 
         elaborator.item.module.set_local_module(self.item.module.local_module());
         elaborator.parent_runtime_variables = parent_runtime_variables;
-        elaborator.unresolved_function_metas = std::mem::take(&mut self.unresolved_function_metas);
-        elaborator.unresolved_struct_fields = std::mem::take(&mut self.unresolved_struct_fields);
-        elaborator.unresolved_enum_variants = std::mem::take(&mut self.unresolved_enum_variants);
-        elaborator.pending_trait_work = std::mem::take(&mut self.pending_trait_work);
+        elaborator.deferred = std::mem::take(&mut self.deferred);
 
         setup(&mut elaborator);
 
@@ -202,10 +183,7 @@ impl<'context> Elaborator<'context> {
         let result = f(&mut elaborator);
         elaborator.check_and_pop_function_context();
 
-        self.unresolved_function_metas = std::mem::take(&mut elaborator.unresolved_function_metas);
-        self.unresolved_struct_fields = std::mem::take(&mut elaborator.unresolved_struct_fields);
-        self.unresolved_enum_variants = std::mem::take(&mut elaborator.unresolved_enum_variants);
-        self.pending_trait_work = std::mem::take(&mut elaborator.pending_trait_work);
+        self.deferred = std::mem::take(&mut elaborator.deferred);
 
         let mut errors = std::mem::take(&mut elaborator.errors);
         if let Some(reason) = reason {
@@ -895,11 +873,10 @@ impl<'context> Elaborator<'context> {
         module: ModuleId,
         f: impl FnOnce(&mut Interpreter) -> T,
     ) -> T {
-        let old_module = self.replace_module(module);
-        let mut interpreter = self.setup_interpreter();
-        let result = f(&mut interpreter);
-        self.restore_module(old_module);
-        result
+        self.in_module(module, |this| {
+            let mut interpreter = this.setup_interpreter();
+            f(&mut interpreter)
+        })
     }
 
     /// Debug helper to print comptime evaluation results.

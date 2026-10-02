@@ -1,0 +1,7 @@
+[package]
+name = "regression_noir_claude_1844_static_assert"
+version = "0.1.0"
+type = "bin"
+authors = [""]
+
+[dependencies]

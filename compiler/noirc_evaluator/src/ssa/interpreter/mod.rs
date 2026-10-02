@@ -667,7 +667,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
         Ok(match &self.dfg()[id] {
             super::ir::value::Value::NumericConstant { constant, typ } => {
-                Value::from_constant(*constant, *typ)?
+                Value::int_from_field(*constant, *typ)?
             }
             super::ir::value::Value::Function(id) => Value::Function(*id),
             super::ir::value::Value::Intrinsic(intrinsic) => Value::Intrinsic(*intrinsic),
@@ -888,8 +888,8 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 Ok(())
             }
             Instruction::Not(id) => self.interpret_not(*id, results[0]),
-            Instruction::Truncate { value, bit_size, max_bit_size } => {
-                self.interpret_truncate(*value, *bit_size, *max_bit_size, results[0])
+            Instruction::Truncate { value, bit_size, max_bit_size: _ } => {
+                self.interpret_truncate(*value, *bit_size, results[0])
             }
             Instruction::Constrain(lhs_id, rhs_id, constrain_error) => {
                 let lhs = self.lookup(*lhs_id)?;
@@ -1014,13 +1014,16 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         &mut self,
         value_id: ValueId,
         bit_size: u32,
-        max_bit_size: u32,
         result: ValueId,
     ) -> IResult<()> {
         let value = self.lookup_numeric(value_id, "truncate")?;
         let typ = value.get_type();
+
+        // Keeping zero bits of a value leaves nothing, so the result is 0. This is what
+        // `truncate_field`, the simplifier, ACIR and Brillig all define it as.
         if bit_size == 0 {
-            return Err(internal(InternalError::TruncateToZeroBits { value_id, max_bit_size }));
+            let zero = NumericValue::int_from_field(FieldElement::zero(), typ)?;
+            return self.define(result, Value::Numeric(zero));
         }
 
         if value.as_bool().is_some() {
@@ -1088,17 +1091,26 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         let new_results = if side_effects_enabled {
             match function {
                 Value::Function(id) => {
-                    // If we're crossing a constrained -> unconstrained boundary we have to wipe
-                    // any shared mutable fields in our arguments since brillig should conceptually
-                    // receive fresh array on each invocation.
-                    if !self.in_unconstrained_context()
-                        && self.functions[&id].runtime().is_brillig()
-                    {
+                    // A Brillig function called from constrained code, and an ACIR entry point
+                    // (a separate circuit), each receive fresh copies of their array arguments
+                    // and hand back freshly materialized outputs. Neither the callee's in-place
+                    // writes to its parameters nor the caller's in-place writes to one result
+                    // may be visible through another value.
+                    let runtime = self.functions[&id].runtime();
+                    let crosses_entry_point = !self.in_unconstrained_context()
+                        && (runtime.is_brillig() || runtime.is_entry_point());
+                    if crosses_entry_point {
                         for argument in &mut arguments {
                             Self::reset_array_state(argument)?;
                         }
                     }
-                    self.call_function(id, arguments)?
+                    let mut results = self.call_function(id, arguments)?;
+                    if crosses_entry_point {
+                        for result in &mut results {
+                            Self::reset_array_state(result)?;
+                        }
+                    }
+                    results
                 }
                 Value::Intrinsic(intrinsic) => {
                     self.call_intrinsic(intrinsic, argument_ids, results)?
@@ -1213,7 +1225,8 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
     }
 
     /// Reset the value's `Shared` states in each array within. This is used to mimic each
-    /// invocation of the brillig vm receiving fresh values. No matter the history of this value
+    /// invocation of the brillig vm, or of a separate ACIR circuit, receiving and returning
+    /// fresh values. No matter the history of this value
     /// (e.g. even if they were previously returned from another brillig function) the reference
     /// count should always be 1 and it shouldn't alias any other arrays.
     fn reset_array_state(value: &mut Value) -> IResult<()> {
@@ -1402,11 +1415,13 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             let is_rc_one = *array.rc.borrow() == 1;
             // A global is not the sole live reference to its storage even when its reference
             // count says so, so `is_rc_one` alone is not license to write through it — see
-            // [`Self::is_global_storage`].
+            // [`Self::is_global_storage`]. Nor is the `mutable` flag: each ACIR circuit
+            // materializes its own copy of the globals, so a write the pass allows in one
+            // circuit must not be visible to an entry point it calls.
             let should_mutate = if self.in_unconstrained_context() {
                 is_rc_one && !self.is_global_storage(storage)
             } else {
-                mutable
+                mutable && !self.is_global_storage(storage)
             };
 
             if index >= length {
@@ -1416,8 +1431,11 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             if should_mutate {
                 // In a constrained context arrays have value semantics: an in-place write
                 // here only reuses the backing store of an array value that the Mutable
-                // Array Set Optimizations pass proved dead, so it is not a caller-visible
-                // mutation and purity analysis rightly ignores it. Only in Brillig, where
+                // Array Set Optimizations pass proved dead within the current function, so
+                // it is not a caller-visible mutation and purity analysis rightly ignores it.
+                // That per-function proof covers parameters only because every ACIR function
+                // reaching that pass is an entry point that owns its inputs, which
+                // `interpret_call` models by copying arrays across the call boundary. Only in Brillig, where
                 // the reference count governs genuine sharing, is writing through
                 // argument-reachable storage observable by the caller.
                 if self.in_unconstrained_context() {
@@ -1643,7 +1661,9 @@ fn evaluate_integer_binary(
             if !lhs.is_signed() =>
         {
             if is_brillig {
-                eval_via_constant_binary_op(lhs_field, rhs_field, operator, typ, binary, &overflow)
+                eval_via_constant_binary_op(
+                    lhs_field, rhs_field, operator, typ, is_brillig, binary, &overflow,
+                )
             } else {
                 if matches!(operator, Mul { .. }) && bit_size == 128 {
                     let product = BigUint::from_bytes_be(&lhs_field.to_be_bytes())
@@ -1687,7 +1707,9 @@ fn evaluate_integer_binary(
 
         // Signed checked arithmetic, div/mod, comparisons and bitwise ops all reduce their
         // operands; reuse the constant-folder's semantics.
-        _ => eval_via_constant_binary_op(lhs_field, rhs_field, operator, typ, binary, &overflow),
+        _ => eval_via_constant_binary_op(
+            lhs_field, rhs_field, operator, typ, is_brillig, binary, &overflow,
+        ),
     }
 }
 
@@ -1699,6 +1721,7 @@ fn eval_via_constant_binary_op(
     rhs_field: FieldElement,
     operator: BinaryOp,
     typ: NumericType,
+    is_brillig: bool,
     binary: &Binary,
     overflow: &impl Fn() -> InterpreterError,
 ) -> IResult<NumericValue> {
@@ -1709,7 +1732,7 @@ fn eval_via_constant_binary_op(
     let lhs_field = truncate_field(lhs_field, bit_size);
     let rhs_field = truncate_field(rhs_field, bit_size);
 
-    match eval_constant_binary_op(lhs_field, rhs_field, operator, typ) {
+    match eval_constant_binary_op(lhs_field, rhs_field, operator, typ, is_brillig) {
         BinaryEvaluationResult::Success(field, result_type) => {
             NumericValue::int_from_field(field, result_type)
         }

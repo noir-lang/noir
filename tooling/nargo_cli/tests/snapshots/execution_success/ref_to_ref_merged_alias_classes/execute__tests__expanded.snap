@@ -1,0 +1,35 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn main(cond: bool) -> pub Field {
+    let mut c: Field = 1_Field;
+    let mut q: &mut Field = &mut c;
+    let mut p: &mut &mut Field = &mut q;
+    let arr: [(&mut &mut &mut Field, &mut &mut Field); 1] = [(&mut p, &mut q)];
+    let mut s1: Field = 0_Field;
+    let mut s2: Field = 0_Field;
+    let mut s3: Field = 0_Field;
+    let mut s4: Field = 0_Field;
+    let mut s5: Field = 0_Field;
+    let mut s6: Field = 0_Field;
+    let mut s7: Field = 0_Field;
+    let mut s8: Field = 0_Field;
+    let t1: &mut Field = if cond { &mut s1 } else { &mut s2 };
+    let t2: &mut Field = if cond { &mut s3 } else { &mut s4 };
+    let t3: &mut Field = if cond { &mut s5 } else { &mut s6 };
+    let t4: &mut Field = if cond { &mut s7 } else { &mut s8 };
+    let t5: &mut Field = if cond { t1 } else { t2 };
+    let t6: &mut Field = if cond { t3 } else { t4 };
+    let t7: &mut Field = if cond { t5 } else { t6 };
+    let mut r1: &mut Field = &mut s1;
+    let mut r2: &mut Field = &mut s1;
+    let r3: &mut &mut Field = if cond { &mut r1 } else { &mut r2 };
+    let z: &mut &mut Field = if cond { &mut q } else { &mut r1 };
+    let h: &mut Field = if cond { q } else { *z };
+    c = 5_Field;
+    *h = 7_Field;
+    let _: ([(&mut &mut &mut Field, &mut &mut Field); 1], &mut &mut Field, &mut Field, &mut &mut Field) =
+        (arr, r3, t7, p);
+    c
+}

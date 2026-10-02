@@ -1,0 +1,7 @@
+[package]
+name = "numeric_alias_shadowed_by_caller_param_dep"
+type = "bin"
+authors = [""]
+
+[dependencies]
+numeric_alias_lib = { path = "../../test_libraries/numeric_alias_lib" }

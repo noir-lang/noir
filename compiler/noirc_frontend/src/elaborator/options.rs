@@ -54,7 +54,8 @@ pub type FrontendOptions<'a> = GenericOptions<'a, &'a str>;
 
 impl<T> GenericOptions<'_, T> {
     /// A sane default of frontend options for running tests
-    pub fn test_default() -> GenericOptions<'static, T> {
+    #[cfg(any(test, feature = "test_utils"))]
+    pub(crate) fn test_default() -> GenericOptions<'static, T> {
         GenericOptions {
             debug_comptime_in_file: None,
             enabled_unstable_features: &[UnstableFeature::Enums],

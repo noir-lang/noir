@@ -217,8 +217,9 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         // Use brillig-only mem2reg before inlining.
         // Running ACIR mem2reg this early creates block parameters that cascade through
         // inlining and unrolling, causing regressions in unrolled-loop-heavy programs.
+        // Load-store forwarding is first run after defunctionalization: its alias analysis
+        // cannot see through calls to function values.
         SsaPass::new(Ssa::mem2reg_brillig, "Mem2Reg")
-            .and_then(Ssa::load_store_forwarding)
             .and_then(Ssa::remove_unused_instructions)
             .and_then(Ssa::remove_redundant_params)
             .and_then_validate(|#[allow(unused)] ssa| {
@@ -488,6 +489,10 @@ pub fn optimize_ssa_builder_into_acir(
         Ssa::brillig_array_get_and_set,
         "Brillig Array Get and Set Optimizations",
     )])?;
+
+    // Neither back end can lower the other runtime's intrinsics. Reject any that survived the
+    // passes, which have by now removed the branches `is_unconstrained()` disables.
+    builder.ssa().check_runtime_only_intrinsics()?;
 
     let brillig = time("SSA to Brillig", options.print_codegen_timings, || {
         builder.ssa().to_brillig(&options.brillig_options)

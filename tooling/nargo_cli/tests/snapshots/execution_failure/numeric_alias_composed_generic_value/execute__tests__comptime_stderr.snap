@@ -1,0 +1,22 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+warning: unused global N
+  ┌─ src/main.nr:1:8
+  │
+1 │ global N: u32 = 2;
+  │        - unused global
+  │
+
+error: Assertion failed
+  ┌─ src/main.nr:8:12
+  │
+8 │     assert(x == Quad::<3>);
+  │            --------------
+  │
+  = Call stack:
+    1: ?
+            at src/main.nr:7:4
+
+Error interpreting main function

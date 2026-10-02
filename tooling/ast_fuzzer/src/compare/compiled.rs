@@ -547,6 +547,7 @@ mod tests {
                     opcode_location: ErrorLocation::Unresolved,
                     index: FieldElement::from(268u32),
                     array_size: 4,
+                    payload: None,
                 },
                 None,
             )),

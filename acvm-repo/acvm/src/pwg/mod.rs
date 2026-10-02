@@ -212,7 +212,18 @@ pub enum OpcodeResolutionError<F> {
         payload: Option<ResolvedAssertionPayload<F>>,
     },
     #[error("Index out of bounds, array has size {array_size:?}, but index was {index:?}")]
-    IndexOutOfBounds { opcode_location: ErrorLocation, index: F, array_size: u32 },
+    IndexOutOfBounds {
+        opcode_location: ErrorLocation,
+        index: F,
+        array_size: u32,
+        /// The message the failing memory op carries, when it has one.
+        ///
+        /// A memory op's bounds check stands in for an array access's out-of-bounds check, and the
+        /// index and size above are the flattened coordinates of ACIR memory. Where those are not
+        /// the coordinates the program was written in, ACIR generation attaches a payload that
+        /// describes the failure in the program's own terms.
+        payload: Option<ResolvedAssertionPayload<F>>,
+    },
     #[error("Cannot solve opcode: {invalid_input_bit_size}")]
     InvalidInputBitSize {
         opcode_location: ErrorLocation,
@@ -543,11 +554,12 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
                     // We resolve, by setting this to the corresponding opcode that we just attempted to solve.
                     OpcodeResolutionError::IndexOutOfBounds {
                         opcode_location: opcode_index,
+                        payload: assertion_payload,
                         ..
                     } => {
-                        *opcode_index = ErrorLocation::Resolved(OpcodeLocation::Acir(
-                            self.instruction_pointer(),
-                        ));
+                        let location = OpcodeLocation::Acir(self.instruction_pointer());
+                        *opcode_index = ErrorLocation::Resolved(location);
+                        *assertion_payload = self.extract_assertion_payload(location);
                     }
                     OpcodeResolutionError::UnsatisfiedConstrain {
                         opcode_location: opcode_index,

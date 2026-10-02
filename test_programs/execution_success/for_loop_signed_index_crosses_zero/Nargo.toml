@@ -1,0 +1,6 @@
+[package]
+name = "for_loop_signed_index_crosses_zero"
+type = "bin"
+authors = [""]
+
+[dependencies]

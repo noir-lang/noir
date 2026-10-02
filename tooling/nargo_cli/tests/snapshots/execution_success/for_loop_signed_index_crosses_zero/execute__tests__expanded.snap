@@ -1,0 +1,11 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(x: u32) -> pub u32 {
+    let mut sum: u32 = x;
+    for i in -3_i8..=0_i8 {
+        sum = (sum + (((i as i16) + 200_i16) as u32)) % 1000_u32;
+    }
+    sum
+}

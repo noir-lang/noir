@@ -12,13 +12,14 @@ use acvm::acir::{
     AcirField, BlackBoxFunc,
     brillig::lengths::SemanticLength,
     circuit::{
-        AssertionPayload, BrilligOpcodeLocation, ErrorSelector, OpcodeLocation,
+        AssertionPayload, BrilligOpcodeLocation, ErrorSelector, ExpressionOrMemory, OpcodeLocation,
         brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
         opcodes::{BlackBoxFuncCall, BlockId, BlockType, FunctionInput, Opcode as AcirOpcode},
     },
     native_types::{Expression, Witness},
 };
 use noirc_artifacts::{debug::ProcedureDebugId, ssa::SsaReport};
+use noirc_frontend::hir_def::types::Type as HirType;
 
 use crate::{
     ErrorType,
@@ -188,8 +189,17 @@ impl<F: AcirField> GeneratedAcir<F> {
         payload: AssertionPayload<F>,
     ) -> OpcodeLocation {
         let location = self.last_acir_opcode_location();
-        self.assertion_payloads.insert(location, payload);
+        self.attach_assertion_payload_at(location, payload);
         location
+    }
+
+    /// Attaches an assertion payload to the opcode at `location`.
+    pub(crate) fn attach_assertion_payload_at(
+        &mut self,
+        location: OpcodeLocation,
+        payload: AssertionPayload<F>,
+    ) {
+        self.assertion_payloads.insert(location, payload);
     }
 }
 
@@ -718,6 +728,39 @@ impl<F: AcirField> GeneratedAcir<F> {
         let error_selector = error_type.selector();
         self.record_error_type(error_selector, error_type);
         AssertionPayload { error_selector: error_selector.as_u64(), payload: Vec::new() }
+    }
+
+    /// Builds the payload of an out-of-bounds failure that reports the logical `index` and
+    /// `array_len` of the access, rendering as
+    /// `Index out of bounds, array has size <array_len>, but index was <index>`.
+    ///
+    /// The message is a format string with the length baked into its text (it is known at compile
+    /// time) and the index interpolated from the payload, which the solver evaluates over the
+    /// witness map once the opcode it is attached to has failed.
+    pub(crate) fn generate_index_out_of_bounds_payload(
+        &mut self,
+        index: Expression<F>,
+        array_len: u32,
+    ) -> AssertionPayload<F> {
+        let template =
+            format!("Index out of bounds, array has size {array_len}, but index was {{}}");
+        let error_type = ErrorType::Dynamic(HirType::FmtString(
+            Box::new(HirType::constant_u32(template.len() as u32)),
+            Box::new(HirType::Tuple(vec![HirType::u32()])),
+        ));
+        let error_selector = error_type.selector();
+        self.record_error_type(error_selector, error_type);
+
+        // A format string is laid out as the characters of its template, the number of values
+        // interpolated into it, and then those values.
+        let mut payload: Vec<_> = template
+            .bytes()
+            .map(|character| ExpressionOrMemory::Expression(F::from(u128::from(character)).into()))
+            .collect();
+        payload.push(ExpressionOrMemory::Expression(F::one().into()));
+        payload.push(ExpressionOrMemory::Expression(index));
+
+        AssertionPayload { error_selector: error_selector.as_u64(), payload }
     }
 }
 

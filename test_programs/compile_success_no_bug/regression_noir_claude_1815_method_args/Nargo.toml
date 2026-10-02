@@ -1,0 +1,4 @@
+[package]
+name = "regression_noir_claude_1815_method_args"
+type = "bin"
+authors = [""]

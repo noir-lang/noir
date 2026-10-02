@@ -8,7 +8,7 @@ pub mod type_check;
 
 use crate::ast::{IdentOrQuotedType, UnresolvedGenerics};
 use crate::debug::DebugInstrumenter;
-use crate::elaborator::UnstableFeature;
+use crate::elaborator::{Deferred, UnstableFeature};
 use crate::graph::{CrateGraph, CrateId};
 use crate::hir::comptime::EvaluationTracker;
 use crate::hir::def_collector::dc_crate::{CompilationErrors, UnresolvedGlobal};
@@ -78,7 +78,7 @@ pub struct Context<'file_manager, 'parsed_files> {
     pub required_unstable_features: BTreeMap<CrateId, Vec<UnstableFeature>>,
 
     /// Unresolved globals that need to be elaborated.
-    pub unresolved_globals: BTreeMap<GlobalId, UnresolvedGlobal>,
+    pub(crate) unresolved_globals: Deferred<GlobalId, UnresolvedGlobal>,
 }
 
 #[derive(Debug)]
@@ -112,7 +112,7 @@ impl Context<'_, '_> {
             count_array_copies: false,
             interpreter_output: Some(Rc::new(RefCell::new(std::io::stdout()))),
             required_unstable_features: BTreeMap::new(),
-            unresolved_globals: BTreeMap::new(),
+            unresolved_globals: Deferred::default(),
             evaluation_tracker: None,
         }
     }
@@ -135,7 +135,7 @@ impl Context<'_, '_> {
             count_array_copies: false,
             interpreter_output: Some(Rc::new(RefCell::new(std::io::stdout()))),
             required_unstable_features: BTreeMap::new(),
-            unresolved_globals: BTreeMap::new(),
+            unresolved_globals: Deferred::default(),
             evaluation_tracker: None,
         }
     }
@@ -163,7 +163,7 @@ impl Context<'_, '_> {
             count_array_copies: false,
             interpreter_output: Some(Rc::new(RefCell::new(std::io::stdout()))),
             required_unstable_features: BTreeMap::new(),
-            unresolved_globals: BTreeMap::new(),
+            unresolved_globals: Deferred::default(),
             evaluation_tracker: None,
         }
     }

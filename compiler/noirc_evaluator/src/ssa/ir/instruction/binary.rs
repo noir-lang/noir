@@ -99,13 +99,37 @@ pub(crate) enum BinaryEvaluationResult {
 }
 
 /// Evaluate a binary operation with constant arguments.
+///
+/// `is_brillig` distinguishes the two runtimes' models of unchecked arithmetic: Brillig wraps in
+/// fixed-width registers, while ACIR is non-reducing field arithmetic (see [`super::super::dfg`]'s
+/// `get_value_max_num_bits`). It only affects unchecked add/sub/mul; every other operator (and
+/// checked arithmetic, which must trap on true overflow on both runtimes) ignores it.
 pub(crate) fn eval_constant_binary_op(
     lhs: FieldElement,
     rhs: FieldElement,
     operator: BinaryOp,
     mut operand_type: NumericType,
+    is_brillig: bool,
 ) -> BinaryEvaluationResult {
     use BinaryEvaluationResult::{CouldNotEvaluate, Failure, Success};
+
+    // It's fine for ACIR unchecked operations to overflow, precisely because they are unchecked.
+    if !is_brillig
+        && matches!(
+            operator,
+            BinaryOp::Add { unchecked: true }
+                | BinaryOp::Sub { unchecked: true }
+                | BinaryOp::Mul { unchecked: true }
+        )
+    {
+        let value = match operator {
+            BinaryOp::Add { .. } => lhs + rhs,
+            BinaryOp::Sub { .. } => lhs - rhs,
+            BinaryOp::Mul { .. } => lhs * rhs,
+            _ => unreachable!("guarded by the outer match"),
+        };
+        return Success(value, operand_type);
+    }
 
     let value = match operand_type {
         NumericType::NativeField => {
@@ -421,9 +445,10 @@ mod tests {
     use proptest::prelude::*;
 
     use super::{
-        BinaryOp, convert_signed_integer_to_field_element, truncate_field,
-        try_convert_field_element_to_signed_integer,
+        BinaryEvaluationResult, BinaryOp, convert_signed_integer_to_field_element,
+        eval_constant_binary_op, truncate_field, try_convert_field_element_to_signed_integer,
     };
+    use crate::ssa::ir::types::NumericType;
     use acvm::{AcirField, FieldElement};
     use num_bigint::BigUint;
     use num_traits::One;
@@ -474,5 +499,93 @@ mod tests {
             assert_eq!(f.to_u128(), u128::from(u));
             assert_eq!(i, try_convert_field_element_to_signed_integer(f, 64).unwrap());
         }
+    }
+
+    // `i8 1 + i8 -1`. In ACIR this is raw field arithmetic on the stored encodings
+    // (`1 + 255 = 256`, not reduced); in Brillig it wraps in the 8-bit register (`0`).
+    #[test]
+    fn unchecked_signed_add_extends_in_acir_but_wraps_in_brillig() {
+        let one = FieldElement::from(1u128);
+        let minus_one = convert_signed_integer_to_field_element(-1, 8);
+        let operator = BinaryOp::Add { unchecked: true };
+        let ty = NumericType::signed(8);
+
+        let acir = eval_constant_binary_op(one, minus_one, operator, ty, false);
+        assert!(matches!(
+            acir,
+            BinaryEvaluationResult::Success(field, _) if field == FieldElement::from(256u128)
+        ));
+
+        let brillig = eval_constant_binary_op(one, minus_one, operator, ty, true);
+        assert!(matches!(
+            brillig,
+            BinaryEvaluationResult::Success(field, _) if field.is_zero()
+        ));
+    }
+
+    // `i8 0 - i8 1`. In ACIR this underflows to the field element `p - 1`, which is *not* `255`
+    // (the value the old decode/recompute/re-encode path used to produce) once reduced mod 256:
+    // `p - 1 ≡ 0`, not `255`, for the BN254 scalar field. In Brillig it wraps to `255` as expected.
+    #[test]
+    fn unchecked_signed_sub_extends_in_acir_but_wraps_in_brillig() {
+        let zero = FieldElement::zero();
+        let one = FieldElement::from(1u128);
+        let operator = BinaryOp::Sub { unchecked: true };
+        let ty = NumericType::signed(8);
+
+        let acir = eval_constant_binary_op(zero, one, operator, ty, false);
+        let expected_acir = zero - one;
+        assert!(matches!(
+            acir,
+            BinaryEvaluationResult::Success(field, _) if field == expected_acir
+        ));
+        // Reducing the ACIR-correct answer mod 256 gives 0, not 255.
+        assert_eq!(truncate_field(expected_acir, 8), FieldElement::zero());
+
+        let brillig = eval_constant_binary_op(zero, one, operator, ty, true);
+        assert!(matches!(
+            brillig,
+            BinaryEvaluationResult::Success(field, _) if field == FieldElement::from(255u128)
+        ));
+    }
+
+    // The unsigned branch has the same ACIR/Brillig split as the signed one: in ACIR, `u8 255 + 1`
+    // is the raw field sum `256`, not reduced until a later range check or truncation.
+    #[test]
+    fn unchecked_unsigned_add_extends_in_acir_but_declines_in_brillig() {
+        let max = FieldElement::from(255u128);
+        let one = FieldElement::from(1u128);
+        let operator = BinaryOp::Add { unchecked: true };
+        let ty = NumericType::unsigned(8);
+
+        let acir = eval_constant_binary_op(max, one, operator, ty, false);
+        assert!(matches!(
+            acir,
+            BinaryEvaluationResult::Success(field, _) if field == FieldElement::from(256u128)
+        ));
+
+        // Brillig is untouched: it keeps declining to fold rather than wrapping, a pre-existing,
+        // safe, missed optimization outside the scope of this fix.
+        let brillig = eval_constant_binary_op(max, one, operator, ty, true);
+        assert!(matches!(brillig, BinaryEvaluationResult::Failure(_)));
+    }
+
+    // Checked arithmetic must still trap on true overflow, on both runtimes, unaffected by the
+    // ACIR/Brillig split above (which only applies to unchecked operations).
+    #[test]
+    fn checked_signed_add_overflow_fails_on_both_runtimes() {
+        let max = convert_signed_integer_to_field_element(127, 8);
+        let one = FieldElement::from(1u128);
+        let operator = BinaryOp::Add { unchecked: false };
+        let ty = NumericType::signed(8);
+
+        assert!(matches!(
+            eval_constant_binary_op(max, one, operator, ty, false),
+            BinaryEvaluationResult::Failure(_)
+        ));
+        assert!(matches!(
+            eval_constant_binary_op(max, one, operator, ty, true),
+            BinaryEvaluationResult::Failure(_)
+        ));
     }
 }

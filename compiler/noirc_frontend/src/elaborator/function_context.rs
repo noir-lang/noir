@@ -153,16 +153,8 @@ impl Elaborator<'_> {
     /// Push an `ExprId` that corresponds to an integer literal.
     /// At the end of the current function we'll check that they fit in their type's range.
     #[tracing::instrument(level = "trace", skip_all)]
-    pub fn push_integer_literal_expr_id(&mut self, literal_expr_id: ExprId) {
+    pub(crate) fn push_integer_literal_expr_id(&mut self, literal_expr_id: ExprId) {
         self.get_function_context_mut().integer_literal_expr_ids.push(literal_expr_id);
-    }
-
-    pub(super) fn integer_literal_expr_ids_len(&mut self) -> usize {
-        self.get_function_context_mut().integer_literal_expr_ids.len()
-    }
-
-    pub(super) fn truncate_integer_literal_expr_ids(&mut self, len: usize) {
-        self.get_function_context_mut().integer_literal_expr_ids.truncate(len);
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
@@ -334,7 +326,7 @@ impl Elaborator<'_> {
                         let generic_name = generic.name.to_string();
                         let item_kind = "struct";
                         let item_name = data_type.borrow().name.to_string();
-                        let is_numeric = matches!(generic.type_var.kind(), Kind::Numeric(..));
+                        let is_numeric = matches!(*generic.type_var.kind(), Kind::Numeric(..));
                         self.push_err(TypeCheckError::TypeAnnotationNeededOnItem {
                             location,
                             generic_name,
@@ -371,7 +363,7 @@ impl Elaborator<'_> {
                                     let item_name =
                                         self.interner.definition_name(definition_id).to_string();
                                     let is_numeric =
-                                        matches!(generic.type_var.kind(), Kind::Numeric(..));
+                                        matches!(*generic.type_var.kind(), Kind::Numeric(..));
                                     self.push_err(TypeCheckError::TypeAnnotationNeededOnItem {
                                         location,
                                         generic_name: generic.name.to_string(),
@@ -397,7 +389,7 @@ impl Elaborator<'_> {
                                     all_generics.find(|generic| generic.type_var.id() == id);
                                 if let Some(generic) = generic {
                                     let is_numeric =
-                                        matches!(generic.type_var.kind(), Kind::Numeric(..));
+                                        matches!(*generic.type_var.kind(), Kind::Numeric(..));
                                     self.push_err(TypeCheckError::TypeAnnotationNeededOnItem {
                                         location,
                                         generic_name: generic.name.to_string(),
@@ -430,7 +422,7 @@ impl Elaborator<'_> {
                                 drop(def);
                                 if let Some(generic) = generic {
                                     let is_numeric =
-                                        matches!(generic.type_var.kind(), Kind::Numeric(..));
+                                        matches!(*generic.type_var.kind(), Kind::Numeric(..));
                                     self.push_err(TypeCheckError::TypeAnnotationNeededOnItem {
                                         location,
                                         generic_name: generic.name.to_string(),

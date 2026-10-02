@@ -43,14 +43,13 @@ use noirc_errors::Location;
 use num_bigint::BigInt;
 use rustc_hash::FxHashMap as HashMap;
 
-use crate::UnificationError;
 use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, UnaryOp};
-use crate::elaborator::{ElaborateReason, Elaborator, ElaboratorOptions};
+use crate::elaborator::{Elaborator, ElaboratorOptions};
 use crate::hir::Context;
 use crate::hir::comptime::Integer;
 use crate::hir::comptime::value::FormatStringFragment;
 use crate::hir::def_map::ModuleId;
-use crate::hir_def::types::{BoundGenerics, BoundTypeVariables, resolve_type_bindings};
+use crate::hir_def::types::resolve_type_bindings;
 use crate::monomorphization::{compute_impl_bindings, resolve_trait_item};
 use crate::node_interner::GlobalValue;
 use crate::shared::{Builtin, ForeignCall, Signedness};
@@ -73,6 +72,7 @@ use crate::{
     },
     node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, StmtId, TraitItemId},
 };
+use crate::{TypeVariableId, UnificationError};
 
 use super::errors::{IResult, InterpreterError};
 use super::value::{Closure, Value, unwrap_rc};
@@ -117,11 +117,17 @@ pub struct Interpreter<'local, 'interner> {
     /// the rhs of a global.
     current_function: Option<FuncId>,
 
-    /// Maps each generic to the binding it has in the current callstack.
-    /// Since the interpreter monomorphizes as it interprets, we can bind over the same generic
-    /// multiple times. Without the outer Vec, when one of these inner functions exits we would
-    /// unbind the generic completely instead of resetting it to its previous binding.
-    bound_generics: Vec<BoundGenerics>,
+    /// Bindings for the generics of the function being interpreted: a call's instantiation and
+    /// impl bindings, or the bindings a closure was created under, plus the types macro calls in
+    /// the function have produced. Every type this interpreter reads from the HIR of that
+    /// function goes through [`Self::ty`], which applies them.
+    substitution: TypeBindings,
+
+    /// The type variables each macro call expression's result bound in [`Self::substitution`]
+    /// the last time it was evaluated. A macro call inside a loop can produce a value of a
+    /// different type on each iteration, so those bindings are taken back out before its type is
+    /// unified again.
+    macro_call_bindings: HashMap<ExprId, Vec<TypeVariableId>>,
 
     /// Current evaluation depth.
     evaluation_depth: usize,
@@ -144,11 +150,46 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         Self {
             elaborator,
             current_function,
-            bound_generics: Vec::new(),
+            substitution: TypeBindings::default(),
+            macro_call_bindings: HashMap::default(),
             in_loop: false,
             evaluation_depth: 0,
             in_unconstrained,
         }
+    }
+
+    /// `typ` as seen from the function being interpreted.
+    ///
+    /// This is the one way the interpreter reads a type from the HIR of the function it is
+    /// interpreting: [`Self::expr_type`] and [`Self::bindings`] are shorthands for it.
+    pub(super) fn ty(&self, typ: &Type) -> Type {
+        // A polymorphic global's HIR keeps its quantifier, and its quantified variables are the
+        // ones the use site binds, so substitute underneath it.
+        if let Type::Forall(variables, typ) = typ {
+            return Type::Forall(variables.clone(), Box::new(self.ty(typ)));
+        }
+        typ.substitute(&self.substitution)
+    }
+
+    /// The type of the expression `id` as seen from the function being interpreted.
+    fn expr_type(&self, id: ExprId) -> Type {
+        self.elaborator.interner.try_id_type(id).map_or(Type::Error, |typ| self.ty(typ))
+    }
+
+    /// `bindings` with each bound type as seen from the function being interpreted.
+    fn bindings(&self, bindings: &TypeBindings) -> TypeBindings {
+        bindings
+            .iter()
+            .map(|(var_id, (var, kind, typ))| (*var_id, (var.clone(), kind.clone(), self.ty(typ))))
+            .collect()
+    }
+
+    /// `value` with every type it holds as seen from the function being interpreted.
+    pub(super) fn value(&self, value: Value) -> Value {
+        if self.substitution.is_empty() {
+            return value;
+        }
+        value.map_types(&|typ| self.ty(typ))
     }
 
     /// Call the given function with the given arguments and return the result.
@@ -160,35 +201,34 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         &mut self,
         function: FuncId,
         arguments: Vec<(Value, Location)>,
-        mut instantiation_bindings: TypeBindings,
+        instantiation_bindings: TypeBindings,
         location: Location,
     ) -> IResult<Value> {
         self.elaborator.define_function_meta_if_undefined(function);
         let trait_method = self.elaborator.interner.get_trait_item_id(function);
 
+        let mut instantiation_bindings = self.bindings(&instantiation_bindings);
         resolve_type_bindings(&mut instantiation_bindings);
 
         self.elaborator.push_interpreter_call_stack(location)?;
 
-        let depth = self.bound_generics_depth();
-        self.unbind_generics_from_previous_function();
-        let instantiation_guard = BoundTypeVariables::apply(&instantiation_bindings);
+        let impl_bindings = match compute_impl_bindings(
+            self.elaborator.interner,
+            trait_method,
+            function,
+            &instantiation_bindings,
+            location,
+        ) {
+            Ok(impl_bindings) => impl_bindings,
+            Err(error) => {
+                self.elaborator.pop_interpreter_call_stack();
+                return Err(error);
+            }
+        };
 
-        let impl_bindings =
-            match compute_impl_bindings(self.elaborator.interner, trait_method, function, location)
-            {
-                Ok(impl_bindings) => impl_bindings,
-                Err(error) => {
-                    self.elaborator.pop_interpreter_call_stack();
-                    drop(instantiation_guard);
-                    self.rebind_generics_from_previous_function();
-                    debug_assert_eq!(self.bound_generics_depth(), depth);
-                    return Err(error);
-                }
-            };
-        let impl_guard = BoundTypeVariables::apply(&impl_bindings);
-
-        self.remember_function_bindings(&instantiation_bindings, &impl_bindings);
+        let mut frame = instantiation_bindings;
+        frame.extend(impl_bindings);
+        let caller_substitution = std::mem::replace(&mut self.substitution, frame);
 
         if let Some(tracker) = self.elaborator.evaluation_tracker.as_mut() {
             tracker.track_function_call(function, location);
@@ -196,11 +236,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         let result = self.call_function_inner(function, arguments, location);
 
+        self.substitution = caller_substitution;
         self.elaborator.pop_interpreter_call_stack();
-        drop(impl_guard);
-        drop(instantiation_guard);
-        self.rebind_generics_from_previous_function();
-        debug_assert_eq!(self.bound_generics_depth(), depth);
         result
     }
 
@@ -222,7 +259,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
 
         if meta.kind != FunctionKind::Normal {
-            let return_type = meta.return_type().follow_bindings();
+            let return_type = meta.return_type().clone();
+            let return_type = self.ty(&return_type).follow_bindings();
             return self.call_special(function, arguments, return_type, location);
         }
 
@@ -256,7 +294,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let previous_state = self.enter_function();
 
         for ((parameter, typ, _), (argument, arg_location)) in parameters.iter().zip_eq(arguments) {
-            let result = self.define_pattern(parameter, typ, argument, arg_location);
+            let result = self.define_pattern(parameter, &self.ty(typ), argument, arg_location);
             if let Err(err) = result {
                 self.exit_function(previous_state);
                 return Err(err);
@@ -288,9 +326,13 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             Some(body) => Ok(body),
             None => {
                 if body_is_unresolved {
-                    self.elaborate_in_function(None, None, |elaborator| {
-                        elaborator.elaborate_function(function);
-                    });
+                    self.elaborator.elaborate_item_from_comptime_in_function(
+                        None,
+                        None,
+                        |elaborator| {
+                            elaborator.elaborate_function(function);
+                        },
+                    );
 
                     // Recursive call - this will now hit the Some(body) branch
                     self.get_function_body(function, location)
@@ -300,22 +342,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 }
             }
         }
-    }
-
-    /// Helper to elaborate the given item in the given function's context. If None is passed,
-    /// the global context is used. This function will temporarily unbind any generics from the
-    /// previous function call if they exist.
-    fn elaborate_in_function<T>(
-        &mut self,
-        function: Option<FuncId>,
-        reason: Option<ElaborateReason>,
-        f: impl FnOnce(&mut Elaborator) -> T,
-    ) -> T {
-        // Why do we only unbind generics from the previous function here?
-        self.unbind_generics_from_previous_function();
-        let result = self.elaborator.elaborate_item_from_comptime_in_function(function, reason, f);
-        self.rebind_generics_from_previous_function();
-        result
     }
 
     /// Calls a builtin, foreign, or oracle function (not all oracles are supported).
@@ -337,7 +363,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let item = format!("Comptime evaluation for builtin function '{name}'");
                 return Err(InterpreterError::Unimplemented { item, location });
             };
-            self.call_builtin(builtin, arguments, return_type, location)
+            let result = self.call_builtin(builtin, arguments, return_type, location)?;
+            Ok(self.value(result))
         } else if let Some(name) = func_attrs.foreign() {
             let Some(foreign) = Builtin::lookup(name) else {
                 let item = format!("Comptime evaluation for foreign function '{name}'");
@@ -360,6 +387,18 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
     }
 
+    /// Runs `f` with the elaborator resolving in `module`, restoring the module it was resolving
+    /// in afterwards (on every exit path, including early returns inside `f`).
+    ///
+    /// The interpreter's counterpart to [`Elaborator::in_module`], which cannot be used here: `f`
+    /// needs `&mut Interpreter`, and the elaborator is borrowed out of it.
+    fn in_module<T>(&mut self, module: ModuleId, f: impl FnOnce(&mut Self) -> T) -> T {
+        let replaced = self.elaborator.replace_module(module);
+        let result = f(self);
+        self.elaborator.restore_module(replaced);
+        result
+    }
+
     /// Call a closure value with the given arguments and environment, returning the result.
     fn call_closure(
         &mut self,
@@ -369,27 +408,23 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     ) -> IResult<Value> {
         self.elaborator.push_interpreter_call_stack(call_location)?;
 
-        // Set the closure's scope to that of the function it was originally evaluated in
-        let old_module = self.elaborator.replace_module(closure.module_scope);
-        let old_function = std::mem::replace(&mut self.current_function, closure.function_scope);
+        // Resolve the closure body in the scope of the function it was originally evaluated in.
+        self.in_module(closure.module_scope, |this| {
+            let old_function =
+                std::mem::replace(&mut this.current_function, closure.function_scope);
 
-        let depth = self.bound_generics_depth();
-        self.unbind_generics_from_previous_function();
-        closure.bindings.apply();
+            let caller_substitution =
+                std::mem::replace(&mut this.substitution, closure.substitution);
 
-        self.remember_closure_bindings(&closure.bindings);
+            let result =
+                this.call_closure_inner(closure.lambda, closure.env, arguments, call_location);
 
-        let result = self.call_closure_inner(closure.lambda, closure.env, arguments, call_location);
+            this.substitution = caller_substitution;
+            this.elaborator.pop_interpreter_call_stack();
 
-        self.elaborator.pop_interpreter_call_stack();
-
-        closure.bindings.remove();
-        self.rebind_generics_from_previous_function();
-        debug_assert_eq!(self.bound_generics_depth(), depth);
-
-        self.current_function = old_function;
-        self.elaborator.restore_module(old_module);
-        result
+            this.current_function = old_function;
+            result
+        })
     }
 
     /// Performs the bulk of the work for calling a closure function.
@@ -415,7 +450,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         let parameters = closure.parameters.iter().zip_eq(arguments);
         for ((parameter, typ), (argument, arg_location)) in parameters {
-            let result = self.define_pattern(parameter, typ, argument, arg_location);
+            let result = self.define_pattern(parameter, &self.ty(typ), argument, arg_location);
             if let Err(err) = result {
                 self.exit_function(previous_state);
                 return Err(err);
@@ -480,70 +515,6 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn current_scope_mut(&mut self) -> &mut HashMap<DefinitionId, Value> {
         // the global scope is always at index zero, so this is always Some
         self.elaborator.interner.comptime_scopes.last_mut().unwrap()
-    }
-
-    /// How deep the interpreter is in nested calls, as far as generic bindings are concerned.
-    ///
-    /// A call takes the frame below out of force on the way in and puts it back on the way out,
-    /// so a call that returned without doing the second half would leave its caller's generics
-    /// unbound for the rest of the evaluation — every `Self` and `T` in the caller resolving to
-    /// nothing. The two halves are far apart and there are early returns between them, so it is
-    /// worth asserting rather than reading.
-    fn bound_generics_depth(&self) -> usize {
-        self.bound_generics.len()
-    }
-
-    /// Unbinds all of the generics at the top of `self.bound_generics`, then push
-    /// an empty set of bindings to become the new top of the stack.
-    fn unbind_generics_from_previous_function(&mut self) {
-        if let Some(bindings) = self.bound_generics.last() {
-            bindings.remove();
-        }
-        // Push a new bindings list for the current function
-        self.bound_generics.push(BoundGenerics::default());
-    }
-
-    /// Pops the top of `self.bound_generics` then puts the new bindings at the
-    /// top of that stack back into force.
-    fn rebind_generics_from_previous_function(&mut self) {
-        // Remove the currently bound generics first.
-        self.bound_generics.pop();
-
-        if let Some(bindings) = self.bound_generics.last() {
-            bindings.apply();
-        }
-    }
-
-    /// Adds all of the given `main_bindings` and `impl_bindings` to the top of
-    /// `self.bound_generics`. Note that this will not actually perform any of the type bindings.
-    fn remember_function_bindings(
-        &mut self,
-        main_bindings: &TypeBindings,
-        impl_bindings: &TypeBindings,
-    ) {
-        let bound_generics = self
-            .bound_generics
-            .last_mut()
-            .expect("remember_bindings called with no bound_generics on the stack");
-
-        for (var, kind, binding) in main_bindings.values() {
-            bound_generics.remember(var, binding, kind);
-        }
-
-        for (var, kind, binding) in impl_bindings.values() {
-            bound_generics.remember(var, binding, kind);
-        }
-    }
-
-    /// Adds all of the given `bindings` to the top of `self.bound_generics`.
-    /// Note that this will not actually perform any of the type bindings.
-    fn remember_closure_bindings(&mut self, bindings: &BoundGenerics) {
-        let bound_generics = self
-            .bound_generics
-            .last_mut()
-            .expect("remember_bindings called with no bound_generics on the stack");
-
-        bound_generics.remember_all(bindings);
     }
 
     /// Defines a pattern, putting all variables contained within the pattern in the current scope.
@@ -787,9 +758,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         match &definition.kind {
             DefinitionKind::Function(function_id) => {
-                let typ = self.elaborator.interner.id_type(id).follow_bindings();
+                let typ = self.expr_type(id).follow_bindings();
                 let bindings = self.elaborator.interner.try_get_instantiation_bindings(id);
-                let mut bindings = bindings.map_or(TypeBindings::default(), Clone::clone);
+                let mut bindings = bindings.map_or(TypeBindings::default(), |b| self.bindings(b));
                 resolve_type_bindings(&mut bindings);
                 Ok(Value::Function(*function_id, typ, Rc::new(bindings)))
             }
@@ -810,7 +781,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                         // Enum variant globals with generics are instantiated with a Type::Forall
                         // We need to resolve the type, but it has already been done by the elaborator
                         if let Value::Enum(tag, fields, _) = value {
-                            let typ = self.elaborator.interner.id_type(id).follow_bindings();
+                            let typ = self.expr_type(id).follow_bindings();
                             Ok(Value::Enum(*tag, fields.clone(), typ))
                         } else {
                             Ok(value.clone())
@@ -844,13 +815,16 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 }
             }
             DefinitionKind::NumericGeneric(type_variable, numeric_typ) => {
-                let value = Type::TypeVariable(type_variable.clone());
+                let value = self.ty(&Type::TypeVariable(type_variable.clone()));
                 self.evaluate_numeric_generic(&value, numeric_typ, id)
             }
             DefinitionKind::AssociatedConstant(trait_impl_id, name) => {
                 let typ =
                     self.elaborator.interner.find_associated_type_for_impl(*trait_impl_id, name);
                 let typ = typ.expect("Expected to find associated type");
+                // The value can mention the impl's generics (`A + B` in
+                // `impl<let A: u32, let B: u32>`), which the frame's substitution binds.
+                let typ = self.ty(typ);
                 let location = self.elaborator.interner.expr_location(&id);
                 match typ.evaluate_to_integer(&typ.kind(), location) {
                     Ok(value) => self.evaluate_integer_literal(value.to_bigint(), id),
@@ -886,47 +860,36 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     /// Lazily resolves the trait's method metas (so that downstream helpers like
     /// `bind_trait_impl_func_generics_to_trait_func_generics` can read them),
     /// then delegates to `resolve_trait_item` from the monomorphization module.
+    ///
+    /// Returns the resolved item and the instantiation bindings of `id` extended with the impl's.
     fn resolve_trait_item(
         &mut self,
         item: TraitItemId,
         id: ExprId,
-    ) -> Result<crate::monomorphization::TraitItem, InterpreterError> {
+    ) -> Result<(crate::monomorphization::TraitItem, TypeBindings), InterpreterError> {
         self.elaborator.resolve_trait_method_metas_for(item.trait_id);
-        let (item, impl_search_bindings) = resolve_trait_item(self.elaborator.interner, item, id)?;
+        let resolved = resolve_trait_item(self.elaborator.interner, item, id, &self.substitution)?;
         // The interpreter runs during elaboration, where solving a trait constraint is supposed
         // to commit the inference variables it resolved — the same thing `check_trait_constraints`
         // does for a constraint solved by the type checker.
-        impl_search_bindings.commit();
-        Ok(item)
+        Type::apply_type_bindings(resolved.impl_search_bindings);
+        Ok((resolved.item, self.bindings(&resolved.instantiation_bindings)))
     }
 
     fn evaluate_trait_item(&mut self, item: TraitItemId, id: ExprId) -> IResult<Value> {
-        let typ = self.elaborator.interner.id_type(id).follow_bindings();
+        let typ = self.expr_type(id).follow_bindings();
 
-        // `resolve_trait_item_impl` extends the call expression's stored instantiation
-        // bindings with the resolved impl's bindings (and, for shared default methods,
-        // pins the trait's `Self` to the impl's concrete self type). Snapshot and restore
-        // around the call so the same expression — visited again under a different
-        // monomorphization context — sees the elaboration-time bindings rather than
-        // leftover impl-specific entries from a previous visit. This mirrors the snapshot
-        // logic in `resolve_trait_item_expr` on the monomorphization side.
-        let saved_bindings = self.elaborator.interner.try_get_instantiation_bindings(id).cloned();
-        let resolved = self.resolve_trait_item(item, id);
-
-        let result = match resolved? {
-            crate::monomorphization::TraitItem::Method(func_id) => {
-                let bindings = self.elaborator.interner.get_instantiation_bindings(id).clone();
+        match self.resolve_trait_item(item, id)? {
+            (crate::monomorphization::TraitItem::Method(func_id), bindings) => {
                 Ok(Value::Function(func_id, typ, Rc::new(bindings)))
             }
-            crate::monomorphization::TraitItem::Constant { id: _, expected_type, value } => {
+            (crate::monomorphization::TraitItem::Constant { id: _, expected_type, value }, _) => {
+                // The value can mention the generics of the function being interpreted, e.g.
+                // `A + B` for `Self::N` inside a method of `impl<let A: u32, let B: u32>`.
+                let value = self.ty(&value);
                 self.evaluate_numeric_generic(&value, &expected_type, id)
             }
-        };
-
-        if let Some(saved) = saved_bindings {
-            self.elaborator.interner.store_instantiation_bindings(id, saved);
         }
-        result
     }
 
     fn evaluate_literal(&mut self, literal: HirLiteral, id: ExprId) -> IResult<Value> {
@@ -979,14 +942,14 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             }
         }
 
-        let typ = self.elaborator.interner.id_type(id).follow_bindings();
+        let typ = self.expr_type(id).follow_bindings();
         Ok(Value::FormatString(Rc::new(new_fragments), typ, length))
     }
 
     /// Since integers are polymorphic, evaluating one requires the result type.
     /// We pass down the result type the elaborator previously inferred.
     fn evaluate_integer_literal(&self, value: BigInt, id: ExprId) -> IResult<Value> {
-        let typ = self.elaborator.interner.id_type(id).follow_bindings();
+        let typ = self.expr_type(id).follow_bindings();
         let location = self.elaborator.interner.expr_location(&id);
         Integer::try_from_bigint(&value, &typ).map(Value::Integer).ok_or_else(|| {
             let typ = typ.clone();
@@ -1017,7 +980,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 
     fn evaluate_array(&mut self, array: HirArrayLiteral, id: ExprId) -> IResult<Value> {
-        let typ = self.elaborator.interner.id_type(id).follow_bindings();
+        let typ = self.expr_type(id).follow_bindings();
 
         match array {
             HirArrayLiteral::Standard(elements) => {
@@ -1032,7 +995,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let element = self.evaluate(repeated_element)?;
 
                 let location = self.elaborator.interner.id_location(id);
-                match length.evaluate_to_u32(location) {
+                match self.ty(&length).evaluate_to_u32(location) {
                     Ok(length) => {
                         let elements = (0..length).map(|_| element.clone()).collect();
                         Ok(Value::Array(elements, typ))
@@ -1097,8 +1060,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             .unwrap_or_else(|| panic!("Interpreter::evaluate_overloaded_infix: expected operator method to be resolved for {:?}", infix.operator));
         let operator = infix.operator.kind;
 
-        let method_id = self.resolve_trait_item(method, id)?.unwrap_method();
-        let type_bindings = self.elaborator.interner.get_instantiation_bindings(id).clone();
+        let (method, type_bindings) = self.resolve_trait_item(method, id)?;
+        let method_id = method.unwrap_method();
 
         let lhs = (lhs, self.elaborator.interner.expr_location(&infix.lhs));
         let rhs = (rhs, self.elaborator.interner.expr_location(&infix.rhs));
@@ -1128,8 +1091,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         let method =
             prefix.trait_method_id.expect("ice: expected prefix operator trait at this point");
 
-        let method_id = self.resolve_trait_item(method, id)?.unwrap_method();
-        let type_bindings = self.elaborator.interner.get_instantiation_bindings(id).clone();
+        let (method, type_bindings) = self.resolve_trait_item(method, id)?;
+        let method_id = method.unwrap_method();
 
         let rhs = (rhs, self.elaborator.interner.expr_location(&prefix.rhs));
 
@@ -1214,7 +1177,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             })
             .collect::<Result<_, _>>()?;
 
-        let typ = self.elaborator.interner.id_type(id).follow_bindings();
+        let typ = self.expr_type(id).follow_bindings();
         Ok(Value::Struct(fields, typ))
     }
 
@@ -1225,7 +1188,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         id: ExprId,
     ) -> IResult<Value> {
         let fields = try_vecmap(constructor.arguments, |arg| self.evaluate(arg))?;
-        let typ = self.elaborator.interner.id_type(id).unwrap_forall().1.follow_bindings();
+        let typ = self
+            .elaborator
+            .interner
+            .try_id_type(id)
+            .map_or(Type::Error, |typ| self.ty(typ.unwrap_forall().1))
+            .follow_bindings();
         Ok(Value::Enum(constructor.variant_index, fields, typ))
     }
 
@@ -1290,10 +1258,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let mut result = self.call_function(function_id, arguments, bindings, location)?;
                 if call.is_macro_call {
                     let expr = result.into_expression(self.elaborator, location)?;
-                    let expr =
-                        self.elaborate_in_function(self.current_function, None, |elaborator| {
-                            elaborator.elaborate_expression(expr).0
-                        });
+                    let expr = self.elaborator.elaborate_item_from_comptime_in_function(
+                        self.current_function,
+                        None,
+                        |elaborator| elaborator.elaborate_expression(expr).0,
+                    );
                     result = self.evaluate(expr)?;
 
                     self.unify_macro_call_result_with_expected_type(id, location, &result);
@@ -1308,31 +1277,27 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
     }
 
-    /// Macro calls are typed as type variables during type checking.
-    /// Once we know their type we need to further  unify it in case there
-    /// are inconsistencies or the type needs to be known.
+    /// Macro calls are typed as type variables during type checking. Once the call has produced
+    /// a value, unify its type with the expression's and add what that solves to the frame's
+    /// substitution, so that the rest of the function sees the macro call's type.
     fn unify_macro_call_result_with_expected_type(
         &mut self,
         id: ExprId,
         location: Location,
         result: &Value,
     ) {
-        let expected_type = self.elaborator.interner.id_type(id);
-        let actual_type = result.get_type();
+        for var_id in self.macro_call_bindings.remove(&id).unwrap_or_default() {
+            self.substitution.remove(&var_id);
+        }
 
-        // Undo any bindings (if any) from the last time we unified this expression's
-        // type against the actual type. The guard lives in the interner between the two visits,
-        // since there is no scope here that spans them.
-        drop(self.elaborator.interner.macro_call_expression_bindings.remove(&id));
+        let expected_type = self.expr_type(id);
+        let actual_type = result.get_type();
 
         let mut bindings = TypeBindings::default();
         match actual_type.try_unify(&expected_type, &mut bindings) {
             Ok(()) => {
-                // Store the guard so we can undo them next time
-                self.elaborator
-                    .interner
-                    .macro_call_expression_bindings
-                    .insert(id, BoundTypeVariables::apply(&bindings));
+                self.macro_call_bindings.insert(id, bindings.keys().copied().collect());
+                self.substitution.extend(bindings);
             }
             Err(UnificationError) => {
                 self.elaborator.push_err(self.elaborator.new_type_mismatch_error(
@@ -1347,7 +1312,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn evaluate_cast(&mut self, cast: &HirCastExpression, id: ExprId) -> IResult<Value> {
         let evaluated_lhs = self.evaluate(cast.lhs)?;
         let location = self.elaborator.interner.expr_location(&id);
-        evaluate_cast_one_step(&cast.r#type, location, evaluated_lhs)
+        evaluate_cast_one_step(&self.ty(&cast.r#type), location, evaluated_lhs)
     }
 
     fn evaluate_if(&mut self, if_: &HirIfExpression) -> IResult<Value> {
@@ -1401,16 +1366,15 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             Ok(value.move_struct())
         })?;
 
-        let typ = self.elaborator.interner.id_type(id).follow_bindings();
+        let typ = self.expr_type(id).follow_bindings();
         let module_scope = self.elaborator.module_id();
-        let bindings = self.bound_generics.last().cloned().unwrap_or_default();
         let closure = Closure {
             lambda,
             env,
             typ,
             function_scope: self.current_function,
             module_scope,
-            bindings,
+            substitution: self.substitution.clone(),
         };
         Ok(Value::Closure(Box::new(closure)))
     }
@@ -1460,7 +1424,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     pub(crate) fn evaluate_let(&mut self, let_: HirLetStatement) -> IResult<Value> {
         let rhs = self.evaluate(let_.expression)?;
         let location = self.elaborator.interner.expr_location(&let_.expression);
-        self.define_pattern(&let_.pattern, &let_.r#type, rhs, location)?;
+        self.define_pattern(&let_.pattern, &self.ty(&let_.r#type), rhs, location)?;
         Ok(Value::Unit)
     }
 

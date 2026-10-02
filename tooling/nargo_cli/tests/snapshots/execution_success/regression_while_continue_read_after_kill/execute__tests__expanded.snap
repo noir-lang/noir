@@ -1,0 +1,26 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn main(c: bool, i: u32, n: u32) {
+    let mut x: [u32; 3] = [1_u32, 2_u32, 3_u32];
+    let mut k: u32 = 0_u32;
+    let mut acc: u32 = 0_u32;
+    while k < n {
+        k = k + 1_u32;
+        x = [4_u32, 5_u32, 6_u32];
+        {
+            let op_rhs_0: u32 = h(x, i);
+            acc = acc + op_rhs_0;
+        };
+        if c { continue; };
+        x = [7_u32, 8_u32, 9_u32];
+    }
+    acc = acc + x[0_u32];
+    assert(acc == 14_u32);
+}
+
+unconstrained fn h(mut a: [u32; 3], i: u32) -> u32 {
+    a[i] = 99_u32;
+    a[1_u32]
+}

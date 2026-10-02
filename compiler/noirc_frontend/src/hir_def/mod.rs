@@ -9,5 +9,4 @@ pub mod expr;
 pub mod function;
 pub mod stmt;
 pub mod traits;
-pub mod type_variable_writes;
 pub mod types;

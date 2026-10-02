@@ -32,6 +32,7 @@ use noirc_errors::{Located, Location};
 use rustc_hash::FxHashMap as HashMap;
 use rustc_hash::FxHashSet as HashSet;
 
+use super::deferred::PendingWhereClauseCheck;
 use super::{
     Elaborator,
     item_context::{ImplContext, ItemContext, ModuleContext},
@@ -309,112 +310,111 @@ impl Elaborator<'_> {
         trait_impl: &mut UnresolvedTraitImpl,
         trait_impl_where_clause: &[TraitConstraint],
     ) {
-        let previous_local_module = self.item.module.replace_local_module(trait_impl.module_id);
+        self.in_local_module(trait_impl.module_id, |this| {
+            let impl_id =
+                trait_impl.impl_id.expect("impl_id should be set in define_function_metas");
 
-        let impl_id = trait_impl.impl_id.expect("impl_id should be set in define_function_metas");
+            // In this Vec methods[i] corresponds to trait.methods[i]. If the impl has no implementation
+            // for a particular method, the default implementation will be added at that slot.
+            let mut ordered_methods = Vec::new();
 
-        // In this Vec methods[i] corresponds to trait.methods[i]. If the impl has no implementation
-        // for a particular method, the default implementation will be added at that slot.
-        let mut ordered_methods = Vec::new();
+            // Check whether the trait implementation is in the same crate as either the trait or the type
+            this.check_trait_impl_crate_coherence(trait_id, trait_impl);
 
-        // Check whether the trait implementation is in the same crate as either the trait or the type
-        self.check_trait_impl_crate_coherence(trait_id, trait_impl);
+            // Set of function ids that have a corresponding method in the trait
+            let mut func_ids_in_trait = HashSet::default();
 
-        // Set of function ids that have a corresponding method in the trait
-        let mut func_ids_in_trait = HashSet::default();
+            // Temporarily take ownership of the trait's methods so we can iterate over them
+            // while also mutating the interner
+            let the_trait = this.interner.get_trait_mut(trait_id);
+            let methods = std::mem::take(&mut the_trait.methods);
+            for method in &methods {
+                let overrides: Vec<_> = trait_impl
+                    .methods
+                    .functions
+                    .iter()
+                    .filter(|(_, _, f)| f.name() == method.name.as_str())
+                    .collect();
 
-        // Temporarily take ownership of the trait's methods so we can iterate over them
-        // while also mutating the interner
-        let the_trait = self.interner.get_trait_mut(trait_id);
-        let methods = std::mem::take(&mut the_trait.methods);
-        for method in &methods {
-            let overrides: Vec<_> = trait_impl
-                .methods
-                .functions
-                .iter()
-                .filter(|(_, _, f)| f.name() == method.name.as_str())
-                .collect();
-
-            if overrides.is_empty() {
-                if let Some(default_impl) = &method.default_impl {
-                    // Reuse the trait's own FuncId for the default method instead of cloning
-                    // the body into a fresh FuncId per impl. The body has already been
-                    // elaborated once at the trait definition (`elaborate_traits` walks
-                    // `UnresolvedTrait::fns_with_default_impl`). Sharing the FuncId means
-                    // the body is type-checked exactly once, errors are reported once, and
-                    // paths in the body resolve from the trait's module rather than each
-                    // impl's. Per-call `Self` substitution still happens at the call site
-                    // via the instantiation bindings recorded during trait method
-                    // resolution, so dispatch needs no extra work.
-                    let trait_func_id =
-                        self.interner.get_trait(trait_id).method_ids[method.name.as_str()];
-                    trait_impl.inherited_default_method_func_ids.insert(trait_func_id);
-                    func_ids_in_trait.insert(trait_func_id);
-                    ordered_methods.push((
-                        method.default_impl_module_id,
-                        trait_func_id,
-                        *default_impl.clone(),
-                    ));
+                if overrides.is_empty() {
+                    if let Some(default_impl) = &method.default_impl {
+                        // Reuse the trait's own FuncId for the default method instead of cloning
+                        // the body into a fresh FuncId per impl. The body has already been
+                        // elaborated once at the trait definition (`elaborate_traits` walks
+                        // `UnresolvedTrait::fns_with_default_impl`). Sharing the FuncId means
+                        // the body is type-checked exactly once, errors are reported once, and
+                        // paths in the body resolve from the trait's module rather than each
+                        // impl's. Per-call `Self` substitution still happens at the call site
+                        // via the instantiation bindings recorded during trait method
+                        // resolution, so dispatch needs no extra work.
+                        let trait_func_id =
+                            this.interner.get_trait(trait_id).method_ids[method.name.as_str()];
+                        trait_impl.inherited_default_method_func_ids.insert(trait_func_id);
+                        func_ids_in_trait.insert(trait_func_id);
+                        ordered_methods.push((
+                            method.default_impl_module_id,
+                            trait_func_id,
+                            *default_impl.clone(),
+                        ));
+                    } else {
+                        this.push_err(DefCollectorErrorKind::TraitMissingMethod {
+                            trait_name: this.interner.get_trait(trait_id).name.clone(),
+                            method_name: method.name.clone(),
+                            trait_impl_location: trait_impl.object_type.location,
+                        });
+                    }
                 } else {
-                    self.push_err(DefCollectorErrorKind::TraitMissingMethod {
-                        trait_name: self.interner.get_trait(trait_id).name.clone(),
-                        method_name: method.name.clone(),
-                        trait_impl_location: trait_impl.object_type.location,
-                    });
-                }
-            } else {
-                let ordered_generics =
-                    self.interner.get_ordered_generics_for_impl(impl_id).to_vec();
-                for (_, func_id, _) in &overrides {
-                    // Defer the where-clause check until after the post-attribute
-                    // drain so that the impl method's meta and the trait method's
-                    // `TraitFunction` record are both fully resolved.
-                    self.queue_pending_where_clause_check(
-                        *func_id,
-                        method,
-                        trait_impl_where_clause,
-                        &ordered_generics,
-                        trait_id,
-                        impl_id,
-                    );
+                    let ordered_generics =
+                        this.interner.get_ordered_generics_for_impl(impl_id).to_vec();
+                    for (_, func_id, _) in &overrides {
+                        // Defer the where-clause check until after the post-attribute
+                        // drain so that the impl method's meta and the trait method's
+                        // `TraitFunction` record are both fully resolved.
+                        this.queue_pending_where_clause_check(
+                            *func_id,
+                            method,
+                            trait_impl_where_clause,
+                            &ordered_generics,
+                            trait_id,
+                            impl_id,
+                        );
 
-                    func_ids_in_trait.insert(*func_id);
-                }
+                        func_ids_in_trait.insert(*func_id);
+                    }
 
-                if overrides.len() > 1 {
-                    self.push_err(DefCollectorErrorKind::Duplicate {
-                        typ: DuplicateType::TraitAssociatedItem,
-                        first_def: overrides[0].2.name_ident().clone(),
-                        second_def: overrides[1].2.name_ident().clone(),
-                    });
-                }
+                    if overrides.len() > 1 {
+                        this.push_err(DefCollectorErrorKind::Duplicate {
+                            typ: DuplicateType::TraitAssociatedItem,
+                            first_def: overrides[0].2.name_ident().clone(),
+                            second_def: overrides[1].2.name_ident().clone(),
+                        });
+                    }
 
-                ordered_methods.push(overrides[0].clone());
+                    ordered_methods.push(overrides[0].clone());
+                }
             }
-        }
 
-        // Restore the methods that were taken before the for loop
-        let the_trait = self.interner.get_trait_mut(trait_id);
-        the_trait.set_methods(methods);
+            // Restore the methods that were taken before the for loop
+            let the_trait = this.interner.get_trait_mut(trait_id);
+            the_trait.set_methods(methods);
 
-        let trait_name = the_trait.name.clone();
+            let trait_name = the_trait.name.clone();
 
-        // Emit MethodNotInTrait error for methods in the impl block that
-        // don't have a corresponding method signature defined in the trait
-        for (_, func_id, func) in &trait_impl.methods.functions {
-            if !func_ids_in_trait.contains(func_id) {
-                let trait_name = trait_name.clone();
-                let impl_method = func.name_ident().clone();
-                let error = DefCollectorErrorKind::MethodNotInTrait { trait_name, impl_method };
-                let error: CompilationError = error.into();
-                self.push_err(error);
+            // Emit MethodNotInTrait error for methods in the impl block that
+            // don't have a corresponding method signature defined in the trait
+            for (_, func_id, func) in &trait_impl.methods.functions {
+                if !func_ids_in_trait.contains(func_id) {
+                    let trait_name = trait_name.clone();
+                    let impl_method = func.name_ident().clone();
+                    let error = DefCollectorErrorKind::MethodNotInTrait { trait_name, impl_method };
+                    let error: CompilationError = error.into();
+                    this.push_err(error);
+                }
             }
-        }
 
-        trait_impl.methods.functions = ordered_methods;
-        trait_impl.methods.trait_id = Some(trait_id);
-
-        self.item.module.set_local_module(previous_local_module);
+            trait_impl.methods.functions = ordered_methods;
+            trait_impl.methods.trait_id = Some(trait_id);
+        });
     }
 
     /// Issue an error if the impl is stricter than the trait.
@@ -445,7 +445,7 @@ impl Elaborator<'_> {
         impl_id: TraitImplId,
     ) {
         let module_id = self.item.module.local_module();
-        self.pending_trait_work.where_clause_checks.push(super::PendingWhereClauseCheck {
+        self.deferred.trait_work.where_clause_checks.push(PendingWhereClauseCheck {
             impl_method_func_id,
             trait_id,
             impl_id,
@@ -462,7 +462,7 @@ impl Elaborator<'_> {
     /// [`Elaborator::populate_resolved_trait_method_records`] has updated the
     /// trait's `TraitFunction` records.
     pub(super) fn run_pending_where_clause_checks(&mut self) {
-        let pending = std::mem::take(&mut self.pending_trait_work.where_clause_checks);
+        let pending = std::mem::take(&mut self.deferred.trait_work.where_clause_checks);
         for check in pending {
             // Re-fetch the trait method's TraitFunction record (now populated)
             // by name, mirroring how `collect_trait_impl_methods` matched it.
@@ -529,13 +529,11 @@ impl Elaborator<'_> {
             let trait_fn_kind = trait_fn_generic.kind();
             let arg = impl_fn_resolved_generic.clone().into_named_generic(None);
 
-            if self.check_kind(
-                trait_fn_kind.clone(),
-                &arg.kind(),
-                impl_fn_resolved_generic.location,
-            ) {
-                bindings
-                    .insert(trait_fn_generic.id(), (trait_fn_generic.clone(), trait_fn_kind, arg));
+            if self.check_kind(&trait_fn_kind, &arg.kind(), impl_fn_resolved_generic.location) {
+                bindings.insert(
+                    trait_fn_generic.id(),
+                    (trait_fn_generic.clone(), trait_fn_kind.into_owned(), arg),
+                );
             }
         }
 
@@ -661,23 +659,21 @@ impl Elaborator<'_> {
         trait_id: TraitId,
         trait_impl: &UnresolvedTraitImpl,
     ) {
-        let previous_local_module = self.item.module.replace_local_module(trait_impl.module_id);
+        self.in_local_module(trait_impl.module_id, |this| {
+            let object_crate = match &trait_impl.resolved_object_type {
+                Some(Type::DataType(struct_or_enum_type, _)) => {
+                    Some(struct_or_enum_type.borrow().id.krate())
+                }
+                _ => None,
+            };
 
-        let object_crate = match &trait_impl.resolved_object_type {
-            Some(Type::DataType(struct_or_enum_type, _)) => {
-                Some(struct_or_enum_type.borrow().id.krate())
+            let the_trait = this.interner.get_trait(trait_id);
+            if this.crate_id != the_trait.crate_id && Some(this.crate_id) != object_crate {
+                this.push_err(DefCollectorErrorKind::TraitImplOrphaned {
+                    location: trait_impl.object_type.location,
+                });
             }
-            _ => None,
-        };
-
-        let the_trait = self.interner.get_trait(trait_id);
-        if self.crate_id != the_trait.crate_id && Some(self.crate_id) != object_crate {
-            self.push_err(DefCollectorErrorKind::TraitImplOrphaned {
-                location: trait_impl.object_type.location,
-            });
-        }
-
-        self.item.module.set_local_module(previous_local_module);
+        });
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
@@ -791,7 +787,7 @@ impl Elaborator<'_> {
         // (which are stored in the trait's where clause as constraints on Self)
         // get checked against the concrete impl type.
         let self_var = the_trait.self_type_typevar.clone();
-        let self_kind = self_var.kind();
+        let self_kind = self_var.kind().into_owned();
         let mut bindings = TypeBindings::default();
         bindings.insert(self_var.id(), (self_var, self_kind, object_type.clone()));
         bind_ordered_generics(&the_trait.generics, ordered_generics, &mut bindings);
@@ -886,11 +882,11 @@ impl Elaborator<'_> {
         for named_type in named_generics.iter_mut() {
             match &named_type.typ {
                 Type::NamedGeneric(NamedGeneric { type_var, implicit: true, .. })
-                    if type_var.borrow().is_unbound() =>
+                    if type_var.binding().is_unbound() =>
                 {
                     let type_var_id = type_var.id();
                     let new_type_var_id = self.interner.next_type_variable_id();
-                    let kind = type_var.kind();
+                    let kind = type_var.kind().into_owned();
                     let new_type_var = TypeVariable::unbound(new_type_var_id, kind.clone());
                     named_type.typ = Type::TypeVariable(new_type_var.clone());
                     bindings.insert(type_var_id, (new_type_var, kind, named_type.typ.clone()));
@@ -1204,7 +1200,7 @@ fn pair_implicit_associated_generics(
 ) -> TypeBindings {
     let implicit_placeholder = |typ: &Type| match typ {
         Type::NamedGeneric(generic)
-            if generic.implicit && generic.type_var.borrow().is_unbound() =>
+            if generic.implicit && generic.type_var.binding().is_unbound() =>
         {
             Some(generic.type_var.clone())
         }
@@ -1268,7 +1264,7 @@ fn pair_implicit_associated_generics(
                 continue;
             }
 
-            let kind = type_var.kind();
+            let kind = type_var.kind().into_owned();
             pairs.insert(type_var.id(), (type_var, kind, override_named.typ.clone()));
         }
     }

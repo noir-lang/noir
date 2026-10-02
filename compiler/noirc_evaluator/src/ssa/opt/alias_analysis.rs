@@ -14,8 +14,11 @@
 //! It runs in two passes; the second recovers some precision and is not mandatory.
 //!
 //! # Preconditions
-//! The analysis should be done after defunctionalization and lower ACIR references,
-//! but it is not mandatory. If not, you will just lose precision.
+//! The analysis must be done after defunctionalization, and panics on a call through a
+//! function value. Such a call has no callee body to follow, and the function it reaches has
+//! no call site linking its parameters to the caller's arguments, so no sound answer exists.
+//! It should also be done after lower ACIR references, but that is not mandatory: if not,
+//! you will just lose precision.
 //! The analysis assumes global values do not hold reference and will panic if they do.
 //!
 //! Supporting globals with reference would not be too difficult:
@@ -41,8 +44,8 @@
 //!
 //! ### Function pointers
 //! Function pointers are not handled here, contrary to the textbook approach.
-//! This is because defunctionalization is run early in the Ssa workflow, so it is probably
-//! not worth the additional complexity
+//! Defunctionalization runs early in the Ssa workflow and turns them into direct calls,
+//! which the analysis requires (see "Preconditions").
 //!
 //! ### Type-based filtering
 //! May-alias queries use type information to recover some of the precision lost due to field-insensitivity
@@ -51,7 +54,6 @@
 //! Unresolved function calls are not handled in Steensgaard analysis, however not all functions
 //! are known in a Noir program (e.g Foreign calls). We add support for such unresolved calls
 //! through a conservative analysis based on the function's signature. This allows us to support:
-//! - high-order functions before defunctionalization
 //! - foreign calls (although passing references to foreign calls is not allowed)
 //! - single function analysis (although not recommended)
 //!
@@ -64,33 +66,20 @@
 //! - per value, in `allocation_sites`, and inherited for block parameters when arguments all match to the same site
 //! - per `points_to` sets, in `points_to_sites`, if all write to a pointer have the same site.
 //!
-//! A second pass will conservatively associate allocation sites to load operations,
-//! when the `points_to` sets of the loaded address have a known allocation site.
-//! It is important to skip load operations during pass 1 so that store operations are not polluted by transient load results.
-//! The points-to-set sites are computed using stored values only — load results stay `NoAllocation` in pass 1 (less precise but sound).
-//! Pass 2 then propagates those points-to sites into to the load results.
+//! Load and `ArrayGet` results are never given a site: the cell they read may have been written
+//! by another activation of the function, by a caller, or by a callee the analysis cannot see.
 //!
 //! #### Must Alias
-//! Two values sharing the same `Known(site)` only must-alias if that static
-//! `Allocate` instruction fires at most once per program execution. Otherwise
-//! the same site corresponds to distinct runtime cells across calls, and
-//! trusting the site as an equality check would be unsound.
+//! Sites only flow through SSA values of one function (`Allocate` results, block parameters,
+//! `IfElse` results), so two values sharing the same `Known(site)` come from the same activation
+//! of that function. They must-alias if that `Allocate` fires at most once per activation.
 //!
-//! A site is *untrusted* when it can fire multiple times. We track this in:
-//! - `loop_allocates` — `Allocate`s sitting inside a CFG loop in their
-//!   defining function: each iteration produces a fresh cell.
-//! - `untrusted_site_functions` — functions whose body itself runs more than
-//!   once per execution. This is seeded with the recursive (self- and
-//!   mutually-recursive) functions from the call graph and extended during
-//!   pass 1 with callee-side replication: a callee whose `return_values`
-//!   slot is reused and a callee invoked from a loop block
-//!   in the caller. Pass 1 walks functions caller-before-callee in
-//!   call-graph topological order so this propagates transitively — when
-//!   analyzing an already-untrusted function, every block is treated as a
-//!   loop block, marking every nested callee untrusted in turn.
+//! A site is *untrusted* when it can fire multiple times in one activation:
+//! `loop_allocates` records the `Allocate`s sitting inside a CFG loop, where each
+//! iteration produces a fresh cell. Functions in `untrusted_site_functions` (recursive,
+//! called from several sites or from a loop) have all their `Allocate`s recorded there too.
 //!
-//! `must_alias` rejects sites caught by either filter; only trusted sites
-//! survive as equivalence keys.
+//! `must_alias` rejects `loop_allocates` sites; only trusted sites survive as equivalence keys.
 //!
 //! ## References
 //!
@@ -154,9 +143,6 @@ pub(crate) struct AliasAnalysis {
     /// This is used to recover precision by saying that two values having
     /// two distinct allocation sites cannot alias.
     allocation_sites: HashMap<GlobalValueId, AllocationLattice>,
-
-    /// Functions whose body may run more than once per program execution.
-    untrusted_site_functions: HashSet<FunctionId>,
 
     /// Individual `Allocate` instructions inside loops. Each iteration
     /// of a loop produces a fresh cell, so the static site must not pin
@@ -227,11 +213,17 @@ impl AliasAnalysis {
     }
 
     /// Recursively check if `target` can be referenced by `from`
+    ///
+    /// `from` reaches `target` by being `target`'s cell, or by following `points_to` to it.
+    /// Allocation sites only rule out the first: `cannot_equal` answers cell identity, which
+    /// is [`Self::may_alias`]'s question, so the walk must still run once it has fired.
     pub(crate) fn may_reference(&mut self, from: GlobalValueId, target: GlobalValueId) -> bool {
         let from_rep = self.aliases.find_existing(from);
         let target_rep = self.aliases.find_existing(target);
-        if from_rep == target_rep {
-            return !self.get_allocation(from).cannot_equal(&self.get_allocation(target));
+        if from_rep == target_rep
+            && !self.get_allocation(from).cannot_equal(&self.get_allocation(target))
+        {
+            return true;
         }
         let mut seen = HashSet::default();
         let mut current = from_rep;
@@ -288,18 +280,11 @@ impl AliasAnalysis {
     }
 
     /// Extract the allocation site if it is trusted:
-    /// A site is untrusted if multiple runtime cells may share it.
-    /// This happens when:
-    /// - the defining function may be called multiple times (e.g. recursion), or
-    /// - the allocation is done inside a loop.
+    /// A site is untrusted if multiple runtime cells of the same activation may share it,
+    /// which happens when the allocation is recorded in `loop_allocates`.
     fn is_trusted(&self, allocation_site: AllocationLattice) -> Option<GlobalValueId> {
         match allocation_site {
-            AllocationLattice::Known(site)
-                if !(self.untrusted_site_functions.contains(&site.func_id())
-                    || self.loop_allocates.contains(&site)) =>
-            {
-                Some(site)
-            }
+            AllocationLattice::Known(site) if !self.loop_allocates.contains(&site) => Some(site),
             _ => None,
         }
     }
@@ -418,7 +403,7 @@ impl AliasAnalysisContext {
             analysis.analyze_function(ssa, function);
         }
 
-        // Pass 2: propagate sites for Load / ArrayGet from the allocation site of their address's pointees
+        // Pass 2: recompute block-parameter and `IfElse` sites
         for function in &functions {
             analysis.refine_allocation_sites(function, ssa.is_entry_point(function.id()));
         }
@@ -441,16 +426,12 @@ impl AliasAnalysisContext {
             points_to: analysis.points_to,
             class_sizes: None,
             allocation_sites: analysis.allocation_sites,
-            untrusted_site_functions: analysis.untrusted_site_functions,
             loop_allocates: analysis.loop_allocates,
         }
     }
 
-    /// Pass 2: refine allocation site information using the post-pass-1 state of `points_to_sites`
-    /// to recover precision for load operations (and non-store instructions).
-    /// This pass must be done after the first one to benefit from `points_to_sites` computations.
-    /// Stores sites must NOT be handled here because this can impact Load sites,
-    /// and this would require a fixed-point computation. They are explicitly added as an empty case.
+    /// Pass 2: recompute the allocation sites of block parameters and `IfElse` results,
+    /// now that every value has a pass-1 site.
     fn refine_allocation_sites(&mut self, function: &Function, is_entry_point: bool) {
         let cfg = ControlFlowGraph::with_function(function);
         let blocks = PostOrder::with_cfg(&cfg).into_vec_reverse();
@@ -459,12 +440,6 @@ impl AliasAnalysisContext {
             for inst_id in function.dfg[block_id].instructions() {
                 let results = function.dfg.instruction_results(*inst_id);
                 match &function.dfg[*inst_id] {
-                    Instruction::Load { address } => {
-                        self.set_pointer_allocation_site(function, results[0], *address);
-                    }
-                    Instruction::ArrayGet { array, .. } => {
-                        self.set_pointer_allocation_site(function, results[0], *array);
-                    }
                     Instruction::IfElse { then_value, else_value, .. } => {
                         self.allocation_site_for_ifelse(
                             function,
@@ -480,35 +455,6 @@ impl AliasAnalysisContext {
                 }
             }
         }
-    }
-
-    /// Assign a known allocation site to the result of a load operation
-    /// if the loaded address points to a known site.
-    fn set_pointer_allocation_site(
-        &mut self,
-        function: &Function,
-        result: ValueId,
-        container: ValueId,
-    ) {
-        if !function.dfg.type_of_value(result).contains_reference() {
-            return;
-        }
-        let result_global = GlobalValueId::new(function, result);
-        let site = self.get_pointer_allocation_site(function, container);
-        self.set_allocation(result_global, site);
-    }
-
-    /// Retrieve a `pointer allocation site`, i.e the site of the elements pointed by it
-    fn get_pointer_allocation_site(
-        &mut self,
-        function: &Function,
-        pointer: ValueId,
-    ) -> AllocationLattice {
-        let pointer_global = GlobalValueId::new(function, pointer);
-        let pointee =
-            self.get_pointee(pointer_global).expect("ICE - Pointer does not reference a value");
-        let pointee_root = self.aliases.find(pointee);
-        *self.points_to_sites.get(&pointee_root).unwrap_or(&AllocationLattice::NoAllocation)
     }
 
     /// Compute the IfElse-result site as the join of the two branches'
@@ -689,7 +635,7 @@ impl AliasAnalysisContext {
         function: &Function,
         block_id: BasicBlockId,
         ssa: &Ssa,
-        mut ignore_allocations_in_block: bool,
+        ignore_allocations_in_block: bool,
     ) {
         let block = &function.dfg[block_id];
 
@@ -750,16 +696,11 @@ impl AliasAnalysisContext {
                         Value::ForeignFunction { .. } => {
                             self.unresolved_call(function, arguments, results);
                         }
-                        // Fallthrough for unresolved functions whose function body
-                        // is not available, via a conservative type-based analysis.
-                        _ => {
-                            self.unresolved_call(function, arguments, results);
-                            // Conservatively assume that any function called
-                            // may put us in indirect recursive calls
-                            self.untrusted_site_functions.insert(function.id());
-                            // no need to continue collecting the in-loop allocations
-                            ignore_allocations_in_block = true;
-                        }
+                        // A call through a function value: see "Preconditions".
+                        _ => panic!(
+                            "alias analysis requires defunctionalized SSA, but `{}` calls a function value",
+                            function.name()
+                        ),
                     }
                 }
                 Instruction::ArrayGet { array, .. } => {
@@ -1338,8 +1279,18 @@ impl AliasAnalysisContext {
 #[cfg(test)]
 mod tests {
     //! Unit tests for the alias analysis.
+    use std::collections::BTreeSet;
+
+    use acvm::acir::brillig::lengths::SemanticLength;
+    use arbtest::arbitrary::{self, Unstructured};
+    use noirc_frontend::monomorphization::ast::InlineType;
+
     use super::*;
-    use crate::ssa::{ir::instruction::Instruction, ssa_gen::Ssa};
+    use crate::ssa::{
+        function_builder::FunctionBuilder,
+        ir::{function::RuntimeType, instruction::Instruction, map::Id},
+        ssa_gen::Ssa,
+    };
 
     /// Collect the result `ValueIds` of every `Allocate` instruction in the main
     /// function, in declaration order (across reachable blocks).
@@ -1408,6 +1359,689 @@ mod tests {
 
     fn analyze_main(ssa: &Ssa) -> AliasAnalysis {
         AliasAnalysis::analyze(ssa)
+    }
+
+    // ============================================================
+    // Soundness properties
+    // ============================================================
+    //
+    // `may_alias` and `may_reference` are *may* analyses. Answering `true` too often only
+    // costs optimizations; answering `false` wrongly lets `load_store_forwarding` reuse a
+    // stale value. The two properties below check that the second kind of mistake never
+    // happens.
+    //
+    // Each case builds a random function that does nothing but move references around, and
+    // while building it records in a `Model` which `allocate` each reference may denote and
+    // which references each cell may hold. The model never consults `AliasAnalysis`, and
+    // every fact it records is realised by some execution, so it is a lower bound: whenever
+    // the model says two values can be one cell, or that one reaches another, the analysis
+    // has to say so too.
+
+    /// A cell is one `allocate` in the generated function, identified by its position.
+    type Cell = usize;
+
+    /// What the generated function can do to memory, tracked independently of the analysis.
+    #[derive(Default)]
+    struct Model {
+        /// The cells each reference value may denote.
+        denotes: HashMap<ValueId, BTreeSet<Cell>>,
+        /// `holds[c]` is every cell whose reference may have been stored into cell `c`.
+        holds: Vec<BTreeSet<Cell>>,
+        /// The elements of each array or vector value, in order.
+        elements: HashMap<ValueId, Vec<ValueId>>,
+    }
+
+    impl Model {
+        fn allocate(&mut self, reference: ValueId) {
+            self.denotes.insert(reference, BTreeSet::from([self.holds.len()]));
+            self.holds.push(BTreeSet::new());
+        }
+
+        /// `result` may denote any cell one of `sources` may denote.
+        fn copy(&mut self, result: ValueId, sources: &[ValueId]) {
+            let cells = sources.iter().flat_map(|source| self.denotes[source].clone()).collect();
+            self.denotes.insert(result, cells);
+        }
+
+        fn store(&mut self, address: ValueId, value: ValueId) {
+            for cell in &self.denotes[&address] {
+                self.holds[*cell].extend(&self.denotes[&value]);
+            }
+        }
+
+        /// The cells a reference loaded through `address` may denote.
+        fn loaded(&self, address: ValueId) -> BTreeSet<Cell> {
+            self.denotes[&address].iter().flat_map(|cell| self.holds[*cell].clone()).collect()
+        }
+
+        fn can_be_one_cell(&self, a: ValueId, b: ValueId) -> bool {
+            !self.denotes[&a].is_disjoint(&self.denotes[&b])
+        }
+
+        /// Every cell reachable from `value`: through the stores out of the cells a reference
+        /// denotes, or, for an aggregate, its elements' own cells and everything they reach.
+        fn reachable_from(&self, value: ValueId) -> BTreeSet<Cell> {
+            let mut reached = BTreeSet::new();
+            let mut stack: Vec<Cell> = if let Some(elements) = self.elements.get(&value) {
+                let cells: Vec<Cell> =
+                    elements.iter().flat_map(|element| self.denotes[element].clone()).collect();
+                reached.extend(&cells);
+                cells
+            } else {
+                self.denotes[&value].iter().copied().collect()
+            };
+            while let Some(cell) = stack.pop() {
+                for held in &self.holds[cell] {
+                    if reached.insert(*held) {
+                        stack.push(*held);
+                    }
+                }
+            }
+            reached
+        }
+    }
+
+    /// A random function built from reference-only SSA, and its model.
+    struct Program {
+        ssa: Ssa,
+        model: Model,
+        /// Every reference value in `main` the model tracks.
+        references: Vec<ValueId>,
+        /// Every array and vector value in `main` the model tracks.
+        arrays: Vec<ValueId>,
+    }
+
+    /// The second function `main` may call. Its body is fixed so the model can apply its
+    /// effect exactly, which is what lets a *resolved* call be tested.
+    enum Callee {
+        /// `writer(address, value)` stores `value` at `address`.
+        Writer { value_type: Type },
+        /// `identity(reference)` returns `reference`.
+        Identity { reference_type: Type },
+    }
+
+    /// The control-flow shape the generated instructions are laid out in. The model is
+    /// flow-insensitive, so the shape does not change what may point at what, but the
+    /// analysis only runs its CFG walk, predecessor merge and loop handling with more than
+    /// one block.
+    #[derive(PartialEq)]
+    enum Shape {
+        /// One block.
+        Straight,
+        /// `b0` jumps to `b1`, splitting the instructions between them.
+        Chain,
+        /// `b1` loops back to itself, which makes every `allocate` in it untrusted. When `b0`
+        /// defines a reference, `b1` takes a parameter that carries one across the back edge.
+        Loop,
+    }
+
+    const CALLEE: u32 = 1;
+
+    struct Generator<'u, 'data> {
+        u: &'u mut Unstructured<'data>,
+        builder: FunctionBuilder,
+        model: Model,
+        references: Vec<ValueId>,
+        arrays: Vec<ValueId>,
+        /// The `u1` entry parameters used as `if_else` and loop conditions.
+        conditions: [ValueId; 2],
+        callee: Callee,
+        /// The loop header and its parameter, with the value `b0` passes to it.
+        loop_header: Option<(BasicBlockId, Option<(ValueId, ValueId)>)>,
+    }
+
+    impl Program {
+        fn global(&self, value: ValueId) -> GlobalValueId {
+            GlobalValueId::new(self.ssa.main(), value)
+        }
+
+        fn generate(u: &mut Unstructured) -> arbitrary::Result<Self> {
+            // Each program draws its references from a narrow pool of types: one or two base
+            // types, and indirection depths starting at 0. Under the full cross product two
+            // references hardly ever share a type, and every instruction that needs two
+            // references of one type would only be reached by coincidence.
+            let all_bases = [Type::field(), Type::unsigned(32), Type::bool()];
+            let offset = u.choose_index(all_bases.len())?;
+            let base_count = u.int_in_range(1..=2usize)?;
+            let bases: Vec<Type> = (0..base_count)
+                .map(|k| all_bases[(offset + k) % all_bases.len()].clone())
+                .collect();
+            let max_depth = u.int_in_range(1..=2usize)?;
+
+            let callee_type = reference_type(u.choose(&bases)?, u.int_in_range(0..=1)?);
+            let callee = if u.arbitrary()? {
+                Callee::Writer { value_type: callee_type }
+            } else {
+                Callee::Identity { reference_type: callee_type }
+            };
+
+            let mut builder = FunctionBuilder::new("main".to_string(), Id::test_new(0));
+            builder.set_runtime(RuntimeType::Brillig(InlineType::Inline));
+            // The analysis has to see each instruction as written, not a simplified form.
+            builder.simplify = false;
+            let conditions =
+                [builder.add_parameter(Type::bool()), builder.add_parameter(Type::bool())];
+
+            let mut generator = Generator {
+                u,
+                builder,
+                model: Model::default(),
+                references: Vec::new(),
+                arrays: Vec::new(),
+                conditions,
+                callee,
+                loop_header: None,
+            };
+
+            let allocations = generator.u.int_in_range(2..=4)?;
+            let operations = generator.u.int_in_range(1..=8)?;
+            let shape = match generator.u.choose_index(3)? {
+                0 => Shape::Straight,
+                1 => Shape::Chain,
+                _ => Shape::Loop,
+            };
+            let split = generator.u.choose_index(allocations + operations)?;
+            for step in 0..allocations + operations {
+                if step == split && shape != Shape::Straight {
+                    generator.enter_second_block(&shape);
+                }
+                if step < allocations {
+                    let base = generator.u.choose(&bases)?.clone();
+                    let depth = generator.u.int_in_range(0..=max_depth)?;
+                    generator.allocate(reference_type(&base, depth));
+                } else {
+                    generator.random_operation()?;
+                }
+            }
+            generator.finish()
+        }
+    }
+
+    /// `&mut base` wrapped in `depth` more levels of `&mut`.
+    fn reference_type(base: &Type, depth: usize) -> Type {
+        let mut typ = Type::Reference(Arc::new(base.clone()), true);
+        for _ in 0..depth {
+            typ = Type::Reference(Arc::new(typ), true);
+        }
+        typ
+    }
+
+    impl Generator<'_, '_> {
+        fn type_of(&self, value: ValueId) -> Type {
+            self.builder.type_of_value(value)
+        }
+
+        /// The tracked references whose type satisfies `predicate`.
+        fn references_where(&self, predicate: impl Fn(&Type) -> bool) -> Vec<ValueId> {
+            let references = self.references.iter().copied();
+            references.filter(|reference| predicate(&self.type_of(*reference))).collect()
+        }
+
+        fn references_of_type(&self, typ: &Type) -> Vec<ValueId> {
+            self.references_where(|t| t == typ)
+        }
+
+        /// The tracked arrays and vectors whose type satisfies `predicate`.
+        fn arrays_where(&self, predicate: impl Fn(&Type) -> bool) -> Vec<ValueId> {
+            let arrays = self.arrays.iter().copied();
+            arrays.filter(|array| predicate(&self.type_of(*array))).collect()
+        }
+
+        /// Picks a tracked reference of type `typ`, or `None` when there is none.
+        fn pick_of_type(&mut self, typ: &Type) -> arbitrary::Result<Option<ValueId>> {
+            let candidates = self.references_of_type(typ);
+            self.pick(&candidates)
+        }
+
+        /// Picks one of `candidates`, or `None` when there are none.
+        fn pick<T: Clone>(&mut self, candidates: &[T]) -> arbitrary::Result<Option<T>> {
+            if candidates.is_empty() {
+                return Ok(None);
+            }
+            Ok(Some(self.u.choose(candidates)?.clone()))
+        }
+
+        fn index(&mut self, index: usize) -> ValueId {
+            self.builder.length_constant(index as u128)
+        }
+
+        fn allocate(&mut self, typ: Type) {
+            let Type::Reference(pointee, _) = typ else { unreachable!() };
+            let reference = self.builder.insert_allocate((*pointee).clone());
+            self.model.allocate(reference);
+            self.references.push(reference);
+        }
+
+        fn random_operation(&mut self) -> arbitrary::Result<()> {
+            match self.u.choose_index(9)? {
+                0 => self.store(),
+                1 => self.make_array(),
+                2 => self.load(),
+                3 => self.array_get(),
+                4 => self.array_set(),
+                5 if self.u.ratio(1, 6)? => self.as_vector(),
+                5 => self.vector_operation(),
+                6 => self.call_callee(),
+                7 => self.if_else(),
+                _ => self.opaque_call(),
+            }
+        }
+
+        /// `store value at address`, where `address` is one level above `value`.
+        fn store(&mut self) -> arbitrary::Result<()> {
+            let mut pairs = Vec::new();
+            for &value in &self.references {
+                let address_type = Type::Reference(Arc::new(self.type_of(value)), true);
+                for address in self.references_of_type(&address_type) {
+                    pairs.push((address, value));
+                }
+            }
+            let Some((address, value)) = self.pick(&pairs)? else { return Ok(()) };
+            self.builder.insert_store(address, value);
+            self.model.store(address, value);
+            Ok(())
+        }
+
+        /// A fresh name for whatever the cells behind `address` hold. Skipped when nothing
+        /// was stored there yet, because such a load has no modelled meaning.
+        fn load(&mut self) -> arbitrary::Result<()> {
+            let addresses = self.references_where(|t| {
+                matches!(t.reference_element_type(), Some(Type::Reference(..)))
+            });
+            let Some(address) = self.pick(&addresses)? else { return Ok(()) };
+            let cells = self.model.loaded(address);
+            if cells.is_empty() {
+                return Ok(());
+            }
+            let loaded_type = self.type_of(address).reference_element_type().unwrap().clone();
+            let result = self.builder.insert_load(address, loaded_type);
+            self.model.denotes.insert(result, cells);
+            self.references.push(result);
+            Ok(())
+        }
+
+        /// An array of two to four references. When they share a type it is `[T; N]` or a
+        /// vector `[T]`, which is what the vector intrinsics consume; otherwise it is a
+        /// one-element array of a tuple.
+        fn make_array(&mut self) -> arbitrary::Result<()> {
+            let Some(pivot) = self.pick(&self.references.clone())? else { return Ok(()) };
+            let same_type = self.references_of_type(&self.type_of(pivot));
+            let pool = if same_type.len() >= 2 && self.u.ratio(2, 3)? {
+                same_type
+            } else {
+                self.references.clone()
+            };
+            if pool.len() < 2 {
+                return Ok(());
+            }
+            let size = self.u.int_in_range(2..=pool.len().min(4))?;
+            let elements = pool[..size].to_vec();
+            let types: Vec<Type> = elements.iter().map(|element| self.type_of(*element)).collect();
+            let typ = if types.iter().all(|t| *t == types[0]) {
+                let element_type = Arc::new(vec![types[0].clone()]);
+                if self.u.arbitrary()? {
+                    Type::Vector(element_type)
+                } else {
+                    Type::Array(element_type, SemanticLength(size as u32))
+                }
+            } else {
+                Type::Array(Arc::new(types), SemanticLength(1))
+            };
+            let array = self.builder.insert_make_array(elements.iter().copied().collect(), typ);
+            self.add_array(array, elements);
+            Ok(())
+        }
+
+        fn add_array(&mut self, array: ValueId, elements: Vec<ValueId>) {
+            self.model.elements.insert(array, elements);
+            self.arrays.push(array);
+        }
+
+        /// A fresh name for one element of an array.
+        fn array_get(&mut self) -> arbitrary::Result<()> {
+            let Some(array) = self.pick(&self.arrays.clone())? else { return Ok(()) };
+            let elements = self.model.elements[&array].clone();
+            let k = self.u.choose_index(elements.len())?;
+            let index = self.index(k);
+            let result = self.builder.insert_array_get(array, index, self.type_of(elements[k]));
+            self.model.copy(result, &[elements[k]]);
+            self.references.push(result);
+            Ok(())
+        }
+
+        /// A new array that shares every element of an existing one but one.
+        fn array_set(&mut self) -> arbitrary::Result<()> {
+            let Some(array) = self.pick(&self.arrays.clone())? else { return Ok(()) };
+            let mut elements = self.model.elements[&array].clone();
+            let k = self.u.choose_index(elements.len())?;
+            let Some(value) = self.pick_of_type(&self.type_of(elements[k]))? else { return Ok(()) };
+            let index = self.index(k);
+            let result = self.builder.insert_array_set(array, index, value, false);
+            elements[k] = value;
+            self.add_array(result, elements);
+            Ok(())
+        }
+
+        /// `as_vector`: a vector with the same elements as an array `[T; N]`.
+        fn as_vector(&mut self) -> arbitrary::Result<()> {
+            let arrays =
+                self.arrays_where(|t| matches!(t, Type::Array(types, _) if types.len() == 1));
+            let Some(array) = self.pick(&arrays)? else { return Ok(()) };
+            let elements = self.model.elements[&array].clone();
+            self.call_vector_intrinsic(Intrinsic::AsVector, array, vec![array], elements, None);
+            Ok(())
+        }
+
+        /// A vector intrinsic that adds or removes one element. Each has its own merge rule in
+        /// `unify_vector_intrinsic`. `vector_pop_front` is not generated; it has a
+        /// hand-written test instead.
+        fn vector_operation(&mut self) -> arbitrary::Result<()> {
+            let vectors = self.arrays_where(|t| matches!(t, Type::Vector(_)));
+            let Some(vector) = self.pick(&vectors)? else { return Ok(()) };
+            let mut elements = self.model.elements[&vector].clone();
+            let element_type = self.type_of(vector).element_types()[0].clone();
+            let length = self.index(elements.len());
+            match self.u.choose_index(5)? {
+                0 => {
+                    let Some(element) = self.pick_of_type(&element_type)? else { return Ok(()) };
+                    elements.push(element);
+                    let arguments = vec![length, vector, element];
+                    self.call_vector_intrinsic(
+                        Intrinsic::VectorPushBack,
+                        vector,
+                        arguments,
+                        elements,
+                        None,
+                    );
+                }
+                1 => {
+                    let Some(element) = self.pick_of_type(&element_type)? else { return Ok(()) };
+                    elements.insert(0, element);
+                    let arguments = vec![length, vector, element];
+                    self.call_vector_intrinsic(
+                        Intrinsic::VectorPushFront,
+                        vector,
+                        arguments,
+                        elements,
+                        None,
+                    );
+                }
+                2 => {
+                    if elements.is_empty() {
+                        return Ok(());
+                    }
+                    let Some(element) = self.pick_of_type(&element_type)? else { return Ok(()) };
+                    let k = self.u.choose_index(elements.len())?;
+                    elements.insert(k, element);
+                    let arguments = vec![length, vector, self.index(k), element];
+                    self.call_vector_intrinsic(
+                        Intrinsic::VectorInsert,
+                        vector,
+                        arguments,
+                        elements,
+                        None,
+                    );
+                }
+                3 => {
+                    let Some(popped) = elements.pop() else { return Ok(()) };
+                    let arguments = vec![length, vector];
+                    self.call_vector_intrinsic(
+                        Intrinsic::VectorPopBack,
+                        vector,
+                        arguments,
+                        elements,
+                        Some(popped),
+                    );
+                }
+                _ => {
+                    if elements.is_empty() {
+                        return Ok(());
+                    }
+                    let k = self.u.choose_index(elements.len())?;
+                    let removed = elements.remove(k);
+                    let arguments = vec![length, vector, self.index(k)];
+                    self.call_vector_intrinsic(
+                        Intrinsic::VectorRemove,
+                        vector,
+                        arguments,
+                        elements,
+                        Some(removed),
+                    );
+                }
+            }
+            Ok(())
+        }
+
+        /// Calls a vector intrinsic on `source`. Its results are the new length, a vector
+        /// holding `elements`, and, when the intrinsic takes an element out, that element.
+        fn call_vector_intrinsic(
+            &mut self,
+            intrinsic: Intrinsic,
+            source: ValueId,
+            arguments: Vec<ValueId>,
+            elements: Vec<ValueId>,
+            removed: Option<ValueId>,
+        ) {
+            let element_type = self.type_of(source).element_types()[0].clone();
+            let vector_type = Type::Vector(Arc::new(vec![element_type.clone()]));
+            let mut result_types = vec![Type::length_type(), vector_type];
+            if removed.is_some() {
+                result_types.push(element_type);
+            }
+            let function = self.builder.import_intrinsic_id(intrinsic);
+            let results = self.builder.insert_call(function, arguments, result_types).to_vec();
+            self.add_array(results[1], elements);
+            if let Some(removed) = removed {
+                self.model.copy(results[2], &[removed]);
+                self.references.push(results[2]);
+            }
+        }
+
+        /// A call to the resolved second function.
+        fn call_callee(&mut self) -> arbitrary::Result<()> {
+            let function = self.builder.import_function(Id::test_new(CALLEE));
+            match &self.callee {
+                Callee::Writer { value_type } => {
+                    let value_type = value_type.clone();
+                    let address_type = Type::Reference(Arc::new(value_type.clone()), true);
+                    let Some(address) = self.pick_of_type(&address_type)? else { return Ok(()) };
+                    let Some(value) = self.pick_of_type(&value_type)? else { return Ok(()) };
+                    self.builder.insert_call(function, vec![address, value], vec![]);
+                    self.model.store(address, value);
+                }
+                Callee::Identity { reference_type } => {
+                    let reference_type = reference_type.clone();
+                    let Some(argument) = self.pick_of_type(&reference_type)? else { return Ok(()) };
+                    let result =
+                        self.builder.insert_call(function, vec![argument], vec![reference_type])[0];
+                    self.model.copy(result, &[argument]);
+                    self.references.push(result);
+                }
+            }
+            Ok(())
+        }
+
+        /// `if_else` of two references of one type; the result may be either.
+        fn if_else(&mut self) -> arbitrary::Result<()> {
+            let mut pairs = Vec::new();
+            for &a in &self.references {
+                for b in self.references_of_type(&self.type_of(a)) {
+                    if a != b {
+                        pairs.push((a, b));
+                    }
+                }
+            }
+            let Some((then_value, else_value)) = self.pick(&pairs)? else { return Ok(()) };
+            let [then_condition, else_condition] = self.conditions;
+            let instruction =
+                Instruction::IfElse { then_condition, then_value, else_condition, else_value };
+            let result = self.builder.insert_instruction(instruction, None).first();
+            self.model.copy(result, &[then_value, else_value]);
+            self.references.push(result);
+            Ok(())
+        }
+
+        /// A call to a foreign function, which the analysis handles in `unresolved_call`.
+        ///
+        /// The model records nothing: an opaque callee could rearrange memory in ways the test
+        /// cannot know. That is sound for these one-directional properties, because such a
+        /// call can only add aliasing, never undo a store that already happened.
+        fn opaque_call(&mut self) -> arbitrary::Result<()> {
+            let Some(a) = self.pick(&self.references.clone())? else { return Ok(()) };
+            let Some(b) = self.pick(&self.references.clone())? else { return Ok(()) };
+            // The SSA parser only accepts foreign functions named `print` or `*oracle*`, and
+            // using such a name keeps a failing program's printout parseable.
+            let function = self.builder.import_foreign_function("oracle_opaque", false);
+            self.builder.insert_call(function, vec![a, b], vec![]);
+            Ok(())
+        }
+
+        /// Ends `b0` with a jump into a new block `b1` and continues there. For a loop, the
+        /// last reference `b0` defined, if any, becomes `b1`'s parameter on entry.
+        fn enter_second_block(&mut self, shape: &Shape) {
+            let block = self.builder.insert_block();
+            let mut arguments = Vec::new();
+            if *shape == Shape::Loop {
+                let mut parameter = None;
+                if let Some(&initial) = self.references.last() {
+                    let typ = self.type_of(initial);
+                    parameter = Some((self.builder.add_block_parameter(block, typ), initial));
+                    arguments.push(initial);
+                }
+                self.loop_header = Some((block, parameter));
+            }
+            self.builder.terminate_with_jmp(block, arguments);
+            self.builder.switch_to_block(block);
+        }
+
+        /// Terminates `main`, builds the callee, and returns the finished program.
+        fn finish(mut self) -> arbitrary::Result<Program> {
+            match self.loop_header {
+                None => self.builder.terminate_with_return(vec![]),
+                Some((header, parameter)) => {
+                    let exit = self.builder.insert_block();
+                    let mut back_arguments = Vec::new();
+                    if let Some((parameter, initial)) = parameter {
+                        // The back edge carries any reference of the parameter's type, so the
+                        // parameter may be the value from `b0` or the one from the back edge.
+                        let candidates = self.references_of_type(&self.type_of(parameter));
+                        let back = *self.u.choose(&candidates)?;
+                        back_arguments.push(back);
+                        self.model.copy(parameter, &[initial, back]);
+                        self.references.push(parameter);
+                    }
+                    let condition = self.conditions[0];
+                    self.builder.terminate_with_jmpif(
+                        condition,
+                        header,
+                        back_arguments,
+                        exit,
+                        vec![],
+                    );
+                    self.builder.switch_to_block(exit);
+                    self.builder.terminate_with_return(vec![]);
+                }
+            }
+
+            let callee_id = Id::test_new(CALLEE);
+            match &self.callee {
+                Callee::Writer { value_type } => {
+                    self.builder.new_brillig_function(
+                        "writer".into(),
+                        callee_id,
+                        InlineType::Inline,
+                    );
+                    let address_type = Type::Reference(Arc::new(value_type.clone()), true);
+                    let address = self.builder.add_parameter(address_type);
+                    let value = self.builder.add_parameter(value_type.clone());
+                    self.builder.insert_store(address, value);
+                    self.builder.terminate_with_return(vec![]);
+                }
+                Callee::Identity { reference_type } => {
+                    self.builder.new_brillig_function(
+                        "identity".into(),
+                        callee_id,
+                        InlineType::Inline,
+                    );
+                    let reference = self.builder.add_parameter(reference_type.clone());
+                    self.builder.terminate_with_return(vec![reference]);
+                }
+            }
+
+            Ok(Program {
+                ssa: self.builder.finish(),
+                model: self.model,
+                references: self.references,
+                arrays: self.arrays,
+            })
+        }
+    }
+
+    /// Time budget for each alias-analysis property, in milliseconds.
+    ///
+    /// The 2-second default is short enough for PR CI. The nightly fuzz workflow sets
+    /// `NOIR_ALIAS_PROP_BUDGET_MS` to run each property for longer, where the extra time buys
+    /// deeper shapes at negligible cost.
+    fn prop_budget_ms() -> u64 {
+        std::env::var("NOIR_ALIAS_PROP_BUDGET_MS")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(2_000)
+    }
+
+    /// Runs `check` on random programs, each first checked by the SSA validator so that a
+    /// failure is always about a program the rest of the compiler considers well formed.
+    fn check_random_programs(check: impl Fn(&Program, &mut AliasAnalysis)) {
+        arbtest::arbtest(|u| {
+            let program = Program::generate(u)?;
+            for function in program.ssa.functions.values() {
+                crate::ssa::validation::validate_function(function, &program.ssa, true);
+            }
+            let mut analysis = AliasAnalysis::analyze(&program.ssa);
+            check(&program, &mut analysis);
+            Ok(())
+        })
+        .budget_ms(prop_budget_ms());
+    }
+
+    #[test]
+    fn may_alias_reports_every_pair_that_can_be_one_cell() {
+        check_random_programs(|program, analysis| {
+            for &a in &program.references {
+                for &b in &program.references {
+                    if program.model.can_be_one_cell(a, b) {
+                        assert!(
+                            analysis.may_alias(
+                                program.ssa.main(),
+                                program.global(a),
+                                program.global(b)
+                            ),
+                            "may_alias({a}, {b}) is false, but both can denote the same cell:\n{}",
+                            program.ssa
+                        );
+                    }
+                }
+            }
+        });
+    }
+
+    #[test]
+    fn may_reference_reports_every_chain_the_program_builds() {
+        check_random_programs(|program, analysis| {
+            for &from in program.references.iter().chain(&program.arrays) {
+                let reachable = program.model.reachable_from(from);
+                for &target in &program.references {
+                    if !program.model.denotes[&target].is_disjoint(&reachable) {
+                        assert!(
+                            analysis.may_reference(program.global(from), program.global(target)),
+                            "may_reference({from}, {target}) is false, but the program builds a \
+                             chain from {from} to {target}:\n{}",
+                            program.ssa
+                        );
+                    }
+                }
+            }
+        });
     }
 
     // ============================================================
@@ -1644,6 +2278,73 @@ mod tests {
         let call_results = collect_call_results_in_main(&ssa);
         let mut analysis = analyze_main(&ssa);
         assert!(analysis.may_alias(ssa.main(), call_results[0], call_results[1]));
+    }
+
+    /// A pointer and its pointee inside one array literal land in one alias class, and
+    /// the two `allocate`s keep distinct allocation sites. `may_reference` asks whether a
+    /// callee handed `v1` can reach `v0`'s cell — `store v0 at v1` says it can — so the
+    /// distinct sites must not be allowed to answer it.
+    #[test]
+    fn may_reference_walks_points_to_within_a_merged_class() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v1 = allocate -> &mut &mut Field
+            store v0 at v1
+            v2 = make_array [v0, v1] : [(&mut Field, &mut &mut Field); 1]
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let allocs = collect_allocates(&ssa);
+        let mut analysis = analyze_main(&ssa);
+        assert!(analysis.may_reference(allocs[1], allocs[0]));
+        // The two cells are still distinct, which is `may_alias`'s question, not this one.
+        assert!(!analysis.may_alias(ssa.main(), allocs[0], allocs[1]));
+    }
+
+    /// Without the array literal the classes stay separate and the walk answers directly,
+    /// so `may_reference` is `true` in one direction only.
+    #[test]
+    fn may_reference_is_directional_across_separate_classes() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v1 = allocate -> &mut &mut Field
+            store v0 at v1
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let allocs = collect_allocates(&ssa);
+        let mut analysis = analyze_main(&ssa);
+        assert!(analysis.may_reference(allocs[1], allocs[0]));
+        assert!(!analysis.may_reference(allocs[0], allocs[1]));
+    }
+
+    /// Two cells that hold `Field`s rather than references are merged into one class by
+    /// an array literal, but neither has a `points_to` link, so neither can reach the
+    /// other and `may_reference` stays `false` in both directions.
+    #[test]
+    fn may_reference_is_false_for_distinct_cells_with_no_points_to_link() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = allocate -> &mut Field
+            v2 = make_array [v0, v1] : [(&mut Field, &mut Field); 1]
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let allocs = collect_allocates(&ssa);
+        let mut analysis = analyze_main(&ssa);
+        assert!(!analysis.may_reference(allocs[0], allocs[1]));
+        assert!(!analysis.may_reference(allocs[1], allocs[0]));
     }
 
     #[test]
@@ -2213,7 +2914,7 @@ mod tests {
 
     // ============================================================
     // `unresolved_call` — conservative handling of opaque calls
-    // (foreign functions / unresolved function pointers).
+    // (foreign functions and entry-point parameters).
     // Tests exercise the four cases of the cascade:
     //   1. Same type         → merge_alias
     //   2. Containment       → merge_reference
@@ -2661,11 +3362,8 @@ mod tests {
     }
 
     #[test]
-    fn must_alias_via_load_single_store() {
-        // Pass 2 propagates the pointee_sites lattice into Load results.
-        // When only `v1` has been stored at `*v0`, `pointee_sites[*v0]` is
-        // `Known(v1)`, so the loaded value inherits site `Some(v1)` and
-        // must-aliases v1.
+    fn may_alias_via_load_single_store() {
+        // `v2` is loaded from `*v0` after `v1` was stored there, so it is `v1`.
         let src = "
         acir(inline) fn main f0 {
           b0():
@@ -2679,15 +3377,83 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let allocs = collect_allocates(&ssa);
         let loads = collect_loads(&ssa);
-        let analysis = analyze_main(&ssa);
-        assert!(analysis.must_alias(allocs[1], loads[0]));
+        let mut analysis = analyze_main(&ssa);
+        assert!(analysis.may_alias(ssa.main(), allocs[1], loads[0]));
+    }
+
+    #[test]
+    fn may_alias_via_array_get_single_make_array() {
+        // Every element of `v1` is `v0`, so `v2 = array_get v1` is `v0`.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = make_array [v0, v0] : [&mut Field; 2]
+            v2 = array_get v1, index u32 0 -> &mut Field
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let allocs = collect_allocates(&ssa);
+        let gets = collect_array_gets(&ssa);
+        let mut analysis = analyze_main(&ssa);
+        assert!(analysis.may_alias(ssa.main(), allocs[0], gets[0]));
+    }
+
+    #[test]
+    fn may_alias_ifelse_over_load_result() {
+        // `v3` is loaded from `*v2` after `v1` was stored there, so both
+        // branches of `v5` are `v1`.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = allocate -> &mut Field
+            v2 = allocate -> &mut &mut Field
+            store v1 at v2
+            v3 = load v2 -> &mut Field
+            v4 = not v0
+            v5 = if v0 then v1 else (if v4) v3
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let allocs = collect_allocates(&ssa);
+        let ifelse_results = collect_ifelse_results(&ssa);
+        let mut analysis = analyze_main(&ssa);
+        assert!(analysis.may_alias(ssa.main(), allocs[0], ifelse_results[0]));
+    }
+
+    #[test]
+    fn may_alias_through_chain_passed_to_foreign_call() {
+        // The foreign call receives `v2` but does not change the chain, so
+        // after it `v3 = load v2` is `v1` and `v4 = load v3` is `v0`.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = allocate -> &mut &mut Field
+            store v0 at v1
+            v2 = allocate -> &mut &mut &mut Field
+            store v1 at v2
+            call oracle_op(v2)
+            v3 = load v2 -> &mut &mut Field
+            v4 = load v3 -> &mut Field
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let allocs = collect_allocates(&ssa);
+        let loads = collect_loads(&ssa);
+        let mut analysis = analyze_main(&ssa);
+        // loads[0] = v3 (load v2), loads[1] = v4 (load v3)
+        assert!(analysis.may_alias(ssa.main(), allocs[1], loads[0]));
+        assert!(analysis.may_alias(ssa.main(), allocs[0], loads[1]));
     }
 
     #[test]
     fn must_alias_via_load_mixed_stores_false() {
-        // Two distinct allocations have been stored at `*v0`, so the lattice
-        // collapses to `NoAllocation`. Pass 2 sets no site on the loaded value
-        // and must_alias returns false.
+        // Two distinct allocations have been stored at `*v0`; the loaded
+        // value has no site and must_alias returns false.
         let src = "
         acir(inline) fn main f0 {
           b0():
@@ -2706,51 +3472,6 @@ mod tests {
         let analysis = analyze_main(&ssa);
         assert!(!analysis.must_alias(allocs[1], loads[0]));
         assert!(!analysis.must_alias(allocs[2], loads[0]));
-    }
-
-    #[test]
-    fn must_alias_via_array_get_single_make_array() {
-        // `MakeArray` joins each element's site into the array's pointee
-        // class. When every element is `v0`, the lattice is `Known(v0)` and
-        // `array_get` inherits site `Some(v0)`.
-        let src = "
-        acir(inline) fn main f0 {
-          b0():
-            v0 = allocate -> &mut Field
-            v1 = make_array [v0, v0] : [&mut Field; 2]
-            v2 = array_get v1, index u32 0 -> &mut Field
-            return
-        }
-        ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let allocs = collect_allocates(&ssa);
-        let gets = collect_array_gets(&ssa);
-        let analysis = analyze_main(&ssa);
-        assert!(analysis.must_alias(allocs[0], gets[0]));
-    }
-
-    #[test]
-    fn must_alias_ifelse_over_load_result() {
-        // Pass 2b: an IfElse over a load result picks up the load's site
-        // (set by pass 2a). Both branches resolve to `Some(v1)`, so the
-        // IfElse result must-aliases v1.
-        let src = "
-        acir(inline) fn main f0 {
-          b0(v0: u1):
-            v1 = allocate -> &mut Field
-            v2 = allocate -> &mut &mut Field
-            store v1 at v2
-            v3 = load v2 -> &mut Field
-            v4 = not v0
-            v5 = if v0 then v1 else (if v4) v3
-            return
-        }
-        ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let allocs = collect_allocates(&ssa);
-        let ifelse_results = collect_ifelse_results(&ssa);
-        let analysis = analyze_main(&ssa);
-        assert!(analysis.must_alias(allocs[0], ifelse_results[0]));
     }
 
     /// loop-Allocate
@@ -2797,37 +3518,6 @@ mod tests {
     }
 
     #[test]
-    fn foreign_call_preserves_local_sites_under_no_escape() {
-        // A foreign call cannot reenter program code, so it does not flag
-        // the calling function as recursive. Combined with the no-escape
-        // invariant — function-local allocations cannot leak into the
-        // caller's pointee chains — sites stored before the call survive,
-        // and post-call loads through the chain still must-alias the
-        // originally stored values.
-        let src = "
-        brillig(inline) fn main f0 {
-          b0():
-            v0 = allocate -> &mut Field
-            v1 = allocate -> &mut &mut Field
-            store v0 at v1
-            v2 = allocate -> &mut &mut &mut Field
-            store v1 at v2
-            call oracle_op(v2)
-            v3 = load v2 -> &mut &mut Field
-            v4 = load v3 -> &mut Field
-            return
-        }
-        ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let allocs = collect_allocates(&ssa);
-        let loads = collect_loads(&ssa);
-        let analysis = analyze_main(&ssa);
-        // loads[0] = v3 (load v2), loads[1] = v4 (load v3)
-        assert!(analysis.must_alias(allocs[1], loads[0]));
-        assert!(analysis.must_alias(allocs[0], loads[1]));
-    }
-
-    #[test]
     fn entry_point_parameter_pointees_are_poisoned() {
         // For entry-point parameters the "caller" is external and may
         // have stashed any value into the parameters' pointee chains
@@ -2853,8 +3543,7 @@ mod tests {
         let allocs = collect_allocates(&ssa);
         let loads = collect_loads(&ssa);
         let analysis = analyze_main(&ssa);
-        // The store happened *after* the entry-point poison, so the
-        // class is NoAllocation; the load's result has no site.
+        // The load's result has no site.
         assert!(!analysis.must_alias(allocs[0], loads[0]));
     }
 
@@ -2865,7 +3554,7 @@ mod tests {
     acir(inline) fn main f0 {
       b0(v0: &mut &mut Field):
         v1 = allocate -> &mut Field
-        v2 = load v0 -> &mut Field   // v2.site = External after pass 2
+        v2 = load v0 -> &mut Field
         return
     }
     ";
@@ -2880,17 +3569,10 @@ mod tests {
     /// Multi-call-site site propagation
     ///
     /// Steensgaard merges all call sites of `f1` into a single alias
-    /// class, so `points_to_sites` for `f1::outer`'s pointee class —
-    /// set to `Known(f1::inner)` by the store inside `f1` — becomes
-    /// the site of every load through any call result. Pass 2 writes
-    /// `Known(f1::inner)` into both `main.v1` (load through the first
-    /// call's result) and `main.v3` (load through the second call's
-    /// result). The two `inner` cells are distinct at runtime — each
-    /// call to `f1` allocates a fresh one — so `must_alias` between
-    /// them must be `false`. `is_trusted` enforces this by also
-    /// rejecting sites in `untrusted_site_functions`, which is
-    /// populated as soon as a callee's `return_values` slot is reused
-    /// by a second call site.
+    /// class, so `main.v1` (load through the first call's result) and
+    /// `main.v3` (load through the second call's result) share a class.
+    /// The two `inner` cells are distinct at runtime — each call to `f1`
+    /// allocates a fresh one — so `must_alias` between them must be `false`.
     #[test]
     fn must_alias_sound_on_multi_call_site_non_recursive_callee() {
         let src = "
@@ -2957,14 +3639,8 @@ mod tests {
         let loads = collect_loads(&ssa);
         let analysis = analyze_main(&ssa);
         // Only one Load instruction (in b1), but it executes once per
-        // iteration. Two iterations see two distinct `f1::inner` cells.
-        // Because the analysis associates a *single* GlobalValueId with
-        // the load, we cannot assert across iterations directly here —
-        // but the trusted site `Known(f1::inner)` is enough to fool any
-        // consumer that compares loads across iterations via must_alias.
-        // The companion load_store_forwarding test exercises that path.
-        // We assert here that the load's site is *not* a trusted one —
-        // i.e. that nothing trusts `Known(f1::inner)` for this load.
+        // iteration. Two iterations see two distinct `f1::inner` cells,
+        // so the load's site must not be a trusted one.
         assert!(
             analysis.get_trusted_allocation_site(loads[0]).is_none(),
             "the load's allocation site is trusted, but each loop \

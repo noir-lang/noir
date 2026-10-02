@@ -162,7 +162,7 @@ impl Type {
 
                 Type::CheckedCast { from: Box::new(from), to: Box::new(to) }
             }
-            Type::TypeVariable(type_var) => match &*type_var.borrow() {
+            Type::TypeVariable(type_var) => match type_var.binding() {
                 TypeBinding::Bound(binding) => {
                     binding.canonicalize_helper(found_checked_cast, run_simplifications)
                 }
@@ -536,6 +536,92 @@ mod tests {
         assert_canonicalization_preserved_value(&expr, &[(&m, 5), (&n, 3)]);
     }
 
+    /// `Type::new_infix_expr` cancels the repeated term of `N op (M op' N)` and of
+    /// `(M op' N) op N` down to `M` when the inner expression carries the `inversion`
+    /// provenance flag. These pin down which operator pairs may do that.
+    mod new_infix_expr {
+        use noirc_errors::Location;
+        use test_case::test_case;
+
+        use super::{u32_generic, u32t};
+        use crate::hir_def::types::{
+            BinaryTypeOperator,
+            BinaryTypeOperator::{Addition, Division, Multiplication, Subtraction},
+            Type,
+        };
+
+        /// Build `lhs op rhs` carrying the `inversion` provenance flag: the flag records that
+        /// the operator was manufactured by unification rearranging an equation (`b = a / y`
+        /// solved as `y = b / a`), so the division it holds never truncated anything.
+        fn inverted(lhs: &Type, op: BinaryTypeOperator, rhs: &Type) -> Type {
+            Type::inverted_infix_expr(Box::new(lhs.clone()), op, Box::new(rhs.clone()))
+        }
+
+        /// Build `lhs op rhs` directly, bypassing the cancellation `Type::infix_expr` applies.
+        fn raw(lhs: &Type, op: BinaryTypeOperator, rhs: &Type) -> Type {
+            Type::InfixExpr(Box::new(lhs.clone()), op, Box::new(rhs.clone()), false)
+        }
+
+        /// `N + (M - N)` is `M`, and `N * (M / N)` is `M` too because the division that the
+        /// `inversion` flag marks never truncated. These are the cancellations the
+        /// constructor exists for.
+        #[test_case(Addition, Subtraction ; "n_plus_m_minus_n")]
+        #[test_case(Multiplication, Division ; "n_times_m_div_n")]
+        fn cancels_an_inverted_rhs(op: BinaryTypeOperator, inner_op: BinaryTypeOperator) {
+            let m = u32_generic(0, "M");
+            let n = u32_generic(1, "N");
+
+            let expr =
+                Type::infix_expr(Box::new(n.clone()), op, Box::new(inverted(&m, inner_op, &n)));
+            assert_eq!(expr, m, "N {op} (M {inner_op} N) should cancel to M");
+        }
+
+        /// `N - (M + N)` is `-M` and `N / (M * N)` is `1 / M`, so neither cancels to `M`. The
+        /// `inversion` provenance licenses recovering an exact value in the `*`-undoes-`/`
+        /// direction only; it says nothing about these mirrored ones.
+        #[test_case(Subtraction, Addition ; "n_minus_m_plus_n")]
+        #[test_case(Division, Multiplication ; "n_div_m_times_n")]
+        fn does_not_cancel_an_inverted_rhs(op: BinaryTypeOperator, inner_op: BinaryTypeOperator) {
+            let m = u32_generic(0, "M");
+            let n = u32_generic(1, "N");
+
+            let expr =
+                Type::infix_expr(Box::new(n.clone()), op, Box::new(inverted(&m, inner_op, &n)));
+            assert_ne!(expr, m, "the two `N` terms must not cancel");
+
+            let uncancelled = raw(&n, op, &raw(&m, inner_op, &n));
+
+            let Type::NamedGeneric(m_generic) = &m else { unreachable!() };
+            let Type::NamedGeneric(n_generic) = &n else { unreachable!() };
+            m_generic.type_var.bind(u32t(5));
+            n_generic.type_var.bind(u32t(3));
+
+            // At `M = 5, N = 3`: `3 - (5 + 3)` has no `u32` value and `3 / (5 * 3)` is `0`,
+            // where cancelling to `M` would give `5` for both.
+            let location = Location::dummy();
+            assert_eq!(
+                expr.evaluate_to_u32(location).ok(),
+                uncancelled.evaluate_to_u32(location).ok(),
+                "{expr} does not have the same value as {uncancelled}"
+            );
+        }
+
+        /// With the repeated term on the left there is no mirrored direction to get wrong:
+        /// `(M - N) + N`, `(M + N) - N`, `(M / N) * N` and `(M * N) / N` are all `M`.
+        #[test_case(Addition, Subtraction ; "m_minus_n_plus_n")]
+        #[test_case(Subtraction, Addition ; "m_plus_n_minus_n")]
+        #[test_case(Multiplication, Division ; "m_div_n_times_n")]
+        #[test_case(Division, Multiplication ; "m_times_n_div_n")]
+        fn cancels_an_inverted_lhs(op: BinaryTypeOperator, inner_op: BinaryTypeOperator) {
+            let m = u32_generic(0, "M");
+            let n = u32_generic(1, "N");
+
+            let expr =
+                Type::infix_expr(Box::new(inverted(&m, inner_op, &n)), op, Box::new(n.clone()));
+            assert_eq!(expr, m, "(M {inner_op} N) {op} N should cancel to M");
+        }
+    }
+
     #[test]
     fn instantiate_after_canonicalize_smoke_test() {
         let field_element_kind = Kind::numeric(Type::FieldElement);
@@ -563,8 +649,8 @@ mod tests {
         assert!(matches!(rhs, Type::Constant(..)));
 
         // ensure result kinds are the same as the original kind
-        assert_eq!(lhs.kind(), field_element_kind);
-        assert_eq!(rhs.kind(), field_element_kind);
+        assert_eq!(*lhs.kind(), field_element_kind);
+        assert_eq!(*rhs.kind(), field_element_kind);
 
         // ensure results are the same
         assert_eq!(lhs, rhs);
@@ -759,7 +845,7 @@ mod proptests {
 
     fn infix_expr_helper(lhs_op_rhs: (Type, BinaryTypeOperator, Type)) -> Type {
         let (lhs, op, rhs) = lhs_op_rhs;
-        assert_eq!(lhs.kind(), rhs.kind());
+        assert_eq!(*lhs.kind(), *rhs.kind());
         let op = if lhs.kind().integral_maximum_size().is_none()
             && matches!(op, BinaryTypeOperator::Modulo)
         {
@@ -940,8 +1026,8 @@ mod proptests {
             } else {
                 // ensure result kinds are the same as the original kind
                 let kind = Kind::numeric(typ);
-                prop_assert_eq!(infix.kind(), kind.clone());
-                prop_assert_eq!(infix_canonicalized.kind(), kind);
+                prop_assert_eq!(&*infix.kind(), &kind);
+                prop_assert_eq!(&*infix_canonicalized.kind(), &kind);
 
                 // ensure results are the same
                 prop_assert_eq!(infix, infix_canonicalized);
@@ -973,8 +1059,8 @@ mod proptests {
 
             // ensure result kinds are the same as the original kind
             let kind = Kind::numeric(typ);
-            prop_assert_eq!(infix.kind(), kind.clone());
-            prop_assert_eq!(infix_canonicalized.kind(), kind.clone());
+            prop_assert_eq!(&*infix.kind(), &kind);
+            prop_assert_eq!(&*infix_canonicalized.kind(), &kind);
 
             // ensure the results are still wrapped in CheckedCast's
             match (&infix, &infix_canonicalized) {
@@ -983,8 +1069,8 @@ mod proptests {
                     prop_assert_eq!(from.canonicalize(), from_canonicalized.canonicalize());
 
                     // ensure to's have the same kinds
-                    prop_assert_eq!(to.kind(), kind.clone());
-                    prop_assert_eq!(to_canonicalized.kind(), kind);
+                    prop_assert_eq!(&*to.kind(), &kind);
+                    prop_assert_eq!(&*to_canonicalized.kind(), &kind);
                 }
                 _ => {
                     prop_assert!(false, "expected CheckedCast");
@@ -1022,7 +1108,7 @@ mod proptests {
             // leave the expression untouched.
             let mut substitutions = TypeBindings::default();
             for (var, value) in &bindings {
-                substitutions.insert(var.id(), (var.clone(), var.kind(), value.clone()));
+                substitutions.insert(var.id(), (var.clone(), var.kind().into_owned(), value.clone()));
             }
 
             let location = Location::dummy();
@@ -1097,7 +1183,7 @@ mod proptests {
             };
 
             let infix_canonicalized = infix.canonicalize();
-            prop_assert_eq!(infix_canonicalized.kind(), kind);
+            prop_assert_eq!(&*infix_canonicalized.kind(), &kind);
             prop_assert!(infix.kind().unifies(&result_type.kind()));
 
             let infix_canonicalized = match infix_canonicalized {

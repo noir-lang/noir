@@ -46,6 +46,7 @@ impl<F: AcirField> MemoryOpSolver<F> {
                 opcode_location: ErrorLocation::Unresolved,
                 index,
                 array_size: self.len(),
+                payload: None,
             }
         })
     }
@@ -62,6 +63,7 @@ impl<F: AcirField> MemoryOpSolver<F> {
                 opcode_location: ErrorLocation::Unresolved,
                 index: F::from(u128::from(index)),
                 array_size: self.len(),
+                payload: None,
             });
         }
 
@@ -80,6 +82,7 @@ impl<F: AcirField> MemoryOpSolver<F> {
                 opcode_location: ErrorLocation::Unresolved,
                 index: F::from(u128::from(index)),
                 array_size: self.len(),
+                payload: None,
             },
         )
     }
@@ -189,7 +192,8 @@ mod tests {
             Some(crate::pwg::OpcodeResolutionError::IndexOutOfBounds {
                 opcode_location: _,
                 index,
-                array_size: 2
+                array_size: 2,
+                payload: None
             }) if index == FieldElement::from(2u128)
         ));
     }

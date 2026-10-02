@@ -1,0 +1,27 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+bug: Brillig function call isn't properly covered by a manual constraint
+   ┌─ src/main.nr:28:9
+   │
+28 │         f(limit)
+   │         -------- This Brillig call's inputs and its return values haven't been sufficiently constrained. This should be done to prevent potential soundness vulnerabilities
+   │
+   = Call stack:
+     1: main
+             at src/main.nr:28:9
+
+error: Assertion failed: attempt to add with overflow
+   ┌─ src/main.nr:20:14
+   │
+20 │         i += 1;
+   │              -
+   │
+   = Call stack:
+     1: main
+             at src/main.nr:28:9
+     2: f
+             at src/main.nr:20:14
+
+Failed assertion

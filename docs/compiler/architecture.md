@@ -220,12 +220,6 @@ The [tooling/greybox_fuzzer](/tooling/greybox_fuzzer) crate implements the `noir
 for fuzzing a Noir program, including generating random inputs and carefully mutating them to provide
 optimal coverage of the circuit by discovering its control flow based on the changes in the output.
 
-### SSA Fuzzer
-
-The [tooling/ssa_fuzzer](/tooling/ssa_fuzzer) crate focuses on crafting SSA with arithmetic and logical operations,
-asserting the equivalence of their execution through ACIR and Brillig. Unlike the _Greybox Fuzzer_,
-it relies on `cargo fuzz` to drive the process.
-
 ### AST Fuzzer
 
 The [tooling/ast_fuzzer](/tooling/ast_fuzzer) crate generates random monomorphized AST programs and performs comparative
@@ -234,4 +228,4 @@ testing by comparing execution results between:
 2. different points in the SSA processing pipeline
 3. the generated program and one that has a number of equivalence mutations applied to it
 
-Like the _SSA Fuzzer_ it requires `cargo fuzz` to run.
+Unlike the _Greybox Fuzzer_, it relies on `cargo fuzz` to drive the process.

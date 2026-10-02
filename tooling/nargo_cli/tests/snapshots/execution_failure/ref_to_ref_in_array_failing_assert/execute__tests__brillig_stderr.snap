@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Failed to solve program: 'Failed to solve brillig function'
+   ┌─ src/main.nr:15:5
+   │
+15 │     assert(*(arr[0].0) == y);
+   │     ------------------------
+   │
+   = Call stack:
+     1: main
+             at src/main.nr:15:5
+
+Failed to solve program: 'Failed to solve brillig function'

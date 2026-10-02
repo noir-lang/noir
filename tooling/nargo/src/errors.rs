@@ -264,7 +264,8 @@ pub fn execution_error_from<F: AcirField>(
         OpcodeResolutionError::BrilligFunctionFailed { payload, function_id, .. } => {
             (payload.clone(), Some(*function_id))
         }
-        OpcodeResolutionError::UnsatisfiedConstrain { payload, .. } => (payload.clone(), None),
+        OpcodeResolutionError::UnsatisfiedConstrain { payload, .. }
+        | OpcodeResolutionError::IndexOutOfBounds { payload, .. } => (payload.clone(), None),
         _ => (None, None),
     };
 

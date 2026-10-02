@@ -64,7 +64,8 @@ pub(super) fn simplify_binary(
     let simplified = Instruction::Binary(Binary { lhs, rhs, operator });
 
     if let (Some(lhs), Some(rhs)) = (lhs_value, rhs_value) {
-        return match eval_constant_binary_op(lhs, rhs, operator, lhs_type) {
+        let is_brillig = dfg.runtime().is_brillig();
+        return match eval_constant_binary_op(lhs, rhs, operator, lhs_type, is_brillig) {
             BinaryEvaluationResult::Success(result, result_type) => {
                 let value = dfg.make_constant(result, result_type);
                 SimplifyResult::SimplifiedTo(value)
@@ -446,13 +447,13 @@ mod tests {
     #[test]
     fn does_not_drop_checked_overflow_on_add_zero_identity() {
         // A checked `add v, 0` range-constrains its result to the type's bit width. When `v` is an
-        // unfit value (here produced by an unchecked overflowing add), simplifying the identity away
-        // would drop that overflow check and let an out-of-range value flow on, so the checked add
-        // is preserved.
+        // unfit value (here produced by an unchecked add of a non-constant operand, so it cannot be
+        // constant-folded down to a known-fitting value), simplifying the identity away would drop
+        // that overflow check and let an out-of-range value flow on, so the checked add is preserved.
         let src = "
         acir(inline) predicate_pure fn main f0 {
-          b0():
-            v2 = unchecked_add u8 255, u8 1
+          b0(v0: u8):
+            v2 = unchecked_add v0, u8 1
             v4 = add v2, u8 0
             return v4
         }
@@ -464,8 +465,8 @@ mod tests {
     fn does_not_drop_checked_overflow_on_sub_zero_identity() {
         let src = "
         acir(inline) predicate_pure fn main f0 {
-          b0():
-            v2 = unchecked_add u8 255, u8 1
+          b0(v0: u8):
+            v2 = unchecked_add v0, u8 1
             v4 = sub v2, u8 0
             return v4
         }
@@ -477,8 +478,8 @@ mod tests {
     fn does_not_drop_checked_overflow_on_mul_one_identity() {
         let src = "
         acir(inline) predicate_pure fn main f0 {
-          b0():
-            v2 = unchecked_add u8 255, u8 1
+          b0(v0: u8):
+            v2 = unchecked_add v0, u8 1
             v4 = mul v2, u8 1
             return v4
         }

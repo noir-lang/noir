@@ -845,7 +845,7 @@ pub fn filter_relevant_files(
 #[tracing::instrument(level = "trace", skip_all, fields(function_name = context.function_name(&main_function)))]
 #[allow(clippy::result_large_err)]
 pub fn compile_no_check(
-    context: &mut Context,
+    context: &Context,
     options: &CompileOptions,
     main_function: FuncId,
     cached_program: Option<CompiledProgram>,
@@ -856,19 +856,13 @@ pub fn compile_no_check(
     let program = if options.instrument_debug {
         monomorphize_debug(
             main_function,
-            &mut context.def_interner,
-            context.file_manager.as_file_map(),
+            &context.def_interner,
             &context.debug_instrumenter,
             context.debug_crate_id,
             force_unconstrained,
         )?
     } else {
-        monomorphize(
-            main_function,
-            &mut context.def_interner,
-            context.file_manager.as_file_map(),
-            force_unconstrained,
-        )?
+        monomorphize(main_function, &context.def_interner, force_unconstrained)?
     };
 
     if options.show_monomorphized {

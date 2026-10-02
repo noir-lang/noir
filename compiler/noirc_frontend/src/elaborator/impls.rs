@@ -116,19 +116,21 @@ impl Elaborator<'_> {
         impls: &mut [UnresolvedImpl],
         self_type: &UnresolvedType,
     ) {
-        let previous_local_module = self.item.module.replace_local_module(module);
+        self.in_local_module(module, |this| {
+            for unresolved_impl in impls {
+                this.check_generics_appear_in_types(&unresolved_impl.generics, &[self_type], &[]);
 
-        for unresolved_impl in impls {
-            self.check_generics_appear_in_types(&unresolved_impl.generics, &[self_type], &[]);
-
-            let location = unresolved_impl.object_type_location;
-            self.recover_generics(|this| {
-                let no_trait_id = None;
-                this.declare_methods_on_data_type(no_trait_id, &unresolved_impl.methods, location);
-            });
-        }
-
-        self.item.module.set_local_module(previous_local_module);
+                let location = unresolved_impl.object_type_location;
+                this.recover_generics(|this| {
+                    let no_trait_id = None;
+                    this.declare_methods_on_data_type(
+                        no_trait_id,
+                        &unresolved_impl.methods,
+                        location,
+                    );
+                });
+            }
+        });
     }
 
     /// Declares methods in the appropriate module and registers them in the interner.

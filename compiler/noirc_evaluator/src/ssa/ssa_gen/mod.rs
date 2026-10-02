@@ -591,9 +591,9 @@ impl FunctionContext<'_> {
             Type::Array(_, len) => {
                 if context::array_index_needs_explicit_oob_check(runtime, array_type) {
                     let logical_len = len.0;
-                    // For a composite element type, ACIR's implicit memory op check reports the
-                    // flattened index and size. Attach a dynamic error carrying the logical index
-                    // and length so the reported message matches what the user wrote.
+                    // An array that needs an explicit check has no memory op to carry a payload
+                    // reporting the logical index and length, so a composite element's flattened
+                    // coordinates have to be replaced by a dynamic error on the check itself.
                     let dynamic_error = if runtime.is_acir() && array_type.element_size().0 > 1 {
                         Some(self.out_of_bounds_error(index, logical_len))
                     } else {
@@ -702,6 +702,10 @@ impl FunctionContext<'_> {
     ///
     /// This matches the message ACVM produces for simple (non-composite) arrays, but reports the
     /// logical index and length rather than the flattened memory coordinates.
+    ///
+    /// Only an explicit check needs this. An array with a memory op has the same message attached
+    /// to that op as a payload instead, which costs no opcodes (see
+    /// `logical_index_out_of_bounds_payload` in `crate::acir::arrays`).
     fn out_of_bounds_error(&mut self, index: ValueId, array_len: u32) -> ConstrainError {
         // The template holds a single `{}` interpolation for the runtime index; the logical length
         // is a compile-time constant so it is baked directly into the static text.
@@ -893,7 +897,7 @@ impl FunctionContext<'_> {
 
         let result = self.codegen_expression(&for_expr.block);
         self.codegen_unless_break_or_continue(result, |this, _| {
-            let new_loop_index = this.make_offset(loop_index, 1, true);
+            let new_loop_index = this.increment_loop_index(loop_index);
             this.builder.terminate_with_jmp(loop_entry, vec![new_loop_index]);
         })?;
 
@@ -1607,7 +1611,7 @@ impl FunctionContext<'_> {
 
         // Must remember to increment i before jumping
         if let Some(loop_index) = loop_.loop_index {
-            let new_loop_index = self.make_offset(loop_index, 1, true);
+            let new_loop_index = self.increment_loop_index(loop_index);
             self.builder.terminate_with_jmp(loop_.loop_entry, vec![new_loop_index]);
         } else {
             self.builder.terminate_with_jmp(loop_.loop_entry, vec![]);

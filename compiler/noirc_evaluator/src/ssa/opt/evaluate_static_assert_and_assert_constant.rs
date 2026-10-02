@@ -486,6 +486,46 @@ mod tests {
     }
 
     #[test]
+    fn fail_on_static_assert_in_loop_with_in_body_header_branch() {
+        // Regression for noir-lang/noir-claude#1844: the header guard `lt v0, u32 10` has both
+        // of its arms inside the loop, so it is not the loop's exit test and yields no bounds.
+        // Reading `[12, 10)` off it would classify the loop as never executing and delete the
+        // `static_assert(false)`, but `v0` starts at 12 so the `else` arm runs on the first
+        // iteration and the assertion must fail.
+        let src = r#"
+        brillig(inline) fn main f0 {
+          b0(v1: u32):
+            jmp b1(u32 12)
+          b1(v0: u32):
+            v2 = lt v0, u32 10
+            jmpif v2 then: b2(), else: b3()
+          b2():
+            jmp b4()
+          b3():
+            v3 = make_array b"else arm ran"
+            v4 = make_array b"{\"kind\":\"string\",\"length\":12}"
+            call static_assert(u1 0, v3, v4, u1 0)
+            jmp b4()
+          b4():
+            v5 = eq v0, v1
+            jmpif v5 then: b6(), else: b5()
+          b5():
+            v6 = add v0, u32 1
+            jmp b1(v6)
+          b6():
+            return
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let Err(RuntimeError::StaticAssertFailed { message, .. }) =
+            ssa.evaluate_static_assert_and_assert_constant()
+        else {
+            panic!("Expected a static assert failure");
+        };
+        assert_eq!(message, "else arm ran");
+    }
+
+    #[test]
     fn fail_on_assert_constant_in_dynamic_loop() {
         let src = r"
         acir(inline) fn main f0 {

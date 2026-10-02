@@ -4,6 +4,39 @@ use crate::ssa::interpreter::{
     value::Value,
 };
 
+/// `array_len` is the number of elements, not the number of flattened slots the array occupies.
+/// The two differ for a composite element type, and `simplify_call` folds `array_len` of an array
+/// to its declared length, so the interpreter has to agree.
+#[test]
+fn array_len_of_composite_array() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5, Field 6] : [(Field, Field); 3]
+            v1 = call array_len(v0) -> u32
+            return v1
+        }
+    ",
+    );
+    assert_eq!(value, Value::u32(3));
+}
+
+#[test]
+fn array_len_of_flat_array() {
+    let value = expect_value(
+        "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+            v1 = call array_len(v0) -> u32
+            return v1
+        }
+    ",
+    );
+    assert_eq!(value, Value::u32(3));
+}
+
 #[test]
 fn to_le_bits() {
     let value = expect_value(

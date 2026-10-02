@@ -1,0 +1,6 @@
+[package]
+name = "ref_to_ref_in_array_two_reads"
+type = "bin"
+authors = [""]
+
+[dependencies]

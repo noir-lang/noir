@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: outer failed after inner returned
+   ┌─ src/main.nr:12:12
+   │
+12 │     assert(y == x, "outer failed after inner returned");
+   │            ------ Assertion failed
+   │
+   = Call stack:
+     1: ?
+             at src/main.nr:5:4
+     2: main
+             at src/main.nr:6:12
+
+Error interpreting main function

@@ -13,15 +13,28 @@ use crate::{
     tests::check_monomorphization_error_using_features,
 };
 
+/// Monomorphize `src` with the `enums` unstable feature enabled.
+fn get_monomorphized_with_enums(
+    src: &str,
+) -> Result<crate::monomorphization::ast::Program, MonomorphizationError> {
+    let features = vec![UnstableFeature::Enums];
+    let options = GetProgramOptions {
+        frontend_options: crate::elaborator::FrontendOptions {
+            enabled_unstable_features: &features,
+            ..crate::elaborator::FrontendOptions::test_default()
+        },
+        ..Default::default()
+    };
+    get_monomorphized_with_options(src, options)
+}
+
 #[test]
-fn bounded_recursive_type_errors() {
-    // We want to eventually allow bounded recursive types like this, but for now they are
-    // disallowed because they cause a panic in convert_type during monomorphization.
+fn bounded_recursive_type_monomorphizes() {
+    // `Tree<Tree<Tree<()>>>` nests `Tree` inside itself, but only to a fixed depth, so each
+    // level converts to a differently-sized tuple.
     let src = "
         fn main() {
             let _tree: Tree<Tree<Tree<()>>> = Tree::Branch(
-                                              ^^^^^^^^^^^^ Type `Tree<()>` is recursive
-                                              ~~~~~~~~~~~~ All types in Noir must have a known size at compile-time
                 Tree::Branch(Tree::Leaf, Tree::Leaf),
                 Tree::Branch(Tree::Leaf, Tree::Leaf),
             );
@@ -32,32 +45,26 @@ fn bounded_recursive_type_errors() {
             Leaf,
         }
         ";
-    let features = vec![UnstableFeature::Enums];
-    check_monomorphization_error_using_features(src, &features, false);
+    let program = get_monomorphized_with_enums(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    global Leaf$g0: (Field, ((), ()), ()) = (1, ((), ()), ());
+    fn main$f0() -> () {
+        let _tree$l0 = Branch$f1(Branch$f2(Leaf$g0, Leaf$g0), Branch$f2(Leaf$g0, Leaf$g0))
+    }
+    fn Branch$f1($0$l1: (Field, ((Field, ((), ()), ()), (Field, ((), ()), ())), ()), $1$l2: (Field, ((Field, ((), ()), ()), (Field, ((), ()), ())), ())) -> (Field, ((Field, ((Field, ((), ()), ()), (Field, ((), ()), ())), ()), (Field, ((Field, ((), ()), ()), (Field, ((), ()), ())), ())), ()) {
+        (0, ($0$l1, $1$l2), ())
+    }
+    fn Branch$f2($0$l3: (Field, ((), ()), ()), $1$l4: (Field, ((), ()), ())) -> (Field, ((Field, ((), ()), ()), (Field, ((), ()), ())), ()) {
+        (0, ($0$l3, $1$l4), ())
+    }
+    ");
 }
 
 #[test]
-fn recursive_type_with_alias_errors() {
-    // We want to eventually allow bounded recursive types like this, but for now they are
-    // disallowed because they cause a panic in convert_type during monomorphization.
-    //
-    // In the future we could lower this type to:
-    // struct OptOptUnit {
-    //     is_some: Field,
-    //     some: OptUnit,
-    //     none: (),
-    // }
-    //
-    // struct OptUnit {
-    //     is_some: Field,
-    //     some: (),
-    //     none: (),
-    // }
+fn bounded_recursive_type_through_alias_monomorphizes() {
     let src = "
         fn main() {
             let _tree: Opt<OptAlias<()>> = Opt::Some(OptAlias::None);
-                                           ^^^^^^^^^ Type `Opt<()>` is recursive
-                                           ~~~~~~~~~ All types in Noir must have a known size at compile-time
         }
 
         type OptAlias<T> = Opt<T>;
@@ -67,8 +74,16 @@ fn recursive_type_with_alias_errors() {
             None,
         }
         ";
-    let features = vec![UnstableFeature::Enums];
-    check_monomorphization_error_using_features(src, &features, false);
+    let program = get_monomorphized_with_enums(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    global None$g0: (Field, ((),), ()) = (1, (()), ());
+    fn main$f0() -> () {
+        let _tree$l0 = Some$f1(None$g0)
+    }
+    fn Some$f1($0$l1: (Field, ((),), ())) -> (Field, ((Field, ((),), ()),), ()) {
+        (0, ($0$l1), ())
+    }
+    ");
 }
 
 #[test]
@@ -139,10 +154,10 @@ fn assert_checked_cast_accepted_without_binding(from: &Type, to: &Type, variable
     let result = Monomorphizer::check_checked_cast(from, to, Location::dummy());
     assert!(result.is_ok(), "checking `{from} -> {to}` failed: {result:?}");
     assert!(
-        variable.borrow().is_unbound(),
+        variable.binding().is_unbound(),
         "checking `{from} -> {to}` left type variable {} as {:?}",
         variable.id().0,
-        *variable.borrow()
+        *variable.binding()
     );
 }
 
@@ -2069,4 +2084,119 @@ fn errors_on_unknown_builtin_name() {
         matches!(&err, MonomorphizationError::UnknownBuiltin { name, .. } if name == "not_a_real_builtin"),
         "expected UnknownBuiltin, got: {err:?}"
     );
+}
+
+/// The monomorphization function cache is a `HashMap` keyed on `Type`, and `Type::eq` looks
+/// through `Type::CheckedCast` — so `Type::hash` has to look through it too, or two keys the
+/// cache considers equal land in different buckets and the same instantiation is monomorphized
+/// twice.
+///
+/// `take` is reached at `N = 4` from a plain `[Field; 4]` and from `[Field; (M - 1) + 1]`, whose
+/// length still carries the `CheckedCast` wrapper the elaborator builds for arithmetic generics
+/// (`follow_bindings` preserves it, so normalizing the key does not strip it). One specialization
+/// must serve both call sites.
+#[test]
+fn checked_cast_and_plain_array_lengths_share_one_specialization() {
+    let src = r#"
+    fn take<let N: u32>(x: [Field; N]) -> u32 { N }
+
+    fn via_checked_cast<let M: u32>(x: [Field; (M - 1) + 1]) -> u32 { take(x) }
+
+    pub fn main() -> pub u32 {
+        let arr: [Field; 4] = [0; 4];
+        via_checked_cast::<4>(arr) + take(arr)
+    }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u32 {
+        let arr$l0 = [0; 4];
+        (via_checked_cast$f1(arr$l0) + take$f2(arr$l0))
+    }
+    fn via_checked_cast$f1(x$l1: [Field; 4]) -> u32 {
+        take$f2(x$l1)
+    }
+    fn take$f2(x$l2: [Field; 4]) -> u32 {
+        4
+    }
+    ");
+}
+
+/// Control for `checked_cast_and_plain_array_lengths_share_one_specialization`: two call sites
+/// whose lengths are *different* arithmetic expressions over `M` share one specialization,
+/// because both `Type::eq` and `Type::hash` ignore a `CheckedCast`'s `from` side and compare its
+/// `to`. A regression that splits the cache on `from` fails here and not in the mixed case.
+#[test]
+fn distinct_checked_cast_array_lengths_share_one_specialization() {
+    let src = r#"
+    fn take<let N: u32>(x: [Field; N]) -> u32 { N }
+
+    fn minus_then_plus<let M: u32>(x: [Field; (M - 1) + 1]) -> u32 { take(x) }
+    fn plus_then_minus<let M: u32>(x: [Field; (M + 2) - 2]) -> u32 { take(x) }
+
+    pub fn main() -> pub u32 {
+        let arr: [Field; 4] = [0; 4];
+        minus_then_plus::<4>(arr) + plus_then_minus::<4>(arr)
+    }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u32 {
+        let arr$l0 = [0; 4];
+        (minus_then_plus$f1(arr$l0) + plus_then_minus$f2(arr$l0))
+    }
+    fn minus_then_plus$f1(x$l1: [Field; 4]) -> u32 {
+        take$f3(x$l1)
+    }
+    fn plus_then_minus$f2(x$l2: [Field; 4]) -> u32 {
+        take$f3(x$l2)
+    }
+    fn take$f3(x$l3: [Field; 4]) -> u32 {
+        4
+    }
+    ");
+}
+
+/// The duplication is visible in the shipped artifact: `#[fold]` means "compile me as a
+/// standalone ACIR circuit", so a `#[fold]` function monomorphized twice for one instantiation
+/// becomes two entry-point circuits with two verification keys. One source `#[fold] fn heavy`
+/// called at `N = 4` must survive as exactly one entry point.
+#[test]
+fn fold_function_reached_through_checked_cast_is_one_entry_point() {
+    let src = r#"
+    #[fold]
+    fn heavy<let N: u32>(x: [Field; N]) -> Field { x[0] + N as Field }
+
+    fn via_checked_cast<let M: u32>(x: [Field; (M - 1) + 1]) -> Field { heavy(x) }
+
+    pub fn main(a: [Field; 4]) -> pub Field {
+        heavy(a) + via_checked_cast::<4>(a)
+    }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    let entry_points: Vec<_> =
+        program.functions.iter().filter(|function| function.is_entry_point).collect();
+    assert_eq!(
+        entry_points.iter().filter(|function| function.name == "heavy").count(),
+        1,
+        "`#[fold] fn heavy` at one instantiation must be one ACIR circuit, got: {}",
+        entry_points
+            .iter()
+            .map(|function| format!("{}${:?}", function.name, function.id))
+            .collect::<Vec<_>>()
+            .join(", ")
+    );
+
+    insta::assert_snapshot!(program, @r"
+    fn main$f0(a$l0: [Field; 4]) -> pub Field {
+        (heavy$f1(a$l0) + via_checked_cast$f2(a$l0))
+    }
+    #[fold]
+    fn heavy$f1(x$l1: [Field; 4]) -> Field {
+        (x$l1[0] + (4 as Field))
+    }
+    fn via_checked_cast$f2(x$l2: [Field; 4]) -> Field {
+        heavy$f1(x$l2)
+    }
+    ");
 }

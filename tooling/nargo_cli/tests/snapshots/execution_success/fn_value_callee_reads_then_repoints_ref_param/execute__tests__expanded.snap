@@ -1,0 +1,22 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn set(q: &mut &mut Field) -> Field {
+    let old: &mut Field = *q;
+    let mut c: Field = 0_Field;
+    *q = &mut c;
+    *old = 7_Field;
+    c
+}
+
+unconstrained fn h(f: fn(&mut &mut Field) -> Field) -> Field {
+    let mut a: Field = 0_Field;
+    let mut p: &mut Field = &mut a;
+    let r: Field = f(&mut p);
+    r + (a * 10_Field)
+}
+
+unconstrained fn main() -> pub Field {
+    h(set)
+}

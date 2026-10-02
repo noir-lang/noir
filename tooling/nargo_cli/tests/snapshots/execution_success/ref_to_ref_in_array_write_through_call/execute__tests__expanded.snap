@@ -1,0 +1,18 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn write(q: &mut &mut Field, v: Field) {
+    let p: &mut Field = *q;
+    *p = v;
+}
+
+fn main(x: Field, y: Field) -> pub Field {
+    let mut a: Field = x;
+    let mut p: &mut Field = &mut a;
+    let q: &mut &mut Field = &mut p;
+    let arr: [(&mut Field, &mut &mut Field); 1] = [(p, q)];
+    *p = y;
+    write(q, y * 2_Field);
+    *arr[0_u32].0
+}

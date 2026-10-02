@@ -626,7 +626,7 @@ fn type_def_generics(
         .iter()
         .map(|generic| {
             let generic_as_named = generic.clone().into_named_generic(None);
-            let numeric_type = match generic_as_named.kind() {
+            let numeric_type = match generic_as_named.kind().into_owned() {
                 Kind::Numeric(numeric_type) => Some(Value::Type(*numeric_type)),
                 _ => None,
             };
@@ -1054,10 +1054,11 @@ fn quoted_as_module(
     let option_value = path.and_then(|path| {
         let path = interpreter.elaborator.validate_path(path);
         let reason = Some(ElaborateReason::EvaluatingComptimeCall("Quoted::as_module", location));
-        let module =
-            interpreter.elaborate_in_function(interpreter.current_function, reason, |elaborator| {
-                elaborator.resolve_module_by_path(path)
-            });
+        let module = interpreter.elaborator.elaborate_item_from_comptime_in_function(
+            interpreter.current_function,
+            reason,
+            |elaborator| elaborator.resolve_module_by_path(path),
+        );
         module.map(Value::ModuleDefinition)
     });
 
@@ -1080,9 +1081,12 @@ fn quoted_as_trait_constraint(
     let reason =
         Some(ElaborateReason::EvaluatingComptimeCall("Quoted::as_trait_constraint", location));
     let bound = interpreter
-        .elaborate_in_function(interpreter.current_function, reason, |elaborator| {
-            elaborator.use_trait_bound(&trait_bound)
-        })
+        .elaborator
+        .elaborate_item_from_comptime_in_function(
+            interpreter.current_function,
+            reason,
+            |elaborator| elaborator.use_trait_bound(&trait_bound),
+        )
         .ok_or(InterpreterError::FailedToResolveTraitBound { trait_bound, location })?;
 
     Ok(Value::TraitConstraint(bound.trait_id, bound.trait_generics))
@@ -1103,12 +1107,15 @@ fn quoted_as_type(
     )?;
     let reason = Some(ElaborateReason::EvaluatingComptimeCall("Quoted::as_type", location));
     let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::QuotedAsType);
-    let typ =
-        interpreter.elaborate_in_function(interpreter.current_function, reason, |elaborator| {
+    let typ = interpreter.elaborator.elaborate_item_from_comptime_in_function(
+        interpreter.current_function,
+        reason,
+        |elaborator| {
             // `Kind::Any` so a numeric type expression (e.g. `quote { 4 }`) resolves to a
             // `Type::Constant` rather than being rejected as a non-`Normal` kind.
             elaborator.use_type_with_kind(typ, &Kind::Any, wildcard_allowed)
-        });
+        },
+    );
     Ok(Value::Type(typ))
 }
 
@@ -2445,42 +2452,47 @@ fn expr_resolve(
     let caller_module = is_some.then(|| interpreter.elaborator.module_id());
 
     let reason = Some(ElaborateReason::EvaluatingComptimeCall("Expr::resolve", location));
-    interpreter.elaborate_in_function(function_to_resolve_in, reason, |elaborator| {
-        if is_some {
-            elaborator.set_caller_module(caller_module);
-        }
+    interpreter.elaborator.elaborate_item_from_comptime_in_function(
+        function_to_resolve_in,
+        reason,
+        |elaborator| {
+            if is_some {
+                elaborator.set_caller_module(caller_module);
+            }
 
-        match expr_value {
-            ExprValue::Expression(expression_kind) => {
-                let expr = Expression { kind: expression_kind, location: self_argument_location };
-                let (expr_id, _) = elaborator.elaborate_expression(expr);
-                Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
-            }
-            ExprValue::Statement(statement_kind) => {
-                let statement =
-                    Statement { kind: statement_kind, location: self_argument_location };
-                let (stmt_id, _) = elaborator.elaborate_statement(statement);
-                Ok(Value::TypedExpr(TypedExpr::StmtId(stmt_id)))
-            }
-            ExprValue::LValue(lvalue) => {
-                let expr = lvalue.as_expression();
-                let (expr_id, _) = elaborator.elaborate_expression(expr);
-                Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
-            }
-            ExprValue::Pattern(pattern) => {
-                if let Some(expression) = pattern.try_as_expression(elaborator.interner) {
-                    let (expr_id, _) = elaborator.elaborate_expression(expression);
+            match expr_value {
+                ExprValue::Expression(expression_kind) => {
+                    let expr =
+                        Expression { kind: expression_kind, location: self_argument_location };
+                    let (expr_id, _) = elaborator.elaborate_expression(expr);
                     Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
-                } else {
-                    let expression = Value::pattern(pattern)
-                        .display(elaborator.interner, elaborator.files)
-                        .to_string();
-                    let location = self_argument_location;
-                    Err(InterpreterError::CannotResolveExpression { location, expression })
+                }
+                ExprValue::Statement(statement_kind) => {
+                    let statement =
+                        Statement { kind: statement_kind, location: self_argument_location };
+                    let (stmt_id, _) = elaborator.elaborate_statement(statement);
+                    Ok(Value::TypedExpr(TypedExpr::StmtId(stmt_id)))
+                }
+                ExprValue::LValue(lvalue) => {
+                    let expr = lvalue.as_expression();
+                    let (expr_id, _) = elaborator.elaborate_expression(expr);
+                    Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
+                }
+                ExprValue::Pattern(pattern) => {
+                    if let Some(expression) = pattern.try_as_expression(elaborator.interner) {
+                        let (expr_id, _) = elaborator.elaborate_expression(expression);
+                        Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
+                    } else {
+                        let expression = Value::pattern(pattern)
+                            .display(elaborator.interner, elaborator.files)
+                            .to_string();
+                        let location = self_argument_location;
+                        Err(InterpreterError::CannotResolveExpression { location, expression })
+                    }
                 }
             }
-        }
-    })
+        },
+    )
 }
 
 fn unwrap_expr_value(interner: &NodeInterner, expr_value: ExprValue) -> ExprValue {
@@ -2659,11 +2671,14 @@ fn function_def_as_typed_expr(
         "FunctionDefinition::as_typed_expr",
         location,
     ));
-    let typ =
-        interpreter.elaborate_in_function(interpreter.current_function, reason, |elaborator| {
+    let typ = interpreter.elaborator.elaborate_item_from_comptime_in_function(
+        interpreter.current_function,
+        reason,
+        |elaborator| {
             let bindings = TypeBindings::default();
             elaborator.type_check_variable_with_bindings(hir_ident, &expr_id, generics, bindings)
-        });
+        },
+    );
     let expr_id = interpreter.elaborator.intern_expr_type(expr_id, typ);
     Ok(Value::TypedExpr(TypedExpr::ExprId(expr_id)))
 }

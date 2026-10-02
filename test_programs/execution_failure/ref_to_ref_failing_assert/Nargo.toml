@@ -1,0 +1,6 @@
+[package]
+name = "ref_to_ref_failing_assert"
+type = "bin"
+authors = [""]
+
+[dependencies]
