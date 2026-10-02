@@ -383,7 +383,7 @@ fn dump_emitted() {
 /// artifact), `solved` and one `witness <i> <v>` line per witness. Used to
 /// regenerate `fv/acir_lean` test-program data.
 #[test]
-#[ignore = "run by fv/acir_lean/scripts/regen_programs.sh"]
+#[ignore = "writes input for fv/acir_lean/scripts/emit_hint_certs.lean"]
 fn dump_artifacts() {
     let list = std::env::var("FV_ARTIFACTS").unwrap();
     for path in std::fs::read_to_string(list).unwrap().lines() {
@@ -403,6 +403,65 @@ fn dump_artifacts() {
             println!("solved");
             for (w, v) in main.witness.clone() {
                 println!("witness {} {}", w.0, BigUint::from_bytes_be(&v.to_be_bytes()));
+            }
+        }
+    }
+}
+
+/// Input for `fv/acir_lean/scripts/emit_hint_certs.lean`. For each `name path`
+/// line in the file named by `FV_HINT_SSA` (the final SSA of a test program),
+/// compiles the SSA and prints the shipped circuit as `dump_artifacts` does, then
+/// `hint <instruction> <result> <expr>` for the expression ACIR generation
+/// assigned each SSA result (`-` if none), and `internal <instruction> <expr>` for
+/// every `AcirVar` and witness the instruction created.
+#[test]
+#[ignore = "writes input for fv/acir_lean/scripts/emit_hint_certs.lean"]
+fn dump_hints() {
+    let modulus = FieldElement::modulus();
+    let list = std::env::var("FV_HINT_SSA").unwrap();
+    for line in std::fs::read_to_string(list).unwrap().lines() {
+        let (name, path) = line.split_once(' ').unwrap();
+        let text = std::fs::read_to_string(path).unwrap();
+        let src =
+            text.lines().skip_while(|l| !l.starts_with("acir")).collect::<Vec<_>>().join("\n");
+        let hook = std::panic::take_hook();
+        std::panic::set_hook(Box::new(|_| {}));
+        let compiled = std::panic::catch_unwind(|| {
+            let ssa = Ssa::from_str_no_validation(&src).ok()?;
+            crate::acir::tests::try_ssa_value_to_acir(ssa).ok()
+        });
+        std::panic::set_hook(hook);
+        let Ok(Some((program, _))) = compiled else {
+            println!("# skip {name}");
+            continue;
+        };
+        let hints = crate::acir::fv_hints::take();
+        let internals = crate::acir::fv_hints::take_internals();
+        println!("# program {name}");
+        for line in circuit_lines(&program.functions[0]) {
+            println!("{line}");
+        }
+        let coef = |c: FieldElement| BigUint::from_bytes_be(&c.to_be_bytes()) % &modulus;
+        let show = |e: &acvm::acir::native_types::Expression<FieldElement>| {
+            let mut terms = Vec::new();
+            for (c, a, b) in &e.mul_terms {
+                terms.push(format!("{}*[{},{}]", coef(*c), a.0, b.0));
+            }
+            for (c, a) in &e.linear_combinations {
+                terms.push(format!("{}*[{}]", coef(*c), a.0));
+            }
+            terms.push(format!("{}*[]", coef(e.q_c)));
+            terms.join(" + ")
+        };
+        for (k, results) in hints.iter().enumerate() {
+            for (j, expr) in results.iter().enumerate() {
+                let text = expr.as_ref().map_or("-".to_string(), show);
+                println!("hint {k} {j} {text}");
+            }
+        }
+        for (k, exprs) in internals.iter().enumerate() {
+            for e in exprs {
+                println!("internal {k} {}", show(e));
             }
         }
     }

@@ -257,9 +257,29 @@ impl<'a> Context<'a> {
         }
 
         self.data_bus = dfg.data_bus.clone();
+        #[cfg(test)]
+        let mut internals = Vec::new();
         for instruction_id in entry_block.instructions() {
+            #[cfg(test)]
+            let before = self.acir_context.fv_var_count();
+            #[cfg(test)]
+            let before_w = self.acir_context.current_witness_index().map_or(0, |w| w.0 + 1);
             warnings.extend(self.convert_ssa_instruction(*instruction_id, dfg, ssa)?);
+            #[cfg(test)]
+            {
+                let after_w = self.acir_context.current_witness_index().map_or(0, |w| w.0 + 1);
+                let mut exprs: Vec<_> = (before..self.acir_context.fv_var_count())
+                    .filter_map(|i| self.acir_context.fv_var_expression(i))
+                    .collect();
+                exprs.extend(
+                    (before_w..after_w)
+                        .map(|w| acvm::acir::native_types::Expression::from(Witness(w))),
+                );
+                internals.push(exprs);
+            }
         }
+        #[cfg(test)]
+        fv_hints::record_internals(internals);
         let (return_vars, return_warnings) =
             self.convert_ssa_return(entry_block.unwrap_terminator(), main_func.entry_block(), dfg)?;
 
@@ -279,6 +299,17 @@ impl<'a> Context<'a> {
 
         #[cfg(debug_assertions)]
         acir_post_check(&self, &self.acir_context.acir_ir);
+
+        #[cfg(test)]
+        fv_hints::record(entry_block.instructions().iter().map(|id| {
+            dfg.instruction_results(*id)
+                .iter()
+                .map(|result| match self.ssa_values.get(result) {
+                    Some(AcirValue::Var(var, _)) => self.acir_context.var_to_expression(*var).ok(),
+                    _ => None,
+                })
+                .collect()
+        }));
 
         // Add the warnings from the alter Ssa passes
         Ok(self.acir_context.finish(
@@ -1117,4 +1148,41 @@ fn assert_initialized_blocks_are_used(acir: &GeneratedAcir<FieldElement>) {
         unused.is_empty(),
         "ICE: memory blocks initialized without any linked read/write/Brillig use: {unused:?}"
     );
+}
+
+/// What ACIR generation assigned while converting the last `main` on this
+/// thread, for the Lean proofs' certificate generator (`fv/acir_lean`): the
+/// expression of each instruction result, and every `AcirVar` and witness each
+/// instruction created.
+#[cfg(test)]
+pub(crate) mod fv_hints {
+    use acvm::{FieldElement, acir::native_types::Expression};
+    use std::cell::RefCell;
+
+    type Hints = Vec<Vec<Option<Expression<FieldElement>>>>;
+
+    thread_local! {
+        static HINTS: RefCell<Hints> = const { RefCell::new(Vec::new()) };
+    }
+
+    pub(crate) fn record(hints: impl Iterator<Item = Vec<Option<Expression<FieldElement>>>>) {
+        HINTS.with(|h| *h.borrow_mut() = hints.collect());
+    }
+
+    pub(crate) fn take() -> Hints {
+        HINTS.with(|h| std::mem::take(&mut *h.borrow_mut()))
+    }
+
+    thread_local! {
+        static INTERNALS: RefCell<Vec<Vec<Expression<FieldElement>>>> = const { RefCell::new(Vec::new()) };
+    }
+
+    /// The expressions of every `AcirVar` and witness created while converting each instruction.
+    pub(crate) fn record_internals(internals: Vec<Vec<Expression<FieldElement>>>) {
+        INTERNALS.with(|h| *h.borrow_mut() = internals);
+    }
+
+    pub(crate) fn take_internals() -> Vec<Vec<Expression<FieldElement>>> {
+        INTERNALS.with(|h| std::mem::take(&mut *h.borrow_mut()))
+    }
 }
