@@ -124,10 +124,9 @@ pub struct Interpreter<'local, 'interner> {
     /// function goes through [`Self::ty`], which applies them.
     substitution: TypeBindings,
 
-    /// The type variables each macro call expression's result bound in [`Self::substitution`]
-    /// the last time it was evaluated. A macro call inside a loop can produce a value of a
-    /// different type on each iteration, so those bindings are taken back out before its type is
-    /// unified again.
+    /// The type variables each call expression's result bound in [`Self::substitution`] the last
+    /// time it was evaluated. A macro call inside a loop can produce a value of a different type
+    /// on each iteration, so those bindings are taken back out before its type is unified again.
     macro_call_bindings: HashMap<ExprId, Vec<TypeVariableId>>,
 
     /// Current evaluation depth.
@@ -417,8 +416,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             let caller_substitution =
                 std::mem::replace(&mut this.substitution, closure.substitution);
 
-            let result =
-                this.call_closure_inner(closure.lambda, closure.env, arguments, call_location);
+            // The body can solve types after a value holding them was built (`[make!()]` types
+            // the array before the macro call runs), so resolve the result under the closure's
+            // substitution before leaving it.
+            let result = this
+                .call_closure_inner(closure.lambda, closure.env, arguments, call_location)
+                .map(|result| this.value(result));
 
             this.substitution = caller_substitution;
             this.elaborator.pop_interpreter_call_stack();
@@ -1267,10 +1270,16 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     result = self.evaluate(expr)?;
 
                     self.unify_macro_call_result_with_expected_type(id, location, &result);
+                } else {
+                    self.solve_call_type_from_result(id, &result);
                 }
                 Ok(result)
             }
-            Value::Closure(closure) => self.call_closure(*closure, arguments, location),
+            Value::Closure(closure) => {
+                let result = self.call_closure(*closure, arguments, location)?;
+                self.solve_call_type_from_result(id, &result);
+                Ok(result)
+            }
             value => {
                 let typ = value.get_type().into_owned();
                 Err(InterpreterError::NonFunctionCalled { typ, location })
@@ -1307,6 +1316,27 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     location,
                 ));
             }
+        }
+    }
+
+    /// A call can return the value of a macro call that ran in another frame: the body of a
+    /// closure, or a function the closure was passed to. That frame's substitution is gone once
+    /// the call returns, so if the call's type is still unsolved in this frame, solve it from the
+    /// value the call produced.
+    fn solve_call_type_from_result(&mut self, id: ExprId, result: &Value) {
+        for var_id in self.macro_call_bindings.remove(&id).unwrap_or_default() {
+            self.substitution.remove(&var_id);
+        }
+
+        let expected_type = self.expr_type(id);
+        if !expected_type.contains_unbound_type_variable() {
+            return;
+        }
+
+        let mut bindings = TypeBindings::default();
+        if result.get_type().try_unify(&expected_type, &mut bindings).is_ok() {
+            self.macro_call_bindings.insert(id, bindings.keys().copied().collect());
+            self.substitution.extend(bindings);
         }
     }
 
