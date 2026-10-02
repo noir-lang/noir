@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790960520999,
+  "lastUpdate": 1790971878168,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22956,48 +22956,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "ac75dfa5c762a5ec522e8b43c99cb444fd42bb70",
-          "message": "fix: keep sibling `where` bounds on one trait from sharing associated types (#13777)",
-          "timestamp": "2026-09-21T12:23:43Z",
-          "tree_id": "1e7d6c685623ef0c4094fb7c3bebde4a40f8d503",
-          "url": "https://github.com/noir-lang/noir/commit/ac75dfa5c762a5ec522e8b43c99cb444fd42bb70"
-        },
-        "date": 1789994726268,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 168785,
-            "range": "± 1178",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 136755,
-            "range": "± 6051",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2647913,
-            "range": "± 4054",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -25049,6 +25007,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 3045327,
             "range": "± 68536",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3049e7e4878fadda7a5e2b0690231c7846e67bf3",
+          "message": "fix(ssa): only rebase store of array_set onto a load from the same memory epoch (#13867)",
+          "timestamp": "2026-10-02T19:48:28Z",
+          "tree_id": "692e692ea5c4e52de0a984a85d46fd4c8d0ebf2e",
+          "url": "https://github.com/noir-lang/noir/commit/3049e7e4878fadda7a5e2b0690231c7846e67bf3"
+        },
+        "date": 1790971782295,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 168268,
+            "range": "± 361",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136438,
+            "range": "± 10065",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2645652,
+            "range": "± 6092",
             "unit": "ns/iter"
           }
         ]
