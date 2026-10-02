@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790953198509,
+  "lastUpdate": 1790959431866,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22956,48 +22956,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "5486537b236a532567a83397839127e803096e1d",
-          "message": "chore(deps-dev): bump adm-zip from 0.6.0 to 0.6.1 (#13773)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-09-21T12:42:10+01:00",
-          "tree_id": "9cd57e1d3d4a23419837bc0498e15174b3592928",
-          "url": "https://github.com/noir-lang/noir/commit/5486537b236a532567a83397839127e803096e1d"
-        },
-        "date": 1789991082161,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 168374,
-            "range": "± 692",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 137833,
-            "range": "± 543",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2649566,
-            "range": "± 8305",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49558828+AztecBot@users.noreply.github.com",
             "name": "Aztec Bot",
             "username": "AztecBot"
@@ -25049,6 +25007,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2644439,
             "range": "± 1755",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c7504d771f9f015a31bfe9618b0a3e2e0777dab0",
+          "message": "chore(test): reuse EvaluationTracker to avoid multiple type-checks (#13866)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
+          "timestamp": "2026-10-02T16:21:06Z",
+          "tree_id": "ce2b55254cb03cf816679c5ad2f64618c6566c91",
+          "url": "https://github.com/noir-lang/noir/commit/c7504d771f9f015a31bfe9618b0a3e2e0777dab0"
+        },
+        "date": 1790959340550,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 126768,
+            "range": "± 464",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 112761,
+            "range": "± 803",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3045327,
+            "range": "± 68536",
             "unit": "ns/iter"
           }
         ]
