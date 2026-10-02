@@ -11,6 +11,7 @@ import AcirLean.Proofs.Shipped
 import AcirLean.Proofs.SignedDivMod
 import AcirLean.Proofs.Checker
 import AcirLean.Proofs.Checker2Sound
+import AcirLean.Proofs.HintChecker
 
 /-! The proof of `AllClaims`, assembled from the gadget theorems. -/
 
