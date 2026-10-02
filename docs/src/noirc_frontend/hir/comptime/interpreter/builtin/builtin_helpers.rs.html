@@ -11,10 +11,10 @@
 <a href=#11 id=11 data-nosnippet>11</a><span class="kw">use </span>noirc_errors::Location;
 <a href=#12 id=12 data-nosnippet>12</a><span class="kw">use </span>siphasher::sip::SipHasher13;
 <a href=#13 id=13 data-nosnippet>13</a>
-<a href=#14 id=14 data-nosnippet>14</a><span class="kw">use </span><span class="kw">crate</span>::Shared;
-<a href=#15 id=15 data-nosnippet>15</a><span class="kw">use </span><span class="kw">crate</span>::ast::{BinaryOp, ItemVisibility, UnaryOp};
-<a href=#16 id=16 data-nosnippet>16</a><span class="kw">use </span><span class="kw">crate</span>::elaborator::Elaborator;
-<a href=#17 id=17 data-nosnippet>17</a><span class="kw">use </span><span class="kw">crate</span>::hir::comptime::Integer;
+<a href=#14 id=14 data-nosnippet>14</a><span class="kw">use </span><span class="kw">crate</span>::ast::{BinaryOp, ItemVisibility, UnaryOp};
+<a href=#15 id=15 data-nosnippet>15</a><span class="kw">use </span><span class="kw">crate</span>::elaborator::Elaborator;
+<a href=#16 id=16 data-nosnippet>16</a><span class="kw">use </span><span class="kw">crate</span>::hir::comptime::Integer;
+<a href=#17 id=17 data-nosnippet>17</a><span class="kw">use </span><span class="kw">crate</span>::hir::comptime::ValueCell;
 <a href=#18 id=18 data-nosnippet>18</a><span class="kw">use </span><span class="kw">crate</span>::hir::comptime::display::{tokens_to_string, value_to_bytes};
 <a href=#19 id=19 data-nosnippet>19</a><span class="kw">use </span><span class="kw">crate</span>::hir::comptime::value::unwrap_rc;
 <a href=#20 id=20 data-nosnippet>20</a><span class="kw">use </span><span class="kw">crate</span>::hir::comptime::value::{FormatStringFragment, StructFields};
@@ -211,7 +211,7 @@
 <a href=#211 id=211 data-nosnippet>211</a><span class="doccomment">/// Get a specific field of a struct and apply a decoder function on it.
 <a href=#212 id=212 data-nosnippet>212</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_struct_field&lt;T&gt;(
 <a href=#213 id=213 data-nosnippet>213</a>    field_name: <span class="kw-2">&amp;</span>str,
-<a href=#214 id=214 data-nosnippet>214</a>    struct_fields: <span class="kw-2">&amp;</span>HashMap&lt;Rc&lt;String&gt;, Shared&lt;Value&gt;&gt;,
+<a href=#214 id=214 data-nosnippet>214</a>    struct_fields: <span class="kw-2">&amp;</span>HashMap&lt;Rc&lt;String&gt;, ValueCell&gt;,
 <a href=#215 id=215 data-nosnippet>215</a>    struct_type: <span class="kw-2">&amp;</span>Type,
 <a href=#216 id=216 data-nosnippet>216</a>    location: Location,
 <a href=#217 id=217 data-nosnippet>217</a>    f: <span class="kw">impl </span>Fn((Value, Location)) -&gt; IResult&lt;T&gt;,
@@ -848,7 +848,7 @@
 <a href=#848 id=848 data-nosnippet>848</a>    typ: Type,
 <a href=#849 id=849 data-nosnippet>849</a>) -&gt; Value {
 <a href=#850 id=850 data-nosnippet>850</a>    <span class="kw">let </span>fields =
-<a href=#851 id=851 data-nosnippet>851</a>        fields.into_iter().map(|(k, v)| (Rc::new(k.to_string()), Shared::new(v))).collect();
+<a href=#851 id=851 data-nosnippet>851</a>        fields.into_iter().map(|(k, v)| (Rc::new(k.to_string()), ValueCell::new(v))).collect();
 <a href=#852 id=852 data-nosnippet>852</a>    Value::Struct(fields, typ)
 <a href=#853 id=853 data-nosnippet>853</a>}
 <a href=#854 id=854 data-nosnippet>854</a>
@@ -866,7 +866,7 @@
 <a href=#866 id=866 data-nosnippet>866</a>    };
 <a href=#867 id=867 data-nosnippet>867</a>
 <a href=#868 id=868 data-nosnippet>868</a>    <span class="kw">let </span><span class="kw-2">mut </span>fields = HashMap::default();
-<a href=#869 id=869 data-nosnippet>869</a>    fields.insert(Rc::new(<span class="string">"op"</span>.to_string()), Shared::new(Value::field(unary_op_value.into())));
+<a href=#869 id=869 data-nosnippet>869</a>    fields.insert(Rc::new(<span class="string">"op"</span>.to_string()), ValueCell::new(Value::field(unary_op_value.into())));
 <a href=#870 id=870 data-nosnippet>870</a>
 <a href=#871 id=871 data-nosnippet>871</a>    <span class="prelude-val">Some</span>(Value::Struct(fields, typ))
 <a href=#872 id=872 data-nosnippet>872</a>}
@@ -876,7 +876,7 @@
 <a href=#876 id=876 data-nosnippet>876</a>    </span><span class="kw">let </span>binary_op_value = operator.contents <span class="kw">as </span>u128;
 <a href=#877 id=877 data-nosnippet>877</a>
 <a href=#878 id=878 data-nosnippet>878</a>    <span class="kw">let </span><span class="kw-2">mut </span>fields = HashMap::default();
-<a href=#879 id=879 data-nosnippet>879</a>    fields.insert(Rc::new(<span class="string">"op"</span>.to_string()), Shared::new(Value::field(binary_op_value.into())));
+<a href=#879 id=879 data-nosnippet>879</a>    fields.insert(Rc::new(<span class="string">"op"</span>.to_string()), ValueCell::new(Value::field(binary_op_value.into())));
 <a href=#880 id=880 data-nosnippet>880</a>
 <a href=#881 id=881 data-nosnippet>881</a>    Value::Struct(fields, typ)
 <a href=#882 id=882 data-nosnippet>882</a>}
@@ -971,10 +971,10 @@
 <a href=#971 id=971 data-nosnippet>971</a>
 <a href=#972 id=972 data-nosnippet>972</a>    <span class="kw">use </span><span class="kw">super</span>::DeterministicHasher;
 <a href=#973 id=973 data-nosnippet>973</a>    <span class="kw">use super</span>::{check_return_type_shape, type_shape};
-<a href=#974 id=974 data-nosnippet>974</a>    <span class="kw">use </span><span class="kw">crate</span>::Shared;
-<a href=#975 id=975 data-nosnippet>975</a>    <span class="kw">use </span><span class="kw">crate</span>::Type;
-<a href=#976 id=976 data-nosnippet>976</a>    <span class="kw">use </span><span class="kw">crate</span>::ast::IntegerBitSize;
-<a href=#977 id=977 data-nosnippet>977</a>    <span class="kw">use </span><span class="kw">crate</span>::hir::comptime::Integer;
+<a href=#974 id=974 data-nosnippet>974</a>    <span class="kw">use </span><span class="kw">crate</span>::Type;
+<a href=#975 id=975 data-nosnippet>975</a>    <span class="kw">use </span><span class="kw">crate</span>::ast::IntegerBitSize;
+<a href=#976 id=976 data-nosnippet>976</a>    <span class="kw">use </span><span class="kw">crate</span>::hir::comptime::Integer;
+<a href=#977 id=977 data-nosnippet>977</a>    <span class="kw">use </span><span class="kw">crate</span>::hir::comptime::ValueCell;
 <a href=#978 id=978 data-nosnippet>978</a>    <span class="kw">use </span><span class="kw">crate</span>::hir::comptime::value::Value;
 <a href=#979 id=979 data-nosnippet>979</a>    <span class="kw">use </span><span class="kw">crate</span>::shared::Signedness;
 <a href=#980 id=980 data-nosnippet>980</a>
@@ -1014,49 +1014,51 @@
 <a href=#1014 id=1014 data-nosnippet>1014</a>        <span class="kw">let </span>u8_value = Value::Integer(Integer::U8(<span class="number">0</span>));
 <a href=#1015 id=1015 data-nosnippet>1015</a>        <span class="macro">assert!</span>(check_return_type_shape(<span class="kw-2">&amp;</span>u8_value, type_shape(<span class="kw-2">&amp;</span>u32), loc).is_err());
 <a href=#1016 id=1016 data-nosnippet>1016</a>
-<a href=#1017 id=1017 data-nosnippet>1017</a>        <span class="kw">let </span>pair =
-<a href=#1018 id=1018 data-nosnippet>1018</a>            Value::Tuple(<span class="macro">vec!</span>[Shared::new(Value::Bool(<span class="bool-val">true</span>)), Shared::new(Value::Bool(<span class="bool-val">true</span>))]);
-<a href=#1019 id=1019 data-nosnippet>1019</a>        <span class="kw">let </span>triple = Type::Tuple(<span class="macro">vec!</span>[Type::Bool, Type::Bool, Type::Bool]);
-<a href=#1020 id=1020 data-nosnippet>1020</a>        <span class="macro">assert!</span>(check_return_type_shape(<span class="kw-2">&amp;</span>pair, type_shape(<span class="kw-2">&amp;</span>triple), loc).is_err());
-<a href=#1021 id=1021 data-nosnippet>1021</a>    }
-<a href=#1022 id=1022 data-nosnippet>1022</a>
-<a href=#1023 id=1023 data-nosnippet>1023</a>    <span class="kw">fn </span>hash_bytes(bytes: <span class="kw-2">&amp;</span>[u8]) -&gt; u64 {
-<a href=#1024 id=1024 data-nosnippet>1024</a>        <span class="kw">let </span><span class="kw-2">mut </span>hasher = DeterministicHasher::new();
-<a href=#1025 id=1025 data-nosnippet>1025</a>        hasher.write(bytes);
-<a href=#1026 id=1026 data-nosnippet>1026</a>        hasher.finish()
-<a href=#1027 id=1027 data-nosnippet>1027</a>    }
-<a href=#1028 id=1028 data-nosnippet>1028</a>
-<a href=#1029 id=1029 data-nosnippet>1029</a>    <span class="doccomment">/// The hasher must be exactly SipHash-1-3 keyed with the fixed reference key, so the
-<a href=#1030 id=1030 data-nosnippet>1030</a>    /// value a given compiler version produces can never silently drift across builds or
-<a href=#1031 id=1031 data-nosnippet>1031</a>    /// refactors. Cross-checking against `siphasher` directly pins both the algorithm and
-<a href=#1032 id=1032 data-nosnippet>1032</a>    /// the key without depending on a hand-copied magic constant.
-<a href=#1033 id=1033 data-nosnippet>1033</a>    </span><span class="attr">#[test]
-<a href=#1034 id=1034 data-nosnippet>1034</a>    </span><span class="kw">fn </span>matches_fixed_keyed_siphash13() {
-<a href=#1035 id=1035 data-nosnippet>1035</a>        <span class="kw">for </span>input <span class="kw">in </span>[<span class="string">b""</span>.as_slice(), <span class="string">b"a"</span>, <span class="string">b"foobar"</span>] {
-<a href=#1036 id=1036 data-nosnippet>1036</a>            <span class="kw">let </span><span class="kw-2">mut </span>reference =
-<a href=#1037 id=1037 data-nosnippet>1037</a>                SipHasher13::new_with_keys(DeterministicHasher::KEY0, DeterministicHasher::KEY1);
-<a href=#1038 id=1038 data-nosnippet>1038</a>            reference.write(input);
-<a href=#1039 id=1039 data-nosnippet>1039</a>            <span class="macro">assert_eq!</span>(hash_bytes(input), reference.finish());
-<a href=#1040 id=1040 data-nosnippet>1040</a>        }
-<a href=#1041 id=1041 data-nosnippet>1041</a>    }
-<a href=#1042 id=1042 data-nosnippet>1042</a>
-<a href=#1043 id=1043 data-nosnippet>1043</a>    <span class="doccomment">/// Integers must hash at a fixed width and endianness so the result is identical on
-<a href=#1044 id=1044 data-nosnippet>1044</a>    /// targets of differing pointer width (e.g. native 64-bit vs the wasm32 build).
-<a href=#1045 id=1045 data-nosnippet>1045</a>    </span><span class="attr">#[test]
-<a href=#1046 id=1046 data-nosnippet>1046</a>    </span><span class="kw">fn </span>integer_writes_are_width_and_endianness_stable() {
-<a href=#1047 id=1047 data-nosnippet>1047</a>        <span class="kw">let </span>via_usize = {
-<a href=#1048 id=1048 data-nosnippet>1048</a>            <span class="kw">let </span><span class="kw-2">mut </span>hasher = DeterministicHasher::new();
-<a href=#1049 id=1049 data-nosnippet>1049</a>            hasher.write_usize(<span class="number">0x0102_0304</span>);
-<a href=#1050 id=1050 data-nosnippet>1050</a>            hasher.finish()
-<a href=#1051 id=1051 data-nosnippet>1051</a>        };
-<a href=#1052 id=1052 data-nosnippet>1052</a>        <span class="kw">let </span>via_u64 = {
-<a href=#1053 id=1053 data-nosnippet>1053</a>            <span class="kw">let </span><span class="kw-2">mut </span>hasher = DeterministicHasher::new();
-<a href=#1054 id=1054 data-nosnippet>1054</a>            hasher.write_u64(<span class="number">0x0102_0304</span>);
-<a href=#1055 id=1055 data-nosnippet>1055</a>            hasher.finish()
-<a href=#1056 id=1056 data-nosnippet>1056</a>        };
-<a href=#1057 id=1057 data-nosnippet>1057</a>        <span class="kw">let </span>via_le_bytes = hash_bytes(<span class="kw-2">&amp;</span><span class="number">0x0102_0304_u64</span>.to_le_bytes());
-<a href=#1058 id=1058 data-nosnippet>1058</a>
-<a href=#1059 id=1059 data-nosnippet>1059</a>        <span class="macro">assert_eq!</span>(via_usize, via_u64);
-<a href=#1060 id=1060 data-nosnippet>1060</a>        <span class="macro">assert_eq!</span>(via_usize, via_le_bytes);
-<a href=#1061 id=1061 data-nosnippet>1061</a>    }
-<a href=#1062 id=1062 data-nosnippet>1062</a>}</code></pre></div></section></main></body></html>
+<a href=#1017 id=1017 data-nosnippet>1017</a>        <span class="kw">let </span>pair = Value::Tuple(<span class="macro">vec!</span>[
+<a href=#1018 id=1018 data-nosnippet>1018</a>            ValueCell::new(Value::Bool(<span class="bool-val">true</span>)),
+<a href=#1019 id=1019 data-nosnippet>1019</a>            ValueCell::new(Value::Bool(<span class="bool-val">true</span>)),
+<a href=#1020 id=1020 data-nosnippet>1020</a>        ]);
+<a href=#1021 id=1021 data-nosnippet>1021</a>        <span class="kw">let </span>triple = Type::Tuple(<span class="macro">vec!</span>[Type::Bool, Type::Bool, Type::Bool]);
+<a href=#1022 id=1022 data-nosnippet>1022</a>        <span class="macro">assert!</span>(check_return_type_shape(<span class="kw-2">&amp;</span>pair, type_shape(<span class="kw-2">&amp;</span>triple), loc).is_err());
+<a href=#1023 id=1023 data-nosnippet>1023</a>    }
+<a href=#1024 id=1024 data-nosnippet>1024</a>
+<a href=#1025 id=1025 data-nosnippet>1025</a>    <span class="kw">fn </span>hash_bytes(bytes: <span class="kw-2">&amp;</span>[u8]) -&gt; u64 {
+<a href=#1026 id=1026 data-nosnippet>1026</a>        <span class="kw">let </span><span class="kw-2">mut </span>hasher = DeterministicHasher::new();
+<a href=#1027 id=1027 data-nosnippet>1027</a>        hasher.write(bytes);
+<a href=#1028 id=1028 data-nosnippet>1028</a>        hasher.finish()
+<a href=#1029 id=1029 data-nosnippet>1029</a>    }
+<a href=#1030 id=1030 data-nosnippet>1030</a>
+<a href=#1031 id=1031 data-nosnippet>1031</a>    <span class="doccomment">/// The hasher must be exactly SipHash-1-3 keyed with the fixed reference key, so the
+<a href=#1032 id=1032 data-nosnippet>1032</a>    /// value a given compiler version produces can never silently drift across builds or
+<a href=#1033 id=1033 data-nosnippet>1033</a>    /// refactors. Cross-checking against `siphasher` directly pins both the algorithm and
+<a href=#1034 id=1034 data-nosnippet>1034</a>    /// the key without depending on a hand-copied magic constant.
+<a href=#1035 id=1035 data-nosnippet>1035</a>    </span><span class="attr">#[test]
+<a href=#1036 id=1036 data-nosnippet>1036</a>    </span><span class="kw">fn </span>matches_fixed_keyed_siphash13() {
+<a href=#1037 id=1037 data-nosnippet>1037</a>        <span class="kw">for </span>input <span class="kw">in </span>[<span class="string">b""</span>.as_slice(), <span class="string">b"a"</span>, <span class="string">b"foobar"</span>] {
+<a href=#1038 id=1038 data-nosnippet>1038</a>            <span class="kw">let </span><span class="kw-2">mut </span>reference =
+<a href=#1039 id=1039 data-nosnippet>1039</a>                SipHasher13::new_with_keys(DeterministicHasher::KEY0, DeterministicHasher::KEY1);
+<a href=#1040 id=1040 data-nosnippet>1040</a>            reference.write(input);
+<a href=#1041 id=1041 data-nosnippet>1041</a>            <span class="macro">assert_eq!</span>(hash_bytes(input), reference.finish());
+<a href=#1042 id=1042 data-nosnippet>1042</a>        }
+<a href=#1043 id=1043 data-nosnippet>1043</a>    }
+<a href=#1044 id=1044 data-nosnippet>1044</a>
+<a href=#1045 id=1045 data-nosnippet>1045</a>    <span class="doccomment">/// Integers must hash at a fixed width and endianness so the result is identical on
+<a href=#1046 id=1046 data-nosnippet>1046</a>    /// targets of differing pointer width (e.g. native 64-bit vs the wasm32 build).
+<a href=#1047 id=1047 data-nosnippet>1047</a>    </span><span class="attr">#[test]
+<a href=#1048 id=1048 data-nosnippet>1048</a>    </span><span class="kw">fn </span>integer_writes_are_width_and_endianness_stable() {
+<a href=#1049 id=1049 data-nosnippet>1049</a>        <span class="kw">let </span>via_usize = {
+<a href=#1050 id=1050 data-nosnippet>1050</a>            <span class="kw">let </span><span class="kw-2">mut </span>hasher = DeterministicHasher::new();
+<a href=#1051 id=1051 data-nosnippet>1051</a>            hasher.write_usize(<span class="number">0x0102_0304</span>);
+<a href=#1052 id=1052 data-nosnippet>1052</a>            hasher.finish()
+<a href=#1053 id=1053 data-nosnippet>1053</a>        };
+<a href=#1054 id=1054 data-nosnippet>1054</a>        <span class="kw">let </span>via_u64 = {
+<a href=#1055 id=1055 data-nosnippet>1055</a>            <span class="kw">let </span><span class="kw-2">mut </span>hasher = DeterministicHasher::new();
+<a href=#1056 id=1056 data-nosnippet>1056</a>            hasher.write_u64(<span class="number">0x0102_0304</span>);
+<a href=#1057 id=1057 data-nosnippet>1057</a>            hasher.finish()
+<a href=#1058 id=1058 data-nosnippet>1058</a>        };
+<a href=#1059 id=1059 data-nosnippet>1059</a>        <span class="kw">let </span>via_le_bytes = hash_bytes(<span class="kw-2">&amp;</span><span class="number">0x0102_0304_u64</span>.to_le_bytes());
+<a href=#1060 id=1060 data-nosnippet>1060</a>
+<a href=#1061 id=1061 data-nosnippet>1061</a>        <span class="macro">assert_eq!</span>(via_usize, via_u64);
+<a href=#1062 id=1062 data-nosnippet>1062</a>        <span class="macro">assert_eq!</span>(via_usize, via_le_bytes);
+<a href=#1063 id=1063 data-nosnippet>1063</a>    }
+<a href=#1064 id=1064 data-nosnippet>1064</a>}</code></pre></div></section></main></body></html>

@@ -1,8 +1,8 @@
 <!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `compiler/noirc_evaluator/src/ssa/interpreter/value.rs`."><title>value.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-84e720fa.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="noirc_evaluator" data-themes="" data-resource-suffix="" data-rustdoc-version="1.89.0 (29483883e 2025-08-04)" data-channel="1.89.0" data-search-js="search-92309212.js" data-settings-js="settings-5514c975.js" ><script src="../../../../static.files/storage-4e99c027.js"></script><script defer src="../../../../static.files/src-script-813739b1.js"></script><script defer src="../../../../src-files.js"></script><script defer src="../../../../static.files/main-fd3af306.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-32bb7600.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noirc_evaluator/ssa/interpreter/</div>value.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap digits-3"><pre class="rust"><code><a href=#1 id=1 data-nosnippet>1</a><span class="kw">use </span>std::sync::Arc;
 <a href=#2 id=2 data-nosnippet>2</a>
-<a href=#3 id=3 data-nosnippet>3</a><span class="kw">use </span>acvm::{AcirField, FieldElement, acir::brillig::lengths::SemanticLength};
-<a href=#4 id=4 data-nosnippet>4</a><span class="kw">use </span>iter_extended::{try_vecmap, vecmap};
-<a href=#5 id=5 data-nosnippet>5</a><span class="kw">use </span>noirc_frontend::Shared;
+<a href=#3 id=3 data-nosnippet>3</a><span class="kw">use </span><span class="kw">super</span>::shared_cell::SharedCell;
+<a href=#4 id=4 data-nosnippet>4</a><span class="kw">use </span>acvm::{AcirField, FieldElement, acir::brillig::lengths::SemanticLength};
+<a href=#5 id=5 data-nosnippet>5</a><span class="kw">use </span>iter_extended::{try_vecmap, vecmap};
 <a href=#6 id=6 data-nosnippet>6</a><span class="kw">use </span>rustc_hash::FxHashSet <span class="kw">as </span>HashSet;
 <a href=#7 id=7 data-nosnippet>7</a>
 <a href=#8 id=8 data-nosnippet>8</a><span class="kw">use crate</span>::{
@@ -19,7 +19,7 @@
 <a href=#19 id=19 data-nosnippet>19</a><span class="kw">use </span><span class="kw">super</span>::IResult;
 <a href=#20 id=20 data-nosnippet>20</a>
 <a href=#21 id=21 data-nosnippet>21</a><span class="doccomment">/// Be careful when using `Clone`: `ArrayValue` and `ReferenceValue`
-<a href=#22 id=22 data-nosnippet>22</a>/// are backed by a `Shared` data structure, and for example modifying
+<a href=#22 id=22 data-nosnippet>22</a>/// are backed by a `SharedCell` data structure, and for example modifying
 <a href=#23 id=23 data-nosnippet>23</a>/// an array element would be reflected in the original and the clone
 <a href=#24 id=24 data-nosnippet>24</a>/// as well. Use `Value::snapshot` to make independent clones.
 <a href=#25 id=25 data-nosnippet>25</a></span><span class="attr">#[derive(Debug, Clone, PartialEq, Eq)]
@@ -67,7 +67,7 @@
 <a href=#67 id=67 data-nosnippet>67</a>    </span><span class="kw">pub </span>original_id: ValueId,
 <a href=#68 id=68 data-nosnippet>68</a>
 <a href=#69 id=69 data-nosnippet>69</a>    <span class="doccomment">/// A value of `None` here means this allocation is currently uninitialized
-<a href=#70 id=70 data-nosnippet>70</a>    </span><span class="kw">pub </span>element: Shared&lt;<span class="prelude-ty">Option</span>&lt;Value&gt;&gt;,
+<a href=#70 id=70 data-nosnippet>70</a>    </span><span class="kw">pub </span>element: SharedCell&lt;<span class="prelude-ty">Option</span>&lt;Value&gt;&gt;,
 <a href=#71 id=71 data-nosnippet>71</a>
 <a href=#72 id=72 data-nosnippet>72</a>    <span class="kw">pub </span>element_type: Arc&lt;Type&gt;,
 <a href=#73 id=73 data-nosnippet>73</a>
@@ -77,12 +77,12 @@
 <a href=#77 id=77 data-nosnippet>77</a>
 <a href=#78 id=78 data-nosnippet>78</a><span class="attr">#[derive(Debug, Clone)]
 <a href=#79 id=79 data-nosnippet>79</a></span><span class="kw">pub struct </span>ArrayValue {
-<a href=#80 id=80 data-nosnippet>80</a>    <span class="kw">pub </span>elements: Shared&lt;Vec&lt;Value&gt;&gt;,
+<a href=#80 id=80 data-nosnippet>80</a>    <span class="kw">pub </span>elements: SharedCell&lt;Vec&lt;Value&gt;&gt;,
 <a href=#81 id=81 data-nosnippet>81</a>
-<a href=#82 id=82 data-nosnippet>82</a>    <span class="doccomment">/// The `Shared` type contains its own reference count but we need to track
+<a href=#82 id=82 data-nosnippet>82</a>    <span class="doccomment">/// The `SharedCell` type contains its own reference count but we need to track
 <a href=#83 id=83 data-nosnippet>83</a>    /// the reference count separate to ensure it is only changed by `IncrementRc` and
 <a href=#84 id=84 data-nosnippet>84</a>    /// `DecrementRc` instructions.
-<a href=#85 id=85 data-nosnippet>85</a>    </span><span class="kw">pub </span>rc: Shared&lt;u32&gt;,
+<a href=#85 id=85 data-nosnippet>85</a>    </span><span class="kw">pub </span>rc: SharedCell&lt;u32&gt;,
 <a href=#86 id=86 data-nosnippet>86</a>
 <a href=#87 id=87 data-nosnippet>87</a>    <span class="kw">pub </span>element_types: Arc&lt;CompositeType&gt;,
 <a href=#88 id=88 data-nosnippet>88</a>    <span class="doccomment">/// Some length, if this is an array, otherwise None.
@@ -102,7 +102,7 @@
 <a href=#102 id=102 data-nosnippet>102</a>    }
 <a href=#103 id=103 data-nosnippet>103</a>}
 <a href=#104 id=104 data-nosnippet>104</a>
-<a href=#105 id=105 data-nosnippet>105</a><span class="doccomment">/// An address identifying a `Shared` storage cell (an array's elements or a
+<a href=#105 id=105 data-nosnippet>105</a><span class="doccomment">/// An address identifying a `SharedCell` storage cell (an array's elements or a
 <a href=#106 id=106 data-nosnippet>106</a>/// reference's pointee), used purely for identity comparisons: an in-place write to
 <a href=#107 id=107 data-nosnippet>107</a>/// a cell is observable through every handle whose storage identity is equal.
 <a href=#108 id=108 data-nosnippet>108</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">type </span>StorageIdentity = <span class="kw-2">*const </span>();
@@ -159,7 +159,7 @@
 <a href=#159 id=159 data-nosnippet>159</a>        Value::Reference(ReferenceValue {
 <a href=#160 id=160 data-nosnippet>160</a>            original_id,
 <a href=#161 id=161 data-nosnippet>161</a>            element_type,
-<a href=#162 id=162 data-nosnippet>162</a>            element: Shared::new(<span class="prelude-val">None</span>),
+<a href=#162 id=162 data-nosnippet>162</a>            element: SharedCell::new(<span class="prelude-val">None</span>),
 <a href=#163 id=163 data-nosnippet>163</a>            mutable,
 <a href=#164 id=164 data-nosnippet>164</a>        })
 <a href=#165 id=165 data-nosnippet>165</a>    }
@@ -280,15 +280,15 @@
 <a href=#280 id=280 data-nosnippet>280</a>    /// Unlike [`Value::array`], this supports zero-sized element types (empty `element_types`),
 <a href=#281 id=281 data-nosnippet>281</a>    /// where the length cannot be recovered by dividing the flattened element count by the number
 <a href=#282 id=282 data-nosnippet>282</a>    /// of element types.
-<a href=#283 id=283 data-nosnippet>283</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>array_with_length(
+<a href=#283 id=283 data-nosnippet>283</a>    </span><span class="kw">pub fn </span>array_with_length(
 <a href=#284 id=284 data-nosnippet>284</a>        elements: Vec&lt;Value&gt;,
 <a href=#285 id=285 data-nosnippet>285</a>        element_types: Vec&lt;Type&gt;,
 <a href=#286 id=286 data-nosnippet>286</a>        length: SemanticLength,
 <a href=#287 id=287 data-nosnippet>287</a>    ) -&gt; <span class="self">Self </span>{
 <a href=#288 id=288 data-nosnippet>288</a>        <span class="macro">assert_eq!</span>(length.<span class="number">0 </span><span class="kw">as </span>usize * element_types.len(), elements.len());
 <a href=#289 id=289 data-nosnippet>289</a>        <span class="self">Self</span>::ArrayOrVector(ArrayValue {
-<a href=#290 id=290 data-nosnippet>290</a>            elements: Shared::new(elements),
-<a href=#291 id=291 data-nosnippet>291</a>            rc: Shared::new(<span class="number">1</span>),
+<a href=#290 id=290 data-nosnippet>290</a>            elements: SharedCell::new(elements),
+<a href=#291 id=291 data-nosnippet>291</a>            rc: SharedCell::new(<span class="number">1</span>),
 <a href=#292 id=292 data-nosnippet>292</a>            element_types: Arc::new(element_types),
 <a href=#293 id=293 data-nosnippet>293</a>            length: <span class="prelude-val">Some</span>(length),
 <a href=#294 id=294 data-nosnippet>294</a>        })
@@ -296,8 +296,8 @@
 <a href=#296 id=296 data-nosnippet>296</a>
 <a href=#297 id=297 data-nosnippet>297</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>vector(elements: Vec&lt;Value&gt;, element_types: Arc&lt;Vec&lt;Type&gt;&gt;) -&gt; <span class="self">Self </span>{
 <a href=#298 id=298 data-nosnippet>298</a>        <span class="self">Self</span>::ArrayOrVector(ArrayValue {
-<a href=#299 id=299 data-nosnippet>299</a>            elements: Shared::new(elements),
-<a href=#300 id=300 data-nosnippet>300</a>            rc: Shared::new(<span class="number">1</span>),
+<a href=#299 id=299 data-nosnippet>299</a>            elements: SharedCell::new(elements),
+<a href=#300 id=300 data-nosnippet>300</a>            rc: SharedCell::new(<span class="number">1</span>),
 <a href=#301 id=301 data-nosnippet>301</a>            element_types,
 <a href=#302 id=302 data-nosnippet>302</a>            length: <span class="prelude-val">None</span>,
 <a href=#303 id=303 data-nosnippet>303</a>        })
@@ -317,7 +317,7 @@
 <a href=#317 id=317 data-nosnippet>317</a>                <span class="self">Self</span>::Reference(ReferenceValue {
 <a href=#318 id=318 data-nosnippet>318</a>                    original_id: id,
 <a href=#319 id=319 data-nosnippet>319</a>                    element_type: element_type.clone(),
-<a href=#320 id=320 data-nosnippet>320</a>                    element: Shared::new(<span class="prelude-val">Some</span>(value)),
+<a href=#320 id=320 data-nosnippet>320</a>                    element: SharedCell::new(<span class="prelude-val">Some</span>(value)),
 <a href=#321 id=321 data-nosnippet>321</a>                    mutable: <span class="kw-2">*</span>mutable,
 <a href=#322 id=322 data-nosnippet>322</a>                })
 <a href=#323 id=323 data-nosnippet>323</a>            }
@@ -365,7 +365,7 @@
 <a href=#365 id=365 data-nosnippet>365</a>                <span class="kw">let </span>element = r.element.borrow().as_ref().map(|v| v.snapshot());
 <a href=#366 id=366 data-nosnippet>366</a>                Value::Reference(ReferenceValue {
 <a href=#367 id=367 data-nosnippet>367</a>                    original_id: r.original_id,
-<a href=#368 id=368 data-nosnippet>368</a>                    element: Shared::new(element),
+<a href=#368 id=368 data-nosnippet>368</a>                    element: SharedCell::new(element),
 <a href=#369 id=369 data-nosnippet>369</a>                    element_type: r.element_type.clone(),
 <a href=#370 id=370 data-nosnippet>370</a>                    mutable: r.mutable,
 <a href=#371 id=371 data-nosnippet>371</a>                })
@@ -373,8 +373,8 @@
 <a href=#373 id=373 data-nosnippet>373</a>            Value::ArrayOrVector(a) =&gt; {
 <a href=#374 id=374 data-nosnippet>374</a>                <span class="kw">let </span>elements = a.elements.borrow().iter().map(|v| v.snapshot()).collect();
 <a href=#375 id=375 data-nosnippet>375</a>                Value::ArrayOrVector(ArrayValue {
-<a href=#376 id=376 data-nosnippet>376</a>                    elements: Shared::new(elements),
-<a href=#377 id=377 data-nosnippet>377</a>                    rc: Shared::new(<span class="kw-2">*</span>a.rc.borrow()),
+<a href=#376 id=376 data-nosnippet>376</a>                    elements: SharedCell::new(elements),
+<a href=#377 id=377 data-nosnippet>377</a>                    rc: SharedCell::new(<span class="kw-2">*</span>a.rc.borrow()),
 <a href=#378 id=378 data-nosnippet>378</a>                    element_types: a.element_types.clone(),
 <a href=#379 id=379 data-nosnippet>379</a>                    length: a.length,
 <a href=#380 id=380 data-nosnippet>380</a>                })
