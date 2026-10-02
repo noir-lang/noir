@@ -37,6 +37,7 @@
 <li><a href="#reduce">reduce</a></li>
 <li><a href="#sort">sort</a></li>
 <li><a href="#sort_via">sort_via</a></li>
+<li><a href="#subarray">subarray</a></li>
 </ul>
 <h2>In crate std</h2>
 <h3>Modules</h3><ul class="item-list">
@@ -238,6 +239,19 @@ a3.fold(<span class="number">10</span>, f); <span class="comment">//=&gt; f(f(f(
     <span class="kw">let</span> arr2 = [<span class="number">6</span>, <span class="number">7</span>, <span class="number">8</span>, <span class="number">9</span>, <span class="number">10</span>, <span class="number">11</span>];
     <span class="kw">let</span> concatenated_arr = arr1.concat(arr2);
     <span class="kw">assert</span>(concatenated_arr == [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>, <span class="number">6</span>, <span class="number">7</span>, <span class="number">8</span>, <span class="number">9</span>, <span class="number">10</span>, <span class="number">11</span>]);
+}</code></pre></div>
+</div><code id="subarray" class="code-header">pub fn <a href="#subarray" class="fn">subarray</a>&lt;let M: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(&mut self: &Self, offset: <a href="../std/primitive.u32.html" class="primitive">u32</a>) -> [T; M]</code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns a subarray of length <code>M</code> starting at <code>offset</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">fn</span> main() {
+    <span class="kw">let</span> arr = [<span class="number">10</span>, <span class="number">20</span>, <span class="number">30</span>, <span class="number">40</span>, <span class="number">50</span>];
+    <span class="kw">let</span> sub: [Field; <span class="number">3</span>] = arr.subarray(<span class="number">1</span>);
+    <span class="kw">assert_eq</span>(sub, [<span class="number">20</span>, <span class="number">30</span>, <span class="number">40</span>]);
+
+    <span class="kw">let</span> forty = arr.subarray::&lt;<span class="number">1</span>&gt;(<span class="number">3</span>);
+    <span class="kw">assert_eq</span>(forty, [<span class="number">40</span>]);
 }</code></pre></div>
 </div></div><h3><code class="code-header">impl&lt;T, let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt; [T; N]
 <div class="where-clause">where

@@ -837,6 +837,7 @@ window.searchIndex = [
   {"name":"sub","path":"std::u32","kind":"method","url":"std/primitive.u32.html#impl-Sub-for-u32","desc":""},
   {"name":"sub","path":"std::u64","kind":"method","url":"std/primitive.u64.html#impl-Sub-for-u64","desc":""},
   {"name":"sub","path":"std::u8","kind":"method","url":"std/primitive.u8.html#impl-Sub-for-u8","desc":""},
+  {"name":"subarray","path":"std::array","kind":"method","url":"std/primitive.array.html#subarray","desc":"Returns a subarray of length `M` starting at `offset`."},
   {"name":"test","path":"std","kind":"module","url":"std/test/index.html","desc":""},
   {"name":"times","path":"std::test::OracleMock","kind":"method","url":"std/test/struct.OracleMock.html#times","desc":""},
   {"name":"times_called","path":"std::test::OracleMock","kind":"method","url":"std/test/struct.OracleMock.html#times_called","desc":""},
