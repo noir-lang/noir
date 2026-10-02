@@ -1,0 +1,6 @@
+[package]
+name = "redundant_range_check_elision"
+type = "bin"
+authors = [""]
+
+[dependencies]
