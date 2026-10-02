@@ -17,12 +17,19 @@
 
 use std::collections::{BTreeMap, HashSet};
 
-use super::{enums::UnresolvedEnumVariants, function::UnresolvedFunctionMeta};
+use noirc_errors::{CustomDiagnostic, Location};
+
+use super::{ElaborateReason, enums::UnresolvedEnumVariants, function::UnresolvedFunctionMeta};
 use crate::{
     Type,
-    ast::Ident,
+    ast::{BlockExpression, FunctionKind, Ident},
     elaborator::structs::UnresolvedStructFields,
-    hir::def_map::LocalModuleId,
+    hir::{
+        def_collector::dc_crate::{
+            ImplMap, UnresolvedFunctions, UnresolvedTrait, UnresolvedTraitImpl,
+        },
+        def_map::LocalModuleId,
+    },
     hir_def::traits::TraitConstraint,
     node_interner::{FuncId, TraitId, TraitImplId, TypeId},
 };
@@ -109,6 +116,57 @@ pub(super) struct PendingWhereClauseCheck {
     pub(super) ordered_generics: Vec<Type>,
 }
 
+/// The items of one `elaborate_items` call whose function bodies are still to be elaborated.
+#[derive(Default)]
+pub(super) struct ItemBodies {
+    pub(super) functions: Vec<UnresolvedFunctions>,
+    pub(super) traits: BTreeMap<TraitId, UnresolvedTrait>,
+    pub(super) impls: ImplMap,
+    pub(super) trait_impls: Vec<UnresolvedTraitImpl>,
+}
+
+/// The bodies of the items an attribute generated, along with the reasons they are being
+/// elaborated for, so that their diagnostics point back at the attribute.
+pub(super) struct GeneratedItemBodies {
+    pub(super) reasons: imbl::Vector<ElaborateReason>,
+    pub(super) bodies: ItemBodies,
+}
+
+/// The unelaborated body of a runtime function that was elaborated before the crate's attributes
+/// had all run, kept so that the function can be elaborated again once they have.
+pub(super) struct EarlyBody {
+    pub(super) kind: FunctionKind,
+    pub(super) body: BlockExpression,
+    pub(super) location: Location,
+    /// The diagnostics issued while elaborating the body early. Elaborating it again repeats
+    /// them, so they are used to tell which diagnostics of the second elaboration are new.
+    pub(super) diagnostics: Vec<CustomDiagnostic>,
+}
+
+/// Function bodies whose meaning depends on the items attributes generate.
+///
+/// Attributes run one at a time, so a body elaborated while they run only sees the items
+/// generated so far: a name, a method call or a macro call in it could resolve differently once
+/// the rest have run. Runtime bodies are therefore always elaborated against the complete crate:
+///
+/// - The bodies of generated items wait in [`Self::generated`] until every attribute has run.
+/// - A runtime function called by comptime code has to be elaborated on the spot for the
+///   interpreter to execute it. Its unelaborated body is kept in [`Self::early`], and the
+///   function goes back to being unelaborated once every attribute has run.
+#[derive(Default)]
+pub(super) struct AttributeTimeBodies {
+    /// True once every attribute of the crate has run.
+    pub(super) attributes_have_run: bool,
+
+    pub(super) generated: Vec<GeneratedItemBodies>,
+
+    pub(super) early: BTreeMap<FuncId, EarlyBody>,
+
+    /// The diagnostics of functions taken out of [`Self::early`] that have not been elaborated
+    /// for the second time yet.
+    pub(super) early_diagnostics: BTreeMap<FuncId, Vec<CustomDiagnostic>>,
+}
+
 /// Every kind of deferred work the elaborator owns, in one place so that handing it to a child
 /// elaborator, or scoping it to one `elaborate_items` call, moves all of it or none of it.
 ///
@@ -131,4 +189,7 @@ pub(super) struct DeferredItems {
 
     /// Trait bookkeeping that cannot run until the drains above have resolved the metas it reads.
     pub(super) trait_work: PendingTraitWork,
+
+    /// Function bodies that are elaborated once every attribute of the crate has run.
+    pub(super) attribute_time_bodies: AttributeTimeBodies,
 }

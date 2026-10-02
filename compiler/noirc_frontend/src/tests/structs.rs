@@ -799,23 +799,24 @@ fn lazily_resolved_struct_fields_do_not_inherit_callers_self_type() {
     let src = r#"
     pub struct Foo {}
 
+    impl Foo {
+        pub fn reads_inner() {
+            let _ = |bar: Bar| bar.inner;
+        }
+    }
+
     pub struct Bar {
         inner: Self,
                ^^^^ Could not resolve 'Self' in path
     }
 
-    #[add_method]
-    ~~~~~~~~~~~~~ While running this function attribute
+    #[call_method]
     fn main() {}
 
-    // The generated method's body is elaborated while `Bar`'s fields are still pending, so they
-    // are resolved on demand from inside an impl of `Foo`.
-    comptime fn add_method(_f: FunctionDefinition) -> Quoted {
-        quote {
-            impl Foo {
-                pub fn inner_of(bar: Bar) -> Foo { bar.inner }
-            }
-        }
+    // The method's body is elaborated when the attribute calls it, while `Bar`'s fields are
+    // still pending, so they are resolved on demand from inside an impl of `Foo`.
+    comptime fn call_method(_f: FunctionDefinition) {
+        Foo::reads_inner();
     }
     "#;
     check_errors(src);

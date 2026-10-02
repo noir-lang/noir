@@ -245,6 +245,16 @@ impl CompilationErrors {
         self.0.truncate(len);
     }
 
+    /// Removes the errors from index `start` onwards that `keep` returns false for.
+    pub(crate) fn retain_from(&mut self, start: usize, keep: impl Fn(&CompilationError) -> bool) {
+        let mut index = 0;
+        self.0.retain(|error| {
+            let is_before_start = index < start;
+            index += 1;
+            is_before_start || keep(error)
+        });
+    }
+
     pub(crate) fn iter(&self) -> impl Iterator<Item = &CompilationError> {
         self.0.iter()
     }

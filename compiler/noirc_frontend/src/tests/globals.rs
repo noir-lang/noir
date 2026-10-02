@@ -621,27 +621,23 @@ fn lazily_elaborated_global_does_not_inherit_callers_self_type() {
 
     impl Foo {
         fn len() -> u32 { 3 }
+
+        fn uses_global() -> u32 { N }
     }
 
     global N: u32 = Self::len();
                     ^^^^ Could not resolve 'Self' in path
 
-    #[add_method]
-    ~~~~~~~~~~~~~ While running this function attribute
+    #[call_method]
     fn main() {
         let _n = N;
         let _len = Foo::len();
-        let _m = Foo::uses_global();
     }
 
-    // The generated method's body is elaborated while `N` is still pending, so `N` is elaborated
-    // on demand from inside an impl of `Foo`.
-    comptime fn add_method(_f: FunctionDefinition) -> Quoted {
-        quote {
-            impl Foo {
-                fn uses_global() -> u32 { N }
-            }
-        }
+    // The method's body is elaborated when the attribute calls it, while `N` is still pending,
+    // so `N` is elaborated on demand from inside an impl of `Foo`.
+    comptime fn call_method(_f: FunctionDefinition) {
+        let _ = Foo::uses_global();
     }
     "#;
     check_errors(src);

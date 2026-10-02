@@ -1008,7 +1008,23 @@ impl<'context> Elaborator<'context> {
     where
         F: FnOnce(&mut Elaborator) -> T,
     {
-        self.elaborate_reasons.push_back(reason);
+        let mut reasons = self.elaborate_reasons.clone();
+        reasons.push_back(reason);
+        self.with_elaborate_reasons(reasons, f)
+    }
+
+    /// Runs `f` with `reasons` as the reasons items are being elaborated for, wrapping every
+    /// error it produces in them.
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(super) fn with_elaborate_reasons<F, T>(
+        &mut self,
+        reasons: imbl::Vector<ElaborateReason>,
+        f: F,
+    ) -> T
+    where
+        F: FnOnce(&mut Elaborator) -> T,
+    {
+        let previous_reasons = std::mem::replace(&mut self.elaborate_reasons, reasons);
         let previous_errors = std::mem::take(&mut self.errors);
 
         let value = f(self);
@@ -1017,7 +1033,7 @@ impl<'context> Elaborator<'context> {
         let new_errors = self.wrap_errors_in_macro_error(new_errors);
         self.errors = previous_errors;
         self.push_errors(new_errors);
-        self.elaborate_reasons.pop_back();
+        self.elaborate_reasons = previous_reasons;
 
         value
     }

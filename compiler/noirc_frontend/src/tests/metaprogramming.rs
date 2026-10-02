@@ -1,3 +1,4 @@
+mod attribute_order;
 mod comptime_for;
 mod skip_interpreter_on_fail;
 

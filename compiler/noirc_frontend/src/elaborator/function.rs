@@ -11,7 +11,7 @@ use std::collections::HashSet;
 
 use iter_extended::vecmap;
 use itertools::Itertools;
-use noirc_errors::Location;
+use noirc_errors::{CustomDiagnostic, Location};
 
 use crate::{
     Kind, ResolvedGeneric, Type, TypeVariable,
@@ -44,6 +44,7 @@ use crate::{
 
 use super::{
     Elaborator,
+    deferred::EarlyBody,
     item_context::{GenericsContext, ImplContext, ItemContext, ModuleContext},
 };
 
@@ -681,6 +682,17 @@ impl Elaborator<'_> {
 
         let func_meta = func_meta.clone();
 
+        // A runtime body elaborated before every attribute has run only sees the items generated
+        // so far, so it is elaborated again afterwards. Comptime functions are not: they only
+        // ever run at the point they are called from, against the crate as it is then.
+        let attribute_time_bodies = &mut self.deferred.attribute_time_bodies;
+        let is_early = !attribute_time_bodies.attributes_have_run
+            && matches!(kind, FunctionKind::Normal)
+            && !self.interner.function_modifiers(&id).is_comptime;
+        let early_body = is_early.then(|| body.clone());
+        let previous_diagnostics = attribute_time_bodies.early_diagnostics.remove(&id);
+        let errors_before = self.errors.len();
+
         assert_eq!(
             self.crate_id, func_meta.source_crate,
             "Functions in other crates should be already elaborated"
@@ -700,6 +712,42 @@ impl Elaborator<'_> {
         self.with_item_context(context, |this| {
             this.elaborate_function_body(id, func_meta, kind, body, body_location);
         });
+
+        if let Some(previous_diagnostics) = previous_diagnostics {
+            self.errors.retain_from(errors_before, |error| {
+                !previous_diagnostics.contains(&CustomDiagnostic::from(error))
+            });
+        }
+
+        if let Some(body) = early_body {
+            let diagnostics =
+                self.errors.iter().skip(errors_before).map(CustomDiagnostic::from).collect();
+            let early_body = EarlyBody { kind, body, location: body_location, diagnostics };
+            self.deferred.attribute_time_bodies.early.insert(id, early_body);
+        }
+    }
+
+    /// Returns the runtime functions that were elaborated before every attribute had run to
+    /// being unelaborated, so that the next request for their body elaborates it against the
+    /// items the attributes generated.
+    pub(super) fn forget_function_bodies_elaborated_before_attributes_ran(&mut self) {
+        let early = std::mem::take(&mut self.deferred.attribute_time_bodies.early);
+        for (id, EarlyBody { kind, body, location, diagnostics }) in early {
+            self.interner.function_meta_mut(&id).function_body =
+                FunctionBody::Unresolved(kind, body, location);
+            self.interner.update_fn(id, HirFunction::empty());
+            self.deferred.attribute_time_bodies.early_diagnostics.insert(id, diagnostics);
+        }
+    }
+
+    /// Elaborates the functions [`Self::forget_function_bodies_elaborated_before_attributes_ran`]
+    /// made unelaborated that nothing has asked for since.
+    pub(super) fn elaborate_remaining_function_bodies_elaborated_before_attributes_ran(&mut self) {
+        let early_diagnostics = &self.deferred.attribute_time_bodies.early_diagnostics;
+        let remaining: Vec<FuncId> = early_diagnostics.keys().copied().collect();
+        for id in remaining {
+            self.elaborate_function(id);
+        }
     }
 
     /// Elaborates and type checks the body of `id`, then stores it as the function's HIR body.
