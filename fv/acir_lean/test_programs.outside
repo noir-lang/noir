@@ -1,0 +1,417 @@
+a_5_over: instruction constrain v8 != u8 0
+a_6: parameter v0: [u8; 5]
+a_6_array: parameter v0: [u32; 5]
+a_7: parameter v0: [u8; 5]
+a_7_function: parameter v3: [u32; 9]
+aes128_encrypt: parameter v0: [u8; 12]
+array_dedup_regression: not exactly one ACIR function
+array_dynamic: parameter v0: [u32; 5]
+array_dynamic_blackbox_input: parameter v0: [u8; 32]
+array_dynamic_main_output: parameter v0: [Field; 10]
+array_dynamic_nested_blackbox_input: parameter v0: [(Field
+array_eq: parameter v0: [Field; 32]
+array_if_cond_simple: parameter v1: [u32; 30]
+array_len: parameter v1: [u8; 3]
+array_oob_regression_7965: parameter v4: [(u1
+array_oob_regression_7975: parameter v0: [[u1; 1]; 1]
+array_rc_regression_7842: not exactly one ACIR function
+array_set_not_deduplicated: instruction call f1(u1 1, Field 1)
+array_set_zero_length_element_brillig_input: instruction v1 = make_array [] : [Field; 0]
+array_set_zero_width_store_value: instruction v4 = make_array [] : [Field; 0]
+array_set_zero_width_vector_snapshot: instruction v6 = make_array [] : [Field; 0]
+array_sort: parameter v0: [u8; 3]
+array_to_vector: instruction v6 = make_array [Field 3, Field 2, Field 1, Field 0] : [Field; 4]
+array_to_vector_constant_length: instruction v2 = call f1(v0) -> [Field; 1]
+array_with_refs_from_param: not exactly one ACIR function
+array_with_refs_return: not exactly one ACIR function
+as_witness: instruction call as_witness(v0)
+associated_constant_as_array_length: parameter v0: [Field; 4]
+bench_2_to_17: instruction v5 = make_array [v3, v3, v3, Field 90389045961176802918400] : [Field; 4]
+binary_operator_overloading: instruction v12 = and v0, v1
+bit_and: instruction v8 = and v5, v7
+bit_shifts_comptime: operand i64 -1
+bit_shifts_runtime: instruction v9 = call to_le_bits(v7) -> [u1; 6]
+bit_shifts_u128: instruction v17 = make_array b"shift: {y}, static: {static}, dynamic: {dynamic}"
+blake3: parameter v0: [u8; 5]
+bool_or: instruction v2 = or v0, v1
+bounded_vec_extend_from_bounded_vec: parameter v0: [u8; 64]
+bounded_vec_extend_pattern: parameter v0: [u8; 64]
+break_and_continue: not exactly one ACIR function
+brillig_acir_as_brillig: instruction v2 = call f1(v0) -> u32
+brillig_array_ifelse: instruction v2, v3, v4 = call f1(v0) -> (u1, [u1; 1], [u1; 1])
+brillig_array_input_indirectly_mutated: not exactly one ACIR function
+brillig_arrays: parameter v0: [Field; 3]
+brillig_blake2s: parameter v0: [u8; 5]
+brillig_block_mutable_reference_index_regression: parameter v0: [u32; 3]
+brillig_block_mutable_reference_inner_ref_regression: parameter v0: [u32; 3]
+brillig_block_mutable_reference_let_chain_long_regression: parameter v0: [u32; 3]
+brillig_block_mutable_reference_let_chain_regression: parameter v0: [u32; 3]
+brillig_block_mutable_reference_regression: parameter v0: [u32; 3]
+brillig_block_parameter_liveness: not exactly one ACIR function
+brillig_calls: instruction v2 = call f1(v0) -> u32
+brillig_calls_array: parameter v0: [u32; 3]
+brillig_calls_conditionals: parameter v0: [u32; 3]
+brillig_conditional: instruction v4 = call f1(v2) -> Field
+brillig_constant_reference_regression: not exactly one ACIR function
+brillig_cow: not exactly one ACIR function
+brillig_cow_assign: not exactly one ACIR function
+brillig_cow_regression: not exactly one ACIR function
+brillig_fns_as_values: instruction v2 = call f2(v0) -> u32
+brillig_identity_function: instruction v2 = call f1(v0) -> Field
+brillig_if_mutable_reference_regression: not exactly one ACIR function
+brillig_large_array: not exactly one ACIR function
+brillig_large_nested_array: not exactly one ACIR function
+brillig_loop_bound_upper_below_lower: not exactly one ACIR function
+brillig_loop_size_regression: not exactly one ACIR function
+brillig_nested_arrays: instruction v5 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+brillig_not: instruction v6 = call f1(v4) -> u1
+brillig_pedersen: not exactly one ACIR function
+brillig_rc_regression_6123: not exactly one ACIR function
+brillig_recursion: instruction v2 = call f1(v0) -> u32
+brillig_recursive_main: not exactly one ACIR function
+brillig_recursive_main_indirect: not exactly one ACIR function
+brillig_uninitialized_arrays: instruction v3 = call f1(v0, v1) -> [Field; 2]
+chained_associated_type_in_signature: instruction constrain v0 != Field 0
+clone_elision_sibling_arg_mutation: instruction v3 = make_array [v2, v2, v2, v2, v2, v2, v2, v2, v2, v2, v2, v2, v2, v2, v2, v2] : [u32; 16]
+clone_index_field_dereference: not exactly one ACIR function
+clone_index_object_dereference_1: not exactly one ACIR function
+clone_index_object_dereference_2: not exactly one ACIR function
+comptime_println: instruction call f1(u1 1, Field 3)
+comptime_variable_at_runtime: instruction call f1(u1 1, Field 1)
+conditional_1: parameter v1: [u32; 4]
+conditional_2: parameter v1: [u32; 4]
+conditional_black_box_function_pointer_call: parameter v0: [u8; 4]
+conditional_regression_421: parameter v1: [u32; 4]
+conditional_regression_661: parameter v1: [u32; 4]
+conditional_regression_short_circuit: parameter v1: [u32; 4]
+conditional_regression_underflow: instruction enable_side_effects v2
+conditional_vector_insert_at_end_of_vector: instruction v3 = make_array [Field 3, Field 4] : [Field; 2]
+constant_folding_mutated_returned_array_bug: not exactly one ACIR function
+databus: block header
+databus_composite_calldata: block header
+databus_two_calldata: block header
+databus_two_calldata_simple: block header
+debug_logs: instruction v9 = make_array b"i: {i}, j: {j}"
+derive: instruction v9 = make_array b"something"
+do_not_capture_comptime_locals: instruction call f1(u1 1, Field 1)
+double_neg_cond_bool_input: not exactly one ACIR function
+ecdsa_secp256k1: parameter v0: [u8; 32]
+ecdsa_secp256k1_invalid_inputs: parameter v0: [([u8; 32]
+ecdsa_secp256k1_invalid_pub_key_in_inactive_branch: parameter v0: [u8; 32]
+ecdsa_secp256k1_msg_equals_order: parameter v0: [u8; 32]
+ecdsa_secp256r1: parameter v0: [u8; 32]
+ecdsa_secp256r1_3x: parameter v0: [u8; 32]
+ecdsa_secp256r1_high_s: parameter v0: [u8; 32]
+ecdsa_secp256r1_invalid_inputs: parameter v0: [([u8; 32]
+ecdsa_secp256r1_invalid_pub_key_in_inactive_branch: parameter v0: [u8; 32]
+embedded_curve_ops: instruction v5 = make_array [Field 1, Field 17631683881184975370165255887551781615748388533673675138860] : [(Field, Field); 1]
+empty_strings_in_composite_arrays: not exactly one ACIR function
+encrypted_log_regression: parameter v3: [u8; 3]
+fmtstr_with_global: instruction v9 = make_array b"foo = {FOO}"
+fold_2_to_17: not exactly one ACIR function
+fold_after_inlined_calls: not exactly one ACIR function
+fold_basic: not exactly one ACIR function
+fold_basic_nested_call: not exactly one ACIR function
+fold_call_witness_condition: not exactly one ACIR function
+fold_complex_outputs: not exactly one ACIR function
+fold_distinct_return: not exactly one ACIR function
+fold_fibonacci: not exactly one ACIR function
+fold_numeric_generic_poseidon: not exactly one ACIR function
+fold_out_of_order_calls: not exactly one ACIR function
+fold_unreachable_call: not exactly one ACIR function
+for_loop_inclusive_empty_range: not exactly one ACIR function
+for_loop_inclusive_with_break: not exactly one ACIR function
+function_ref: instruction enable_side_effects v17
+global_array_rc_regression_8259: instruction v6 = make_array [u1 1, v5, u1 1] : [u1; 3]
+global_consts: parameter v11: [Field; 32]
+global_nested_array_call_arg_regression: instruction v9 = make_array [u1 1, u1 1, u1 1] : [u1; 3]
+global_nested_array_regression_9270: operand g8
+global_var_entry_point_used_in_another_entry: instruction call f1(v3, v4)
+global_var_func_with_multiple_entry_points: instruction call f1(v3, v4)
+global_var_multiple_entry_points_nested: instruction call f1(v2, v3)
+global_var_regression_entry_points: instruction v521 = call f1(v518) -> Field
+global_var_regression_simple: instruction enable_side_effects v12
+global_vector_rc_regression_8259: instruction v5 = make_array [u1 1, v4, u1 1] : [u1]
+higher_order_mutable_references: instruction enable_side_effects v13
+hint_black_box: instruction v9 = call black_box(u32 10) -> u32
+if_else_chain: parameter v1: [u32; 4]
+immutable_ref_to_unconstrained: instruction v3 = call f1(v0) -> Field
+import: instruction v6, v7 = call f1(v3) -> (Field, Field)
+inactive_signed_bitshift: instruction enable_side_effects v0
+inline_decompose_hint_brillig_call: operand Field -5201446015539463454305911014159497107782029740116487985773310470301159650207
+inline_never_basic: instruction constrain v0 != v1
+integer_array_indexing: parameter v1: [Field; 3]
+lambda_from_array: instruction v11 = make_array [Field 35, Field 36, Field 37, Field 38, Field 39, Field 40, Field 41, Field 42] : [(Field, Field); 4]
+lambda_from_dynamic_if: instruction v10 = make_array b"!"
+lambda_from_global_array: instruction v6 = make_array [Field 1, Field 2, Field 3, Field 4] : [(Field, Field); 2]
+lambda_from_global_tuple: instruction constrain Field 1 != v0
+lambda_taking_lambda_regression_8543: not exactly one ACIR function
+lambda_taking_lambda_with_variant: not exactly one ACIR function
+large_nested_array_merge_loop: parameter v0: [[u64; 3]; 1024]
+large_nested_array_multi_field_merge: parameter v0: [(Field
+large_nested_array_multi_field_merge_u64: parameter v0: [(u64
+last_uses_regression_8935: not exactly one ACIR function
+licm_bug_inverted_loop: not exactly one ACIR function
+loop_break_regression_8319: not exactly one ACIR function
+loop_buffer_rotation_aliasing_regression: not exactly one ACIR function
+loop_invariant_nested_deep: instruction enable_side_effects v0
+loop_invariant_regression: instruction enable_side_effects v7
+loop_invariant_regression_8586: instruction enable_side_effects v0
+loop_small_break: not exactly one ACIR function
+main_bool_arg: parameter v1: [u1; 2]
+merkle_insert: parameter v5: [Field; 3]
+modules: instruction constrain v0 != v1
+modules_more: instruction constrain v0 != v1
+modulus: parameter v0: [u8; 32]
+multi_scalar_mul: not exactly one ACIR function
+mutable_and_immutable_reference_alias: not exactly one ACIR function
+mutate_array_copy: not exactly one ACIR function
+negative_associated_constants: instruction call f1(u1 1, i32 -12345)
+nested_array_call_arg_regression: instruction v4 = make_array [u1 1, u1 0, u1 1] : [u1; 3]
+nested_array_dynamic: parameter v0: [(Field
+nested_array_in_vector: instruction v4 = make_array [Field 2, Field 3, Field 20] : [Field; 3]
+nested_array_index_clone_regression: not exactly one ACIR function
+nested_array_with_refs_from_param: not exactly one ACIR function
+nested_array_with_refs_return: not exactly one ACIR function
+nested_arrays_from_brillig: parameter v0: [Field; 6]
+nested_dyn_array_regression_5782: parameter v0: [Field; 2]
+nested_fmtstr: instruction v3 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+nested_if_then_block_same_cond: parameter v1: [[u1; 2]; 3]
+nested_vector_last_index_access_post_insert: parameter v2: [u32; 5]
+nested_vector_pop_back: parameter v1: [u32; 3]
+nested_vector_pop_front_return: parameter v1: [u32; 5]
+nested_vector_push_front_return: parameter v1: [u32; 5]
+nested_vector_return: instruction v6 = make_array [u32 1, u32 2, u32 3, u32 4, u32 5] : [u32; 5]
+no_predicates_basic: instruction constrain v0 != v1
+no_predicates_brillig: not exactly one ACIR function
+no_predicates_numeric_generic_poseidon: parameter v4: [[Field; 10]; 2]
+numeric_type_alias: instruction v5 = make_array [Field 0, Field 0, Field 0, Field 0, Field 0, Field 0, Field 0, Field 0, Field 0, Field 10, Field 0, Field 0] : [Field; 12]
+ownership_by_value_arg_aliasing_mut_ref_regression: not exactly one ACIR function
+pedersen_check: instruction v10, v11 = call f1(v3) -> (Field, Field)
+pedersen_commitment: instruction v8, v9 = call f1(v3) -> (Field, Field)
+pedersen_hash: instruction v7, v8 = call f1(v3) -> (Field, Field)
+poseidon_bn254_hash_width_3: parameter v0: [Field; 2]
+poseidonsponge_x5_254: parameter v0: [Field; 7]
+predicated_composite_get_wide_slot: parameter v0: [(u8
+predicated_safe_get_stale_predicate: parameter v0: [(Field
+predicated_vector_constant_index: parameter v0: [(Field
+predicated_vector_constant_index_truncate: parameter v0: [(Field
+primitive_type_alias_method: instruction v2 = call to_le_bits(v0) -> [u1; 8]
+print_composite_array: instruction v2 = make_array [Field 1, Field 2] : [(Field, Field); 1]
+ref_in_unconstrained_function_pointer: instruction enable_side_effects v10
+ref_to_ref_in_array_write_through_call_brillig: not exactly one ACIR function
+reference_cancelling: instruction call f1(u1 1, u1 1)
+reference_counts_inliner_0: instruction call f2(u1 1, Field 0)
+reference_counts_inliner_max: instruction call f2(u1 1, Field 0)
+reference_counts_inliner_min: instruction call f2(u1 1, Field 0)
+reference_counts_vectors_inliner_0: instruction call f3(u1 1, Field 0)
+reference_only_used_as_alias: parameter v0: [Field; 4]
+regression_10008: instruction enable_side_effects v1
+regression_10141: instruction v24 = make_array b"Index out of bounds, array has size 1, but index was {}"
+regression_10156: instruction call f4(u1 1, Field 2, Field 3)
+regression_10158: instruction call f1(u1 1, Field 2, Field 3, u32 10)
+regression_10170: instruction v13 = make_array [u32 0, u32 1, u32 10, u32 0] : [u32]
+regression_10180: instruction enable_side_effects v15
+regression_10197: instruction v3 = make_array [Field 1, Field 2] : [Field; 2]
+regression_10198: instruction v1 = make_array [] : [()]
+regression_10307: parameter v0: [(u1
+regression_10446: instruction v4 = make_array b"SE"
+regression_10466: instruction call f1(u1 1, u32 2)
+regression_10516: not exactly one ACIR function
+regression_10917: not exactly one ACIR function
+regression_10923: instruction enable_side_effects v5
+regression_10975: parameter v0: [u8; 3]
+regression_10977: parameter v1: [Field; 4]
+regression_11048: parameter v0: [(Field
+regression_11134: instruction constrain v8 != u32 0, "Index out of bounds"
+regression_11294: not exactly one ACIR function
+regression_11402: parameter v0: [(u1
+regression_11440: instruction v2 = make_array b"KR"
+regression_1144_1169_2399_6609: parameter v1: [u8; 5]
+regression_11484: instruction call f1(u1 1, u32 16)
+regression_11659: parameter v1: [Field; 12]
+regression_11744: parameter v0: [([Field; 2]
+regression_11889: parameter v0: [u8; 64]
+regression_12149: not exactly one ACIR function
+regression_12269: instruction call f1(u1 1, g3)
+regression_12317: not exactly one ACIR function
+regression_12468: instruction v2 = make_array [] : [(); 3]
+regression_12472: parameter v0: [(u32
+regression_12473: instruction constrain v8 != u32 0, "Cannot pop from an empty vector"
+regression_12713: not exactly one ACIR function
+regression_13040: not exactly one ACIR function
+regression_1457_array_set_nested_shared: instruction v3 = make_array [Field 0] : [Field; 1]
+regression_2660: operand i32 -1
+regression_3051: instruction call f2(u1 1, Field 2)
+regression_3394: instruction call f1(u1 1, i8 -128)
+regression_3607: instruction enable_side_effects v2
+regression_4202: parameter v0: [u32; 4]
+regression_4449: parameter v1: [u8; 32]
+regression_4663: not exactly one ACIR function
+regression_4709: instruction enable_side_effects v522
+regression_5045: instruction v4 = call embedded_curve_add(Field 0, Field 5, Field 0, Field 5, v0) -> [(Field, Field); 1]
+regression_5252: parameter v2: [[Field; 20]; 3]
+regression_5435: instruction enable_side_effects v1
+regression_5615: not exactly one ACIR function
+regression_6285: instruction v13 = make_array b"x's value: {x}"
+regression_6451: instruction call as_witness(v1)
+regression_6674_1: not exactly one ACIR function
+regression_6674_2: not exactly one ACIR function
+regression_6674_3: not exactly one ACIR function
+regression_6734: not exactly one ACIR function
+regression_6834: instruction enable_side_effects v3
+regression_6990: instruction v16 = make_array b"i: {i}, j: {j}"
+regression_7062: instruction v4 = make_array [Field 0, Field 1] : [Field]
+regression_7128: instruction v6 = call to_be_radix(v3, u32 256) -> [u8; 32]
+regression_7143: block header
+regression_7195: instruction v3 = call f1(v0) -> Field
+regression_7323: instruction v20 = make_array b"Branch 1 should not be taken"
+regression_7612: block header
+regression_7744: instruction v4 = call embedded_curve_add(Field 0, Field 5, Field 0, Field 5, v0) -> [(Field, Field); 1]
+regression_7836: instruction constrain v0 != u32 0
+regression_8009: not exactly one ACIR function
+regression_8011: not exactly one ACIR function
+regression_8174: not exactly one ACIR function
+regression_8235: instruction enable_side_effects v0
+regression_8236: parameter v8: [u16; 3]
+regression_8261: parameter v1: [u1; 2]
+regression_8329: instruction enable_side_effects v6
+regression_8558: instruction enable_side_effects v1
+regression_8662: instruction enable_side_effects v16
+regression_8726: instruction v38 = xor v19, v37
+regression_8729: instruction v17 = call f1() -> u1
+regression_8755: not exactly one ACIR function
+regression_8874: instruction enable_side_effects v0
+regression_8890: instruction constrain v0 != v1
+regression_8926: not exactly one ACIR function
+regression_8980: not exactly one ACIR function
+regression_9037: not exactly one ACIR function
+regression_9047: instruction v2 = make_array b"ok"
+regression_9102: instruction v2 = make_array [u1 1, u1 0] : [u1; 2]
+regression_9119: not exactly one ACIR function
+regression_9160: instruction v1 = make_array [u1 1] : [u1; 1]
+regression_9193: instruction enable_side_effects v0
+regression_9208: instruction enable_side_effects v4
+regression_9271: instruction v3 = make_array [u32 1, u32 2] : [u32; 2]
+regression_9294: instruction v8 = make_array [Field 0, Field 0, u32 0, u64 0, Field 1, Field 10, u32 0, u64 0, Field 2, Field 0, u32 20, u64 30] : [(Field, Field, u32, u64); 3]
+regression_9303: not exactly one ACIR function
+regression_9312: instruction v22 = make_array [v15, v20, Field 50] : [Field]
+regression_9329: parameter v0: [i8; 2]
+regression_9415: not exactly one ACIR function
+regression_9439: not exactly one ACIR function
+regression_9455: not exactly one ACIR function
+regression_9467: instruction enable_side_effects v0
+regression_9496: instruction v13 = make_array [v11, u32 30] : [u32]
+regression_9538: not exactly one ACIR function
+regression_9541: instruction v8 = call to_le_bits(v6) -> [u1; 5]
+regression_9544: instruction enable_side_effects v5
+regression_9546: operand i16 -13461
+regression_9578: not exactly one ACIR function
+regression_9593: instruction v3 = make_array b"Cc"
+regression_9594: instruction enable_side_effects v0
+regression_9657: not exactly one ACIR function
+regression_9725_1: not exactly one ACIR function
+regression_9758: not exactly one ACIR function
+regression_9764: instruction enable_side_effects v4
+regression_9804: instruction enable_side_effects v1
+regression_9860: parameter v0: [[u32; 4]; 4]
+regression_9888: operand Field -284015218230919225711528337869756109769
+regression_9907: instruction v1 = make_array [Field 3405691582] : [Field; 1]
+regression_9971: instruction enable_side_effects v1
+regression_brillig_const_fold_self_dedup: not exactly one ACIR function
+regression_brillig_ref_deref_crash: instruction v1 = make_array [Field 0] : [Field; 1]
+regression_capacity_tracker: parameter v2: [Field; 20]
+regression_claude_1019: instruction v3 = call to_le_radix(v0, u32 256) -> [u8; 0]
+regression_claude_1124: block header
+regression_claude_1201: parameter v0: [u8; 2]
+regression_claude_1654: instruction v7 = make_array [Field 1, Field 2, Field 3, Field 4] : [Field; 4]
+regression_claude_1721: parameter v0: [u8; 2]
+regression_dominated_truncate: instruction v3 = call f1(v0, v1) -> Field
+regression_field_div_truncate: operand Field -1
+regression_licm_induction_var: not exactly one ACIR function
+regression_licm_vector_mutator: not exactly one ACIR function
+regression_licm_vector_mutator_empty_loop: not exactly one ACIR function
+regression_licm_vector_mutator_wrapper: not exactly one ACIR function
+regression_loop_read_after_kill: not exactly one ACIR function
+regression_loop_unroll_header_instructions: instruction constrain v4 != Field 0
+regression_mem2reg_unknown_array_aliases: not exactly one ACIR function
+regression_mem_op_predicate: parameter v0: [u32; 5]
+regression_method_cannot_be_found: instruction call f1(u1 1, Field 1)
+regression_nc1362: not exactly one ACIR function
+regression_nc1436: not exactly one ACIR function
+regression_nc1710: parameter v0: [Field; 4]
+regression_noir_claude_1069: parameter v0: [Field; 3]
+regression_noir_claude_1365: not exactly one ACIR function
+regression_noir_claude_1844: instruction v2 = call f1(v0) -> u32
+regression_nrsec_903: not exactly one ACIR function
+regression_oob_constant_tuple_array_get: not exactly one ACIR function
+regression_struct_array_conditional: parameter v0: [(Field
+regression_unroll_body_break: not exactly one ACIR function
+regression_unsafe_no_predicates: instruction v2 = make_array [v0] : [u8; 1]
+regression_while_condition_alias: not exactly one ACIR function
+regression_while_condition_break: not exactly one ACIR function
+regression_while_condition_break_killed: not exactly one ACIR function
+regression_while_condition_continue_killed: not exactly one ACIR function
+regression_while_condition_killed: not exactly one ACIR function
+shift_left_rhs_value_casted_from_smaller_type: instruction v7 = call to_le_bits(v5) -> [u1; 6]
+signed_arithmetic: operand i32 -3
+signed_cmp: instruction constrain v1 != u8 0
+signed_comparison: instruction v10 = xor v7, v9
+signed_div: parameter v0: [(i8
+signed_division: instruction v32 = xor v30, v31
+signed_inactive_division_by_zero: instruction enable_side_effects v2
+signed_integer_or_max: instruction v2 = or v0, i8 127
+signed_overflow_in_else_regression_8617: instruction enable_side_effects v2
+simple_2d_array: parameter v2: [[Field; 2]; 2]
+simple_add_and_ret_arr: instruction v3 = make_array [v2] : [Field; 1]
+simple_array_param: parameter v0: [Field; 2]
+simple_bitwise: instruction v5 = xor v0, v1
+simple_print: instruction call f2(u1 1, v0)
+simple_radix: instruction v2 = call to_le_bits(v0) -> [u1; 3]
+simple_shield: parameter v6: [Field; 3]
+static_assert_empty_loop: instruction v1 = call f1() -> [Field; 0]
+strings: parameter v12: [u8; 11]
+struct_array_inputs: parameter v0: [(Field
+struct_inputs: parameter v3: [u8; 5]
+submodules: instruction v2 = or v0, v1
+to_be_bytes: instruction v3 = call to_be_radix(v0, u32 256) -> [u8; 31]
+to_bytes_consistent: instruction v3 = call to_be_radix(v0, u32 256) -> [u8; 31]
+to_bytes_integration: instruction v4 = call to_le_radix(v0, u32 256) -> [u8; 31]
+to_le_bytes: instruction v4 = call to_le_radix(v0, u32 256) -> [u8; 31]
+tuple_inputs: parameter v2: [(u8
+two_array_chain_mutation: parameter v0: [u1; 32]
+type_aliases: parameter v0: [Field; 2]
+u128_type: instruction v20 = xor v0, v1
+u16_support: instruction v6 = call to_le_bits(v4) -> [u1; 4]
+uhashmap: not exactly one ACIR function
+unary_operator_overloading: operand i32 -3
+unroll_loop_header_result_used_after_loop: not exactly one ACIR function
+unroll_loop_regression: not exactly one ACIR function
+unrolling_regression_8333: instruction v1 = make_array [u8 0, u8 0, u8 0, u8 0, u8 0, u8 0, u8 0, u8 0, u8 0, u8 0, u8 0, u8 0, u8 0, u8 0, u8 0, u8 0, u8 0, u8 0, u8 0, u8 0, u8 0, u8 0, u8 0, u8 0, u8 0, u8 0, u8 0, u8 0, u8 0, u8 0, u8 0, u8 0] : [u8; 32]
+vector_coercion: instruction v4 = make_array [i32 1, u8 2] : [(i32, u8)]
+vector_dynamic_index: instruction v10 = make_array [Field 0, Field 1, Field 2, Field 3, Field 4] : [Field]
+vector_dynamic_insert: parameter v1: [Field; 5]
+vector_insert_after_dynamic_read: instruction v4 = make_array [Field 2, Field 3] : [Field; 2]
+vector_insert_empty_oob: instruction v3 = make_array [] : [u32]
+vector_insert_empty_oob_2: parameter v0: [u32; 1]
+vector_insert_oob: parameter v1: [u32; 1]
+vector_insert_oob_index_invalid_pred: instruction v5 = make_array [u32 10, u32 20, u32 30] : [u32]
+vector_insert_oob_invalid_pred: parameter v1: [u32; 1]
+vector_loop: parameter v0: [(Field
+vector_mutator_on_call_returned_alias: instruction v3, v4 = call f1(v0, v1) -> (Field, u32)
+vector_mutator_wrapper_not_deduplicated: instruction v3, v4 = call f1(v0, v1) -> (Field, u32)
+vector_ops_collapsed_predicate: instruction v4 = make_array [Field 1] : [Field]
+vector_pop_back_oob_invalid_pred: parameter v1: [u32; 1]
+vector_pop_back_remove_if_else_bug: instruction v14 = make_array [v12, Field 3] : [Field]
+vector_pop_front_aliased_source: not exactly one ACIR function
+vector_pop_front_oob_invalid_pred: parameter v1: [u32; 1]
+vector_push_back_remove_if_else_bug: instruction v3 = make_array [Field 2, Field 3] : [Field]
+vector_regex: instruction v0 = make_array &b""
+vector_remove_oob_index_invalid_pred: instruction v5 = make_array [u32 10, u32 20, u32 30] : [u32]
+vector_remove_oob_invalid_pred: parameter v1: [u32; 1]
+vectors: instruction enable_side_effects v6
+while_cond_clone_regression: not exactly one ACIR function
+while_loop_break_regression_8521: not exactly one ACIR function
+wildcard_type: parameter v0: [Field; 2]
+witness_compression: instruction constrain v0 != v1
+xor: instruction v2 = xor v0, v1

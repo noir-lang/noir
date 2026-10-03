@@ -76,6 +76,25 @@ When changing a potentially niche or subtle part of the language, compiler, or t
 - **Record new decisions.** If a change introduces a non-obvious design decision that isn't
   captured anywhere, add it to the appropriate file in `design/` (or create a new one).
 
+## Formal Verification (`fv/acir_lean`)
+
+`fv/acir_lean` holds Lean proofs that ACIR circuits the compiler emits are not
+underconstrained. The proofs are pinned to the compiler's actual output, so a
+compiler change can turn their checks red without touching `fv/`:
+
+| You changed | What can fail | Fix |
+|---|---|---|
+| `AcirContext`'s gadgets (`euclidean_division_var`, `truncate_var`, `more_than_eq_var`, ...), ACIR generation, `expand_signed_math`, or `acvm::compiler::optimize` | `integer_gadgets_match_lean_templates` (`cargo test -p noirc_evaluator --lib fv_`) | Its failure message names the changed sections. Corpus sections: `just fv-regen-corpus`. Other sections: update `fv/acir_lean/AcirLean/Templates/` and the proofs. |
+| Anything that changes the SSA or circuit of a program in `test_programs/execution_success` | the `FV test programs` CI job | `just fv-regen`, then commit the rebuilt data. If a proof no longer goes through, extend the checker (see `fv/acir_lean/CLAUDE.md`). |
+| The SSA interpreter (`compiler/noirc_evaluator/src/ssa/interpreter/`) | `fv_semantics` (`cargo test -p noirc_evaluator --lib fv_semantics`) | The Lean meaning of SSA (`fv/acir_lean/AcirLean/Spec/SsaSemantics.lean`) must match the interpreter. Decide which side is right; fix the spec and proofs if it is the interpreter. |
+
+`just fv-check` runs everything the `FV Lean` job runs. `fv/acir_lean/CLAUDE.md`
+has the rules for working inside `fv/`, and `fv/acir_lean/README.md` lists
+which files are reviewed. One of those rules applies to every PR: a change to
+the reviewed Lean (`fv/acir_lean/AcirLean/Spec/` or `fv/acir_lean/Check.lean`)
+must update `fv/acir_lean/REVIEWING.md`, the plain-English guide reviewers
+read, in the same PR. `just fv-check` fails if it has fallen behind.
+
 ## Build & Development Commands
 
 The project uses `just` as a task runner and `cargo` for Rust builds. Minimum Rust version: 1.89.0. Run `just --list` to see all available commands.
