@@ -7,7 +7,7 @@ the `dump_hints` test) and combinations of constraints found by Gaussian
 elimination. The kernel checks every combination, so nothing here is trusted.
 
 Usage: lake env lean --run scripts/emit_hint_certs.lean <hints.txt> <out.lean> [name...]
-With names, only reports which of those programs are not proved.
+With names, writes only those programs' definitions and logs each step.
 -/
 
 import AcirLean.Proofs.HintChecker
@@ -303,7 +303,7 @@ def tryHint (deep : Bool) (body : List Instruction) (cc : List Opcode) (s : Reps
     (hintOf : Operand → Option Poly) : Option HStep := Id.run do
   let cands := candidates h k
   match i with
-  | .bin _ op _ a b =>
+  | .bin _ op u a b =>
     let some ra := opRep s.1 a | return none
     let some rb := opRep s.1 b | return none
     if (hintStep cc s i .fold).isSome then return some .fold
@@ -377,7 +377,7 @@ def tryHint (deep : Bool) (body : List Instruction) (cc : List Opcode) (s : Reps
           let st := HStep.lt E r ia ib c cb rr
           if (hintStep cc s i st).isSome then return some st
       return none
-    if op = .add ∧ ra.ty ≠ .field then
+    if op = .add ∧ ra.ty ≠ .field ∧ !deep then
       -- an `if`/`else` merge: `a = s · y`, `b = (1 - s) · z`
       let factors (o : Operand) : List (Operand × Operand) := match o with
         | .var id => match body.find? (fun j => Instruction.dst? j == some id) with
@@ -386,7 +386,6 @@ def tryHint (deep : Bool) (body : List Instruction) (cc : List Opcode) (s : Reps
         | _ => []
       for (sa, ya) in factors a do
         for (sb, zb) in factors b do
-          let (.var vy, .var vz) := (ya, zb) | continue
           let some rs := opRep s.1 sa | continue
           let some rs' := opRep s.1 sb | continue
           let some ry := opRep s.1 ya | continue
@@ -399,9 +398,9 @@ def tryHint (deep : Bool) (body : List Instruction) (cc : List Opcode) (s : Reps
                 let some ca := find deep cc s (psub Xa (pmul sel ry.alts[iy]!)) | continue
                 for iz in List.range rz.alts.length do
                   let some cb := find deep cc s (psub Xb (pmul (psub (pconst 1) sel) rz.alts[iz]!)) | continue
-                  let st := HStep.mux sel vy iy vz iz ia ib cs ca cb
+                  let st := HStep.mux sel ya iy zb iz ia ib cs ca cb
                   if (hintStep cc s i st).isSome then return some st
-    if op = .add ∨ op = .sub ∨ op = .mul then
+    if (op = .add ∨ op = .sub ∨ op = .mul) ∧ !u then
       let some E := h.results.get? k | return none
       let n := match ra.ty with | .uint n => n | _ => 0
       for ((ia, Xa), (ib, Xb)) in pairsOn do
@@ -549,6 +548,13 @@ def showSrc : Src → String
 def showComb (c : Comb) : String :=
   "[" ++ ", ".intercalate (c.map fun g => s!"⟨{showSrc g.src}, {g.mul}, {showInt g.coef}⟩") ++ "]"
 def showRange (e : RangeEv) : String := s!"⟨{e.idx}, {showComb e.cmb}⟩"
+def showTy : ValueType → String
+  | .field => ".field"
+  | .uint n => s!"(.uint {n})"
+  | .sint n => s!"(.sint {n})"
+def showOperand : Operand → String
+  | .var id => s!".var {id}"
+  | .const v ty => s!".const {showInt v} {showTy ty}"
 def showForm (f : Form) : String := s!"⟨{f.c}, {f.neg}, {f.idx}⟩"
 def showOpnd : Opnd → String
   | .alt i => s!"(.alt {i})"
@@ -566,7 +572,7 @@ def showStep : HStep → String
   | .constrain ia ib c => s!"(.constrain {showOpnd ia} {showOpnd ib} {showComb c})"
   | .constrainNe z ia ib c => s!"(.constrainNe {showPoly z} {showOpnd ia} {showOpnd ib} {showComb c})"
   | .fold => ".fold"
-  | .mux sel vy iy vz iz ia ib cs ca cb => s!"(.mux {showPoly sel} {vy} {iy} {vz} {iz} {showOpnd ia} {showOpnd ib} {showComb cs} {showComb ca} {showComb cb})"
+  | .mux sel y iy z iz ia ib cs ca cb => s!"(.mux {showPoly sel} ({showOperand y}) {iy} ({showOperand z}) {iz} {showOpnd ia} {showOpnd ib} {showComb cs} {showComb ca} {showComb cb})"
   | .lt E r ia ib c cb rr => s!"(.lt {showPoly E} {showPoly r} {showOpnd ia} {showOpnd ib} {showComb c} {showComb cb} {showRange rr})"
   | .eqBit ia ib c => s!"(.eqBit {showOpnd ia} {showOpnd ib} {showComb c})"
   | .foldOn ca cb ia ib c₁ c₂ => s!"(.foldOn {ca} {cb} {showOpnd ia} {showOpnd ib} {showComb c₁} {showComb c₂})"
@@ -577,12 +583,17 @@ def main (args : List String) : IO Unit := do
     "the kernel runs each step over the constraints listed (`stepsWithH`), or checks\n" ++
     "its hint step.\n-/\n\nimport AcirLean.Proofs.HintChecker\n\nnamespace AcirLean\n\n"
   let mut names := #[]
+  let mut part := ""
   let mut nh := 0
   let mut na := 0
   let only := args.drop 2
   for (e, idx) in testPrograms.zipIdx do
     if !only.isEmpty && !only.contains e.name then continue
     let (c, r, msg) ← cert e (hints.getD e.name {}) (!only.isEmpty)
+    -- aliases and bounds cost the kernel at every later step; keep them only
+    -- where the program needs them
+    let bare := c.map fun en => { en with extra := none, bound := none }
+    let c := if checkProgH e.prog e.fn bare r then bare else c
     if !checkProgH e.prog e.fn c r then
       IO.eprintln s!"not proved: {e.name}"
       if !only.isEmpty then IO.eprintln msg
@@ -598,10 +609,13 @@ def main (args : List String) : IO Unit := do
     let rs := r.map fun x => match x with
       | none => "none"
       | some (j, cmb) => s!"some ({j}, {showComb cmb})"
-    s := s ++ s!"def cert{idx} : List Entry :=\n  [{", ".intercalate steps}]\n" ++
+    let d := s!"def cert{idx} : List Entry :=\n  [{", ".intercalate steps}]\n" ++
       s!"def rets{idx} : List (Option (ℕ × Comb)) := [{", ".intercalate rs}]\n\n"
+    s := s ++ d
+    part := part ++ d
     names := names.push idx
   s := s ++ "def testProgramCerts : List (List Entry × List (Option (ℕ × Comb))) := [" ++
     ", ".intercalate (names.toList.map fun i => s!"(cert{i}, rets{i})") ++ "]\n\nend AcirLean\n"
-  if only.isEmpty then IO.FS.writeFile args[1]! s
+  -- with names, write only their definitions, for assembling a full file
+  if only.isEmpty then IO.FS.writeFile args[1]! s else IO.FS.writeFile args[1]! part
   IO.eprintln s!"{nh} hint steps, {na} aliases"

@@ -144,9 +144,9 @@ inductive HStep where
   | lt (E r : Poly) (ia ib : Opnd) (c cb : Comb) (rr : RangeEv)
   /-- Unchecked `add` of `s · y` and `(1 - s) · z` for a bit `s` (an `if`/`else`
   merge): the sum is `y` or `z`, so it is bounded by the larger of their
-  bounds. `y` and `z` are scalars `vy`, `vz` named by their polynomials `iy`,
-  `iz`; `cs` shows `s² - s = 0`, and `ca`, `cb` the two products. -/
-  | mux (sel : Poly) (vy iy vz iz : ℕ) (ia ib : Opnd) (cs ca cb : Comb)
+  bounds. `y` and `z` are operands named by their polynomials `iy`, `iz`;
+  `cs` shows `s² - s = 0`, and `ca`, `cb` the two products. -/
+  | mux (sel : Poly) (y : Operand) (iy : ℕ) (z : Operand) (iz : ℕ) (ia ib : Opnd) (cs ca cb : Comb)
   /-- `constrain a == b`: `a - b = 0`. -/
   | constrain (ia ib : Opnd) (c : Comb)
   /-- `constrain a != b`: `(a - b) z = 1`. -/
@@ -255,10 +255,10 @@ def hintStep (cc : List Opcode) (s : Reps × Flag) : Instruction → HStep → O
         some ((d, .scalar ⟨[E], .uint 1, 0, 1⟩) :: s.1, s.2)
       else none
     | _ => none
-  | .bin d op u a b, .mux sel vy iy vz iz ia ib cs ca cb => do
+  | .bin d op u a b, .mux sel y iy z iz ia ib cs ca cb => do
     let (ra, _, Xa, Xb) ← operands cc s a b ia ib
-    let .scalar ry ← s.1.lookup vy | none
-    let .scalar rz ← s.1.lookup vz | none
+    let ry ← opRep s.1 y
+    let rz ← opRep s.1 z
     let Y ← ry.alts[iy]?
     let Z ← rz.alts[iz]?
     if op = .add ∧ u = true ∧ ra.ty ≠ .field ∧ ry.M + rz.M < p ∧
