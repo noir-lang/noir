@@ -38,6 +38,7 @@ use super::{
     ValueCell,
     display::tokens_to_string,
     errors::{IResult, InterpreterError},
+    interpreter::Frame,
 };
 
 /// A value representing the result of evaluating a Noir expression.
@@ -97,11 +98,8 @@ pub struct Closure {
     pub typ: Type,
     pub function_scope: Option<FuncId>,
     pub module_scope: ModuleId,
-    /// The interpreter's substitution where the closure was created, which is the one its body
-    /// is interpreted under.
-    pub(crate) substitution: TypeBindings,
-    /// Whether `substitution` holds a type solved while interpreting, rather than only generics.
-    pub(crate) has_runtime_solves: bool,
+    /// The interpreter's frame where the closure was created, whose types its body sees.
+    pub(crate) frame: Frame,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Display)]
@@ -195,23 +193,14 @@ impl Value {
                 Value::Function(id, f(&typ), Rc::new(bindings))
             }
             Value::Closure(closure) => {
-                let Closure {
-                    lambda,
-                    env,
-                    typ,
-                    function_scope,
-                    module_scope,
-                    substitution,
-                    has_runtime_solves,
-                } = *closure;
+                let Closure { lambda, env, typ, function_scope, module_scope, frame } = *closure;
                 let closure = Closure {
                     lambda,
                     env: map_all(env),
                     typ: f(&typ),
                     function_scope,
                     module_scope,
-                    substitution,
-                    has_runtime_solves,
+                    frame,
                 };
                 Value::Closure(Box::new(closure))
             }
