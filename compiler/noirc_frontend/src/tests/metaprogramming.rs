@@ -1,4 +1,5 @@
 mod comptime_for;
+mod frame_types;
 mod skip_interpreter_on_fail;
 
 use crate::{

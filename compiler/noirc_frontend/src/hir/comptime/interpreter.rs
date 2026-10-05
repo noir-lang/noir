@@ -82,6 +82,8 @@ mod builtin;
 mod cast;
 pub(crate) use cast::evaluate_cast_one_step;
 mod foreign;
+mod frame;
+pub(crate) use frame::Frame;
 mod infix;
 mod tracker;
 pub use tracker::EvaluationTracker;
@@ -118,16 +120,14 @@ pub struct Interpreter<'local, 'interner> {
     /// the rhs of a global.
     current_function: Option<FuncId>,
 
-    /// Bindings for the generics of the function being interpreted: a call's instantiation and
-    /// impl bindings, or the bindings a closure was created under, plus the types macro calls in
-    /// the function have produced. Every type this interpreter reads from the HIR of that
-    /// function goes through [`Self::ty`], which applies them.
-    substitution: TypeBindings,
+    /// The types the function being interpreted sees. Every type this interpreter reads from the
+    /// HIR of that function goes through [`Self::ty`], which applies them.
+    frame: Frame,
 
-    /// The type variables each call expression's result bound in [`Self::substitution`] the last
-    /// time it was evaluated. A macro call inside a loop can produce a value of a different type
-    /// on each iteration, so those bindings are taken back out before its type is unified again.
-    macro_call_bindings: HashMap<ExprId, Vec<TypeVariableId>>,
+    /// The type variables each call expression solved in [`Self::frame`] the last time it was
+    /// evaluated: from its result, or handed back by its callee. A call in a loop can solve them
+    /// differently on each iteration, so they are taken back out before it is evaluated again.
+    call_bindings: HashMap<ExprId, Vec<TypeVariableId>>,
 
     /// Current evaluation depth.
     evaluation_depth: usize,
@@ -150,8 +150,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         Self {
             elaborator,
             current_function,
-            substitution: TypeBindings::default(),
-            macro_call_bindings: HashMap::default(),
+            frame: Frame::default(),
+            call_bindings: HashMap::default(),
             in_loop: false,
             evaluation_depth: 0,
             in_unconstrained,
@@ -168,7 +168,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         if let Type::Forall(variables, typ) = typ {
             return Type::Forall(variables.clone(), Box::new(self.ty(typ)));
         }
-        typ.substitute(&self.substitution)
+        self.frame.substitute(typ)
     }
 
     /// The type of the expression `id` as seen from the function being interpreted.
@@ -186,10 +186,17 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     /// `value` with every type it holds as seen from the function being interpreted.
     pub(super) fn value(&self, value: Value) -> Value {
-        if self.substitution.is_empty() {
+        if self.frame.bindings().is_empty() {
             return value;
         }
         value.map_types(&|typ| self.ty(typ))
+    }
+
+    /// `value` with the types solved at runtime since it was built applied: the only bindings of
+    /// this frame it can be missing, since everything else was applied when it was built (or by
+    /// its caller). This is [`Self::value`], skipped while nothing has been solved at runtime.
+    pub(crate) fn apply_runtime_solves(&self, value: Value) -> Value {
+        if self.frame.has_runtime_solves() { self.value(value) } else { value }
     }
 
     /// Call the given function with the given arguments and return the result.
@@ -204,6 +211,19 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         instantiation_bindings: TypeBindings,
         location: Location,
     ) -> IResult<Value> {
+        self.call_function_taking_solves(function, arguments, instantiation_bindings, location)
+            .map(|(result, _)| result)
+    }
+
+    /// [`Self::call_function`], also returning the type variables the callee solved and handed
+    /// back to this frame (see [`Frame::take_solves`]).
+    fn call_function_taking_solves(
+        &mut self,
+        function: FuncId,
+        arguments: Vec<(Value, Location)>,
+        instantiation_bindings: TypeBindings,
+        location: Location,
+    ) -> IResult<(Value, Vec<TypeVariableId>)> {
         self.elaborator.define_function_meta_if_undefined(function);
         let trait_method = self.elaborator.interner.get_trait_item_id(function);
 
@@ -226,19 +246,28 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             }
         };
 
-        let mut frame = instantiation_bindings;
-        frame.extend(impl_bindings);
-        let caller_substitution = std::mem::replace(&mut self.substitution, frame);
+        let mut own_bindings = instantiation_bindings;
+        own_bindings.extend(impl_bindings);
+        // The caller's frame is restored when the call returns, so the callee extends a copy.
+        let callee_frame = self.frame.clone().for_call(&own_bindings);
+        let caller_frame = std::mem::replace(&mut self.frame, callee_frame);
 
         if let Some(tracker) = self.elaborator.evaluation_tracker.as_mut() {
             tracker.track_function_call(function, location);
         }
 
-        let result = self.call_function_inner(function, arguments, location);
+        // The callee can solve a type that only its own body mentions after building a value that
+        // holds it (a `Type` taken by `type_of`, say), so resolve the result before leaving.
+        let result = self
+            .call_function_inner(function, arguments, location)
+            .map(|result| self.apply_runtime_solves(result));
 
-        self.substitution = caller_substitution;
+        let callee_frame = std::mem::replace(&mut self.frame, caller_frame);
+        let visible: Vec<&Type> = own_bindings.values().map(|(_, _, typ)| typ).collect();
+        let solves = self.frame.take_solves(&callee_frame, &visible);
+
         self.elaborator.pop_interpreter_call_stack();
-        result
+        result.map(|result| (result, solves))
     }
 
     /// Helper to check parameter count and dispatch on the function kind to run the function.
@@ -363,6 +392,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let item = format!("Comptime evaluation for builtin function '{name}'");
                 return Err(InterpreterError::Unimplemented { item, location });
             };
+            // Builtins read the types stored on their arguments directly, so resolve the types
+            // solved since each argument was built. The frame holds every solution its callers
+            // can see.
+            let arguments = vecmap(arguments, |(argument, location)| {
+                (self.apply_runtime_solves(argument), location)
+            });
             let result = self.call_builtin(builtin, arguments, return_type, location)?;
             Ok(self.value(result))
         } else if let Some(name) = func_attrs.foreign() {
@@ -399,13 +434,15 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         result
     }
 
-    /// Call a closure value with the given arguments and environment, returning the result.
+    /// Call a closure value with the given arguments and environment, returning the result and
+    /// the type variables the closure solved and handed back to this frame (see
+    /// [`Frame::take_solves`]).
     fn call_closure(
         &mut self,
         closure: Closure,
         arguments: Vec<(Value, Location)>,
         call_location: Location,
-    ) -> IResult<Value> {
+    ) -> IResult<(Value, Vec<TypeVariableId>)> {
         self.elaborator.push_interpreter_call_stack(call_location)?;
 
         // Resolve the closure body in the scope of the function it was originally evaluated in.
@@ -413,21 +450,22 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             let old_function =
                 std::mem::replace(&mut this.current_function, closure.function_scope);
 
-            let caller_substitution =
-                std::mem::replace(&mut this.substitution, closure.substitution);
+            let callee_frame = this.frame.clone().for_closure(closure.frame);
+            let caller_frame = std::mem::replace(&mut this.frame, callee_frame);
 
             // The body can solve types after a value holding them was built (`[make!()]` types
             // the array before the macro call runs), so resolve the result under the closure's
-            // substitution before leaving it.
+            // frame before leaving it.
             let result = this
                 .call_closure_inner(closure.lambda, closure.env, arguments, call_location)
-                .map(|result| this.value(result));
+                .map(|result| this.apply_runtime_solves(result));
 
-            this.substitution = caller_substitution;
+            let callee_frame = std::mem::replace(&mut this.frame, caller_frame);
+            let solves = this.frame.take_solves(&callee_frame, &[&closure.typ]);
             this.elaborator.pop_interpreter_call_stack();
 
             this.current_function = old_function;
-            result
+            result.map(|result| (result, solves))
         })
     }
 
@@ -872,7 +910,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         id: ExprId,
     ) -> Result<(crate::monomorphization::TraitItem, TypeBindings), InterpreterError> {
         self.elaborator.resolve_trait_method_metas_for(item.trait_id);
-        let resolved = resolve_trait_item(self.elaborator.interner, item, id, &self.substitution)?;
+        let resolved =
+            resolve_trait_item(self.elaborator.interner, item, id, self.frame.bindings())?;
         // The interpreter runs during elaboration, where solving a trait constraint is supposed
         // to commit the inference variables it resolved — the same thing `check_trait_constraints`
         // does for a constraint solved by the type checker.
@@ -1250,16 +1289,21 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     /// Evaluates a call expression, deferring to [`Self::call_function`] or [`Self::call_closure`]
     /// once the function is determined.
     fn evaluate_call(&mut self, call: HirCallExpression, id: ExprId) -> IResult<Value> {
+        if let Some(var_ids) = self.call_bindings.remove(&id) {
+            self.frame.forget(&var_ids);
+        }
+
         let function = self.evaluate(call.func)?;
         let arguments = try_vecmap(call.arguments, |arg| {
             Ok((self.evaluate(arg)?, self.elaborator.interner.expr_location(&arg)))
         })?;
         let location = self.elaborator.interner.expr_location(&id);
 
-        match function {
+        let (result, solves) = match function {
             Value::Function(function_id, _, bindings) => {
                 let bindings = unwrap_rc(bindings);
-                let mut result = self.call_function(function_id, arguments, bindings, location)?;
+                let (mut result, mut solves) =
+                    self.call_function_taking_solves(function_id, arguments, bindings, location)?;
                 if call.is_macro_call {
                     let expr = result.into_expression(self.elaborator, location)?;
                     let expr = self.elaborator.elaborate_item_from_comptime_in_function(
@@ -1268,46 +1312,48 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                         |elaborator| elaborator.elaborate_expression(expr).0,
                     );
                     result = self.evaluate(expr)?;
-
-                    self.unify_macro_call_result_with_expected_type(id, location, &result);
+                    solves.extend(
+                        self.unify_macro_call_result_with_expected_type(id, location, &result),
+                    );
                 } else {
-                    self.solve_call_type_from_result(id, &result);
+                    solves.extend(self.solve_call_type_from_result(id, &result));
                 }
-                Ok(result)
+                (result, solves)
             }
             Value::Closure(closure) => {
-                let result = self.call_closure(*closure, arguments, location)?;
-                self.solve_call_type_from_result(id, &result);
-                Ok(result)
+                let (result, mut solves) = self.call_closure(*closure, arguments, location)?;
+                solves.extend(self.solve_call_type_from_result(id, &result));
+                (result, solves)
             }
             value => {
                 let typ = value.get_type().into_owned();
-                Err(InterpreterError::NonFunctionCalled { typ, location })
+                return Err(InterpreterError::NonFunctionCalled { typ, location });
             }
-        }
+        };
+
+        self.call_bindings.insert(id, solves);
+        Ok(result)
     }
 
     /// Macro calls are typed as type variables during type checking. Once the call has produced
-    /// a value, unify its type with the expression's and add what that solves to the frame's
-    /// substitution, so that the rest of the function sees the macro call's type.
+    /// a value, unify its type with the expression's and add what that solves to the frame, so
+    /// that the rest of the function sees the macro call's type. Returns the type variables
+    /// solved.
     fn unify_macro_call_result_with_expected_type(
         &mut self,
         id: ExprId,
         location: Location,
         result: &Value,
-    ) {
-        for var_id in self.macro_call_bindings.remove(&id).unwrap_or_default() {
-            self.substitution.remove(&var_id);
-        }
-
+    ) -> Vec<TypeVariableId> {
         let expected_type = self.expr_type(id);
         let actual_type = result.get_type();
 
         let mut bindings = TypeBindings::default();
         match actual_type.try_unify(&expected_type, &mut bindings) {
             Ok(()) => {
-                self.macro_call_bindings.insert(id, bindings.keys().copied().collect());
-                self.substitution.extend(bindings);
+                let solved = bindings.keys().copied().collect();
+                self.frame.solve(bindings);
+                solved
             }
             Err(UnificationError) => {
                 self.elaborator.push_err(self.elaborator.new_type_mismatch_error(
@@ -1315,29 +1361,27 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     &expected_type,
                     location,
                 ));
+                Vec::new()
             }
         }
     }
 
     /// A call can return the value of a macro call that ran in another frame: the body of a
-    /// closure, or a function the closure was passed to. That frame's substitution is gone once
-    /// the call returns, so if the call's type is still unsolved in this frame, solve it from the
-    /// value the call produced.
-    fn solve_call_type_from_result(&mut self, id: ExprId, result: &Value) {
-        for var_id in self.macro_call_bindings.remove(&id).unwrap_or_default() {
-            self.substitution.remove(&var_id);
-        }
-
+    /// closure, or a function the closure was passed to. If the call's type is still unsolved in
+    /// this frame, solve it from the value the call produced. Returns the type variables solved.
+    fn solve_call_type_from_result(&mut self, id: ExprId, result: &Value) -> Vec<TypeVariableId> {
         let expected_type = self.expr_type(id);
         if !expected_type.contains_unbound_type_variable() {
-            return;
+            return Vec::new();
         }
 
         let mut bindings = TypeBindings::default();
-        if result.get_type().try_unify(&expected_type, &mut bindings).is_ok() {
-            self.macro_call_bindings.insert(id, bindings.keys().copied().collect());
-            self.substitution.extend(bindings);
+        if result.get_type().try_unify(&expected_type, &mut bindings).is_err() {
+            return Vec::new();
         }
+        let solved = bindings.keys().copied().collect();
+        self.frame.solve(bindings);
+        solved
     }
 
     fn evaluate_cast(&mut self, cast: &HirCastExpression, id: ExprId) -> IResult<Value> {
@@ -1405,7 +1449,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             typ,
             function_scope: self.current_function,
             module_scope,
-            substitution: self.substitution.clone(),
+            frame: self.frame.clone(),
         };
         Ok(Value::Closure(Box::new(closure)))
     }
@@ -1492,7 +1536,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             HirLValue::Dereference { lvalue, element_type: _, location, implicitly_added: _ } => {
                 match self.evaluate_lvalue(&lvalue)? {
                     Value::Pointer(value, _, _) => {
-                        Self::store_flattened(&value, rhs);
+                        // The pointee can outlive this frame (`&mut` parameters point into the
+                        // caller), and types this frame has solved since `rhs` was built live
+                        // only in its substitution, so resolve them before storing.
+                        Self::store_flattened(&value, self.apply_runtime_solves(rhs));
                         Ok(())
                     }
                     value => {
