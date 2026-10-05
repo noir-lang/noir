@@ -47,6 +47,7 @@ use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, UnaryOp};
 use crate::elaborator::{Elaborator, ElaboratorOptions};
 use crate::hir::Context;
 use crate::hir::comptime::Integer;
+use crate::hir::comptime::ValueCell;
 use crate::hir::comptime::value::FormatStringFragment;
 use crate::hir::def_map::ModuleId;
 use crate::hir_def::types::resolve_type_bindings;
@@ -55,7 +56,7 @@ use crate::node_interner::GlobalValue;
 use crate::shared::{Builtin, ForeignCall, Signedness};
 use crate::token::{FmtStrFragment, Tokens};
 use crate::{
-    Shared, Type, TypeBindings,
+    Type, TypeBindings,
     hir_def::{
         expr::{
             HirArrayLiteral, HirBlockExpression, HirCallExpression, HirCastExpression,
@@ -123,10 +124,9 @@ pub struct Interpreter<'local, 'interner> {
     /// function goes through [`Self::ty`], which applies them.
     substitution: TypeBindings,
 
-    /// The type variables each macro call expression's result bound in [`Self::substitution`]
-    /// the last time it was evaluated. A macro call inside a loop can produce a value of a
-    /// different type on each iteration, so those bindings are taken back out before its type is
-    /// unified again.
+    /// The type variables each call expression's result bound in [`Self::substitution`] the last
+    /// time it was evaluated. A macro call inside a loop can produce a value of a different type
+    /// on each iteration, so those bindings are taken back out before its type is unified again.
     macro_call_bindings: HashMap<ExprId, Vec<TypeVariableId>>,
 
     /// Current evaluation depth.
@@ -416,8 +416,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             let caller_substitution =
                 std::mem::replace(&mut this.substitution, closure.substitution);
 
-            let result =
-                this.call_closure_inner(closure.lambda, closure.env, arguments, call_location);
+            // The body can solve types after a value holding them was built (`[make!()]` types
+            // the array before the macro call runs), so resolve the result under the closure's
+            // substitution before leaving it.
+            let result = this
+                .call_closure_inner(closure.lambda, closure.env, arguments, call_location)
+                .map(|result| this.value(result));
 
             this.substitution = caller_substitution;
             this.elaborator.pop_interpreter_call_stack();
@@ -544,7 +548,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         match pattern {
             HirPattern::Identifier(identifier) => {
                 let argument = if mutable {
-                    Value::Pointer(Shared::new(argument), true, true)
+                    Value::Pointer(ValueCell::new(argument), true, true)
                 } else {
                     argument
                 };
@@ -1172,7 +1176,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             .fields
             .into_iter()
             .map(|(name, expr)| {
-                let field_value = Shared::new(self.evaluate(expr)?);
+                let field_value = ValueCell::new(self.evaluate(expr)?);
                 Ok((Rc::new(name.into_string()), field_value))
             })
             .collect::<Result<_, _>>()?;
@@ -1215,7 +1219,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     /// Given a value, return the struct/tuple field with the given name, automatically dereferencing any
     /// pointers found.
-    fn get_field(&mut self, value: Value, id: ExprId, name: &String) -> IResult<Shared<Value>> {
+    fn get_field(&mut self, value: Value, id: ExprId, name: &String) -> IResult<ValueCell> {
         let typ = match value {
             Value::Struct(fields, struct_type) => match fields.get(name) {
                 Some(field) => return Ok(field.clone()),
@@ -1266,10 +1270,16 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     result = self.evaluate(expr)?;
 
                     self.unify_macro_call_result_with_expected_type(id, location, &result);
+                } else {
+                    self.solve_call_type_from_result(id, &result);
                 }
                 Ok(result)
             }
-            Value::Closure(closure) => self.call_closure(*closure, arguments, location),
+            Value::Closure(closure) => {
+                let result = self.call_closure(*closure, arguments, location)?;
+                self.solve_call_type_from_result(id, &result);
+                Ok(result)
+            }
             value => {
                 let typ = value.get_type().into_owned();
                 Err(InterpreterError::NonFunctionCalled { typ, location })
@@ -1306,6 +1316,27 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     location,
                 ));
             }
+        }
+    }
+
+    /// A call can return the value of a macro call that ran in another frame: the body of a
+    /// closure, or a function the closure was passed to. That frame's substitution is gone once
+    /// the call returns, so if the call's type is still unsolved in this frame, solve it from the
+    /// value the call produced.
+    fn solve_call_type_from_result(&mut self, id: ExprId, result: &Value) {
+        for var_id in self.macro_call_bindings.remove(&id).unwrap_or_default() {
+            self.substitution.remove(&var_id);
+        }
+
+        let expected_type = self.expr_type(id);
+        if !expected_type.contains_unbound_type_variable() {
+            return;
+        }
+
+        let mut bindings = TypeBindings::default();
+        if result.get_type().try_unify(&expected_type, &mut bindings).is_ok() {
+            self.macro_call_bindings.insert(id, bindings.keys().copied().collect());
+            self.substitution.extend(bindings);
         }
     }
 
@@ -1350,7 +1381,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 
     fn evaluate_tuple(&mut self, tuple: Vec<ExprId>) -> IResult<Value> {
-        let fields = try_vecmap(tuple, |field| Ok(Shared::new(self.evaluate(field)?)))?;
+        let fields = try_vecmap(tuple, |field| Ok(ValueCell::new(self.evaluate(field)?)))?;
         Ok(Value::Tuple(fields))
     }
 
@@ -1482,11 +1513,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
                 match object_value {
                     Value::Tuple(mut fields) => {
-                        fields[index] = Shared::new(rhs);
+                        fields[index] = ValueCell::new(rhs);
                         self.store_lvalue(*object, Value::Tuple(fields))
                     }
                     Value::Struct(mut fields, typ) => {
-                        fields.insert(Rc::new(field_name.into_string()), Shared::new(rhs));
+                        fields.insert(Rc::new(field_name.into_string()), ValueCell::new(rhs));
                         self.store_lvalue(*object, Value::Struct(fields, typ.follow_bindings()))
                     }
                     value => {
@@ -1522,7 +1553,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     /// ```
     /// we must flatten the store to store to each individual field so that any existing
     /// references, such as `b` above, will also reflect the mutation.
-    fn store_flattened(lvalue: &Shared<Value>, rvalue: Value) {
+    fn store_flattened(lvalue: &ValueCell, rvalue: Value) {
         let lvalue_ref = lvalue.borrow();
         match (&*lvalue_ref, rvalue) {
             (Value::Struct(lvalue_fields, _), Value::Struct(mut rvalue_fields, _)) => {
@@ -1934,7 +1965,7 @@ fn evaluate_prefix_with_value(rhs: Value, operator: UnaryOp, location: Location)
             // the value in a fresh reference.
             match rhs {
                 Value::Pointer(elem, true, _) => Ok(Value::Pointer(elem, false, mutable)),
-                other => Ok(Value::Pointer(Shared::new(other), false, mutable)),
+                other => Ok(Value::Pointer(ValueCell::new(other), false, mutable)),
             }
         }
         UnaryOp::Dereference { implicitly_added: _ } => match rhs {

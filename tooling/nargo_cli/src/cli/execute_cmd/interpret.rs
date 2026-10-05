@@ -14,6 +14,7 @@ use noirc_driver::gen_abi;
 use noirc_errors::{CustomDiagnostic, Location};
 use noirc_evaluator::ssa::interpreter::value::NumericValue;
 use noirc_evaluator::ssa::ir::types::NumericType;
+use noirc_frontend::Type;
 use noirc_frontend::hir::comptime::Value;
 use noirc_frontend::hir::def_collector::dc_crate::CompilationError;
 use noirc_frontend::hir::{Context, ParsedFiles};
@@ -21,7 +22,6 @@ use noirc_frontend::hir_def::function::FuncMeta;
 use noirc_frontend::hir_def::stmt::HirPattern;
 use noirc_frontend::node_interner::NodeInterner;
 use noirc_frontend::shared::Signedness;
-use noirc_frontend::{Shared, Type};
 
 use crate::cli::compile_cmd::parse_workspace;
 use crate::cli::execute_cmd::ExecuteCommand;
@@ -223,10 +223,9 @@ fn input_value_to_comptime_value(input: &InputValue, typ: &Type, location: Locat
             };
             assert_eq!(inputs.len(), types.len(), "Tuple length does not match input length");
             let tuple = vecmap(inputs.iter().zip_eq(types.iter()), |(input, typ)| {
-                let value = input_value_to_comptime_value(input, typ, location);
-                Shared::new(value)
+                input_value_to_comptime_value(input, typ, location)
             });
-            Value::Tuple(tuple)
+            Value::tuple(tuple)
         }
         Type::DataType(data_type, generics) => {
             let fields = data_type
@@ -236,17 +235,14 @@ fn input_value_to_comptime_value(input: &InputValue, typ: &Type, location: Locat
             let InputValue::Struct(inputs) = input else {
                 panic!("expected struct input for data type");
             };
-            let fields = fields
-                .into_iter()
-                .map(|(name, typ, _)| {
-                    let input = inputs
-                        .get(&name)
-                        .unwrap_or_else(|| panic!("Expected to find field {name} in input"));
-                    let value = input_value_to_comptime_value(input, &typ, location);
-                    (Rc::new(name), Shared::new(value))
-                })
-                .collect();
-            Value::Struct(fields, typ.clone())
+            let fields = fields.into_iter().map(|(name, typ, _)| {
+                let input = inputs
+                    .get(&name)
+                    .unwrap_or_else(|| panic!("Expected to find field {name} in input"));
+                let value = input_value_to_comptime_value(input, &typ, location);
+                (name, value)
+            });
+            Value::struct_from_fields(fields, typ.clone())
         }
         Type::Alias(alias, generics) => {
             let typ = alias.borrow().get_type(generics);

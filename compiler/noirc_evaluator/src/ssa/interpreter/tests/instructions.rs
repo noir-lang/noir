@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
+use crate::ssa::interpreter::shared_cell::SharedCell;
 use acvm::FieldElement;
 use iter_extended::vecmap;
-use noirc_frontend::Shared;
 
 use crate::ssa::{
     interpreter::{
@@ -1041,7 +1041,7 @@ fn allocate() {
     );
     let expected = Value::Reference(ReferenceValue {
         original_id: ValueId::test_new(0),
-        element: Shared::new(None),
+        element: SharedCell::new(None),
         element_type: Arc::new(Type::field()),
         mutable: true,
     });
@@ -1078,7 +1078,7 @@ fn store() {
     );
     let expected = Value::Reference(ReferenceValue {
         original_id: ValueId::test_new(0),
-        element: Shared::new(Some(Value::bool(true))),
+        element: SharedCell::new(Some(Value::bool(true))),
         element_type: Arc::new(Type::bool()),
         mutable: true,
     });
@@ -1108,7 +1108,7 @@ fn enable_side_effects() {
     let field_zero = from_constant(0u128.into(), NumericType::NativeField);
     let expected = Value::Reference(ReferenceValue {
         original_id: ValueId::test_new(1),
-        element: Shared::new(Some(field_zero.clone())),
+        element: SharedCell::new(Some(field_zero.clone())),
         element_type: Arc::new(Type::field()),
         mutable: true,
     });
@@ -1327,7 +1327,7 @@ fn array_set_with_offset() {
 #[test]
 fn array_set_nested_array_value_is_not_shared() {
     // Regression test: an array-valued `value` stored by `array_set` must not keep
-    // sharing its nested `Shared` handle with the source array. Otherwise a later
+    // sharing its nested `SharedCell` handle with the source array. Otherwise a later
     // `array_set mut` on that source array would also mutate the earlier stored value,
     // diverging from ACIR (which copies array-set values).
     let values = expect_values_with_args(

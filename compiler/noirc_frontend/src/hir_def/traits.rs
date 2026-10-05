@@ -1,5 +1,6 @@
 use iter_extended::vecmap;
 use rustc_hash::FxHashMap as HashMap;
+use std::rc::Rc;
 
 use crate::ResolvedGeneric;
 use crate::ast::{DocComment, Ident, ItemVisibility, NoirFunction};
@@ -370,10 +371,16 @@ impl Trait {
 
     /// Returns a `TraitConstraint` for this trait using Self as the object
     /// type and the uninstantiated generics for any trait generics.
+    ///
+    /// `Self` is the rigid named generic over `self_type_typevar`, the same form trait method
+    /// signatures use. A bindable `Type::TypeVariable` here would let a default body unify
+    /// `Self` with a concrete type, and that binding would be seen by every other default
+    /// method of the trait type-checked afterwards.
     pub fn as_constraint(&self, location: Location) -> TraitConstraint {
         let trait_generics = self.get_trait_generics(location);
+        let self_type_name = Rc::new(SELF_TYPE_NAME.to_string());
         TraitConstraint {
-            typ: Type::TypeVariable(self.self_type_typevar.clone()),
+            typ: self.self_type_typevar.clone().into_named_generic(&self_type_name, None),
             trait_bound: ResolvedTraitBound { trait_generics, trait_id: self.id, location },
         }
     }
