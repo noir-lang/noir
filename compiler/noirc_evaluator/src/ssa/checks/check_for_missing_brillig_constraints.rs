@@ -371,6 +371,12 @@ struct TaintedDescendants {
     /// Pre-computed after the parent graph is built so that `arguments_intersect`
     /// can check membership in O(1) rather than re-running BFS for every constraint.
     arg_ancestors: HashSet<ValueId>,
+    /// Results of later calls to the same function from the same location, which are not
+    /// checked separately: they are assumed to be constrained like the outputs of this call.
+    ///
+    /// Once this call is fully constrained, they can be relied on as constrained inputs of
+    /// other calls.
+    duplicate_results: Vec<ValueId>,
 }
 
 impl TaintedDescendants {
@@ -413,6 +419,7 @@ impl TaintedDescendants {
             single_outputs,
             array_outputs,
             arg_ancestors: HashSet::default(),
+            duplicate_results: Vec::new(),
         }
     }
 
@@ -725,8 +732,14 @@ impl TaintedCalls {
             tainted.try_constrain(constrained_values, balls, all_tainted, all_constrained);
         if tainted.is_fully_constrained() {
             self.unresolved.remove(index);
+            all_constrained.extend(&tainted.duplicate_results);
         }
         progressed
+    }
+
+    /// Record the results of a later call from the same location as the call at `index`.
+    fn add_duplicate(&mut self, index: TaintedIndex, results: &[ValueId]) {
+        self.calls[index].duplicate_results.extend(results);
     }
 
     /// The instructions of the calls which still have unconstrained outputs.
@@ -892,7 +905,7 @@ impl Context {
             let mut side_effects_var: Option<ValueId> = None;
             // No need to look for constraints on calls which originate from the same code location;
             // these are the result of unrolling loops, and it should be enough to cover the first.
-            let mut visited_locations = HashSet::default();
+            let mut visited_locations = HashMap::default();
 
             for instruction_id in func.dfg[block_id].instructions() {
                 let instruction = &func.dfg[*instruction_id];
@@ -944,19 +957,21 @@ impl Context {
                     let location = call_stack.last();
 
                     // If there is no call stack (happens for tests), consider unvisited
-                    let visited = match location {
-                        None => false,
-                        Some(loc) if loc.is_dummy() => false,
-                        Some(loc) => {
+                    let location = match location {
+                        Some(loc) if !loc.is_dummy() => {
                             let Instruction::Call { func: callee, .. } = instruction else {
                                 unreachable!("ICE: Expected Brillig call");
                             };
-                            !visited_locations.insert((*callee, *loc))
+                            Some((*callee, *loc))
                         }
+                        _ => None,
                     };
+                    let first = location.and_then(|location| visited_locations.get(&location));
 
                     // Skip if we have a similar one already.
-                    if !visited {
+                    if let Some(first) = first {
+                        self.tainted.add_duplicate(*first, &results);
+                    } else {
                         let tainted = TaintedDescendants::new(
                             func,
                             *instruction_id,
@@ -965,6 +980,9 @@ impl Context {
                             self.max_array_output_length,
                         );
                         let index = self.tainted.push(tainted);
+                        if let Some(location) = location {
+                            visited_locations.insert(location, index);
+                        }
                         // Look out for constraints on these outputs.
                         // We don't need to consider the inputs: the constraints which are relevant will have to constrain
                         // at least one output. Then, we will look at whether the other constrained value is related to

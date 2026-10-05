@@ -1,0 +1,6 @@
+[package]
+name = "brillig_constraint_input_from_deduplicated_call"
+type = "bin"
+authors = [""]
+
+[dependencies]
