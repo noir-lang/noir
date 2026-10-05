@@ -22,7 +22,10 @@ impl Interpreter<'_, '_> {
             let location = token.location();
             match token.into_token() {
                 Token::UnquoteMarker(id) => {
+                    // The tokens are elaborated outside this frame, so resolve the types this
+                    // frame has solved since the value was built.
                     let value = self.evaluate(id)?;
+                    let value = self.value(value);
                     let tokens = value.into_tokens(
                         self.elaborator.interner,
                         self.elaborator.files,

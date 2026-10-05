@@ -1492,7 +1492,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             HirLValue::Dereference { lvalue, element_type: _, location, implicitly_added: _ } => {
                 match self.evaluate_lvalue(&lvalue)? {
                     Value::Pointer(value, _, _) => {
-                        Self::store_flattened(&value, rhs);
+                        // The pointee can outlive this frame (`&mut` parameters point into the
+                        // caller), and types this frame has solved since `rhs` was built live
+                        // only in its substitution, so resolve them before storing.
+                        Self::store_flattened(&value, self.value(rhs));
                         Ok(())
                     }
                     value => {
