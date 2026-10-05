@@ -457,28 +457,98 @@ enum Event {
     Constraint(Vec<ValueId>),
 }
 
+/// The tainted Brillig calls, addressed by [`TaintedIndex`].
+#[derive(Debug, Default)]
+struct TaintedCalls {
+    /// Descendants of Brillig calls, in the order the calls were encountered.
+    calls: Vec<TaintedDescendants>,
+
+    /// Index of each call by its instruction.
+    by_instruction: HashMap<InstructionId, TaintedIndex>,
+
+    /// The call that each tracked array output belongs to.
+    array_output_owner: HashMap<ValueId, TaintedIndex>,
+
+    /// Calls which still have unconstrained outputs.
+    unresolved: TaintedSet,
+}
+
+impl TaintedCalls {
+    /// Register a call, returning its index.
+    fn push(&mut self, tainted: TaintedDescendants) -> TaintedIndex {
+        let index = self.calls.len();
+        for array in tainted.array_outputs.keys() {
+            self.array_output_owner.insert(*array, index);
+        }
+        self.by_instruction.insert(tainted.instruction_id, index);
+        self.unresolved.insert(index);
+        self.calls.push(tainted);
+        index
+    }
+
+    fn is_empty(&self) -> bool {
+        self.calls.is_empty()
+    }
+
+    /// The index of the call made by an instruction, if it is tainted.
+    fn index_of(&self, instruction_id: &InstructionId) -> Option<TaintedIndex> {
+        self.by_instruction.get(instruction_id).copied()
+    }
+
+    fn iter_mut(&mut self) -> impl Iterator<Item = &mut TaintedDescendants> {
+        self.calls.iter_mut()
+    }
+
+    /// Add to the descendants of an element of an array output, if the array is tracked.
+    fn extend_array_result(&mut self, array: ValueId, index: u32, results: &[ValueId]) {
+        if let Some(owner) = self.array_output_owner.get(&array) {
+            self.calls[*owner].extend_array_result(array, index, results);
+        }
+    }
+
+    /// Calls which still have unconstrained outputs.
+    fn unresolved(&self) -> &TaintedSet {
+        &self.unresolved
+    }
+
+    /// Try to constrain the outputs of a call with a constraint, marking the call
+    /// resolved once all its outputs are constrained. See [`TaintedDescendants::try_constrain`].
+    fn try_constrain(
+        &mut self,
+        index: TaintedIndex,
+        constrained_values: &[ValueId],
+        balls: &[Ball],
+        all_tainted: &ValueSet,
+        all_constrained: &mut ValueSet,
+    ) -> bool {
+        let tainted = &mut self.calls[index];
+        let progressed =
+            tainted.try_constrain(constrained_values, balls, all_tainted, all_constrained);
+        if tainted.is_fully_constrained() {
+            self.unresolved.remove(index);
+        }
+        progressed
+    }
+
+    /// The instructions of the calls which still have unconstrained outputs.
+    fn unresolved_instructions(&self) -> impl Iterator<Item = InstructionId> + '_ {
+        self.unresolved.iter().map(|index| self.calls[index].instruction_id)
+    }
+}
+
 #[derive(Debug)]
 struct Context {
     /// Block IDs in Post Order.
     post_order: Vec<BasicBlockId>,
 
-    /// Descendants of Brillig calls, in the order the calls were encountered.
-    tainted: Vec<TaintedDescendants>,
-
-    /// Index of each tainted call by its instruction.
-    tainted_by_instruction: HashMap<InstructionId, TaintedIndex>,
-
-    /// Tainted calls which still have unconstrained outputs.
-    unresolved: TaintedSet,
+    /// Brillig calls whose outputs need to be constrained.
+    tainted: TaintedCalls,
 
     /// For each value, the tainted calls for which constraints on the value are interesting.
     ///
     /// These are the outputs of the calls and their descendants up to the ancestor distance.
     /// This helps eliminate constraints which are of no effect.
     constrainable: HashMap<ValueId, TaintedSet>,
-
-    /// The tainted call that each tracked array output belongs to.
-    array_output_owner: HashMap<ValueId, TaintedIndex>,
 
     /// Constraints which will be relevant to constraining Brillig outputs.
     ///
@@ -515,11 +585,8 @@ impl Context {
     fn new(func: &Function, max_array_output_length: u32, max_ancestor_distance: u32) -> Self {
         Self {
             post_order: PostOrder::with_function(func).into_vec(),
-            tainted: Vec::new(),
-            tainted_by_instruction: HashMap::default(),
-            unresolved: TaintedSet::default(),
+            tainted: TaintedCalls::default(),
             constrainable: HashMap::default(),
-            array_output_owner: HashMap::default(),
             constraints: HashSet::default(),
             parents: HashMap::default(),
             equivalences: HashMap::default(),
@@ -618,7 +685,7 @@ impl Context {
 
                 // Start tracking the direct parents of this instruction's arguments if it is
                 // a tainted call, a relevant constraint, or an EnableSideEffectsIf instruction.
-                let should_track = self.tainted_by_instruction.contains_key(instruction_id)
+                let should_track = self.tainted.index_of(instruction_id).is_some()
                     || self.constraints.contains(instruction_id)
                     || is_side_effect(func, instruction);
 
@@ -645,7 +712,7 @@ impl Context {
         // arguments_intersect can check membership in O(1) per constrained value.
         let parents = &self.parents;
         let equivalences = &self.equivalences;
-        for tainted in &mut self.tainted {
+        for tainted in self.tainted.iter_mut() {
             tainted.arg_ancestors = bfs_ancestors(&tainted.arguments, parents, equivalences);
         }
 
@@ -688,9 +755,8 @@ impl Context {
                     if let Instruction::ArrayGet { array, index } = instruction
                         && let Some(index) = func.dfg.get_numeric_constant(*index)
                         && let Some(index) = index.try_to_u32()
-                        && let Some(owner) = self.array_output_owner.get(array)
                     {
-                        self.tainted[*owner].extend_array_result(*array, index, &results);
+                        self.tainted.extend_array_result(*array, index, &results);
                     }
 
                     // Extend the values we are looking to constrain.
@@ -761,16 +827,10 @@ impl Context {
                             &results,
                             self.max_array_output_length,
                         );
-                        let index = self.tainted.len();
-                        for array in tainted.array_outputs.keys() {
-                            self.array_output_owner.insert(*array, index);
-                        }
+                        let index = self.tainted.push(tainted);
                         for result in &results {
                             self.constrainable.entry(*result).or_default().insert(index);
                         }
-                        self.tainted.push(tainted);
-                        self.tainted_by_instruction.insert(*instruction_id, index);
-                        self.unresolved.insert(index);
                         // Look out for constraints on these outputs.
                         // We don't need to consider the inputs: the constraints which are relevant will have to constrain
                         // at least one output. Then, we will look at whether the other constrained value is related to
@@ -832,7 +892,7 @@ impl Context {
             // Re-walk only while we are still making progress and work remains.
             // Fully constrained functions resolve every call in the first pass (no
             // extra walk), and genuinely under-constrained ones make no progress and stop.
-            if self.unresolved.is_empty() || !progressed {
+            if self.tainted.unresolved().is_empty() || !progressed {
                 break;
             }
         }
@@ -874,8 +934,8 @@ impl Context {
                 if is_call_to_brillig(func, all_functions, instruction_id) && !results.is_empty() {
                     // Always keep track of tainted descendants, required for correct constraint checks.
                     all_tainted.extend(&results);
-                    if let Some(index) = self.tainted_by_instruction.get(instruction_id) {
-                        events.push(Event::Call(*index));
+                    if let Some(index) = self.tainted.index_of(instruction_id) {
+                        events.push(Event::Call(index));
                     }
                 } else if self.constraints.contains(instruction_id) {
                     events.push(Event::Constraint(instruction_arguments(func, instruction)));
@@ -936,7 +996,7 @@ impl Context {
             }
         }
         candidates.intersect_with(active);
-        candidates.intersect_with(&self.unresolved);
+        candidates.intersect_with(self.tainted.unresolved());
         if candidates.is_empty() {
             return false;
         }
@@ -947,12 +1007,13 @@ impl Context {
 
         let mut progressed = false;
         for index in candidates.iter() {
-            let tainted = &mut self.tainted[index];
-            progressed |=
-                tainted.try_constrain(constrained_values, &balls, all_tainted, all_constrained);
-            if tainted.is_fully_constrained() {
-                self.unresolved.remove(index);
-            }
+            progressed |= self.tainted.try_constrain(
+                index,
+                constrained_values,
+                &balls,
+                all_tainted,
+                all_constrained,
+            );
         }
         progressed
     }
@@ -960,13 +1021,11 @@ impl Context {
     /// Every Brillig call not properly constrained should remain unresolved
     /// at this point. For each, emit a corresponding warning.
     fn into_warnings(self, function: &Function) -> Vec<SsaReport> {
-        self.unresolved
-            .iter()
-            .map(|index| {
+        self.tainted
+            .unresolved_instructions()
+            .map(|brillig_call| {
                 SsaReport::Bug(InternalBug::UncheckedBrilligCall {
-                    call_stack: function
-                        .dfg
-                        .get_instruction_call_stack(self.tainted[index].instruction_id),
+                    call_stack: function.dfg.get_instruction_call_stack(brillig_call),
                 })
             })
             .collect()
