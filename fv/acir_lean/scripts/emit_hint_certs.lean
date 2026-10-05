@@ -98,6 +98,20 @@ def express (cc : List Opcode) (s : Reps × Flag) (gs : Array Gen) (T : Poly) : 
       ⟨g.src, g.mul, ((p - c) % p : ℕ)⟩ :: acc)
   else none
 
+/-- A constant `c` and a combination of `gs` equal to `T - c · M`, if any. -/
+def expressC (cc : List Opcode) (s : Reps × Flag) (gs : Array Gen) (M T : Poly) : Option (ℕ × Comb) := Id.run do
+  let mut B : Basis := {}
+  for (g, i) in gs.toList.zipIdx do
+    B := addRow B ⟨toN (genPoly cc s g), ({} : Std.HashMap ℕ ℕ).insert i 1⟩
+  B := addRow B ⟨toN M, ({} : Std.HashMap ℕ ℕ).insert gs.size 1⟩
+  let r := reduce B ⟨toN T, {}⟩
+  if r.poly.isEmpty then
+    let c := (p - r.comb.getD gs.size 0) % p
+    some (c, (r.comb.erase gs.size).fold (init := []) fun acc i c =>
+      let g := gs[i]!
+      ⟨g.src, g.mul, ((p - c) % p : ℕ)⟩ :: acc)
+  else none
+
 def witnessesOf (P : Poly) : List ℕ := (P.flatMap (·.witnesses)).eraseDups
 
 def opWits : Opcode → List ℕ
@@ -141,13 +155,68 @@ def find (deep : Bool) (cc : List Opcode) (s : Reps × Flag) (T : Poly) : Option
     let fs := (facts s w1).eraseDups
     match express cc s (gensAt cc i2 muls1 ++ (fs.flatMap fun f => muls1.map (⟨f, ·, 1⟩)).toArray) T with
     | some c => some c
-    | none => if !deep then none else
+    | none =>
+      -- multipliers read off `T`: every sub-multiset of one of its monomials
+      let subs (m : List ℕ) : List (List ℕ) :=
+        m.foldr (fun w acc => acc ++ acc.map (w :: ·)) [[]] |>.map (isort (fun x y => decide (x ≤ y)))
+      let mulsT := (T.flatMap fun t => subs t.witnesses).eraseDups
+      let gsT := gensAt cc i2 mulsT ++ (fs.flatMap fun f => mulsT.map (⟨f, ·, 1⟩)).toArray
+      match (if gsT.size ≤ 8000 then express cc s gsT T else none) with
+      | some c => some c
+      | none => if !deep then none else
       let pairs := if w1.length ≤ 24 then
           w1.flatMap fun a => (w1.filter (a ≤ ·)).map fun b => [a, b]
         else w0.flatMap fun a => w1.map fun b => isort (fun x y => decide (x ≤ y)) [a, b]
       let muls := [] :: w2.map ([·]) ++ pairs.eraseDups
       if (i2.length + fs.length) * muls.length > 8000 then none
       else express cc s (gensAt cc i2 muls ++ (fs.flatMap fun f => muls.map (⟨f, ·, 1⟩)).toArray) T
+
+/-- `find` for `T - c · M` with an unknown constant `c`. -/
+def findC (cc : List Opcode) (s : Reps × Flag) (M T : Poly) : Option (ℕ × Comb) :=
+  let w0 := witnessesOf (T ++ M)
+  let (_, w1) := hop cc w0
+  let (i2, _) := hop cc w1
+  let muls := [] :: w1.map ([·])
+  let fs := (facts s w1).eraseDups
+  if (i2.length + fs.length) * muls.length > 8000 then none
+  else expressC cc s (gensAt cc i2 muls ++ (fs.flatMap fun f => muls.map (⟨f, ·, 1⟩)).toArray) M T
+
+/-- Bounds for scalar `d` by cases on a bit, when its bound does not fit its
+type. -/
+def caseBoundFor (cc : List Opcode) (s : Reps × Flag) (d : ℕ) : Option CaseBound := Id.run do
+  let some (.scalar r) := s.1.lookup d | return none
+  let .uint n := r.ty | return none
+  if r.M < 2 ^ n then return none
+  let bits := (s.1.map (·.1)).eraseDups.flatMap fun v => match s.1.lookup v with
+    | some (.scalar rb) => if rb.M ≤ 1 then rb.alts else []
+    | _ => []
+  for (X, i) in r.alts.zipIdx do
+    let wx := witnessesOf X
+    let near := (hop cc wx).2
+    let ranges := (cc.zipIdx.filterMap fun (c, idx) => match c with
+      | .range w k => if k ≤ n ∧ near.contains w then some (w, idx) else none
+      | _ => none)
+    for sel in bits.eraseDups do
+      if !(witnessesOf sel).all wx.contains then continue
+      let some cs := find false cc s (psub (pmul sel sel) sel) | continue
+      let forms (side : Poly) : List (Form × Comb) := ranges.flatMap fun (w, idx) =>
+        [false, true].filterMap fun neg =>
+          let T := pmul side (if neg then X ++ pvar w else psub X (pvar w))
+          (findC cc s side T).bind fun (c, cmb) =>
+            let f : Form := ⟨c, neg, idx⟩
+            match f.poly cc with
+            | some (F, _, _) => if combHolds cc s cmb (pmul side (psub X F)) then some (f, cmb) else none
+            | none => none
+      let nsel := psub (pconst 1) sel
+      for (f₁, c₁) in forms sel do
+        for (f₂, c₂) in forms nsel do
+          let b : CaseBound := ⟨i, sel, cs, f₁, c₁, f₂, c₂⟩
+          match tighten cc s d b with
+          | some s' => match s'.1.lookup d with
+            | some (.scalar r') => if r'.M < 2 ^ n then return some b
+            | _ => pure ()
+          | none => pure ()
+  return none
 
 /-! ## Hints -/
 
@@ -207,13 +276,20 @@ def firstRange (deep : Bool) (cc : List Opcode) (s : Reps × Flag) (P : Poly) (m
 
 /-- The polynomials an operand can be named by: its representation's own, then
 the compiler's, where a combination equates it with one of them. -/
-def opnds (deep : Bool) (cc : List Opcode) (s : Reps × Flag) (r : Rep2) (H : Option Poly) : List (Opnd × Poly) :=
+def opnds (deep : Bool) (cc : List Opcode) (s : Reps × Flag) (r : Rep2) (H : Option Poly)
+    (on : Bool := false) : List (Opnd × Poly) :=
   let own := (List.range r.alts.length).map fun i => (Opnd.alt i, r.alts[i]!)
   let via := match H with
     | some H =>
       if r.alts.contains H then []
-      else ((List.range r.alts.length).findSome? fun i =>
-        (find deep cc s (psub H r.alts[i]!)).map fun c => (Opnd.via H i c, H)).toList
+      else
+        let plain := (List.range r.alts.length).findSome? fun i =>
+          (find deep cc s (psub H r.alts[i]!)).map fun c => (Opnd.via H i c, H)
+        match plain, on, s.2 with
+        | some x, _, _ => [x]
+        | none, true, some _ => ((List.range r.alts.length).findSome? fun i =>
+            (find deep cc s (underFlag s.2 (psub H r.alts[i]!))).map fun c => (Opnd.viaOn H i c, H)).toList
+        | none, _, _ => []
     | none => []
   (if r.L = r.M then [(Opnd.fixed, pconst r.L)] else []) ++ via ++ own
 
@@ -223,7 +299,7 @@ def candidates (h : PHints) (k : ℕ) : List Poly :=
     |>.map (·.filter (·.coef ≠ 0))
     |>.filter (·.any (·.witnesses ≠ []))).eraseDups
 
-def tryHint (deep : Bool) (cc : List Opcode) (s : Reps × Flag) (i : Instruction) (h : PHints) (k : ℕ)
+def tryHint (deep : Bool) (body : List Instruction) (cc : List Opcode) (s : Reps × Flag) (i : Instruction) (h : PHints) (k : ℕ)
     (hintOf : Operand → Option Poly) : Option HStep := Id.run do
   let cands := candidates h k
   match i with
@@ -248,6 +324,7 @@ def tryHint (deep : Bool) (cc : List Opcode) (s : Reps × Flag) (i : Instruction
             let st := HStep.foldOn ca cb ia ib c₁ c₂
             if (hintStep cc s i st).isSome then return some st
     let pairs := (opnds deep cc s ra (hintOf a)).flatMap fun x => (opnds deep cc s rb (hintOf b)).map (x, ·)
+    let pairsOn := (opnds deep cc s ra (hintOf a) true).flatMap fun x => (opnds deep cc s rb (hintOf b) true).map (x, ·)
     if op = .eq then
       for ((ia, Xa), (ib, Xb)) in pairs do
         let D := psub Xa Xb
@@ -268,7 +345,7 @@ def tryHint (deep : Bool) (cc : List Opcode) (s : Reps × Flag) (i : Instruction
       let ranged := (cands.filter fun P => match P with
         | [⟨1, [w]⟩] | [⟨1, [w]⟩, ⟨0, []⟩] => cc.any fun c => c == .range w n || (match c with | .range w' k => w' = w ∧ k ≤ n | _ => false)
         | _ => false).map (fun P => P.filter (·.coef ≠ 0)) |>.eraseDups
-      for ((ia, Xa), (ib, Xb)) in pairs do
+      for ((ia, Xa), (ib, Xb)) in pairsOn do
         for q in ranged do
           for r in ranged do
             if q == r then continue
@@ -300,10 +377,34 @@ def tryHint (deep : Bool) (cc : List Opcode) (s : Reps × Flag) (i : Instruction
           let st := HStep.lt E r ia ib c cb rr
           if (hintStep cc s i st).isSome then return some st
       return none
+    if op = .add ∧ ra.ty ≠ .field then
+      -- an `if`/`else` merge: `a = s · y`, `b = (1 - s) · z`
+      let factors (o : Operand) : List (Operand × Operand) := match o with
+        | .var id => match body.find? (fun j => Instruction.dst? j == some id) with
+          | some (.bin _ .mul true x y) => [(x, y), (y, x)]
+          | _ => []
+        | _ => []
+      for (sa, ya) in factors a do
+        for (sb, zb) in factors b do
+          let (.var vy, .var vz) := (ya, zb) | continue
+          let some rs := opRep s.1 sa | continue
+          let some rs' := opRep s.1 sb | continue
+          let some ry := opRep s.1 ya | continue
+          let some rz := opRep s.1 zb | continue
+          if rs.M > 1 ∨ rs'.M > 1 then continue
+          for sel in rs.alts do
+            let some cs := find deep cc s (psub (pmul sel sel) sel) | continue
+            for ((ia, Xa), (ib, Xb)) in pairs do
+              for iy in List.range ry.alts.length do
+                let some ca := find deep cc s (psub Xa (pmul sel ry.alts[iy]!)) | continue
+                for iz in List.range rz.alts.length do
+                  let some cb := find deep cc s (psub Xb (pmul (psub (pconst 1) sel) rz.alts[iz]!)) | continue
+                  let st := HStep.mux sel vy iy vz iz ia ib cs ca cb
+                  if (hintStep cc s i st).isSome then return some st
     if op = .add ∨ op = .sub ∨ op = .mul then
       let some E := h.results.get? k | return none
       let n := match ra.ty with | .uint n => n | _ => 0
-      for ((ia, Xa), (ib, Xb)) in pairs do
+      for ((ia, Xa), (ib, Xb)) in pairsOn do
         let some T := arithPoly op Xa Xb | continue
         let some c := find deep cc s (underFlag s.2 (psub E T)) | continue
         let some rng := firstRange deep cc s E n | continue
@@ -349,11 +450,14 @@ def dest : Instruction → Option ℕ
   | .bin d .. | .not d _ | .cast d .. | .truncate d .. | .arrayGet d .. | .arraySet d .. | .makeArray d .. => some d
   | _ => none
 
-/-- A result whose `eq` flag the searches did not find has no polynomial; a
-hint step does better. -/
+/-- A result `stepP` describes poorly, where a hint step may do better: no
+polynomial (an `eq` flag the searches did not find), or an integer whose upper
+bound does not fit its type. -/
 def weak (s' : Reps × Flag) (s : Reps × Flag) : Bool :=
   s'.1.length > s.1.length && match s'.1.head? with
-    | some (_, .scalar r) => r.alts.isEmpty
+    | some (_, .scalar r) => r.alts.isEmpty || (match r.ty with
+      | .uint n => decide (2 ^ n ≤ r.M)
+      | _ => false)
     | _ => false
 
 /-- The compiler's polynomial `H` for the value `i` defines, as an alias of one
@@ -364,8 +468,9 @@ def aliasFor (cc : List Opcode) (s : Reps × Flag) (i : Instruction) (H : Poly) 
   let .scalar r ← s.1.lookup d | none
   let H := H.filter (·.coef ≠ 0)
   if r.alts.contains H then none
-  (List.range r.alts.length).findSome? fun j =>
-    (find false cc s (psub H r.alts[j]!)).map (H, j, ·)
+  let try_ (deep : Bool) := (List.range r.alts.length).findSome? fun j =>
+    (find deep cc s (psub H r.alts[j]!)).map (H, j, ·)
+  (try_ false).orElse fun _ => try_ true
 
 def tstr (t : Term) : String :=
   let c := (modP t.coef).toNat
@@ -395,7 +500,7 @@ def cert (e : TestProgram) (h : PHints) (verbose : Bool) :
     let useHint := match want with
       | none => true
       | some s' => weak s' s
-    let hint := if useHint then (tryHint false cc s i h k hintOf).orElse fun _ => tryHint true cc s i h k hintOf else none
+    let hint := if useHint then (tryHint false e.prog.body cc s i h k hintOf).orElse fun _ => tryHint true e.prog.body cc s i h k hintOf else none
     let (ix, st, s') ← match hint, want with
       | some st, _ =>
         match hintStep cc s i st with
@@ -409,7 +514,11 @@ def cert (e : TestProgram) (h : PHints) (verbose : Bool) :
     if verbose then
       IO.eprintln s!"  [{k}] {(← IO.monoMsNow) - t0} ms {i.render.trimAsciiStart}"
       (← IO.getStderr).flush
-    let en : Entry := ⟨ix, st, al⟩
+    let sa := match al, i.dst? with
+      | some (H, j, c), some d => (addAlias cc s' d H j c).getD s'
+      | _, _ => s'
+    let bd := i.dst?.bind (caseBoundFor cc sa)
+    let en : Entry := ⟨ix, st, al, bd⟩
     match stepE cc s i en with
     | some s'' =>
       out := out.push en; s := s''
@@ -440,10 +549,12 @@ def showSrc : Src → String
 def showComb (c : Comb) : String :=
   "[" ++ ", ".intercalate (c.map fun g => s!"⟨{showSrc g.src}, {g.mul}, {showInt g.coef}⟩") ++ "]"
 def showRange (e : RangeEv) : String := s!"⟨{e.idx}, {showComb e.cmb}⟩"
+def showForm (f : Form) : String := s!"⟨{f.c}, {f.neg}, {f.idx}⟩"
 def showOpnd : Opnd → String
   | .alt i => s!"(.alt {i})"
   | .via H i c => s!"(.via {showPoly H} {i} {showComb c})"
   | .fixed => ".fixed"
+  | .viaOn H i c => s!"(.viaOn {showPoly H} {i} {showComb c})"
 def showStep : HStep → String
   | .arith E ia ib c r => s!"(.arith {showPoly E} {showOpnd ia} {showOpnd ib} {showComb c} {showRange r})"
   | .divmod q r ia ib c qr rr lt =>
@@ -455,6 +566,7 @@ def showStep : HStep → String
   | .constrain ia ib c => s!"(.constrain {showOpnd ia} {showOpnd ib} {showComb c})"
   | .constrainNe z ia ib c => s!"(.constrainNe {showPoly z} {showOpnd ia} {showOpnd ib} {showComb c})"
   | .fold => ".fold"
+  | .mux sel vy iy vz iz ia ib cs ca cb => s!"(.mux {showPoly sel} {vy} {iy} {vz} {iz} {showOpnd ia} {showOpnd ib} {showComb cs} {showComb ca} {showComb cb})"
   | .lt E r ia ib c cb rr => s!"(.lt {showPoly E} {showPoly r} {showOpnd ia} {showOpnd ib} {showComb c} {showComb cb} {showRange rr})"
   | .eqBit ia ib c => s!"(.eqBit {showOpnd ia} {showOpnd ib} {showComb c})"
   | .foldOn ca cb ia ib c₁ c₂ => s!"(.foldOn {ca} {cb} {showOpnd ia} {showOpnd ib} {showComb c₁} {showComb c₂})"
@@ -477,7 +589,10 @@ def main (args : List String) : IO Unit := do
     let steps := c.map fun en =>
       let st := match en.step with | none => "none" | some st => s!"some {showStep st}"
       let al := match en.extra with | none => "none" | some (H, j, cmb) => s!"some ({showPoly H}, {j}, {showComb cmb})"
-      s!"⟨{en.ix}, {st}, {al}⟩"
+      let bd := match en.bound with
+        | none => "none"
+        | some b => s!"some ⟨{b.i}, {showPoly b.sel}, {showComb b.cs}, {showForm b.f₁}, {showComb b.c₁}, {showForm b.f₂}, {showComb b.c₂}⟩"
+      s!"⟨{en.ix}, {st}, {al}, {bd}⟩"
     nh := nh + (c.filter (·.step.isSome)).length
     na := na + (c.filter (·.extra.isSome)).length
     let rs := r.map fun x => match x with

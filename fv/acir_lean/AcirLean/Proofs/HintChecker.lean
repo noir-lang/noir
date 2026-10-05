@@ -122,6 +122,10 @@ inductive Opnd where
   | via (H : Poly) (i : ℕ) (c : Comb)
   /-- The constant `L`, for an operand whose bounds are `L = M`. -/
   | fixed
+  /-- Like `via`, but `H` equals the operand only while the side-effects flag
+  is on (the combination shows `P · (H - X) = 0`). Only for instructions the
+  flag affects, whose result is `0` while it is off. -/
+  | viaOn (H : Poly) (i : ℕ) (c : Comb)
   deriving DecidableEq
 
 /-- A certificate entry for one instruction. `ia`, `ib` pick the polynomials
@@ -138,6 +142,11 @@ inductive HStep where
   /-- `lt` on `u<n>`, `n ≥ 2`: `a - b + 2^n E - r = 0` with `E` a bit and `r`
   range-checked to at most `n` bits, so `E = 1` exactly when `a < b`. -/
   | lt (E r : Poly) (ia ib : Opnd) (c cb : Comb) (rr : RangeEv)
+  /-- Unchecked `add` of `s · y` and `(1 - s) · z` for a bit `s` (an `if`/`else`
+  merge): the sum is `y` or `z`, so it is bounded by the larger of their
+  bounds. `y` and `z` are scalars `vy`, `vz` named by their polynomials `iy`,
+  `iz`; `cs` shows `s² - s = 0`, and `ca`, `cb` the two products. -/
+  | mux (sel : Poly) (vy iy vz iz : ℕ) (ia ib : Opnd) (cs ca cb : Comb)
   /-- `constrain a == b`: `a - b = 0`. -/
   | constrain (ia ib : Opnd) (c : Comb)
   /-- `constrain a != b`: `(a - b) z = 1`. -/
@@ -158,20 +167,23 @@ inductive HStep where
 
 /-! ## The rules -/
 
-def opndPoly (cc : List Opcode) (s : Reps × Flag) (r : Rep2) : Opnd → Option Poly
+def opndPoly (cc : List Opcode) (s : Reps × Flag) (onlyOn : Bool) (r : Rep2) : Opnd → Option Poly
   | .alt i => r.alts[i]?
   | .via H i c => do
     let X ← r.alts[i]?
     if combHolds cc s c (psub H X) then some H else none
   | .fixed => if r.L = r.M then some (pconst r.L) else none
+  | .viaOn H i c => do
+    let X ← r.alts[i]?
+    if onlyOn ∧ combHolds cc s c (underFlag s.2 (psub H X)) then some H else none
 
 /-- The operands' polynomials the certificate names. -/
-def operands (cc : List Opcode) (s : Reps × Flag) (a b : Operand) (ia ib : Opnd) :
-    Option (Rep2 × Rep2 × Poly × Poly) := do
+def operands (cc : List Opcode) (s : Reps × Flag) (a b : Operand) (ia ib : Opnd)
+    (onlyOn : Bool := false) : Option (Rep2 × Rep2 × Poly × Poly) := do
   let ra ← opRep s.1 a
   let rb ← opRep s.1 b
-  let Xa ← opndPoly cc s ra ia
-  let Xb ← opndPoly cc s rb ib
+  let Xa ← opndPoly cc s onlyOn ra ia
+  let Xb ← opndPoly cc s onlyOn rb ib
   some (ra, rb, Xa, Xb)
 
 /-- `op a b` as a polynomial, for `add`, `sub` and `mul`. -/
@@ -201,7 +213,7 @@ def ltOK (cc : List Opcode) (s : Reps × Flag) (Xb : Poly) (b : Rep2) (r : Poly)
 
 def hintStep (cc : List Opcode) (s : Reps × Flag) : Instruction → HStep → Option (Reps × Flag)
   | .bin d op u a b, .arith E ia ib c rng => do
-    let (ra, rb, Xa, Xb) ← operands cc s a b ia ib
+    let (ra, rb, Xa, Xb) ← operands cc s a b ia ib true
     let T ← arithPoly op Xa Xb
     match ra.ty with
     | .uint n =>
@@ -212,7 +224,7 @@ def hintStep (cc : List Opcode) (s : Reps × Flag) : Instruction → HStep → O
       else none
     | _ => none
   | .bin d op u a b, .divmod q r ia ib c qr rr lt => do
-    let (ra, rb, Xa, Xb) ← operands cc s a b ia ib
+    let (ra, rb, Xa, Xb) ← operands cc s a b ia ib true
     let kq ← rangeOf cc s q qr
     let kr ← rangeOf cc s r rr
     match ra.ty with
@@ -243,6 +255,18 @@ def hintStep (cc : List Opcode) (s : Reps × Flag) : Instruction → HStep → O
         some ((d, .scalar ⟨[E], .uint 1, 0, 1⟩) :: s.1, s.2)
       else none
     | _ => none
+  | .bin d op u a b, .mux sel vy iy vz iz ia ib cs ca cb => do
+    let (ra, _, Xa, Xb) ← operands cc s a b ia ib
+    let .scalar ry ← s.1.lookup vy | none
+    let .scalar rz ← s.1.lookup vz | none
+    let Y ← ry.alts[iy]?
+    let Z ← rz.alts[iz]?
+    if op = .add ∧ u = true ∧ ra.ty ≠ .field ∧ ry.M + rz.M < p ∧
+        combHolds cc s cs (psub (pmul sel sel) sel) ∧
+        combHolds cc s ca (psub Xa (pmul sel Y)) ∧
+        combHolds cc s cb (psub Xb (pmul (psub (pconst 1) sel) Z)) then
+      some ((d, .scalar ⟨[Xa ++ Xb], ra.ty, min ry.L rz.L, max ry.M rz.M⟩) :: s.1, s.2)
+    else none
   | .constrain a b _, .constrain ia ib c => do
     let (_, _, Xa, Xb) ← operands cc s a b ia ib
     if combHolds cc s c (psub Xa Xb) then some s else none
@@ -297,22 +321,66 @@ def addAlias (cc : List Opcode) (s : Reps × Flag) (d : ℕ) (H : Poly) (i : ℕ
     | none => none
   | _ => none
 
+/-- `c + w` or `c - w` for a witness `w` range-checked to `k` bits by
+constraint `idx`: a polynomial with known bounds. -/
+structure Form where
+  c : ℕ
+  neg : Bool
+  idx : ℕ
+  deriving DecidableEq
+
+def Form.poly (cc : List Opcode) (f : Form) : Option (Poly × ℕ × ℕ) :=
+  match cc[f.idx]? with
+  | some (.range w k) =>
+    if f.neg then
+      if 2 ^ k - 1 ≤ f.c ∧ f.c < p then some (psub (pconst f.c) (pvar w), f.c - (2 ^ k - 1), f.c) else none
+    else if f.c + 2 ^ k - 1 < p then some (pconst f.c ++ pvar w, f.c, f.c + 2 ^ k - 1) else none
+  | _ => none
+
+/-- Bounds for a result by cases on a bit `sel`: polynomial `i` of the
+result equals `f₁` where `sel = 1` and `f₂` where `sel = 0`. -/
+structure CaseBound where
+  i : ℕ
+  sel : Poly
+  cs : Comb
+  f₁ : Form
+  c₁ : Comb
+  f₂ : Form
+  c₂ : Comb
+  deriving DecidableEq
+
+def tighten (cc : List Opcode) (s : Reps × Flag) (d : ℕ) (b : CaseBound) : Option (Reps × Flag) := do
+  let .scalar r ← s.1.lookup d | none
+  let X ← r.alts[b.i]?
+  let (F₁, L₁, M₁) ← b.f₁.poly cc
+  let (F₂, L₂, M₂) ← b.f₂.poly cc
+  if combHolds cc s b.cs (psub (pmul b.sel b.sel) b.sel) ∧
+      combHolds cc s b.c₁ (pmul b.sel (psub X F₁)) ∧
+      combHolds cc s b.c₂ (pmul (psub (pconst 1) b.sel) (psub X F₂)) then
+    some ((d, .scalar { r with L := max r.L (min L₁ L₂), M := min r.M (max M₁ M₂) }) :: s.1, s.2)
+  else none
+
 /-- A certificate entry for one instruction: the constraints `stepP` runs over
-or a hint step, and optionally a polynomial to add to the result's (see
-`addAlias`). -/
+or a hint step, optionally a polynomial to add to the result's (see
+`addAlias`), and optionally tighter bounds for it (see `tighten`). -/
 structure Entry where
   ix : List ℕ
   step : Option HStep
   extra : Option (Poly × ℕ × Comb)
+  bound : Option CaseBound := none
   deriving DecidableEq
 
 def stepE (cc : List Opcode) (s : Reps × Flag) (i : Instruction) (e : Entry) : Option (Reps × Flag) := do
   let s' ← match e.step with
     | none => stepP (pick cc e.ix) s i
     | some h => hintStep cc s i h
-  match e.extra, i.dst? with
-  | none, _ => some s'
-  | some (H, j, c), some d => addAlias cc s' d H j c
+  let s'' ← match e.extra, i.dst? with
+    | none, _ => some s'
+    | some (H, j, c), some d => addAlias cc s' d H j c
+    | some _, none => none
+  match e.bound, i.dst? with
+  | none, _ => some s''
+  | some b, some d => tighten cc s'' d b
   | some _, none => none
 
 /-- Run the body, each step as its certificate entry says. -/
