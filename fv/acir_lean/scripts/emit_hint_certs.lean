@@ -6,7 +6,8 @@ step built from the polynomials the compiler assigned (`hints.txt`, printed by
 the `dump_hints` test) and combinations of constraints found by Gaussian
 elimination. The kernel checks every combination, so nothing here is trusted.
 
-Usage: lake env lean --run scripts/emit_hint_certs.lean <hints.txt> <out.lean>
+Usage: lake env lean --run scripts/emit_hint_certs.lean <hints.txt> <out.lean> [name...]
+With names, only reports which of those programs are not proved.
 -/
 
 import AcirLean.Proofs.HintChecker
@@ -14,7 +15,7 @@ import AcirLean.Templates.TestPrograms
 
 open AcirLean
 
-deriving instance Inhabited for Gen
+instance : Inhabited Gen := ⟨⟨.flagBit, [], 0⟩⟩
 
 /-! ## Polynomials mod p, for the search -/
 
@@ -71,37 +72,82 @@ def addRow (B : Basis) (r : Row) : Basis :=
   | none => B
   | some k => B.insert k r
 
-/-- The generators: every `AssertZero` and 1-bit range check, times each of the
-multipliers. -/
-def gens (cc : List Opcode) (muls : List (List ℕ)) : Array Gen := Id.run do
+/-- Constraint generators: every `AssertZero` and 1-bit range check among
+`idxs`, times each of the multipliers. -/
+def gensAt (cc : List Opcode) (idxs : List ℕ) (muls : List (List ℕ)) : Array Gen := Id.run do
   let mut out := #[]
-  for (c, i) in cc.zipIdx do
-    match c with
-    | .assertZero _ | .range _ 1 => for m in muls do out := out.push ⟨i, m, 1⟩
+  for i in idxs do
+    match cc[i]? with
+    | some (.assertZero _) | some (.range _ 1) => for m in muls do out := out.push ⟨.con i, m, 1⟩
     | _ => pure ()
   return out
 
+def gens (cc : List Opcode) (muls : List (List ℕ)) : Array Gen :=
+  gensAt cc (List.range cc.length) muls
+
 /-- A combination of `gs` equal to `T`, if there is one. -/
-def express (cc : List Opcode) (gs : Array Gen) (T : Poly) : Option Comb := Id.run do
+def express (cc : List Opcode) (s : Reps × Flag) (gs : Array Gen) (T : Poly) : Option Comb := Id.run do
   let mut B : Basis := {}
   for (g, i) in gs.toList.zipIdx do
-    B := addRow B ⟨toN (genPoly cc g), ({} : Std.HashMap ℕ ℕ).insert i 1⟩
+    B := addRow B ⟨toN (genPoly cc s g), ({} : Std.HashMap ℕ ℕ).insert i 1⟩
   let r := reduce B ⟨toN T, {}⟩
   if r.poly.isEmpty then
     -- T - Σ c_g g = 0 with r.comb = -c
     some (r.comb.fold (init := []) fun acc i c =>
       let g := gs[i]!
-      ⟨g.idx, g.mul, ((p - c) % p : ℕ)⟩ :: acc)
+      ⟨g.src, g.mul, ((p - c) % p : ℕ)⟩ :: acc)
   else none
 
 def witnessesOf (P : Poly) : List ℕ := (P.flatMap (·.witnesses)).eraseDups
 
-/-- A combination for `T`: first from the constraints alone, then with each
-constraint also multiplied by each witness of `T`. -/
-def find (cc : List Opcode) (T : Poly) : Option Comb :=
-  match express cc (gens cc [[]]) T with
+def opWits : Opcode → List ℕ
+  | .assertZero ts => witnessesOf ts
+  | .range w _ => [w]
+
+/-- The constraints mentioning a witness in `ws`, and every witness they
+mention. -/
+def hop (cc : List Opcode) (ws : List ℕ) : List ℕ × List ℕ :=
+  let idxs := (cc.zipIdx.filter fun (c, _) => (opWits c).any ws.contains).map (·.2)
+  (idxs, (ws ++ idxs.flatMap fun i => (cc[i]?.map opWits).getD []).eraseDups)
+
+/-- The facts the steps so far established that mention a witness in `ws`. -/
+def facts (s : Reps × Flag) (ws : List ℕ) : List Src :=
+  let touches (P : Poly) := (witnessesOf P).any ws.contains
+  let fromReps := (s.1.map (·.1)).eraseDups.flatMap fun v => match s.1.lookup v with
+    | some (.scalar r) =>
+      let idx := List.range r.alts.length
+      let near := idx.filter fun i => touches r.alts[i]!
+      (if r.L = r.M then near.map (Src.fixed v ·) else []) ++
+      (if r.M ≤ 1 then near.map (Src.bit v ·) else []) ++
+        near.flatMap fun i => (idx.filter (· ≠ i)).map (Src.same v i ·)
+    | _ => []
+  let flag := match s.2 with
+    | some (P, _) => if touches P then [Src.flagBit] else []
+    | none => []
+  flag ++ fromReps
+
+/-- A combination for `T`, searched over growing neighbourhoods of `T`'s
+witnesses: the constraints touching them, unmultiplied; then the constraints
+one step further, times each nearby witness; then also the facts, times
+products of up to two nearby witnesses. -/
+def find (deep : Bool) (cc : List Opcode) (s : Reps × Flag) (T : Poly) : Option Comb :=
+  let w0 := witnessesOf T
+  let (i1, w1) := hop cc w0
+  match express cc s (gensAt cc i1 [[]]) T with
   | some c => some c
-  | none => express cc (gens cc ([] :: (witnessesOf T).map ([·]))) T
+  | none =>
+    let (i2, w2) := hop cc w1
+    let muls1 := [] :: w1.map ([·])
+    let fs := (facts s w1).eraseDups
+    match express cc s (gensAt cc i2 muls1 ++ (fs.flatMap fun f => muls1.map (⟨f, ·, 1⟩)).toArray) T with
+    | some c => some c
+    | none => if !deep then none else
+      let pairs := if w1.length ≤ 24 then
+          w1.flatMap fun a => (w1.filter (a ≤ ·)).map fun b => [a, b]
+        else w0.flatMap fun a => w1.map fun b => isort (fun x y => decide (x ≤ y)) [a, b]
+      let muls := [] :: w2.map ([·]) ++ pairs.eraseDups
+      if (i2.length + fs.length) * muls.length > 8000 then none
+      else express cc s (gensAt cc i2 muls ++ (fs.flatMap fun f => muls.map (⟨f, ·, 1⟩)).toArray) T
 
 /-! ## Hints -/
 
@@ -142,13 +188,13 @@ def parseHints (text : String) : Std.HashMap String PHints := Id.run do
 
 /-! ## Building hint steps -/
 
-def rangeEvs (cc : List Opcode) (f : Flag) (P : Poly) (maxBits : ℕ) : List RangeEv :=
+def rangeEvs (deep : Bool) (cc : List Opcode) (s : Reps × Flag) (P : Poly) (maxBits : ℕ) : List RangeEv :=
   (cc.zipIdx.filterMap fun (c, i) => match c with
     | .range w k => if k ≤ maxBits then some (w, i) else none
     | _ => none).filterMap fun (w, i) =>
-      (find cc (underFlag f (psub P (pvar w)))).map fun c => ⟨i, c⟩
+      (find deep cc s (underFlag s.2 (psub P (pvar w)))).map fun c => ⟨i, c⟩
 
-def firstRange (cc : List Opcode) (f : Flag) (P : Poly) (maxBits : ℕ) : Option RangeEv :=
+def firstRange (deep : Bool) (cc : List Opcode) (s : Reps × Flag) (P : Poly) (maxBits : ℕ) : Option RangeEv :=
   -- the witness `P` names first, then any range-checked witness
   let direct := match P with
     | [⟨1, [w]⟩] => (cc.zipIdx.find? fun (c, _) => match c with
@@ -156,69 +202,111 @@ def firstRange (cc : List Opcode) (f : Flag) (P : Poly) (maxBits : ℕ) : Option
         | _ => false).map fun (_, i) => (⟨i, []⟩ : RangeEv)
     | _ => none
   match direct with
-  | some e => if (rangeOf cc f P e).isSome then some e else (rangeEvs cc f P maxBits).head?
-  | none => (rangeEvs cc f P maxBits).head?
+  | some e => if (rangeOf cc s P e).isSome then some e else (rangeEvs deep cc s P maxBits).head?
+  | none => (rangeEvs deep cc s P maxBits).head?
 
 /-- The polynomials an operand can be named by: its representation's own, then
 the compiler's, where a combination equates it with one of them. -/
-def opnds (cc : List Opcode) (r : Rep2) (H : Option Poly) : List (Opnd × Poly) :=
+def opnds (deep : Bool) (cc : List Opcode) (s : Reps × Flag) (r : Rep2) (H : Option Poly) : List (Opnd × Poly) :=
   let own := (List.range r.alts.length).map fun i => (Opnd.alt i, r.alts[i]!)
   let via := match H with
     | some H =>
       if r.alts.contains H then []
       else ((List.range r.alts.length).findSome? fun i =>
-        (find cc (psub H r.alts[i]!)).map fun c => (Opnd.via H i c, H)).toList
+        (find deep cc s (psub H r.alts[i]!)).map fun c => (Opnd.via H i c, H)).toList
     | none => []
-  via ++ own
+  (if r.L = r.M then [(Opnd.fixed, pconst r.L)] else []) ++ via ++ own
 
+/-- The nonconstant polynomials the compiler created for instruction `k`. -/
 def candidates (h : PHints) (k : ℕ) : List Poly :=
-  (h.internals.getD k []).reverse ++ (match h.results.get? k with | some E => [E] | none => [])
+  ((h.internals.getD k []).reverse ++ (match h.results.get? k with | some E => [E] | none => [])
+    |>.map (·.filter (·.coef ≠ 0))
+    |>.filter (·.any (·.witnesses ≠ []))).eraseDups
 
-def tryHint (cc : List Opcode) (s : Reps × Flag) (i : Instruction) (h : PHints) (k : ℕ)
+def tryHint (deep : Bool) (cc : List Opcode) (s : Reps × Flag) (i : Instruction) (h : PHints) (k : ℕ)
     (hintOf : Operand → Option Poly) : Option HStep := Id.run do
   let cands := candidates h k
   match i with
   | .bin _ op _ a b =>
     let some ra := opRep s.1 a | return none
     let some rb := opRep s.1 b | return none
-    let pairs := (opnds cc ra (hintOf a)).flatMap fun x => (opnds cc rb (hintOf b)).map (x, ·)
+    if (hintStep cc s i .fold).isSome then return some .fold
+    let constOf (o : Operand) (r : Rep2) : List ℕ :=
+      let hc := match hintOf o with
+        | some H => match H.filter (·.coef ≠ 0) with
+          | [] => [0]
+          | [⟨c, []⟩] => [(modP c).toNat]
+          | _ => []
+        | none => []
+      (hc ++ (if r.L = r.M then [r.L] else [])).eraseDups
+    for ca in constOf a ra do
+      for cb in constOf b rb do
+        for (ia, Xa) in opnds deep cc s ra (hintOf a) do
+          let some c₁ := find deep cc s (underFlag s.2 (psub Xa (pconst ca))) | continue
+          for (ib, Xb) in opnds deep cc s rb (hintOf b) do
+            let some c₂ := find deep cc s (underFlag s.2 (psub Xb (pconst cb))) | continue
+            let st := HStep.foldOn ca cb ia ib c₁ c₂
+            if (hintStep cc s i st).isSome then return some st
+    let pairs := (opnds deep cc s ra (hintOf a)).flatMap fun x => (opnds deep cc s rb (hintOf b)).map (x, ·)
     if op = .eq then
+      for ((ia, Xa), (ib, Xb)) in pairs do
+        let D := psub Xa Xb
+        if let some c := find deep cc s (psub (pmul D D) D) then
+          let st := HStep.eqBit ia ib c
+          if (hintStep cc s i st).isSome then return some st
       let some E := h.results.get? k | return none
       for ((ia, Xa), (ib, Xb)) in pairs do
         let D := psub Xa Xb
-        let some c₂ := find cc (pmul D E) | continue
+        let some c₂ := find deep cc s (pmul D E) | continue
         for z in cands do
-          if let some c₁ := find cc (psub (psub (pconst 1) (pmul D z)) E) then
+          if let some c₁ := find deep cc s (psub (psub (pconst 1) (pmul D z)) E) then
             let st := HStep.eq E z ia ib c₁ c₂
             if (hintStep cc s i st).isSome then return some st
       return none
     if op = .div ∨ op = .mod then
       let n := match ra.ty with | .uint n => n | _ => 0
+      let ranged := (cands.filter fun P => match P with
+        | [⟨1, [w]⟩] | [⟨1, [w]⟩, ⟨0, []⟩] => cc.any fun c => c == .range w n || (match c with | .range w' k => w' = w ∧ k ≤ n | _ => false)
+        | _ => false).map (fun P => P.filter (·.coef ≠ 0)) |>.eraseDups
       for ((ia, Xa), (ib, Xb)) in pairs do
-        for q in cands do
-          for r in cands do
-            let some c := find cc (underFlag s.2 (psub (psub Xa (pmul Xb q)) r)) | continue
-            let some qr := firstRange cc s.2 q n | continue
-            let some rr := firstRange cc s.2 r n | continue
+        for q in ranged do
+          for r in ranged do
+            if q == r then continue
+            let some c := find deep cc s (underFlag s.2 (psub (psub Xa (pmul Xb q)) r)) | continue
+            let some qr := firstRange deep cc s q n | continue
+            let some rr := firstRange deep cc s r n | continue
             let lts : List LtEv :=
-              ((firstRange cc s.2 (psub (psub Xb r) (pconst 1)) n).map LtEv.sub).toList ++
+              ((firstRange deep cc s (psub (psub Xb r) (pconst 1)) n).map LtEv.sub).toList ++
               (if rb.L = rb.M then
                 (List.range (n + 1)).filterMap fun kk =>
                   if 2 ^ kk ≥ rb.M then
-                    (firstRange cc s.2 (r ++ pconst (2 ^ kk - rb.M)) kk).map (LtEv.shift (2 ^ kk - rb.M))
+                    (firstRange deep cc s (r ++ pconst (2 ^ kk - rb.M)) kk).map (LtEv.shift (2 ^ kk - rb.M))
                   else none
               else [])
             for lt in lts do
               let st := HStep.divmod q r ia ib c qr rr lt
               if (hintStep cc s i st).isSome then return some st
       return none
+    if op = .lt then
+      let some E := h.results.get? k | return none
+      let some n := (match ra.ty with | .uint n => some n | _ => none) | return none
+      let some cb := find deep cc s (psub (pmul E E) E) | return none
+      for ((ia, Xa), (ib, Xb)) in pairs do
+        -- `r` is whatever is left: `a - b + 2^n E`, as a range-checked witness
+        let T := psub Xa Xb ++ pmul (pconst (2 ^ n)) E
+        for r in cands do
+          let some c := find deep cc s (psub T r) | continue
+          let some rr := firstRange deep cc s r n | continue
+          let st := HStep.lt E r ia ib c cb rr
+          if (hintStep cc s i st).isSome then return some st
+      return none
     if op = .add ∨ op = .sub ∨ op = .mul then
       let some E := h.results.get? k | return none
       let n := match ra.ty with | .uint n => n | _ => 0
       for ((ia, Xa), (ib, Xb)) in pairs do
         let some T := arithPoly op Xa Xb | continue
-        let some c := find cc (underFlag s.2 (psub E T)) | continue
-        let some rng := firstRange cc s.2 E n | continue
+        let some c := find deep cc s (underFlag s.2 (psub E T)) | continue
+        let some rng := firstRange deep cc s E n | continue
         let st := HStep.arith E ia ib c rng
         if (hintStep cc s i st).isSome then return some st
       return none
@@ -226,19 +314,19 @@ def tryHint (cc : List Opcode) (s : Reps × Flag) (i : Instruction) (h : PHints)
   | .constrain a b _ =>
     let some ra := opRep s.1 a | return none
     let some rb := opRep s.1 b | return none
-    for (ia, Xa) in opnds cc ra (hintOf a) do
-      for (ib, Xb) in opnds cc rb (hintOf b) do
-        if let some c := find cc (psub Xa Xb) then
+    for (ia, Xa) in opnds deep cc s ra (hintOf a) do
+      for (ib, Xb) in opnds deep cc s rb (hintOf b) do
+        if let some c := find deep cc s (psub Xa Xb) then
           let st := HStep.constrain ia ib c
           if (hintStep cc s i st).isSome then return some st
     return none
   | .constrainNe a b _ =>
     let some ra := opRep s.1 a | return none
     let some rb := opRep s.1 b | return none
-    for (ia, Xa) in opnds cc ra (hintOf a) do
-      for (ib, Xb) in opnds cc rb (hintOf b) do
+    for (ia, Xa) in opnds deep cc s ra (hintOf a) do
+      for (ib, Xb) in opnds deep cc s rb (hintOf b) do
         for z in cands do
-          if let some c := find cc (underFlag s.2 (psub (pconst 1) (pmul (psub Xa Xb) z))) then
+          if let some c := find deep cc s (underFlag s.2 (psub (pconst 1) (pmul (psub Xa Xb) z))) then
             let st := HStep.constrainNe z ia ib c
             if (hintStep cc s i st).isSome then return some st
     return none
@@ -268,14 +356,32 @@ def weak (s' : Reps × Flag) (s : Reps × Flag) : Bool :=
     | some (_, .scalar r) => r.alts.isEmpty
     | _ => false
 
-def cert (e : TestProgram) (h : PHints) :
-    List (List ℕ × Option HStep) × List (Option (ℕ × Comb)) × String := Id.run do
+/-- The compiler's polynomial `H` for the value `i` defines, as an alias of one
+of its polynomials, when a combination shows they are equal. -/
+def aliasFor (cc : List Opcode) (s : Reps × Flag) (i : Instruction) (H : Poly) :
+    Option (Poly × ℕ × Comb) := do
+  let d ← i.dst?
+  let .scalar r ← s.1.lookup d | none
+  let H := H.filter (·.coef ≠ 0)
+  if r.alts.contains H then none
+  (List.range r.alts.length).findSome? fun j =>
+    (find false cc s (psub H r.alts[j]!)).map (H, j, ·)
+
+def tstr (t : Term) : String :=
+  let c := (modP t.coef).toNat
+  let c : ℤ := if c > p / 2 then (c : ℤ) - p else c
+  s!"{c}{t.witnesses}"
+def pstr (P : Poly) : String := " + ".intercalate (P.map tstr)
+
+/-- The certificate, the return hints, and a log of each step. -/
+def cert (e : TestProgram) (h : PHints) (verbose : Bool) :
+    IO (List Entry × List (Option (ℕ × Comb)) × String) := do
   let mut stuckMsg := ""
   let cc := e.fn.opcodes
   let all := (List.range cc.length).toArray
   let some reps0 := initReps cc e.prog.params e.fn.parameters | return ([], [], "initReps")
   let mut s : Reps × Flag := (reps0, none)
-  let mut out := #[]
+  let mut out : Array Entry := #[]
   let mut hmap : Std.HashMap ℕ Poly := {}
   for (i, k) in e.prog.body.zipIdx do
     let hm := hmap
@@ -284,39 +390,60 @@ def cert (e : TestProgram) (h : PHints) :
       | .const _ _ => none
     if let some E := h.results.get? k then
       if let some d := dest i then hmap := hmap.insert d E
+    let t0 ← IO.monoMsNow
     let want := stepP cc s i
     let useHint := match want with
       | none => true
       | some s' => weak s' s
-    let hint := if useHint then tryHint cc s i h k hintOf else none
-    match hint, want with
-    | some st, _ =>
-      match hintStep cc s i st with
-      | some s' => out := out.push ([], some st); s := s'
-      | none => return (out.toList, [], "hint rejected")
-    | none, some s' =>
-      out := out.push ((shrink cc s i want all (max 1 (all.size / 2)) 0).toList, none)
-      s := s'
-    | none, none =>
-      stuckMsg := s!"{e.name}: stuck at {k}: {i.render.trimAsciiStart} flag={s.2.isSome} cands={(candidates h k).length}"
-      return (out.toList, [], stuckMsg)
+    let hint := if useHint then (tryHint false cc s i h k hintOf).orElse fun _ => tryHint true cc s i h k hintOf else none
+    let (ix, st, s') ← match hint, want with
+      | some st, _ =>
+        match hintStep cc s i st with
+        | some s' => pure ([], some st, s')
+        | none => return (out.toList, [], "hint rejected")
+      | none, some s' => pure ((shrink cc s i want all (max 1 (all.size / 2)) 0).toList, none, s')
+      | none, none =>
+        stuckMsg := stuckMsg ++ s!"\nSTUCK at {k}: {i.render.trimAsciiStart} flag={s.2.map fun f => pstr f.1} cands={(candidates h k).map pstr}"
+        return (out.toList, [], stuckMsg)
+    let al := (h.results.get? k).bind (aliasFor cc s' i)
+    if verbose then
+      IO.eprintln s!"  [{k}] {(← IO.monoMsNow) - t0} ms {i.render.trimAsciiStart}"
+      (← IO.getStderr).flush
+    let en : Entry := ⟨ix, st, al⟩
+    match stepE cc s i en with
+    | some s'' =>
+      out := out.push en; s := s''
+      match i.dst?.bind fun d => s''.1.lookup d with
+      | some (.scalar r) =>
+        stuckMsg := stuckMsg ++ s!"\n  {k}: {i.render.trimAsciiStart}{if st.isSome then " [hint]" else ""} => " ++
+          s!"{r.alts.map pstr} [{r.L},{r.M}] compiler={(h.results.get? k).map pstr}"
+      | _ => pure ()
+    | none => return (out.toList, [], "entry rejected")
   -- return values
   let some rss := e.prog.rets.mapM (opFlat s.1) | return (out.toList, [], "rets")
+  stuckMsg := stuckMsg ++ s!"\nreturns {e.fn.returnValues} = {rss.flatten.map fun r => r.alts.map pstr}"
   let rets := (e.fn.returnValues.zip rss.flatten).map fun (w, r) =>
     if retOK cc w r then none
     else ((List.range r.alts.length).findSome? fun j =>
-      (find cc (psub (pvar w) r.alts[j]!)).map (j, ·))
+      (find true cc s (psub (pvar w) r.alts[j]!)).map (j, ·))
   return (out.toList, (if rets.all (·.isNone) then [] else rets), stuckMsg)
 
 def showInt (c : ℤ) : String := if c < 0 then s!"({c})" else toString c
 def showPoly (P : Poly) : String :=
   "[" ++ ", ".intercalate (P.map fun t => s!"⟨{showInt t.coef}, {t.witnesses}⟩") ++ "]"
+def showSrc : Src → String
+  | .con i => s!"(.con {i})"
+  | .same v i j => s!"(.same {v} {i} {j})"
+  | .fixed v i => s!"(.fixed {v} {i})"
+  | .bit v i => s!"(.bit {v} {i})"
+  | .flagBit => ".flagBit"
 def showComb (c : Comb) : String :=
-  "[" ++ ", ".intercalate (c.map fun g => s!"⟨{g.idx}, {g.mul}, {showInt g.coef}⟩") ++ "]"
+  "[" ++ ", ".intercalate (c.map fun g => s!"⟨{showSrc g.src}, {g.mul}, {showInt g.coef}⟩") ++ "]"
 def showRange (e : RangeEv) : String := s!"⟨{e.idx}, {showComb e.cmb}⟩"
 def showOpnd : Opnd → String
   | .alt i => s!"(.alt {i})"
   | .via H i c => s!"(.via {showPoly H} {i} {showComb c})"
+  | .fixed => ".fixed"
 def showStep : HStep → String
   | .arith E ia ib c r => s!"(.arith {showPoly E} {showOpnd ia} {showOpnd ib} {showComb c} {showRange r})"
   | .divmod q r ia ib c qr rr lt =>
@@ -327,6 +454,10 @@ def showStep : HStep → String
   | .eq E z ia ib c₁ c₂ => s!"(.eq {showPoly E} {showPoly z} {showOpnd ia} {showOpnd ib} {showComb c₁} {showComb c₂})"
   | .constrain ia ib c => s!"(.constrain {showOpnd ia} {showOpnd ib} {showComb c})"
   | .constrainNe z ia ib c => s!"(.constrainNe {showPoly z} {showOpnd ia} {showOpnd ib} {showComb c})"
+  | .fold => ".fold"
+  | .lt E r ia ib c cb rr => s!"(.lt {showPoly E} {showPoly r} {showOpnd ia} {showOpnd ib} {showComb c} {showComb cb} {showRange rr})"
+  | .eqBit ia ib c => s!"(.eqBit {showOpnd ia} {showOpnd ib} {showComb c})"
+  | .foldOn ca cb ia ib c₁ c₂ => s!"(.foldOn {ca} {cb} {showOpnd ia} {showOpnd ib} {showComb c₁} {showComb c₂})"
 
 def main (args : List String) : IO Unit := do
   let hints := parseHints (← IO.FS.readFile args[0]!)
@@ -335,18 +466,27 @@ def main (args : List String) : IO Unit := do
     "its hint step.\n-/\n\nimport AcirLean.Proofs.HintChecker\n\nnamespace AcirLean\n\n"
   let mut names := #[]
   let mut nh := 0
+  let mut na := 0
+  let only := args.drop 2
   for (e, idx) in testPrograms.zipIdx do
-    let (c, r, msg) := cert e (hints.getD e.name {})
-    if !checkProgH e.prog e.fn c r then IO.eprintln s!"not proved: {e.name} {msg}"
-    let steps := c.map fun (ix, st) => s!"({ix}, {match st with | none => "none" | some st => s!"some {showStep st}"})"
-    nh := nh + (c.filter (·.2.isSome)).length
+    if !only.isEmpty && !only.contains e.name then continue
+    let (c, r, msg) ← cert e (hints.getD e.name {}) (!only.isEmpty)
+    if !checkProgH e.prog e.fn c r then
+      IO.eprintln s!"not proved: {e.name}"
+      if !only.isEmpty then IO.eprintln msg
+    let steps := c.map fun en =>
+      let st := match en.step with | none => "none" | some st => s!"some {showStep st}"
+      let al := match en.extra with | none => "none" | some (H, j, cmb) => s!"some ({showPoly H}, {j}, {showComb cmb})"
+      s!"⟨{en.ix}, {st}, {al}⟩"
+    nh := nh + (c.filter (·.step.isSome)).length
+    na := na + (c.filter (·.extra.isSome)).length
     let rs := r.map fun x => match x with
       | none => "none"
       | some (j, cmb) => s!"some ({j}, {showComb cmb})"
-    s := s ++ s!"def cert{idx} : List (List ℕ × Option HStep) :=\n  [{", ".intercalate steps}]\n" ++
+    s := s ++ s!"def cert{idx} : List Entry :=\n  [{", ".intercalate steps}]\n" ++
       s!"def rets{idx} : List (Option (ℕ × Comb)) := [{", ".intercalate rs}]\n\n"
     names := names.push idx
-  s := s ++ "def testProgramCerts : List (List (List ℕ × Option HStep) × List (Option (ℕ × Comb))) := [" ++
+  s := s ++ "def testProgramCerts : List (List Entry × List (Option (ℕ × Comb))) := [" ++
     ", ".intercalate (names.toList.map fun i => s!"(cert{i}, rets{i})") ++ "]\n\nend AcirLean\n"
-  IO.FS.writeFile args[1]! s
-  IO.eprintln s!"{nh} hint steps"
+  if only.isEmpty then IO.FS.writeFile args[1]! s
+  IO.eprintln s!"{nh} hint steps, {na} aliases"
