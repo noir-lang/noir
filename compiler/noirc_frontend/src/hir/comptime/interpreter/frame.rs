@@ -33,27 +33,26 @@ impl Frame {
         typ.substitute(&self.bindings)
     }
 
-    /// The frame of a call made from this one. The callee's own instantiation and impl bindings
-    /// take precedence, which keeps each recursive call's generics its own.
-    pub(crate) fn for_call(&self, own_bindings: &TypeBindings) -> Frame {
-        let mut frame = self.clone();
+    /// This frame (the caller's) extended into the frame of a call made from it. The callee's own
+    /// instantiation and impl bindings take precedence, which keeps each recursive call's
+    /// generics its own.
+    pub(crate) fn for_call(mut self, own_bindings: &TypeBindings) -> Frame {
         for (var_id, binding) in own_bindings {
-            frame.bindings.insert(*var_id, binding.clone());
-            frame.runtime_solves.remove(var_id);
+            self.bindings.insert(*var_id, binding.clone());
+            self.runtime_solves.remove(var_id);
         }
-        frame
+        self
     }
 
-    /// The frame of a call, made from this one, to a closure created in `created_in`, whose
-    /// bindings take precedence.
-    pub(crate) fn for_closure(&self, created_in: Frame) -> Frame {
-        let mut frame = self.clone();
+    /// This frame (the caller's) extended into the frame of a call to a closure created in
+    /// `created_in`, whose bindings take precedence.
+    pub(crate) fn for_closure(mut self, created_in: Frame) -> Frame {
         for var_id in created_in.bindings.keys() {
-            frame.runtime_solves.remove(var_id);
+            self.runtime_solves.remove(var_id);
         }
-        frame.bindings.extend(created_in.bindings);
-        frame.runtime_solves.extend(created_in.runtime_solves);
-        frame
+        self.bindings.extend(created_in.bindings);
+        self.runtime_solves.extend(created_in.runtime_solves);
+        self
     }
 
     /// Records types solved while interpreting.

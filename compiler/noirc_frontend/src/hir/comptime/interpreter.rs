@@ -248,7 +248,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         let mut own_bindings = instantiation_bindings;
         own_bindings.extend(impl_bindings);
-        let callee_frame = self.frame.for_call(&own_bindings);
+        // The caller's frame is restored when the call returns, so the callee extends a copy.
+        let callee_frame = self.frame.clone().for_call(&own_bindings);
         let caller_frame = std::mem::replace(&mut self.frame, callee_frame);
 
         if let Some(tracker) = self.elaborator.evaluation_tracker.as_mut() {
@@ -449,7 +450,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             let old_function =
                 std::mem::replace(&mut this.current_function, closure.function_scope);
 
-            let callee_frame = this.frame.for_closure(closure.frame);
+            let callee_frame = this.frame.clone().for_closure(closure.frame);
             let caller_frame = std::mem::replace(&mut this.frame, callee_frame);
 
             // The body can solve types after a value holding them was built (`[make!()]` types
