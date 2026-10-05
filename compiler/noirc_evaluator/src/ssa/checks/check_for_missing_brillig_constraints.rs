@@ -222,7 +222,7 @@ impl TaintedSet {
 /// Direct parents and equivalences of tracked values, through which ancestry is traversed.
 ///
 /// Transitive ancestry is computed on demand via BFS instead of being pre-computed.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 struct AncestryGraph {
     /// Direct parent graph for tracked values.
     ///
@@ -247,9 +247,21 @@ struct AncestryGraph {
     /// still derived from the array, though: if every item of the array is constrained,
     /// so is the value.
     read_arrays: HashMap<ValueId, ValueId>,
+
+    /// Maximum distance to travel looking for an intersecting ancestor.
+    max_distance: u32,
 }
 
 impl AncestryGraph {
+    fn new(max_distance: u32) -> Self {
+        Self {
+            parents: HashMap::default(),
+            equivalences: HashMap::default(),
+            read_arrays: HashMap::default(),
+            max_distance,
+        }
+    }
+
     /// Whether we are collecting the parents of a value.
     fn is_tracked(&self, value: &ValueId) -> bool {
         self.parents.contains_key(value)
@@ -307,6 +319,18 @@ impl AncestryGraph {
     fn traverse(
         &self,
         starts: &[ValueId],
+        f: impl FnMut(ValueId, u32) -> bool,
+    ) -> HashSet<ValueId> {
+        self.traverse_with(starts, true, |_| true, f)
+    }
+
+    /// Like [`Self::traverse`], but only follows equivalence edges if `follow_equivalences`
+    /// is set, and never moves into a value for which `enter` returns `false`.
+    fn traverse_with(
+        &self,
+        starts: &[ValueId],
+        follow_equivalences: bool,
+        enter: impl Fn(&ValueId) -> bool,
         mut f: impl FnMut(ValueId, u32) -> bool,
     ) -> HashSet<ValueId> {
         let mut visited: HashSet<ValueId> = HashSet::default();
@@ -318,7 +342,7 @@ impl AncestryGraph {
             }
             // From start nodes: follow only parent edges, not equivalences.
             for &p in self.parents.get(&s).into_iter().flatten() {
-                if visited.insert(p) {
+                if enter(&p) && visited.insert(p) {
                     queue.push_back((p, 1));
                 }
             }
@@ -328,14 +352,15 @@ impl AncestryGraph {
             if !f(curr, dist) {
                 return visited;
             }
+            let equivalences = follow_equivalences.then(|| self.equivalences.get(&curr)).flatten();
             for &next in self
                 .parents
                 .get(&curr)
                 .into_iter()
                 .flatten()
-                .chain(self.equivalences.get(&curr).into_iter().flatten())
+                .chain(equivalences.into_iter().flatten())
             {
-                if visited.insert(next) {
+                if enter(&next) && visited.insert(next) {
                     queue.push_back((next, dist + 1));
                 }
             }
@@ -350,20 +375,47 @@ impl AncestryGraph {
     }
 
     /// The [`Ball`] around a value.
-    fn ball(&self, start: ValueId, max_ancestor_distance: u32) -> Ball {
+    fn ball(&self, start: ValueId) -> Ball {
+        self.ball_with(start, true)
+    }
+
+    /// The [`Ball`] around a value, following equivalence edges only if `follow_equivalences`.
+    fn ball_with(&self, start: ValueId, follow_equivalences: bool) -> Ball {
         let mut values = Vec::new();
-        self.traverse(&[start], |a, d| {
-            values.push(a);
-            d <= max_ancestor_distance
-        });
+        self.traverse_with(
+            &[start],
+            follow_equivalences,
+            |_| true,
+            |a, d| {
+                values.push(a);
+                d <= self.max_distance
+            },
+        );
         let set = values.iter().copied().collect();
         let read_arrays =
             values.iter().filter_map(|value| self.read_arrays.get(value).copied()).collect();
         Ball { values, set, read_arrays }
     }
+
+    /// Whether any value within the maximum distance of `start` satisfies the `predicate`,
+    /// traversing as in [`Self::traverse_with`].
+    fn any_ancestor(
+        &self,
+        start: ValueId,
+        follow_equivalences: bool,
+        enter: impl Fn(&ValueId) -> bool,
+        predicate: impl Fn(&ValueId) -> bool,
+    ) -> bool {
+        let mut found = false;
+        self.traverse_with(&[start], follow_equivalences, enter, |a, d| {
+            found = predicate(&a);
+            !found && d <= self.max_distance
+        });
+        found
+    }
 }
 
-/// The values within `max_ancestor_distance` of a constrained value, found by following
+/// The values within the maximum distance of a constrained value, found by following
 /// `parents` (and `equivalences` from intermediate nodes) backwards. The traversal also
 /// includes the first value it reaches beyond that distance.
 ///
@@ -390,6 +442,17 @@ impl Ball {
     fn any(&self, predicate: impl Fn(&ValueId) -> bool) -> bool {
         self.values.iter().any(predicate)
     }
+}
+
+/// How a constraint was found to be related to the inputs of a Brillig call.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum InputConnection {
+    /// One of the constrained values has an ancestor in common with the inputs.
+    Direct,
+    /// A tainted constrained value has an ancestor in common with the inputs without
+    /// going through the outputs of the call, although it is related to those outputs
+    /// through an equivalence.
+    AroundOwnOutputs,
 }
 
 /// Outputs of a Brillig call and their descendants.
@@ -498,6 +561,12 @@ impl TaintedDescendants {
     ///
     /// `balls` holds the [`Ball`] of each of the `constrained_values`, in the same order.
     ///
+    /// If the constraint is only related to the inputs around the outputs of the call
+    /// (see [`InputConnection::AroundOwnOutputs`]), then only outputs which are ancestors
+    /// of a constrained value without going through equivalences are considered constrained:
+    /// an equivalence with a tainted value would let an output be cleared by a constraint
+    /// that does not involve it, such as `y[1] == x + g` after `g == y[0] * y[0]`.
+    ///
     /// Any constrained output is added to `all_constrained`.
     ///
     /// Returns `true` if at least one output was cleared by this call. Each output is
@@ -508,6 +577,7 @@ impl TaintedDescendants {
         &mut self,
         constrained_values: &[ValueId],
         balls: &[Ball],
+        graph: &AncestryGraph,
         all_tainted: &ValueSet,
         all_constrained: &mut ConstrainedValues,
     ) -> bool {
@@ -516,12 +586,29 @@ impl TaintedDescendants {
 
         // Make sure this constraint has something to do with the inputs,
         // unless there are no inputs, or the output is against a constant.
-        if !is_against_const
-            && !is_const_args
-            && !self.arguments_intersect(constrained_values, balls, all_tainted, all_constrained)
-        {
-            return false;
-        }
+        let connection = if is_against_const || is_const_args {
+            InputConnection::Direct
+        } else {
+            match self.arguments_intersect(
+                constrained_values,
+                balls,
+                graph,
+                all_tainted,
+                all_constrained,
+            ) {
+                Some(connection) => connection,
+                None => return false,
+            }
+        };
+
+        let parent_balls;
+        let balls = match connection {
+            InputConnection::Direct => balls,
+            InputConnection::AroundOwnOutputs => {
+                parent_balls = vecmap(constrained_values, |value| graph.ball_with(*value, false));
+                &parent_balls
+            }
+        };
 
         // Set whenever an output is cleared below.
         let mut progressed = false;
@@ -585,38 +672,63 @@ impl TaintedDescendants {
 
     /// Whether one of the constrained values:
     /// * shares an ancestor with a call argument (checked via pre-computed `arg_ancestors`), and
-    /// * is not tainted, unless it's been already constrained
+    /// * is not tainted, unless it's been already constrained, and it doesn't descend from
+    ///   the outputs of this call.
+    ///
+    /// A tainted value which is only related to the outputs of this call through an equivalence,
+    /// for example `x + 1` after `y[0] == x`, can still be used, but only if it shares an ancestor
+    /// with the arguments without going through the outputs themselves: the outputs descend from
+    /// the arguments, so every value related to them would otherwise trivially qualify.
     fn arguments_intersect(
         &self,
         constrained_values: &[ValueId],
         balls: &[Ball],
+        graph: &AncestryGraph,
         all_tainted: &ValueSet,
         all_constrained: &ConstrainedValues,
-    ) -> bool {
+    ) -> Option<InputConnection> {
+        let is_own_output =
+            |a: &ValueId| self.single_outputs.contains(a) || self.array_outputs.contains_key(a);
+        let mut connection = None;
         for (cv, ball) in constrained_values.iter().zip(balls) {
             // We want to avoid using tainted inputs to constrain Brillig outputs.
             // Allowing them would mean we could constrain the output of one call
             // with the output of another Brillig call, and also that outputs of
             // the call would trivially connect to the inputs.
             // However if a tainted input has been constrained already, we can use it.
-            if all_tainted.contains(cv)
-                && (
-                    // Tainted and hasn't been constrained.
-                    !all_constrained.covers(ball)
-                    // Tainted because it's the output of this call itself.
-                    || self.single_outputs.iter().any(|output| ball.contains(output))
+            let mut around_own_outputs = false;
+            if all_tainted.contains(cv) {
+                // Tainted and hasn't been constrained.
+                if !all_constrained.covers(ball) {
+                    continue;
+                }
+                if self.single_outputs.iter().any(|output| ball.contains(output))
                     || self.array_outputs.keys().any(|array| ball.contains(array))
-                )
-            {
-                continue;
+                {
+                    // Tainted because it's derived from the output of this call itself.
+                    if graph.any_ancestor(*cv, false, |_| true, is_own_output) {
+                        continue;
+                    }
+                    // Only related to the outputs of this call through an equivalence.
+                    around_own_outputs = true;
+                }
             }
             // arg_ancestors contains the arguments themselves and all their transitive ancestors.
             // Check if cv or any ancestor of cv is in arg_ancestors.
-            if ball.any(|a| self.arg_ancestors.contains(a)) {
-                return true;
+            if !around_own_outputs {
+                if ball.any(|a| self.arg_ancestors.contains(a)) {
+                    return Some(InputConnection::Direct);
+                }
+            } else if graph.any_ancestor(
+                *cv,
+                true,
+                |a| !is_own_output(a),
+                |a| self.arg_ancestors.contains(a),
+            ) {
+                connection = Some(InputConnection::AroundOwnOutputs);
             }
         }
-        false
+        connection
     }
 
     /// Add to the descendants of a particular array element.
@@ -836,12 +948,13 @@ impl TaintedCalls {
         index: TaintedIndex,
         constrained_values: &[ValueId],
         balls: &[Ball],
+        graph: &AncestryGraph,
         all_tainted: &ValueSet,
         all_constrained: &mut ConstrainedValues,
     ) -> bool {
         let tainted = &mut self.calls[index];
         let progressed =
-            tainted.try_constrain(constrained_values, balls, all_tainted, all_constrained);
+            tainted.try_constrain(constrained_values, balls, graph, all_tainted, all_constrained);
         if tainted.is_fully_constrained() {
             self.unresolved.remove(index);
         }
@@ -876,9 +989,6 @@ struct Context {
 
     /// Maximum length of an array for which we consider constraining items per index.
     max_array_output_length: u32,
-
-    /// Maximum distance to travel looking for an intersecting ancestor.
-    max_ancestor_distance: u32,
 }
 
 impl Context {
@@ -888,9 +998,8 @@ impl Context {
             tainted: TaintedCalls::default(),
             constrainable: Constrainable::default(),
             constraints: HashSet::default(),
-            graph: AncestryGraph::default(),
+            graph: AncestryGraph::new(max_ancestor_distance),
             max_array_output_length,
-            max_ancestor_distance,
         }
     }
 
@@ -1064,7 +1173,7 @@ impl Context {
                 if !results.is_empty() {
                     // Extend the values we are looking to constrain, as long as we will
                     // not exceed the traversal limit to reach them.
-                    self.constrainable.extend(&arguments, &results, self.max_ancestor_distance);
+                    self.constrainable.extend(&arguments, &results, self.graph.max_distance);
                 }
 
                 // If this is a Store instruction, then it has no result: instead if the value we store
@@ -1267,8 +1376,7 @@ impl Context {
             return false;
         }
 
-        let balls =
-            vecmap(constrained_values, |value| self.graph.ball(*value, self.max_ancestor_distance));
+        let balls = vecmap(constrained_values, |value| self.graph.ball(*value));
 
         let mut progressed = false;
         for index in candidates.iter() {
@@ -1276,6 +1384,7 @@ impl Context {
                 index,
                 constrained_values,
                 &balls,
+                &self.graph,
                 all_tainted,
                 all_constrained,
             );
@@ -2580,5 +2689,118 @@ mod tests {
 
         let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
         assert_eq!(ssa_level_warnings.len(), 0);
+    }
+
+    #[test]
+    #[traced_test]
+    /// Test where the input of a call descends from an earlier Brillig call, and the outputs
+    /// are constrained against values derived from that input: `out[0] == x`, `out[1] == x + 1`.
+    ///
+    /// The equivalence `out[0] == x` must not make `x + 1` count as a descendant of the
+    /// call's own outputs, otherwise `out[1]` is never considered constrained.
+    fn test_outputs_constrained_against_tainted_input_derived_values() {
+        let program = r#"
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 2], v1: Field):
+            v3 = call f1(v1) -> [Field; 2]
+            v5 = array_get v3, index u32 0 -> Field
+            constrain v5 == v1
+            v7 = array_get v3, index u32 1 -> Field
+            v9 = add v1, Field 1
+            constrain v7 == v9
+            v34 = array_get v0, index u32 0 -> Field
+            v35 = mul v1, v34
+            v36 = add v35, v7
+            v37 = call f1(v36) -> [Field; 2]
+            v38 = array_get v37, index u32 0 -> Field
+            constrain v38 == v36
+            v39 = array_get v37, index u32 1 -> Field
+            v40 = add v36, Field 1
+            constrain v39 == v40
+            return v40
+        }
+
+        brillig(inline) fn pair f1 {
+          b0(v0: Field):
+            v1 = make_array [v0, v0] : [Field; 2]
+            return v1
+        }
+        "#;
+
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
+        assert_eq!(ssa_level_warnings.len(), 0);
+    }
+
+    #[test]
+    #[traced_test]
+    /// Test where the output of a call is only related to its input through itself:
+    /// `y * y == z` pins `y` to an unrelated (constrained) Brillig output `z` up to its sign,
+    /// and `y * y + 1 == z + 1` repeats that. The second constraint reaches the input of the
+    /// call only by going through `z == y * y` and then `y` itself, so it must not count.
+    fn test_output_related_to_input_only_through_itself() {
+        let program = r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v2 = call f1(v0) -> Field
+            constrain v2 == v0
+            v3 = call f1(v1) -> Field
+            v4 = mul v3, v3
+            constrain v4 == v2
+            v5 = add v4, Field 1
+            v6 = add v2, Field 1
+            constrain v5 == v6
+            return
+        }
+
+        brillig(inline) fn identity f1 {
+          b0(v0: Field):
+            return v0
+        }
+        "#;
+
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
+        assert_eq!(ssa_level_warnings.len(), 1);
+    }
+
+    #[test]
+    #[traced_test]
+    /// Test where a constraint is related to the inputs of a call around its outputs, as in
+    /// [`test_outputs_constrained_against_tainted_input_derived_values`], but one of the
+    /// constrained values is also related to an output through an equivalence:
+    /// `g == y[0] * y[0]` and `y[1] == x + g`. That only constrains `y[1]`; `y[0]` is still
+    /// only pinned up to its sign by a value unrelated to the input.
+    fn test_output_not_constrained_through_equivalence_with_input_side() {
+        let program = r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v2 = call f1(v0) -> Field
+            constrain v2 == v0
+            v3 = call f1(v1) -> Field
+            constrain v3 == v1
+            v4 = add v1, v3
+            v5 = call f2(v4) -> [Field; 2]
+            v6 = array_get v5, index u32 0 -> Field
+            v7 = mul v6, v6
+            constrain v7 == v2
+            v8 = array_get v5, index u32 1 -> Field
+            v9 = add v4, v2
+            constrain v8 == v9
+            return
+        }
+
+        brillig(inline) fn identity f1 {
+          b0(v0: Field):
+            return v0
+        }
+
+        brillig(inline) fn pair f2 {
+          b0(v0: Field):
+            v1 = make_array [v0, v0] : [Field; 2]
+            return v1
+        }
+        "#;
+
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
+        assert_eq!(ssa_level_warnings.len(), 1);
     }
 }
