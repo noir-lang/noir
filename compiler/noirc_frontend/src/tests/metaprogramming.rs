@@ -1,4 +1,5 @@
 mod comptime_for;
+mod frame_types;
 mod skip_interpreter_on_fail;
 
 use crate::{
@@ -1896,71 +1897,6 @@ fn macro_call_type_in_closure_body_is_solved_again_on_each_loop_iteration() {
                     assert(type_of([x]).eq(quote { [u8; 1] }.as_type()));
                 }
             }
-        }
-    }
-    "#;
-    check_errors_with_stdlib(src, [TYPE_OF_STDLIB]);
-}
-
-#[test]
-fn macro_call_type_solved_in_callee_is_visible_through_a_mutable_reference() {
-    // `fill` builds `empty` as `[T]` and only learns `T = S` afterwards, from the macro call.
-    // The vector reaches `main` through `r`, not through a return value.
-    let src = r#"
-    struct S { a: u8 }
-    comptime fn make_s() -> Quoted { quote { S { a: 1 } } }
-    comptime fn fill<T>(r: &mut [T]) {
-        let empty: [T] = @[];
-        let _: T = make_s!();
-        *r = empty;
-    }
-    fn main() {
-        comptime {
-            let mut v = @[];
-            fill(&mut v);
-            assert(type_of(v).eq(quote { [S] }.as_type()));
-        }
-    }
-    "#;
-    check_errors_with_stdlib(src, [TYPE_OF_STDLIB]);
-}
-
-#[test]
-fn macro_call_type_solved_in_callee_is_visible_through_a_mutable_reference_to_a_field() {
-    let src = r#"
-    struct S { a: u8 }
-    comptime fn make_s() -> Quoted { quote { S { a: 1 } } }
-    comptime fn fill<T>(r: &mut ([T], u32)) {
-        let empty: [T] = @[];
-        let _: T = make_s!();
-        r.0 = empty;
-    }
-    fn main() {
-        comptime {
-            let mut v = (@[], 0);
-            fill(&mut v);
-            assert(type_of(v.0).eq(quote { [S] }.as_type()));
-        }
-    }
-    "#;
-    check_errors_with_stdlib(src, [TYPE_OF_STDLIB]);
-}
-
-#[test]
-fn macro_call_type_solved_in_callee_is_visible_in_an_unquoted_value() {
-    let src = r#"
-    struct S { a: u8 }
-    comptime fn make_s() -> Quoted { quote { S { a: 1 } } }
-    comptime fn wrap<T>(_f: fn() -> T) -> Quoted {
-        let empty: [T] = @[];
-        let _: T = make_s!();
-        quote { $empty }
-    }
-    fn main() {
-        comptime {
-            let c = || make_s!();
-            let v = wrap!(c);
-            assert(type_of(v).eq(quote { [S] }.as_type()));
         }
     }
     "#;
