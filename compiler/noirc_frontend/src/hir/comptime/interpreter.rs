@@ -263,7 +263,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         let callee_frame = std::mem::replace(&mut self.frame, caller_frame);
         let visible: Vec<&Type> = own_bindings.values().map(|(_, _, typ)| typ).collect();
-        let solves = self.frame.take_solves(&callee_frame, &visible, &own_bindings);
+        let solves = self.frame.take_solves(&callee_frame, &visible);
 
         self.elaborator.pop_interpreter_call_stack();
         result.map(|result| (result, solves))
@@ -460,8 +460,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 .map(|result| this.apply_runtime_solves(result));
 
             let callee_frame = std::mem::replace(&mut this.frame, caller_frame);
-            let solves =
-                this.frame.take_solves(&callee_frame, &[&closure.typ], &TypeBindings::default());
+            let solves = this.frame.take_solves(&callee_frame, &[&closure.typ]);
             this.elaborator.pop_interpreter_call_stack();
 
             this.current_function = old_function;

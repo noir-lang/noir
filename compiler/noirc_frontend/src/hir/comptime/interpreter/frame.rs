@@ -1,3 +1,5 @@
+use rustc_hash::FxHashSet as HashSet;
+
 use crate::{Type, TypeBindings, TypeVariableId};
 
 /// The types the function being interpreted sees: the bindings of its generics (a call's
@@ -12,9 +14,10 @@ use crate::{Type, TypeBindings, TypeVariableId};
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct Frame {
     bindings: TypeBindings,
-    /// Whether `bindings` holds a type solved while interpreting, rather than only generics.
-    /// Until one does, every value's types are already as resolved as this frame can make them.
-    has_runtime_solves: bool,
+    /// The type variables in `bindings` that were solved while interpreting, rather than bound as
+    /// generics. While there are none, every value's types are already as resolved as this frame
+    /// can make them.
+    runtime_solves: HashSet<TypeVariableId>,
 }
 
 impl Frame {
@@ -23,7 +26,7 @@ impl Frame {
     }
 
     pub(crate) fn has_runtime_solves(&self) -> bool {
-        self.has_runtime_solves
+        !self.runtime_solves.is_empty()
     }
 
     pub(crate) fn substitute(&self, typ: &Type) -> Type {
@@ -34,7 +37,10 @@ impl Frame {
     /// take precedence, which keeps each recursive call's generics its own.
     pub(crate) fn for_call(&self, own_bindings: &TypeBindings) -> Frame {
         let mut frame = self.clone();
-        frame.bindings.extend(own_bindings.iter().map(|(id, binding)| (*id, binding.clone())));
+        for (var_id, binding) in own_bindings {
+            frame.bindings.insert(*var_id, binding.clone());
+            frame.runtime_solves.remove(var_id);
+        }
         frame
     }
 
@@ -42,52 +48,93 @@ impl Frame {
     /// bindings take precedence.
     pub(crate) fn for_closure(&self, created_in: Frame) -> Frame {
         let mut frame = self.clone();
+        for var_id in created_in.bindings.keys() {
+            frame.runtime_solves.remove(var_id);
+        }
         frame.bindings.extend(created_in.bindings);
-        frame.has_runtime_solves |= created_in.has_runtime_solves;
+        frame.runtime_solves.extend(created_in.runtime_solves);
         frame
     }
 
     /// Records types solved while interpreting.
     pub(crate) fn solve(&mut self, bindings: TypeBindings) {
-        self.has_runtime_solves |= !bindings.is_empty();
+        self.runtime_solves.extend(bindings.keys().copied());
         self.bindings.extend(bindings);
     }
 
     /// Takes back solved types so that they can be solved again, possibly differently.
     pub(crate) fn forget(&mut self, var_ids: &[TypeVariableId]) {
         for var_id in var_ids {
-            self.bindings.remove(var_id);
+            if self.runtime_solves.remove(var_id) {
+                self.bindings.remove(var_id);
+            }
         }
     }
 
     /// Copies into this frame each type variable `callee` solved that occurs in one of `visible`,
-    /// and returns them. A binding `callee` holds that this frame does not hold identically was
-    /// solved by `callee`; its own generics (`callee_generics`) are never handed back.
+    /// and returns them. Solves `callee` inherited from this frame and still holds unchanged are
+    /// skipped.
     ///
     /// A callee can only solve its own body's variables or ones that reached it through the types
     /// its caller can see, so `visible` is the types its generics were instantiated with, or a
     /// closure's own type (which includes its captures). A variable only the callee's body
     /// mentions stays behind, so a recursive call that solves it differently cannot overwrite its
     /// caller's solution.
-    pub(crate) fn take_solves(
-        &mut self,
-        callee: &Frame,
-        visible: &[&Type],
-        callee_generics: &TypeBindings,
-    ) -> Vec<TypeVariableId> {
+    pub(crate) fn take_solves(&mut self, callee: &Frame, visible: &[&Type]) -> Vec<TypeVariableId> {
         let mut taken = Vec::new();
-        for (var_id, (var, kind, typ)) in &callee.bindings {
-            if callee_generics.contains_key(var_id)
-                || self.bindings.get(var_id).is_some_and(|(_, _, own)| own == typ)
+        for var_id in &callee.runtime_solves {
+            let (var, kind, typ) = &callee.bindings[var_id];
+            if self.bindings.get(var_id).is_some_and(|(_, _, own)| own == typ)
                 || !visible.iter().any(|visible| visible.occurs(*var_id))
             {
                 continue;
             }
             let typ = callee.substitute(typ);
             self.bindings.insert(*var_id, (var.clone(), kind.clone(), typ));
-            self.has_runtime_solves = true;
+            self.runtime_solves.insert(*var_id);
             taken.push(*var_id);
         }
         taken
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{Kind, Type, TypeBindings, TypeVariable, TypeVariableId};
+
+    use super::Frame;
+
+    fn binding(id: usize, typ: Type) -> TypeBindings {
+        let id = TypeVariableId(id);
+        let mut bindings = TypeBindings::default();
+        bindings.insert(id, (TypeVariable::unbound(id, Kind::Normal), Kind::Normal, typ));
+        bindings
+    }
+
+    #[test]
+    fn forgetting_every_runtime_solve_leaves_none() {
+        let mut frame = Frame::default();
+        frame.solve(binding(0, Type::Bool));
+        assert!(frame.has_runtime_solves());
+
+        frame.forget(&[TypeVariableId(0)]);
+        assert!(!frame.has_runtime_solves());
+        assert!(frame.bindings().is_empty());
+    }
+
+    #[test]
+    fn forgetting_a_generic_keeps_its_binding() {
+        let mut frame = Frame::default().for_call(&binding(0, Type::Bool));
+        frame.forget(&[TypeVariableId(0)]);
+        assert!(!frame.has_runtime_solves());
+        assert_eq!(frame.bindings().len(), 1);
+    }
+
+    #[test]
+    fn a_callees_generic_shadowing_a_solve_is_not_a_solve() {
+        let mut caller = Frame::default();
+        caller.solve(binding(0, Type::Bool));
+        let callee = caller.for_call(&binding(0, Type::FieldElement));
+        assert!(!callee.has_runtime_solves());
     }
 }
