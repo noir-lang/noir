@@ -100,6 +100,8 @@ pub struct Closure {
     /// The interpreter's substitution where the closure was created, which is the one its body
     /// is interpreted under.
     pub(crate) substitution: TypeBindings,
+    /// Whether `substitution` holds a type solved while interpreting, rather than only generics.
+    pub(crate) has_runtime_solves: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Display)]
@@ -193,8 +195,15 @@ impl Value {
                 Value::Function(id, f(&typ), Rc::new(bindings))
             }
             Value::Closure(closure) => {
-                let Closure { lambda, env, typ, function_scope, module_scope, substitution } =
-                    *closure;
+                let Closure {
+                    lambda,
+                    env,
+                    typ,
+                    function_scope,
+                    module_scope,
+                    substitution,
+                    has_runtime_solves,
+                } = *closure;
                 let closure = Closure {
                     lambda,
                     env: map_all(env),
@@ -202,6 +211,7 @@ impl Value {
                     function_scope,
                     module_scope,
                     substitution,
+                    has_runtime_solves,
                 };
                 Value::Closure(Box::new(closure))
             }

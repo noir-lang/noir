@@ -68,3 +68,27 @@ item hashes to the same value from one compiler version to the next. They do gua
 single compiler version produces the same hash in every build environment: the hash does not
 depend on the Rust toolchain the compiler was built with or the target it runs on, so Noir
 code compiles identically across platforms.
+
+# Types solved while interpreting
+
+The interpreter does not bind type variables. Each call frame has a substitution: the call's
+instantiation and impl bindings, plus the types the frame solves while it runs (a macro call's
+result type, or a call's result type that only its value reveals). A value keeps the types it
+was built with, so a value built before one of its types was solved still mentions the
+unsolved variable. It resolves only against a substitution that holds the solution.
+
+Two rules make a solution visible wherever such a value can go:
+
+- A frame starts from a copy of its caller's substitution, with its own bindings on top. A
+  closure frame puts the closure's creation-time substitution on top instead. A value passed
+  in therefore resolves in the callee, including through a `&mut` or a closure capture.
+- When a call returns, every variable the callee solved that occurs in the types its generics
+  were instantiated with is copied into the caller. A callee can only solve its own variables
+  or ones that reached it through those types, so this hands back exactly what the caller can
+  see. Variables of the callee's own body stay behind, so a recursive call that solves them
+  differently cannot overwrite its caller's solution. Before the same call expression is
+  evaluated again (in a loop), what it handed back last time is removed.
+
+Builtins read the types stored on their arguments directly, so their arguments are resolved
+under the builtin's frame, but only once some type has been solved at runtime: until then,
+every value is already as resolved as the substitution can make it.

@@ -1,22 +1,19 @@
 //! Types solved inside one comptime frame must be visible wherever the value goes next.
 //!
 //! The interpreter records a type it solves while running (for example the result type of a
-//! macro call) only in the substitution of the frame that solved it. A value keeps the type it
-//! was built with, so a value built before the solve still mentions the unsolved type variable,
-//! and only resolves when it passes through `Interpreter::value` while that frame is current.
-//! Every route that carries a value from the frame that solved its type into another frame, or
-//! out of the interpreter, must therefore resolve it on the way. Otherwise reflection such as
-//! `type_of` sees `_` where the source has a concrete type, and code generated from it differs.
+//! macro call) in the substitution of the frame that solved it, not on the type variable. A value
+//! keeps the type it was built with, so a value built before the solve still mentions the
+//! unsolved type variable, and only resolves against a substitution that holds the solution.
+//! Every route that carries such a value into another frame, or out of the interpreter, must
+//! therefore either resolve it on the way or make the solution visible on the other side.
+//! Otherwise reflection such as `type_of` sees `_` where the source has a concrete type, and code
+//! generated from it differs.
 //!
 //! Each case below builds a vector whose element type is solved to `S` only after the vector
 //! exists. Then it moves the vector along one route and checks `type_of` in a frame that has
 //! not solved the element type itself, so the check passes only if the route resolved it. The
 //! builtin-argument case is the exception: `type_of` is itself the route, called from the frame
 //! that solved the type.
-//!
-//! Routes that do not resolve types yet are listed as [`Expect::Stale`]. Their test asserts that
-//! the check still fails, so fixing a route makes its test fail until it is moved to
-//! [`Expect::Solved`].
 
 use noirc_errors::CustomDiagnostic;
 
@@ -47,14 +44,8 @@ const PRELUDE: &str = r#"
     struct Wrap<T> { inner: T }
 "#;
 
-enum Expect {
-    /// The route resolves the types its frame solved.
-    Solved,
-    /// The route carries the unsolved type variable along; the reason names the code location.
-    Stale(&'static str),
-}
-
-fn check(src: &str, expect: Expect) {
+/// Asserts that `src` compiles and that none of its comptime `assert`s fail.
+fn check(src: &str) {
     let src = format!("{PRELUDE}\n{src}");
     let options = GetProgramOptions {
         allow_elaborator_errors: true,
@@ -67,15 +58,7 @@ fn check(src: &str, expect: Expect) {
     let (failed_checks, other_errors): (Vec<_>, Vec<_>) = errors.partition(is_failing_constraint);
     assert!(other_errors.is_empty(), "unexpected errors: {other_errors:?}");
 
-    match expect {
-        Expect::Solved => {
-            assert!(failed_checks.is_empty(), "type check failed: {failed_checks:?}");
-        }
-        Expect::Stale(reason) => assert!(
-            !failed_checks.is_empty(),
-            "this route now resolves types, so change it to `Expect::Solved` (was: {reason})"
-        ),
-    }
+    assert!(failed_checks.is_empty(), "type check failed: {failed_checks:?}");
 }
 
 fn is_failing_constraint(error: &CompilationError) -> bool {
@@ -111,7 +94,7 @@ fn builtin_argument_in_the_solving_frame() {
     }}
     "#
     );
-    check(&src, Expect::Stale("call_function: arguments of builtins (call_special)"));
+    check(&src);
 }
 
 #[test]
@@ -129,7 +112,7 @@ fn function_argument() {
     }}
     "#
     );
-    check(&src, Expect::Stale("call_function: arguments of user-defined functions"));
+    check(&src);
 }
 
 #[test]
@@ -150,7 +133,7 @@ fn method_argument() {
     }}
     "#
     );
-    check(&src, Expect::Stale("evaluate_method_call -> call_function: method arguments"));
+    check(&src);
 }
 
 #[test]
@@ -170,7 +153,7 @@ fn type_value_argument() {
         }
     }
     "#;
-    check(src, Expect::Stale("call_function: arguments holding a `Value::Type`"));
+    check(src);
 }
 
 #[test]
@@ -194,7 +177,7 @@ fn function_value_argument() {
         }
     }
     "#;
-    check(src, Expect::Stale("call_function: bindings inside a `Value::Function` argument"));
+    check(src);
 }
 
 #[test]
@@ -212,7 +195,7 @@ fn function_result() {
         }
     }
     "#;
-    check(src, Expect::Stale("call_function: result of user-defined functions"));
+    check(src);
 }
 
 #[test]
@@ -230,7 +213,7 @@ fn function_result_inside_a_struct() {
         }
     }
     "#;
-    check(src, Expect::Stale("call_function: result of user-defined functions, nested"));
+    check(src);
 }
 
 #[test]
@@ -249,7 +232,7 @@ fn array_literal_result() {
         }
     }
     "#;
-    check(src, Expect::Stale("evaluate_array type read before elements, then function result"));
+    check(src);
 }
 
 #[test]
@@ -268,7 +251,7 @@ fn closure_result() {
     }}
     "#
     );
-    check(&src, Expect::Solved);
+    check(&src);
 }
 
 #[test]
@@ -285,7 +268,7 @@ fn closure_argument() {
     }}
     "#
     );
-    check(&src, Expect::Stale("call_closure: arguments"));
+    check(&src);
 }
 
 #[test]
@@ -301,7 +284,7 @@ fn closure_capture() {
         }
     }
     "#;
-    check(src, Expect::Stale("evaluate_lambda: captured values and substitution snapshot"));
+    check(src);
 }
 
 #[test]
@@ -320,7 +303,7 @@ fn write_through_mutable_reference() {
         }
     }
     "#;
-    check(src, Expect::Solved);
+    check(src);
 }
 
 #[test]
@@ -339,7 +322,7 @@ fn write_through_mutable_reference_to_a_field() {
         }
     }
     "#;
-    check(src, Expect::Solved);
+    check(src);
 }
 
 #[test]
@@ -358,7 +341,7 @@ fn read_through_mutable_reference() {
         }
     }
     "#;
-    check(src, Expect::Stale("call_function: pointee of a `&mut` argument"));
+    check(src);
 }
 
 #[test]
@@ -377,5 +360,82 @@ fn unquote() {
         }
     }
     "#;
-    check(src, Expect::Solved);
+    check(src);
+}
+
+#[test]
+fn function_result_solved_differently_on_each_loop_iteration() {
+    let src = r#"
+    comptime fn pick(n: u32) -> Quoted {
+        if n == 0 { quote { S { a: 1 } } } else { quote { 1_u8 } }
+    }
+    comptime fn make<T>(n: u32) -> [T] {
+        let e: [T] = @[];
+        let _: T = pick!(n);
+        e
+    }
+    fn main() {
+        comptime {
+            for i in 0..2 {
+                let v = make(i);
+                if i == 0 {
+                    assert(type_of(v).eq(quote { [S] }.as_type()));
+                } else {
+                    assert(type_of(v).eq(quote { [u8] }.as_type()));
+                }
+            }
+        }
+    }
+    "#;
+    check(src);
+}
+
+#[test]
+fn function_result_through_nested_generic_calls() {
+    let src = r#"
+    comptime fn nest<T>(n: u32) -> [T] {
+        if n == 0 {
+            let e: [T] = @[];
+            let _: T = make_s!();
+            e
+        } else {
+            nest(n - 1)
+        }
+    }
+    fn main() {
+        comptime {
+            let v = nest(2);
+            assert(type_of(v).eq(quote { [S] }.as_type()));
+        }
+    }
+    "#;
+    check(src);
+}
+
+#[test]
+fn recursive_call_solving_its_own_body_differently_keeps_the_callers_solution() {
+    let src = r#"
+    comptime fn pick(n: u32) -> Quoted {
+        if n == 0 { quote { S { a: 1 } } } else { quote { 1_u8 } }
+    }
+    comptime fn rec<T>(n: u32) -> bool {
+        let e = @[];
+        let x = pick!(n);
+        let _ = [e, @[x]];
+        if n > 0 {
+            let _: bool = rec::<T>(n - 1);
+        }
+        if n == 0 {
+            type_of(e).eq(quote { [S] }.as_type())
+        } else {
+            type_of(e).eq(quote { [u8] }.as_type())
+        }
+    }
+    fn main() {
+        comptime {
+            assert(rec::<Field>(1));
+        }
+    }
+    "#;
+    check(src);
 }
