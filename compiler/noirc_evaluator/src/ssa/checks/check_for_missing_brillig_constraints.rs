@@ -50,6 +50,7 @@ use crate::ssa::ir::value::{Value, ValueId};
 use crate::ssa::ssa_gen::Ssa;
 use acvm::AcirField;
 use bit_vec::BitVec;
+use iter_extended::vecmap;
 use noirc_artifacts::ssa::{InternalBug, SsaReport};
 use rayon::prelude::*;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
@@ -124,6 +125,47 @@ impl ValueSet {
         for value in values {
             self.insert(*value);
         }
+    }
+}
+
+/// The values within `max_ancestor_distance` of a constrained value, found by following
+/// `parents` (and `equivalences` from intermediate nodes) backwards. The traversal also
+/// includes the first value it reaches beyond that distance.
+///
+/// A constrained value is checked against every Brillig call it may be relevant to,
+/// each asking several questions about its ancestry ("is this output an ancestor?",
+/// "is an ancestor in `arg_ancestors`?"). Computing the ball once per constrained value
+/// turns each of those questions into lookups instead of separate traversals.
+#[derive(Debug)]
+struct Ball {
+    values: Vec<ValueId>,
+    set: HashSet<ValueId>,
+}
+
+impl Ball {
+    fn new(
+        start: ValueId,
+        parents: &HashMap<ValueId, Vec<ValueId>>,
+        equivalences: &HashMap<ValueId, Vec<ValueId>>,
+        max_ancestor_distance: u32,
+    ) -> Self {
+        let mut values = Vec::new();
+        bfs_traverse_ancestors(&[start], parents, equivalences, |a, d| {
+            values.push(a);
+            d <= max_ancestor_distance
+        });
+        let set = values.iter().copied().collect();
+        Self { values, set }
+    }
+
+    /// Whether `value` is in the ball.
+    fn contains(&self, value: &ValueId) -> bool {
+        self.set.contains(value)
+    }
+
+    /// Whether any value in the ball satisfies the predicate.
+    fn any(&self, predicate: impl Fn(&ValueId) -> bool) -> bool {
+        self.values.iter().any(predicate)
     }
 }
 
@@ -217,6 +259,11 @@ impl TaintedDescendants {
     /// * if there are no input arguments (they were all numeric constants, or there were no args)
     /// * if there is only one constrained value (an output against a constant)
     ///
+    /// The caller is expected to only pass constraints which are relevant to this call,
+    /// ie. ones where at least one of the constrained values is constrainable for it.
+    ///
+    /// `balls` holds the [`Ball`] of each of the `constrained_values`, in the same order.
+    ///
     /// Any constrained output is added to the `all_constrained` set.
     ///
     /// Returns `true` if at least one output was cleared by this call. Each output is
@@ -226,17 +273,10 @@ impl TaintedDescendants {
     fn try_constrain(
         &mut self,
         constrained_values: &[ValueId],
-        parents: &HashMap<ValueId, Vec<ValueId>>,
-        equivalences: &HashMap<ValueId, Vec<ValueId>>,
+        balls: &[Ball],
         all_tainted: &ValueSet,
         all_constrained: &mut ValueSet,
-        max_ancestor_distance: u32,
     ) -> bool {
-        // Make sure this constraint has something to do with the outputs.
-        if !constrained_values.iter().any(|v| self.constrainable.contains(v)) {
-            return false;
-        }
-
         let is_against_const = constrained_values.len() == 1;
         let is_const_args = self.arguments.is_empty();
 
@@ -244,14 +284,7 @@ impl TaintedDescendants {
         // unless there are no inputs, or the output is against a constant.
         if !is_against_const
             && !is_const_args
-            && !self.arguments_intersect(
-                constrained_values,
-                parents,
-                equivalences,
-                all_tainted,
-                all_constrained,
-                max_ancestor_distance,
-            )
+            && !self.arguments_intersect(constrained_values, balls, all_tainted, all_constrained)
         {
             return false;
         }
@@ -261,9 +294,7 @@ impl TaintedDescendants {
 
         // Remove any results that have been directly or indirectly constrained.
         self.single_outputs.retain(|output| {
-            let constrained = constrained_values.iter().any(|value| {
-                any_ancestor(*value, |a| a == *output, parents, equivalences, max_ancestor_distance)
-            });
+            let constrained = balls.iter().any(|ball| ball.contains(output));
 
             if constrained {
                 all_constrained.insert(*output);
@@ -275,9 +306,7 @@ impl TaintedDescendants {
 
         self.array_outputs.retain(|array, index_outputs| {
             // If the array itself is not an ancestor of the constrained value, then we don't have to check the items.
-            let can_constrain = constrained_values.iter().any(|value| {
-                any_ancestor(*value, |a| a == *array, parents, equivalences, max_ancestor_distance)
-            });
+            let can_constrain = balls.iter().any(|ball| ball.contains(array));
 
             if !can_constrain {
                 return true;
@@ -290,15 +319,8 @@ impl TaintedDescendants {
                 if descendants.is_empty() {
                     return true;
                 }
-                let constrained = constrained_values.iter().any(|value| {
-                    any_ancestor(
-                        *value,
-                        |a| descendants.contains(&a),
-                        parents,
-                        equivalences,
-                        max_ancestor_distance,
-                    )
-                });
+                let constrained =
+                    balls.iter().any(|ball| descendants.iter().any(|value| ball.contains(value)));
 
                 if constrained {
                     all_constrained.extend(descendants.iter());
@@ -321,43 +343,30 @@ impl TaintedDescendants {
     fn arguments_intersect(
         &self,
         constrained_values: &[ValueId],
-        parents: &HashMap<ValueId, Vec<ValueId>>,
-        equivalences: &HashMap<ValueId, Vec<ValueId>>,
+        balls: &[Ball],
         all_tainted: &ValueSet,
         all_constrained: &ValueSet,
-        max_ancestor_distance: u32,
     ) -> bool {
-        for &cv in constrained_values {
+        for (cv, ball) in constrained_values.iter().zip(balls) {
             // We want to avoid using tainted inputs to constrain Brillig outputs.
             // Allowing them would mean we could constrain the output of one call
             // with the output of another Brillig call, and also that outputs of
             // the call would trivially connect to the inputs.
             // However if a tainted input has been constrained already, we can use it.
-            if all_tainted.contains(&cv)
+            if all_tainted.contains(cv)
                 && (
                     // Tainted and hasn't been constrained.
-                    !any_ancestor(cv, |a| all_constrained.contains(&a), parents, equivalences, max_ancestor_distance)
+                    !ball.any(|a| all_constrained.contains(a))
                     // Tainted because it's the output of this call itself.
-                    || any_ancestor(
-                        cv,
-                        |a| self.single_outputs.contains(&a) || self.array_outputs.contains_key(&a),
-                        parents,
-                        equivalences,
-                        max_ancestor_distance
-                    )
+                    || self.single_outputs.iter().any(|output| ball.contains(output))
+                    || self.array_outputs.keys().any(|array| ball.contains(array))
                 )
             {
                 continue;
             }
             // arg_ancestors contains the arguments themselves and all their transitive ancestors.
-            // BFS from cv to check if cv or any ancestor of cv is in arg_ancestors.
-            if any_ancestor(
-                cv,
-                |a| self.arg_ancestors.contains(&a),
-                parents,
-                equivalences,
-                max_ancestor_distance,
-            ) {
+            // Check if cv or any ancestor of cv is in arg_ancestors.
+            if ball.any(|a| self.arg_ancestors.contains(a)) {
                 return true;
             }
         }
@@ -777,18 +786,29 @@ impl Context {
                     // mutably borrows self.tainted.
                     let parents = &self.parents;
                     let equivalences = &self.equivalences;
+                    let max_ancestor_distance = self.max_ancestor_distance;
+                    // Computed on first use, then shared by every call this constraint is tested against.
+                    let mut balls: Option<Vec<Ball>> = None;
                     self.tainted.retain(|id, tainted| {
                         if !active_tainted.contains(id) {
                             return true;
                         }
 
+                        // Make sure this constraint has something to do with the outputs.
+                        if !constrained_values.iter().any(|v| tainted.constrainable.contains(v)) {
+                            return true;
+                        }
+
+                        let balls = balls.get_or_insert_with(|| {
+                            vecmap(&constrained_values, |value| {
+                                Ball::new(*value, parents, equivalences, max_ancestor_distance)
+                            })
+                        });
                         progressed |= tainted.try_constrain(
                             &constrained_values,
-                            parents,
-                            equivalences,
+                            balls,
                             &all_tainted,
                             &mut *all_constrained,
-                            self.max_ancestor_distance,
                         );
 
                         let fully_constrained = tainted.is_fully_constrained();
@@ -988,28 +1008,6 @@ fn bfs_ancestors(
     equivalences: &HashMap<ValueId, Vec<ValueId>>,
 ) -> HashSet<ValueId> {
     bfs_traverse_ancestors(starts, parents, equivalences, |_, _| true)
-}
-
-/// Returns `true` if `start` itself, or any value reachable from `start` by following
-/// `parents` (and `equivalences` from intermediate nodes), satisfies a `predicate`.
-///
-/// Equivalences are not followed directly from `start` — only from nodes reached via
-/// parent edges. See [`bfs_ancestors`] for the rationale.
-fn any_ancestor(
-    start: ValueId,
-    predicate: impl Fn(ValueId) -> bool,
-    parents: &HashMap<ValueId, Vec<ValueId>>,
-    equivalences: &HashMap<ValueId, Vec<ValueId>>,
-    max_ancestor_distance: u32,
-) -> bool {
-    let mut found = false;
-    bfs_traverse_ancestors(&[start], parents, equivalences, |a, d| {
-        if predicate(a) {
-            found = true;
-        }
-        !found && d <= max_ancestor_distance
-    });
-    found
 }
 
 #[cfg(test)]
