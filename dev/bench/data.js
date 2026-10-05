@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791206671038,
+  "lastUpdate": 1791217082270,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22961,48 +22961,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "fbc9588327568d7199702abe27bef8fb3d9aa650",
-          "message": "chore(ssa): property-test `may_reference` and `may_alias` against an independent memory model (#13767)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-09-23T13:32:08Z",
-          "tree_id": "30bead668bc823cfc6693eea54118dcb3502ef8b",
-          "url": "https://github.com/noir-lang/noir/commit/fbc9588327568d7199702abe27bef8fb3d9aa650"
-        },
-        "date": 1790171463911,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 169252,
-            "range": "± 832",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 137880,
-            "range": "± 1834",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2646250,
-            "range": "± 2235",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "351c3e108ed66c160afee4afd106fadb912ca3a5",
           "message": "fix(frontend): evaluate a numeric type alias used as a value from its resolved type (#13790)",
           "timestamp": "2026-09-24T16:51:17Z",
@@ -25044,6 +25002,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 1690235,
             "range": "± 23375",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a88a17ed8df2b6ce2391220113b47298c0b2278d",
+          "message": "chore(ssa): speed up missing Brillig constraints check without changing results (#13876)",
+          "timestamp": "2026-10-05T15:53:27Z",
+          "tree_id": "1aa6944902236fc7852510a20abd08649a8a605f",
+          "url": "https://github.com/noir-lang/noir/commit/a88a17ed8df2b6ce2391220113b47298c0b2278d"
+        },
+        "date": 1791216980358,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 168517,
+            "range": "± 2224",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 135795,
+            "range": "± 6734",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2645401,
+            "range": "± 11671",
             "unit": "ns/iter"
           }
         ]
