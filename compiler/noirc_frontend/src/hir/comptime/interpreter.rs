@@ -185,11 +185,18 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 
     /// `value` with every type it holds as seen from the function being interpreted.
-    pub(crate) fn value(&self, value: Value) -> Value {
+    pub(super) fn value(&self, value: Value) -> Value {
         if self.frame.bindings().is_empty() {
             return value;
         }
         value.map_types(&|typ| self.ty(typ))
+    }
+
+    /// [`Self::value`] for a value that may have been built before a type it holds was solved at
+    /// runtime. Until some type has been, every value is already as resolved as the frame can make
+    /// it, so the work is skipped.
+    pub(crate) fn value_with_solves(&self, value: Value) -> Value {
+        if self.frame.has_runtime_solves() { self.value(value) } else { value }
     }
 
     /// Call the given function with the given arguments and return the result.
@@ -250,12 +257,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         // The callee can solve a type that only its own body mentions after building a value that
         // holds it (a `Type` taken by `type_of`, say), so resolve the result before leaving.
-        let result = self.call_function_inner(function, arguments, location);
-        let result = if self.frame.has_runtime_solves() {
-            result.map(|result| self.value(result))
-        } else {
-            result
-        };
+        let result = self
+            .call_function_inner(function, arguments, location)
+            .map(|result| self.value_with_solves(result));
 
         let callee_frame = std::mem::replace(&mut self.frame, caller_frame);
         let visible: Vec<&Type> = own_bindings.values().map(|(_, _, typ)| typ).collect();
@@ -390,11 +394,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             // Builtins read the types stored on their arguments directly, so resolve the types
             // solved since each argument was built. The frame holds every solution its callers
             // can see.
-            let arguments = if self.frame.has_runtime_solves() {
-                vecmap(arguments, |(argument, location)| (self.value(argument), location))
-            } else {
-                arguments
-            };
+            let arguments = vecmap(arguments, |(argument, location)| {
+                (self.value_with_solves(argument), location)
+            });
             let result = self.call_builtin(builtin, arguments, return_type, location)?;
             Ok(self.value(result))
         } else if let Some(name) = func_attrs.foreign() {
@@ -455,7 +457,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             // frame before leaving it.
             let result = this
                 .call_closure_inner(closure.lambda, closure.env, arguments, call_location)
-                .map(|result| this.value(result));
+                .map(|result| this.value_with_solves(result));
 
             let callee_frame = std::mem::replace(&mut this.frame, caller_frame);
             let solves =
@@ -1537,7 +1539,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                         // The pointee can outlive this frame (`&mut` parameters point into the
                         // caller), and types this frame has solved since `rhs` was built live
                         // only in its substitution, so resolve them before storing.
-                        Self::store_flattened(&value, self.value(rhs));
+                        Self::store_flattened(&value, self.value_with_solves(rhs));
                         Ok(())
                     }
                     value => {

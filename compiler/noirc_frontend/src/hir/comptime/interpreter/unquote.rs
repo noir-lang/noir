@@ -25,7 +25,7 @@ impl Interpreter<'_, '_> {
                     // The tokens are elaborated outside this frame, so resolve the types this
                     // frame has solved since the value was built.
                     let value = self.evaluate(id)?;
-                    let value = self.value(value);
+                    let value = self.value_with_solves(value);
                     let tokens = value.into_tokens(
                         self.elaborator.interner,
                         self.elaborator.files,

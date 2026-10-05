@@ -96,5 +96,7 @@ A `comptime` block's value is resolved before its interpreter is dropped, becaus
 inlined into the runtime code with the type stored on it.
 
 Builtins read the types stored on their arguments directly, so their arguments are resolved
-under the builtin's frame, but only once some type has been solved at runtime: until then,
-every value is already as resolved as the substitution can make it.
+under the builtin's frame.
+
+Each of these resolutions only happens once some type has been solved at runtime: until then,
+every value is already as resolved as the frame can make it.
