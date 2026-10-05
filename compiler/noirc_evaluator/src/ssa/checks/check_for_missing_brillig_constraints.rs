@@ -457,6 +457,92 @@ enum Event {
     Constraint(Vec<ValueId>),
 }
 
+/// Values which are worth looking for constraints on, because they are the outputs of
+/// tainted calls, or descend from them within the ancestor distance.
+///
+/// This helps eliminate constraints which are of no effect.
+#[derive(Debug, Default)]
+struct Constrainable(HashMap<ValueId, ConstrainableValue>);
+
+#[derive(Debug)]
+struct ConstrainableValue {
+    /// Distance from the outputs of the tainted calls.
+    distance: u32,
+    /// The tainted calls for which constraints on the value are interesting.
+    owners: TaintedSet,
+}
+
+impl Constrainable {
+    fn contains(&self, value: &ValueId) -> bool {
+        self.0.contains_key(value)
+    }
+
+    /// Track the outputs of a tainted call.
+    fn insert_outputs(&mut self, index: TaintedIndex, outputs: &[ValueId]) {
+        let mut owners = TaintedSet::default();
+        owners.insert(index);
+        for output in outputs {
+            self.set(*output, 0, &owners);
+        }
+    }
+
+    /// Track the `results` of an instruction as descendants of any constrainable `args`,
+    /// unless that would take them beyond `max_distance`.
+    fn extend(&mut self, args: &[ValueId], results: &[ValueId], max_distance: u32) {
+        let mut min_distance: Option<u32> = None;
+        let mut owners = TaintedSet::default();
+        for arg in args {
+            if let Some(value) = self.0.get(arg) {
+                min_distance =
+                    Some(min_distance.map_or(value.distance, |d| cmp::min(d, value.distance)));
+                owners.union_with(&value.owners);
+            }
+        }
+        if let Some(distance) = min_distance
+            && distance < max_distance
+        {
+            for result in results {
+                self.set(*result, distance + 1, &owners);
+            }
+        }
+    }
+
+    /// If `from` is constrainable, then make `to` constrainable at the same distance,
+    /// for the same calls.
+    ///
+    /// Returns whether `from` was constrainable.
+    fn alias(&mut self, from: ValueId, to: ValueId) -> bool {
+        let Some(value) = self.0.get(&from) else {
+            return false;
+        };
+        let distance = value.distance;
+        let owners = value.owners.clone();
+        self.set(to, distance, &owners);
+        true
+    }
+
+    /// The tainted calls for which constraints on any of the `values` are interesting.
+    fn owners_of(&self, values: &[ValueId]) -> TaintedSet {
+        let mut owners = TaintedSet::default();
+        for value in values {
+            if let Some(value) = self.0.get(value) {
+                owners.union_with(&value.owners);
+            }
+        }
+        owners
+    }
+
+    /// Set the distance of a value, and add to the calls it is interesting for.
+    fn set(&mut self, value: ValueId, distance: u32, owners: &TaintedSet) {
+        let entry = self
+            .0
+            .entry(value)
+            .or_insert_with(|| ConstrainableValue { distance, owners: TaintedSet::default() });
+        entry.distance = distance;
+        entry.owners.union_with(owners);
+    }
+}
+
 /// The tainted Brillig calls, addressed by [`TaintedIndex`].
 #[derive(Debug, Default)]
 struct TaintedCalls {
@@ -544,11 +630,8 @@ struct Context {
     /// Brillig calls whose outputs need to be constrained.
     tainted: TaintedCalls,
 
-    /// For each value, the tainted calls for which constraints on the value are interesting.
-    ///
-    /// These are the outputs of the calls and their descendants up to the ancestor distance.
-    /// This helps eliminate constraints which are of no effect.
-    constrainable: HashMap<ValueId, TaintedSet>,
+    /// Values which are worth looking for constraints on, with the calls they are relevant to.
+    constrainable: Constrainable,
 
     /// Constraints which will be relevant to constraining Brillig outputs.
     ///
@@ -586,7 +669,7 @@ impl Context {
         Self {
             post_order: PostOrder::with_function(func).into_vec(),
             tainted: TaintedCalls::default(),
-            constrainable: HashMap::default(),
+            constrainable: Constrainable::default(),
             constraints: HashSet::default(),
             parents: HashMap::default(),
             equivalences: HashMap::default(),
@@ -725,9 +808,6 @@ impl Context {
         func: &Function,
         all_functions: &BTreeMap<FunctionId, Function>,
     ) -> Self {
-        // The distance at which we track constrainable values.
-        let mut all_constrainable: HashMap<ValueId, u32> = HashMap::default();
-
         // Traverse in Reverse Post Order, ie. top-down.
         for block_id in self.post_order.clone().into_iter().rev() {
             // Track the current side effect variable, unless it's a constant.
@@ -759,46 +839,25 @@ impl Context {
                         self.tainted.extend_array_result(*array, index, &results);
                     }
 
-                    // Extend the values we are looking to constrain.
-                    let min_dist = arguments
-                        .iter()
-                        .fold(None, |acc, arg| match (acc, all_constrainable.get(arg)) {
-                            (None, dist) => dist,
-                            (acc, None) => acc,
-                            (Some(acc), Some(dist)) => Some(cmp::min(acc, dist)),
-                        })
-                        .copied();
-
-                    // Only extend if we will not exceed the traversal limit to reach them.
-                    if let Some(dist) = min_dist
-                        && dist < self.max_ancestor_distance
-                    {
-                        all_constrainable.extend(results.iter().map(|r| (*r, dist + 1)));
-                        self.extend_constrainable(&arguments, &results);
-                    }
+                    // Extend the values we are looking to constrain, as long as we will
+                    // not exceed the traversal limit to reach them.
+                    self.constrainable.extend(&arguments, &results, self.max_ancestor_distance);
                 }
 
                 // If this is a Store instruction, then it has no result: instead if the value we store
                 // is constrainable, then we can add the address to the constrainable set.
-                if let Instruction::Store { address, value } = instruction
-                    && let Some(dist) = all_constrainable.get(value)
-                {
-                    // Keep the same distance as the address is just a handover point for values.
-                    all_constrainable.insert(*address, *dist);
-                    self.extend_constrainable(&[*value], &[*address]);
+                // Keep the same distance as the address is just a handover point for values.
+                if let Instruction::Store { address, value } = instruction {
+                    self.constrainable.alias(*value, *address);
                 }
 
                 // If we have a constraint that means two values are equal, then we are interested
                 // in constraints on the descendants on either of those, even if one of them is
                 // not a descendant of Brillig outputs.
-                if let Some((v1, v2)) = as_equivalence(func, instruction) {
-                    if let Some(dist) = all_constrainable.get(&v1) {
-                        all_constrainable.insert(v2, *dist);
-                        self.extend_constrainable(&[v1], &[v2]);
-                    } else if let Some(dist) = all_constrainable.get(&v2) {
-                        all_constrainable.insert(v1, *dist);
-                        self.extend_constrainable(&[v2], &[v1]);
-                    }
+                if let Some((v1, v2)) = as_equivalence(func, instruction)
+                    && !self.constrainable.alias(v1, v2)
+                {
+                    self.constrainable.alias(v2, v1);
                 }
 
                 if is_call_to_brillig(func, all_functions, instruction_id) && !results.is_empty() {
@@ -828,20 +887,16 @@ impl Context {
                             self.max_array_output_length,
                         );
                         let index = self.tainted.push(tainted);
-                        for result in &results {
-                            self.constrainable.entry(*result).or_default().insert(index);
-                        }
                         // Look out for constraints on these outputs.
                         // We don't need to consider the inputs: the constraints which are relevant will have to constrain
                         // at least one output. Then, we will look at whether the other constrained value is related to
                         // the inputs, based on its ancestry, collected later for all inputs of relevant constraints.
-                        all_constrainable.extend(results.iter().map(|r| (*r, 0)));
+                        self.constrainable.insert_outputs(index, &results);
                     }
                 } else if is_constraint(func, instruction_id) && !self.tainted.is_empty() {
                     let constrained_values = instruction_arguments(func, instruction);
                     // If this constraint involves a Brillig output, then we can use it later, otherwise it's not interesting.
-                    if constrained_values.iter().any(|value| all_constrainable.contains_key(value))
-                    {
+                    if constrained_values.iter().any(|value| self.constrainable.contains(value)) {
                         self.constraints.insert(*instruction_id);
                     }
                 } else if let Instruction::EnableSideEffectsIf { condition } = instruction {
@@ -852,23 +907,6 @@ impl Context {
         }
 
         self
-    }
-
-    /// If any of the `args` is one of the constrainable values of a tainted call,
-    /// then extend them with the `results`.
-    fn extend_constrainable(&mut self, args: &[ValueId], results: &[ValueId]) {
-        let mut owners = TaintedSet::default();
-        for arg in args {
-            if let Some(arg_owners) = self.constrainable.get(arg) {
-                owners.union_with(arg_owners);
-            }
-        }
-        if owners.is_empty() {
-            return;
-        }
-        for result in results {
-            self.constrainable.entry(*result).or_default().union_with(&owners);
-        }
     }
 
     /// Try to constrain Brillig outputs by visiting the relevant calls and constraints top-down.
@@ -989,12 +1027,7 @@ impl Context {
         all_tainted: &ValueSet,
         all_constrained: &mut ValueSet,
     ) -> bool {
-        let mut candidates = TaintedSet::default();
-        for value in constrained_values {
-            if let Some(owners) = self.constrainable.get(value) {
-                candidates.union_with(owners);
-            }
-        }
+        let mut candidates = self.constrainable.owners_of(constrained_values);
         candidates.intersect_with(active);
         candidates.intersect_with(self.tainted.unresolved());
         if candidates.is_empty() {
