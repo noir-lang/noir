@@ -236,6 +236,40 @@ fn array_literal_result() {
 }
 
 #[test]
+fn repeated_array_literal_result() {
+    let src = r#"
+    comptime fn apply<T>(f: fn() -> T) -> [T; 2] {
+        [f(); 2]
+    }
+    fn main() {
+        comptime {
+            let c = || make_s!();
+            let v = apply(c);
+            assert(type_of(v).eq(quote { [S; 2] }.as_type()));
+        }
+    }
+    "#;
+    check(src);
+}
+
+#[test]
+fn vector_literal_result() {
+    let src = r#"
+    comptime fn apply<T>(f: fn() -> T) -> [T] {
+        @[f()]
+    }
+    fn main() {
+        comptime {
+            let c = || make_s!();
+            let v = apply(c);
+            assert(type_of(v).eq(quote { [S] }.as_type()));
+        }
+    }
+    "#;
+    check(src);
+}
+
+#[test]
 fn closure_result() {
     let src = format!(
         r#"
