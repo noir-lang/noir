@@ -554,14 +554,30 @@ impl TaintedDescendants {
     /// This is only called when we read from an array. Later on we can use the
     /// ancestry information to connect constrained values back to values we read
     /// from the array.
-    fn extend_array_result(&mut self, array: ValueId, index: u32, results: &[ValueId]) {
+    ///
+    /// Returns `false` if the element is not tracked.
+    fn extend_array_result(&mut self, array: ValueId, index: u32, results: &[ValueId]) -> bool {
         let Some(index_outputs) = self.array_outputs.get_mut(&array) else {
-            return;
+            return false;
         };
         let Some(descendants) = index_outputs.get_mut(&index) else {
-            return;
+            return false;
         };
         descendants.extend(results);
+        true
+    }
+
+    /// Stop tracking the elements of array outputs which are never read, unless the array
+    /// is used in any other way than reading its tracked elements at constant indices.
+    ///
+    /// An element which is never read cannot affect the circuit, so there is nothing to constrain.
+    fn drop_unread_elements(&mut self, other_uses: &HashSet<ValueId>) {
+        self.array_outputs.retain(|array, index_outputs| {
+            if !other_uses.contains(array) {
+                index_outputs.retain(|_, descendants| !descendants.is_empty());
+            }
+            !index_outputs.is_empty()
+        });
     }
 }
 
@@ -703,9 +719,27 @@ impl TaintedCalls {
     }
 
     /// Add to the descendants of an element of an array output, if the array is tracked.
-    fn extend_array_result(&mut self, array: ValueId, index: u32, results: &[ValueId]) {
-        if let Some(owner) = self.array_output_owner.get(&array) {
-            self.calls[*owner].extend_array_result(array, index, results);
+    ///
+    /// Returns `false` if the element is not tracked.
+    fn extend_array_result(&mut self, array: ValueId, index: u32, results: &[ValueId]) -> bool {
+        self.array_output_owner
+            .get(&array)
+            .is_some_and(|owner| self.calls[*owner].extend_array_result(array, index, results))
+    }
+
+    /// Whether a value is an array output of a tainted call.
+    fn is_array_output(&self, value: &ValueId) -> bool {
+        self.array_output_owner.contains_key(value)
+    }
+
+    /// Stop tracking array elements which are never read, and resolve the calls which have
+    /// nothing left to constrain. See [`TaintedDescendants::drop_unread_elements`].
+    fn drop_unread_elements(&mut self, other_uses: &HashSet<ValueId>) {
+        for (index, call) in self.calls.iter_mut().enumerate() {
+            call.drop_unread_elements(other_uses);
+            if call.is_fully_constrained() {
+                self.unresolved.remove(index);
+            }
         }
     }
 
@@ -890,6 +924,11 @@ impl Context {
         func: &Function,
         all_functions: &BTreeMap<FunctionId, Function>,
     ) -> Self {
+        // Array outputs of tainted calls which are used other than by reading their tracked
+        // elements at constant indices. The elements of the other array outputs which are
+        // never read can be ignored.
+        let mut array_other_uses = HashSet::default();
+
         // Traverse in Reverse Post Order, ie. top-down.
         for block_id in self.post_order.clone().into_iter().rev() {
             // Track the current side effect variable, unless it's a constant.
@@ -910,17 +949,26 @@ impl Context {
 
                 // Extend the descendants of Brillig calls.
                 // This is only required for array output; for single outputs we can look at the ancestry.
-                if !results.is_empty() {
-                    // Look for ArrayGet instructions with a constant index,
-                    // and if the array is the result of a tainted call,
-                    // then add the result as a descendant of that particular index.
-                    if let Instruction::ArrayGet { array, index } = instruction
-                        && let Some(index) = func.dfg.get_numeric_constant(*index)
-                        && let Some(index) = index.try_to_u32()
-                    {
-                        self.tainted.extend_array_result(*array, index, &results);
-                    }
+                // Look for ArrayGet instructions with a constant index,
+                // and if the array is the result of a tainted call,
+                // then add the result as a descendant of that particular index.
+                let is_tracked_read = if let Instruction::ArrayGet { array, index } = instruction
+                    && let Some(index) = func.dfg.get_numeric_constant(*index)
+                    && let Some(index) = index.try_to_u32()
+                {
+                    self.tainted.extend_array_result(*array, index, &results)
+                } else {
+                    false
+                };
+                if !is_tracked_read {
+                    instruction.for_each_value(|value| {
+                        if self.tainted.is_array_output(&value) {
+                            array_other_uses.insert(value);
+                        }
+                    });
+                }
 
+                if !results.is_empty() {
                     // Extend the values we are looking to constrain, as long as we will
                     // not exceed the traversal limit to reach them.
                     self.constrainable.extend(&arguments, &results, self.max_ancestor_distance);
@@ -986,7 +1034,17 @@ impl Context {
                         (!is_numeric_constant(func, *condition)).then_some(*condition);
                 }
             }
+
+            if let Some(terminator) = func.dfg[block_id].terminator() {
+                terminator.for_each_value(|value| {
+                    if self.tainted.is_array_output(&value) {
+                        array_other_uses.insert(value);
+                    }
+                });
+            }
         }
+
+        self.tainted.drop_unread_elements(&array_other_uses);
 
         self
     }
@@ -1555,9 +1613,10 @@ mod tests {
             v16 = call f1(v0) -> [u32; 3]
             v17 = array_get v16, index u32 0 -> u32
             constrain v17 == v0
+            v18 = array_get v16, index u32 1 -> u32
             v19 = array_get v16, index u32 2 -> u32
             constrain v19 == v0
-            return v17
+            return v18
         }
 
         brillig(inline) fn into_array f1 {
@@ -2324,5 +2383,80 @@ mod tests {
 
         let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
         assert_eq!(ssa_level_warnings.len(), 0);
+    }
+
+    #[test]
+    #[traced_test]
+    /// Test where an element of an array output is never used, so it needs no constraint.
+    fn test_unread_array_output_element() {
+        let program = r#"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v2 = call f1(v0) -> [u32; 2]
+            v4 = array_get v2, index u32 1 -> u32
+            constrain v4 == v0
+            return v4
+        }
+
+        brillig(inline) fn hints f1 {
+          b0(v0: u32):
+            v2 = make_array [u32 0, v0] : [u32; 2]
+            return v2
+        }
+        "#;
+
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
+        assert_eq!(ssa_level_warnings.len(), 0);
+    }
+
+    #[test]
+    #[traced_test]
+    /// Test where an element of an array output is not read at a constant index,
+    /// but the array is also read at a dynamic index, which could read that element.
+    fn test_array_output_element_read_at_dynamic_index() {
+        let program = r#"
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+            v3 = call f1(v0) -> [u32; 2]
+            v5 = array_get v3, index u32 1 -> u32
+            constrain v5 == v0
+            v6 = array_get v3, index v1 -> u32
+            return v6
+        }
+
+        brillig(inline) fn hints f1 {
+          b0(v0: u32):
+            v2 = make_array [u32 0, v0] : [u32; 2]
+            return v2
+        }
+        "#;
+
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
+        assert_eq!(ssa_level_warnings.len(), 1);
+    }
+
+    #[test]
+    #[traced_test]
+    /// Test where an element of an array output is not read at a constant index,
+    /// but the whole array is returned, so the element is used.
+    fn test_array_output_returned() {
+        let program = r#"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v2 = call f1(v0) -> [u32; 2]
+            v4 = array_get v2, index u32 1 -> u32
+            constrain v4 == v0
+            return v2
+        }
+
+        brillig(inline) fn hints f1 {
+          b0(v0: u32):
+            v2 = make_array [u32 0, v0] : [u32; 2]
+            return v2
+        }
+        "#;
+
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
+        assert_eq!(ssa_level_warnings.len(), 1);
     }
 }

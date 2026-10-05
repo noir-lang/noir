@@ -1,0 +1,6 @@
+[package]
+name = "brillig_constraint_unused_output_element"
+type = "bin"
+authors = [""]
+
+[dependencies]
