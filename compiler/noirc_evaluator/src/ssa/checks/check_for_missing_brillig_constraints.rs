@@ -52,8 +52,9 @@ use acvm::AcirField;
 use bit_vec::BitVec;
 use noirc_artifacts::ssa::{InternalBug, SsaReport};
 use rayon::prelude::*;
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use std::cmp;
-use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
+use std::collections::{BTreeMap, VecDeque};
 
 /// The maximum length of arrays that we attempt to constrain item-by-item.
 ///
@@ -108,7 +109,7 @@ struct ValueSet(BitVec<u32>);
 
 impl ValueSet {
     fn new(dfg: &DataFlowGraph) -> Self {
-        Self(BitVec::from_elem(dfg.values_iter().count(), false))
+        Self(BitVec::from_elem(dfg.num_values(), false))
     }
 
     fn contains(&self, value: &ValueId) -> bool {
@@ -167,17 +168,17 @@ impl TaintedDescendants {
         result_ids: &[ValueId],
         max_array_output_length: u32,
     ) -> Self {
-        let mut single_outputs = HashSet::new();
-        let mut array_outputs = HashMap::new();
+        let mut single_outputs = HashSet::default();
+        let mut array_outputs = HashMap::default();
         for result_id in result_ids {
             match func.dfg.try_get_array_length(*result_id) {
                 // If the result value is an array, create an empty descendant set for
                 // every element to be accessed further on and record the indices
                 // of the resulting sets for future reference
                 Some(length) if length.0 > 0 && length.0 <= max_array_output_length => {
-                    let mut index_outputs = HashMap::new();
+                    let mut index_outputs = HashMap::default();
                     for i in 0..length.0 {
-                        index_outputs.insert(i, HashSet::new());
+                        index_outputs.insert(i, HashSet::default());
                     }
                     array_outputs.insert(*result_id, index_outputs);
                 }
@@ -196,7 +197,7 @@ impl TaintedDescendants {
             arguments,
             single_outputs,
             array_outputs,
-            arg_ancestors: HashSet::new(),
+            arg_ancestors: HashSet::default(),
             constrainable,
         }
     }
@@ -447,7 +448,7 @@ impl Context {
     fn build_parent_graph(mut self, func: &Function) -> Self {
         // Forward sub-pass: collect which side-effect condition (if any) is active at each
         // instruction, so we can add it as a parent during the backward pass below.
-        let mut side_effect_at: HashMap<InstructionId, ValueId> = HashMap::new();
+        let mut side_effect_at: HashMap<InstructionId, ValueId> = HashMap::default();
         for block_id in self.post_order.iter().copied().rev() {
             let mut current_se: Option<ValueId> = None;
             for instr_id in func.dfg[block_id].instructions() {
@@ -463,7 +464,7 @@ impl Context {
         //
         // pending_loads[address] = list of tracked load results whose direct parent is `address`.
         // When we later encounter Store { address, value }, we fix those parents up.
-        let mut pending_loads: HashMap<ValueId, Vec<ValueId>> = HashMap::new();
+        let mut pending_loads: HashMap<ValueId, Vec<ValueId>> = HashMap::default();
 
         for block_id in self.post_order.iter().copied() {
             for instruction_id in func.dfg[block_id].instructions().iter().rev() {
@@ -569,7 +570,7 @@ impl Context {
         all_functions: &BTreeMap<FunctionId, Function>,
     ) -> Self {
         // The distance at which we track constrainable values.
-        let mut all_constrainable: HashMap<ValueId, u32> = HashMap::new();
+        let mut all_constrainable: HashMap<ValueId, u32> = HashMap::default();
 
         // Traverse in Reverse Post Order, ie. top-down.
         for block_id in self.post_order.clone().into_iter().rev() {
@@ -577,7 +578,7 @@ impl Context {
             let mut side_effects_var: Option<ValueId> = None;
             // No need to look for constraints on calls which originate from the same code location;
             // these are the result of unrolling loops, and it should be enough to cover the first.
-            let mut visited_locations = HashSet::new();
+            let mut visited_locations = HashSet::default();
 
             for instruction_id in func.dfg[block_id].instructions() {
                 let instruction = &func.dfg[*instruction_id];
@@ -742,7 +743,7 @@ impl Context {
         // Constraints on tainted output cannot be used to connect output to input.
         let mut all_tainted = ValueSet::new(&func.dfg);
         // Skip checks until we encounter the tainted instruction.
-        let mut active_tainted = HashSet::new();
+        let mut active_tainted = HashSet::default();
         // Whether any output was cleared during this walk.
         let mut progressed = false;
 
@@ -946,7 +947,7 @@ fn bfs_traverse_ancestors(
     equivalences: &HashMap<ValueId, Vec<ValueId>>,
     mut f: impl FnMut(ValueId, u32) -> bool,
 ) -> HashSet<ValueId> {
-    let mut visited: HashSet<ValueId> = HashSet::new();
+    let mut visited: HashSet<ValueId> = HashSet::default();
     let mut queue: VecDeque<(ValueId, u32)> = VecDeque::new();
     for &s in starts {
         visited.insert(s);
