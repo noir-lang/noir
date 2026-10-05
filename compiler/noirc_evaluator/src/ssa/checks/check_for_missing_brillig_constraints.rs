@@ -50,10 +50,12 @@ use crate::ssa::ir::value::{Value, ValueId};
 use crate::ssa::ssa_gen::Ssa;
 use acvm::AcirField;
 use bit_vec::BitVec;
+use iter_extended::vecmap;
 use noirc_artifacts::ssa::{InternalBug, SsaReport};
 use rayon::prelude::*;
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use std::cmp;
-use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
+use std::collections::{BTreeMap, VecDeque};
 
 /// The maximum length of arrays that we attempt to constrain item-by-item.
 ///
@@ -108,7 +110,7 @@ struct ValueSet(BitVec<u32>);
 
 impl ValueSet {
     fn new(dfg: &DataFlowGraph) -> Self {
-        Self(BitVec::from_elem(dfg.values_iter().count(), false))
+        Self(BitVec::from_elem(dfg.num_values(), false))
     }
 
     fn contains(&self, value: &ValueId) -> bool {
@@ -126,9 +128,227 @@ impl ValueSet {
     }
 }
 
+/// Position of a tainted Brillig call in [`Context::tainted`].
+type TaintedIndex = usize;
+
+/// A growable bitset of [`TaintedIndex`]es.
+///
+/// Used to record, for each value, which tainted calls it is relevant to, so that
+/// propagating that relevance through an instruction costs one word per 64 calls
+/// instead of a visit to every call.
+#[derive(Debug, Default, Clone)]
+struct TaintedSet(Vec<u64>);
+
+impl TaintedSet {
+    fn insert(&mut self, index: TaintedIndex) {
+        let word = index / 64;
+        if word >= self.0.len() {
+            self.0.resize(word + 1, 0);
+        }
+        self.0[word] |= 1 << (index % 64);
+    }
+
+    fn remove(&mut self, index: TaintedIndex) {
+        if let Some(word) = self.0.get_mut(index / 64) {
+            *word &= !(1 << (index % 64));
+        }
+    }
+
+    fn is_empty(&self) -> bool {
+        self.0.iter().all(|word| *word == 0)
+    }
+
+    fn union_with(&mut self, other: &TaintedSet) {
+        if other.0.len() > self.0.len() {
+            self.0.resize(other.0.len(), 0);
+        }
+        for (word, other) in self.0.iter_mut().zip(&other.0) {
+            *word |= other;
+        }
+    }
+
+    fn intersect_with(&mut self, other: &TaintedSet) {
+        self.0.truncate(other.0.len());
+        for (word, other) in self.0.iter_mut().zip(&other.0) {
+            *word &= other;
+        }
+    }
+
+    /// Iterate the members in ascending order.
+    fn iter(&self) -> impl Iterator<Item = TaintedIndex> + '_ {
+        self.0.iter().enumerate().flat_map(|(i, word)| {
+            let mut word = *word;
+            std::iter::from_fn(move || {
+                if word == 0 {
+                    return None;
+                }
+                let bit = word.trailing_zeros() as usize;
+                word &= word - 1;
+                Some(i * 64 + bit)
+            })
+        })
+    }
+}
+
+/// Direct parents and equivalences of tracked values, through which ancestry is traversed.
+///
+/// Transitive ancestry is computed on demand via BFS instead of being pre-computed.
+#[derive(Debug, Default)]
+struct AncestryGraph {
+    /// Direct parent graph for tracked values.
+    ///
+    /// `parents[v]` = the immediate instruction arguments that produced `v`,
+    /// plus the active side-effect condition (if any) at the time `v` was produced.
+    ///
+    /// We track parents for values which either:
+    /// * have constraints on them, or
+    /// * are inputs to a Brillig call.
+    parents: HashMap<ValueId, Vec<ValueId>>,
+
+    /// Bidirectional equivalence edges from `constrain v1 == v2` instructions.
+    ///
+    /// If `v1` and `v2` are equivalent, any ancestor of `v1` is also an ancestor of `v2`
+    /// and vice versa. BFS follows these edges alongside `parents` edges.
+    equivalences: HashMap<ValueId, Vec<ValueId>>,
+}
+
+impl AncestryGraph {
+    /// Whether we are collecting the parents of a value.
+    fn is_tracked(&self, value: &ValueId) -> bool {
+        self.parents.contains_key(value)
+    }
+
+    /// Start collecting the parents of a value.
+    fn track(&mut self, value: ValueId) {
+        self.parents.entry(value).or_default();
+    }
+
+    /// Add direct parents to a value, and start tracking the parents themselves, so that
+    /// when we reach the instructions producing them (going backward), we expand their
+    /// parents too.
+    fn add_parents(&mut self, value: ValueId, parents: &[ValueId]) {
+        self.parents.entry(value).or_default().extend(parents.iter().copied());
+        for parent in parents {
+            self.track(*parent);
+        }
+    }
+
+    /// Remove `old` from the parents of a value, and add `new`, if any, in its place.
+    fn replace_parent(&mut self, value: ValueId, old: ValueId, new: Option<ValueId>) {
+        let parents = self.parents.get_mut(&value).expect("value should be tracked");
+        parents.retain(|parent| *parent != old);
+        if let Some(new) = new {
+            parents.push(new);
+            self.track(new);
+        }
+    }
+
+    /// Record that `v1` and `v2` are constrained to be equal.
+    fn add_equivalence(&mut self, v1: ValueId, v2: ValueId) {
+        self.equivalences.entry(v1).or_default().push(v2);
+        self.equivalences.entry(v2).or_default().push(v1);
+    }
+
+    /// Traverse the values reachable (inclusive) from any of the `starts` by following
+    /// `parents` and `equivalences` edges backwards, breadth first.
+    ///
+    /// Equivalences are only followed from **intermediate** nodes (not from the starting nodes
+    /// themselves). This matches the original transitive-closure semantics: `constrain v1 == v2`
+    /// adds v2 to the ancestor sets of keys that *already* have v1 as an ancestor, but does **not**
+    /// add v2 to v1's own ancestor set (because v1 is never its own ancestor).
+    ///
+    /// Calls a function `f` with each value and its distance; if `f` returns `true` the
+    /// traversal continues, otherwise returns.
+    ///
+    /// Returns the set of visited nodes.
+    fn traverse(
+        &self,
+        starts: &[ValueId],
+        mut f: impl FnMut(ValueId, u32) -> bool,
+    ) -> HashSet<ValueId> {
+        let mut visited: HashSet<ValueId> = HashSet::default();
+        let mut queue: VecDeque<(ValueId, u32)> = VecDeque::new();
+        for &s in starts {
+            visited.insert(s);
+            if !f(s, 0) {
+                return visited;
+            }
+            // From start nodes: follow only parent edges, not equivalences.
+            for &p in self.parents.get(&s).into_iter().flatten() {
+                if visited.insert(p) {
+                    queue.push_back((p, 1));
+                }
+            }
+        }
+        // From intermediate nodes: follow both parent and equivalence edges.
+        while let Some((curr, dist)) = queue.pop_front() {
+            if !f(curr, dist) {
+                return visited;
+            }
+            for &next in self
+                .parents
+                .get(&curr)
+                .into_iter()
+                .flatten()
+                .chain(self.equivalences.get(&curr).into_iter().flatten())
+            {
+                if visited.insert(next) {
+                    queue.push_back((next, dist + 1));
+                }
+            }
+        }
+        visited
+    }
+
+    /// Compute the set of all values reachable (inclusive) from any of the `starts` by following
+    /// `parents` and `equivalences` edges backwards.
+    fn ancestors(&self, starts: &[ValueId]) -> HashSet<ValueId> {
+        self.traverse(starts, |_, _| true)
+    }
+
+    /// The [`Ball`] around a value.
+    fn ball(&self, start: ValueId, max_ancestor_distance: u32) -> Ball {
+        let mut values = Vec::new();
+        self.traverse(&[start], |a, d| {
+            values.push(a);
+            d <= max_ancestor_distance
+        });
+        let set = values.iter().copied().collect();
+        Ball { values, set }
+    }
+}
+
+/// The values within `max_ancestor_distance` of a constrained value, found by following
+/// `parents` (and `equivalences` from intermediate nodes) backwards. The traversal also
+/// includes the first value it reaches beyond that distance.
+///
+/// A constrained value is checked against every Brillig call it may be relevant to,
+/// each asking several questions about its ancestry ("is this output an ancestor?",
+/// "is an ancestor in `arg_ancestors`?"). Computing the ball once per constrained value
+/// turns each of those questions into lookups instead of separate traversals.
+#[derive(Debug)]
+struct Ball {
+    values: Vec<ValueId>,
+    set: HashSet<ValueId>,
+}
+
+impl Ball {
+    /// Whether `value` is in the ball.
+    fn contains(&self, value: &ValueId) -> bool {
+        self.set.contains(value)
+    }
+
+    /// Whether any value in the ball satisfies the predicate.
+    fn any(&self, predicate: impl Fn(&ValueId) -> bool) -> bool {
+        self.values.iter().any(predicate)
+    }
+}
+
 /// Outputs of a Brillig call and their descendants.
 #[derive(Debug)]
 struct TaintedDescendants {
+    /// The call instruction.
+    instruction_id: InstructionId,
     /// Inputs of the call.
     ///
     /// To consider the call constrained, the constraint must be on a value which has
@@ -151,9 +371,6 @@ struct TaintedDescendants {
     /// Pre-computed after the parent graph is built so that `arguments_intersect`
     /// can check membership in O(1) rather than re-running BFS for every constraint.
     arg_ancestors: HashSet<ValueId>,
-    /// Set of values the constraints on which are interesting for at least one of
-    /// the outputs. This helps eliminate constraints which are of no effect.
-    constrainable: ValueSet,
 }
 
 impl TaintedDescendants {
@@ -163,21 +380,22 @@ impl TaintedDescendants {
     /// Leaves `arg_ancestors` to be populated later.
     fn new(
         func: &Function,
+        instruction_id: InstructionId,
         arguments: Vec<ValueId>,
         result_ids: &[ValueId],
         max_array_output_length: u32,
     ) -> Self {
-        let mut single_outputs = HashSet::new();
-        let mut array_outputs = HashMap::new();
+        let mut single_outputs = HashSet::default();
+        let mut array_outputs = HashMap::default();
         for result_id in result_ids {
             match func.dfg.try_get_array_length(*result_id) {
                 // If the result value is an array, create an empty descendant set for
                 // every element to be accessed further on and record the indices
                 // of the resulting sets for future reference
                 Some(length) if length.0 > 0 && length.0 <= max_array_output_length => {
-                    let mut index_outputs = HashMap::new();
+                    let mut index_outputs = HashMap::default();
                     for i in 0..length.0 {
-                        index_outputs.insert(i, HashSet::new());
+                        index_outputs.insert(i, HashSet::default());
                     }
                     array_outputs.insert(*result_id, index_outputs);
                 }
@@ -189,15 +407,12 @@ impl TaintedDescendants {
             }
         }
 
-        let mut constrainable = ValueSet::new(&func.dfg);
-        constrainable.extend(result_ids);
-
         Self {
+            instruction_id,
             arguments,
             single_outputs,
             array_outputs,
-            arg_ancestors: HashSet::new(),
-            constrainable,
+            arg_ancestors: HashSet::default(),
         }
     }
 
@@ -216,6 +431,11 @@ impl TaintedDescendants {
     /// * if there are no input arguments (they were all numeric constants, or there were no args)
     /// * if there is only one constrained value (an output against a constant)
     ///
+    /// The caller is expected to only pass constraints which are relevant to this call,
+    /// ie. ones where at least one of the constrained values is constrainable for it.
+    ///
+    /// `balls` holds the [`Ball`] of each of the `constrained_values`, in the same order.
+    ///
     /// Any constrained output is added to the `all_constrained` set.
     ///
     /// Returns `true` if at least one output was cleared by this call. Each output is
@@ -225,17 +445,10 @@ impl TaintedDescendants {
     fn try_constrain(
         &mut self,
         constrained_values: &[ValueId],
-        parents: &HashMap<ValueId, Vec<ValueId>>,
-        equivalences: &HashMap<ValueId, Vec<ValueId>>,
+        balls: &[Ball],
         all_tainted: &ValueSet,
         all_constrained: &mut ValueSet,
-        max_ancestor_distance: u32,
     ) -> bool {
-        // Make sure this constraint has something to do with the outputs.
-        if !constrained_values.iter().any(|v| self.constrainable.contains(v)) {
-            return false;
-        }
-
         let is_against_const = constrained_values.len() == 1;
         let is_const_args = self.arguments.is_empty();
 
@@ -243,14 +456,7 @@ impl TaintedDescendants {
         // unless there are no inputs, or the output is against a constant.
         if !is_against_const
             && !is_const_args
-            && !self.arguments_intersect(
-                constrained_values,
-                parents,
-                equivalences,
-                all_tainted,
-                all_constrained,
-                max_ancestor_distance,
-            )
+            && !self.arguments_intersect(constrained_values, balls, all_tainted, all_constrained)
         {
             return false;
         }
@@ -260,9 +466,7 @@ impl TaintedDescendants {
 
         // Remove any results that have been directly or indirectly constrained.
         self.single_outputs.retain(|output| {
-            let constrained = constrained_values.iter().any(|value| {
-                any_ancestor(*value, |a| a == *output, parents, equivalences, max_ancestor_distance)
-            });
+            let constrained = balls.iter().any(|ball| ball.contains(output));
 
             if constrained {
                 all_constrained.insert(*output);
@@ -274,9 +478,7 @@ impl TaintedDescendants {
 
         self.array_outputs.retain(|array, index_outputs| {
             // If the array itself is not an ancestor of the constrained value, then we don't have to check the items.
-            let can_constrain = constrained_values.iter().any(|value| {
-                any_ancestor(*value, |a| a == *array, parents, equivalences, max_ancestor_distance)
-            });
+            let can_constrain = balls.iter().any(|ball| ball.contains(array));
 
             if !can_constrain {
                 return true;
@@ -289,15 +491,8 @@ impl TaintedDescendants {
                 if descendants.is_empty() {
                     return true;
                 }
-                let constrained = constrained_values.iter().any(|value| {
-                    any_ancestor(
-                        *value,
-                        |a| descendants.contains(&a),
-                        parents,
-                        equivalences,
-                        max_ancestor_distance,
-                    )
-                });
+                let constrained =
+                    balls.iter().any(|ball| descendants.iter().any(|value| ball.contains(value)));
 
                 if constrained {
                     all_constrained.extend(descendants.iter());
@@ -320,43 +515,30 @@ impl TaintedDescendants {
     fn arguments_intersect(
         &self,
         constrained_values: &[ValueId],
-        parents: &HashMap<ValueId, Vec<ValueId>>,
-        equivalences: &HashMap<ValueId, Vec<ValueId>>,
+        balls: &[Ball],
         all_tainted: &ValueSet,
         all_constrained: &ValueSet,
-        max_ancestor_distance: u32,
     ) -> bool {
-        for &cv in constrained_values {
+        for (cv, ball) in constrained_values.iter().zip(balls) {
             // We want to avoid using tainted inputs to constrain Brillig outputs.
             // Allowing them would mean we could constrain the output of one call
             // with the output of another Brillig call, and also that outputs of
             // the call would trivially connect to the inputs.
             // However if a tainted input has been constrained already, we can use it.
-            if all_tainted.contains(&cv)
+            if all_tainted.contains(cv)
                 && (
                     // Tainted and hasn't been constrained.
-                    !any_ancestor(cv, |a| all_constrained.contains(&a), parents, equivalences, max_ancestor_distance)
+                    !ball.any(|a| all_constrained.contains(a))
                     // Tainted because it's the output of this call itself.
-                    || any_ancestor(
-                        cv,
-                        |a| self.single_outputs.contains(&a) || self.array_outputs.contains_key(&a),
-                        parents,
-                        equivalences,
-                        max_ancestor_distance
-                    )
+                    || self.single_outputs.iter().any(|output| ball.contains(output))
+                    || self.array_outputs.keys().any(|array| ball.contains(array))
                 )
             {
                 continue;
             }
             // arg_ancestors contains the arguments themselves and all their transitive ancestors.
-            // BFS from cv to check if cv or any ancestor of cv is in arg_ancestors.
-            if any_ancestor(
-                cv,
-                |a| self.arg_ancestors.contains(&a),
-                parents,
-                equivalences,
-                max_ancestor_distance,
-            ) {
+            // Check if cv or any ancestor of cv is in arg_ancestors.
+            if ball.any(|a| self.arg_ancestors.contains(a)) {
                 return true;
             }
         }
@@ -377,12 +559,179 @@ impl TaintedDescendants {
         };
         descendants.extend(results);
     }
+}
 
-    /// If any of the `args` is one of the constrainable values, then extend them with the `results`.
-    fn extend_constrainable(&mut self, args: &[ValueId], results: &[ValueId]) {
-        if args.iter().any(|v| self.constrainable.contains(v)) {
-            self.constrainable.extend(results);
+/// The instructions that [`Context::constrain_tainted`] needs to visit, in Reverse Post Order.
+#[derive(Debug)]
+enum Event {
+    /// A tainted Brillig call, after which constraints on its outputs can be considered.
+    Call(TaintedIndex),
+    /// A relevant constraint, with its non-constant arguments.
+    Constraint(Vec<ValueId>),
+}
+
+/// Values which are worth looking for constraints on, because they are the outputs of
+/// tainted calls, or descend from them within the ancestor distance.
+///
+/// This helps eliminate constraints which are of no effect.
+#[derive(Debug, Default)]
+struct Constrainable(HashMap<ValueId, ConstrainableValue>);
+
+#[derive(Debug)]
+struct ConstrainableValue {
+    /// Distance from the outputs of the tainted calls.
+    distance: u32,
+    /// The tainted calls for which constraints on the value are interesting.
+    owners: TaintedSet,
+}
+
+impl Constrainable {
+    fn contains(&self, value: &ValueId) -> bool {
+        self.0.contains_key(value)
+    }
+
+    /// Track the outputs of a tainted call.
+    fn insert_outputs(&mut self, index: TaintedIndex, outputs: &[ValueId]) {
+        let mut owners = TaintedSet::default();
+        owners.insert(index);
+        for output in outputs {
+            self.set(*output, 0, &owners);
         }
+    }
+
+    /// Track the `results` of an instruction as descendants of any constrainable `args`,
+    /// unless that would take them beyond `max_distance`.
+    fn extend(&mut self, args: &[ValueId], results: &[ValueId], max_distance: u32) {
+        let mut min_distance: Option<u32> = None;
+        let mut owners = TaintedSet::default();
+        for arg in args {
+            if let Some(value) = self.0.get(arg) {
+                min_distance =
+                    Some(min_distance.map_or(value.distance, |d| cmp::min(d, value.distance)));
+                owners.union_with(&value.owners);
+            }
+        }
+        if let Some(distance) = min_distance
+            && distance < max_distance
+        {
+            for result in results {
+                self.set(*result, distance + 1, &owners);
+            }
+        }
+    }
+
+    /// If `from` is constrainable, then make `to` constrainable at the same distance,
+    /// for the same calls.
+    ///
+    /// Returns whether `from` was constrainable.
+    fn alias(&mut self, from: ValueId, to: ValueId) -> bool {
+        let Some(value) = self.0.get(&from) else {
+            return false;
+        };
+        let distance = value.distance;
+        let owners = value.owners.clone();
+        self.set(to, distance, &owners);
+        true
+    }
+
+    /// The tainted calls for which constraints on any of the `values` are interesting.
+    fn owners_of(&self, values: &[ValueId]) -> TaintedSet {
+        let mut owners = TaintedSet::default();
+        for value in values {
+            if let Some(value) = self.0.get(value) {
+                owners.union_with(&value.owners);
+            }
+        }
+        owners
+    }
+
+    /// Set the distance of a value, and add to the calls it is interesting for.
+    fn set(&mut self, value: ValueId, distance: u32, owners: &TaintedSet) {
+        let entry = self
+            .0
+            .entry(value)
+            .or_insert_with(|| ConstrainableValue { distance, owners: TaintedSet::default() });
+        entry.distance = distance;
+        entry.owners.union_with(owners);
+    }
+}
+
+/// The tainted Brillig calls, addressed by [`TaintedIndex`].
+#[derive(Debug, Default)]
+struct TaintedCalls {
+    /// Descendants of Brillig calls, in the order the calls were encountered.
+    calls: Vec<TaintedDescendants>,
+
+    /// Index of each call by its instruction.
+    by_instruction: HashMap<InstructionId, TaintedIndex>,
+
+    /// The call that each tracked array output belongs to.
+    array_output_owner: HashMap<ValueId, TaintedIndex>,
+
+    /// Calls which still have unconstrained outputs.
+    unresolved: TaintedSet,
+}
+
+impl TaintedCalls {
+    /// Register a call, returning its index.
+    fn push(&mut self, tainted: TaintedDescendants) -> TaintedIndex {
+        let index = self.calls.len();
+        for array in tainted.array_outputs.keys() {
+            self.array_output_owner.insert(*array, index);
+        }
+        self.by_instruction.insert(tainted.instruction_id, index);
+        self.unresolved.insert(index);
+        self.calls.push(tainted);
+        index
+    }
+
+    fn is_empty(&self) -> bool {
+        self.calls.is_empty()
+    }
+
+    /// The index of the call made by an instruction, if it is tainted.
+    fn index_of(&self, instruction_id: &InstructionId) -> Option<TaintedIndex> {
+        self.by_instruction.get(instruction_id).copied()
+    }
+
+    fn iter_mut(&mut self) -> impl Iterator<Item = &mut TaintedDescendants> {
+        self.calls.iter_mut()
+    }
+
+    /// Add to the descendants of an element of an array output, if the array is tracked.
+    fn extend_array_result(&mut self, array: ValueId, index: u32, results: &[ValueId]) {
+        if let Some(owner) = self.array_output_owner.get(&array) {
+            self.calls[*owner].extend_array_result(array, index, results);
+        }
+    }
+
+    /// Calls which still have unconstrained outputs.
+    fn unresolved(&self) -> &TaintedSet {
+        &self.unresolved
+    }
+
+    /// Try to constrain the outputs of a call with a constraint, marking the call
+    /// resolved once all its outputs are constrained. See [`TaintedDescendants::try_constrain`].
+    fn try_constrain(
+        &mut self,
+        index: TaintedIndex,
+        constrained_values: &[ValueId],
+        balls: &[Ball],
+        all_tainted: &ValueSet,
+        all_constrained: &mut ValueSet,
+    ) -> bool {
+        let tainted = &mut self.calls[index];
+        let progressed =
+            tainted.try_constrain(constrained_values, balls, all_tainted, all_constrained);
+        if tainted.is_fully_constrained() {
+            self.unresolved.remove(index);
+        }
+        progressed
+    }
+
+    /// The instructions of the calls which still have unconstrained outputs.
+    fn unresolved_instructions(&self) -> impl Iterator<Item = InstructionId> + '_ {
+        self.unresolved.iter().map(|index| self.calls[index].instruction_id)
     }
 }
 
@@ -391,8 +740,11 @@ struct Context {
     /// Block IDs in Post Order.
     post_order: Vec<BasicBlockId>,
 
-    /// Descendants of Brillig calls.
-    tainted: HashMap<InstructionId, TaintedDescendants>,
+    /// Brillig calls whose outputs need to be constrained.
+    tainted: TaintedCalls,
+
+    /// Values which are worth looking for constraints on, with the calls they are relevant to.
+    constrainable: Constrainable,
 
     /// Constraints which will be relevant to constraining Brillig outputs.
     ///
@@ -400,23 +752,8 @@ struct Context {
     /// so that we can limit the amount of ancestry we collect.
     constraints: HashSet<InstructionId>,
 
-    /// Direct parent graph for tracked values.
-    ///
-    /// `parents[v]` = the immediate instruction arguments that produced `v`,
-    /// plus the active side-effect condition (if any) at the time `v` was produced.
-    ///
-    /// We track parents for values which either:
-    /// * have constraints on them, or
-    /// * are inputs to a Brillig call.
-    ///
-    /// Transitive ancestry is computed on demand via BFS instead of being pre-computed.
-    parents: HashMap<ValueId, Vec<ValueId>>,
-
-    /// Bidirectional equivalence edges from `constrain v1 == v2` instructions.
-    ///
-    /// If `v1` and `v2` are equivalent, any ancestor of `v1` is also an ancestor of `v2`
-    /// and vice versa. BFS follows these edges alongside `parents` edges.
-    equivalences: HashMap<ValueId, Vec<ValueId>>,
+    /// Ancestry of the values relevant to constraining Brillig outputs.
+    graph: AncestryGraph,
 
     /// Maximum length of an array for which we consider constraining items per index.
     max_array_output_length: u32,
@@ -429,10 +766,10 @@ impl Context {
     fn new(func: &Function, max_array_output_length: u32, max_ancestor_distance: u32) -> Self {
         Self {
             post_order: PostOrder::with_function(func).into_vec(),
-            tainted: HashMap::default(),
+            tainted: TaintedCalls::default(),
+            constrainable: Constrainable::default(),
             constraints: HashSet::default(),
-            parents: HashMap::default(),
-            equivalences: HashMap::default(),
+            graph: AncestryGraph::default(),
             max_array_output_length,
             max_ancestor_distance,
         }
@@ -447,7 +784,7 @@ impl Context {
     fn build_parent_graph(mut self, func: &Function) -> Self {
         // Forward sub-pass: collect which side-effect condition (if any) is active at each
         // instruction, so we can add it as a parent during the backward pass below.
-        let mut side_effect_at: HashMap<InstructionId, ValueId> = HashMap::new();
+        let mut side_effect_at: HashMap<InstructionId, ValueId> = HashMap::default();
         for block_id in self.post_order.iter().copied().rev() {
             let mut current_se: Option<ValueId> = None;
             for instr_id in func.dfg[block_id].instructions() {
@@ -463,7 +800,7 @@ impl Context {
         //
         // pending_loads[address] = list of tracked load results whose direct parent is `address`.
         // When we later encounter Store { address, value }, we fix those parents up.
-        let mut pending_loads: HashMap<ValueId, Vec<ValueId>> = HashMap::new();
+        let mut pending_loads: HashMap<ValueId, Vec<ValueId>> = HashMap::default();
 
         for block_id in self.post_order.iter().copied() {
             for instruction_id in func.dfg[block_id].instructions().iter().rev() {
@@ -475,28 +812,18 @@ impl Context {
                 let mut args: Option<Vec<ValueId>> = None;
 
                 for result_id in result_ids {
-                    if is_numeric_constant(func, *result_id)
-                        || !self.parents.contains_key(result_id)
-                    {
+                    if is_numeric_constant(func, *result_id) || !self.graph.is_tracked(result_id) {
                         continue;
                     }
 
                     let args = args.get_or_insert_with(|| parent_arguments(func, instruction));
 
-                    self.parents.entry(*result_id).or_default().extend(args.iter().copied());
-
-                    // Ensure each arg is itself tracked so that when we reach the instruction
-                    // that produces arg (going backward), we expand its parents too.
-                    for &arg in args.iter() {
-                        self.parents.entry(arg).or_default();
-                    }
+                    self.graph.add_parents(*result_id, args);
 
                     // Add the active side-effect condition as an additional parent so that
                     // BFS can reach the condition's ancestors from this result.
                     if let Some(&se) = side_effect_at.get(instruction_id) {
-                        self.parents.entry(*result_id).or_default().push(se);
-                        // Ensure the condition itself is tracked.
-                        self.parents.entry(se).or_default();
+                        self.graph.add_parents(*result_id, &[se]);
                     }
 
                     // If this is a Load, remember it so Store can fix up the placeholder parent.
@@ -514,28 +841,22 @@ impl Context {
                 if let Instruction::Store { address, value } = instruction
                     && let Some(pending) = pending_loads.remove(address)
                 {
+                    let value = (!is_numeric_constant(func, *value)).then_some(*value);
                     for tracked in pending {
-                        let parents_of_tracked =
-                            self.parents.get_mut(&tracked).expect("was inserted above");
-                        parents_of_tracked.retain(|&p| p != *address);
-                        if !is_numeric_constant(func, *value) {
-                            parents_of_tracked.push(*value);
-                            // Start tracking the stored value's own parents.
-                            self.parents.entry(*value).or_default();
-                        }
+                        self.graph.replace_parent(tracked, *address, value);
                     }
                 }
 
                 // Start tracking the direct parents of this instruction's arguments if it is
                 // a tainted call, a relevant constraint, or an EnableSideEffectsIf instruction.
-                let should_track = self.tainted.contains_key(instruction_id)
+                let should_track = self.tainted.index_of(instruction_id).is_some()
                     || self.constraints.contains(instruction_id)
                     || is_side_effect(func, instruction);
 
                 if should_track {
                     let args = args.get_or_insert_with(|| instruction_arguments(func, instruction));
                     for value_id in args.iter() {
-                        self.parents.entry(*value_id).or_default();
+                        self.graph.track(*value_id);
                     }
                 }
 
@@ -543,8 +864,7 @@ impl Context {
                 // These are followed bidirectionally during BFS so that ancestry flows
                 // through equivalent values.
                 if let Some((v1, v2)) = as_equivalence(func, instruction) {
-                    self.equivalences.entry(v1).or_default().push(v2);
-                    self.equivalences.entry(v2).or_default().push(v1);
+                    self.graph.add_equivalence(v1, v2);
                 }
             }
         }
@@ -553,10 +873,8 @@ impl Context {
         // arg_ancestors is the union of all values reachable backwards from any argument,
         // including the arguments themselves. This is pre-computed once so that
         // arguments_intersect can check membership in O(1) per constrained value.
-        let parents = &self.parents;
-        let equivalences = &self.equivalences;
-        for tainted in self.tainted.values_mut() {
-            tainted.arg_ancestors = bfs_ancestors(&tainted.arguments, parents, equivalences);
+        for tainted in self.tainted.iter_mut() {
+            tainted.arg_ancestors = self.graph.ancestors(&tainted.arguments);
         }
 
         self
@@ -568,16 +886,13 @@ impl Context {
         func: &Function,
         all_functions: &BTreeMap<FunctionId, Function>,
     ) -> Self {
-        // The distance at which we track constrainable values.
-        let mut all_constrainable: HashMap<ValueId, u32> = HashMap::new();
-
         // Traverse in Reverse Post Order, ie. top-down.
         for block_id in self.post_order.clone().into_iter().rev() {
             // Track the current side effect variable, unless it's a constant.
             let mut side_effects_var: Option<ValueId> = None;
             // No need to look for constraints on calls which originate from the same code location;
             // these are the result of unrolling loops, and it should be enough to cover the first.
-            let mut visited_locations = HashSet::new();
+            let mut visited_locations = HashSet::default();
 
             for instruction_id in func.dfg[block_id].instructions() {
                 let instruction = &func.dfg[*instruction_id];
@@ -599,51 +914,28 @@ impl Context {
                         && let Some(index) = func.dfg.get_numeric_constant(*index)
                         && let Some(index) = index.try_to_u32()
                     {
-                        for tainted in self.tainted.values_mut() {
-                            tainted.extend_array_result(*array, index, &results);
-                        }
+                        self.tainted.extend_array_result(*array, index, &results);
                     }
 
-                    // Extend the values we are looking to constrain.
-                    let min_dist = arguments
-                        .iter()
-                        .fold(None, |acc, arg| match (acc, all_constrainable.get(arg)) {
-                            (None, dist) => dist,
-                            (acc, None) => acc,
-                            (Some(acc), Some(dist)) => Some(cmp::min(acc, dist)),
-                        })
-                        .copied();
-
-                    // Only extend if we will not exceed the traversal limit to reach them.
-                    if let Some(dist) = min_dist
-                        && dist < self.max_ancestor_distance
-                    {
-                        all_constrainable.extend(results.iter().map(|r| (*r, dist + 1)));
-                        self.extend_constrainable(&arguments, &results);
-                    }
+                    // Extend the values we are looking to constrain, as long as we will
+                    // not exceed the traversal limit to reach them.
+                    self.constrainable.extend(&arguments, &results, self.max_ancestor_distance);
                 }
 
                 // If this is a Store instruction, then it has no result: instead if the value we store
                 // is constrainable, then we can add the address to the constrainable set.
-                if let Instruction::Store { address, value } = instruction
-                    && let Some(dist) = all_constrainable.get(value)
-                {
-                    // Keep the same distance as the address is just a handover point for values.
-                    all_constrainable.insert(*address, *dist);
-                    self.extend_constrainable(&[*value], &[*address]);
+                // Keep the same distance as the address is just a handover point for values.
+                if let Instruction::Store { address, value } = instruction {
+                    self.constrainable.alias(*value, *address);
                 }
 
                 // If we have a constraint that means two values are equal, then we are interested
                 // in constraints on the descendants on either of those, even if one of them is
                 // not a descendant of Brillig outputs.
-                if let Some((v1, v2)) = as_equivalence(func, instruction) {
-                    if let Some(dist) = all_constrainable.get(&v1) {
-                        all_constrainable.insert(v2, *dist);
-                        self.extend_constrainable(&[v1], &[v2]);
-                    } else if let Some(dist) = all_constrainable.get(&v2) {
-                        all_constrainable.insert(v1, *dist);
-                        self.extend_constrainable(&[v2], &[v1]);
-                    }
+                if let Some((v1, v2)) = as_equivalence(func, instruction)
+                    && !self.constrainable.alias(v1, v2)
+                {
+                    self.constrainable.alias(v2, v1);
                 }
 
                 if is_call_to_brillig(func, all_functions, instruction_id) && !results.is_empty() {
@@ -667,22 +959,22 @@ impl Context {
                     if !visited {
                         let tainted = TaintedDescendants::new(
                             func,
+                            *instruction_id,
                             arguments,
                             &results,
                             self.max_array_output_length,
                         );
-                        self.tainted.insert(*instruction_id, tainted);
+                        let index = self.tainted.push(tainted);
                         // Look out for constraints on these outputs.
                         // We don't need to consider the inputs: the constraints which are relevant will have to constrain
                         // at least one output. Then, we will look at whether the other constrained value is related to
                         // the inputs, based on its ancestry, collected later for all inputs of relevant constraints.
-                        all_constrainable.extend(results.iter().map(|r| (*r, 0)));
+                        self.constrainable.insert_outputs(index, &results);
                     }
                 } else if is_constraint(func, instruction_id) && !self.tainted.is_empty() {
                     let constrained_values = instruction_arguments(func, instruction);
                     // If this constraint involves a Brillig output, then we can use it later, otherwise it's not interesting.
-                    if constrained_values.iter().any(|value| all_constrainable.contains_key(value))
-                    {
+                    if constrained_values.iter().any(|value| self.constrainable.contains(value)) {
                         self.constraints.insert(*instruction_id);
                     }
                 } else if let Instruction::EnableSideEffectsIf { condition } = instruction {
@@ -695,20 +987,14 @@ impl Context {
         self
     }
 
-    /// If any of the `args` is one of the constrainable values of a tainted call,
-    /// then extend them with the `results`.
-    fn extend_constrainable(&mut self, args: &[ValueId], results: &[ValueId]) {
-        for t in self.tainted.values_mut() {
-            t.extend_constrainable(args, results);
-        }
-    }
-
-    /// Traverse blocks and instructions top-down and try to constrain Brillig outputs.
+    /// Try to constrain Brillig outputs by visiting the relevant calls and constraints top-down.
     fn constrain_tainted(
         mut self,
         func: &Function,
         all_functions: &BTreeMap<FunctionId, Function>,
     ) -> Self {
+        let (events, all_tainted) = self.collect_events(func, all_functions);
+
         // Persists across passes: an output shown to be constrained anywhere in the
         // function stays constrained, so a later constraint can rely on it regardless
         // of the source order of the two assertions. This is what makes the check
@@ -716,12 +1002,13 @@ impl Context {
         let mut all_constrained = ValueSet::new(&func.dfg);
 
         loop {
-            let progressed = self.constrain_tainted_pass(func, all_functions, &mut all_constrained);
+            let progressed =
+                self.constrain_tainted_pass(&events, &all_tainted, &mut all_constrained);
 
             // Re-walk only while we are still making progress and work remains.
-            // Fully constrained functions empty `tainted` in the first pass (no
+            // Fully constrained functions resolve every call in the first pass (no
             // extra walk), and genuinely under-constrained ones make no progress and stop.
-            if self.tainted.is_empty() || !progressed {
+            if self.tainted.unresolved().is_empty() || !progressed {
                 break;
             }
         }
@@ -729,74 +1016,77 @@ impl Context {
         self
     }
 
-    /// A single Reverse Post Order walk attempting to constrain Brillig outputs,
-    /// accumulating cleared outputs into `all_constrained`. See [`Self::constrain_tainted`].
+    /// Traverse blocks and instructions top-down to collect the tainted calls and relevant
+    /// constraints in the order [`Self::constrain_tainted_pass`] visits them, along with
+    /// the set of values which descend from any Brillig call.
     ///
-    /// Returns `true` if at least one output was cleared during the walk.
-    fn constrain_tainted_pass(
-        &mut self,
+    /// Constraints on tainted values cannot be used to connect output to input. Values are
+    /// defined before they are used in Reverse Post Order, so whether a constrained value is
+    /// tainted is already settled when the walk reaches its constraint, and the final set
+    /// can be shared by every pass.
+    fn collect_events(
+        &self,
         func: &Function,
         all_functions: &BTreeMap<FunctionId, Function>,
-        all_constrained: &mut ValueSet,
-    ) -> bool {
-        // Constraints on tainted output cannot be used to connect output to input.
+    ) -> (Vec<Event>, ValueSet) {
+        let mut events = Vec::new();
         let mut all_tainted = ValueSet::new(&func.dfg);
-        // Skip checks until we encounter the tainted instruction.
-        let mut active_tainted = HashSet::new();
-        // Whether any output was cleared during this walk.
-        let mut progressed = false;
 
         // Traverse in Reverse Post Order, ie. top-down.
-        for block_id in self.post_order.clone().into_iter().rev() {
-            for instruction_id in func.dfg[block_id].instructions() {
+        for block_id in self.post_order.iter().rev() {
+            for instruction_id in func.dfg[*block_id].instructions() {
                 let instruction = &func.dfg[*instruction_id];
-                let arguments = instruction_arguments(func, instruction);
                 let results = instruction_results(func, instruction_id);
 
-                // Extend the descendants of Brillig calls.
-                if !results.is_empty() {
-                    // Tainted values cannot be used to constrain Brillig output.
-                    if arguments.iter().any(|a| all_tainted.contains(a)) {
-                        all_tainted.extend(&results);
-                    }
+                // Tainted values cannot be used to constrain Brillig output.
+                if !results.is_empty()
+                    && instruction_arguments(func, instruction)
+                        .iter()
+                        .any(|a| all_tainted.contains(a))
+                {
+                    all_tainted.extend(&results);
                 }
 
                 if is_call_to_brillig(func, all_functions, instruction_id) && !results.is_empty() {
                     // Always keep track of tainted descendants, required for correct constraint checks.
                     all_tainted.extend(&results);
-                    if self.tainted.contains_key(instruction_id) {
-                        active_tainted.insert(instruction_id);
+                    if let Some(index) = self.tainted.index_of(instruction_id) {
+                        events.push(Event::Call(index));
                     }
-                } else if self.constraints.contains(instruction_id)
-                    && !self.tainted.is_empty()
-                    && !active_tainted.is_empty()
-                {
-                    let constrained_values = instruction_arguments(func, instruction);
-                    // Split borrows: extract parents/equivalences before the closure that
-                    // mutably borrows self.tainted.
-                    let parents = &self.parents;
-                    let equivalences = &self.equivalences;
-                    self.tainted.retain(|id, tainted| {
-                        if !active_tainted.contains(id) {
-                            return true;
-                        }
+                } else if self.constraints.contains(instruction_id) {
+                    events.push(Event::Constraint(instruction_arguments(func, instruction)));
+                }
+            }
+        }
 
-                        progressed |= tainted.try_constrain(
-                            &constrained_values,
-                            parents,
-                            equivalences,
-                            &all_tainted,
-                            &mut *all_constrained,
-                            self.max_ancestor_distance,
-                        );
+        (events, all_tainted)
+    }
 
-                        let fully_constrained = tainted.is_fully_constrained();
-                        if fully_constrained {
-                            active_tainted.remove(id);
-                        }
+    /// A single top-down walk over the `events` attempting to constrain Brillig outputs,
+    /// accumulating cleared outputs into `all_constrained`. See [`Self::constrain_tainted`].
+    ///
+    /// Returns `true` if at least one output was cleared during the walk.
+    fn constrain_tainted_pass(
+        &mut self,
+        events: &[Event],
+        all_tainted: &ValueSet,
+        all_constrained: &mut ValueSet,
+    ) -> bool {
+        // Skip checks until we encounter the tainted instruction.
+        let mut active = TaintedSet::default();
+        // Whether any output was cleared during this walk.
+        let mut progressed = false;
 
-                        !fully_constrained
-                    });
+        for event in events {
+            match event {
+                Event::Call(index) => active.insert(*index),
+                Event::Constraint(constrained_values) => {
+                    progressed |= self.try_constrain_active(
+                        constrained_values,
+                        &active,
+                        all_tainted,
+                        all_constrained,
+                    );
                 }
             }
         }
@@ -804,14 +1094,48 @@ impl Context {
         progressed
     }
 
-    /// Every Brillig call not properly constrained should remain in the tainted set
+    /// Try to constrain the outputs of the `active` calls which are unresolved and for which
+    /// the constraint has something to do with the outputs.
+    ///
+    /// Returns `true` if at least one output was cleared.
+    fn try_constrain_active(
+        &mut self,
+        constrained_values: &[ValueId],
+        active: &TaintedSet,
+        all_tainted: &ValueSet,
+        all_constrained: &mut ValueSet,
+    ) -> bool {
+        let mut candidates = self.constrainable.owners_of(constrained_values);
+        candidates.intersect_with(active);
+        candidates.intersect_with(self.tainted.unresolved());
+        if candidates.is_empty() {
+            return false;
+        }
+
+        let balls =
+            vecmap(constrained_values, |value| self.graph.ball(*value, self.max_ancestor_distance));
+
+        let mut progressed = false;
+        for index in candidates.iter() {
+            progressed |= self.tainted.try_constrain(
+                index,
+                constrained_values,
+                &balls,
+                all_tainted,
+                all_constrained,
+            );
+        }
+        progressed
+    }
+
+    /// Every Brillig call not properly constrained should remain unresolved
     /// at this point. For each, emit a corresponding warning.
     fn into_warnings(self, function: &Function) -> Vec<SsaReport> {
         self.tainted
-            .keys()
+            .unresolved_instructions()
             .map(|brillig_call| {
                 SsaReport::Bug(InternalBug::UncheckedBrilligCall {
-                    call_stack: function.dfg.get_instruction_call_stack(*brillig_call),
+                    call_stack: function.dfg.get_instruction_call_stack(brillig_call),
                 })
             })
             .collect()
@@ -927,88 +1251,6 @@ fn instruction_results(func: &Function, instruction_id: &InstructionId) -> Vec<V
         .filter(|value| !is_numeric_constant(func, **value))
         .copied()
         .collect()
-}
-
-/// Compute the set of all values reachable (inclusive) from any of the `starts` by following
-/// `parents` and `equivalences` edges backwards.
-///
-/// Equivalences are only followed from **intermediate** nodes (not from the starting nodes
-/// themselves). This matches the original transitive-closure semantics: `constrain v1 == v2`
-/// adds v2 to the ancestor sets of keys that *already* have v1 as an ancestor, but does **not**
-/// add v2 to v1's own ancestor set (because v1 is never its own ancestor).
-///
-/// Calls a function `f` with each value; if `f` returns `true` the traversal continues, otherwise returns.
-///
-/// Returns the set of visited nodes.
-fn bfs_traverse_ancestors(
-    starts: &[ValueId],
-    parents: &HashMap<ValueId, Vec<ValueId>>,
-    equivalences: &HashMap<ValueId, Vec<ValueId>>,
-    mut f: impl FnMut(ValueId, u32) -> bool,
-) -> HashSet<ValueId> {
-    let mut visited: HashSet<ValueId> = HashSet::new();
-    let mut queue: VecDeque<(ValueId, u32)> = VecDeque::new();
-    for &s in starts {
-        visited.insert(s);
-        if !f(s, 0) {
-            return visited;
-        }
-        // From start nodes: follow only parent edges, not equivalences.
-        for &p in parents.get(&s).into_iter().flatten() {
-            if visited.insert(p) {
-                queue.push_back((p, 1));
-            }
-        }
-    }
-    // From intermediate nodes: follow both parent and equivalence edges.
-    while let Some((curr, dist)) = queue.pop_front() {
-        if !f(curr, dist) {
-            return visited;
-        }
-        for &next in parents
-            .get(&curr)
-            .into_iter()
-            .flatten()
-            .chain(equivalences.get(&curr).into_iter().flatten())
-        {
-            if visited.insert(next) {
-                queue.push_back((next, dist + 1));
-            }
-        }
-    }
-    visited
-}
-
-/// Compute the set of all values reachable (inclusive) from any of the `starts` by following
-/// `parents` and `equivalences` edges backwards.
-fn bfs_ancestors(
-    starts: &[ValueId],
-    parents: &HashMap<ValueId, Vec<ValueId>>,
-    equivalences: &HashMap<ValueId, Vec<ValueId>>,
-) -> HashSet<ValueId> {
-    bfs_traverse_ancestors(starts, parents, equivalences, |_, _| true)
-}
-
-/// Returns `true` if `start` itself, or any value reachable from `start` by following
-/// `parents` (and `equivalences` from intermediate nodes), satisfies a `predicate`.
-///
-/// Equivalences are not followed directly from `start` — only from nodes reached via
-/// parent edges. See [`bfs_ancestors`] for the rationale.
-fn any_ancestor(
-    start: ValueId,
-    predicate: impl Fn(ValueId) -> bool,
-    parents: &HashMap<ValueId, Vec<ValueId>>,
-    equivalences: &HashMap<ValueId, Vec<ValueId>>,
-    max_ancestor_distance: u32,
-) -> bool {
-    let mut found = false;
-    bfs_traverse_ancestors(&[start], parents, equivalences, |a, d| {
-        if predicate(a) {
-            found = true;
-        }
-        !found && d <= max_ancestor_distance
-    });
-    found
 }
 
 #[cfg(test)]

@@ -232,6 +232,11 @@ impl DataFlowGraph {
         self.values.iter()
     }
 
+    /// Number of Values in this DFG, including unused Values
+    pub(crate) fn num_values(&self) -> usize {
+        self.values.len()
+    }
+
     /// Returns the parameters of the given block
     pub(crate) fn block_parameters(&self, block: BasicBlockId) -> &[ValueId] {
         self.blocks[block].parameters()
