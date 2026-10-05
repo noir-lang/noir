@@ -27,6 +27,49 @@ certificate. Instructions without a hint step run `stepP` as before.
 
 namespace AcirLean
 
+/-! ## The circuit, indexed
+
+Certificates name constraints by position. Looking a position up in a list
+walks the list, which the kernel does one cell at a time; a balanced tree
+takes logarithmically many steps. -/
+
+inductive OTree where
+  | leaf
+  | node (l : OTree) (v : Opcode) (r : OTree)
+
+/-- The first `n` constraints of `l` as a balanced tree (the left half, the
+middle one, the right half), and the rest of `l`. `fuel` bounds the depth. -/
+def OTree.build : ℕ → ℕ → List Opcode → OTree × List Opcode
+  | 0, _, l => (.leaf, l)
+  | _ + 1, 0, l => (.leaf, l)
+  | f + 1, n + 1, l =>
+    let (t₁, l) := OTree.build f ((n + 1) / 2) l
+    match l with
+    | [] => (t₁, [])
+    | v :: l =>
+      let (t₂, l) := OTree.build f (n - (n + 1) / 2) l
+      (.node t₁ v t₂, l)
+
+/-- Position `i` of a tree built from `n` constraints. -/
+def OTree.get? : OTree → ℕ → ℕ → Option Opcode
+  | .leaf, _, _ => none
+  | .node l v r, n, i =>
+    if i < n / 2 then l.get? (n / 2) i
+    else if i = n / 2 then some v
+    else r.get? (n - 1 - n / 2) (i - n / 2 - 1)
+
+structure Circ where
+  list : List Opcode
+  tree : OTree
+  size : ℕ
+
+def Circ.ofList (cc : List Opcode) : Circ :=
+  ⟨cc, (OTree.build 64 cc.length cc).1, cc.length⟩
+
+instance : Coe (List Opcode) Circ := ⟨Circ.ofList⟩
+
+def Circ.get? (cc : Circ) (i : ℕ) : Option Opcode := cc.tree.get? cc.size i
+
 /-! ## Combinations of facts -/
 
 /-- A polynomial that is zero under every assignment satisfying the circuit, by
@@ -47,8 +90,8 @@ inductive Src where
   | flagBit
   deriving DecidableEq
 
-def srcPoly (cc : List Opcode) (s : Reps × Flag) : Src → Poly
-  | .con i => match cc[i]? with
+def srcPoly (cc : Circ) (s : Reps × Flag) : Src → Poly
+  | .con i => match cc.get? i with
     | some (.assertZero ts) => ts
     | some (.range w 1) => psub (pmul (pvar w) (pvar w)) (pvar w)
     | _ => []
@@ -78,13 +121,13 @@ structure Gen where
   coef : ℤ
   deriving DecidableEq
 
-def genPoly (cc : List Opcode) (s : Reps × Flag) (g : Gen) : Poly :=
+def genPoly (cc : Circ) (s : Reps × Flag) (g : Gen) : Poly :=
   pmul [⟨g.coef, g.mul⟩] (srcPoly cc s g.src)
 
 abbrev Comb := List Gen
 
 /-- `T` is the combination `cmb` of facts, as polynomials. -/
-def combHolds (cc : List Opcode) (s : Reps × Flag) (cmb : Comb) (T : Poly) : Bool :=
+def combHolds (cc : Circ) (s : Reps × Flag) (cmb : Comb) (T : Poly) : Bool :=
   match key (psub T (cmb.flatMap (genPoly cc s))) with
   | .assertZero [] => true
   | _ => false
@@ -101,8 +144,8 @@ def underFlag : Flag → Poly → Poly
   | none, T => T
   | some (P, _), T => pmul P T
 
-def rangeOf (cc : List Opcode) (s : Reps × Flag) (P : Poly) (e : RangeEv) : Option ℕ :=
-  match cc[e.idx]? with
+def rangeOf (cc : Circ) (s : Reps × Flag) (P : Poly) (e : RangeEv) : Option ℕ :=
+  match cc.get? e.idx with
   | some (.range w k) => if combHolds cc s e.cmb (underFlag s.2 (psub P (pvar w))) then some k else none
   | _ => none
 
@@ -167,7 +210,7 @@ inductive HStep where
 
 /-! ## The rules -/
 
-def opndPoly (cc : List Opcode) (s : Reps × Flag) (onlyOn : Bool) (r : Rep2) : Opnd → Option Poly
+def opndPoly (cc : Circ) (s : Reps × Flag) (onlyOn : Bool) (r : Rep2) : Opnd → Option Poly
   | .alt i => r.alts[i]?
   | .via H i c => do
     let X ← r.alts[i]?
@@ -178,7 +221,7 @@ def opndPoly (cc : List Opcode) (s : Reps × Flag) (onlyOn : Bool) (r : Rep2) : 
     if onlyOn ∧ combHolds cc s c (underFlag s.2 (psub H X)) then some H else none
 
 /-- The operands' polynomials the certificate names. -/
-def operands (cc : List Opcode) (s : Reps × Flag) (a b : Operand) (ia ib : Opnd)
+def operands (cc : Circ) (s : Reps × Flag) (a b : Operand) (ia ib : Opnd)
     (onlyOn : Bool := false) : Option (Rep2 × Rep2 × Poly × Poly) := do
   let ra ← opRep s.1 a
   let rb ← opRep s.1 b
@@ -200,7 +243,7 @@ def flagged : Flag → Poly → Poly
   | some (P, _), E => pmul P E
 
 /-- `r < b` from the evidence, given `r ≤ Mr` and `b`'s representation. -/
-def ltOK (cc : List Opcode) (s : Reps × Flag) (Xb : Poly) (b : Rep2) (r : Poly) (Mr : ℕ) : LtEv → Bool
+def ltOK (cc : Circ) (s : Reps × Flag) (Xb : Poly) (b : Rep2) (r : Poly) (Mr : ℕ) : LtEv → Bool
   | .sub e =>
     match rangeOf cc s (psub (psub Xb r) (pconst 1)) e with
     | some k => decide (2 ^ k + Mr < p)
@@ -211,7 +254,7 @@ def ltOK (cc : List Opcode) (s : Reps × Flag) (Xb : Poly) (b : Rep2) (r : Poly)
     | some k => decide (2 ^ k = b.M + d) && decide (Mr + d < p)
     | none => false
 
-def hintStep (cc : List Opcode) (s : Reps × Flag) : Instruction → HStep → Option (Reps × Flag)
+def hintStep (cc : Circ) (s : Reps × Flag) : Instruction → HStep → Option (Reps × Flag)
   | .bin d op u a b, .arith E ia ib c rng => do
     let (ra, rb, Xa, Xb) ← operands cc s a b ia ib true
     let T ← arithPoly op Xa Xb
@@ -313,7 +356,7 @@ def Instruction.dst? : Instruction → Option ℕ
 
 /-- Adds `H` to scalar `d`'s polynomials, where the combination `c` shows `H`
 equals its `i`th. -/
-def addAlias (cc : List Opcode) (s : Reps × Flag) (d : ℕ) (H : Poly) (i : ℕ) (c : Comb) :
+def addAlias (cc : Circ) (s : Reps × Flag) (d : ℕ) (H : Poly) (i : ℕ) (c : Comb) :
     Option (Reps × Flag) :=
   match s.1.lookup d with
   | some (.scalar r) => match r.alts[i]? with
@@ -329,8 +372,8 @@ structure Form where
   idx : ℕ
   deriving DecidableEq
 
-def Form.poly (cc : List Opcode) (f : Form) : Option (Poly × ℕ × ℕ) :=
-  match cc[f.idx]? with
+def Form.poly (cc : Circ) (f : Form) : Option (Poly × ℕ × ℕ) :=
+  match cc.get? f.idx with
   | some (.range w k) =>
     if f.neg then
       if 2 ^ k - 1 ≤ f.c ∧ f.c < p then some (psub (pconst f.c) (pvar w), f.c - (2 ^ k - 1), f.c) else none
@@ -349,7 +392,7 @@ structure CaseBound where
   c₂ : Comb
   deriving DecidableEq
 
-def tighten (cc : List Opcode) (s : Reps × Flag) (d : ℕ) (b : CaseBound) : Option (Reps × Flag) := do
+def tighten (cc : Circ) (s : Reps × Flag) (d : ℕ) (b : CaseBound) : Option (Reps × Flag) := do
   let .scalar r ← s.1.lookup d | none
   let X ← r.alts[b.i]?
   let (F₁, L₁, M₁) ← b.f₁.poly cc
@@ -370,9 +413,9 @@ structure Entry where
   bound : Option CaseBound := none
   deriving DecidableEq
 
-def stepE (cc : List Opcode) (s : Reps × Flag) (i : Instruction) (e : Entry) : Option (Reps × Flag) := do
+def stepE (cc : Circ) (s : Reps × Flag) (i : Instruction) (e : Entry) : Option (Reps × Flag) := do
   let s' ← match e.step with
-    | none => stepP (pick cc e.ix) s i
+    | none => stepP (e.ix.filterMap cc.get?) s i
     | some h => hintStep cc s i h
   let s'' ← match e.extra, i.dst? with
     | none, _ => some s'
@@ -384,7 +427,7 @@ def stepE (cc : List Opcode) (s : Reps × Flag) (i : Instruction) (e : Entry) : 
   | some _, none => none
 
 /-- Run the body, each step as its certificate entry says. -/
-def stepsWithH (cc : List Opcode) :
+def stepsWithH (cc : Circ) :
     Reps × Flag → List Instruction → List Entry → Option (Reps × Flag)
   | s, [], [] => some s
   | s, i :: is, e :: es => (stepE cc s i e).bind fun r => stepsWithH cc r is es
@@ -392,13 +435,13 @@ def stepsWithH (cc : List Opcode) :
 
 /-- Return witness `w` equals scalar `r`: as `retOK` finds, or through a
 combination showing `w = ` one of `r`'s polynomials. -/
-def retOKH (cc : List Opcode) (s : Reps × Flag) (w : ℕ) (r : Rep2) : Option (ℕ × Comb) → Bool
-  | none => retOK cc w r
+def retOKH (cc : Circ) (s : Reps × Flag) (w : ℕ) (r : Rep2) : Option (ℕ × Comb) → Bool
+  | none => retOK cc.list w r
   | some (i, c) => match r.alts[i]? with
     | some X => combHolds cc s c (psub (pvar w) X)
     | none => false
 
-def retsOKH (cc : List Opcode) (s : Reps × Flag) (ws : List ℕ) (os : List Operand)
+def retsOKH (cc : Circ) (s : Reps × Flag) (ws : List ℕ) (os : List Operand)
     (hs : List (Option (ℕ × Comb))) : Bool :=
   match os.mapM (opFlat s.1) with
   | none => false
@@ -409,9 +452,9 @@ def retsOKH (cc : List Opcode) (s : Reps × Flag) (ws : List ℕ) (os : List Ope
 /-- `checkProgWith` with hint steps and return-value hints. -/
 def checkProgH (P : Program) (C : Circuit) (cert : List Entry)
     (rets : List (Option (ℕ × Comb))) : Bool :=
-  let cc := C.opcodes
+  let cc := Circ.ofList C.opcodes
   decide (C.parameters.length = P.inputTypes.length) &&
-    match initReps cc P.params C.parameters with
+    match initReps C.opcodes P.params C.parameters with
     | none => false
     | some reps0 =>
       match stepsWithH cc (reps0, none) P.body cert with

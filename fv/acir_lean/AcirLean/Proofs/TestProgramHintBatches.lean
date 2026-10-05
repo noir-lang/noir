@@ -14,6 +14,10 @@ import AcirLean.Spec.Claims
 `testProgramHintCerts`, except those in `hintOpenPrograms`. Nothing here is a
 claim yet: `checkProgH` has no soundness proof. The kernel checks one batch of
 20 programs per theorem, as `testPrograms_claims` does.
+
+Nothing imports this module, so CI does not build it: all eleven batches take
+longer than the `FV Lean` job's 30 minutes. Build it by hand with
+`lake build AcirLean.Proofs.TestProgramHintBatches`.
 -/
 
 namespace AcirLean
