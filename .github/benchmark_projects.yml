@@ -23,7 +23,7 @@ projects:
     brillig-compilation-timeout: 150
     brillig-execution-timeout: 1
     compilation-memory-limit: 650
-    execution-memory-limit: 350
+    execution-memory-limit: 375
   private-kernel-reset:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
