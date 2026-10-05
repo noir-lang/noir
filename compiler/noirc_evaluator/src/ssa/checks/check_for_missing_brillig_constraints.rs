@@ -359,7 +359,7 @@ struct TaintedDescendants {
     /// To consider the output constrained, we have to find a constraint such that
     /// the output is an ancestor of the constrained value.
     single_outputs: HashSet<ValueId>,
-    /// Array outputs of the call, tracked per index, accumulating their individual
+    /// Array outputs of the call, tracked per flattened index, accumulating their individual
     /// dependencies (only the values read from the array).
     ///
     /// To consider an element constrained, we have to find a constraint such that
@@ -390,11 +390,15 @@ impl TaintedDescendants {
         for result_id in result_ids {
             match func.dfg.try_get_array_length(*result_id) {
                 // If the result value is an array, create an empty descendant set for
-                // every element to be accessed further on and record the indices
-                // of the resulting sets for future reference
+                // every item to be accessed further on and record the indices
+                // of the resulting sets for future reference.
+                //
+                // Arrays of tuples are read with flattened indices (`item * fields + field`),
+                // so every field of every item gets its own index.
                 Some(length) if length.0 > 0 && length.0 <= max_array_output_length => {
+                    let fields = func.dfg.type_of_value(*result_id).element_size().0;
                     let mut index_outputs = HashMap::default();
-                    for i in 0..length.0 {
+                    for i in 0..length.0 * fields {
                         index_outputs.insert(i, HashSet::default());
                     }
                     array_outputs.insert(*result_id, index_outputs);
@@ -2256,6 +2260,67 @@ mod tests {
         return v0, v0
     }
     "#;
+
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
+        assert_eq!(ssa_level_warnings.len(), 0);
+    }
+
+    #[test]
+    #[traced_test]
+    /// Test where an array of tuples is returned and only the first item is constrained.
+    /// Reads use flattened indices, so the second item is at indices 2 and 3.
+    fn test_brillig_result_array_of_tuples_missing_item_constraint() {
+        let program = r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v2 = call f1(v0) -> [(Field, Field); 2]
+            v4 = array_get v2, index u32 0 -> Field
+            constrain v4 == v0
+            v6 = array_get v2, index u32 1 -> Field
+            constrain v6 == v0
+            v8 = array_get v2, index u32 2 -> Field
+            v10 = array_get v2, index u32 3 -> Field
+            v11 = add v8, v10
+            return v11
+        }
+
+        brillig(inline) fn pairs f1 {
+          b0(v0: Field):
+            v1 = make_array [v0, v0, v0, v0] : [(Field, Field); 2]
+            return v1
+        }
+        "#;
+
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
+        assert_eq!(ssa_level_warnings.len(), 1);
+    }
+
+    #[test]
+    #[traced_test]
+    /// Test where every field of every item of an array of tuples is constrained.
+    fn test_brillig_result_array_of_tuples_all_items_constrained() {
+        let program = r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v2 = call f1(v0) -> [(Field, Field); 2]
+            v4 = array_get v2, index u32 0 -> Field
+            constrain v4 == v0
+            v6 = array_get v2, index u32 1 -> Field
+            constrain v6 == v0
+            v8 = array_get v2, index u32 2 -> Field
+            constrain v8 == v0
+            v10 = array_get v2, index u32 3 -> Field
+            constrain v10 == v0
+            v11 = add v8, v10
+            return v11
+        }
+
+        brillig(inline) fn pairs f1 {
+          b0(v0: Field):
+            v1 = make_array [v0, v0, v0, v0] : [(Field, Field); 2]
+            return v1
+        }
+        "#;
 
         let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
         assert_eq!(ssa_level_warnings.len(), 0);
