@@ -439,3 +439,83 @@ fn recursive_call_solving_its_own_body_differently_keeps_the_callers_solution() 
     "#;
     check(src);
 }
+
+#[test]
+fn closure_body_solving_a_captured_variable() {
+    // The closure's body solves the element type of `e`, which belongs to the frame that created
+    // the closure.
+    let src = r#"
+    fn main() {
+        comptime {
+            let e = @[];
+            let c = || {
+                let x = make_s!();
+                let _ = [e, @[x]];
+            };
+            c();
+            assert(type_of(e).eq(quote { [S] }.as_type()));
+        }
+    }
+    "#;
+    check(src);
+}
+
+#[test]
+fn closure_body_solving_a_captured_variable_called_from_a_function() {
+    let src = r#"
+    comptime fn run<Env>(f: fn[Env]() -> ()) {
+        f()
+    }
+    fn main() {
+        comptime {
+            let e = @[];
+            let c = || {
+                let x = make_s!();
+                let _ = [e, @[x]];
+            };
+            run(c);
+            assert(type_of(e).eq(quote { [S] }.as_type()));
+        }
+    }
+    "#;
+    check(src);
+}
+
+#[test]
+fn comptime_block_value_inlined_into_runtime_code() {
+    // The struct is inlined with the type stored on it, so it must be resolved before the
+    // interpreter that solved its generic is dropped.
+    let src = r#"
+    fn main() {
+        let w = comptime {
+            let w = Wrap { inner: @[] };
+            let x = make_s!();
+            let _ = [w, Wrap { inner: @[x] }];
+            w
+        };
+        let _ = w;
+    }
+    "#;
+    check(src);
+}
+
+#[test]
+fn type_value_result() {
+    // `t` is taken before the solve and the element type is local to `element_type_of_made`, so
+    // the caller never learns it; only the callee can resolve `t`.
+    let src = r#"
+    comptime fn element_type_of_made() -> Type {
+        let e = @[];
+        let t = type_of(e);
+        let x = make_s!();
+        let _ = [e, @[x]];
+        t
+    }
+    fn main() {
+        comptime {
+            assert(element_type_of_made().eq(quote { [S] }.as_type()));
+        }
+    }
+    "#;
+    check(src);
+}

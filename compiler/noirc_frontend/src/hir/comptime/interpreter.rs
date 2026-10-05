@@ -138,7 +138,8 @@ pub struct Interpreter<'local, 'interner> {
     /// substitution can make them, so resolving them again can be skipped.
     has_runtime_solves: bool,
 
-    /// The type variables the last [`Self::call_function`] handed back to its caller.
+    /// The type variables the last [`Self::call_function`] or [`Self::call_closure`] handed back to
+    /// its caller.
     last_call_solves: Vec<TypeVariableId>,
 
     /// The type variables each call expression handed back the last time it was evaluated. A call
@@ -211,7 +212,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 
     /// `value` with every type it holds as seen from the function being interpreted.
-    pub(super) fn value(&self, value: Value) -> Value {
+    pub(crate) fn value(&self, value: Value) -> Value {
         if self.substitution.is_empty() {
             return value;
         }
@@ -265,27 +266,40 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             tracker.track_function_call(function, location);
         }
 
+        // The callee can solve a type that only its own body mentions after building a value that
+        // holds it (a `Type` taken by `type_of`, say), so resolve the result before leaving.
         let result = self.call_function_inner(function, arguments, location);
+        let result =
+            if self.has_runtime_solves { result.map(|result| self.value(result)) } else { result };
 
         let callee_substitution = std::mem::replace(&mut self.substitution, caller_substitution);
         let callee_solves = std::mem::replace(&mut self.frame_solves, caller_solves);
         self.has_runtime_solves = caller_has_runtime_solves;
-        self.last_call_solves =
-            self.hand_back_solves(&own_bindings, &callee_substitution, callee_solves);
+        let caller_types: Vec<&Type> = own_bindings.values().map(|(_, _, typ)| typ).collect();
+        self.last_call_solves = self.hand_back_solves(
+            &caller_types,
+            &own_bindings,
+            &callee_substitution,
+            callee_solves,
+        );
 
         self.elaborator.pop_interpreter_call_stack();
         result
     }
 
     /// Copies into the caller's substitution each type variable the callee solved that the caller
-    /// can see: one that occurs in the types the callee's generics were instantiated with. A value
-    /// the callee built before the solve can reach the caller (as the result, through a `&mut`,
-    /// or inside another value), and the caller can only resolve it with the callee's solution.
+    /// can see: one that occurs in `caller_types`. For a function these are the types its generics
+    /// were instantiated with; for a closure, its own type, which includes the types of what it
+    /// captured. A value built before the solve can reach the caller (as the result, through a
+    /// `&mut`, as a captured value, or inside another value), and the caller can only resolve it
+    /// with the callee's solution.
     ///
     /// Variables that only occur in the callee's own body are not handed back, so a recursive call
     /// that solves its body's variables differently does not overwrite its caller's solutions.
+    /// Neither are the callee's own generics (`own_bindings`).
     fn hand_back_solves(
         &mut self,
+        caller_types: &[&Type],
         own_bindings: &TypeBindings,
         callee_substitution: &TypeBindings,
         callee_solves: Vec<TypeVariableId>,
@@ -295,7 +309,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             if own_bindings.contains_key(&var_id) || handed_back.contains(&var_id) {
                 continue;
             }
-            let visible_to_caller = own_bindings.values().any(|(_, _, typ)| typ.occurs(var_id));
+            let visible_to_caller = caller_types.iter().any(|typ| typ.occurs(var_id));
             if !visible_to_caller {
                 continue;
             }
@@ -490,6 +504,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             let old_function =
                 std::mem::replace(&mut this.current_function, closure.function_scope);
 
+            let closure_type = closure.typ.clone();
             let mut frame = this.substitution.clone();
             frame.extend(closure.substitution);
             let caller_substitution = std::mem::replace(&mut this.substitution, frame);
@@ -504,9 +519,16 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 .call_closure_inner(closure.lambda, closure.env, arguments, call_location)
                 .map(|result| this.value(result));
 
-            this.substitution = caller_substitution;
-            this.frame_solves = caller_solves;
+            let callee_substitution =
+                std::mem::replace(&mut this.substitution, caller_substitution);
+            let callee_solves = std::mem::replace(&mut this.frame_solves, caller_solves);
             this.has_runtime_solves = caller_has_runtime_solves;
+            this.last_call_solves = this.hand_back_solves(
+                &[&closure_type],
+                &TypeBindings::default(),
+                &callee_substitution,
+                callee_solves,
+            );
             this.elaborator.pop_interpreter_call_stack();
 
             this.current_function = old_function;
@@ -1368,6 +1390,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             }
             Value::Closure(closure) => {
                 let result = self.call_closure(*closure, arguments, location)?;
+                let handed_back = std::mem::take(&mut self.last_call_solves);
+                if !handed_back.is_empty() {
+                    self.call_solves.insert(id, handed_back);
+                }
                 self.solve_call_type_from_result(id, &result);
                 Ok(result)
             }

@@ -1895,7 +1895,7 @@ impl Elaborator<'_> {
         });
 
         let mut interpreter = self.setup_interpreter();
-        let value = interpreter.evaluate_block(block);
+        let value = interpreter.evaluate_block(block).map(|value| interpreter.value(value));
 
         let from_macro_call = false;
         let (id, typ) = self.inline_comptime_value(value, location, from_macro_call);

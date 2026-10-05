@@ -82,12 +82,18 @@ Two rules make a solution visible wherever such a value can go:
 - A frame starts from a copy of its caller's substitution, with its own bindings on top. A
   closure frame puts the closure's creation-time substitution on top instead. A value passed
   in therefore resolves in the callee, including through a `&mut` or a closure capture.
-- When a call returns, every variable the callee solved that occurs in the types its generics
-  were instantiated with is copied into the caller. A callee can only solve its own variables
-  or ones that reached it through those types, so this hands back exactly what the caller can
-  see. Variables of the callee's own body stay behind, so a recursive call that solves them
-  differently cannot overwrite its caller's solution. Before the same call expression is
-  evaluated again (in a loop), what it handed back last time is removed.
+- When a call returns, every variable the callee solved that the caller can see is copied into
+  the caller: for a function, those occurring in the types its generics were instantiated
+  with; for a closure, those occurring in its own type, which includes what it captured. A
+  callee can only solve its own variables or ones that reached it through those types, so this
+  hands back exactly what the caller can see. Variables of the callee's own body stay behind,
+  so a recursive call that solves them differently cannot overwrite its caller's solution.
+  Before the same call expression is evaluated again (in a loop), what it handed back last
+  time is removed. The returned value itself is resolved before the callee's frame is left,
+  since it can hold a variable of the callee's body (a `Type` taken by `type_of`, say).
+
+A `comptime` block's value is resolved before its interpreter is dropped, because a struct is
+inlined into the runtime code with the type stored on it.
 
 Builtins read the types stored on their arguments directly, so their arguments are resolved
 under the builtin's frame, but only once some type has been solved at runtime: until then,
