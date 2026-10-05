@@ -601,17 +601,21 @@ impl Elaborator<'_> {
             self.add_trait_bound_to_scope(location, &constraint.typ, &constraint.trait_bound);
         }
 
-        // Also assume `self` implements the current trait if we are inside a trait definition
+        // Also assume `Self` implements the current trait if we are inside a trait definition.
+        // The assumption is over the rigid `Self`: over the bindable `self_type_typevar` it would
+        // match any type, so `Trait::method(x)` on an `x` with no impl of the trait would type
+        // check and bind the trait-wide `Self` to `x`'s type, rerouting the dispatch of every
+        // default method type checked afterwards. Its parent traits are not assumed here, as
+        // they are already part of the method's where clause (see `resolve_trait_methods`).
         if let Some(trait_id) = self.item.impl_context.current_trait() {
             let the_trait = self.interner.get_trait(trait_id);
             let constraint = the_trait.as_constraint(the_trait.name.location());
-            let self_type = self
-                .item
-                .impl_context
-                .trait_self_type()
-                .expect("Expected a self type if there's a current trait");
-
-            self.add_trait_bound_to_scope(location, &self_type, &constraint.trait_bound);
+            let trait_generics = constraint.trait_bound.trait_generics;
+            self.interner.add_assumed_trait_self_implementation(
+                constraint.typ,
+                trait_id,
+                trait_generics,
+            );
         }
     }
 
@@ -900,19 +904,6 @@ impl Elaborator<'_> {
                     location,
                 ));
             }
-        }
-
-        if let Type::TypeVariable(self_var) = object
-            && self_var.binding().is_unbound()
-            && self.item.impl_context.current_trait().is_some()
-        {
-            // This would end up duplicating parent trait bounds we turned into where clauses on Self.
-            // The reason is that in `add_trait_constraints_to_scope` we add the self-type of the current trait
-            // as an assumed implementation, on an unbound type variable like '1. Then in `resolve_trait_methods`
-            // we also add the parent traits as where clauses, but on Self'1. If we end up with assumed impls
-            // for both '1 and Self'1, then when we look up an impl for Self'1, it finds both and errors out.
-            // So we skip the parents, because it would be redundant with the Self bounds.
-            return;
         }
 
         // A bound declared on an associated type (`trait Foo { type Bar: HasQux; }`) is implied

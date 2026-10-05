@@ -14,7 +14,7 @@ use itertools::Itertools;
 use noirc_errors::Location;
 
 use crate::{
-    Kind, ResolvedGeneric, Type, TypeVariable,
+    Kind, ResolvedGeneric, Type, TypeBinding, TypeVariable,
     ast::{
         BlockExpression, FunctionKind, Ident, IdentOrQuotedType, NoirFunction, Param,
         UnresolvedGeneric, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
@@ -714,6 +714,15 @@ impl Elaborator<'_> {
         body: BlockExpression,
         body_location: Location,
     ) {
+        // A default method of a trait is type checked once for every implementing type, so its
+        // body must leave the trait's `Self` variable unbound. A binding would be seen by every
+        // other default method of the trait and fix the impl their calls dispatch to.
+        let unbound_trait_self = func_meta
+            .trait_id
+            .filter(|_| func_meta.trait_impl.is_none())
+            .map(|trait_id| (trait_id, self.interner.get_trait(trait_id).self_type_typevar.clone()))
+            .filter(|(_, self_typevar)| self_typevar.binding().is_unbound());
+
         self.scopes.start_function();
         self.push_function_context();
 
@@ -790,6 +799,18 @@ impl Elaborator<'_> {
         self.check_and_pop_function_context();
 
         self.remove_trait_constraints_from_scope(func_meta.all_trait_constraints());
+
+        if let Some((trait_id, self_typevar)) = unbound_trait_self
+            && let TypeBinding::Bound(self_type) = self_typevar.binding()
+        {
+            let trait_name = self.interner.get_trait(trait_id).name.to_string();
+            self.push_err(TypeCheckError::expecting_other_error(
+                format!(
+                    "`Self` of trait `{trait_name}` was bound to `{self_type}` while type checking this default method"
+                ),
+                func_meta.name.location,
+            ));
+        }
 
         let func_scope_tree = self.scopes.end_function();
 

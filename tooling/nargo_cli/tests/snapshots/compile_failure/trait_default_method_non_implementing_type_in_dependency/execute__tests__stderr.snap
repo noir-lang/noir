@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: No matching impl found for `Wide: Checked`
+   ┌─ mylib/src/lib.nr:35:9
+   │
+35 │         g(Wide { v: 0 })
+   │         - No impl for `Wide: Checked`
+   │
+
+Aborting due to 1 previous error

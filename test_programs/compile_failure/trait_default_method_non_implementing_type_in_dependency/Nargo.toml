@@ -1,0 +1,7 @@
+[package]
+name = "trait_default_method_non_implementing_type_in_dependency"
+type = "bin"
+authors = [""]
+
+[dependencies]
+mylib = { path = "./mylib" }

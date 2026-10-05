@@ -166,6 +166,41 @@ impl NodeInterner {
         }
     }
 
+    /// Adds the assumed `Self: Trait` implementation that holds inside the definition of `Trait`,
+    /// where `self_type` is the trait's rigid `Self`.
+    ///
+    /// Unlike [`Self::add_assumed_trait_implementation`] this does not consult the trait's real
+    /// impls: a blanket `impl<T> Trait for T` matching `Self` does not make the assumption
+    /// redundant, since a default body must dispatch to whichever impl `Self` is instantiated
+    /// with rather than to the blanket impl. An assumed entry already registered for the same
+    /// bound (an explicit `where Self: Trait`) is reused rather than duplicated.
+    pub fn add_assumed_trait_self_implementation(
+        &mut self,
+        self_type: Type,
+        trait_id: TraitId,
+        trait_generics: TraitGenerics,
+    ) {
+        if self.merge_named_generics_into_assumed_impl(
+            trait_id,
+            &self_type,
+            &trait_generics.ordered,
+            &trait_generics.named,
+        ) {
+            return;
+        }
+        let entries = self.trait_implementation_map.entry(trait_id).or_default();
+        let already_assumed = entries.iter().any(|(_, impl_kind)| {
+            matches!(impl_kind, TraitImplKind::Assumed { object_type, trait_generics: existing }
+                if *object_type == self_type && existing.ordered == trait_generics.ordered)
+        });
+        if !already_assumed {
+            entries.push((
+                self_type.clone(),
+                TraitImplKind::Assumed { object_type: self_type, trait_generics },
+            ));
+        }
+    }
+
     /// Reconcile fresh associated-type bindings with an existing assumed impl entry for
     /// `trait_id` whose object type equals `object_type`, so that a single assumed impl is kept
     /// per object type and trait. This keeps the fresh per-function variables used to resolve
