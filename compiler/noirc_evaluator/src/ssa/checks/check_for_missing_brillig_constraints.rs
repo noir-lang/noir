@@ -448,6 +448,15 @@ impl TaintedDescendants {
     }
 }
 
+/// The instructions that [`Context::constrain_tainted`] needs to visit, in Reverse Post Order.
+#[derive(Debug)]
+enum Event {
+    /// A tainted Brillig call, after which constraints on its outputs can be considered.
+    Call(TaintedIndex),
+    /// A relevant constraint, with its non-constant arguments.
+    Constraint(Vec<ValueId>),
+}
+
 #[derive(Debug)]
 struct Context {
     /// Block IDs in Post Order.
@@ -802,12 +811,14 @@ impl Context {
         }
     }
 
-    /// Traverse blocks and instructions top-down and try to constrain Brillig outputs.
+    /// Try to constrain Brillig outputs by visiting the relevant calls and constraints top-down.
     fn constrain_tainted(
         mut self,
         func: &Function,
         all_functions: &BTreeMap<FunctionId, Function>,
     ) -> Self {
+        let (events, all_tainted) = self.collect_events(func, all_functions);
+
         // Persists across passes: an output shown to be constrained anywhere in the
         // function stays constrained, so a later constraint can rely on it regardless
         // of the source order of the two assertions. This is what makes the check
@@ -815,7 +826,8 @@ impl Context {
         let mut all_constrained = ValueSet::new(&func.dfg);
 
         loop {
-            let progressed = self.constrain_tainted_pass(func, all_functions, &mut all_constrained);
+            let progressed =
+                self.constrain_tainted_pass(&events, &all_tainted, &mut all_constrained);
 
             // Re-walk only while we are still making progress and work remains.
             // Fully constrained functions resolve every call in the first pass (no
@@ -828,50 +840,75 @@ impl Context {
         self
     }
 
-    /// A single Reverse Post Order walk attempting to constrain Brillig outputs,
-    /// accumulating cleared outputs into `all_constrained`. See [`Self::constrain_tainted`].
+    /// Traverse blocks and instructions top-down to collect the tainted calls and relevant
+    /// constraints in the order [`Self::constrain_tainted_pass`] visits them, along with
+    /// the set of values which descend from any Brillig call.
     ///
-    /// Returns `true` if at least one output was cleared during the walk.
-    fn constrain_tainted_pass(
-        &mut self,
+    /// Constraints on tainted values cannot be used to connect output to input. Values are
+    /// defined before they are used in Reverse Post Order, so whether a constrained value is
+    /// tainted is already settled when the walk reaches its constraint, and the final set
+    /// can be shared by every pass.
+    fn collect_events(
+        &self,
         func: &Function,
         all_functions: &BTreeMap<FunctionId, Function>,
-        all_constrained: &mut ValueSet,
-    ) -> bool {
-        // Constraints on tainted output cannot be used to connect output to input.
+    ) -> (Vec<Event>, ValueSet) {
+        let mut events = Vec::new();
         let mut all_tainted = ValueSet::new(&func.dfg);
-        // Skip checks until we encounter the tainted instruction.
-        let mut active = TaintedSet::default();
-        // Whether any output was cleared during this walk.
-        let mut progressed = false;
 
         // Traverse in Reverse Post Order, ie. top-down.
-        for block_id in self.post_order.clone().into_iter().rev() {
-            for instruction_id in func.dfg[block_id].instructions() {
+        for block_id in self.post_order.iter().rev() {
+            for instruction_id in func.dfg[*block_id].instructions() {
                 let instruction = &func.dfg[*instruction_id];
-                let arguments = instruction_arguments(func, instruction);
                 let results = instruction_results(func, instruction_id);
 
-                // Extend the descendants of Brillig calls.
-                if !results.is_empty() {
-                    // Tainted values cannot be used to constrain Brillig output.
-                    if arguments.iter().any(|a| all_tainted.contains(a)) {
-                        all_tainted.extend(&results);
-                    }
+                // Tainted values cannot be used to constrain Brillig output.
+                if !results.is_empty()
+                    && instruction_arguments(func, instruction)
+                        .iter()
+                        .any(|a| all_tainted.contains(a))
+                {
+                    all_tainted.extend(&results);
                 }
 
                 if is_call_to_brillig(func, all_functions, instruction_id) && !results.is_empty() {
                     // Always keep track of tainted descendants, required for correct constraint checks.
                     all_tainted.extend(&results);
                     if let Some(index) = self.tainted_by_instruction.get(instruction_id) {
-                        active.insert(*index);
+                        events.push(Event::Call(*index));
                     }
                 } else if self.constraints.contains(instruction_id) {
-                    let constrained_values = instruction_arguments(func, instruction);
+                    events.push(Event::Constraint(instruction_arguments(func, instruction)));
+                }
+            }
+        }
+
+        (events, all_tainted)
+    }
+
+    /// A single top-down walk over the `events` attempting to constrain Brillig outputs,
+    /// accumulating cleared outputs into `all_constrained`. See [`Self::constrain_tainted`].
+    ///
+    /// Returns `true` if at least one output was cleared during the walk.
+    fn constrain_tainted_pass(
+        &mut self,
+        events: &[Event],
+        all_tainted: &ValueSet,
+        all_constrained: &mut ValueSet,
+    ) -> bool {
+        // Skip checks until we encounter the tainted instruction.
+        let mut active = TaintedSet::default();
+        // Whether any output was cleared during this walk.
+        let mut progressed = false;
+
+        for event in events {
+            match event {
+                Event::Call(index) => active.insert(*index),
+                Event::Constraint(constrained_values) => {
                     progressed |= self.try_constrain_active(
-                        &constrained_values,
+                        constrained_values,
                         &active,
-                        &all_tainted,
+                        all_tainted,
                         all_constrained,
                     );
                 }
