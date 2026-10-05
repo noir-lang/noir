@@ -190,6 +190,134 @@ impl TaintedSet {
     }
 }
 
+/// Direct parents and equivalences of tracked values, through which ancestry is traversed.
+///
+/// Transitive ancestry is computed on demand via BFS instead of being pre-computed.
+#[derive(Debug, Default)]
+struct AncestryGraph {
+    /// Direct parent graph for tracked values.
+    ///
+    /// `parents[v]` = the immediate instruction arguments that produced `v`,
+    /// plus the active side-effect condition (if any) at the time `v` was produced.
+    ///
+    /// We track parents for values which either:
+    /// * have constraints on them, or
+    /// * are inputs to a Brillig call.
+    parents: HashMap<ValueId, Vec<ValueId>>,
+
+    /// Bidirectional equivalence edges from `constrain v1 == v2` instructions.
+    ///
+    /// If `v1` and `v2` are equivalent, any ancestor of `v1` is also an ancestor of `v2`
+    /// and vice versa. BFS follows these edges alongside `parents` edges.
+    equivalences: HashMap<ValueId, Vec<ValueId>>,
+}
+
+impl AncestryGraph {
+    /// Whether we are collecting the parents of a value.
+    fn is_tracked(&self, value: &ValueId) -> bool {
+        self.parents.contains_key(value)
+    }
+
+    /// Start collecting the parents of a value.
+    fn track(&mut self, value: ValueId) {
+        self.parents.entry(value).or_default();
+    }
+
+    /// Add direct parents to a value, and start tracking the parents themselves, so that
+    /// when we reach the instructions producing them (going backward), we expand their
+    /// parents too.
+    fn add_parents(&mut self, value: ValueId, parents: &[ValueId]) {
+        self.parents.entry(value).or_default().extend(parents.iter().copied());
+        for parent in parents {
+            self.track(*parent);
+        }
+    }
+
+    /// Remove `old` from the parents of a value, and add `new`, if any, in its place.
+    fn replace_parent(&mut self, value: ValueId, old: ValueId, new: Option<ValueId>) {
+        let parents = self.parents.get_mut(&value).expect("value should be tracked");
+        parents.retain(|parent| *parent != old);
+        if let Some(new) = new {
+            parents.push(new);
+            self.track(new);
+        }
+    }
+
+    /// Record that `v1` and `v2` are constrained to be equal.
+    fn add_equivalence(&mut self, v1: ValueId, v2: ValueId) {
+        self.equivalences.entry(v1).or_default().push(v2);
+        self.equivalences.entry(v2).or_default().push(v1);
+    }
+
+    /// Traverse the values reachable (inclusive) from any of the `starts` by following
+    /// `parents` and `equivalences` edges backwards, breadth first.
+    ///
+    /// Equivalences are only followed from **intermediate** nodes (not from the starting nodes
+    /// themselves). This matches the original transitive-closure semantics: `constrain v1 == v2`
+    /// adds v2 to the ancestor sets of keys that *already* have v1 as an ancestor, but does **not**
+    /// add v2 to v1's own ancestor set (because v1 is never its own ancestor).
+    ///
+    /// Calls a function `f` with each value and its distance; if `f` returns `true` the
+    /// traversal continues, otherwise returns.
+    ///
+    /// Returns the set of visited nodes.
+    fn traverse(
+        &self,
+        starts: &[ValueId],
+        mut f: impl FnMut(ValueId, u32) -> bool,
+    ) -> HashSet<ValueId> {
+        let mut visited: HashSet<ValueId> = HashSet::default();
+        let mut queue: VecDeque<(ValueId, u32)> = VecDeque::new();
+        for &s in starts {
+            visited.insert(s);
+            if !f(s, 0) {
+                return visited;
+            }
+            // From start nodes: follow only parent edges, not equivalences.
+            for &p in self.parents.get(&s).into_iter().flatten() {
+                if visited.insert(p) {
+                    queue.push_back((p, 1));
+                }
+            }
+        }
+        // From intermediate nodes: follow both parent and equivalence edges.
+        while let Some((curr, dist)) = queue.pop_front() {
+            if !f(curr, dist) {
+                return visited;
+            }
+            for &next in self
+                .parents
+                .get(&curr)
+                .into_iter()
+                .flatten()
+                .chain(self.equivalences.get(&curr).into_iter().flatten())
+            {
+                if visited.insert(next) {
+                    queue.push_back((next, dist + 1));
+                }
+            }
+        }
+        visited
+    }
+
+    /// Compute the set of all values reachable (inclusive) from any of the `starts` by following
+    /// `parents` and `equivalences` edges backwards.
+    fn ancestors(&self, starts: &[ValueId]) -> HashSet<ValueId> {
+        self.traverse(starts, |_, _| true)
+    }
+
+    /// The [`Ball`] around a value.
+    fn ball(&self, start: ValueId, max_ancestor_distance: u32) -> Ball {
+        let mut values = Vec::new();
+        self.traverse(&[start], |a, d| {
+            values.push(a);
+            d <= max_ancestor_distance
+        });
+        let set = values.iter().copied().collect();
+        Ball { values, set }
+    }
+}
+
 /// The values within `max_ancestor_distance` of a constrained value, found by following
 /// `parents` (and `equivalences` from intermediate nodes) backwards. The traversal also
 /// includes the first value it reaches beyond that distance.
@@ -205,21 +333,6 @@ struct Ball {
 }
 
 impl Ball {
-    fn new(
-        start: ValueId,
-        parents: &HashMap<ValueId, Vec<ValueId>>,
-        equivalences: &HashMap<ValueId, Vec<ValueId>>,
-        max_ancestor_distance: u32,
-    ) -> Self {
-        let mut values = Vec::new();
-        bfs_traverse_ancestors(&[start], parents, equivalences, |a, d| {
-            values.push(a);
-            d <= max_ancestor_distance
-        });
-        let set = values.iter().copied().collect();
-        Self { values, set }
-    }
-
     /// Whether `value` is in the ball.
     fn contains(&self, value: &ValueId) -> bool {
         self.set.contains(value)
@@ -639,23 +752,8 @@ struct Context {
     /// so that we can limit the amount of ancestry we collect.
     constraints: HashSet<InstructionId>,
 
-    /// Direct parent graph for tracked values.
-    ///
-    /// `parents[v]` = the immediate instruction arguments that produced `v`,
-    /// plus the active side-effect condition (if any) at the time `v` was produced.
-    ///
-    /// We track parents for values which either:
-    /// * have constraints on them, or
-    /// * are inputs to a Brillig call.
-    ///
-    /// Transitive ancestry is computed on demand via BFS instead of being pre-computed.
-    parents: HashMap<ValueId, Vec<ValueId>>,
-
-    /// Bidirectional equivalence edges from `constrain v1 == v2` instructions.
-    ///
-    /// If `v1` and `v2` are equivalent, any ancestor of `v1` is also an ancestor of `v2`
-    /// and vice versa. BFS follows these edges alongside `parents` edges.
-    equivalences: HashMap<ValueId, Vec<ValueId>>,
+    /// Ancestry of the values relevant to constraining Brillig outputs.
+    graph: AncestryGraph,
 
     /// Maximum length of an array for which we consider constraining items per index.
     max_array_output_length: u32,
@@ -671,8 +769,7 @@ impl Context {
             tainted: TaintedCalls::default(),
             constrainable: Constrainable::default(),
             constraints: HashSet::default(),
-            parents: HashMap::default(),
-            equivalences: HashMap::default(),
+            graph: AncestryGraph::default(),
             max_array_output_length,
             max_ancestor_distance,
         }
@@ -715,28 +812,18 @@ impl Context {
                 let mut args: Option<Vec<ValueId>> = None;
 
                 for result_id in result_ids {
-                    if is_numeric_constant(func, *result_id)
-                        || !self.parents.contains_key(result_id)
-                    {
+                    if is_numeric_constant(func, *result_id) || !self.graph.is_tracked(result_id) {
                         continue;
                     }
 
                     let args = args.get_or_insert_with(|| parent_arguments(func, instruction));
 
-                    self.parents.entry(*result_id).or_default().extend(args.iter().copied());
-
-                    // Ensure each arg is itself tracked so that when we reach the instruction
-                    // that produces arg (going backward), we expand its parents too.
-                    for &arg in args.iter() {
-                        self.parents.entry(arg).or_default();
-                    }
+                    self.graph.add_parents(*result_id, args);
 
                     // Add the active side-effect condition as an additional parent so that
                     // BFS can reach the condition's ancestors from this result.
                     if let Some(&se) = side_effect_at.get(instruction_id) {
-                        self.parents.entry(*result_id).or_default().push(se);
-                        // Ensure the condition itself is tracked.
-                        self.parents.entry(se).or_default();
+                        self.graph.add_parents(*result_id, &[se]);
                     }
 
                     // If this is a Load, remember it so Store can fix up the placeholder parent.
@@ -754,15 +841,9 @@ impl Context {
                 if let Instruction::Store { address, value } = instruction
                     && let Some(pending) = pending_loads.remove(address)
                 {
+                    let value = (!is_numeric_constant(func, *value)).then_some(*value);
                     for tracked in pending {
-                        let parents_of_tracked =
-                            self.parents.get_mut(&tracked).expect("was inserted above");
-                        parents_of_tracked.retain(|&p| p != *address);
-                        if !is_numeric_constant(func, *value) {
-                            parents_of_tracked.push(*value);
-                            // Start tracking the stored value's own parents.
-                            self.parents.entry(*value).or_default();
-                        }
+                        self.graph.replace_parent(tracked, *address, value);
                     }
                 }
 
@@ -775,7 +856,7 @@ impl Context {
                 if should_track {
                     let args = args.get_or_insert_with(|| instruction_arguments(func, instruction));
                     for value_id in args.iter() {
-                        self.parents.entry(*value_id).or_default();
+                        self.graph.track(*value_id);
                     }
                 }
 
@@ -783,8 +864,7 @@ impl Context {
                 // These are followed bidirectionally during BFS so that ancestry flows
                 // through equivalent values.
                 if let Some((v1, v2)) = as_equivalence(func, instruction) {
-                    self.equivalences.entry(v1).or_default().push(v2);
-                    self.equivalences.entry(v2).or_default().push(v1);
+                    self.graph.add_equivalence(v1, v2);
                 }
             }
         }
@@ -793,10 +873,8 @@ impl Context {
         // arg_ancestors is the union of all values reachable backwards from any argument,
         // including the arguments themselves. This is pre-computed once so that
         // arguments_intersect can check membership in O(1) per constrained value.
-        let parents = &self.parents;
-        let equivalences = &self.equivalences;
         for tainted in self.tainted.iter_mut() {
-            tainted.arg_ancestors = bfs_ancestors(&tainted.arguments, parents, equivalences);
+            tainted.arg_ancestors = self.graph.ancestors(&tainted.arguments);
         }
 
         self
@@ -1034,9 +1112,8 @@ impl Context {
             return false;
         }
 
-        let balls = vecmap(constrained_values, |value| {
-            Ball::new(*value, &self.parents, &self.equivalences, self.max_ancestor_distance)
-        });
+        let balls =
+            vecmap(constrained_values, |value| self.graph.ball(*value, self.max_ancestor_distance));
 
         let mut progressed = false;
         for index in candidates.iter() {
@@ -1174,66 +1251,6 @@ fn instruction_results(func: &Function, instruction_id: &InstructionId) -> Vec<V
         .filter(|value| !is_numeric_constant(func, **value))
         .copied()
         .collect()
-}
-
-/// Compute the set of all values reachable (inclusive) from any of the `starts` by following
-/// `parents` and `equivalences` edges backwards.
-///
-/// Equivalences are only followed from **intermediate** nodes (not from the starting nodes
-/// themselves). This matches the original transitive-closure semantics: `constrain v1 == v2`
-/// adds v2 to the ancestor sets of keys that *already* have v1 as an ancestor, but does **not**
-/// add v2 to v1's own ancestor set (because v1 is never its own ancestor).
-///
-/// Calls a function `f` with each value; if `f` returns `true` the traversal continues, otherwise returns.
-///
-/// Returns the set of visited nodes.
-fn bfs_traverse_ancestors(
-    starts: &[ValueId],
-    parents: &HashMap<ValueId, Vec<ValueId>>,
-    equivalences: &HashMap<ValueId, Vec<ValueId>>,
-    mut f: impl FnMut(ValueId, u32) -> bool,
-) -> HashSet<ValueId> {
-    let mut visited: HashSet<ValueId> = HashSet::default();
-    let mut queue: VecDeque<(ValueId, u32)> = VecDeque::new();
-    for &s in starts {
-        visited.insert(s);
-        if !f(s, 0) {
-            return visited;
-        }
-        // From start nodes: follow only parent edges, not equivalences.
-        for &p in parents.get(&s).into_iter().flatten() {
-            if visited.insert(p) {
-                queue.push_back((p, 1));
-            }
-        }
-    }
-    // From intermediate nodes: follow both parent and equivalence edges.
-    while let Some((curr, dist)) = queue.pop_front() {
-        if !f(curr, dist) {
-            return visited;
-        }
-        for &next in parents
-            .get(&curr)
-            .into_iter()
-            .flatten()
-            .chain(equivalences.get(&curr).into_iter().flatten())
-        {
-            if visited.insert(next) {
-                queue.push_back((next, dist + 1));
-            }
-        }
-    }
-    visited
-}
-
-/// Compute the set of all values reachable (inclusive) from any of the `starts` by following
-/// `parents` and `equivalences` edges backwards.
-fn bfs_ancestors(
-    starts: &[ValueId],
-    parents: &HashMap<ValueId, Vec<ValueId>>,
-    equivalences: &HashMap<ValueId, Vec<ValueId>>,
-) -> HashSet<ValueId> {
-    bfs_traverse_ancestors(starts, parents, equivalences, |_, _| true)
 }
 
 #[cfg(test)]
