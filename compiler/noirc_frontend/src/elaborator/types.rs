@@ -1,6 +1,7 @@
 //! Type resolution, unification, and method resolution (for both types and traits).
 mod similarly_named_types;
 
+use crate::hir_def::expr::ConstraintStatus;
 use std::{borrow::Cow, collections::BTreeSet, rc::Rc};
 
 use acvm::{AcirField, FieldElement};
@@ -1495,7 +1496,8 @@ impl Elaborator<'_> {
         // Allow referring to trait constants via Self:: as well
         let definition = the_trait.find_method_or_constant(method.as_str(), self.interner)?;
         let constraint = the_trait.as_constraint(path.location);
-        let trait_method = TraitItem { definition, constraint, assumed: true };
+        let trait_method =
+            TraitItem { definition, constraint, constraint_status: ConstraintStatus::Assumed };
         let method = TraitPathResolutionMethod::TraitItem(trait_method);
         Some(TraitPathResolution { method, item: None, errors: Vec::new() })
     }
@@ -1526,7 +1528,8 @@ impl Elaborator<'_> {
         let trait_resolution = if let Some(func_id) = method_func_id {
             let definition = self.interner.function_definition_id(func_id);
             self.record_direct_method_reference(func_id, &last_segment.ident);
-            let trait_item = TraitItem { definition, constraint, assumed: false };
+            let trait_item =
+                TraitItem { definition, constraint, constraint_status: ConstraintStatus::Required };
             let item = PathResolutionItem::TraitFunction(trait_id, turbofish, func_id);
             Some(TraitPathResolution {
                 method: TraitPathResolutionMethod::TraitItem(trait_item),
@@ -1534,7 +1537,8 @@ impl Elaborator<'_> {
                 errors: resolution.errors,
             })
         } else if let Some(definition) = associated_constant {
-            let trait_item = TraitItem { definition, constraint, assumed: true };
+            let trait_item =
+                TraitItem { definition, constraint, constraint_status: ConstraintStatus::Assumed };
             Some(TraitPathResolution {
                 method: TraitPathResolutionMethod::TraitItem(trait_item),
                 item: None,
@@ -1630,7 +1634,11 @@ impl Elaborator<'_> {
                 let trait_id = constraint.trait_bound.trait_id;
                 let the_trait = self.interner.get_trait(trait_id);
                 let definition = the_trait.find_method_or_constant(method_name, self.interner)?;
-                let trait_item = TraitItem { definition, constraint, assumed: true };
+                let trait_item = TraitItem {
+                    definition,
+                    constraint,
+                    constraint_status: ConstraintStatus::Assumed,
+                };
                 Some((TraitPathResolutionMethod::TraitItem(trait_item), trait_id))
             })
             .collect()
@@ -2025,7 +2033,11 @@ impl Elaborator<'_> {
                 let mut constraint = trait_.as_constraint(location);
                 constraint.typ = typ.clone();
 
-                let trait_method = TraitItem { definition, constraint, assumed: false };
+                let trait_method = TraitItem {
+                    definition,
+                    constraint,
+                    constraint_status: ConstraintStatus::Required,
+                };
                 let func_id = hir_method_reference.func_id(self.interner)?;
                 let item = PathResolutionItem::TypeTraitFunction(typ.clone(), trait_id, func_id);
 
@@ -3416,12 +3428,12 @@ impl Elaborator<'_> {
         let trait_ = self.interner.get_trait(trait_id);
         let trait_generics = trait_.get_trait_generics(location);
         let definition = trait_.find_method(method_name, self.interner).unwrap();
-        let assumed = false;
+        let constraint_status = ConstraintStatus::Required;
         HirMethodReference::TraitItemId(HirTraitMethodReference {
             definition,
             trait_id,
             trait_generics,
-            assumed,
+            constraint_status,
         })
     }
 
@@ -3468,12 +3480,12 @@ impl Elaborator<'_> {
             );
             if matches.len() == 1 {
                 let method = matches.remove(0);
-                let assumed = true;
+                let constraint_status = ConstraintStatus::Assumed;
                 // If it is, it's an assumed trait
                 // Note that here we use the `trait_id` from `TraitItemId` because looking a method on a trait
                 // might return a method on a parent trait.
                 return Some(HirMethodReference::TraitItemId(HirTraitMethodReference {
-                    assumed,
+                    constraint_status,
                     ..method
                 }));
             }
@@ -3599,7 +3611,7 @@ impl Elaborator<'_> {
                     definition,
                     trait_id: bound.trait_id,
                     trait_generics: bound.trait_generics,
-                    assumed: false,
+                    constraint_status: ConstraintStatus::Required,
                 })
             })
             .collect()
@@ -3905,7 +3917,7 @@ impl Elaborator<'_> {
     pub(crate) fn bind_generics_from_trait_constraint(
         &self,
         constraint: &TraitConstraint,
-        assumed: bool,
+        constraint_status: ConstraintStatus,
         bindings: &mut TypeBindings,
     ) {
         let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
@@ -3926,7 +3938,7 @@ impl Elaborator<'_> {
         // may call other methods on `Self`. Its "arguments" are just the trait's own variables
         // (`Self`, its generics, its associated types), so this maps each variable to itself.
         // See the doc comment for why those self-mappings are not no-ops.
-        if assumed {
+        if constraint_status == ConstraintStatus::Assumed {
             let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
             the_trait.bind_given_arguments(
                 &constraint.typ,

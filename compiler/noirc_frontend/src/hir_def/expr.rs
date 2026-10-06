@@ -88,7 +88,19 @@ pub struct TraitItem {
     /// not the id within the impl.
     pub definition: DefinitionId,
     pub constraint: TraitConstraint,
-    pub assumed: bool,
+    pub constraint_status: ConstraintStatus,
+}
+
+/// Whether the constraint a trait item is reached through is already known to hold, or still
+/// has to be shown to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ConstraintStatus {
+    /// It is a bound assumed in the current scope: a where-clause bound, or the
+    /// `Self: CurrentTrait` that holds inside the trait's own methods. The item resolves to the
+    /// impl the bound stands for, which is chosen once the bound's type is known.
+    Assumed,
+    /// It still has to be solved for an impl, as in `Trait::method(x)`.
+    Required,
 }
 
 impl TraitItem {
@@ -259,7 +271,7 @@ pub struct HirTraitMethodReference {
     pub trait_id: TraitId,
     pub definition: DefinitionId,
     pub trait_generics: TraitGenerics,
-    pub assumed: bool,
+    pub constraint_status: ConstraintStatus,
 }
 
 impl HirMethodReference {
@@ -295,14 +307,17 @@ impl HirMethodReference {
                 definition,
                 trait_id,
                 trait_generics,
-                assumed,
+                constraint_status,
             }) => {
                 let constraint = TraitConstraint {
                     typ: Self::find_self_type(definition, object_type, interner),
                     trait_bound: ResolvedTraitBound { trait_id, trait_generics, location },
                 };
 
-                (definition, ImplKind::TraitItem(TraitItem { definition, constraint, assumed }))
+                (
+                    definition,
+                    ImplKind::TraitItem(TraitItem { definition, constraint, constraint_status }),
+                )
             }
         };
         let func_var = HirIdent { location, id, impl_kind };

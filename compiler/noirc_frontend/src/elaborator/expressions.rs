@@ -1,5 +1,6 @@
 //! Expression elaboration, covering all expression [kinds][ExpressionKind].
 
+use crate::hir_def::expr::ConstraintStatus;
 use std::collections::{BTreeSet, HashMap};
 
 use iter_extended::vecmap;
@@ -2071,7 +2072,11 @@ impl Elaborator<'_> {
             return (error, Type::Error);
         };
 
-        let trait_item = TraitItem { definition, constraint: constraint.clone(), assumed: false };
+        let trait_item = TraitItem {
+            definition,
+            constraint: constraint.clone(),
+            constraint_status: ConstraintStatus::Required,
+        };
 
         let ident = HirIdent {
             location: path.impl_item.location(),

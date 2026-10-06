@@ -1,6 +1,7 @@
 //! Everything to do with elaboration of variables.
 //! Notably, variables may require trait constraints to be solved later on.
 
+use crate::hir_def::expr::ConstraintStatus;
 use itertools::Itertools;
 
 use super::Elaborator;
@@ -1089,12 +1090,16 @@ impl Elaborator<'_> {
                 definition,
                 trait_id,
                 trait_generics,
-                assumed: _,
+                constraint_status: _,
             }) => {
                 let mut constraint =
                     self.interner.get_trait(trait_id).as_constraint(ident_location);
                 constraint.trait_bound.trait_generics = trait_generics;
-                ImplKind::TraitItem(TraitItem { definition, constraint, assumed: false })
+                ImplKind::TraitItem(TraitItem {
+                    definition,
+                    constraint,
+                    constraint_status: ConstraintStatus::Required,
+                })
             }
         };
 
@@ -1224,7 +1229,7 @@ impl Elaborator<'_> {
         if let ImplKind::TraitItem(method) = &ident.impl_kind {
             self.bind_generics_from_trait_constraint(
                 &method.constraint,
-                method.assumed,
+                method.constraint_status,
                 &mut bindings,
             );
         }
@@ -1292,7 +1297,7 @@ impl Elaborator<'_> {
 
         if let ImplKind::TraitItem(mut method) = ident.impl_kind {
             method.constraint.apply_bindings(&bindings);
-            if method.assumed {
+            if method.constraint_status == ConstraintStatus::Assumed {
                 let trait_generics = method.constraint.trait_bound.trait_generics.clone();
                 let object_type = method.constraint.typ;
                 let trait_impl = TraitImplKind::Assumed { object_type, trait_generics };

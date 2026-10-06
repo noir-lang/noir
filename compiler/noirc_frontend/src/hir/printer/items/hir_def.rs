@@ -1,3 +1,4 @@
+use crate::hir_def::expr::ConstraintStatus;
 use std::borrow::Cow;
 
 use itertools::Itertools;
@@ -439,7 +440,7 @@ impl ItemPrinter<'_, '_> {
             };
 
             let show_as_trait_as_path = shadowed_by_inherent
-                || if trait_method.assumed {
+                || if trait_method.constraint_status == ConstraintStatus::Assumed {
                     // Is this `self.foo()` where `self` is currently a trait?
                     // If so, show it as `self.foo()` instead of `Self::foo(self)`.
                     let method_on_trait_self =

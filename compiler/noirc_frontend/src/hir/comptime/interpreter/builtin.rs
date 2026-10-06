@@ -1,6 +1,7 @@
 //! Large file containing implementations of all the various built-in functions
 //! which can be called in the interpreter. This notably includes the entire comptime-API
 //! defined in `noir_stdlib/src/meta/*`
+use crate::hir_def::expr::ConstraintStatus;
 use std::{
     hash::{Hash as _, Hasher as _},
     rc::Rc,
@@ -2665,7 +2666,8 @@ fn function_def_as_typed_expr(
             ResolvedTraitBound { trait_id: trait_impl.trait_id, trait_generics, location };
         let constraint = TraitConstraint { typ: trait_impl.typ.clone(), trait_bound };
         let id = interpreter.elaborator.interner.get_trait_item_id(func_id).unwrap().item_id;
-        let trait_method = TraitItem { definition: id, constraint, assumed: true };
+        let trait_method =
+            TraitItem { definition: id, constraint, constraint_status: ConstraintStatus::Assumed };
         HirIdent { location, id, impl_kind: ImplKind::TraitItem(trait_method) }
     } else {
         HirIdent::non_trait_method(definition_id, location)
