@@ -97,11 +97,12 @@ fn not_source(n: u32) -> String {
     format!("acir(inline) fn main f0 {{\n  b0(v0: u{n}):\n    v1 = not v0\n    return v1\n}}\n")
 }
 
-/// `fn main(v0: u<n>) -> u<n> { v0 >> c }` after `remove_bit_shifts`, which
-/// turns it into a division by `2^c`.
-fn shr_ssa(n: u32, c: u32) -> Ssa {
+/// `fn main(v0: u<n>) -> u<n> { v0 <op> c }` for `shr` or `shl`, after
+/// `remove_bit_shifts`: `shr` becomes a division by `2^c`, and `shl` a
+/// multiplication by `2^c` followed by a truncation to `n` bits.
+fn shift_ssa(op: &str, n: u32, c: u32) -> Ssa {
     let src = format!(
-        "acir(inline) fn main f0 {{\n  b0(v0: u{n}):\n    v1 = shr v0, u{n} {c}\n    return v1\n}}\n"
+        "acir(inline) fn main f0 {{\n  b0(v0: u{n}):\n    v1 = {op} v0, u{n} {c}\n    return v1\n}}\n"
     );
     Ssa::from_str(&src).unwrap().remove_bit_shifts()
 }
@@ -340,10 +341,12 @@ fn emitted() -> String {
         section(&format!("{stage}_field_div"), 254, compile(FIELD_DIV_SOURCE));
     }
     let ssa_stages: [(&str, CompileSsa); 2] = [("acir", acir_of_ssa), ("shipped", shipped_of_ssa)];
-    for (stage, compile) in ssa_stages {
-        for n in PINNED_WIDTHS {
-            for c in 1..n {
-                section(&format!("{stage}_shr_{c}"), n, compile(shr_ssa(n, c)));
+    for op in ["shr", "shl"] {
+        for (stage, compile) in ssa_stages {
+            for n in PINNED_WIDTHS {
+                for c in 1..n {
+                    section(&format!("{stage}_{op}_{c}"), n, compile(shift_ssa(op, n, c)));
+                }
             }
         }
     }

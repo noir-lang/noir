@@ -47,4 +47,6 @@ def shippedTruncate (n : ℕ) : Circuit :=
 
 def shippedShr (n c : ℕ) : Circuit := { acirGenShr n c with opcodes := dropRepeats (acirGenShr n c).opcodes }
 
+def shippedShl (n c : ℕ) : Circuit := { acirGenShl n c with opcodes := dropRepeats (acirGenShl n c).opcodes }
+
 end AcirLean

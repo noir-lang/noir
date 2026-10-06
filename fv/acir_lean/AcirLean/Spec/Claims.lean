@@ -98,6 +98,12 @@ def ShrOp (n c : ℕ) : List ℕ → List ℕ → Prop
   | [a], [r] => a < 2 ^ n ∧ r = a / 2 ^ c
   | _, _ => False
 
+/-- `shl` by the constant `c` on `u<n>`: one `n`-bit input `a`, and the result
+`a << c` with the bits above `n` dropped, which is `a · 2^c mod 2^n`. -/
+def ShlOp (n c : ℕ) : List ℕ → List ℕ → Prop
+  | [a], [r] => a < 2 ^ n ∧ r = a * 2 ^ c % 2 ^ n
+  | _, _ => False
+
 /-- `div` on `Field`: a nonzero divisor `b`, and a result `r` with `r · b = a`
 in the field, so `r = a / b`. Noir's SSA interpreter fails on a zero divisor,
 so a circuit that accepted one would break this. -/
@@ -146,9 +152,9 @@ def SignedOp (n : ℕ) (op : ℤ → ℤ → ℤ) : List ℕ → List ℕ → Pr
 * `eq` and `not` on `u<n>`, and `div` on `Field`, as ACIR generation compiles
   them and as `nargo compile` ships them (the same circuit), compute their SSA
   meaning, rejecting a zero `Field` divisor;
-* `shr` by every constant `1 ≤ c < n` on `u<n>`, after `remove_bit_shifts`, as
-  ACIR generation compiles it and as `nargo compile` ships it, computes
-  `a >> c`;
+* `shr` and `shl` by every constant `1 ≤ c < n` on `u<n>`, after
+  `remove_bit_shifts`, as ACIR generation compiles them and as `nargo compile`
+  ships them, compute `a >> c` and `a << c` (truncated to `n` bits);
 * no constraint list is contradictory. -/
 def AllClaims : Prop :=
   (∀ n ∈ pinnedWidths,
@@ -197,6 +203,9 @@ def AllClaims : Prop :=
   (SoundFunction acirGenFieldDiv FieldDivOp ∧ SatisfiableFunction acirGenFieldDiv) ∧
   (∀ n ∈ pinnedWidths, ∀ c ∈ (List.range n).tail,
     SoundFunction (acirGenShr n c) (ShrOp n c) ∧ SatisfiableFunction (acirGenShr n c) ∧
-    SoundFunction (shippedShr n c) (ShrOp n c) ∧ SatisfiableFunction (shippedShr n c))
+    SoundFunction (shippedShr n c) (ShrOp n c) ∧ SatisfiableFunction (shippedShr n c)) ∧
+  (∀ n ∈ pinnedWidths, ∀ c ∈ (List.range n).tail,
+    SoundFunction (acirGenShl n c) (ShlOp n c) ∧ SatisfiableFunction (acirGenShl n c) ∧
+    SoundFunction (shippedShl n c) (ShlOp n c) ∧ SatisfiableFunction (shippedShl n c))
 
 end AcirLean

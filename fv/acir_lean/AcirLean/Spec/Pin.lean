@@ -130,6 +130,11 @@ def renderAll : String :=
       sec s!"acir_shr_{c} {n}" (acirGenShr n c).render) ++
     (pinnedWidths.flatMap fun n => (List.range n).tail.map fun c =>
       sec s!"shipped_shr_{c} {n}" (shippedShr n c).render) ++
+    -- `shl v0, c` likewise
+    (pinnedWidths.flatMap fun n => (List.range n).tail.map fun c =>
+      sec s!"acir_shl_{c} {n}" (acirGenShl n c).render) ++
+    (pinnedWidths.flatMap fun n => (List.range n).tail.map fun c =>
+      sec s!"shipped_shl_{c} {n}" (shippedShl n c).render) ++
     each signedWidths "shipped_signed_div" (fun n => (shippedSignedDiv n).render) ++
     each signedWidths "shipped_signed_mod" (fun n => (shippedSignedMod n).render) ++
     corpus.zipIdx.map (fun (e, i) => sec s!"corpus {i}" e.render)
