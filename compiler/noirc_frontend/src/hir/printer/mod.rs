@@ -454,13 +454,18 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         }
 
         // Filter out the parent bounds we already printed with colon syntax.
-        let where_only: Vec<_> =
-            trait_.where_clause.iter().filter(|c| !trait_.is_self_type(&c.typ)).cloned().collect();
+        let where_only: Vec<_> = trait_
+            .where_clause
+            .as_written()
+            .iter()
+            .filter(|c| !trait_.is_self_type(&c.typ))
+            .cloned()
+            .collect();
         self.show_where_clause(&where_only);
         self.push_str(" {\n");
         self.increase_indent();
 
-        self.trait_constraints = trait_.where_clause.clone();
+        self.trait_constraints = trait_.where_clause.as_written().to_vec();
         self.trait_self_typevar = Some(trait_.self_param.id());
 
         let mut printed_type_or_function = false;

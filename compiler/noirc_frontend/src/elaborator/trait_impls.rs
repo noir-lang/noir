@@ -791,7 +791,7 @@ impl Elaborator<'_> {
         let mut bindings = the_trait.bound_bindings(object_type, impl_generics);
 
         self.check_trait_bounds_are_satisfied(
-            the_trait.where_clause.clone(),
+            the_trait.where_clause.as_written().to_vec(),
             &impl_trait,
             &trait_impl.object_type.location,
             &mut bindings,

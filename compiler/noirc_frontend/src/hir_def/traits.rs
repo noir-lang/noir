@@ -80,11 +80,9 @@ pub struct Trait {
     /// The `Self` that everything declared on this trait refers to.
     pub self_param: TraitSelfType,
 
-    /// The trait's where clause. Super-trait bounds (`trait Foo: Bar`) are lowered into
-    /// this list as `TraitConstraint { typ: Self, trait_bound: Bar }` so that parent
-    /// bounds and where-clause constraints share a single representation. Use
-    /// [`Trait::parent_bounds`] to extract just the parent-trait bounds.
-    pub where_clause: Vec<TraitConstraint>,
+    /// The trait's where clause, including its parent bounds. Use [`Trait::parent_bounds`] for
+    /// the parent bounds alone.
+    pub where_clause: DeclaredWhereClause,
 
     /// Bounds implied on associated types reached through this trait's own where clause.
     /// E.g. for `trait Baz<T> where T: Foo` with `trait Foo { type E: Bar; }`, this holds
@@ -299,6 +297,30 @@ impl TraitSelfType {
     }
 }
 
+/// A trait's where clause, as declared. Parent bounds (`trait Foo: Bar`) are lowered into it as
+/// constraints on the trait's `Self`, so it holds both those and the other constraints of the
+/// trait's `where` clause.
+///
+/// Like a [`DeclaredBound`], it is written in terms of the trait's own `Self`, generics and
+/// associated items, and in terms of the placeholders its parent bounds put in for associated
+/// items they leave out, all shared by every use of the trait. Outside the trait it means
+/// something only once those are substituted, so its contents are reached through
+/// [`DeclaredWhereClause::as_written`], whose callers substitute or only display.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct DeclaredWhereClause(Vec<TraitConstraint>);
+
+impl DeclaredWhereClause {
+    /// The constraints exactly as declared, for display, for use inside the trait, or to be
+    /// substituted by the caller.
+    pub fn as_written(&self) -> &[TraitConstraint] {
+        &self.0
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
+
 /// A trait bound as declared on a trait: a parent bound (the `Bar<Self>` in
 /// `trait Foo: Bar<Self>`) or a bound on one of its associated types (the `Baz<Self>` in
 /// `trait Foo { type Out: Baz<Self>; }`).
@@ -435,7 +457,7 @@ impl Trait {
     }
 
     pub fn set_where_clause(&mut self, where_clause: Vec<TraitConstraint>) {
-        self.where_clause = where_clause;
+        self.where_clause = DeclaredWhereClause(where_clause);
     }
 
     /// The parent-trait bounds of this trait (the `Bar` in `trait Foo: Bar`).
@@ -444,6 +466,7 @@ impl Trait {
     /// trait's `Self` (see [`Self::is_self_type`]); this accessor filters them back out.
     pub fn parent_bounds(&self) -> impl Iterator<Item = DeclaredBound> + '_ {
         self.where_clause
+            .0
             .iter()
             .filter(|c| self.is_self_type(&c.typ))
             .map(|c| DeclaredBound::new(c.trait_bound.clone()))

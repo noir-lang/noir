@@ -241,7 +241,7 @@ impl DocItemBuilder<'_> {
                 let name = trait_.name.to_string();
                 let comments = self.doc_comments(ReferenceId::Trait(trait_id));
                 let generics = vecmap(&trait_.generics, |generic| self.convert_generic(generic));
-                let where_clause = vecmap(&trait_.where_clause, |constraint| {
+                let where_clause = vecmap(trait_.where_clause.as_written(), |constraint| {
                     self.convert_trait_constraint(constraint)
                 });
                 self.trait_constraints = where_clause.clone();

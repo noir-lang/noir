@@ -33,7 +33,9 @@ use crate::token::MetaAttributeName;
 use crate::ResolvedGenerics;
 use crate::TraitAssociatedType;
 use crate::ast::{BinaryOpKind, ItemVisibility};
-use crate::hir_def::traits::{Impl, Trait, TraitConstraint, TraitImpl, TraitSelfType};
+use crate::hir_def::traits::{
+    DeclaredWhereClause, Impl, Trait, TraitConstraint, TraitImpl, TraitSelfType,
+};
 use crate::hir_def::types::{DataType, Kind, Type};
 use crate::hir_def::{
     expr::HirExpression,
@@ -592,7 +594,7 @@ impl NodeInterner {
             method_ids: unresolved_trait.method_ids.clone(),
             associated_types,
             associated_type_bounds: HashMap::default(),
-            where_clause: Vec::new(),
+            where_clause: DeclaredWhereClause::default(),
             implicit_associated_type_constraints: Vec::new(),
             all_generics: Vec::new(),
             associated_constant_ids,
@@ -1360,7 +1362,7 @@ impl NodeInterner {
             location: Location::dummy(),
             visibility: ItemVisibility::Public,
             self_param: TraitSelfType::new(self_type_id),
-            where_clause: vec![],
+            where_clause: DeclaredWhereClause::default(),
             implicit_associated_type_constraints: vec![],
             all_generics: vec![],
             associated_constant_ids: Default::default(),
