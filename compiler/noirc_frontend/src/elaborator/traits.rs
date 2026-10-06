@@ -184,7 +184,7 @@ use crate::{
     elaborator::{
         PathResolutionMode, PathResolutionTarget, WildcardDisallowedContext,
         path_resolution::PathResolutionItem,
-        types::{SELF_TYPE_NAME, WildcardAllowed},
+        types::{SELF_TYPE_NAME, WildcardAllowed, bound_key},
     },
     hir::{
         comptime::InterpreterError,
@@ -718,50 +718,40 @@ impl Elaborator<'_> {
     ) -> (Vec<TypeVariable>, Vec<TraitConstraint>) {
         let mut new_generics = Vec::new();
         let mut new_constraints = Vec::new();
-        let mut visited = rustc_hash::FxHashSet::default();
 
         for constraint in constraints {
-            self.collect_parent_associated_types(
+            let mut seen = BTreeSet::from([bound_key(&constraint.trait_bound)]);
+            let parents = self.implied_parent_bounds(
                 &constraint.typ,
                 &constraint.trait_bound,
-                &mut new_generics,
-                &mut new_constraints,
-                &mut visited,
+                &mut seen,
+                bound_key,
             );
-            visited.clear();
+            for parent in parents {
+                self.add_parent_associated_type_constraint(
+                    &constraint.typ,
+                    parent,
+                    &mut new_generics,
+                    &mut new_constraints,
+                );
+            }
         }
 
         (new_generics, new_constraints)
     }
 
-    /// Recursively walk parent trait hierarchies and create fresh type variables
-    /// for any associated types found on parent traits. The new constraints are
-    /// added to the bounds in scope and returned via the output parameters.
+    /// If `instantiated` (a parent bound implied for `object_type`) has associated types, give each
+    /// one a fresh per-function generic and add the resulting bound to the bounds in scope and to
+    /// the output parameters.
     #[tracing::instrument(level = "trace", skip_all)]
-    fn collect_parent_associated_types(
+    fn add_parent_associated_type_constraint(
         &mut self,
         object_type: &Type,
-        trait_bound: &ResolvedTraitBound,
+        instantiated: ResolvedTraitBound,
         new_generics: &mut Vec<TypeVariable>,
         new_constraints: &mut Vec<TraitConstraint>,
-        visited: &mut rustc_hash::FxHashSet<TraitId>,
     ) {
-        let trait_id = trait_bound.trait_id;
-        if !visited.insert(trait_id) {
-            return;
-        }
-
-        let parent_bounds: Vec<_> = self
-            .interner
-            .try_get_trait(trait_id)
-            .map(|t| t.parent_bounds().collect())
-            .unwrap_or_default();
-
-        for parent_bound in &parent_bounds {
-            // Substitute the child trait's bindings into the parent bound.
-            let instantiated =
-                self.instantiate_declared_bound(object_type, trait_bound, parent_bound);
-
+        {
             // Skip if there are no associated types on this parent trait,
             // or if we already have a constraint for this type + parent trait.
             let has_named = !instantiated.trait_generics.named.is_empty();
@@ -824,15 +814,6 @@ impl Elaborator<'_> {
                 );
                 new_constraints.push(parent_constraint);
             }
-
-            // Recurse for grandparent traits
-            self.collect_parent_associated_types(
-                object_type,
-                &instantiated,
-                new_generics,
-                new_constraints,
-                visited,
-            );
         }
     }
 
