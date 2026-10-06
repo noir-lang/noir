@@ -1641,6 +1641,7 @@ impl NodeInterner {
             trait_id,
             impl_id,
             trait_impl_generics,
+            &TypeBindings::default(),
             impl_self_type,
             TYPE_RECURSION_LIMIT,
             &mut visited,
@@ -1650,12 +1651,16 @@ impl NodeInterner {
         bindings
     }
 
+    /// `impl_instantiation` maps `impl_id`'s own generics to their values for `impl_self_type`.
+    /// It is empty for the impl being checked, whose generics are in scope, and comes from the
+    /// impl search for a parent impl reached through it.
     #[allow(clippy::too_many_arguments)]
     fn trait_to_impl_bindings_helper(
         &self,
         trait_id: TraitId,
         impl_id: TraitImplId,
         trait_impl_generics: &[Type],
+        impl_instantiation: &TypeBindings,
         impl_self_type: &Type,
         recursion_limit: u32,
         visited: &mut HashSet<TraitImplId>,
@@ -1681,7 +1686,11 @@ impl NodeInterner {
             let type_var = trait_generic.type_var.clone();
             bindings.insert(
                 type_var.id(),
-                (type_var, trait_generic.kind().into_owned(), trait_impl_generic.clone()),
+                (
+                    type_var,
+                    trait_generic.kind().into_owned(),
+                    trait_impl_generic.substitute(impl_instantiation),
+                ),
             );
         }
 
@@ -1705,7 +1714,11 @@ impl NodeInterner {
             let type_variable = trait_type.type_var.clone();
             bindings.insert(
                 type_variable.id(),
-                (type_variable, trait_type.kind().into_owned(), impl_type.typ.clone()),
+                (
+                    type_variable,
+                    trait_type.kind().into_owned(),
+                    impl_type.typ.substitute(impl_instantiation),
+                ),
             );
         }
 
@@ -1735,13 +1748,15 @@ impl NodeInterner {
                 &parent_generics.named,
             ) {
                 Ok(
-                    (TraitImplKind::Normal(impl_id), _) | (TraitImplKind::Prepared(impl_id, _), _),
+                    (TraitImplKind::Normal(impl_id), instantiation)
+                    | (TraitImplKind::Prepared(impl_id, _), instantiation),
                 ) => {
                     let ordered_generics = self.get_ordered_generics_for_impl(impl_id);
                     self.trait_to_impl_bindings_helper(
                         trait_id,
                         impl_id,
                         ordered_generics,
+                        &instantiation,
                         impl_self_type,
                         recursion_limit,
                         visited,

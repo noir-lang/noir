@@ -498,13 +498,17 @@ impl Elaborator<'_> {
                 Ok((
                     TraitImplKind::Normal(parent_impl_id)
                     | TraitImplKind::Prepared(parent_impl_id, _),
-                    _,
-                    _,
+                    bindings,
+                    instantiation_bindings,
                 )) => {
+                    // The impl's associated type is written in terms of the impl's own generics
+                    // (`impl<let M: u32> P for S<M> { type Out = [u8; M]; }`); the search
+                    // instantiated those and matched them against `self_type`.
                     if let Some(typ) =
                         self.interner.find_associated_type_for_impl(parent_impl_id, name)
                     {
-                        return Some(typ.clone());
+                        let typ = typ.substitute(&instantiation_bindings).substitute(&bindings);
+                        return Some(typ);
                     }
                 }
                 Ok((TraitImplKind::Assumed { trait_generics, .. }, _, _)) => {
