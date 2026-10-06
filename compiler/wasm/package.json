@@ -69,7 +69,7 @@
     "mocha": "^12.0.2",
     "mocha-each": "^2.0.1",
     "path-browserify": "^1.0.1",
-    "prettier": "3.9.6",
+    "prettier": "3.9.9",
     "process": "^0.11.10",
     "readable-stream": "^4.7.0",
     "sinon": "^22.1.0",
