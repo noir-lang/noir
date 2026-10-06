@@ -342,8 +342,42 @@ def tryHint (deep : Bool) (body : List Instruction) (cc : List Opcode) (s : Reps
       return none
     if op = .div ∨ op = .mod then
       let n := match ra.ty with | .uint n => n | _ => 0
+      -- the gadget's own range-checked witnesses: quotient, remainder, and the
+      -- witness that shows `r < b`
+      let own := (cands.filterMap fun P => match P.filter (·.coef ≠ 0) with
+        | [⟨1, [w]⟩] => some w
+        | _ => none).eraseDups
+      let ranges := own.flatMap fun w => (cc.zipIdx.filterMap fun (c, idx) => match c with
+        | .range w' k => if w' = w ∧ k ≤ n then some (w, idx, k) else none
+        | _ => none)
+      let direct (P : Poly) : Option RangeEv := ranges.findSome? fun (w, idx, _) =>
+        let e : RangeEv := ⟨idx, []⟩
+        if P == pvar w ∧ (rangeOf cc s P e).isSome then some e else none
+      for ((ia, Xa), (ib, Xb)) in pairsOn do
+        for (wq, _, _) in ranges do
+          for (wr, _, _) in ranges do
+            if wq == wr then continue
+            let q := pvar wq
+            let r := pvar wr
+            let some qr := direct q | continue
+            let some rr := direct r | continue
+            let some c := find deep cc s (underFlag s.2 (psub (psub Xa (pmul Xb q)) r)) | continue
+            let lts : List LtEv := ranges.flatMap fun (w, idx, k) =>
+              let sub := (find deep cc s (underFlag s.2 (psub (psub (psub Xb r) (pconst 1)) (pvar w)))).map
+                fun cmb => LtEv.sub ⟨idx, cmb⟩
+              let shift := if rb.L = rb.M ∧ 2 ^ k ≥ rb.M then
+                  (find deep cc s (underFlag s.2 (psub (r ++ pconst (2 ^ k - rb.M)) (pvar w)))).map
+                    fun cmb => LtEv.shift (2 ^ k - rb.M) ⟨idx, cmb⟩
+                else none
+              sub.toList ++ shift.toList
+            for lt in lts do
+              let st := HStep.divmod q r ia ib c qr rr lt
+              if (hintStep cc s i st).isSome then return some st
+      -- any range-checked candidate, with bounds through combinations
       let ranged := (cands.filter fun P => match P with
-        | [⟨1, [w]⟩] | [⟨1, [w]⟩, ⟨0, []⟩] => cc.any fun c => c == .range w n || (match c with | .range w' k => w' = w ∧ k ≤ n | _ => false)
+        | [⟨1, [w]⟩] | [⟨1, [w]⟩, ⟨0, []⟩] => cc.any fun c => match c with
+          | .range w' k => w' = w ∧ k ≤ n
+          | _ => false
         | _ => false).map (fun P => P.filter (·.coef ≠ 0)) |>.eraseDups
       for ((ia, Xa), (ib, Xb)) in pairsOn do
         for q in ranged do
@@ -478,7 +512,7 @@ def tstr (t : Term) : String :=
 def pstr (P : Poly) : String := " + ".intercalate (P.map tstr)
 
 /-- The certificate, the return hints, and a log of each step. -/
-def cert (e : TestProgram) (h : PHints) (verbose : Bool) :
+def cert (e : TestProgram) (h : PHints) (verbose : Bool) (hintDivMod : Bool := false) :
     IO (List Entry × List (Option (ℕ × Comb)) × String) := do
   let mut stuckMsg := ""
   let cc := e.fn.opcodes
@@ -496,9 +530,10 @@ def cert (e : TestProgram) (h : PHints) (verbose : Bool) :
       if let some d := dest i then hmap := hmap.insert d E
     let t0 ← IO.monoMsNow
     let want := stepP cc s i
+    let isDivMod := match i with | .bin _ .div _ _ _ | .bin _ .mod _ _ _ => true | _ => false
     let useHint := match want with
       | none => true
-      | some s' => weak s' s
+      | some s' => weak s' s || (hintDivMod && isDivMod)
     let hint := if useHint then (tryHint false e.prog.body cc s i h k hintOf).orElse fun _ => tryHint true e.prog.body cc s i h k hintOf else none
     let (ix, st, s') ← match hint, want with
       | some st, _ =>
@@ -587,9 +622,11 @@ def main (args : List String) : IO Unit := do
   let mut nh := 0
   let mut na := 0
   let only := args.drop 2
+  -- FV_HINT_DIVMOD=1: give `div`/`mod` hint steps even where `stepP` succeeds
+  let hintDivMod := (← IO.getEnv "FV_HINT_DIVMOD") == some "1"
   for (e, idx) in testPrograms.zipIdx do
     if !only.isEmpty && !only.contains e.name then continue
-    let (c, r, msg) ← cert e (hints.getD e.name {}) (!only.isEmpty)
+    let (c, r, msg) ← cert e (hints.getD e.name {}) (!only.isEmpty) hintDivMod
     -- aliases and bounds cost the kernel at every later step; keep them only
     -- where the program needs them
     let bare := c.map fun en => { en with extra := none, bound := none }
