@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn branch_merge_case(choose: bool, cond: bool) -> Field {
+    let mut vec: [Field] = if choose {
+        [1_Field, 2_Field, 3_Field].as_vector()
+    } else {
+        [4_Field, 5_Field, 6_Field, 7_Field].as_vector()
+    };
+    if cond { vec[1_u32] = 99_Field; };
+    vec[2_u32]
+}
+
+fn main(choose: bool, cond: bool) -> pub Field {
+    branch_merge_case(choose, cond)
+}
