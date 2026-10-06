@@ -210,6 +210,13 @@ struct AncestryGraph {
     /// If `v1` and `v2` are equivalent, any ancestor of `v1` is also an ancestor of `v2`
     /// and vice versa. BFS follows these edges alongside `parents` edges.
     equivalences: HashMap<ValueId, Vec<ValueId>>,
+
+    /// The array of each tracked value read from an array at a dynamic index.
+    ///
+    /// The array is not a parent of such a value (see [`parent_arguments`]), so that a
+    /// constraint on it does not appear to constrain every item of the array. The value is
+    /// still derived from the array, though: if the array is constrained, so is the value.
+    read_arrays: HashMap<ValueId, ValueId>,
 }
 
 impl AncestryGraph {
@@ -249,6 +256,12 @@ impl AncestryGraph {
         self.equivalences.entry(v2).or_default().push(v1);
     }
 
+    /// Record that `value` was read from `array` at a dynamic index, and start tracking the array.
+    fn add_read_array(&mut self, value: ValueId, array: ValueId) {
+        self.read_arrays.insert(value, array);
+        self.track(array);
+    }
+
     /// Traverse the values reachable (inclusive) from any of the `starts` by following
     /// `parents` and `equivalences` edges backwards, breadth first.
     ///
@@ -264,8 +277,21 @@ impl AncestryGraph {
     fn traverse(
         &self,
         starts: &[ValueId],
+        f: impl FnMut(ValueId, u32) -> bool,
+    ) -> HashSet<ValueId> {
+        self.traverse_with(starts, false, f)
+    }
+
+    /// Like [`Self::traverse`], but if `follow_read_arrays` is set, it also goes from values
+    /// read at a dynamic index to the array they were read from.
+    fn traverse_with(
+        &self,
+        starts: &[ValueId],
+        follow_read_arrays: bool,
         mut f: impl FnMut(ValueId, u32) -> bool,
     ) -> HashSet<ValueId> {
+        let read_array =
+            |value: &ValueId| follow_read_arrays.then(|| self.read_arrays.get(value)).flatten();
         let mut visited: HashSet<ValueId> = HashSet::default();
         let mut queue: VecDeque<(ValueId, u32)> = VecDeque::new();
         for &s in starts {
@@ -274,7 +300,7 @@ impl AncestryGraph {
                 return visited;
             }
             // From start nodes: follow only parent edges, not equivalences.
-            for &p in self.parents.get(&s).into_iter().flatten() {
+            for &p in self.parents.get(&s).into_iter().flatten().chain(read_array(&s)) {
                 if visited.insert(p) {
                     queue.push_back((p, 1));
                 }
@@ -291,6 +317,7 @@ impl AncestryGraph {
                 .into_iter()
                 .flatten()
                 .chain(self.equivalences.get(&curr).into_iter().flatten())
+                .chain(read_array(&curr))
             {
                 if visited.insert(next) {
                     queue.push_back((next, dist + 1));
@@ -308,13 +335,18 @@ impl AncestryGraph {
 
     /// The [`Ball`] around a value.
     fn ball(&self, start: ValueId, max_ancestor_distance: u32) -> Ball {
-        let mut values = Vec::new();
-        self.traverse(&[start], |a, d| {
-            values.push(a);
-            d <= max_ancestor_distance
-        });
+        let collect = |follow_read_arrays| {
+            let mut values = Vec::new();
+            self.traverse_with(&[start], follow_read_arrays, |a, d| {
+                values.push(a);
+                d <= max_ancestor_distance
+            });
+            values
+        };
+        let values = collect(false);
         let set = values.iter().copied().collect();
-        Ball { values, set }
+        let data_values = if self.read_arrays.is_empty() { values.clone() } else { collect(true) };
+        Ball { values, set, data_values }
     }
 }
 
@@ -330,6 +362,9 @@ impl AncestryGraph {
 struct Ball {
     values: Vec<ValueId>,
     set: HashSet<ValueId>,
+    /// The values within the same distance when also going from values read at a dynamic
+    /// index to their array. Used to tell whether a tainted value has been constrained.
+    data_values: Vec<ValueId>,
 }
 
 impl Ball {
@@ -503,7 +538,14 @@ impl TaintedDescendants {
             });
 
             // Keep the array until all indexed items have been constrained.
-            !index_outputs.is_empty()
+            if index_outputs.is_empty() {
+                // Once all its items are constrained, the array as a whole is constrained too,
+                // which matters when it is passed on whole, for example into another call.
+                all_constrained.insert(*array);
+                false
+            } else {
+                true
+            }
         });
 
         progressed
@@ -528,7 +570,7 @@ impl TaintedDescendants {
             if all_tainted.contains(cv)
                 && (
                     // Tainted and hasn't been constrained.
-                    !ball.any(|a| all_constrained.contains(a))
+                    !ball.data_values.iter().any(|a| all_constrained.contains(a))
                     // Tainted because it's the output of this call itself.
                     || self.single_outputs.iter().any(|output| ball.contains(output))
                     || self.array_outputs.keys().any(|array| ball.contains(array))
@@ -819,6 +861,12 @@ impl Context {
                     let args = args.get_or_insert_with(|| parent_arguments(func, instruction));
 
                     self.graph.add_parents(*result_id, args);
+
+                    if let Instruction::ArrayGet { array, index } = instruction
+                        && func.dfg.get_numeric_constant(*index).is_none()
+                    {
+                        self.graph.add_read_array(*result_id, *array);
+                    }
 
                     // Add the active side-effect condition as an additional parent so that
                     // BFS can reach the condition's ancestors from this result.
@@ -2259,5 +2307,79 @@ mod tests {
 
         let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
         assert_eq!(ssa_level_warnings.len(), 0);
+    }
+
+    #[test]
+    #[traced_test]
+    /// Test where a value read at a dynamic index from a fully constrained array output
+    /// is the input of another call, which is constrained against it.
+    fn test_input_read_at_dynamic_index_from_constrained_array() {
+        let program = r#"
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 2], v1: u32):
+            v3 = call f1(v0) -> [Field; 2]
+            v5 = array_get v3, index u32 0 -> Field
+            v6 = array_get v0, index u32 0 -> Field
+            constrain v5 == v6
+            v8 = array_get v3, index u32 1 -> Field
+            v9 = array_get v0, index u32 1 -> Field
+            constrain v8 == v9
+            v10 = array_get v3, index v1 -> Field
+            v11 = call f2(v10) -> Field
+            v13 = mul v11, Field 2
+            constrain v13 == v10
+            return v11
+        }
+
+        brillig(inline) fn copy f1 {
+          b0(v0: [Field; 2]):
+            return v0
+        }
+
+        brillig(inline) fn half f2 {
+          b0(v0: Field):
+            v2 = div v0, Field 2
+            return v2
+        }
+        "#;
+
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
+        assert_eq!(ssa_level_warnings.len(), 0);
+    }
+
+    #[test]
+    #[traced_test]
+    /// Test where a value read at a dynamic index from a partially constrained array output
+    /// is the input of another call: the value may be the unconstrained item, so it can't
+    /// be relied on.
+    fn test_input_read_at_dynamic_index_from_partially_constrained_array() {
+        let program = r#"
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 2], v1: u32):
+            v3 = call f1(v0) -> [Field; 2]
+            v5 = array_get v3, index u32 0 -> Field
+            v6 = array_get v0, index u32 0 -> Field
+            constrain v5 == v6
+            v10 = array_get v3, index v1 -> Field
+            v11 = call f2(v10) -> Field
+            v13 = mul v11, Field 2
+            constrain v13 == v10
+            return v11
+        }
+
+        brillig(inline) fn copy f1 {
+          b0(v0: [Field; 2]):
+            return v0
+        }
+
+        brillig(inline) fn half f2 {
+          b0(v0: Field):
+            v2 = div v0, Field 2
+            return v2
+        }
+        "#;
+
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
+        assert_eq!(ssa_level_warnings.len(), 2);
     }
 }
