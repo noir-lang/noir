@@ -5,12 +5,13 @@ use std::rc::Rc;
 use crate::ResolvedGeneric;
 use crate::ast::{DocComment, Ident, ItemVisibility, NoirFunction};
 use crate::elaborator::types::SELF_TYPE_NAME;
+use crate::elaborator::types::{bind_named_generics, bind_ordered_generics};
 use crate::hir::type_check::generics::TraitGenerics;
 use crate::node_interner::{
     DefinitionId, ImplSearchErrorKind, NodeInterner, TraitImplKind, TraitLookupMode,
 };
 use crate::{
-    NamedGeneric, ResolvedGenerics, Type, TypeBindings, TypeVariable,
+    Kind, NamedGeneric, ResolvedGenerics, Type, TypeBindings, TypeVariable,
     graph::CrateId,
     node_interner::{FuncId, TraitId},
 };
@@ -251,6 +252,47 @@ pub struct ResolvedTraitBound {
     pub location: Location,
 }
 
+/// A parent-trait bound (the `Bar<Self>` in `trait Foo: Bar<Self>`) as declared on a trait.
+///
+/// It is written in terms of the declaring trait's own `Self`, generics and associated types,
+/// which are shared by every use of that trait. It only describes a real bound once those are
+/// replaced by the ones of a particular `T: Foo<..>`, so the declared form is not exposed except
+/// for display: read it with [`ParentBound::instantiate`].
+#[derive(Debug, Clone)]
+pub struct ParentBound(ResolvedTraitBound);
+
+impl ParentBound {
+    pub fn trait_id(&self) -> TraitId {
+        self.0.trait_id
+    }
+
+    /// The bound for one use of the declaring trait. `bindings` maps the declaring trait's
+    /// `Self`, generics and associated types to that use's (see [`Trait::bound_bindings`]).
+    ///
+    /// An associated item the bound leaves out (`trait Foo: Bar` where `Bar` has `type Out`) is
+    /// a placeholder declared once for the whole trait; `fresh_placeholder` replaces it with one
+    /// for this instantiation, so that resolving one use cannot bind it for every other.
+    pub fn instantiate(
+        &self,
+        bindings: &TypeBindings,
+        mut fresh_placeholder: impl FnMut(Kind) -> Type,
+    ) -> ResolvedTraitBound {
+        let mut trait_generics = self.0.trait_generics.map(|typ| typ.substitute(bindings));
+        for (named, declared) in trait_generics.named.iter_mut().zip(&self.0.trait_generics.named) {
+            if let Type::TypeVariable(placeholder) = &declared.typ {
+                named.typ = fresh_placeholder(placeholder.kind().into_owned());
+            }
+        }
+        ResolvedTraitBound { trait_generics, ..self.0 }
+    }
+
+    /// The bound exactly as written in the trait declaration, mentioning the declaring trait's
+    /// own `Self` and generics. Only for displaying the declaration.
+    pub fn as_written(&self) -> &ResolvedTraitBound {
+        &self.0
+    }
+}
+
 impl ResolvedTraitBound {
     /// Update all [Type]s in the bound generics by substituting some [`TypeBindings`] onto them.
     pub fn apply_bindings(&mut self, type_bindings: &TypeBindings) {
@@ -296,8 +338,31 @@ impl Trait {
     ///
     /// Parent bounds are stored in `where_clause` as constraints whose `typ` is this
     /// trait's `Self` (see [`Self::is_self_type`]); this accessor filters them back out.
-    pub fn parent_bounds(&self) -> impl Iterator<Item = &ResolvedTraitBound> {
-        self.where_clause.iter().filter(|c| self.is_self_type(&c.typ)).map(|c| &c.trait_bound)
+    pub fn parent_bounds(&self) -> impl Iterator<Item = ParentBound> + '_ {
+        self.where_clause
+            .iter()
+            .filter(|c| self.is_self_type(&c.typ))
+            .map(|c| ParentBound(c.trait_bound.clone()))
+    }
+
+    /// Bindings from this trait's own ordered generics and associated types to the arguments
+    /// of `trait_generics`, a bound on this trait.
+    pub fn bind_generics(&self, trait_generics: &TraitGenerics, bindings: &mut TypeBindings) {
+        bind_ordered_generics(&self.generics, &trait_generics.ordered, bindings);
+        bind_named_generics(self.associated_types.clone(), &trait_generics.named, bindings);
+    }
+
+    /// Bindings from this trait's own `Self`, ordered generics and associated types to those of
+    /// the bound `self_type: ThisTrait<trait_generics>`. Substituting them into anything declared
+    /// on this trait gives its meaning for that bound.
+    pub fn bound_bindings(&self, self_type: &Type, trait_generics: &TraitGenerics) -> TypeBindings {
+        let mut bindings = TypeBindings::default();
+        self.bind_generics(trait_generics, &mut bindings);
+
+        let self_var = self.self_type_typevar.clone();
+        let self_kind = self_var.kind().into_owned();
+        bindings.insert(self_var.id(), (self_var, self_kind, self_type.clone()));
+        bindings
     }
 
     /// Whether `typ` is this trait's own `Self`, in either its rigid form (a named generic

@@ -811,7 +811,7 @@ impl NodeInterner {
         let implied_trait_ids: Vec<TraitId> = self
             .try_get_trait(trait_id)
             .map(|the_trait| {
-                let parents = the_trait.parent_bounds().map(|bound| bound.trait_id);
+                let parents = the_trait.parent_bounds().map(|bound| bound.trait_id());
                 let associated_type_bounds =
                     the_trait.associated_type_bounds.values().flatten().map(|bound| bound.trait_id);
                 parents.chain(associated_type_bounds).collect()

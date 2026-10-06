@@ -733,7 +733,7 @@ impl Elaborator<'_> {
         let parent_bounds: Vec<_> = self
             .interner
             .try_get_trait(trait_id)
-            .map(|t| t.parent_bounds().cloned().collect())
+            .map(|t| t.parent_bounds().collect())
             .unwrap_or_default();
 
         for parent_bound in &parent_bounds {
@@ -968,11 +968,11 @@ impl Elaborator<'_> {
         if let Some(trait_bounds) = self
             .interner
             .try_get_trait(trait_id)
-            .map(|the_trait| the_trait.parent_bounds().cloned().collect::<Vec<_>>())
+            .map(|the_trait| the_trait.parent_bounds().collect::<Vec<_>>())
         {
             for parent_trait_bound in trait_bounds {
                 // Avoid looping forever in case there are cycles
-                if !visited.insert((object.clone(), parent_trait_bound.trait_id)) {
+                if !visited.insert((object.clone(), parent_trait_bound.trait_id())) {
                     continue;
                 }
 
