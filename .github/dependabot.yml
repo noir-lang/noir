@@ -58,6 +58,13 @@ updates:
     # Check the npm registry for updates every Monday
     schedule:
       interval: "weekly"
+    # Must be at least `npmMinimalAgeGate` in `.yarnrc.yml` (1 week). Yarn
+    # refuses versions younger than that gate, and when a grouped update hits
+    # it Dependabot silently drops that package from the group while still
+    # bumping the rest, e.g. bumping hardhat plugins without the `hardhat`
+    # version they require as a peer dependency.
+    cooldown:
+      default-days: 7
     ignore:
       # @types/node major version matches Node.js major version
       # Keep compatible with our minimum supported Node version (22.x)
