@@ -24,6 +24,13 @@
 //! multiplication (or an equivalent `IfElse` merge, which gates each branch by
 //! its own condition).
 //!
+//! One escape is deliberate and allowed: calls to `no_predicates` functions.
+//! Flattening wraps them in `enable_side_effects u1 1` so the callee runs
+//! unpredicated, which means a predicated argument reaches the call without a
+//! guard. That is safe — the callee cannot be over-constrained by a
+//! disabled-branch value — but its results are arbitrary on the disabled
+//! branch, so they inherit the argument's predicate and stay tracked.
+//!
 //! As a result, any optimization on `requires_acir_gen_predicate` done after
 //! flattening is ensured to be sound.
 //!
@@ -44,7 +51,7 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         dfg::DataFlowGraph,
-        function::Function,
+        function::{Function, FunctionId},
         instruction::{Binary, BinaryOp, Instruction, TerminatorInstruction},
         types::Type,
         value::{Value, ValueId},
@@ -53,13 +60,15 @@ use crate::ssa::{
 };
 
 pub(crate) fn verify_side_effect_predicates(ssa: &Ssa) -> RtResult<()> {
+    let no_predicates: HashSet<FunctionId> =
+        ssa.functions.values().filter(|f| f.is_no_predicates()).map(|f| f.id()).collect();
     for function in ssa.functions.values() {
-        verify_function(function)?;
+        verify_function(function, &no_predicates)?;
     }
     Ok(())
 }
 
-fn verify_function(function: &Function) -> RtResult<()> {
+fn verify_function(function: &Function, no_predicates: &HashSet<FunctionId>) -> RtResult<()> {
     // Brillig functions do not have `enable_side_effects` instructions
     if function.runtime().is_brillig() {
         return Ok(());
@@ -101,6 +110,14 @@ fn verify_function(function: &Function) -> RtResult<()> {
             continue;
         }
 
+        // Flattening wraps a call to a `no_predicates` function in
+        // `enable_side_effects u1 1`, so a predicated value legitimately flows
+        // into the call ungated: the callee is run unpredicated by design, and
+        // consuming a disabled-branch value cannot over-constrain it. The
+        // call's results still inherit the operand's predicate below, so they
+        // stay tracked until guarded.
+        let consumes_ungated = is_call_to_no_predicates_function(dfg, instruction, no_predicates);
+
         // Match instructions for
         // - using predicated operands
         // - using predicate operands outside enable-side-effect context
@@ -118,7 +135,7 @@ fn verify_function(function: &Function) -> RtResult<()> {
             } else {
                 // Propagate the predicate to the current instruction
                 use_a_predicated_value.get_or_insert(p);
-                if current.is_none() {
+                if current.is_none() && !consumes_ungated {
                     // The `predicated_value` operand is not used under a predicate,
                     // flag it as an error.
                     violation.get_or_insert(operand);
@@ -279,6 +296,25 @@ fn is_constrained_to(
         }
         _ => false,
     }
+}
+
+/// Whether `instruction` is a call to a `no_predicates` function.
+///
+/// Such calls run their callee unpredicated: flattening wraps them in
+/// `enable_side_effects u1 1` and only restores the enclosing predicate
+/// afterwards, so predicated arguments reach them without a guard.
+fn is_call_to_no_predicates_function(
+    dfg: &DataFlowGraph,
+    instruction: &Instruction,
+    no_predicates: &HashSet<FunctionId>,
+) -> bool {
+    let Instruction::Call { func, .. } = instruction else {
+        return false;
+    };
+    let Value::Function(id) = &dfg[*func] else {
+        return false;
+    };
+    no_predicates.contains(id)
 }
 
 /// True if `instruction` re-applies predicate `p` to `operand`, zeroing it
@@ -715,6 +751,81 @@ mod tests {
 
             assert!(verify_side_effect_predicates(&ssa).is_ok());
         }
+    }
+
+    #[test]
+    fn accepts_tainted_argument_to_no_predicates_call() {
+        // Flattening wraps a call to a `no_predicates` function in
+        // `enable_side_effects u1 1` (running the callee unpredicated is the
+        // point of the attribute), so a value computed under a predicate
+        // legitimately reaches the call ungated. The result is arbitrary on
+        // the disabled branch and stays tainted — here it is guarded by
+        // `mul (cast v0), v5` before escaping, so nothing actually leaks.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: Field):
+            enable_side_effects v0
+            v2, v3 = call f1(v1) -> (Field, Field)
+            v4 = make_array [v2, v3] : [Field; 2]
+            enable_side_effects u1 1
+            v5 = call f2(v4) -> Field
+            v6 = cast v0 as Field
+            v7 = mul v6, v5
+            return v7
+        }
+        brillig(inline) fn get f1 {
+          b0(v0: Field):
+            return v0, v0
+        }
+        acir(no_predicates) fn hash f2 {
+          b0(v0: [Field; 2]):
+            v1 = array_get v0, index u32 0 -> Field
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
+        if let Err(error) = verify_side_effect_predicates(&ssa) {
+            panic!(
+                "expected the tainted argument to the no_predicates call to be accepted, \
+                 but validation rejected it: {error:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn rejects_unguarded_result_of_no_predicates_call() {
+        // The exemption is only for the *arguments* flowing into the call: its
+        // result is a function of disabled-branch values, so it is arbitrary
+        // when the predicate is false and must still be guarded before it can
+        // escape. Same SSA as `accepts_tainted_argument_to_no_predicates_call`
+        // minus the `mul (cast v0), v5` guard, so a flip here means the
+        // exemption leaked to the results and nothing else.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: Field):
+            enable_side_effects v0
+            v2, v3 = call f1(v1) -> (Field, Field)
+            v4 = make_array [v2, v3] : [Field; 2]
+            enable_side_effects u1 1
+            v5 = call f2(v4) -> Field
+            return v5
+        }
+        brillig(inline) fn get f1 {
+          b0(v0: Field):
+            return v0, v0
+        }
+        acir(no_predicates) fn hash f2 {
+          b0(v0: [Field; 2]):
+            v1 = array_get v0, index u32 0 -> Field
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
+        assert!(
+            verify_side_effect_predicates(&ssa).is_err(),
+            "expected the unguarded result of the no_predicates call to be rejected, \
+             but validation accepted it"
+        );
     }
 
     #[test]
