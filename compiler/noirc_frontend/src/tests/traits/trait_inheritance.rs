@@ -1216,3 +1216,129 @@ fn bound_implies_same_trait_with_different_arguments_through_two_parents() {
     "#;
     assert_no_errors(src);
 }
+
+/// Under `impl<T> W<T> where T: Checked`, `<T as Source>::Out` is abstract.
+#[test]
+fn elided_supertrait_associated_type_is_rigid_in_inherent_impl() {
+    let src = r#"
+    pub trait Source {
+        type Out;
+    }
+    pub trait Checked: Source {}
+    pub struct Wide {}
+    pub struct W<T> {}
+    impl<T> W<T> where T: Checked {
+        pub fn bad(x: <T as Source>::Out) -> Wide {
+                                             ^^^^ expected type Wide, found type <T as Source>::Out
+                                             ~~~~ expected Wide because of return type
+            x
+            ~ <T as Source>::Out returned here
+        }
+    }
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+/// Under `trait Foo<T> where T: Checked`, `<T as Source>::Out` is abstract in default methods.
+#[test]
+fn elided_supertrait_associated_type_is_rigid_in_trait_where_clause() {
+    let src = r#"
+    pub trait Source {
+        type Out;
+    }
+    pub trait Checked: Source {}
+    pub struct Wide {}
+    pub trait Foo<T> where T: Checked {
+        fn bad(x: <T as Source>::Out) -> Wide {
+                                         ^^^^ expected type Wide, found type <T as Source>::Out
+                                         ~~~~ expected Wide because of return type
+            x
+            ~ <T as Source>::Out returned here
+        }
+    }
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+/// In a default method of `trait Foo: Checked`, `Self::Out` (from `Source`) is abstract.
+#[test]
+fn elided_supertrait_associated_type_is_rigid_for_trait_self() {
+    let src = r#"
+    pub trait Source {
+        type Out;
+    }
+    pub trait Checked: Source {}
+    pub struct Wide {}
+    pub trait Foo: Checked {
+        fn bad(x: <Self as Source>::Out) -> Wide {
+                                            ^^^^ expected type Wide, found type Self::Out
+                                            ~~~~ expected Wide because of return type
+            x
+            ~ Self::Out returned here
+        }
+    }
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+/// For a trait method generic `X: Checked`, `<X as Source>::Out` is abstract.
+#[test]
+fn elided_supertrait_associated_type_is_rigid_for_trait_method_generic() {
+    let src = r#"
+    pub trait Source {
+        type Out;
+    }
+    pub trait Checked: Source {}
+    pub struct Wide {}
+    pub trait Foo {
+        fn bad<X>(x: <X as Source>::Out) -> Wide where X: Checked {
+                                            ^^^^ expected type Wide, found type <X as Source>::Out
+                                            ~~~~ expected Wide because of return type
+            x
+            ~ <X as Source>::Out returned here
+        }
+    }
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+/// The rigid `<T as Source>::Out` from `T: Checked` is the same type at every mention in one item,
+/// and call sites instantiate it per call.
+#[test]
+fn elided_supertrait_associated_type_is_one_type_per_item() {
+    let src = r#"
+    pub trait Source {
+        type Out;
+    }
+    pub trait Checked: Source {}
+    pub struct Wide {}
+    pub struct Narrow {}
+    pub struct S {}
+    impl Source for S {
+        type Out = Narrow;
+    }
+    impl Checked for S {}
+    pub struct W<T> {}
+    impl<T> W<T> where T: Checked {
+        pub fn same(x: <T as Source>::Out) -> <T as Source>::Out {
+            x
+        }
+    }
+    pub fn pair<T>(x: <T as Source>::Out, y: <T as Source>::Out) -> [<T as Source>::Out; 2]
+    where
+        T: Checked,
+    {
+        [x, y]
+    }
+
+    fn main() {
+        let _ = W::<S>::same(Narrow {});
+        let _ = pair::<S>(Narrow {}, Narrow {});
+    }
+    "#;
+    assert_no_errors(src);
+}
