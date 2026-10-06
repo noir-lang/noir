@@ -758,7 +758,10 @@ impl Elaborator<'_> {
 
                 let named = vecmap(&instantiated.trait_generics.named, |named_type| {
                     let fresh_id = self.interner.next_type_variable_id();
-                    let kind = named_type.typ.kind();
+                    let kind = parent_trait
+                        .get_associated_type(named_type.name.as_str())
+                        .expect("ICE - cannot find associated type")
+                        .kind();
                     let type_var = TypeVariable::unbound(fresh_id, kind.into_owned());
 
                     let assoc_type_id = parent_trait
@@ -793,6 +796,11 @@ impl Elaborator<'_> {
                     },
                 };
                 self.item.generics.add_bound(parent_constraint.clone());
+                self.add_implied_trait_bound_to_scope(
+                    instantiated.location,
+                    object_type,
+                    &parent_constraint.trait_bound,
+                );
                 new_constraints.push(parent_constraint);
             }
 

@@ -564,7 +564,7 @@ fn grandparent_trait_method_returning_own_associated_type() {
     impl Level2 for Data {}
     impl Level3 for Data {}
 
-    fn process<T>(t: T) -> Field where T: Level3 {
+    fn process<T>(t: T) -> <T as Level1>::A where T: Level3 {
         t.get_a()
     }
 
@@ -796,4 +796,164 @@ fn trait_path_through_generic_supertrait_in_free_function_monomorphizes() {
     "#;
     assert_no_errors(src);
     get_monomorphized(src).expect("T::marker under T: Child<u32> should resolve to Parent<u32>");
+}
+
+/// Regression test for https://github.com/noir-lang/noir-claude/issues/1232
+///
+/// Same shape as above with an associated constant. Called from a `Child<u8>` instance, `X::LIMIT`
+/// under `X: Child<u16>` must still read `Parent<u16>`'s value, not `Parent<u8>`'s.
+#[test]
+fn trait_constant_through_generic_supertrait_uses_the_bound_arguments() {
+    let src = r#"
+    trait Parent<T> {
+        let LIMIT: u32;
+    }
+    trait Child<U>: Parent<U> {
+        fn limit<X: Child<u16>>(_self: Self, _x: X) -> u32 {
+            X::LIMIT
+        }
+    }
+    pub struct S {}
+    impl Parent<u8> for S {
+        let LIMIT: u32 = 1000000;
+    }
+    impl Parent<u16> for S {
+        let LIMIT: u32 = 100;
+    }
+    impl Child<u8> for S {}
+    impl Child<u16> for S {}
+
+    fn main() {
+        comptime {
+            assert_eq(<S as Child<u8>>::limit(S {}, S {}), 100);
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression test for https://github.com/noir-lang/noir-claude/issues/1811
+///
+/// `trait Sub: Par` leaves `Par::N` out, so `T: Sub` implies `T: Par<N = <T as Par>::N>` for
+/// each `T` separately. Two implementors with different `N` must both be usable through `Sub`.
+#[test]
+fn elided_supertrait_associated_constant_is_per_use() {
+    let src = r#"
+    trait Par {
+        let N: u32;
+    }
+    trait Sub: Par {}
+
+    struct Three {}
+    struct Five {}
+    impl Par for Three {
+        let N: u32 = 3;
+    }
+    impl Par for Five {
+        let N: u32 = 5;
+    }
+    impl Sub for Three {}
+    impl Sub for Five {}
+
+    fn first<T>(xs: [Field; <T as Par>::N]) -> Field where T: Sub {
+        xs[0]
+    }
+
+    fn main() -> pub Field {
+        first::<Three>([1, 2, 3]) + first::<Five>([1, 2, 3, 4, 5])
+    }
+    "#;
+    assert_no_errors(src);
+    get_monomorphized(src).expect("each `T: Sub` should get its own `<T as Par>::N`");
+}
+
+/// Regression test for https://github.com/noir-lang/noir-claude/issues/1811
+///
+/// Under `T: Checked` with `trait Checked: Source`, `<T as Source>::Out` is an abstract type. A
+/// function that equates it with a concrete type must be rejected, not bind the projection for
+/// every other function in the program.
+#[test]
+fn elided_supertrait_associated_type_is_not_bound_by_a_function_body() {
+    let src = r#"
+    pub trait Source {
+        type Out;
+    }
+    pub trait Checked: Source {}
+    pub struct Narrow {}
+    pub struct Wide {}
+
+    pub fn unused_helper<T>(x: <T as Source>::Out) -> Wide where T: Checked {
+                                                      ^^^^ expected type Wide, found type <T as Source>::Out
+                                                      ~~~~ expected Wide because of return type
+        x
+        ~ <T as Source>::Out returned here
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+/// Regression test for https://github.com/noir-lang/noir-claude/issues/1811
+///
+/// The associated type reached through a supertrait resolves to the implementor's own value, so
+/// dispatch through it runs `Narrow`'s impl.
+#[test]
+fn elided_supertrait_associated_type_dispatches_to_the_implementor() {
+    let src = r#"
+    pub trait Policy {
+        fn check() -> Field;
+    }
+    pub struct Narrow {}
+    pub struct Wide {}
+    impl Policy for Narrow {
+        fn check() -> Field { 1 }
+    }
+    impl Policy for Wide {
+        fn check() -> Field { 2 }
+    }
+    pub trait Source {
+        type Out;
+    }
+    pub trait Checked: Source {}
+    pub struct S {}
+    impl Source for S {
+        type Out = Narrow;
+    }
+    impl Checked for S {}
+
+    pub fn checked<T>() -> Field where T: Checked, <T as Source>::Out: Policy {
+        <<T as Source>::Out as Policy>::check()
+    }
+
+    fn main() {
+        comptime {
+            assert_eq(checked::<S>(), 1);
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression test for https://github.com/noir-lang/noir-claude/issues/1811
+///
+/// An associated constant elided from a supertrait bound keeps its numeric kind, so using it
+/// where a type is expected is an error.
+#[test]
+fn elided_supertrait_associated_constant_keeps_its_kind() {
+    let src = r#"
+    trait Par {
+        let N: u32;
+    }
+    trait Sub: Par {}
+
+    pub fn f<T>(_x: <T as Par>::N) where T: Sub {}
+
+    fn main() {}
+    "#;
+    let errors = get_program_errors(src);
+    assert!(
+        errors.iter().any(|error| format!("{error:?}").contains("TypeKindMismatch")),
+        "expected a kind mismatch, got {errors:?}"
+    );
 }
