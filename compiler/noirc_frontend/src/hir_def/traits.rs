@@ -416,15 +416,9 @@ impl Trait {
         bindings
     }
 
-    /// Whether `typ` is this trait's own `Self`, in either its rigid form (a named generic
-    /// over the `Self` variable) or its bindable form (the bare type variable).
+    /// Whether `typ` is this trait's own (rigid) `Self`.
     pub fn is_self_type(&self, typ: &Type) -> bool {
-        match typ {
-            Type::TypeVariable(v) | Type::NamedGeneric(NamedGeneric { type_var: v, .. }) => {
-                v.id() == self.self_param.id()
-            }
-            _ => false,
-        }
+        matches!(typ, Type::NamedGeneric(NamedGeneric { type_var, .. }) if type_var.id() == self.self_param.id())
     }
 
     pub fn set_visibility(&mut self, visibility: ItemVisibility) {

@@ -907,27 +907,16 @@ impl Elaborator<'_> {
             }
         }
 
-        let current_trait_self_id = self
+        let object_is_current_trait_self = self
             .item
             .impl_context
             .current_trait()
-            .map(|trait_id| self.interner.get_trait(trait_id).self_param.id());
-
-        let object_is_current_trait_self = match object {
-            Type::TypeVariable(self_var)
-            | Type::NamedGeneric(NamedGeneric { type_var: self_var, .. }) => {
-                self_var.binding().is_unbound() && Some(self_var.id()) == current_trait_self_id
-            }
-            _ => false,
-        };
+            .is_some_and(|trait_id| self.interner.get_trait(trait_id).is_self_type(object));
 
         if object_is_current_trait_self {
-            // This would end up duplicating parent trait bounds we turned into where clauses on Self.
-            // The reason is that in `add_trait_constraints_to_scope` we add the self-type of the current trait
-            // as an assumed implementation, on an unbound type variable like '1. Then in `resolve_trait_methods`
-            // we also add the parent traits as where clauses, but on Self'1. If we end up with assumed impls
-            // for both '1 and Self'1, then when we look up an impl for Self'1, it finds both and errors out.
-            // So we skip the parents, because it would be redundant with the Self bounds.
+            // The current trait's parent bounds on its own `Self` are already part of each of its
+            // methods' where clauses (see `resolve_trait_methods`), which registers them itself.
+            // Registering them again here would give `Self` two assumed impls of each parent.
             return;
         }
 
