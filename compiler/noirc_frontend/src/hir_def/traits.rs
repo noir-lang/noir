@@ -295,17 +295,20 @@ impl Trait {
     /// The parent-trait bounds of this trait (the `Bar` in `trait Foo: Bar`).
     ///
     /// Parent bounds are stored in `where_clause` as constraints whose `typ` is this
-    /// trait's `Self` type variable; this accessor filters them back out.
+    /// trait's `Self` (see [`Self::is_self_type`]); this accessor filters them back out.
     pub fn parent_bounds(&self) -> impl Iterator<Item = &ResolvedTraitBound> {
-        let self_id = self.self_type_typevar.id();
-        self.where_clause.iter().filter_map(move |c| match &c.typ {
-            Type::TypeVariable(v) | Type::NamedGeneric(NamedGeneric { type_var: v, .. })
-                if v.id() == self_id =>
-            {
-                Some(&c.trait_bound)
+        self.where_clause.iter().filter(|c| self.is_self_type(&c.typ)).map(|c| &c.trait_bound)
+    }
+
+    /// Whether `typ` is this trait's own `Self`, in either its rigid form (a named generic
+    /// over `self_type_typevar`) or its bindable form (the bare type variable).
+    pub fn is_self_type(&self, typ: &Type) -> bool {
+        match typ {
+            Type::TypeVariable(v) | Type::NamedGeneric(NamedGeneric { type_var: v, .. }) => {
+                v.id() == self.self_type_typevar.id()
             }
-            _ => None,
-        })
+            _ => false,
+        }
     }
 
     pub fn set_visibility(&mut self, visibility: ItemVisibility) {
