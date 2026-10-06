@@ -214,15 +214,16 @@ impl NodeInterner {
                         if existing_named.name.as_str() != new_named.name.as_str() {
                             continue;
                         }
-                        // A bare type variable is the placeholder a supertrait bound stores for
-                        // an associated item it leaves out; it carries no information, so a
-                        // rigid `<T as Trait>::Assoc` replaces it.
+                        // A placeholder or an unbound inference variable (such as the one a
+                        // supertrait bound stores for an associated item it leaves out) carries
+                        // no information, so a rigid `<T as Trait>::Assoc` may replace it.
+                        let existing_is_unknown = match &existing_named.typ {
+                            Type::NamedGeneric(_) => true,
+                            Type::TypeVariable(variable) => variable.binding().is_unbound(),
+                            _ => false,
+                        };
                         let would_downgrade_to_placeholder =
-                            matches!(new_named.typ, Type::NamedGeneric(_))
-                                && !matches!(
-                                    existing_named.typ,
-                                    Type::NamedGeneric(_) | Type::TypeVariable(_)
-                                );
+                            matches!(new_named.typ, Type::NamedGeneric(_)) && !existing_is_unknown;
                         if !would_downgrade_to_placeholder {
                             existing_named.typ = new_named.typ.clone();
                         }

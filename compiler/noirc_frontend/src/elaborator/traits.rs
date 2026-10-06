@@ -492,7 +492,22 @@ impl Elaborator<'_> {
         let trait_name = self.projection_trait_name(trait_id, &bound.trait_generics.ordered_args);
         let the_trait = self.get_trait(trait_id);
         let object_name = self.unresolved_type_name(object);
-        let associated_type_bounds = the_trait.associated_type_bounds.clone();
+        // Only bounds that mention none of the trait's own variables can be assumed as written.
+        // The others (`type Bar: Baz<Self>`) are instantiated for the object type when the
+        // desugared constraint itself is assumed; see `add_trait_bound_to_scope_inner`.
+        let associated_type_bounds: rustc_hash::FxHashMap<String, Vec<ResolvedTraitBound>> =
+            the_trait
+                .associated_type_bounds
+                .iter()
+                .map(|(name, bounds)| {
+                    let bounds = bounds
+                        .iter()
+                        .filter(|bound| !the_trait.bound_mentions_own_variables(bound))
+                        .cloned()
+                        .collect();
+                    (name.clone(), bounds)
+                })
+                .collect();
 
         for associated_type in &the_trait.associated_types.clone() {
             if !bound
@@ -698,7 +713,7 @@ impl Elaborator<'_> {
     /// as `<T as Foo>::Bar: Eq` which may lookup an impl which was assumed
     /// by a previous constraint.
     #[tracing::instrument(level = "trace", skip_all)]
-    fn resolve_trait_constraint_and_add_to_scope(
+    pub(super) fn resolve_trait_constraint_and_add_to_scope(
         &mut self,
         constraint: &UnresolvedTraitConstraint,
     ) -> Option<TraitConstraint> {
@@ -794,6 +809,14 @@ impl Elaborator<'_> {
                 let object_name = object_type.to_string();
 
                 let named = vecmap(&instantiated.trait_generics.named, |named_type| {
+                    // An associated item the parent bound specifies keeps its value; one it
+                    // leaves unspecified (a fresh variable after instantiation) becomes a rigid
+                    // generic of this function.
+                    let is_elided = matches!(&named_type.typ, Type::TypeVariable(variable)
+                        if variable.binding().is_unbound());
+                    if !is_elided {
+                        return named_type.clone();
+                    }
                     let associated_type = parent_trait
                         .associated_types
                         .iter()
@@ -829,8 +852,10 @@ impl Elaborator<'_> {
                     },
                 };
                 self.item.generics.add_bound(parent_constraint.clone());
+                // Also replace the elided items of the assumed impl registered for the parent
+                // bound, so `<T as Parent>::Item` reads the rigid generic in the signature too.
                 self.add_implied_trait_bound_to_scope(
-                    instantiated.location,
+                    parent_constraint.trait_bound.location,
                     object_type,
                     &parent_constraint.trait_bound,
                 );
@@ -846,6 +871,34 @@ impl Elaborator<'_> {
                 visited,
             );
         }
+    }
+
+    /// The bounds `constraint` implies on the associated types it names, instantiated for its
+    /// object type: `T: Foo<Bar = B>` with `trait Foo { type Bar: Baz<Self>; }` gives `B: Baz<T>`.
+    /// Only the bounds that mention the trait's own variables are returned; the others are
+    /// already attached to the generics minted by `desugar_trait_constraints`.
+    pub(super) fn instantiated_associated_type_bounds(
+        &self,
+        constraint: &TraitConstraint,
+    ) -> Vec<TraitConstraint> {
+        let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
+        let mut constraints = Vec::new();
+        for named in &constraint.trait_bound.trait_generics.named {
+            let bounds = the_trait.associated_type_bounds.get(named.name.as_str());
+            for bound in bounds.into_iter().flatten() {
+                if !the_trait.bound_mentions_own_variables(bound) {
+                    continue;
+                }
+                let trait_generics = self.instantiate_declared_bound(
+                    &constraint.typ,
+                    &constraint.trait_bound,
+                    bound,
+                );
+                let trait_bound = ResolvedTraitBound { trait_generics, ..bound.clone() };
+                constraints.push(TraitConstraint { typ: named.typ.clone(), trait_bound });
+            }
+        }
+        constraints
     }
 
     /// Adds an assumed trait implementation for the given object type and trait bound.
@@ -979,7 +1032,11 @@ impl Elaborator<'_> {
                 .flat_map(|named| {
                     let bounds = the_trait.associated_type_bounds.get(named.name.as_str());
                     let bounds = bounds.map(Vec::as_slice).unwrap_or_default();
-                    bounds.iter().map(|bound| (named.typ.clone(), bound.clone()))
+                    bounds.iter().map(|bound| {
+                        let trait_generics =
+                            self.instantiate_declared_bound(object, trait_bound, bound);
+                        (named.typ.clone(), ResolvedTraitBound { trait_generics, ..bound.clone() })
+                    })
                 })
                 .collect::<Vec<_>>(),
             None => Vec::new(),

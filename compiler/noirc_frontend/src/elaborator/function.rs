@@ -336,18 +336,30 @@ impl Elaborator<'_> {
             self.add_implied_trait_bound_to_scope(*location, &extra_constraint.typ, bound);
         }
 
-        let mut trait_constraints =
-            self.resolve_trait_constraints_and_add_to_scope(&func.def.where_clause);
-
-        // Add constraints for parent traits that have associated types.
-        let (parent_generics, parent_constraints) =
-            self.add_parent_associated_type_constraints(&trait_constraints);
-        generics.extend(parent_generics);
-        trait_constraints.extend(parent_constraints);
+        // Resolve the where clause, adding constraints for parent traits that have associated
+        // types right after the bound that implies them: a later bound such as
+        // `<T as Parent>::Item: Foo` must see the same `<T as Parent>::Item` as the body.
+        let mut trait_constraints = Vec::new();
+        let mut all_parent_constraints = Vec::new();
+        let mut associated_type_bounds = Vec::new();
+        for constraint in &func.def.where_clause {
+            let Some(constraint) = self.resolve_trait_constraint_and_add_to_scope(constraint)
+            else {
+                continue;
+            };
+            let (parent_generics, parent_constraints) =
+                self.add_parent_associated_type_constraints(std::slice::from_ref(&constraint));
+            generics.extend(parent_generics);
+            all_parent_constraints.extend(parent_constraints);
+            associated_type_bounds.extend(self.instantiated_associated_type_bounds(&constraint));
+            trait_constraints.push(constraint);
+        }
+        trait_constraints.extend(all_parent_constraints);
 
         let mut extra_trait_constraints =
             vecmap(extra_trait_constraints, |(constraint, _)| constraint.clone());
         extra_trait_constraints.extend(associated_generics_trait_constraints);
+        extra_trait_constraints.extend(associated_type_bounds);
 
         // Resolve parameters
         let (parameters, parameter_types, parameter_idents) =

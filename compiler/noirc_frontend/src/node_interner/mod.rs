@@ -614,6 +614,7 @@ impl NodeInterner {
             all_generics: Vec::new(),
             associated_constant_ids,
             declaration_type_variables: Vec::new(),
+            elided_bound_items: Vec::new(),
         };
 
         self.traits.insert(type_id, new_trait);
@@ -898,6 +899,21 @@ impl NodeInterner {
             .collect();
         variables.sort();
         variables
+    }
+
+    /// Maps each of `trait_id`'s [`Trait::elided_bound_items`] to a fresh type variable of the
+    /// same kind, so that one use of a bound that leaves an associated item unspecified gets its
+    /// own unknown for it rather than sharing the trait's placeholder with every other use.
+    pub(crate) fn bind_elided_bound_items_to_fresh(
+        &self,
+        trait_id: TraitId,
+        bindings: &mut TypeBindings,
+    ) {
+        for variable in &self.get_trait(trait_id).elided_bound_items {
+            let kind = variable.kind().into_owned();
+            let fresh = self.next_type_variable_with_kind(kind.clone());
+            bindings.insert(variable.id(), (variable.clone(), kind, fresh));
+        }
     }
 
     pub fn get_trait(&self, id: TraitId) -> &Trait {
@@ -1404,6 +1420,7 @@ impl NodeInterner {
             all_generics: vec![],
             associated_constant_ids: Default::default(),
             declaration_type_variables: Vec::new(),
+            elided_bound_items: Vec::new(),
         };
         self.traits.insert(trait_id, trait_);
 
@@ -1737,10 +1754,13 @@ impl NodeInterner {
         let parent_bounds: Vec<_> = the_trait.parent_bounds().cloned().collect();
         for parent_bound in &parent_bounds {
             // Find the implementation, if it exists. The parent bound is written in terms of
-            // this trait's `Self`, generics and associated types, so instantiate it for this impl
-            // first: looking it up as written would bind those variables.
+            // this trait's `Self`, generics, associated types and elided-item placeholders, so
+            // instantiate it for this impl first: looking it up as written would bind them.
+            let mut parent_bindings = bindings.clone();
+            self.bind_elided_bound_items_to_fresh(the_trait.id, &mut parent_bindings);
             let trait_id = parent_bound.trait_id;
-            let parent_generics = parent_bound.trait_generics.map(|typ| typ.substitute(bindings));
+            let parent_generics =
+                parent_bound.trait_generics.map(|typ| typ.substitute(&parent_bindings));
             match self.lookup_trait_implementation(
                 impl_self_type,
                 trait_id,

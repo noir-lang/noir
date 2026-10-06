@@ -17,7 +17,7 @@ use crate::{
         resolution::errors::ResolverError,
         type_check::{TypeCheckError, generics::TraitGenerics},
     },
-    hir_def::traits::{NamedType, TraitImpl},
+    hir_def::traits::{NamedType, ResolvedTraitBound, TraitImpl},
     node_interner::{TraitImplId, TraitLookupMode},
 };
 use crate::{
@@ -190,22 +190,31 @@ impl Elaborator<'_> {
 
             let trait_ = self.interner.get_trait(trait_id);
 
-            // If there are bounds on the trait's associated types, check them now
+            // If there are bounds on the trait's associated types, check them now, instantiated
+            // for this impl: they are written in terms of the trait's `Self` and generics.
             let associated_type_bounds = &trait_.associated_type_bounds;
             let associated_type_bounds = associated_type_bounds.clone();
-            let named_generics =
-                self.interner.get_associated_types_for_impl(trait_impl.impl_id.unwrap()).to_vec();
+            let impl_id = trait_impl.impl_id.unwrap();
+            let impl_bound = ResolvedTraitBound {
+                trait_id,
+                trait_generics: self.interner.get_trait_generics_for_impl(impl_id).clone(),
+                location: trait_impl.object_type.location,
+            };
+            let impl_self_type = self.item.impl_context.expect_self_type().clone();
+            let named_generics = impl_bound.trait_generics.named.clone();
             for named_generic in named_generics {
                 let Some(bounds) = associated_type_bounds.get(named_generic.name.as_str()) else {
                     continue;
                 };
                 let object_type = &named_generic.typ;
                 for bound in bounds {
+                    let bound_generics =
+                        self.instantiate_declared_bound(&impl_self_type, &impl_bound, bound);
                     if let Err(error) = self.interner.lookup_trait_implementation(
                         object_type,
                         bound.trait_id,
-                        &bound.trait_generics.ordered,
-                        &bound.trait_generics.named,
+                        &bound_generics.ordered,
+                        &bound_generics.named,
                     ) {
                         self.push_trait_constraint_error(
                             object_type,

@@ -49,7 +49,7 @@ where
     T: M8,
     T: M32a,
     T: M32b,
-    T: Foo<u8>,
+    T: Foo<u8, Assoc = u8>,
 {
     <u8 as Bar>::tag()
 }

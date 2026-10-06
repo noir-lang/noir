@@ -103,6 +103,12 @@ pub struct Trait {
     /// The type variables this declaration owns, with a description of each for diagnostics.
     /// See [`Trait::record_declaration_type_variables`].
     pub declaration_type_variables: Vec<(String, TypeVariable)>,
+
+    /// The placeholders standing for associated items that a bound in this trait's where clause
+    /// or associated type bounds leaves unspecified (the `N` of `Par` in `trait Sub: Par`).
+    /// Each use of such a bound replaces them with fresh variables; see
+    /// `NodeInterner::bind_elided_bound_items_to_fresh`.
+    pub elided_bound_items: Vec<TypeVariable>,
 }
 
 /// A completed trait implementation.
@@ -296,8 +302,28 @@ impl Trait {
         self.where_clause = where_clause;
     }
 
-    /// Records the type variables this declaration owns: `Self`, the generics and the
-    /// associated types.
+    /// Whether `bound` mentions a type variable this declaration owns (its `Self`, generics,
+    /// associated types or elided-item placeholders), so that it must be instantiated for a
+    /// particular use before being looked up or assumed.
+    pub fn bound_mentions_own_variables(&self, bound: &ResolvedTraitBound) -> bool {
+        let own = std::iter::once(&self.self_type_typevar)
+            .chain(self.generics.iter().map(|generic| &generic.type_var))
+            .chain(self.associated_types.iter().map(|generic| &generic.type_var))
+            .chain(&self.elided_bound_items)
+            .map(TypeVariable::id)
+            .collect::<Vec<_>>();
+        let types = bound
+            .trait_generics
+            .ordered
+            .iter()
+            .chain(bound.trait_generics.named.iter().map(|named| &named.typ));
+        types.into_iter().any(|typ| own.iter().any(|id| typ.occurs(*id)))
+    }
+
+    /// Records the type variables this declaration owns: `Self`, the generics, the associated
+    /// types, and the placeholders for associated items its bounds leave unspecified
+    /// ([`Trait::elided_bound_items`]). Must be called once the declaration is resolved and
+    /// before any use of it is type checked.
     ///
     /// Every use of the trait reads these variables, so none may ever be bound: a binding is
     /// permanent and is seen by every later use, fixing a type that should differ per use.
@@ -306,7 +332,24 @@ impl Trait {
         for generic in self.generics.iter().chain(&self.associated_types) {
             variables.push((generic.name.to_string(), generic.type_var.clone()));
         }
+
+        let mut elided = Vec::new();
+        let bounds = self.where_clause.iter().map(|constraint| &constraint.trait_bound);
+        for bound in bounds.chain(self.associated_type_bounds.values().flatten()) {
+            for named in &bound.trait_generics.named {
+                if let Type::TypeVariable(variable) = &named.typ
+                    && variable.binding().is_unbound()
+                    && elided.iter().all(|known: &TypeVariable| known.id() != variable.id())
+                {
+                    let description = format!("{} left unspecified in a bound", named.name);
+                    variables.push((description, variable.clone()));
+                    elided.push(variable.clone());
+                }
+            }
+        }
+
         self.declaration_type_variables = variables;
+        self.elided_bound_items = elided;
     }
 
     /// The parent-trait bounds of this trait (the `Bar` in `trait Foo: Bar`).

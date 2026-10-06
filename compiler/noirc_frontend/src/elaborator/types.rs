@@ -1000,7 +1000,7 @@ impl Elaborator<'_> {
 
             if allow_implicit_named_args {
                 let name = Ident::new(name.as_ref().clone(), location);
-                let typ = self.interner.next_type_variable();
+                let typ = self.interner.next_type_variable_with_kind(generic.kind().into_owned());
                 resolved.push(NamedType { name, typ });
             } else {
                 let item = item.item_name(self.interner);
@@ -4049,40 +4049,65 @@ impl Elaborator<'_> {
         bind_named_generics(associated_types, &trait_bound.trait_generics.named, bindings);
     }
 
-    /// `self_type` is the concrete (or still-generic) type that ultimately implements
-    /// `trait_bound`. It is needed here, not just in `bindings`'s ordinary generics, because a
-    /// parent bound can name `Self` explicitly as one of its own generic arguments (`trait Child:
-    /// Parent<Self> {}`): that `Self` is `trait_bound`'s trait's own rigid self-type variable, not
-    /// an ordinary generic, so `bind_generics_from_trait_bound` never binds it on its own.
+    /// Instantiates `parent_trait_bound`, one of the parent bounds declared by the trait of
+    /// `trait_bound`, for the bound `object_type: trait_bound`; see
+    /// [`Self::instantiate_declared_bound`]. `object_type` is needed, not just `trait_bound`'s
+    /// arguments, because a parent bound can name `Self` (`trait Child: Parent<Self>`), and that
+    /// `Self` is the child trait's own type variable rather than one of its generics.
     pub(crate) fn instantiate_parent_trait_bound(
         &self,
-        self_type: &Type,
+        object_type: &Type,
         trait_bound: &ResolvedTraitBound,
         parent_trait_bound: &ResolvedTraitBound,
     ) -> ResolvedTraitBound {
-        let mut bindings = TypeBindings::default();
-        self.bind_generics_from_trait_bound(trait_bound, &mut bindings);
-
-        let the_trait = self.interner.get_trait(trait_bound.trait_id);
-        let self_var = the_trait.self_type_typevar.clone();
-        let self_kind = self_var.kind().into_owned();
-        bindings.insert(self_var.id(), (self_var, self_kind, self_type.clone()));
-
         let mut trait_generics =
-            parent_trait_bound.trait_generics.map(|typ| typ.substitute(&bindings));
+            self.instantiate_declared_bound(object_type, trait_bound, parent_trait_bound);
 
-        // An associated item the parent bound leaves out (`trait Child: Parent` where `Parent`
-        // has `type Out`) is stored on the trait as a placeholder type variable. Each
-        // instantiation gets its own, so that resolving one use cannot bind it for every other.
-        let named = trait_generics.named.iter_mut().zip(&parent_trait_bound.trait_generics.named);
-        for (named, declared) in named {
-            if let Type::TypeVariable(placeholder) = &declared.typ {
-                let kind = placeholder.kind().into_owned();
-                named.typ = self.interner.next_type_variable_with_kind(kind);
+        // An associated item the parent bound leaves unspecified is now a fresh variable. Where
+        // the scope already holds this parent bound for `object_type` (a function's rigid
+        // `<T as Parent>::Item`, see `collect_parent_associated_types`), use its value instead, so
+        // every walk through the child bound agrees with the bound in scope.
+        let elided = &self.interner.get_trait(trait_bound.trait_id).elided_bound_items;
+        let in_scope = self.item.generics.find_bound(
+            object_type,
+            parent_trait_bound.trait_id,
+            &trait_generics.ordered,
+        );
+        if let Some(in_scope) = in_scope {
+            for (named, original) in
+                trait_generics.named.iter_mut().zip(&parent_trait_bound.trait_generics.named)
+            {
+                let is_elided = matches!(&original.typ, Type::TypeVariable(variable)
+                    if elided.iter().any(|item| item.id() == variable.id()));
+                let scoped =
+                    in_scope.trait_bound.trait_generics.named.iter().find(|n| n.name == named.name);
+                if let (true, Some(scoped)) = (is_elided, scoped) {
+                    named.typ = scoped.typ.clone();
+                }
             }
         }
 
         ResolvedTraitBound { trait_generics, ..*parent_trait_bound }
+    }
+
+    /// Instantiates `declared_bound`, a bound stored on the declaration of `trait_bound`'s trait
+    /// (a parent bound, or a bound on one of its associated types), for the bound
+    /// `object_type: trait_bound`. The trait's `Self` becomes `object_type`, its generics and
+    /// associated types the arguments of `trait_bound`, and each associated item the declared
+    /// bound leaves unspecified a fresh variable.
+    pub(crate) fn instantiate_declared_bound(
+        &self,
+        object_type: &Type,
+        trait_bound: &ResolvedTraitBound,
+        declared_bound: &ResolvedTraitBound,
+    ) -> TraitGenerics {
+        let mut bindings = TypeBindings::default();
+        let self_type_var = self.interner.get_trait(trait_bound.trait_id).self_type_typevar.clone();
+        let kind = self_type_var.kind().into_owned();
+        bindings.insert(self_type_var.id(), (self_type_var, kind, object_type.clone()));
+        self.interner.bind_elided_bound_items_to_fresh(trait_bound.trait_id, &mut bindings);
+        self.bind_generics_from_trait_bound(trait_bound, &mut bindings);
+        declared_bound.trait_generics.map(|typ| typ.substitute(&bindings))
     }
 
     pub(crate) fn fully_qualified_trait_path_by_id(&self, trait_id: TraitId) -> String {

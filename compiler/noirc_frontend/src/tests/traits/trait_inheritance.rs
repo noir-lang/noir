@@ -526,7 +526,7 @@ fn trait_inheritance_chain_with_associated_types() {
         fn get_b(self) -> Self::B { self.b }
     }
 
-    fn process<T>(t: T) -> Field where T: Level3 {
+    fn process<T>(t: T) -> Field where T: Level3, T: Level1<A = Field> {
         t.get_a()
     }
 
@@ -1145,29 +1145,6 @@ fn elided_supertrait_associated_type_dispatches_to_the_implementor() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir-claude/issues/1811
-///
-/// An associated constant elided from a supertrait bound keeps its numeric kind, so using it
-/// where a type is expected is an error.
-#[test]
-fn elided_supertrait_associated_constant_keeps_its_kind() {
-    let src = r#"
-    trait Par {
-        let N: u32;
-    }
-    trait Sub: Par {}
-
-    pub fn f<T>(_x: <T as Par>::N) where T: Sub {}
-
-    fn main() {}
-    "#;
-    let errors = get_program_errors(src);
-    assert!(
-        errors.iter().any(|error| format!("{error:?}").contains("TypeKindMismatch")),
-        "expected a kind mismatch, got {errors:?}"
-    );
-}
-
 #[test]
 fn parent_associated_type_in_impl_resolves_through_parent_bound_mentioning_self() {
     // In `impl Child for Narrow`, `Self::A` comes from `Narrow: Parent<Narrow>`, the parent bound
@@ -1183,4 +1160,244 @@ fn parent_associated_type_in_impl_resolves_through_parent_bound_mentioning_self(
     fn main() -> pub Field { let _ = Wide { v: 0 }; Narrow { v: 3 }.use_a(7) }
     "#;
     assert_no_errors(src);
+}
+
+// Regression tests for https://github.com/noir-lang/noir-claude/issues/1811
+//
+// An associated item that a parent bound leaves unspecified (the `N` of `Par` in
+// `trait Sub: Par`) is unknown at every use of the bound, with its declared kind. Each use gets
+// its own unknown: rigid inside a generic function, inferred for a concrete type. Using the bound
+// once must not fix the item for any other use.
+
+#[test]
+fn elided_parent_associated_constant_is_not_a_type() {
+    let src = r#"
+    trait Par { let N: u32; }
+    trait Sub: Par {}
+    pub fn f<T>(_x: <T as Par>::N) where T: Sub {}
+                    ^^^^^^^^^^^^^ Expected type, found numeric generic
+                    ~~~~~~~~~~~~~ not a type
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn elided_parent_associated_type_is_not_a_length() {
+    let src = r#"
+    trait Par { type A; }
+    trait Sub: Par {}
+    pub fn f<T>(_x: [Field; <T as Par>::A]) where T: Sub {}
+                    ^^^^^^^^^^^^^^^^^^^^^^ Type provided when a numeric generic was expected
+                    ~~~~~~~~~~~~~~~~~~~~~~ the numeric generic is not of type `u32`
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn elided_parent_associated_constant_is_rigid_in_each_function() {
+    let src = r#"
+    trait Par { let N: u32; }
+    trait Sub: Par {}
+    pub fn f<T>(xs: [Field; 3]) -> [Field; <T as Par>::N] where T: Sub { xs }
+                                   ^^^^^^^^^^^^^^^^^^^^^^ expected type [Field; <T as Par>::N], found type [Field; 3]
+                                   ~~~~~~~~~~~~~~~~~~~~~~ expected [Field; <T as Par>::N] because of return type
+                                                                         ~~ [Field; 3] returned here
+    pub fn g<T>(ys: [Field; 7]) -> [Field; <T as Par>::N] where T: Sub { ys }
+                                   ^^^^^^^^^^^^^^^^^^^^^^ expected type [Field; <T as Par>::N], found type [Field; 7]
+                                   ~~~~~~~~~~~~~~~~~~~~~~ expected [Field; <T as Par>::N] because of return type
+                                                                         ~~ [Field; 7] returned here
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn elided_parent_associated_constant_with_generated_impl() {
+    let src = r#"
+    trait Par { let N: u32; }
+    trait Sub: Par {}
+    #[gen_sub]
+    struct S {}
+    impl Par for S { let N: u32 = 3; }
+    comptime fn gen_sub(_s: TypeDefinition) -> Quoted { quote { impl Sub for S {} } }
+    pub fn poison<T, let M: u32>(xs: [Field; M]) -> [Field; M] where T: Sub {
+                                                    ^^^^^^^^^^ expected type [Field; M], found type [Field; <T as Par>::N]
+                                                    ~~~~~~~~~~ expected [Field; M] because of return type
+        let ys: [Field; <T as Par>::N] = xs;
+                                         ^^ Expected type [Field; <T as Par>::N], found type [Field; M]
+        ys
+        ~~ [Field; <T as Par>::N] returned here
+    }
+    fn main() -> pub Field {
+        assert(<S as Par>::N == 3);
+        let a: [Field; 5] = [1, 2, 3, 4, 5];
+        let b = poison::<S, 5>(a);
+        b[4]
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn elided_parent_associated_type_with_two_implementors() {
+    let src = r#"
+    trait KeyType { type Key; }
+    trait Lookup: KeyType { fn lookup(self, key: Self::Key) -> Field; }
+    struct Map { key: Field }
+    struct Map2 { key: u32 }
+    impl KeyType for Map { type Key = Field; }
+    impl KeyType for Map2 { type Key = u32; }
+    impl Lookup for Map { fn lookup(self, key: Self::Key) -> Field { let _ = self.key; key } }
+    impl Lookup for Map2 { fn lookup(self, key: Self::Key) -> Field { let _ = self.key; key as Field } }
+    fn main() -> pub Field { Map { key: 1 }.lookup(1) + Map2 { key: 2 }.lookup(3) }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn grandparent_associated_type_is_rigid_without_a_bound_pinning_it() {
+    let src = r#"
+    trait Level1 { type A; }
+    trait Level2: Level1 { fn get_a(self) -> Self::A; }
+    trait Level3: Level2 {}
+    pub fn process<T>(t: T) -> Field where T: Level3 { t.get_a() }
+                               ^^^^^ expected type Field, found type <T as Level1>::A
+                               ~~~~~ expected Field because of return type
+                                                       ~~~~~~~~~ <T as Level1>::A returned here
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn elided_parent_associated_type_dispatches_per_bounded_type() {
+    let src = r#"
+    trait Check { fn check(self) -> Field; }
+    struct Narrow { v: Field }
+    struct Wide { v: Field }
+    impl Check for Narrow { fn check(self) -> Field { assert(self.v != 100); self.v } }
+    impl Check for Wide { fn check(self) -> Field { self.v } }
+    trait Par { type A; fn get(self) -> Self::A; }
+    trait Sub: Par {}
+    struct S { v: Field }
+    struct T2 { v: Field }
+    impl Par for S { type A = Narrow; fn get(self) -> Narrow { Narrow { v: self.v } } }
+    impl Par for T2 { type A = Wide; fn get(self) -> Wide { Wide { v: self.v } } }
+    impl Sub for S {}
+    impl Sub for T2 {}
+    fn run<X: Sub>(x: X) -> Field where <X as Par>::A: Check { x.get().check() }
+    fn main(v: Field) -> pub Field { run(T2 { v: 0 }) + run(S { v }) }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0(v$l0: Field) -> pub Field {
+        (run$f1({
+            let v$l1 = 0;
+            (v$l1)
+        }) + run$f2({
+            let v$l2 = v$l0;
+            (v$l2)
+        }))
+    }
+    fn run$f1(x$l3: (Field,)) -> Field {
+        check$f3(get$f4(x$l3))
+    }
+    fn run$f2(x$l4: (Field,)) -> Field {
+        check$f5(get$f6(x$l4))
+    }
+    fn check$f3(self$l5: (Field,)) -> Field {
+        self$l5.0
+    }
+    fn get$f4(self$l6: (Field,)) -> (Field,) {
+        {
+            let v$l7 = self$l6.0;
+            (v$l7)
+        }
+    }
+    fn check$f5(self$l8: (Field,)) -> Field {
+        assert((self$l8.0 != 100));;
+        self$l8.0
+    }
+    fn get$f6(self$l9: (Field,)) -> (Field,) {
+        {
+            let v$l10 = self$l9.0;
+            (v$l10)
+        }
+    }
+    ");
+}
+
+// A bound on an associated type that mentions `Self` (`type Bar: Baz<Self>`) is instantiated
+// for the bounded type like a parent bound: `X: Foo` gives `<X as Foo>::Bar: Baz<X>`.
+
+#[test]
+fn associated_type_bound_mentioning_self_does_not_fix_self() {
+    let src = r#"
+    trait Baz<T> { fn pick(self, o: T) -> Field; }
+    pub struct Wide { v: Field }
+    struct Item { v: Field }
+    impl Baz<Wide> for Item { fn pick(self, o: Wide) -> Field { let _ = o.v; self.v } }
+    trait Foo { type Bar: Baz<Self>; fn bar(self) -> Self::Bar; }
+    impl Foo for Wide { type Bar = Item; fn bar(self) -> Item { Item { v: self.v } } }
+    pub fn pin<X: Foo>(x: X, w: Wide) -> Field { x.bar().pick(w) }
+                                                              ^ Expected type X, found type Wide
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn associated_type_bound_mentioning_self_dispatches_per_bounded_type() {
+    let src = r#"
+    trait Baz<T> { fn lim(self) -> Field; }
+    struct Narrow { v: Field }
+    struct Wide { v: Field }
+    struct Item { v: Field }
+    impl Baz<Narrow> for Item { fn lim(self) -> Field { assert(self.v != 100); self.v } }
+    impl Baz<Wide> for Item { fn lim(self) -> Field { self.v } }
+    trait Foo { type Bar: Baz<Self>; fn bar(self) -> Self::Bar; }
+    impl Foo for Narrow { type Bar = Item; fn bar(self) -> Item { Item { v: self.v } } }
+    impl Foo for Wide { type Bar = Item; fn bar(self) -> Item { Item { v: self.v } } }
+    fn run<X: Foo>(x: X) -> Field { x.bar().lim() }
+    fn main(v: Field) -> pub Field { run(Wide { v: 0 }) + run(Narrow { v }) }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0(v$l0: Field) -> pub Field {
+        (run$f1({
+            let v$l1 = 0;
+            (v$l1)
+        }) + run$f2({
+            let v$l2 = v$l0;
+            (v$l2)
+        }))
+    }
+    fn run$f1(x$l3: (Field,)) -> Field {
+        lim$f3(bar$f4(x$l3))
+    }
+    fn run$f2(x$l4: (Field,)) -> Field {
+        lim$f5(bar$f6(x$l4))
+    }
+    fn lim$f3(self$l5: (Field,)) -> Field {
+        self$l5.0
+    }
+    fn bar$f4(self$l6: (Field,)) -> (Field,) {
+        {
+            let v$l7 = self$l6.0;
+            (v$l7)
+        }
+    }
+    fn lim$f5(self$l8: (Field,)) -> Field {
+        assert((self$l8.0 != 100));;
+        self$l8.0
+    }
+    fn bar$f6(self$l9: (Field,)) -> (Field,) {
+        {
+            let v$l10 = self$l9.0;
+            (v$l10)
+        }
+    }
+    ");
 }
