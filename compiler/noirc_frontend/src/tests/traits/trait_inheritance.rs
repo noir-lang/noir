@@ -1054,3 +1054,125 @@ fn self_associated_type_from_parent_mentioning_self_in_impl() {
     assert_no_errors(src);
     get_monomorphized(src).expect("`Self::Out` in `impl Child for N` should be u8");
 }
+
+/// Regression test for https://github.com/noir-lang/noir-claude/issues/1967
+///
+/// `Self::Out` inherited from the generic parent impl `impl<let M: u32> P for S<M>` is
+/// `[u8; K]` inside `impl<let K: u32> C for S<K>`: the parent impl's `M` is substituted.
+#[test]
+fn self_associated_type_from_generic_parent_impl_is_instantiated() {
+    let src = r#"
+    trait P {
+        type Out;
+        fn p() -> u32;
+    }
+    trait C: P {
+        fn g(a: Self::Out) -> u32;
+    }
+    struct S<let M: u32> {}
+    fn mk<let N: u32>() -> [u8; N] {
+        [0; N]
+    }
+    fn len<let N: u32>(_a: [u8; N]) -> u32 {
+        N
+    }
+
+    impl<let M: u32> P for S<M> {
+        type Out = [u8; M];
+        fn p() -> u32 {
+            0
+        }
+    }
+    impl<let K: u32> C for S<K> {
+        fn g(a: Self::Out) -> u32 {
+            len(a) * 1000 + K
+        }
+    }
+
+    fn main() -> pub u32 {
+        let _ = mk::<1>();
+        S::<8>::g([0; 8])
+    }
+    "#;
+    assert_no_errors(src);
+    get_monomorphized(src).expect("`S::<8>::g` should take `[u8; 8]`");
+}
+
+/// Regression test for https://github.com/noir-lang/noir-claude/issues/1967
+///
+/// From inside the parent impl, `S::<8>::g` expects `[u8; 8]`, so passing `[u8; M]` is an error,
+/// and an inferred argument (`mk()`) is built with 8 elements even when called from `S<16>`.
+#[test]
+fn generic_parent_associated_type_is_not_the_callers_impl_generic() {
+    let rejected = r#"
+    trait P {
+        type Out;
+        fn p() -> u32;
+    }
+    trait C: P {
+        fn g(a: Self::Out) -> u32;
+    }
+    struct S<let M: u32> {}
+    fn mk<let N: u32>() -> [u8; N] {
+        [0; N]
+    }
+    fn len<let N: u32>(_a: [u8; N]) -> u32 {
+        N
+    }
+
+    impl<let M: u32> P for S<M> {
+        type Out = [u8; M];
+        fn p() -> u32 {
+            let y: [u8; M] = mk();
+            S::<8>::g(y)
+                      ^ Expected type [u8; 8], found type [u8; M]
+        }
+    }
+    impl<let K: u32> C for S<K> {
+        fn g(a: Self::Out) -> u32 {
+            len(a)
+        }
+    }
+
+    fn main() -> pub u32 {
+        S::<16>::p()
+    }
+    "#;
+    check_errors(rejected);
+
+    let inferred = r#"
+    trait P {
+        type Out;
+        fn p() -> u32;
+    }
+    trait C: P {
+        fn g(a: Self::Out) -> u32;
+    }
+    struct S<let M: u32> {}
+    fn mk<let N: u32>() -> [u8; N] {
+        [0; N]
+    }
+    fn len<let N: u32>(_a: [u8; N]) -> u32 {
+        N
+    }
+
+    impl<let M: u32> P for S<M> {
+        type Out = [u8; M];
+        fn p() -> u32 {
+            S::<8>::g(mk())
+        }
+    }
+    impl<let K: u32> C for S<K> {
+        fn g(a: Self::Out) -> u32 {
+            len(a)
+        }
+    }
+
+    fn main() {
+        comptime {
+            assert_eq(S::<16>::p(), 8);
+        }
+    }
+    "#;
+    assert_no_errors(inferred);
+}
