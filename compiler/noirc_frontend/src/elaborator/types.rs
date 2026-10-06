@@ -3908,7 +3908,9 @@ impl Elaborator<'_> {
         assumed: bool,
         bindings: &mut TypeBindings,
     ) {
-        self.bind_generics_from_trait_bound(&constraint.trait_bound, bindings);
+        let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
+        bindings
+            .extend(the_trait.substitution_for_use(None, &constraint.trait_bound.trait_generics));
 
         // Also bind associated types inherited from parent traits, e.g. a method returning
         // `Self::A` where `A` is defined on a parent trait rather than this one. Without this
@@ -3926,9 +3928,11 @@ impl Elaborator<'_> {
         // See the doc comment for why those self-mappings are not no-ops.
         if assumed {
             let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
-            let trait_generics = &constraint.trait_bound.trait_generics;
-            the_trait.bind_self_and_generics(&constraint.typ, &trait_generics.ordered, bindings);
-            the_trait.bind_associated_types(&trait_generics.named, bindings);
+            the_trait.bind_given_arguments(
+                &constraint.typ,
+                &constraint.trait_bound.trait_generics,
+                bindings,
+            );
         }
     }
 
@@ -3947,9 +3951,8 @@ impl Elaborator<'_> {
             return;
         }
 
-        // `bind_generics_from_trait_bound` below already assumes this trait id resolves (via
-        // `get_trait`); use `get_trait` here too so a missing trait is a clear internal error
-        // rather than a silently-empty parent-bound list.
+        // Use `get_trait` so a missing trait is a clear internal error rather than a
+        // silently-empty parent-bound list.
         let parent_bounds: Vec<_> =
             self.interner.get_trait(trait_bound.trait_id).parent_bounds().collect();
 
@@ -3978,19 +3981,10 @@ impl Elaborator<'_> {
             }
 
             parent_bound.bind_placeholders(&instantiated, bindings);
-            self.bind_generics_from_trait_bound(&instantiated, bindings);
+            let parent_trait = self.interner.get_trait(instantiated.trait_id);
+            bindings.extend(parent_trait.substitution_for_use(None, &instantiated.trait_generics));
             self.bind_parent_trait_associated_types(self_type, &instantiated, bindings, visited);
         }
-    }
-
-    /// Insert the ordered generics and associated types from the trait bound.
-    pub(crate) fn bind_generics_from_trait_bound(
-        &self,
-        trait_bound: &ResolvedTraitBound,
-        bindings: &mut TypeBindings,
-    ) {
-        let the_trait = self.interner.get_trait(trait_bound.trait_id);
-        the_trait.bind_generics(&trait_bound.trait_generics, bindings);
     }
 
     /// `declared_bound`, a parent bound or associated type bound of `trait_bound`'s trait, for the
@@ -4002,7 +3996,7 @@ impl Elaborator<'_> {
         declared_bound: &DeclaredBound,
     ) -> ResolvedTraitBound {
         let the_trait = self.interner.get_trait(trait_bound.trait_id);
-        let bindings = the_trait.bound_bindings(self_type, &trait_bound.trait_generics);
+        let bindings = the_trait.substitution_for_use(Some(self_type), &trait_bound.trait_generics);
         declared_bound
             .instantiate(&bindings, |kind| self.interner.next_type_variable_with_kind(kind))
     }

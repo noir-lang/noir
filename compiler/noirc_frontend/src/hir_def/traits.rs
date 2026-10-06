@@ -362,7 +362,7 @@ impl DeclaredBound {
     }
 
     /// The bound for one use of the declaring trait. `bindings` maps the declaring trait's
-    /// `Self`, generics and associated types to that use's (see [`Trait::bound_bindings`]).
+    /// `Self`, generics and associated types to that use's (see [`Trait::substitution_for_use`]).
     ///
     /// An associated item the bound leaves out (`trait Foo: Bar` where `Bar` has `type Out`) is
     /// a placeholder declared once for the whole trait; `fresh_placeholder` replaces it with one
@@ -472,29 +472,63 @@ impl Trait {
             .map(|c| DeclaredBound::new(c.trait_bound.clone()))
     }
 
-    /// Bindings from this trait's own ordered generics and associated types to the arguments
-    /// of `trait_generics`, a bound on this trait.
-    pub fn bind_generics(&self, trait_generics: &TraitGenerics, bindings: &mut TypeBindings) {
-        bind_ordered_generics(&self.generics, &trait_generics.ordered, bindings);
-        bind_named_generics(self.associated_types.clone(), &trait_generics.named, bindings);
-    }
-
-    /// Bindings from this trait's own `Self`, ordered generics and associated types to those of
-    /// the bound `self_type: ThisTrait<trait_generics>`. Substituting them into anything declared
-    /// on this trait gives its meaning for that bound.
-    pub fn bound_bindings(&self, self_type: &Type, trait_generics: &TraitGenerics) -> TypeBindings {
+    /// The substitution that gives something declared on this trait (a parent bound, a bound on
+    /// one of its associated types, its where clause) its meaning for one use of the trait,
+    /// `self_type: ThisTrait<generics>`. Without `self_type`, the trait's `Self` is left as is.
+    ///
+    /// A variable whose argument mentions the variable itself gets no entry, and an associated
+    /// type that `generics` leaves out is bound to `Type::Error`.
+    ///
+    /// Panics if `generics` doesn't give exactly one argument per ordered generic, or names an
+    /// associated type this trait doesn't have.
+    pub fn substitution_for_use(
+        &self,
+        self_type: Option<&Type>,
+        generics: &TraitGenerics,
+    ) -> TypeBindings {
         let mut bindings = TypeBindings::default();
-        self.bind_generics(trait_generics, &mut bindings);
-        self.self_param.bind(self_type, &mut bindings);
+        if let Some(self_type) = self_type {
+            self.self_param.bind(self_type, &mut bindings);
+        }
+
+        assert_eq!(
+            self.generics.len(),
+            generics.ordered.len(),
+            "unexpected number of ordered generics"
+        );
+        for (param, arg) in self.generics.iter().zip(&generics.ordered) {
+            bind_unless_recursive(param, arg, &mut bindings);
+        }
+
+        assert!(
+            generics.named.len() <= self.associated_types.len(),
+            "trait bound has more named generics than associated types"
+        );
+        for named in &generics.named {
+            assert!(
+                self.get_associated_type(named.name.as_str()).is_some(),
+                "Expected to find associated type named {}",
+                named.name
+            );
+        }
+        for associated in &self.associated_types {
+            let arg = generics.named.iter().find(|named| named.name.as_str() == *associated.name);
+            let arg = arg.map_or(Type::Error, |named| named.typ.clone());
+            bind_unless_recursive(associated, &arg, &mut bindings);
+        }
         bindings
     }
 
     /// Binds this trait's `Self` to `self_type`, and each of its ordered generics and associated
-    /// types to the argument `generics` gives for it, adding to `bindings`. An associated type
-    /// that `generics` leaves out gets no entry.
+    /// types to the argument `generics` gives for it, adding to `bindings`. Used to seed the
+    /// instantiation of one of the trait's methods for one use, so that instantiating the
+    /// method's type keeps each of the trait's variables pointing at that use's argument.
     ///
-    /// Panics if `generics` doesn't give exactly one argument per ordered generic, or names an
-    /// associated type this trait doesn't have.
+    /// Unlike [`Self::substitution_for_use`], every variable that `generics` gives an argument for
+    /// gets an entry, even one mapped to itself (an assumed `Self: CurrentTrait` constraint's
+    /// arguments are the trait's own variables): an entry tells instantiation to leave the
+    /// variable alone rather than replace it with a fresh one. An associated type that `generics`
+    /// leaves out gets no entry.
     pub fn bind_given_arguments(
         &self,
         self_type: &Type,
@@ -502,47 +536,14 @@ impl Trait {
         bindings: &mut TypeBindings,
     ) {
         self.self_param.bind(self_type, bindings);
-        bind_ordered_generics(&self.generics, &generics.ordered, bindings);
-        for arg in &generics.named {
-            let param = self.get_associated_type(arg.name.as_str()).unwrap_or_else(|| {
-                unreachable!("Expected to find associated type named {}", arg.name)
-            });
-            bind_generic(param, &arg.typ, bindings);
+        for (param, arg) in self.generics.iter().zip(&generics.ordered) {
+            bind(param, arg, bindings);
         }
-    }
-
-    /// Binds this trait's `Self` to `self_type` and its ordered generics to `ordered`, in order.
-    ///
-    /// Unlike [`Self::bind_generics`], every variable gets an entry, even one whose argument is
-    /// the variable itself: such an entry tells instantiation to leave the variable alone rather
-    /// than replace it with a fresh one.
-    pub fn bind_self_and_generics(
-        &self,
-        self_type: &Type,
-        ordered: &[Type],
-        bindings: &mut TypeBindings,
-    ) {
-        self.self_param.bind(self_type, bindings);
-        for (param, arg) in self.generics.iter().zip(ordered) {
-            let kind = param.kind().into_owned();
-            bindings.insert(param.type_var.id(), (param.type_var.clone(), kind, arg.clone()));
-        }
-    }
-
-    /// Binds each of this trait's associated types that `named` gives a value for, by name, like
-    /// [`Self::bind_self_and_generics`]. An associated type missing from `named` is left unbound.
-    pub fn bind_associated_types(&self, named: &[NamedType], bindings: &mut TypeBindings) {
         for associated in &self.associated_types {
-            let Some(arg) =
-                named.iter().find(|named| named.name.as_str() == associated.name.as_str())
-            else {
-                continue;
-            };
-            let kind = associated.kind().into_owned();
-            bindings.insert(
-                associated.type_var.id(),
-                (associated.type_var.clone(), kind, arg.typ.clone()),
-            );
+            let arg = generics.named.iter().find(|named| named.name.as_str() == *associated.name);
+            if let Some(arg) = arg {
+                bind(associated, &arg.typ, bindings);
+            }
         }
     }
 
@@ -699,61 +700,15 @@ impl TraitFunction {
     }
 }
 
-/// Binds the ordered [`ResolvedGeneric`]s of a trait to the ordered generics in a [`ResolvedTraitBound`].
-///
-/// Panics if the number of types do not match the ordered generics in the trait.
-fn bind_ordered_generics(params: &[ResolvedGeneric], args: &[Type], bindings: &mut TypeBindings) {
-    assert_eq!(params.len(), args.len(), "unexpected number of ordered generics");
-
-    for (param, arg) in params.iter().zip(args) {
-        bind_generic(param, arg, bindings);
-    }
+/// Binds `param`, one of a trait's own type variables, to `arg`.
+fn bind(param: &ResolvedGeneric, arg: &Type, bindings: &mut TypeBindings) {
+    let kind = param.kind().into_owned();
+    bindings.insert(param.type_var.id(), (param.type_var.clone(), kind, arg.clone()));
 }
 
-/// Binds the associated [`ResolvedGeneric`]s of a trait to the named generics in a [`ResolvedTraitBound`].
-///
-/// Panics if the number of types exceeds the named generics in the trait.
-/// Any named parameter that does not appear in the arguments is bound to [`Type::Error`].
-fn bind_named_generics(
-    mut params: Vec<ResolvedGeneric>,
-    args: &[NamedType],
-    bindings: &mut TypeBindings,
-) {
-    assert!(
-        args.len() <= params.len(),
-        "bind_named_generics: trait bound has more named generics than associated types"
-    );
-
-    if params.is_empty() {
-        return;
-    }
-
-    for arg in args {
-        let i = params
-            .iter()
-            .position(|typ| *typ.name == arg.name.as_str())
-            .unwrap_or_else(|| unreachable!("Expected to find associated type named {}", arg.name));
-
-        let param = params.swap_remove(i);
-
-        bind_generic(&param, &arg.typ, bindings);
-    }
-
-    for unbound_param in params {
-        bind_generic(&unbound_param, &Type::Error, bindings);
-    }
-}
-
-/// Binds the type variable in a [`ResolvedGeneric`], e.g. a generic parameter of a trait,
-/// to a [Type], which itself can be an unbound type variable.
-///
-/// If the type variable itself appears in the type, then it does nothing.
-fn bind_generic(param: &ResolvedGeneric, arg: &Type, bindings: &mut TypeBindings) {
-    // Avoid binding t = t
+/// Like [`bind`], but adds nothing when `arg` mentions `param` itself (such as `T ↦ T`).
+fn bind_unless_recursive(param: &ResolvedGeneric, arg: &Type, bindings: &mut TypeBindings) {
     if !arg.occurs(param.type_var.id()) {
-        bindings.insert(
-            param.type_var.id(),
-            (param.type_var.clone(), param.kind().into_owned(), arg.clone()),
-        );
+        bind(param, arg, bindings);
     }
 }

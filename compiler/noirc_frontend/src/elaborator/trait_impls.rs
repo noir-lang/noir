@@ -788,7 +788,7 @@ impl Elaborator<'_> {
 
         // The where clause, parent bounds included, is written in terms of the trait's `Self`,
         // generics and associated types, so it is checked with this impl's.
-        let mut bindings = the_trait.bound_bindings(object_type, impl_generics);
+        let mut bindings = the_trait.substitution_for_use(Some(object_type), impl_generics);
 
         self.check_trait_bounds_are_satisfied(
             the_trait.where_clause.as_written().to_vec(),

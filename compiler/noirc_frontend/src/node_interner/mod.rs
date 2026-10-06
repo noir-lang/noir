@@ -2,7 +2,6 @@ use std::hash::Hash;
 use std::marker::Copy;
 
 use fm::FileId;
-use iter_extended::vecmap;
 use noirc_arena::{Arena, Index};
 use noirc_errors::{Location, Span};
 use petgraph::prelude::DiGraph;
@@ -1661,14 +1660,13 @@ impl NodeInterner {
 
         // The impl's trait arguments and associated types are written in terms of the impl's own
         // generics, which `impl_instantiation` maps to their values for `impl_self_type`.
-        let ordered = vecmap(trait_impl_generics, |typ| typ.substitute(impl_instantiation));
-        the_trait.bind_self_and_generics(impl_self_type, &ordered, bindings);
-
         // An associated type the impl doesn't define has already been reported.
-        let associated_types = vecmap(self.get_associated_types_for_impl(impl_id), |named| {
-            NamedType { name: named.name.clone(), typ: named.typ.substitute(impl_instantiation) }
-        });
-        the_trait.bind_associated_types(&associated_types, bindings);
+        let generics = TraitGenerics {
+            ordered: trait_impl_generics.to_vec(),
+            named: self.get_associated_types_for_impl(impl_id).to_vec(),
+        };
+        let generics = generics.map(|typ| typ.substitute(impl_instantiation));
+        the_trait.bind_given_arguments(impl_self_type, &generics, bindings);
 
         // Now collect bindings from the associated types of every parent trait that
         // is implemented for the object type.
