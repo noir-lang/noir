@@ -383,46 +383,8 @@ fn self_item_in_default_method_has_self_type() {
     assert_no_errors(src);
 }
 
-/// Regression test for https://github.com/noir-lang/noir-claude/issues/2042
-///
-/// The assumed "`Self` implements the current trait" bound used while elaborating a default
-/// method body must use the rigid `Self`, like `Self::item` already does (see noir#13864).
-/// Otherwise a trait item call on a concrete type with no impl of the trait (here
-/// `Checked::tag(Wide { v: 0 })`, in a default body that is never called) is wrongly accepted by
-/// unifying that bindable assumed bound with the concrete type, which then pins the trait-wide
-/// `Self` to that type for every other default method.
-#[test]
-fn trait_item_call_on_non_implementing_type_in_default_method_is_rejected() {
-    let src = r#"
-    struct Narrow { v: Field }
-    struct Wide { v: Field }
-
-    trait Other {
-        fn validate(self) -> Field;
-    }
-    impl Other for Narrow {
-        fn validate(self) -> Field { self.v }
-    }
-    impl Other for Wide {
-        fn validate(self) -> Field { self.v }
-    }
-
-    trait Checked: Other {
-        fn tag(self) -> Field { 0 }
-               ^^^^ unused variable self
-               ~~~~ unused variable
-        fn unused_helper() -> Field { Checked::tag(Wide { v: 0 }) }
-                                      ^^^^^^^^^^^^ No matching impl found for `Wide: Checked`
-                                      ~~~~~~~~~~~~ No impl for `Wide: Checked`
-        fn checked(self) -> Field { Other::validate(self) }
-    }
-    impl Checked for Narrow {}
-
-    fn main(w: Field) -> pub Field { Narrow { v: w }.checked() }
-    "#;
-    check_errors(src);
-}
-
+// Regression tests for https://github.com/noir-lang/noir-claude/issues/2042
+//
 // In the tests below `Wide` has no `Checked` impl, so naming `Wide` (or an unbounded `T`) as a
 // `Checked` in a default body must be rejected. The assumed `Self: Checked` that holds inside the
 // trait is about the trait's own `Self` and must not be satisfied by any other type: matching it
