@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791297618344,
+  "lastUpdate": 1791297925045,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22966,48 +22966,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "2058dea64a7eddab7b4ada89bfeb85efa6af800b",
-          "message": "chore: bump noir-gates-diff to 4fbb881 (#13806)",
-          "timestamp": "2026-09-29T12:10:53Z",
-          "tree_id": "c97be7e14568e2cefcefb14039c908f68258028d",
-          "url": "https://github.com/noir-lang/noir/commit/2058dea64a7eddab7b4ada89bfeb85efa6af800b"
-        },
-        "date": 1790685137999,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 70716,
-            "range": "± 1258",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 62518,
-            "range": "± 1119",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 1733203,
-            "range": "± 93951",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -25059,6 +25017,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2360337,
             "range": "± 4603",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ebd42eba291eea2e46c02bedebec474e23c859fa",
+          "message": "chore(deps): bump the hardhat group and hardhat to ^3.18.0 (#13894)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-10-06T14:14:02Z",
+          "tree_id": "759d610fab056aade93601ed1ede05403997075f",
+          "url": "https://github.com/noir-lang/noir/commit/ebd42eba291eea2e46c02bedebec474e23c859fa"
+        },
+        "date": 1791297821840,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 161035,
+            "range": "± 2318",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 141731,
+            "range": "± 261",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2130303,
+            "range": "± 4736",
             "unit": "ns/iter"
           }
         ]
