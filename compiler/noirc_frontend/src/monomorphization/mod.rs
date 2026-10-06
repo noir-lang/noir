@@ -85,6 +85,7 @@ use std::{
 
 use self::ast::InlineType;
 use self::debug_types::DebugTypeTracker;
+use self::function_context::{FunctionContext, LambdaContext};
 use self::{
     ast::{Definition, FuncId, Function, LocalId, Program},
     errors::MonomorphizationError,
@@ -96,16 +97,12 @@ mod context_reuse_tests;
 mod debug;
 pub mod debug_types;
 pub mod errors;
+mod function_context;
 pub mod printer;
 pub mod proxies;
 pub mod tests;
 pub mod visitor;
 mod well_formed;
-
-struct LambdaContext {
-    env_ident: ast::Ident,
-    captures: Vec<HirCapturedVar>,
-}
 
 /// The context struct for the monomorphization pass.
 ///
@@ -114,12 +111,6 @@ struct LambdaContext {
 pub struct Monomorphizer<'interner> {
     /// The monomorphized version of each function instance seen so far. See [`FunctionKey`].
     functions: HashMap<FunctionKey, FuncId>,
-
-    /// Unlike functions, locals are only keyed by their unique ID because they are never
-    /// duplicated during monomorphization. Doing so would allow them to be used polymorphically
-    /// but would also cause them to be re-evaluated which is a performance trap that would
-    /// confuse users.
-    locals: HashMap<node_interner::DefinitionId, LocalId>,
 
     /// Globals are keyed by their unique ID and their type, which should create a single global
     /// instance per generic combination.
@@ -148,8 +139,6 @@ pub struct Monomorphizer<'interner> {
     /// Used to reference existing definitions in the HIR.
     interner: &'interner NodeInterner,
 
-    lambda_envs_stack: Vec<LambdaContext>,
-
     next_local_id: u32,
     next_global_id: u32,
     next_function_id: u32,
@@ -165,29 +154,14 @@ pub struct Monomorphizer<'interner> {
     /// that happen to share the same name).
     debug_crate_id: Option<crate::graph::CrateId>,
 
-    /// Indicate that we are currently monomorphizing an unconstrained function, which causes
-    /// constrained function called from this context to be monomorphized as unconstrained too.
-    in_unconstrained_function: bool,
-
     /// Set to true to force every function in the program to be unconstrained (`--force-brillig`).
-    /// This is fixed for the whole pass; `force_unconstrained` is derived from it.
+    /// This is fixed for the whole pass; [`FunctionContext::force_unconstrained`] is derived from
+    /// it.
     force_brillig: bool,
 
-    /// Set to true while monomorphizing an expression whose target slot is typed
-    /// `unconstrained fn(..)`. Note that this also changes the first-class function representation
-    /// from a pair of `(constrained, unconstrained)` to `(unconstrained, unconstrained)`, so that
-    /// a constrained caller dispatching through slot `.0` still runs the unconstrained version.
-    ///
-    /// This is a property of the position being monomorphized, not of the pass: it holds for the
-    /// value stored into that slot and for nothing else. A binding nested inside that value's
-    /// expression carries its own type and its own slot, so it is monomorphized under its own
-    /// value of this field.
-    force_unconstrained: bool,
-
-    /// Bindings for the generics of the function being monomorphized: the union of every set
-    /// passed to a live [`Self::with_bindings`] call. Every type this pass reads from the HIR goes
-    /// through [`Self::ty`], which applies them.
-    substitution: TypeBindings,
+    /// State describing the function currently being monomorphized. Replaced as a unit by
+    /// [`Self::with_function_context`] for each function taken off the queue.
+    function: FunctionContext,
 }
 
 type HirType = Type;
@@ -325,7 +299,6 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Self {
         Monomorphizer {
             functions: HashMap::default(),
-            locals: HashMap::default(),
             globals: HashMap::default(),
             finished_globals: HashMap::default(),
             queue: VecDeque::new(),
@@ -335,14 +308,11 @@ impl<'interner> Monomorphizer<'interner> {
             next_function_id: 0,
             next_ident_id: 0,
             interner,
-            lambda_envs_stack: Vec::new(),
             return_location: None,
             debug_type_tracker,
             debug_crate_id,
-            in_unconstrained_function: force_unconstrained,
             force_brillig: force_unconstrained,
-            force_unconstrained,
-            substitution: TypeBindings::default(),
+            function: FunctionContext::new(force_unconstrained, force_unconstrained),
         }
     }
 
@@ -356,24 +326,24 @@ impl<'interner> Monomorphizer<'interner> {
         if let Type::Forall(variables, typ) = typ {
             return Type::Forall(variables.clone(), Box::new(self.ty(typ)));
         }
-        typ.substitute(&self.substitution)
+        typ.substitute(&self.function.substitution)
     }
 
-    /// Run `f` with `bindings` added to [`Self::substitution`], and take them back out when it
-    /// returns.
+    /// Run `f` with `bindings` added to [`FunctionContext::substitution`], and take them back out
+    /// when it returns.
     ///
     /// Only the entries `bindings` touches are saved and restored, so the cost is proportional to
     /// `bindings` rather than to the whole substitution.
     fn with_bindings<T>(&mut self, bindings: TypeBindings, f: impl FnOnce(&mut Self) -> T) -> T {
         let overwritten: Vec<_> = bindings
             .into_iter()
-            .map(|(id, binding)| (id, self.substitution.insert(id, binding)))
+            .map(|(id, binding)| (id, self.function.substitution.insert(id, binding)))
             .collect();
         let result = f(self);
         for (id, previous) in overwritten {
             match previous {
-                Some(binding) => self.substitution.insert(id, binding),
-                None => self.substitution.remove(&id),
+                Some(binding) => self.function.substitution.insert(id, binding),
+                None => self.function.substitution.remove(&id),
             };
         }
         result
@@ -420,21 +390,23 @@ impl<'interner> Monomorphizer<'interner> {
             return Ok(false);
         };
 
-        self.locals.clear();
-        self.in_unconstrained_function = is_unconstrained;
-
-        // The impl bindings are computed with the instantiation bindings in force: unifying the
-        // trait method's type with the impl method's reads the generics they bind.
-        self.with_bindings(bindings, |this| {
-            let impl_bindings = compute_impl_bindings(
-                this.interner,
-                trait_method,
-                next_fn_id,
-                &this.substitution,
-                location,
-            )
-            .map_err(MonomorphizationError::InterpreterError)?;
-            this.with_bindings(impl_bindings, |this| this.function(next_fn_id, new_id, location))
+        let context = FunctionContext::new(is_unconstrained, self.force_brillig);
+        self.with_function_context(context, |this| {
+            // The impl bindings are computed with the instantiation bindings in force: unifying
+            // the trait method's type with the impl method's reads the generics they bind.
+            this.with_bindings(bindings, |this| {
+                let impl_bindings = compute_impl_bindings(
+                    this.interner,
+                    trait_method,
+                    next_fn_id,
+                    &this.function.substitution,
+                    location,
+                )
+                .map_err(MonomorphizationError::InterpreterError)?;
+                this.with_bindings(impl_bindings, |this| {
+                    this.function(next_fn_id, new_id, location)
+                })
+            })
         })?;
 
         Ok(true)
@@ -472,7 +444,7 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     pub fn locals(&self) -> &HashMap<node_interner::DefinitionId, LocalId> {
-        &self.locals
+        &self.function.locals
     }
 
     pub fn return_location(&self) -> Option<Location> {
@@ -535,7 +507,7 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     fn lookup_local(&self, id: node_interner::DefinitionId) -> Option<Definition> {
-        self.locals.get(&id).copied().map(Definition::Local)
+        self.function.locals.get(&id).copied().map(Definition::Local)
     }
 
     /// Retrieve the definition for the given function, referenced at `location` with the given
@@ -628,7 +600,7 @@ impl<'interner> Monomorphizer<'interner> {
     /// the same list of parameter definitions, but will have different
     /// monomorphized variable IDs created for both function instance.
     fn define_local(&mut self, id: node_interner::DefinitionId, new_id: LocalId) {
-        self.locals.insert(id, new_id);
+        self.function.locals.insert(id, new_id);
     }
 
     /// Record `new_id` as the monomorphized version of the function instance `key`.
@@ -649,8 +621,8 @@ impl<'interner> Monomorphizer<'interner> {
         assert_eq!(new_main_id, Program::main_id(), "expected main to be monomorphized first");
 
         let location = self.interner.function_meta(&main_id).location;
-        self.in_unconstrained_function = self.is_unconstrained(main_id);
-        self.function(main_id, new_main_id, location)?;
+        let context = FunctionContext::new(self.is_unconstrained(main_id), self.force_brillig);
+        self.with_function_context(context, |this| this.function(main_id, new_main_id, location))?;
 
         self.return_location =
             self.interner.function(&main_id).block(self.interner).statements().last().and_then(
@@ -739,7 +711,7 @@ impl<'interner> Monomorphizer<'interner> {
         let attributes = self.interner.function_attributes(&f);
         let allow_constant_return = attributes.has_allow(Lint::ConstantReturn);
         let mut inline_type = InlineType::from(attributes);
-        let unconstrained = self.in_unconstrained_function;
+        let unconstrained = self.function.in_unconstrained_function;
         if unconstrained {
             inline_type = inline_type.into_unconstrained();
         }
@@ -1102,7 +1074,7 @@ impl<'interner> Monomorphizer<'interner> {
                 let frontend_type = self.expr_type(expr);
                 let typ = Self::convert_type(&frontend_type, location)?;
 
-                if !self.in_unconstrained_function && frontend_type.contains_reference() {
+                if !self.function.in_unconstrained_function && frontend_type.contains_reference() {
                     let typ = frontend_type.to_string();
                     return Err(MonomorphizationError::ReferenceReturnedFromIfOrMatch {
                         typ,
@@ -1305,10 +1277,8 @@ impl<'interner> Monomorphizer<'interner> {
         expr: ExprId,
         forced: bool,
     ) -> Result<ast::Expression, MonomorphizationError> {
-        let old = std::mem::replace(&mut self.force_unconstrained, self.force_brillig || forced);
-        let result = self.expr_in_tail_position(expr);
-        self.force_unconstrained = old;
-        result
+        let forced = self.force_brillig || forced;
+        self.with_force_unconstrained(forced, |this| this.expr_in_tail_position(expr))
     }
 
     fn constructor(
@@ -1528,6 +1498,7 @@ impl<'interner> Monomorphizer<'interner> {
         id: node_interner::DefinitionId,
     ) -> Option<(ast::Ident, usize)> {
         let index = self
+            .function
             .lambda_envs_stack
             .last()?
             .captures
@@ -1559,6 +1530,7 @@ impl<'interner> Monomorphizer<'interner> {
     fn fresh_env_ident(&mut self) -> ast::Ident {
         let id = self.next_ident_id();
         let ctx_ident = &self
+            .function
             .lambda_envs_stack
             .last()
             .expect("fresh_env_ident called outside of a lambda environment context")
@@ -1598,9 +1570,9 @@ impl<'interner> Monomorphizer<'interner> {
         expr_id: ExprId,
         generics: Option<Vec<HirType>>,
         // If set and this is a function value, only monomorphize the function for the
-        // constrainedness given by `self.in_unconstrained_function` rather than returning a tuple
-        // of both (constrained, unconstrained). This is used only as an optimization to avoid
-        // unnecessary monomorphization when calling a known function.
+        // constrainedness given by `self.function.in_unconstrained_function` rather than returning
+        // a tuple of both (constrained, unconstrained). This is used only as an optimization to
+        // avoid unnecessary monomorphization when calling a known function.
         use_current_runtime: bool,
         // If true, evaluate some builtins to function values. This is disabled when code-generating
         // the function in a function call since we can avoid creating a new function and instead
@@ -1639,7 +1611,7 @@ impl<'interner> Monomorphizer<'interner> {
                 // Functions are represented as a pair of their constrained and unconstrained versions
                 self.monomorphize_constrained_and_unconstrained(
                     use_current_runtime,
-                    self.force_unconstrained,
+                    self.function.force_unconstrained,
                     |this| {
                         this.function_reference(
                             mutable,
@@ -2303,7 +2275,7 @@ impl<'interner> Monomorphizer<'interner> {
         use_current_runtime: bool,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let ResolvedTraitItem { item, impl_search_bindings, instantiation_bindings } =
-            resolve_trait_item(self.interner, trait_item_id, expr_id, &self.substitution)
+            resolve_trait_item(self.interner, trait_item_id, expr_id, &self.function.substitution)
                 .map_err(MonomorphizationError::InterpreterError)?;
 
         // The impl search's bindings have to stay in force while the impl's method is compiled.
@@ -2344,7 +2316,7 @@ impl<'interner> Monomorphizer<'interner> {
         // Functions are represented as (constrained, unconstrained) pairs
         self.monomorphize_constrained_and_unconstrained(
             use_current_runtime,
-            self.force_unconstrained,
+            self.function.force_unconstrained,
             |this| {
                 this.resolve_trait_method_expr(
                     func_id,
@@ -2424,16 +2396,10 @@ impl<'interner> Monomorphizer<'interner> {
             // therefore we can never make use of a constrained variant of a lambda, and by not
             // generating it we can avoid some illegal corner cases, should the constrained lambda
             // that never gets used try to call unconstrained code in its body.
-            let is_unconstrained = force_unconstrained || self.in_unconstrained_function;
+            let is_unconstrained = force_unconstrained || self.function.in_unconstrained_function;
 
-            let old_value =
-                std::mem::replace(&mut self.in_unconstrained_function, is_unconstrained);
-            let constrained = f.clone()(self)?;
-
-            self.in_unconstrained_function = true;
-            let unconstrained = f(self)?;
-
-            self.in_unconstrained_function = old_value;
+            let constrained = self.with_in_unconstrained_function(is_unconstrained, f.clone())?;
+            let unconstrained = self.with_in_unconstrained_function(true, f)?;
             Ok(ast::Expression::Tuple(vec![constrained, unconstrained]))
         }
     }
@@ -2447,7 +2413,7 @@ impl<'interner> Monomorphizer<'interner> {
         let original_func = Box::new(self.extract_function(call.func)?);
 
         let crossing_runtime_boundaries =
-            !self.in_unconstrained_function && self.function_is_unconstrained(call.func);
+            !self.function.in_unconstrained_function && self.function_is_unconstrained(call.func);
 
         if crossing_runtime_boundaries {
             self.check_arguments_crossing_runtime_boundaries(&call)?;
@@ -2751,7 +2717,7 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Result<ast::Expression, MonomorphizationError> {
         let expression_type = self.expr_type(assign.expression);
         let location = self.interner.expr_location(&assign.expression);
-        if !self.in_unconstrained_function && expression_type.contains_reference() {
+        if !self.function.in_unconstrained_function && expression_type.contains_reference() {
             let typ = expression_type.to_string();
             return Err(MonomorphizationError::AssignedToVarContainingReference { typ, location });
         }
@@ -2830,7 +2796,7 @@ impl<'interner> Monomorphizer<'interner> {
         if lambda.captures.is_empty() {
             self.monomorphize_constrained_and_unconstrained(
                 false,
-                self.force_unconstrained || lambda.unconstrained,
+                self.function.force_unconstrained || lambda.unconstrained,
                 |this: &mut Self| this.lambda_no_capture(lambda, expr),
             )
         } else {
@@ -2867,7 +2833,7 @@ impl<'interner> Monomorphizer<'interner> {
             body,
             return_type: ret_type.clone(),
             return_visibility: Visibility::Private,
-            unconstrained: self.in_unconstrained_function,
+            unconstrained: self.function.in_unconstrained_function,
             inline_type: InlineType::default(),
             is_entry_point: false,
             allow_constant_return: false,
@@ -2878,7 +2844,7 @@ impl<'interner> Monomorphizer<'interner> {
             parameter_types,
             Rc::new(ret_type),
             Rc::new(ast::Type::Unit),
-            self.in_unconstrained_function,
+            self.function.in_unconstrained_function,
         );
 
         let name = lambda_name.to_owned();
@@ -2964,62 +2930,59 @@ impl<'interner> Monomorphizer<'interner> {
             id: self.next_ident_id(),
         };
 
-        // Push the shared environment context for processing both lambda bodies
-        self.lambda_envs_stack.push(LambdaContext {
-            env_ident: env_ident.clone(),
-            captures: lambda.captures.clone(),
-        });
-
         // Determine if we should force unconstrained for both variants.
         // If we're already in an unconstrained context or force_unconstrained is set,
         // both variants will be unconstrained, so we only need to create one function.
-        let force_both_unconstrained = self.force_unconstrained || lambda.unconstrained;
-        let both_unconstrained = force_both_unconstrained || self.in_unconstrained_function;
-
-        let old_unconstrained = self.in_unconstrained_function;
+        let force_both_unconstrained = self.function.force_unconstrained || lambda.unconstrained;
+        let both_unconstrained =
+            force_both_unconstrained || self.function.in_unconstrained_function;
 
         // Build shared parameters structure
         let mut parameters =
             vec![(env_local_id, true, env_name.to_string(), env_typ.clone(), Visibility::Private)];
         parameters.extend(converted_parameters);
 
-        // Create constrained variant (or first unconstrained if both are unconstrained)
-        self.in_unconstrained_function = both_unconstrained;
-        let constrained_id = self.next_function_id();
-        let constrained_body = self.expr(lambda.body)?;
-        let mut lambda_fn = Function {
-            id: constrained_id,
-            name: lambda_name.to_owned(),
-            parameters: parameters.clone(),
-            body: constrained_body,
-            return_type: ret_type.clone(),
-            return_visibility: Visibility::Private,
-            unconstrained: self.in_unconstrained_function,
-            inline_type: InlineType::default(),
-            is_entry_point: false,
-            allow_constant_return: false,
-        };
-        self.push_function(constrained_id, lambda_fn.clone());
+        // Both lambda bodies are processed with the shared environment as the innermost one.
+        let lambda_env =
+            LambdaContext { env_ident: env_ident.clone(), captures: lambda.captures.clone() };
+        let (constrained_id, unconstrained_id) = self.with_lambda_env(lambda_env, |this| {
+            // Create constrained variant (or first unconstrained if both are unconstrained)
+            let constrained_id = this.next_function_id();
+            let constrained_body = this
+                .with_in_unconstrained_function(both_unconstrained, |this| {
+                    this.expr(lambda.body)
+                })?;
+            let mut lambda_fn = Function {
+                id: constrained_id,
+                name: lambda_name.to_owned(),
+                parameters: parameters.clone(),
+                body: constrained_body,
+                return_type: ret_type.clone(),
+                return_visibility: Visibility::Private,
+                unconstrained: both_unconstrained,
+                inline_type: InlineType::default(),
+                is_entry_point: false,
+                allow_constant_return: false,
+            };
+            this.push_function(constrained_id, lambda_fn.clone());
 
-        // Create unconstrained variant unless the previous variant is already unconstrained
-        let unconstrained_id = if both_unconstrained {
-            // Both variants are unconstrained, reuse the same function
-            constrained_id
-        } else {
-            // Create a separate unconstrained variant
-            self.in_unconstrained_function = true;
-            let unconstrained_id = self.next_function_id();
-            let unconstrained_body = self.expr(lambda.body)?;
-            lambda_fn.id = unconstrained_id;
-            lambda_fn.unconstrained = true;
-            lambda_fn.body = unconstrained_body;
-            self.push_function(unconstrained_id, lambda_fn);
-            unconstrained_id
-        };
-
-        // Restore state
-        self.in_unconstrained_function = old_unconstrained;
-        self.lambda_envs_stack.pop();
+            // Create unconstrained variant unless the previous variant is already unconstrained
+            let unconstrained_id = if both_unconstrained {
+                // Both variants are unconstrained, reuse the same function
+                constrained_id
+            } else {
+                // Create a separate unconstrained variant
+                let unconstrained_id = this.next_function_id();
+                let unconstrained_body =
+                    this.with_in_unconstrained_function(true, |this| this.expr(lambda.body))?;
+                lambda_fn.id = unconstrained_id;
+                lambda_fn.unconstrained = true;
+                lambda_fn.body = unconstrained_body;
+                this.push_function(unconstrained_id, lambda_fn);
+                unconstrained_id
+            };
+            Ok::<_, MonomorphizationError>((constrained_id, unconstrained_id))
+        })?;
 
         // Build the function type for both variants
         let constrained_fn_typ = ast::Type::Function(
@@ -3103,7 +3066,7 @@ impl<'interner> Monomorphizer<'interner> {
         let result_type = self.expr_type(expr_id);
         let location = self.interner.expr_location(&expr_id);
 
-        if !self.in_unconstrained_function && result_type.contains_reference() {
+        if !self.function.in_unconstrained_function && result_type.contains_reference() {
             let typ = result_type.to_string();
             return Err(MonomorphizationError::ReferenceReturnedFromIfOrMatch { typ, location });
         }
@@ -3247,7 +3210,8 @@ impl<'interner> Monomorphizer<'interner> {
     /// Returns `true` if a function itself unconstrained, or we are currently monomorphizing an
     /// unconstrained function, in which case all callees are treated as unconstrained.
     fn is_unconstrained(&self, func_id: node_interner::FuncId) -> bool {
-        self.in_unconstrained_function || self.interner.function_meta(&func_id).is_unconstrained()
+        self.function.in_unconstrained_function
+            || self.interner.function_meta(&func_id).is_unconstrained()
     }
 
     // Functions are represented as pairs of (constrained, unconstrained) versions of the same
@@ -3268,7 +3232,7 @@ impl<'interner> Monomorphizer<'interner> {
         // Otherwise we fallback to compiling both versions of the function and extracting the
         // required one.
         let function = self.expr(function)?;
-        let index = if self.in_unconstrained_function { 1 } else { 0 };
+        let index = if self.function.in_unconstrained_function { 1 } else { 0 };
 
         // If this is a tuple literal we can simplify directly. This lets us directly see
         // what function we're calling in some cases.
