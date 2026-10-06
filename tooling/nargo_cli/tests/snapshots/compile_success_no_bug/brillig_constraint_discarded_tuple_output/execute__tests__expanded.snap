@@ -1,0 +1,22 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+struct Point {
+    x: [Field; 4],
+    y: [Field; 4],
+    is_infinity: bool,
+}
+
+unconstrained fn compute_with_transcript(x: Field) -> (Point, [Field; 2]) {
+    let point: Point = Point { x: [x; 4], y: [x; 4], is_infinity: false };
+    (point, [x, x * 2_Field])
+}
+
+fn main(x: Field) -> pub Field {
+    // Safety: comment added by `nargo expand`
+    let transcript: [Field; 2] = unsafe { compute_with_transcript(x).1 };
+    assert(transcript[0_u32] == x);
+    assert(transcript[1_u32] == (x * 2_Field));
+    transcript[1_u32]
+}
