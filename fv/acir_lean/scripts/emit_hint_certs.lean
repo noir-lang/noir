@@ -612,6 +612,159 @@ def showStep : HStep → String
   | .eqBit ia ib c => s!"(.eqBit {showOpnd ia} {showOpnd ib} {showComb c})"
   | .foldOn ca cb ia ib c₁ c₂ => s!"(.foldOn {ca} {cb} {showOpnd ia} {showOpnd ib} {showComb c₁} {showComb c₂})"
 
+def showBinOp : BinaryOp → String
+  | .add => ".add" | .sub => ".sub" | .mul => ".mul" | .div => ".div" | .mod => ".mod"
+  | .lt => ".lt" | .eq => ".eq" | .xor => ".xor"
+def showMsg : Option String → String
+  | none => "none"
+  | some m => s!"(some {m.quote})"
+def showParamType : ParamType → String
+  | .scalar t => s!"(.scalar {showTy t})"
+  | .array ts n => s!"(.array [{", ".intercalate (ts.map showTy)}] {n})"
+def showInstr : Instruction → String
+  | .bin d op u a b => s!"(.bin {d} {showBinOp op} {u} ({showOperand a}) ({showOperand b}))"
+  | .not d a => s!"(.not {d} ({showOperand a}))"
+  | .cast d a t => s!"(.cast {d} ({showOperand a}) {showTy t})"
+  | .truncate d a b m => s!"(.truncate {d} ({showOperand a}) {b} {m})"
+  | .constrain a b m => s!"(.constrain ({showOperand a}) ({showOperand b}) {showMsg m})"
+  | .constrainNe a b m => s!"(.constrainNe ({showOperand a}) ({showOperand b}) {showMsg m})"
+  | .rangeCheck a b m => s!"(.rangeCheck ({showOperand a}) {b} {showMsg m})"
+  | .arrayGet d a i t => s!"(.arrayGet {d} ({showOperand a}) ({showOperand i}) {showTy t})"
+  | .arraySet d m a i v => s!"(.arraySet {d} {m} ({showOperand a}) ({showOperand i}) ({showOperand v}))"
+  | .makeArray d es t => s!"(.makeArray {d} [{", ".intercalate (es.map fun o => s!"({showOperand o})")}] {showParamType t})"
+  | .enableSideEffects c => s!"(.enableSideEffects ({showOperand c}))"
+def showOpcode : Opcode → String
+  | .assertZero ts => s!"(.assertZero {showPoly ts})"
+  | .range w k => s!"(.range {w} {k})"
+/-- A balanced tree literal, laid out as `OTree.get?` expects. -/
+partial def showTree (xs : Array Opcode) (lo hi : ℕ) : String :=
+  if lo ≥ hi then ".leaf"
+  else
+    let m := lo + (hi - lo) / 2
+    s!"(.node {showTree xs lo m} {showOpcode (xs[m]?.getD (.range 0 0))} {showTree xs (m + 1) hi})"
+def showRep (r : Rep2) : String :=
+  s!"⟨[{", ".intercalate (r.alts.map showPoly)}], {showTy r.ty}, {r.L}, {r.M}⟩"
+def showRVal : RVal → String
+  | .scalar r => s!"(.scalar {showRep r})"
+  | .array rs => s!"(.array [{", ".intercalate (rs.map showRep)}])"
+def showFlag : Flag → String
+  | none => "none"
+  | some (P, A) => s!"(some ({showPoly P}, {A}))"
+def showEntry (en : Entry) : String :=
+  let st := match en.step with | none => "none" | some st => s!"some {showStep st}"
+  let al := match en.extra with | none => "none" | some (H, j, cmb) => s!"some ({showPoly H}, {j}, {showComb cmb})"
+  let bd := match en.bound with
+    | none => "none"
+    | some b => s!"some ⟨{b.i}, {showPoly b.sel}, {showComb b.cs}, {showForm b.f₁}, {showComb b.c₁}, {showForm b.f₂}, {showComb b.c₂}⟩"
+  s!"⟨{en.ix}, {st}, {al}, {bd}⟩"
+
+def opIds : Operand → List ℕ
+  | .var id => [id] | .const _ _ => []
+def readIds : Instruction → List ℕ
+  | .bin _ _ _ a b => opIds a ++ opIds b
+  | .not _ a | .cast _ a _ | .truncate _ a _ _ => opIds a
+  | .constrain a b _ | .constrainNe a b _ => opIds a ++ opIds b
+  | .enableSideEffects c => opIds c
+  | .arrayGet _ a i _ => opIds a ++ opIds i
+  | .arraySet _ _ a i v => opIds a ++ opIds i ++ opIds v
+  | .makeArray _ es _ => es.flatMap opIds
+  | .rangeCheck a _ _ => opIds a
+def srcIds : Src → List ℕ
+  | .same v _ _ | .fixed v _ | .bit v _ => [v] | _ => []
+def combIds (c : Comb) : List ℕ := c.flatMap (srcIds ·.src)
+def opndIds : Opnd → List ℕ
+  | .via _ _ c | .viaOn _ _ c => combIds c | _ => []
+def rangeIds (e : RangeEv) : List ℕ := combIds e.cmb
+def stepIds : HStep → List ℕ
+  | .arith _ ia ib c r => opndIds ia ++ opndIds ib ++ combIds c ++ rangeIds r
+  | .divmod _ _ ia ib c qr rr lt => opndIds ia ++ opndIds ib ++ combIds c ++ rangeIds qr ++ rangeIds rr ++
+      (match lt with | .sub e => rangeIds e | .shift _ e => rangeIds e)
+  | .eq _ _ ia ib c₁ c₂ => opndIds ia ++ opndIds ib ++ combIds c₁ ++ combIds c₂
+  | .eqBit ia ib c => opndIds ia ++ opndIds ib ++ combIds c
+  | .lt _ _ ia ib c cb rr => opndIds ia ++ opndIds ib ++ combIds c ++ combIds cb ++ rangeIds rr
+  | .constrain ia ib c => opndIds ia ++ opndIds ib ++ combIds c
+  | .constrainNe _ ia ib c => opndIds ia ++ opndIds ib ++ combIds c
+  | .fold => []
+  | .foldOn _ _ ia ib c₁ c₂ => opndIds ia ++ opndIds ib ++ combIds c₁ ++ combIds c₂
+  | .mux _ y _ z _ ia ib cs ca cb => opIds y ++ opIds z ++ opndIds ia ++ opndIds ib ++ combIds cs ++ combIds ca ++ combIds cb
+/-- The values a step reads: its operands and those its entry's facts name. -/
+def entryIds (i : Instruction) (e : Entry) : List ℕ :=
+  (readIds i ++ (e.step.map stepIds).getD [] ++ (e.extra.map fun (_, _, c) => combIds c).getD [] ++
+    (e.bound.map fun b => combIds b.cs ++ combIds b.c₁ ++ combIds b.c₂).getD []).eraseDups
+
+/-- The definitions and theorems that check program `idx` one step at a time:
+its circuit as a tree, a `StepCert` and a theorem per step, and the
+`checkProgSteps` theorem that links them. `none` if a step fails. -/
+def stepFile (e : TestProgram) (idx : ℕ) (c : List Entry) (r : List (Option (ℕ × Comb))) : Except String String := Id.run do
+  let ops := e.fn.opcodes.toArray
+  let C := Circ.ofList e.fn.opcodes
+  let some reps0 := initReps e.fn.opcodes e.prog.params e.fn.parameters | return .error "initReps"
+  let mut s : Reps × Flag := (reps0, none)
+  let mut out := s!"def circ{idx} : Circ := ⟨[], {showTree ops 0 ops.size}, {ops.size}⟩\n\n"
+  let mut names := #[]
+  let mut scList : List StepCert := []
+  -- each distinct entry is written once, as a definition the steps refer to
+  let mut shared : Std.HashMap String String := {}
+  for (i, en, k) in (e.prog.body.zip c).zipIdx.map (fun ((i, en), k) => (i, en, k)) do
+    let local_ := (entryIds i en).filterMap fun v => (s.1.lookup v).map (v, ·)
+    let some s' := stepE C s i en | return .error s!"step {k} fails"
+    -- what the step changes, from the whole state (a local run must agree)
+    let o := ((i.dst?.toList ++ local_.map (·.1)).eraseDups).filterMap fun v =>
+      match s'.1.lookup v with
+      | some r => if decide (s.1.lookup v = some r) then none else some (v, r)
+      | none => none
+    let sc : StepCert := ⟨i, en, local_, s.2, s'.2, o⟩
+    -- `isBit` (for a flag) may rely on any value known to be a bit: add those
+    -- that share a witness with what the step reads
+    let sc ← if sc.ok C then pure sc else do
+      let ws := local_.flatMap fun (_, rv) => match rv with
+        | .scalar r => r.alts.flatMap witnessesOf
+        | .array rs => rs.flatMap (·.alts.flatMap witnessesOf)
+      let bits := ((s.1.map (·.1)).eraseDups.filterMap fun v => match s.1.lookup v with
+        | some (.scalar r) =>
+          if r.M ≤ 1 ∧ (r.alts.flatMap witnessesOf).any ws.contains ∧ !(local_.any (·.1 == v))
+          then some (v, RVal.scalar r) else none
+        | _ => none)
+      let sc2 := { sc with reps := local_ ++ bits }
+      if sc2.ok C then pure sc2 else return .error s!"step {k} differs locally: {i.render.trimAsciiStart}"
+    let local_ := sc.reps
+    let mut refs : Array String := #[]
+    for (v, rv) in local_ ++ sc.out do
+      let txt := showRVal rv
+      match shared.get? txt with
+      | some n => refs := refs.push s!"({v}, {n})"
+      | none =>
+        let n := s!"rv{idx}_{shared.size}"
+        out := out ++ s!"def {n} : RVal := {txt}\n"
+        shared := shared.insert txt n
+        refs := refs.push s!"({v}, {n})"
+    let ls := "[" ++ ", ".intercalate (refs.toList.take local_.length) ++ "]"
+    let os := "[" ++ ", ".intercalate (refs.toList.drop local_.length) ++ "]"
+    out := out ++ s!"def sc{idx}_{k} : StepCert :=\n  ⟨{showInstr i}, {showEntry en}, {ls}, {showFlag s.2}, {showFlag s'.2}, {os}⟩\n" ++
+      s!"theorem p{idx}_step{k} : (sc{idx}_{k}).ok circ{idx} = true := by decide +kernel\n\n"
+    names := names.push s!"sc{idx}_{k}"
+    scList := scList ++ [sc]
+    s := s'
+  let rs := r.map fun x => match x with
+    | none => "none"
+    | some (j, cmb) => s!"some ({j}, {showComb cmb})"
+  let circL : Circ := ⟨[], C.tree, C.size⟩
+  if !checkProgSteps e.prog e.fn circL scList r then
+    let tl := decide (circL.tree.toList = e.fn.opcodes)
+    let lk := (linkSteps (reps0, none) e.prog.body scList).isSome
+    -- the first step where linking breaks
+    let mut st : Reps × Flag := (reps0, none)
+    let mut why := ""
+    for (i, sc, k) in (e.prog.body.zip scList).zipIdx.map (fun ((i, sc), k) => (i, sc, k)) do
+      if !(decide (sc.F = st.2)) then why := s!"step {k}: flag"; break
+      match sc.reps.find? (fun (v, r) => !decide (st.1.lookup v = some r)) with
+      | some (v, _) => why := s!"step {k}: input v{v} {i.render.trimAsciiStart}"; break
+      | none => pure ()
+      st := (sc.out ++ st.1, sc.F')
+    return .error s!"link fails: tree={tl} link={lk} {why}"
+  out := out ++ s!"theorem p{idx}_link :\n    checkProgSteps prog{idx}.prog prog{idx}.fn circ{idx}\n      [{", ".intercalate names.toList}]\n      [{", ".intercalate rs}] = true := by\n  decide +kernel\n\n"
+  return .ok out
+
 def main (args : List String) : IO Unit := do
   let hints := parseHints (← IO.FS.readFile args[0]!)
   let mut s := "/-\nMACHINE-CHECKED: no review needed. Generated by `scripts/emit_hint_certs.lean`;\n" ++
@@ -624,6 +777,9 @@ def main (args : List String) : IO Unit := do
   let only := args.drop 2
   -- FV_HINT_DIVMOD=1: give `div`/`mod` hint steps even where `stepP` succeeds
   let hintDivMod := (← IO.getEnv "FV_HINT_DIVMOD") == some "1"
+  -- FV_STEPS_OUT=<file>: also write the step-by-step theorems of the proved programs
+  let stepsOut ← IO.getEnv "FV_STEPS_OUT"
+  let mut stepSrc := ""
   for (e, idx) in testPrograms.zipIdx do
     if !only.isEmpty && !only.contains e.name then continue
     let (c, r, msg) ← cert e (hints.getD e.name {}) (!only.isEmpty) hintDivMod
@@ -634,6 +790,10 @@ def main (args : List String) : IO Unit := do
     if !checkProgH e.prog e.fn c r then
       IO.eprintln s!"not proved: {e.name}"
       if !only.isEmpty then IO.eprintln msg
+    else if stepsOut.isSome then
+      match stepFile e idx c r with
+      | .ok f => stepSrc := stepSrc ++ s!"-- {e.name}\n" ++ f
+      | .error m => IO.eprintln s!"steps failed: {e.name}: {m}"
     let steps := c.map fun en =>
       let st := match en.step with | none => "none" | some st => s!"some {showStep st}"
       let al := match en.extra with | none => "none" | some (H, j, cmb) => s!"some ({showPoly H}, {j}, {showComb cmb})"
@@ -655,4 +815,8 @@ def main (args : List String) : IO Unit := do
     ", ".intercalate (names.toList.map fun i => s!"(cert{i}, rets{i})") ++ "]\n\nend AcirLean\n"
   -- with names, write only their definitions, for assembling a full file
   if only.isEmpty then IO.FS.writeFile args[1]! s else IO.FS.writeFile args[1]! part
+  if let some path := stepsOut then
+    IO.FS.writeFile path ("/-\nMACHINE-CHECKED: no review needed. Generated by `scripts/emit_hint_certs.lean`.\n-/\n\n" ++
+      "import AcirLean.Proofs.HintChecker\nimport AcirLean.Templates.TestPrograms\n\nnamespace AcirLean\n\n" ++
+      "set_option linter.all false\nset_option maxRecDepth 100000\nset_option maxHeartbeats 0\n\n" ++ stepSrc ++ "end AcirLean\n")
   IO.eprintln s!"{nh} hint steps, {na} aliases"

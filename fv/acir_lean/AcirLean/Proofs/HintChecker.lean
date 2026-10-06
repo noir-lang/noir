@@ -426,16 +426,57 @@ def stepE (cc : Circ) (s : Reps × Flag) (i : Instruction) (e : Entry) : Option 
   | some b, some d => tighten cc s'' d b
   | some _, none => none
 
-/-- One step checked on its own, for checking a program one theorem per step:
-from the entries of the values the step reads (`reps`) and the flag before it
-(`F`), the step gives `out` for the value it defines and the flag `F'`. A
-separate pass has to show that each step's `reps`, `F` and `F'` are the ones
-the steps before it produced. -/
-def stepLocal (cc : Circ) (i : Instruction) (e : Entry) (reps : Reps) (F F' : Flag)
-    (out : Option RVal) : Bool :=
-  match stepE cc (reps, F) i e with
-  | some s' => decide ((i.dst?.bind fun d => s'.1.lookup d) = out) && decide (s'.2 = F')
+/-! ## One theorem per step
+
+`checkProgH` runs the whole body in one kernel computation, which keeps every
+intermediate state until it ends. Instead, each step can be checked on its own
+(`StepCert.ok`, one theorem per step), and a separate pass (`linkSteps`) checks
+that the steps fit together: each step's inputs are what the steps before it
+produced. -/
+
+/-- One step of a certificate checked step by step: the instruction, its entry,
+the entries of the values it reads, the flag before and after it, and the
+entries the step changes (the value it defines, and operands whose bounds it
+tightens). -/
+structure StepCert where
+  i : Instruction
+  e : Entry
+  reps : Reps
+  F : Flag
+  F' : Flag
+  out : Reps
+  deriving DecidableEq
+
+/-- The entries of `after` that differ from `before`, among the value `i`
+defines and the values in `before`. -/
+def changed (i : Instruction) (before after : Reps) : Reps :=
+  ((i.dst?.toList ++ before.map (·.1)).eraseDups).filterMap fun v =>
+    match after.lookup v with
+    | some r => if decide (before.lookup v = some r) then none else some (v, r)
+    | none => none
+
+/-- The step, run from just the entries it reads, gives the flag `F'` and
+changes exactly the entries `out`. -/
+def StepCert.ok (cc : Circ) (sc : StepCert) : Bool :=
+  match stepE cc (sc.reps, sc.F) sc.i sc.e with
+  | some s' => decide (s'.2 = sc.F') && decide (changed sc.i sc.reps s'.1 = sc.out)
   | none => false
+
+/-- The steps fit together: step `k` is the `k`th instruction, its flag and the
+entries it reads are the current ones, and the entries it changes become
+current. -/
+def linkSteps : Reps × Flag → List Instruction → List StepCert → Option (Reps × Flag)
+  | s, [], [] => some s
+  | s, i :: is, sc :: scs =>
+    if decide (sc.i = i) && decide (sc.F = s.2) &&
+        sc.reps.all (fun (v, r) => decide (s.1.lookup v = some r)) then
+      linkSteps (sc.out ++ s.1, sc.F') is scs
+    else none
+  | _, _, _ => none
+
+def OTree.toList : OTree → List Opcode
+  | .leaf => []
+  | .node l v r => l.toList ++ v :: r.toList
 
 /-- Run the body, each step as its certificate entry says. -/
 def stepsWithH (cc : Circ) :
@@ -471,5 +512,18 @@ def checkProgH (P : Program) (C : Circuit) (cert : List Entry)
       match stepsWithH cc (reps0, none) P.body cert with
       | none => false
       | some s => retsOKH cc s C.returnValues P.rets rets
+
+/-- `checkProgH`, with the steps checked separately: `cc` is the circuit as a
+tree, the steps' `StepCert.ok` are separate theorems, and this checks the rest. -/
+def checkProgSteps (P : Program) (C : Circuit) (cc : Circ) (scs : List StepCert)
+    (rets : List (Option (ℕ × Comb))) : Bool :=
+  decide (C.parameters.length = P.inputTypes.length) && decide (cc.tree.toList = C.opcodes) &&
+    decide (cc.size = C.opcodes.length) &&
+    match initReps C.opcodes P.params C.parameters with
+    | none => false
+    | some reps0 =>
+      match linkSteps (reps0, none) P.body scs with
+      | none => false
+      | some s => retsOKH ⟨C.opcodes, cc.tree, cc.size⟩ s C.returnValues P.rets rets
 
 end AcirLean
