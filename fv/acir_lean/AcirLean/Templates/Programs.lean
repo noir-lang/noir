@@ -94,4 +94,12 @@ def acirGenFieldDiv : Circuit where
   parameters := [0, 1]
   returnValues := [2]
 
+/-- `fn main(v0: u<n>) -> u<n> { shr v0, c }`, which `remove_bit_shifts` turns
+into `div v0, 2^c`: the quotient by `2^c`. -/
+def acirGenShr (n c : ℕ) : Circuit where
+  opcodes := [.range 0 n] ++ (divPow2Gadget n c).map (Opcode.rename (witnessAt [0, 2, 3])) ++
+    [.assertZero [⟨1, [1]⟩, ⟨-1, [2]⟩]]
+  parameters := [0]
+  returnValues := [1]
+
 end AcirLean

@@ -562,7 +562,7 @@ This builds the full text of the golden file `templates.golden`. The chain works
 
 ---
 
-## Part 6 — `Claims.lean`: the promise itself (~205 lines)
+## Part 6 — `Claims.lean`: the promise itself (~217 lines)
 
 ### The building blocks
 
@@ -667,6 +667,14 @@ def NotOp (n : ℕ) : List ℕ → List ℕ → Prop
 The spec for `!` on `u<n>`: one n-bit input, and an output with every one of its n bits flipped, which is `2^n - 1 - a`. **Check:** that `2^n - 1 - a` is bitwise not for an n-bit `a`.
 
 ```lean
+def ShrOp (n c : ℕ) : List ℕ → List ℕ → Prop
+  | [a], [r] => a < 2 ^ n ∧ r = a / 2 ^ c
+  | _, _ => False
+```
+
+The spec for `>>` by a constant `c` on `u<n>`: one n-bit input, and the output `a / 2^c` (rounded down), which is what shifting right by `c` bits gives. **Check:** that `a / 2 ^ c` is a right shift.
+
+```lean
 def FieldDivOp : List ℕ → List ℕ → Prop
   | [a, b], [r] => b ≠ 0 ∧ (r * b) % p = a
   | _, _ => False
@@ -710,6 +718,7 @@ Every line below is joined with `∧` ("and"). Read each one as a sentence.
 | `∀ n ∈ pinnedWidths, SoundFunction (acirGenEq n) (Computes2 n fun a b => if a = b then 1 else 0) ∧ SatisfiableFunction …` | `fn(a: u<n>, b: u<n>) -> a == b` is correct and enforces the input types. |
 | `∀ n ∈ pinnedWidths, SoundFunction (acirGenNot n) (NotOp n) ∧ SatisfiableFunction …` | `fn(a: u<n>) -> !a` is correct and enforces the input type. |
 | `SoundFunction acirGenFieldDiv FieldDivOp ∧ SatisfiableFunction acirGenFieldDiv` | `fn(a: Field, b: Field) -> a / b` is correct and rejects a zero divisor. |
+| `∀ n ∈ pinnedWidths, ∀ c ∈ (List.range n).tail, SoundFunction (acirGenShr n c) (ShrOp n c) ∧ … (shippedShr n c) …` | `fn(a: u<n>) -> a >> c`, for every shift `c` from 1 to `n - 1` (`(List.range n).tail` is `[1, …, n - 1]`), is correct, enforces the input type, and stays correct after the optimizer. The pinned SSA goes through `remove_bit_shifts`, the pass that turns the shift into a division by `2^c`, so the claim covers that pass too. |
 
 Names like `divVarGadget n` and `shippedDiv n` refer to constraint lists in `Templates/`. Those aren't reviewed, because the pin makes them equal to the compiler's real output. `acirGenEq`, `acirGenNot` and `acirGenFieldDiv` are pinned twice, against ACIR generation and against what `nargo compile` ships: the optimizer leaves these three unchanged, so one claim covers both.
 

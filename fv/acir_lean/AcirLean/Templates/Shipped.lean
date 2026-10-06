@@ -45,4 +45,6 @@ def shippedTruncate (n : ℕ) : Circuit :=
   { acirGenTruncate n with
     opcodes := if n ≠ 128 ∧ N' n = 0 then truncInlinedGadget n else dropRepeats (acirGenTruncate n).opcodes }
 
+def shippedShr (n c : ℕ) : Circuit := { acirGenShr n c with opcodes := dropRepeats (acirGenShr n c).opcodes }
+
 end AcirLean

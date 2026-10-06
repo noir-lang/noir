@@ -150,7 +150,8 @@ truncation take different branches and have their own proofs.
 `eq` and `not` on `u<n>` and `div` on `Field` are whole functions
 (`Proofs/EqNotFieldDiv.lean`); the optimizer leaves them unchanged, so the same
 circuit is pinned against ACIR generation and against what `nargo compile`
-ships.
+ships. `shr` by every constant `1 ≤ c < n` (`Proofs/Shift.lean`) is pinned
+after `remove_bit_shifts`, which turns it into a division by `2^c`.
 `Examples/Bug7895.lean` shows that truncation without the `q ≤ q0` bound
 accepts a forged witness, and `Examples/RangeOptimizerBug.lean` shows the same
 for a range optimizer that drops a parameter's range check.
