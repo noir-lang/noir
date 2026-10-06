@@ -562,7 +562,7 @@ This builds the full text of the golden file `templates.golden`. The chain works
 
 ---
 
-## Part 6 — `Claims.lean`: the promise itself (~168 lines)
+## Part 6 — `Claims.lean`: the promise itself (~205 lines)
 
 ### The building blocks
 
@@ -659,6 +659,22 @@ def DivOp (n : ℕ) : List ℕ → List ℕ → Prop
 The spec for unsigned `/` on `u<n>`: two n-bit inputs, a divisor that isn't zero, and an output equal to the quotient. Noir fails on a zero divisor, so `b ≠ 0` here means a circuit that accepted `b = 0` (with any output) would break the claim. **Check:** that `b ≠ 0` is there.
 
 ```lean
+def NotOp (n : ℕ) : List ℕ → List ℕ → Prop
+  | [a], [r] => a < 2 ^ n ∧ r = 2 ^ n - 1 - a
+  | _, _ => False
+```
+
+The spec for `!` on `u<n>`: one n-bit input, and an output with every one of its n bits flipped, which is `2^n - 1 - a`. **Check:** that `2^n - 1 - a` is bitwise not for an n-bit `a`.
+
+```lean
+def FieldDivOp : List ℕ → List ℕ → Prop
+  | [a, b], [r] => b ≠ 0 ∧ (r * b) % p = a
+  | _, _ => False
+```
+
+The spec for `/` on `Field`: a divisor that isn't zero, and an output `r` with `r · b = a` in the field (`% p` is the field's arithmetic), which is exactly `r = a / b`. There's no width condition, since any field element is a valid `Field`. **Check:** that `b ≠ 0` is there, as for `DivOp`.
+
+```lean
 def toBitPattern (n : ℕ) (x : ℤ) : ℕ := (x % 2 ^ n).toNat
 def SignedOp (n : ℕ) (op : ℤ → ℤ → ℤ) : List ℕ → List ℕ → Prop
   | [a, b], [r] =>
@@ -691,8 +707,11 @@ Every line below is joined with `∧` ("and"). Read each one as a sentence.
 | `… shippedDiv … shippedLt … shippedTruncate … shippedSignedLt …` | The same four, **after the ACVM optimizer**, as `nargo compile` actually ships them. |
 | `∀ n ∈ signedWidths, SoundFunction (shippedSignedDiv n) (SignedOp n _root_.Int.tdiv) …` and `…shippedSignedMod… _root_.Int.tmod` | Signed `/` and `%`, as shipped, are correct and reject a zero divisor and `MIN / -1`. |
 | `∀ e ∈ corpus, SoundFunction e.fn (CorpusSpec e.prog) ∧ AllHold e.assignment e.fn.opcodes` | Every corpus program's shipped circuit implements it, and ACVM's real witness satisfies that circuit. |
+| `∀ n ∈ pinnedWidths, SoundFunction (acirGenEq n) (Computes2 n fun a b => if a = b then 1 else 0) ∧ SatisfiableFunction …` | `fn(a: u<n>, b: u<n>) -> a == b` is correct and enforces the input types. |
+| `∀ n ∈ pinnedWidths, SoundFunction (acirGenNot n) (NotOp n) ∧ SatisfiableFunction …` | `fn(a: u<n>) -> !a` is correct and enforces the input type. |
+| `SoundFunction acirGenFieldDiv FieldDivOp ∧ SatisfiableFunction acirGenFieldDiv` | `fn(a: Field, b: Field) -> a / b` is correct and rejects a zero divisor. |
 
-Names like `divVarGadget n` and `shippedDiv n` refer to constraint lists in `Templates/`. Those aren't reviewed, because the pin makes them equal to the compiler's real output.
+Names like `divVarGadget n` and `shippedDiv n` refer to constraint lists in `Templates/`. Those aren't reviewed, because the pin makes them equal to the compiler's real output. `acirGenEq`, `acirGenNot` and `acirGenFieldDiv` are pinned twice, against ACIR generation and against what `nargo compile` ships: the optimizer leaves these three unchanged, so one claim covers both.
 
 ---
 

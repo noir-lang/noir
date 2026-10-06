@@ -85,12 +85,20 @@ const PINNED_WIDTHS: [u32; 5] = [8, 16, 32, 64, 128];
 /// `signedWidths` in `fv/acir_lean/AcirLean/Spec/Pin.lean`.
 const SIGNED_WIDTHS: [u32; 4] = [8, 16, 32, 64];
 
-/// `fn main(v0: u<n>, v1: u<n>) { <op> v0, v1 }` for `div` or `lt`.
+/// `fn main(v0: u<n>, v1: u<n>) { <op> v0, v1 }` for `div`, `lt` or `eq`.
 fn unsigned_binary_source(op: &str, n: u32) -> String {
     format!(
         "acir(inline) fn main f0 {{\n  b0(v0: u{n}, v1: u{n}):\n    v2 = {op} v0, v1\n    return v2\n}}\n"
     )
 }
+
+/// `fn main(v0: u<n>) -> u<n> { !v0 }`.
+fn not_source(n: u32) -> String {
+    format!("acir(inline) fn main f0 {{\n  b0(v0: u{n}):\n    v1 = not v0\n    return v1\n}}\n")
+}
+
+/// `fn main(v0: Field, v1: Field) -> Field { v0 / v1 }`.
+const FIELD_DIV_SOURCE: &str = "acir(inline) fn main f0 {\n  b0(v0: Field, v1: Field):\n    v2 = div v0, v1\n    return v2\n}\n";
 
 /// `fn main(v0: Field) -> u<n> { v0 as u<n> }`.
 fn truncate_source(n: u32) -> String {
@@ -310,6 +318,16 @@ fn emitted() -> String {
                 section(&format!("{stage}_{name}"), n, compile(src));
             }
         }
+    }
+    for (stage, compile) in stages {
+        for n in PINNED_WIDTHS {
+            section(&format!("{stage}_eq"), n, compile(&unsigned_binary_source("eq", n)));
+        }
+        for n in PINNED_WIDTHS {
+            section(&format!("{stage}_not"), n, compile(&not_source(n)));
+        }
+        // A `Field` has 254 bits.
+        section(&format!("{stage}_field_div"), 254, compile(FIELD_DIV_SOURCE));
     }
     for n in SIGNED_WIDTHS {
         section("shipped_signed_div", n, shipped_signed("div", n));

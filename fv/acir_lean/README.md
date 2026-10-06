@@ -147,6 +147,10 @@ in `Proofs/` hold for every width: `divVarGadget_sound` and `divPredGadget_sound
 `n ≤ 126`, `truncateGadget_sound` for `2 ≤ k ≤ 125`, `moreThanEqGadget_sound` for
 `1 ≤ m ≤ 128`, and `signedLtSsa_correct` for `n ≥ 1`; 128-bit division and
 truncation take different branches and have their own proofs.
+`eq` and `not` on `u<n>` and `div` on `Field` are whole functions
+(`Proofs/EqNotFieldDiv.lean`); the optimizer leaves them unchanged, so the same
+circuit is pinned against ACIR generation and against what `nargo compile`
+ships.
 `Examples/Bug7895.lean` shows that truncation without the `q ≤ q0` bound
 accepts a forged witness, and `Examples/RangeOptimizerBug.lean` shows the same
 for a range optimizer that drops a parameter's range check.

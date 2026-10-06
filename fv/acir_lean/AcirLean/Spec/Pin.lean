@@ -117,6 +117,14 @@ def renderAll : String :=
     each pinnedWidths "shipped_lt" (fun n => (shippedLt n).render) ++
     each pinnedWidths "shipped_truncate" (fun n => (shippedTruncate n).render) ++
     each pinnedWidths "shipped_signed_lt" (fun n => (shippedSignedLt n).render) ++
+    -- `eq`, `not` and `Field` division: the optimizer leaves them unchanged, so
+    -- one circuit is pinned against both stages
+    each pinnedWidths "acir_eq" (fun n => (acirGenEq n).render) ++
+    each pinnedWidths "acir_not" (fun n => (acirGenNot n).render) ++
+    [sec "acir_field_div 254" acirGenFieldDiv.render] ++
+    each pinnedWidths "shipped_eq" (fun n => (acirGenEq n).render) ++
+    each pinnedWidths "shipped_not" (fun n => (acirGenNot n).render) ++
+    [sec "shipped_field_div 254" acirGenFieldDiv.render] ++
     each signedWidths "shipped_signed_div" (fun n => (shippedSignedDiv n).render) ++
     each signedWidths "shipped_signed_mod" (fun n => (shippedSignedMod n).render) ++
     corpus.zipIdx.map (fun (e, i) => sec s!"corpus {i}" e.render)

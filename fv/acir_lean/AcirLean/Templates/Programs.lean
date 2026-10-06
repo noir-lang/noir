@@ -70,4 +70,28 @@ def acirGenSignedLt (n : ℕ) : Circuit :=
     parameters := [0, 1]
     returnValues := [2] }
 
+/-- `fn main(v0: u<n>, v1: u<n>) -> u1 { eq v0, v1 }`: `d = v0 - v1`, a
+witness `z` with `1 - d z - e = 0` and `d e = 0`, and the result `e`. -/
+def acirGenEq (n : ℕ) : Circuit where
+  opcodes := [.range 0 n, .range 1 n,
+    .assertZero [⟨1, [0]⟩, ⟨-1, [1]⟩, ⟨-1, [3]⟩],
+    .assertZero [⟨1, []⟩, ⟨-1, [3, 4]⟩, ⟨-1, [5]⟩],
+    .assertZero [⟨1, [3, 5]⟩],
+    .assertZero [⟨1, [2]⟩, ⟨-1, [5]⟩]]
+  parameters := [0, 1]
+  returnValues := [2]
+
+/-- `fn main(v0: u<n>) -> u<n> { not v0 }`: `2^n - 1 - v0`. -/
+def acirGenNot (n : ℕ) : Circuit where
+  opcodes := [.range 0 n, .assertZero [⟨(2 ^ n - 1 : ℕ), []⟩, ⟨-1, [0]⟩, ⟨-1, [1]⟩]]
+  parameters := [0]
+  returnValues := [1]
+
+/-- `fn main(v0: Field, v1: Field) -> Field { div v0, v1 }`: a witness `z` with
+`v1 z = 1`, and the result `v0 z`. -/
+def acirGenFieldDiv : Circuit where
+  opcodes := [.assertZero [⟨1, []⟩, ⟨-1, [1, 3]⟩], .assertZero [⟨1, [0, 3]⟩, ⟨-1, [2]⟩]]
+  parameters := [0, 1]
+  returnValues := [2]
+
 end AcirLean

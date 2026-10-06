@@ -11,6 +11,7 @@ import AcirLean.Proofs.Shipped
 import AcirLean.Proofs.SignedDivMod
 import AcirLean.Proofs.Checker
 import AcirLean.Proofs.Checker2Sound
+import AcirLean.Proofs.EqNotFieldDiv
 
 /-! The proof of `AllClaims`, assembled from the gadget theorems. -/
 
@@ -30,7 +31,10 @@ theorem allClaims : AllClaims := by
     fun n hn => ⟨(shipped_sound hn).2.2.2, (shipped_satisfiable hn).2.2.2⟩,
     fun n hn => ⟨shippedSignedDiv_sound hn, (signed_satisfiable hn).1⟩,
     fun n hn => ⟨shippedSignedMod_sound hn, (signed_satisfiable hn).2⟩,
-    corpus_claims⟩
+    corpus_claims,
+    fun n hn => ⟨acirGenEq_sound hn, (eqNotFieldDiv_satisfiable hn).1⟩,
+    fun n hn => ⟨acirGenNot_sound hn, (eqNotFieldDiv_satisfiable hn).2.1⟩,
+    acirGenFieldDiv_sound, (eqNotFieldDiv_satisfiable (n := 8) (by decide)).2.2⟩
   · rcases pinned_cases hn with h | rfl
     · exact fun σ h' hin => divVarGadget_sound (by omega) σ h' (hin (1, n) (by simp))
     · exact fun σ h' hin => divVarGadget128_sound σ h' (hin (1, 128) (by simp))
