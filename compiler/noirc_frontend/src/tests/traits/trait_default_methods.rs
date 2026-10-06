@@ -422,3 +422,242 @@ fn trait_item_call_on_non_implementing_type_in_default_method_is_rejected() {
     "#;
     check_errors(src);
 }
+
+// In the tests below `Wide` has no `Checked` impl, so naming `Wide` (or an unbounded `T`) as a
+// `Checked` in a default body must be rejected. The assumed `Self: Checked` that holds inside the
+// trait is about the trait's own `Self` and must not be satisfied by any other type: matching it
+// would bind `Self` to that type for every default method, making `Narrow { v: w }.checked()`
+// dispatch to `Wide`'s `validate` and drop `Narrow`'s assertion.
+
+#[test]
+fn trait_path_call_on_non_implementing_type_in_default_method() {
+    let src = r#"
+    struct Narrow { v: Field }
+    struct Wide { v: Field }
+
+    trait Other {
+        fn validate(self) -> Field;
+    }
+
+    impl Other for Narrow {
+        fn validate(self) -> Field { assert(self.v != 100); self.v }
+    }
+
+    impl Other for Wide {
+        fn validate(self) -> Field { self.v }
+    }
+
+    trait Checked: Other {
+        fn tag(self) -> Field { let _ = self; 0 }
+        fn unused_helper() -> Field {
+            Checked::tag(Wide { v: 0 })
+            ^^^^^^^^^^^^ No matching impl found for `Wide: Checked`
+            ~~~~~~~~~~~~ No impl for `Wide: Checked`
+        }
+        fn checked(self) -> Field { Other::validate(self) }
+    }
+
+    impl Checked for Narrow {}
+
+    fn main(w: Field) -> pub Field {
+        Narrow { v: w }.checked()
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn as_trait_path_call_on_non_implementing_type_in_default_method() {
+    let src = r#"
+    struct Narrow { v: Field }
+    struct Wide { v: Field }
+
+    trait Other {
+        fn validate(self) -> Field;
+    }
+
+    impl Other for Narrow {
+        fn validate(self) -> Field { assert(self.v != 100); self.v }
+    }
+
+    impl Other for Wide {
+        fn validate(self) -> Field { self.v }
+    }
+
+    trait Checked: Other {
+        fn tag(self) -> Field { let _ = self; 0 }
+        fn unused_helper() -> Field {
+            <Wide as Checked>::tag(Wide { v: 0 })
+             ^^^^^^^^^^^^^^^ No matching impl found for `Wide: Checked`
+             ~~~~~~~~~~~~~~~ No impl for `Wide: Checked`
+        }
+        fn checked(self) -> Field { Other::validate(self) }
+    }
+
+    impl Checked for Narrow {}
+
+    fn main(w: Field) -> pub Field {
+        Narrow { v: w }.checked()
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn bounded_generic_call_on_non_implementing_type_in_default_method() {
+    let src = r#"
+    struct Narrow { v: Field }
+    struct Wide { v: Field }
+
+    trait Other {
+        fn validate(self) -> Field;
+    }
+
+    impl Other for Narrow {
+        fn validate(self) -> Field { assert(self.v != 100); self.v }
+    }
+
+    impl Other for Wide {
+        fn validate(self) -> Field { self.v }
+    }
+
+    trait Checked: Other {
+        fn tag(self) -> Field { let _ = self; 0 }
+        fn unused_helper() -> Field {
+            g(Wide { v: 0 })
+            ^ No matching impl found for `Wide: Checked`
+            ~ No impl for `Wide: Checked`
+        }
+        fn checked(self) -> Field { Other::validate(self) }
+    }
+
+    impl Checked for Narrow {}
+
+    fn g<T: Checked>(t: T) -> Field {
+        t.tag()
+    }
+
+    fn main(w: Field) -> pub Field {
+        Narrow { v: w }.checked()
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn macro_expanded_trait_path_call_on_non_implementing_type_in_default_method() {
+    let src = r#"
+    struct Narrow { v: Field }
+    struct Wide { v: Field }
+
+    trait Other {
+        fn validate(self) -> Field;
+    }
+
+    impl Other for Narrow {
+        fn validate(self) -> Field { assert(self.v != 100); self.v }
+    }
+
+    impl Other for Wide {
+        fn validate(self) -> Field { self.v }
+    }
+
+    comptime fn mac() -> Quoted {
+        quote { Checked::tag(Wide { v: 0 }) }
+                ^^^^^^^^^^^^ No matching impl found for `Wide: Checked`
+                ~~~~~~~~~~~~ No impl for `Wide: Checked`
+    }
+
+    trait Checked: Other {
+        fn tag(self) -> Field { let _ = self; 0 }
+        fn unused_helper() -> Field { mac!() }
+        fn checked(self) -> Field { Other::validate(self) }
+    }
+
+    impl Checked for Narrow {}
+
+    fn main(w: Field) -> pub Field {
+        Narrow { v: w }.checked()
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn trait_path_call_on_unbounded_generic_in_default_method() {
+    let src = r#"
+    struct Narrow { v: Field }
+
+    trait Checked {
+        fn tag(self) -> Field { let _ = self; 0 }
+        fn unused_helper<T>(t: T) -> Field {
+            Checked::tag(t)
+            ^^^^^^^^^^^^ No matching impl found for `T: Checked`
+            ~~~~~~~~~~~~ No impl for `T: Checked`
+        }
+    }
+
+    impl Checked for Narrow {}
+
+    fn main(w: Field) -> pub Field {
+        Narrow { v: w }.tag()
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn explicit_self_bound_on_own_trait_in_default_method() {
+    let src = r#"
+    trait Checked {
+        fn tag(self) -> Field;
+        fn tagged(self) -> Field where Self: Checked {
+            self.tag()
+        }
+        fn via_trait_path(self) -> Field {
+            Checked::tag(self)
+        }
+    }
+
+    struct A { v: Field }
+    struct B { v: Field }
+
+    impl Checked for A {
+        fn tag(self) -> Field { self.v }
+    }
+
+    impl Checked for B {
+        fn tag(self) -> Field { self.v + 1 }
+    }
+
+    fn main() {
+        let _ = A { v: 1 }.tagged() + B { v: 2 }.tagged();
+        let _ = A { v: 1 }.via_trait_path() + B { v: 2 }.via_trait_path();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn blanket_impl_of_current_trait_does_not_make_assumed_self_impl_redundant() {
+    let src = r#"
+    trait Tag {
+        fn tag(self) -> Field {
+            let _ = self;
+            0
+        }
+        fn twice(self) -> Field {
+            Tag::tag(self) + self.tag()
+        }
+    }
+
+    impl<T> Tag for T {}
+
+    struct A {}
+
+    fn main() {
+        let _ = A {}.twice() + 1.twice();
+    }
+    "#;
+    assert_no_errors(src);
+}
