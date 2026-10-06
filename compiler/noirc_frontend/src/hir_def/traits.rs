@@ -511,6 +511,41 @@ impl Trait {
         }
     }
 
+    /// Binds this trait's `Self` to `self_type` and its ordered generics to `ordered`, in order.
+    ///
+    /// Unlike [`Self::bind_generics`], every variable gets an entry, even one whose argument is
+    /// the variable itself: such an entry tells instantiation to leave the variable alone rather
+    /// than replace it with a fresh one.
+    pub fn bind_self_and_generics(
+        &self,
+        self_type: &Type,
+        ordered: &[Type],
+        bindings: &mut TypeBindings,
+    ) {
+        self.self_param.bind(self_type, bindings);
+        for (param, arg) in self.generics.iter().zip(ordered) {
+            let kind = param.kind().into_owned();
+            bindings.insert(param.type_var.id(), (param.type_var.clone(), kind, arg.clone()));
+        }
+    }
+
+    /// Binds each of this trait's associated types that `named` gives a value for, by name, like
+    /// [`Self::bind_self_and_generics`]. An associated type missing from `named` is left unbound.
+    pub fn bind_associated_types(&self, named: &[NamedType], bindings: &mut TypeBindings) {
+        for associated in &self.associated_types {
+            let Some(arg) =
+                named.iter().find(|named| named.name.as_str() == associated.name.as_str())
+            else {
+                continue;
+            };
+            let kind = associated.kind().into_owned();
+            bindings.insert(
+                associated.type_var.id(),
+                (associated.type_var.clone(), kind, arg.typ.clone()),
+            );
+        }
+    }
+
     /// Whether `typ` is this trait's own (rigid) `Self`.
     pub fn is_self_type(&self, typ: &Type) -> bool {
         matches!(typ, Type::NamedGeneric(NamedGeneric { type_var, .. }) if type_var.id() == self.self_param.id())

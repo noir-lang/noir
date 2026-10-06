@@ -3922,37 +3922,13 @@ impl Elaborator<'_> {
 
         // An `assumed` constraint is one we get for free inside a trait method, where the body
         // may call other methods on `Self`. Its "arguments" are just the trait's own variables
-        // (`Self`, its generics, its associated types), so the loops below map each variable to
-        // itself. See the doc comment for why those self-mappings are not no-ops.
+        // (`Self`, its generics, its associated types), so this maps each variable to itself.
+        // See the doc comment for why those self-mappings are not no-ops.
         if assumed {
             let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
-
-            the_trait.self_param.bind(&constraint.typ, bindings);
-
-            for (param, arg) in
-                the_trait.generics.iter().zip(&constraint.trait_bound.trait_generics.ordered)
-            {
-                bindings.insert(
-                    param.type_var.id(),
-                    (param.type_var.clone(), param.kind().into_owned(), arg.clone()),
-                );
-            }
-
-            for associated in &the_trait.associated_types {
-                let Some(arg) = constraint
-                    .trait_bound
-                    .trait_generics
-                    .named
-                    .iter()
-                    .find(|named| named.name.as_str() == associated.name.as_str())
-                else {
-                    continue;
-                };
-                bindings.insert(
-                    associated.type_var.id(),
-                    (associated.type_var.clone(), associated.kind().into_owned(), arg.typ.clone()),
-                );
-            }
+            let trait_generics = &constraint.trait_bound.trait_generics;
+            the_trait.bind_self_and_generics(&constraint.typ, &trait_generics.ordered, bindings);
+            the_trait.bind_associated_types(&trait_generics.named, bindings);
         }
     }
 

@@ -2,7 +2,7 @@ use std::hash::Hash;
 use std::marker::Copy;
 
 use fm::FileId;
-use itertools::Itertools;
+use iter_extended::vecmap;
 use noirc_arena::{Arena, Index};
 use noirc_errors::{Location, Span};
 use petgraph::prelude::DiGraph;
@@ -1658,50 +1658,17 @@ impl NodeInterner {
         let recursion_limit = recursion_limit - 1;
 
         let the_trait = self.get_trait(trait_id);
-        let trait_generics = the_trait.generics.clone();
 
-        the_trait.self_param.bind(impl_self_type, bindings);
+        // The impl's trait arguments and associated types are written in terms of the impl's own
+        // generics, which `impl_instantiation` maps to their values for `impl_self_type`.
+        let ordered = vecmap(trait_impl_generics, |typ| typ.substitute(impl_instantiation));
+        the_trait.bind_self_and_generics(impl_self_type, &ordered, bindings);
 
-        for (trait_generic, trait_impl_generic) in trait_generics.iter().zip_eq(trait_impl_generics)
-        {
-            let type_var = trait_generic.type_var.clone();
-            bindings.insert(
-                type_var.id(),
-                (
-                    type_var,
-                    trait_generic.kind().into_owned(),
-                    trait_impl_generic.substitute(impl_instantiation),
-                ),
-            );
-        }
-
-        // Now that the normal bindings are added, we still need to bind the associated types
-        let impl_associated_types = self.get_associated_types_for_impl(impl_id);
-        let trait_associated_types = &the_trait.associated_types;
-
-        // `impl_associated_types` may not be in the same order as `trait_associated_types`
-        let impl_associated_types = impl_associated_types
-            .iter()
-            .map(|typ| (typ.name.as_str(), typ))
-            .collect::<HashMap<_, _>>();
-
-        for trait_type in trait_associated_types {
-            let Some(impl_type) = impl_associated_types.get(trait_type.name.as_str()) else {
-                // Impl doesn't have the corresponding associated type - an error should already
-                // have been issued beforehand.
-                continue;
-            };
-
-            let type_variable = trait_type.type_var.clone();
-            bindings.insert(
-                type_variable.id(),
-                (
-                    type_variable,
-                    trait_type.kind().into_owned(),
-                    impl_type.typ.substitute(impl_instantiation),
-                ),
-            );
-        }
+        // An associated type the impl doesn't define has already been reported.
+        let associated_types = vecmap(self.get_associated_types_for_impl(impl_id), |named| {
+            NamedType { name: named.name.clone(), typ: named.typ.substitute(impl_instantiation) }
+        });
+        the_trait.bind_associated_types(&associated_types, bindings);
 
         // Now collect bindings from the associated types of every parent trait that
         // is implemented for the object type.
