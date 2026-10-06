@@ -1,5 +1,6 @@
 //! Trait implementation collection, method matching, and coherence checking.
 
+use crate::elaborator::traits::BoundOrigin;
 use std::rc::Rc;
 
 use crate::{
@@ -129,8 +130,11 @@ impl Elaborator<'_> {
         if let Some(trait_id) = trait_impl.trait_id {
             self.item.generics.set_params(trait_impl.resolved_generics.clone());
 
-            let where_clause =
-                self.resolve_trait_constraints_and_add_to_scope(&trait_impl.where_clause);
+            let where_clause = trait_impl
+                .where_clause
+                .iter()
+                .filter_map(|c| self.resolve_trait_constraint_and_add_to_scope(c))
+                .collect::<Vec<_>>();
 
             // Now solve the actual types of the associated types
             // (before this we only declared them without knowing their type)
@@ -718,10 +722,11 @@ impl Elaborator<'_> {
         {
             for trait_constrain in &trait_implementation.borrow().where_clause {
                 let trait_bound = &trait_constrain.trait_bound;
-                self.add_trait_bound_to_scope(
+                self.add_bound_to_scope(
                     trait_bound.location,
                     &trait_constrain.typ,
                     trait_bound,
+                    BoundOrigin::Written,
                 );
             }
         }
@@ -1082,7 +1087,7 @@ impl Elaborator<'_> {
             for bound in desugared.bounds {
                 let typ = desugared.named_generic.clone();
                 let location = desugared.generic.location;
-                self.add_implied_trait_bound_to_scope(location, &typ, &bound);
+                self.add_bound_to_scope(location, &typ, &bound, BoundOrigin::Implied);
                 new_generics_trait_constraints
                     .push((TraitConstraint { typ, trait_bound: bound }, location));
             }
@@ -1093,7 +1098,11 @@ impl Elaborator<'_> {
         // We need to resolve the where clause before any associated types to be
         // able to resolve trait as type syntax, eg. `<T as Foo>` in case there
         // is a where constraint for `T: Foo`.
-        let constraints = self.resolve_trait_constraints_and_add_to_scope(&trait_impl.where_clause);
+        let constraints = trait_impl
+            .where_clause
+            .iter()
+            .filter_map(|c| self.resolve_trait_constraint_and_add_to_scope(c))
+            .collect::<Vec<_>>();
 
         // Attach any trait constraints on the impl to the function
         for (_, _, method) in &mut trait_impl.methods.functions {

@@ -307,9 +307,14 @@ impl Elaborator<'_> {
                 let new_generics = vecmap(desugared_generics, |desugared| desugared.generic);
                 this.item.generics.add_params(new_generics);
 
-                let where_clause = this.resolve_trait_constraints_and_add_to_scope(
-                    &unresolved_trait.trait_def.where_clause,
-                );
+                let where_clause = unresolved_trait
+                    .trait_def
+                    .where_clause
+                    .iter()
+                    .filter_map(|constraint| {
+                        this.resolve_trait_constraint_and_add_to_scope(constraint)
+                    })
+                    .collect::<Vec<_>>();
                 this.remove_trait_constraints_from_scope(where_clause.iter());
 
                 let mut associated_type_bounds = rustc_hash::FxHashMap::default();
@@ -608,24 +613,26 @@ impl Elaborator<'_> {
         Some(ResolvedTraitBound { trait_id, trait_generics, location })
     }
 
-    /// Adds the given trait constraints to scope as assumed trait impls.
+    /// Assumes a function's constraints in scope while its body is checked, along with
+    /// `Self: CurrentTrait` inside a trait. The function's own written constraints are
+    /// [`BoundOrigin::Written`]; the ones it implies or inherits from its trait or impl are
+    /// [`BoundOrigin::Implied`], so they are never reported as unneeded here.
     ///
     /// Since there is no global/local scope distinction for trait constraints,
     /// care should be taken to manually remove these from scope (via
     /// [`Self::remove_trait_constraints_from_scope`]) after the desired item finishes resolving.
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(super) fn add_trait_constraints_to_scope<'a>(
-        &mut self,
-        constraints: impl Iterator<Item = &'a TraitConstraint>,
-        location: Location,
-    ) {
+    pub(super) fn assume_function_constraints(&mut self, meta: &FuncMeta) {
+        let location = meta.location;
         // One set for all of them, so a bound implied by several of them is added once.
         let mut seen = BoundSet::default();
-        for constraint in constraints {
+        for constraint in &meta.trait_constraints {
             let (typ, bound) = (&constraint.typ, &constraint.trait_bound);
-            seen.insert_root(typ, bound);
-            let origin = BoundOrigin::Written;
-            self.add_trait_bound_to_scope_inner(location, typ, bound, origin, &mut seen);
+            self.add_bound_to_scope_in(location, typ, bound, BoundOrigin::Written, &mut seen);
+        }
+        for constraint in &meta.extra_trait_constraints {
+            let (typ, bound) = (&constraint.typ, &constraint.trait_bound);
+            self.add_bound_to_scope_in(location, typ, bound, BoundOrigin::Implied, &mut seen);
         }
 
         // Also assume `self` implements the current trait if we are inside a trait definition
@@ -641,13 +648,17 @@ impl Elaborator<'_> {
             // Its parent bounds are already part of each method's where clause (see
             // `resolve_trait_methods`), so `seen` has them and they are not added a second time.
             let bound = &constraint.trait_bound;
-            seen.insert_root(&self_type, bound);
-            let origin = BoundOrigin::Implied;
-            self.add_trait_bound_to_scope_inner(location, &self_type, bound, origin, &mut seen);
+            self.add_bound_to_scope_in(
+                location,
+                &self_type,
+                bound,
+                BoundOrigin::Implied,
+                &mut seen,
+            );
         }
     }
 
-    /// The removing counterpart for [`Self::add_trait_constraints_to_scope`].
+    /// The removing counterpart for [`Self::assume_function_constraints`].
     ///
     /// This will only remove assumed trait impls from scope, but this
     /// is always what is desired since true trait impls are permanent.
@@ -670,24 +681,6 @@ impl Elaborator<'_> {
         self.item.generics.clear_implied_bounds();
     }
 
-    /// Resolve the given trait constraints and add them to scope as we go.
-    /// This second step is necessary to resolve subsequent constraints such
-    /// as `<T as Foo>::Bar: Eq` which may lookup an impl which was assumed
-    /// by a previous constraint.
-    ///
-    /// If these constraints are unwanted afterward they should be manually
-    /// removed from the interner.
-    #[tracing::instrument(level = "trace", skip_all)]
-    pub(super) fn resolve_trait_constraints_and_add_to_scope(
-        &mut self,
-        where_clause: &[UnresolvedTraitConstraint],
-    ) -> Vec<TraitConstraint> {
-        where_clause
-            .iter()
-            .filter_map(|constraint| self.resolve_trait_constraint_and_add_to_scope(constraint))
-            .collect()
-    }
-
     /// Resolves a trait constraint and adds it to scope as an assumed impl.
     /// This second step is necessary to resolve subsequent constraints such
     /// as `<T as Foo>::Bar: Eq` which may lookup an impl which was assumed
@@ -702,7 +695,7 @@ impl Elaborator<'_> {
         let trait_bound = self.resolve_trait_bound(&constraint.trait_bound)?;
         let location = constraint.trait_bound.trait_path.location;
 
-        self.add_trait_bound_to_scope(location, &typ, &trait_bound);
+        self.add_bound_to_scope(location, &typ, &trait_bound, BoundOrigin::Written);
 
         let constraint = TraitConstraint { typ, trait_bound };
         // Also add to trait_bounds so that T::AssocType syntax can be resolved
@@ -818,10 +811,11 @@ impl Elaborator<'_> {
                     },
                 };
                 self.item.generics.add_bound(parent_constraint.clone());
-                self.add_implied_trait_bound_to_scope(
+                self.add_bound_to_scope(
                     instantiated.location,
                     object_type,
                     &parent_constraint.trait_bound,
+                    BoundOrigin::Implied,
                 );
                 new_constraints.push(parent_constraint);
             }
@@ -853,40 +847,35 @@ impl Elaborator<'_> {
         constraints
     }
 
-    /// Adds an assumed trait implementation for the given object type and trait bound.
+    /// Assumes `object: trait_bound` in the current scope, together with every bound it implies
+    /// (its parent traits and the bounds declared on its associated types), with cycle detection.
+    /// See [`BoundOrigin`] for what `origin` changes.
     ///
-    /// This also recursively adds assumed implementations for any parent traits,
-    /// with cycle detection to prevent infinite recursion.
-    ///
-    /// If the trait bound is already satisfied, an `UnneededTraitConstraint` error is pushed.
+    /// If a written bound is already satisfied, an `UnneededTraitConstraint` error is pushed.
     #[tracing::instrument(level = "trace", skip_all)]
-    pub(super) fn add_trait_bound_to_scope(
+    pub(super) fn add_bound_to_scope(
         &mut self,
         location: Location,
         object: &Type,
         trait_bound: &ResolvedTraitBound,
+        origin: BoundOrigin,
     ) {
         let mut seen = BoundSet::default();
-        seen.insert_root(object, trait_bound);
-        let origin = BoundOrigin::Written;
-        self.add_trait_bound_to_scope_inner(location, object, trait_bound, origin, &mut seen);
+        self.add_bound_to_scope_in(location, object, trait_bound, origin, &mut seen);
     }
 
-    /// [`Self::add_trait_bound_to_scope`] for a bound the user did not write but which another
-    /// bound implies: one declared on an associated type of a trait named in a where clause, or
-    /// one inherited from the enclosing trait or impl. An implied bound is never reported as a
-    /// redundant constraint, since there is no written constraint to remove.
-    #[tracing::instrument(level = "trace", skip_all)]
-    pub(super) fn add_implied_trait_bound_to_scope(
+    /// [`Self::add_bound_to_scope`] for one of several bounds of the same item, all sharing
+    /// `seen`, so that a bound implied by more than one of them is added once.
+    fn add_bound_to_scope_in(
         &mut self,
         location: Location,
         object: &Type,
         trait_bound: &ResolvedTraitBound,
+        origin: BoundOrigin,
+        seen: &mut BoundSet,
     ) {
-        let mut seen = BoundSet::default();
         seen.insert_root(object, trait_bound);
-        let origin = BoundOrigin::Implied;
-        self.add_trait_bound_to_scope_inner(location, object, trait_bound, origin, &mut seen);
+        self.add_trait_bound_to_scope_inner(location, object, trait_bound, origin, seen);
     }
 
     /// A written bound duplicating an implied one is redundant only in the sense that the user
@@ -1273,7 +1262,7 @@ impl Elaborator<'_> {
         // Trait methods see `Self` as the trait's self-type variable. Capture
         // it now so that meta resolution (run later, after attributes) finds a `Self` type in
         // scope when it processes `where` clauses and trait constraints
-        // (`add_trait_constraints_to_scope` requires it).
+        // (`assume_function_constraints` requires it).
         let self_type = self.interner.get_trait(trait_id).self_type();
 
         // Assume the bounds implied by the trait's own where clause on associated types

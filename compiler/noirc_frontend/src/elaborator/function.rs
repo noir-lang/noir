@@ -7,6 +7,7 @@
 //! - Second stage elaboration strategy of function bodies and their return type.
 //!   - Shared strategy for all types of functions (standalone, impl, trait impl)
 
+use crate::elaborator::traits::BoundOrigin;
 use std::collections::HashSet;
 
 use iter_extended::vecmap;
@@ -152,8 +153,11 @@ impl Elaborator<'_> {
                 // `nargo expand`). The constraints are resolved with the impl generics in scope so
                 // they share type variables with the methods' copies of these constraints (each
                 // method's where clause is extended with the impl's during def collection).
-                let resolved_where_clause =
-                    this.resolve_trait_constraints_and_add_to_scope(&unresolved_impl.where_clause);
+                let resolved_where_clause = unresolved_impl
+                    .where_clause
+                    .iter()
+                    .filter_map(|c| this.resolve_trait_constraint_and_add_to_scope(c))
+                    .collect::<Vec<_>>();
 
                 this.interner.add_impl(
                     impl_id,
@@ -333,7 +337,7 @@ impl Elaborator<'_> {
         // Setup trait constraints
         for (extra_constraint, location) in extra_trait_constraints {
             let bound = &extra_constraint.trait_bound;
-            self.add_implied_trait_bound_to_scope(*location, &extra_constraint.typ, bound);
+            self.add_bound_to_scope(*location, &extra_constraint.typ, bound, BoundOrigin::Implied);
         }
 
         // Resolve the where clause, adding the constraints for parent traits that have associated
@@ -485,7 +489,7 @@ impl Elaborator<'_> {
             for bound in desugared.bounds {
                 let typ = desugared.named_generic.clone();
                 let location = desugared.generic.location;
-                self.add_implied_trait_bound_to_scope(location, &typ, &bound);
+                self.add_bound_to_scope(location, &typ, &bound, BoundOrigin::Implied);
                 associated_generics_trait_constraints
                     .push(TraitConstraint { typ, trait_bound: bound });
             }
@@ -770,7 +774,7 @@ impl Elaborator<'_> {
             );
         }
 
-        self.add_trait_constraints_to_scope(func_meta.all_trait_constraints(), func_meta.location);
+        self.assume_function_constraints(&func_meta);
 
         let (hir_func, body_type) = match kind {
             FunctionKind::Builtin
