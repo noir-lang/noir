@@ -2,7 +2,7 @@
 //! Validates that supertrait bounds are correctly enforced and resolved, including with generics.
 
 use crate::{
-    test_utils::stdlib_src,
+    test_utils::{get_monomorphized, stdlib_src},
     tests::{assert_no_errors, check_errors, check_errors_with_stdlib, get_program_errors},
 };
 
@@ -686,4 +686,48 @@ fn lookup_associated_type_in_parent_impls_dependency_cycle() {
         fn main() {}
     "#;
     check_errors(src);
+}
+
+/// Regression test for https://github.com/noir-lang/noir-claude/issues/2055
+///
+/// A supertrait bound that mentions `Self` explicitly (`trait Child: Parent<Self>`) means "every
+/// implementor of `Child` also implements `Parent` with itself as the argument" - so resolving a
+/// method through that parent bound must substitute `Self` for the actual implementing type.
+/// Leaving the bound as `Parent<Child's own Self>` makes any impl of `Parent` for that type look
+/// like it satisfies the bound, even one whose generic argument doesn't match (`Narrow` here
+/// implements both `Parent<Narrow>` and `Parent<Wide>`; only the former should apply). The type
+/// checker accepts the program either way - elaboration never picks a concrete impl for a method
+/// called on a still-generic `X: Child` - so the bug only surfaces at monomorphization, once `X`
+/// is substituted with a concrete type that has more than one `Parent` impl to choose from.
+#[test]
+fn supertrait_bound_mentioning_self_is_instantiated_for_the_implementing_type() {
+    let src = r#"
+    trait Parent<T> {
+        fn limit(self) -> Field;
+    }
+    trait Child: Parent<Self> {}
+
+    struct Narrow { v: Field }
+    struct Wide { v: Field }
+
+    impl Parent<Wide> for Wide {
+        fn limit(self) -> Field { self.v }
+    }
+    impl Parent<Narrow> for Narrow {
+        fn limit(self) -> Field { self.v }
+    }
+    impl Parent<Wide> for Narrow {
+        fn limit(self) -> Field { self.v }
+    }
+    impl Child for Wide {}
+    impl Child for Narrow {}
+
+    fn run<X: Child>(x: X) -> Field { x.limit() }
+
+    fn main(v: Field) -> pub Field { run(Wide { v: 0 }) + run(Narrow { v }) }
+    "#;
+    assert_no_errors(src);
+    get_monomorphized(src).expect(
+        "Child: Parent<Self> should narrow to Narrow: Parent<Narrow> specifically, not be ambiguous with the unrelated Narrow: Parent<Wide>",
+    );
 }

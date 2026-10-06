@@ -738,7 +738,8 @@ impl Elaborator<'_> {
 
         for parent_bound in &parent_bounds {
             // Substitute the child trait's bindings into the parent bound.
-            let instantiated = self.instantiate_parent_trait_bound(trait_bound, parent_bound);
+            let instantiated =
+                self.instantiate_parent_trait_bound(object_type, trait_bound, parent_bound);
 
             // Skip if there are no associated types on this parent trait,
             // or if we already have a constraint for this type + parent trait.
@@ -961,7 +962,7 @@ impl Elaborator<'_> {
                 }
 
                 let parent_trait_bound =
-                    self.instantiate_parent_trait_bound(trait_bound, &parent_trait_bound);
+                    self.instantiate_parent_trait_bound(object, trait_bound, &parent_trait_bound);
                 let written = false;
                 self.add_trait_bound_to_scope_inner(
                     location,
