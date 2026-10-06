@@ -1302,3 +1302,35 @@ fn elided_supertrait_associated_type_is_one_type_per_item() {
     "#;
     assert_no_errors(src);
 }
+
+/// With `trait Child: Parent<Self>`, a function bounded by `Y: Parent<Wide> + Child` has two
+/// `Parent` bounds on `Y`. Method lookup resolves through the first one written, so
+/// `y.pick(w: Wide)` resolves through `Y: Parent<Wide>`.
+#[test]
+fn method_lookup_uses_the_first_written_bound_on_a_trait() {
+    let src = r#"
+    trait Parent<T> {
+        fn pick(self, o: T) -> Field;
+    }
+    trait Child: Parent<Self> {}
+    struct Wide {
+        v: Field,
+    }
+    impl Parent<Wide> for Wide {
+        fn pick(self, o: Wide) -> Field {
+            let _ = self;
+            o.v
+        }
+    }
+    impl Child for Wide {}
+
+    fn pin<Y: Parent<Wide> + Child>(y: Y, w: Wide) -> Field {
+        y.pick(w)
+    }
+
+    fn main() -> pub Field {
+        pin(Wide { v: 0 }, Wide { v: 1 })
+    }
+    "#;
+    assert_no_errors(src);
+}

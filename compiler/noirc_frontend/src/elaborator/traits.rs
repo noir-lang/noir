@@ -700,8 +700,12 @@ impl Elaborator<'_> {
 
         for constraint in constraints {
             let mut seen = BTreeSet::from([bound_key(&constraint.trait_bound)]);
-            let parents =
-                self.implied_parent_bounds(&constraint.typ, &constraint.trait_bound, &mut seen);
+            let parents = self.implied_parent_bounds(
+                &constraint.typ,
+                &constraint.trait_bound,
+                &mut seen,
+                bound_key,
+            );
             for parent in parents {
                 self.add_parent_associated_type_constraint(
                     &constraint.typ,

@@ -474,7 +474,8 @@ impl Elaborator<'_> {
     ) -> Option<Type> {
         let self_type = self.item.impl_context.self_type()?;
         let mut seen = BTreeSet::from([bound_key(trait_bound)]);
-        let parent_bounds = self.implied_parent_bounds(self_type, trait_bound, &mut seen);
+        let parent_bounds =
+            self.implied_parent_bounds(self_type, trait_bound, &mut seen, bound_key);
 
         for parent_bound in &parent_bounds {
             let result = self.interner.try_lookup_trait_implementation(
@@ -1609,12 +1610,15 @@ impl Elaborator<'_> {
         &self,
         method_name: &str,
         constraint: TraitConstraint,
-        seen: &mut BTreeSet<(TraitId, Vec<Type>)>,
+        seen: &mut BTreeSet<TraitId>,
     ) -> Vec<(TraitPathResolutionMethod, TraitId)> {
-        if !seen.insert(bound_key(&constraint.trait_bound)) {
+        if !seen.insert(constraint.trait_bound.trait_id) {
             return Vec::new();
         }
-        let parents = self.implied_parent_bounds(&constraint.typ, &constraint.trait_bound, seen);
+        let parents =
+            self.implied_parent_bounds(&constraint.typ, &constraint.trait_bound, seen, |bound| {
+                bound.trait_id
+            });
 
         let typ = constraint.typ.clone();
         let parents = parents
@@ -3570,19 +3574,21 @@ impl Elaborator<'_> {
     /// Multiple matches are possible if a method with the same name exists in, for example,
     /// a child and its parent.
     ///
-    /// `seen` is shared with [`Self::implied_parent_bounds`]: a bound already searched for another
-    /// bound on `object_type` is not searched again.
+    /// `seen` is shared with [`Self::implied_parent_bounds`]: a trait already searched for another
+    /// bound on `object_type` is not searched again, even with other arguments, so the first
+    /// bound on a trait decides which of its instantiations a method call resolves through.
     fn lookup_methods_in_trait(
         &self,
         object_type: &Type,
         method_name: &str,
         trait_bound: &ResolvedTraitBound,
-        seen: &mut BTreeSet<(TraitId, Vec<Type>)>,
+        seen: &mut BTreeSet<TraitId>,
     ) -> Vec<HirTraitMethodReference> {
-        if !seen.insert(bound_key(trait_bound)) {
+        if !seen.insert(trait_bound.trait_id) {
             return Vec::new();
         }
-        let parents = self.implied_parent_bounds(object_type, trait_bound, seen);
+        let parents =
+            self.implied_parent_bounds(object_type, trait_bound, seen, |bound| bound.trait_id);
 
         let bounds = std::iter::once(trait_bound.clone()).chain(parents);
         bounds
@@ -3955,7 +3961,7 @@ impl Elaborator<'_> {
         bindings: &mut TypeBindings,
     ) {
         let mut seen = BTreeSet::from([bound_key(trait_bound)]);
-        for parent in self.implied_parent_bounds(self_type, trait_bound, &mut seen) {
+        for parent in self.implied_parent_bounds(self_type, trait_bound, &mut seen, bound_key) {
             self.bind_generics_from_trait_bound(&parent, bindings);
         }
     }
@@ -3986,27 +3992,29 @@ impl Elaborator<'_> {
     /// instantiated for `self_type`. They come depth first: a parent, then that parent's own
     /// parents, then the next parent.
     ///
-    /// `seen` holds the trait and ordered arguments of every bound already produced. A bound
-    /// found in it is skipped together with its parents, which stops cycles (`trait A: A`) and
-    /// lets a caller share `seen` across several bounds on one type so that an ancestor they have
-    /// in common is produced once. Insert `trait_bound` into it first to keep it from being
-    /// produced again through a cycle.
-    pub(crate) fn implied_parent_bounds(
+    /// `seen` holds the `key` of every bound already produced. A bound whose key is in it is
+    /// skipped together with its parents, which stops cycles (`trait A: A`) and lets a caller
+    /// share `seen` across several bounds on one type so that an ancestor they have in common is
+    /// produced once. Insert `trait_bound`'s key first to keep it from being produced again
+    /// through a cycle. [`bound_key`] tells bounds apart by trait and arguments.
+    pub(crate) fn implied_parent_bounds<K: Ord>(
         &self,
         self_type: &Type,
         trait_bound: &ResolvedTraitBound,
-        seen: &mut BTreeSet<(TraitId, Vec<Type>)>,
+        seen: &mut BTreeSet<K>,
+        key: fn(&ResolvedTraitBound) -> K,
     ) -> Vec<ResolvedTraitBound> {
         let mut implied = Vec::new();
-        self.collect_implied_parent_bounds(self_type, trait_bound, seen, &mut implied);
+        self.collect_implied_parent_bounds(self_type, trait_bound, seen, key, &mut implied);
         implied
     }
 
-    fn collect_implied_parent_bounds(
+    fn collect_implied_parent_bounds<K: Ord>(
         &self,
         self_type: &Type,
         trait_bound: &ResolvedTraitBound,
-        seen: &mut BTreeSet<(TraitId, Vec<Type>)>,
+        seen: &mut BTreeSet<K>,
+        key: fn(&ResolvedTraitBound) -> K,
         implied: &mut Vec<ResolvedTraitBound>,
     ) {
         // Parent bound trait ids are set during trait resolution and must always resolve.
@@ -4014,9 +4022,9 @@ impl Elaborator<'_> {
         let parent_bounds: Vec<_> = the_trait.parent_bounds().collect();
         for parent_bound in &parent_bounds {
             let parent = self.instantiate_parent_trait_bound(self_type, trait_bound, parent_bound);
-            if seen.insert(bound_key(&parent)) {
+            if seen.insert(key(&parent)) {
                 implied.push(parent.clone());
-                self.collect_implied_parent_bounds(self_type, &parent, seen, implied);
+                self.collect_implied_parent_bounds(self_type, &parent, seen, key, implied);
             }
         }
     }
