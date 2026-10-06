@@ -1,0 +1,6 @@
+[package]
+name = "brillig_constraint_input_read_from_partially_constrained_nested_array"
+type = "bin"
+authors = [""]
+
+[dependencies]

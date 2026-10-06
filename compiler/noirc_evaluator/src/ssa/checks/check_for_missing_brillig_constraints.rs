@@ -46,6 +46,7 @@ use crate::ssa::ir::dfg::DataFlowGraph;
 use crate::ssa::ir::function::{Function, FunctionId};
 use crate::ssa::ir::instruction::{Instruction, InstructionId, Intrinsic};
 use crate::ssa::ir::post_order::PostOrder;
+use crate::ssa::ir::types::Type;
 use crate::ssa::ir::value::{Value, ValueId};
 use crate::ssa::ssa_gen::Ssa;
 use acvm::AcirField;
@@ -125,6 +126,34 @@ impl ValueSet {
         for value in values {
             self.insert(*value);
         }
+    }
+}
+
+/// The Brillig outputs shown to be constrained so far, and values derived from them.
+#[derive(Debug)]
+struct ConstrainedValues {
+    /// Values of which at least some part has been constrained.
+    ///
+    /// Membership does not mean the whole value is constrained: an array output longer than
+    /// the tracked length is added once any one of its items is constrained, and so is an
+    /// item which is itself an array, once any one of its own items is.
+    values: ValueSet,
+    /// Array outputs of numeric items, every one of which has been constrained.
+    ///
+    /// A value read from one of these at a dynamic index is constrained, whichever item it is.
+    arrays: ValueSet,
+}
+
+impl ConstrainedValues {
+    fn new(dfg: &DataFlowGraph) -> Self {
+        Self { values: ValueSet::new(dfg), arrays: ValueSet::new(dfg) }
+    }
+
+    /// Whether the value at the center of the ball has been constrained, either through one of
+    /// its ancestors or by being read from a fully constrained array.
+    fn covers(&self, ball: &Ball) -> bool {
+        ball.any(|value| self.values.contains(value) || self.arrays.contains(value))
+            || ball.read_arrays.iter().any(|array| self.arrays.contains(array))
     }
 }
 
@@ -210,6 +239,14 @@ struct AncestryGraph {
     /// If `v1` and `v2` are equivalent, any ancestor of `v1` is also an ancestor of `v2`
     /// and vice versa. BFS follows these edges alongside `parents` edges.
     equivalences: HashMap<ValueId, Vec<ValueId>>,
+
+    /// The array of each tracked value read from an array at a dynamic index.
+    ///
+    /// The array is not a parent of such a value (see [`parent_arguments`]), so that a
+    /// constraint on it does not appear to constrain every item of the array. The value is
+    /// still derived from the array, though: if every item of the array is constrained,
+    /// so is the value.
+    read_arrays: HashMap<ValueId, ValueId>,
 }
 
 impl AncestryGraph {
@@ -247,6 +284,12 @@ impl AncestryGraph {
     fn add_equivalence(&mut self, v1: ValueId, v2: ValueId) {
         self.equivalences.entry(v1).or_default().push(v2);
         self.equivalences.entry(v2).or_default().push(v1);
+    }
+
+    /// Record that `value` was read from `array` at a dynamic index, and start tracking the array.
+    fn add_read_array(&mut self, value: ValueId, array: ValueId) {
+        self.read_arrays.insert(value, array);
+        self.track(array);
     }
 
     /// Traverse the values reachable (inclusive) from any of the `starts` by following
@@ -314,7 +357,9 @@ impl AncestryGraph {
             d <= max_ancestor_distance
         });
         let set = values.iter().copied().collect();
-        Ball { values, set }
+        let read_arrays =
+            values.iter().filter_map(|value| self.read_arrays.get(value).copied()).collect();
+        Ball { values, set, read_arrays }
     }
 }
 
@@ -330,6 +375,9 @@ impl AncestryGraph {
 struct Ball {
     values: Vec<ValueId>,
     set: HashSet<ValueId>,
+    /// The arrays which values in the ball were read from at a dynamic index.
+    /// Used to tell whether a tainted value has been constrained.
+    read_arrays: Vec<ValueId>,
 }
 
 impl Ball {
@@ -365,6 +413,10 @@ struct TaintedDescendants {
     /// To consider an element constrained, we have to find a constraint such that
     /// the constrained value appears in the descendants.
     array_outputs: HashMap<ValueId, HashMap<u32, HashSet<ValueId>>>,
+    /// The array outputs whose items are numeric values, as opposed to arrays.
+    ///
+    /// Once every index of one of these is constrained, every value in it is.
+    numeric_array_outputs: HashSet<ValueId>,
     /// The union of all values reachable from any argument by following parents and
     /// equivalences backwards. Includes the arguments themselves.
     ///
@@ -387,6 +439,7 @@ impl TaintedDescendants {
     ) -> Self {
         let mut single_outputs = HashSet::default();
         let mut array_outputs = HashMap::default();
+        let mut numeric_array_outputs = HashSet::default();
         for result_id in result_ids {
             match func.dfg.try_get_array_length(*result_id) {
                 // If the result value is an array, create an empty descendant set for
@@ -396,12 +449,16 @@ impl TaintedDescendants {
                 // Arrays of tuples are read with flattened indices (`item * fields + field`),
                 // so every field of every item gets its own index.
                 Some(length) if length.0 > 0 && length.0 <= max_array_output_length => {
-                    let fields = func.dfg.type_of_value(*result_id).element_size().0;
+                    let typ = func.dfg.type_of_value(*result_id);
+                    let fields = typ.element_size().0;
                     let mut index_outputs = HashMap::default();
                     for i in 0..length.0 * fields {
                         index_outputs.insert(i, HashSet::default());
                     }
                     array_outputs.insert(*result_id, index_outputs);
+                    if typ.element_types().iter().all(Type::is_numeric) {
+                        numeric_array_outputs.insert(*result_id);
+                    }
                 }
                 // For very large arrays or non-arrays, treat the whole result as a single value
                 // to avoid memory/time issues when tracking individual elements
@@ -416,6 +473,7 @@ impl TaintedDescendants {
             arguments,
             single_outputs,
             array_outputs,
+            numeric_array_outputs,
             arg_ancestors: HashSet::default(),
         }
     }
@@ -440,7 +498,7 @@ impl TaintedDescendants {
     ///
     /// `balls` holds the [`Ball`] of each of the `constrained_values`, in the same order.
     ///
-    /// Any constrained output is added to the `all_constrained` set.
+    /// Any constrained output is added to `all_constrained`.
     ///
     /// Returns `true` if at least one output was cleared by this call. Each output is
     /// cleared at most once (it is removed from its set when cleared), so this reflects
@@ -451,7 +509,7 @@ impl TaintedDescendants {
         constrained_values: &[ValueId],
         balls: &[Ball],
         all_tainted: &ValueSet,
-        all_constrained: &mut ValueSet,
+        all_constrained: &mut ConstrainedValues,
     ) -> bool {
         let is_against_const = constrained_values.len() == 1;
         let is_const_args = self.arguments.is_empty();
@@ -473,7 +531,7 @@ impl TaintedDescendants {
             let constrained = balls.iter().any(|ball| ball.contains(output));
 
             if constrained {
-                all_constrained.insert(*output);
+                all_constrained.values.insert(*output);
                 progressed = true;
             }
 
@@ -499,7 +557,7 @@ impl TaintedDescendants {
                     balls.iter().any(|ball| descendants.iter().any(|value| ball.contains(value)));
 
                 if constrained {
-                    all_constrained.extend(descendants.iter());
+                    all_constrained.values.extend(descendants.iter());
                     progressed = true;
                 }
 
@@ -507,7 +565,19 @@ impl TaintedDescendants {
             });
 
             // Keep the array until all indexed items have been constrained.
-            !index_outputs.is_empty()
+            if index_outputs.is_empty() {
+                // Once all its items are constrained, the array as a whole is constrained too,
+                // which matters when it is passed on whole, for example into another call,
+                // or read at a dynamic index.
+                // An item which is an array is cleared once any one of its own items is
+                // constrained, so an array of arrays may still hold unconstrained values.
+                if self.numeric_array_outputs.contains(array) {
+                    all_constrained.arrays.insert(*array);
+                }
+                false
+            } else {
+                true
+            }
         });
 
         progressed
@@ -521,7 +591,7 @@ impl TaintedDescendants {
         constrained_values: &[ValueId],
         balls: &[Ball],
         all_tainted: &ValueSet,
-        all_constrained: &ValueSet,
+        all_constrained: &ConstrainedValues,
     ) -> bool {
         for (cv, ball) in constrained_values.iter().zip(balls) {
             // We want to avoid using tainted inputs to constrain Brillig outputs.
@@ -532,7 +602,7 @@ impl TaintedDescendants {
             if all_tainted.contains(cv)
                 && (
                     // Tainted and hasn't been constrained.
-                    !ball.any(|a| all_constrained.contains(a))
+                    !all_constrained.covers(ball)
                     // Tainted because it's the output of this call itself.
                     || self.single_outputs.iter().any(|output| ball.contains(output))
                     || self.array_outputs.keys().any(|array| ball.contains(array))
@@ -767,7 +837,7 @@ impl TaintedCalls {
         constrained_values: &[ValueId],
         balls: &[Ball],
         all_tainted: &ValueSet,
-        all_constrained: &mut ValueSet,
+        all_constrained: &mut ConstrainedValues,
     ) -> bool {
         let tainted = &mut self.calls[index];
         let progressed =
@@ -868,6 +938,12 @@ impl Context {
                     let args = args.get_or_insert_with(|| parent_arguments(func, instruction));
 
                     self.graph.add_parents(*result_id, args);
+
+                    if let Instruction::ArrayGet { array, index } = instruction
+                        && func.dfg.get_numeric_constant(*index).is_none()
+                    {
+                        self.graph.add_read_array(*result_id, *array);
+                    }
 
                     // Add the active side-effect condition as an additional parent so that
                     // BFS can reach the condition's ancestors from this result.
@@ -1073,7 +1149,7 @@ impl Context {
         // function stays constrained, so a later constraint can rely on it regardless
         // of the source order of the two assertions. This is what makes the check
         // order-independent and requires iterating to a fixed point below.
-        let mut all_constrained = ValueSet::new(&func.dfg);
+        let mut all_constrained = ConstrainedValues::new(&func.dfg);
 
         loop {
             let progressed =
@@ -1144,7 +1220,7 @@ impl Context {
         &mut self,
         events: &[Event],
         all_tainted: &ValueSet,
-        all_constrained: &mut ValueSet,
+        all_constrained: &mut ConstrainedValues,
     ) -> bool {
         // Skip checks until we encounter the tainted instruction.
         let mut active = TaintedSet::default();
@@ -1177,7 +1253,7 @@ impl Context {
         constrained_values: &[ValueId],
         active: &TaintedSet,
         all_tainted: &ValueSet,
-        all_constrained: &mut ValueSet,
+        all_constrained: &mut ConstrainedValues,
     ) -> bool {
         let mut candidates = self.constrainable.owners_of(constrained_values);
         candidates.intersect_with(active);
@@ -1326,6 +1402,9 @@ fn instruction_results(func: &Function, instruction_id: &InstructionId) -> Vec<V
         .copied()
         .collect()
 }
+
+#[cfg(test)]
+mod array_output_cases;
 
 #[cfg(test)]
 mod tests {
