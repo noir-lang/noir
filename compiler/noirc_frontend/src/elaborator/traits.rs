@@ -236,6 +236,17 @@ pub(super) struct DesugaredAssociatedGeneric {
     pub(super) bounds: Vec<ResolvedTraitBound>,
 }
 
+/// Whether a bound in scope was written by the user, or follows from another one: a parent
+/// trait, a bound declared on an associated type, or the enclosing trait or impl.
+///
+/// Only a written bound can be reported as unneeded: an implied bound duplicating one already in
+/// scope is how implication works.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum BoundOrigin {
+    Written,
+    Implied,
+}
+
 impl Elaborator<'_> {
     /// Runs `f` in a context of its own for the trait: the trait's module, the trait as the
     /// current one and its self type variable as `Self`. Whatever `f` adds to the context, such
@@ -613,8 +624,8 @@ impl Elaborator<'_> {
         for constraint in constraints {
             let (typ, bound) = (&constraint.typ, &constraint.trait_bound);
             seen.insert_root(typ, bound);
-            let written = true;
-            self.add_trait_bound_to_scope_inner(location, typ, bound, written, &mut seen);
+            let origin = BoundOrigin::Written;
+            self.add_trait_bound_to_scope_inner(location, typ, bound, origin, &mut seen);
         }
 
         // Also assume `self` implements the current trait if we are inside a trait definition
@@ -631,8 +642,8 @@ impl Elaborator<'_> {
             // `resolve_trait_methods`), so `seen` has them and they are not added a second time.
             let bound = &constraint.trait_bound;
             seen.insert_root(&self_type, bound);
-            let written = false;
-            self.add_trait_bound_to_scope_inner(location, &self_type, bound, written, &mut seen);
+            let origin = BoundOrigin::Implied;
+            self.add_trait_bound_to_scope_inner(location, &self_type, bound, origin, &mut seen);
         }
     }
 
@@ -857,8 +868,8 @@ impl Elaborator<'_> {
     ) {
         let mut seen = BoundSet::default();
         seen.insert_root(object, trait_bound);
-        let written = true;
-        self.add_trait_bound_to_scope_inner(location, object, trait_bound, written, &mut seen);
+        let origin = BoundOrigin::Written;
+        self.add_trait_bound_to_scope_inner(location, object, trait_bound, origin, &mut seen);
     }
 
     /// [`Self::add_trait_bound_to_scope`] for a bound the user did not write but which another
@@ -874,37 +885,35 @@ impl Elaborator<'_> {
     ) {
         let mut seen = BoundSet::default();
         seen.insert_root(object, trait_bound);
-        let written = false;
-        self.add_trait_bound_to_scope_inner(location, object, trait_bound, written, &mut seen);
+        let origin = BoundOrigin::Implied;
+        self.add_trait_bound_to_scope_inner(location, object, trait_bound, origin, &mut seen);
     }
 
-    /// `written` distinguishes the bound the user wrote from the ones it implies: a bound on one of
-    /// the trait's associated types, or a parent trait. Only a written bound can be redundant. An
-    /// implied bound duplicating one already in scope is how implication works, and a written
-    /// bound duplicating an implied one is redundant only in the sense that the user spelled out
-    /// something that already holds, which is not worth a warning. That is what
-    /// [`GenericsContext::record_implied_bound`] is for: it makes the answer independent of the
-    /// order the two are registered in.
+    /// A written bound duplicating an implied one is redundant only in the sense that the user
+    /// spelled out something that already holds, which is not worth a warning either. That is
+    /// what [`GenericsContext::record_implied_bound`] is for: it makes the answer independent of
+    /// the order the two are registered in.
     #[tracing::instrument(level = "trace", skip_all)]
     fn add_trait_bound_to_scope_inner(
         &mut self,
         location: Location,
         object: &Type,
         trait_bound: &ResolvedTraitBound,
-        written: bool,
+        origin: BoundOrigin,
         seen: &mut BoundSet,
     ) {
         let trait_id = trait_bound.trait_id;
         let generics = trait_bound.trait_generics.clone();
 
-        if !written {
+        if origin == BoundOrigin::Implied {
             self.item.generics.record_implied_bound(object, trait_id);
         }
-        let written = written && !self.item.generics.is_implied_bound(object, trait_id);
+        let can_be_unneeded = origin == BoundOrigin::Written
+            && !self.item.generics.is_implied_bound(object, trait_id);
 
         match self.interner.add_assumed_trait_implementation(object.clone(), trait_id, generics) {
             Ok(true) => (),
-            Ok(false) if !written => (),
+            Ok(false) if !can_be_unneeded => (),
             Ok(false) => {
                 if let Some(the_trait) = self.interner.try_get_trait(trait_id) {
                     let trait_name = the_trait.name.to_string();
@@ -962,8 +971,8 @@ impl Elaborator<'_> {
             if !seen.enter(&associated_type, &bound) {
                 continue;
             }
-            let written = false;
-            self.add_trait_bound_to_scope_inner(location, &associated_type, &bound, written, seen);
+            let origin = BoundOrigin::Implied;
+            self.add_trait_bound_to_scope_inner(location, &associated_type, &bound, origin, seen);
             seen.leave();
         }
 
@@ -979,12 +988,11 @@ impl Elaborator<'_> {
                 if !seen.enter(object, &parent_trait_bound) {
                     continue;
                 }
-                let written = false;
                 self.add_trait_bound_to_scope_inner(
                     location,
                     object,
                     &parent_trait_bound,
-                    written,
+                    BoundOrigin::Implied,
                     seen,
                 );
                 seen.leave();
