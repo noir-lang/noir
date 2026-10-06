@@ -2260,19 +2260,19 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@nomicfoundation/hardhat-verify@npm:^3.1.0":
-  version: 3.1.0
-  resolution: "@nomicfoundation/hardhat-verify@npm:3.1.0"
+"@nomicfoundation/hardhat-verify@npm:^3.1.1":
+  version: 3.1.1
+  resolution: "@nomicfoundation/hardhat-verify@npm:3.1.1"
   dependencies:
     "@ethersproject/abi": "npm:^5.8.0"
-    "@nomicfoundation/hardhat-errors": "npm:^3.0.16"
-    "@nomicfoundation/hardhat-utils": "npm:^4.1.4"
+    "@nomicfoundation/hardhat-errors": "npm:^3.1.0"
+    "@nomicfoundation/hardhat-utils": "npm:^4.3.0"
     "@nomicfoundation/hardhat-zod-utils": "npm:^3.0.5"
     cbor2: "npm:^2.0.0"
     zod: "npm:^3.23.8"
   peerDependencies:
     hardhat: ^3.12.0
-  checksum: 10/94abbce09d923a464b8c05258d2ff76814e40bd1440e0a089f52dfb5f9752eafd571ab2a37100874993b915ecdb40fac9ecc714dffae2c76c431a9a4ad41e9b5
+  checksum: 10/2c89eec2bec3cc7cbcadda6452077fe5079e9533dc1f68d4ce3d502a89cec6ea16823c61f8e1843ddcca83f6cb9886ede1a5fb0bea94c0db4dc6b5090d4b589a
   languageName: node
   linkType: hard
 
@@ -7388,7 +7388,7 @@ __metadata:
     "@nomicfoundation/hardhat-node-test-runner": "npm:^3.1.0"
     "@nomicfoundation/hardhat-toolbox-mocha-ethers": "npm:^4.0.0"
     "@nomicfoundation/hardhat-typechain": "npm:^3.1.1"
-    "@nomicfoundation/hardhat-verify": "npm:^3.1.0"
+    "@nomicfoundation/hardhat-verify": "npm:^3.1.1"
     "@web/dev-server-esbuild": "npm:^2.0.0"
     "@web/dev-server-import-maps": "npm:^0.3.0"
     "@web/test-runner": "npm:^1.0.0"
