@@ -957,3 +957,100 @@ fn elided_supertrait_associated_constant_keeps_its_kind() {
         "expected a kind mismatch, got {errors:?}"
     );
 }
+
+/// Inside `impl Child<u16> for S`, `Self::Out` with `Out` declared on the parent of
+/// `trait Child<U>: Parent<U>` is `<S as Parent<u16>>::Out`. `S` implements `Parent` twice, so the
+/// parent bound must be instantiated with the impl's `u16` to pick the right one.
+#[test]
+fn self_associated_type_from_generic_parent_in_impl_uses_the_impl_arguments() {
+    let src = r#"
+    trait Parent<T> {
+        type Out;
+    }
+    trait Child<U>: Parent<U> {
+        fn get(self) -> Self::Out;
+    }
+    pub struct S {}
+    impl Parent<u8> for S {
+        type Out = u8;
+    }
+    impl Parent<u16> for S {
+        type Out = u16;
+    }
+    impl Child<u16> for S {
+        fn get(self) -> Self::Out {
+            300
+        }
+    }
+
+    fn main() -> pub u16 {
+        <S as Child<u16>>::get(S {})
+    }
+    "#;
+    assert_no_errors(src);
+    get_monomorphized(src).expect("`Self::Out` in `impl Child<u16>` should be u16");
+}
+
+/// The trait method's declared `Self::Out` is checked against the impl's `u16` through the impl's
+/// own parent bound `S: Parent<u16>`, not `S: Parent<U>`.
+#[test]
+fn trait_method_returning_generic_parent_associated_type_matches_impl() {
+    let src = r#"
+    trait Parent<T> {
+        type Out;
+    }
+    trait Child<U>: Parent<U> {
+        fn get(self) -> Self::Out;
+    }
+    pub struct S {}
+    impl Parent<u8> for S {
+        type Out = u8;
+    }
+    impl Parent<u16> for S {
+        type Out = u16;
+    }
+    impl Child<u16> for S {
+        fn get(self) -> u16 {
+            300
+        }
+    }
+
+    fn g<T>(t: T) -> <T as Parent<u16>>::Out where T: Child<u16> {
+        t.get()
+    }
+
+    fn main() -> pub u16 {
+        g(S {})
+    }
+    "#;
+    assert_no_errors(src);
+    get_monomorphized(src).expect("`T: Child<u16>` should return `<T as Parent<u16>>::Out`");
+}
+
+/// With `trait Child: Parent<Self>`, `Self::Out` in `impl Child for N` is `<N as Parent<N>>::Out`.
+#[test]
+fn self_associated_type_from_parent_mentioning_self_in_impl() {
+    let src = r#"
+    trait Parent<T> {
+        type Out;
+    }
+    trait Child: Parent<Self> {
+        fn get(self) -> Self::Out;
+    }
+    pub struct N {}
+    impl Parent<N> for N {
+        type Out = u8;
+    }
+    impl Child for N {
+        fn get(self) -> Self::Out {
+            3
+        }
+    }
+
+    fn main() -> pub u8 {
+        N {}.get()
+    }
+    "#;
+    assert_no_errors(src);
+    get_monomorphized(src).expect("`Self::Out` in `impl Child for N` should be u8");
+}

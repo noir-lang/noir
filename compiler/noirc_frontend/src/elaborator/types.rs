@@ -406,14 +406,19 @@ impl Elaborator<'_> {
                     return Some(typ.clone());
                 }
 
-                if let Some(trait_id) = self.item.impl_context.current_trait()
-                    && let Some(typ) = self.lookup_associated_type_in_parent_impls(
+                if let Some(trait_id) = self.item.impl_context.current_trait() {
+                    let trait_bound = ResolvedTraitBound {
                         trait_id,
+                        trait_generics: self.interner.get_trait_generics_for_impl(impl_id).clone(),
+                        location: path.location,
+                    };
+                    if let Some(typ) = self.lookup_associated_type_in_parent_impls(
+                        &trait_bound,
                         name,
                         &mut BTreeSet::new(),
-                    )
-                {
-                    return Some(typ);
+                    ) {
+                        return Some(typ);
+                    }
                 }
             }
         }
@@ -462,22 +467,25 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Search for an associated type in parent 'trait impls'.
+    /// Search for an associated type in the impls of the parent traits of `trait_bound`, as
+    /// implemented by the current impl's self type.
     fn lookup_associated_type_in_parent_impls(
         &self,
-        trait_id: TraitId,
+        trait_bound: &ResolvedTraitBound,
         name: &str,
         visited: &mut BTreeSet<TraitId>,
     ) -> Option<Type> {
-        if !visited.insert(trait_id) {
+        if !visited.insert(trait_bound.trait_id) {
             return None;
         }
 
-        let the_trait = self.interner.get_trait(trait_id);
+        let the_trait = self.interner.get_trait(trait_bound.trait_id);
         let parent_bounds: Vec<_> = the_trait.parent_bounds().cloned().collect();
         let self_type = self.item.impl_context.self_type()?;
 
         for parent_bound in &parent_bounds {
+            let parent_bound =
+                &self.instantiate_parent_trait_bound(self_type, trait_bound, parent_bound);
             let result = self.interner.try_lookup_trait_implementation(
                 self_type,
                 parent_bound.trait_id,
@@ -519,7 +527,7 @@ impl Elaborator<'_> {
 
             // Recurse into grandparent traits
             if let Some(typ) =
-                self.lookup_associated_type_in_parent_impls(parent_bound.trait_id, name, visited)
+                self.lookup_associated_type_in_parent_impls(parent_bound, name, visited)
             {
                 return Some(typ);
             }
