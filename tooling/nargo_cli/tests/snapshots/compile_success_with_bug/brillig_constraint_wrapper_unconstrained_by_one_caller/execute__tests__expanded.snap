@@ -1,0 +1,21 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn half_helper(x: Field) -> Field {
+    x / 2_Field
+}
+
+fn half_unchecked(x: Field) -> Field {
+    // Safety: comment added by `nargo expand`
+    unsafe {
+        half_helper(x)
+    }
+}
+
+fn main(a: Field, b: Field) -> pub Field {
+    let p: Field = half_unchecked(a);
+    assert((p * 2_Field) == a);
+    let q: Field = half_unchecked(b);
+    p + q
+}
