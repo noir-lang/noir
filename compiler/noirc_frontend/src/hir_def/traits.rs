@@ -320,6 +320,11 @@ impl ParentBound {
     /// An associated item the bound leaves out (`trait Foo: Bar` where `Bar` has `type Out`) is
     /// a placeholder declared once for the whole trait; `fresh_placeholder` replaces it with one
     /// for this instantiation, so that resolving one use cannot bind it for every other.
+    ///
+    /// That replacement is an inference variable, not a rigid `<T as Bar>::Out`: an instantiated
+    /// parent bound is matched against the bounds in scope or against an impl, and the variable is
+    /// solved by that match. The rigid `<T as Bar>::Out` a scope assumes comes from the bound that
+    /// declares it (see `collect_parent_associated_types`).
     pub fn instantiate(
         &self,
         bindings: &TypeBindings,
