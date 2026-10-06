@@ -444,7 +444,8 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         self.push_str(&trait_.name.to_string());
         self.show_generics(&trait_.generics);
 
-        let parent_bounds: Vec<_> = trait_.parent_bounds().cloned().collect();
+        let parent_bounds: Vec<_> =
+            trait_.parent_bounds().map(|bound| bound.as_written().clone()).collect();
         if !parent_bounds.is_empty() {
             self.push_str(": ");
             self.show_trait_bounds(&parent_bounds);

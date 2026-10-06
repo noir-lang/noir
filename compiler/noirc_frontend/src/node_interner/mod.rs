@@ -1707,22 +1707,12 @@ impl NodeInterner {
 
         // Now collect bindings from the associated types of every parent trait that
         // is implemented for the object type.
-        let parent_bounds: Vec<_> = the_trait.parent_bounds().cloned().collect();
+        let parent_bounds: Vec<_> = the_trait.parent_bounds().collect();
         for parent_bound in &parent_bounds {
-            // The parent bound is written in terms of this trait's `Self`, generics and associated
-            // types, and `bindings` maps those to this impl's. An associated item the parent bound
-            // leaves out puts no requirement on the parent impl, so it is matched against a fresh
-            // variable. The bound's own placeholder for that item belongs to the trait
-            // declaration and is shared by every use of the trait, so it is never what gets
-            // matched.
-            let mut parent_generics =
-                parent_bound.trait_generics.map(|typ| typ.substitute(bindings));
-            let declared = parent_bound.trait_generics.named.iter();
-            for (named, declared) in parent_generics.named.iter_mut().zip(declared) {
-                if let Type::TypeVariable(placeholder) = &declared.typ {
-                    named.typ = self.next_type_variable_with_kind(placeholder.kind().into_owned());
-                }
-            }
+            // `bindings` maps this trait's `Self`, generics and associated types to this impl's.
+            let parent_bound =
+                parent_bound.instantiate(bindings, |kind| self.next_type_variable_with_kind(kind));
+            let parent_generics = parent_bound.trait_generics;
 
             // Find the implementation, if it exists.
             let trait_id = parent_bound.trait_id;
