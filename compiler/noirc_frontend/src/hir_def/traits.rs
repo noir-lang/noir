@@ -99,6 +99,10 @@ pub struct Trait {
 
     /// Map from each associated constant's name to a unique `DefinitionId` for that constant.
     pub associated_constant_ids: HashMap<String, DefinitionId>,
+
+    /// The type variables this declaration owns, with a description of each for diagnostics.
+    /// See [`Trait::record_declaration_type_variables`].
+    pub declaration_type_variables: Vec<(String, TypeVariable)>,
 }
 
 /// A completed trait implementation.
@@ -290,6 +294,19 @@ impl Trait {
 
     pub fn set_where_clause(&mut self, where_clause: Vec<TraitConstraint>) {
         self.where_clause = where_clause;
+    }
+
+    /// Records the type variables this declaration owns: `Self`, the generics and the
+    /// associated types.
+    ///
+    /// Every use of the trait reads these variables, so none may ever be bound: a binding is
+    /// permanent and is seen by every later use, fixing a type that should differ per use.
+    pub fn record_declaration_type_variables(&mut self) {
+        let mut variables = vec![(SELF_TYPE_NAME.to_string(), self.self_type_typevar.clone())];
+        for generic in self.generics.iter().chain(&self.associated_types) {
+            variables.push((generic.name.to_string(), generic.type_var.clone()));
+        }
+        self.declaration_type_variables = variables;
     }
 
     /// The parent-trait bounds of this trait (the `Bar` in `trait Foo: Bar`).

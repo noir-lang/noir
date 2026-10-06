@@ -174,8 +174,8 @@ use itertools::Itertools;
 use noirc_errors::Location;
 
 use crate::{
-    IMPL_TRAIT_PARAMETER_NAME_PREFIX, Kind, NamedGeneric, ResolvedGeneric, Type, TypeBindings,
-    TypeVariable,
+    IMPL_TRAIT_PARAMETER_NAME_PREFIX, Kind, NamedGeneric, ResolvedGeneric, Type, TypeBinding,
+    TypeBindings, TypeVariable, TypeVariableId,
     ast::{
         FunctionDefinition, FunctionKind, GenericTypeArgs, Ident, NoirFunction, Path, TraitBound,
         TraitItem, UnresolvedGeneric, UnresolvedTraitConstraint, UnresolvedType,
@@ -237,6 +237,42 @@ pub(super) struct DesugaredAssociatedGeneric {
 }
 
 impl Elaborator<'_> {
+    /// Reports each bound type variable owned by a trait declaration, except those in
+    /// `already_bound` and those reported before. Such a binding is always an error; see
+    /// [`crate::node_interner::NodeInterner::bound_trait_declaration_type_variables`].
+    ///
+    /// The error is placed at `location` (the function whose body made the binding) when given,
+    /// and at the trait otherwise. It is only shown when no other error explains the binding.
+    pub(super) fn report_bound_trait_declaration_type_variables(
+        &mut self,
+        already_bound: &[(TraitId, TypeVariableId)],
+        location: Option<Location>,
+    ) {
+        for (trait_id, variable_id) in self.interner.bound_trait_declaration_type_variables() {
+            if already_bound.contains(&(trait_id, variable_id))
+                || !self.reported_bound_trait_declaration_type_variables.insert(variable_id)
+            {
+                continue;
+            }
+            let the_trait = self.interner.get_trait(trait_id);
+            let Some((description, variable)) = the_trait
+                .declaration_type_variables
+                .iter()
+                .find(|(_, variable)| variable.id() == variable_id)
+            else {
+                continue;
+            };
+            let location = location.unwrap_or_else(|| the_trait.name.location());
+            if let TypeBinding::Bound(typ) = variable.binding() {
+                let message = format!(
+                    "`{description}` of trait `{}` was bound to `{typ}` during type checking",
+                    the_trait.name
+                );
+                self.push_err(TypeCheckError::expecting_other_error(message, location));
+            }
+        }
+    }
+
     /// Runs `f` in a context of its own for the trait: the trait's module, the trait as the
     /// current one and its self type variable as `Self`. Whatever `f` adds to the context, such
     /// as generics, is discarded on exit and the caller's context is reinstated.
@@ -342,6 +378,7 @@ impl Elaborator<'_> {
                     trait_def.implicit_associated_type_constraints =
                         implicit_associated_type_constraints;
                     trait_def.set_all_generics(this.item.generics.params().to_vec());
+                    trait_def.record_declaration_type_variables();
                 });
             });
         }

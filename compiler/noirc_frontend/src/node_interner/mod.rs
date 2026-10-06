@@ -613,6 +613,7 @@ impl NodeInterner {
             implicit_associated_type_constraints: Vec::new(),
             all_generics: Vec::new(),
             associated_constant_ids,
+            declaration_type_variables: Vec::new(),
         };
 
         self.traits.insert(type_id, new_trait);
@@ -876,6 +877,27 @@ impl NodeInterner {
     pub fn get_type_methods(&self, typ: &Type) -> Option<&HashMap<String, Methods>> {
         let key = get_type_method_key(typ)?;
         self.methods.get(&key)
+    }
+
+    /// The bound type variables among those trait declarations own, in a deterministic order.
+    ///
+    /// None of them may ever be bound (see [`Trait::record_declaration_type_variables`]): a
+    /// binding of the trait's `Self`, for instance, fixes which impl its default methods
+    /// dispatch to. This is empty unless type checking has gone wrong.
+    pub(crate) fn bound_trait_declaration_type_variables(&self) -> Vec<(TraitId, TypeVariableId)> {
+        let mut variables: Vec<(TraitId, TypeVariableId)> = self
+            .traits
+            .values()
+            .flat_map(|the_trait| {
+                the_trait
+                    .declaration_type_variables
+                    .iter()
+                    .filter(|(_, variable)| !variable.binding().is_unbound())
+                    .map(|(_, variable)| (the_trait.id, variable.id()))
+            })
+            .collect();
+        variables.sort();
+        variables
     }
 
     pub fn get_trait(&self, id: TraitId) -> &Trait {
@@ -1381,6 +1403,7 @@ impl NodeInterner {
             implicit_associated_type_constraints: vec![],
             all_generics: vec![],
             associated_constant_ids: Default::default(),
+            declaration_type_variables: Vec::new(),
         };
         self.traits.insert(trait_id, trait_);
 
@@ -1713,13 +1736,16 @@ impl NodeInterner {
         // is implemented for the object type.
         let parent_bounds: Vec<_> = the_trait.parent_bounds().cloned().collect();
         for parent_bound in &parent_bounds {
-            // Find the implementation, if it exists.
+            // Find the implementation, if it exists. The parent bound is written in terms of
+            // this trait's `Self`, generics and associated types, so instantiate it for this impl
+            // first: looking it up as written would bind those variables.
             let trait_id = parent_bound.trait_id;
+            let parent_generics = parent_bound.trait_generics.map(|typ| typ.substitute(bindings));
             match self.lookup_trait_implementation(
                 impl_self_type,
                 trait_id,
-                &parent_bound.trait_generics.ordered,
-                &parent_bound.trait_generics.named,
+                &parent_generics.ordered,
+                &parent_generics.named,
             ) {
                 Ok(
                     (TraitImplKind::Normal(impl_id), _) | (TraitImplKind::Prepared(impl_id, _), _),

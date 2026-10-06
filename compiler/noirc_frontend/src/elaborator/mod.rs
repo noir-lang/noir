@@ -78,7 +78,8 @@ use crate::{
     recursion::DataTypeGenerics,
 };
 use crate::{
-    graph::CrateGraph, hir::def_collector::dc_crate::UnresolvedTrait, usage_tracker::UsageTracker,
+    TypeVariableId, graph::CrateGraph, hir::def_collector::dc_crate::UnresolvedTrait,
+    usage_tracker::UsageTracker,
 };
 
 mod comptime;
@@ -223,6 +224,10 @@ pub struct Elaborator<'context> {
     /// ```
     resolving_ids: BTreeSet<TypeId>,
 
+    /// Trait declaration type variables whose binding has already been reported by
+    /// [`Elaborator::report_bound_trait_declaration_type_variables`], so each is reported once.
+    reported_bound_trait_declaration_type_variables: BTreeSet<TypeVariableId>,
+
     /// This is a stack of function contexts. Most of the time, for each function we
     /// expect this to be of length one, containing each type variable and trait constraint
     /// used in the function. This is also pushed to when a `comptime {}` block is used within
@@ -324,6 +329,7 @@ impl<'context> Elaborator<'context> {
             item: ItemContext::new(ModuleContext::in_module(initial_module)),
             crate_id,
             resolving_ids: BTreeSet::new(),
+            reported_bound_trait_declaration_type_variables: BTreeSet::new(),
             function_context: vec![FunctionContext::default()],
             interpreter_call_stack,
             options,
@@ -385,6 +391,9 @@ impl<'context> Elaborator<'context> {
         let mut this = Self::from_context(context, crate_id, options);
         this.elaborate_items(items);
         this.check_and_pop_function_context();
+        // Catches a binding made outside any function body; those made inside one are reported
+        // at that function by `elaborate_function_body`.
+        this.report_bound_trait_declaration_type_variables(&[], None);
         this
     }
 

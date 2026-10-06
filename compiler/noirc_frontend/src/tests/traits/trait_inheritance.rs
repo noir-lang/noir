@@ -734,74 +734,8 @@ fn supertrait_bound_mentioning_self_is_instantiated_for_the_implementing_type() 
 
 /// Regression test for https://github.com/noir-lang/noir-claude/issues/1232
 ///
-/// `X::get` under `X: Child<u16>` with `trait Child<U>: Parent<U>` must resolve through
-/// `X: Parent<u16>`, so it returns `u16`. Inside a `Child` default body the parent bound must not
-/// be left as `Parent<U>`, where `U` is the enclosing trait's own generic.
-#[test]
-fn trait_path_through_generic_supertrait_uses_the_bound_arguments() {
-    let src = r#"
-    trait Parent<T> {
-        fn get(self) -> T;
-    }
-    trait Child<U>: Parent<U> {
-        fn check<X: Child<u16>>(_self: Self, x: X) -> u16 {
-            X::get(x)
-        }
-    }
-    pub struct S {}
-    impl Parent<u8> for S {
-        fn get(self) -> u8 { 8 }
-    }
-    impl Parent<u16> for S {
-        fn get(self) -> u16 { 16 }
-    }
-    impl Child<u8> for S {}
-    impl Child<u16> for S {}
-
-    fn main() -> pub u16 {
-        <S as Child<u8>>::check(S {}, S {})
-    }
-    "#;
-    assert_no_errors(src);
-    get_monomorphized(src).expect("X::get under X: Child<u16> should resolve to S: Parent<u16>");
-}
-
-/// Regression test for https://github.com/noir-lang/noir-claude/issues/1232
-///
-/// In a free function nothing binds `Child`'s own generic, so an uninstantiated parent bound
-/// `T: Parent<B>` reaches monomorphization unresolved.
-#[test]
-fn trait_path_through_generic_supertrait_in_free_function_monomorphizes() {
-    let src = r#"
-    trait Parent<A> {
-        fn marker(self) -> Field;
-    }
-    trait Child<B>: Parent<B> {}
-    struct Wrapper {}
-    impl Parent<u32> for Wrapper {
-        fn marker(self) -> Field { 10 }
-    }
-    impl Parent<bool> for Wrapper {
-        fn marker(self) -> Field { 20 }
-    }
-    impl Child<u32> for Wrapper {}
-
-    fn via_static_type<T>(x: T) -> Field where T: Child<u32> {
-        T::marker(x)
-    }
-
-    fn main() -> pub Field {
-        via_static_type(Wrapper {})
-    }
-    "#;
-    assert_no_errors(src);
-    get_monomorphized(src).expect("T::marker under T: Child<u32> should resolve to Parent<u32>");
-}
-
-/// Regression test for https://github.com/noir-lang/noir-claude/issues/1232
-///
-/// Same shape as above with an associated constant. Called from a `Child<u8>` instance, `X::LIMIT`
-/// under `X: Child<u16>` must still read `Parent<u16>`'s value, not `Parent<u8>`'s.
+/// Called from a `Child<u8>` instance, `X::LIMIT` under `X: Child<u16>` must read `Parent<u16>`'s
+/// value, not `Parent<u8>`'s, also when evaluated at comptime.
 #[test]
 fn trait_constant_through_generic_supertrait_uses_the_bound_arguments() {
     let src = r#"
@@ -894,6 +828,282 @@ fn elided_supertrait_associated_type_is_not_bound_by_a_function_body() {
     check_errors(src);
 }
 
+// A parent bound that mentions `Self` (`trait Child: Parent<Self>`) must be instantiated for the
+// bounded type at every use: `X: Child` implies `X: Parent<X>`, `u16: MyOrd` implies
+// `u16: MyEq<u16>`. Using it for one type must not change it for another.
+
+#[test]
+fn parent_bound_mentioning_self_with_one_implementor() {
+    let src = r#"
+    trait MyEq<T> { fn eq2(self, o: T) -> bool; }
+    trait MyOrd: MyEq<Self> { fn le(self, o: Self) -> bool; }
+    impl MyEq<u8> for u8 { fn eq2(self, o: u8) -> bool { self == o } }
+    impl MyOrd for u8 { fn le(self, o: u8) -> bool { self <= o } }
+    fn main(v: u8, w: pub u8) -> pub bool { v.eq2(w) | v.le(w) }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn parent_bound_mentioning_self_with_two_implementors() {
+    let src = r#"
+    trait MyEq<T> { fn eq2(self, o: T) -> bool; }
+    trait MyOrd: MyEq<Self> { fn le(self, o: Self) -> bool; }
+    impl MyEq<u8> for u8 { fn eq2(self, o: u8) -> bool { self == o } }
+    impl MyOrd for u8 { fn le(self, o: u8) -> bool { self <= o } }
+    impl MyEq<u16> for u16 { fn eq2(self, o: u16) -> bool { self == o } }
+    impl MyOrd for u16 { fn le(self, o: u16) -> bool { self <= o } }
+    fn main(v: u8) -> pub bool { v.eq2(v) | v.le(v) | (v as u16).le(3) }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn parent_bound_mentioning_self_with_two_implementors_in_other_order() {
+    let src = r#"
+    trait MyEq<T> { fn eq2(self, o: T) -> bool; }
+    trait MyOrd: MyEq<Self> { fn le(self, o: Self) -> bool; }
+    impl MyEq<u16> for u16 { fn eq2(self, o: u16) -> bool { self == o } }
+    impl MyOrd for u16 { fn le(self, o: u16) -> bool { self <= o } }
+    impl MyEq<u8> for u8 { fn eq2(self, o: u8) -> bool { self == o } }
+    impl MyOrd for u8 { fn le(self, o: u8) -> bool { self <= o } }
+    fn main(v: u8) -> pub bool { v.eq2(v) | v.le(v) | (v as u16).le(3) }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn parent_bound_mentioning_self_used_through_generic_method_call() {
+    let src = r#"
+    trait Parent<T> { fn check(self, o: T) -> Field; }
+    trait Child: Parent<Self> {}
+    struct N { v: Field }
+    impl Parent<N> for N { fn check(self, _o: N) -> Field { self.v } }
+    impl Child for N {}
+    fn run<X: Child>(x: X, y: X) -> Field { x.check(y) }
+    fn main(v: Field) -> pub Field { run(N { v }, N { v }) }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn parent_bound_mentioning_self_used_through_generic_trait_path_call() {
+    let src = r#"
+    trait Parent<T> { fn check(self, o: T) -> Field; }
+    trait Child: Parent<Self> {}
+    struct N { v: Field }
+    impl Parent<N> for N { fn check(self, _o: N) -> Field { self.v } }
+    impl Child for N {}
+    fn run<X: Child>(x: X, y: X) -> Field { X::check(x, y) }
+    fn main(v: Field) -> pub Field { run(N { v }, N { v }) }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn parent_bound_mentioning_self_with_child_method_on_generic() {
+    let src = r#"
+    trait Parent<T> { fn check(self, o: T) -> Field; }
+    trait Child: Parent<Self> { fn c(self) -> Field { let _ = self; 1 } }
+    struct N { v: Field }
+    impl Parent<N> for N { fn check(self, _o: N) -> Field { self.v } }
+    impl Child for N {}
+    fn run<X: Child>(x: X) -> Field { x.c() }
+    fn main(v: Field) -> pub Field { run(N { v }) }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn parent_bound_mentioning_self_dispatches_to_impl_for_bounded_type() {
+    // `run(Narrow { .. })` must call `impl Parent<Narrow> for Narrow`'s `limit`, the one with the
+    // assertion, even though `pin` resolves a `Parent<Wide>` method through a `Child` bound.
+    let src = r#"
+    trait Parent<T> { fn limit(self) -> Field; fn pick(self, o: T) -> Field; }
+    trait Child: Parent<Self> {}
+    struct Narrow { v: Field }
+    struct Wide { v: Field }
+    impl Parent<Wide> for Wide {
+        fn limit(self) -> Field { self.v }
+        fn pick(self, o: Wide) -> Field { let _ = self; o.v }
+    }
+    impl Parent<Narrow> for Narrow {
+        fn limit(self) -> Field { assert(self.v != 100); self.v }
+        fn pick(self, o: Narrow) -> Field { let _ = self; o.v }
+    }
+    impl Parent<Wide> for Narrow {
+        fn limit(self) -> Field { self.v }
+        fn pick(self, o: Wide) -> Field { let _ = self; o.v }
+    }
+    impl Child for Wide {}
+    impl Child for Narrow {}
+    fn pin<Y: Parent<Wide> + Child>(y: Y, w: Wide) -> Field { y.pick(w) }
+    fn run<X: Child>(x: X) -> Field { x.limit() }
+    fn main(v: Field) -> pub Field {
+        pin(Wide { v: 0 }, Wide { v: 0 }) + run(Wide { v: 0 }) + run(Narrow { v })
+    }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0(v$l0: Field) -> pub Field {
+        ((pin$f1({
+            let v$l1 = 0;
+            (v$l1)
+        }, {
+            let v$l2 = 0;
+            (v$l2)
+        }) + run$f2({
+            let v$l3 = 0;
+            (v$l3)
+        })) + run$f3({
+            let v$l4 = v$l0;
+            (v$l4)
+        }))
+    }
+    fn pin$f1(y$l5: (Field,), w$l6: (Field,)) -> Field {
+        pick$f4(y$l5, w$l6)
+    }
+    fn run$f2(x$l7: (Field,)) -> Field {
+        limit$f5(x$l7)
+    }
+    fn run$f3(x$l8: (Field,)) -> Field {
+        limit$f6(x$l8)
+    }
+    fn pick$f4(self$l9: (Field,), o$l10: (Field,)) -> Field {
+        let _$l11 = self$l9;
+        o$l10.0
+    }
+    fn limit$f5(self$l12: (Field,)) -> Field {
+        self$l12.0
+    }
+    fn limit$f6(self$l13: (Field,)) -> Field {
+        assert((self$l13.0 != 100));;
+        self$l13.0
+    }
+    ");
+}
+
+/// Regression test for https://github.com/noir-lang/noir-claude/issues/1232
+///
+/// `X: Child<u16>` implies `X: Parent<u16>`, so `X::LIMIT` and `X::get` must come from
+/// `impl Parent<u16> for S`, also inside `<S as Child<u8>>::check` where `Child`'s own generic is
+/// `u8`.
+#[test]
+fn generic_supertrait_item_path_uses_arguments_of_bound() {
+    let src = r#"
+    trait Parent<T> {
+        let LIMIT: u32;
+        fn get(self) -> T;
+    }
+    trait Child<U>: Parent<U> {
+        fn check<X: Child<u16>>(_self: Self, x: X) -> u16 {
+            assert(X::LIMIT == 100);
+            X::get(x)
+        }
+    }
+    pub struct S { v: Field }
+    impl Parent<u8> for S {
+        let LIMIT: u32 = 1000000;
+        fn get(self) -> u8 { let _ = self; 8 }
+    }
+    impl Parent<u16> for S {
+        let LIMIT: u32 = 100;
+        fn get(self) -> u16 { assert(self.v == 42); 16 }
+    }
+    impl Child<u8> for S {}
+    impl Child<u16> for S {}
+    fn main(v: Field) -> pub u16 {
+        <S as Child<u8>>::check(S { v: 0 }, S { v })
+    }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0(v$l0: Field) -> pub u16 {
+        check$f1({
+            let v$l1 = 0;
+            (v$l1)
+        }, {
+            let v$l2 = v$l0;
+            (v$l2)
+        })
+    }
+    fn check$f1(_self$l3: (Field,), x$l4: (Field,)) -> u16 {
+        assert((100 == 100));;
+        get$f2(x$l4)
+    }
+    fn get$f2(self$l5: (Field,)) -> u16 {
+        assert((self$l5.0 == 42));;
+        16
+    }
+    ");
+}
+
+/// Regression test for https://github.com/noir-lang/noir-claude/issues/1232
+///
+/// In a free function nothing binds `Child`'s own generic, so an uninstantiated parent bound
+/// `T: Parent<B>` reaches monomorphization unresolved.
+#[test]
+fn generic_supertrait_item_path_in_free_function() {
+    let src = r#"
+    trait Parent<A> { fn marker(self) -> Field; }
+    trait Child<B>: Parent<B> {}
+    struct Wrapper {}
+    impl Parent<u32> for Wrapper { fn marker(self) -> Field { let _ = self; 10 } }
+    impl Parent<bool> for Wrapper { fn marker(self) -> Field { let _ = self; 20 } }
+    impl Child<u32> for Wrapper {}
+    fn via_static_type<T>(x: T) -> Field where T: Child<u32> { T::marker(x) }
+    fn main() -> pub Field { via_static_type(Wrapper {}) }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub Field {
+        via_static_type$f1({
+            ()
+        })
+    }
+    fn via_static_type$f1(x$l0: ()) -> Field {
+        marker$f2(x$l0)
+    }
+    fn marker$f2(self$l1: ()) -> Field {
+        let _$l2 = self$l1;
+        10
+    }
+    ");
+}
+
+#[test]
+fn parent_bound_mentioning_self_method_call_does_not_fix_self() {
+    // `Y: Child` implies `Y: Parent<Y>`, so `y.pick` resolved through it takes a `Y`. Method
+    // lookup uses the first bound on a trait, so this reports the same error as the explicit
+    // `Y: Parent<Y> + Parent<Wide>`; it must not bind `Child`'s `Self` to `Wide`, which would
+    // make `run` dispatch `Narrow` to `impl Parent<Wide> for Narrow`.
+    let src = r#"
+    trait Parent<T> { fn limit(self) -> Field; fn pick(self, o: T) -> Field; }
+    trait Child: Parent<Self> {}
+    struct Narrow { v: Field }
+    struct Wide { v: Field }
+    impl Parent<Wide> for Wide {
+        fn limit(self) -> Field { self.v }
+        fn pick(self, o: Wide) -> Field { let _ = self; o.v }
+    }
+    impl Parent<Narrow> for Narrow {
+        fn limit(self) -> Field { assert(self.v != 100); self.v }
+        fn pick(self, o: Narrow) -> Field { let _ = self; o.v }
+    }
+    impl Parent<Wide> for Narrow {
+        fn limit(self) -> Field { self.v }
+        fn pick(self, o: Wide) -> Field { let _ = self; o.v }
+    }
+    impl Child for Wide {}
+    impl Child for Narrow {}
+    fn pin<Y: Child + Parent<Wide>>(y: Y, w: Wide) -> Field { y.pick(w) }
+                                                                     ^ Expected type Y, found type Wide
+    fn run<X: Child>(x: X) -> Field { x.limit() }
+    fn main(v: Field) -> pub Field { pin(Wide { v: 0 }, Wide { v: 0 }) + run(Narrow { v }) }
+    "#;
+    check_errors(src);
+}
+
 /// Regression test for https://github.com/noir-lang/noir-claude/issues/1811
 ///
 /// The associated type reached through a supertrait resolves to the implementor's own value, so
@@ -956,4 +1166,21 @@ fn elided_supertrait_associated_constant_keeps_its_kind() {
         errors.iter().any(|error| format!("{error:?}").contains("TypeKindMismatch")),
         "expected a kind mismatch, got {errors:?}"
     );
+}
+
+#[test]
+fn parent_associated_type_in_impl_resolves_through_parent_bound_mentioning_self() {
+    // In `impl Child for Narrow`, `Self::A` comes from `Narrow: Parent<Narrow>`, the parent bound
+    // instantiated for this impl, not from any `Parent<_>` impl of `Narrow`.
+    let src = r#"
+    trait Parent<T> { type A; fn mk(self) -> Self::A; }
+    trait Child: Parent<Self> { fn use_a(self, a: Self::A) -> Field; }
+    struct Narrow { v: Field }
+    struct Wide { v: Field }
+    impl Parent<Narrow> for Narrow { type A = u8; fn mk(self) -> u8 { self.v as u8 } }
+    impl Parent<Wide> for Narrow { type A = u64; fn mk(self) -> u64 { self.v as u64 } }
+    impl Child for Narrow { fn use_a(self, a: Self::A) -> Field { let _ = self; a as Field } }
+    fn main() -> pub Field { let _ = Wide { v: 0 }; Narrow { v: 3 }.use_a(7) }
+    "#;
+    assert_no_errors(src);
 }

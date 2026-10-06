@@ -408,7 +408,14 @@ impl Elaborator<'_> {
 
                 if let Some(trait_id) = self.item.impl_context.current_trait()
                     && let Some(typ) = self.lookup_associated_type_in_parent_impls(
-                        trait_id,
+                        &ResolvedTraitBound {
+                            trait_id,
+                            trait_generics: self
+                                .interner
+                                .get_trait_generics_for_impl(impl_id)
+                                .clone(),
+                            location: path.location,
+                        },
                         name,
                         &mut BTreeSet::new(),
                     )
@@ -463,21 +470,26 @@ impl Elaborator<'_> {
     }
 
     /// Search for an associated type in parent 'trait impls'.
+    ///
+    /// `trait_bound` is the bound the current impl satisfies (its trait and trait arguments) or,
+    /// when recursing, one of its instantiated parent bounds.
     fn lookup_associated_type_in_parent_impls(
         &self,
-        trait_id: TraitId,
+        trait_bound: &ResolvedTraitBound,
         name: &str,
         visited: &mut BTreeSet<TraitId>,
     ) -> Option<Type> {
-        if !visited.insert(trait_id) {
+        if !visited.insert(trait_bound.trait_id) {
             return None;
         }
 
-        let the_trait = self.interner.get_trait(trait_id);
+        let the_trait = self.interner.get_trait(trait_bound.trait_id);
         let parent_bounds: Vec<_> = the_trait.parent_bounds().cloned().collect();
         let self_type = self.item.impl_context.self_type()?;
 
         for parent_bound in &parent_bounds {
+            let parent_bound =
+                &self.instantiate_parent_trait_bound(self_type, trait_bound, parent_bound);
             let result = self.interner.try_lookup_trait_implementation(
                 self_type,
                 parent_bound.trait_id,
@@ -519,7 +531,7 @@ impl Elaborator<'_> {
 
             // Recurse into grandparent traits
             if let Some(typ) =
-                self.lookup_associated_type_in_parent_impls(parent_bound.trait_id, name, visited)
+                self.lookup_associated_type_in_parent_impls(parent_bound, name, visited)
             {
                 return Some(typ);
             }
@@ -3478,9 +3490,9 @@ impl Elaborator<'_> {
             let constraint = the_trait.as_constraint(the_trait.name.location());
             let mut visited = BTreeSet::new();
             let mut matches = self.lookup_methods_in_trait(
-                object_type,
                 the_trait,
                 method_name,
+                &constraint.typ,
                 &constraint.trait_bound,
                 &mut visited,
             );
@@ -3515,9 +3527,9 @@ impl Elaborator<'_> {
                     self.interner.try_get_trait(constraint.trait_bound.trait_id)
             {
                 matches.extend(self.lookup_methods_in_trait(
-                    object_type,
                     the_trait,
                     method_name,
+                    &constraint.typ,
                     &constraint.trait_bound,
                     &mut visited,
                 ));
@@ -3595,9 +3607,9 @@ impl Elaborator<'_> {
     /// a child and its parent.
     fn lookup_methods_in_trait(
         &self,
-        object_type: &Type,
         the_trait: &Trait,
         method_name: &str,
+        object_type: &Type,
         trait_bound: &ResolvedTraitBound,
         visited: &mut BTreeSet<TraitId>,
     ) -> Vec<HirTraitMethodReference> {
@@ -3630,9 +3642,9 @@ impl Elaborator<'_> {
             let parent_trait_bound =
                 self.instantiate_parent_trait_bound(object_type, trait_bound, parent_trait_bound);
             matches.extend(self.lookup_methods_in_trait(
-                object_type,
                 the_trait,
                 method_name,
+                object_type,
                 &parent_trait_bound,
                 visited,
             ));
