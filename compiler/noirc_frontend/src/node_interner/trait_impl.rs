@@ -172,10 +172,9 @@ impl NodeInterner {
     /// `T::Assoc` syntax in sync with the variables stored in the assumed impl used during
     /// method-call resolution.
     ///
-    /// For each associated type, the incoming binding overwrites the existing one *unless* doing
-    /// so would replace a usable binding with a rigid `<T as Trait>::Assoc` placeholder — such a
-    /// placeholder carries no extra information and would otherwise leave the associated type
-    /// unresolvable. This keeps the most-resolved binding regardless of registration order.
+    /// For each associated type, the incoming binding overwrites the existing one unless it says
+    /// less about it (see [`associated_item_rank`]), so the most-resolved binding is kept
+    /// regardless of registration order.
     ///
     /// A bound is identified by its object type *and* its ordered generics, so only an entry
     /// whose ordered generics equal `ordered` is merged: `T: Foo<u8>` and `T: Foo<u32>` are
@@ -214,16 +213,9 @@ impl NodeInterner {
                         if existing_named.name.as_str() != new_named.name.as_str() {
                             continue;
                         }
-                        // A bare type variable is the placeholder a supertrait bound stores for
-                        // an associated item it leaves out; it carries no information, so a
-                        // rigid `<T as Trait>::Assoc` replaces it.
-                        let would_downgrade_to_placeholder =
-                            matches!(new_named.typ, Type::NamedGeneric(_))
-                                && !matches!(
-                                    existing_named.typ,
-                                    Type::NamedGeneric(_) | Type::TypeVariable(_)
-                                );
-                        if !would_downgrade_to_placeholder {
+                        if associated_item_rank(&new_named.typ)
+                            >= associated_item_rank(&existing_named.typ)
+                        {
                             existing_named.typ = new_named.typ.clone();
                         }
                     }
@@ -823,5 +815,21 @@ impl NodeInterner {
                 visited_trait_ids,
             );
         }
+    }
+}
+
+/// How much an associated item's binding in an assumed impl says about it:
+/// - 0: a bare type variable, the fresh unknown an instantiated parent bound carries for an
+///   associated item it leaves out;
+/// - 1: a rigid `<T as Trait>::Assoc`, which stands for the item without saying what it is;
+/// - 2: anything else, a type the bounds in scope fix the item to.
+///
+/// Replacing a binding with a lower-ranked one would lose what the scope knows. In particular
+/// a rigid `<T as Trait>::Assoc` replaced by a fresh unknown would unify with any type.
+fn associated_item_rank(typ: &Type) -> u8 {
+    match typ {
+        Type::TypeVariable(_) => 0,
+        Type::NamedGeneric(_) => 1,
+        _ => 2,
     }
 }

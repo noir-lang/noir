@@ -1775,3 +1775,111 @@ fn method_lookup_uses_the_first_written_bound_on_a_trait() {
     "#;
     assert_no_errors(src);
 }
+
+/// `T: Child1, T: Child2` both imply `T: Parent`; `<T as Parent>::A` stays abstract.
+#[test]
+fn elided_parent_associated_type_stays_rigid_with_two_children() {
+    let src = r#"
+    pub trait Parent {
+        type A;
+    }
+    pub trait Child1: Parent {}
+    pub trait Child2: Parent {}
+    pub struct Wide {}
+
+    pub fn f<T>(x: <T as Parent>::A) -> Wide where T: Child1, T: Child2 {
+                                        ^^^^ expected type Wide, found type <T as Parent>::A
+                                        ~~~~ expected Wide because of return type
+        x
+        ~ <T as Parent>::A returned here
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+/// `T: Parent` written before `T: Child1`, which implies it again; `<T as Parent>::A` stays abstract.
+#[test]
+fn elided_parent_associated_type_stays_rigid_after_explicit_parent() {
+    let src = r#"
+    pub trait Parent {
+        type A;
+    }
+    pub trait Child1: Parent {}
+    pub trait Child2: Parent {}
+    pub struct Wide {}
+
+    pub fn f<T>(x: <T as Parent>::A) -> Wide where T: Parent, T: Child1 {
+                                        ^^^^ expected type Wide, found type <T as Parent>::A
+                                        ~~~~ expected Wide because of return type
+        x
+        ~ <T as Parent>::A returned here
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+/// The same under an impl's where clause.
+#[test]
+fn elided_parent_associated_type_stays_rigid_with_two_children_in_impl() {
+    let src = r#"
+    pub trait Parent {
+        type A;
+    }
+    pub trait Child1: Parent {}
+    pub trait Child2: Parent {}
+    pub struct Wide {}
+    pub struct W<T> {}
+    impl<T> W<T> where T: Child1, T: Child2 {
+        pub fn f(x: <T as Parent>::A) -> Wide {
+                                         ^^^^ expected type Wide, found type <T as Parent>::A
+                                         ~~~~ expected Wide because of return type
+            x
+            ~ <T as Parent>::A returned here
+        }
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+/// An explicit `T: Parent<A = Field>` fixes the associated type whichever side of the implying
+/// bound it is written on.
+#[test]
+fn explicit_parent_associated_type_is_kept_beside_an_implying_bound() {
+    let src = r#"
+    pub trait Parent {
+        type A;
+    }
+    pub trait Child1: Parent {}
+    pub trait Child2: Parent {}
+    pub struct Wide {}
+    pub struct S {}
+    impl Parent for S {
+        type A = Field;
+    }
+    impl Child1 for S {}
+    impl Child2 for S {}
+
+    pub fn before<T>(x: <T as Parent>::A) -> Field where T: Parent<A = Field>, T: Child1 {
+        x
+    }
+    pub fn after<T>(x: <T as Parent>::A) -> Field where T: Child1, T: Parent<A = Field> {
+        x
+    }
+    pub fn both<T>(x: <T as Parent>::A) -> <T as Parent>::A where T: Child1, T: Child2 {
+        x
+    }
+
+    fn main() {
+        let _ = before::<S>(1);
+        let _ = after::<S>(1);
+        let _ = both::<S>(1);
+    }
+    "#;
+    assert_no_errors(src);
+}
