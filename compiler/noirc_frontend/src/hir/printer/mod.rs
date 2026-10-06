@@ -459,7 +459,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         self.increase_indent();
 
         self.trait_constraints = trait_.where_clause.clone();
-        self.trait_self_typevar = Some(trait_.self_type_typevar.id());
+        self.trait_self_typevar = Some(trait_.self_param.id());
 
         let mut printed_type_or_function = false;
 

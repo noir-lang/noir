@@ -3975,9 +3975,7 @@ impl Elaborator<'_> {
         if assumed {
             let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
 
-            let self_type = the_trait.self_type_typevar.clone();
-            let kind = the_trait.self_type_typevar.kind();
-            bindings.insert(self_type.id(), (self_type, kind.into_owned(), constraint.typ.clone()));
+            the_trait.self_param.bind(&constraint.typ, bindings);
 
             for (param, arg) in
                 the_trait.generics.iter().zip(&constraint.trait_bound.trait_generics.ordered)

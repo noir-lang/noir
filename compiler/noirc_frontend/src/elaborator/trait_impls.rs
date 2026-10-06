@@ -786,10 +786,8 @@ impl Elaborator<'_> {
         // Bind Self to the object type of the impl so that parent-trait bounds
         // (which are stored in the trait's where clause as constraints on Self)
         // get checked against the concrete impl type.
-        let self_var = the_trait.self_type_typevar.clone();
-        let self_kind = self_var.kind().into_owned();
         let mut bindings = TypeBindings::default();
-        bindings.insert(self_var.id(), (self_var, self_kind, object_type.clone()));
+        the_trait.self_param.bind(object_type, &mut bindings);
         bind_ordered_generics(&the_trait.generics, ordered_generics, &mut bindings);
 
         self.check_trait_bounds_are_satisfied(

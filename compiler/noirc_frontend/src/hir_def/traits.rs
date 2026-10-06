@@ -11,7 +11,8 @@ use crate::node_interner::{
     DefinitionId, ImplSearchErrorKind, NodeInterner, TraitImplKind, TraitLookupMode,
 };
 use crate::{
-    Kind, NamedGeneric, ResolvedGenerics, Type, TypeBindings, TypeVariable,
+    Kind, NamedGeneric, ResolvedGenerics, Type, TypeBinding, TypeBindings, TypeVariable,
+    TypeVariableId,
     graph::CrateId,
     node_interner::{FuncId, TraitId},
 };
@@ -77,11 +78,8 @@ pub struct Trait {
     pub location: Location,
     pub visibility: ItemVisibility,
 
-    /// When resolving the types of Trait elements, all references to `Self` resolve
-    /// to this `TypeVariable`. Then when we check if the types of trait impl elements
-    /// match the definition in the trait, we bind this `TypeVariable` to whatever
-    /// the correct Self type is for that particular impl block.
-    pub self_type_typevar: TypeVariable,
+    /// The `Self` that everything declared on this trait refers to.
+    pub self_param: TraitSelfType,
 
     /// The trait's where clause. Super-trait bounds (`trait Foo: Bar`) are lowered into
     /// this list as `TraitConstraint { typ: Self, trait_bound: Bar }` so that parent
@@ -252,6 +250,56 @@ pub struct ResolvedTraitBound {
     pub location: Location,
 }
 
+/// A trait's `Self`: one type variable shared by everything declared on the trait.
+///
+/// The variable is never handed out in its bindable `Type::TypeVariable` form. Unifying that
+/// form with a concrete type binds `Self` for every use of the trait in the whole program, so a
+/// trait default body or an impl search could change which impl other code dispatches to.
+/// Inside the trait, `Self` is rigid ([`TraitSelfType::rigid`], [`TraitSelfType::generic`]);
+/// at a use of the trait it is substituted ([`TraitSelfType::bind`]).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TraitSelfType(TypeVariable);
+
+impl TraitSelfType {
+    pub fn new(id: TypeVariableId) -> Self {
+        Self(TypeVariable::unbound(id, Kind::Normal))
+    }
+
+    pub fn id(&self) -> TypeVariableId {
+        self.0.id()
+    }
+
+    /// `Self` as a named generic, which unifies with nothing but itself.
+    pub fn rigid(&self) -> Type {
+        let self_type_name = Rc::new(SELF_TYPE_NAME.to_string());
+        self.0.clone().into_named_generic(&self_type_name, None)
+    }
+
+    /// `Self` as a generic to put in scope while resolving an item declared on the trait.
+    pub fn generic(&self, location: Location) -> ResolvedGeneric {
+        ResolvedGeneric {
+            name: Rc::new(SELF_TYPE_NAME.to_string()),
+            type_var: self.0.clone(),
+            location,
+        }
+    }
+
+    /// Substitute `self_type` for `Self` in anything declared on the trait.
+    pub fn bind(&self, self_type: &Type, bindings: &mut TypeBindings) {
+        let kind = self.0.kind().into_owned();
+        bindings.insert(self.0.id(), (self.0.clone(), kind, self_type.clone()));
+    }
+
+    /// The type `Self` has been bound to. Always `None` unless something unified the trait's
+    /// own `Self` with another type, which is a compiler bug.
+    pub fn bound_to(&self) -> Option<Type> {
+        match self.0.binding() {
+            TypeBinding::Bound(typ) => Some(typ.clone()),
+            TypeBinding::Unbound(..) => None,
+        }
+    }
+}
+
 /// A parent-trait bound (the `Bar<Self>` in `trait Foo: Bar<Self>`) as declared on a trait.
 ///
 /// It is written in terms of the declaring trait's own `Self`, generics and associated types,
@@ -359,18 +407,16 @@ impl Trait {
         let mut bindings = TypeBindings::default();
         self.bind_generics(trait_generics, &mut bindings);
 
-        let self_var = self.self_type_typevar.clone();
-        let self_kind = self_var.kind().into_owned();
-        bindings.insert(self_var.id(), (self_var, self_kind, self_type.clone()));
+        self.self_param.bind(self_type, &mut bindings);
         bindings
     }
 
     /// Whether `typ` is this trait's own `Self`, in either its rigid form (a named generic
-    /// over `self_type_typevar`) or its bindable form (the bare type variable).
+    /// over the `Self` variable) or its bindable form (the bare type variable).
     pub fn is_self_type(&self, typ: &Type) -> bool {
         match typ {
             Type::TypeVariable(v) | Type::NamedGeneric(NamedGeneric { type_var: v, .. }) => {
-                v.id() == self.self_type_typevar.id()
+                v.id() == self.self_param.id()
             }
             _ => false,
         }
@@ -444,7 +490,7 @@ impl Trait {
     /// Returns a `TraitConstraint` for this trait using Self as the object
     /// type and the uninstantiated generics for any trait generics.
     ///
-    /// `Self` is the rigid named generic over `self_type_typevar`, the same form trait method
+    /// `Self` is the rigid named generic over the trait's `Self` variable, the same form trait method
     /// signatures use. A bindable `Type::TypeVariable` here would let a default body unify
     /// `Self` with a concrete type, and that binding would be seen by every other default
     /// method of the trait type-checked afterwards.
@@ -456,17 +502,9 @@ impl Trait {
         }
     }
 
-    /// The rigid `Self` type for this trait: a named generic over `self_type_typevar`, which
-    /// cannot be unified with a concrete type. Every use of `Self` outside of the trait's own
-    /// declaration bookkeeping (method signatures, assumed `Self: CurrentTrait` bounds, the
-    /// elaboration context installed while checking a default method body) must go through
-    /// this accessor rather than wrapping `self_type_typevar` in `Type::TypeVariable` directly.
-    /// That bindable form lets any unification (including an impl search) bind the variable,
-    /// and the binding is then visible to every other use of the trait's `Self` for the rest of
-    /// compilation, since there is exactly one `self_type_typevar` per trait.
+    /// The rigid `Self` type for this trait (see [`TraitSelfType::rigid`]).
     pub fn self_type(&self) -> Type {
-        let self_type_name = Rc::new(SELF_TYPE_NAME.to_string());
-        self.self_type_typevar.clone().into_named_generic(&self_type_name, None)
+        self.self_param.rigid()
     }
 }
 
