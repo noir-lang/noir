@@ -247,9 +247,9 @@ impl Elaborator<'_> {
         module_id: crate::hir::def_map::LocalModuleId,
         f: impl FnOnce(&mut Self) -> T,
     ) -> T {
-        let self_typevar = self.interner.get_trait(trait_id).self_type_typevar.clone();
+        let self_type = self.interner.get_trait(trait_id).self_type();
         let context = ItemContext::new(ModuleContext::in_module(module_id))
-            .with_impl(ImplContext::in_trait(trait_id, Type::TypeVariable(self_typevar)));
+            .with_impl(ImplContext::in_trait(trait_id, self_type));
         self.with_item_context(context, f)
     }
 }
@@ -611,7 +611,7 @@ impl Elaborator<'_> {
                 .trait_self_type()
                 .expect("Expected a self type if there's a current trait");
 
-            self.add_trait_bound_to_scope(location, &self_type, &constraint.trait_bound);
+            self.add_implied_trait_bound_to_scope(location, &self_type, &constraint.trait_bound);
         }
     }
 
@@ -902,16 +902,24 @@ impl Elaborator<'_> {
             }
         }
 
-        if let Type::TypeVariable(self_var) = object
-            && self_var.binding().is_unbound()
-            && self.item.impl_context.current_trait().is_some()
-        {
-            // This would end up duplicating parent trait bounds we turned into where clauses on Self.
-            // The reason is that in `add_trait_constraints_to_scope` we add the self-type of the current trait
-            // as an assumed implementation, on an unbound type variable like '1. Then in `resolve_trait_methods`
-            // we also add the parent traits as where clauses, but on Self'1. If we end up with assumed impls
-            // for both '1 and Self'1, then when we look up an impl for Self'1, it finds both and errors out.
-            // So we skip the parents, because it would be redundant with the Self bounds.
+        let current_trait_self_id = self
+            .item
+            .impl_context
+            .current_trait()
+            .map(|trait_id| self.interner.get_trait(trait_id).self_type_typevar.id());
+
+        let object_is_current_trait_self = match object {
+            Type::TypeVariable(self_var)
+            | Type::NamedGeneric(NamedGeneric { type_var: self_var, .. }) => {
+                self_var.binding().is_unbound() && Some(self_var.id()) == current_trait_self_id
+            }
+            _ => false,
+        };
+
+        if object_is_current_trait_self {
+            // The current trait's parent bounds on its own `Self` are already part of each of its
+            // methods' where clauses (see `resolve_trait_methods`), which registers them itself.
+            // Registering them again here would give `Self` two assumed impls of each parent.
             return;
         }
 
@@ -1252,8 +1260,7 @@ impl Elaborator<'_> {
         // it now so that meta resolution (run later, after attributes) finds a `Self` type in
         // scope when it processes `where` clauses and trait constraints
         // (`add_trait_constraints_to_scope` requires it).
-        let self_typevar = self.interner.get_trait(trait_id).self_type_typevar.clone();
-        let self_type = Type::TypeVariable(self_typevar);
+        let self_type = self.interner.get_trait(trait_id).self_type();
 
         // Assume the bounds implied by the trait's own where clause on associated types
         // (e.g. `<T as Foo>::E: Bar`) while elaborating this method. See issue #8601.
