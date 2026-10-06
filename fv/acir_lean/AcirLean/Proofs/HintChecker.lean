@@ -426,6 +426,17 @@ def stepE (cc : Circ) (s : Reps × Flag) (i : Instruction) (e : Entry) : Option 
   | some b, some d => tighten cc s'' d b
   | some _, none => none
 
+/-- One step checked on its own, for checking a program one theorem per step:
+from the entries of the values the step reads (`reps`) and the flag before it
+(`F`), the step gives `out` for the value it defines and the flag `F'`. A
+separate pass has to show that each step's `reps`, `F` and `F'` are the ones
+the steps before it produced. -/
+def stepLocal (cc : Circ) (i : Instruction) (e : Entry) (reps : Reps) (F F' : Flag)
+    (out : Option RVal) : Bool :=
+  match stepE cc (reps, F) i e with
+  | some s' => decide ((i.dst?.bind fun d => s'.1.lookup d) = out) && decide (s'.2 = F')
+  | none => false
+
 /-- Run the body, each step as its certificate entry says. -/
 def stepsWithH (cc : Circ) :
     Reps × Flag → List Instruction → List Entry → Option (Reps × Flag)
