@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791289519295,
+  "lastUpdate": 1791290649142,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22980,48 +22980,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "0a896cab925b368767387446f5fbef0f60f4a970",
-          "message": "fix(ssa): do not derive must-alias allocation sites through memory (#13789)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-09-25T15:08:22Z",
-          "tree_id": "e374b26997335d5492adb2cdaaf34f39db707768",
-          "url": "https://github.com/noir-lang/noir/commit/0a896cab925b368767387446f5fbef0f60f4a970"
-        },
-        "date": 1790350122934,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 66668,
-            "range": "± 846",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 58844,
-            "range": "± 493",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 1637798,
-            "range": "± 8104",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "6ef39c9efe6b6fe229188bf5c6fc021dc70b29b4",
           "message": "chore(ci): compile aztec-node's aztec-nr and noir-contracts against the PR's nargo (#13791)",
@@ -25064,6 +25022,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2653593,
             "range": "± 6556",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "7fc0c1da6bd2d00d2dc71be441c19b95372d17c9",
+          "message": "fix(ssa): don't require constraints on Brillig outputs that are never used (#13879)",
+          "timestamp": "2026-10-06T12:19:44Z",
+          "tree_id": "e0f0ba035ab8948330fd1efdeec0c6db3d0841db",
+          "url": "https://github.com/noir-lang/noir/commit/7fc0c1da6bd2d00d2dc71be441c19b95372d17c9"
+        },
+        "date": 1791290595828,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 69109,
+            "range": "± 3493",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 60876,
+            "range": "± 2140",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 1710787,
+            "range": "± 30356",
             "unit": "ns/iter"
           }
         ]
