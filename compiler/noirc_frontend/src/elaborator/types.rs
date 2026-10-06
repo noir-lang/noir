@@ -41,7 +41,7 @@ use crate::{
         },
         function::FuncMeta,
         stmt::HirStatement,
-        traits::{NamedType, ParentBound, ResolvedTraitBound, Trait, TraitConstraint},
+        traits::{DeclaredBound, NamedType, ResolvedTraitBound, Trait, TraitConstraint},
     },
     modules::{get_ancestor_module_reexport, module_def_id_is_visible},
     node_interner::{
@@ -485,7 +485,7 @@ impl Elaborator<'_> {
 
         for parent_bound in &parent_bounds {
             let parent_bound =
-                &self.instantiate_parent_trait_bound(self_type, trait_bound, parent_bound);
+                &self.instantiate_declared_bound(self_type, trait_bound, parent_bound);
             let result = self.interner.try_lookup_trait_implementation(
                 self_type,
                 parent_bound.trait_id,
@@ -1638,7 +1638,7 @@ impl Elaborator<'_> {
         let parent_constraints =
             vecmap(the_trait.parent_bounds(), |parent_bound| TraitConstraint {
                 typ: constraint.typ.clone(),
-                trait_bound: self.instantiate_parent_trait_bound(
+                trait_bound: self.instantiate_declared_bound(
                     &constraint.typ,
                     &constraint.trait_bound,
                     &parent_bound,
@@ -3640,7 +3640,7 @@ impl Elaborator<'_> {
             // skipping the parent trait's methods.
             let the_trait = self.interner.get_trait(parent_trait_bound.trait_id());
             let parent_trait_bound =
-                self.instantiate_parent_trait_bound(object_type, trait_bound, parent_trait_bound);
+                self.instantiate_declared_bound(object_type, trait_bound, parent_trait_bound);
             matches.extend(self.lookup_methods_in_trait(
                 object_type,
                 the_trait,
@@ -4026,8 +4026,30 @@ impl Elaborator<'_> {
             self.interner.get_trait(trait_bound.trait_id).parent_bounds().collect();
 
         for parent_bound in &parent_bounds {
-            let instantiated =
-                self.instantiate_parent_trait_bound(self_type, trait_bound, parent_bound);
+            let mut instantiated =
+                self.instantiate_declared_bound(self_type, trait_bound, parent_bound);
+
+            // An associated item the parent bound leaves out is a fresh unknown after
+            // instantiation. When the scope holds this parent bound (the rigid
+            // `<T as Parent>::Item` of a generic function, see `collect_parent_associated_types`),
+            // the method signature means that one: a fresh unknown would let `Self::Item` take any
+            // type at the call.
+            if let Some(in_scope) = self.item.generics.find_bound(
+                self_type,
+                instantiated.trait_id,
+                &instantiated.trait_generics.ordered,
+            ) {
+                let scoped = &in_scope.trait_bound.trait_generics.named;
+                for named in &mut instantiated.trait_generics.named {
+                    if parent_bound.leaves_out(named.name.as_str())
+                        && let Some(scoped) = scoped.iter().find(|s| s.name == named.name)
+                    {
+                        named.typ = scoped.typ.clone();
+                    }
+                }
+            }
+
+            parent_bound.bind_placeholders(&instantiated, bindings);
             self.bind_generics_from_trait_bound(&instantiated, bindings);
             self.bind_parent_trait_associated_types(self_type, &instantiated, bindings, visited);
         }
@@ -4043,16 +4065,18 @@ impl Elaborator<'_> {
         the_trait.bind_generics(&trait_bound.trait_generics, bindings);
     }
 
-    /// `parent_bound` of `trait_bound`'s trait, for the bound `self_type: trait_bound`.
-    pub(crate) fn instantiate_parent_trait_bound(
+    /// `declared_bound`, a parent bound or associated type bound of `trait_bound`'s trait, for the
+    /// bound `self_type: trait_bound`.
+    pub(crate) fn instantiate_declared_bound(
         &self,
         self_type: &Type,
         trait_bound: &ResolvedTraitBound,
-        parent_bound: &ParentBound,
+        declared_bound: &DeclaredBound,
     ) -> ResolvedTraitBound {
         let the_trait = self.interner.get_trait(trait_bound.trait_id);
         let bindings = the_trait.bound_bindings(self_type, &trait_bound.trait_generics);
-        parent_bound.instantiate(&bindings, |kind| self.interner.next_type_variable_with_kind(kind))
+        declared_bound
+            .instantiate(&bindings, |kind| self.interner.next_type_variable_with_kind(kind))
     }
 
     pub(crate) fn fully_qualified_trait_path_by_id(&self, trait_id: TraitId) -> String {

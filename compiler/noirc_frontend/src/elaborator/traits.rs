@@ -455,9 +455,9 @@ impl Elaborator<'_> {
         let trait_name = self.projection_trait_name(trait_id, &bound.trait_generics.ordered_args);
         let the_trait = self.get_trait(trait_id);
         let object_name = self.unresolved_type_name(object);
-        let associated_type_bounds = the_trait.associated_type_bounds.clone();
+        let associated_types = the_trait.associated_types.clone();
 
-        for associated_type in &the_trait.associated_types.clone() {
+        for associated_type in &associated_types {
             if !bound
                 .trait_generics
                 .named_args
@@ -494,10 +494,21 @@ impl Elaborator<'_> {
                 let typ = UnresolvedTypeData::Resolved(typ).with_location(location);
                 let ident = Ident::new(associated_type.name.as_ref().clone(), location);
 
-                let associated_type_bounds = associated_type_bounds
-                    .get(associated_type.name.as_str())
-                    .cloned()
-                    .unwrap_or_default();
+                // The object type is not resolved yet, so only the bounds that read the same for
+                // every use of the trait are attached here. The others (`type Bar: Baz<Self>`)
+                // are instantiated for the object type once the constraint is resolved; see
+                // `add_trait_bound_to_scope_inner` and `dependent_associated_type_bounds`.
+                let the_trait = self.interner.get_trait(trait_id);
+                let associated_type_bounds = the_trait
+                    .associated_type_bounds(associated_type.name.as_str())
+                    .iter()
+                    .filter(|bound| !the_trait.bound_depends_on_use(bound))
+                    .map(|bound| {
+                        bound.instantiate(&TypeBindings::default(), |kind| {
+                            self.interner.next_type_variable_with_kind(kind)
+                        })
+                    })
+                    .collect();
 
                 bound.trait_generics.named_args.push((ident, typ));
                 added_generics.push(DesugaredAssociatedGeneric {
@@ -661,7 +672,7 @@ impl Elaborator<'_> {
     /// as `<T as Foo>::Bar: Eq` which may lookup an impl which was assumed
     /// by a previous constraint.
     #[tracing::instrument(level = "trace", skip_all)]
-    fn resolve_trait_constraint_and_add_to_scope(
+    pub(super) fn resolve_trait_constraint_and_add_to_scope(
         &mut self,
         constraint: &UnresolvedTraitConstraint,
     ) -> Option<TraitConstraint> {
@@ -684,7 +695,7 @@ impl Elaborator<'_> {
     ///
     /// The parent trait bounds are obtained from `Trait::parent_bounds` (already resolved
     /// during `collect_traits` with associated type variables) and instantiated via
-    /// `instantiate_parent_trait_bound` to substitute the child trait's bindings. The
+    /// `instantiate_declared_bound` to substitute the child trait's bindings. The
     /// named (associated) types are then replaced with fresh per-function type variables
     /// so they can be wrapped in `Type::Forall` and freshened at each call site.
     ///
@@ -739,7 +750,7 @@ impl Elaborator<'_> {
         for parent_bound in &parent_bounds {
             // Substitute the child trait's bindings into the parent bound.
             let instantiated =
-                self.instantiate_parent_trait_bound(object_type, trait_bound, parent_bound);
+                self.instantiate_declared_bound(object_type, trait_bound, parent_bound);
 
             // Skip if there are no associated types on this parent trait,
             // or if we already have a constraint for this type + parent trait.
@@ -809,6 +820,31 @@ impl Elaborator<'_> {
                 visited,
             );
         }
+    }
+
+    /// The bounds `constraint` implies on the associated types it names that differ between uses
+    /// of its trait, instantiated for its object type: `T: Foo<Bar = B>` with
+    /// `trait Foo { type Bar: Baz<Self>; }` gives `B: Baz<T>`. The bounds that read the same for
+    /// every use are attached to the generics `desugar_trait_constraints` mints.
+    pub(super) fn dependent_associated_type_bounds(
+        &self,
+        constraint: &TraitConstraint,
+    ) -> Vec<TraitConstraint> {
+        let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
+        let mut constraints = Vec::new();
+        for named in &constraint.trait_bound.trait_generics.named {
+            for bound in the_trait.associated_type_bounds(named.name.as_str()) {
+                if the_trait.bound_depends_on_use(bound) {
+                    let trait_bound = self.instantiate_declared_bound(
+                        &constraint.typ,
+                        &constraint.trait_bound,
+                        bound,
+                    );
+                    constraints.push(TraitConstraint { typ: named.typ.clone(), trait_bound });
+                }
+            }
+        }
+        constraints
     }
 
     /// Adds an assumed trait implementation for the given object type and trait bound.
@@ -940,9 +976,10 @@ impl Elaborator<'_> {
                 .named
                 .iter()
                 .flat_map(|named| {
-                    let bounds = the_trait.associated_type_bounds.get(named.name.as_str());
-                    let bounds = bounds.map(Vec::as_slice).unwrap_or_default();
-                    bounds.iter().map(|bound| (named.typ.clone(), bound.clone()))
+                    the_trait.associated_type_bounds(named.name.as_str()).iter().map(|bound| {
+                        let bound = self.instantiate_declared_bound(object, trait_bound, bound);
+                        (named.typ.clone(), bound)
+                    })
                 })
                 .collect::<Vec<_>>(),
             None => Vec::new(),
@@ -977,7 +1014,7 @@ impl Elaborator<'_> {
                 }
 
                 let parent_trait_bound =
-                    self.instantiate_parent_trait_bound(object, trait_bound, &parent_trait_bound);
+                    self.instantiate_declared_bound(object, trait_bound, &parent_trait_bound);
                 let written = false;
                 self.add_trait_bound_to_scope_inner(
                     location,
