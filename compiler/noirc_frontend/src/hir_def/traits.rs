@@ -308,11 +308,35 @@ impl TraitSelfType {
 /// replaced by the ones of a particular `T: Foo<..>`, so the declared form is not exposed except
 /// for display: read it with [`DeclaredBound::instantiate`].
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DeclaredBound(ResolvedTraitBound);
+pub struct DeclaredBound {
+    bound: ResolvedTraitBound,
+    /// For each associated item of the bounded trait that the bound leaves out (the `Out` of
+    /// `Bar` in `trait Foo: Bar`), its index in `bound.trait_generics.named` and the placeholder
+    /// variable resolution put there. The placeholder is shared by every use of the declaring
+    /// trait.
+    left_out: Vec<(usize, TypeVariable)>,
+}
 
 impl DeclaredBound {
+    /// Name resolution fills an associated item a bound leaves out with a fresh, unbound type
+    /// variable, and nothing else puts a bare type variable in a declared bound: that is how the
+    /// left-out items are told apart from the given ones.
+    fn new(bound: ResolvedTraitBound) -> Self {
+        let left_out = bound
+            .trait_generics
+            .named
+            .iter()
+            .enumerate()
+            .filter_map(|(index, named)| match &named.typ {
+                Type::TypeVariable(placeholder) => Some((index, placeholder.clone())),
+                _ => None,
+            })
+            .collect();
+        DeclaredBound { bound, left_out }
+    }
+
     pub fn trait_id(&self) -> TraitId {
-        self.0.trait_id
+        self.bound.trait_id
     }
 
     /// The bound for one use of the declaring trait. `bindings` maps the declaring trait's
@@ -331,23 +355,19 @@ impl DeclaredBound {
         bindings: &TypeBindings,
         mut fresh_placeholder: impl FnMut(Kind) -> Type,
     ) -> ResolvedTraitBound {
-        let mut trait_generics = self.0.trait_generics.map(|typ| typ.substitute(bindings));
-        for (named, declared) in trait_generics.named.iter_mut().zip(&self.0.trait_generics.named) {
-            if let Type::TypeVariable(placeholder) = &declared.typ {
-                named.typ = fresh_placeholder(placeholder.kind().into_owned());
-            }
+        let mut trait_generics = self.bound.trait_generics.map(|typ| typ.substitute(bindings));
+        for (index, placeholder) in &self.left_out {
+            trait_generics.named[*index].typ = fresh_placeholder(placeholder.kind().into_owned());
         }
-        ResolvedTraitBound { trait_generics, ..self.0 }
+        ResolvedTraitBound { trait_generics, ..self.bound }
     }
 
     /// Whether this bound leaves out the associated item `name` of the bounded trait (the `Out`
     /// of `Bar` in `trait Foo: Bar`), so that its value differs between instantiations.
     pub fn leaves_out(&self, name: &str) -> bool {
-        self.0
-            .trait_generics
-            .named
+        self.left_out
             .iter()
-            .any(|named| named.name.as_str() == name && matches!(named.typ, Type::TypeVariable(_)))
+            .any(|(index, _)| self.bound.trait_generics.named[*index].name.as_str() == name)
     }
 
     /// Binds each placeholder this bound declares for an associated item it leaves out to that
@@ -360,8 +380,8 @@ impl DeclaredBound {
         instantiated: &ResolvedTraitBound,
         bindings: &mut TypeBindings,
     ) {
-        for declared in &self.0.trait_generics.named {
-            let Type::TypeVariable(placeholder) = &declared.typ else { continue };
+        for (index, placeholder) in &self.left_out {
+            let declared = &self.bound.trait_generics.named[*index];
             let value = instantiated.trait_generics.named.iter().find(|n| n.name == declared.name);
             if let Some(value) = value {
                 let kind = placeholder.kind().into_owned();
@@ -373,7 +393,7 @@ impl DeclaredBound {
     /// The bound exactly as written in the trait declaration, mentioning the declaring trait's
     /// own `Self` and generics. Only for displaying the declaration.
     pub fn as_written(&self) -> &ResolvedTraitBound {
-        &self.0
+        &self.bound
     }
 }
 
@@ -426,7 +446,7 @@ impl Trait {
         self.where_clause
             .iter()
             .filter(|c| self.is_self_type(&c.typ))
-            .map(|c| DeclaredBound(c.trait_bound.clone()))
+            .map(|c| DeclaredBound::new(c.trait_bound.clone()))
     }
 
     /// Bindings from this trait's own ordered generics and associated types to the arguments
@@ -489,7 +509,7 @@ impl Trait {
         let own = std::iter::once(self.self_param.id())
             .chain(self.generics.iter().chain(&self.associated_types).map(|g| g.type_var.id()))
             .collect::<Vec<_>>();
-        let generics = &bound.0.trait_generics;
+        let generics = &bound.bound.trait_generics;
         let types = generics.ordered.iter().chain(generics.named.iter().map(|named| &named.typ));
         types.into_iter().any(|typ| own.iter().any(|id| typ.occurs(*id)))
     }
@@ -508,7 +528,7 @@ impl Trait {
     ) {
         self.associated_type_bounds = associated_type_bounds
             .into_iter()
-            .map(|(name, bounds)| (name, bounds.into_iter().map(DeclaredBound).collect()))
+            .map(|(name, bounds)| (name, bounds.into_iter().map(DeclaredBound::new).collect()))
             .collect();
     }
 
