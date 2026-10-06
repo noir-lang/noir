@@ -731,3 +731,69 @@ fn supertrait_bound_mentioning_self_is_instantiated_for_the_implementing_type() 
         "Child: Parent<Self> should narrow to Narrow: Parent<Narrow> specifically, not be ambiguous with the unrelated Narrow: Parent<Wide>",
     );
 }
+
+/// Regression test for https://github.com/noir-lang/noir-claude/issues/1232
+///
+/// `X::get` under `X: Child<u16>` with `trait Child<U>: Parent<U>` must resolve through
+/// `X: Parent<u16>`, so it returns `u16`. Inside a `Child` default body the parent bound must not
+/// be left as `Parent<U>`, where `U` is the enclosing trait's own generic.
+#[test]
+fn trait_path_through_generic_supertrait_uses_the_bound_arguments() {
+    let src = r#"
+    trait Parent<T> {
+        fn get(self) -> T;
+    }
+    trait Child<U>: Parent<U> {
+        fn check<X: Child<u16>>(_self: Self, x: X) -> u16 {
+            X::get(x)
+        }
+    }
+    pub struct S {}
+    impl Parent<u8> for S {
+        fn get(self) -> u8 { 8 }
+    }
+    impl Parent<u16> for S {
+        fn get(self) -> u16 { 16 }
+    }
+    impl Child<u8> for S {}
+    impl Child<u16> for S {}
+
+    fn main() -> pub u16 {
+        <S as Child<u8>>::check(S {}, S {})
+    }
+    "#;
+    assert_no_errors(src);
+    get_monomorphized(src).expect("X::get under X: Child<u16> should resolve to S: Parent<u16>");
+}
+
+/// Regression test for https://github.com/noir-lang/noir-claude/issues/1232
+///
+/// In a free function nothing binds `Child`'s own generic, so an uninstantiated parent bound
+/// `T: Parent<B>` reaches monomorphization unresolved.
+#[test]
+fn trait_path_through_generic_supertrait_in_free_function_monomorphizes() {
+    let src = r#"
+    trait Parent<A> {
+        fn marker(self) -> Field;
+    }
+    trait Child<B>: Parent<B> {}
+    struct Wrapper {}
+    impl Parent<u32> for Wrapper {
+        fn marker(self) -> Field { 10 }
+    }
+    impl Parent<bool> for Wrapper {
+        fn marker(self) -> Field { 20 }
+    }
+    impl Child<u32> for Wrapper {}
+
+    fn via_static_type<T>(x: T) -> Field where T: Child<u32> {
+        T::marker(x)
+    }
+
+    fn main() -> pub Field {
+        via_static_type(Wrapper {})
+    }
+    "#;
+    assert_no_errors(src);
+    get_monomorphized(src).expect("T::marker under T: Child<u32> should resolve to Parent<u32>");
+}
