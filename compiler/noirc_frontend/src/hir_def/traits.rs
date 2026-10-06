@@ -70,7 +70,7 @@ pub struct Trait {
 
     /// Named generics of the trait.
     pub associated_types: ResolvedGenerics,
-    pub associated_type_bounds: HashMap<String, Vec<ResolvedTraitBound>>,
+    pub associated_type_bounds: HashMap<String, Vec<DeclaredBound>>,
 
     pub name: Ident,
     /// Ordered generics of the trait.
@@ -300,16 +300,18 @@ impl TraitSelfType {
     }
 }
 
-/// A parent-trait bound (the `Bar<Self>` in `trait Foo: Bar<Self>`) as declared on a trait.
+/// A trait bound as declared on a trait: a parent bound (the `Bar<Self>` in
+/// `trait Foo: Bar<Self>`) or a bound on one of its associated types (the `Baz<Self>` in
+/// `trait Foo { type Out: Baz<Self>; }`).
 ///
 /// It is written in terms of the declaring trait's own `Self`, generics and associated types,
 /// which are shared by every use of that trait. It only describes a real bound once those are
 /// replaced by the ones of a particular `T: Foo<..>`, so the declared form is not exposed except
-/// for display: read it with [`ParentBound::instantiate`].
-#[derive(Debug, Clone)]
-pub struct ParentBound(ResolvedTraitBound);
+/// for display: read it with [`DeclaredBound::instantiate`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DeclaredBound(ResolvedTraitBound);
 
-impl ParentBound {
+impl DeclaredBound {
     pub fn trait_id(&self) -> TraitId {
         self.0.trait_id
     }
@@ -337,6 +339,36 @@ impl ParentBound {
             }
         }
         ResolvedTraitBound { trait_generics, ..self.0 }
+    }
+
+    /// Whether this bound leaves out the associated item `name` of the bounded trait (the `Out`
+    /// of `Bar` in `trait Foo: Bar`), so that its value differs between instantiations.
+    pub fn leaves_out(&self, name: &str) -> bool {
+        self.0
+            .trait_generics
+            .named
+            .iter()
+            .any(|named| named.name.as_str() == name && matches!(named.typ, Type::TypeVariable(_)))
+    }
+
+    /// Binds each placeholder this bound declares for an associated item it leaves out to that
+    /// item's value in `instantiated`, an instantiation of this bound. A signature on the
+    /// declaring trait that names such an item (`Self::Out` in a method of `trait Foo: Bar`) reads
+    /// the placeholder, so it needs these bindings to mean that use's `Out` rather than the one
+    /// shared by every use of the trait.
+    pub fn bind_placeholders(
+        &self,
+        instantiated: &ResolvedTraitBound,
+        bindings: &mut TypeBindings,
+    ) {
+        for declared in &self.0.trait_generics.named {
+            let Type::TypeVariable(placeholder) = &declared.typ else { continue };
+            let value = instantiated.trait_generics.named.iter().find(|n| n.name == declared.name);
+            if let Some(value) = value {
+                let kind = placeholder.kind().into_owned();
+                bindings.insert(placeholder.id(), (placeholder.clone(), kind, value.typ.clone()));
+            }
+        }
     }
 
     /// The bound exactly as written in the trait declaration, mentioning the declaring trait's
@@ -391,11 +423,11 @@ impl Trait {
     ///
     /// Parent bounds are stored in `where_clause` as constraints whose `typ` is this
     /// trait's `Self` (see [`Self::is_self_type`]); this accessor filters them back out.
-    pub fn parent_bounds(&self) -> impl Iterator<Item = ParentBound> + '_ {
+    pub fn parent_bounds(&self) -> impl Iterator<Item = DeclaredBound> + '_ {
         self.where_clause
             .iter()
             .filter(|c| self.is_self_type(&c.typ))
-            .map(|c| ParentBound(c.trait_bound.clone()))
+            .map(|c| DeclaredBound(c.trait_bound.clone()))
     }
 
     /// Bindings from this trait's own ordered generics and associated types to the arguments
@@ -427,6 +459,27 @@ impl Trait {
         }
     }
 
+    /// The bounds declared on the associated type `name` (the `Baz` in `type Out: Baz;`).
+    pub fn associated_type_bounds(&self, name: &str) -> &[DeclaredBound] {
+        self.associated_type_bounds.get(name).map(Vec::as_slice).unwrap_or_default()
+    }
+
+    /// The bounds declared on all of this trait's associated types.
+    pub fn all_associated_type_bounds(&self) -> impl Iterator<Item = &DeclaredBound> {
+        self.associated_type_bounds.values().flatten()
+    }
+
+    /// Whether `bound`, declared on this trait, mentions this trait's own `Self`, generics or
+    /// associated types, so that it differs between uses of the trait.
+    pub fn bound_depends_on_use(&self, bound: &DeclaredBound) -> bool {
+        let own = std::iter::once(self.self_param.id())
+            .chain(self.generics.iter().chain(&self.associated_types).map(|g| g.type_var.id()))
+            .collect::<Vec<_>>();
+        let generics = &bound.0.trait_generics;
+        let types = generics.ordered.iter().chain(generics.named.iter().map(|named| &named.typ));
+        types.into_iter().any(|typ| own.iter().any(|id| typ.occurs(*id)))
+    }
+
     pub fn set_visibility(&mut self, visibility: ItemVisibility) {
         self.visibility = visibility;
     }
@@ -439,7 +492,10 @@ impl Trait {
         &mut self,
         associated_type_bounds: HashMap<String, Vec<ResolvedTraitBound>>,
     ) {
-        self.associated_type_bounds = associated_type_bounds;
+        self.associated_type_bounds = associated_type_bounds
+            .into_iter()
+            .map(|(name, bounds)| (name, bounds.into_iter().map(DeclaredBound).collect()))
+            .collect();
     }
 
     pub fn find_method(&self, name: &str, interner: &NodeInterner) -> Option<DefinitionId> {

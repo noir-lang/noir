@@ -1,5 +1,7 @@
 use std::collections::{BTreeSet, HashMap, HashSet};
 
+use iter_extended::vecmap;
+
 use crate::graph::{CrateGraph, CrateId};
 use crate::hir::comptime::FormatStringFragment;
 use crate::hir::printer::items::ItemBuilder;
@@ -478,12 +480,11 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
             } else {
                 self.push_str("type ");
                 self.push_str(&associated_type.name);
-                if let Some(trait_bounds) =
-                    trait_.associated_type_bounds.get(associated_type.name.as_str())
-                    && !trait_bounds.is_empty()
-                {
+                let trait_bounds = trait_.associated_type_bounds(associated_type.name.as_str());
+                if !trait_bounds.is_empty() {
+                    let trait_bounds = vecmap(trait_bounds, |bound| bound.as_written().clone());
                     self.push_str(": ");
-                    self.show_trait_bounds(trait_bounds);
+                    self.show_trait_bounds(&trait_bounds);
                 }
             }
 
