@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.0.0-rc.4](https://github.com/noir-lang/noir/compare/v1.0.0-rc.3...v1.0.0-rc.4) (2026-10-06)
+
+
+### Bug Fixes
+
+* Attach the logical OOB payload whenever the memory-op index is scaled ([#13776](https://github.com/noir-lang/noir/issues/13776)) ([952378f](https://github.com/noir-lang/noir/commit/952378fc0d72883c578149e9f00b757d9516b711))
+* **comptime:** Keep macro call type bindings after a closure returns ([#13845](https://github.com/noir-lang/noir/issues/13845)) ([8dd3744](https://github.com/noir-lang/noir/commit/8dd374437f53627b0e62f3739d777b77554c44b9))
+* **comptime:** Make types solved during interpretation visible across frames ([#13870](https://github.com/noir-lang/noir/issues/13870)) ([b2dd9ca](https://github.com/noir-lang/noir/commit/b2dd9ca32c87e59b6eeade5ac2559c7733c3c658))
+* **frontend:** Evaluate a numeric type alias used as a value from its resolved type ([#13790](https://github.com/noir-lang/noir/issues/13790)) ([351c3e1](https://github.com/noir-lang/noir/commit/351c3e108ed66c160afee4afd106fadb912ca3a5))
+* **frontend:** Keep trait `Self` rigid when resolving `Self::item` in default methods ([#13864](https://github.com/noir-lang/noir/issues/13864)) ([52de388](https://github.com/noir-lang/noir/commit/52de38810a6fcabf84b8d0ee7b48ec432e3d994a))
+* **frontend:** Only mark a lambda unconstrained when it is itself an unconstrained call's argument ([#13785](https://github.com/noir-lang/noir/issues/13785)) ([581508f](https://github.com/noir-lang/noir/commit/581508fd56454541bf6fa9fc840ef24fdbddef7d))
+* **frontend:** Require exact division when solving a multiplied numeric generic ([#13861](https://github.com/noir-lang/noir/issues/13861)) ([7e8c7b8](https://github.com/noir-lang/noir/commit/7e8c7b88853e4958e3138e81de3b1704df5bfea0))
+* Keep sibling `where` bounds on one trait from sharing associated types ([#13777](https://github.com/noir-lang/noir/issues/13777)) ([ac75dfa](https://github.com/noir-lang/noir/commit/ac75dfa5c762a5ec522e8b43c99cb444fd42bb70))
+* **nargo_toml:** Report git dependency download failures ([#13807](https://github.com/noir-lang/noir/issues/13807)) ([5fc1bff](https://github.com/noir-lang/noir/commit/5fc1bffab44d1abbf7a78907e4a3a56d9d95ccce))
+* **ownership:** Compute moves with backward liveness ([#13781](https://github.com/noir-lang/noir/issues/13781)) ([ee3e1ae](https://github.com/noir-lang/noir/commit/ee3e1aef7b659e3c550b8a78012c5112ee1a8de3))
+* **ownership:** Make the `killed` loop rescue a per-read decision ([#13779](https://github.com/noir-lang/noir/issues/13779)) ([1f9b52b](https://github.com/noir-lang/noir/commit/1f9b52bd951b62bd104d7dcbc9193698077db75f))
+* **ssa:** Count values read from constrained Brillig arrays as constrained ([#13886](https://github.com/noir-lang/noir/issues/13886)) ([873eee5](https://github.com/noir-lang/noir/commit/873eee5195d110493d7af3172499a47356c9ffd9))
+* **ssa:** Do not derive must-alias allocation sites through memory ([#13789](https://github.com/noir-lang/noir/issues/13789)) ([0a896ca](https://github.com/noir-lang/noir/commit/0a896cab925b368767387446f5fbef0f60f4a970))
+* **ssa:** Don't require constraints on Brillig outputs that are never used ([#13879](https://github.com/noir-lang/noir/issues/13879)) ([7fc0c1d](https://github.com/noir-lang/noir/commit/7fc0c1da6bd2d00d2dc71be441c19b95372d17c9))
+* **ssa:** Give entry-point callees their own arrays in the SSA interpreter ([#13859](https://github.com/noir-lang/noir/issues/13859)) ([945ec3d](https://github.com/noir-lang/noir/commit/945ec3d2cf35ad8eaae23fcc573671ac982d2b83))
+* **ssa:** Interpret `truncate x to 0 bits` as 0 ([#13674](https://github.com/noir-lang/noir/issues/13674)) ([255e1b5](https://github.com/noir-lang/noir/commit/255e1b5b88d61b6a1b2f31bbe3955fb506bdeb63))
+* **ssa:** Keep the bounds check of an `array_set` emitted before the branch in the array-merge optimization ([#13856](https://github.com/noir-lang/noir/issues/13856)) ([107730c](https://github.com/noir-lang/noir/commit/107730c0525e89654a8ff6af5b930aca441f64b0))
+* **ssa:** Only rebase store of array_set onto a load from the same memory epoch ([#13867](https://github.com/noir-lang/noir/issues/13867)) ([3049e7e](https://github.com/noir-lang/noir/commit/3049e7e4878fadda7a5e2b0690231c7846e67bf3))
+* **ssa:** Run load-store forwarding only after defunctionalization ([#13794](https://github.com/noir-lang/noir/issues/13794)) ([cb80101](https://github.com/noir-lang/noir/commit/cb801010a99d3982c431058d659ccb2769af158e))
+* **ssa:** Track every field of Brillig array outputs of tuples ([#13880](https://github.com/noir-lang/noir/issues/13880)) ([987955c](https://github.com/noir-lang/noir/commit/987955c48ffa1e92fa1db3c6da19d42476aa0039))
+
 ## [1.0.0-rc.3](https://github.com/noir-lang/noir/compare/v1.0.0-rc.2...v1.0.0-rc.3) (2026-09-18)
 
 
