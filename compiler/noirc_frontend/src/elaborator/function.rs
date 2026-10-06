@@ -14,7 +14,7 @@ use itertools::Itertools;
 use noirc_errors::Location;
 
 use crate::{
-    Kind, ResolvedGeneric, Type, TypeBinding, TypeVariable,
+    Kind, ResolvedGeneric, Type, TypeVariable,
     ast::{
         BlockExpression, FunctionKind, Ident, IdentOrQuotedType, NoirFunction, Param,
         UnresolvedGeneric, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
@@ -720,8 +720,8 @@ impl Elaborator<'_> {
         let unbound_trait_self = func_meta
             .trait_id
             .filter(|_| func_meta.trait_impl.is_none())
-            .map(|trait_id| (trait_id, self.interner.get_trait(trait_id).self_type_typevar.clone()))
-            .filter(|(_, self_typevar)| self_typevar.binding().is_unbound());
+            .map(|trait_id| (trait_id, self.interner.get_trait(trait_id).self_param.clone()))
+            .filter(|(_, self_param)| self_param.bound_to().is_none());
 
         self.scopes.start_function();
         self.push_function_context();
@@ -800,8 +800,8 @@ impl Elaborator<'_> {
 
         self.remove_trait_constraints_from_scope(func_meta.all_trait_constraints());
 
-        if let Some((trait_id, self_typevar)) = unbound_trait_self
-            && let TypeBinding::Bound(self_type) = self_typevar.binding()
+        if let Some((trait_id, self_param)) = unbound_trait_self
+            && let Some(self_type) = self_param.bound_to()
         {
             let trait_name = self.interner.get_trait(trait_id).name.to_string();
             self.push_err(TypeCheckError::expecting_other_error(

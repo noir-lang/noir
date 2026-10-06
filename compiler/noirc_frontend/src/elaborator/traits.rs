@@ -916,7 +916,7 @@ impl Elaborator<'_> {
             .impl_context
             .current_trait()
             .filter(|current_trait| *current_trait == trait_id)
-            .map(|trait_id| self.interner.get_trait(trait_id).self_type_typevar.id());
+            .map(|trait_id| self.interner.get_trait(trait_id).self_param.id());
 
         let is_current_trait_on_its_own_self = match object {
             Type::TypeVariable(self_var)
@@ -1028,17 +1028,13 @@ impl Elaborator<'_> {
             {
                 self.recover_generics(|this| {
                     let the_trait = this.interner.get_trait(trait_id);
-                    let self_typevar = the_trait.self_type_typevar.clone();
                     let name_location = the_trait.name.location();
+                    let self_generic = the_trait.self_param.generic(name_location);
 
                     this.add_existing_generic(
                         &UnresolvedGeneric::from(Ident::from(SELF_TYPE_NAME)),
                         name_location,
-                        &ResolvedGeneric {
-                            name: Rc::new(SELF_TYPE_NAME.to_string()),
-                            type_var: self_typevar,
-                            location: name_location,
-                        },
+                        &self_generic,
                     );
 
                     let func_id = unresolved_trait.method_ids[name.as_str()];
