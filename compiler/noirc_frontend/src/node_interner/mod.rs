@@ -1713,13 +1713,26 @@ impl NodeInterner {
         // is implemented for the object type.
         let parent_bounds: Vec<_> = the_trait.parent_bounds().cloned().collect();
         for parent_bound in &parent_bounds {
+            // The parent bound is written in terms of this trait's `Self`, generics and associated
+            // types, which `bindings` now maps to this impl's. An associated item the parent bound
+            // leaves out is a placeholder shared by every use of the trait, so it is matched with
+            // a fresh variable instead.
+            let mut parent_generics =
+                parent_bound.trait_generics.map(|typ| typ.substitute(bindings));
+            let declared = parent_bound.trait_generics.named.iter();
+            for (named, declared) in parent_generics.named.iter_mut().zip(declared) {
+                if let Type::TypeVariable(placeholder) = &declared.typ {
+                    named.typ = self.next_type_variable_with_kind(placeholder.kind().into_owned());
+                }
+            }
+
             // Find the implementation, if it exists.
             let trait_id = parent_bound.trait_id;
             match self.lookup_trait_implementation(
                 impl_self_type,
                 trait_id,
-                &parent_bound.trait_generics.ordered,
-                &parent_bound.trait_generics.named,
+                &parent_generics.ordered,
+                &parent_generics.named,
             ) {
                 Ok(
                     (TraitImplKind::Normal(impl_id), _) | (TraitImplKind::Prepared(impl_id, _), _),
