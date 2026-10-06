@@ -12,6 +12,8 @@ use crate::ssa::{
     ir::{instruction::Instruction, value::Value},
 };
 
+use test_case::test_matrix;
+
 use super::{Context, DEFAULT_MAX_ANCESTOR_DISTANCE, DEFAULT_MAX_ARRAY_OUTPUT_LENGTH};
 
 /// The type of the array returned by the `copy` call.
@@ -26,13 +28,6 @@ enum Shape {
 }
 
 impl Shape {
-    const ALL: [Shape; 4] = [
-        Shape::Flat(2),
-        Shape::Flat(DEFAULT_MAX_ARRAY_OUTPUT_LENGTH + 1),
-        Shape::Tuples,
-        Shape::Nested,
-    ];
-
     fn typ(self) -> String {
         match self {
             Shape::Flat(n) => format!("[Field; {n}]"),
@@ -77,9 +72,6 @@ enum Constrained {
 }
 
 impl Constrained {
-    const ALL: [Constrained; 4] =
-        [Constrained::None, Constrained::First, Constrained::AllButLast, Constrained::All];
-
     fn leaves(self, shape: Shape) -> Vec<u32> {
         let n = shape.leaves();
         match self {
@@ -103,10 +95,6 @@ enum Read {
     DynamicAfterSet,
 }
 
-impl Read {
-    const ALL: [Read; 3] = [Read::LastLeaf, Read::Dynamic, Read::DynamicAfterSet];
-}
-
 /// What the value read is used for.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Use {
@@ -114,10 +102,6 @@ enum Use {
     Return,
     /// Passed into a `half` call, whose output is constrained against it.
     Half,
-}
-
-impl Use {
-    const ALL: [Use; 2] = [Use::Return, Use::Half];
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -129,27 +113,6 @@ struct Case {
 }
 
 impl Case {
-    fn all() -> impl Iterator<Item = Case> {
-        Shape::ALL.into_iter().flat_map(|shape| {
-            Constrained::ALL.into_iter().flat_map(move |constrained| {
-                Read::ALL
-                    .into_iter()
-                    // The value written at index 0 is a `Field`, which is only an item of flat arrays.
-                    .filter(move |read| {
-                        *read != Read::DynamicAfterSet || matches!(shape, Shape::Flat(_))
-                    })
-                    .flat_map(move |read| {
-                        Use::ALL.into_iter().map(move |used| Case {
-                            shape,
-                            constrained,
-                            read,
-                            used,
-                        })
-                    })
-            })
-        })
-    }
-
     /// The calls which return values that may be unconstrained, by function name.
     fn expected(&self) -> Vec<&'static str> {
         let constrained = self.constrained.leaves(self.shape);
@@ -400,35 +363,42 @@ fn apply(expected: Vec<&'static str>, difference: &Difference) -> Vec<&'static s
     calls
 }
 
-#[test]
-fn array_output_cases() {
-    let mut failures = Vec::new();
-    for case in Case::all() {
-        let src = case.ssa();
-        let expected = case.expected();
-        let difference = known_differences(&case);
-        if let Some(difference) = &difference {
-            for call in difference.missed {
-                assert!(
-                    expected.contains(call),
-                    "{case:?}: {call} is listed as missed but not expected ({})",
-                    difference.reason
-                );
-            }
+/// An array output longer than the check tracks item by item.
+const LARGE: u32 = DEFAULT_MAX_ARRAY_OUTPUT_LENGTH + 1;
+
+#[test_matrix(
+    [Shape::Flat(2), Shape::Flat(LARGE), Shape::Tuples, Shape::Nested],
+    [Constrained::None, Constrained::First, Constrained::AllButLast, Constrained::All],
+    [Read::LastLeaf, Read::Dynamic],
+    [Use::Return, Use::Half]
+)]
+// The value written at index 0 is a `Field`, which is only an item of flat arrays.
+#[test_matrix(
+    [Shape::Flat(2), Shape::Flat(LARGE)],
+    [Constrained::None, Constrained::First, Constrained::AllButLast, Constrained::All],
+    [Read::DynamicAfterSet],
+    [Use::Return, Use::Half]
+)]
+fn array_output(shape: Shape, constrained: Constrained, read: Read, used: Use) {
+    let case = Case { shape, constrained, read, used };
+    let src = case.ssa();
+    let mut expected = case.expected();
+    if let Some(difference) = known_differences(&case) {
+        for call in difference.missed {
             assert!(
-                difference.extra.iter().all(|call| !expected.contains(call)),
-                "{case:?}: an extra call is already expected ({})",
+                expected.contains(call),
+                "{call} is listed as missed but is not expected ({})",
                 difference.reason
             );
         }
-        let expected = match &difference {
-            Some(difference) => apply(expected, difference),
-            None => expected,
-        };
-        let actual = reported(&src);
-        if actual != expected {
-            failures.push(format!("{case:?}: expected {expected:?}, reported {actual:?}\n{src}"));
+        for call in difference.extra {
+            assert!(
+                !expected.contains(call),
+                "{call} is listed as extra but is already expected ({})",
+                difference.reason
+            );
         }
+        expected = apply(expected, &difference);
     }
-    assert!(failures.is_empty(), "{} cases differ:\n{}", failures.len(), failures.join("\n"));
+    assert_eq!(reported(&src), expected, "\n{src}");
 }
