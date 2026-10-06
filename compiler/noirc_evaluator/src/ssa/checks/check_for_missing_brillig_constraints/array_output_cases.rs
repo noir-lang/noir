@@ -1,18 +1,20 @@
 //! Every combination of a Brillig array output's shape, the items of it that are constrained,
-//! the way a value is read from it, and what that value is used for.
+//! the way a value is read from it, and what that value is used for, checked as one table in
+//! [`array_output_cases`].
 //!
-//! The expected warnings of each case come from which items it constrains, not from the
-//! check itself: a call is reported if any value it returns may be unconstrained.
+//! The `should report` column comes from which items a case constrains, not from the check
+//! itself: a call should be reported if any value it returns may be unconstrained.
 //! Where the check is known to be more lenient or stricter than that, the difference is
-//! listed in [`known_differences`] with the issue tracking it.
+//! listed in [`known_differences`] and its reason is shown in the `why` column.
+//!
+//! To add a case, add a value to one of [`SHAPES`], [`CONSTRAINED`], [`READS`] or [`USES`]
+//! and review the new rows of the table.
 use std::fmt::Write;
 
 use crate::ssa::{
     Ssa,
     ir::{instruction::Instruction, value::Value},
 };
-
-use test_case::test_matrix;
 
 use super::{Context, DEFAULT_MAX_ANCESTOR_DISTANCE, DEFAULT_MAX_ARRAY_OUTPUT_LENGTH};
 
@@ -281,7 +283,7 @@ fn known_differences(case: &Case) -> Option<Difference> {
         return Some(Difference {
             missed,
             extra: &[],
-            reason: "https://github.com/noir-lang/noir-claude/issues/917",
+            reason: "noir-claude#917: large array tracked as one value",
         });
     }
 
@@ -293,7 +295,7 @@ fn known_differences(case: &Case) -> Option<Difference> {
         return Some(Difference {
             missed,
             extra: &[],
-            reason: "https://github.com/noir-lang/noir-claude/issues/918",
+            reason: "noir-claude#918: inner array tracked as one value",
         });
     }
 
@@ -308,7 +310,7 @@ fn known_differences(case: &Case) -> Option<Difference> {
         return Some(Difference {
             missed: &[],
             extra: &["half"],
-            reason: "a large or nested array is never known to be fully constrained",
+            reason: "never known to be fully constrained",
         });
     }
 
@@ -322,7 +324,7 @@ fn known_differences(case: &Case) -> Option<Difference> {
         return Some(Difference {
             missed: &[],
             extra: &["half"],
-            reason: "a dynamic read relies on the whole array being constrained",
+            reason: "dynamic read needs the whole array constrained",
         });
     }
 
@@ -366,39 +368,212 @@ fn apply(expected: Vec<&'static str>, difference: &Difference) -> Vec<&'static s
 /// An array output longer than the check tracks item by item.
 const LARGE: u32 = DEFAULT_MAX_ARRAY_OUTPUT_LENGTH + 1;
 
-#[test_matrix(
-    [Shape::Flat(2), Shape::Flat(LARGE), Shape::Tuples, Shape::Nested],
-    [Constrained::None, Constrained::First, Constrained::AllButLast, Constrained::All],
-    [Read::LastLeaf, Read::Dynamic],
-    [Use::Return, Use::Half]
-)]
-// The value written at index 0 is a `Field`, which is only an item of flat arrays.
-#[test_matrix(
-    [Shape::Flat(2), Shape::Flat(LARGE)],
-    [Constrained::None, Constrained::First, Constrained::AllButLast, Constrained::All],
-    [Read::DynamicAfterSet],
-    [Use::Return, Use::Half]
-)]
-fn array_output(shape: Shape, constrained: Constrained, read: Read, used: Use) {
-    let case = Case { shape, constrained, read, used };
-    let src = case.ssa();
-    let mut expected = case.expected();
-    if let Some(difference) = known_differences(&case) {
-        for call in difference.missed {
-            assert!(
-                expected.contains(call),
-                "{call} is listed as missed but is not expected ({})",
-                difference.reason
-            );
+const SHAPES: [Shape; 4] = [Shape::Flat(2), Shape::Flat(LARGE), Shape::Tuples, Shape::Nested];
+const CONSTRAINED: [Constrained; 4] =
+    [Constrained::None, Constrained::First, Constrained::AllButLast, Constrained::All];
+const READS: [Read; 3] = [Read::LastLeaf, Read::Dynamic, Read::DynamicAfterSet];
+const USES: [Use; 2] = [Use::Return, Use::Half];
+
+fn cases() -> Vec<Case> {
+    let mut cases = Vec::new();
+    for shape in SHAPES {
+        for constrained in CONSTRAINED {
+            for read in READS {
+                // The value written at index 0 is a `Field`, which is only an item of flat arrays.
+                if read == Read::DynamicAfterSet && !matches!(shape, Shape::Flat(_)) {
+                    continue;
+                }
+                for used in USES {
+                    cases.push(Case { shape, constrained, read, used });
+                }
+            }
         }
-        for call in difference.extra {
-            assert!(
-                !expected.contains(call),
-                "{call} is listed as extra but is already expected ({})",
-                difference.reason
-            );
-        }
-        expected = apply(expected, &difference);
     }
-    assert_eq!(reported(&src), expected, "\n{src}");
+    cases
+}
+
+/// A leaf of `c`, the output of `copy`, in Noir syntax.
+fn leaf_name(shape: Shape, leaf: u32) -> String {
+    match shape {
+        Shape::Flat(_) => format!("c[{leaf}]"),
+        Shape::Tuples => format!("c[{}].{}", leaf / 2, leaf % 2),
+        Shape::Nested => format!("c[{}][{}]", leaf / 2, leaf % 2),
+    }
+}
+
+impl Case {
+    /// The leaves constrained against the input, in Noir syntax.
+    fn constrained_column(&self) -> String {
+        let last = leaf_name(self.shape, self.shape.leaves() - 1);
+        match self.constrained {
+            Constrained::None => "none".to_string(),
+            Constrained::First => leaf_name(self.shape, 0),
+            Constrained::AllButLast => format!("all but {last}"),
+            Constrained::All => "all".to_string(),
+        }
+    }
+
+    /// The value read from `c`, in Noir syntax, with `i` only known at runtime.
+    fn value_column(&self) -> String {
+        let dynamic = match self.shape {
+            Shape::Flat(_) => "c[i]",
+            Shape::Tuples => "c[i].0",
+            Shape::Nested => "c[0][i]",
+        };
+        match self.read {
+            Read::LastLeaf => leaf_name(self.shape, self.shape.leaves() - 1),
+            Read::Dynamic => dynamic.to_string(),
+            Read::DynamicAfterSet => format!("{dynamic} after c[0] = hint(y)"),
+        }
+    }
+
+    fn use_column(&self) -> &'static str {
+        match self.used {
+            Use::Return => "return",
+            Use::Half => "half(value)",
+        }
+    }
+}
+
+fn calls_column<S: AsRef<str>>(calls: &[S]) -> String {
+    if calls.is_empty() {
+        "-".to_string()
+    } else {
+        calls.iter().map(AsRef::as_ref).collect::<Vec<_>>().join(" ")
+    }
+}
+
+/// One row per case: the `copy` output's type, which of its leaves are constrained, the value
+/// read from it and its use, then the calls which should be reported because they return a
+/// value that may be unconstrained, the calls the check reports, and why they differ.
+///
+/// A row whose `should report` and `reports` columns differ must have a reason from
+/// [`known_differences`], and a reason must only be given where they differ.
+#[test]
+fn array_output_cases() {
+    let header = ["copy returns", "constrained", "value", "use", "should report", "reports", "why"];
+    let mut rows = vec![header.map(String::from).to_vec()];
+    let mut unexplained = Vec::new();
+    for case in cases() {
+        let src = case.ssa();
+        let expected = case.expected();
+        let reported = reported(&src);
+        let difference = known_differences(&case);
+        let reason = difference.as_ref().map_or("", |difference| difference.reason);
+        let explained = match &difference {
+            Some(difference) => apply(expected.clone(), difference),
+            None => expected.clone(),
+        };
+        if reported != explained || (difference.is_some() && explained == expected) {
+            unexplained.push(format!("{case:?}\n{src}"));
+        }
+        rows.push(vec![
+            case.shape.typ(),
+            case.constrained_column(),
+            case.value_column(),
+            case.use_column().to_string(),
+            calls_column(&expected),
+            calls_column(&reported),
+            reason.to_string(),
+        ]);
+    }
+
+    let widths: Vec<usize> = (0..header.len())
+        .map(|column| rows.iter().map(|row| row[column].chars().count()).max().unwrap())
+        .collect();
+    let mut table = String::new();
+    for row in rows {
+        let cells: Vec<String> =
+            row.iter().zip(&widths).map(|(cell, width)| format!("{cell:<width$}")).collect();
+        writeln!(table, "{}", cells.join(" | ").trim_end()).unwrap();
+    }
+    insta::assert_snapshot!(table, @r"
+    copy returns        | constrained     | value                     | use         | should report  | reports        | why
+    [Field; 2]          | none            | c[1]                      | return      | copy           | copy           |
+    [Field; 2]          | none            | c[1]                      | half(value) | copy half      | copy half      |
+    [Field; 2]          | none            | c[i]                      | return      | copy           | copy           |
+    [Field; 2]          | none            | c[i]                      | half(value) | copy half      | copy half      |
+    [Field; 2]          | none            | c[i] after c[0] = hint(y) | return      | copy hint      | copy hint      |
+    [Field; 2]          | none            | c[i] after c[0] = hint(y) | half(value) | copy half hint | copy half hint |
+    [Field; 2]          | c[0]            | c[1]                      | return      | copy           | copy           |
+    [Field; 2]          | c[0]            | c[1]                      | half(value) | copy half      | copy half      |
+    [Field; 2]          | c[0]            | c[i]                      | return      | copy           | copy           |
+    [Field; 2]          | c[0]            | c[i]                      | half(value) | copy half      | copy half      |
+    [Field; 2]          | c[0]            | c[i] after c[0] = hint(y) | return      | copy hint      | copy hint      |
+    [Field; 2]          | c[0]            | c[i] after c[0] = hint(y) | half(value) | copy half hint | copy half hint |
+    [Field; 2]          | all but c[1]    | c[1]                      | return      | copy           | copy           |
+    [Field; 2]          | all but c[1]    | c[1]                      | half(value) | copy half      | copy half      |
+    [Field; 2]          | all but c[1]    | c[i]                      | return      | copy           | copy           |
+    [Field; 2]          | all but c[1]    | c[i]                      | half(value) | copy half      | copy half      |
+    [Field; 2]          | all but c[1]    | c[i] after c[0] = hint(y) | return      | copy hint      | copy hint      |
+    [Field; 2]          | all but c[1]    | c[i] after c[0] = hint(y) | half(value) | copy half hint | copy half hint |
+    [Field; 2]          | all             | c[1]                      | return      | -              | -              |
+    [Field; 2]          | all             | c[1]                      | half(value) | -              | -              |
+    [Field; 2]          | all             | c[i]                      | return      | -              | -              |
+    [Field; 2]          | all             | c[i]                      | half(value) | -              | -              |
+    [Field; 2]          | all             | c[i] after c[0] = hint(y) | return      | hint           | hint           |
+    [Field; 2]          | all             | c[i] after c[0] = hint(y) | half(value) | half hint      | half hint      |
+    [Field; 65]         | none            | c[64]                     | return      | copy           | copy           |
+    [Field; 65]         | none            | c[64]                     | half(value) | copy half      | copy half      |
+    [Field; 65]         | none            | c[i]                      | return      | copy           | copy           |
+    [Field; 65]         | none            | c[i]                      | half(value) | copy half      | copy half      |
+    [Field; 65]         | none            | c[i] after c[0] = hint(y) | return      | copy hint      | copy hint      |
+    [Field; 65]         | none            | c[i] after c[0] = hint(y) | half(value) | copy half hint | copy half hint |
+    [Field; 65]         | c[0]            | c[64]                     | return      | copy           | -              | noir-claude#917: large array tracked as one value
+    [Field; 65]         | c[0]            | c[64]                     | half(value) | copy half      | -              | noir-claude#917: large array tracked as one value
+    [Field; 65]         | c[0]            | c[i]                      | return      | copy           | -              | noir-claude#917: large array tracked as one value
+    [Field; 65]         | c[0]            | c[i]                      | half(value) | copy half      | half           | noir-claude#917: large array tracked as one value
+    [Field; 65]         | c[0]            | c[i] after c[0] = hint(y) | return      | copy hint      | hint           | noir-claude#917: large array tracked as one value
+    [Field; 65]         | c[0]            | c[i] after c[0] = hint(y) | half(value) | copy half hint | half hint      | noir-claude#917: large array tracked as one value
+    [Field; 65]         | all but c[64]   | c[64]                     | return      | copy           | -              | noir-claude#917: large array tracked as one value
+    [Field; 65]         | all but c[64]   | c[64]                     | half(value) | copy half      | -              | noir-claude#917: large array tracked as one value
+    [Field; 65]         | all but c[64]   | c[i]                      | return      | copy           | -              | noir-claude#917: large array tracked as one value
+    [Field; 65]         | all but c[64]   | c[i]                      | half(value) | copy half      | half           | noir-claude#917: large array tracked as one value
+    [Field; 65]         | all but c[64]   | c[i] after c[0] = hint(y) | return      | copy hint      | hint           | noir-claude#917: large array tracked as one value
+    [Field; 65]         | all but c[64]   | c[i] after c[0] = hint(y) | half(value) | copy half hint | half hint      | noir-claude#917: large array tracked as one value
+    [Field; 65]         | all             | c[64]                     | return      | -              | -              |
+    [Field; 65]         | all             | c[64]                     | half(value) | -              | -              |
+    [Field; 65]         | all             | c[i]                      | return      | -              | -              |
+    [Field; 65]         | all             | c[i]                      | half(value) | -              | half           | never known to be fully constrained
+    [Field; 65]         | all             | c[i] after c[0] = hint(y) | return      | hint           | hint           |
+    [Field; 65]         | all             | c[i] after c[0] = hint(y) | half(value) | half hint      | half hint      |
+    [(Field, Field); 2] | none            | c[1].1                    | return      | copy           | copy           |
+    [(Field, Field); 2] | none            | c[1].1                    | half(value) | copy half      | copy half      |
+    [(Field, Field); 2] | none            | c[i].0                    | return      | copy           | copy           |
+    [(Field, Field); 2] | none            | c[i].0                    | half(value) | copy half      | copy half      |
+    [(Field, Field); 2] | c[0].0          | c[1].1                    | return      | copy           | copy           |
+    [(Field, Field); 2] | c[0].0          | c[1].1                    | half(value) | copy half      | copy half      |
+    [(Field, Field); 2] | c[0].0          | c[i].0                    | return      | copy           | copy           |
+    [(Field, Field); 2] | c[0].0          | c[i].0                    | half(value) | copy half      | copy half      |
+    [(Field, Field); 2] | all but c[1].1  | c[1].1                    | return      | copy           | copy           |
+    [(Field, Field); 2] | all but c[1].1  | c[1].1                    | half(value) | copy half      | copy half      |
+    [(Field, Field); 2] | all but c[1].1  | c[i].0                    | return      | copy           | copy           |
+    [(Field, Field); 2] | all but c[1].1  | c[i].0                    | half(value) | copy           | copy half      | dynamic read needs the whole array constrained
+    [(Field, Field); 2] | all             | c[1].1                    | return      | -              | -              |
+    [(Field, Field); 2] | all             | c[1].1                    | half(value) | -              | -              |
+    [(Field, Field); 2] | all             | c[i].0                    | return      | -              | -              |
+    [(Field, Field); 2] | all             | c[i].0                    | half(value) | -              | -              |
+    [[Field; 2]; 1]     | none            | c[0][1]                   | return      | copy           | copy           |
+    [[Field; 2]; 1]     | none            | c[0][1]                   | half(value) | copy half      | copy half      |
+    [[Field; 2]; 1]     | none            | c[0][i]                   | return      | copy           | copy           |
+    [[Field; 2]; 1]     | none            | c[0][i]                   | half(value) | copy half      | copy half      |
+    [[Field; 2]; 1]     | c[0][0]         | c[0][1]                   | return      | copy           | -              | noir-claude#918: inner array tracked as one value
+    [[Field; 2]; 1]     | c[0][0]         | c[0][1]                   | half(value) | copy half      | -              | noir-claude#918: inner array tracked as one value
+    [[Field; 2]; 1]     | c[0][0]         | c[0][i]                   | return      | copy           | -              | noir-claude#918: inner array tracked as one value
+    [[Field; 2]; 1]     | c[0][0]         | c[0][i]                   | half(value) | copy half      | half           | noir-claude#918: inner array tracked as one value
+    [[Field; 2]; 1]     | all but c[0][1] | c[0][1]                   | return      | copy           | -              | noir-claude#918: inner array tracked as one value
+    [[Field; 2]; 1]     | all but c[0][1] | c[0][1]                   | half(value) | copy half      | -              | noir-claude#918: inner array tracked as one value
+    [[Field; 2]; 1]     | all but c[0][1] | c[0][i]                   | return      | copy           | -              | noir-claude#918: inner array tracked as one value
+    [[Field; 2]; 1]     | all but c[0][1] | c[0][i]                   | half(value) | copy half      | half           | noir-claude#918: inner array tracked as one value
+    [[Field; 2]; 1]     | all             | c[0][1]                   | return      | -              | -              |
+    [[Field; 2]; 1]     | all             | c[0][1]                   | half(value) | -              | -              |
+    [[Field; 2]; 1]     | all             | c[0][i]                   | return      | -              | -              |
+    [[Field; 2]; 1]     | all             | c[0][i]                   | half(value) | -              | half           | never known to be fully constrained
+    ");
+
+    assert!(
+        unexplained.is_empty(),
+        "the reported calls differ from the expected ones without a matching known difference:\n{}",
+        unexplained.join("\n")
+    );
 }
