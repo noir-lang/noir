@@ -299,7 +299,11 @@ impl Trait {
     pub fn parent_bounds(&self) -> impl Iterator<Item = &ResolvedTraitBound> {
         let self_id = self.self_type_typevar.id();
         self.where_clause.iter().filter_map(move |c| match &c.typ {
-            Type::TypeVariable(v) if v.id() == self_id => Some(&c.trait_bound),
+            Type::TypeVariable(v) | Type::NamedGeneric(NamedGeneric { type_var: v, .. })
+                if v.id() == self_id =>
+            {
+                Some(&c.trait_bound)
+            }
             _ => None,
         })
     }
@@ -378,11 +382,23 @@ impl Trait {
     /// method of the trait type-checked afterwards.
     pub fn as_constraint(&self, location: Location) -> TraitConstraint {
         let trait_generics = self.get_trait_generics(location);
-        let self_type_name = Rc::new(SELF_TYPE_NAME.to_string());
         TraitConstraint {
-            typ: self.self_type_typevar.clone().into_named_generic(&self_type_name, None),
+            typ: self.self_type(),
             trait_bound: ResolvedTraitBound { trait_generics, trait_id: self.id, location },
         }
+    }
+
+    /// The rigid `Self` type for this trait: a named generic over `self_type_typevar`, which
+    /// cannot be unified with a concrete type. Every use of `Self` outside of the trait's own
+    /// declaration bookkeeping (method signatures, assumed `Self: CurrentTrait` bounds, the
+    /// elaboration context installed while checking a default method body) must go through
+    /// this accessor rather than wrapping `self_type_typevar` in `Type::TypeVariable` directly.
+    /// That bindable form lets any unification (including an impl search) bind the variable,
+    /// and the binding is then visible to every other use of the trait's `Self` for the rest of
+    /// compilation, since there is exactly one `self_type_typevar` per trait.
+    pub fn self_type(&self) -> Type {
+        let self_type_name = Rc::new(SELF_TYPE_NAME.to_string());
+        self.self_type_typevar.clone().into_named_generic(&self_type_name, None)
     }
 }
 
