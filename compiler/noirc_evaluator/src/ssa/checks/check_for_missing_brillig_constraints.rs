@@ -567,13 +567,15 @@ impl TaintedDescendants {
         true
     }
 
-    /// Stop tracking the elements of array outputs which are never read, unless the array
-    /// is used in any other way than reading its tracked elements at constant indices.
+    /// Stop tracking outputs which are never used: single outputs which are not in `uses`,
+    /// and the elements of array outputs which are never read, unless the array is in `uses`
+    /// (it is used in any other way than reading its tracked elements at constant indices).
     ///
-    /// An element which is never read cannot affect the circuit, so there is nothing to constrain.
-    fn drop_unread_elements(&mut self, other_uses: &HashSet<ValueId>) {
+    /// An output which is never used cannot affect the circuit, so there is nothing to constrain.
+    fn drop_unused_outputs(&mut self, uses: &HashSet<ValueId>) {
+        self.single_outputs.retain(|output| uses.contains(output));
         self.array_outputs.retain(|array, index_outputs| {
-            if !other_uses.contains(array) {
+            if !uses.contains(array) {
                 index_outputs.retain(|_, descendants| !descendants.is_empty());
             }
             !index_outputs.is_empty()
@@ -688,6 +690,9 @@ struct TaintedCalls {
     /// The call that each tracked array output belongs to.
     array_output_owner: HashMap<ValueId, TaintedIndex>,
 
+    /// The single (not tracked per item) outputs of the calls.
+    single_outputs: HashSet<ValueId>,
+
     /// Calls which still have unconstrained outputs.
     unresolved: TaintedSet,
 }
@@ -699,6 +704,7 @@ impl TaintedCalls {
         for array in tainted.array_outputs.keys() {
             self.array_output_owner.insert(*array, index);
         }
+        self.single_outputs.extend(tainted.single_outputs.iter().copied());
         self.by_instruction.insert(tainted.instruction_id, index);
         self.unresolved.insert(index);
         self.calls.push(tainted);
@@ -727,16 +733,21 @@ impl TaintedCalls {
             .is_some_and(|owner| self.calls[*owner].extend_array_result(array, index, results))
     }
 
-    /// Whether a value is an array output of a tainted call.
+    /// Whether a value is an array output of a tainted call, tracked per item.
     fn is_array_output(&self, value: &ValueId) -> bool {
         self.array_output_owner.contains_key(value)
     }
 
-    /// Stop tracking array elements which are never read, and resolve the calls which have
-    /// nothing left to constrain. See [`TaintedDescendants::drop_unread_elements`].
-    fn drop_unread_elements(&mut self, other_uses: &HashSet<ValueId>) {
+    /// Whether a value is a single output of a tainted call.
+    fn is_single_output(&self, value: &ValueId) -> bool {
+        self.single_outputs.contains(value)
+    }
+
+    /// Stop tracking outputs which are never used, and resolve the calls which have
+    /// nothing left to constrain. See [`TaintedDescendants::drop_unused_outputs`].
+    fn drop_unused_outputs(&mut self, uses: &HashSet<ValueId>) {
         for (index, call) in self.calls.iter_mut().enumerate() {
-            call.drop_unread_elements(other_uses);
+            call.drop_unused_outputs(uses);
             if call.is_fully_constrained() {
                 self.unresolved.remove(index);
             }
@@ -924,10 +935,10 @@ impl Context {
         func: &Function,
         all_functions: &BTreeMap<FunctionId, Function>,
     ) -> Self {
-        // Array outputs of tainted calls which are used other than by reading their tracked
-        // elements at constant indices. The elements of the other array outputs which are
-        // never read can be ignored.
-        let mut array_other_uses = HashSet::default();
+        // Single outputs of tainted calls which are used, and array outputs which are used
+        // other than by reading their tracked elements at constant indices. The other single
+        // outputs, and the elements of the other array outputs which are never read, can be ignored.
+        let mut output_uses = HashSet::default();
 
         // Traverse in Reverse Post Order, ie. top-down.
         for block_id in self.post_order.clone().into_iter().rev() {
@@ -960,13 +971,13 @@ impl Context {
                 } else {
                     false
                 };
-                if !is_tracked_read {
-                    instruction.for_each_value(|value| {
-                        if self.tainted.is_array_output(&value) {
-                            array_other_uses.insert(value);
-                        }
-                    });
-                }
+                instruction.for_each_value(|value| {
+                    if self.tainted.is_single_output(&value)
+                        || !is_tracked_read && self.tainted.is_array_output(&value)
+                    {
+                        output_uses.insert(value);
+                    }
+                });
 
                 if !results.is_empty() {
                     // Extend the values we are looking to constrain, as long as we will
@@ -1037,14 +1048,15 @@ impl Context {
 
             if let Some(terminator) = func.dfg[block_id].terminator() {
                 terminator.for_each_value(|value| {
-                    if self.tainted.is_array_output(&value) {
-                        array_other_uses.insert(value);
+                    if self.tainted.is_single_output(&value) || self.tainted.is_array_output(&value)
+                    {
+                        output_uses.insert(value);
                     }
                 });
             }
         }
 
-        self.tainted.drop_unread_elements(&array_other_uses);
+        self.tainted.drop_unused_outputs(&output_uses);
 
         self
     }
@@ -1419,7 +1431,7 @@ mod tests {
             v5, v6 = call f1(v0) -> (u32, u32)
             v7 = mul v5, v5
             constrain v7 == v0
-            return
+            return v6
         }
 
         brillig(inline) fn factor f1 {
@@ -2458,5 +2470,31 @@ mod tests {
 
         let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
         assert_eq!(ssa_level_warnings.len(), 1);
+    }
+
+    #[test]
+    #[traced_test]
+    /// Test where one of the results of a call is never used, so it needs no constraint.
+    fn test_unused_single_output() {
+        let program = r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v2, v3 = call f1(v0) -> (u1, [Field; 2])
+            v5 = array_get v3, index u32 0 -> Field
+            constrain v5 == v0
+            v7 = array_get v3, index u32 1 -> Field
+            constrain v7 == v0
+            return v7
+        }
+
+        brillig(inline) fn with_flag f1 {
+          b0(v0: Field):
+            v1 = make_array [v0, v0] : [Field; 2]
+            return u1 0, v1
+        }
+        "#;
+
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
+        assert_eq!(ssa_level_warnings.len(), 0);
     }
 }
