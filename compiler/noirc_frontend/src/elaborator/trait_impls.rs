@@ -1,5 +1,6 @@
 //! Trait implementation collection, method matching, and coherence checking.
 
+use std::collections::BTreeSet;
 use std::rc::Rc;
 
 use crate::{
@@ -497,6 +498,50 @@ impl Elaborator<'_> {
         }
     }
 
+    /// `where_clause` together with every parent-trait bound it implies, transitively and
+    /// instantiated for each bound's type (`T: Child` also gives `T: Parent<..>`).
+    fn with_implied_parent_bounds(&self, where_clause: &[TraitConstraint]) -> Vec<TraitConstraint> {
+        let mut constraints = where_clause.to_vec();
+        let mut seen: BTreeSet<(Type, TraitId, Vec<Type>)> = constraints
+            .iter()
+            .map(|c| {
+                (
+                    c.typ.clone(),
+                    c.trait_bound.trait_id,
+                    c.trait_bound.trait_generics.ordered.clone(),
+                )
+            })
+            .collect();
+
+        let mut index = 0;
+        while index < constraints.len() {
+            let constraint = constraints[index].clone();
+            index += 1;
+
+            let Some(the_trait) = self.interner.try_get_trait(constraint.trait_bound.trait_id)
+            else {
+                continue;
+            };
+            let parent_bounds: Vec<_> = the_trait.parent_bounds().collect();
+            for parent_bound in &parent_bounds {
+                let trait_bound = self.instantiate_parent_trait_bound(
+                    &constraint.typ,
+                    &constraint.trait_bound,
+                    parent_bound,
+                );
+                let key = (
+                    constraint.typ.clone(),
+                    trait_bound.trait_id,
+                    trait_bound.trait_generics.ordered.clone(),
+                );
+                if seen.insert(key) {
+                    constraints.push(TraitConstraint { typ: constraint.typ.clone(), trait_bound });
+                }
+            }
+        }
+        constraints
+    }
+
     #[tracing::instrument(level = "trace", skip_all)]
     fn check_where_clause_against_trait(
         &mut self,
@@ -564,6 +609,7 @@ impl Elaborator<'_> {
             ));
         }
 
+        let trait_impl_where_clause = self.with_implied_parent_bounds(trait_impl_where_clause);
         for override_trait_constraint in override_meta.trait_constraints.clone() {
             let override_constraint_is_from_impl =
                 trait_impl_where_clause.iter().any(|impl_constraint| {
