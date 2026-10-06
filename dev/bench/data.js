@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791284695065,
+  "lastUpdate": 1791284697833,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -25083,105 +25083,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "ee3e1aef7b659e3c550b8a78012c5112ee1a8de3",
-          "message": "fix(ownership): compute moves with backward liveness (#13781)\n\nCo-authored-by: Centaur Agent <centaur@aztecprotocol.com>",
-          "timestamp": "2026-09-25T13:10:13Z",
-          "tree_id": "f1286c66c70b4b4265d1cad2e48ce56f54838416",
-          "url": "https://github.com/noir-lang/noir/commit/ee3e1aef7b659e3c550b8a78012c5112ee1a8de3"
-        },
-        "date": 1790343644288,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1104.8,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 2610,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 2058.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-no-txs",
-            "value": 442,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 471.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 583.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 439.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 30785.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 30839.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 474.5,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 4563,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 4827.1,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 248,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 502.9,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 450,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "581508fd56454541bf6fa9fc840ef24fdbddef7d",
           "message": "fix(frontend): only mark a lambda unconstrained when it is itself an unconstrained call's argument (#13785)",
           "timestamp": "2026-09-25T14:33:58Z",
@@ -29941,6 +29842,105 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/637d8e7ab1c50d8f66fee186d4b47dd0fe0230f2"
         },
         "date": 1791283159816,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1107.7,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 2615.8,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2061.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-no-txs",
+            "value": 443.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 473.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 585.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 441.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 30787.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 30842.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 476.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 4564.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 4829,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 249.9,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 502.9,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 450,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "987955c48ffa1e92fa1db3c6da19d42476aa0039",
+          "message": "fix(ssa): track every field of Brillig array outputs of tuples (#13880)",
+          "timestamp": "2026-10-06T10:32:16Z",
+          "tree_id": "68cdf18c4d008ddfd5b20491d2c6a6854233271f",
+          "url": "https://github.com/noir-lang/noir/commit/987955c48ffa1e92fa1db3c6da19d42476aa0039"
+        },
+        "date": 1791284597925,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
