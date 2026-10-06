@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791292296407,
+  "lastUpdate": 1791296094061,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22966,48 +22966,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "163862677+noirwhal@users.noreply.github.com",
-            "name": "noirwhal",
-            "username": "noirwhal"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "7e34642df6e6f71b692dfdf101f86aeab40733cf",
-          "message": "chore: bump external pinned commits (#13793)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
-          "timestamp": "2026-09-28T11:31:49+01:00",
-          "tree_id": "4f16d7b5ba2a14fe0b604d29afbe31d416468efb",
-          "url": "https://github.com/noir-lang/noir/commit/7e34642df6e6f71b692dfdf101f86aeab40733cf"
-        },
-        "date": 1790591669027,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 168300,
-            "range": "± 288",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 137026,
-            "range": "± 4277",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2646860,
-            "range": "± 20252",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49558828+AztecBot@users.noreply.github.com",
             "name": "Aztec Bot",
             "username": "AztecBot"
@@ -25059,6 +25017,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2652265,
             "range": "± 1862",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "e2943d35e15d83c91ecd0290438a325c53e0cd24",
+          "message": "chore: align Dependabot npm cooldown with yarn's npmMinimalAgeGate (#13896)",
+          "timestamp": "2026-10-06T13:49:53Z",
+          "tree_id": "31415bf7b2a467f26a49e97fa4dc6f49be77c014",
+          "url": "https://github.com/noir-lang/noir/commit/e2943d35e15d83c91ecd0290438a325c53e0cd24"
+        },
+        "date": 1791295973751,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 98774,
+            "range": "± 811",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 87311,
+            "range": "± 1417",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2360322,
+            "range": "± 1590",
             "unit": "ns/iter"
           }
         ]
