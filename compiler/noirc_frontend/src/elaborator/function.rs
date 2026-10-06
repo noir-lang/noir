@@ -340,10 +340,9 @@ impl Elaborator<'_> {
             self.resolve_trait_constraints_and_add_to_scope(&func.def.where_clause);
 
         // Add constraints for parent traits that have associated types.
-        let (parent_generics, parent_constraints) =
+        let (parent_generics, implied_trait_constraints) =
             self.add_parent_associated_type_constraints(&trait_constraints);
         generics.extend(parent_generics);
-        trait_constraints.extend(parent_constraints);
 
         let mut extra_trait_constraints =
             vecmap(extra_trait_constraints, |(constraint, _)| constraint.clone());
@@ -415,7 +414,10 @@ impl Elaborator<'_> {
 
         // Remove the traits assumed by `resolve_trait_constraints` from scope
         self.remove_trait_constraints_from_scope(
-            trait_constraints.iter().chain(extra_trait_constraints.iter()),
+            trait_constraints
+                .iter()
+                .chain(implied_trait_constraints.iter())
+                .chain(extra_trait_constraints.iter()),
         );
 
         let meta = FuncMeta {
@@ -436,6 +438,7 @@ impl Elaborator<'_> {
             return_visibility: func.def.return_visibility,
             return_visibility_location: func.def.return_visibility_location,
             trait_constraints,
+            implied_trait_constraints,
             extra_trait_constraints,
             is_entry_point,
             has_inline_attribute: func.has_inline_attribute(),

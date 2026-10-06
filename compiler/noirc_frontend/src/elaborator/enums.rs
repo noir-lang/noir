@@ -408,6 +408,7 @@ impl Elaborator<'_> {
             all_generics: datatype_ref.generics.clone(),
             location,
             trait_constraints: Vec::new(),
+            implied_trait_constraints: Vec::new(),
             extra_trait_constraints: Vec::new(),
             type_id: Some(type_id),
             trait_id: None,

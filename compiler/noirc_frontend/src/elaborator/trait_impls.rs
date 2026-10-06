@@ -1,6 +1,5 @@
 //! Trait implementation collection, method matching, and coherence checking.
 
-use std::collections::BTreeSet;
 use std::rc::Rc;
 
 use crate::{
@@ -8,7 +7,7 @@ use crate::{
     ast::{GenericTypeArgs, Ident, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
     elaborator::{
         PathResolutionMode, WildcardDisallowedContext,
-        types::{WildcardAllowed, bind_ordered_generics, bound_key},
+        types::{WildcardAllowed, bind_ordered_generics},
     },
     hir::{
         def_collector::{
@@ -498,24 +497,6 @@ impl Elaborator<'_> {
         }
     }
 
-    /// `where_clause` together with every parent-trait bound it implies, transitively and
-    /// instantiated for each bound's type (`T: Child` also gives `T: Parent<..>`).
-    fn with_implied_parent_bounds(&self, where_clause: &[TraitConstraint]) -> Vec<TraitConstraint> {
-        let mut constraints = where_clause.to_vec();
-        for constraint in where_clause {
-            let mut seen = BTreeSet::from([bound_key(&constraint.trait_bound)]);
-            let parents =
-                self.implied_parent_bounds(&constraint.typ, &constraint.trait_bound, &mut seen);
-            constraints.extend(
-                parents.into_iter().map(|trait_bound| TraitConstraint {
-                    typ: constraint.typ.clone(),
-                    trait_bound,
-                }),
-            );
-        }
-        constraints
-    }
-
     #[tracing::instrument(level = "trace", skip_all)]
     fn check_where_clause_against_trait(
         &mut self,
@@ -556,9 +537,10 @@ impl Elaborator<'_> {
             }
         }
 
+        let override_constraints: Vec<_> = override_meta.own_trait_constraints().cloned().collect();
         bindings.extend(pair_implicit_associated_generics(
             &method.trait_constraints,
-            &override_meta.trait_constraints,
+            &override_constraints,
             &bindings,
         ));
 
@@ -583,7 +565,8 @@ impl Elaborator<'_> {
             ));
         }
 
-        let trait_impl_where_clause = self.with_implied_parent_bounds(trait_impl_where_clause);
+        // Only the constraints the impl method writes can make it stricter than the trait: the
+        // implied ones follow from a written one, here or in the impl's where clause.
         for override_trait_constraint in override_meta.trait_constraints.clone() {
             let override_constraint_is_from_impl =
                 trait_impl_where_clause.iter().any(|impl_constraint| {

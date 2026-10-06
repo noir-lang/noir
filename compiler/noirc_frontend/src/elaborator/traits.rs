@@ -1198,7 +1198,7 @@ impl Elaborator<'_> {
         let arguments = vecmap(&func_meta.parameters.0, |(_, typ, _)| typ.clone());
         let return_type = func_meta.return_type().clone();
         let generics = vecmap(&func_meta.all_generics, |generic| generic.type_var.clone());
-        let trait_constraints = func_meta.trait_constraints.clone();
+        let trait_constraints = func_meta.own_trait_constraints().cloned().collect();
         let direct_generics = func_meta.direct_generics.clone();
         let is_unconstrained = func_meta.is_unconstrained();
         let no_environment = Box::new(Type::Unit);
@@ -1428,7 +1428,7 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
         // the trait method's signature matches the impl method's already-normalized signature.
         // This handles cases the `original_type_var_id` shortcut below cannot, since that shortcut
         // assumes the projection's object is `Self` rather than a further associated type.
-        for constraint in &trait_fn_meta.trait_constraints {
+        for constraint in trait_fn_meta.own_trait_constraints() {
             let object_type = constraint.typ.substitute(&bindings);
             let trait_bound = &constraint.trait_bound;
             let ordered = vecmap(&trait_bound.trait_generics.ordered, |generic| {
