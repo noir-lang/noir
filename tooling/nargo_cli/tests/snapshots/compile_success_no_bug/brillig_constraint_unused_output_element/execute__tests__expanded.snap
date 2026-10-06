@@ -1,0 +1,14 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn hints_helper(x: u32) -> [u32; 2] {
+    [0_u32, x]
+}
+
+fn main(x: u32) -> pub u32 {
+    // Safety: comment added by `nargo expand`
+    let hints: [u32; 2] = unsafe { hints_helper(x) };
+    assert(hints[1_u32] == x);
+    hints[1_u32]
+}

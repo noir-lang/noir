@@ -46,6 +46,7 @@ use crate::ssa::ir::dfg::DataFlowGraph;
 use crate::ssa::ir::function::{Function, FunctionId};
 use crate::ssa::ir::instruction::{Instruction, InstructionId, Intrinsic};
 use crate::ssa::ir::post_order::PostOrder;
+use crate::ssa::ir::types::Type;
 use crate::ssa::ir::value::{Value, ValueId};
 use crate::ssa::ssa_gen::Ssa;
 use acvm::AcirField;
@@ -125,6 +126,34 @@ impl ValueSet {
         for value in values {
             self.insert(*value);
         }
+    }
+}
+
+/// The Brillig outputs shown to be constrained so far, and values derived from them.
+#[derive(Debug)]
+struct ConstrainedValues {
+    /// Values of which at least some part has been constrained.
+    ///
+    /// Membership does not mean the whole value is constrained: an array output longer than
+    /// the tracked length is added once any one of its items is constrained, and so is an
+    /// item which is itself an array, once any one of its own items is.
+    values: ValueSet,
+    /// Array outputs of numeric items, every one of which has been constrained.
+    ///
+    /// A value read from one of these at a dynamic index is constrained, whichever item it is.
+    arrays: ValueSet,
+}
+
+impl ConstrainedValues {
+    fn new(dfg: &DataFlowGraph) -> Self {
+        Self { values: ValueSet::new(dfg), arrays: ValueSet::new(dfg) }
+    }
+
+    /// Whether the value at the center of the ball has been constrained, either through one of
+    /// its ancestors or by being read from a fully constrained array.
+    fn covers(&self, ball: &Ball) -> bool {
+        ball.any(|value| self.values.contains(value) || self.arrays.contains(value))
+            || ball.read_arrays.iter().any(|array| self.arrays.contains(array))
     }
 }
 
@@ -210,6 +239,14 @@ struct AncestryGraph {
     /// If `v1` and `v2` are equivalent, any ancestor of `v1` is also an ancestor of `v2`
     /// and vice versa. BFS follows these edges alongside `parents` edges.
     equivalences: HashMap<ValueId, Vec<ValueId>>,
+
+    /// The array of each tracked value read from an array at a dynamic index.
+    ///
+    /// The array is not a parent of such a value (see [`parent_arguments`]), so that a
+    /// constraint on it does not appear to constrain every item of the array. The value is
+    /// still derived from the array, though: if every item of the array is constrained,
+    /// so is the value.
+    read_arrays: HashMap<ValueId, ValueId>,
 }
 
 impl AncestryGraph {
@@ -247,6 +284,12 @@ impl AncestryGraph {
     fn add_equivalence(&mut self, v1: ValueId, v2: ValueId) {
         self.equivalences.entry(v1).or_default().push(v2);
         self.equivalences.entry(v2).or_default().push(v1);
+    }
+
+    /// Record that `value` was read from `array` at a dynamic index, and start tracking the array.
+    fn add_read_array(&mut self, value: ValueId, array: ValueId) {
+        self.read_arrays.insert(value, array);
+        self.track(array);
     }
 
     /// Traverse the values reachable (inclusive) from any of the `starts` by following
@@ -314,7 +357,9 @@ impl AncestryGraph {
             d <= max_ancestor_distance
         });
         let set = values.iter().copied().collect();
-        Ball { values, set }
+        let read_arrays =
+            values.iter().filter_map(|value| self.read_arrays.get(value).copied()).collect();
+        Ball { values, set, read_arrays }
     }
 }
 
@@ -330,6 +375,9 @@ impl AncestryGraph {
 struct Ball {
     values: Vec<ValueId>,
     set: HashSet<ValueId>,
+    /// The arrays which values in the ball were read from at a dynamic index.
+    /// Used to tell whether a tainted value has been constrained.
+    read_arrays: Vec<ValueId>,
 }
 
 impl Ball {
@@ -359,12 +407,16 @@ struct TaintedDescendants {
     /// To consider the output constrained, we have to find a constraint such that
     /// the output is an ancestor of the constrained value.
     single_outputs: HashSet<ValueId>,
-    /// Array outputs of the call, tracked per index, accumulating their individual
+    /// Array outputs of the call, tracked per flattened index, accumulating their individual
     /// dependencies (only the values read from the array).
     ///
     /// To consider an element constrained, we have to find a constraint such that
     /// the constrained value appears in the descendants.
     array_outputs: HashMap<ValueId, HashMap<u32, HashSet<ValueId>>>,
+    /// The array outputs whose items are numeric values, as opposed to arrays.
+    ///
+    /// Once every index of one of these is constrained, every value in it is.
+    numeric_array_outputs: HashSet<ValueId>,
     /// The union of all values reachable from any argument by following parents and
     /// equivalences backwards. Includes the arguments themselves.
     ///
@@ -387,17 +439,26 @@ impl TaintedDescendants {
     ) -> Self {
         let mut single_outputs = HashSet::default();
         let mut array_outputs = HashMap::default();
+        let mut numeric_array_outputs = HashSet::default();
         for result_id in result_ids {
             match func.dfg.try_get_array_length(*result_id) {
                 // If the result value is an array, create an empty descendant set for
-                // every element to be accessed further on and record the indices
-                // of the resulting sets for future reference
+                // every item to be accessed further on and record the indices
+                // of the resulting sets for future reference.
+                //
+                // Arrays of tuples are read with flattened indices (`item * fields + field`),
+                // so every field of every item gets its own index.
                 Some(length) if length.0 > 0 && length.0 <= max_array_output_length => {
+                    let typ = func.dfg.type_of_value(*result_id);
+                    let fields = typ.element_size().0;
                     let mut index_outputs = HashMap::default();
-                    for i in 0..length.0 {
+                    for i in 0..length.0 * fields {
                         index_outputs.insert(i, HashSet::default());
                     }
                     array_outputs.insert(*result_id, index_outputs);
+                    if typ.element_types().iter().all(Type::is_numeric) {
+                        numeric_array_outputs.insert(*result_id);
+                    }
                 }
                 // For very large arrays or non-arrays, treat the whole result as a single value
                 // to avoid memory/time issues when tracking individual elements
@@ -412,6 +473,7 @@ impl TaintedDescendants {
             arguments,
             single_outputs,
             array_outputs,
+            numeric_array_outputs,
             arg_ancestors: HashSet::default(),
         }
     }
@@ -436,7 +498,7 @@ impl TaintedDescendants {
     ///
     /// `balls` holds the [`Ball`] of each of the `constrained_values`, in the same order.
     ///
-    /// Any constrained output is added to the `all_constrained` set.
+    /// Any constrained output is added to `all_constrained`.
     ///
     /// Returns `true` if at least one output was cleared by this call. Each output is
     /// cleared at most once (it is removed from its set when cleared), so this reflects
@@ -447,7 +509,7 @@ impl TaintedDescendants {
         constrained_values: &[ValueId],
         balls: &[Ball],
         all_tainted: &ValueSet,
-        all_constrained: &mut ValueSet,
+        all_constrained: &mut ConstrainedValues,
     ) -> bool {
         let is_against_const = constrained_values.len() == 1;
         let is_const_args = self.arguments.is_empty();
@@ -469,7 +531,7 @@ impl TaintedDescendants {
             let constrained = balls.iter().any(|ball| ball.contains(output));
 
             if constrained {
-                all_constrained.insert(*output);
+                all_constrained.values.insert(*output);
                 progressed = true;
             }
 
@@ -495,7 +557,7 @@ impl TaintedDescendants {
                     balls.iter().any(|ball| descendants.iter().any(|value| ball.contains(value)));
 
                 if constrained {
-                    all_constrained.extend(descendants.iter());
+                    all_constrained.values.extend(descendants.iter());
                     progressed = true;
                 }
 
@@ -503,7 +565,19 @@ impl TaintedDescendants {
             });
 
             // Keep the array until all indexed items have been constrained.
-            !index_outputs.is_empty()
+            if index_outputs.is_empty() {
+                // Once all its items are constrained, the array as a whole is constrained too,
+                // which matters when it is passed on whole, for example into another call,
+                // or read at a dynamic index.
+                // An item which is an array is cleared once any one of its own items is
+                // constrained, so an array of arrays may still hold unconstrained values.
+                if self.numeric_array_outputs.contains(array) {
+                    all_constrained.arrays.insert(*array);
+                }
+                false
+            } else {
+                true
+            }
         });
 
         progressed
@@ -517,7 +591,7 @@ impl TaintedDescendants {
         constrained_values: &[ValueId],
         balls: &[Ball],
         all_tainted: &ValueSet,
-        all_constrained: &ValueSet,
+        all_constrained: &ConstrainedValues,
     ) -> bool {
         for (cv, ball) in constrained_values.iter().zip(balls) {
             // We want to avoid using tainted inputs to constrain Brillig outputs.
@@ -528,7 +602,7 @@ impl TaintedDescendants {
             if all_tainted.contains(cv)
                 && (
                     // Tainted and hasn't been constrained.
-                    !ball.any(|a| all_constrained.contains(a))
+                    !all_constrained.covers(ball)
                     // Tainted because it's the output of this call itself.
                     || self.single_outputs.iter().any(|output| ball.contains(output))
                     || self.array_outputs.keys().any(|array| ball.contains(array))
@@ -550,14 +624,32 @@ impl TaintedDescendants {
     /// This is only called when we read from an array. Later on we can use the
     /// ancestry information to connect constrained values back to values we read
     /// from the array.
-    fn extend_array_result(&mut self, array: ValueId, index: u32, results: &[ValueId]) {
+    ///
+    /// Returns `false` if the element is not tracked.
+    fn extend_array_result(&mut self, array: ValueId, index: u32, results: &[ValueId]) -> bool {
         let Some(index_outputs) = self.array_outputs.get_mut(&array) else {
-            return;
+            return false;
         };
         let Some(descendants) = index_outputs.get_mut(&index) else {
-            return;
+            return false;
         };
         descendants.extend(results);
+        true
+    }
+
+    /// Stop tracking outputs which are never used: single outputs which are not in `uses`,
+    /// and the elements of array outputs which are never read, unless the array is in `uses`
+    /// (it is used in any other way than reading its tracked elements at constant indices).
+    ///
+    /// An output which is never used cannot affect the circuit, so there is nothing to constrain.
+    fn drop_unused_outputs(&mut self, uses: &HashSet<ValueId>) {
+        self.single_outputs.retain(|output| uses.contains(output));
+        self.array_outputs.retain(|array, index_outputs| {
+            if !uses.contains(array) {
+                index_outputs.retain(|_, descendants| !descendants.is_empty());
+            }
+            !index_outputs.is_empty()
+        });
     }
 }
 
@@ -668,6 +760,9 @@ struct TaintedCalls {
     /// The call that each tracked array output belongs to.
     array_output_owner: HashMap<ValueId, TaintedIndex>,
 
+    /// The single (not tracked per item) outputs of the calls.
+    single_outputs: HashSet<ValueId>,
+
     /// Calls which still have unconstrained outputs.
     unresolved: TaintedSet,
 }
@@ -679,6 +774,7 @@ impl TaintedCalls {
         for array in tainted.array_outputs.keys() {
             self.array_output_owner.insert(*array, index);
         }
+        self.single_outputs.extend(tainted.single_outputs.iter().copied());
         self.by_instruction.insert(tainted.instruction_id, index);
         self.unresolved.insert(index);
         self.calls.push(tainted);
@@ -699,9 +795,32 @@ impl TaintedCalls {
     }
 
     /// Add to the descendants of an element of an array output, if the array is tracked.
-    fn extend_array_result(&mut self, array: ValueId, index: u32, results: &[ValueId]) {
-        if let Some(owner) = self.array_output_owner.get(&array) {
-            self.calls[*owner].extend_array_result(array, index, results);
+    ///
+    /// Returns `false` if the element is not tracked.
+    fn extend_array_result(&mut self, array: ValueId, index: u32, results: &[ValueId]) -> bool {
+        self.array_output_owner
+            .get(&array)
+            .is_some_and(|owner| self.calls[*owner].extend_array_result(array, index, results))
+    }
+
+    /// Whether a value is an array output of a tainted call, tracked per item.
+    fn is_array_output(&self, value: &ValueId) -> bool {
+        self.array_output_owner.contains_key(value)
+    }
+
+    /// Whether a value is a single output of a tainted call.
+    fn is_single_output(&self, value: &ValueId) -> bool {
+        self.single_outputs.contains(value)
+    }
+
+    /// Stop tracking outputs which are never used, and resolve the calls which have
+    /// nothing left to constrain. See [`TaintedDescendants::drop_unused_outputs`].
+    fn drop_unused_outputs(&mut self, uses: &HashSet<ValueId>) {
+        for (index, call) in self.calls.iter_mut().enumerate() {
+            call.drop_unused_outputs(uses);
+            if call.is_fully_constrained() {
+                self.unresolved.remove(index);
+            }
         }
     }
 
@@ -718,7 +837,7 @@ impl TaintedCalls {
         constrained_values: &[ValueId],
         balls: &[Ball],
         all_tainted: &ValueSet,
-        all_constrained: &mut ValueSet,
+        all_constrained: &mut ConstrainedValues,
     ) -> bool {
         let tainted = &mut self.calls[index];
         let progressed =
@@ -820,6 +939,12 @@ impl Context {
 
                     self.graph.add_parents(*result_id, args);
 
+                    if let Instruction::ArrayGet { array, index } = instruction
+                        && func.dfg.get_numeric_constant(*index).is_none()
+                    {
+                        self.graph.add_read_array(*result_id, *array);
+                    }
+
                     // Add the active side-effect condition as an additional parent so that
                     // BFS can reach the condition's ancestors from this result.
                     if let Some(&se) = side_effect_at.get(instruction_id) {
@@ -886,6 +1011,11 @@ impl Context {
         func: &Function,
         all_functions: &BTreeMap<FunctionId, Function>,
     ) -> Self {
+        // Single outputs of tainted calls which are used, and array outputs which are used
+        // other than by reading their tracked elements at constant indices. The other single
+        // outputs, and the elements of the other array outputs which are never read, can be ignored.
+        let mut output_uses = HashSet::default();
+
         // Traverse in Reverse Post Order, ie. top-down.
         for block_id in self.post_order.clone().into_iter().rev() {
             // Track the current side effect variable, unless it's a constant.
@@ -906,17 +1036,26 @@ impl Context {
 
                 // Extend the descendants of Brillig calls.
                 // This is only required for array output; for single outputs we can look at the ancestry.
-                if !results.is_empty() {
-                    // Look for ArrayGet instructions with a constant index,
-                    // and if the array is the result of a tainted call,
-                    // then add the result as a descendant of that particular index.
-                    if let Instruction::ArrayGet { array, index } = instruction
-                        && let Some(index) = func.dfg.get_numeric_constant(*index)
-                        && let Some(index) = index.try_to_u32()
+                // Look for ArrayGet instructions with a constant index,
+                // and if the array is the result of a tainted call,
+                // then add the result as a descendant of that particular index.
+                let is_tracked_read = if let Instruction::ArrayGet { array, index } = instruction
+                    && let Some(index) = func.dfg.get_numeric_constant(*index)
+                    && let Some(index) = index.try_to_u32()
+                {
+                    self.tainted.extend_array_result(*array, index, &results)
+                } else {
+                    false
+                };
+                instruction.for_each_value(|value| {
+                    if self.tainted.is_single_output(&value)
+                        || !is_tracked_read && self.tainted.is_array_output(&value)
                     {
-                        self.tainted.extend_array_result(*array, index, &results);
+                        output_uses.insert(value);
                     }
+                });
 
+                if !results.is_empty() {
                     // Extend the values we are looking to constrain, as long as we will
                     // not exceed the traversal limit to reach them.
                     self.constrainable.extend(&arguments, &results, self.max_ancestor_distance);
@@ -982,7 +1121,18 @@ impl Context {
                         (!is_numeric_constant(func, *condition)).then_some(*condition);
                 }
             }
+
+            if let Some(terminator) = func.dfg[block_id].terminator() {
+                terminator.for_each_value(|value| {
+                    if self.tainted.is_single_output(&value) || self.tainted.is_array_output(&value)
+                    {
+                        output_uses.insert(value);
+                    }
+                });
+            }
         }
+
+        self.tainted.drop_unused_outputs(&output_uses);
 
         self
     }
@@ -999,7 +1149,7 @@ impl Context {
         // function stays constrained, so a later constraint can rely on it regardless
         // of the source order of the two assertions. This is what makes the check
         // order-independent and requires iterating to a fixed point below.
-        let mut all_constrained = ValueSet::new(&func.dfg);
+        let mut all_constrained = ConstrainedValues::new(&func.dfg);
 
         loop {
             let progressed =
@@ -1070,7 +1220,7 @@ impl Context {
         &mut self,
         events: &[Event],
         all_tainted: &ValueSet,
-        all_constrained: &mut ValueSet,
+        all_constrained: &mut ConstrainedValues,
     ) -> bool {
         // Skip checks until we encounter the tainted instruction.
         let mut active = TaintedSet::default();
@@ -1103,7 +1253,7 @@ impl Context {
         constrained_values: &[ValueId],
         active: &TaintedSet,
         all_tainted: &ValueSet,
-        all_constrained: &mut ValueSet,
+        all_constrained: &mut ConstrainedValues,
     ) -> bool {
         let mut candidates = self.constrainable.owners_of(constrained_values);
         candidates.intersect_with(active);
@@ -1254,6 +1404,9 @@ fn instruction_results(func: &Function, instruction_id: &InstructionId) -> Vec<V
 }
 
 #[cfg(test)]
+mod array_output_cases;
+
+#[cfg(test)]
 mod tests {
     use crate::ssa::{
         Ssa,
@@ -1357,7 +1510,7 @@ mod tests {
             v5, v6 = call f1(v0) -> (u32, u32)
             v7 = mul v5, v5
             constrain v7 == v0
-            return
+            return v6
         }
 
         brillig(inline) fn factor f1 {
@@ -1551,9 +1704,10 @@ mod tests {
             v16 = call f1(v0) -> [u32; 3]
             v17 = array_get v16, index u32 0 -> u32
             constrain v17 == v0
+            v18 = array_get v16, index u32 1 -> u32
             v19 = array_get v16, index u32 2 -> u32
             constrain v19 == v0
-            return v17
+            return v18
         }
 
         brillig(inline) fn into_array f1 {
@@ -2256,6 +2410,168 @@ mod tests {
         return v0, v0
     }
     "#;
+
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
+        assert_eq!(ssa_level_warnings.len(), 0);
+    }
+
+    #[test]
+    #[traced_test]
+    /// Test where an array of tuples is returned and only the first item is constrained.
+    /// Reads use flattened indices, so the second item is at indices 2 and 3.
+    fn test_brillig_result_array_of_tuples_missing_item_constraint() {
+        let program = r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v2 = call f1(v0) -> [(Field, Field); 2]
+            v4 = array_get v2, index u32 0 -> Field
+            constrain v4 == v0
+            v6 = array_get v2, index u32 1 -> Field
+            constrain v6 == v0
+            v8 = array_get v2, index u32 2 -> Field
+            v10 = array_get v2, index u32 3 -> Field
+            v11 = add v8, v10
+            return v11
+        }
+
+        brillig(inline) fn pairs f1 {
+          b0(v0: Field):
+            v1 = make_array [v0, v0, v0, v0] : [(Field, Field); 2]
+            return v1
+        }
+        "#;
+
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
+        assert_eq!(ssa_level_warnings.len(), 1);
+    }
+
+    #[test]
+    #[traced_test]
+    /// Test where every field of every item of an array of tuples is constrained.
+    fn test_brillig_result_array_of_tuples_all_items_constrained() {
+        let program = r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v2 = call f1(v0) -> [(Field, Field); 2]
+            v4 = array_get v2, index u32 0 -> Field
+            constrain v4 == v0
+            v6 = array_get v2, index u32 1 -> Field
+            constrain v6 == v0
+            v8 = array_get v2, index u32 2 -> Field
+            constrain v8 == v0
+            v10 = array_get v2, index u32 3 -> Field
+            constrain v10 == v0
+            v11 = add v8, v10
+            return v11
+        }
+
+        brillig(inline) fn pairs f1 {
+          b0(v0: Field):
+            v1 = make_array [v0, v0, v0, v0] : [(Field, Field); 2]
+            return v1
+        }
+        "#;
+
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
+        assert_eq!(ssa_level_warnings.len(), 0);
+    }
+
+    #[test]
+    #[traced_test]
+    /// Test where an element of an array output is never used, so it needs no constraint.
+    fn test_unread_array_output_element() {
+        let program = r#"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v2 = call f1(v0) -> [u32; 2]
+            v4 = array_get v2, index u32 1 -> u32
+            constrain v4 == v0
+            return v4
+        }
+
+        brillig(inline) fn hints f1 {
+          b0(v0: u32):
+            v2 = make_array [u32 0, v0] : [u32; 2]
+            return v2
+        }
+        "#;
+
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
+        assert_eq!(ssa_level_warnings.len(), 0);
+    }
+
+    #[test]
+    #[traced_test]
+    /// Test where an element of an array output is not read at a constant index,
+    /// but the array is also read at a dynamic index, which could read that element.
+    fn test_array_output_element_read_at_dynamic_index() {
+        let program = r#"
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+            v3 = call f1(v0) -> [u32; 2]
+            v5 = array_get v3, index u32 1 -> u32
+            constrain v5 == v0
+            v6 = array_get v3, index v1 -> u32
+            return v6
+        }
+
+        brillig(inline) fn hints f1 {
+          b0(v0: u32):
+            v2 = make_array [u32 0, v0] : [u32; 2]
+            return v2
+        }
+        "#;
+
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
+        assert_eq!(ssa_level_warnings.len(), 1);
+    }
+
+    #[test]
+    #[traced_test]
+    /// Test where an element of an array output is not read at a constant index,
+    /// but the whole array is returned, so the element is used.
+    fn test_array_output_returned() {
+        let program = r#"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v2 = call f1(v0) -> [u32; 2]
+            v4 = array_get v2, index u32 1 -> u32
+            constrain v4 == v0
+            return v2
+        }
+
+        brillig(inline) fn hints f1 {
+          b0(v0: u32):
+            v2 = make_array [u32 0, v0] : [u32; 2]
+            return v2
+        }
+        "#;
+
+        let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
+        assert_eq!(ssa_level_warnings.len(), 1);
+    }
+
+    #[test]
+    #[traced_test]
+    /// Test where one of the results of a call is never used, so it needs no constraint.
+    fn test_unused_single_output() {
+        let program = r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v2, v3 = call f1(v0) -> (u1, [Field; 2])
+            v5 = array_get v3, index u32 0 -> Field
+            constrain v5 == v0
+            v7 = array_get v3, index u32 1 -> Field
+            constrain v7 == v0
+            return v7
+        }
+
+        brillig(inline) fn with_flag f1 {
+          b0(v0: Field):
+            v1 = make_array [v0, v0] : [Field; 2]
+            return u1 0, v1
+        }
+        "#;
 
         let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
         assert_eq!(ssa_level_warnings.len(), 0);

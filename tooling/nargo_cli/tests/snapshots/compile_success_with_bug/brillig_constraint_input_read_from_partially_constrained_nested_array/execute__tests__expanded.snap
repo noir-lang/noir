@@ -1,0 +1,23 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn copy_helper(x: [[Field; 2]; 1]) -> [[Field; 2]; 1] {
+    x
+}
+
+unconstrained fn half_helper(x: Field) -> Field {
+    x / 2_Field
+}
+
+fn main(x: [[Field; 2]; 1], i: u32) -> pub Field {
+    // Safety: comment added by `nargo expand`
+    let copy: [[Field; 2]; 1] = unsafe { copy_helper(x) };
+    let item: [Field; 2] = copy[0_u32];
+    assert(item[0_u32] == x[0_u32][0_u32]);
+    let value: Field = item[i];
+    // Safety: comment added by `nargo expand`
+    let half: Field = unsafe { half_helper(value) };
+    assert((half * 2_Field) == value);
+    half
+}
