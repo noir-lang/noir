@@ -10,8 +10,8 @@ nargo compile --program-dir <dir>
 noir-witness-mutator --artifact-path <dir>/target/<pkg>.json --prover-file <dir>/Prover.toml
 ```
 
-`--prover-file` is optional: a program whose `main` takes no parameters has nothing to supply, and
-is searched with an empty input map.
+`--prover-file` is optional and repeatable: a program whose `main` takes no parameters is searched
+with an empty input map, and `--inputs-dir <dir>` searches every `.toml` in a directory in turn.
 
 For a contract artifact, pick the function with `--contract-fn <name>`; the tool lists the
 available names if you leave it out. For a program that calls oracles, give it a host with
@@ -89,6 +89,32 @@ hint on `a + k*p` yields the outputs a dishonest prover would supply:
 
 This family is the only one that can supply every output of a call at once, which is what a
 many-limbed decomposition needs.
+
+## Driving it from a program
+
+`--json` emits the whole run as structured data: findings with their grade, call site, source
+location, strategy, blast radius and both witness values, plus per-site coverage and the run's
+status.
+
+Three parts of that output exist because a caller reading only "no second witness found" would draw
+a conclusion the run does not support:
+
+- **`status`** is `complete` or `truncated`. A truncated run stopped at `--max-candidates` with
+  candidates left over, so it has ruled nothing out. The two cases look identical in a findings list
+  and are not the same result.
+- **`coverage`** lists every hint call site with how many candidates were tried there. A site with
+  zero was never put under pressure, so silence about it means nothing.
+- **`caveats`** carries the limits as data rather than prose — inputs checked, truncated runs, sites
+  never exercised. A caller that summarises the run will repeat the structure it is given, so the
+  shape of the result has to include the shape of its limits.
+
+A finding is conclusive on its own: it names two assignments that both satisfy every constraint, and
+either can be re-checked without trusting the search that found them. The absence of findings never
+is.
+
+`--site f0:op12` and `--source-line src/main.nr:42` restrict the search to specific call sites,
+which spends the whole candidate budget on one suspicion rather than spreading it across the
+program.
 
 ## Oracle calls
 

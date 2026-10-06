@@ -22,7 +22,10 @@ use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use nargo::foreign_calls::{
     DefaultForeignCallBuilder, ForeignCallExecutor, layers, transcript::LoggingForeignCallExecutor,
 };
-use std::{collections::BTreeMap, path::PathBuf};
+use std::{
+    collections::{BTreeMap, HashSet},
+    path::PathBuf,
+};
 
 use crate::{
     hints::{HintSite, hint_sites, program_with_override},
@@ -79,6 +82,36 @@ impl Severity {
     }
 }
 
+/// Whether the search ran out of budget before it ran out of candidates.
+///
+/// A truncated run has ruled nothing out. Reporting it as a clean one is the single most harmful
+/// mistake a caller can make with this tool, so the distinction is a value rather than a log line.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RunStatus {
+    Complete,
+    Truncated,
+}
+
+impl RunStatus {
+    pub fn label(self) -> &'static str {
+        match self {
+            RunStatus::Complete => "complete",
+            RunStatus::Truncated => "truncated",
+        }
+    }
+}
+
+/// What the search actually did at one hint call site.
+///
+/// A site with no candidates was never put under any pressure, so silence about it means nothing.
+#[derive(Clone, Debug)]
+pub struct SiteCoverage {
+    pub label: String,
+    pub hint: String,
+    pub outputs: usize,
+    pub candidates_tried: usize,
+}
+
 /// A witness that differs from the honest one and still satisfies every constraint.
 #[derive(Clone, Debug)]
 pub struct Finding {
@@ -118,6 +151,10 @@ pub struct Report {
     pub has_return_values: bool,
     /// Oracle calls the honest run made, all of which the search answered from its recording.
     pub oracle_calls: usize,
+    /// Whether the candidate budget ran out before the candidates did.
+    pub status: RunStatus,
+    /// What was tried at each hint call site.
+    pub coverage: Vec<SiteCoverage>,
 }
 
 impl Report {
@@ -175,20 +212,29 @@ pub fn search(
     initial_witness: WitnessMap<FieldElement>,
     limit: usize,
     oracles: &OracleConfig,
+    only_opcodes: Option<&HashSet<usize>>,
 ) -> Result<Report, String> {
     let (honest, transcript) = honest_run(program, initial_witness.clone(), oracles)?;
 
-    let sites = hint_sites(program, 0, &honest);
+    let mut sites = hint_sites(program, 0, &honest);
+    if let Some(only) = only_opcodes {
+        sites.retain(|site| only.contains(&site.opcode_index));
+        if sites.is_empty() {
+            return Err("no hint call site matches the requested target".to_string());
+        }
+    }
     let known: BTreeMap<Witness, FieldElement> =
         honest.clone().into_iter().collect::<BTreeMap<_, _>>();
-    let candidates = candidates(&program.functions[0], &sites, &known, limit);
+    let (candidates, truncated) = candidates(&program.functions[0], &sites, &known, limit);
     let candidates_tried = candidates.len();
+    let mut tried_per_site = vec![0usize; sites.len()];
 
     let return_witnesses = &program.functions[0].return_values.0;
     let mut findings: Vec<Finding> = Vec::new();
 
     for candidate in candidates {
         let site = &sites[candidate.site_index];
+        tried_per_site[candidate.site_index] += 1;
         let modified = program_with_override(program, site, &candidate.values);
         let mut replay = Replay::new(transcript.clone());
         let Some(witness) = solve(&modified, initial_witness.clone(), &mut replay) else {
@@ -245,11 +291,24 @@ pub fn search(
     }
 
     findings.sort_by_key(|finding| (finding.severity(), finding.site.opcode_index));
+    let coverage = sites
+        .iter()
+        .zip(tried_per_site)
+        .map(|(site, candidates_tried)| SiteCoverage {
+            label: site.label(),
+            hint: site.kind.name().to_string(),
+            outputs: site.outputs.len(),
+            candidates_tried,
+        })
+        .collect();
+
     Ok(Report {
         findings,
         sites: sites.len(),
         candidates_tried,
         has_return_values: !return_witnesses.is_empty(),
         oracle_calls: transcript.len(),
+        status: if truncated { RunStatus::Truncated } else { RunStatus::Complete },
+        coverage,
     })
 }

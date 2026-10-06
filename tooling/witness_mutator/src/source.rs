@@ -3,7 +3,10 @@
 //! A finding is only actionable if the reader can see which line of the program produced the call,
 //! so the report resolves the call site through the artifact's debug symbols.
 
-use acir::circuit::AcirOpcodeLocation;
+use acir::{
+    FieldElement,
+    circuit::{AcirOpcodeLocation, Program},
+};
 use noirc_artifacts::program::CompiledProgram;
 
 /// `path:line` of the innermost source location the opcode came from.
@@ -20,4 +23,9 @@ pub fn location_of(
     let line = file.source[..location.span.start() as usize].lines().count().max(1);
 
     Some(format!("{}:{}", file.path.display(), line))
+}
+
+/// How many opcodes an ACIR function has, for walking call sites by index.
+pub fn opcode_count(program: &Program<FieldElement>, function_index: usize) -> usize {
+    program.functions.get(function_index).map_or(0, |function| function.opcodes.len())
 }

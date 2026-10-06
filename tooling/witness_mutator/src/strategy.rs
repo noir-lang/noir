@@ -82,14 +82,19 @@ fn candidate_values(
 }
 
 /// Every candidate for every site, in the order they will be tried.
+///
+/// The flag says whether generation stopped at `limit` with more to give. A search that stopped
+/// early has not ruled anything out, and saying so is the difference between "nothing found" and
+/// "nothing found yet".
 pub fn candidates(
     circuit: &Circuit<FieldElement>,
     sites: &[HintSite],
     honest_witness: &Known,
     limit: usize,
-) -> Vec<Candidate> {
+) -> (Vec<Candidate>, bool) {
     let mut candidates = Vec::new();
     let mut seen: HashSet<(usize, Vec<FieldElement>)> = HashSet::new();
+    let mut truncated = false;
 
     for (site_index, site) in sites.iter().enumerate() {
         // What the hint computes, where that is known. These are the only candidates that can
@@ -97,18 +102,20 @@ pub fn candidates(
         if site.kind.is_directive() {
             let opcode = &circuit.opcodes[site.opcode_index];
             for (strategy, values) in directives::candidates(site, opcode, honest_witness) {
-                if values != site.honest
-                    && candidates.len() < limit
-                    && seen.insert((site_index, values.clone()))
-                {
-                    candidates.push(Candidate {
-                        site_index,
-                        values,
-                        strategy,
-                        moved: 0,
-                        derived: None,
-                    });
+                if values == site.honest || !seen.insert((site_index, values.clone())) {
+                    continue;
                 }
+                if candidates.len() >= limit {
+                    truncated = true;
+                    continue;
+                }
+                candidates.push(Candidate {
+                    site_index,
+                    values,
+                    strategy,
+                    moved: 0,
+                    derived: None,
+                });
             }
         }
 
@@ -120,9 +127,14 @@ pub fn candidates(
                 pinned[moved] = value;
 
                 let mut push = |values: Vec<FieldElement>, strategy: String, derived| {
-                    if candidates.len() < limit && seen.insert((site_index, values.clone())) {
-                        candidates.push(Candidate { site_index, values, strategy, moved, derived });
+                    if !seen.insert((site_index, values.clone())) {
+                        return;
                     }
+                    if candidates.len() >= limit {
+                        truncated = true;
+                        return;
+                    }
+                    candidates.push(Candidate { site_index, values, strategy, moved, derived });
                 };
 
                 // Move one output on its own.
@@ -153,5 +165,5 @@ pub fn candidates(
             }
         }
     }
-    candidates
+    (candidates, truncated)
 }
