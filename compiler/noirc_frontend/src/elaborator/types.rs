@@ -4026,8 +4026,30 @@ impl Elaborator<'_> {
             self.interner.get_trait(trait_bound.trait_id).parent_bounds().collect();
 
         for parent_bound in &parent_bounds {
-            let instantiated =
+            let mut instantiated =
                 self.instantiate_declared_bound(self_type, trait_bound, parent_bound);
+
+            // An associated item the parent bound leaves out is a fresh unknown after
+            // instantiation. When the scope holds this parent bound (the rigid
+            // `<T as Parent>::Item` of a generic function, see `collect_parent_associated_types`),
+            // the method signature takes the item from there, so `Self::Item` at the call is that
+            // rigid generic.
+            if let Some(in_scope) = self.item.generics.find_bound(
+                self_type,
+                instantiated.trait_id,
+                &instantiated.trait_generics.ordered,
+            ) {
+                let scoped = &in_scope.trait_bound.trait_generics.named;
+                for named in &mut instantiated.trait_generics.named {
+                    if parent_bound.leaves_out(named.name.as_str())
+                        && let Some(scoped) = scoped.iter().find(|s| s.name == named.name)
+                    {
+                        named.typ = scoped.typ.clone();
+                    }
+                }
+            }
+
+            parent_bound.bind_placeholders(&instantiated, bindings);
             self.bind_generics_from_trait_bound(&instantiated, bindings);
             self.bind_parent_trait_associated_types(self_type, &instantiated, bindings, visited);
         }

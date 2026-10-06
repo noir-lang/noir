@@ -336,13 +336,22 @@ impl Elaborator<'_> {
             self.add_implied_trait_bound_to_scope(*location, &extra_constraint.typ, bound);
         }
 
-        let mut trait_constraints =
-            self.resolve_trait_constraints_and_add_to_scope(&func.def.where_clause);
-
-        // Add constraints for parent traits that have associated types.
-        let (parent_generics, implied_trait_constraints) =
-            self.add_parent_associated_type_constraints(&trait_constraints);
-        generics.extend(parent_generics);
+        // Resolve the where clause, adding the constraints for parent traits that have associated
+        // types right after the bound that implies them: a later bound such as
+        // `<T as Parent>::Item: Foo` must name the same `<T as Parent>::Item` as the body.
+        let mut trait_constraints = Vec::new();
+        let mut implied_trait_constraints = Vec::new();
+        for constraint in &func.def.where_clause {
+            let Some(constraint) = self.resolve_trait_constraint_and_add_to_scope(constraint)
+            else {
+                continue;
+            };
+            let (parent_generics, constraints) =
+                self.add_parent_associated_type_constraints(std::slice::from_ref(&constraint));
+            generics.extend(parent_generics);
+            implied_trait_constraints.extend(constraints);
+            trait_constraints.push(constraint);
+        }
 
         let mut extra_trait_constraints =
             vecmap(extra_trait_constraints, |(constraint, _)| constraint.clone());

@@ -682,7 +682,7 @@ impl Elaborator<'_> {
     /// as `<T as Foo>::Bar: Eq` which may lookup an impl which was assumed
     /// by a previous constraint.
     #[tracing::instrument(level = "trace", skip_all)]
-    fn resolve_trait_constraint_and_add_to_scope(
+    pub(super) fn resolve_trait_constraint_and_add_to_scope(
         &mut self,
         constraint: &UnresolvedTraitConstraint,
     ) -> Option<TraitConstraint> {

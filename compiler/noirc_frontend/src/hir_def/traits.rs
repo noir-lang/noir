@@ -340,6 +340,36 @@ impl DeclaredBound {
         ResolvedTraitBound { trait_generics, ..self.0 }
     }
 
+    /// Whether this bound leaves out the associated item `name` of the bounded trait (the `Out`
+    /// of `Bar` in `trait Foo: Bar`), so that its value differs between instantiations.
+    pub fn leaves_out(&self, name: &str) -> bool {
+        self.0
+            .trait_generics
+            .named
+            .iter()
+            .any(|named| named.name.as_str() == name && matches!(named.typ, Type::TypeVariable(_)))
+    }
+
+    /// Binds each placeholder this bound declares for an associated item it leaves out to that
+    /// item's value in `instantiated`, an instantiation of this bound. A signature on the
+    /// declaring trait that names such an item (`Self::Out` in a method of `trait Foo: Bar`) reads
+    /// the placeholder, so it needs these bindings to mean that use's `Out` rather than the one
+    /// shared by every use of the trait.
+    pub fn bind_placeholders(
+        &self,
+        instantiated: &ResolvedTraitBound,
+        bindings: &mut TypeBindings,
+    ) {
+        for declared in &self.0.trait_generics.named {
+            let Type::TypeVariable(placeholder) = &declared.typ else { continue };
+            let value = instantiated.trait_generics.named.iter().find(|n| n.name == declared.name);
+            if let Some(value) = value {
+                let kind = placeholder.kind().into_owned();
+                bindings.insert(placeholder.id(), (placeholder.clone(), kind, value.typ.clone()));
+            }
+        }
+    }
+
     /// The bound exactly as written in the trait declaration, mentioning the declaring trait's
     /// own `Self` and generics. Only for displaying the declaration.
     pub fn as_written(&self) -> &ResolvedTraitBound {
