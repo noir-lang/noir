@@ -197,7 +197,6 @@ def AllClaims : Prop :=
   (∀ n ∈ signedWidths,
     SoundFunction (shippedSignedMod n) (SignedOp n _root_.Int.tmod) ∧ SatisfiableFunction (shippedSignedMod n)) ∧
   (∀ e ∈ corpus, SoundFunction e.fn (CorpusSpec e.prog) ∧ AllHold e.assignment e.fn.opcodes) ∧
-    SoundFunction e.fn (ProgramSpec e.prog) ∧ AllHold e.assignment e.fn.opcodes) ∧
   (∀ n ∈ pinnedWidths,
     SoundFunction (acirGenEq n) (Computes2 n fun a b => if a = b then 1 else 0) ∧
     SatisfiableFunction (acirGenEq n)) ∧

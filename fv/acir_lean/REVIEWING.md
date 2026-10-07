@@ -507,7 +507,7 @@ This is the same shape as `CorpusSpec`, just for richer programs.
 
 ---
 
-## Part 5 — `Pin.lean`: the printer that ties Lean to the compiler (~168 lines)
+## Part 5 — `Pin.lean`: the printer that ties Lean to the compiler (~153 lines)
 
 `Pin.lean` proves nothing. It prints things, so that CI can compare Lean's copy of the circuits with the compiler's.
 
@@ -570,7 +570,7 @@ This builds the full text of the golden file `templates.golden`. The chain works
 
 ---
 
-## Part 6 — `Claims.lean`: the promise itself (~238 lines)
+## Part 6 — `Claims.lean`: the promise itself (~222 lines)
 
 ### The building blocks
 
