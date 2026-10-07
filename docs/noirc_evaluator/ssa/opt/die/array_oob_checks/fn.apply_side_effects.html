@@ -4,7 +4,7 @@
     rhs: <a class="type" href="../../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>,
     function: &amp;mut <a class="struct" href="../../../ir/function/struct.Function.html" title="struct noirc_evaluator::ssa::ir::function::Function">Function</a>,
     block_id: <a class="type" href="../../../ir/basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>,
-    call_stack: <a class="struct" href="../../../../../noirc_errors/call_stack/struct.CallStackId.html" title="struct noirc_errors::call_stack::CallStackId">CallStackId</a>,
+    call_stack: CallStackId,
 ) -&gt; (<a class="type" href="../../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>, <a class="type" href="../../../ir/value/type.ValueId.html" title="type noirc_evaluator::ssa::ir::value::ValueId">ValueId</a>)</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Given <code>lhs</code> and <code>rhs</code> values, if there’s a side effects condition this will
 return (<code>lhs * condition</code>, <code>rhs * condition</code>), otherwise just (<code>lhs</code>, <code>rhs</code>)</p>
 </div></details></section></div></main></body></html>
