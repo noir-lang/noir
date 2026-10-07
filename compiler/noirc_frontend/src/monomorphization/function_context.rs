@@ -2,15 +2,18 @@
 //!
 //! The [`Monomorphizer`] runs over a whole program, but most of what it tracks while lowering an
 //! expression only makes sense within one function: which HIR definitions map to which locals,
-//! the closure environments in scope, whether the code is unconstrained, and the bindings for the
+//! the closure environment, whether the code is unconstrained, and the bindings for the
 //! function's generics. That state lives in a [`FunctionContext`], and
 //! [`Monomorphizer::with_function_context`] installs a fresh one for each function taken off the
 //! queue, so nothing one function leaves behind is visible to the next. State that spans the
 //! whole program - the queue, the finished functions and globals, the ID counters - stays on the
 //! [`Monomorphizer`] itself.
 //!
-//! A lambda is not a function of its own here: its body is monomorphized inside the context of
-//! the function that contains it, since it reads that function's locals and generics.
+//! A lambda body is a function too, and [`Monomorphizer::with_lambda_context`] gives it a context
+//! of its own. That context starts with only the lambda's parameters as locals: everything else
+//! the body reads from the enclosing function is a capture, reached through the lambda's
+//! environment. The one thing it shares with the enclosing function is the generic bindings,
+//! since the lambda's types mention the enclosing function's generics.
 
 use crate::TypeBindings;
 use crate::hir_def::expr::HirCapturedVar;
@@ -21,6 +24,7 @@ use super::Monomorphizer;
 use super::ast::{self, LocalId};
 
 /// The closure environment of a lambda whose body is being monomorphized.
+#[derive(Clone)]
 pub(super) struct LambdaContext {
     pub(super) env_ident: ast::Ident,
     pub(super) captures: Vec<HirCapturedVar>,
@@ -35,8 +39,9 @@ pub(super) struct FunctionContext {
     /// cause them to be re-evaluated, which is a performance trap that would confuse users.
     pub(super) locals: HashMap<node_interner::DefinitionId, LocalId>,
 
-    /// The environments of the closures being monomorphized, innermost last.
-    pub(super) lambda_envs_stack: Vec<LambdaContext>,
+    /// The environment holding the captures of the closure being monomorphized, if this is a
+    /// closure body.
+    pub(super) lambda_env: Option<LambdaContext>,
 
     /// Whether the code being monomorphized is unconstrained. A constrained function called from
     /// unconstrained code is monomorphized as unconstrained too.
@@ -67,7 +72,7 @@ impl FunctionContext {
     pub(super) fn new(in_unconstrained_function: bool, force_brillig: bool) -> Self {
         Self {
             locals: HashMap::default(),
-            lambda_envs_stack: Vec::new(),
+            lambda_env: None,
             in_unconstrained_function,
             force_unconstrained: force_brillig,
             substitution: TypeBindings::default(),
@@ -119,15 +124,45 @@ impl Monomorphizer<'_> {
         result
     }
 
-    /// Runs `f` with `lambda` as the innermost closure environment, then pops it.
-    pub(super) fn with_lambda_env<T>(
+    /// Runs `f` with the locals that `f` defines collected into a map of their own, which is
+    /// returned alongside `f`'s result. The current context's locals are untouched.
+    ///
+    /// This is how a lambda's parameters are defined: they belong to the lambda's context, which
+    /// [`Self::with_lambda_context`] then installs for the lambda's body.
+    pub(super) fn collecting_locals<T>(
         &mut self,
-        lambda: LambdaContext,
+        f: impl FnOnce(&mut Self) -> T,
+    ) -> (T, HashMap<node_interner::DefinitionId, LocalId>) {
+        let outer = std::mem::take(&mut self.function.locals);
+        let result = f(self);
+        let collected = std::mem::replace(&mut self.function.locals, outer);
+        (result, collected)
+    }
+
+    /// Runs `f` to monomorphize the body of a lambda, in a context of the lambda's own.
+    ///
+    /// The context has `locals` (the lambda's parameters) as its only locals, `lambda_env` as its
+    /// closure environment if the lambda has captures, and is unconstrained if `unconstrained` is
+    /// set. It borrows the enclosing context's generic bindings for the duration, then hands them
+    /// back.
+    pub(super) fn with_lambda_context<T>(
+        &mut self,
+        locals: HashMap<node_interner::DefinitionId, LocalId>,
+        lambda_env: Option<LambdaContext>,
+        unconstrained: bool,
         f: impl FnOnce(&mut Self) -> T,
     ) -> T {
-        self.function.lambda_envs_stack.push(lambda);
+        let context = FunctionContext {
+            locals,
+            lambda_env,
+            in_unconstrained_function: unconstrained,
+            force_unconstrained: self.force_brillig,
+            substitution: std::mem::take(&mut self.function.substitution),
+        };
+        let outer = std::mem::replace(&mut self.function, context);
         let result = f(self);
-        self.function.lambda_envs_stack.pop();
+        let inner = std::mem::replace(&mut self.function, outer);
+        self.function.substitution = inner.substitution;
         result
     }
 }
