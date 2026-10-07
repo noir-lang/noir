@@ -1623,10 +1623,15 @@ impl Elaborator<'_> {
 
         let mut matches = Vec::new();
 
-        let parent_constraints = vecmap(the_trait.parent_bounds(), |trait_bound| TraitConstraint {
-            typ: constraint.typ.clone(),
-            trait_bound: trait_bound.clone(),
-        });
+        let parent_constraints =
+            vecmap(the_trait.parent_bounds(), |parent_bound| TraitConstraint {
+                typ: constraint.typ.clone(),
+                trait_bound: self.instantiate_parent_trait_bound(
+                    &constraint.typ,
+                    &constraint.trait_bound,
+                    parent_bound,
+                ),
+            });
 
         if let Some(definition) = the_trait.find_method_or_constant(method_name, self.interner) {
             let trait_item = TraitItem { definition, constraint, assumed: true };
