@@ -204,10 +204,10 @@ impl<'context> Elaborator<'context> {
     /// Populate the elaborator's scope with the comptime variables visible to the current function.
     ///
     /// When elaborating code generated at comptime, we need to make the comptime variables in scope
-    /// available in the runtime scope. The visible scopes are the global scope together with those
-    /// at or above the comptime scope floor; scopes belonging to enclosing callers are skipped, just
-    /// as the interpreter skips them. We iterate from global to local scope so that more local
-    /// definitions naturally shadow outer ones.
+    /// available in the runtime scope. Scopes belonging to enclosing callers are skipped, just as
+    /// the interpreter skips them. We iterate from the outermost scope inwards so that more local
+    /// definitions naturally shadow outer ones. Globals are not added: generated code resolves them
+    /// by path like any other module item.
     ///
     /// Within a single scope, bindings are registered in ascending
     /// [`crate::node_interner::DefinitionId`] order. `DefinitionId`s are minted monotonically
@@ -217,13 +217,13 @@ impl<'context> Elaborator<'context> {
     /// directly would instead pick a binding by hash-bucket order.
     #[tracing::instrument(level = "trace", skip_all)]
     fn populate_scope_from_comptime_scopes(&mut self) {
-        let floor = self.interner.comptime_scope_floor;
-        let len = self.interner.comptime_scopes.len();
-
-        for index in std::iter::once(0).chain(floor..len) {
-            let mut definition_ids: Vec<_> =
-                self.interner.comptime_scopes[index].keys().copied().collect();
+        let scopes: Vec<Vec<_>> = vecmap(self.comptime_scopes().visible_scopes(), |scope| {
+            let mut definition_ids: Vec<_> = scope.keys().copied().collect();
             definition_ids.sort();
+            definition_ids
+        });
+
+        for definition_ids in scopes {
             for definition_id in &definition_ids {
                 let definition = self.interner.definition(*definition_id);
                 let name = definition.name.clone();

@@ -20,6 +20,8 @@
 use noirc_errors::Location;
 use rustc_hash::FxHashSet as HashSet;
 
+use crate::hir::comptime::ComptimeScopes;
+
 use super::{ElaborateReason, Elaborator, deferred::DeferredItems};
 
 /// State that spans every [`Elaborator`] taking part in one elaboration, including the fresh
@@ -59,6 +61,11 @@ pub(crate) struct ElaborationSession {
     /// See the [`deferred`](super::deferred) module for why each kind is deferred and what the
     /// drains guarantee.
     pub(super) deferred: DeferredItems,
+
+    /// Local variables of the comptime code being interpreted, together with the comptime
+    /// variables of the runtime blocks being elaborated. A nested elaborator sees the variables
+    /// visible to the comptime function that asked for it.
+    pub(super) comptime_scopes: ComptimeScopes,
 }
 
 impl Elaborator<'_> {
@@ -70,5 +77,13 @@ impl Elaborator<'_> {
     /// Skip all further comptime evaluation in this elaboration.
     pub(crate) fn halt_comptime_evaluation(&mut self) {
         self.session.comptime_evaluation_halted = true;
+    }
+
+    pub(crate) fn comptime_scopes(&self) -> &ComptimeScopes {
+        &self.session.comptime_scopes
+    }
+
+    pub(crate) fn comptime_scopes_mut(&mut self) -> &mut ComptimeScopes {
+        &mut self.session.comptime_scopes
     }
 }

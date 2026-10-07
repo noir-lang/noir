@@ -4047,3 +4047,61 @@ fn lazily_elaborated_impl_trait_callee_does_not_inherit_callers_trait_impl() {
         &[UnstableFeature::TraitAsType],
     );
 }
+
+/// Code produced by a macro called from comptime code resolves globals by path, so a global
+/// from another module is only visible through its path and its visibility.
+#[test]
+fn macro_called_from_comptime_cannot_see_private_global_of_other_module() {
+    let src = r#"
+    mod foo {
+        global SECRET: Field = 7;
+               ^^^^^^ unused global SECRET
+               ~~~~~~ unused global
+    }
+
+    comptime fn get() -> Quoted {
+        quote { SECRET }
+                ^^^^^^ cannot find `SECRET` in this scope
+                ~~~~~~ not found in this scope
+    }
+
+    comptime fn caller() -> Field {
+        get!()
+    }
+
+    fn main() {
+        comptime {
+            let _ = caller();
+        }
+    }
+    "#;
+    check_errors(src);
+}
+
+/// A global of another module does not shadow a global of the same name in the module where
+/// the macro's output is elaborated.
+#[test]
+fn macro_called_from_comptime_resolves_global_of_its_own_module() {
+    let src = r#"
+    global X: Field = 1;
+
+    mod foo {
+        pub global X: Field = 2;
+    }
+
+    comptime fn get() -> Quoted {
+        quote { X }
+    }
+
+    comptime fn caller() -> Field {
+        get!()
+    }
+
+    fn main() {
+        comptime {
+            assert(caller() == 1);
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}

@@ -68,9 +68,14 @@ State that spans a whole comptime evaluation rather than one item lives in an
 `ElaborationSession` ([`elaborator/session.rs`](../compiler/noirc_frontend/src/elaborator/session.rs)):
 the interpreter call stack, the attribute-expansion and expression-nesting depths, the flag
 that halts comptime evaluation after an error, the elaborate reasons used to wrap errors,
-deferred items, and the names of the runtime variables of the enclosing scopes used for
-diagnostics. A fresh elaborator takes over its parent's session for as long as it runs and
-hands it back afterwards, so these limits and flags carry through nested elaboration as a unit
-and cannot be reset or cleared by it. The runtime variable names are the one field adjusted on
-the way in: the fresh elaborator also sees its parent's local variables, and the parent gets its
-own set back on return.
+deferred items, the names of the runtime variables of the enclosing scopes used for
+diagnostics, and the comptime interpreter's local variables. A fresh elaborator takes over its
+parent's session for as long as it runs and hands it back afterwards, so these limits and flags
+carry through nested elaboration as a unit and cannot be reset or cleared by it. The runtime
+variable names are the one field adjusted on the way in: the fresh elaborator also sees its
+parent's local variables, and the parent gets its own set back on return.
+
+Comptime globals are not part of the session's scopes: a global's value lives in its
+`GlobalInfo` in the `NodeInterner`, shared by every crate. The interpreter reads and mutates a
+global through it, and code generated at comptime refers to a global by path, subject to the
+usual visibility rules, like any other module item.
