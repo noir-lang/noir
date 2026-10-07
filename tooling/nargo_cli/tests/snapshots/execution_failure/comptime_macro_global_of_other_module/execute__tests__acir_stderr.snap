@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Assertion failed: x exceeds token::MAX
+   ┌─ src/main.nr:14:9
+   │
+14 │         assert(x <= bound, "x exceeds token::MAX");
+   │         ------------------------------------------
+   │
+   = Call stack:
+     1: main
+             at src/main.nr:19:5
+     2: token::check
+             at src/main.nr:14:9
+
+Failed assertion

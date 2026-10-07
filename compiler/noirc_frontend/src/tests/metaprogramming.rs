@@ -4105,3 +4105,32 @@ fn macro_called_from_comptime_resolves_global_of_its_own_module() {
     "#;
     assert_no_errors(src);
 }
+
+/// A macro called directly from a `comptime` block resolves globals by path as well.
+#[test]
+fn macro_called_from_comptime_block_cannot_see_private_global_of_other_module() {
+    let src = r#"
+    mod a {
+        global SECRET: Field = 42;
+               ^^^^^^ unused global SECRET
+               ~~~~~~ unused global
+    }
+
+    mod b {
+        comptime fn m() -> Quoted {
+            quote { SECRET }
+                    ^^^^^^ cannot find `SECRET` in this scope
+                    ~~~~~~ not found in this scope
+        }
+
+        pub fn get() -> Field {
+            comptime { m!() }
+        }
+    }
+
+    fn main() {
+        let _ = b::get();
+    }
+    "#;
+    check_errors(src);
+}
