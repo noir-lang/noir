@@ -16,7 +16,7 @@ use super::Value;
 /// `comptime let` in a runtime block is dropped when the block ends.
 ///
 /// Globals are not stored here: their values live in the
-/// [`GlobalInfo`](crate::node_interner::GlobalInfo) of each global.
+/// `GlobalInfo` of each global in the [`NodeInterner`](crate::node_interner::NodeInterner).
 #[derive(Debug)]
 pub(crate) struct ComptimeScopes {
     /// Never empty: the bottom scope holds variables defined outside of any block and is

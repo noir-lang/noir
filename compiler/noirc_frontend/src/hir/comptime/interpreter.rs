@@ -513,7 +513,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     /// Returns the previous values of the internal state, to be reset when
     /// [`Self::exit_function`] is called.
     ///
-    /// The callee sees only its own scopes; see [`ComptimeScopes`].
+    /// The callee sees only its own scopes; see [`ComptimeScopes`](super::ComptimeScopes).
     pub(super) fn enter_function(&mut self) -> (bool, usize) {
         let previous_floor = self.elaborator.comptime_scopes_mut().enter_function();
         (std::mem::take(&mut self.in_loop), previous_floor)
