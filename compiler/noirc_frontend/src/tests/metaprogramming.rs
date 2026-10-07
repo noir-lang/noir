@@ -4134,3 +4134,63 @@ fn macro_called_from_comptime_block_cannot_see_private_global_of_other_module() 
     "#;
     check_errors(src);
 }
+
+/// A macro called from a `comptime` block in `token` resolves `MAX` to `token::MAX`, not to the
+/// crate root's `MAX`.
+#[test]
+fn macro_called_from_comptime_block_resolves_global_of_its_own_module() {
+    let src = r#"
+    global MAX: Field = 1000000;
+
+    mod token {
+        global MAX: Field = 10;
+
+        comptime fn max_bound() -> Quoted {
+            quote { MAX }
+        }
+
+        pub fn check() {
+            comptime {
+                assert(max_bound!() == 10);
+            }
+        }
+    }
+
+    fn main() {
+        token::check();
+        assert(MAX != 0);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// `Expr::resolve` in `token` resolves `MAX` to `token::MAX`, not to the crate root's `MAX`.
+#[test]
+fn resolve_resolves_global_of_its_own_module() {
+    let src = r#"
+    global MAX: Field = 1000000;
+
+    mod token {
+        use super::Option;
+
+        global MAX: Field = 10;
+
+        comptime fn resolved_bound() -> Quoted {
+            let e = quote { MAX }.as_expr().unwrap().resolve(Option::none());
+            quote { $e }
+        }
+
+        pub fn check() {
+            comptime {
+                assert(resolved_bound!() == 10);
+            }
+        }
+    }
+
+    fn main() {
+        token::check();
+        assert(MAX != 0);
+    }
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}

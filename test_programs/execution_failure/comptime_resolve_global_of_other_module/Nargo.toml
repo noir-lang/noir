@@ -1,6 +1,0 @@
-[package]
-name = "comptime_resolve_global_of_other_module"
-type = "bin"
-authors = [""]
-
-[dependencies]
