@@ -576,3 +576,63 @@ fn impl_stricter_than_trait_equating_associated_constants_with_bounds_reordered(
     "#;
     check_errors(src);
 }
+
+/// `impl<T> Foo for W<T> where T: Checked` with `trait Checked: Source` implies `T: Source` for the
+/// whole impl, so the impl's methods don't add a requirement the trait method lacks.
+#[test]
+fn impl_where_clause_with_parent_associated_type_is_not_stricter_than_trait() {
+    let src = r#"
+    pub trait Source {
+        type Out;
+    }
+    pub trait Checked: Source {}
+    pub struct S {}
+    impl Source for S {
+        type Out = Field;
+    }
+    impl Checked for S {}
+
+    pub trait Foo {
+        fn f(self) -> Field;
+    }
+    pub struct W<T> {}
+    impl<T> Foo for W<T> where T: Checked {
+        fn f(self) -> Field {
+            1
+        }
+    }
+
+    fn main() {
+        let _ = W::<S> {}.f();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// A parent bound implied by the impl's where clause is matched by its trait arguments too:
+/// with `trait Child: Parent<u8>`, a method requiring `T: Parent<u16>` is still stricter.
+#[test]
+fn impl_method_bound_on_parent_with_other_arguments_is_stricter_than_trait() {
+    let src = r#"
+    pub trait Parent<A> {
+        type Out;
+    }
+    pub trait Child: Parent<u8> {}
+
+    pub trait Foo {
+        fn f<T>(x: T) -> Field;
+           ~ definition of `f` from trait
+    }
+    pub struct W<T> {}
+    impl<U> Foo for W<U> where U: Child {
+        fn f<T>(_x: T) -> Field where T: Parent<u16> {
+                                         ^^^^^^ impl has stricter requirements than trait
+                                         ~~~~~~ impl has extra requirement `T: Parent<u16, Out = <T as Parent<u16>>::Out>`
+            1
+        }
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}

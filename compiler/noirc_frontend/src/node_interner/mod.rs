@@ -34,7 +34,7 @@ use crate::token::MetaAttributeName;
 use crate::ResolvedGenerics;
 use crate::TraitAssociatedType;
 use crate::ast::{BinaryOpKind, ItemVisibility};
-use crate::hir_def::traits::{Impl, Trait, TraitConstraint, TraitImpl};
+use crate::hir_def::traits::{Impl, Trait, TraitConstraint, TraitImpl, TraitSelfType};
 use crate::hir_def::types::{DataType, Kind, Type};
 use crate::hir_def::{
     expr::HirExpression,
@@ -604,7 +604,7 @@ impl NodeInterner {
             location: unresolved_trait.trait_def.name.location(),
             generics,
             visibility: ItemVisibility::Private,
-            self_type_typevar: TypeVariable::unbound(self.next_type_variable_id(), Kind::Normal),
+            self_param: TraitSelfType::new(self.next_type_variable_id()),
             methods: Vec::new(),
             method_ids: unresolved_trait.method_ids.clone(),
             associated_types,
@@ -1361,7 +1361,7 @@ impl NodeInterner {
         self.function_definition_ids.insert(func_id, definition_id);
         let module_id = ModuleId { krate: stdlib, local_id: LocalModuleId::new(index) };
         let trait_id = TraitId(module_id);
-        let self_type_typevar = self.next_type_variable_id();
+        let self_type_id = self.next_type_variable_id();
         let mut method_ids: HashMap<String, FuncId> = Default::default();
         method_ids.insert("dummy_method".to_string(), func_id);
 
@@ -1376,7 +1376,7 @@ impl NodeInterner {
             generics: vec![],
             location: Location::dummy(),
             visibility: ItemVisibility::Public,
-            self_type_typevar: TypeVariable::unbound(self_type_typevar, Kind::Normal),
+            self_param: TraitSelfType::new(self_type_id),
             where_clause: vec![],
             implicit_associated_type_constraints: vec![],
             all_generics: vec![],
@@ -1641,6 +1641,7 @@ impl NodeInterner {
             trait_id,
             impl_id,
             trait_impl_generics,
+            &TypeBindings::default(),
             impl_self_type,
             TYPE_RECURSION_LIMIT,
             &mut visited,
@@ -1650,12 +1651,16 @@ impl NodeInterner {
         bindings
     }
 
+    /// `impl_instantiation` maps `impl_id`'s own generics to their values for `impl_self_type`.
+    /// It is empty for the impl being checked, whose generics are in scope, and comes from the
+    /// impl search for a parent impl reached through it.
     #[allow(clippy::too_many_arguments)]
     fn trait_to_impl_bindings_helper(
         &self,
         trait_id: TraitId,
         impl_id: TraitImplId,
         trait_impl_generics: &[Type],
+        impl_instantiation: &TypeBindings,
         impl_self_type: &Type,
         recursion_limit: u32,
         visited: &mut HashSet<TraitImplId>,
@@ -1670,18 +1675,18 @@ impl NodeInterner {
         let the_trait = self.get_trait(trait_id);
         let trait_generics = the_trait.generics.clone();
 
-        let self_type_var = the_trait.self_type_typevar.clone();
-        bindings.insert(
-            self_type_var.id(),
-            (self_type_var.clone(), self_type_var.kind().into_owned(), impl_self_type.clone()),
-        );
+        the_trait.self_param.bind(impl_self_type, bindings);
 
         for (trait_generic, trait_impl_generic) in trait_generics.iter().zip_eq(trait_impl_generics)
         {
             let type_var = trait_generic.type_var.clone();
             bindings.insert(
                 type_var.id(),
-                (type_var, trait_generic.kind().into_owned(), trait_impl_generic.clone()),
+                (
+                    type_var,
+                    trait_generic.kind().into_owned(),
+                    trait_impl_generic.substitute(impl_instantiation),
+                ),
             );
         }
 
@@ -1705,30 +1710,41 @@ impl NodeInterner {
             let type_variable = trait_type.type_var.clone();
             bindings.insert(
                 type_variable.id(),
-                (type_variable, trait_type.kind().into_owned(), impl_type.typ.clone()),
+                (
+                    type_variable,
+                    trait_type.kind().into_owned(),
+                    impl_type.typ.substitute(impl_instantiation),
+                ),
             );
         }
 
         // Now collect bindings from the associated types of every parent trait that
         // is implemented for the object type.
-        let parent_bounds: Vec<_> = the_trait.parent_bounds().cloned().collect();
+        let parent_bounds: Vec<_> = the_trait.parent_bounds().collect();
         for parent_bound in &parent_bounds {
+            // `bindings` now maps this trait's `Self`, generics and associated types to this impl's.
+            let parent_bound =
+                parent_bound.instantiate(bindings, |kind| self.next_type_variable_with_kind(kind));
+            let parent_generics = parent_bound.trait_generics;
+
             // Find the implementation, if it exists.
             let trait_id = parent_bound.trait_id;
             match self.lookup_trait_implementation(
                 impl_self_type,
                 trait_id,
-                &parent_bound.trait_generics.ordered,
-                &parent_bound.trait_generics.named,
+                &parent_generics.ordered,
+                &parent_generics.named,
             ) {
                 Ok(
-                    (TraitImplKind::Normal(impl_id), _) | (TraitImplKind::Prepared(impl_id, _), _),
+                    (TraitImplKind::Normal(impl_id), instantiation)
+                    | (TraitImplKind::Prepared(impl_id, _), instantiation),
                 ) => {
                     let ordered_generics = self.get_ordered_generics_for_impl(impl_id);
                     self.trait_to_impl_bindings_helper(
                         trait_id,
                         impl_id,
                         ordered_generics,
+                        &instantiation,
                         impl_self_type,
                         recursion_limit,
                         visited,

@@ -340,10 +340,9 @@ impl Elaborator<'_> {
             self.resolve_trait_constraints_and_add_to_scope(&func.def.where_clause);
 
         // Add constraints for parent traits that have associated types.
-        let (parent_generics, parent_constraints) =
+        let (parent_generics, implied_trait_constraints) =
             self.add_parent_associated_type_constraints(&trait_constraints);
         generics.extend(parent_generics);
-        trait_constraints.extend(parent_constraints);
 
         let mut extra_trait_constraints =
             vecmap(extra_trait_constraints, |(constraint, _)| constraint.clone());
@@ -415,7 +414,10 @@ impl Elaborator<'_> {
 
         // Remove the traits assumed by `resolve_trait_constraints` from scope
         self.remove_trait_constraints_from_scope(
-            trait_constraints.iter().chain(extra_trait_constraints.iter()),
+            trait_constraints
+                .iter()
+                .chain(implied_trait_constraints.iter())
+                .chain(extra_trait_constraints.iter()),
         );
 
         let meta = FuncMeta {
@@ -436,6 +438,7 @@ impl Elaborator<'_> {
             return_visibility: func.def.return_visibility,
             return_visibility_location: func.def.return_visibility_location,
             trait_constraints,
+            implied_trait_constraints,
             extra_trait_constraints,
             is_entry_point,
             has_inline_attribute: func.has_inline_attribute(),
@@ -714,6 +717,15 @@ impl Elaborator<'_> {
         body: BlockExpression,
         body_location: Location,
     ) {
+        // A default method of a trait is type checked once for every implementing type, so its
+        // body must leave the trait's `Self` variable unbound. A binding would be seen by every
+        // other default method of the trait and fix the impl their calls dispatch to.
+        let unbound_trait_self = func_meta
+            .trait_id
+            .filter(|_| func_meta.trait_impl.is_none())
+            .map(|trait_id| (trait_id, self.interner.get_trait(trait_id).self_param.clone()))
+            .filter(|(_, self_param)| self_param.bound_to().is_none());
+
         self.scopes.start_function();
         self.push_function_context();
 
@@ -790,6 +802,18 @@ impl Elaborator<'_> {
         self.check_and_pop_function_context();
 
         self.remove_trait_constraints_from_scope(func_meta.all_trait_constraints());
+
+        if let Some((trait_id, self_param)) = unbound_trait_self
+            && let Some(self_type) = self_param.bound_to()
+        {
+            let trait_name = self.interner.get_trait(trait_id).name.to_string();
+            self.push_err(TypeCheckError::expecting_other_error(
+                format!(
+                    "`Self` of trait `{trait_name}` was bound to `{self_type}` while type checking this default method"
+                ),
+                func_meta.name.location,
+            ));
+        }
 
         let func_scope_tree = self.scopes.end_function();
 

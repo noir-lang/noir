@@ -136,6 +136,12 @@ pub struct FuncMeta {
     /// Trait constraints that were specified directly on this function.
     pub trait_constraints: Vec<TraitConstraint>,
 
+    /// Parent-trait bounds implied by `trait_constraints` that carry associated types: for
+    /// `T: Checked` with `trait Checked: Source`, `T: Source<Out = <T as Source>::Out>`, where the
+    /// associated type is a generic of this function. They are assumed in the body and checked at
+    /// call sites like the written constraints, but are not requirements the function adds.
+    pub implied_trait_constraints: Vec<TraitConstraint>,
+
     /// Trait constraints that came either from a parent item (for example a where clause on a
     /// trait or trait impl) or from constraints on implicitly added named generics.
     pub extra_trait_constraints: Vec<TraitConstraint>,
@@ -270,7 +276,16 @@ impl FuncMeta {
     }
 
     pub fn all_trait_constraints(&self) -> impl Iterator<Item = &TraitConstraint> {
-        self.trait_constraints.iter().chain(self.extra_trait_constraints.iter())
+        self.trait_constraints
+            .iter()
+            .chain(self.implied_trait_constraints.iter())
+            .chain(self.extra_trait_constraints.iter())
+    }
+
+    /// The constraints of this function itself, written or implied, without the ones that come
+    /// from a parent item.
+    pub fn own_trait_constraints(&self) -> impl Iterator<Item = &TraitConstraint> {
+        self.trait_constraints.iter().chain(self.implied_trait_constraints.iter())
     }
 
     /// Instantiates a type by substituting any generics declared on this function that appear

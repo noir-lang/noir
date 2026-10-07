@@ -214,9 +214,15 @@ impl NodeInterner {
                         if existing_named.name.as_str() != new_named.name.as_str() {
                             continue;
                         }
+                        // A bare type variable is the placeholder a supertrait bound stores for
+                        // an associated item it leaves out; it carries no information, so a
+                        // rigid `<T as Trait>::Assoc` replaces it.
                         let would_downgrade_to_placeholder =
                             matches!(new_named.typ, Type::NamedGeneric(_))
-                                && !matches!(existing_named.typ, Type::NamedGeneric(_));
+                                && !matches!(
+                                    existing_named.typ,
+                                    Type::NamedGeneric(_) | Type::TypeVariable(_)
+                                );
                         if !would_downgrade_to_placeholder {
                             existing_named.typ = new_named.typ.clone();
                         }
@@ -805,7 +811,7 @@ impl NodeInterner {
         let implied_trait_ids: Vec<TraitId> = self
             .try_get_trait(trait_id)
             .map(|the_trait| {
-                let parents = the_trait.parent_bounds().map(|bound| bound.trait_id);
+                let parents = the_trait.parent_bounds().map(|bound| bound.trait_id());
                 let associated_type_bounds =
                     the_trait.associated_type_bounds.values().flatten().map(|bound| bound.trait_id);
                 parents.chain(associated_type_bounds).collect()

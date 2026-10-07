@@ -444,26 +444,22 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
         self.push_str(&trait_.name.to_string());
         self.show_generics(&trait_.generics);
 
-        let parent_bounds: Vec<_> = trait_.parent_bounds().cloned().collect();
+        let parent_bounds: Vec<_> =
+            trait_.parent_bounds().map(|bound| bound.as_written().clone()).collect();
         if !parent_bounds.is_empty() {
             self.push_str(": ");
             self.show_trait_bounds(&parent_bounds);
         }
 
         // Filter out the parent bounds we already printed with colon syntax.
-        let self_id = trait_.self_type_typevar.id();
-        let where_only: Vec<_> = trait_
-            .where_clause
-            .iter()
-            .filter(|c| !matches!(&c.typ, Type::TypeVariable(v) if v.id() == self_id))
-            .cloned()
-            .collect();
+        let where_only: Vec<_> =
+            trait_.where_clause.iter().filter(|c| !trait_.is_self_type(&c.typ)).cloned().collect();
         self.show_where_clause(&where_only);
         self.push_str(" {\n");
         self.increase_indent();
 
         self.trait_constraints = trait_.where_clause.clone();
-        self.trait_self_typevar = Some(trait_.self_type_typevar.id());
+        self.trait_self_typevar = Some(trait_.self_param.id());
 
         let mut printed_type_or_function = false;
 

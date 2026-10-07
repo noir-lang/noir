@@ -5,12 +5,14 @@ use std::rc::Rc;
 use crate::ResolvedGeneric;
 use crate::ast::{DocComment, Ident, ItemVisibility, NoirFunction};
 use crate::elaborator::types::SELF_TYPE_NAME;
+use crate::elaborator::types::{bind_named_generics, bind_ordered_generics};
 use crate::hir::type_check::generics::TraitGenerics;
 use crate::node_interner::{
     DefinitionId, ImplSearchErrorKind, NodeInterner, TraitImplKind, TraitLookupMode,
 };
 use crate::{
-    NamedGeneric, ResolvedGenerics, Type, TypeBindings, TypeVariable,
+    Kind, NamedGeneric, ResolvedGenerics, Type, TypeBinding, TypeBindings, TypeVariable,
+    TypeVariableId,
     graph::CrateId,
     node_interner::{FuncId, TraitId},
 };
@@ -76,11 +78,8 @@ pub struct Trait {
     pub location: Location,
     pub visibility: ItemVisibility,
 
-    /// When resolving the types of Trait elements, all references to `Self` resolve
-    /// to this `TypeVariable`. Then when we check if the types of trait impl elements
-    /// match the definition in the trait, we bind this `TypeVariable` to whatever
-    /// the correct Self type is for that particular impl block.
-    pub self_type_typevar: TypeVariable,
+    /// The `Self` that everything declared on this trait refers to.
+    pub self_param: TraitSelfType,
 
     /// The trait's where clause. Super-trait bounds (`trait Foo: Bar`) are lowered into
     /// this list as `TraitConstraint { typ: Self, trait_bound: Bar }` so that parent
@@ -251,6 +250,102 @@ pub struct ResolvedTraitBound {
     pub location: Location,
 }
 
+/// A trait's `Self`: one type variable shared by everything declared on the trait.
+///
+/// The variable is never handed out in its bindable `Type::TypeVariable` form. Unifying that
+/// form with a concrete type binds `Self` for every use of the trait in the whole program, so a
+/// trait default body or an impl search could change which impl other code dispatches to.
+/// Inside the trait, `Self` is rigid ([`TraitSelfType::rigid`], [`TraitSelfType::generic`]);
+/// at a use of the trait it is substituted ([`TraitSelfType::bind`]).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TraitSelfType(TypeVariable);
+
+impl TraitSelfType {
+    pub fn new(id: TypeVariableId) -> Self {
+        Self(TypeVariable::unbound(id, Kind::Normal))
+    }
+
+    pub fn id(&self) -> TypeVariableId {
+        self.0.id()
+    }
+
+    /// `Self` as a named generic, which unifies with nothing but itself.
+    pub fn rigid(&self) -> Type {
+        let self_type_name = Rc::new(SELF_TYPE_NAME.to_string());
+        self.0.clone().into_named_generic(&self_type_name, None)
+    }
+
+    /// `Self` as a generic to put in scope while resolving an item declared on the trait.
+    pub fn generic(&self, location: Location) -> ResolvedGeneric {
+        ResolvedGeneric {
+            name: Rc::new(SELF_TYPE_NAME.to_string()),
+            type_var: self.0.clone(),
+            location,
+        }
+    }
+
+    /// Substitute `self_type` for `Self` in anything declared on the trait.
+    pub fn bind(&self, self_type: &Type, bindings: &mut TypeBindings) {
+        let kind = self.0.kind().into_owned();
+        bindings.insert(self.0.id(), (self.0.clone(), kind, self_type.clone()));
+    }
+
+    /// The type `Self` has been bound to. Always `None` unless something unified the trait's
+    /// own `Self` with another type, which is a compiler bug.
+    pub fn bound_to(&self) -> Option<Type> {
+        match self.0.binding() {
+            TypeBinding::Bound(typ) => Some(typ.clone()),
+            TypeBinding::Unbound(..) => None,
+        }
+    }
+}
+
+/// A parent-trait bound (the `Bar<Self>` in `trait Foo: Bar<Self>`) as declared on a trait.
+///
+/// It is written in terms of the declaring trait's own `Self`, generics and associated types,
+/// which are shared by every use of that trait. It only describes a real bound once those are
+/// replaced by the ones of a particular `T: Foo<..>`, so the declared form is not exposed except
+/// for display: read it with [`ParentBound::instantiate`].
+#[derive(Debug, Clone)]
+pub struct ParentBound(ResolvedTraitBound);
+
+impl ParentBound {
+    pub fn trait_id(&self) -> TraitId {
+        self.0.trait_id
+    }
+
+    /// The bound for one use of the declaring trait. `bindings` maps the declaring trait's
+    /// `Self`, generics and associated types to that use's (see [`Trait::bound_bindings`]).
+    ///
+    /// An associated item the bound leaves out (`trait Foo: Bar` where `Bar` has `type Out`) is
+    /// a placeholder declared once for the whole trait; `fresh_placeholder` replaces it with one
+    /// for this instantiation, so that resolving one use cannot bind it for every other.
+    ///
+    /// That replacement is an inference variable, not a rigid `<T as Bar>::Out`: an instantiated
+    /// parent bound is matched against the bounds in scope or against an impl, and the variable is
+    /// solved by that match. The rigid `<T as Bar>::Out` a scope assumes comes from the bound that
+    /// declares it (see `collect_parent_associated_types`).
+    pub fn instantiate(
+        &self,
+        bindings: &TypeBindings,
+        mut fresh_placeholder: impl FnMut(Kind) -> Type,
+    ) -> ResolvedTraitBound {
+        let mut trait_generics = self.0.trait_generics.map(|typ| typ.substitute(bindings));
+        for (named, declared) in trait_generics.named.iter_mut().zip(&self.0.trait_generics.named) {
+            if let Type::TypeVariable(placeholder) = &declared.typ {
+                named.typ = fresh_placeholder(placeholder.kind().into_owned());
+            }
+        }
+        ResolvedTraitBound { trait_generics, ..self.0 }
+    }
+
+    /// The bound exactly as written in the trait declaration, mentioning the declaring trait's
+    /// own `Self` and generics. Only for displaying the declaration.
+    pub fn as_written(&self) -> &ResolvedTraitBound {
+        &self.0
+    }
+}
+
 impl ResolvedTraitBound {
     /// Update all [Type]s in the bound generics by substituting some [`TypeBindings`] onto them.
     pub fn apply_bindings(&mut self, type_bindings: &TypeBindings) {
@@ -295,13 +390,35 @@ impl Trait {
     /// The parent-trait bounds of this trait (the `Bar` in `trait Foo: Bar`).
     ///
     /// Parent bounds are stored in `where_clause` as constraints whose `typ` is this
-    /// trait's `Self` type variable; this accessor filters them back out.
-    pub fn parent_bounds(&self) -> impl Iterator<Item = &ResolvedTraitBound> {
-        let self_id = self.self_type_typevar.id();
-        self.where_clause.iter().filter_map(move |c| match &c.typ {
-            Type::TypeVariable(v) if v.id() == self_id => Some(&c.trait_bound),
-            _ => None,
-        })
+    /// trait's `Self` (see [`Self::is_self_type`]); this accessor filters them back out.
+    pub fn parent_bounds(&self) -> impl Iterator<Item = ParentBound> + '_ {
+        self.where_clause
+            .iter()
+            .filter(|c| self.is_self_type(&c.typ))
+            .map(|c| ParentBound(c.trait_bound.clone()))
+    }
+
+    /// Bindings from this trait's own ordered generics and associated types to the arguments
+    /// of `trait_generics`, a bound on this trait.
+    pub fn bind_generics(&self, trait_generics: &TraitGenerics, bindings: &mut TypeBindings) {
+        bind_ordered_generics(&self.generics, &trait_generics.ordered, bindings);
+        bind_named_generics(self.associated_types.clone(), &trait_generics.named, bindings);
+    }
+
+    /// Bindings from this trait's own `Self`, ordered generics and associated types to those of
+    /// the bound `self_type: ThisTrait<trait_generics>`. Substituting them into anything declared
+    /// on this trait gives its meaning for that bound.
+    pub fn bound_bindings(&self, self_type: &Type, trait_generics: &TraitGenerics) -> TypeBindings {
+        let mut bindings = TypeBindings::default();
+        self.bind_generics(trait_generics, &mut bindings);
+
+        self.self_param.bind(self_type, &mut bindings);
+        bindings
+    }
+
+    /// Whether `typ` is this trait's own (rigid) `Self`.
+    pub fn is_self_type(&self, typ: &Type) -> bool {
+        matches!(typ, Type::NamedGeneric(NamedGeneric { type_var, .. }) if type_var.id() == self.self_param.id())
     }
 
     pub fn set_visibility(&mut self, visibility: ItemVisibility) {
@@ -372,17 +489,21 @@ impl Trait {
     /// Returns a `TraitConstraint` for this trait using Self as the object
     /// type and the uninstantiated generics for any trait generics.
     ///
-    /// `Self` is the rigid named generic over `self_type_typevar`, the same form trait method
+    /// `Self` is the rigid named generic over the trait's `Self` variable, the same form trait method
     /// signatures use. A bindable `Type::TypeVariable` here would let a default body unify
     /// `Self` with a concrete type, and that binding would be seen by every other default
     /// method of the trait type-checked afterwards.
     pub fn as_constraint(&self, location: Location) -> TraitConstraint {
         let trait_generics = self.get_trait_generics(location);
-        let self_type_name = Rc::new(SELF_TYPE_NAME.to_string());
         TraitConstraint {
-            typ: self.self_type_typevar.clone().into_named_generic(&self_type_name, None),
+            typ: self.self_type(),
             trait_bound: ResolvedTraitBound { trait_generics, trait_id: self.id, location },
         }
+    }
+
+    /// The rigid `Self` type for this trait (see [`TraitSelfType::rigid`]).
+    pub fn self_type(&self) -> Type {
+        self.self_param.rigid()
     }
 }
 

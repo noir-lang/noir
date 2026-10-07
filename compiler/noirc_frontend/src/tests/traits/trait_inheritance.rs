@@ -2,7 +2,7 @@
 //! Validates that supertrait bounds are correctly enforced and resolved, including with generics.
 
 use crate::{
-    test_utils::stdlib_src,
+    test_utils::{get_monomorphized, stdlib_src},
     tests::{assert_no_errors, check_errors, check_errors_with_stdlib, get_program_errors},
 };
 
@@ -564,7 +564,7 @@ fn grandparent_trait_method_returning_own_associated_type() {
     impl Level2 for Data {}
     impl Level3 for Data {}
 
-    fn process<T>(t: T) -> Field where T: Level3 {
+    fn process<T>(t: T) -> <T as Level1>::A where T: Level3 {
         t.get_a()
     }
 
@@ -607,7 +607,7 @@ fn trait_inheritance_chain_with_associated_types_four_levels() {
         fn get_c(self) -> Self::C { self.c }
     }
 
-    fn process<T>(t: T) -> Field where T: Level4 {
+    fn process<T>(t: T) -> <T as Level1>::A where T: Level4 {
         t.get_a()
     }
 
@@ -686,4 +686,651 @@ fn lookup_associated_type_in_parent_impls_dependency_cycle() {
         fn main() {}
     "#;
     check_errors(src);
+}
+
+/// Regression test for https://github.com/noir-lang/noir-claude/issues/2055
+///
+/// A supertrait bound that mentions `Self` explicitly (`trait Child: Parent<Self>`) means "every
+/// implementor of `Child` also implements `Parent` with itself as the argument" - so resolving a
+/// method through that parent bound must substitute `Self` for the actual implementing type.
+/// Leaving the bound as `Parent<Child's own Self>` makes any impl of `Parent` for that type look
+/// like it satisfies the bound, even one whose generic argument doesn't match (`Narrow` here
+/// implements both `Parent<Narrow>` and `Parent<Wide>`; only the former should apply). The type
+/// checker accepts the program either way - elaboration never picks a concrete impl for a method
+/// called on a still-generic `X: Child` - so the bug only surfaces at monomorphization, once `X`
+/// is substituted with a concrete type that has more than one `Parent` impl to choose from.
+#[test]
+fn supertrait_bound_mentioning_self_is_instantiated_for_the_implementing_type() {
+    let src = r#"
+    trait Parent<T> {
+        fn limit(self) -> Field;
+    }
+    trait Child: Parent<Self> {}
+
+    struct Narrow { v: Field }
+    struct Wide { v: Field }
+
+    impl Parent<Wide> for Wide {
+        fn limit(self) -> Field { self.v }
+    }
+    impl Parent<Narrow> for Narrow {
+        fn limit(self) -> Field { self.v }
+    }
+    impl Parent<Wide> for Narrow {
+        fn limit(self) -> Field { self.v }
+    }
+    impl Child for Wide {}
+    impl Child for Narrow {}
+
+    fn run<X: Child>(x: X) -> Field { x.limit() }
+
+    fn main(v: Field) -> pub Field { run(Wide { v: 0 }) + run(Narrow { v }) }
+    "#;
+    assert_no_errors(src);
+    get_monomorphized(src).expect(
+        "Child: Parent<Self> should narrow to Narrow: Parent<Narrow> specifically, not be ambiguous with the unrelated Narrow: Parent<Wide>",
+    );
+}
+
+/// Regression test for https://github.com/noir-lang/noir-claude/issues/1232
+///
+/// `X::get` under `X: Child<u16>` with `trait Child<U>: Parent<U>` must resolve through
+/// `X: Parent<u16>`, so it returns `u16`. Inside a `Child` default body the parent bound must not
+/// be left as `Parent<U>`, where `U` is the enclosing trait's own generic.
+#[test]
+fn trait_path_through_generic_supertrait_uses_the_bound_arguments() {
+    let src = r#"
+    trait Parent<T> {
+        fn get(self) -> T;
+    }
+    trait Child<U>: Parent<U> {
+        fn check<X: Child<u16>>(_self: Self, x: X) -> u16 {
+            X::get(x)
+        }
+    }
+    pub struct S {}
+    impl Parent<u8> for S {
+        fn get(self) -> u8 { 8 }
+    }
+    impl Parent<u16> for S {
+        fn get(self) -> u16 { 16 }
+    }
+    impl Child<u8> for S {}
+    impl Child<u16> for S {}
+
+    fn main() -> pub u16 {
+        <S as Child<u8>>::check(S {}, S {})
+    }
+    "#;
+    assert_no_errors(src);
+    get_monomorphized(src).expect("X::get under X: Child<u16> should resolve to S: Parent<u16>");
+}
+
+/// Regression test for https://github.com/noir-lang/noir-claude/issues/1232
+///
+/// In a free function nothing binds `Child`'s own generic, so an uninstantiated parent bound
+/// `T: Parent<B>` reaches monomorphization unresolved.
+#[test]
+fn trait_path_through_generic_supertrait_in_free_function_monomorphizes() {
+    let src = r#"
+    trait Parent<A> {
+        fn marker(self) -> Field;
+    }
+    trait Child<B>: Parent<B> {}
+    struct Wrapper {}
+    impl Parent<u32> for Wrapper {
+        fn marker(self) -> Field { 10 }
+    }
+    impl Parent<bool> for Wrapper {
+        fn marker(self) -> Field { 20 }
+    }
+    impl Child<u32> for Wrapper {}
+
+    fn via_static_type<T>(x: T) -> Field where T: Child<u32> {
+        T::marker(x)
+    }
+
+    fn main() -> pub Field {
+        via_static_type(Wrapper {})
+    }
+    "#;
+    assert_no_errors(src);
+    get_monomorphized(src).expect("T::marker under T: Child<u32> should resolve to Parent<u32>");
+}
+
+/// Regression test for https://github.com/noir-lang/noir-claude/issues/1232
+///
+/// Same shape as above with an associated constant. Called from a `Child<u8>` instance, `X::LIMIT`
+/// under `X: Child<u16>` must still read `Parent<u16>`'s value, not `Parent<u8>`'s.
+#[test]
+fn trait_constant_through_generic_supertrait_uses_the_bound_arguments() {
+    let src = r#"
+    trait Parent<T> {
+        let LIMIT: u32;
+    }
+    trait Child<U>: Parent<U> {
+        fn limit<X: Child<u16>>(_self: Self, _x: X) -> u32 {
+            X::LIMIT
+        }
+    }
+    pub struct S {}
+    impl Parent<u8> for S {
+        let LIMIT: u32 = 1000000;
+    }
+    impl Parent<u16> for S {
+        let LIMIT: u32 = 100;
+    }
+    impl Child<u8> for S {}
+    impl Child<u16> for S {}
+
+    fn main() {
+        comptime {
+            assert_eq(<S as Child<u8>>::limit(S {}, S {}), 100);
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression test for https://github.com/noir-lang/noir-claude/issues/1811
+///
+/// `trait Sub: Par` leaves `Par::N` out, so `T: Sub` implies `T: Par<N = <T as Par>::N>` for
+/// each `T` separately. Two implementors with different `N` must both be usable through `Sub`.
+#[test]
+fn elided_supertrait_associated_constant_is_per_use() {
+    let src = r#"
+    trait Par {
+        let N: u32;
+    }
+    trait Sub: Par {}
+
+    struct Three {}
+    struct Five {}
+    impl Par for Three {
+        let N: u32 = 3;
+    }
+    impl Par for Five {
+        let N: u32 = 5;
+    }
+    impl Sub for Three {}
+    impl Sub for Five {}
+
+    fn first<T>(xs: [Field; <T as Par>::N]) -> Field where T: Sub {
+        xs[0]
+    }
+
+    fn main() -> pub Field {
+        first::<Three>([1, 2, 3]) + first::<Five>([1, 2, 3, 4, 5])
+    }
+    "#;
+    assert_no_errors(src);
+    get_monomorphized(src).expect("each `T: Sub` should get its own `<T as Par>::N`");
+}
+
+/// Regression test for https://github.com/noir-lang/noir-claude/issues/1811
+///
+/// Under `T: Checked` with `trait Checked: Source`, `<T as Source>::Out` is an abstract type. A
+/// function that equates it with a concrete type must be rejected, not bind the projection for
+/// every other function in the program.
+#[test]
+fn elided_supertrait_associated_type_is_not_bound_by_a_function_body() {
+    let src = r#"
+    pub trait Source {
+        type Out;
+    }
+    pub trait Checked: Source {}
+    pub struct Narrow {}
+    pub struct Wide {}
+
+    pub fn unused_helper<T>(x: <T as Source>::Out) -> Wide where T: Checked {
+                                                      ^^^^ expected type Wide, found type <T as Source>::Out
+                                                      ~~~~ expected Wide because of return type
+        x
+        ~ <T as Source>::Out returned here
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+/// Regression test for https://github.com/noir-lang/noir-claude/issues/1811
+///
+/// The associated type reached through a supertrait resolves to the implementor's own value, so
+/// dispatch through it runs `Narrow`'s impl.
+#[test]
+fn elided_supertrait_associated_type_dispatches_to_the_implementor() {
+    let src = r#"
+    pub trait Policy {
+        fn check() -> Field;
+    }
+    pub struct Narrow {}
+    pub struct Wide {}
+    impl Policy for Narrow {
+        fn check() -> Field { 1 }
+    }
+    impl Policy for Wide {
+        fn check() -> Field { 2 }
+    }
+    pub trait Source {
+        type Out;
+    }
+    pub trait Checked: Source {}
+    pub struct S {}
+    impl Source for S {
+        type Out = Narrow;
+    }
+    impl Checked for S {}
+
+    pub fn checked<T>() -> Field where T: Checked, <T as Source>::Out: Policy {
+        <<T as Source>::Out as Policy>::check()
+    }
+
+    fn main() {
+        comptime {
+            assert_eq(checked::<S>(), 1);
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression test for https://github.com/noir-lang/noir-claude/issues/1811
+///
+/// An associated constant elided from a supertrait bound keeps its numeric kind, so using it
+/// where a type is expected is an error.
+#[test]
+fn elided_supertrait_associated_constant_keeps_its_kind() {
+    let src = r#"
+    trait Par {
+        let N: u32;
+    }
+    trait Sub: Par {}
+
+    pub fn f<T>(_x: <T as Par>::N) where T: Sub {}
+
+    fn main() {}
+    "#;
+    let errors = get_program_errors(src);
+    assert!(
+        errors.iter().any(|error| format!("{error:?}").contains("TypeKindMismatch")),
+        "expected a kind mismatch, got {errors:?}"
+    );
+}
+
+/// Inside `impl Child<u16> for S`, `Self::Out` with `Out` declared on the parent of
+/// `trait Child<U>: Parent<U>` is `<S as Parent<u16>>::Out`. `S` implements `Parent` twice, so the
+/// parent bound must be instantiated with the impl's `u16` to pick the right one.
+#[test]
+fn self_associated_type_from_generic_parent_in_impl_uses_the_impl_arguments() {
+    let src = r#"
+    trait Parent<T> {
+        type Out;
+    }
+    trait Child<U>: Parent<U> {
+        fn get(self) -> Self::Out;
+    }
+    pub struct S {}
+    impl Parent<u8> for S {
+        type Out = u8;
+    }
+    impl Parent<u16> for S {
+        type Out = u16;
+    }
+    impl Child<u16> for S {
+        fn get(self) -> Self::Out {
+            300
+        }
+    }
+
+    fn main() -> pub u16 {
+        <S as Child<u16>>::get(S {})
+    }
+    "#;
+    assert_no_errors(src);
+    get_monomorphized(src).expect("`Self::Out` in `impl Child<u16>` should be u16");
+}
+
+/// The trait method's declared `Self::Out` is checked against the impl's `u16` through the impl's
+/// own parent bound `S: Parent<u16>`, not `S: Parent<U>`.
+#[test]
+fn trait_method_returning_generic_parent_associated_type_matches_impl() {
+    let src = r#"
+    trait Parent<T> {
+        type Out;
+    }
+    trait Child<U>: Parent<U> {
+        fn get(self) -> Self::Out;
+    }
+    pub struct S {}
+    impl Parent<u8> for S {
+        type Out = u8;
+    }
+    impl Parent<u16> for S {
+        type Out = u16;
+    }
+    impl Child<u16> for S {
+        fn get(self) -> u16 {
+            300
+        }
+    }
+
+    fn g<T>(t: T) -> <T as Parent<u16>>::Out where T: Child<u16> {
+        t.get()
+    }
+
+    fn main() -> pub u16 {
+        g(S {})
+    }
+    "#;
+    assert_no_errors(src);
+    get_monomorphized(src).expect("`T: Child<u16>` should return `<T as Parent<u16>>::Out`");
+}
+
+/// With `trait Child: Parent<Self>`, `Self::Out` in `impl Child for N` is `<N as Parent<N>>::Out`.
+#[test]
+fn self_associated_type_from_parent_mentioning_self_in_impl() {
+    let src = r#"
+    trait Parent<T> {
+        type Out;
+    }
+    trait Child: Parent<Self> {
+        fn get(self) -> Self::Out;
+    }
+    pub struct N {}
+    impl Parent<N> for N {
+        type Out = u8;
+    }
+    impl Child for N {
+        fn get(self) -> Self::Out {
+            3
+        }
+    }
+
+    fn main() -> pub u8 {
+        N {}.get()
+    }
+    "#;
+    assert_no_errors(src);
+    get_monomorphized(src).expect("`Self::Out` in `impl Child for N` should be u8");
+}
+
+/// Regression test for https://github.com/noir-lang/noir-claude/issues/1967
+///
+/// `Self::Out` inherited from the generic parent impl `impl<let M: u32> P for S<M>` is
+/// `[u8; K]` inside `impl<let K: u32> C for S<K>`: the parent impl's `M` is substituted.
+#[test]
+fn self_associated_type_from_generic_parent_impl_is_instantiated() {
+    let src = r#"
+    trait P {
+        type Out;
+        fn p() -> u32;
+    }
+    trait C: P {
+        fn g(a: Self::Out) -> u32;
+    }
+    struct S<let M: u32> {}
+    fn mk<let N: u32>() -> [u8; N] {
+        [0; N]
+    }
+    fn len<let N: u32>(_a: [u8; N]) -> u32 {
+        N
+    }
+
+    impl<let M: u32> P for S<M> {
+        type Out = [u8; M];
+        fn p() -> u32 {
+            0
+        }
+    }
+    impl<let K: u32> C for S<K> {
+        fn g(a: Self::Out) -> u32 {
+            len(a) * 1000 + K
+        }
+    }
+
+    fn main() -> pub u32 {
+        let _ = mk::<1>();
+        S::<8>::g([0; 8])
+    }
+    "#;
+    assert_no_errors(src);
+    get_monomorphized(src).expect("`S::<8>::g` should take `[u8; 8]`");
+}
+
+/// Regression test for https://github.com/noir-lang/noir-claude/issues/1967
+///
+/// From inside the parent impl, `S::<8>::g` expects `[u8; 8]`, so passing `[u8; M]` is an error,
+/// and an inferred argument (`mk()`) is built with 8 elements even when called from `S<16>`.
+#[test]
+fn generic_parent_associated_type_is_not_the_callers_impl_generic() {
+    let rejected = r#"
+    trait P {
+        type Out;
+        fn p() -> u32;
+    }
+    trait C: P {
+        fn g(a: Self::Out) -> u32;
+    }
+    struct S<let M: u32> {}
+    fn mk<let N: u32>() -> [u8; N] {
+        [0; N]
+    }
+    fn len<let N: u32>(_a: [u8; N]) -> u32 {
+        N
+    }
+
+    impl<let M: u32> P for S<M> {
+        type Out = [u8; M];
+        fn p() -> u32 {
+            let y: [u8; M] = mk();
+            S::<8>::g(y)
+                      ^ Expected type [u8; 8], found type [u8; M]
+        }
+    }
+    impl<let K: u32> C for S<K> {
+        fn g(a: Self::Out) -> u32 {
+            len(a)
+        }
+    }
+
+    fn main() -> pub u32 {
+        S::<16>::p()
+    }
+    "#;
+    check_errors(rejected);
+
+    let inferred = r#"
+    trait P {
+        type Out;
+        fn p() -> u32;
+    }
+    trait C: P {
+        fn g(a: Self::Out) -> u32;
+    }
+    struct S<let M: u32> {}
+    fn mk<let N: u32>() -> [u8; N] {
+        [0; N]
+    }
+    fn len<let N: u32>(_a: [u8; N]) -> u32 {
+        N
+    }
+
+    impl<let M: u32> P for S<M> {
+        type Out = [u8; M];
+        fn p() -> u32 {
+            S::<8>::g(mk())
+        }
+    }
+    impl<let K: u32> C for S<K> {
+        fn g(a: Self::Out) -> u32 {
+            len(a)
+        }
+    }
+
+    fn main() {
+        comptime {
+            assert_eq(S::<16>::p(), 8);
+        }
+    }
+    "#;
+    assert_no_errors(inferred);
+}
+
+/// Under `impl<T> W<T> where T: Checked`, `<T as Source>::Out` is abstract.
+#[test]
+fn elided_supertrait_associated_type_is_rigid_in_inherent_impl() {
+    let src = r#"
+    pub trait Source {
+        type Out;
+    }
+    pub trait Checked: Source {}
+    pub struct Wide {}
+    pub struct W<T> {}
+    impl<T> W<T> where T: Checked {
+        pub fn bad(x: <T as Source>::Out) -> Wide {
+                                             ^^^^ expected type Wide, found type <T as Source>::Out
+                                             ~~~~ expected Wide because of return type
+            x
+            ~ <T as Source>::Out returned here
+        }
+    }
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+/// Under `trait Foo<T> where T: Checked`, `<T as Source>::Out` is abstract in default methods.
+#[test]
+fn elided_supertrait_associated_type_is_rigid_in_trait_where_clause() {
+    let src = r#"
+    pub trait Source {
+        type Out;
+    }
+    pub trait Checked: Source {}
+    pub struct Wide {}
+    pub trait Foo<T> where T: Checked {
+        fn bad(x: <T as Source>::Out) -> Wide {
+                                         ^^^^ expected type Wide, found type <T as Source>::Out
+                                         ~~~~ expected Wide because of return type
+            x
+            ~ <T as Source>::Out returned here
+        }
+    }
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+/// In a default method of `trait Foo: Checked`, `Self::Out` (from `Source`) is abstract.
+#[test]
+fn elided_supertrait_associated_type_is_rigid_for_trait_self() {
+    let src = r#"
+    pub trait Source {
+        type Out;
+    }
+    pub trait Checked: Source {}
+    pub struct Wide {}
+    pub trait Foo: Checked {
+        fn bad(x: <Self as Source>::Out) -> Wide {
+                                            ^^^^ expected type Wide, found type Self::Out
+                                            ~~~~ expected Wide because of return type
+            x
+            ~ Self::Out returned here
+        }
+    }
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+/// For a trait method generic `X: Checked`, `<X as Source>::Out` is abstract.
+#[test]
+fn elided_supertrait_associated_type_is_rigid_for_trait_method_generic() {
+    let src = r#"
+    pub trait Source {
+        type Out;
+    }
+    pub trait Checked: Source {}
+    pub struct Wide {}
+    pub trait Foo {
+        fn bad<X>(x: <X as Source>::Out) -> Wide where X: Checked {
+                                            ^^^^ expected type Wide, found type <X as Source>::Out
+                                            ~~~~ expected Wide because of return type
+            x
+            ~ <X as Source>::Out returned here
+        }
+    }
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+/// The rigid `<T as Source>::Out` from `T: Checked` is the same type at every mention in one item,
+/// and call sites instantiate it per call.
+#[test]
+fn elided_supertrait_associated_type_is_one_type_per_item() {
+    let src = r#"
+    pub trait Source {
+        type Out;
+    }
+    pub trait Checked: Source {}
+    pub struct Wide {}
+    pub struct Narrow {}
+    pub struct S {}
+    impl Source for S {
+        type Out = Narrow;
+    }
+    impl Checked for S {}
+    pub struct W<T> {}
+    impl<T> W<T> where T: Checked {
+        pub fn same(x: <T as Source>::Out) -> <T as Source>::Out {
+            x
+        }
+    }
+    pub fn pair<T>(x: <T as Source>::Out, y: <T as Source>::Out) -> [<T as Source>::Out; 2]
+    where
+        T: Checked,
+    {
+        [x, y]
+    }
+
+    fn main() {
+        let _ = W::<S>::same(Narrow {});
+        let _ = pair::<S>(Narrow {}, Narrow {});
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// With `trait Child: Parent<Self>`, a function bounded by `Y: Parent<Wide> + Child` has two
+/// `Parent` bounds on `Y`. Method lookup resolves through the first one written, so
+/// `y.pick(w: Wide)` resolves through `Y: Parent<Wide>`.
+#[test]
+fn method_lookup_uses_the_first_written_bound_on_a_trait() {
+    let src = r#"
+    trait Parent<T> {
+        fn pick(self, o: T) -> Field;
+    }
+    trait Child: Parent<Self> {}
+    struct Wide {
+        v: Field,
+    }
+    impl Parent<Wide> for Wide {
+        fn pick(self, o: Wide) -> Field {
+            let _ = self;
+            o.v
+        }
+    }
+    impl Child for Wide {}
+
+    fn pin<Y: Parent<Wide> + Child>(y: Y, w: Wide) -> Field {
+        y.pick(w)
+    }
+
+    fn main() -> pub Field {
+        pin(Wide { v: 0 }, Wide { v: 1 })
+    }
+    "#;
+    assert_no_errors(src);
 }

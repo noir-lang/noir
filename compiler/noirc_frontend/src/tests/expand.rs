@@ -1015,3 +1015,60 @@ fn expands_global_format_string_value_with_quote_and_escapes() {
     }
     "#);
 }
+
+/// `T: Checked` with `trait Checked: Source` implies `T: Source`, which the function assumes but
+/// which isn't part of what was written, so it isn't printed.
+#[test]
+fn expands_function_where_clause_without_implied_parent_bounds() {
+    let src = r#"
+    pub trait Source {
+        type Out;
+    }
+    pub trait Checked: Source {}
+    pub struct S {}
+    impl Source for S {
+        type Out = Field;
+    }
+    impl Checked for S {}
+
+    pub fn f<T>(x: <T as Source>::Out) -> <T as Source>::Out
+    where
+        T: Checked,
+    {
+        x
+    }
+
+    fn main() {
+        let _ = f::<S>(1);
+    }
+    "#;
+    let expanded = assert_no_errors_and_to_string(src);
+    insta::assert_snapshot!(expanded, @r"
+    pub trait Source {
+        type Out;
+    }
+
+    pub trait Checked: Source {
+
+    }
+
+    pub struct S {
+    }
+
+    impl Source for S {
+        type Out = Field;
+    }
+
+    impl Checked for S {
+
+    }
+
+    pub fn f<T>(x: <T as Source>::Out) -> <T as Source>::Out where T: Checked {
+        x
+    }
+
+    fn main() {
+        let _: Field = f::<S>(1_Field);
+    }
+    ");
+}

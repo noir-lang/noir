@@ -184,7 +184,7 @@ use crate::{
     elaborator::{
         PathResolutionMode, PathResolutionTarget, WildcardDisallowedContext,
         path_resolution::PathResolutionItem,
-        types::{SELF_TYPE_NAME, WildcardAllowed},
+        types::{SELF_TYPE_NAME, WildcardAllowed, bound_key},
     },
     hir::{
         comptime::InterpreterError,
@@ -247,9 +247,9 @@ impl Elaborator<'_> {
         module_id: crate::hir::def_map::LocalModuleId,
         f: impl FnOnce(&mut Self) -> T,
     ) -> T {
-        let self_typevar = self.interner.get_trait(trait_id).self_type_typevar.clone();
+        let self_type = self.interner.get_trait(trait_id).self_type();
         let context = ItemContext::new(ModuleContext::in_module(module_id))
-            .with_impl(ImplContext::in_trait(trait_id, Type::TypeVariable(self_typevar)));
+            .with_impl(ImplContext::in_trait(trait_id, self_type));
         self.with_item_context(context, f)
     }
 }
@@ -611,7 +611,7 @@ impl Elaborator<'_> {
                 .trait_self_type()
                 .expect("Expected a self type if there's a current trait");
 
-            self.add_trait_bound_to_scope(location, &self_type, &constraint.trait_bound);
+            self.add_implied_trait_bound_to_scope(location, &self_type, &constraint.trait_bound);
         }
     }
 
@@ -697,49 +697,40 @@ impl Elaborator<'_> {
     ) -> (Vec<TypeVariable>, Vec<TraitConstraint>) {
         let mut new_generics = Vec::new();
         let mut new_constraints = Vec::new();
-        let mut visited = rustc_hash::FxHashSet::default();
 
         for constraint in constraints {
-            self.collect_parent_associated_types(
+            let mut seen = BTreeSet::from([bound_key(&constraint.trait_bound)]);
+            let parents = self.implied_parent_bounds(
                 &constraint.typ,
                 &constraint.trait_bound,
-                &mut new_generics,
-                &mut new_constraints,
-                &mut visited,
+                &mut seen,
+                bound_key,
             );
-            visited.clear();
+            for parent in parents {
+                self.add_parent_associated_type_constraint(
+                    &constraint.typ,
+                    parent,
+                    &mut new_generics,
+                    &mut new_constraints,
+                );
+            }
         }
 
         (new_generics, new_constraints)
     }
 
-    /// Recursively walk parent trait hierarchies and create fresh type variables
-    /// for any associated types found on parent traits. The new constraints are
-    /// added to the bounds in scope and returned via the output parameters.
+    /// If `instantiated` (a parent bound implied for `object_type`) has associated types, give each
+    /// one a fresh per-function generic and add the resulting bound to the bounds in scope and to
+    /// the output parameters.
     #[tracing::instrument(level = "trace", skip_all)]
-    fn collect_parent_associated_types(
+    fn add_parent_associated_type_constraint(
         &mut self,
         object_type: &Type,
-        trait_bound: &ResolvedTraitBound,
+        instantiated: ResolvedTraitBound,
         new_generics: &mut Vec<TypeVariable>,
         new_constraints: &mut Vec<TraitConstraint>,
-        visited: &mut rustc_hash::FxHashSet<TraitId>,
     ) {
-        let trait_id = trait_bound.trait_id;
-        if !visited.insert(trait_id) {
-            return;
-        }
-
-        let parent_bounds: Vec<_> = self
-            .interner
-            .try_get_trait(trait_id)
-            .map(|t| t.parent_bounds().cloned().collect())
-            .unwrap_or_default();
-
-        for parent_bound in &parent_bounds {
-            // Substitute the child trait's bindings into the parent bound.
-            let instantiated = self.instantiate_parent_trait_bound(trait_bound, parent_bound);
-
+        {
             // Skip if there are no associated types on this parent trait,
             // or if we already have a constraint for this type + parent trait.
             let has_named = !instantiated.trait_generics.named.is_empty();
@@ -756,17 +747,16 @@ impl Elaborator<'_> {
                 let object_name = object_type.to_string();
 
                 let named = vecmap(&instantiated.trait_generics.named, |named_type| {
-                    let fresh_id = self.interner.next_type_variable_id();
-                    let kind = named_type.typ.kind();
-                    let type_var = TypeVariable::unbound(fresh_id, kind.into_owned());
-
-                    let assoc_type_id = parent_trait
+                    let associated_type = parent_trait
                         .associated_types
                         .iter()
                         .find(|a| a.name.as_ref() == named_type.name.as_str())
-                        .expect("ICE - cannot find associated type")
-                        .type_var
-                        .id();
+                        .expect("ICE - cannot find associated type");
+                    let assoc_type_id = associated_type.type_var.id();
+
+                    let fresh_id = self.interner.next_type_variable_id();
+                    let kind = associated_type.kind();
+                    let type_var = TypeVariable::unbound(fresh_id, kind.into_owned());
 
                     let fresh_type = type_var.clone().into_implicit_named_generic(
                         &Rc::new(named_type.name.to_string()),
@@ -792,17 +782,13 @@ impl Elaborator<'_> {
                     },
                 };
                 self.item.generics.add_bound(parent_constraint.clone());
+                self.add_implied_trait_bound_to_scope(
+                    instantiated.location,
+                    object_type,
+                    &parent_constraint.trait_bound,
+                );
                 new_constraints.push(parent_constraint);
             }
-
-            // Recurse for grandparent traits
-            self.collect_parent_associated_types(
-                object_type,
-                &instantiated,
-                new_generics,
-                new_constraints,
-                visited,
-            );
         }
     }
 
@@ -902,16 +888,16 @@ impl Elaborator<'_> {
             }
         }
 
-        if let Type::TypeVariable(self_var) = object
-            && self_var.binding().is_unbound()
-            && self.item.impl_context.current_trait().is_some()
-        {
-            // This would end up duplicating parent trait bounds we turned into where clauses on Self.
-            // The reason is that in `add_trait_constraints_to_scope` we add the self-type of the current trait
-            // as an assumed implementation, on an unbound type variable like '1. Then in `resolve_trait_methods`
-            // we also add the parent traits as where clauses, but on Self'1. If we end up with assumed impls
-            // for both '1 and Self'1, then when we look up an impl for Self'1, it finds both and errors out.
-            // So we skip the parents, because it would be redundant with the Self bounds.
+        let object_is_current_trait_self = self
+            .item
+            .impl_context
+            .current_trait()
+            .is_some_and(|trait_id| self.interner.get_trait(trait_id).is_self_type(object));
+
+        if object_is_current_trait_self {
+            // The current trait's parent bounds on its own `Self` are already part of each of its
+            // methods' where clauses (see `resolve_trait_methods`), which registers them itself.
+            // Registering them again here would give `Self` two assumed impls of each parent.
             return;
         }
 
@@ -952,16 +938,16 @@ impl Elaborator<'_> {
         if let Some(trait_bounds) = self
             .interner
             .try_get_trait(trait_id)
-            .map(|the_trait| the_trait.parent_bounds().cloned().collect::<Vec<_>>())
+            .map(|the_trait| the_trait.parent_bounds().collect::<Vec<_>>())
         {
             for parent_trait_bound in trait_bounds {
                 // Avoid looping forever in case there are cycles
-                if !visited.insert((object.clone(), parent_trait_bound.trait_id)) {
+                if !visited.insert((object.clone(), parent_trait_bound.trait_id())) {
                     continue;
                 }
 
                 let parent_trait_bound =
-                    self.instantiate_parent_trait_bound(trait_bound, &parent_trait_bound);
+                    self.instantiate_parent_trait_bound(object, trait_bound, &parent_trait_bound);
                 let written = false;
                 self.add_trait_bound_to_scope_inner(
                     location,
@@ -1009,17 +995,13 @@ impl Elaborator<'_> {
             {
                 self.recover_generics(|this| {
                     let the_trait = this.interner.get_trait(trait_id);
-                    let self_typevar = the_trait.self_type_typevar.clone();
                     let name_location = the_trait.name.location();
+                    let self_generic = the_trait.self_param.generic(name_location);
 
                     this.add_existing_generic(
                         &UnresolvedGeneric::from(Ident::from(SELF_TYPE_NAME)),
                         name_location,
-                        &ResolvedGeneric {
-                            name: Rc::new(SELF_TYPE_NAME.to_string()),
-                            type_var: self_typevar,
-                            location: name_location,
-                        },
+                        &self_generic,
                     );
 
                     let func_id = unresolved_trait.method_ids[name.as_str()];
@@ -1220,7 +1202,7 @@ impl Elaborator<'_> {
         let arguments = vecmap(&func_meta.parameters.0, |(_, typ, _)| typ.clone());
         let return_type = func_meta.return_type().clone();
         let generics = vecmap(&func_meta.all_generics, |generic| generic.type_var.clone());
-        let trait_constraints = func_meta.trait_constraints.clone();
+        let trait_constraints = func_meta.own_trait_constraints().cloned().collect();
         let direct_generics = func_meta.direct_generics.clone();
         let is_unconstrained = func_meta.is_unconstrained();
         let no_environment = Box::new(Type::Unit);
@@ -1252,8 +1234,7 @@ impl Elaborator<'_> {
         // it now so that meta resolution (run later, after attributes) finds a `Self` type in
         // scope when it processes `where` clauses and trait constraints
         // (`add_trait_constraints_to_scope` requires it).
-        let self_typevar = self.interner.get_trait(trait_id).self_type_typevar.clone();
-        let self_type = Type::TypeVariable(self_typevar);
+        let self_type = self.interner.get_trait(trait_id).self_type();
 
         // Assume the bounds implied by the trait's own where clause on associated types
         // (e.g. `<T as Foo>::E: Bar`) while elaborating this method. See issue #8601.
@@ -1451,7 +1432,7 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
         // the trait method's signature matches the impl method's already-normalized signature.
         // This handles cases the `original_type_var_id` shortcut below cannot, since that shortcut
         // assumes the projection's object is `Self` rather than a further associated type.
-        for constraint in &trait_fn_meta.trait_constraints {
+        for constraint in trait_fn_meta.own_trait_constraints() {
             let object_type = constraint.typ.substitute(&bindings);
             let trait_bound = &constraint.trait_bound;
             let ordered = vecmap(&trait_bound.trait_generics.ordered, |generic| {

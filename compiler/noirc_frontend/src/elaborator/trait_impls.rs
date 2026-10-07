@@ -537,9 +537,10 @@ impl Elaborator<'_> {
             }
         }
 
+        let override_constraints: Vec<_> = override_meta.own_trait_constraints().cloned().collect();
         bindings.extend(pair_implicit_associated_generics(
             &method.trait_constraints,
-            &override_meta.trait_constraints,
+            &override_constraints,
             &bindings,
         ));
 
@@ -564,6 +565,8 @@ impl Elaborator<'_> {
             ));
         }
 
+        // Only the constraints the impl method writes can make it stricter than the trait: the
+        // implied ones follow from a written one, here or in the impl's where clause.
         for override_trait_constraint in override_meta.trait_constraints.clone() {
             let override_constraint_is_from_impl =
                 trait_impl_where_clause.iter().any(|impl_constraint| {
@@ -786,10 +789,8 @@ impl Elaborator<'_> {
         // Bind Self to the object type of the impl so that parent-trait bounds
         // (which are stored in the trait's where clause as constraints on Self)
         // get checked against the concrete impl type.
-        let self_var = the_trait.self_type_typevar.clone();
-        let self_kind = self_var.kind().into_owned();
         let mut bindings = TypeBindings::default();
-        bindings.insert(self_var.id(), (self_var, self_kind, object_type.clone()));
+        the_trait.self_param.bind(object_type, &mut bindings);
         bind_ordered_generics(&the_trait.generics, ordered_generics, &mut bindings);
 
         self.check_trait_bounds_are_satisfied(
