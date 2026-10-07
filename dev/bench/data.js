@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791383224846,
+  "lastUpdate": 1791383925264,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22955,48 +22955,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "ec3bff7fa71b1be6ff8edd5de012d1de13cbb77a",
-          "message": "chore(frontend): follow a function reference's instantiation bindings once (#13827)",
-          "timestamp": "2026-09-30T12:07:26Z",
-          "tree_id": "01336c666231a6099dcf3736e09c0b336d6c25e3",
-          "url": "https://github.com/noir-lang/noir/commit/ec3bff7fa71b1be6ff8edd5de012d1de13cbb77a"
-        },
-        "date": 1790772722526,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 168206,
-            "range": "± 348",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 136228,
-            "range": "± 11258",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2646582,
-            "range": "± 5440",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "dcb220081524462a1aeb263f68df13d49b1a430a",
           "message": "chore(frontend): key the monomorphizer's function cache with a FunctionKey struct (#13830)",
@@ -25039,6 +24997,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2644930,
             "range": "± 2624",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a7b0d83c02b8a896f8def0624902b9c745096d4d",
+          "message": "fix(frontend): move comptime local scopes from NodeInterner into ElaborationSession (#13914)",
+          "timestamp": "2026-10-07T14:13:43Z",
+          "tree_id": "740abef8089df44ebb3d7c1f34004ccbd96d5606",
+          "url": "https://github.com/noir-lang/noir/commit/a7b0d83c02b8a896f8def0624902b9c745096d4d"
+        },
+        "date": 1791383832561,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 169029,
+            "range": "± 345",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136506,
+            "range": "± 2253",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2647651,
+            "range": "± 9591",
             "unit": "ns/iter"
           }
         ]
