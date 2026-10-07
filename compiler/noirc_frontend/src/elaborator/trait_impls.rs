@@ -445,7 +445,7 @@ impl Elaborator<'_> {
         impl_id: TraitImplId,
     ) {
         let module_id = self.item.module.local_module();
-        self.deferred.trait_work.where_clause_checks.push(PendingWhereClauseCheck {
+        self.session.deferred.trait_work.where_clause_checks.push(PendingWhereClauseCheck {
             impl_method_func_id,
             trait_id,
             impl_id,
@@ -462,7 +462,7 @@ impl Elaborator<'_> {
     /// [`Elaborator::populate_resolved_trait_method_records`] has updated the
     /// trait's `TraitFunction` records.
     pub(super) fn run_pending_where_clause_checks(&mut self) {
-        let pending = std::mem::take(&mut self.deferred.trait_work.where_clause_checks);
+        let pending = std::mem::take(&mut self.session.deferred.trait_work.where_clause_checks);
         for check in pending {
             // Re-fetch the trait method's TraitFunction record (now populated)
             // by name, mirroring how `collect_trait_impl_methods` matched it.

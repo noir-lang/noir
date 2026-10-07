@@ -64,6 +64,13 @@ pin one field of the context: a program that is rejected (or accepted) when the 
 elaborated in order must be rejected (or accepted) the same way when it is elaborated on
 demand.
 
-State that is set once on a fresh elaborator created for a comptime call, such as the names of
-the runtime variables of the enclosing function used for diagnostics, stays on `Elaborator`:
-it describes that elaborator's parent frame rather than any one item.
+State that spans a whole comptime evaluation rather than one item lives in an
+`ElaborationSession` ([`elaborator/session.rs`](../compiler/noirc_frontend/src/elaborator/session.rs)):
+the interpreter call stack, the attribute-expansion and expression-nesting depths, the flag
+that halts comptime evaluation after an error, the elaborate reasons used to wrap errors,
+deferred items, and the names of the runtime variables of the enclosing scopes used for
+diagnostics. A fresh elaborator takes over its parent's session for as long as it runs and
+hands it back afterwards, so these limits and flags carry through nested elaboration as a unit
+and cannot be reset or cleared by it. The runtime variable names are the one field adjusted on
+the way in: the fresh elaborator also sees its parent's local variables, and the parent gets its
+own set back on return.
