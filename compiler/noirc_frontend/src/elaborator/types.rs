@@ -14,7 +14,7 @@ use rustc_hash::FxHashMap as HashMap;
 pub(crate) use similarly_named_types::SimilarlyNamedType;
 
 use crate::{
-    BinaryTypeOperator, Kind, ResolvedGeneric, Type, TypeBinding, TypeBindings, UnificationError,
+    BinaryTypeOperator, Kind, Type, TypeBinding, TypeBindings, UnificationError,
     ast::{
         AsTraitPath, BinaryOpKind, GenericTypeArgs, Ident, IntegerBitSize, PathKind, UnaryOp,
         UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression, WILDCARD_TYPE,
@@ -41,7 +41,7 @@ use crate::{
         },
         function::FuncMeta,
         stmt::HirStatement,
-        traits::{NamedType, ResolvedTraitBound, Trait, TraitConstraint},
+        traits::{NamedType, ParentBound, ResolvedTraitBound, Trait, TraitConstraint},
     },
     modules::{get_ancestor_module_reexport, module_def_id_is_visible},
     node_interner::{
@@ -461,7 +461,7 @@ impl Elaborator<'_> {
         }
 
         let parent_trait_ids: Vec<_> =
-            the_trait.parent_bounds().map(|bound| bound.trait_id).collect();
+            the_trait.parent_bounds().map(|bound| bound.trait_id()).collect();
         for parent_id in parent_trait_ids {
             self.collect_associated_type_in_parent_traits(parent_id, name, found, visited);
         }
@@ -480,7 +480,7 @@ impl Elaborator<'_> {
         }
 
         let the_trait = self.interner.get_trait(trait_bound.trait_id);
-        let parent_bounds: Vec<_> = the_trait.parent_bounds().cloned().collect();
+        let parent_bounds: Vec<_> = the_trait.parent_bounds().collect();
         let self_type = self.item.impl_context.self_type()?;
 
         for parent_bound in &parent_bounds {
@@ -1641,7 +1641,7 @@ impl Elaborator<'_> {
                 trait_bound: self.instantiate_parent_trait_bound(
                     &constraint.typ,
                     &constraint.trait_bound,
-                    parent_bound,
+                    &parent_bound,
                 ),
             });
 
@@ -3633,12 +3633,12 @@ impl Elaborator<'_> {
         }
 
         // Search in the parent traits, if any.
-        let parent_bounds: Vec<_> = the_trait.parent_bounds().cloned().collect();
+        let parent_bounds: Vec<_> = the_trait.parent_bounds().collect();
         for parent_trait_bound in &parent_bounds {
             // Parent bound trait ids are set during trait resolution and must always resolve;
             // `get_trait` turns a violation into a clear internal error instead of silently
             // skipping the parent trait's methods.
-            let the_trait = self.interner.get_trait(parent_trait_bound.trait_id);
+            let the_trait = self.interner.get_trait(parent_trait_bound.trait_id());
             let parent_trait_bound =
                 self.instantiate_parent_trait_bound(object_type, trait_bound, parent_trait_bound);
             matches.extend(self.lookup_methods_in_trait(
@@ -4025,7 +4025,7 @@ impl Elaborator<'_> {
         // `get_trait`); use `get_trait` here too so a missing trait is a clear internal error
         // rather than a silently-empty parent-bound list.
         let parent_bounds: Vec<_> =
-            self.interner.get_trait(trait_bound.trait_id).parent_bounds().cloned().collect();
+            self.interner.get_trait(trait_bound.trait_id).parent_bounds().collect();
 
         for parent_bound in &parent_bounds {
             let instantiated =
@@ -4042,47 +4042,19 @@ impl Elaborator<'_> {
         bindings: &mut TypeBindings,
     ) {
         let the_trait = self.interner.get_trait(trait_bound.trait_id);
-
-        bind_ordered_generics(&the_trait.generics, &trait_bound.trait_generics.ordered, bindings);
-
-        let associated_types = the_trait.associated_types.clone();
-        bind_named_generics(associated_types, &trait_bound.trait_generics.named, bindings);
+        the_trait.bind_generics(&trait_bound.trait_generics, bindings);
     }
 
-    /// `self_type` is the concrete (or still-generic) type that ultimately implements
-    /// `trait_bound`. It is needed here, not just in `bindings`'s ordinary generics, because a
-    /// parent bound can name `Self` explicitly as one of its own generic arguments (`trait Child:
-    /// Parent<Self> {}`): that `Self` is `trait_bound`'s trait's own rigid self-type variable, not
-    /// an ordinary generic, so `bind_generics_from_trait_bound` never binds it on its own.
+    /// `parent_bound` of `trait_bound`'s trait, for the bound `self_type: trait_bound`.
     pub(crate) fn instantiate_parent_trait_bound(
         &self,
         self_type: &Type,
         trait_bound: &ResolvedTraitBound,
-        parent_trait_bound: &ResolvedTraitBound,
+        parent_bound: &ParentBound,
     ) -> ResolvedTraitBound {
-        let mut bindings = TypeBindings::default();
-        self.bind_generics_from_trait_bound(trait_bound, &mut bindings);
-
         let the_trait = self.interner.get_trait(trait_bound.trait_id);
-        let self_var = the_trait.self_type_typevar.clone();
-        let self_kind = self_var.kind().into_owned();
-        bindings.insert(self_var.id(), (self_var, self_kind, self_type.clone()));
-
-        let mut trait_generics =
-            parent_trait_bound.trait_generics.map(|typ| typ.substitute(&bindings));
-
-        // An associated item the parent bound leaves out (`trait Child: Parent` where `Parent`
-        // has `type Out`) is stored on the trait as a placeholder type variable. Each
-        // instantiation gets its own, so that resolving one use cannot bind it for every other.
-        let named = trait_generics.named.iter_mut().zip(&parent_trait_bound.trait_generics.named);
-        for (named, declared) in named {
-            if let Type::TypeVariable(placeholder) = &declared.typ {
-                let kind = placeholder.kind().into_owned();
-                named.typ = self.interner.next_type_variable_with_kind(kind);
-            }
-        }
-
-        ResolvedTraitBound { trait_generics, ..*parent_trait_bound }
+        let bindings = the_trait.bound_bindings(self_type, &trait_bound.trait_generics);
+        parent_bound.instantiate(&bindings, |kind| self.interner.next_type_variable_with_kind(kind))
     }
 
     pub(crate) fn fully_qualified_trait_path_by_id(&self, trait_id: TraitId) -> String {
@@ -4146,68 +4118,5 @@ impl Elaborator<'_> {
         }
 
         fully_qualified_module_path(self.def_maps, self.crate_graph, &self.crate_id, trait_.id.0)
-    }
-}
-
-/// Binds the ordered [`ResolvedGeneric`]s of a trait to the ordered generics in a [`ResolvedTraitBound`].
-///
-/// Panics if the number of types do not match the ordered generics in the trait.
-pub(super) fn bind_ordered_generics(
-    params: &[ResolvedGeneric],
-    args: &[Type],
-    bindings: &mut TypeBindings,
-) {
-    assert_eq!(params.len(), args.len(), "unexpected number of ordered generics");
-
-    for (param, arg) in params.iter().zip_eq(args) {
-        bind_generic(param, arg, bindings);
-    }
-}
-
-/// Binds the associated [`ResolvedGeneric`]s of a trait to the named generics in a [`ResolvedTraitBound`].
-///
-/// Panics if the number of types exceeds the named generics in the trait.
-/// Any named parameter that does not appear in the arguments is bound to [`Type::Error`].
-fn bind_named_generics(
-    mut params: Vec<ResolvedGeneric>,
-    args: &[NamedType],
-    bindings: &mut TypeBindings,
-) {
-    assert!(
-        args.len() <= params.len(),
-        "bind_named_generics: trait bound has more named generics than associated types"
-    );
-
-    if params.is_empty() {
-        return;
-    }
-
-    for arg in args {
-        let i = params
-            .iter()
-            .position(|typ| *typ.name == arg.name.as_str())
-            .unwrap_or_else(|| unreachable!("Expected to find associated type named {}", arg.name));
-
-        let param = params.swap_remove(i);
-
-        bind_generic(&param, &arg.typ, bindings);
-    }
-
-    for unbound_param in params {
-        bind_generic(&unbound_param, &Type::Error, bindings);
-    }
-}
-
-/// Binds the type variable in a [`ResolvedGeneric`], e.g. a generic parameter of a trait,
-/// to a [Type], which itself can be an unbound type variable.
-///
-/// If the type variable itself appears in the type, then it does nothing.
-fn bind_generic(param: &ResolvedGeneric, arg: &Type, bindings: &mut TypeBindings) {
-    // Avoid binding t = t
-    if !arg.occurs(param.type_var.id()) {
-        bindings.insert(
-            param.type_var.id(),
-            (param.type_var.clone(), param.kind().into_owned(), arg.clone()),
-        );
     }
 }
