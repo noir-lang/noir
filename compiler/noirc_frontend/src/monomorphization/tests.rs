@@ -225,6 +225,119 @@ fn simple_closure_with_no_captured_variables() {
     ");
 }
 
+/// Each closure reads its captures from its own environment, including a capture it only holds to
+/// pass on to a closure nested inside it, and the enclosing closure still reads its own
+/// environment once the nested one is done.
+#[test]
+fn nested_closures_capturing_through_two_levels() {
+    let src = r#"
+    fn main(a: Field, b: Field) -> pub Field {
+        let outer = |x: Field| {
+            let middle = |y: Field| {
+                let inner = |z: Field| a + x + y + z;
+                inner(1) + b
+            };
+            middle(2) + a
+        };
+        outer(3)
+    }
+    "#;
+
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0(a$l0: Field, b$l1: Field) -> pub Field {
+        let outer$l30 = {
+            let closure_variable$l29 = {
+                let env$l3 = (a$l0, b$l1);
+                ((env$l3, lambda$f1), (env$l3, lambda$f7))
+            };
+            closure_variable$l29
+        };
+        {
+            let tmp$l31 = outer$l30.0;
+            tmp$l31.1(tmp$l31.0, 3)
+        }
+    }
+    fn lambda$f1(mut env$l3: (Field, Field), x$l2: Field) -> Field {
+        let middle$l17 = {
+            let closure_variable$l16 = {
+                let env$l5 = (env$l3.0, x$l2, env$l3.1);
+                ((env$l5, lambda$f2), (env$l5, lambda$f5))
+            };
+            closure_variable$l16
+        };
+        ({
+            let tmp$l18 = middle$l17.0;
+            tmp$l18.1(tmp$l18.0, 2)
+        } + env$l3.0)
+    }
+    fn lambda$f2(mut env$l5: (Field, Field, Field), y$l4: Field) -> Field {
+        let inner$l9 = {
+            let closure_variable$l8 = {
+                let env$l7 = (env$l5.0, env$l5.1, y$l4);
+                ((env$l7, lambda$f3), (env$l7, lambda$f4))
+            };
+            closure_variable$l8
+        };
+        ({
+            let tmp$l10 = inner$l9.0;
+            tmp$l10.1(tmp$l10.0, 1)
+        } + env$l5.2)
+    }
+    fn lambda$f3(mut env$l7: (Field, Field, Field), z$l6: Field) -> Field {
+        (((env$l7.0 + env$l7.1) + env$l7.2) + z$l6)
+    }
+    unconstrained fn lambda$f4(mut env$l7: (Field, Field, Field), z$l6: Field) -> Field {
+        (((env$l7.0 + env$l7.1) + env$l7.2) + z$l6)
+    }
+    unconstrained fn lambda$f5(mut env$l5: (Field, Field, Field), y$l4: Field) -> Field {
+        let inner$l14 = {
+            let closure_variable$l13 = {
+                let env$l12 = (env$l5.0, env$l5.1, y$l4);
+                ((env$l12, lambda$f6), (env$l12, lambda$f6))
+            };
+            closure_variable$l13
+        };
+        ({
+            let tmp$l15 = inner$l14.1;
+            tmp$l15.1(tmp$l15.0, 1)
+        } + env$l5.2)
+    }
+    unconstrained fn lambda$f6(mut env$l12: (Field, Field, Field), z$l11: Field) -> Field {
+        (((env$l12.0 + env$l12.1) + env$l12.2) + z$l11)
+    }
+    unconstrained fn lambda$f7(mut env$l3: (Field, Field), x$l2: Field) -> Field {
+        let middle$l27 = {
+            let closure_variable$l26 = {
+                let env$l20 = (env$l3.0, x$l2, env$l3.1);
+                ((env$l20, lambda$f8), (env$l20, lambda$f8))
+            };
+            closure_variable$l26
+        };
+        ({
+            let tmp$l28 = middle$l27.1;
+            tmp$l28.1(tmp$l28.0, 2)
+        } + env$l3.0)
+    }
+    unconstrained fn lambda$f8(mut env$l20: (Field, Field, Field), y$l19: Field) -> Field {
+        let inner$l24 = {
+            let closure_variable$l23 = {
+                let env$l22 = (env$l20.0, env$l20.1, y$l19);
+                ((env$l22, lambda$f9), (env$l22, lambda$f9))
+            };
+            closure_variable$l23
+        };
+        ({
+            let tmp$l25 = inner$l24.1;
+            tmp$l25.1(tmp$l25.0, 1)
+        } + env$l20.2)
+    }
+    unconstrained fn lambda$f9(mut env$l22: (Field, Field, Field), z$l21: Field) -> Field {
+        (((env$l22.0 + env$l22.1) + env$l22.2) + z$l21)
+    }
+    ");
+}
+
 /// Stress test for type propagation through very deep call chains. Type should propagate correctly to level 5.
 #[test]
 fn deep_call_chain() {
