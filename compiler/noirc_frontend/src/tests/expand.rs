@@ -1063,7 +1063,7 @@ fn expands_function_where_clause_without_implied_parent_bounds() {
 
     }
 
-    pub fn f<T>(x: <T as Source>::Out) -> <T as Source>::Out where T: Checked, T: Source {
+    pub fn f<T>(x: <T as Source>::Out) -> <T as Source>::Out where T: Checked {
         x
     }
 
