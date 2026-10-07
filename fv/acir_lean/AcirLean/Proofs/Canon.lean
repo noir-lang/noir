@@ -47,6 +47,8 @@ theorem sum_map_neg (f : Term → F) : ∀ l : List Term,
 theorem Opcode.canon_sat (σ : ℕ → F) (c : Opcode) : c.canon.Holds σ ↔ c.Holds σ := by
   cases c with
   | range w k => rfl
+  | and a b k o => rfl
+  | xor a b k o => rfl
   | assertZero ts =>
     simp only [Opcode.canon, Opcode.Holds]
     set ts1 := ts.map fun t => (⟨modP t.coef, isort (fun a b => decide (a ≤ b)) t.witnesses⟩ : Term)

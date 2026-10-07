@@ -54,8 +54,9 @@ theorem eval_update0 (σ : ℕ → F) (x : F) (t : Term) (h : 0 ∉ t.witnesses)
   rw [if_neg this]
 
 theorem holds_update0 (σ : ℕ → F) (x : F) (o : Opcode)
-    (h : ∀ t, (match o with | .assertZero ts => t ∈ ts | .range _ _ => False) → 0 ∉ t.witnesses)
-    (hr : ∀ w k, o = .range w k → w ≠ 0) :
+    (h : ∀ t, (match o with | .assertZero ts => t ∈ ts | _ => False) → 0 ∉ t.witnesses)
+    (hr : ∀ w k, o = .range w k → w ≠ 0)
+    (hx : ∀ a b k c, o ≠ .and a b k c ∧ o ≠ .xor a b k c) :
     o.Holds (fun i => if i = 0 then x else σ i) ↔ o.Holds σ := by
   cases o with
   | assertZero ts =>
@@ -63,6 +64,8 @@ theorem holds_update0 (σ : ℕ → F) (x : F) (o : Opcode)
     rw [List.map_congr_left (fun t ht => eval_update0 σ x t (h t ht))]
   | range w k =>
     simp only [Opcode.Holds, if_neg (hr w k rfl)]
+  | and a b k c => exact absurd rfl (hx a b k c).1
+  | xor a b k c => exact absurd rfl (hx a b k c).2
 
 /-- The 128-bit truncation of `d · x` (`truncGadget128 126 d`) is the 128-bit
 truncation of a witness holding `d · x`. -/
@@ -85,7 +88,7 @@ theorem truncGadget128_scaled (σ : ℕ → F) (d : ℕ) (h : AllHold σ (truncG
         simp only [truncGadget128, List.mem_cons, List.not_mem_nil, or_false] at ho ⊢
         rcases ho with h1 | h1 | h1 | h1 | h1 | h1 | h1 | h1 | h1 | h1 | h1 | h1 | h1 <;>
           subst h1 <;> first | exact absurd rfl hid | simp
-      refine (holds_update0 σ _ o ?_ ?_).2 (h o hm)
+      refine (holds_update0 σ _ o ?_ ?_ ?_).2 (h o hm)
       · intro t ht
         simp only [List.mem_cons, List.not_mem_nil, or_false] at ho
         rcases ho with h1 | h1 | h1 | h1 | h1 | h1 | h1 | h1 | h1 | h1 | h1 | h1 | h1 <;>
@@ -98,6 +101,10 @@ theorem truncGadget128_scaled (σ : ℕ → F) (d : ℕ) (h : AllHold σ (truncG
         simp only [List.mem_cons, List.not_mem_nil, or_false] at ho
         rcases ho with h1 | h1 | h1 | h1 | h1 | h1 | h1 | h1 | h1 | h1 | h1 | h1 | h1 <;>
           subst h1 <;> (cases hwk <;> omega)
+      · intro a b k c
+        simp only [List.mem_cons, List.not_mem_nil, or_false] at ho
+        rcases ho with h1 | h1 | h1 | h1 | h1 | h1 | h1 | h1 | h1 | h1 | h1 | h1 | h1 <;>
+          subst h1 <;> simp
   have := truncateGadget128_sound σ' h'
   simpa [σ'] using this
 

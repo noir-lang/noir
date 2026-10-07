@@ -14,6 +14,7 @@ import AcirLean.Proofs.Checker2Sound
 import AcirLean.Proofs.EqNotFieldDiv
 import AcirLean.Proofs.Shift
 import AcirLean.Proofs.Shl
+import AcirLean.Proofs.Bitwise
 
 /-! The proof of `AllClaims`, assembled from the gadget theorems. -/
 
@@ -37,7 +38,15 @@ theorem allClaims : AllClaims := by
     fun n hn => ⟨acirGenEq_sound hn, (eqNotFieldDiv_satisfiable hn).1⟩,
     fun n hn => ⟨acirGenNot_sound hn, (eqNotFieldDiv_satisfiable hn).2.1⟩,
     ⟨acirGenFieldDiv_sound, (eqNotFieldDiv_satisfiable (n := 8) (by decide)).2.2⟩,
-    fun n hn => shr_claims hn, fun n hn => shl_claims hn⟩
+    fun n hn => shr_claims hn, fun n hn => shl_claims hn,
+    fun n hn => by
+      obtain ⟨s1, s2, s3, s4, s5⟩ := bitwise_satisfiable hn
+      have a1 := acirGenBitwise_sound (n := n) false
+      have a2 := acirGenBitwise_sound (n := n) true
+      have a3 := shippedBitwise_sound (n := n) false
+      have a4 := shippedBitwise_sound (n := n) true
+      simp only [Bool.false_eq_true, if_false, if_true] at a1 a2 a3 a4
+      exact ⟨a1, s1, a3, s3, a2, s2, a4, s4, acirGenOr_sound hn, s5⟩⟩
   · rcases pinned_cases hn with h | rfl
     · exact fun σ h' hin => divVarGadget_sound (by omega) σ h' (hin (1, n) (by simp))
     · exact fun σ h' hin => divVarGadget128_sound σ h' (hin (1, 128) (by simp))

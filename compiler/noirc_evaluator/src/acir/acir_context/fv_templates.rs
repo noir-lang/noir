@@ -26,7 +26,9 @@ use acvm::acir::circuit::Circuit;
 /// One constraint in the canonical text form shared with the Lean emitter:
 /// `zero c*[i,j] + c*[i] + c*[]` (terms sorted by witness list, merged, zero
 /// terms dropped, sign chosen so the first coefficient is at most (p-1)/2), or
-/// `range i k`. Brillig calls are skipped: they add no constraints.
+/// `range i k`, or `and i j k o` / `xor i j k o` for the `AND` / `XOR` black
+/// boxes on witnesses `i`, `j` with `k` bits and output `o`. Brillig calls are
+/// skipped: they add no constraints.
 fn canonical(opcodes: &[Opcode<FieldElement>]) -> Vec<String> {
     let modulus = FieldElement::modulus();
     let half = (&modulus - 1u32) / 2u32;
@@ -72,6 +74,18 @@ fn canonical(opcodes: &[Opcode<FieldElement>]) -> Vec<String> {
                 input: FunctionInput::Witness(w),
                 num_bits,
             }) => out.push(format!("range {} {}", w.0, num_bits)),
+            Opcode::BlackBoxFuncCall(BlackBoxFuncCall::AND {
+                lhs: FunctionInput::Witness(a),
+                rhs: FunctionInput::Witness(b),
+                num_bits,
+                output,
+            }) => out.push(format!("and {} {} {} {}", a.0, b.0, num_bits, output.0)),
+            Opcode::BlackBoxFuncCall(BlackBoxFuncCall::XOR {
+                lhs: FunctionInput::Witness(a),
+                rhs: FunctionInput::Witness(b),
+                num_bits,
+                output,
+            }) => out.push(format!("xor {} {} {} {}", a.0, b.0, num_bits, output.0)),
             Opcode::BrilligCall { .. } => {}
             other => out.push(format!("other {other:?}")),
         }
@@ -85,7 +99,8 @@ const PINNED_WIDTHS: [u32; 5] = [8, 16, 32, 64, 128];
 /// `signedWidths` in `fv/acir_lean/AcirLean/Spec/Pin.lean`.
 const SIGNED_WIDTHS: [u32; 4] = [8, 16, 32, 64];
 
-/// `fn main(v0: u<n>, v1: u<n>) { <op> v0, v1 }` for `div`, `lt` or `eq`.
+/// `fn main(v0: u<n>, v1: u<n>) { <op> v0, v1 }` for `div`, `lt`, `eq`, `and`,
+/// `xor` or `or`.
 fn unsigned_binary_source(op: &str, n: u32) -> String {
     format!(
         "acir(inline) fn main f0 {{\n  b0(v0: u{n}, v1: u{n}):\n    v2 = {op} v0, v1\n    return v2\n}}\n"
@@ -336,6 +351,11 @@ fn emitted() -> String {
         }
         for n in PINNED_WIDTHS {
             section(&format!("{stage}_not"), n, compile(&not_source(n)));
+        }
+        for op in ["and", "xor", "or"] {
+            for n in PINNED_WIDTHS {
+                section(&format!("{stage}_{op}"), n, compile(&unsigned_binary_source(op, n)));
+            }
         }
         // A `Field` has 254 bits.
         section(&format!("{stage}_field_div"), 254, compile(FIELD_DIV_SOURCE));

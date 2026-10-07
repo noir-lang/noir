@@ -21,6 +21,8 @@ def Term.rename (f : ℕ → ℕ) (t : Term) : Term := ⟨t.coef, t.witnesses.ma
 def Opcode.rename (f : ℕ → ℕ) : Opcode → Opcode
   | .assertZero ts => .assertZero (ts.map (Term.rename f))
   | .range w k => .range (f w) k
+  | .and a b k o => .and (f a) (f b) k (f o)
+  | .xor a b k o => .xor (f a) (f b) k (f o)
 
 /-- Witness `i` goes to position `i` of `m`. -/
 def witnessAt (m : List ℕ) (i : ℕ) : ℕ := m.getD i 0
@@ -142,5 +144,24 @@ def acirGenShl (n c : ℕ) : Circuit where
         .assertZero [⟨1, [1]⟩, ⟨-1, [3]⟩] ]
   parameters := [0]
   returnValues := [1]
+
+/-- `fn main(v0: u<n>, v1: u<n>) -> u<n> { and v0, v1 }` (or `xor`): the
+`AND` (`XOR`) black box on the two parameters. -/
+def acirGenBitwise (xor : Bool) (n : ℕ) : Circuit where
+  opcodes := [.range 0 n, .range 1 n, if xor then .xor 0 1 n 3 else .and 0 1 n 3,
+    .assertZero [⟨1, [2]⟩, ⟨-1, [3]⟩]]
+  parameters := [0, 1]
+  returnValues := [2]
+
+/-- `fn main(v0: u<n>, v1: u<n>) -> u<n> { or v0, v1 }`: `!(!v0 & !v1)`, with
+`!x = 2^n - 1 - x`. -/
+def acirGenOr (n : ℕ) : Circuit where
+  opcodes := [.range 0 n, .range 1 n,
+    .assertZero [⟨(2 ^ n - 1 : ℕ), []⟩, ⟨-1, [0]⟩, ⟨-1, [3]⟩],
+    .assertZero [⟨(2 ^ n - 1 : ℕ), []⟩, ⟨-1, [1]⟩, ⟨-1, [4]⟩],
+    .and 3 4 n 5,
+    .assertZero [⟨(2 ^ n - 1 : ℕ), []⟩, ⟨-1, [2]⟩, ⟨-1, [5]⟩]]
+  parameters := [0, 1]
+  returnValues := [2]
 
 end AcirLean

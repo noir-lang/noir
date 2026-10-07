@@ -56,6 +56,7 @@ def stepRep (n : ℕ) (cc : List Opcode) (bound : ℕ) (st : Option (List Rep)) 
 def Opcode.witnesses : Opcode → List ℕ
   | .assertZero ts => ts.flatMap (·.witnesses)
   | .range w _ => [w]
+  | .and a b _ o | .xor a b _ o => [a, b, o]
 
 def maxWitness (C : Circuit) : ℕ := (C.opcodes.flatMap Opcode.witnesses).foldl max 0
 

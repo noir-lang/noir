@@ -153,6 +153,8 @@ circuit is pinned against ACIR generation and against what `nargo compile`
 ships. `shr` and `shl` by every constant `1 ≤ c < n` (`Proofs/Shift.lean`,
 `Proofs/Shl.lean`) are pinned after `remove_bit_shifts`, which turns them into
 a division by `2^c` and a multiplication by `2^c` followed by a truncation.
+`and`, `xor` and `or` on `u<n>` (`Proofs/Bitwise.lean`) compile to ACIR's
+`AND`/`XOR` black boxes, whose meaning `Spec/Semantics.lean` gives.
 `Examples/Bug7895.lean` shows that truncation without the `q ≤ q0` bound
 accepts a forged witness, and `Examples/RangeOptimizerBug.lean` shows the same
 for a range optimizer that drops a parameter's range check.
@@ -170,7 +172,8 @@ Not yet covered:
 - the ACVM optimization passes on programs outside the pinned corpus: the
   optimized circuits are checked program by program, not the passes in
   general;
-- bitwise operations on more than one bit;
+- bitwise operations other than `and`, `xor` and `or` on `u<n>` (for example
+  with a constant operand, which ACIR passes to the black box as a constant);
 - completeness: that every valid input has a witness the circuit accepts.
   What is proved alongside soundness is non-vacuity (`Satisfiable`: some
   witness meets every constraint), which rules out a contradictory circuit

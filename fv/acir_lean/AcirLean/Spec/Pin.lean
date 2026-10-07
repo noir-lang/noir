@@ -23,7 +23,7 @@ output in, followed by the pinned SSA in `Ssa`'s own `Display` syntax. `scripts/
 Canonical form (`Opcode.canon`): `zero c*[i,j] + c*[i] + c*[]` with each
 term's witnesses sorted, coefficients reduced to `[0, p)`, zero terms dropped,
 terms sorted by witness list, and the sign chosen so the first coefficient is
-at most `(p-1)/2`; or `range i k`. Terms over the same witnesses are not
+at most `(p-1)/2`; or `range i k`; or `and i j k o` / `xor i j k o`. Terms over the same witnesses are not
 merged: Rust merges them, so a constraint with two such terms prints
 differently on the two sides and fails the pin.
 -/
@@ -62,6 +62,8 @@ form does, so nothing about this definition needs checking by eye except that
 it matches `fv_templates.rs`'s `canonical`, which the golden files check. -/
 def Opcode.canon : Opcode → Opcode
   | .range w k => .range w k
+  | .and a b k o => .and a b k o
+  | .xor a b k o => .xor a b k o
   | .assertZero ts =>
     let ts := (ts.map fun t => (⟨modP t.coef, isort (fun a b => decide (a ≤ b)) t.witnesses⟩ : Term))
     let ts := isort (fun a b => witnessListLe a.witnesses b.witnesses) (ts.filter fun t => t.coef != 0)
@@ -74,6 +76,8 @@ def Opcode.canon : Opcode → Opcode
 def Opcode.render (c : Opcode) : String :=
   match c.canon with
   | .range w k => s!"range {w} {k}"
+  | .and a b k o => s!"and {a} {b} {k} {o}"
+  | .xor a b k o => s!"xor {a} {b} {k} {o}"
   | .assertZero ts =>
     "zero " ++ " + ".intercalate (ts.map fun t =>
       s!"{t.coef.toNat}*[{",".intercalate (t.witnesses.map toString)}]")
@@ -117,13 +121,19 @@ def renderAll : String :=
     each pinnedWidths "shipped_lt" (fun n => (shippedLt n).render) ++
     each pinnedWidths "shipped_truncate" (fun n => (shippedTruncate n).render) ++
     each pinnedWidths "shipped_signed_lt" (fun n => (shippedSignedLt n).render) ++
-    -- `eq`, `not` and `Field` division: the optimizer leaves them unchanged, so
-    -- one circuit is pinned against both stages
+    -- `eq`, `not`, `or` and `Field` division: the optimizer leaves them
+    -- unchanged, so one circuit is pinned against both stages
     each pinnedWidths "acir_eq" (fun n => (acirGenEq n).render) ++
     each pinnedWidths "acir_not" (fun n => (acirGenNot n).render) ++
+    each pinnedWidths "acir_and" (fun n => (acirGenBitwise false n).render) ++
+    each pinnedWidths "acir_xor" (fun n => (acirGenBitwise true n).render) ++
+    each pinnedWidths "acir_or" (fun n => (acirGenOr n).render) ++
     [sec "acir_field_div 254" acirGenFieldDiv.render] ++
     each pinnedWidths "shipped_eq" (fun n => (acirGenEq n).render) ++
     each pinnedWidths "shipped_not" (fun n => (acirGenNot n).render) ++
+    each pinnedWidths "shipped_and" (fun n => (shippedBitwise false n).render) ++
+    each pinnedWidths "shipped_xor" (fun n => (shippedBitwise true n).render) ++
+    each pinnedWidths "shipped_or" (fun n => (acirGenOr n).render) ++
     [sec "shipped_field_div 254" acirGenFieldDiv.render] ++
     -- `shr v0, c` for every shift `1 ≤ c < n`
     (pinnedWidths.flatMap fun n => (List.range n).tail.map fun c =>

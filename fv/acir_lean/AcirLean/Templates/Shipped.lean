@@ -49,4 +49,9 @@ def shippedShr (n c : ℕ) : Circuit := { acirGenShr n c with opcodes := dropRep
 
 def shippedShl (n c : ℕ) : Circuit := { acirGenShl n c with opcodes := dropRepeats (acirGenShl n c).opcodes }
 
+/-- The optimizer drops the parameters' range checks: the black box already
+requires its inputs to fit in `n` bits. -/
+def shippedBitwise (xor : Bool) (n : ℕ) : Circuit :=
+  { acirGenBitwise xor n with opcodes := (acirGenBitwise xor n).opcodes.drop 2 }
+
 end AcirLean

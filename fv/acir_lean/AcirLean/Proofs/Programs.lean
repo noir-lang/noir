@@ -24,6 +24,8 @@ theorem Opcode.holds_rename (σ : ℕ → F) (f : ℕ → ℕ) (c : Opcode) :
     rw [show Term.eval σ ∘ Term.rename f = Term.eval (σ ∘ f) from
       funext (Term.eval_rename σ f)]
   | range w k => simp [Opcode.rename, Opcode.Holds]
+  | and a b k o => simp [Opcode.rename, Opcode.Holds]
+  | xor a b k o => simp [Opcode.rename, Opcode.Holds]
 
 theorem allHold_rename (σ : ℕ → F) (f : ℕ → ℕ) (cs : List Opcode) :
     AllHold σ (cs.map (Opcode.rename f)) ↔ AllHold (σ ∘ f) cs := by

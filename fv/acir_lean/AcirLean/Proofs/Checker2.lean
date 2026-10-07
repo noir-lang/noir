@@ -126,6 +126,7 @@ def forms (cc : List Opcode) (alts : List Poly) : List Poly :=
 def cVars : Opcode → List ℕ
   | .assertZero ts => ts.flatMap (·.witnesses)
   | .range w _ => [w]
+  | .and a b _ o | .xor a b _ o => [a, b, o]
 
 /-- Witnesses `q`, `r` with `E q r = 0` among the circuit's constraints. -/
 def solve2 (cc : List Opcode) (E : ℕ → ℕ → Poly) : List (ℕ × ℕ) :=

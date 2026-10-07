@@ -88,7 +88,7 @@ One more thing about proofs. You will see `by norm_num` or `by decide` in two pl
 
 ---
 
-## Part 1 — `Semantics.lean`: what an ACIR opcode means (~75 lines)
+## Part 1 — `Semantics.lean`: what an ACIR opcode means (~84 lines)
 
 This is the most fundamental file. Everything else is built on it.
 
@@ -137,14 +137,17 @@ An `Expression` is a polynomial: the sum of its terms. It's the same thing as Ru
 inductive Opcode where
   | assertZero (expr : Expression)
   | range (witness numBits : ℕ)
+  | and (lhs rhs numBits output : ℕ)
+  | xor (lhs rhs numBits output : ℕ)
 ```
 
-An `Opcode` (Rust's `Opcode`) is one of two kinds:
+An `Opcode` (Rust's `Opcode`) is one of four kinds:
 
 - `assertZero expr`: ACIR's `AssertZero`. The expression must equal 0.
 - `range witness numBits`: ACIR's `RANGE` black box. The witness must fit in `numBits` bits.
+- `and lhs rhs numBits output` and `xor …`: ACIR's `AND` and `XOR` black boxes on two witnesses.
 
-These are the only two ACIR opcodes this PR models. A circuit with any other opcode (memory, other black boxes, calls) can't be written in this form, so it isn't covered.
+These are the only ACIR opcodes this PR models. A circuit with any other opcode (memory, other black boxes, calls), or with a constant input to `AND`/`XOR`, can't be written in this form, so it isn't covered: the Rust printer prints `other …` for it, which fails the pin.
 
 ```lean
 def Term.eval (σ : ℕ → F) (t : Term) : F := (t.coef : F) * (t.witnesses.map σ).prod
@@ -156,14 +159,19 @@ The value of a term under the witness assignment `σ` is the coefficient times t
 def Opcode.Holds (σ : ℕ → F) : Opcode → Prop
   | .assertZero expr => (expr.map (Term.eval σ)).sum = 0
   | .range witness numBits => Range (σ witness) numBits
+  | .and a b k o => Range (σ a) k ∧ Range (σ b) k ∧ (σ o).val = (σ a).val &&& (σ b).val
+  | .xor a b k o => Range (σ a) k ∧ Range (σ b) k ∧ (σ o).val = (σ a).val ^^^ (σ b).val
 ```
 
 **This is the heart of the whole thing: when an opcode holds.**
 
 - An `AssertZero` holds when its terms add up to 0 mod p.
 - A `RANGE` holds when the witness fits in `numBits` bits.
+- An `AND` (`XOR`) holds when both inputs fit in `numBits` bits and the output is their bitwise and (xor). `&&&` and `^^^` are Lean's bitwise and and xor on natural numbers.
 
-**Check:** that this is exactly what ACIR means and what bb enforces. It is. The companion bb work (PR 651) proves bb's side against this same meaning.
+The inputs' width is part of the `AND`/`XOR` meaning, not something assumed. The ACVM optimizer relies on it: it deletes a range check on an input of `AND`/`XOR` as already enforced, which is what `nargo compile` ships for `and` and `xor` on `u<n>`. Barretenberg's `AND`/`XOR` gadgets constrain the inputs to `numBits` bits.
+
+**Check:** that this is exactly what ACIR means and what bb enforces. For `AssertZero` and `RANGE` the companion bb work (PR 651) proves bb's side against this same meaning; for `AND`/`XOR` it is bb's gadget that has to enforce the input width.
 
 ```lean
 def AllHold (σ : ℕ → F) (opcodes : List Opcode) : Prop :=
@@ -499,7 +507,7 @@ This is the same shape as `CorpusSpec`, just for richer programs.
 
 ---
 
-## Part 5 — `Pin.lean`: the printer that ties Lean to the compiler (~125 lines)
+## Part 5 — `Pin.lean`: the printer that ties Lean to the compiler (~168 lines)
 
 `Pin.lean` proves nothing. It prints things, so that CI can compare Lean's copy of the circuits with the compiler's.
 
@@ -541,7 +549,7 @@ You don't need to check by eye that this keeps the equation's meaning: `Opcode.c
 def Opcode.render (c : Opcode) : String :=
 ```
 
-Prints `c.canon`: `zero 1*[0] + 21888…616*[3]` for an `AssertZero`, or `range 5 8`. The Rust test prints the compiler's constraints the same way, so the two can be compared as text.
+Prints `c.canon`: `zero 1*[0] + 21888…616*[3]` for an `AssertZero`, `range 5 8`, or `and 0 1 8 3` / `xor 0 1 8 3` (inputs, bits, output). The Rust test prints the compiler's constraints the same way, so the two can be compared as text.
 **Check:** that printing a canonical constraint is faithful: each coefficient and witness list is printed as is.
 
 ```lean
@@ -562,7 +570,7 @@ This builds the full text of the golden file `templates.golden`. The chain works
 
 ---
 
-## Part 6 — `Claims.lean`: the promise itself (~226 lines)
+## Part 6 — `Claims.lean`: the promise itself (~238 lines)
 
 ### The building blocks
 
@@ -727,6 +735,7 @@ Every line below is joined with `∧` ("and"). Read each one as a sentence.
 | `∀ n ∈ pinnedWidths, SoundFunction (acirGenNot n) (NotOp n) ∧ SatisfiableFunction …` | `fn(a: u<n>) -> !a` is correct and enforces the input type. |
 | `SoundFunction acirGenFieldDiv FieldDivOp ∧ SatisfiableFunction acirGenFieldDiv` | `fn(a: Field, b: Field) -> a / b` is correct and rejects a zero divisor. |
 | `∀ n ∈ pinnedWidths, ∀ c ∈ (List.range n).tail, SoundFunction (acirGenShr n c) (ShrOp n c) ∧ … (shippedShr n c) …` | `fn(a: u<n>) -> a >> c`, for every shift `c` from 1 to `n - 1` (`(List.range n).tail` is `[1, …, n - 1]`), is correct, enforces the input type, and stays correct after the optimizer. The pinned SSA goes through `remove_bit_shifts`, the pass that turns the shift into a division by `2^c`, so the claim covers that pass too. |
+| `∀ n ∈ pinnedWidths, SoundFunction (acirGenBitwise false n) (Computes2 n (· &&& ·)) ∧ …` | `fn(a: u<n>, b: u<n>) -> a & b`, `a ^ b` (`acirGenBitwise true`) and `a | b` (`acirGenOr`, compiled as `!(!a & !b)`) are correct and enforce the input types, as compiled and as shipped. The shipped `and`/`xor` circuits have no range check of their own on the inputs: the black box's meaning above enforces them. |
 | `∀ n ∈ pinnedWidths, ∀ c ∈ (List.range n).tail, SoundFunction (acirGenShl n c) (ShlOp n c) ∧ … (shippedShl n c) …` | The same for `fn(a: u<n>) -> a << c`. `remove_bit_shifts` turns it into a multiplication by `2^c` and a truncation to `n` bits; on `u128` with `c ≥ 126` it multiplies and truncates twice, so the product never reaches the field size. |
 
 Names like `divVarGadget n` and `shippedDiv n` refer to constraint lists in `Templates/`. Those aren't reviewed, because the pin makes them equal to the compiler's real output. `acirGenEq`, `acirGenNot` and `acirGenFieldDiv` are pinned twice, against ACIR generation and against what `nargo compile` ships: the optimizer leaves these three unchanged, so one claim covers both.

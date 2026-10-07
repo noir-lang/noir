@@ -155,6 +155,8 @@ def SignedOp (n : ℕ) (op : ℤ → ℤ → ℤ) : List ℕ → List ℕ → Pr
 * `shr` and `shl` by every constant `1 ≤ c < n` on `u<n>`, after
   `remove_bit_shifts`, as ACIR generation compiles them and as `nargo compile`
   ships them, compute `a >> c` and `a << c` (truncated to `n` bits);
+* `and`, `xor` and `or` on `u<n>`, as ACIR generation compiles them and as
+  `nargo compile` ships them, compute the bitwise operation;
 * no constraint list is contradictory. -/
 def AllClaims : Prop :=
   (∀ n ∈ pinnedWidths,
@@ -206,6 +208,16 @@ def AllClaims : Prop :=
     SoundFunction (shippedShr n c) (ShrOp n c) ∧ SatisfiableFunction (shippedShr n c)) ∧
   (∀ n ∈ pinnedWidths, ∀ c ∈ (List.range n).tail,
     SoundFunction (acirGenShl n c) (ShlOp n c) ∧ SatisfiableFunction (acirGenShl n c) ∧
-    SoundFunction (shippedShl n c) (ShlOp n c) ∧ SatisfiableFunction (shippedShl n c))
+    SoundFunction (shippedShl n c) (ShlOp n c) ∧ SatisfiableFunction (shippedShl n c)) ∧
+  (∀ n ∈ pinnedWidths,
+    SoundFunction (acirGenBitwise false n) (Computes2 n (· &&& ·)) ∧
+    SatisfiableFunction (acirGenBitwise false n) ∧
+    SoundFunction (shippedBitwise false n) (Computes2 n (· &&& ·)) ∧
+    SatisfiableFunction (shippedBitwise false n) ∧
+    SoundFunction (acirGenBitwise true n) (Computes2 n (· ^^^ ·)) ∧
+    SatisfiableFunction (acirGenBitwise true n) ∧
+    SoundFunction (shippedBitwise true n) (Computes2 n (· ^^^ ·)) ∧
+    SatisfiableFunction (shippedBitwise true n) ∧
+    SoundFunction (acirGenOr n) (Computes2 n (· ||| ·)) ∧ SatisfiableFunction (acirGenOr n))
 
 end AcirLean
