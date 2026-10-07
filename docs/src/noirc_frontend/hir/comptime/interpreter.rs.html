@@ -712,13 +712,13 @@
 <a href=#712 id=712 data-nosnippet>712</a>    /// This will automatically dereference a mutable variable if used.
 <a href=#713 id=713 data-nosnippet>713</a>    </span><span class="kw">pub fn </span>evaluate(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: ExprId) -&gt; IResult&lt;Value&gt; {
 <a href=#714 id=714 data-nosnippet>714</a>        <span class="comment">// If comptime evaluation has been halted, don't execute anything
-<a href=#715 id=715 data-nosnippet>715</a>        </span><span class="kw">if </span><span class="self">self</span>.elaborator.comptime_evaluation_halted {
+<a href=#715 id=715 data-nosnippet>715</a>        </span><span class="kw">if </span><span class="self">self</span>.elaborator.comptime_evaluation_halted() {
 <a href=#716 id=716 data-nosnippet>716</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::SkippedDueToEarlierErrors);
 <a href=#717 id=717 data-nosnippet>717</a>        }
 <a href=#718 id=718 data-nosnippet>718</a>
 <a href=#719 id=719 data-nosnippet>719</a>        <span class="comment">// Skip expressions that had errors during elaboration and halt all future execution
 <a href=#720 id=720 data-nosnippet>720</a>        </span><span class="kw">if </span><span class="self">self</span>.elaborator.interner.exprs_with_errors.contains(<span class="kw-2">&amp;</span>id) {
-<a href=#721 id=721 data-nosnippet>721</a>            <span class="self">self</span>.elaborator.comptime_evaluation_halted = <span class="bool-val">true</span>;
+<a href=#721 id=721 data-nosnippet>721</a>            <span class="self">self</span>.elaborator.halt_comptime_evaluation();
 <a href=#722 id=722 data-nosnippet>722</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::SkippedDueToEarlierErrors);
 <a href=#723 id=723 data-nosnippet>723</a>        }
 <a href=#724 id=724 data-nosnippet>724</a>
@@ -782,7 +782,7 @@
 <a href=#782 id=782 data-nosnippet>782</a>                <span class="prelude-val">Err</span>(InterpreterError::UnquoteFoundDuringEvaluation { location })
 <a href=#783 id=783 data-nosnippet>783</a>            }
 <a href=#784 id=784 data-nosnippet>784</a>            HirExpression::Error =&gt; {
-<a href=#785 id=785 data-nosnippet>785</a>                <span class="self">self</span>.elaborator.comptime_evaluation_halted = <span class="bool-val">true</span>;
+<a href=#785 id=785 data-nosnippet>785</a>                <span class="self">self</span>.elaborator.halt_comptime_evaluation();
 <a href=#786 id=786 data-nosnippet>786</a>                <span class="prelude-val">Err</span>(InterpreterError::SkippedDueToEarlierErrors)
 <a href=#787 id=787 data-nosnippet>787</a>            }
 <a href=#788 id=788 data-nosnippet>788</a>        };
@@ -1461,13 +1461,13 @@
 <a href=#1461 id=1461 data-nosnippet>1461</a>
 <a href=#1462 id=1462 data-nosnippet>1462</a>    <span class="kw">pub fn </span>evaluate_statement(<span class="kw-2">&amp;mut </span><span class="self">self</span>, statement: StmtId) -&gt; IResult&lt;Value&gt; {
 <a href=#1463 id=1463 data-nosnippet>1463</a>        <span class="comment">// If comptime evaluation has been halted, don't execute anything
-<a href=#1464 id=1464 data-nosnippet>1464</a>        </span><span class="kw">if </span><span class="self">self</span>.elaborator.comptime_evaluation_halted {
+<a href=#1464 id=1464 data-nosnippet>1464</a>        </span><span class="kw">if </span><span class="self">self</span>.elaborator.comptime_evaluation_halted() {
 <a href=#1465 id=1465 data-nosnippet>1465</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::SkippedDueToEarlierErrors);
 <a href=#1466 id=1466 data-nosnippet>1466</a>        }
 <a href=#1467 id=1467 data-nosnippet>1467</a>
 <a href=#1468 id=1468 data-nosnippet>1468</a>        <span class="comment">// Skip statements that had errors during elaboration and halt all future execution
 <a href=#1469 id=1469 data-nosnippet>1469</a>        </span><span class="kw">if </span><span class="self">self</span>.elaborator.interner.stmts_with_errors.contains(<span class="kw-2">&amp;</span>statement) {
-<a href=#1470 id=1470 data-nosnippet>1470</a>            <span class="self">self</span>.elaborator.comptime_evaluation_halted = <span class="bool-val">true</span>;
+<a href=#1470 id=1470 data-nosnippet>1470</a>            <span class="self">self</span>.elaborator.halt_comptime_evaluation();
 <a href=#1471 id=1471 data-nosnippet>1471</a>            <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::SkippedDueToEarlierErrors);
 <a href=#1472 id=1472 data-nosnippet>1472</a>        }
 <a href=#1473 id=1473 data-nosnippet>1473</a>
@@ -1486,7 +1486,7 @@
 <a href=#1486 id=1486 data-nosnippet>1486</a>                <span class="prelude-val">Ok</span>(Value::Unit)
 <a href=#1487 id=1487 data-nosnippet>1487</a>            }
 <a href=#1488 id=1488 data-nosnippet>1488</a>            HirStatement::Error =&gt; {
-<a href=#1489 id=1489 data-nosnippet>1489</a>                <span class="self">self</span>.elaborator.comptime_evaluation_halted = <span class="bool-val">true</span>;
+<a href=#1489 id=1489 data-nosnippet>1489</a>                <span class="self">self</span>.elaborator.halt_comptime_evaluation();
 <a href=#1490 id=1490 data-nosnippet>1490</a>                <span class="prelude-val">Err</span>(InterpreterError::SkippedDueToEarlierErrors)
 <a href=#1491 id=1491 data-nosnippet>1491</a>            }
 <a href=#1492 id=1492 data-nosnippet>1492</a>            HirStatement::TraitAssociatedConstant =&gt; {

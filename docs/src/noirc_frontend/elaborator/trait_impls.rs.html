@@ -445,7 +445,7 @@
 <a href=#445 id=445 data-nosnippet>445</a>        impl_id: TraitImplId,
 <a href=#446 id=446 data-nosnippet>446</a>    ) {
 <a href=#447 id=447 data-nosnippet>447</a>        <span class="kw">let </span>module_id = <span class="self">self</span>.item.module.local_module();
-<a href=#448 id=448 data-nosnippet>448</a>        <span class="self">self</span>.deferred.trait_work.where_clause_checks.push(PendingWhereClauseCheck {
+<a href=#448 id=448 data-nosnippet>448</a>        <span class="self">self</span>.session.deferred.trait_work.where_clause_checks.push(PendingWhereClauseCheck {
 <a href=#449 id=449 data-nosnippet>449</a>            impl_method_func_id,
 <a href=#450 id=450 data-nosnippet>450</a>            trait_id,
 <a href=#451 id=451 data-nosnippet>451</a>            impl_id,
@@ -462,7 +462,7 @@
 <a href=#462 id=462 data-nosnippet>462</a>    /// [`Elaborator::populate_resolved_trait_method_records`] has updated the
 <a href=#463 id=463 data-nosnippet>463</a>    /// trait's `TraitFunction` records.
 <a href=#464 id=464 data-nosnippet>464</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>run_pending_where_clause_checks(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-<a href=#465 id=465 data-nosnippet>465</a>        <span class="kw">let </span>pending = std::mem::take(<span class="kw-2">&amp;mut </span><span class="self">self</span>.deferred.trait_work.where_clause_checks);
+<a href=#465 id=465 data-nosnippet>465</a>        <span class="kw">let </span>pending = std::mem::take(<span class="kw-2">&amp;mut </span><span class="self">self</span>.session.deferred.trait_work.where_clause_checks);
 <a href=#466 id=466 data-nosnippet>466</a>        <span class="kw">for </span>check <span class="kw">in </span>pending {
 <a href=#467 id=467 data-nosnippet>467</a>            <span class="comment">// Re-fetch the trait method's TraitFunction record (now populated)
 <a href=#468 id=468 data-nosnippet>468</a>            // by name, mirroring how `collect_trait_impl_methods` matched it.

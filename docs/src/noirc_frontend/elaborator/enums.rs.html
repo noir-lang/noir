@@ -149,7 +149,7 @@
 <a href=#149 id=149 data-nosnippet>149</a>            }
 <a href=#150 id=150 data-nosnippet>150</a>        } <span class="kw">else </span>{
 <a href=#151 id=151 data-nosnippet>151</a>            <span class="kw">for </span>(type_id, typ) <span class="kw">in </span>enums {
-<a href=#152 id=152 data-nosnippet>152</a>                <span class="self">self</span>.deferred.enum_variants.register(
+<a href=#152 id=152 data-nosnippet>152</a>                <span class="self">self</span>.session.deferred.enum_variants.register(
 <a href=#153 id=153 data-nosnippet>153</a>                    <span class="kw-2">*</span>type_id,
 <a href=#154 id=154 data-nosnippet>154</a>                    UnresolvedEnumVariants {
 <a href=#155 id=155 data-nosnippet>155</a>                        enum_def: typ.enum_def.clone(),
@@ -164,7 +164,7 @@
 <a href=#164 id=164 data-nosnippet>164</a>    <span class="doccomment">/// If `type_id` was registered for deferred variant resolution, resolve it
 <a href=#165 id=165 data-nosnippet>165</a>    /// now. No-op for enums whose variants have already been resolved.
 <a href=#166 id=166 data-nosnippet>166</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>define_enum_variants_if_undefined(<span class="kw-2">&amp;mut </span><span class="self">self</span>, type_id: TypeId) {
-<a href=#167 id=167 data-nosnippet>167</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(info) = <span class="self">self</span>.deferred.enum_variants.take(<span class="kw-2">&amp;</span>type_id) <span class="kw">else </span>{
+<a href=#167 id=167 data-nosnippet>167</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(info) = <span class="self">self</span>.session.deferred.enum_variants.take(<span class="kw-2">&amp;</span>type_id) <span class="kw">else </span>{
 <a href=#168 id=168 data-nosnippet>168</a>            <span class="kw">return</span>;
 <a href=#169 id=169 data-nosnippet>169</a>        };
 <a href=#170 id=170 data-nosnippet>170</a>        <span class="self">self</span>.resolve_one_enum_variants(type_id, info.module_id, <span class="kw-2">&amp;</span>info.enum_def);
@@ -174,7 +174,7 @@
 <a href=#174 id=174 data-nosnippet>174</a>    /// in `skip`.
 <a href=#175 id=175 data-nosnippet>175</a>    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
 <a href=#176 id=176 data-nosnippet>176</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>resolve_unresolved_enum_variants_skipping(<span class="kw-2">&amp;mut </span><span class="self">self</span>, skip: <span class="kw-2">&amp;</span>HashSet&lt;TypeId&gt;) {
-<a href=#177 id=177 data-nosnippet>177</a>        <span class="kw">for </span>type_id <span class="kw">in </span><span class="self">self</span>.deferred.enum_variants.keys_except(skip) {
+<a href=#177 id=177 data-nosnippet>177</a>        <span class="kw">for </span>type_id <span class="kw">in </span><span class="self">self</span>.session.deferred.enum_variants.keys_except(skip) {
 <a href=#178 id=178 data-nosnippet>178</a>            <span class="self">self</span>.define_enum_variants_if_undefined(type_id);
 <a href=#179 id=179 data-nosnippet>179</a>        }
 <a href=#180 id=180 data-nosnippet>180</a>    }

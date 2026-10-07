@@ -531,7 +531,7 @@
 <a href=#531 id=531 data-nosnippet>531</a>            <span class="kw">let </span>ident = HirIdent::non_trait_method(id, location);
 <a href=#532 id=532 data-nosnippet>532</a>            <span class="kw">let </span>variable = Variable { ident, scope };
 <a href=#533 id=533 data-nosnippet>533</a>            <span class="prelude-val">Ok</span>(variable)
-<a href=#534 id=534 data-nosnippet>534</a>        } <span class="kw">else if </span><span class="self">self</span>.parent_runtime_variables.contains(name.as_str()) {
+<a href=#534 id=534 data-nosnippet>534</a>        } <span class="kw">else if </span><span class="self">self</span>.session.parent_runtime_variables.contains(name.as_str()) {
 <a href=#535 id=535 data-nosnippet>535</a>            <span class="prelude-val">Err</span>(ResolverError::RuntimeVarReferencedInComptime {
 <a href=#536 id=536 data-nosnippet>536</a>                name: name.to_string(),
 <a href=#537 id=537 data-nosnippet>537</a>                location: name.location(),

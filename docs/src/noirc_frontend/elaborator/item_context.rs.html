@@ -34,8 +34,8 @@
 <a href=#34 id=34 data-nosnippet>34</a>///
 <a href=#35 id=35 data-nosnippet>35</a>/// This is the state that belongs to an item rather than to the crate being elaborated: anything
 <a href=#36 id=36 data-nosnippet>36</a>/// here is expected to start fresh for an item and to be irrelevant once that item is done. State
-<a href=#37 id=37 data-nosnippet>37</a>/// shared by the whole elaboration - the interner, the collected errors, the recursion depth - stays
-<a href=#38 id=38 data-nosnippet>38</a>/// on the [`Elaborator`] itself.
+<a href=#37 id=37 data-nosnippet>37</a>/// shared by the whole elaboration - the interner, the recursion depth, deferred items - lives on
+<a href=#38 id=38 data-nosnippet>38</a>/// the [`Elaborator`] or in its [`ElaborationSession`](super::session::ElaborationSession).
 <a href=#39 id=39 data-nosnippet>39</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct </span>ItemContext {
 <a href=#40 id=40 data-nosnippet>40</a>    <span class="doccomment">/// The item being elaborated, and the module it was written in.
 <a href=#41 id=41 data-nosnippet>41</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) module: ModuleContext,
