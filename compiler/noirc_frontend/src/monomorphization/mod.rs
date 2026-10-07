@@ -610,10 +610,9 @@ impl<'interner> Monomorphizer<'interner> {
 
     /// Store the local variable ID created for a definition.
     ///
-    /// Note that this might overwrite a previous association, which happens when
-    /// we define a (constrained, unconstrained) pair of lambdas, which share
-    /// the same list of parameter definitions, but will have different
-    /// monomorphized variable IDs created for both function instance.
+    /// Note that this might overwrite a previous association, which happens when the same
+    /// definition is lowered more than once in one function, as the decision tree of a `match`
+    /// can do for its pattern variables.
     fn define_local(&mut self, id: node_interner::DefinitionId, new_id: LocalId) {
         self.function.locals.insert(id, new_id);
     }
@@ -1514,8 +1513,8 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Option<(ast::Ident, usize)> {
         let index = self
             .function
-            .lambda_envs_stack
-            .last()?
+            .lambda_env
+            .as_ref()?
             .captures
             .iter()
             .position(|capture| capture.ident.id == id)?;
@@ -1546,8 +1545,8 @@ impl<'interner> Monomorphizer<'interner> {
         let id = self.next_ident_id();
         let ctx_ident = &self
             .function
-            .lambda_envs_stack
-            .last()
+            .lambda_env
+            .as_ref()
             .expect("fresh_env_ident called outside of a lambda environment context")
             .env_ident;
         ast::Ident { id, ..ctx_ident.clone() }
@@ -2844,8 +2843,11 @@ impl<'interner> Monomorphizer<'interner> {
         let parameters =
             vecmap(lambda.parameters, |(pattern, typ)| (pattern, typ, Visibility::Private)).into();
 
-        let parameters = self.parameters(&parameters)?;
-        let body = self.expr(lambda.body)?;
+        let (parameters, locals) = self.collecting_locals(|this| this.parameters(&parameters));
+        let parameters = parameters?;
+        let unconstrained = self.function.in_unconstrained_function;
+        let body =
+            self.with_lambda_context(locals, None, unconstrained, |this| this.expr(lambda.body))?;
         let id = self.next_function_id();
 
         let function = Function {
@@ -2901,7 +2903,9 @@ impl<'interner> Monomorphizer<'interner> {
         })
         .into();
 
-        let converted_parameters = self.parameters(&parameters)?;
+        let (converted_parameters, locals) =
+            self.collecting_locals(|this| this.parameters(&parameters));
+        let converted_parameters = converted_parameters?;
 
         // Build the shared environment - captured closures stay as (constrained, unconstrained) pairs
         let env_local_id = self.next_local_id();
@@ -2909,8 +2913,8 @@ impl<'interner> Monomorphizer<'interner> {
         let env_tuple = ast::Expression::Tuple(try_vecmap(&lambda.captures, |capture| {
             match capture.transitive_capture_index {
                 Some(field_index) => {
-                    // The parent lambda's env is still the innermost one on the stack,
-                    // since the new lambda's env is only pushed below.
+                    // The env is built in the enclosing context, so this is the enclosing
+                    // lambda's env.
                     let ident = Box::new(ast::Expression::Ident(self.fresh_env_ident()));
                     Ok(ast::Expression::ExtractTupleField(ident, field_index))
                 }
@@ -2964,47 +2968,50 @@ impl<'interner> Monomorphizer<'interner> {
             vec![(env_local_id, true, env_name.to_string(), env_typ.clone(), Visibility::Private)];
         parameters.extend(converted_parameters);
 
-        // Both lambda bodies are processed with the shared environment as the innermost one.
+        // Both lambda bodies are monomorphized in a context of their own, with the shared
+        // environment holding their captures.
         let lambda_env =
             LambdaContext { env_ident: env_ident.clone(), captures: lambda.captures.clone() };
-        let (constrained_id, unconstrained_id) = self.with_lambda_env(lambda_env, |this| {
-            // Create constrained variant (or first unconstrained if both are unconstrained)
-            let constrained_id = this.next_function_id();
-            let constrained_body = this
-                .with_in_unconstrained_function(both_unconstrained, |this| {
+
+        // Create constrained variant (or first unconstrained if both are unconstrained)
+        let constrained_id = self.next_function_id();
+        let constrained_body = self.with_lambda_context(
+            locals.clone(),
+            Some(lambda_env.clone()),
+            both_unconstrained,
+            |this| this.expr(lambda.body),
+        )?;
+        let mut lambda_fn = Function {
+            id: constrained_id,
+            name: lambda_name.to_owned(),
+            parameters: parameters.clone(),
+            body: constrained_body,
+            return_type: ret_type.clone(),
+            return_visibility: Visibility::Private,
+            unconstrained: both_unconstrained,
+            inline_type: InlineType::default(),
+            is_entry_point: false,
+            allow_constant_return: false,
+        };
+        self.push_function(constrained_id, lambda_fn.clone());
+
+        // Create unconstrained variant unless the previous variant is already unconstrained
+        let unconstrained_id = if both_unconstrained {
+            // Both variants are unconstrained, reuse the same function
+            constrained_id
+        } else {
+            // Create a separate unconstrained variant
+            let unconstrained_id = self.next_function_id();
+            let unconstrained_body =
+                self.with_lambda_context(locals, Some(lambda_env), true, |this| {
                     this.expr(lambda.body)
                 })?;
-            let mut lambda_fn = Function {
-                id: constrained_id,
-                name: lambda_name.to_owned(),
-                parameters: parameters.clone(),
-                body: constrained_body,
-                return_type: ret_type.clone(),
-                return_visibility: Visibility::Private,
-                unconstrained: both_unconstrained,
-                inline_type: InlineType::default(),
-                is_entry_point: false,
-                allow_constant_return: false,
-            };
-            this.push_function(constrained_id, lambda_fn.clone());
-
-            // Create unconstrained variant unless the previous variant is already unconstrained
-            let unconstrained_id = if both_unconstrained {
-                // Both variants are unconstrained, reuse the same function
-                constrained_id
-            } else {
-                // Create a separate unconstrained variant
-                let unconstrained_id = this.next_function_id();
-                let unconstrained_body =
-                    this.with_in_unconstrained_function(true, |this| this.expr(lambda.body))?;
-                lambda_fn.id = unconstrained_id;
-                lambda_fn.unconstrained = true;
-                lambda_fn.body = unconstrained_body;
-                this.push_function(unconstrained_id, lambda_fn);
-                unconstrained_id
-            };
-            Ok::<_, MonomorphizationError>((constrained_id, unconstrained_id))
-        })?;
+            lambda_fn.id = unconstrained_id;
+            lambda_fn.unconstrained = true;
+            lambda_fn.body = unconstrained_body;
+            self.push_function(unconstrained_id, lambda_fn);
+            unconstrained_id
+        };
 
         // Build the function type for both variants
         let constrained_fn_typ = ast::Type::Function(
