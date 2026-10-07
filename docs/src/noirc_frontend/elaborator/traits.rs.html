@@ -733,7 +733,7 @@
 <a href=#733 id=733 data-nosnippet>733</a>        <span class="kw">let </span>parent_bounds: Vec&lt;<span class="kw">_</span>&gt; = <span class="self">self
 <a href=#734 id=734 data-nosnippet>734</a>            </span>.interner
 <a href=#735 id=735 data-nosnippet>735</a>            .try_get_trait(trait_id)
-<a href=#736 id=736 data-nosnippet>736</a>            .map(|t| t.parent_bounds().cloned().collect())
+<a href=#736 id=736 data-nosnippet>736</a>            .map(|t| t.parent_bounds().collect())
 <a href=#737 id=737 data-nosnippet>737</a>            .unwrap_or_default();
 <a href=#738 id=738 data-nosnippet>738</a>
 <a href=#739 id=739 data-nosnippet>739</a>        <span class="kw">for </span>parent_bound <span class="kw">in </span><span class="kw-2">&amp;</span>parent_bounds {
@@ -969,11 +969,11 @@
 <a href=#969 id=969 data-nosnippet>969</a>        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(trait_bounds) = <span class="self">self
 <a href=#970 id=970 data-nosnippet>970</a>            </span>.interner
 <a href=#971 id=971 data-nosnippet>971</a>            .try_get_trait(trait_id)
-<a href=#972 id=972 data-nosnippet>972</a>            .map(|the_trait| the_trait.parent_bounds().cloned().collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;())
+<a href=#972 id=972 data-nosnippet>972</a>            .map(|the_trait| the_trait.parent_bounds().collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;())
 <a href=#973 id=973 data-nosnippet>973</a>        {
 <a href=#974 id=974 data-nosnippet>974</a>            <span class="kw">for </span>parent_trait_bound <span class="kw">in </span>trait_bounds {
 <a href=#975 id=975 data-nosnippet>975</a>                <span class="comment">// Avoid looping forever in case there are cycles
-<a href=#976 id=976 data-nosnippet>976</a>                </span><span class="kw">if </span>!visited.insert((object.clone(), parent_trait_bound.trait_id)) {
+<a href=#976 id=976 data-nosnippet>976</a>                </span><span class="kw">if </span>!visited.insert((object.clone(), parent_trait_bound.trait_id())) {
 <a href=#977 id=977 data-nosnippet>977</a>                    <span class="kw">continue</span>;
 <a href=#978 id=978 data-nosnippet>978</a>                }
 <a href=#979 id=979 data-nosnippet>979</a>

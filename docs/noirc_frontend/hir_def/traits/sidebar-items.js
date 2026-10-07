@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["Impl","NamedType","ResolvedTraitBound","Trait","TraitConstant","TraitConstraint","TraitFunction","TraitImpl"]};
+window.SIDEBAR_ITEMS = {"fn":["bind_generic","bind_named_generics","bind_ordered_generics"],"struct":["Impl","NamedType","ParentBound","ResolvedTraitBound","Trait","TraitConstant","TraitConstraint","TraitFunction","TraitImpl"]};

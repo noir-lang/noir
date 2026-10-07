@@ -10,7 +10,7 @@
 <a href=#10 id=10 data-nosnippet>10</a>    DefinitionId, ImplSearchErrorKind, NodeInterner, TraitImplKind, TraitLookupMode,
 <a href=#11 id=11 data-nosnippet>11</a>};
 <a href=#12 id=12 data-nosnippet>12</a><span class="kw">use crate</span>::{
-<a href=#13 id=13 data-nosnippet>13</a>    NamedGeneric, ResolvedGenerics, Type, TypeBindings, TypeVariable,
+<a href=#13 id=13 data-nosnippet>13</a>    Kind, NamedGeneric, ResolvedGenerics, Type, TypeBindings, TypeVariable,
 <a href=#14 id=14 data-nosnippet>14</a>    graph::CrateId,
 <a href=#15 id=15 data-nosnippet>15</a>    node_interner::{FuncId, TraitId},
 <a href=#16 id=16 data-nosnippet>16</a>};
@@ -251,194 +251,342 @@
 <a href=#251 id=251 data-nosnippet>251</a>    <span class="kw">pub </span>location: Location,
 <a href=#252 id=252 data-nosnippet>252</a>}
 <a href=#253 id=253 data-nosnippet>253</a>
-<a href=#254 id=254 data-nosnippet>254</a><span class="kw">impl </span>ResolvedTraitBound {
-<a href=#255 id=255 data-nosnippet>255</a>    <span class="doccomment">/// Update all [Type]s in the bound generics by substituting some [`TypeBindings`] onto them.
-<a href=#256 id=256 data-nosnippet>256</a>    </span><span class="kw">pub fn </span>apply_bindings(<span class="kw-2">&amp;mut </span><span class="self">self</span>, type_bindings: <span class="kw-2">&amp;</span>TypeBindings) {
-<a href=#257 id=257 data-nosnippet>257</a>        <span class="kw">for </span>typ <span class="kw">in </span><span class="kw-2">&amp;mut </span><span class="self">self</span>.trait_generics.ordered {
-<a href=#258 id=258 data-nosnippet>258</a>            <span class="kw-2">*</span>typ = typ.substitute(type_bindings);
-<a href=#259 id=259 data-nosnippet>259</a>        }
-<a href=#260 id=260 data-nosnippet>260</a>
-<a href=#261 id=261 data-nosnippet>261</a>        <span class="kw">for </span>named <span class="kw">in </span><span class="kw-2">&amp;mut </span><span class="self">self</span>.trait_generics.named {
-<a href=#262 id=262 data-nosnippet>262</a>            named.typ = named.typ.substitute(type_bindings);
-<a href=#263 id=263 data-nosnippet>263</a>        }
-<a href=#264 id=264 data-nosnippet>264</a>    }
-<a href=#265 id=265 data-nosnippet>265</a>}
-<a href=#266 id=266 data-nosnippet>266</a>
-<a href=#267 id=267 data-nosnippet>267</a><span class="kw">impl </span>PartialEq <span class="kw">for </span>ResolvedTraitBound {
-<a href=#268 id=268 data-nosnippet>268</a>    <span class="kw">fn </span>eq(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; bool {
-<a href=#269 id=269 data-nosnippet>269</a>        <span class="comment">// Location doesn't matter for equality
-<a href=#270 id=270 data-nosnippet>270</a>        </span><span class="self">self</span>.trait_id == other.trait_id &amp;&amp; <span class="self">self</span>.trait_generics == other.trait_generics
-<a href=#271 id=271 data-nosnippet>271</a>    }
-<a href=#272 id=272 data-nosnippet>272</a>}
-<a href=#273 id=273 data-nosnippet>273</a>
-<a href=#274 id=274 data-nosnippet>274</a><span class="kw">impl </span>std::hash::Hash <span class="kw">for </span>Trait {
-<a href=#275 id=275 data-nosnippet>275</a>    <span class="kw">fn </span>hash&lt;H: std::hash::Hasher&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, state: <span class="kw-2">&amp;mut </span>H) {
-<a href=#276 id=276 data-nosnippet>276</a>        <span class="self">self</span>.id.hash(state);
-<a href=#277 id=277 data-nosnippet>277</a>    }
-<a href=#278 id=278 data-nosnippet>278</a>}
-<a href=#279 id=279 data-nosnippet>279</a>
-<a href=#280 id=280 data-nosnippet>280</a><span class="kw">impl </span>PartialEq <span class="kw">for </span>Trait {
-<a href=#281 id=281 data-nosnippet>281</a>    <span class="kw">fn </span>eq(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; bool {
-<a href=#282 id=282 data-nosnippet>282</a>        <span class="self">self</span>.id == other.id
-<a href=#283 id=283 data-nosnippet>283</a>    }
-<a href=#284 id=284 data-nosnippet>284</a>}
-<a href=#285 id=285 data-nosnippet>285</a>
-<a href=#286 id=286 data-nosnippet>286</a><span class="kw">impl </span>Trait {
-<a href=#287 id=287 data-nosnippet>287</a>    <span class="kw">pub fn </span>set_methods(<span class="kw-2">&amp;mut </span><span class="self">self</span>, methods: Vec&lt;TraitFunction&gt;) {
-<a href=#288 id=288 data-nosnippet>288</a>        <span class="self">self</span>.methods = methods;
-<a href=#289 id=289 data-nosnippet>289</a>    }
-<a href=#290 id=290 data-nosnippet>290</a>
-<a href=#291 id=291 data-nosnippet>291</a>    <span class="kw">pub fn </span>set_where_clause(<span class="kw-2">&amp;mut </span><span class="self">self</span>, where_clause: Vec&lt;TraitConstraint&gt;) {
-<a href=#292 id=292 data-nosnippet>292</a>        <span class="self">self</span>.where_clause = where_clause;
-<a href=#293 id=293 data-nosnippet>293</a>    }
+<a href=#254 id=254 data-nosnippet>254</a><span class="doccomment">/// A parent-trait bound (the `Bar&lt;Self&gt;` in `trait Foo: Bar&lt;Self&gt;`) as declared on a trait.
+<a href=#255 id=255 data-nosnippet>255</a>///
+<a href=#256 id=256 data-nosnippet>256</a>/// It is written in terms of the declaring trait's own `Self`, generics and associated types,
+<a href=#257 id=257 data-nosnippet>257</a>/// which are shared by every use of that trait. It only describes a real bound once those are
+<a href=#258 id=258 data-nosnippet>258</a>/// replaced by the ones of a particular `T: Foo&lt;..&gt;`, so the declared form is not exposed except
+<a href=#259 id=259 data-nosnippet>259</a>/// for display: read it with [`ParentBound::instantiate`].
+<a href=#260 id=260 data-nosnippet>260</a></span><span class="attr">#[derive(Debug, Clone)]
+<a href=#261 id=261 data-nosnippet>261</a></span><span class="kw">pub struct </span>ParentBound(ResolvedTraitBound);
+<a href=#262 id=262 data-nosnippet>262</a>
+<a href=#263 id=263 data-nosnippet>263</a><span class="kw">impl </span>ParentBound {
+<a href=#264 id=264 data-nosnippet>264</a>    <span class="kw">pub fn </span>trait_id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; TraitId {
+<a href=#265 id=265 data-nosnippet>265</a>        <span class="self">self</span>.<span class="number">0</span>.trait_id
+<a href=#266 id=266 data-nosnippet>266</a>    }
+<a href=#267 id=267 data-nosnippet>267</a>
+<a href=#268 id=268 data-nosnippet>268</a>    <span class="doccomment">/// The bound for one use of the declaring trait. `bindings` maps the declaring trait's
+<a href=#269 id=269 data-nosnippet>269</a>    /// `Self`, generics and associated types to that use's (see [`Trait::bound_bindings`]).
+<a href=#270 id=270 data-nosnippet>270</a>    ///
+<a href=#271 id=271 data-nosnippet>271</a>    /// An associated item the bound leaves out (`trait Foo: Bar` where `Bar` has `type Out`) is
+<a href=#272 id=272 data-nosnippet>272</a>    /// a placeholder declared once for the whole trait; `fresh_placeholder` replaces it with one
+<a href=#273 id=273 data-nosnippet>273</a>    /// for this instantiation, so that resolving one use cannot bind it for every other.
+<a href=#274 id=274 data-nosnippet>274</a>    </span><span class="kw">pub fn </span>instantiate(
+<a href=#275 id=275 data-nosnippet>275</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#276 id=276 data-nosnippet>276</a>        bindings: <span class="kw-2">&amp;</span>TypeBindings,
+<a href=#277 id=277 data-nosnippet>277</a>        <span class="kw-2">mut </span>fresh_placeholder: <span class="kw">impl </span>FnMut(Kind) -&gt; Type,
+<a href=#278 id=278 data-nosnippet>278</a>    ) -&gt; ResolvedTraitBound {
+<a href=#279 id=279 data-nosnippet>279</a>        <span class="kw">let </span><span class="kw-2">mut </span>trait_generics = <span class="self">self</span>.<span class="number">0</span>.trait_generics.map(|typ| typ.substitute(bindings));
+<a href=#280 id=280 data-nosnippet>280</a>        <span class="kw">for </span>(named, declared) <span class="kw">in </span>trait_generics.named.iter_mut().zip(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>.trait_generics.named) {
+<a href=#281 id=281 data-nosnippet>281</a>            <span class="kw">if let </span>Type::TypeVariable(placeholder) = <span class="kw-2">&amp;</span>declared.typ {
+<a href=#282 id=282 data-nosnippet>282</a>                named.typ = fresh_placeholder(placeholder.kind().into_owned());
+<a href=#283 id=283 data-nosnippet>283</a>            }
+<a href=#284 id=284 data-nosnippet>284</a>        }
+<a href=#285 id=285 data-nosnippet>285</a>        ResolvedTraitBound { trait_generics, ..<span class="self">self</span>.<span class="number">0 </span>}
+<a href=#286 id=286 data-nosnippet>286</a>    }
+<a href=#287 id=287 data-nosnippet>287</a>
+<a href=#288 id=288 data-nosnippet>288</a>    <span class="doccomment">/// The bound exactly as written in the trait declaration, mentioning the declaring trait's
+<a href=#289 id=289 data-nosnippet>289</a>    /// own `Self` and generics. Only for displaying the declaration.
+<a href=#290 id=290 data-nosnippet>290</a>    </span><span class="kw">pub fn </span>as_written(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>ResolvedTraitBound {
+<a href=#291 id=291 data-nosnippet>291</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0
+<a href=#292 id=292 data-nosnippet>292</a>    </span>}
+<a href=#293 id=293 data-nosnippet>293</a>}
 <a href=#294 id=294 data-nosnippet>294</a>
-<a href=#295 id=295 data-nosnippet>295</a>    <span class="doccomment">/// The parent-trait bounds of this trait (the `Bar` in `trait Foo: Bar`).
-<a href=#296 id=296 data-nosnippet>296</a>    ///
-<a href=#297 id=297 data-nosnippet>297</a>    /// Parent bounds are stored in `where_clause` as constraints whose `typ` is this
-<a href=#298 id=298 data-nosnippet>298</a>    /// trait's `Self` (see [`Self::is_self_type`]); this accessor filters them back out.
-<a href=#299 id=299 data-nosnippet>299</a>    </span><span class="kw">pub fn </span>parent_bounds(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span>ResolvedTraitBound&gt; {
-<a href=#300 id=300 data-nosnippet>300</a>        <span class="self">self</span>.where_clause.iter().filter(|c| <span class="self">self</span>.is_self_type(<span class="kw-2">&amp;</span>c.typ)).map(|c| <span class="kw-2">&amp;</span>c.trait_bound)
-<a href=#301 id=301 data-nosnippet>301</a>    }
-<a href=#302 id=302 data-nosnippet>302</a>
-<a href=#303 id=303 data-nosnippet>303</a>    <span class="doccomment">/// Whether `typ` is this trait's own `Self`, in either its rigid form (a named generic
-<a href=#304 id=304 data-nosnippet>304</a>    /// over `self_type_typevar`) or its bindable form (the bare type variable).
-<a href=#305 id=305 data-nosnippet>305</a>    </span><span class="kw">pub fn </span>is_self_type(<span class="kw-2">&amp;</span><span class="self">self</span>, typ: <span class="kw-2">&amp;</span>Type) -&gt; bool {
-<a href=#306 id=306 data-nosnippet>306</a>        <span class="kw">match </span>typ {
-<a href=#307 id=307 data-nosnippet>307</a>            Type::TypeVariable(v) | Type::NamedGeneric(NamedGeneric { type_var: v, .. }) =&gt; {
-<a href=#308 id=308 data-nosnippet>308</a>                v.id() == <span class="self">self</span>.self_type_typevar.id()
-<a href=#309 id=309 data-nosnippet>309</a>            }
-<a href=#310 id=310 data-nosnippet>310</a>            <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
-<a href=#311 id=311 data-nosnippet>311</a>        }
+<a href=#295 id=295 data-nosnippet>295</a><span class="kw">impl </span>ResolvedTraitBound {
+<a href=#296 id=296 data-nosnippet>296</a>    <span class="doccomment">/// Update all [Type]s in the bound generics by substituting some [`TypeBindings`] onto them.
+<a href=#297 id=297 data-nosnippet>297</a>    </span><span class="kw">pub fn </span>apply_bindings(<span class="kw-2">&amp;mut </span><span class="self">self</span>, type_bindings: <span class="kw-2">&amp;</span>TypeBindings) {
+<a href=#298 id=298 data-nosnippet>298</a>        <span class="kw">for </span>typ <span class="kw">in </span><span class="kw-2">&amp;mut </span><span class="self">self</span>.trait_generics.ordered {
+<a href=#299 id=299 data-nosnippet>299</a>            <span class="kw-2">*</span>typ = typ.substitute(type_bindings);
+<a href=#300 id=300 data-nosnippet>300</a>        }
+<a href=#301 id=301 data-nosnippet>301</a>
+<a href=#302 id=302 data-nosnippet>302</a>        <span class="kw">for </span>named <span class="kw">in </span><span class="kw-2">&amp;mut </span><span class="self">self</span>.trait_generics.named {
+<a href=#303 id=303 data-nosnippet>303</a>            named.typ = named.typ.substitute(type_bindings);
+<a href=#304 id=304 data-nosnippet>304</a>        }
+<a href=#305 id=305 data-nosnippet>305</a>    }
+<a href=#306 id=306 data-nosnippet>306</a>}
+<a href=#307 id=307 data-nosnippet>307</a>
+<a href=#308 id=308 data-nosnippet>308</a><span class="kw">impl </span>PartialEq <span class="kw">for </span>ResolvedTraitBound {
+<a href=#309 id=309 data-nosnippet>309</a>    <span class="kw">fn </span>eq(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; bool {
+<a href=#310 id=310 data-nosnippet>310</a>        <span class="comment">// Location doesn't matter for equality
+<a href=#311 id=311 data-nosnippet>311</a>        </span><span class="self">self</span>.trait_id == other.trait_id &amp;&amp; <span class="self">self</span>.trait_generics == other.trait_generics
 <a href=#312 id=312 data-nosnippet>312</a>    }
-<a href=#313 id=313 data-nosnippet>313</a>
-<a href=#314 id=314 data-nosnippet>314</a>    <span class="kw">pub fn </span>set_visibility(<span class="kw-2">&amp;mut </span><span class="self">self</span>, visibility: ItemVisibility) {
-<a href=#315 id=315 data-nosnippet>315</a>        <span class="self">self</span>.visibility = visibility;
-<a href=#316 id=316 data-nosnippet>316</a>    }
-<a href=#317 id=317 data-nosnippet>317</a>
-<a href=#318 id=318 data-nosnippet>318</a>    <span class="kw">pub fn </span>set_all_generics(<span class="kw-2">&amp;mut </span><span class="self">self</span>, generics: ResolvedGenerics) {
-<a href=#319 id=319 data-nosnippet>319</a>        <span class="self">self</span>.all_generics = generics;
-<a href=#320 id=320 data-nosnippet>320</a>    }
-<a href=#321 id=321 data-nosnippet>321</a>
-<a href=#322 id=322 data-nosnippet>322</a>    <span class="kw">pub fn </span>set_associated_type_bounds(
-<a href=#323 id=323 data-nosnippet>323</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#324 id=324 data-nosnippet>324</a>        associated_type_bounds: HashMap&lt;String, Vec&lt;ResolvedTraitBound&gt;&gt;,
-<a href=#325 id=325 data-nosnippet>325</a>    ) {
-<a href=#326 id=326 data-nosnippet>326</a>        <span class="self">self</span>.associated_type_bounds = associated_type_bounds;
-<a href=#327 id=327 data-nosnippet>327</a>    }
-<a href=#328 id=328 data-nosnippet>328</a>
-<a href=#329 id=329 data-nosnippet>329</a>    <span class="kw">pub fn </span>find_method(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str, interner: <span class="kw-2">&amp;</span>NodeInterner) -&gt; <span class="prelude-ty">Option</span>&lt;DefinitionId&gt; {
-<a href=#330 id=330 data-nosnippet>330</a>        <span class="kw">for </span>method <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.methods {
-<a href=#331 id=331 data-nosnippet>331</a>            <span class="kw">if </span><span class="kw-2">&amp;</span>method.name == name {
-<a href=#332 id=332 data-nosnippet>332</a>                <span class="kw">let </span>id = <span class="kw-2">*</span><span class="self">self</span>.method_ids.get(name).unwrap();
-<a href=#333 id=333 data-nosnippet>333</a>                <span class="kw">return </span><span class="prelude-val">Some</span>(interner.function_definition_id(id));
-<a href=#334 id=334 data-nosnippet>334</a>            }
-<a href=#335 id=335 data-nosnippet>335</a>        }
-<a href=#336 id=336 data-nosnippet>336</a>        <span class="prelude-val">None
-<a href=#337 id=337 data-nosnippet>337</a>    </span>}
-<a href=#338 id=338 data-nosnippet>338</a>
-<a href=#339 id=339 data-nosnippet>339</a>    <span class="kw">pub fn </span>find_method_or_constant(
-<a href=#340 id=340 data-nosnippet>340</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#341 id=341 data-nosnippet>341</a>        name: <span class="kw-2">&amp;</span>str,
-<a href=#342 id=342 data-nosnippet>342</a>        interner: <span class="kw-2">&amp;</span>NodeInterner,
-<a href=#343 id=343 data-nosnippet>343</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;DefinitionId&gt; {
-<a href=#344 id=344 data-nosnippet>344</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(method) = <span class="self">self</span>.find_method(name, interner) {
-<a href=#345 id=345 data-nosnippet>345</a>            <span class="kw">return </span><span class="prelude-val">Some</span>(method);
-<a href=#346 id=346 data-nosnippet>346</a>        }
-<a href=#347 id=347 data-nosnippet>347</a>        <span class="self">self</span>.associated_constant_ids.get(name).copied()
-<a href=#348 id=348 data-nosnippet>348</a>    }
-<a href=#349 id=349 data-nosnippet>349</a>
-<a href=#350 id=350 data-nosnippet>350</a>    <span class="doccomment">/// Find an associated type by the last segments in its name.
-<a href=#351 id=351 data-nosnippet>351</a>    ///
-<a href=#352 id=352 data-nosnippet>352</a>    /// For example if a method returns `Self::Foo`, here we will be looking for it by the name `"Foo"`.
-<a href=#353 id=353 data-nosnippet>353</a>    </span><span class="kw">pub fn </span>get_associated_type(<span class="kw-2">&amp;</span><span class="self">self</span>, last_name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>ResolvedGeneric&gt; {
-<a href=#354 id=354 data-nosnippet>354</a>        <span class="self">self</span>.associated_types.iter().find(|typ| typ.name.as_ref() == last_name)
-<a href=#355 id=355 data-nosnippet>355</a>    }
-<a href=#356 id=356 data-nosnippet>356</a>
-<a href=#357 id=357 data-nosnippet>357</a>    <span class="doccomment">/// Returns both the ordered generics of this type, and its named, associated types.
-<a href=#358 id=358 data-nosnippet>358</a>    /// These types are all as-is and are not instantiated.
-<a href=#359 id=359 data-nosnippet>359</a>    </span><span class="kw">pub fn </span>get_generics(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; (Vec&lt;Type&gt;, Vec&lt;Type&gt;) {
-<a href=#360 id=360 data-nosnippet>360</a>        <span class="kw">let </span>ordered = vecmap(<span class="kw-2">&amp;</span><span class="self">self</span>.generics, |generic| generic.clone().into_named_generic(<span class="prelude-val">None</span>));
-<a href=#361 id=361 data-nosnippet>361</a>        <span class="kw">let </span>named = vecmap(<span class="kw-2">&amp;</span><span class="self">self</span>.associated_types, |generic| {
-<a href=#362 id=362 data-nosnippet>362</a>            generic.clone().into_named_generic(<span class="prelude-val">Some</span>((SELF_TYPE_NAME, <span class="self">self</span>.name.as_str())))
-<a href=#363 id=363 data-nosnippet>363</a>        });
-<a href=#364 id=364 data-nosnippet>364</a>        (ordered, named)
-<a href=#365 id=365 data-nosnippet>365</a>    }
-<a href=#366 id=366 data-nosnippet>366</a>
-<a href=#367 id=367 data-nosnippet>367</a>    <span class="kw">pub fn </span>get_trait_generics(<span class="kw-2">&amp;</span><span class="self">self</span>, location: Location) -&gt; TraitGenerics {
-<a href=#368 id=368 data-nosnippet>368</a>        <span class="kw">let </span>ordered = vecmap(<span class="kw-2">&amp;</span><span class="self">self</span>.generics, |generic| generic.clone().into_named_generic(<span class="prelude-val">None</span>));
-<a href=#369 id=369 data-nosnippet>369</a>        <span class="kw">let </span>named = vecmap(<span class="kw-2">&amp;</span><span class="self">self</span>.associated_types, |generic| {
-<a href=#370 id=370 data-nosnippet>370</a>            <span class="kw">let </span>name = Ident::new(generic.name.to_string(), location);
-<a href=#371 id=371 data-nosnippet>371</a>            NamedType {
-<a href=#372 id=372 data-nosnippet>372</a>                name,
-<a href=#373 id=373 data-nosnippet>373</a>                typ: generic.clone().into_named_generic(<span class="prelude-val">Some</span>((SELF_TYPE_NAME, <span class="self">self</span>.name.as_str()))),
-<a href=#374 id=374 data-nosnippet>374</a>            }
-<a href=#375 id=375 data-nosnippet>375</a>        });
-<a href=#376 id=376 data-nosnippet>376</a>        TraitGenerics { ordered, named }
-<a href=#377 id=377 data-nosnippet>377</a>    }
-<a href=#378 id=378 data-nosnippet>378</a>
-<a href=#379 id=379 data-nosnippet>379</a>    <span class="doccomment">/// Returns a `TraitConstraint` for this trait using Self as the object
-<a href=#380 id=380 data-nosnippet>380</a>    /// type and the uninstantiated generics for any trait generics.
-<a href=#381 id=381 data-nosnippet>381</a>    ///
-<a href=#382 id=382 data-nosnippet>382</a>    /// `Self` is the rigid named generic over `self_type_typevar`, the same form trait method
-<a href=#383 id=383 data-nosnippet>383</a>    /// signatures use. A bindable `Type::TypeVariable` here would let a default body unify
-<a href=#384 id=384 data-nosnippet>384</a>    /// `Self` with a concrete type, and that binding would be seen by every other default
-<a href=#385 id=385 data-nosnippet>385</a>    /// method of the trait type-checked afterwards.
-<a href=#386 id=386 data-nosnippet>386</a>    </span><span class="kw">pub fn </span>as_constraint(<span class="kw-2">&amp;</span><span class="self">self</span>, location: Location) -&gt; TraitConstraint {
-<a href=#387 id=387 data-nosnippet>387</a>        <span class="kw">let </span>trait_generics = <span class="self">self</span>.get_trait_generics(location);
-<a href=#388 id=388 data-nosnippet>388</a>        TraitConstraint {
-<a href=#389 id=389 data-nosnippet>389</a>            typ: <span class="self">self</span>.self_type(),
-<a href=#390 id=390 data-nosnippet>390</a>            trait_bound: ResolvedTraitBound { trait_generics, trait_id: <span class="self">self</span>.id, location },
-<a href=#391 id=391 data-nosnippet>391</a>        }
-<a href=#392 id=392 data-nosnippet>392</a>    }
-<a href=#393 id=393 data-nosnippet>393</a>
-<a href=#394 id=394 data-nosnippet>394</a>    <span class="doccomment">/// The rigid `Self` type for this trait: a named generic over `self_type_typevar`, which
-<a href=#395 id=395 data-nosnippet>395</a>    /// cannot be unified with a concrete type. Every use of `Self` outside of the trait's own
-<a href=#396 id=396 data-nosnippet>396</a>    /// declaration bookkeeping (method signatures, assumed `Self: CurrentTrait` bounds, the
-<a href=#397 id=397 data-nosnippet>397</a>    /// elaboration context installed while checking a default method body) must go through
-<a href=#398 id=398 data-nosnippet>398</a>    /// this accessor rather than wrapping `self_type_typevar` in `Type::TypeVariable` directly.
-<a href=#399 id=399 data-nosnippet>399</a>    /// That bindable form lets any unification (including an impl search) bind the variable,
-<a href=#400 id=400 data-nosnippet>400</a>    /// and the binding is then visible to every other use of the trait's `Self` for the rest of
-<a href=#401 id=401 data-nosnippet>401</a>    /// compilation, since there is exactly one `self_type_typevar` per trait.
-<a href=#402 id=402 data-nosnippet>402</a>    </span><span class="kw">pub fn </span>self_type(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Type {
-<a href=#403 id=403 data-nosnippet>403</a>        <span class="kw">let </span>self_type_name = Rc::new(SELF_TYPE_NAME.to_string());
-<a href=#404 id=404 data-nosnippet>404</a>        <span class="self">self</span>.self_type_typevar.clone().into_named_generic(<span class="kw-2">&amp;</span>self_type_name, <span class="prelude-val">None</span>)
+<a href=#313 id=313 data-nosnippet>313</a>}
+<a href=#314 id=314 data-nosnippet>314</a>
+<a href=#315 id=315 data-nosnippet>315</a><span class="kw">impl </span>std::hash::Hash <span class="kw">for </span>Trait {
+<a href=#316 id=316 data-nosnippet>316</a>    <span class="kw">fn </span>hash&lt;H: std::hash::Hasher&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, state: <span class="kw-2">&amp;mut </span>H) {
+<a href=#317 id=317 data-nosnippet>317</a>        <span class="self">self</span>.id.hash(state);
+<a href=#318 id=318 data-nosnippet>318</a>    }
+<a href=#319 id=319 data-nosnippet>319</a>}
+<a href=#320 id=320 data-nosnippet>320</a>
+<a href=#321 id=321 data-nosnippet>321</a><span class="kw">impl </span>PartialEq <span class="kw">for </span>Trait {
+<a href=#322 id=322 data-nosnippet>322</a>    <span class="kw">fn </span>eq(<span class="kw-2">&amp;</span><span class="self">self</span>, other: <span class="kw-2">&amp;</span><span class="self">Self</span>) -&gt; bool {
+<a href=#323 id=323 data-nosnippet>323</a>        <span class="self">self</span>.id == other.id
+<a href=#324 id=324 data-nosnippet>324</a>    }
+<a href=#325 id=325 data-nosnippet>325</a>}
+<a href=#326 id=326 data-nosnippet>326</a>
+<a href=#327 id=327 data-nosnippet>327</a><span class="kw">impl </span>Trait {
+<a href=#328 id=328 data-nosnippet>328</a>    <span class="kw">pub fn </span>set_methods(<span class="kw-2">&amp;mut </span><span class="self">self</span>, methods: Vec&lt;TraitFunction&gt;) {
+<a href=#329 id=329 data-nosnippet>329</a>        <span class="self">self</span>.methods = methods;
+<a href=#330 id=330 data-nosnippet>330</a>    }
+<a href=#331 id=331 data-nosnippet>331</a>
+<a href=#332 id=332 data-nosnippet>332</a>    <span class="kw">pub fn </span>set_where_clause(<span class="kw-2">&amp;mut </span><span class="self">self</span>, where_clause: Vec&lt;TraitConstraint&gt;) {
+<a href=#333 id=333 data-nosnippet>333</a>        <span class="self">self</span>.where_clause = where_clause;
+<a href=#334 id=334 data-nosnippet>334</a>    }
+<a href=#335 id=335 data-nosnippet>335</a>
+<a href=#336 id=336 data-nosnippet>336</a>    <span class="doccomment">/// The parent-trait bounds of this trait (the `Bar` in `trait Foo: Bar`).
+<a href=#337 id=337 data-nosnippet>337</a>    ///
+<a href=#338 id=338 data-nosnippet>338</a>    /// Parent bounds are stored in `where_clause` as constraints whose `typ` is this
+<a href=#339 id=339 data-nosnippet>339</a>    /// trait's `Self` (see [`Self::is_self_type`]); this accessor filters them back out.
+<a href=#340 id=340 data-nosnippet>340</a>    </span><span class="kw">pub fn </span>parent_bounds(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = ParentBound&gt; + <span class="lifetime">'_ </span>{
+<a href=#341 id=341 data-nosnippet>341</a>        <span class="self">self</span>.where_clause
+<a href=#342 id=342 data-nosnippet>342</a>            .iter()
+<a href=#343 id=343 data-nosnippet>343</a>            .filter(|c| <span class="self">self</span>.is_self_type(<span class="kw-2">&amp;</span>c.typ))
+<a href=#344 id=344 data-nosnippet>344</a>            .map(|c| ParentBound(c.trait_bound.clone()))
+<a href=#345 id=345 data-nosnippet>345</a>    }
+<a href=#346 id=346 data-nosnippet>346</a>
+<a href=#347 id=347 data-nosnippet>347</a>    <span class="doccomment">/// Bindings from this trait's own ordered generics and associated types to the arguments
+<a href=#348 id=348 data-nosnippet>348</a>    /// of `trait_generics`, a bound on this trait.
+<a href=#349 id=349 data-nosnippet>349</a>    </span><span class="kw">pub fn </span>bind_generics(<span class="kw-2">&amp;</span><span class="self">self</span>, trait_generics: <span class="kw-2">&amp;</span>TraitGenerics, bindings: <span class="kw-2">&amp;mut </span>TypeBindings) {
+<a href=#350 id=350 data-nosnippet>350</a>        bind_ordered_generics(<span class="kw-2">&amp;</span><span class="self">self</span>.generics, <span class="kw-2">&amp;</span>trait_generics.ordered, bindings);
+<a href=#351 id=351 data-nosnippet>351</a>        bind_named_generics(<span class="self">self</span>.associated_types.clone(), <span class="kw-2">&amp;</span>trait_generics.named, bindings);
+<a href=#352 id=352 data-nosnippet>352</a>    }
+<a href=#353 id=353 data-nosnippet>353</a>
+<a href=#354 id=354 data-nosnippet>354</a>    <span class="doccomment">/// Bindings from this trait's own `Self`, ordered generics and associated types to those of
+<a href=#355 id=355 data-nosnippet>355</a>    /// the bound `self_type: ThisTrait&lt;trait_generics&gt;`. Substituting them into anything declared
+<a href=#356 id=356 data-nosnippet>356</a>    /// on this trait gives its meaning for that bound.
+<a href=#357 id=357 data-nosnippet>357</a>    </span><span class="kw">pub fn </span>bound_bindings(<span class="kw-2">&amp;</span><span class="self">self</span>, self_type: <span class="kw-2">&amp;</span>Type, trait_generics: <span class="kw-2">&amp;</span>TraitGenerics) -&gt; TypeBindings {
+<a href=#358 id=358 data-nosnippet>358</a>        <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
+<a href=#359 id=359 data-nosnippet>359</a>        <span class="self">self</span>.bind_generics(trait_generics, <span class="kw-2">&amp;mut </span>bindings);
+<a href=#360 id=360 data-nosnippet>360</a>        <span class="self">self</span>.bind_self(self_type, <span class="kw-2">&amp;mut </span>bindings);
+<a href=#361 id=361 data-nosnippet>361</a>        bindings
+<a href=#362 id=362 data-nosnippet>362</a>    }
+<a href=#363 id=363 data-nosnippet>363</a>
+<a href=#364 id=364 data-nosnippet>364</a>    <span class="doccomment">/// Binds this trait's `Self` to `self_type`, and each of its ordered generics and associated
+<a href=#365 id=365 data-nosnippet>365</a>    /// types to the argument `generics` gives for it, adding to `bindings`. An associated type
+<a href=#366 id=366 data-nosnippet>366</a>    /// that `generics` leaves out gets no entry.
+<a href=#367 id=367 data-nosnippet>367</a>    ///
+<a href=#368 id=368 data-nosnippet>368</a>    /// Panics if `generics` doesn't give exactly one argument per ordered generic, or names an
+<a href=#369 id=369 data-nosnippet>369</a>    /// associated type this trait doesn't have.
+<a href=#370 id=370 data-nosnippet>370</a>    </span><span class="kw">pub fn </span>bind_given_arguments(
+<a href=#371 id=371 data-nosnippet>371</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#372 id=372 data-nosnippet>372</a>        self_type: <span class="kw-2">&amp;</span>Type,
+<a href=#373 id=373 data-nosnippet>373</a>        generics: <span class="kw-2">&amp;</span>TraitGenerics,
+<a href=#374 id=374 data-nosnippet>374</a>        bindings: <span class="kw-2">&amp;mut </span>TypeBindings,
+<a href=#375 id=375 data-nosnippet>375</a>    ) {
+<a href=#376 id=376 data-nosnippet>376</a>        <span class="self">self</span>.bind_self(self_type, bindings);
+<a href=#377 id=377 data-nosnippet>377</a>        bind_ordered_generics(<span class="kw-2">&amp;</span><span class="self">self</span>.generics, <span class="kw-2">&amp;</span>generics.ordered, bindings);
+<a href=#378 id=378 data-nosnippet>378</a>        <span class="kw">for </span>arg <span class="kw">in </span><span class="kw-2">&amp;</span>generics.named {
+<a href=#379 id=379 data-nosnippet>379</a>            <span class="kw">let </span>param = <span class="self">self</span>.get_associated_type(arg.name.as_str()).unwrap_or_else(|| {
+<a href=#380 id=380 data-nosnippet>380</a>                <span class="macro">unreachable!</span>(<span class="string">"Expected to find associated type named {}"</span>, arg.name)
+<a href=#381 id=381 data-nosnippet>381</a>            });
+<a href=#382 id=382 data-nosnippet>382</a>            bind_generic(param, <span class="kw-2">&amp;</span>arg.typ, bindings);
+<a href=#383 id=383 data-nosnippet>383</a>        }
+<a href=#384 id=384 data-nosnippet>384</a>    }
+<a href=#385 id=385 data-nosnippet>385</a>
+<a href=#386 id=386 data-nosnippet>386</a>    <span class="kw">fn </span>bind_self(<span class="kw-2">&amp;</span><span class="self">self</span>, self_type: <span class="kw-2">&amp;</span>Type, bindings: <span class="kw-2">&amp;mut </span>TypeBindings) {
+<a href=#387 id=387 data-nosnippet>387</a>        <span class="kw">let </span>self_var = <span class="self">self</span>.self_type_typevar.clone();
+<a href=#388 id=388 data-nosnippet>388</a>        <span class="kw">let </span>self_kind = self_var.kind().into_owned();
+<a href=#389 id=389 data-nosnippet>389</a>        bindings.insert(self_var.id(), (self_var, self_kind, self_type.clone()));
+<a href=#390 id=390 data-nosnippet>390</a>    }
+<a href=#391 id=391 data-nosnippet>391</a>
+<a href=#392 id=392 data-nosnippet>392</a>    <span class="doccomment">/// Whether `typ` is this trait's own `Self`, in either its rigid form (a named generic
+<a href=#393 id=393 data-nosnippet>393</a>    /// over `self_type_typevar`) or its bindable form (the bare type variable).
+<a href=#394 id=394 data-nosnippet>394</a>    </span><span class="kw">pub fn </span>is_self_type(<span class="kw-2">&amp;</span><span class="self">self</span>, typ: <span class="kw-2">&amp;</span>Type) -&gt; bool {
+<a href=#395 id=395 data-nosnippet>395</a>        <span class="kw">match </span>typ {
+<a href=#396 id=396 data-nosnippet>396</a>            Type::TypeVariable(v) | Type::NamedGeneric(NamedGeneric { type_var: v, .. }) =&gt; {
+<a href=#397 id=397 data-nosnippet>397</a>                v.id() == <span class="self">self</span>.self_type_typevar.id()
+<a href=#398 id=398 data-nosnippet>398</a>            }
+<a href=#399 id=399 data-nosnippet>399</a>            <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
+<a href=#400 id=400 data-nosnippet>400</a>        }
+<a href=#401 id=401 data-nosnippet>401</a>    }
+<a href=#402 id=402 data-nosnippet>402</a>
+<a href=#403 id=403 data-nosnippet>403</a>    <span class="kw">pub fn </span>set_visibility(<span class="kw-2">&amp;mut </span><span class="self">self</span>, visibility: ItemVisibility) {
+<a href=#404 id=404 data-nosnippet>404</a>        <span class="self">self</span>.visibility = visibility;
 <a href=#405 id=405 data-nosnippet>405</a>    }
-<a href=#406 id=406 data-nosnippet>406</a>}
-<a href=#407 id=407 data-nosnippet>407</a>
-<a href=#408 id=408 data-nosnippet>408</a><span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>Trait {
-<a href=#409 id=409 data-nosnippet>409</a>    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
-<a href=#410 id=410 data-nosnippet>410</a>        <span class="macro">write!</span>(f, <span class="string">"{}"</span>, <span class="self">self</span>.name)
-<a href=#411 id=411 data-nosnippet>411</a>    }
-<a href=#412 id=412 data-nosnippet>412</a>}
-<a href=#413 id=413 data-nosnippet>413</a>
-<a href=#414 id=414 data-nosnippet>414</a><span class="kw">impl </span>TraitFunction {
-<a href=#415 id=415 data-nosnippet>415</a>    <span class="kw">pub fn </span>arguments(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[Type] {
-<a href=#416 id=416 data-nosnippet>416</a>        <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.typ {
-<a href=#417 id=417 data-nosnippet>417</a>            Type::Function(args, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; args,
-<a href=#418 id=418 data-nosnippet>418</a>            Type::Forall(<span class="kw">_</span>, typ) =&gt; <span class="kw">match </span>typ.as_ref() {
-<a href=#419 id=419 data-nosnippet>419</a>                Type::Function(args, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; args,
-<a href=#420 id=420 data-nosnippet>420</a>                <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Trait function does not have a function type"</span>),
-<a href=#421 id=421 data-nosnippet>421</a>            },
-<a href=#422 id=422 data-nosnippet>422</a>            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Trait function does not have a function type"</span>),
-<a href=#423 id=423 data-nosnippet>423</a>        }
-<a href=#424 id=424 data-nosnippet>424</a>    }
-<a href=#425 id=425 data-nosnippet>425</a>
-<a href=#426 id=426 data-nosnippet>426</a>    <span class="kw">pub fn </span>generics(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[TypeVariable] {
-<a href=#427 id=427 data-nosnippet>427</a>        <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.typ {
-<a href=#428 id=428 data-nosnippet>428</a>            Type::Function(..) =&gt; <span class="kw-2">&amp;</span>[],
-<a href=#429 id=429 data-nosnippet>429</a>            Type::Forall(generics, <span class="kw">_</span>) =&gt; generics,
-<a href=#430 id=430 data-nosnippet>430</a>            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Trait function does not have a function type"</span>),
-<a href=#431 id=431 data-nosnippet>431</a>        }
-<a href=#432 id=432 data-nosnippet>432</a>    }
-<a href=#433 id=433 data-nosnippet>433</a>
-<a href=#434 id=434 data-nosnippet>434</a>    <span class="kw">pub fn </span>return_type(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>Type {
-<a href=#435 id=435 data-nosnippet>435</a>        <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.typ {
-<a href=#436 id=436 data-nosnippet>436</a>            Type::Function(<span class="kw">_</span>, return_type, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; return_type,
-<a href=#437 id=437 data-nosnippet>437</a>            Type::Forall(<span class="kw">_</span>, typ) =&gt; <span class="kw">match </span>typ.as_ref() {
-<a href=#438 id=438 data-nosnippet>438</a>                Type::Function(<span class="kw">_</span>, return_type, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; return_type,
-<a href=#439 id=439 data-nosnippet>439</a>                <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Trait function does not have a function type"</span>),
-<a href=#440 id=440 data-nosnippet>440</a>            },
-<a href=#441 id=441 data-nosnippet>441</a>            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Trait function does not have a function type"</span>),
-<a href=#442 id=442 data-nosnippet>442</a>        }
-<a href=#443 id=443 data-nosnippet>443</a>    }
-<a href=#444 id=444 data-nosnippet>444</a>}</code></pre></div></section></main></body></html>
+<a href=#406 id=406 data-nosnippet>406</a>
+<a href=#407 id=407 data-nosnippet>407</a>    <span class="kw">pub fn </span>set_all_generics(<span class="kw-2">&amp;mut </span><span class="self">self</span>, generics: ResolvedGenerics) {
+<a href=#408 id=408 data-nosnippet>408</a>        <span class="self">self</span>.all_generics = generics;
+<a href=#409 id=409 data-nosnippet>409</a>    }
+<a href=#410 id=410 data-nosnippet>410</a>
+<a href=#411 id=411 data-nosnippet>411</a>    <span class="kw">pub fn </span>set_associated_type_bounds(
+<a href=#412 id=412 data-nosnippet>412</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#413 id=413 data-nosnippet>413</a>        associated_type_bounds: HashMap&lt;String, Vec&lt;ResolvedTraitBound&gt;&gt;,
+<a href=#414 id=414 data-nosnippet>414</a>    ) {
+<a href=#415 id=415 data-nosnippet>415</a>        <span class="self">self</span>.associated_type_bounds = associated_type_bounds;
+<a href=#416 id=416 data-nosnippet>416</a>    }
+<a href=#417 id=417 data-nosnippet>417</a>
+<a href=#418 id=418 data-nosnippet>418</a>    <span class="kw">pub fn </span>find_method(<span class="kw-2">&amp;</span><span class="self">self</span>, name: <span class="kw-2">&amp;</span>str, interner: <span class="kw-2">&amp;</span>NodeInterner) -&gt; <span class="prelude-ty">Option</span>&lt;DefinitionId&gt; {
+<a href=#419 id=419 data-nosnippet>419</a>        <span class="kw">for </span>method <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.methods {
+<a href=#420 id=420 data-nosnippet>420</a>            <span class="kw">if </span><span class="kw-2">&amp;</span>method.name == name {
+<a href=#421 id=421 data-nosnippet>421</a>                <span class="kw">let </span>id = <span class="kw-2">*</span><span class="self">self</span>.method_ids.get(name).unwrap();
+<a href=#422 id=422 data-nosnippet>422</a>                <span class="kw">return </span><span class="prelude-val">Some</span>(interner.function_definition_id(id));
+<a href=#423 id=423 data-nosnippet>423</a>            }
+<a href=#424 id=424 data-nosnippet>424</a>        }
+<a href=#425 id=425 data-nosnippet>425</a>        <span class="prelude-val">None
+<a href=#426 id=426 data-nosnippet>426</a>    </span>}
+<a href=#427 id=427 data-nosnippet>427</a>
+<a href=#428 id=428 data-nosnippet>428</a>    <span class="kw">pub fn </span>find_method_or_constant(
+<a href=#429 id=429 data-nosnippet>429</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#430 id=430 data-nosnippet>430</a>        name: <span class="kw-2">&amp;</span>str,
+<a href=#431 id=431 data-nosnippet>431</a>        interner: <span class="kw-2">&amp;</span>NodeInterner,
+<a href=#432 id=432 data-nosnippet>432</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;DefinitionId&gt; {
+<a href=#433 id=433 data-nosnippet>433</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>(method) = <span class="self">self</span>.find_method(name, interner) {
+<a href=#434 id=434 data-nosnippet>434</a>            <span class="kw">return </span><span class="prelude-val">Some</span>(method);
+<a href=#435 id=435 data-nosnippet>435</a>        }
+<a href=#436 id=436 data-nosnippet>436</a>        <span class="self">self</span>.associated_constant_ids.get(name).copied()
+<a href=#437 id=437 data-nosnippet>437</a>    }
+<a href=#438 id=438 data-nosnippet>438</a>
+<a href=#439 id=439 data-nosnippet>439</a>    <span class="doccomment">/// Find an associated type by the last segments in its name.
+<a href=#440 id=440 data-nosnippet>440</a>    ///
+<a href=#441 id=441 data-nosnippet>441</a>    /// For example if a method returns `Self::Foo`, here we will be looking for it by the name `"Foo"`.
+<a href=#442 id=442 data-nosnippet>442</a>    </span><span class="kw">pub fn </span>get_associated_type(<span class="kw-2">&amp;</span><span class="self">self</span>, last_name: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>ResolvedGeneric&gt; {
+<a href=#443 id=443 data-nosnippet>443</a>        <span class="self">self</span>.associated_types.iter().find(|typ| typ.name.as_ref() == last_name)
+<a href=#444 id=444 data-nosnippet>444</a>    }
+<a href=#445 id=445 data-nosnippet>445</a>
+<a href=#446 id=446 data-nosnippet>446</a>    <span class="doccomment">/// Returns both the ordered generics of this type, and its named, associated types.
+<a href=#447 id=447 data-nosnippet>447</a>    /// These types are all as-is and are not instantiated.
+<a href=#448 id=448 data-nosnippet>448</a>    </span><span class="kw">pub fn </span>get_generics(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; (Vec&lt;Type&gt;, Vec&lt;Type&gt;) {
+<a href=#449 id=449 data-nosnippet>449</a>        <span class="kw">let </span>ordered = vecmap(<span class="kw-2">&amp;</span><span class="self">self</span>.generics, |generic| generic.clone().into_named_generic(<span class="prelude-val">None</span>));
+<a href=#450 id=450 data-nosnippet>450</a>        <span class="kw">let </span>named = vecmap(<span class="kw-2">&amp;</span><span class="self">self</span>.associated_types, |generic| {
+<a href=#451 id=451 data-nosnippet>451</a>            generic.clone().into_named_generic(<span class="prelude-val">Some</span>((SELF_TYPE_NAME, <span class="self">self</span>.name.as_str())))
+<a href=#452 id=452 data-nosnippet>452</a>        });
+<a href=#453 id=453 data-nosnippet>453</a>        (ordered, named)
+<a href=#454 id=454 data-nosnippet>454</a>    }
+<a href=#455 id=455 data-nosnippet>455</a>
+<a href=#456 id=456 data-nosnippet>456</a>    <span class="kw">pub fn </span>get_trait_generics(<span class="kw-2">&amp;</span><span class="self">self</span>, location: Location) -&gt; TraitGenerics {
+<a href=#457 id=457 data-nosnippet>457</a>        <span class="kw">let </span>ordered = vecmap(<span class="kw-2">&amp;</span><span class="self">self</span>.generics, |generic| generic.clone().into_named_generic(<span class="prelude-val">None</span>));
+<a href=#458 id=458 data-nosnippet>458</a>        <span class="kw">let </span>named = vecmap(<span class="kw-2">&amp;</span><span class="self">self</span>.associated_types, |generic| {
+<a href=#459 id=459 data-nosnippet>459</a>            <span class="kw">let </span>name = Ident::new(generic.name.to_string(), location);
+<a href=#460 id=460 data-nosnippet>460</a>            NamedType {
+<a href=#461 id=461 data-nosnippet>461</a>                name,
+<a href=#462 id=462 data-nosnippet>462</a>                typ: generic.clone().into_named_generic(<span class="prelude-val">Some</span>((SELF_TYPE_NAME, <span class="self">self</span>.name.as_str()))),
+<a href=#463 id=463 data-nosnippet>463</a>            }
+<a href=#464 id=464 data-nosnippet>464</a>        });
+<a href=#465 id=465 data-nosnippet>465</a>        TraitGenerics { ordered, named }
+<a href=#466 id=466 data-nosnippet>466</a>    }
+<a href=#467 id=467 data-nosnippet>467</a>
+<a href=#468 id=468 data-nosnippet>468</a>    <span class="doccomment">/// Returns a `TraitConstraint` for this trait using Self as the object
+<a href=#469 id=469 data-nosnippet>469</a>    /// type and the uninstantiated generics for any trait generics.
+<a href=#470 id=470 data-nosnippet>470</a>    ///
+<a href=#471 id=471 data-nosnippet>471</a>    /// `Self` is the rigid named generic over `self_type_typevar`, the same form trait method
+<a href=#472 id=472 data-nosnippet>472</a>    /// signatures use. A bindable `Type::TypeVariable` here would let a default body unify
+<a href=#473 id=473 data-nosnippet>473</a>    /// `Self` with a concrete type, and that binding would be seen by every other default
+<a href=#474 id=474 data-nosnippet>474</a>    /// method of the trait type-checked afterwards.
+<a href=#475 id=475 data-nosnippet>475</a>    </span><span class="kw">pub fn </span>as_constraint(<span class="kw-2">&amp;</span><span class="self">self</span>, location: Location) -&gt; TraitConstraint {
+<a href=#476 id=476 data-nosnippet>476</a>        <span class="kw">let </span>trait_generics = <span class="self">self</span>.get_trait_generics(location);
+<a href=#477 id=477 data-nosnippet>477</a>        TraitConstraint {
+<a href=#478 id=478 data-nosnippet>478</a>            typ: <span class="self">self</span>.self_type(),
+<a href=#479 id=479 data-nosnippet>479</a>            trait_bound: ResolvedTraitBound { trait_generics, trait_id: <span class="self">self</span>.id, location },
+<a href=#480 id=480 data-nosnippet>480</a>        }
+<a href=#481 id=481 data-nosnippet>481</a>    }
+<a href=#482 id=482 data-nosnippet>482</a>
+<a href=#483 id=483 data-nosnippet>483</a>    <span class="doccomment">/// The rigid `Self` type for this trait: a named generic over `self_type_typevar`, which
+<a href=#484 id=484 data-nosnippet>484</a>    /// cannot be unified with a concrete type. Every use of `Self` outside of the trait's own
+<a href=#485 id=485 data-nosnippet>485</a>    /// declaration bookkeeping (method signatures, assumed `Self: CurrentTrait` bounds, the
+<a href=#486 id=486 data-nosnippet>486</a>    /// elaboration context installed while checking a default method body) must go through
+<a href=#487 id=487 data-nosnippet>487</a>    /// this accessor rather than wrapping `self_type_typevar` in `Type::TypeVariable` directly.
+<a href=#488 id=488 data-nosnippet>488</a>    /// That bindable form lets any unification (including an impl search) bind the variable,
+<a href=#489 id=489 data-nosnippet>489</a>    /// and the binding is then visible to every other use of the trait's `Self` for the rest of
+<a href=#490 id=490 data-nosnippet>490</a>    /// compilation, since there is exactly one `self_type_typevar` per trait.
+<a href=#491 id=491 data-nosnippet>491</a>    </span><span class="kw">pub fn </span>self_type(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Type {
+<a href=#492 id=492 data-nosnippet>492</a>        <span class="kw">let </span>self_type_name = Rc::new(SELF_TYPE_NAME.to_string());
+<a href=#493 id=493 data-nosnippet>493</a>        <span class="self">self</span>.self_type_typevar.clone().into_named_generic(<span class="kw-2">&amp;</span>self_type_name, <span class="prelude-val">None</span>)
+<a href=#494 id=494 data-nosnippet>494</a>    }
+<a href=#495 id=495 data-nosnippet>495</a>}
+<a href=#496 id=496 data-nosnippet>496</a>
+<a href=#497 id=497 data-nosnippet>497</a><span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>Trait {
+<a href=#498 id=498 data-nosnippet>498</a>    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
+<a href=#499 id=499 data-nosnippet>499</a>        <span class="macro">write!</span>(f, <span class="string">"{}"</span>, <span class="self">self</span>.name)
+<a href=#500 id=500 data-nosnippet>500</a>    }
+<a href=#501 id=501 data-nosnippet>501</a>}
+<a href=#502 id=502 data-nosnippet>502</a>
+<a href=#503 id=503 data-nosnippet>503</a><span class="kw">impl </span>TraitFunction {
+<a href=#504 id=504 data-nosnippet>504</a>    <span class="kw">pub fn </span>arguments(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[Type] {
+<a href=#505 id=505 data-nosnippet>505</a>        <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.typ {
+<a href=#506 id=506 data-nosnippet>506</a>            Type::Function(args, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; args,
+<a href=#507 id=507 data-nosnippet>507</a>            Type::Forall(<span class="kw">_</span>, typ) =&gt; <span class="kw">match </span>typ.as_ref() {
+<a href=#508 id=508 data-nosnippet>508</a>                Type::Function(args, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; args,
+<a href=#509 id=509 data-nosnippet>509</a>                <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Trait function does not have a function type"</span>),
+<a href=#510 id=510 data-nosnippet>510</a>            },
+<a href=#511 id=511 data-nosnippet>511</a>            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Trait function does not have a function type"</span>),
+<a href=#512 id=512 data-nosnippet>512</a>        }
+<a href=#513 id=513 data-nosnippet>513</a>    }
+<a href=#514 id=514 data-nosnippet>514</a>
+<a href=#515 id=515 data-nosnippet>515</a>    <span class="kw">pub fn </span>generics(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[TypeVariable] {
+<a href=#516 id=516 data-nosnippet>516</a>        <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.typ {
+<a href=#517 id=517 data-nosnippet>517</a>            Type::Function(..) =&gt; <span class="kw-2">&amp;</span>[],
+<a href=#518 id=518 data-nosnippet>518</a>            Type::Forall(generics, <span class="kw">_</span>) =&gt; generics,
+<a href=#519 id=519 data-nosnippet>519</a>            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Trait function does not have a function type"</span>),
+<a href=#520 id=520 data-nosnippet>520</a>        }
+<a href=#521 id=521 data-nosnippet>521</a>    }
+<a href=#522 id=522 data-nosnippet>522</a>
+<a href=#523 id=523 data-nosnippet>523</a>    <span class="kw">pub fn </span>return_type(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>Type {
+<a href=#524 id=524 data-nosnippet>524</a>        <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.typ {
+<a href=#525 id=525 data-nosnippet>525</a>            Type::Function(<span class="kw">_</span>, return_type, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; return_type,
+<a href=#526 id=526 data-nosnippet>526</a>            Type::Forall(<span class="kw">_</span>, typ) =&gt; <span class="kw">match </span>typ.as_ref() {
+<a href=#527 id=527 data-nosnippet>527</a>                Type::Function(<span class="kw">_</span>, return_type, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; return_type,
+<a href=#528 id=528 data-nosnippet>528</a>                <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Trait function does not have a function type"</span>),
+<a href=#529 id=529 data-nosnippet>529</a>            },
+<a href=#530 id=530 data-nosnippet>530</a>            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Trait function does not have a function type"</span>),
+<a href=#531 id=531 data-nosnippet>531</a>        }
+<a href=#532 id=532 data-nosnippet>532</a>    }
+<a href=#533 id=533 data-nosnippet>533</a>}
+<a href=#534 id=534 data-nosnippet>534</a>
+<a href=#535 id=535 data-nosnippet>535</a><span class="doccomment">/// Binds the ordered [`ResolvedGeneric`]s of a trait to the ordered generics in a [`ResolvedTraitBound`].
+<a href=#536 id=536 data-nosnippet>536</a>///
+<a href=#537 id=537 data-nosnippet>537</a>/// Panics if the number of types do not match the ordered generics in the trait.
+<a href=#538 id=538 data-nosnippet>538</a></span><span class="kw">fn </span>bind_ordered_generics(params: <span class="kw-2">&amp;</span>[ResolvedGeneric], args: <span class="kw-2">&amp;</span>[Type], bindings: <span class="kw-2">&amp;mut </span>TypeBindings) {
+<a href=#539 id=539 data-nosnippet>539</a>    <span class="macro">assert_eq!</span>(params.len(), args.len(), <span class="string">"unexpected number of ordered generics"</span>);
+<a href=#540 id=540 data-nosnippet>540</a>
+<a href=#541 id=541 data-nosnippet>541</a>    <span class="kw">for </span>(param, arg) <span class="kw">in </span>params.iter().zip(args) {
+<a href=#542 id=542 data-nosnippet>542</a>        bind_generic(param, arg, bindings);
+<a href=#543 id=543 data-nosnippet>543</a>    }
+<a href=#544 id=544 data-nosnippet>544</a>}
+<a href=#545 id=545 data-nosnippet>545</a>
+<a href=#546 id=546 data-nosnippet>546</a><span class="doccomment">/// Binds the associated [`ResolvedGeneric`]s of a trait to the named generics in a [`ResolvedTraitBound`].
+<a href=#547 id=547 data-nosnippet>547</a>///
+<a href=#548 id=548 data-nosnippet>548</a>/// Panics if the number of types exceeds the named generics in the trait.
+<a href=#549 id=549 data-nosnippet>549</a>/// Any named parameter that does not appear in the arguments is bound to [`Type::Error`].
+<a href=#550 id=550 data-nosnippet>550</a></span><span class="kw">fn </span>bind_named_generics(
+<a href=#551 id=551 data-nosnippet>551</a>    <span class="kw-2">mut </span>params: Vec&lt;ResolvedGeneric&gt;,
+<a href=#552 id=552 data-nosnippet>552</a>    args: <span class="kw-2">&amp;</span>[NamedType],
+<a href=#553 id=553 data-nosnippet>553</a>    bindings: <span class="kw-2">&amp;mut </span>TypeBindings,
+<a href=#554 id=554 data-nosnippet>554</a>) {
+<a href=#555 id=555 data-nosnippet>555</a>    <span class="macro">assert!</span>(
+<a href=#556 id=556 data-nosnippet>556</a>        args.len() &lt;= params.len(),
+<a href=#557 id=557 data-nosnippet>557</a>        <span class="string">"bind_named_generics: trait bound has more named generics than associated types"
+<a href=#558 id=558 data-nosnippet>558</a>    </span>);
+<a href=#559 id=559 data-nosnippet>559</a>
+<a href=#560 id=560 data-nosnippet>560</a>    <span class="kw">if </span>params.is_empty() {
+<a href=#561 id=561 data-nosnippet>561</a>        <span class="kw">return</span>;
+<a href=#562 id=562 data-nosnippet>562</a>    }
+<a href=#563 id=563 data-nosnippet>563</a>
+<a href=#564 id=564 data-nosnippet>564</a>    <span class="kw">for </span>arg <span class="kw">in </span>args {
+<a href=#565 id=565 data-nosnippet>565</a>        <span class="kw">let </span>i = params
+<a href=#566 id=566 data-nosnippet>566</a>            .iter()
+<a href=#567 id=567 data-nosnippet>567</a>            .position(|typ| <span class="kw-2">*</span>typ.name == arg.name.as_str())
+<a href=#568 id=568 data-nosnippet>568</a>            .unwrap_or_else(|| <span class="macro">unreachable!</span>(<span class="string">"Expected to find associated type named {}"</span>, arg.name));
+<a href=#569 id=569 data-nosnippet>569</a>
+<a href=#570 id=570 data-nosnippet>570</a>        <span class="kw">let </span>param = params.swap_remove(i);
+<a href=#571 id=571 data-nosnippet>571</a>
+<a href=#572 id=572 data-nosnippet>572</a>        bind_generic(<span class="kw-2">&amp;</span>param, <span class="kw-2">&amp;</span>arg.typ, bindings);
+<a href=#573 id=573 data-nosnippet>573</a>    }
+<a href=#574 id=574 data-nosnippet>574</a>
+<a href=#575 id=575 data-nosnippet>575</a>    <span class="kw">for </span>unbound_param <span class="kw">in </span>params {
+<a href=#576 id=576 data-nosnippet>576</a>        bind_generic(<span class="kw-2">&amp;</span>unbound_param, <span class="kw-2">&amp;</span>Type::Error, bindings);
+<a href=#577 id=577 data-nosnippet>577</a>    }
+<a href=#578 id=578 data-nosnippet>578</a>}
+<a href=#579 id=579 data-nosnippet>579</a>
+<a href=#580 id=580 data-nosnippet>580</a><span class="doccomment">/// Binds the type variable in a [`ResolvedGeneric`], e.g. a generic parameter of a trait,
+<a href=#581 id=581 data-nosnippet>581</a>/// to a [Type], which itself can be an unbound type variable.
+<a href=#582 id=582 data-nosnippet>582</a>///
+<a href=#583 id=583 data-nosnippet>583</a>/// If the type variable itself appears in the type, then it does nothing.
+<a href=#584 id=584 data-nosnippet>584</a></span><span class="kw">fn </span>bind_generic(param: <span class="kw-2">&amp;</span>ResolvedGeneric, arg: <span class="kw-2">&amp;</span>Type, bindings: <span class="kw-2">&amp;mut </span>TypeBindings) {
+<a href=#585 id=585 data-nosnippet>585</a>    <span class="comment">// Avoid binding t = t
+<a href=#586 id=586 data-nosnippet>586</a>    </span><span class="kw">if </span>!arg.occurs(param.type_var.id()) {
+<a href=#587 id=587 data-nosnippet>587</a>        bindings.insert(
+<a href=#588 id=588 data-nosnippet>588</a>            param.type_var.id(),
+<a href=#589 id=589 data-nosnippet>589</a>            (param.type_var.clone(), param.kind().into_owned(), arg.clone()),
+<a href=#590 id=590 data-nosnippet>590</a>        );
+<a href=#591 id=591 data-nosnippet>591</a>    }
+<a href=#592 id=592 data-nosnippet>592</a>}</code></pre></div></section></main></body></html>
