@@ -217,20 +217,13 @@ impl<'context> Elaborator<'context> {
     /// directly would instead pick a binding by hash-bucket order.
     #[tracing::instrument(level = "trace", skip_all)]
     fn populate_scope_from_comptime_scopes(&mut self) {
-        let scopes: Vec<Vec<_>> = vecmap(self.comptime_scopes().visible_scopes(), |scope| {
-            let mut definition_ids: Vec<_> = scope.keys().copied().collect();
+        for comptime_scope in self.session.comptime_scopes.visible_scopes() {
+            let mut definition_ids: Vec<_> = comptime_scope.keys().copied().collect();
             definition_ids.sort();
-            definition_ids
-        });
 
-        for definition_ids in scopes {
-            for definition_id in &definition_ids {
-                let definition = self.interner.definition(*definition_id);
-                let name = definition.name.clone();
-                let location = definition.location;
-
-                let scope = self.scopes.get_mut_scope();
-                let ident = HirIdent::non_trait_method(*definition_id, location);
+            for definition_id in definition_ids {
+                let definition = self.interner.definition(definition_id);
+                let ident = HirIdent::non_trait_method(definition_id, definition.location);
                 let meta = ResolverMeta {
                     ident,
                     used: false,
@@ -238,7 +231,7 @@ impl<'context> Elaborator<'context> {
                     warn_if_unused: false,
                     warn_if_not_mutated: false,
                 };
-                scope.add_key_value(name.clone(), meta);
+                self.scopes.get_mut_scope().add_key_value(definition.name.clone(), meta);
             }
         }
     }
