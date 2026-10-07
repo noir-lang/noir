@@ -5,7 +5,6 @@ use std::rc::Rc;
 use crate::ResolvedGeneric;
 use crate::ast::{DocComment, Ident, ItemVisibility, NoirFunction};
 use crate::elaborator::types::SELF_TYPE_NAME;
-use crate::elaborator::types::{bind_named_generics, bind_ordered_generics};
 use crate::hir::type_check::generics::TraitGenerics;
 use crate::node_interner::{
     DefinitionId, ImplSearchErrorKind, NodeInterner, TraitImplKind, TraitLookupMode,
@@ -358,11 +357,36 @@ impl Trait {
     pub fn bound_bindings(&self, self_type: &Type, trait_generics: &TraitGenerics) -> TypeBindings {
         let mut bindings = TypeBindings::default();
         self.bind_generics(trait_generics, &mut bindings);
+        self.bind_self(self_type, &mut bindings);
+        bindings
+    }
 
+    /// Binds this trait's `Self` to `self_type`, and each of its ordered generics and associated
+    /// types to the argument `generics` gives for it, adding to `bindings`. An associated type
+    /// that `generics` leaves out gets no entry.
+    ///
+    /// Panics if `generics` doesn't give exactly one argument per ordered generic, or names an
+    /// associated type this trait doesn't have.
+    pub fn bind_given_arguments(
+        &self,
+        self_type: &Type,
+        generics: &TraitGenerics,
+        bindings: &mut TypeBindings,
+    ) {
+        self.bind_self(self_type, bindings);
+        bind_ordered_generics(&self.generics, &generics.ordered, bindings);
+        for arg in &generics.named {
+            let param = self.get_associated_type(arg.name.as_str()).unwrap_or_else(|| {
+                unreachable!("Expected to find associated type named {}", arg.name)
+            });
+            bind_generic(param, &arg.typ, bindings);
+        }
+    }
+
+    fn bind_self(&self, self_type: &Type, bindings: &mut TypeBindings) {
         let self_var = self.self_type_typevar.clone();
         let self_kind = self_var.kind().into_owned();
         bindings.insert(self_var.id(), (self_var, self_kind, self_type.clone()));
-        bindings
     }
 
     /// Whether `typ` is this trait's own `Self`, in either its rigid form (a named generic
@@ -505,5 +529,64 @@ impl TraitFunction {
             },
             _ => unreachable!("Trait function does not have a function type"),
         }
+    }
+}
+
+/// Binds the ordered [`ResolvedGeneric`]s of a trait to the ordered generics in a [`ResolvedTraitBound`].
+///
+/// Panics if the number of types do not match the ordered generics in the trait.
+fn bind_ordered_generics(params: &[ResolvedGeneric], args: &[Type], bindings: &mut TypeBindings) {
+    assert_eq!(params.len(), args.len(), "unexpected number of ordered generics");
+
+    for (param, arg) in params.iter().zip(args) {
+        bind_generic(param, arg, bindings);
+    }
+}
+
+/// Binds the associated [`ResolvedGeneric`]s of a trait to the named generics in a [`ResolvedTraitBound`].
+///
+/// Panics if the number of types exceeds the named generics in the trait.
+/// Any named parameter that does not appear in the arguments is bound to [`Type::Error`].
+fn bind_named_generics(
+    mut params: Vec<ResolvedGeneric>,
+    args: &[NamedType],
+    bindings: &mut TypeBindings,
+) {
+    assert!(
+        args.len() <= params.len(),
+        "bind_named_generics: trait bound has more named generics than associated types"
+    );
+
+    if params.is_empty() {
+        return;
+    }
+
+    for arg in args {
+        let i = params
+            .iter()
+            .position(|typ| *typ.name == arg.name.as_str())
+            .unwrap_or_else(|| unreachable!("Expected to find associated type named {}", arg.name));
+
+        let param = params.swap_remove(i);
+
+        bind_generic(&param, &arg.typ, bindings);
+    }
+
+    for unbound_param in params {
+        bind_generic(&unbound_param, &Type::Error, bindings);
+    }
+}
+
+/// Binds the type variable in a [`ResolvedGeneric`], e.g. a generic parameter of a trait,
+/// to a [Type], which itself can be an unbound type variable.
+///
+/// If the type variable itself appears in the type, then it does nothing.
+fn bind_generic(param: &ResolvedGeneric, arg: &Type, bindings: &mut TypeBindings) {
+    // Avoid binding t = t
+    if !arg.occurs(param.type_var.id()) {
+        bindings.insert(
+            param.type_var.id(),
+            (param.type_var.clone(), param.kind().into_owned(), arg.clone()),
+        );
     }
 }

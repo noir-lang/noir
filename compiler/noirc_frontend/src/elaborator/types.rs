@@ -14,7 +14,7 @@ use rustc_hash::FxHashMap as HashMap;
 pub(crate) use similarly_named_types::SimilarlyNamedType;
 
 use crate::{
-    BinaryTypeOperator, Kind, ResolvedGeneric, Type, TypeBinding, TypeBindings, UnificationError,
+    BinaryTypeOperator, Kind, Type, TypeBinding, TypeBindings, UnificationError,
     ast::{
         AsTraitPath, BinaryOpKind, GenericTypeArgs, Ident, IntegerBitSize, PathKind, UnaryOp,
         UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression, WILDCARD_TYPE,
@@ -4118,68 +4118,5 @@ impl Elaborator<'_> {
         }
 
         fully_qualified_module_path(self.def_maps, self.crate_graph, &self.crate_id, trait_.id.0)
-    }
-}
-
-/// Binds the ordered [`ResolvedGeneric`]s of a trait to the ordered generics in a [`ResolvedTraitBound`].
-///
-/// Panics if the number of types do not match the ordered generics in the trait.
-pub(crate) fn bind_ordered_generics(
-    params: &[ResolvedGeneric],
-    args: &[Type],
-    bindings: &mut TypeBindings,
-) {
-    assert_eq!(params.len(), args.len(), "unexpected number of ordered generics");
-
-    for (param, arg) in params.iter().zip_eq(args) {
-        bind_generic(param, arg, bindings);
-    }
-}
-
-/// Binds the associated [`ResolvedGeneric`]s of a trait to the named generics in a [`ResolvedTraitBound`].
-///
-/// Panics if the number of types exceeds the named generics in the trait.
-/// Any named parameter that does not appear in the arguments is bound to [`Type::Error`].
-pub(crate) fn bind_named_generics(
-    mut params: Vec<ResolvedGeneric>,
-    args: &[NamedType],
-    bindings: &mut TypeBindings,
-) {
-    assert!(
-        args.len() <= params.len(),
-        "bind_named_generics: trait bound has more named generics than associated types"
-    );
-
-    if params.is_empty() {
-        return;
-    }
-
-    for arg in args {
-        let i = params
-            .iter()
-            .position(|typ| *typ.name == arg.name.as_str())
-            .unwrap_or_else(|| unreachable!("Expected to find associated type named {}", arg.name));
-
-        let param = params.swap_remove(i);
-
-        bind_generic(&param, &arg.typ, bindings);
-    }
-
-    for unbound_param in params {
-        bind_generic(&unbound_param, &Type::Error, bindings);
-    }
-}
-
-/// Binds the type variable in a [`ResolvedGeneric`], e.g. a generic parameter of a trait,
-/// to a [Type], which itself can be an unbound type variable.
-///
-/// If the type variable itself appears in the type, then it does nothing.
-fn bind_generic(param: &ResolvedGeneric, arg: &Type, bindings: &mut TypeBindings) {
-    // Avoid binding t = t
-    if !arg.occurs(param.type_var.id()) {
-        bindings.insert(
-            param.type_var.id(),
-            (param.type_var.clone(), param.kind().into_owned(), arg.clone()),
-        );
     }
 }
