@@ -121,16 +121,8 @@ pub struct Monomorphizer<'interner> {
 
     finished_globals: HashMap<GlobalId, (String, ast::Type, ast::Expression)>,
 
-    /// Queue of functions to monomorphize next each item in the queue is a tuple of:
-    /// (`old_id`, `new_monomorphized_id`, any type bindings to apply, the trait method if `old_id` is from a trait impl, `is_unconstrained`, location)
-    queue: VecDeque<(
-        node_interner::FuncId,
-        FuncId,
-        TypeBindings,
-        Option<TraitItemId>,
-        bool,
-        Location,
-    )>,
+    /// Functions waiting to be monomorphized, in the order they were first referenced.
+    queue: VecDeque<QueuedFunction>,
 
     /// When a function finishes being monomorphized, the monomorphized [`ast::Function`] is
     /// stored here along with its [`FuncId`].
@@ -165,6 +157,30 @@ pub struct Monomorphizer<'interner> {
 }
 
 type HirType = Type;
+
+/// A function instance waiting in the [`Monomorphizer`]'s queue.
+#[derive(Debug)]
+pub struct QueuedFunction {
+    /// The HIR function to monomorphize.
+    pub hir_id: node_interner::FuncId,
+    /// The ID already handed out to references to this instance.
+    pub id: FuncId,
+    /// The instantiation bindings for the function's generics at the referencing call site.
+    pub bindings: TypeBindings,
+    /// The trait method this function implements, if it was referenced through a trait.
+    pub trait_method: Option<TraitItemId>,
+    /// Whether this instance is monomorphized as unconstrained.
+    pub is_unconstrained: bool,
+    /// Where the function was referenced, for errors raised while monomorphizing it.
+    pub location: Location,
+}
+
+impl QueuedFunction {
+    /// The context this function's body is monomorphized in.
+    fn context(&self, force_brillig: bool) -> FunctionContext {
+        FunctionContext::new(self.is_unconstrained, force_brillig)
+    }
+}
 
 /// One instance of a function: a new monomorphized version is created for each distinct key.
 ///
@@ -384,13 +400,12 @@ impl<'interner> Monomorphizer<'interner> {
     /// Returns Ok(false) if there are no more jobs to process
     /// Returns Err(_) if monomorphization encountered an error
     pub fn process_next_job(&mut self) -> Result<bool, MonomorphizationError> {
-        let Some((next_fn_id, new_id, bindings, trait_method, is_unconstrained, location)) =
-            self.queue.pop_front()
-        else {
+        let Some(job) = self.queue.pop_front() else {
             return Ok(false);
         };
 
-        let context = FunctionContext::new(is_unconstrained, self.force_brillig);
+        let context = job.context(self.force_brillig);
+        let QueuedFunction { hir_id, id, bindings, trait_method, location, .. } = job;
         self.with_function_context(context, |this| {
             // The impl bindings are computed with the instantiation bindings in force: unifying
             // the trait method's type with the impl method's reads the generics they bind.
@@ -398,14 +413,12 @@ impl<'interner> Monomorphizer<'interner> {
                 let impl_bindings = compute_impl_bindings(
                     this.interner,
                     trait_method,
-                    next_fn_id,
+                    hir_id,
                     &this.function.substitution,
                     location,
                 )
                 .map_err(MonomorphizationError::InterpreterError)?;
-                this.with_bindings(impl_bindings, |this| {
-                    this.function(next_fn_id, new_id, location)
-                })
+                this.with_bindings(impl_bindings, |this| this.function(hir_id, id, location))
             })
         })?;
 
@@ -427,11 +440,7 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     /// Return the item at the front of the queue, if there is one, without popping it.
-    #[allow(clippy::type_complexity)]
-    pub fn peek_queue(
-        &self,
-    ) -> Option<&(node_interner::FuncId, FuncId, TypeBindings, Option<TraitItemId>, bool, Location)>
-    {
+    pub fn peek_queue(&self) -> Option<&QueuedFunction> {
         self.queue.front()
     }
 
@@ -2693,9 +2702,16 @@ impl<'interner> Monomorphizer<'interner> {
         expr_location: Location,
     ) -> FuncId {
         let new_id = self.next_function_id();
-        let (id, is_unconstrained) = (key.id, key.is_unconstrained);
+        let job = QueuedFunction {
+            hir_id: key.id,
+            id: new_id,
+            bindings,
+            trait_method,
+            is_unconstrained: key.is_unconstrained,
+            location: expr_location,
+        };
         self.define_function(key, new_id);
-        self.queue.push_back((id, new_id, bindings, trait_method, is_unconstrained, expr_location));
+        self.queue.push_back(job);
         new_id
     }
 
