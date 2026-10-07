@@ -258,13 +258,13 @@ impl Elaborator<'_> {
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn push_scope(&mut self) {
         self.scopes.start_scope();
-        self.interner.comptime_scopes.push(Default::default());
+        self.session.comptime_scopes.push();
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn pop_scope(&mut self) {
         let scope = self.scopes.end_scope();
-        self.interner.comptime_scopes.pop();
+        self.session.comptime_scopes.pop();
         let scope_decls = scope.into();
         self.check_for_unused_variables_in_scope_tree(&scope_decls);
         self.check_for_unnecessary_mut_variables_in_scope_tree(&scope_decls);

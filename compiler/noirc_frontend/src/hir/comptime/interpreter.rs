@@ -33,7 +33,7 @@
 //! [`InterpreterError::ArgumentCountMismatch`] is an example of such an error.
 
 use std::collections::VecDeque;
-use std::{collections::hash_map::Entry, rc::Rc};
+use std::rc::Rc;
 
 use acvm::AcirField;
 use imbl::Vector;
@@ -513,50 +513,26 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     /// Returns the previous values of the internal state, to be reset when
     /// [`Self::exit_function`] is called.
     ///
-    /// Rather than physically removing the caller's scopes, the scope floor is raised to the top
-    /// of the scope stack so the callee only sees its own scopes plus the global scope. This keeps
-    /// entering a function O(1) regardless of how deep the call stack is.
+    /// The callee sees only its own scopes; see [`ComptimeScopes`](super::ComptimeScopes).
     pub(super) fn enter_function(&mut self) -> (bool, usize) {
-        let interner = &mut self.elaborator.interner;
-        let previous_floor =
-            std::mem::replace(&mut interner.comptime_scope_floor, interner.comptime_scopes.len());
-        self.push_scope();
+        let previous_floor = self.elaborator.comptime_scopes_mut().enter_function();
         (std::mem::take(&mut self.in_loop), previous_floor)
     }
 
     /// Resets the per-function state to the value previously returned by [`Self::enter_function`]
     pub(super) fn exit_function(&mut self, state: (bool, usize)) {
         self.in_loop = state.0;
-
-        // Drop every scope this function pushed (the current floor is the length recorded on entry)
-        // before restoring the caller's floor.
-        let interner = &mut self.elaborator.interner;
-        interner.comptime_scopes.truncate(interner.comptime_scope_floor);
-        interner.comptime_scope_floor = state.1;
+        self.elaborator.comptime_scopes_mut().exit_function(state.1);
     }
 
     /// Pushes a new scope to define any variables in.
-    ///
-    /// Note that the first scope is always expected to be the global scope shared by all
-    /// crates, which should never be popped.
     pub(super) fn push_scope(&mut self) {
-        self.elaborator.interner.comptime_scopes.push(HashMap::default());
+        self.elaborator.comptime_scopes_mut().push();
     }
 
-    /// Pops the topmost scope.
-    ///
-    /// Note that the first scope is expected to be the global scope of comptime values
-    /// shared between all crates, which should never be popped.
+    /// Pops the innermost scope.
     pub(super) fn pop_scope(&mut self) {
-        self.elaborator.interner.comptime_scopes.pop().expect("Expected a scope to exist");
-        assert!(!self.elaborator.interner.comptime_scopes.is_empty());
-    }
-
-    /// Returns the current scope to define comptime variables in.
-    /// The stack of scopes is always non-empty so this should never panic.
-    fn current_scope_mut(&mut self) -> &mut HashMap<DefinitionId, Value> {
-        // the global scope is always at index zero, so this is always Some
-        self.elaborator.interner.comptime_scopes.last_mut().unwrap()
+        self.elaborator.comptime_scopes_mut().pop();
     }
 
     /// Defines a pattern, putting all variables contained within the pattern in the current scope.
@@ -655,34 +631,34 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     /// Define a new variable in the current scope
     fn define(&mut self, id: DefinitionId, argument: Value) {
-        self.current_scope_mut().insert(id, argument);
+        self.elaborator.comptime_scopes_mut().define(id, argument);
     }
 
     /// Mutate an existing variable, potentially from a prior scope
     fn mutate(&mut self, id: DefinitionId, argument: Value, location: Location) -> IResult<()> {
-        let floor = self.elaborator.interner.comptime_scope_floor;
-        let scopes = &mut self.elaborator.interner.comptime_scopes;
+        // Locals of enclosing callers are not visible, so a callee cannot mutate them.
+        let slot = if let Some(local) = self.elaborator.comptime_scopes_mut().get_mut(id) {
+            local
+        } else if let DefinitionKind::Global(global_id) =
+            self.elaborator.interner.definition(id).kind
+            && let GlobalValue::Resolved(value) =
+                &mut self.elaborator.interner.get_global_mut(global_id).value
+        {
+            value
+        } else {
+            return Err(InterpreterError::VariableNotInScope { location });
+        };
 
-        // Search the current function's scopes from innermost outwards, then fall back to the
-        // global scope at index zero. Scopes belonging to enclosing callers (below the floor)
-        // are skipped so a callee cannot mutate its caller's locals.
-        for index in (floor..scopes.len()).rev().chain(std::iter::once(0)) {
-            if let Entry::Occupied(mut entry) = scopes[index].entry(id) {
-                match entry.get() {
-                    Value::Pointer(reference, true, _) => {
-                        // We can't store to the reference directly, we need to check if the value
-                        // is a struct or tuple to store to each field instead. This is so any
-                        // references to these fields are also updated.
-                        Self::store_flattened(reference, argument);
-                    }
-                    _ => {
-                        entry.insert(argument);
-                    }
-                }
-                return Ok(());
+        match slot {
+            Value::Pointer(reference, true, _) => {
+                // We can't store to the reference directly, we need to check if the value
+                // is a struct or tuple to store to each field instead. This is so any
+                // references to these fields are also updated.
+                Self::store_flattened(reference, argument);
             }
+            _ => *slot = argument,
         }
-        Err(InterpreterError::VariableNotInScope { location })
+        Ok(())
     }
 
     /// Lookup the comptime value of the given variable
@@ -692,16 +668,16 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     /// Lookup the comptime value of the given definition
     pub fn lookup_id(&self, id: DefinitionId, location: Location) -> IResult<Value> {
-        let floor = self.elaborator.interner.comptime_scope_floor;
-        let scopes = &self.elaborator.interner.comptime_scopes;
+        // Locals of enclosing callers are not visible, so a callee cannot read them.
+        if let Some(value) = self.elaborator.comptime_scopes().get(id) {
+            return Ok(value.clone());
+        }
 
-        // Search the current function's scopes from innermost outwards, then fall back to the
-        // global scope at index zero. Scopes belonging to enclosing callers (below the floor)
-        // are skipped so a callee cannot see its caller's locals.
-        for index in (floor..scopes.len()).rev().chain(std::iter::once(0)) {
-            if let Some(value) = scopes[index].get(&id) {
-                return Ok(value.clone());
-            }
+        if let DefinitionKind::Global(global_id) = self.elaborator.interner.definition(id).kind
+            && let GlobalValue::Resolved(value) =
+                &self.elaborator.interner.get_global(global_id).value
+        {
+            return Ok(value.clone());
         }
 
         let name = self.elaborator.interner.definition_name(id).to_string();
@@ -1759,7 +1735,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         for i in range_iterator {
             self.push_scope();
-            self.current_scope_mut().insert(index_id, get_index(i));
+            self.define(index_id, get_index(i));
 
             let must_break = self.evaluate_loop_body(block, &mut result);
 

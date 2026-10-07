@@ -19,7 +19,6 @@ use crate::ast::{
 };
 use crate::graph::CrateId;
 use crate::hir::LspMode;
-use crate::hir::comptime;
 use crate::hir::def_collector::dc_crate::{CompilationError, UnresolvedTrait, UnresolvedTypeAlias};
 use crate::hir::def_collector::errors::DefCollectorErrorKind;
 use crate::hir::def_map::{LocalModuleId, ModuleDefId, ModuleId};
@@ -290,20 +289,6 @@ pub struct NodeInterner {
     // impl and trait-impl methods.
     pub(crate) auto_import_names: HashMap<String, Vec<AutoImportEntry>>,
 
-    /// Each value currently in scope in the comptime interpreter.
-    /// Each element of the Vec represents a scope with every scope together making
-    /// up all currently visible definitions. The first scope is always the global scope.
-    ///
-    /// This is stored in the `NodeInterner` so that the Elaborator from each crate can
-    /// share the same global values.
-    pub(crate) comptime_scopes: Vec<HashMap<DefinitionId, comptime::Value>>,
-
-    /// Index into [Self::comptime_scopes] of the first scope visible to the comptime function
-    /// currently being interpreted. The visible scopes are the global scope (index zero) together
-    /// with `comptime_scopes[comptime_scope_floor..]`; scopes between them belong to enclosing
-    /// callers and are hidden so a callee cannot see its caller's locals.
-    pub(crate) comptime_scope_floor: usize,
-
     /// Captures the documentation comments for each module, struct, trait, function, etc.
     pub(crate) doc_comments: HashMap<ReferenceId, Vec<DocComment>>,
 
@@ -535,8 +520,6 @@ impl Default for NodeInterner {
             reference_graph: DiGraph::new(),
             reference_graph_indices: HashMap::default(),
             auto_import_names: HashMap::default(),
-            comptime_scopes: vec![HashMap::default()],
-            comptime_scope_floor: 1,
             trait_impl_generic_types: HashMap::default(),
             trait_impl_associated_constants: HashMap::default(),
             doc_comments: HashMap::default(),
