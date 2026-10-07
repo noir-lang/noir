@@ -531,7 +531,7 @@ impl Elaborator<'_> {
             let ident = HirIdent::non_trait_method(id, location);
             let variable = Variable { ident, scope };
             Ok(variable)
-        } else if self.parent_runtime_variables.contains(name.as_str()) {
+        } else if self.session.parent_runtime_variables.contains(name.as_str()) {
             Err(ResolverError::RuntimeVarReferencedInComptime {
                 name: name.to_string(),
                 location: name.location(),

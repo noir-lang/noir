@@ -2035,6 +2035,40 @@ fn runtime_variable_in_macro_gives_specific_error() {
     check_errors(src);
 }
 
+/// A comptime macro call reports the variables of every enclosing scope as runtime variables, but
+/// only while it runs. Here `helper` is elaborated on demand from comptime code, and `z` is in
+/// scope only inside the block holding the nested macro call, so the later use of `z` is an
+/// undeclared variable rather than a runtime one.
+#[test]
+fn runtime_variables_seen_by_nested_macro_do_not_outlive_it() {
+    let src = r#"
+    comptime fn ident(q: Quoted) -> Quoted {
+        q
+    }
+
+    comptime fn wrap(x: Field) -> Quoted {
+        quote { $x }
+    }
+
+    fn main() {
+        comptime {
+            let _ = helper();
+        }
+    }
+
+    fn helper() -> Field {
+        let w = {
+            let z = 1;
+            wrap!(ident!(quote { 2 })) + z
+        };
+        w + z
+            ^ cannot find `z` in this scope
+            ~ not found in this scope
+    }
+    "#;
+    check_errors(src);
+}
+
 #[test]
 fn does_not_allow_constructing_struct_with_private_fields_with_macro_call() {
     let src = r#"

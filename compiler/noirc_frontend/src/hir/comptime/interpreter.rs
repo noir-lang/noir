@@ -712,13 +712,13 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     /// This will automatically dereference a mutable variable if used.
     pub fn evaluate(&mut self, id: ExprId) -> IResult<Value> {
         // If comptime evaluation has been halted, don't execute anything
-        if self.elaborator.comptime_evaluation_halted {
+        if self.elaborator.comptime_evaluation_halted() {
             return Err(InterpreterError::SkippedDueToEarlierErrors);
         }
 
         // Skip expressions that had errors during elaboration and halt all future execution
         if self.elaborator.interner.exprs_with_errors.contains(&id) {
-            self.elaborator.comptime_evaluation_halted = true;
+            self.elaborator.halt_comptime_evaluation();
             return Err(InterpreterError::SkippedDueToEarlierErrors);
         }
 
@@ -782,7 +782,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 Err(InterpreterError::UnquoteFoundDuringEvaluation { location })
             }
             HirExpression::Error => {
-                self.elaborator.comptime_evaluation_halted = true;
+                self.elaborator.halt_comptime_evaluation();
                 Err(InterpreterError::SkippedDueToEarlierErrors)
             }
         };
@@ -1461,13 +1461,13 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     pub fn evaluate_statement(&mut self, statement: StmtId) -> IResult<Value> {
         // If comptime evaluation has been halted, don't execute anything
-        if self.elaborator.comptime_evaluation_halted {
+        if self.elaborator.comptime_evaluation_halted() {
             return Err(InterpreterError::SkippedDueToEarlierErrors);
         }
 
         // Skip statements that had errors during elaboration and halt all future execution
         if self.elaborator.interner.stmts_with_errors.contains(&statement) {
-            self.elaborator.comptime_evaluation_halted = true;
+            self.elaborator.halt_comptime_evaluation();
             return Err(InterpreterError::SkippedDueToEarlierErrors);
         }
 
@@ -1486,7 +1486,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 Ok(Value::Unit)
             }
             HirStatement::Error => {
-                self.elaborator.comptime_evaluation_halted = true;
+                self.elaborator.halt_comptime_evaluation();
                 Err(InterpreterError::SkippedDueToEarlierErrors)
             }
             HirStatement::TraitAssociatedConstant => {

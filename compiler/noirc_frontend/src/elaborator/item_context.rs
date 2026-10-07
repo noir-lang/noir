@@ -34,8 +34,8 @@ pub(crate) use module_context::ModuleContext;
 ///
 /// This is the state that belongs to an item rather than to the crate being elaborated: anything
 /// here is expected to start fresh for an item and to be irrelevant once that item is done. State
-/// shared by the whole elaboration - the interner, the collected errors, the recursion depth - stays
-/// on the [`Elaborator`] itself.
+/// shared by the whole elaboration - the interner, the recursion depth, deferred items - lives on
+/// the [`Elaborator`] or in its [`ElaborationSession`](super::session::ElaborationSession).
 pub(super) struct ItemContext {
     /// The item being elaborated, and the module it was written in.
     pub(super) module: ModuleContext,
