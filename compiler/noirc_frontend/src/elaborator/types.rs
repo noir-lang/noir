@@ -3473,6 +3473,7 @@ impl Elaborator<'_> {
             let constraint = the_trait.as_constraint(the_trait.name.location());
             let mut visited = BTreeSet::new();
             let mut matches = self.lookup_methods_in_trait(
+                object_type,
                 the_trait,
                 method_name,
                 &constraint.trait_bound,
@@ -3509,6 +3510,7 @@ impl Elaborator<'_> {
                     self.interner.try_get_trait(constraint.trait_bound.trait_id)
             {
                 matches.extend(self.lookup_methods_in_trait(
+                    object_type,
                     the_trait,
                     method_name,
                     &constraint.trait_bound,
@@ -3588,6 +3590,7 @@ impl Elaborator<'_> {
     /// a child and its parent.
     fn lookup_methods_in_trait(
         &self,
+        object_type: &Type,
         the_trait: &Trait,
         method_name: &str,
         trait_bound: &ResolvedTraitBound,
@@ -3620,8 +3623,9 @@ impl Elaborator<'_> {
             // skipping the parent trait's methods.
             let the_trait = self.interner.get_trait(parent_trait_bound.trait_id);
             let parent_trait_bound =
-                self.instantiate_parent_trait_bound(trait_bound, parent_trait_bound);
+                self.instantiate_parent_trait_bound(object_type, trait_bound, parent_trait_bound);
             matches.extend(self.lookup_methods_in_trait(
+                object_type,
                 the_trait,
                 method_name,
                 &parent_trait_bound,
@@ -3941,6 +3945,7 @@ impl Elaborator<'_> {
         // `Self::A` where `A` is defined on a parent trait rather than this one. Without this
         // they'd be left as unresolved `<T as Parent>::A` placeholders.
         self.bind_parent_trait_associated_types(
+            &constraint.typ,
             &constraint.trait_bound,
             bindings,
             &mut BTreeSet::new(),
@@ -3990,6 +3995,7 @@ impl Elaborator<'_> {
     /// the trait named by `trait_bound`.
     fn bind_parent_trait_associated_types(
         &self,
+        self_type: &Type,
         trait_bound: &ResolvedTraitBound,
         bindings: &mut TypeBindings,
         visited: &mut BTreeSet<TraitId>,
@@ -4005,9 +4011,10 @@ impl Elaborator<'_> {
             self.interner.get_trait(trait_bound.trait_id).parent_bounds().cloned().collect();
 
         for parent_bound in &parent_bounds {
-            let instantiated = self.instantiate_parent_trait_bound(trait_bound, parent_bound);
+            let instantiated =
+                self.instantiate_parent_trait_bound(self_type, trait_bound, parent_bound);
             self.bind_generics_from_trait_bound(&instantiated, bindings);
-            self.bind_parent_trait_associated_types(&instantiated, bindings, visited);
+            self.bind_parent_trait_associated_types(self_type, &instantiated, bindings, visited);
         }
     }
 
@@ -4025,13 +4032,25 @@ impl Elaborator<'_> {
         bind_named_generics(associated_types, &trait_bound.trait_generics.named, bindings);
     }
 
+    /// `self_type` is the concrete (or still-generic) type that ultimately implements
+    /// `trait_bound`. It is needed here, not just in `bindings`'s ordinary generics, because a
+    /// parent bound can name `Self` explicitly as one of its own generic arguments (`trait Child:
+    /// Parent<Self> {}`): that `Self` is `trait_bound`'s trait's own rigid self-type variable, not
+    /// an ordinary generic, so `bind_generics_from_trait_bound` never binds it on its own.
     pub(crate) fn instantiate_parent_trait_bound(
         &self,
+        self_type: &Type,
         trait_bound: &ResolvedTraitBound,
         parent_trait_bound: &ResolvedTraitBound,
     ) -> ResolvedTraitBound {
         let mut bindings = TypeBindings::default();
         self.bind_generics_from_trait_bound(trait_bound, &mut bindings);
+
+        let the_trait = self.interner.get_trait(trait_bound.trait_id);
+        let self_var = the_trait.self_type_typevar.clone();
+        let self_kind = self_var.kind().into_owned();
+        bindings.insert(self_var.id(), (self_var, self_kind, self_type.clone()));
+
         ResolvedTraitBound {
             trait_generics: parent_trait_bound.trait_generics.map(|typ| typ.substitute(&bindings)),
             ..*parent_trait_bound
