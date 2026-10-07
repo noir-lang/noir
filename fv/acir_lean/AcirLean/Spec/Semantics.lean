@@ -43,22 +43,31 @@ every term is a coefficient times any number of witnesses. -/
 abbrev Expression := List Term
 
 /-- The ACIR opcodes this development covers (Rust's `Opcode`):
-`AssertZero(expr)`, which requires `expr` to be `0`, and the `RANGE` black box,
-which requires `witness` to fit in `numBits` bits. -/
+`AssertZero(expr)`, which requires `expr` to be `0`; the `RANGE` black box,
+which requires `witness` to fit in `numBits` bits; and the `AND` and `XOR`
+black boxes on two witnesses of `numBits` bits. -/
 inductive Opcode where
   | assertZero (expr : Expression)
   | range (witness numBits : ℕ)
+  | and (lhs rhs numBits output : ℕ)
+  | xor (lhs rhs numBits output : ℕ)
   deriving DecidableEq
 
 /-- The value of a term under the witness assignment `σ` (`σ i` is the value the
 prover put in witness `i`). -/
 def Term.eval (σ : ℕ → F) (t : Term) : F := (t.coef : F) * (t.witnesses.map σ).prod
 
-/-- An opcode holds: its expression's terms add up to `0`, or the range check
-passes. -/
+/-- An opcode holds: its expression's terms add up to `0`; the range check
+passes; or both inputs of `AND` / `XOR` fit in `numBits` bits and the output is
+their bitwise and / xor. The inputs' width is part of the meaning: the ACVM
+optimizer drops a range check on an input of one of these black boxes, as one
+the black box already enforces, and Barretenberg's gadgets for them constrain
+the inputs to `numBits` bits. -/
 def Opcode.Holds (σ : ℕ → F) : Opcode → Prop
   | .assertZero expr => (expr.map (Term.eval σ)).sum = 0
   | .range witness numBits => Range (σ witness) numBits
+  | .and a b k o => Range (σ a) k ∧ Range (σ b) k ∧ (σ o).val = (σ a).val &&& (σ b).val
+  | .xor a b k o => Range (σ a) k ∧ Range (σ b) k ∧ (σ o).val = (σ a).val ^^^ (σ b).val
 
 /-- Every opcode in the list holds. -/
 def AllHold (σ : ℕ → F) (opcodes : List Opcode) : Prop :=

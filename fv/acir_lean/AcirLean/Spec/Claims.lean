@@ -86,6 +86,31 @@ def DivOp (n : ℕ) : List ℕ → List ℕ → Prop
   | [a, b], [r] => a < 2 ^ n ∧ b < 2 ^ n ∧ b ≠ 0 ∧ r = a / b
   | _, _ => False
 
+/-- `not` on `u<n>`: one `n`-bit input `a`, and the result has every one of
+its `n` bits flipped: `2^n - 1 - a`. -/
+def NotOp (n : ℕ) : List ℕ → List ℕ → Prop
+  | [a], [r] => a < 2 ^ n ∧ r = 2 ^ n - 1 - a
+  | _, _ => False
+
+/-- `shr` by the constant `c` on `u<n>`: one `n`-bit input `a`, and the result
+`a >> c`, which is `a / 2^c`. -/
+def ShrOp (n c : ℕ) : List ℕ → List ℕ → Prop
+  | [a], [r] => a < 2 ^ n ∧ r = a / 2 ^ c
+  | _, _ => False
+
+/-- `shl` by the constant `c` on `u<n>`: one `n`-bit input `a`, and the result
+`a << c` with the bits above `n` dropped, which is `a · 2^c mod 2^n`. -/
+def ShlOp (n c : ℕ) : List ℕ → List ℕ → Prop
+  | [a], [r] => a < 2 ^ n ∧ r = a * 2 ^ c % 2 ^ n
+  | _, _ => False
+
+/-- `div` on `Field`: a nonzero divisor `b`, and a result `r` with `r · b = a`
+in the field, so `r = a / b`. Noir's SSA interpreter fails on a zero divisor,
+so a circuit that accepted one would break this. -/
+def FieldDivOp : List ℕ → List ℕ → Prop
+  | [a, b], [r] => b ≠ 0 ∧ (r * b) % p = a
+  | _, _ => False
+
 /-- One input `a` and one return value, equal to `g a`. -/
 def Computes1 (g : ℕ → ℕ) : List ℕ → List ℕ → Prop
   | [a], [r] => r = g a
@@ -124,6 +149,14 @@ def SignedOp (n : ℕ) (op : ℤ → ℤ → ℤ) : List ℕ → List ℕ → Pr
   and `MIN / -1`;
 * every program in the corpus, as shipped, implements it (`CorpusSpec`), and
   the witness ACVM solved for it satisfies its circuit;
+* `eq` and `not` on `u<n>`, and `div` on `Field`, as ACIR generation compiles
+  them and as `nargo compile` ships them (the same circuit), compute their SSA
+  meaning, rejecting a zero `Field` divisor;
+* `shr` and `shl` by every constant `1 ≤ c < n` on `u<n>`, after
+  `remove_bit_shifts`, as ACIR generation compiles them and as `nargo compile`
+  ships them, compute `a >> c` and `a << c` (truncated to `n` bits);
+* `and`, `xor` and `or` on `u<n>`, as ACIR generation compiles them and as
+  `nargo compile` ships them, compute the bitwise operation;
 * no constraint list is contradictory. -/
 def AllClaims : Prop :=
   (∀ n ∈ pinnedWidths,
@@ -163,6 +196,27 @@ def AllClaims : Prop :=
     SoundFunction (shippedSignedDiv n) (SignedOp n _root_.Int.tdiv) ∧ SatisfiableFunction (shippedSignedDiv n)) ∧
   (∀ n ∈ signedWidths,
     SoundFunction (shippedSignedMod n) (SignedOp n _root_.Int.tmod) ∧ SatisfiableFunction (shippedSignedMod n)) ∧
-  (∀ e ∈ corpus, SoundFunction e.fn (CorpusSpec e.prog) ∧ AllHold e.assignment e.fn.opcodes)
+  (∀ e ∈ corpus, SoundFunction e.fn (CorpusSpec e.prog) ∧ AllHold e.assignment e.fn.opcodes) ∧
+  (∀ n ∈ pinnedWidths,
+    SoundFunction (acirGenEq n) (Computes2 n fun a b => if a = b then 1 else 0) ∧
+    SatisfiableFunction (acirGenEq n)) ∧
+  (∀ n ∈ pinnedWidths, SoundFunction (acirGenNot n) (NotOp n) ∧ SatisfiableFunction (acirGenNot n)) ∧
+  (SoundFunction acirGenFieldDiv FieldDivOp ∧ SatisfiableFunction acirGenFieldDiv) ∧
+  (∀ n ∈ pinnedWidths, ∀ c ∈ (List.range n).tail,
+    SoundFunction (acirGenShr n c) (ShrOp n c) ∧ SatisfiableFunction (acirGenShr n c) ∧
+    SoundFunction (shippedShr n c) (ShrOp n c) ∧ SatisfiableFunction (shippedShr n c)) ∧
+  (∀ n ∈ pinnedWidths, ∀ c ∈ (List.range n).tail,
+    SoundFunction (acirGenShl n c) (ShlOp n c) ∧ SatisfiableFunction (acirGenShl n c) ∧
+    SoundFunction (shippedShl n c) (ShlOp n c) ∧ SatisfiableFunction (shippedShl n c)) ∧
+  (∀ n ∈ pinnedWidths,
+    SoundFunction (acirGenBitwise false n) (Computes2 n (· &&& ·)) ∧
+    SatisfiableFunction (acirGenBitwise false n) ∧
+    SoundFunction (shippedBitwise false n) (Computes2 n (· &&& ·)) ∧
+    SatisfiableFunction (shippedBitwise false n) ∧
+    SoundFunction (acirGenBitwise true n) (Computes2 n (· ^^^ ·)) ∧
+    SatisfiableFunction (acirGenBitwise true n) ∧
+    SoundFunction (shippedBitwise true n) (Computes2 n (· ^^^ ·)) ∧
+    SatisfiableFunction (shippedBitwise true n) ∧
+    SoundFunction (acirGenOr n) (Computes2 n (· ||| ·)) ∧ SatisfiableFunction (acirGenOr n))
 
 end AcirLean
