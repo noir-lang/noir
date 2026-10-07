@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791391722746,
+  "lastUpdate": 1791395081530,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22955,48 +22955,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "aedfdd6e6be79cbb5da728c05871b215f667451d",
-          "message": "chore(nargo): describe nargo test's context reuse in terms of a read-only monomorphizer (#13838)",
-          "timestamp": "2026-09-30T14:40:59+01:00",
-          "tree_id": "1e8841b30ee48c0f2209b8dcff478d37af067d90",
-          "url": "https://github.com/noir-lang/noir/commit/aedfdd6e6be79cbb5da728c05871b215f667451d"
-        },
-        "date": 1790775815681,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 134430,
-            "range": "± 213",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 117171,
-            "range": "± 1030",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3047335,
-            "range": "± 16483",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "ee593a38410bc46b2a0287803c064ba81cf45474",
           "message": "chore(frontend): delete Type::force_substitute (#13824)",
@@ -25039,6 +24997,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2647217,
             "range": "± 4945",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bb241f5574f4dd0769fecef24f00dae1ad0b6264",
+          "message": "chore(ssa): stop copying every Brillig function in constant folding (#13919)",
+          "timestamp": "2026-10-07T17:18:25Z",
+          "tree_id": "a2d419e57a3ed3264942166738a12186a29cd940",
+          "url": "https://github.com/noir-lang/noir/commit/bb241f5574f4dd0769fecef24f00dae1ad0b6264"
+        },
+        "date": 1791395025366,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 69862,
+            "range": "± 1388",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 61948,
+            "range": "± 706",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 1723433,
+            "range": "± 34232",
             "unit": "ns/iter"
           }
         ]
