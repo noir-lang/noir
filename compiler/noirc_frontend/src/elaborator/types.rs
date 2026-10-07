@@ -4056,10 +4056,21 @@ impl Elaborator<'_> {
         let self_kind = self_var.kind().into_owned();
         bindings.insert(self_var.id(), (self_var, self_kind, self_type.clone()));
 
-        ResolvedTraitBound {
-            trait_generics: parent_trait_bound.trait_generics.map(|typ| typ.substitute(&bindings)),
-            ..*parent_trait_bound
+        let mut trait_generics =
+            parent_trait_bound.trait_generics.map(|typ| typ.substitute(&bindings));
+
+        // An associated item the parent bound leaves out (`trait Child: Parent` where `Parent`
+        // has `type Out`) is stored on the trait as a placeholder type variable. Each
+        // instantiation gets its own, so that resolving one use cannot bind it for every other.
+        let named = trait_generics.named.iter_mut().zip(&parent_trait_bound.trait_generics.named);
+        for (named, declared) in named {
+            if let Type::TypeVariable(placeholder) = &declared.typ {
+                let kind = placeholder.kind().into_owned();
+                named.typ = self.interner.next_type_variable_with_kind(kind);
+            }
         }
+
+        ResolvedTraitBound { trait_generics, ..*parent_trait_bound }
     }
 
     pub(crate) fn fully_qualified_trait_path_by_id(&self, trait_id: TraitId) -> String {
