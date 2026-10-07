@@ -475,6 +475,11 @@ jobs:
       - name: Build noir_js
         run: just build-package @noir-lang/noir_js
 
+      # The tests run the sources through `tsx`, which does not type-check,
+      # so build with `tsc` as `publish-es-packages` does.
+      - name: Build noir_codegen
+        run: just build-package @noir-lang/noir_codegen
+
       - name: Run noir_codegen tests
         run: yarn workspace @noir-lang/noir_codegen test
 
