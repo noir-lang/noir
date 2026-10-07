@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791404274754,
+  "lastUpdate": 1791404660260,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -25063,105 +25063,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "62076cd82d555818f4a1b4d5aaf5f2f8004f9f49",
-          "message": "chore(deps): bump brace-expansion from 1.1.16 to 1.1.21 in /docs (#13831)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
-          "timestamp": "2026-09-30T15:22:18+01:00",
-          "tree_id": "93f03ab331f0e0c0cdc348eafcf13d15db5ccfe4",
-          "url": "https://github.com/noir-lang/noir/commit/62076cd82d555818f4a1b4d5aaf5f2f8004f9f49"
-        },
-        "date": 1790778789000,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1105.3,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 2610.6,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 2058.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-no-txs",
-            "value": 442.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 472.1,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 583.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 439.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 30785.5,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 30840.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 474.8,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 4563.3,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 4827.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 248.3,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 502.9,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 450,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "f90a070deba0b7e5a68b7e4f491e7b65d41cfb5f",
           "message": "chore(deps): bump @nomicfoundation/hardhat-keystore from 3.0.13 to 3.1.0 in the hardhat group (#13798)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
           "timestamp": "2026-09-30T14:22:39Z",
@@ -29921,6 +29822,105 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/9da2164de8ad57f50ff46f7f891d47a9740c2ddf"
         },
         "date": 1791397512529,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1107.7,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 2615.8,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2061.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-no-txs",
+            "value": 443.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 473.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 585.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 441.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 30787.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 30842.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 476.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 4564.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 4829,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 249.9,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 502.9,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 450,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "db7c9552b75d41bae57174437645b77c9529ed2f",
+          "message": "fix(frontend): instantiate parent bounds when resolving a parent's associated types for an impl (#13922)",
+          "timestamp": "2026-10-07T19:51:35Z",
+          "tree_id": "ba39061502ec19d243e78bd6b69452d679a96040",
+          "url": "https://github.com/noir-lang/noir/commit/db7c9552b75d41bae57174437645b77c9529ed2f"
+        },
+        "date": 1791404605868,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
