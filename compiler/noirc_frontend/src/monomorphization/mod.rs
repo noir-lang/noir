@@ -154,6 +154,9 @@ pub struct Monomorphizer<'interner> {
     /// State describing the function currently being monomorphized. Replaced as a unit by
     /// [`Self::with_function_context`] for each function taken off the queue.
     function: FunctionContext,
+
+    /// The locals of the function most recently monomorphized, reported by [`Self::locals`].
+    last_function_locals: HashMap<node_interner::DefinitionId, LocalId>,
 }
 
 type HirType = Type;
@@ -329,6 +332,7 @@ impl<'interner> Monomorphizer<'interner> {
             debug_crate_id,
             force_brillig: force_unconstrained,
             function: FunctionContext::new(force_unconstrained, force_unconstrained),
+            last_function_locals: HashMap::default(),
         }
     }
 
@@ -452,8 +456,10 @@ impl<'interner> Monomorphizer<'interner> {
         &self.finished_functions
     }
 
+    /// The locals of the function most recently monomorphized by [`Self::compile_main`] or
+    /// [`Self::process_next_job`], keyed by the HIR definition each was created for.
     pub fn locals(&self) -> &HashMap<node_interner::DefinitionId, LocalId> {
-        &self.function.locals
+        &self.last_function_locals
     }
 
     pub fn return_location(&self) -> Option<Location> {

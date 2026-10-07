@@ -2200,3 +2200,29 @@ fn fold_function_reached_through_checked_cast_is_one_entry_point() {
     }
     ");
 }
+
+#[test]
+fn locals_reports_the_most_recently_monomorphized_function() {
+    use crate::monomorphization::debug_types::DebugTypeTracker;
+    use crate::test_utils::get_program;
+
+    let src = r#"
+    fn main(x: Field) {
+        foo(x, x);
+    }
+
+    fn foo(a: Field, b: Field) {
+        assert_eq(a, b);
+    }
+    "#;
+    let (_, context, _) = get_program(src);
+    let main = context.get_main_function(context.root_crate_id()).expect("program has a main");
+    let mut monomorphizer =
+        Monomorphizer::new(&context.def_interner, DebugTypeTracker::default(), None, false);
+
+    monomorphizer.compile_main(main).unwrap();
+    assert_eq!(monomorphizer.locals().len(), 1, "expected the locals of `main`: `x`");
+
+    assert!(monomorphizer.process_next_job().unwrap(), "expected `foo` to be queued");
+    assert_eq!(monomorphizer.locals().len(), 2, "expected the locals of `foo`: `a` and `b`");
+}

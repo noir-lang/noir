@@ -79,7 +79,8 @@ impl Monomorphizer<'_> {
     /// Runs `f` with `context` installed, then reinstates the context that was active before.
     ///
     /// Whatever `f` leaves in the context is discarded, so the function it monomorphizes cannot
-    /// leak locals, closure environments or generic bindings into the next one.
+    /// leak locals, closure environments or generic bindings into the next one. The only thing
+    /// kept is the function's locals, for [`Monomorphizer::locals`] to report.
     pub(super) fn with_function_context<T>(
         &mut self,
         context: FunctionContext,
@@ -87,7 +88,8 @@ impl Monomorphizer<'_> {
     ) -> T {
         let outer = std::mem::replace(&mut self.function, context);
         let result = f(self);
-        self.function = outer;
+        let inner = std::mem::replace(&mut self.function, outer);
+        self.last_function_locals = inner.locals;
         result
     }
 
