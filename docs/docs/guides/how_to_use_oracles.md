@@ -112,7 +112,7 @@ In general, computing square roots is computationally more expensive than multip
 
 :::
 
-Now, we should write the correspondent RPC server, starting with the [default JSON-RPC 2.0 boilerplate](https://www.npmjs.com/package/json-rpc-2.0#example):
+Now, we should write the correspondent RPC server, starting with the [default JSON-RPC 2.0 boilerplate](https://github.com/shogowada/json-rpc-2.0):
 
 ```js
 import { JSONRPCServer } from "json-rpc-2.0";
@@ -249,7 +249,7 @@ const { witness } = await noir.execute(input, foreignCallHandler);
 
 :::tip
 
-If you're in a NoirJS environment running your RPC server together with a frontend app, you'll probably hit a familiar problem in full-stack development: requests being blocked by [CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS) policy. For development only, you can simply install and use the [`cors` npm package](https://www.npmjs.com/package/cors) to get around the problem:
+If you're in a NoirJS environment running your RPC server together with a frontend app, you'll probably hit a familiar problem in full-stack development: requests being blocked by [CORS](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS) policy. For development only, you can simply install and use the [`cors` package](https://github.com/expressjs/cors) to get around the problem:
 
 ```bash
 yarn add cors
