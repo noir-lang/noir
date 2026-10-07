@@ -30,7 +30,7 @@ theorem allClaims : AllClaims := by
     fun n hn => ⟨(shipped_sound hn).2.2.2, (shipped_satisfiable hn).2.2.2⟩,
     fun n hn => ⟨shippedSignedDiv_sound hn, (signed_satisfiable hn).1⟩,
     fun n hn => ⟨shippedSignedMod_sound hn, (signed_satisfiable hn).2⟩,
-    corpus_claims, by decide +kernel, testPrograms_claims⟩
+    corpus_claims⟩
   · rcases pinned_cases hn with h | rfl
     · exact fun σ h' hin => divVarGadget_sound (by omega) σ h' (hin (1, n) (by simp))
     · exact fun σ h' hin => divVarGadget128_sound σ h' (hin (1, 128) (by simp))

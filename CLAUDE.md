@@ -85,7 +85,6 @@ compiler change can turn their checks red without touching `fv/`:
 | You changed | What can fail | Fix |
 |---|---|---|
 | `AcirContext`'s gadgets (`euclidean_division_var`, `truncate_var`, `more_than_eq_var`, ...), ACIR generation, `expand_signed_math`, or `acvm::compiler::optimize` | `integer_gadgets_match_lean_templates` (`cargo test -p noirc_evaluator --lib fv_`) | Its failure message names the changed sections. Corpus sections: `just fv-regen-corpus`. Other sections: update `fv/acir_lean/AcirLean/Templates/` and the proofs. |
-| Anything that changes the SSA or circuit of a program in `test_programs/execution_success` | the `FV test programs` CI job | `just fv-regen`, then commit the rebuilt data. If a proof no longer goes through, extend the checker (see `fv/acir_lean/CLAUDE.md`). |
 | The SSA interpreter (`compiler/noirc_evaluator/src/ssa/interpreter/`) | `fv_semantics` (`cargo test -p noirc_evaluator --lib fv_semantics`) | The Lean meaning of SSA (`fv/acir_lean/AcirLean/Spec/SsaSemantics.lean`) must match the interpreter. Decide which side is right; fix the spec and proofs if it is the interpreter. |
 
 `just fv-check` runs everything the `FV Lean` job runs. `fv/acir_lean/CLAUDE.md`

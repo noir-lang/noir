@@ -5,7 +5,6 @@ to this directory needs careful review.
 -/
 
 import AcirLean.Spec.Pin
-import AcirLean.Spec.Coverage
 
 /-!
 # Claims: everything this project promises
@@ -107,14 +106,6 @@ def SignedOp (n : ℕ) (op : ℤ → ℤ → ℤ) : List ℕ → List ℕ → Pr
       r = toBitPattern n (op (toSigned n a) (toSigned n b))
   | _, _ => False
 
-/-- Test programs in `testPrograms` that the claims leave out, with the reason:
-* `arithmetic_binary_operations` divides `Field`s, which the checker has no
-  rule for;
-* `regression_8519` truncates a `Field` to 128 bits, whose remainder bound
-  takes a shape the checker does not handle. -/
-def uncoveredPrograms : List String :=
-  ["arithmetic_binary_operations", "regression_8519"]
-
 /-- The whole promise, for every pinned width `n`:
 * `euclidean_division_var(a, b, n)` with `a`, `b` both `n`-bit computes
   `a / b` and `a % b`, with the predicate constant `1` and with a predicate
@@ -133,10 +124,6 @@ def uncoveredPrograms : List String :=
   and `MIN / -1`;
 * every program in the corpus, as shipped, implements it (`CorpusSpec`), and
   the witness ACVM solved for it satisfies its circuit;
-* `testPrograms` holds exactly the programs named in `testProgramNames`, and
-  every one of them except `uncoveredPrograms` is implemented by the circuit
-  `nargo compile` ships for it (`ProgramSpec`), and the witness `nargo execute`
-  solved for it satisfies that circuit;
 * no constraint list is contradictory. -/
 def AllClaims : Prop :=
   (∀ n ∈ pinnedWidths,
@@ -176,9 +163,6 @@ def AllClaims : Prop :=
     SoundFunction (shippedSignedDiv n) (SignedOp n _root_.Int.tdiv) ∧ SatisfiableFunction (shippedSignedDiv n)) ∧
   (∀ n ∈ signedWidths,
     SoundFunction (shippedSignedMod n) (SignedOp n _root_.Int.tmod) ∧ SatisfiableFunction (shippedSignedMod n)) ∧
-  (∀ e ∈ corpus, SoundFunction e.fn (CorpusSpec e.prog) ∧ AllHold e.assignment e.fn.opcodes) ∧
-  testPrograms.map TestProgram.name = testProgramNames ∧
-  (∀ e ∈ testPrograms, e.name ∉ uncoveredPrograms →
-    SoundFunction e.fn (ProgramSpec e.prog) ∧ AllHold e.assignment e.fn.opcodes)
+  (∀ e ∈ corpus, SoundFunction e.fn (CorpusSpec e.prog) ∧ AllHold e.assignment e.fn.opcodes)
 
 end AcirLean

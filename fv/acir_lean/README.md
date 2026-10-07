@@ -6,8 +6,7 @@ division (with and without a predicate), truncation and comparison
 SSA `expand_signed_math` emits for signed `lt`, and soundness of whole
 functions as ACIR generation compiles them, both before and after the ACVM
 optimization passes, plus a pin that keeps those proofs attached to the Rust
-code. A checker proved sound once also covers 125 real programs from
-`test_programs/execution_success`, as `nargo compile` ships them.
+code.
 
 ## What you must review, and what you can ignore
 
@@ -18,11 +17,10 @@ for a reader who does not know Lean.**
 | Path | Status | Why |
 |---|---|---|
 | `AcirLean/Spec/` | **REVIEWED** | What an ACIR constraint and an SSA instruction mean, the golden printer, and the claims. Nothing checks these against intent. |
-| `Check.lean`, `EmitTemplates.lean`, `EmitPrograms.lean`, `EmitSemantics.lean` | **REVIEWED** | The entry points: the final check, and the three golden-file writers. |
+| `Check.lean`, `EmitTemplates.lean`, `EmitSemantics.lean` | **REVIEWED** | The entry points: the final check, and the two golden-file writers. |
 | `scripts/check.sh`, `scripts/check_reviewing.py`, `scripts/check_templates.py`, `.github/workflows/fv-lean.yml` | **REVIEWED** | The enforcement itself. |
 | `compiler/.../acir_context/fv_templates.rs`, `fv_semantics.rs` | **REVIEWED** | The Rust halves of the pins. |
-| `scripts/regen_programs.sh`, `.github/workflows/fv-test-programs.yml` | **REVIEWED** | Rebuild `test_programs.golden` from `nargo compile` output; CI fails if the committed copy is stale. |
-| `AcirLean/Templates/` | pinned, ignore | Opcode lists, SSA and test programs, checked byte-for-byte against the golden files. Plain definitions only. |
+| `AcirLean/Templates/` | pinned, ignore | Opcode lists and SSA, checked byte-for-byte against the golden files. Plain definitions only. |
 | `AcirLean/Proofs/` | machine-checked, ignore | Lean checks every proof, and nothing here can change what `Spec/` states. |
 | `AcirLean/Examples/` | ignore | Demonstrations, not part of the claims. |
 
@@ -39,9 +37,8 @@ three standard axioms. `check.sh` additionally fails if:
 - any file, `lakefile.toml` included, uses `sorry`, `admit`, `axiom`,
   `native_decide`, `unsafe`, `implemented_by`, `@[extern` or a kernel-check
   bypass, or `lakefile.toml` passes options to Lean;
-- `templates.golden` or `test_programs.golden` differs from what
-  `Spec/Pin.lean` prints, or `ssa_semantics.golden` from what
-  `EmitSemantics.lean` prints;
+- `templates.golden` differs from what `Spec/Pin.lean` prints, or
+  `ssa_semantics.golden` from what `EmitSemantics.lean` prints;
 - `REVIEWING.md` quotes a line that is no longer in the reviewed Lean, or does
   not mention one of its definitions.
 
@@ -88,17 +85,7 @@ explains it line by line; the short version of the notation:
 9. every program in the corpus (`Templates/Corpus.lean`: straight-line
    programs of `div` and `lt` on `u8`, `u64` and `u128`), as shipped,
    enforces its parameters' types and returns what the program computes, and
-   the witness ACVM solved for it satisfies its circuit;
-10. every scalar program from `test_programs/execution_success` in
-    `Templates/TestPrograms.lean`, except the two in `uncoveredPrograms`, is
-    implemented by the circuit `nargo compile` ships for it: for every
-    witness satisfying the circuit, the inputs fit their parameter types, the
-    final SSA runs without failing on them (no overflow, no zero divisor, no
-    failed `constrain` or `range_check`), and the circuit's return witnesses
-    hold what it returns (`ProgramSpec` in `Spec/SsaSemantics.lean`); and the
-    witness `nargo execute` solves from its `Prover.toml` satisfies that
-    circuit, so the claim cannot hold just because the circuit is
-    contradictory.
+   the witness ACVM solved for it satisfies its circuit.
 
 The `eq` gadget these use is sound only because the BN254 scalar field modulus
 is prime; `Proofs/Prime.lean` proves that with a Pratt certificate.
@@ -119,10 +106,12 @@ with the `r < b` constraint removed from `euclidean_division_var`, it accepts
 4 of the 66 circuits: the lone `lt` programs at widths 8 and 64, where that
 constraint was a repeat of a range check already present.
 
-### The checker for real programs
+### The checker for whole programs
 
-Claim 10 comes from a second checker, `checkProg2` in `Proofs/Checker2.lean`,
-proved sound once in `Proofs/Checker2Sound.lean`. It takes the final SSA of a
+A second checker, `checkProg2` in `Proofs/Checker2.lean`, is proved sound once
+in `Proofs/Checker2Sound.lean`: acceptance implies
+`SoundFunction C (ProgramSpec P)`. No claim uses it yet; it is the prover for
+purpose-built functions that mix operations. It takes the final SSA of a
 program whose `main` is one block of scalar instructions (`add`, `sub`, `mul`,
 `div`, `mod`, `lt`, `eq`, `not`, `cast`, `truncate`, `constrain`,
 `range_check`, checked or unchecked, over `Field`, `u<n>` and `i<n>`) and the
@@ -149,16 +138,7 @@ template, because the optimizer merges, reorders and drops constraints:
   constant, since the optimizer drops such range checks as implied.
 
 Which witnesses play which role is found by untrusted searches, and every
-candidate is checked against the circuit before a rule uses it. Of the 544
-execution-success programs that `nargo compile` builds, 127 are in the scalar
-subset (the rest use arrays, references, several ACIR functions, calls, black
-boxes or several blocks; the reason for each is in `test_programs.outside`).
-The checker accepts 125 of them. The two it does not are listed in
-`uncoveredPrograms` in `Spec/Claims.lean` with the reason. Removing any single
-constraint from the 125 circuits makes the checker reject in 387 of 394 cases;
-the other 7 constraints are
-redundant (a repeated constraint, a range check implied by another bound, and
-`b · inv = 1` in a division that already proves `r < b`).
+candidate is checked against the circuit before a rule uses it.
 
 ## What is proved
 
@@ -216,7 +196,7 @@ provable. An unsound change cannot be (see `Examples/Bug7895.lean`).
 ## How the SSA meaning stays attached to Noir
 
 `Spec/SsaSemantics.lean` states by hand what each SSA instruction computes, and
-every claim about a test program rests on it. A mistake there would make the
+every claim about a whole program (`ProgramSpec`) rests on it. A mistake there would make the
 proofs prove the wrong thing, so it is tested against Noir's own reference
 semantics, the SSA interpreter:
 
@@ -279,40 +259,11 @@ lake env lean --run EmitTemplates.lean templates.golden
 Never edit `templates.golden` by hand: `check.sh` regenerates it from Lean and
 fails on any difference.
 
-To rebuild the test-program data from the current compiler (about 6 minutes:
-it builds `nargo`, compiles every execution-success program, and prints each
-shipped circuit through `fv_templates.rs`), then re-check the proofs:
+To re-check the proofs (what `FV Lean` runs):
 
 ```sh
-just fv-regen       # the programs already proved: fixes a failing `FV test programs` job
-just fv-regen-all   # also adds test programs that are not in the proofs yet
-just fv-check       # only re-check the proofs (what `FV Lean` runs)
+just fv-check
 ```
-
-Adding a test program needs none of these: CI only checks the programs already
-in the proofs, the ones `testProgramNames` (`Spec/Coverage.lean`) lists.
-`just fv-regen-all` brings new ones in and adds them to that list, a change to
-the reviewed spec; if the checker rejects one, `fv-check` fails until it is
-listed, with the reason, in `uncoveredPrograms` (`Spec/Claims.lean`).
-
-`just fv-regen` never drops a program. If one of the listed programs no longer
-compiles or no longer fits the supported subset, it fails and writes nothing;
-taking the program out of the claims means deleting its name from
-`testProgramNames`, which a reviewer sees.
-
-This writes `Templates/TestPrograms.lean`, `test_programs.golden` and
-`test_programs.outside`. Two CI checks keep them honest:
-
-- `FV test programs` (`.github/workflows/fv-test-programs.yml`) rebuilds the
-  programs already in the proofs on every pull request, in parallel with the
-  other workflows, and fails if any of their SSA or circuits changed. A compiler
-  change that alters one of them therefore has to commit the rebuilt data
-  (`just fv-regen`).
-- `FV Lean` (`check.sh`) requires the Lean data to print exactly
-  `test_programs.golden`, to hold exactly the programs `testProgramNames`
-  lists, and the checker to accept every program outside
-  `uncoveredPrograms`, so rebuilt data with a circuit the checker cannot prove
-  sound, or with a program missing, fails there.
 
 To see a soundness bug caught, delete the `q ≤ q0` bound in
 `euclidean_division_var` (the `bound_constraint_with_offset(quotient_var,

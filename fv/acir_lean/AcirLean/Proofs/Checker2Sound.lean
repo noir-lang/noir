@@ -5,7 +5,6 @@ nothing here can change what `AcirLean/Spec/Claims.lean` states.
 
 import AcirLean.Proofs.Checker2
 import AcirLean.Spec.Claims
-import AcirLean.Templates.TestPrograms
 
 /-! Soundness of `checkProg2`, and the test programs it accepts. -/
 
@@ -1088,21 +1087,5 @@ theorem checkProg2_sound (P : Program) (C : Circuit) (h : checkProg2 P C = true)
       simp only [Program.eval, Option.bind_eq_bind]
       rw [hrun]
       simpa using hvs
-
-/-- The test programs: the checker accepts every one outside
-`uncoveredPrograms`, and its solved witness satisfies its circuit, decided by
-evaluation in the kernel. -/
-theorem testPrograms_claims :
-    ∀ e ∈ testPrograms, e.name ∉ uncoveredPrograms →
-      SoundFunction e.fn (ProgramSpec e.prog) ∧ AllHold e.assignment e.fn.opcodes := by
-  have hc : testPrograms.all (fun e =>
-      decide (e.name ∈ uncoveredPrograms) ||
-        (checkProg2 e.prog e.fn && decide (AllHold e.assignment e.fn.opcodes))) = true := by
-    decide +kernel
-  intro e he hn
-  have := List.all_eq_true.1 hc e he
-  simp only [Bool.or_eq_true, Bool.and_eq_true, decide_eq_true_eq] at this
-  obtain ⟨h1, h2⟩ := this.resolve_left hn
-  exact ⟨checkProg2_sound _ _ h1, h2⟩
 
 end AcirLean

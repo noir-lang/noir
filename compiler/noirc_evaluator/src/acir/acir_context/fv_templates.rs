@@ -376,34 +376,3 @@ fn integer_gadgets_match_lean_templates() {
 fn dump_emitted() {
     std::fs::write(std::env::var("FV_EMITTED").unwrap(), emitted()).unwrap();
 }
-
-/// Prints, for each `nargo` artifact listed in the file named by `FV_ARTIFACTS`,
-/// the canonical constraints of its main circuit and its input and return
-/// witnesses, then, if `nargo execute` solved it (the `.gz` file next to the
-/// artifact), `solved` and one `witness <i> <v>` line per witness. Used to
-/// regenerate `fv/acir_lean` test-program data.
-#[test]
-#[ignore = "run by fv/acir_lean/scripts/regen_programs.sh"]
-fn dump_artifacts() {
-    let list = std::env::var("FV_ARTIFACTS").unwrap();
-    for path in std::fs::read_to_string(list).unwrap().lines() {
-        let json = std::fs::read_to_string(path).unwrap();
-        let artifact: noirc_artifacts::program::ProgramArtifact =
-            serde_json::from_str(&json).unwrap();
-        println!("# artifact {path}");
-        for line in circuit_lines(&artifact.bytecode.functions[0]) {
-            println!("{line}");
-        }
-        let witness_path = std::path::Path::new(path).with_extension("gz");
-        if let Ok(bytes) = std::fs::read(witness_path) {
-            let stack = acvm::acir::native_types::WitnessStack::<FieldElement>::deserialize(&bytes)
-                .unwrap();
-            let main = stack.peek().unwrap();
-            assert_eq!(main.index, 0, "the last witness on the stack is main's");
-            println!("solved");
-            for (w, v) in main.witness.clone() {
-                println!("witness {} {}", w.0, BigUint::from_bytes_be(&v.to_be_bytes()));
-            }
-        }
-    }
-}

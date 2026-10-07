@@ -316,7 +316,7 @@ Each corpus entry is a program, the circuit the compiler shipped for it, and the
 
 ## Part 4 — `SsaSemantics.lean`: what real SSA programs mean (~190 lines)
 
-**This is the file most worth a careful read.** It defines the meaning of the SSA for the real test programs. If an instruction's meaning here is wrong, the proof proves the wrong thing.
+**This is the file most worth a careful read.** It defines the meaning of the SSA for whole programs (`ProgramSpec`), which the second checker proves circuits against. If an instruction's meaning here is wrong, the proof proves the wrong thing.
 
 ### The syntax
 
@@ -489,7 +489,7 @@ def ProgramSpec (P : Program) : List ℕ → List ℕ → Prop := fun ins outs =
     ∃ vs, P.eval (ins.map fun x => (x : F)) = some vs ∧ outs = vs.map ZMod.val
 ```
 
-**The promise for the real test programs.** For the circuit's input values and output values:
+**The promise for a whole program.** For the circuit's input values and output values:
 
 1. there is one input per parameter;
 2. every input fits its parameter's type;
@@ -497,22 +497,9 @@ def ProgramSpec (P : Program) : List ℕ → List ℕ → Prop := fun ins outs =
 
 This is the same shape as `CorpusSpec`, just for richer programs.
 
-```lean
-structure TestProgram where
-  name : String
-  prog : Program
-  fn : Circuit
-  witness : List (ℕ × ℕ)
-
-def TestProgram.assignment (e : TestProgram) (i : ℕ) : F :=
-  ((e.witness.lookup i).getD 0 : ℕ)
-```
-
-A test program: its name, its SSA, its shipped circuit, and the witness `nargo execute` solved for it from its `Prover.toml`, as `(witness, value)` pairs. `TestProgram.assignment` turns that list into a value for every witness (`0` for any not listed), the same way `CorpusEntry.assignment` does for the corpus.
-
 ---
 
-## Part 5 — `Pin.lean`: the printer that ties Lean to the compiler (~121 lines)
+## Part 5 — `Pin.lean`: the printer that ties Lean to the compiler (~125 lines)
 
 `Pin.lean` proves nothing. It prints things, so that CI can compare Lean's copy of the circuits with the compiler's.
 
@@ -558,25 +545,24 @@ Prints `c.canon`: `zero 1*[0] + 21888…616*[3]` for an `AssertZero`, or `range 
 **Check:** that printing a canonical constraint is faithful: each coefficient and witness list is printed as is.
 
 ```lean
-def Circuit.render … CorpusProgram.render … CorpusEntry.render … TestProgram.render
+def Circuit.render … CorpusProgram.render … CorpusEntry.render
 ```
 
 The same idea for whole circuits: one line per opcode, then `inputs [..]` (the parameter witnesses) and `returns [..]` (the return-value witnesses). The last ones print a program followed by its circuit.
 
 ```lean
 def renderAll : String :=
-def renderTestPrograms : String :=
 ```
 
-These build the full text of the two golden files, `templates.golden` and `test_programs.golden`. The chain works like this:
+This builds the full text of the golden file `templates.golden`. The chain works like this:
 
-- `check.sh` fails unless Lean's printout equals those files;
-- a Rust test and the regeneration job fail unless the *compiler's* printout equals them;
+- `check.sh` fails unless Lean's printout equals that file;
+- a Rust test fails unless the *compiler's* printout equals it;
 - so Lean's copy and the compiler's output must match exactly.
 
 ---
 
-## Part 6 — `Claims.lean`: the promise itself (~172 lines)
+## Part 6 — `Claims.lean`: the promise itself (~168 lines)
 
 ### The building blocks
 
@@ -689,19 +675,6 @@ The spec for signed `/` and `%`. It requires:
 
 `op` will be `Int.tdiv` or `Int.tmod`: division that rounds toward zero, as Noir does. `AllClaims` writes them `_root_.Int.tdiv` and `_root_.Int.tmod`: `_root_.` means "the one at the top level", so no definition elsewhere in the project can stand in for Lean's.
 
-```lean
-def uncoveredPrograms : List String :=
-  ["arithmetic_binary_operations", "regression_8519"]
-```
-
-The test programs deliberately left out of the claim, each with its reason in the comment above. **Check:** that the reasons are acceptable, and that the list doesn't grow silently in future PRs.
-
-```lean
-def testProgramNames : List String :=
-```
-
-This one lives in `Spec/Coverage.lean`: the names of the test programs in `testPrograms`, sorted, one per line. The program data itself is generated and unreviewed, so this list is what pins down *which* programs the claim is about. `AllClaims` requires the generated programs to be exactly these, so a program can only drop out of the claim by being deleted here, in a reviewed diff. The regeneration script reads this list too, and refuses to write anything if one of the listed programs no longer compiles or no longer fits the supported subset. **Check:** in a PR, that any name removed from this list was removed on purpose.
-
 ### `AllClaims`: the entire promise, one conjunction
 
 Every line below is joined with `∧` ("and"). Read each one as a sentence.
@@ -718,8 +691,6 @@ Every line below is joined with `∧` ("and"). Read each one as a sentence.
 | `… shippedDiv … shippedLt … shippedTruncate … shippedSignedLt …` | The same four, **after the ACVM optimizer**, as `nargo compile` actually ships them. |
 | `∀ n ∈ signedWidths, SoundFunction (shippedSignedDiv n) (SignedOp n _root_.Int.tdiv) …` and `…shippedSignedMod… _root_.Int.tmod` | Signed `/` and `%`, as shipped, are correct and reject a zero divisor and `MIN / -1`. |
 | `∀ e ∈ corpus, SoundFunction e.fn (CorpusSpec e.prog) ∧ AllHold e.assignment e.fn.opcodes` | Every corpus program's shipped circuit implements it, and ACVM's real witness satisfies that circuit. |
-| `testPrograms.map TestProgram.name = testProgramNames` | The generated test programs are exactly the ones the reviewed list names. |
-| `∀ e ∈ testPrograms, e.name ∉ uncoveredPrograms → SoundFunction e.fn (ProgramSpec e.prog) ∧ AllHold e.assignment e.fn.opcodes` | Every real test program in `testPrograms` (except those in `uncoveredPrograms`) is implemented by its shipped circuit, and the witness `nargo execute` solved for it satisfies that circuit, so the first half can't hold just because the circuit is contradictory. |
 
 Names like `divVarGadget n` and `shippedDiv n` refer to constraint lists in `Templates/`. Those aren't reviewed, because the pin makes them equal to the compiler's real output.
 
@@ -753,7 +724,7 @@ Lean prints every axiom the proof relies on, and `#guard_msgs` fails the build u
    - a missing condition;
    - an input assumption that shouldn't be there (only the gadget `Sound` claims assume input types);
    - wrong witness numbers.
-4. **Scope.** Are `pinnedWidths`, `signedWidths` and `uncoveredPrograms` acceptable? Did any name leave `testProgramNames`?
+4. **Scope.** Are `pinnedWidths` and `signedWidths` acceptable?
 5. **Printer** (`Pin.lean` and the `render` functions). Is it faithful? If it prints the same text for two different things, the pin could be fooled.
 
 Everything outside this list is either checked by Lean (`Proofs/`) or compared byte-for-byte with the compiler (`Templates/`).

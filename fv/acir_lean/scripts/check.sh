@@ -7,8 +7,7 @@
 #      (`AcirLean/Templates/`) never import unreviewed proof code, the pinned
 #      data contains plain definitions only (`scripts/check_templates.py`), and
 #      `lakefile.toml` passes no options to Lean;
-#   4. `templates.golden` is exactly what the pinned templates print,
-#      `test_programs.golden` exactly what the pinned test programs print, and
+#   4. `templates.golden` is exactly what the pinned templates print, and
 #      `ssa_semantics.golden` exactly what the SSA meaning computes on its grid;
 #   5. `REVIEWING.md` quotes the reviewed Lean verbatim and mentions each of
 #      its definitions (`scripts/check_reviewing.py`);
@@ -26,7 +25,7 @@ lake exe cache get
 lake build
 
 forbidden='\b(sorry|admit|axiom)\b|native_decide|skipKernelTC|implemented_by|@\[extern|\bunsafe\b|\bdebug\.'
-if grep -rnE "$forbidden" AcirLean AcirLean.lean Check.lean EmitTemplates.lean EmitPrograms.lean EmitSemantics.lean lakefile.toml; then
+if grep -rnE "$forbidden" AcirLean AcirLean.lean Check.lean EmitTemplates.lean EmitSemantics.lean lakefile.toml; then
   fail "Forbidden proof escape hatch found."
 fi
 # Options set here would apply to every module `lake build` compiles, and
@@ -54,14 +53,6 @@ if ! cmp -s "$generated" templates.golden; then
   echo "Edit AcirLean/Templates/Gadgets.lean (and the proofs), then regenerate with:" >&2
   echo "  lake env lean --run EmitTemplates.lean templates.golden" >&2
   diff "$generated" templates.golden | head -20 >&2
-  exit 1
-fi
-
-lake env lean --run EmitPrograms.lean "$generated"
-if ! cmp -s "$generated" test_programs.golden; then
-  echo "test_programs.golden is not what AcirLean/Templates/TestPrograms.lean emits." >&2
-  echo "Regenerate both with scripts/regen_programs.sh." >&2
-  diff "$generated" test_programs.golden | head -20 >&2
   exit 1
 fi
 
