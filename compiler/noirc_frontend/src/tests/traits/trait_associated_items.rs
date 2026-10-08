@@ -3510,3 +3510,39 @@ fn impl_method_pinning_associated_type_of_another_bound_is_stricter_than_trait()
     ";
     check_errors(src);
 }
+
+#[test]
+fn impl_used_before_it_is_finished_needs_its_where_clause() {
+    let src = r#"
+    trait B {}
+    trait C { type T; }
+    pub struct W {}
+    pub struct S {}
+    impl C for S { type T = <W as C>::T; }
+                                  ^ No matching impl found for `W: B`
+                                  ~ No impl for `W: B`
+    impl C for W where W: B { type T = u8; }
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn impl_used_before_it_is_finished_applies_when_its_where_clause_holds() {
+    let src = r#"
+    trait B {}
+    trait C { let N: u32; }
+    pub struct W {}
+    pub struct S {}
+    impl C for S { let N: u32 = <W as C>::N; }
+    impl C for W where W: B { let N: u32 = 5; }
+    impl B for W {}
+    fn main() -> pub u32 { <S as C>::N }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u32 {
+        5
+    }
+    ");
+}

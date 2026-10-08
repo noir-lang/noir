@@ -273,6 +273,7 @@ impl NodeInterner {
         trait_id: TraitId,
         impl_id: TraitImplId,
         impl_generics: GenericTypeVars,
+        where_clause: Vec<TraitConstraint>,
         location: Location,
     ) {
         if matches!(object_type, Type::Error) {
@@ -308,6 +309,7 @@ impl NodeInterner {
             return;
         }
 
+        self.trait_impl_where_clauses.insert(impl_id, where_clause);
         let entries = self.trait_implementation_map.entry(trait_id).or_default();
         entries.push((object_type, TraitImplKind::Prepared(impl_id, location)));
     }
@@ -324,6 +326,7 @@ impl NodeInterner {
     ) -> Result<Result<(), Location>, CompilationError> {
         self.trait_implementations.insert(impl_id, trait_impl.clone());
         self.trait_implementations_by_trait_id.entry(trait_id).or_default().push(impl_id);
+        self.trait_impl_where_clauses.insert(impl_id, trait_impl.borrow().where_clause.clone());
 
         // Avoid adding error types to impls since they'll conflict with every other type.
         // We don't need to return an error since we expect an error to already be issued when
@@ -607,22 +610,25 @@ impl NodeInterner {
                 continue;
             }
 
-            if let TraitImplKind::Normal(impl_id) = impl_kind {
-                let trait_impl = self.get_trait_implementation(*impl_id);
-                let trait_impl = trait_impl.borrow();
-
-                if let Err(error) = self.validate_where_clause(
-                    &trait_impl.where_clause,
+            let where_clause = match impl_kind {
+                TraitImplKind::Normal(impl_id) | TraitImplKind::Prepared(impl_id, _) => {
+                    self.trait_impl_where_clauses.get(impl_id)
+                }
+                TraitImplKind::Assumed { .. } => None,
+            };
+            if let Some(where_clause) = where_clause
+                && let Err(error) = self.validate_where_clause(
+                    where_clause,
                     &mut fresh_bindings,
                     &instantiation_bindings,
                     recursion_limit,
-                ) {
-                    // Only keep the first errors we get from a failing where clause
-                    if where_clause_error.is_none() {
-                        where_clause_error = Some(error);
-                    }
-                    continue;
+                )
+            {
+                // Only keep the first errors we get from a failing where clause
+                if where_clause_error.is_none() {
+                    where_clause_error = Some(error);
                 }
+                continue;
             }
 
             // Match associated types by name, not position
