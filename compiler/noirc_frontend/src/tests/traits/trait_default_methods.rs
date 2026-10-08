@@ -383,7 +383,11 @@ fn self_item_in_default_method_has_self_type() {
     assert_no_errors(src);
 }
 
-// Regression tests for https://github.com/noir-lang/noir-claude/issues/2042
+// Regression tests for https://github.com/noir-lang/noir-claude/issues/2042 and
+// https://github.com/noir-lang/noir-claude/issues/2061
+//
+// A default body sees `Self` through its method's meta (`ImplContext::of_function`), so that meta
+// has to hold the trait's rigid `Self`, the same as the trait's own scope does.
 //
 // In the tests below `Wide` has no `Checked` impl, so naming `Wide` (or an unbounded `T`) as a
 // `Checked` in a default body must be rejected. The assumed `Self: Checked` that holds inside the
