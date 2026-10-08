@@ -3482,44 +3482,31 @@ impl Elaborator<'_> {
                 (meta.trait_id, meta.all_trait_constraints().cloned().collect::<Vec<_>>())
             });
 
-        // If inside a trait method, check if it's a method on `self`
+        // Candidates come from the enclosing trait (for a call on its `Self`) and from the
+        // function's bounds alike, and are all considered together, so two applicable methods are
+        // reported as ambiguous whichever of the two supplies them.
+        let mut matches = Vec::new();
+        let mut visited = BTreeSet::new();
+
         if let Some(trait_id) = func_meta_trait_id
             && Some(object_type) == self.item.impl_context.self_type()
         {
             let the_trait = self.interner.get_trait(trait_id);
             let constraint = the_trait.as_constraint(the_trait.name.location());
-            let mut visited = BTreeSet::new();
-            let mut matches = self.lookup_methods_in_trait(
+            let hierarchy = self.lookup_methods_in_trait(
                 object_type,
                 the_trait,
                 method_name,
                 &constraint.trait_bound,
                 &mut visited,
             );
-            if matches.len() == 1 {
-                let method = matches.remove(0);
-                let assumed = true;
-                // If it is, it's an assumed trait
-                // Note that here we use the `trait_id` from `TraitItemId` because looking a method on a trait
-                // might return a method on a parent trait.
-                return Some(HirMethodReference::TraitItemId(HirTraitMethodReference {
-                    assumed,
-                    ..method
-                }));
-            }
-            if matches.len() > 1 {
-                return self.handle_trait_method_lookup_matches(
-                    object_type,
-                    method_name,
-                    location,
-                    object_location,
-                    matches,
-                );
-            }
+            // The trait's own `Self` implements it, which is an assumption inside its methods.
+            matches.extend(
+                hierarchy
+                    .into_iter()
+                    .map(|method| HirTraitMethodReference { assumed: true, ..method }),
+            );
         }
-
-        let mut matches = Vec::new();
-        let mut visited = BTreeSet::new();
 
         for constraint in &func_trait_constraints {
             if *object_type == constraint.typ
