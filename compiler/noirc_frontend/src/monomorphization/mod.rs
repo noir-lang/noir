@@ -655,9 +655,7 @@ impl<'interner> Monomorphizer<'interner> {
     fn function_trait_self_bindings(&self, f: &node_interner::FuncId) -> TypeBindings {
         let mut bindings = TypeBindings::default();
         if let Some((self_type, trait_id)) = self.interner.get_function_trait(f) {
-            let self_type_typevar = self.interner.get_trait(trait_id).self_type_typevar.clone();
-            let kind = self_type_typevar.kind().into_owned();
-            bindings.insert(self_type_typevar.id(), (self_type_typevar, kind, self_type));
+            self.interner.get_trait(trait_id).self_param.bind(&self_type, &mut bindings);
         }
         bindings
     }
@@ -3568,10 +3566,7 @@ fn bind_trait_self_to_impl_self(
     }
 
     let trait_def = interner.get_trait(method_id.trait_id);
-    let self_typevar = trait_def.self_type_typevar.clone();
-    let kind = self_typevar.kind().into_owned();
-    let impl_self_type = impl_.typ.clone();
-    bindings.insert(self_typevar.id(), (self_typevar, kind, impl_self_type));
+    trait_def.self_param.bind(&impl_.typ, bindings);
 }
 
 /// Binds direct generics on a trait impl function to those on a corresponding trait function.

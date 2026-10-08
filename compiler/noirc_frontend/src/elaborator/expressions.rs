@@ -2058,8 +2058,7 @@ impl Elaborator<'_> {
         let constraint = TraitConstraint { typ, trait_bound };
 
         let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
-        let self_type = the_trait.self_type_typevar.clone();
-        let kind = the_trait.self_type_typevar.kind().into_owned();
+        let self_param = the_trait.self_param.clone();
 
         let Some(definition) =
             the_trait.find_method_or_constant(path.impl_item.as_str(), self.interner)
@@ -2101,7 +2100,7 @@ impl Elaborator<'_> {
         let mut bindings = TypeBindings::default();
 
         // In `<Type as Trait>::method` we know `Self` is `Type` so we bind that now
-        bindings.insert(self_type.id(), (self_type, kind, constraint.typ));
+        self_param.bind(&constraint.typ, &mut bindings);
 
         let typ = self.type_check_variable_with_bindings(ident, &id, generics, bindings);
         let id = self.intern_expr_type(id, typ.clone());
