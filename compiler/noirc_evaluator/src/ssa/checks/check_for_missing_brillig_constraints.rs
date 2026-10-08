@@ -1020,9 +1020,15 @@ impl Context {
         for block_id in self.post_order.clone().into_iter().rev() {
             // Track the current side effect variable, unless it's a constant.
             let mut side_effects_var: Option<ValueId> = None;
-            // No need to look for constraints on calls which originate from the same code location;
-            // these are the result of unrolling loops, and it should be enough to cover the first.
-            let mut visited_locations = HashSet::default();
+            // No need to look for constraints on calls with the same call stack; these are the
+            // result of unrolling loops, and it should be enough to cover the first iteration.
+            //
+            // The whole call stack is used, rather than just the location of the call itself:
+            // a function wrapping a Brillig call can be called from many places, each of which
+            // has to constrain the result on its own.
+            //
+            // A loop body which only constrains the call on some iterations is not detected.
+            let mut visited_call_stacks = HashSet::default();
 
             for instruction_id in func.dfg[block_id].instructions() {
                 let instruction = &func.dfg[*instruction_id];
@@ -1078,19 +1084,18 @@ impl Context {
                 }
 
                 if is_call_to_brillig(func, all_functions, instruction_id) && !results.is_empty() {
-                    // Skip already visited locations (happens often in unrolled functions)
+                    // Skip already visited call stacks (happens often in unrolled functions)
                     let call_stack = func.dfg.get_instruction_call_stack(*instruction_id);
-                    let location = call_stack.last();
 
                     // If there is no call stack (happens for tests), consider unvisited
-                    let visited = match location {
+                    let visited = match call_stack.last() {
                         None => false,
                         Some(loc) if loc.is_dummy() => false,
-                        Some(loc) => {
+                        Some(_) => {
                             let Instruction::Call { func: callee, .. } = instruction else {
                                 unreachable!("ICE: Expected Brillig call");
                             };
-                            !visited_locations.insert((*callee, *loc))
+                            !visited_call_stacks.insert((*callee, call_stack))
                         }
                     };
 
