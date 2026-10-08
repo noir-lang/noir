@@ -1205,49 +1205,60 @@ fn pair_implicit_associated_generics(
 
     let mut pairs = TypeBindings::default();
 
-    for declaration in declaration_constraints {
-        let object_type = declaration.typ.substitute(bindings).follow_bindings();
-        let ordered = vecmap(&declaration.trait_bound.trait_generics.ordered, |generic| {
-            generic.substitute(bindings)
-        });
+    // A bound can be on another bound's associated item (`<B as Bar>::T: Baz`,
+    // `C: Qux<<B as Bar>::T>`), so it only matches its override once that item is paired: repeat
+    // until a pass pairs nothing new.
+    loop {
+        let paired = pairs.len();
+        let mut current = bindings.clone();
+        current.extend(pairs.clone());
+        for declaration in declaration_constraints {
+            let object_type = declaration.typ.substitute(&current).follow_bindings();
+            let ordered = vecmap(&declaration.trait_bound.trait_generics.ordered, |generic| {
+                generic.substitute(&current)
+            });
 
-        let Some((override_index, override_constraint)) =
-            override_constraints.iter().enumerate().find(|(_, override_constraint)| {
-                override_constraint.trait_bound.trait_id == declaration.trait_bound.trait_id
-                    && override_constraint.typ.follow_bindings() == object_type
-                    && override_constraint.trait_bound.trait_generics.ordered == ordered
-            })
-        else {
-            continue;
-        };
-
-        for named in &declaration.trait_bound.trait_generics.named {
-            let Some(type_var) = implicit_placeholder(&named.typ) else {
-                continue;
-            };
-            // A declaration placeholder the trait's clause itself mentions in several bounds
-            // keeps its first pairing, so a mismatch is reported at the later bound.
-            if pairs.contains_key(&type_var.id()) {
-                continue;
-            }
-            let Some(override_named) = override_constraint
-                .trait_bound
-                .trait_generics
-                .named
-                .iter()
-                .find(|override_named| override_named.name.as_str() == named.name.as_str())
+            let Some((override_index, override_constraint)) =
+                override_constraints.iter().enumerate().find(|(_, override_constraint)| {
+                    override_constraint.trait_bound.trait_id == declaration.trait_bound.trait_id
+                        && override_constraint.typ.follow_bindings() == object_type
+                        && override_constraint.trait_bound.trait_generics.ordered == ordered
+                })
             else {
                 continue;
             };
-            let Some(override_type_var) = implicit_placeholder(&override_named.typ) else {
-                continue;
-            };
-            if placeholder_home.get(&override_type_var.id()) != Some(&override_index) {
-                continue;
-            }
 
-            let kind = type_var.kind().into_owned();
-            pairs.insert(type_var.id(), (type_var, kind, override_named.typ.clone()));
+            for named in &declaration.trait_bound.trait_generics.named {
+                let Some(type_var) = implicit_placeholder(&named.typ) else {
+                    continue;
+                };
+                // A declaration placeholder the trait's clause itself mentions in several bounds
+                // keeps its first pairing, so a mismatch is reported at the later bound.
+                if pairs.contains_key(&type_var.id()) {
+                    continue;
+                }
+                let Some(override_named) = override_constraint
+                    .trait_bound
+                    .trait_generics
+                    .named
+                    .iter()
+                    .find(|override_named| override_named.name.as_str() == named.name.as_str())
+                else {
+                    continue;
+                };
+                let Some(override_type_var) = implicit_placeholder(&override_named.typ) else {
+                    continue;
+                };
+                if placeholder_home.get(&override_type_var.id()) != Some(&override_index) {
+                    continue;
+                }
+
+                let kind = type_var.kind().into_owned();
+                pairs.insert(type_var.id(), (type_var, kind, override_named.typ.clone()));
+            }
+        }
+        if pairs.len() == paired {
+            break;
         }
     }
 

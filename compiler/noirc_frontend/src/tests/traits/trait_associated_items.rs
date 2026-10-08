@@ -3,7 +3,7 @@
 
 use crate::{
     test_utils::get_monomorphized,
-    tests::{assert_no_errors, check_errors, check_monomorphization_error},
+    tests::{assert_no_errors, check_errors, check_monomorphization_error, get_program_errors},
 };
 
 #[test]
@@ -3458,4 +3458,53 @@ fn associated_type_bound_mentioning_self_dispatches_per_bounded_type() {
         self$l8.0
     }
     ");
+}
+
+#[test]
+fn probe1803_p1_chained_object() {
+    let src = "
+    trait Bar { type T; }
+    trait Baz { type U; }
+    trait Foo { fn foo<B>(b: B) where B: Bar, <B as Bar>::T: Baz; }
+    impl Foo for Field { fn foo<B>(_: B) where B: Bar, <B as Bar>::T: Baz {} }
+    fn main() {}
+    ";
+    assert_no_errors(src);
+}
+
+#[test]
+fn probe1803_p1_swapped_order() {
+    let src = "
+    trait Bar { type T; }
+    trait Baz { type U; }
+    trait Foo { fn foo<B>(b: B) where <B as Bar>::T: Baz, B: Bar; }
+    impl Foo for Field { fn foo<B>(_: B) where <B as Bar>::T: Baz, B: Bar {} }
+    fn main() {}
+    ";
+    assert_no_errors(src);
+}
+
+#[test]
+fn probe1803_p2_ordered_generic() {
+    let src = "
+    trait Bar { type T; }
+    trait Qux<X> { type U; }
+    trait Foo { fn foo<B, C>(b: B, c: C) where B: Bar, C: Qux<<B as Bar>::T>; }
+    impl Foo for Field { fn foo<B, C>(_: B, _: C) where B: Bar, C: Qux<<B as Bar>::T> {} }
+    fn main() {}
+    ";
+    assert_no_errors(src);
+}
+
+#[test]
+fn probe1803_c3_chained_override_pins() {
+    let src = "
+    trait Bar { type T; }
+    trait Baz { type U; }
+    trait Foo { fn foo<B>(b: B) where B: Bar, <B as Bar>::T: Baz; }
+    impl Foo for Field { fn foo<B>(_: B) where B: Bar, <B as Bar>::T: Baz<U = u8> {} }
+    fn main() {}
+    ";
+    let errors = get_program_errors(src);
+    assert!(!errors.is_empty());
 }
