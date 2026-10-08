@@ -469,7 +469,7 @@ impl Elaborator<'_> {
 
         // We put associated generics first, as they are implicit and implicit generics
         // come before explicit generics (see `Type::instantiate_with`).
-        let mut generics = vecmap(associated_generics, |desugared| desugared.generic.type_var);
+        let mut generics = vecmap(associated_generics, |generic| generic.type_var);
         generics.extend(func_generics);
         generics
     }

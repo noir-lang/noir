@@ -1071,9 +1071,9 @@ impl Elaborator<'_> {
         trait_impl.resolved_generics = self.item.generics.params().to_vec();
 
         let new_generics = self.desugar_trait_constraints(&mut trait_impl.where_clause);
-        for desugared in new_generics {
-            trait_impl.resolved_generics.push(desugared.generic.clone());
-            self.item.generics.add_param(desugared.generic);
+        for generic in new_generics {
+            trait_impl.resolved_generics.push(generic.clone());
+            self.item.generics.add_param(generic);
         }
 
         // We need to resolve the where clause before any associated types to be

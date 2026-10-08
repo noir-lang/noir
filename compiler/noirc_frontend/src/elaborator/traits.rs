@@ -205,29 +205,6 @@ use super::{
     item_context::{GenericsContext, ImplContext, ItemContext, ModuleContext},
 };
 
-/// A generic synthesized for an associated type that was elided from a trait bound.
-///
-/// For example, given `trait Foo { type Bar: Baz; }`, the where clause in:
-///
-/// ```noir
-/// fn foo<T>() where T: Foo { ... }
-/// ```
-///
-/// is desugared to mention the elided associated type explicitly:
-///
-/// ```noir
-/// fn foo<T, A>() where T: Foo<Bar = A> { ... }
-/// ```
-///
-/// producing one `DesugaredAssociatedGeneric` for the freshly introduced `A`.
-pub(super) struct DesugaredAssociatedGeneric {
-    /// The implicit generic to add to the item's generics list: the `A` above.
-    ///
-    /// Its `type_var` is bindable and is instantiated fresh at each call site, the same
-    /// way an explicit generic is.
-    pub(super) generic: ResolvedGeneric,
-}
-
 impl Elaborator<'_> {
     /// Runs `f` in a context of its own for the trait: the trait's module, the trait as the
     /// current one and its self type variable as `Self`. Whatever `f` adds to the context, such
@@ -269,8 +246,7 @@ impl Elaborator<'_> {
                 let desugared_generics =
                     this.desugar_trait_constraints(&mut unresolved_trait.trait_def.where_clause);
 
-                let new_generics = vecmap(desugared_generics, |desugared| desugared.generic);
-                this.item.generics.add_params(new_generics);
+                this.item.generics.add_params(desugared_generics);
 
                 let where_clause = this.resolve_trait_constraints_and_add_to_scope(
                     &unresolved_trait.trait_def.where_clause,
@@ -367,12 +343,13 @@ impl Elaborator<'_> {
     /// Expands any traits in a where clause to mention all associated types if they were
     /// elided by the user. See [`Self::add_missing_named_generics`] for more detail.
     ///
-    /// Returns all newly created generics to be added to this function/trait/impl.
+    /// Returns all newly created generics to be added to this function/trait/impl. Like an
+    /// explicit generic, each is bindable and instantiated fresh at each call site.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn desugar_trait_constraints(
         &mut self,
         where_clause: &mut [UnresolvedTraitConstraint],
-    ) -> Vec<DesugaredAssociatedGeneric> {
+    ) -> Vec<ResolvedGeneric> {
         where_clause
             .iter_mut()
             .flat_map(|constraint| {
@@ -420,7 +397,7 @@ impl Elaborator<'_> {
         &mut self,
         object: &UnresolvedType,
         bound: &mut TraitBound,
-    ) -> Vec<DesugaredAssociatedGeneric> {
+    ) -> Vec<ResolvedGeneric> {
         let mut added_generics = Vec::new();
         let trait_path = self.validate_path(bound.trait_path.clone());
 
@@ -470,9 +447,7 @@ impl Elaborator<'_> {
                 let ident = Ident::new(associated_type.name.as_ref().clone(), location);
 
                 bound.trait_generics.named_args.push((ident, typ));
-                added_generics.push(DesugaredAssociatedGeneric {
-                    generic: ResolvedGeneric { name, location, type_var },
-                });
+                added_generics.push(ResolvedGeneric { name, location, type_var });
             }
         }
 
@@ -794,7 +769,7 @@ impl Elaborator<'_> {
     }
 
     /// The bounds `constraints` imply on the associated types they name; see
-    /// [`Trait::associated_type_constraints`].
+    /// [`Trait::associated_type_constraints`](crate::hir_def::traits::Trait::associated_type_constraints).
     pub(super) fn associated_type_constraints(
         &self,
         constraints: &[TraitConstraint],
