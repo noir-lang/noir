@@ -274,15 +274,11 @@ impl DocItemBuilder<'_> {
                         let r#type = self.convert_type(numeric_type);
                         associated_constants.push(AssociatedConstant { name, r#type });
                     } else {
-                        let bounds = if let Some(trait_bounds) =
-                            trait_.associated_type_bounds.get(associated_type.name.as_str())
-                        {
-                            vecmap(trait_bounds, |trait_bound| {
-                                self.convert_trait_bound(trait_bound)
-                            })
-                        } else {
-                            Vec::new()
-                        };
+                        let trait_bounds =
+                            trait_.associated_type_bounds(associated_type.name.as_str());
+                        let bounds = vecmap(trait_bounds, |trait_bound| {
+                            self.convert_trait_bound(trait_bound.as_written())
+                        });
                         associated_types.push(AssociatedType { name, bounds });
                     }
                 }

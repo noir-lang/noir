@@ -327,7 +327,7 @@ impl Elaborator<'_> {
         let name_ident = HirIdent::non_trait_method(id, location);
 
         // Add generics to scope
-        let mut generics =
+        let (mut generics, associated_generics_trait_constraints) =
             self.add_function_generics_to_scope(&func.def.generics, &mut func.def.where_clause);
 
         // Setup trait constraints
@@ -346,9 +346,11 @@ impl Elaborator<'_> {
 
         let mut extra_trait_constraints =
             vecmap(extra_trait_constraints, |(constraint, _)| constraint.clone());
-        let associated_type_constraints = self.associated_type_constraints(&trait_constraints);
-        extra_trait_constraints.extend(associated_type_constraints.into_iter().map(|(c, _)| c));
+        extra_trait_constraints.extend(associated_generics_trait_constraints);
         extra_trait_constraints.extend(implied_trait_constraints);
+        for constraint in &trait_constraints {
+            extra_trait_constraints.extend(self.dependent_associated_type_bounds(constraint));
+        }
 
         // Resolve parameters
         let (parameters, parameter_types, parameter_idents) =
@@ -453,25 +455,40 @@ impl Elaborator<'_> {
 
     /// Adds function generics and associated generics (from where clause) to scope.
     ///
-    /// Returns the associated and explicit generics in the correct order (associated first, then
-    /// explicit function generics).
+    /// Returns (generics, `associated_generics_trait_constraints`) where generics contains
+    /// both associated and explicit generics in the correct order (associated first, then explicit function generics).
     #[tracing::instrument(level = "trace", skip_all)]
     fn add_function_generics_to_scope(
         &mut self,
         func_generics: &UnresolvedGenerics,
         where_clause: &mut [UnresolvedTraitConstraint],
-    ) -> Vec<TypeVariable> {
+    ) -> (Vec<TypeVariable>, Vec<TraitConstraint>) {
         self.add_generics(func_generics);
 
         let func_generics = self.item.generics.type_vars();
 
         let associated_generics = self.desugar_trait_constraints(where_clause);
 
+        let mut generics = Vec::with_capacity(associated_generics.len());
+        let mut associated_generics_trait_constraints = Vec::new();
+
+        for desugared in associated_generics {
+            for bound in desugared.bounds {
+                let typ = desugared.named_generic.clone();
+                let location = desugared.generic.location;
+                self.add_implied_trait_bound_to_scope(location, &typ, &bound);
+                associated_generics_trait_constraints
+                    .push(TraitConstraint { typ, trait_bound: bound });
+            }
+
+            generics.push(desugared.generic.type_var);
+        }
+
         // We put associated generics first, as they are implicit and implicit generics
         // come before explicit generics (see `Type::instantiate_with`).
-        let mut generics = vecmap(associated_generics, |generic| generic.type_var);
         generics.extend(func_generics);
-        generics
+
+        (generics, associated_generics_trait_constraints)
     }
 
     fn is_function_in_contract(&self) -> bool {

@@ -813,7 +813,7 @@ impl NodeInterner {
             .map(|the_trait| {
                 let parents = the_trait.parent_bounds().map(|bound| bound.trait_id());
                 let associated_type_bounds =
-                    the_trait.associated_type_bounds.values().flatten().map(|bound| bound.trait_id);
+                    the_trait.all_associated_type_bounds().map(|bound| bound.trait_id());
                 parents.chain(associated_type_bounds).collect()
             })
             .unwrap_or_default();

@@ -188,23 +188,32 @@ impl Elaborator<'_> {
             // If there are bounds on the trait's associated types, check them now, for this impl's
             // `Self` and trait arguments.
             let impl_id = trait_impl.impl_id.unwrap();
-            let impl_constraint = TraitConstraint {
-                typ: self.item.impl_context.expect_self_type().clone(),
-                trait_bound: ResolvedTraitBound {
-                    trait_id,
-                    trait_generics: self.interner.get_trait_generics_for_impl(impl_id).clone(),
-                    location: trait_impl.object_type.location,
-                },
+            let impl_bound = ResolvedTraitBound {
+                trait_id,
+                trait_generics: self.interner.get_trait_generics_for_impl(impl_id).clone(),
+                location: trait_impl.object_type.location,
             };
-            for (constraint, location) in self.associated_type_constraints(&[impl_constraint]) {
-                let (object_type, bound) = (&constraint.typ, &constraint.trait_bound);
-                if let Err(error) = self.interner.lookup_trait_implementation(
-                    object_type,
-                    bound.trait_id,
-                    &bound.trait_generics.ordered,
-                    &bound.trait_generics.named,
-                ) {
-                    self.push_trait_constraint_error(object_type, error, location);
+            let impl_self_type = self.item.impl_context.expect_self_type().clone();
+            for named_generic in impl_bound.trait_generics.named.clone() {
+                let trait_ = self.interner.get_trait(trait_id);
+                let bounds =
+                    vecmap(trait_.associated_type_bounds(named_generic.name.as_str()), |bound| {
+                        self.instantiate_declared_bound(&impl_self_type, &impl_bound, bound)
+                    });
+                let object_type = &named_generic.typ;
+                for bound in bounds {
+                    if let Err(error) = self.interner.lookup_trait_implementation(
+                        object_type,
+                        bound.trait_id,
+                        &bound.trait_generics.ordered,
+                        &bound.trait_generics.named,
+                    ) {
+                        self.push_trait_constraint_error(
+                            object_type,
+                            error,
+                            named_generic.name.location(),
+                        );
+                    }
                 }
             }
 
@@ -1068,16 +1077,23 @@ impl Elaborator<'_> {
         trait_impl.resolved_generics = self.item.generics.params().to_vec();
 
         let new_generics = self.desugar_trait_constraints(&mut trait_impl.where_clause);
-        for generic in new_generics {
-            trait_impl.resolved_generics.push(generic.clone());
-            self.item.generics.add_param(generic);
+        let mut new_generics_trait_constraints = Vec::new();
+        for desugared in new_generics {
+            for bound in desugared.bounds {
+                let typ = desugared.named_generic.clone();
+                let location = desugared.generic.location;
+                self.add_implied_trait_bound_to_scope(location, &typ, &bound);
+                new_generics_trait_constraints
+                    .push((TraitConstraint { typ, trait_bound: bound }, location));
+            }
+            trait_impl.resolved_generics.push(desugared.generic.clone());
+            self.item.generics.add_param(desugared.generic);
         }
 
         // We need to resolve the where clause before any associated types to be
         // able to resolve trait as type syntax, eg. `<T as Foo>` in case there
         // is a where constraint for `T: Foo`.
         let constraints = self.resolve_trait_constraints_and_add_to_scope(&trait_impl.where_clause);
-        let new_generics_trait_constraints = self.associated_type_constraints(&constraints);
 
         // Attach any trait constraints on the impl to the function
         for (_, _, method) in &mut trait_impl.methods.functions {
