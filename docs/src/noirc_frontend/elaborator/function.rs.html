@@ -340,14 +340,14 @@
 <a href=#340 id=340 data-nosnippet>340</a>            <span class="self">self</span>.resolve_trait_constraints_and_add_to_scope(<span class="kw-2">&amp;</span>func.def.where_clause);
 <a href=#341 id=341 data-nosnippet>341</a>
 <a href=#342 id=342 data-nosnippet>342</a>        <span class="comment">// Add constraints for parent traits that have associated types.
-<a href=#343 id=343 data-nosnippet>343</a>        </span><span class="kw">let </span>(parent_generics, parent_constraints) =
+<a href=#343 id=343 data-nosnippet>343</a>        </span><span class="kw">let </span>(parent_generics, implied_trait_constraints) =
 <a href=#344 id=344 data-nosnippet>344</a>            <span class="self">self</span>.add_parent_associated_type_constraints(<span class="kw-2">&amp;</span>trait_constraints);
 <a href=#345 id=345 data-nosnippet>345</a>        generics.extend(parent_generics);
-<a href=#346 id=346 data-nosnippet>346</a>        trait_constraints.extend(parent_constraints);
-<a href=#347 id=347 data-nosnippet>347</a>
-<a href=#348 id=348 data-nosnippet>348</a>        <span class="kw">let </span><span class="kw-2">mut </span>extra_trait_constraints =
-<a href=#349 id=349 data-nosnippet>349</a>            vecmap(extra_trait_constraints, |(constraint, <span class="kw">_</span>)| constraint.clone());
-<a href=#350 id=350 data-nosnippet>350</a>        extra_trait_constraints.extend(associated_generics_trait_constraints);
+<a href=#346 id=346 data-nosnippet>346</a>
+<a href=#347 id=347 data-nosnippet>347</a>        <span class="kw">let </span><span class="kw-2">mut </span>extra_trait_constraints =
+<a href=#348 id=348 data-nosnippet>348</a>            vecmap(extra_trait_constraints, |(constraint, <span class="kw">_</span>)| constraint.clone());
+<a href=#349 id=349 data-nosnippet>349</a>        extra_trait_constraints.extend(associated_generics_trait_constraints);
+<a href=#350 id=350 data-nosnippet>350</a>        extra_trait_constraints.extend(implied_trait_constraints);
 <a href=#351 id=351 data-nosnippet>351</a>
 <a href=#352 id=352 data-nosnippet>352</a>        <span class="comment">// Resolve parameters
 <a href=#353 id=353 data-nosnippet>353</a>        </span><span class="kw">let </span>(parameters, parameter_types, parameter_idents) =
