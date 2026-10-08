@@ -2073,3 +2073,52 @@ fn probe_grandchild_default_method() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn probe1811_ea_generated_impl() {
+    let src = r#"
+    trait Par { let N: u32; }
+    trait Sub: Par {}
+    #[gen_sub]
+    pub struct S {}
+    impl Par for S { let N: u32 = 3; }
+    comptime fn gen_sub(_s: TypeDefinition) -> Quoted {
+        quote { impl Sub for S {} }
+    }
+    pub fn poison<T, let M: u32>(xs: [Field; M]) -> [Field; M] where T: Sub {
+        let ys: [Field; <T as Par>::N] = xs;
+        ys
+    }
+    fn main() -> pub Field {
+        let a: [Field; 5] = [1, 2, 3, 4, 5];
+        let b = poison::<S, 5>(a);
+        b[4]
+    }
+    "#;
+    let errors = get_program_errors(src);
+    assert!(!errors.is_empty(), "`<T as Par>::N` is not M");
+}
+
+#[test]
+fn probe1811_r2b_kind() {
+    let src = r#"
+    trait Par { let N: u32; }
+    trait Sub: Par {}
+    pub fn f<T>(_x: <T as Par>::N) where T: Sub {}
+    fn main() {}
+    "#;
+    let errors = get_program_errors(src);
+    assert!(!errors.is_empty(), "N is a numeric generic, not a type");
+}
+
+#[test]
+fn probe1811_r4a_one_function() {
+    let src = r#"
+    trait Par { let N: u32; }
+    trait Sub: Par {}
+    pub fn f<T>(xs: [Field; 3]) -> [Field; <T as Par>::N] where T: Sub { xs }
+    fn main() {}
+    "#;
+    let errors = get_program_errors(src);
+    assert!(!errors.is_empty(), "3 is not <T as Par>::N");
+}
