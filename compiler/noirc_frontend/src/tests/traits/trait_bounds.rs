@@ -1579,3 +1579,63 @@ fn regression_8485_does_not_panic() {
     let errors = crate::tests::get_program_errors(&full_src);
     assert!(!errors.is_empty(), "expected regression_8485 to produce errors without panicking");
 }
+
+#[test]
+fn trait_where_clause_on_own_associated_type_is_checked_with_impl_associated_type() {
+    let src = r#"
+    trait Marker {}
+    impl Marker for bool {}
+    trait Foo
+    where
+        Self::T: Marker,
+    {
+        type T;
+    }
+    pub struct S {}
+    impl Foo for S {
+        type T = bool;
+    }
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn parent_bound_on_own_associated_type_is_checked_with_impl_associated_type() {
+    let src = r#"
+    trait Base<X> {}
+    impl Base<bool> for S {}
+    trait Foo: Base<Self::T> {
+        type T;
+    }
+    pub struct S {}
+    impl Foo for S {
+        type T = bool;
+    }
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn trait_where_clause_on_own_associated_type_rejects_impl_whose_associated_type_fails_it() {
+    let src = r#"
+    trait Marker {}
+    trait Foo
+    where
+        Self::T: Marker,
+                 ~~~~~~ required by this bound in `Foo`
+    {
+        type T;
+    }
+    pub struct S {}
+    pub struct NotMarker {}
+    impl Foo for S {
+                 ^ The trait bound `NotMarker: Marker` is not satisfied
+                 ~ The trait `Marker` is not implemented for `NotMarker`
+        type T = NotMarker;
+    }
+    fn main() {}
+    "#;
+    check_errors(src);
+}
