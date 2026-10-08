@@ -142,11 +142,54 @@ struct ConstrainedValues {
     ///
     /// A value read from one of these at a dynamic index is constrained, whichever item it is.
     arrays: ValueSet,
+    /// The constraint which first added each member of `values` and `arrays`.
+    constrained_by: HashMap<ValueId, ConstraintIndex>,
+    /// The constraint whose outputs are being added.
+    current: ConstraintIndex,
 }
+
+/// Position of a constraint among the events visited by [`Context::constrain_tainted_pass`].
+type ConstraintIndex = usize;
 
 impl ConstrainedValues {
     fn new(dfg: &DataFlowGraph) -> Self {
-        Self { values: ValueSet::new(dfg), arrays: ValueSet::new(dfg) }
+        Self {
+            values: ValueSet::new(dfg),
+            arrays: ValueSet::new(dfg),
+            constrained_by: HashMap::default(),
+            current: 0,
+        }
+    }
+
+    /// Set the constraint whose outputs are added from now on.
+    fn set_current(&mut self, constraint: ConstraintIndex) {
+        self.current = constraint;
+    }
+
+    fn insert_value(&mut self, value: ValueId) {
+        self.values.insert(value);
+        self.constrained_by.entry(value).or_insert(self.current);
+    }
+
+    fn insert_array(&mut self, array: ValueId) {
+        self.arrays.insert(array);
+        self.constrained_by.entry(array).or_insert(self.current);
+    }
+
+    /// Whether a value was constrained, either itself or by being read from a fully
+    /// constrained array, by a constraint other than the current one.
+    ///
+    /// A constraint cannot use a value it constrained as evidence for constraining another:
+    /// two outputs would vouch for each other with nothing else pinning either of them.
+    fn pins_elsewhere(&self, value: &ValueId, graph: &AncestryGraph) -> bool {
+        let by_other = |value: &ValueId| {
+            self.constrained_by.get(value).is_some_and(|constraint| *constraint != self.current)
+        };
+        (self.values.contains(value) || self.arrays.contains(value)) && by_other(value)
+            || graph
+                .read_arrays
+                .get(value)
+                .is_some_and(|array| self.arrays.contains(array) && by_other(array))
     }
 
     /// Whether the value at the center of the ball has been constrained, either through one of
@@ -248,6 +291,9 @@ struct AncestryGraph {
     /// so is the value.
     read_arrays: HashMap<ValueId, ValueId>,
 
+    /// The results of Brillig calls.
+    call_results: HashSet<ValueId>,
+
     /// Maximum distance to travel looking for an intersecting ancestor.
     max_distance: u32,
 }
@@ -258,6 +304,7 @@ impl AncestryGraph {
             parents: HashMap::default(),
             equivalences: HashMap::default(),
             read_arrays: HashMap::default(),
+            call_results: HashSet::default(),
             max_distance,
         }
     }
@@ -296,6 +343,19 @@ impl AncestryGraph {
     fn add_equivalence(&mut self, v1: ValueId, v2: ValueId) {
         self.equivalences.entry(v1).or_default().push(v2);
         self.equivalences.entry(v2).or_default().push(v1);
+    }
+
+    /// Record that values are the results of a Brillig call.
+    fn add_call_results(&mut self, results: &[ValueId]) {
+        self.call_results.extend(results.iter().copied());
+    }
+
+    /// Whether a tainted value is where its taint comes from: the result of a Brillig call,
+    /// or a value none of whose parents is tainted, such as one read from a tainted array at
+    /// a dynamic index.
+    fn is_taint_source(&self, value: &ValueId, all_tainted: &ValueSet) -> bool {
+        self.call_results.contains(value)
+            || !self.parents.get(value).into_iter().flatten().any(|p| all_tainted.contains(p))
     }
 
     /// Record that `value` was read from `array` at a dynamic index, and start tracking the array.
@@ -618,7 +678,7 @@ impl TaintedDescendants {
             let constrained = balls.iter().any(|ball| ball.contains(output));
 
             if constrained {
-                all_constrained.values.insert(*output);
+                all_constrained.insert_value(*output);
                 progressed = true;
             }
 
@@ -644,7 +704,9 @@ impl TaintedDescendants {
                     balls.iter().any(|ball| descendants.iter().any(|value| ball.contains(value)));
 
                 if constrained {
-                    all_constrained.values.extend(descendants.iter());
+                    for value in descendants.iter() {
+                        all_constrained.insert_value(*value);
+                    }
                     progressed = true;
                 }
 
@@ -659,7 +721,7 @@ impl TaintedDescendants {
                 // An item which is an array is cleared once any one of its own items is
                 // constrained, so an array of arrays may still hold unconstrained values.
                 if self.numeric_array_outputs.contains(array) {
-                    all_constrained.arrays.insert(*array);
+                    all_constrained.insert_array(*array);
                 }
                 false
             } else {
@@ -707,6 +769,19 @@ impl TaintedDescendants {
                 {
                     // Tainted because it's derived from the output of this call itself.
                     if graph.any_ancestor(*cv, false, |_| true, is_own_output) {
+                        continue;
+                    }
+                    // Tainted by the output of another call which no other constraint pins:
+                    // through the equivalence, that output and those of this call would only
+                    // be constrained against each other.
+                    let is_unpinned = |a: &ValueId| {
+                        all_tainted.contains(a) && !all_constrained.pins_elsewhere(a, graph)
+                    };
+                    if is_unpinned(cv)
+                        && graph.any_ancestor(*cv, false, is_unpinned, |a| {
+                            is_unpinned(a) && graph.is_taint_source(a, all_tainted)
+                        })
+                    {
                         continue;
                     }
                     // Only related to the outputs of this call through an equivalence.
@@ -1193,6 +1268,8 @@ impl Context {
                 }
 
                 if is_call_to_brillig(func, all_functions, instruction_id) && !results.is_empty() {
+                    self.graph.add_call_results(&results);
+
                     // Skip already visited call stacks (happens often in unrolled functions)
                     let call_stack = func.dfg.get_instruction_call_stack(*instruction_id);
 
@@ -1341,10 +1418,11 @@ impl Context {
         // Whether any output was cleared during this walk.
         let mut progressed = false;
 
-        for event in events {
+        for (constraint, event) in events.iter().enumerate() {
             match event {
                 Event::Call(index) => active.insert(*index),
                 Event::Constraint(constrained_values) => {
+                    all_constrained.set_current(constraint);
                     progressed |= self.try_constrain_active(
                         constrained_values,
                         &active,
@@ -2802,5 +2880,153 @@ mod tests {
 
         let ssa_level_warnings = check_for_missing_brillig_constraints_in_ssa(program);
         assert_eq!(ssa_level_warnings.len(), 1);
+    }
+
+    /// Brillig functions shared by the tests where an output is related to the input
+    /// of its call only through the output of another call.
+    const PAIR_AND_HINT: &str = r#"
+        brillig(inline) fn pair f1 {
+          b0(v0: Field):
+            v1 = make_array [v0, v0] : [Field; 2]
+            return v1
+        }
+
+        brillig(inline) fn hint f2 {
+          b0(v0: Field):
+            return v0
+        }
+
+        brillig(inline) fn triple f3 {
+          b0(v0: Field):
+            v1 = make_array [v0, v0, v0] : [Field; 3]
+            return v1
+        }
+        "#;
+
+    #[test]
+    #[traced_test]
+    /// Test where `y[0] == x` pins one output of `pair`, and `y[1] == w + x` ties the other
+    /// only to `w`, the output of another call which nothing else constrains.
+    ///
+    /// The constraint makes `y[1]` and `w` vouch for each other, so it must not count as
+    /// constraining `y[1]`: the prover can pick `y[1]` freely and set `w = y[1] - x`.
+    fn test_output_not_constrained_by_output_of_unconstrained_call() {
+        let main = r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = call f1(v0) -> [Field; 2]
+            v2 = array_get v1, index u32 0 -> Field
+            constrain v2 == v0
+            v3 = call f2(v0) -> Field
+            v4 = add v3, v0
+            v5 = array_get v1, index u32 1 -> Field
+            constrain v5 == v4
+            return v5
+        }
+        "#;
+
+        let ssa_level_warnings =
+            check_for_missing_brillig_constraints_in_ssa(&format!("{main}{PAIR_AND_HINT}"));
+        assert_eq!(ssa_level_warnings.len(), 1);
+    }
+
+    #[test]
+    #[traced_test]
+    /// Like [`test_output_not_constrained_by_output_of_unconstrained_call`], with `y[1] == w * x`.
+    fn test_output_not_constrained_by_product_with_output_of_unconstrained_call() {
+        let main = r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = call f1(v0) -> [Field; 2]
+            v2 = array_get v1, index u32 0 -> Field
+            constrain v2 == v0
+            v3 = call f2(v0) -> Field
+            v4 = mul v3, v0
+            v5 = array_get v1, index u32 1 -> Field
+            constrain v5 == v4
+            return v5
+        }
+        "#;
+
+        let ssa_level_warnings =
+            check_for_missing_brillig_constraints_in_ssa(&format!("{main}{PAIR_AND_HINT}"));
+        assert_eq!(ssa_level_warnings.len(), 1);
+    }
+
+    #[test]
+    #[traced_test]
+    /// Like [`test_output_not_constrained_by_output_of_unconstrained_call`], with two outputs
+    /// each tied only to the output of its own unconstrained call.
+    fn test_outputs_not_constrained_by_outputs_of_unconstrained_calls() {
+        let main = r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = call f3(v0) -> [Field; 3]
+            v2 = array_get v1, index u32 0 -> Field
+            constrain v2 == v0
+            v3 = call f2(v0) -> Field
+            v4 = add v3, v0
+            v5 = array_get v1, index u32 1 -> Field
+            constrain v5 == v4
+            v6 = call f2(v0) -> Field
+            v7 = add v6, v0
+            v8 = array_get v1, index u32 2 -> Field
+            constrain v8 == v7
+            return v5, v8
+        }
+        "#;
+
+        let ssa_level_warnings =
+            check_for_missing_brillig_constraints_in_ssa(&format!("{main}{PAIR_AND_HINT}"));
+        assert_eq!(ssa_level_warnings.len(), 1);
+    }
+
+    #[test]
+    #[traced_test]
+    /// Like [`test_output_not_constrained_by_output_of_unconstrained_call`], where the other
+    /// call takes an unrelated input, so it is reported as well.
+    fn test_output_not_constrained_by_output_of_call_on_unrelated_input() {
+        let main = r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v2 = call f1(v0) -> [Field; 2]
+            v3 = array_get v2, index u32 0 -> Field
+            constrain v3 == v0
+            v4 = call f2(v1) -> Field
+            v5 = add v4, v0
+            v6 = array_get v2, index u32 1 -> Field
+            constrain v6 == v5
+            return v6
+        }
+        "#;
+
+        let ssa_level_warnings =
+            check_for_missing_brillig_constraints_in_ssa(&format!("{main}{PAIR_AND_HINT}"));
+        assert_eq!(ssa_level_warnings.len(), 2);
+    }
+
+    #[test]
+    #[traced_test]
+    /// Test where an output is related to the input of its call through the output of
+    /// another call, which a different constraint pins to its own input.
+    fn test_output_constrained_through_output_of_constrained_call() {
+        let main = r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = call f1(v0) -> [Field; 2]
+            v2 = array_get v1, index u32 0 -> Field
+            constrain v2 == v0
+            v3 = call f2(v0) -> Field
+            constrain v3 == v0
+            v4 = add v3, v0
+            v5 = array_get v1, index u32 1 -> Field
+            constrain v5 == v4
+            return v5
+        }
+        "#;
+
+        let ssa_level_warnings =
+            check_for_missing_brillig_constraints_in_ssa(&format!("{main}{PAIR_AND_HINT}"));
+        assert_eq!(ssa_level_warnings.len(), 0);
     }
 }
