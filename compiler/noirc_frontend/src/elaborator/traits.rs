@@ -915,9 +915,10 @@ impl Elaborator<'_> {
             .item
             .impl_context
             .current_trait()
+            .filter(|current_trait| *current_trait == trait_id)
             .map(|trait_id| self.interner.get_trait(trait_id).self_type_typevar.id());
 
-        let object_is_current_trait_self = match object {
+        let is_current_trait_on_its_own_self = match object {
             Type::TypeVariable(self_var)
             | Type::NamedGeneric(NamedGeneric { type_var: self_var, .. }) => {
                 self_var.binding().is_unbound() && Some(self_var.id()) == current_trait_self_id
@@ -925,10 +926,11 @@ impl Elaborator<'_> {
             _ => false,
         };
 
-        if object_is_current_trait_self {
-            // The current trait's parent bounds on its own `Self` are already part of each of its
-            // methods' where clauses (see `resolve_trait_methods`), which registers them itself.
-            // Registering them again here would give `Self` two assumed impls of each parent.
+        if is_current_trait_on_its_own_self {
+            // This is the `Self: CurrentTrait` assumed inside the current trait's own methods. Its
+            // parent bounds are already part of each method's where clause (see
+            // `resolve_trait_methods`), which registers them itself. Registering them again here
+            // would give `Self` two assumed impls of each parent.
             return;
         }
 

@@ -623,3 +623,146 @@ fn blanket_impl_of_current_trait_does_not_make_assumed_self_impl_redundant() {
     "#;
     assert_no_errors(src);
 }
+
+/// Regression test for https://github.com/noir-lang/noir-claude/issues/2080
+///
+/// A default method of `C: B` with `B: A` can use `A` on `Self`, through every spelling.
+#[test]
+fn default_method_sees_grandparent_trait_of_self() {
+    let src = r#"
+    trait A {
+        fn a(self) -> Field {
+            let _ = self;
+            1
+        }
+    }
+    trait B: A {}
+    fn needs_a<T: A>(t: T) -> Field {
+        t.a()
+    }
+    trait C: B {
+        fn c(self) -> Field {
+            needs_a(self) + A::a(self) + <Self as A>::a(self) + self.a()
+        }
+    }
+    struct S {}
+    impl A for S {}
+    impl B for S {}
+    impl C for S {}
+
+    fn main() {
+        let _ = S {}.c();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression test for https://github.com/noir-lang/noir-claude/issues/2080
+///
+/// A method-level `where Self: B` brings `B`'s parents into scope as well.
+#[test]
+fn default_method_sees_parents_of_where_self_bound() {
+    let src = r#"
+    trait A {
+        fn a(self) -> Field {
+            let _ = self;
+            1
+        }
+    }
+    trait B: A {}
+    fn needs_a<T: A>(t: T) -> Field {
+        t.a()
+    }
+    trait C {
+        fn c(self) -> Field
+        where
+            Self: B,
+        {
+            needs_a(self)
+        }
+    }
+    struct S {}
+    impl A for S {}
+    impl B for S {}
+    impl C for S {}
+
+    fn main() {
+        let _ = S {}.c();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression test for https://github.com/noir-lang/noir-claude/issues/2080
+///
+/// `trait C<X>: Foo<Bar = X>` with `trait Foo { type Bar: HasQux; }` gives `X: HasQux` inside
+/// `C`'s default methods.
+#[test]
+fn default_method_sees_associated_type_bound_of_parent() {
+    let src = r#"
+    trait HasQux {
+        fn qux(self) -> Field;
+    }
+    trait Foo {
+        type Bar: HasQux;
+    }
+    fn needs_q<T: HasQux>(t: T) -> Field {
+        t.qux()
+    }
+    trait C<X>: Foo<Bar = X> {
+        fn c(self, x: X) -> Field {
+            let _ = self;
+            needs_q(x)
+        }
+    }
+    struct Q {}
+    impl HasQux for Q {
+        fn qux(self) -> Field {
+            let _ = self;
+            7
+        }
+    }
+    struct S {}
+    impl Foo for S {
+        type Bar = Q;
+    }
+    impl C<Q> for S {}
+
+    fn main() {
+        let _ = S {}.c(Q {});
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// `A` reaches `C`'s default methods both directly and through `B`, and both routes name the
+/// same bound, so calls through `A` are not ambiguous.
+#[test]
+fn default_method_sees_parent_reached_through_two_routes_once() {
+    let src = r#"
+    trait A {
+        fn a(self) -> Field {
+            let _ = self;
+            1
+        }
+    }
+    trait B: A {}
+    fn needs_a<T: A>(t: T) -> Field {
+        t.a()
+    }
+    trait C: B + A {
+        fn c(self) -> Field {
+            needs_a(self) + A::a(self) + <Self as A>::a(self)
+        }
+    }
+    struct S {}
+    impl A for S {}
+    impl B for S {}
+    impl C for S {}
+
+    fn main() {
+        let _ = S {}.c();
+    }
+    "#;
+    assert_no_errors(src);
+}
