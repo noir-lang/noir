@@ -770,3 +770,81 @@ fn default_method_sees_parent_reached_through_two_routes_once() {
     "#;
     assert_no_errors(src);
 }
+
+/// Regression test for https://github.com/noir-lang/noir-claude/issues/2200
+///
+/// In a method of `trait C<T>: A<T>`, `where Self: C<u8>` implies `Self: A<u8>`, which is a
+/// different bound from the `Self: A<T>` every method of `C` has.
+#[test]
+fn default_method_where_self_bound_on_own_trait_with_other_arguments_sees_its_parents() {
+    let src = r#"
+    trait A<T> {
+        fn a(self) -> T;
+    }
+    fn needs_a8<U: A<u8>>(u: U) -> u8 {
+        u.a()
+    }
+    trait C<T>: A<T> {
+        fn c(self) -> u8
+        where
+            Self: C<u8>,
+        {
+            needs_a8(self) + <Self as A<u8>>::a(self)
+        }
+    }
+    struct S {}
+    impl A<u8> for S {
+        fn a(self) -> u8 {
+            let _ = self;
+            1
+        }
+    }
+    impl C<u8> for S {}
+
+    fn main() {
+        let _ = S {}.c();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// In a generic trait, `A<T>` reaches `C`'s default methods both directly and through `B<T>`,
+/// and both routes name the same bound as the one implied by the assumed `Self: C<T>`, so calls
+/// through `A<T>` are not ambiguous.
+#[test]
+fn default_method_of_generic_trait_sees_parent_reached_through_two_routes_once() {
+    let src = r#"
+    trait A<T> {
+        fn a(self) -> T;
+    }
+    trait B<T>: A<T> {}
+    fn needs_a<T, U: A<T>>(u: U) -> T {
+        u.a()
+    }
+    trait C<T>: B<T> + A<T> {
+        fn c(self) -> T {
+            needs_a(self)
+        }
+        fn d(self) -> T {
+            A::a(self)
+        }
+        fn e(self) -> T {
+            <Self as A<T>>::a(self)
+        }
+    }
+    struct S {}
+    impl A<u8> for S {
+        fn a(self) -> u8 {
+            let _ = self;
+            1
+        }
+    }
+    impl B<u8> for S {}
+    impl C<u8> for S {}
+
+    fn main() {
+        let _ = S {}.c() + S {}.d() + S {}.e();
+    }
+    "#;
+    assert_no_errors(src);
+}

@@ -1176,3 +1176,43 @@ fn generic_parent_associated_type_is_not_the_callers_impl_generic() {
     "#;
     assert_no_errors(inferred);
 }
+
+/// `T: C` with `trait C: A<u8> + B` and `trait B: A<u16>` implies both `T: A<u8>` and
+/// `T: A<u16>`: two bounds on the same trait with different arguments.
+#[test]
+fn bound_implies_same_trait_with_different_arguments_through_two_parents() {
+    let src = r#"
+    trait A<T> {
+        fn a(self) -> T;
+    }
+    trait B: A<u16> {}
+    trait C: A<u8> + B {}
+    fn f<T: C>(t: T) -> u16 {
+        <T as A<u16>>::a(t)
+    }
+    fn g<T: C>(t: T) -> u8 {
+        <T as A<u8>>::a(t)
+    }
+    struct S {}
+    impl A<u8> for S {
+        fn a(self) -> u8 {
+            let _ = self;
+            1
+        }
+    }
+    impl A<u16> for S {
+        fn a(self) -> u16 {
+            let _ = self;
+            2
+        }
+    }
+    impl B for S {}
+    impl C for S {}
+
+    fn main() {
+        let _ = f(S {});
+        let _ = g(S {});
+    }
+    "#;
+    assert_no_errors(src);
+}

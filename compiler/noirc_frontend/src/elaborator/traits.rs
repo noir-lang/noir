@@ -597,8 +597,13 @@ impl Elaborator<'_> {
         constraints: impl Iterator<Item = &'a TraitConstraint>,
         location: Location,
     ) {
+        // One set for all of them, so a bound implied by several of them is added once.
+        let mut seen = BoundSet::default();
         for constraint in constraints {
-            self.add_trait_bound_to_scope(location, &constraint.typ, &constraint.trait_bound);
+            let (typ, bound) = (&constraint.typ, &constraint.trait_bound);
+            seen.insert_root(typ, bound);
+            let written = true;
+            self.add_trait_bound_to_scope_inner(location, typ, bound, written, &mut seen);
         }
 
         // Also assume `self` implements the current trait if we are inside a trait definition
@@ -611,7 +616,12 @@ impl Elaborator<'_> {
                 .trait_self_type()
                 .expect("Expected a self type if there's a current trait");
 
-            self.add_implied_trait_bound_to_scope(location, &self_type, &constraint.trait_bound);
+            // Its parent bounds are already part of each method's where clause (see
+            // `resolve_trait_methods`), so `seen` has them and they are not added a second time.
+            let bound = &constraint.trait_bound;
+            seen.insert_root(&self_type, bound);
+            let written = false;
+            self.add_trait_bound_to_scope_inner(location, &self_type, bound, written, &mut seen);
         }
     }
 
@@ -828,9 +838,10 @@ impl Elaborator<'_> {
         object: &Type,
         trait_bound: &ResolvedTraitBound,
     ) {
-        let mut visited = BTreeSet::from([(object.clone(), trait_bound.trait_id)]);
+        let mut seen = BoundSet::default();
+        seen.insert_root(object, trait_bound);
         let written = true;
-        self.add_trait_bound_to_scope_inner(location, object, trait_bound, written, &mut visited);
+        self.add_trait_bound_to_scope_inner(location, object, trait_bound, written, &mut seen);
     }
 
     /// [`Self::add_trait_bound_to_scope`] for a bound the user did not write but which another
@@ -844,9 +855,10 @@ impl Elaborator<'_> {
         object: &Type,
         trait_bound: &ResolvedTraitBound,
     ) {
-        let mut visited = BTreeSet::from([(object.clone(), trait_bound.trait_id)]);
+        let mut seen = BoundSet::default();
+        seen.insert_root(object, trait_bound);
         let written = false;
-        self.add_trait_bound_to_scope_inner(location, object, trait_bound, written, &mut visited);
+        self.add_trait_bound_to_scope_inner(location, object, trait_bound, written, &mut seen);
     }
 
     /// `written` distinguishes the bound the user wrote from the ones it implies: a bound on one of
@@ -863,7 +875,7 @@ impl Elaborator<'_> {
         object: &Type,
         trait_bound: &ResolvedTraitBound,
         written: bool,
-        visited: &mut BTreeSet<(Type, TraitId)>,
+        seen: &mut BoundSet,
     ) {
         let trait_id = trait_bound.trait_id;
         let generics = trait_bound.trait_generics.clone();
@@ -911,19 +923,6 @@ impl Elaborator<'_> {
             }
         }
 
-        let is_current_trait_on_its_own_self =
-            self.item.impl_context.current_trait().is_some_and(|current_trait| {
-                current_trait == trait_id && self.interner.get_trait(trait_id).is_self_type(object)
-            });
-
-        if is_current_trait_on_its_own_self {
-            // This is the `Self: CurrentTrait` assumed inside the current trait's own methods. Its
-            // parent bounds are already part of each method's where clause (see
-            // `resolve_trait_methods`), which registers them itself. Registering them again here
-            // would give `Self` two assumed impls of each parent.
-            return;
-        }
-
         // A bound declared on an associated type (`trait Foo { type Bar: HasQux; }`) is implied
         // by the bound naming it, so `T: Foo<Bar = X>` also brings `X: HasQux` into scope. Without
         // it, nothing links `X` to `HasQux` and `<X as HasQux>::Qux` resolves to no impl.
@@ -942,19 +941,12 @@ impl Elaborator<'_> {
         };
 
         for (associated_type, bound) in associated_bounds {
-            // Avoid looping forever in case there are cycles
-            if !visited.insert((associated_type.clone(), bound.trait_id)) {
+            if !seen.enter(&associated_type, &bound) {
                 continue;
             }
-
             let written = false;
-            self.add_trait_bound_to_scope_inner(
-                location,
-                &associated_type,
-                &bound,
-                written,
-                visited,
-            );
+            self.add_trait_bound_to_scope_inner(location, &associated_type, &bound, written, seen);
+            seen.leave();
         }
 
         // Also add assumed implementations for the parent traits, if any
@@ -964,21 +956,20 @@ impl Elaborator<'_> {
             .map(|the_trait| the_trait.parent_bounds().collect::<Vec<_>>())
         {
             for parent_trait_bound in trait_bounds {
-                // Avoid looping forever in case there are cycles
-                if !visited.insert((object.clone(), parent_trait_bound.trait_id())) {
-                    continue;
-                }
-
                 let parent_trait_bound =
                     self.instantiate_parent_trait_bound(object, trait_bound, &parent_trait_bound);
+                if !seen.enter(object, &parent_trait_bound) {
+                    continue;
+                }
                 let written = false;
                 self.add_trait_bound_to_scope_inner(
                     location,
                     object,
                     &parent_trait_bound,
                     written,
-                    visited,
+                    seen,
                 );
+                seen.leave();
             }
         }
     }
@@ -1601,5 +1592,42 @@ fn check_function_type_matches_expected_type(
     // all the expected generics to each other prior to this check.
     if !bindings.is_empty() {
         errors.push(elaborator.new_type_mismatch_error(actual, expected, location));
+    }
+}
+
+/// The bounds already brought into scope for one item, and the path of bounds currently being
+/// expanded.
+///
+/// A bound is identified by its object, trait and ordered arguments, so `T: A<u8>` and
+/// `T: A<u16>` are different bounds and both are expanded. The path is identified by object and
+/// trait only, so a trait that reaches itself again through its parents (`trait A<T>: A<[T; 2]>`)
+/// stops there instead of expanding forever.
+#[derive(Default)]
+struct BoundSet {
+    seen: BTreeSet<(Type, TraitId, Vec<Type>)>,
+    path: Vec<(Type, TraitId)>,
+}
+
+impl BoundSet {
+    fn insert_root(&mut self, object: &Type, bound: &ResolvedTraitBound) {
+        self.seen.insert((object.clone(), bound.trait_id, bound.trait_generics.ordered.clone()));
+        self.path.clear();
+        self.path.push((object.clone(), bound.trait_id));
+    }
+
+    /// Whether `object: bound` is new and not already being expanded. If so, it is recorded and
+    /// pushed onto the path; call [`Self::leave`] once it is expanded.
+    fn enter(&mut self, object: &Type, bound: &ResolvedTraitBound) -> bool {
+        let on_path = self.path.iter().any(|(typ, id)| typ == object && *id == bound.trait_id);
+        let key = (object.clone(), bound.trait_id, bound.trait_generics.ordered.clone());
+        if on_path || !self.seen.insert(key) {
+            return false;
+        }
+        self.path.push((object.clone(), bound.trait_id));
+        true
+    }
+
+    fn leave(&mut self) {
+        self.path.pop();
     }
 }
