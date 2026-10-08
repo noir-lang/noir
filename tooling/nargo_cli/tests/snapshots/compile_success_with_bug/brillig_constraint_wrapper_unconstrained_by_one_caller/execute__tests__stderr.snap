@@ -3,13 +3,13 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
 bug: Brillig function call isn't properly covered by a manual constraint
-  ┌─ src/main.nr:8:14
+  ┌─ src/main.nr:9:9
   │
-8 │     unsafe { half_helper(x) }
-  │              -------------- This Brillig call's inputs and its return values haven't been sufficiently constrained. This should be done to prevent potential soundness vulnerabilities
+9 │         half_helper(x)
+  │         -------------- This Brillig call's inputs and its return values haven't been sufficiently constrained. This should be done to prevent potential soundness vulnerabilities
   │
   = Call stack:
     1: main
-            at src/main.nr:15:13
+            at src/main.nr:17:13
     2: half_unchecked
-            at src/main.nr:8:14
+            at src/main.nr:9:9

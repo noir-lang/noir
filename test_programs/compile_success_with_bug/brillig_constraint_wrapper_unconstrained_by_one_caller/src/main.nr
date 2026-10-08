@@ -5,7 +5,9 @@ unconstrained fn half_helper(x: Field) -> Field {
 // The helper leaves constraining the result to its callers.
 fn half_unchecked(x: Field) -> Field {
     // Safety: callers must constrain the result
-    unsafe { half_helper(x) }
+    unsafe {
+        half_helper(x)
+    }
 }
 
 fn main(a: Field, b: Field) -> pub Field {
