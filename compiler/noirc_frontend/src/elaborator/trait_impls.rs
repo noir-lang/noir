@@ -955,6 +955,7 @@ impl Elaborator<'_> {
                 trait_id,
                 impl_id,
                 impl_generics,
+                constraints.clone(),
                 trait_impl.object_type.location,
             );
         }

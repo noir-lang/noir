@@ -189,6 +189,10 @@ pub struct NodeInterner {
     /// by splitting it up by type.
     trait_implementation_map: HashMap<TraitId, Vec<(Type, TraitImplKind)>>,
 
+    /// The where clause of each impl registered as [`TraitImplKind::Prepared`], so that a lookup
+    /// matches a prepared impl only where its where clause holds, as for a finished one.
+    prepared_impl_where_clauses: HashMap<TraitImplId, Vec<TraitConstraint>>,
+
     /// When impls are found during type checking, we tag the function call's Ident
     /// with the impl that was selected. For cases with where clauses, this may be
     /// an Assumed (but verified) impl. In this case the monomorphizer should have
@@ -498,6 +502,7 @@ impl Default for NodeInterner {
             impls: HashMap::default(),
             next_impl_id: 0,
             trait_implementation_map: HashMap::default(),
+            prepared_impl_where_clauses: HashMap::default(),
             selected_trait_implementations: HashMap::default(),
             infix_operator_traits: HashMap::default(),
             prefix_operator_traits: HashMap::default(),
