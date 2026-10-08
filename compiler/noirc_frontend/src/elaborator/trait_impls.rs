@@ -775,14 +775,11 @@ impl Elaborator<'_> {
         };
 
         let impl_trait = the_trait.name.to_string();
-        let ordered_generics = self.interner.get_ordered_generics_for_impl(impl_id);
+        let impl_generics = self.interner.get_trait_generics_for_impl(impl_id);
 
-        // Bind Self to the object type of the impl so that parent-trait bounds
-        // (which are stored in the trait's where clause as constraints on Self)
-        // get checked against the concrete impl type.
-        let mut bindings = TypeBindings::default();
-        let generics = TraitGenerics { ordered: ordered_generics.to_vec(), named: Vec::new() };
-        the_trait.bind_given_arguments(object_type, &generics, &mut bindings);
+        // The where clause, parent bounds included, is written in terms of the trait's `Self`,
+        // generics and associated types, so it is checked with this impl's.
+        let mut bindings = the_trait.bound_bindings(object_type, impl_generics);
 
         self.check_trait_bounds_are_satisfied(
             the_trait.where_clause.clone(),
