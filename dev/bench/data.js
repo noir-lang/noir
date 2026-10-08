@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791477789374,
+  "lastUpdate": 1791487121252,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22955,48 +22955,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "945ec3d2cf35ad8eaae23fcc573671ac982d2b83",
-          "message": "fix(ssa): give entry-point callees their own arrays in the SSA interpreter (#13859)",
-          "timestamp": "2026-10-01T16:18:04Z",
-          "tree_id": "5fa9a81d6ecf4560bc65840ee4725bccc7cdc20e",
-          "url": "https://github.com/noir-lang/noir/commit/945ec3d2cf35ad8eaae23fcc573671ac982d2b83"
-        },
-        "date": 1790872752503,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 168440,
-            "range": "± 491",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 136466,
-            "range": "± 4109",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2645374,
-            "range": "± 6307",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "6c9b8afce235e05725b617d2b1bff9e1b99936cc",
           "message": "chore: give the comptime and SSA interpreters their own private shared-cell types (#13851)",
@@ -25039,6 +24997,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2344835,
             "range": "± 5413",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "57102c33c569a081210f1333bf4ce34c3331fc6a",
+          "message": "fix(frontend): instantiate a trait's associated type bounds for each use (#13932)",
+          "timestamp": "2026-10-08T18:53:32Z",
+          "tree_id": "a27815cf4bb8c78531b4b79c1d728cd2a7d88f6c",
+          "url": "https://github.com/noir-lang/noir/commit/57102c33c569a081210f1333bf4ce34c3331fc6a"
+        },
+        "date": 1791487028989,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 127609,
+            "range": "± 558",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 113449,
+            "range": "± 2228",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3043024,
+            "range": "± 9719",
             "unit": "ns/iter"
           }
         ]
