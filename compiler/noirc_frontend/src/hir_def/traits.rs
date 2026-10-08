@@ -431,6 +431,28 @@ impl Trait {
         }
     }
 
+    /// The bounds that `self_type: ThisTrait<trait_generics>` implies on the associated types it
+    /// names, each with the location of that name: `T: Foo<Out = O>` with
+    /// `trait Foo { type Out: Conv<Self>; }` gives `O: Conv<T>`.
+    pub fn associated_type_constraints(
+        &self,
+        self_type: &Type,
+        trait_generics: &TraitGenerics,
+    ) -> Vec<(TraitConstraint, Location)> {
+        let bindings = self.bound_bindings(self_type, trait_generics);
+        let mut constraints = Vec::new();
+        for named in &trait_generics.named {
+            for bound in self.associated_type_bounds.get(named.name.as_str()).into_iter().flatten()
+            {
+                let trait_generics = bound.trait_generics.map(|typ| typ.substitute(&bindings));
+                let trait_bound = ResolvedTraitBound { trait_generics, ..bound.clone() };
+                let constraint = TraitConstraint { typ: named.typ.clone(), trait_bound };
+                constraints.push((constraint, named.name.location()));
+            }
+        }
+        constraints
+    }
+
     /// Whether `typ` is this trait's own (rigid) `Self`.
     pub fn is_self_type(&self, typ: &Type) -> bool {
         matches!(typ, Type::NamedGeneric(NamedGeneric { type_var, .. }) if type_var.id() == self.self_param.id())

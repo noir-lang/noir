@@ -14,7 +14,7 @@ use crate::{
         resolution::errors::ResolverError,
         type_check::{TypeCheckError, generics::TraitGenerics},
     },
-    hir_def::traits::{NamedType, TraitImpl},
+    hir_def::traits::{NamedType, ResolvedTraitBound, TraitImpl},
     node_interner::{TraitImplId, TraitLookupMode},
 };
 use crate::{
@@ -185,31 +185,26 @@ impl Elaborator<'_> {
                 }
             }
 
-            let trait_ = self.interner.get_trait(trait_id);
-
-            // If there are bounds on the trait's associated types, check them now
-            let associated_type_bounds = &trait_.associated_type_bounds;
-            let associated_type_bounds = associated_type_bounds.clone();
-            let named_generics =
-                self.interner.get_associated_types_for_impl(trait_impl.impl_id.unwrap()).to_vec();
-            for named_generic in named_generics {
-                let Some(bounds) = associated_type_bounds.get(named_generic.name.as_str()) else {
-                    continue;
-                };
-                let object_type = &named_generic.typ;
-                for bound in bounds {
-                    if let Err(error) = self.interner.lookup_trait_implementation(
-                        object_type,
-                        bound.trait_id,
-                        &bound.trait_generics.ordered,
-                        &bound.trait_generics.named,
-                    ) {
-                        self.push_trait_constraint_error(
-                            object_type,
-                            error,
-                            named_generic.name.location(),
-                        );
-                    }
+            // If there are bounds on the trait's associated types, check them now, for this impl's
+            // `Self` and trait arguments.
+            let impl_id = trait_impl.impl_id.unwrap();
+            let impl_constraint = TraitConstraint {
+                typ: self.item.impl_context.expect_self_type().clone(),
+                trait_bound: ResolvedTraitBound {
+                    trait_id,
+                    trait_generics: self.interner.get_trait_generics_for_impl(impl_id).clone(),
+                    location: trait_impl.object_type.location,
+                },
+            };
+            for (constraint, location) in self.associated_type_constraints(&[impl_constraint]) {
+                let (object_type, bound) = (&constraint.typ, &constraint.trait_bound);
+                if let Err(error) = self.interner.lookup_trait_implementation(
+                    object_type,
+                    bound.trait_id,
+                    &bound.trait_generics.ordered,
+                    &bound.trait_generics.named,
+                ) {
+                    self.push_trait_constraint_error(object_type, error, location);
                 }
             }
 
@@ -1076,15 +1071,7 @@ impl Elaborator<'_> {
         trait_impl.resolved_generics = self.item.generics.params().to_vec();
 
         let new_generics = self.desugar_trait_constraints(&mut trait_impl.where_clause);
-        let mut new_generics_trait_constraints = Vec::new();
         for desugared in new_generics {
-            for bound in desugared.bounds {
-                let typ = desugared.named_generic.clone();
-                let location = desugared.generic.location;
-                self.add_implied_trait_bound_to_scope(location, &typ, &bound);
-                new_generics_trait_constraints
-                    .push((TraitConstraint { typ, trait_bound: bound }, location));
-            }
             trait_impl.resolved_generics.push(desugared.generic.clone());
             self.item.generics.add_param(desugared.generic);
         }
@@ -1093,6 +1080,7 @@ impl Elaborator<'_> {
         // able to resolve trait as type syntax, eg. `<T as Foo>` in case there
         // is a where constraint for `T: Foo`.
         let constraints = self.resolve_trait_constraints_and_add_to_scope(&trait_impl.where_clause);
+        let new_generics_trait_constraints = self.associated_type_constraints(&constraints);
 
         // Attach any trait constraints on the impl to the function
         for (_, _, method) in &mut trait_impl.methods.functions {

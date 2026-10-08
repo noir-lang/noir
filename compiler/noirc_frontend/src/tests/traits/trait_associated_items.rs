@@ -1,7 +1,10 @@
 //! Tests for associated types and associated constants in traits.
 //! Validates accessing, computing with, and constraining associated items.
 
-use crate::tests::{assert_no_errors, check_errors, check_monomorphization_error};
+use crate::{
+    test_utils::get_monomorphized,
+    tests::{assert_no_errors, check_errors, check_monomorphization_error},
+};
 
 #[test]
 fn passes_trait_with_associated_number_to_generic_function() {
@@ -3303,4 +3306,156 @@ fn comptime_as_trait_associated_constant_uses_function_generics() {
     }
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn associated_type_bound_mentioning_self_is_checked_for_each_impl() {
+    let src = r#"
+    trait Conv<T> {}
+    trait Foo {
+        type Out: Conv<Self>;
+    }
+    pub struct A {}
+    pub struct S {}
+    pub struct W {}
+    impl Conv<W> for A {}
+    impl Foo for W {
+        type Out = A;
+    }
+    impl Foo for S {
+        type Out = A;
+             ^^^ No matching impl found for `A: Conv<S>`
+             ~~~ No impl for `A: Conv<S>`
+    }
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn associated_type_bound_mentioning_trait_generic_is_checked_with_impl_arguments() {
+    let src = r#"
+    trait Bound<T> {}
+    trait Foo<T> {
+        type Output: Bound<T>;
+    }
+    pub struct Out {}
+    pub struct MyType {}
+    impl Bound<u32> for Out {}
+    impl Foo<u32> for MyType {
+        type Output = Out;
+    }
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn associated_type_bound_mentioning_self_is_assumed_for_the_bounded_type() {
+    let src = r#"
+    trait Conv<T> {
+        fn conv(self) -> Field;
+    }
+    trait Foo {
+        type Out: Conv<Self>;
+    }
+    pub struct Item {}
+    pub struct Wide {}
+    impl Conv<Wide> for Item {
+        fn conv(self) -> Field { 1 }
+    }
+    impl Foo for Wide {
+        type Out = Item;
+    }
+    fn needs_conv<X, O: Conv<X>>(o: O) -> Field {
+        o.conv()
+    }
+    pub fn run<X: Foo>(o: X::Out) -> Field {
+        needs_conv::<X, X::Out>(o)
+    }
+    pub fn pin<X: Foo>(o: X::Out) -> Field {
+        needs_conv::<Wide, X::Out>(o)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^ No matching impl found for `<X as Foo>::Out: Conv<Wide>`
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~ No impl for `<X as Foo>::Out: Conv<Wide>`
+    }
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn associated_type_bound_mentioning_self_dispatches_per_bounded_type() {
+    let src = r#"
+    trait Conv<T> {
+        fn conv(self) -> Field;
+    }
+    trait Foo {
+        type Out: Conv<Self>;
+    }
+    struct A {
+        v: Field,
+    }
+    struct B {
+        v: Field,
+    }
+    struct S {}
+    struct W {}
+    impl Conv<W> for B {
+        fn conv(self) -> Field {
+            self.v
+        }
+    }
+    impl Conv<S> for A {
+        fn conv(self) -> Field {
+            assert(self.v != 100);
+            self.v
+        }
+    }
+    impl Conv<W> for A {
+        fn conv(self) -> Field {
+            self.v
+        }
+    }
+    impl Foo for W {
+        type Out = B;
+    }
+    impl Foo for S {
+        type Out = A;
+    }
+    fn run<X: Foo>(_x: X, o: X::Out) -> Field {
+        o.conv()
+    }
+    fn main(v: Field) -> pub Field {
+        run(W {}, B { v: 0 }) + run(S {}, A { v })
+    }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0(v$l0: Field) -> pub Field {
+        (run$f1({
+            ()
+        }, {
+            let v$l1 = 0;
+            (v$l1)
+        }) + run$f2({
+            ()
+        }, {
+            let v$l2 = v$l0;
+            (v$l2)
+        }))
+    }
+    fn run$f1(_x$l3: (), o$l4: (Field,)) -> Field {
+        conv$f3(o$l4)
+    }
+    fn run$f2(_x$l5: (), o$l6: (Field,)) -> Field {
+        conv$f4(o$l6)
+    }
+    fn conv$f3(self$l7: (Field,)) -> Field {
+        self$l7.0
+    }
+    fn conv$f4(self$l8: (Field,)) -> Field {
+        assert((self$l8.0 != 100));;
+        self$l8.0
+    }
+    ");
 }

@@ -226,14 +226,6 @@ pub(super) struct DesugaredAssociatedGeneric {
     /// Its `type_var` is bindable and is instantiated fresh at each call site, the same
     /// way an explicit generic is.
     pub(super) generic: ResolvedGeneric,
-    /// The rigid [`Type::NamedGeneric`] form of [`Self::generic`]: `<T as Foo>::Bar` above.
-    ///
-    /// Used as the object type of the assumed trait bound (`<T as Foo>::Bar: Baz`). It wraps
-    /// the same type variable as [`Self::generic`], but in its rigid form so trait lookup can't
-    /// wildcard-match it against unrelated concrete types.
-    pub(super) named_generic: Type,
-    /// The bounds declared on the associated type: the `Baz` from `type Bar: Baz` above.
-    pub(super) bounds: Vec<ResolvedTraitBound>,
 }
 
 impl Elaborator<'_> {
@@ -277,22 +269,6 @@ impl Elaborator<'_> {
                 let desugared_generics =
                     this.desugar_trait_constraints(&mut unresolved_trait.trait_def.where_clause);
 
-                // Capture the bounds declared on associated types reached through the trait's own
-                // where clause (e.g. `<T as Foo>::E: Bar` from `where T: Foo` + `type E: Bar`). These
-                // must be assumed when elaborating this trait's default method bodies so that methods
-                // on such associated types resolve. See https://github.com/noir-lang/noir/issues/8601.
-                let mut implicit_associated_type_constraints = Vec::new();
-                for desugared in &desugared_generics {
-                    for bound in &desugared.bounds {
-                        let constraint = TraitConstraint {
-                            typ: desugared.named_generic.clone(),
-                            trait_bound: bound.clone(),
-                        };
-                        implicit_associated_type_constraints
-                            .push((constraint, desugared.generic.location));
-                    }
-                }
-
                 let new_generics = vecmap(desugared_generics, |desugared| desugared.generic);
                 this.item.generics.add_params(new_generics);
 
@@ -300,6 +276,12 @@ impl Elaborator<'_> {
                     &unresolved_trait.trait_def.where_clause,
                 );
                 this.remove_trait_constraints_from_scope(where_clause.iter());
+
+                // The bounds declared on associated types reached through the trait's own where
+                // clause (`<T as Foo>::E: Bar` from `where T: Foo` + `type E: Bar`) are assumed in
+                // its default method bodies. See https://github.com/noir-lang/noir/issues/8601.
+                let implicit_associated_type_constraints =
+                    this.associated_type_constraints(&where_clause);
 
                 let mut associated_type_bounds = rustc_hash::FxHashMap::default();
                 for item in &unresolved_trait.trait_def.items {
@@ -455,7 +437,6 @@ impl Elaborator<'_> {
         let trait_name = self.projection_trait_name(trait_id, &bound.trait_generics.ordered_args);
         let the_trait = self.get_trait(trait_id);
         let object_name = self.unresolved_type_name(object);
-        let associated_type_bounds = the_trait.associated_type_bounds.clone();
 
         for associated_type in &the_trait.associated_types.clone() {
             if !bound
@@ -484,26 +465,13 @@ impl Elaborator<'_> {
                     _ => unreachable!("into_implicit_named_generic returns a NamedGeneric"),
                 };
 
-                // Keep the rigid named-generic form of the associated type. The assumed trait
-                // bound for it must be keyed on this rigid type rather than a bare (bindable)
-                // `Type::TypeVariable`, otherwise the assumed impl wildcard-matches arbitrary
-                // concrete object types during trait lookup.
-                let named_generic = typ.clone();
-
                 let typ = self.interner.push_quoted_type(typ);
                 let typ = UnresolvedTypeData::Resolved(typ).with_location(location);
                 let ident = Ident::new(associated_type.name.as_ref().clone(), location);
 
-                let associated_type_bounds = associated_type_bounds
-                    .get(associated_type.name.as_str())
-                    .cloned()
-                    .unwrap_or_default();
-
                 bound.trait_generics.named_args.push((ident, typ));
                 added_generics.push(DesugaredAssociatedGeneric {
                     generic: ResolvedGeneric { name, location, type_var },
-                    named_generic,
-                    bounds: associated_type_bounds,
                 });
             }
         }
@@ -825,6 +793,24 @@ impl Elaborator<'_> {
         }
     }
 
+    /// The bounds `constraints` imply on the associated types they name; see
+    /// [`Trait::associated_type_constraints`].
+    pub(super) fn associated_type_constraints(
+        &self,
+        constraints: &[TraitConstraint],
+    ) -> Vec<(TraitConstraint, Location)> {
+        constraints
+            .iter()
+            .flat_map(|constraint| {
+                let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
+                the_trait.associated_type_constraints(
+                    &constraint.typ,
+                    &constraint.trait_bound.trait_generics,
+                )
+            })
+            .collect()
+    }
+
     /// Adds an assumed trait implementation for the given object type and trait bound.
     ///
     /// This also recursively adds assumed implementations for any parent traits,
@@ -927,15 +913,10 @@ impl Elaborator<'_> {
         // by the bound naming it, so `T: Foo<Bar = X>` also brings `X: HasQux` into scope. Without
         // it, nothing links `X` to `HasQux` and `<X as HasQux>::Qux` resolves to no impl.
         let associated_bounds = match self.interner.try_get_trait(trait_id) {
-            Some(the_trait) => trait_bound
-                .trait_generics
-                .named
-                .iter()
-                .flat_map(|named| {
-                    let bounds = the_trait.associated_type_bounds.get(named.name.as_str());
-                    let bounds = bounds.map(Vec::as_slice).unwrap_or_default();
-                    bounds.iter().map(|bound| (named.typ.clone(), bound.clone()))
-                })
+            Some(the_trait) => the_trait
+                .associated_type_constraints(object, &trait_bound.trait_generics)
+                .into_iter()
+                .map(|(constraint, _)| (constraint.typ, constraint.trait_bound))
                 .collect::<Vec<_>>(),
             None => Vec::new(),
         };
