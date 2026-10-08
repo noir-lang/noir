@@ -3459,3 +3459,54 @@ fn associated_type_bound_mentioning_self_dispatches_per_bounded_type() {
     }
     ");
 }
+
+#[test]
+fn impl_method_matches_bound_on_associated_type_of_another_bound() {
+    let src = "
+    trait Bar { type T; }
+    trait Baz { type U; }
+    trait Foo { fn foo<B>(b: B) where B: Bar, <B as Bar>::T: Baz; }
+    impl Foo for Field { fn foo<B>(_: B) where B: Bar, <B as Bar>::T: Baz {} }
+    fn main() {}
+    ";
+    assert_no_errors(src);
+}
+
+#[test]
+fn impl_method_matches_bound_on_associated_type_of_a_later_bound() {
+    let src = "
+    trait Bar { type T; }
+    trait Baz { type U; }
+    trait Foo { fn foo<B>(b: B) where <B as Bar>::T: Baz, B: Bar; }
+    impl Foo for Field { fn foo<B>(_: B) where <B as Bar>::T: Baz, B: Bar {} }
+    fn main() {}
+    ";
+    assert_no_errors(src);
+}
+
+#[test]
+fn impl_method_matches_bound_with_associated_type_of_another_bound_as_argument() {
+    let src = "
+    trait Bar { type T; }
+    trait Qux<X> { type U; }
+    trait Foo { fn foo<B, C>(b: B, c: C) where B: Bar, C: Qux<<B as Bar>::T>; }
+    impl Foo for Field { fn foo<B, C>(_: B, _: C) where B: Bar, C: Qux<<B as Bar>::T> {} }
+    fn main() {}
+    ";
+    assert_no_errors(src);
+}
+
+#[test]
+fn impl_method_pinning_associated_type_of_another_bound_is_stricter_than_trait() {
+    let src = "
+    trait Bar { type T; }
+    trait Baz { type U; }
+    trait Foo { fn foo<B>(b: B) where B: Bar, <B as Bar>::T: Baz; }
+                   ~~~ definition of `foo` from trait
+    impl Foo for Field { fn foo<B>(_: B) where B: Bar, <B as Bar>::T: Baz<U = u8> {} }
+                                                                      ^^^ impl has stricter requirements than trait
+                                                                      ~~~ impl has extra requirement `<B as Bar>::T: Baz<U = u8>`
+    fn main() {}
+    ";
+    check_errors(src);
+}

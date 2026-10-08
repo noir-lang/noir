@@ -3,7 +3,7 @@
 use std::rc::Rc;
 
 use crate::{
-    Kind, NamedGeneric, ResolvedGeneric, Shared, TypeBindings, TypeVariable,
+    Kind, NamedGeneric, ResolvedGeneric, Shared, TypeBindings, TypeVariable, TypeVariableId,
     ast::{GenericTypeArgs, Ident, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
     elaborator::{PathResolutionMode, WildcardDisallowedContext, types::WildcardAllowed},
     hir::{
@@ -1180,15 +1180,6 @@ fn pair_implicit_associated_generics(
     override_constraints: &[TraitConstraint],
     bindings: &TypeBindings,
 ) -> TypeBindings {
-    let implicit_placeholder = |typ: &Type| match typ {
-        Type::NamedGeneric(generic)
-            if generic.implicit && generic.type_var.binding().is_unbound() =>
-        {
-            Some(generic.type_var.clone())
-        }
-        _ => None,
-    };
-
     // The index of the override constraint each override placeholder was desugared for.
     //
     // A projection like `<B as Bar>::N` only resolves once `B: Bar` has been resolved and
@@ -1203,55 +1194,93 @@ fn pair_implicit_associated_generics(
         }
     }
 
+    // A bound can be on another bound's associated item (`<B as Bar>::T: Baz`,
+    // `C: Qux<<B as Bar>::T>`), so it only matches its override once that item is paired: repeat
+    // until a pass pairs nothing new.
     let mut pairs = TypeBindings::default();
+    let mut current = bindings.clone();
+    loop {
+        let paired = pairs.len();
+        for declaration in declaration_constraints {
+            pair_declaration_placeholders(
+                declaration,
+                override_constraints,
+                &placeholder_home,
+                &current,
+                &mut pairs,
+            );
+        }
+        if pairs.len() == paired {
+            return pairs;
+        }
+        current.extend(pairs.iter().map(|(id, pair)| (*id, pair.clone())));
+    }
+}
 
-    for declaration in declaration_constraints {
-        let object_type = declaration.typ.substitute(bindings).follow_bindings();
-        let ordered = vecmap(&declaration.trait_bound.trait_generics.ordered, |generic| {
-            generic.substitute(bindings)
-        });
+/// Pairs the placeholders of one declaration constraint with those of the override constraint
+/// it matches under `bindings`, if any. See [`pair_implicit_associated_generics`].
+fn pair_declaration_placeholders(
+    declaration: &TraitConstraint,
+    override_constraints: &[TraitConstraint],
+    placeholder_home: &HashMap<TypeVariableId, usize>,
+    bindings: &TypeBindings,
+    pairs: &mut TypeBindings,
+) {
+    let object_type = declaration.typ.substitute(bindings).follow_bindings();
+    let ordered = vecmap(&declaration.trait_bound.trait_generics.ordered, |generic| {
+        generic.substitute(bindings)
+    });
 
-        let Some((override_index, override_constraint)) =
-            override_constraints.iter().enumerate().find(|(_, override_constraint)| {
-                override_constraint.trait_bound.trait_id == declaration.trait_bound.trait_id
-                    && override_constraint.typ.follow_bindings() == object_type
-                    && override_constraint.trait_bound.trait_generics.ordered == ordered
-            })
+    let Some((override_index, override_constraint)) =
+        override_constraints.iter().enumerate().find(|(_, override_constraint)| {
+            override_constraint.trait_bound.trait_id == declaration.trait_bound.trait_id
+                && override_constraint.typ.follow_bindings() == object_type
+                && override_constraint.trait_bound.trait_generics.ordered == ordered
+        })
+    else {
+        return;
+    };
+
+    for named in &declaration.trait_bound.trait_generics.named {
+        let Some(type_var) = implicit_placeholder(&named.typ) else {
+            continue;
+        };
+        // A declaration placeholder the trait's clause itself mentions in several bounds keeps
+        // its first pairing, so a mismatch is reported at the later bound.
+        if pairs.contains_key(&type_var.id()) {
+            continue;
+        }
+        let Some(override_named) = override_constraint
+            .trait_bound
+            .trait_generics
+            .named
+            .iter()
+            .find(|override_named| override_named.name.as_str() == named.name.as_str())
         else {
             continue;
         };
-
-        for named in &declaration.trait_bound.trait_generics.named {
-            let Some(type_var) = implicit_placeholder(&named.typ) else {
-                continue;
-            };
-            // A declaration placeholder the trait's clause itself mentions in several bounds
-            // keeps its first pairing, so a mismatch is reported at the later bound.
-            if pairs.contains_key(&type_var.id()) {
-                continue;
-            }
-            let Some(override_named) = override_constraint
-                .trait_bound
-                .trait_generics
-                .named
-                .iter()
-                .find(|override_named| override_named.name.as_str() == named.name.as_str())
-            else {
-                continue;
-            };
-            let Some(override_type_var) = implicit_placeholder(&override_named.typ) else {
-                continue;
-            };
-            if placeholder_home.get(&override_type_var.id()) != Some(&override_index) {
-                continue;
-            }
-
-            let kind = type_var.kind().into_owned();
-            pairs.insert(type_var.id(), (type_var, kind, override_named.typ.clone()));
+        let Some(override_type_var) = implicit_placeholder(&override_named.typ) else {
+            continue;
+        };
+        if placeholder_home.get(&override_type_var.id()) != Some(&override_index) {
+            continue;
         }
-    }
 
-    pairs
+        let kind = type_var.kind().into_owned();
+        pairs.insert(type_var.id(), (type_var, kind, override_named.typ.clone()));
+    }
+}
+
+/// The type variable of an anonymous generic desugared for an unspecified associated item.
+fn implicit_placeholder(typ: &Type) -> Option<TypeVariable> {
+    match typ {
+        Type::NamedGeneric(generic)
+            if generic.implicit && generic.type_var.binding().is_unbound() =>
+        {
+            Some(generic.type_var.clone())
+        }
+        _ => None,
+    }
 }
 
 /// Returns true if the impl-level `where` constraint and the method-level
