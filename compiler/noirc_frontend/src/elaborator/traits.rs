@@ -911,20 +911,10 @@ impl Elaborator<'_> {
             }
         }
 
-        let current_trait_self_id = self
-            .item
-            .impl_context
-            .current_trait()
-            .filter(|current_trait| *current_trait == trait_id)
-            .map(|trait_id| self.interner.get_trait(trait_id).self_param.id());
-
-        let is_current_trait_on_its_own_self = match object {
-            Type::TypeVariable(self_var)
-            | Type::NamedGeneric(NamedGeneric { type_var: self_var, .. }) => {
-                self_var.binding().is_unbound() && Some(self_var.id()) == current_trait_self_id
-            }
-            _ => false,
-        };
+        let is_current_trait_on_its_own_self =
+            self.item.impl_context.current_trait().is_some_and(|current_trait| {
+                current_trait == trait_id && self.interner.get_trait(trait_id).is_self_type(object)
+            });
 
         if is_current_trait_on_its_own_self {
             // This is the `Self: CurrentTrait` assumed inside the current trait's own methods. Its
