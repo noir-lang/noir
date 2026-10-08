@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791464908385,
+  "lastUpdate": 1791464930099,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22956,48 +22956,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "107730c0525e89654a8ff6af5b930aca441f64b0",
-          "message": "fix(ssa): keep the bounds check of an `array_set` emitted before the branch in the array-merge optimization (#13856)",
-          "timestamp": "2026-09-30T20:36:59Z",
-          "tree_id": "de5dc3e78899982a1c53704fefc0f40047d5ced1",
-          "url": "https://github.com/noir-lang/noir/commit/107730c0525e89654a8ff6af5b930aca441f64b0"
-        },
-        "date": 1790801988715,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 126920,
-            "range": "± 3950",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 108747,
-            "range": "± 4084",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 1729776,
-            "range": "± 59639",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "8b93fc5231d0a322527b9747f075cb4f43326873",
           "message": "chore(frontend): borrow bound types in `follow_bindings_shallow`, drop a dead branch in `bind_function_type` (#13854)",
           "timestamp": "2026-09-30T23:00:57Z",
@@ -25039,6 +24997,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2655232,
             "range": "± 12463",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3ff693f2065c5d7727e844b75701a3c4d24eeb4e",
+          "message": "fix(frontend): keep the bounds a trait's `Self` implies in scope in its default methods (#13927)",
+          "timestamp": "2026-10-08T12:44:27Z",
+          "tree_id": "7b54f0f1fd89a7f74c38bd28629152bf48935481",
+          "url": "https://github.com/noir-lang/noir/commit/3ff693f2065c5d7727e844b75701a3c4d24eeb4e"
+        },
+        "date": 1791464874285,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 70127,
+            "range": "± 2316",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 62439,
+            "range": "± 1395",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 1716146,
+            "range": "± 13076",
             "unit": "ns/iter"
           }
         ]
