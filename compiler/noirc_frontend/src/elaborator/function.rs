@@ -340,14 +340,14 @@ impl Elaborator<'_> {
             self.resolve_trait_constraints_and_add_to_scope(&func.def.where_clause);
 
         // Add constraints for parent traits that have associated types.
-        let (parent_generics, parent_constraints) =
+        let (parent_generics, implied_trait_constraints) =
             self.add_parent_associated_type_constraints(&trait_constraints);
         generics.extend(parent_generics);
-        trait_constraints.extend(parent_constraints);
 
         let mut extra_trait_constraints =
             vecmap(extra_trait_constraints, |(constraint, _)| constraint.clone());
         extra_trait_constraints.extend(associated_generics_trait_constraints);
+        extra_trait_constraints.extend(implied_trait_constraints);
 
         // Resolve parameters
         let (parameters, parameter_types, parameter_idents) =

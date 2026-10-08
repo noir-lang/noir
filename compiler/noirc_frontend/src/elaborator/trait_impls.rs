@@ -561,6 +561,8 @@ impl Elaborator<'_> {
             ));
         }
 
+        // Only the constraints the impl method writes can make it stricter than the trait: the
+        // implied ones follow from a written one, here or in the impl's where clause.
         for override_trait_constraint in override_meta.trait_constraints.clone() {
             let override_constraint_is_from_impl =
                 trait_impl_where_clause.iter().any(|impl_constraint| {

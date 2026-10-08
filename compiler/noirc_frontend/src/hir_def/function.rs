@@ -136,8 +136,11 @@ pub struct FuncMeta {
     /// Trait constraints that were specified directly on this function.
     pub trait_constraints: Vec<TraitConstraint>,
 
-    /// Trait constraints that came either from a parent item (for example a where clause on a
-    /// trait or trait impl) or from constraints on implicitly added named generics.
+    /// Trait constraints the function assumes without writing them: those from a parent item
+    /// (for example a where clause on a trait or trait impl), those on implicitly added named
+    /// generics, and the parent-trait bounds implied by `trait_constraints` that carry associated
+    /// types (`T: Checked` with `trait Checked: Source` implies `T: Source<Out = ..>`, where the
+    /// associated type is a generic of this function).
     pub extra_trait_constraints: Vec<TraitConstraint>,
 
     /// The type this method belongs to, if any
