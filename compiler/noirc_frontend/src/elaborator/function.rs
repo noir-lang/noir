@@ -692,9 +692,13 @@ impl Elaborator<'_> {
                 Vec::new(),
                 func_meta.all_trait_constraints().cloned().collect(),
             ));
+        // The bounds an item assumes hold only in that item's body, so the caller's are put away
+        // while this function is checked.
+        let callers_assumptions = self.interner.take_assumed_trait_implementations();
         self.with_item_context(context, |this| {
             this.elaborate_function_body(id, func_meta, kind, body, body_location);
         });
+        self.interner.restore_assumed_trait_implementations(callers_assumptions);
     }
 
     /// Elaborates and type checks the body of `id`, then stores it as the function's HIR body.

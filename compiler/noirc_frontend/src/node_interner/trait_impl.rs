@@ -784,6 +784,32 @@ impl NodeInterner {
         format!("{object_type:?}: {name}{generics}")
     }
 
+    /// Removes every assumed impl, returning them for [`Self::restore_assumed_trait_implementations`].
+    pub fn take_assumed_trait_implementations(&mut self) -> Vec<(TraitId, Type, TraitImplKind)> {
+        let mut assumed = Vec::new();
+        for (trait_id, entries) in &mut self.trait_implementation_map {
+            entries.retain(|(typ, kind)| {
+                if matches!(kind, TraitImplKind::Assumed { .. }) {
+                    assumed.push((*trait_id, typ.clone(), kind.clone()));
+                    false
+                } else {
+                    true
+                }
+            });
+        }
+        assumed
+    }
+
+    /// Puts back the assumed impls [`Self::take_assumed_trait_implementations`] removed.
+    pub fn restore_assumed_trait_implementations(
+        &mut self,
+        assumed: Vec<(TraitId, Type, TraitImplKind)>,
+    ) {
+        for (trait_id, typ, kind) in assumed {
+            self.trait_implementation_map.entry(trait_id).or_default().push((typ, kind));
+        }
+    }
+
     /// Removes all `TraitImplKind::Assumed` from the list of known impls for the given trait, and
     /// for every trait that a bound on it implies: its parent traits and the traits bounding its
     /// associated types. These are the assumed impls `Elaborator::add_trait_bound_to_scope` adds
