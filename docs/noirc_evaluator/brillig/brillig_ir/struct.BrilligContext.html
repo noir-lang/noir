@@ -272,7 +272,7 @@ functions to allow the given function to mutably alias its environment.</p>
     condition: <a class="struct" href="brillig_variable/struct.SingleAddrVariable.html" title="struct noirc_evaluator::brillig::brillig_ir::brillig_variable::SingleAddrVariable">SingleAddrVariable</a>,
     error_data_items: <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="enum" href="brillig_variable/enum.BrilligVariable.html" title="enum noirc_evaluator::brillig::brillig_ir::brillig_variable::BrilligVariable">BrilligVariable</a>&gt;,
     error_data_types: <a class="struct" href="https://doc.rust-lang.org/1.89.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;<a class="enum" href="artifact/enum.BrilligParameter.html" title="enum noirc_evaluator::brillig::brillig_ir::artifact::BrilligParameter">BrilligParameter</a>&gt;,
-    error_selector: <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="struct" href="../../../acir/circuit/struct.ErrorSelector.html" title="struct acir::circuit::ErrorSelector">ErrorSelector</a>&gt;,
+    error_selector: <a class="enum" href="https://doc.rust-lang.org/1.89.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;ErrorSelector&gt;,
 )</h4></section></summary><div class="docblock"><p>Jump to a trap condition if <code>condition</code> is false.
 The trap will include the given message as error data.</p>
 <p>If <code>error_selector</code> is None, an empty error data is generated (no error information).</p>
@@ -415,9 +415,9 @@ from the input data structures.</p>
 <p>This should only be called upon a vector that has already been heap allocated.</p>
 <p>The addition <code>vector.pointer + [offsets::VECTOR_ITEMS]</code> cannot overflow because:</p>
 <ul>
-<li><a href="struct.BrilligContext.html#method.codegen_initialize_vector" title="method noirc_evaluator::brillig::brillig_ir::BrilligContext::codegen_initialize_vector">Vector allocation</a> size is at least <a href="../../../brillig_vm/memory/offsets/constant.VECTOR_META_COUNT.html" title="constant brillig_vm::memory::offsets::VECTOR_META_COUNT"><code>offsets::VECTOR_META_COUNT</code></a> (3)</li>
+<li><a href="struct.BrilligContext.html#method.codegen_initialize_vector" title="method noirc_evaluator::brillig::brillig_ir::BrilligContext::codegen_initialize_vector">Vector allocation</a> size is at least [<code>offsets::VECTOR_META_COUNT</code>] (3)</li>
 <li>The VM’s allocation check ensures <code>FMP + allocation_size &lt;= u32::MAX</code></li>
-<li>Since <a href="../../../brillig_vm/memory/offsets/constant.VECTOR_ITEMS.html" title="constant brillig_vm::memory::offsets::VECTOR_ITEMS"><code>offsets::VECTOR_ITEMS</code></a> == <a href="../../../brillig_vm/memory/offsets/constant.VECTOR_META_COUNT.html" title="constant brillig_vm::memory::offsets::VECTOR_META_COUNT"><code>offsets::VECTOR_META_COUNT</code></a> == 3, if allocation succeeded,
+<li>Since [<code>offsets::VECTOR_ITEMS</code>] == [<code>offsets::VECTOR_META_COUNT</code>] == 3, if allocation succeeded,
 <code>vector.pointer + 3</code> is guaranteed safe</li>
 </ul>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.codegen_make_vector_items_pointer" class="method"><a class="src rightside" href="../../../src/noirc_evaluator/brillig/brillig_ir/codegen_memory.rs.html#435-442">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.codegen_make_vector_items_pointer" class="fn">codegen_make_vector_items_pointer</a>(
@@ -448,9 +448,9 @@ Such a vector with a semantic length of 3 would have a flattened size of 6.</p>
 <p>This should only be called upon an array that has already been heap allocated.</p>
 <p>The addition <code>array.pointer + [offsets::ARRAY_ITEMS]</code> cannot overflow because:</p>
 <ul>
-<li><a href="struct.BrilligContext.html#method.codegen_initialize_array" title="method noirc_evaluator::brillig::brillig_ir::BrilligContext::codegen_initialize_array">Array allocation</a> size is at least <a href="../../../brillig_vm/memory/offsets/constant.ARRAY_META_COUNT.html" title="constant brillig_vm::memory::offsets::ARRAY_META_COUNT"><code>offsets::ARRAY_META_COUNT</code></a> (1)</li>
+<li><a href="struct.BrilligContext.html#method.codegen_initialize_array" title="method noirc_evaluator::brillig::brillig_ir::BrilligContext::codegen_initialize_array">Array allocation</a> size is at least [<code>offsets::ARRAY_META_COUNT</code>] (1)</li>
 <li>The VM’s allocation check ensures <code>FMP + allocation_size &lt;= u32::MAX</code></li>
-<li>Since <a href="../../../brillig_vm/memory/offsets/constant.ARRAY_ITEMS.html" title="constant brillig_vm::memory::offsets::ARRAY_ITEMS"><code>offsets::ARRAY_ITEMS</code></a> == <a href="../../../brillig_vm/memory/offsets/constant.ARRAY_META_COUNT.html" title="constant brillig_vm::memory::offsets::ARRAY_META_COUNT"><code>offsets::ARRAY_META_COUNT</code></a> == 1, if allocation succeeded,
+<li>Since [<code>offsets::ARRAY_ITEMS</code>] == [<code>offsets::ARRAY_META_COUNT</code>] == 1, if allocation succeeded,
 <code>array.pointer + 1</code> is guaranteed safe</li>
 </ul>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.codegen_make_array_or_vector_items_pointer" class="method"><a class="src rightside" href="../../../src/noirc_evaluator/brillig/brillig_ir/codegen_memory.rs.html#529-542">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.codegen_make_array_or_vector_items_pointer" class="fn">codegen_make_array_or_vector_items_pointer</a>(
