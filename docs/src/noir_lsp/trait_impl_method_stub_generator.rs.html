@@ -299,7 +299,7 @@
 <a href=#299 id=299 data-nosnippet>299</a>                <span class="self">self</span>.append_trait_generics(trait_generics);
 <a href=#300 id=300 data-nosnippet>300</a>            }
 <a href=#301 id=301 data-nosnippet>301</a>            Type::TypeVariable(typevar) =&gt; {
-<a href=#302 id=302 data-nosnippet>302</a>                <span class="kw">if </span>typevar.id() == <span class="self">self</span>.trait_.self_type_typevar.id() {
+<a href=#302 id=302 data-nosnippet>302</a>                <span class="kw">if </span>typevar.id() == <span class="self">self</span>.trait_.self_param.id() {
 <a href=#303 id=303 data-nosnippet>303</a>                    <span class="self">self</span>.string.push_str(<span class="string">"Self"</span>);
 <a href=#304 id=304 data-nosnippet>304</a>                    <span class="kw">return</span>;
 <a href=#305 id=305 data-nosnippet>305</a>                }

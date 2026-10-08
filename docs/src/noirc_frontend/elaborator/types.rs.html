@@ -3975,148 +3975,146 @@
 <a href=#3975 id=3975 data-nosnippet>3975</a>        </span><span class="kw">if </span>assumed {
 <a href=#3976 id=3976 data-nosnippet>3976</a>            <span class="kw">let </span>the_trait = <span class="self">self</span>.interner.get_trait(constraint.trait_bound.trait_id);
 <a href=#3977 id=3977 data-nosnippet>3977</a>
-<a href=#3978 id=3978 data-nosnippet>3978</a>            <span class="kw">let </span>self_type = the_trait.self_type_typevar.clone();
-<a href=#3979 id=3979 data-nosnippet>3979</a>            <span class="kw">let </span>kind = the_trait.self_type_typevar.kind();
-<a href=#3980 id=3980 data-nosnippet>3980</a>            bindings.insert(self_type.id(), (self_type, kind.into_owned(), constraint.typ.clone()));
-<a href=#3981 id=3981 data-nosnippet>3981</a>
-<a href=#3982 id=3982 data-nosnippet>3982</a>            <span class="kw">for </span>(param, arg) <span class="kw">in
-<a href=#3983 id=3983 data-nosnippet>3983</a>                </span>the_trait.generics.iter().zip(<span class="kw-2">&amp;</span>constraint.trait_bound.trait_generics.ordered)
-<a href=#3984 id=3984 data-nosnippet>3984</a>            {
-<a href=#3985 id=3985 data-nosnippet>3985</a>                bindings.insert(
-<a href=#3986 id=3986 data-nosnippet>3986</a>                    param.type_var.id(),
-<a href=#3987 id=3987 data-nosnippet>3987</a>                    (param.type_var.clone(), param.kind().into_owned(), arg.clone()),
-<a href=#3988 id=3988 data-nosnippet>3988</a>                );
-<a href=#3989 id=3989 data-nosnippet>3989</a>            }
-<a href=#3990 id=3990 data-nosnippet>3990</a>
-<a href=#3991 id=3991 data-nosnippet>3991</a>            <span class="kw">for </span>associated <span class="kw">in </span><span class="kw-2">&amp;</span>the_trait.associated_types {
-<a href=#3992 id=3992 data-nosnippet>3992</a>                <span class="kw">let </span><span class="prelude-val">Some</span>(arg) = constraint
-<a href=#3993 id=3993 data-nosnippet>3993</a>                    .trait_bound
-<a href=#3994 id=3994 data-nosnippet>3994</a>                    .trait_generics
-<a href=#3995 id=3995 data-nosnippet>3995</a>                    .named
-<a href=#3996 id=3996 data-nosnippet>3996</a>                    .iter()
-<a href=#3997 id=3997 data-nosnippet>3997</a>                    .find(|named| named.name.as_str() == associated.name.as_str())
-<a href=#3998 id=3998 data-nosnippet>3998</a>                <span class="kw">else </span>{
-<a href=#3999 id=3999 data-nosnippet>3999</a>                    <span class="kw">continue</span>;
-<a href=#4000 id=4000 data-nosnippet>4000</a>                };
-<a href=#4001 id=4001 data-nosnippet>4001</a>                bindings.insert(
-<a href=#4002 id=4002 data-nosnippet>4002</a>                    associated.type_var.id(),
-<a href=#4003 id=4003 data-nosnippet>4003</a>                    (associated.type_var.clone(), associated.kind().into_owned(), arg.typ.clone()),
-<a href=#4004 id=4004 data-nosnippet>4004</a>                );
-<a href=#4005 id=4005 data-nosnippet>4005</a>            }
-<a href=#4006 id=4006 data-nosnippet>4006</a>        }
-<a href=#4007 id=4007 data-nosnippet>4007</a>    }
-<a href=#4008 id=4008 data-nosnippet>4008</a>
-<a href=#4009 id=4009 data-nosnippet>4009</a>    <span class="doccomment">/// Recursively bind the ordered generics and associated types of every parent trait reachable
-<a href=#4010 id=4010 data-nosnippet>4010</a>    /// from `trait_bound`, instantiating each parent bound with the child's bindings as we go. This
-<a href=#4011 id=4011 data-nosnippet>4011</a>    /// makes associated types inherited from ancestor traits resolvable, not just those defined on
-<a href=#4012 id=4012 data-nosnippet>4012</a>    /// the trait named by `trait_bound`.
-<a href=#4013 id=4013 data-nosnippet>4013</a>    </span><span class="kw">fn </span>bind_parent_trait_associated_types(
-<a href=#4014 id=4014 data-nosnippet>4014</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#4015 id=4015 data-nosnippet>4015</a>        self_type: <span class="kw-2">&amp;</span>Type,
-<a href=#4016 id=4016 data-nosnippet>4016</a>        trait_bound: <span class="kw-2">&amp;</span>ResolvedTraitBound,
-<a href=#4017 id=4017 data-nosnippet>4017</a>        bindings: <span class="kw-2">&amp;mut </span>TypeBindings,
-<a href=#4018 id=4018 data-nosnippet>4018</a>        visited: <span class="kw-2">&amp;mut </span>BTreeSet&lt;TraitId&gt;,
-<a href=#4019 id=4019 data-nosnippet>4019</a>    ) {
-<a href=#4020 id=4020 data-nosnippet>4020</a>        <span class="kw">if </span>!visited.insert(trait_bound.trait_id) {
-<a href=#4021 id=4021 data-nosnippet>4021</a>            <span class="kw">return</span>;
-<a href=#4022 id=4022 data-nosnippet>4022</a>        }
-<a href=#4023 id=4023 data-nosnippet>4023</a>
-<a href=#4024 id=4024 data-nosnippet>4024</a>        <span class="comment">// `bind_generics_from_trait_bound` below already assumes this trait id resolves (via
-<a href=#4025 id=4025 data-nosnippet>4025</a>        // `get_trait`); use `get_trait` here too so a missing trait is a clear internal error
-<a href=#4026 id=4026 data-nosnippet>4026</a>        // rather than a silently-empty parent-bound list.
-<a href=#4027 id=4027 data-nosnippet>4027</a>        </span><span class="kw">let </span>parent_bounds: Vec&lt;<span class="kw">_</span>&gt; =
-<a href=#4028 id=4028 data-nosnippet>4028</a>            <span class="self">self</span>.interner.get_trait(trait_bound.trait_id).parent_bounds().collect();
-<a href=#4029 id=4029 data-nosnippet>4029</a>
-<a href=#4030 id=4030 data-nosnippet>4030</a>        <span class="kw">for </span>parent_bound <span class="kw">in </span><span class="kw-2">&amp;</span>parent_bounds {
-<a href=#4031 id=4031 data-nosnippet>4031</a>            <span class="kw">let </span>instantiated =
-<a href=#4032 id=4032 data-nosnippet>4032</a>                <span class="self">self</span>.instantiate_parent_trait_bound(self_type, trait_bound, parent_bound);
-<a href=#4033 id=4033 data-nosnippet>4033</a>            <span class="self">self</span>.bind_generics_from_trait_bound(<span class="kw-2">&amp;</span>instantiated, bindings);
-<a href=#4034 id=4034 data-nosnippet>4034</a>            <span class="self">self</span>.bind_parent_trait_associated_types(self_type, <span class="kw-2">&amp;</span>instantiated, bindings, visited);
-<a href=#4035 id=4035 data-nosnippet>4035</a>        }
-<a href=#4036 id=4036 data-nosnippet>4036</a>    }
-<a href=#4037 id=4037 data-nosnippet>4037</a>
-<a href=#4038 id=4038 data-nosnippet>4038</a>    <span class="doccomment">/// Insert the ordered generics and associated types from the trait bound.
-<a href=#4039 id=4039 data-nosnippet>4039</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>bind_generics_from_trait_bound(
-<a href=#4040 id=4040 data-nosnippet>4040</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#4041 id=4041 data-nosnippet>4041</a>        trait_bound: <span class="kw-2">&amp;</span>ResolvedTraitBound,
-<a href=#4042 id=4042 data-nosnippet>4042</a>        bindings: <span class="kw-2">&amp;mut </span>TypeBindings,
-<a href=#4043 id=4043 data-nosnippet>4043</a>    ) {
-<a href=#4044 id=4044 data-nosnippet>4044</a>        <span class="kw">let </span>the_trait = <span class="self">self</span>.interner.get_trait(trait_bound.trait_id);
-<a href=#4045 id=4045 data-nosnippet>4045</a>        the_trait.bind_generics(<span class="kw-2">&amp;</span>trait_bound.trait_generics, bindings);
-<a href=#4046 id=4046 data-nosnippet>4046</a>    }
-<a href=#4047 id=4047 data-nosnippet>4047</a>
-<a href=#4048 id=4048 data-nosnippet>4048</a>    <span class="doccomment">/// `parent_bound` of `trait_bound`'s trait, for the bound `self_type: trait_bound`.
-<a href=#4049 id=4049 data-nosnippet>4049</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>instantiate_parent_trait_bound(
-<a href=#4050 id=4050 data-nosnippet>4050</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
-<a href=#4051 id=4051 data-nosnippet>4051</a>        self_type: <span class="kw-2">&amp;</span>Type,
-<a href=#4052 id=4052 data-nosnippet>4052</a>        trait_bound: <span class="kw-2">&amp;</span>ResolvedTraitBound,
-<a href=#4053 id=4053 data-nosnippet>4053</a>        parent_bound: <span class="kw-2">&amp;</span>ParentBound,
-<a href=#4054 id=4054 data-nosnippet>4054</a>    ) -&gt; ResolvedTraitBound {
-<a href=#4055 id=4055 data-nosnippet>4055</a>        <span class="kw">let </span>the_trait = <span class="self">self</span>.interner.get_trait(trait_bound.trait_id);
-<a href=#4056 id=4056 data-nosnippet>4056</a>        <span class="kw">let </span>bindings = the_trait.bound_bindings(self_type, <span class="kw-2">&amp;</span>trait_bound.trait_generics);
-<a href=#4057 id=4057 data-nosnippet>4057</a>        parent_bound.instantiate(<span class="kw-2">&amp;</span>bindings, |kind| <span class="self">self</span>.interner.next_type_variable_with_kind(kind))
-<a href=#4058 id=4058 data-nosnippet>4058</a>    }
-<a href=#4059 id=4059 data-nosnippet>4059</a>
-<a href=#4060 id=4060 data-nosnippet>4060</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>fully_qualified_trait_path_by_id(<span class="kw-2">&amp;</span><span class="self">self</span>, trait_id: TraitId) -&gt; String {
-<a href=#4061 id=4061 data-nosnippet>4061</a>        <span class="self">self</span>.fully_qualified_trait_path(<span class="self">self</span>.interner.get_trait(trait_id))
-<a href=#4062 id=4062 data-nosnippet>4062</a>    }
-<a href=#4063 id=4063 data-nosnippet>4063</a>
-<a href=#4064 id=4064 data-nosnippet>4064</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>fully_qualified_trait_path(<span class="kw-2">&amp;</span><span class="self">self</span>, trait_: <span class="kw-2">&amp;</span>Trait) -&gt; String {
-<a href=#4065 id=4065 data-nosnippet>4065</a>        <span class="kw">let </span>module_def_id = ModuleDefId::TraitId(trait_.id);
-<a href=#4066 id=4066 data-nosnippet>4066</a>        <span class="kw">let </span>visibility = trait_.visibility;
-<a href=#4067 id=4067 data-nosnippet>4067</a>        <span class="kw">let </span>defining_module = <span class="prelude-val">None</span>;
-<a href=#4068 id=4068 data-nosnippet>4068</a>        <span class="kw">let </span>trait_is_visible = module_def_id_is_visible(
-<a href=#4069 id=4069 data-nosnippet>4069</a>            module_def_id,
-<a href=#4070 id=4070 data-nosnippet>4070</a>            <span class="self">self</span>.module_id(),
-<a href=#4071 id=4071 data-nosnippet>4071</a>            visibility,
-<a href=#4072 id=4072 data-nosnippet>4072</a>            defining_module,
-<a href=#4073 id=4073 data-nosnippet>4073</a>            <span class="self">self</span>.interner,
-<a href=#4074 id=4074 data-nosnippet>4074</a>            <span class="self">self</span>.def_maps,
-<a href=#4075 id=4075 data-nosnippet>4075</a>            <span class="kw-2">&amp;</span><span class="self">self</span>.crate_graph[<span class="self">self</span>.crate_id].dependencies,
-<a href=#4076 id=4076 data-nosnippet>4076</a>        );
-<a href=#4077 id=4077 data-nosnippet>4077</a>
-<a href=#4078 id=4078 data-nosnippet>4078</a>        <span class="kw">if </span>!trait_is_visible {
-<a href=#4079 id=4079 data-nosnippet>4079</a>            <span class="kw">let </span>dependencies = <span class="kw-2">&amp;</span><span class="self">self</span>.crate_graph[<span class="self">self</span>.crate_id].dependencies;
-<a href=#4080 id=4080 data-nosnippet>4080</a>
-<a href=#4081 id=4081 data-nosnippet>4081</a>            <span class="kw">for </span>reexport <span class="kw">in </span><span class="self">self</span>.interner.get_trait_reexports(trait_.id) {
-<a href=#4082 id=4082 data-nosnippet>4082</a>                <span class="kw">let </span>reexport_is_visible = module_def_id_is_visible(
-<a href=#4083 id=4083 data-nosnippet>4083</a>                    module_def_id,
-<a href=#4084 id=4084 data-nosnippet>4084</a>                    <span class="self">self</span>.module_id(),
-<a href=#4085 id=4085 data-nosnippet>4085</a>                    reexport.visibility,
-<a href=#4086 id=4086 data-nosnippet>4086</a>                    <span class="prelude-val">Some</span>(reexport.module_id),
-<a href=#4087 id=4087 data-nosnippet>4087</a>                    <span class="self">self</span>.interner,
-<a href=#4088 id=4088 data-nosnippet>4088</a>                    <span class="self">self</span>.def_maps,
-<a href=#4089 id=4089 data-nosnippet>4089</a>                    dependencies,
-<a href=#4090 id=4090 data-nosnippet>4090</a>                );
-<a href=#4091 id=4091 data-nosnippet>4091</a>                <span class="kw">if </span>reexport_is_visible {
-<a href=#4092 id=4092 data-nosnippet>4092</a>                    <span class="kw">let </span>module_path = fully_qualified_module_path(
-<a href=#4093 id=4093 data-nosnippet>4093</a>                        <span class="self">self</span>.def_maps,
-<a href=#4094 id=4094 data-nosnippet>4094</a>                        <span class="self">self</span>.crate_graph,
-<a href=#4095 id=4095 data-nosnippet>4095</a>                        <span class="kw-2">&amp;</span><span class="self">self</span>.crate_id,
-<a href=#4096 id=4096 data-nosnippet>4096</a>                        reexport.module_id,
-<a href=#4097 id=4097 data-nosnippet>4097</a>                    );
-<a href=#4098 id=4098 data-nosnippet>4098</a>                    <span class="kw">return </span><span class="macro">format!</span>(<span class="string">"{module_path}::{}"</span>, reexport.name);
-<a href=#4099 id=4099 data-nosnippet>4099</a>                }
-<a href=#4100 id=4100 data-nosnippet>4100</a>            }
-<a href=#4101 id=4101 data-nosnippet>4101</a>
-<a href=#4102 id=4102 data-nosnippet>4102</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(reexport) = get_ancestor_module_reexport(
-<a href=#4103 id=4103 data-nosnippet>4103</a>                module_def_id,
-<a href=#4104 id=4104 data-nosnippet>4104</a>                visibility,
-<a href=#4105 id=4105 data-nosnippet>4105</a>                <span class="self">self</span>.module_id(),
-<a href=#4106 id=4106 data-nosnippet>4106</a>                <span class="self">self</span>.interner,
-<a href=#4107 id=4107 data-nosnippet>4107</a>                <span class="self">self</span>.def_maps,
-<a href=#4108 id=4108 data-nosnippet>4108</a>                dependencies,
-<a href=#4109 id=4109 data-nosnippet>4109</a>            ) {
-<a href=#4110 id=4110 data-nosnippet>4110</a>                <span class="kw">let </span>module_path = fully_qualified_module_path(
-<a href=#4111 id=4111 data-nosnippet>4111</a>                    <span class="self">self</span>.def_maps,
-<a href=#4112 id=4112 data-nosnippet>4112</a>                    <span class="self">self</span>.crate_graph,
-<a href=#4113 id=4113 data-nosnippet>4113</a>                    <span class="kw-2">&amp;</span><span class="self">self</span>.crate_id,
-<a href=#4114 id=4114 data-nosnippet>4114</a>                    reexport.module_id,
-<a href=#4115 id=4115 data-nosnippet>4115</a>                );
-<a href=#4116 id=4116 data-nosnippet>4116</a>                <span class="kw">return </span><span class="macro">format!</span>(<span class="string">"{module_path}::{}::{}"</span>, reexport.name, trait_.name);
-<a href=#4117 id=4117 data-nosnippet>4117</a>            }
-<a href=#4118 id=4118 data-nosnippet>4118</a>        }
-<a href=#4119 id=4119 data-nosnippet>4119</a>
-<a href=#4120 id=4120 data-nosnippet>4120</a>        fully_qualified_module_path(<span class="self">self</span>.def_maps, <span class="self">self</span>.crate_graph, <span class="kw-2">&amp;</span><span class="self">self</span>.crate_id, trait_.id.<span class="number">0</span>)
-<a href=#4121 id=4121 data-nosnippet>4121</a>    }
-<a href=#4122 id=4122 data-nosnippet>4122</a>}</code></pre></div></section></main></body></html>
+<a href=#3978 id=3978 data-nosnippet>3978</a>            the_trait.self_param.bind(<span class="kw-2">&amp;</span>constraint.typ, bindings);
+<a href=#3979 id=3979 data-nosnippet>3979</a>
+<a href=#3980 id=3980 data-nosnippet>3980</a>            <span class="kw">for </span>(param, arg) <span class="kw">in
+<a href=#3981 id=3981 data-nosnippet>3981</a>                </span>the_trait.generics.iter().zip(<span class="kw-2">&amp;</span>constraint.trait_bound.trait_generics.ordered)
+<a href=#3982 id=3982 data-nosnippet>3982</a>            {
+<a href=#3983 id=3983 data-nosnippet>3983</a>                bindings.insert(
+<a href=#3984 id=3984 data-nosnippet>3984</a>                    param.type_var.id(),
+<a href=#3985 id=3985 data-nosnippet>3985</a>                    (param.type_var.clone(), param.kind().into_owned(), arg.clone()),
+<a href=#3986 id=3986 data-nosnippet>3986</a>                );
+<a href=#3987 id=3987 data-nosnippet>3987</a>            }
+<a href=#3988 id=3988 data-nosnippet>3988</a>
+<a href=#3989 id=3989 data-nosnippet>3989</a>            <span class="kw">for </span>associated <span class="kw">in </span><span class="kw-2">&amp;</span>the_trait.associated_types {
+<a href=#3990 id=3990 data-nosnippet>3990</a>                <span class="kw">let </span><span class="prelude-val">Some</span>(arg) = constraint
+<a href=#3991 id=3991 data-nosnippet>3991</a>                    .trait_bound
+<a href=#3992 id=3992 data-nosnippet>3992</a>                    .trait_generics
+<a href=#3993 id=3993 data-nosnippet>3993</a>                    .named
+<a href=#3994 id=3994 data-nosnippet>3994</a>                    .iter()
+<a href=#3995 id=3995 data-nosnippet>3995</a>                    .find(|named| named.name.as_str() == associated.name.as_str())
+<a href=#3996 id=3996 data-nosnippet>3996</a>                <span class="kw">else </span>{
+<a href=#3997 id=3997 data-nosnippet>3997</a>                    <span class="kw">continue</span>;
+<a href=#3998 id=3998 data-nosnippet>3998</a>                };
+<a href=#3999 id=3999 data-nosnippet>3999</a>                bindings.insert(
+<a href=#4000 id=4000 data-nosnippet>4000</a>                    associated.type_var.id(),
+<a href=#4001 id=4001 data-nosnippet>4001</a>                    (associated.type_var.clone(), associated.kind().into_owned(), arg.typ.clone()),
+<a href=#4002 id=4002 data-nosnippet>4002</a>                );
+<a href=#4003 id=4003 data-nosnippet>4003</a>            }
+<a href=#4004 id=4004 data-nosnippet>4004</a>        }
+<a href=#4005 id=4005 data-nosnippet>4005</a>    }
+<a href=#4006 id=4006 data-nosnippet>4006</a>
+<a href=#4007 id=4007 data-nosnippet>4007</a>    <span class="doccomment">/// Recursively bind the ordered generics and associated types of every parent trait reachable
+<a href=#4008 id=4008 data-nosnippet>4008</a>    /// from `trait_bound`, instantiating each parent bound with the child's bindings as we go. This
+<a href=#4009 id=4009 data-nosnippet>4009</a>    /// makes associated types inherited from ancestor traits resolvable, not just those defined on
+<a href=#4010 id=4010 data-nosnippet>4010</a>    /// the trait named by `trait_bound`.
+<a href=#4011 id=4011 data-nosnippet>4011</a>    </span><span class="kw">fn </span>bind_parent_trait_associated_types(
+<a href=#4012 id=4012 data-nosnippet>4012</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#4013 id=4013 data-nosnippet>4013</a>        self_type: <span class="kw-2">&amp;</span>Type,
+<a href=#4014 id=4014 data-nosnippet>4014</a>        trait_bound: <span class="kw-2">&amp;</span>ResolvedTraitBound,
+<a href=#4015 id=4015 data-nosnippet>4015</a>        bindings: <span class="kw-2">&amp;mut </span>TypeBindings,
+<a href=#4016 id=4016 data-nosnippet>4016</a>        visited: <span class="kw-2">&amp;mut </span>BTreeSet&lt;TraitId&gt;,
+<a href=#4017 id=4017 data-nosnippet>4017</a>    ) {
+<a href=#4018 id=4018 data-nosnippet>4018</a>        <span class="kw">if </span>!visited.insert(trait_bound.trait_id) {
+<a href=#4019 id=4019 data-nosnippet>4019</a>            <span class="kw">return</span>;
+<a href=#4020 id=4020 data-nosnippet>4020</a>        }
+<a href=#4021 id=4021 data-nosnippet>4021</a>
+<a href=#4022 id=4022 data-nosnippet>4022</a>        <span class="comment">// `bind_generics_from_trait_bound` below already assumes this trait id resolves (via
+<a href=#4023 id=4023 data-nosnippet>4023</a>        // `get_trait`); use `get_trait` here too so a missing trait is a clear internal error
+<a href=#4024 id=4024 data-nosnippet>4024</a>        // rather than a silently-empty parent-bound list.
+<a href=#4025 id=4025 data-nosnippet>4025</a>        </span><span class="kw">let </span>parent_bounds: Vec&lt;<span class="kw">_</span>&gt; =
+<a href=#4026 id=4026 data-nosnippet>4026</a>            <span class="self">self</span>.interner.get_trait(trait_bound.trait_id).parent_bounds().collect();
+<a href=#4027 id=4027 data-nosnippet>4027</a>
+<a href=#4028 id=4028 data-nosnippet>4028</a>        <span class="kw">for </span>parent_bound <span class="kw">in </span><span class="kw-2">&amp;</span>parent_bounds {
+<a href=#4029 id=4029 data-nosnippet>4029</a>            <span class="kw">let </span>instantiated =
+<a href=#4030 id=4030 data-nosnippet>4030</a>                <span class="self">self</span>.instantiate_parent_trait_bound(self_type, trait_bound, parent_bound);
+<a href=#4031 id=4031 data-nosnippet>4031</a>            <span class="self">self</span>.bind_generics_from_trait_bound(<span class="kw-2">&amp;</span>instantiated, bindings);
+<a href=#4032 id=4032 data-nosnippet>4032</a>            <span class="self">self</span>.bind_parent_trait_associated_types(self_type, <span class="kw-2">&amp;</span>instantiated, bindings, visited);
+<a href=#4033 id=4033 data-nosnippet>4033</a>        }
+<a href=#4034 id=4034 data-nosnippet>4034</a>    }
+<a href=#4035 id=4035 data-nosnippet>4035</a>
+<a href=#4036 id=4036 data-nosnippet>4036</a>    <span class="doccomment">/// Insert the ordered generics and associated types from the trait bound.
+<a href=#4037 id=4037 data-nosnippet>4037</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>bind_generics_from_trait_bound(
+<a href=#4038 id=4038 data-nosnippet>4038</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#4039 id=4039 data-nosnippet>4039</a>        trait_bound: <span class="kw-2">&amp;</span>ResolvedTraitBound,
+<a href=#4040 id=4040 data-nosnippet>4040</a>        bindings: <span class="kw-2">&amp;mut </span>TypeBindings,
+<a href=#4041 id=4041 data-nosnippet>4041</a>    ) {
+<a href=#4042 id=4042 data-nosnippet>4042</a>        <span class="kw">let </span>the_trait = <span class="self">self</span>.interner.get_trait(trait_bound.trait_id);
+<a href=#4043 id=4043 data-nosnippet>4043</a>        the_trait.bind_generics(<span class="kw-2">&amp;</span>trait_bound.trait_generics, bindings);
+<a href=#4044 id=4044 data-nosnippet>4044</a>    }
+<a href=#4045 id=4045 data-nosnippet>4045</a>
+<a href=#4046 id=4046 data-nosnippet>4046</a>    <span class="doccomment">/// `parent_bound` of `trait_bound`'s trait, for the bound `self_type: trait_bound`.
+<a href=#4047 id=4047 data-nosnippet>4047</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>instantiate_parent_trait_bound(
+<a href=#4048 id=4048 data-nosnippet>4048</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#4049 id=4049 data-nosnippet>4049</a>        self_type: <span class="kw-2">&amp;</span>Type,
+<a href=#4050 id=4050 data-nosnippet>4050</a>        trait_bound: <span class="kw-2">&amp;</span>ResolvedTraitBound,
+<a href=#4051 id=4051 data-nosnippet>4051</a>        parent_bound: <span class="kw-2">&amp;</span>ParentBound,
+<a href=#4052 id=4052 data-nosnippet>4052</a>    ) -&gt; ResolvedTraitBound {
+<a href=#4053 id=4053 data-nosnippet>4053</a>        <span class="kw">let </span>the_trait = <span class="self">self</span>.interner.get_trait(trait_bound.trait_id);
+<a href=#4054 id=4054 data-nosnippet>4054</a>        <span class="kw">let </span>bindings = the_trait.bound_bindings(self_type, <span class="kw-2">&amp;</span>trait_bound.trait_generics);
+<a href=#4055 id=4055 data-nosnippet>4055</a>        parent_bound.instantiate(<span class="kw-2">&amp;</span>bindings, |kind| <span class="self">self</span>.interner.next_type_variable_with_kind(kind))
+<a href=#4056 id=4056 data-nosnippet>4056</a>    }
+<a href=#4057 id=4057 data-nosnippet>4057</a>
+<a href=#4058 id=4058 data-nosnippet>4058</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>fully_qualified_trait_path_by_id(<span class="kw-2">&amp;</span><span class="self">self</span>, trait_id: TraitId) -&gt; String {
+<a href=#4059 id=4059 data-nosnippet>4059</a>        <span class="self">self</span>.fully_qualified_trait_path(<span class="self">self</span>.interner.get_trait(trait_id))
+<a href=#4060 id=4060 data-nosnippet>4060</a>    }
+<a href=#4061 id=4061 data-nosnippet>4061</a>
+<a href=#4062 id=4062 data-nosnippet>4062</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>fully_qualified_trait_path(<span class="kw-2">&amp;</span><span class="self">self</span>, trait_: <span class="kw-2">&amp;</span>Trait) -&gt; String {
+<a href=#4063 id=4063 data-nosnippet>4063</a>        <span class="kw">let </span>module_def_id = ModuleDefId::TraitId(trait_.id);
+<a href=#4064 id=4064 data-nosnippet>4064</a>        <span class="kw">let </span>visibility = trait_.visibility;
+<a href=#4065 id=4065 data-nosnippet>4065</a>        <span class="kw">let </span>defining_module = <span class="prelude-val">None</span>;
+<a href=#4066 id=4066 data-nosnippet>4066</a>        <span class="kw">let </span>trait_is_visible = module_def_id_is_visible(
+<a href=#4067 id=4067 data-nosnippet>4067</a>            module_def_id,
+<a href=#4068 id=4068 data-nosnippet>4068</a>            <span class="self">self</span>.module_id(),
+<a href=#4069 id=4069 data-nosnippet>4069</a>            visibility,
+<a href=#4070 id=4070 data-nosnippet>4070</a>            defining_module,
+<a href=#4071 id=4071 data-nosnippet>4071</a>            <span class="self">self</span>.interner,
+<a href=#4072 id=4072 data-nosnippet>4072</a>            <span class="self">self</span>.def_maps,
+<a href=#4073 id=4073 data-nosnippet>4073</a>            <span class="kw-2">&amp;</span><span class="self">self</span>.crate_graph[<span class="self">self</span>.crate_id].dependencies,
+<a href=#4074 id=4074 data-nosnippet>4074</a>        );
+<a href=#4075 id=4075 data-nosnippet>4075</a>
+<a href=#4076 id=4076 data-nosnippet>4076</a>        <span class="kw">if </span>!trait_is_visible {
+<a href=#4077 id=4077 data-nosnippet>4077</a>            <span class="kw">let </span>dependencies = <span class="kw-2">&amp;</span><span class="self">self</span>.crate_graph[<span class="self">self</span>.crate_id].dependencies;
+<a href=#4078 id=4078 data-nosnippet>4078</a>
+<a href=#4079 id=4079 data-nosnippet>4079</a>            <span class="kw">for </span>reexport <span class="kw">in </span><span class="self">self</span>.interner.get_trait_reexports(trait_.id) {
+<a href=#4080 id=4080 data-nosnippet>4080</a>                <span class="kw">let </span>reexport_is_visible = module_def_id_is_visible(
+<a href=#4081 id=4081 data-nosnippet>4081</a>                    module_def_id,
+<a href=#4082 id=4082 data-nosnippet>4082</a>                    <span class="self">self</span>.module_id(),
+<a href=#4083 id=4083 data-nosnippet>4083</a>                    reexport.visibility,
+<a href=#4084 id=4084 data-nosnippet>4084</a>                    <span class="prelude-val">Some</span>(reexport.module_id),
+<a href=#4085 id=4085 data-nosnippet>4085</a>                    <span class="self">self</span>.interner,
+<a href=#4086 id=4086 data-nosnippet>4086</a>                    <span class="self">self</span>.def_maps,
+<a href=#4087 id=4087 data-nosnippet>4087</a>                    dependencies,
+<a href=#4088 id=4088 data-nosnippet>4088</a>                );
+<a href=#4089 id=4089 data-nosnippet>4089</a>                <span class="kw">if </span>reexport_is_visible {
+<a href=#4090 id=4090 data-nosnippet>4090</a>                    <span class="kw">let </span>module_path = fully_qualified_module_path(
+<a href=#4091 id=4091 data-nosnippet>4091</a>                        <span class="self">self</span>.def_maps,
+<a href=#4092 id=4092 data-nosnippet>4092</a>                        <span class="self">self</span>.crate_graph,
+<a href=#4093 id=4093 data-nosnippet>4093</a>                        <span class="kw-2">&amp;</span><span class="self">self</span>.crate_id,
+<a href=#4094 id=4094 data-nosnippet>4094</a>                        reexport.module_id,
+<a href=#4095 id=4095 data-nosnippet>4095</a>                    );
+<a href=#4096 id=4096 data-nosnippet>4096</a>                    <span class="kw">return </span><span class="macro">format!</span>(<span class="string">"{module_path}::{}"</span>, reexport.name);
+<a href=#4097 id=4097 data-nosnippet>4097</a>                }
+<a href=#4098 id=4098 data-nosnippet>4098</a>            }
+<a href=#4099 id=4099 data-nosnippet>4099</a>
+<a href=#4100 id=4100 data-nosnippet>4100</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(reexport) = get_ancestor_module_reexport(
+<a href=#4101 id=4101 data-nosnippet>4101</a>                module_def_id,
+<a href=#4102 id=4102 data-nosnippet>4102</a>                visibility,
+<a href=#4103 id=4103 data-nosnippet>4103</a>                <span class="self">self</span>.module_id(),
+<a href=#4104 id=4104 data-nosnippet>4104</a>                <span class="self">self</span>.interner,
+<a href=#4105 id=4105 data-nosnippet>4105</a>                <span class="self">self</span>.def_maps,
+<a href=#4106 id=4106 data-nosnippet>4106</a>                dependencies,
+<a href=#4107 id=4107 data-nosnippet>4107</a>            ) {
+<a href=#4108 id=4108 data-nosnippet>4108</a>                <span class="kw">let </span>module_path = fully_qualified_module_path(
+<a href=#4109 id=4109 data-nosnippet>4109</a>                    <span class="self">self</span>.def_maps,
+<a href=#4110 id=4110 data-nosnippet>4110</a>                    <span class="self">self</span>.crate_graph,
+<a href=#4111 id=4111 data-nosnippet>4111</a>                    <span class="kw-2">&amp;</span><span class="self">self</span>.crate_id,
+<a href=#4112 id=4112 data-nosnippet>4112</a>                    reexport.module_id,
+<a href=#4113 id=4113 data-nosnippet>4113</a>                );
+<a href=#4114 id=4114 data-nosnippet>4114</a>                <span class="kw">return </span><span class="macro">format!</span>(<span class="string">"{module_path}::{}::{}"</span>, reexport.name, trait_.name);
+<a href=#4115 id=4115 data-nosnippet>4115</a>            }
+<a href=#4116 id=4116 data-nosnippet>4116</a>        }
+<a href=#4117 id=4117 data-nosnippet>4117</a>
+<a href=#4118 id=4118 data-nosnippet>4118</a>        fully_qualified_module_path(<span class="self">self</span>.def_maps, <span class="self">self</span>.crate_graph, <span class="kw-2">&amp;</span><span class="self">self</span>.crate_id, trait_.id.<span class="number">0</span>)
+<a href=#4119 id=4119 data-nosnippet>4119</a>    }
+<a href=#4120 id=4120 data-nosnippet>4120</a>}</code></pre></div></section></main></body></html>

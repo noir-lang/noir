@@ -14,7 +14,7 @@
 <a href=#14 id=14 data-nosnippet>14</a><span class="kw">use </span>noirc_errors::Location;
 <a href=#15 id=15 data-nosnippet>15</a>
 <a href=#16 id=16 data-nosnippet>16</a><span class="kw">use crate</span>::{
-<a href=#17 id=17 data-nosnippet>17</a>    Kind, ResolvedGeneric, Type, TypeBinding, TypeVariable,
+<a href=#17 id=17 data-nosnippet>17</a>    Kind, ResolvedGeneric, Type, TypeVariable,
 <a href=#18 id=18 data-nosnippet>18</a>    ast::{
 <a href=#19 id=19 data-nosnippet>19</a>        BlockExpression, FunctionKind, Ident, IdentOrQuotedType, NoirFunction, Param,
 <a href=#20 id=20 data-nosnippet>20</a>        UnresolvedGeneric, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
@@ -720,8 +720,8 @@
 <a href=#720 id=720 data-nosnippet>720</a>        </span><span class="kw">let </span>unbound_trait_self = func_meta
 <a href=#721 id=721 data-nosnippet>721</a>            .trait_id
 <a href=#722 id=722 data-nosnippet>722</a>            .filter(|<span class="kw">_</span>| func_meta.trait_impl.is_none())
-<a href=#723 id=723 data-nosnippet>723</a>            .map(|trait_id| (trait_id, <span class="self">self</span>.interner.get_trait(trait_id).self_type_typevar.clone()))
-<a href=#724 id=724 data-nosnippet>724</a>            .filter(|(<span class="kw">_</span>, self_typevar)| self_typevar.binding().is_unbound());
+<a href=#723 id=723 data-nosnippet>723</a>            .map(|trait_id| (trait_id, <span class="self">self</span>.interner.get_trait(trait_id).self_param.clone()))
+<a href=#724 id=724 data-nosnippet>724</a>            .filter(|(<span class="kw">_</span>, self_param)| self_param.bound_to().is_none());
 <a href=#725 id=725 data-nosnippet>725</a>
 <a href=#726 id=726 data-nosnippet>726</a>        <span class="self">self</span>.scopes.start_function();
 <a href=#727 id=727 data-nosnippet>727</a>        <span class="self">self</span>.push_function_context();
@@ -800,8 +800,8 @@
 <a href=#800 id=800 data-nosnippet>800</a>
 <a href=#801 id=801 data-nosnippet>801</a>        <span class="self">self</span>.remove_trait_constraints_from_scope(func_meta.all_trait_constraints());
 <a href=#802 id=802 data-nosnippet>802</a>
-<a href=#803 id=803 data-nosnippet>803</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>((trait_id, self_typevar)) = unbound_trait_self
-<a href=#804 id=804 data-nosnippet>804</a>            &amp;&amp; <span class="kw">let </span>TypeBinding::Bound(self_type) = self_typevar.binding()
+<a href=#803 id=803 data-nosnippet>803</a>        <span class="kw">if let </span><span class="prelude-val">Some</span>((trait_id, self_param)) = unbound_trait_self
+<a href=#804 id=804 data-nosnippet>804</a>            &amp;&amp; <span class="kw">let </span><span class="prelude-val">Some</span>(self_type) = self_param.bound_to()
 <a href=#805 id=805 data-nosnippet>805</a>        {
 <a href=#806 id=806 data-nosnippet>806</a>            <span class="kw">let </span>trait_name = <span class="self">self</span>.interner.get_trait(trait_id).name.to_string();
 <a href=#807 id=807 data-nosnippet>807</a>            <span class="self">self</span>.push_err(TypeCheckError::expecting_other_error(
