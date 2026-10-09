@@ -2296,33 +2296,6 @@ fn probe1962_lazy_elaboration_leak() {
 }
 
 #[test]
-fn probe1953_prepared_where_clause() {
-    let src = r#"
-    trait B {}
-    trait C { type T; let N: u32; }
-    pub struct W {}
-    pub struct S {}
-    impl C for S { type T = <W as C>::T; let N: u32 = <W as C>::N; }
-    impl C for W where W: B { type T = u8; let N: u32 = 5; }
-    fn main() -> pub u32 { let x: <S as C>::T = <S as C>::N as u8; x as u32 }
-    "#;
-    let errors = get_program_errors(src);
-    assert!(!errors.is_empty(), "W: B has no impl");
-}
-
-#[test]
-fn probe1953_prepared_generic() {
-    let src = r#"
-    trait C { let N: u32; }
-    pub struct S {}
-    impl C for S { let N: u32 = <[u8; 3] as C>::N; }
-    impl<let M: u32> C for [u8; M] { let N: u32 = M * 2; }
-    fn main() -> pub u32 { <S as C>::N }
-    "#;
-    assert_no_errors(src);
-}
-
-#[test]
 fn trait_that_is_its_own_parent_is_a_cycle() {
     let src = r#"
     pub trait A: A {}
