@@ -526,7 +526,7 @@ fn trait_inheritance_chain_with_associated_types() {
         fn get_b(self) -> Self::B { self.b }
     }
 
-    fn process<T>(t: T) -> Field where T: Level3 {
+    fn process<T>(t: T) -> <T as Level1>::A where T: Level3 {
         t.get_a()
     }
 
@@ -607,7 +607,7 @@ fn trait_inheritance_chain_with_associated_types_four_levels() {
         fn get_c(self) -> Self::C { self.c }
     }
 
-    fn process<T>(t: T) -> Field where T: Level4 {
+    fn process<T>(t: T) -> <T as Level1>::A where T: Level4 {
         t.get_a()
     }
 
@@ -1212,6 +1212,263 @@ fn bound_implies_same_trait_with_different_arguments_through_two_parents() {
     fn main() {
         let _ = f(S {});
         let _ = g(S {});
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn grandparent_associated_type_is_rigid_without_a_bound_pinning_it() {
+    let src = r#"
+    trait Level1 { type A; }
+    trait Level2: Level1 { fn get_a(self) -> Self::A; }
+    trait Level3: Level2 {}
+    pub fn process<T>(t: T) -> Field where T: Level3 { t.get_a() }
+                               ^^^^^ expected type Field, found type <T as Level1>::A
+                               ~~~~~ expected Field because of return type
+                                                       ~~~~~~~~~ <T as Level1>::A returned here
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn elided_parent_associated_type_stays_rigid_after_explicit_parent() {
+    let src = r#"
+    pub trait Parent {
+        type A;
+    }
+    pub trait Child1: Parent {}
+    pub trait Child2: Parent {}
+    pub struct Wide {}
+
+    pub fn f<T>(x: <T as Parent>::A) -> Wide where T: Parent, T: Child1 {
+                                        ^^^^ expected type Wide, found type <T as Parent>::A
+                                        ~~~~ expected Wide because of return type
+        x
+        ~ <T as Parent>::A returned here
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn elided_parent_associated_type_dispatches_per_bounded_type() {
+    let src = r#"
+    trait Check { fn check(self) -> Field; }
+    struct Narrow { v: Field }
+    struct Wide { v: Field }
+    impl Check for Narrow { fn check(self) -> Field { assert(self.v != 100); self.v } }
+    impl Check for Wide { fn check(self) -> Field { self.v } }
+    trait Par { type A; fn get(self) -> Self::A; }
+    trait Sub: Par {}
+    struct S { v: Field }
+    struct T2 { v: Field }
+    impl Par for S { type A = Narrow; fn get(self) -> Narrow { Narrow { v: self.v } } }
+    impl Par for T2 { type A = Wide; fn get(self) -> Wide { Wide { v: self.v } } }
+    impl Sub for S {}
+    impl Sub for T2 {}
+    fn run<X: Sub>(x: X) -> Field where <X as Par>::A: Check { x.get().check() }
+    fn main(v: Field) -> pub Field { run(T2 { v: 0 }) + run(S { v }) }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0(v$l0: Field) -> pub Field {
+        (run$f1({
+            let v$l1 = 0;
+            (v$l1)
+        }) + run$f2({
+            let v$l2 = v$l0;
+            (v$l2)
+        }))
+    }
+    fn run$f1(x$l3: (Field,)) -> Field {
+        check$f3(get$f4(x$l3))
+    }
+    fn run$f2(x$l4: (Field,)) -> Field {
+        check$f5(get$f6(x$l4))
+    }
+    fn check$f3(self$l5: (Field,)) -> Field {
+        self$l5.0
+    }
+    fn get$f4(self$l6: (Field,)) -> (Field,) {
+        {
+            let v$l7 = self$l6.0;
+            (v$l7)
+        }
+    }
+    fn check$f5(self$l8: (Field,)) -> Field {
+        assert((self$l8.0 != 100));;
+        self$l8.0
+    }
+    fn get$f6(self$l9: (Field,)) -> (Field,) {
+        {
+            let v$l10 = self$l9.0;
+            (v$l10)
+        }
+    }
+    ");
+}
+
+#[test]
+fn default_method_uses_associated_type_its_parent_bound_leaves_out() {
+    let src = r#"
+    trait Level1 { type A; }
+    trait Level2: Level1 { fn get_a(self) -> Self::A; fn twice(self) -> (Self::A, Self::A) { let a = self.get_a(); (a, a) } }
+    pub struct D1 {}
+    pub struct D2 {}
+    impl Level1 for D1 { type A = Field; }
+    impl Level1 for D2 { type A = bool; }
+    impl Level2 for D1 { fn get_a(self) -> Field { 1 } }
+    impl Level2 for D2 { fn get_a(self) -> bool { true } }
+    fn main() {
+        let (_x, _): (Field, Field) = D1 {}.twice();
+        let (_y, _): (bool, bool) = D2 {}.twice();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn default_method_uses_associated_type_of_grandparent() {
+    let src = r#"
+    trait Level1 { type A; }
+    trait Level2: Level1 { fn get_a(self) -> Self::A; }
+    trait Level3: Level2 { fn twice(self) -> (Self::A, Self::A) { let a = self.get_a(); (a, a) } }
+    pub struct D1 {}
+    impl Level1 for D1 { type A = Field; }
+    impl Level2 for D1 { fn get_a(self) -> Field { 1 } }
+    impl Level3 for D1 {}
+    fn main() {
+        let (_x, _): (Field, Field) = D1 {}.twice();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn method_bound_on_unrelated_trait_uses_the_implementors_associated_type() {
+    let src = r#"
+    trait Conv { type O; fn conv(self) -> Self::O; }
+    pub trait User {
+        fn m(self) -> <Self as Conv>::O where Self: Conv { Conv::conv(self) }
+        fn n(self) -> Field where Self: Conv { let _ = Conv::conv(self); 7 }
+    }
+    pub struct S { v: Field }
+    impl Conv for S { type O = Field; fn conv(self) -> Field { self.v + 2 } }
+    impl User for S {}
+    fn main() {
+        let _: Field = S { v: 1 }.m();
+        let _: Field = S { v: 1 }.n();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn method_bound_on_unrelated_generic_trait_uses_the_implementors_associated_type() {
+    let src = r#"
+    trait Conv<X> { type O; fn conv(self, x: X) -> Self::O; }
+    pub trait User {
+        fn m(self) -> <Self as Conv<u16>>::O where Self: Conv<u16> { Conv::<u16>::conv(self, 2) }
+    }
+    pub struct S { v: Field }
+    impl Conv<u16> for S { type O = Field; fn conv(self, x: u16) -> Field { self.v + x as Field } }
+    impl User for S {}
+    fn main() {
+        let _: Field = S { v: 1 }.m();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn method_declaration_bound_on_unrelated_trait_is_callable_from_generic_code() {
+    let src = r#"
+    trait Conv { type O; fn conv(self) -> Self::O; }
+    trait User { fn m(self) -> <Self as Conv>::O where Self: Conv; }
+    pub struct S { v: Field }
+    impl Conv for S { type O = Field; fn conv(self) -> Field { self.v + 2 } }
+    impl User for S { fn m(self) -> Field { self.conv() * 10 } }
+    fn generic<T>(t: T) -> <T as Conv>::O where T: User + Conv { t.m() }
+    fn main() {
+        let _: Field = S { v: 1 }.m();
+        let _: Field = generic(S { v: 1 });
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn method_bounds_on_one_trait_with_different_arguments_have_distinct_associated_types() {
+    let src = r#"
+    trait Conv<X> { type O; fn conv(self, x: X) -> Self::O; }
+    pub trait User {
+        fn m(self) -> <Self as Conv<u8>>::O where Self: Conv<u8> + Conv<u16> {
+            let a: <Self as Conv<u8>>::O = Conv::<u8>::conv(self, 1);
+            let _b: <Self as Conv<u16>>::O = a;
+                                             ^ Expected type Self::O, found type Self::O
+            a
+        }
+    }
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn method_bound_on_supertrait_with_other_arguments_has_its_own_associated_type() {
+    let src = r#"
+    trait Conv<X> { type O; fn conv(self, x: X) -> Self::O; }
+    pub trait User: Conv<u8> {
+        fn m(self) -> <Self as Conv<u16>>::O where Self: Conv<u16> { Conv::<u16>::conv(self, 2) }
+    }
+    pub struct S { v: Field }
+    impl Conv<u8> for S { type O = bool; fn conv(self, _x: u8) -> bool { true } }
+    impl Conv<u16> for S { type O = Field; fn conv(self, x: u16) -> Field { self.v + x as Field } }
+    impl User for S {}
+    fn main() {
+        let _: Field = S { v: 1 }.m();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn method_bound_on_supertrait_with_other_arguments_is_a_distinct_projection() {
+    let src = r#"
+    trait Conv<X> { type O; fn conv(self, x: X) -> Self::O; }
+    pub trait User: Conv<u8> {
+        fn m(self) -> Field where Self: Conv<u16> {
+            let a: <Self as Conv<u8>>::O = Conv::<u8>::conv(self, 1);
+            let _b: <Self as Conv<u16>>::O = a;
+                                             ^ Expected type Self::O, found type Self::O
+            0
+        }
+    }
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn method_bound_on_supertrait_uses_the_supertraits_associated_type() {
+    let src = r#"
+    trait Parent { type A; fn get(self) -> Self::A; }
+    trait Marker {}
+    trait Child: Parent {
+        fn pair(self) -> (<Self as Parent>::A, <Self as Parent>::A) where Self: Parent + Marker {
+            (self.get(), self.get())
+        }
+    }
+    pub struct S { x: u8 }
+    impl Parent for S { type A = u8; fn get(self) -> u8 { self.x + 1 } }
+    impl Marker for S {}
+    impl Child for S {}
+    fn main() {
+        let _: (u8, u8) = S { x: 1 }.pair();
     }
     "#;
     assert_no_errors(src);
