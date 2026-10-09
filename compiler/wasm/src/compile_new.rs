@@ -97,10 +97,16 @@ impl CompilerContext {
         let compile_options = CompileOptions::default();
 
         let root_crate_id = *self.context.root_crate_id();
-        // `compile_main` consumes the context, which owns the file manager, so keep a copy for
-        // reporting errors.
-        let file_manager = self.context.file_manager.clone();
-        let compiled_program = compile_main(self.context, root_crate_id, &compile_options, None)
+        // `compile_main` consumes its context, but errors are reported against the file manager
+        // afterwards, so move the files out and compile with a context that borrows them. The
+        // crate graph is the only part of the context that `CompilerContext` sets up.
+        let Context { file_manager, parsed_files, crate_graph, .. } = self.context;
+        let file_manager = file_manager.into_owned();
+        let parsed_files = parsed_files.into_owned();
+        let mut context = Context::from_ref_file_manager(&file_manager, &parsed_files);
+        context.crate_graph = crate_graph;
+
+        let compiled_program = compile_main(context, root_crate_id, &compile_options, None)
             .map_err(|errs| {
                 CompileError::with_custom_diagnostics(
                     "Failed to compile program",
