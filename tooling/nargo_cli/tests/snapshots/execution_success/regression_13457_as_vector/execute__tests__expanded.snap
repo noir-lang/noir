@@ -1,0 +1,14 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(flag: bool, arr: [Field; 2]) -> pub Field {
+    let mut out: Field = 0_Field;
+    if flag {
+        let zero: u32 = 0_u32;
+        let q: u32 = 7_u32 / zero;
+        let v: [Field] = arr.as_vector().push_back(q as Field);
+        out = v[0_u32];
+    };
+    out
+}
