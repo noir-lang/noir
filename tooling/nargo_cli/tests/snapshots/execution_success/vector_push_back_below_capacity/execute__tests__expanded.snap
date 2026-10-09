@@ -1,0 +1,30 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(c: bool, d: bool) {
+    let mut s: [Field] = [1_Field, 2_Field, 3_Field].as_vector();
+    if c {
+        s = s.push_back(4_Field);
+        s = s.push_back(5_Field);
+    };
+    let (t, _e): ([Field], Field) = s.remove(0_u32);
+    s = t;
+    if !c {
+        s = s.push_back(6_Field);
+        s = s.push_back(7_Field);
+    };
+    if d {
+        s = s.push_back(8_Field);
+    } else {
+        s = s.push_back(9_Field);
+        s = s.push_back(10_Field);
+    };
+    let mut acc: Field = 0_Field;
+    for i in 0_u32..8_u32 {
+        if i < s.len() {
+            acc = acc + s[i];
+        }
+    }
+    assert(acc != 12345_Field);
+}
