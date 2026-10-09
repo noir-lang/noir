@@ -15,9 +15,10 @@ pub struct ImplMethod {
 pub struct TraitImplMethod {
     pub method: FuncId,
     pub trait_id: TraitId,
-    /// The impl the method comes from. Its self type is instantiated for each lookup (see
-    /// [`NodeInterner::instantiate_trait_impl_self_type`]), so that matching `G<N>` against `G<7>`
-    /// doesn't fix `N` for any other use.
+    /// The impl the method comes from. An impl's method applies to every type the impl's self
+    /// type describes (`G<N>` for every `N`), so a lookup matches against that self type with
+    /// the impl's generics as unknowns to solve (see
+    /// [`NodeInterner::instantiate_trait_impl_self_type`]).
     pub impl_id: TraitImplId,
 }
 

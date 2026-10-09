@@ -189,8 +189,9 @@ pub struct NodeInterner {
     /// by splitting it up by type.
     trait_implementation_map: HashMap<TraitId, Vec<(Type, TraitImplKind)>>,
 
-    /// The self type of each trait impl, generalized over the impl's generics (a [`Type::Forall`]),
-    /// so that each use of the impl gives them fresh type variables.
+    /// The self type of each trait impl, generalized over the impl's generics (a [`Type::Forall`]).
+    /// An impl applies to every type its self type describes, so each use instantiates the
+    /// impl's generics with its own type variables.
     trait_impl_self_types: HashMap<TraitImplId, Type>,
 
     /// The where clause of each trait impl, so that a lookup matches an impl only where its
