@@ -109,13 +109,15 @@ use crate::errors::RtResult;
 use crate::ssa::ir::dfg::simplify::value_merger::ValueMerger;
 use crate::ssa::ir::types::NumericType;
 use crate::ssa::opt::ArrayGetOptimizationSideEffects;
-use crate::ssa::opt::simple_optimization::SimpleOptimizationContext;
 use crate::ssa::{
     Ssa,
     ir::{
-        dfg::DataFlowGraph,
+        dfg::{
+            DataFlowGraph,
+            vector_capacity::{constant_vector_lengths, vector_capacity_flows},
+        },
         function::Function,
-        instruction::{Hint, Instruction, Intrinsic},
+        instruction::Instruction,
         types::Type,
         value::{Value, ValueId},
     },
@@ -263,12 +265,35 @@ impl Context {
                     if let Value::Intrinsic(intrinsic) = context.dfg[*func] {
                         let results = context.dfg.instruction_results(instruction_id);
 
-                        self.vector_constant_size_override(context.dfg, intrinsic, arguments);
+                        // If we have already determined a constant for the vector length, we can
+                        // override the backing capacity of the vector contents. Using the capacity
+                        // over the vector length would require laying down more instructions to
+                        // handle the extra padding, while preventing downstream passes or runtimes
+                        // from implementing optimizations using the vector length.
+                        // A call that only runs under a predicate says nothing about the vector's
+                        // length when the predicate is false, so its length is only used when the
+                        // call always runs.
+                        let always_runs = context
+                            .dfg
+                            .get_numeric_constant(context.enable_side_effects)
+                            .is_some_and(|predicate| predicate.is_one());
+                        if always_runs {
+                            for (vector, length) in
+                                constant_vector_lengths(context.dfg, intrinsic, arguments)
+                            {
+                                self.vector_sizes.insert(vector, length);
+                            }
+                        }
 
-                        let size_change =
-                            self.vector_capacity_change(context.dfg, intrinsic, arguments, results);
-
-                        self.change_size(size_change, context);
+                        for flow in
+                            vector_capacity_flows(context.dfg, intrinsic, arguments, results)
+                        {
+                            self.set_capacity(context.dfg, flow.input, flow.output, |capacity| {
+                                // Growing the capacity must increase it: it cannot wrap around
+                                // or saturate.
+                                flow.change.apply(capacity).expect("Vector capacity overflow")
+                            });
+                        }
                     }
                 }
                 // Track vector sizes through array set instructions
@@ -282,31 +307,6 @@ impl Context {
             }
             Ok(())
         })
-    }
-
-    fn change_size(&mut self, size_change: SizeChange, context: &mut SimpleOptimizationContext) {
-        match size_change {
-            SizeChange::None => (),
-            SizeChange::SetTo { old, new } => {
-                self.set_capacity(context.dfg, old, new, |c| c);
-            }
-            SizeChange::Inc { old, new } => {
-                self.set_capacity(context.dfg, old, new, |c| {
-                    // Checked addition because increasing the capacity must increase it (cannot wrap around or saturate).
-                    SemanticLength(c.0.checked_add(1).expect("Vector capacity overflow"))
-                });
-            }
-            SizeChange::Dec { old, new } => {
-                // We use a saturating sub here as calling `pop_front` or `pop_back` on a zero-length vector
-                // would otherwise underflow.
-                self.set_capacity(context.dfg, old, new, |c| SemanticLength(c.0.saturating_sub(1)));
-            }
-            SizeChange::Many(changes) => {
-                for change in changes {
-                    self.change_size(change, context);
-                }
-            }
-        }
     }
 
     /// Set the capacity of the new vector based on the capacity of the old array/vector.
@@ -346,163 +346,6 @@ impl Context {
             }
         }
     }
-
-    /// If we have already determined a constant for the vector length, we can override the backing capacity
-    /// of the vector contents. There is no need to use the backing capacity if we have already determined the actual length of the vector.
-    /// In these situations, using the capacity over the vector length would require laying down more instructions to handle the extra padding
-    /// while preventing downstream passes or runtimes from implementing optimizations using the vector length.
-    fn vector_constant_size_override(
-        &mut self,
-        dfg: &DataFlowGraph,
-        intrinsic: Intrinsic,
-        arguments: &[ValueId],
-    ) {
-        match intrinsic {
-            Intrinsic::VectorPushBack
-            | Intrinsic::VectorPushFront
-            | Intrinsic::VectorInsert
-            | Intrinsic::VectorPopBack
-            | Intrinsic::VectorRemove
-            | Intrinsic::VectorPopFront => {
-                if let Some(const_len) = dfg.get_numeric_constant(arguments[0]) {
-                    self.vector_sizes.insert(
-                        arguments[1],
-                        SemanticLength(const_len.try_to_u32().expect("Type should be u32")),
-                    );
-                }
-            }
-            Intrinsic::Hint(Hint::BlackBox) => {
-                // Try to set the length of any vector argument to be that of the preceding constant.
-                for (i, argument) in arguments.iter().enumerate().skip(1) {
-                    if !matches!(*dfg.type_of_value(*argument), Type::Vector(_)) {
-                        continue;
-                    }
-                    assert!(matches!(*dfg.type_of_value(arguments[i - 1]), Type::Numeric(_)));
-                    if let Some(const_len) = dfg.get_numeric_constant(arguments[i - 1]) {
-                        self.vector_sizes.insert(
-                            *argument,
-                            SemanticLength(const_len.try_to_u32().expect("Type should be u32")),
-                        );
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
-
-    /// Find the change to a vector's capacity an instruction would have
-    fn vector_capacity_change(
-        &self,
-        dfg: &DataFlowGraph,
-        intrinsic: Intrinsic,
-        arguments: &[ValueId],
-        results: &[ValueId],
-    ) -> SizeChange {
-        match intrinsic {
-            Intrinsic::VectorPushBack | Intrinsic::VectorPushFront | Intrinsic::VectorInsert => {
-                // All of these return `Self` (the vector), we are expecting: len, vector = ...
-                assert_eq!(results.len(), 2);
-                let old = arguments[1];
-                let new = results[1];
-                assert!(matches!(*dfg.type_of_value(old), Type::Vector(_)));
-                assert!(matches!(*dfg.type_of_value(new), Type::Vector(_)));
-                SizeChange::Inc { old, new }
-            }
-
-            Intrinsic::VectorPopBack | Intrinsic::VectorRemove => {
-                // fn pop_back(self) -> (Self, T)
-                // fn remove(self, index: u32) -> (Self, T)
-                //
-                // These functions return the vector as the result `(len, vector, ...item)`,
-                // so the vector is the second result.
-                let old = arguments[1];
-                let new = results[1];
-                assert!(matches!(*dfg.type_of_value(old), Type::Vector(_)));
-                assert!(matches!(*dfg.type_of_value(new), Type::Vector(_)));
-                SizeChange::Dec { old, new }
-            }
-
-            Intrinsic::VectorPopFront => {
-                // fn pop_front(self) -> (T, Self)
-                //
-                // These functions return the vector as the result `(...item, len, vector)`,
-                // so the vector is the last result.
-                let old = arguments[1];
-                let new = results[results.len() - 1];
-                assert!(matches!(*dfg.type_of_value(old), Type::Vector(_)));
-                assert!(matches!(*dfg.type_of_value(new), Type::Vector(_)));
-                SizeChange::Dec { old, new }
-            }
-
-            Intrinsic::AsVector => {
-                assert_eq!(arguments.len(), 1);
-                assert_eq!(results.len(), 2);
-                let old = arguments[0];
-                let new = results[1];
-                assert!(matches!(*dfg.type_of_value(old), Type::Array(_, _)));
-                assert!(matches!(*dfg.type_of_value(new), Type::Vector(_)));
-                SizeChange::SetTo { old, new }
-            }
-
-            Intrinsic::Hint(Hint::BlackBox) => {
-                assert_eq!(arguments.len(), results.len());
-                for (arg, res) in arguments.iter().zip(results.iter()) {
-                    assert_eq!(*dfg.type_of_value(*arg), *dfg.type_of_value(*res),);
-                }
-
-                let mut changes = Vec::new();
-                for (i, argument) in arguments.iter().enumerate() {
-                    if self.vector_sizes.contains_key(argument)
-                        && matches!(*dfg.type_of_value(*argument), Type::Vector(_))
-                    {
-                        assert!(matches!(*dfg.type_of_value(arguments[i - 1]), Type::Numeric(_)));
-                        let new = results[i];
-                        changes.push(SizeChange::SetTo { old: *argument, new });
-                    }
-                }
-
-                SizeChange::Many(changes)
-            }
-
-            // These cases don't affect vector capacities
-            Intrinsic::AssertConstant
-            | Intrinsic::StaticAssert
-            | Intrinsic::ApplyRangeConstraint
-            | Intrinsic::ArrayLen
-            | Intrinsic::ArrayAsStrUnchecked
-            | Intrinsic::StrAsBytes
-            | Intrinsic::BlackBox(_)
-            | Intrinsic::AsWitness
-            | Intrinsic::IsUnconstrained
-            | Intrinsic::DerivePedersenGenerators
-            | Intrinsic::ToBits(_)
-            | Intrinsic::ToRadix(_)
-            | Intrinsic::ArrayRefCount
-            | Intrinsic::VectorRefCount
-            | Intrinsic::FieldLessThan => SizeChange::None,
-        }
-    }
-}
-
-#[derive(Debug)]
-enum SizeChange {
-    None,
-    /// Make the size of the new vector equal to the old array.
-    SetTo {
-        old: ValueId,
-        new: ValueId,
-    },
-    /// Make the size of the new vector equal to old+1.
-    Inc {
-        old: ValueId,
-        new: ValueId,
-    },
-    /// Make the size of the new vector equal to old-1.
-    Dec {
-        old: ValueId,
-        new: ValueId,
-    },
-    Many(Vec<SizeChange>),
 }
 
 #[cfg(debug_assertions)]
@@ -538,6 +381,7 @@ mod tests {
         assert_ssa_snapshot,
         ssa::{
             interpreter::{errors::InterpreterError, value::Value},
+            opt::assert_pass_does_not_affect_execution,
             ssa_gen::Ssa,
         },
     };
@@ -1154,17 +998,29 @@ mod tests {
             v18 = unchecked_add v17, v16
             enable_side_effects u1 1
             v20 = array_get v13, index u32 0 -> u32
-            v22 = array_get v13, index u32 1 -> u32
-            v23 = make_array [v20, v22] : [(u32, u32)]
+            v21 = cast v8 as u32
+            v22 = cast v14 as u32
+            v23 = unchecked_mul v21, v20
+            v24 = unchecked_mul v22, v0
+            v25 = unchecked_add v23, v24
+            v27 = array_get v13, index u32 1 -> u32
+            v28 = cast v8 as u32
+            v29 = cast v14 as u32
+            v30 = unchecked_mul v28, v27
+            v31 = unchecked_mul v29, u32 2
+            v32 = unchecked_add v30, v31
+            v33 = array_get v13, index u32 2 -> u32
+            v35 = array_get v13, index u32 3 -> u32
+            v36 = make_array [v25, v32, v33, v35] : [(u32, u32)]
             enable_side_effects v8
             enable_side_effects u1 1
-            v24 = lt v2, v18
-            constrain v24 == u1 1, "Index out of bounds"
-            v25 = unchecked_mul v2, u32 2
-            v26 = array_get v23, index v25 -> u32
-            v27 = unchecked_add v25, u32 1
-            v28 = array_get v23, index v27 -> u32
-            return v26, v28, v18
+            v37 = lt v2, v18
+            constrain v37 == u1 1, "Index out of bounds"
+            v38 = unchecked_mul v2, u32 2
+            v39 = array_get v36, index v38 -> u32
+            v40 = unchecked_add v38, u32 1
+            v41 = array_get v36, index v40 -> u32
+            return v39, v41, v18
         }
         "#);
     }
@@ -1301,5 +1157,83 @@ mod tests {
             format!("{err}").contains("without a determinable size"),
             "unexpected error: {err}"
         );
+    }
+
+    #[test]
+    fn merge_vector_returned_by_black_box_hint() {
+        // The hint returns its vector argument unchanged, so the merged vector needs its capacity
+        // even though the length passed alongside it is not a constant.
+        let src = "
+        acir(inline) impure fn main f0 {
+          b0(v0: u1, v1: u32):
+            v2 = make_array [Field 1, Field 2] : [Field]
+            v3 = make_array [Field 3] : [Field]
+            v4, v5 = call black_box(v1, v2) -> (u32, [Field])
+            v6 = not v0
+            v7 = if v0 then v5 else (if v6) v3
+            v8 = array_get v7, index u32 1 -> Field
+            return v8
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let (_, result) = assert_pass_does_not_affect_execution(
+            ssa,
+            vec![Value::bool(true), Value::u32(2)],
+            |ssa| ssa.remove_if_else().unwrap(),
+        );
+        assert_eq!(result, Ok(vec![Value::field(2_u128.into())]));
+    }
+
+    #[test]
+    fn constant_length_of_a_disabled_call_does_not_shrink_its_input_elsewhere() {
+        // The `push_back` only runs when `v0` is true, so its constant length says nothing about
+        // `v1` when `v0` is false, and the merge still has to cover both elements of `v1`.
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            v1 = make_array [Field 1, Field 2] : [Field]
+            enable_side_effects v0
+            v4, v5 = call vector_push_back(u32 0, v1, Field 3) -> (u32, [Field])
+            v6 = not v0
+            enable_side_effects u1 1
+            v7 = if v0 then v5 else (if v6) v1
+            v8 = array_get v7, index u32 1 -> Field
+            return v8
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let (_, result) =
+            assert_pass_does_not_affect_execution(ssa, vec![Value::bool(false)], |ssa| {
+                ssa.remove_if_else().unwrap()
+            });
+        assert_eq!(result, Ok(vec![Value::field(2_u128.into())]));
+    }
+
+    #[test]
+    fn merge_disabled_vector_pop_back_result() {
+        // The disabled `pop_back` returns a zeroed vector of capacity 2, which is merged with a
+        // vector of capacity 1.
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            v1 = make_array [Field 1, Field 2, Field 3] : [Field]
+            v2 = make_array [Field 4] : [Field]
+            enable_side_effects v0
+            v5, v6, v7 = call vector_pop_back(u32 3, v1) -> (u32, [Field], Field)
+            v8 = not v0
+            enable_side_effects u1 1
+            v9 = if v0 then v6 else (if v8) v2
+            v10 = array_get v9, index u32 0 -> Field
+            return v10
+        }
+        ";
+        for (input, expected) in [(true, 1_u128), (false, 4)] {
+            let ssa = Ssa::from_str(src).unwrap();
+            let (_, result) =
+                assert_pass_does_not_affect_execution(ssa, vec![Value::bool(input)], |ssa| {
+                    ssa.remove_if_else().unwrap()
+                });
+            assert_eq!(result, Ok(vec![Value::field(expected.into())]));
+        }
     }
 }

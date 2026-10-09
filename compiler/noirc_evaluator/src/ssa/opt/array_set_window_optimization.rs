@@ -396,7 +396,16 @@ fn find_candidates(dfg: &DataFlowGraph, block_id: BasicBlockId) -> HashSet<Instr
 
 #[cfg(test)]
 mod tests {
-    use crate::{assert_ssa_snapshot, ssa::opt::assert_ssa_does_not_change};
+    use acvm::FieldElement;
+
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{
+            interpreter::value::Value,
+            ir::{instruction::Instruction, types::NumericType},
+            opt::{assert_pass_does_not_affect_execution, assert_ssa_does_not_change},
+        },
+    };
 
     use super::Ssa;
 
@@ -947,5 +956,75 @@ mod tests {
             return v17, v18
         }
         ");
+    }
+
+    /// The window over a `push_back` result is sized from the push's constant length, so reads
+    /// within the semantic length see the same values with and without the optimization.
+    #[test]
+    fn replaces_vector_array_set_on_push_back_result_with_constant_length() {
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = not v0
+            v2 = make_array [Field 10, Field 20, Field 30] : [Field]
+            v5, v6 = call vector_push_back(u32 1, v2, Field 40) -> (u32, [Field])
+            enable_side_effects v0
+            v8 = array_set v6, index u32 1, value Field 99
+            enable_side_effects u1 1
+            v9 = if v0 then v8 else (if v1) v6
+            v10 = array_get v9, index u32 0 -> Field
+            v11 = array_get v9, index u32 1 -> Field
+            return v10, v11
+        }
+        "#;
+        for (input, expected) in [(true, 99_u128), (false, 40)] {
+            let ssa = Ssa::from_str(src).unwrap();
+            let (_, result) =
+                assert_pass_does_not_affect_execution(ssa, vec![Value::bool(input)], |ssa| {
+                    ssa.array_set_window_optimization()
+                });
+            assert_eq!(
+                result,
+                Ok(vec![Value::field(10_u128.into()), Value::field(expected.into())])
+            );
+        }
+    }
+
+    /// Vector from `as_vector` and through a `black_box` hint — capacity is traced to the array.
+    #[test]
+    fn replaces_vector_array_set_on_as_vector_through_black_box_hint() {
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: [Field; 3]):
+            v2 = not v0
+            v3, v4 = call as_vector(v1) -> (u32, [Field])
+            v5, v6 = call black_box(v3, v4) -> (u32, [Field])
+            enable_side_effects v0
+            v8 = array_set v6, index u32 1, value Field 99
+            enable_side_effects u1 1
+            v9 = if v0 then v8 else (if v2) v6
+            v10 = array_get v9, index u32 1 -> Field
+            return v10
+        }
+        "#;
+        let array = || {
+            Value::array_from_iter(
+                [10_u128, 20, 30].map(FieldElement::from),
+                NumericType::NativeField,
+            )
+            .unwrap()
+        };
+        let ssa = Ssa::from_str(src).unwrap();
+        let (ssa, result) =
+            assert_pass_does_not_affect_execution(ssa, vec![Value::bool(true), array()], |ssa| {
+                ssa.array_set_window_optimization()
+            });
+        assert_eq!(result, Ok(vec![Value::field(99_u128.into())]));
+        let main = ssa.main();
+        let keeps_array_set = main.dfg[main.entry_block()]
+            .instructions()
+            .iter()
+            .any(|id| matches!(main.dfg[*id], Instruction::ArraySet { .. }));
+        assert!(!keeps_array_set, "the array_set should be replaced by the window");
     }
 }
