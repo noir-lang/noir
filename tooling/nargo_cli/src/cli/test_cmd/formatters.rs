@@ -406,7 +406,7 @@ pub(super) struct JsonFormatter;
 impl Formatter for JsonFormatter {
     fn package_start_async(&self, package_name: &str, test_count: usize) -> std::io::Result<()> {
         let json = json!({"type": "suite", "event": "started", "name": package_name, "test_count": test_count});
-        println!("{json}");
+        writeln!(std::io::stdout(), "{json}")?;
         Ok(())
     }
 
@@ -416,7 +416,7 @@ impl Formatter for JsonFormatter {
 
     fn test_start_async(&self, name: &str, package_name: &str) -> std::io::Result<()> {
         let json = json!({"type": "test", "event": "started", "name": name, "suite": package_name});
-        println!("{json}");
+        writeln!(std::io::stdout(), "{json}")?;
         Ok(())
     }
 
@@ -479,7 +479,7 @@ impl Formatter for JsonFormatter {
         }
 
         let json = json!(json);
-        println!("{json}");
+        writeln!(std::io::stdout(), "{json}")?;
 
         Ok(())
     }
@@ -520,14 +520,14 @@ impl Formatter for JsonFormatter {
         }
         let event = if failed == 0 { "ok" } else { "failed" };
         let json = json!({"type": "suite", "event": event, "passed": passed, "failed": failed, "ignored": ignored});
-        println!("{json}");
+        writeln!(std::io::stdout(), "{json}")?;
         Ok(())
     }
 }
 
 fn package_start(package_name: &str, test_count: usize) -> std::io::Result<()> {
     let plural = if test_count == 1 { "" } else { "s" };
-    println!("[{package_name}] Running {test_count} test function{plural}");
+    writeln!(std::io::stdout(), "[{package_name}] Running {test_count} test function{plural}")?;
     Ok(())
 }
 

@@ -320,7 +320,10 @@ impl<'a> TestRunner<'a> {
 
         // Now run all tests in parallel, but show output for each package sequentially
         let tests_count = tests.len();
-        let all_passed = self.run_all_tests(tests, &test_count_per_package, coverage_per_package);
+        let all_passed =
+            self.run_all_tests(tests, &test_count_per_package, coverage_per_package).map_err(
+                |err| CliError::Generic(format!("Could not display test results: {err}")),
+            )?;
 
         if tests_count == 0 {
             match &self.pattern {
@@ -364,7 +367,8 @@ impl<'a> TestRunner<'a> {
         &'a self,
         iter_tests: &Mutex<I>,
         thread_sender: &Sender<(TestResult, Option<lcov::Report>)>,
-    ) where
+    ) -> std::io::Result<()>
+    where
         I: Iterator<Item = Test<'a>>,
     {
         let mut cached: Option<CachedContext<'a>> = None;
@@ -375,9 +379,7 @@ impl<'a> TestRunner<'a> {
                 break;
             };
 
-            self.formatter
-                .test_start_async(&test.name, &test.package_name)
-                .expect("Could not display test start");
+            self.formatter.test_start_async(&test.name, &test.package_name)?;
 
             let time_before_test = std::time::Instant::now();
 
@@ -429,21 +431,20 @@ impl<'a> TestRunner<'a> {
                 time_to_run,
             };
 
-            self.formatter
-                .test_end_async(
-                    &test_result,
-                    self.file_manager,
-                    self.parsed_files,
-                    self.args.show_output,
-                    self.args.compile_options.deny_warnings,
-                    self.args.compile_options.silence_warnings,
-                )
-                .expect("Could not display test start");
+            self.formatter.test_end_async(
+                &test_result,
+                self.file_manager,
+                self.parsed_files,
+                self.args.show_output,
+                self.args.compile_options.deny_warnings,
+                self.args.compile_options.silence_warnings,
+            )?;
 
             if thread_sender.send((test_result, test_coverage)).is_err() {
                 break;
             }
         }
+        Ok(())
     }
 
     /// Runs all tests. Returns `true` if all tests passed, `false` otherwise.
@@ -452,13 +453,11 @@ impl<'a> TestRunner<'a> {
         tests: Vec<Test<'a>>,
         test_count_per_package: &BTreeMap<PackageName, usize>,
         mut coverage_per_package: BTreeMap<PackageName, lcov::Report>,
-    ) -> bool {
+    ) -> std::io::Result<bool> {
         let mut all_passed = true;
 
         for (package_name, total_test_count) in test_count_per_package {
-            self.formatter
-                .package_start_async(package_name, *total_test_count)
-                .expect("Could not display package start");
+            self.formatter.package_start_async(package_name, *total_test_count)?;
         }
 
         let (sender, receiver) = mpsc::channel();
@@ -476,28 +475,35 @@ impl<'a> TestRunner<'a> {
         let iter_tests_with_arguments = &Mutex::new(iter_tests_with_arguments.into_iter());
 
         thread::scope(|scope| {
+            // Owning the receiver here drops it if displaying a result fails, so the workers'
+            // next send fails and they stop picking up tests.
+            let receiver = receiver;
+            let mut workers = Vec::with_capacity(num_threads + 1);
+
             // Start worker threads
             for _ in 0..num_threads {
                 // Clone sender so it's dropped once the thread finishes
                 let test_result_thread_sender = sender.clone();
                 let standard_tests_finished_thread_sender = standard_tests_finished_sender.clone();
-                thread::Builder::new()
+                let worker = thread::Builder::new()
                     // Specify a larger-than-default stack size to prevent overflowing stack in large programs.
                     // (the default is 2MB)
                     .stack_size(STACK_SIZE)
                     .spawn_scoped(scope, move || {
-                        self.process_chunk_of_tests(
+                        let result = self.process_chunk_of_tests(
                             iter_tests_without_arguments,
                             &test_result_thread_sender,
                         );
                         // Signal that we've finished processing the standard tests in this thread
                         let _ = standard_tests_finished_thread_sender.send(());
+                        result
                     })
                     .unwrap();
+                workers.push(worker);
             }
 
             let test_result_thread_sender = sender.clone();
-            thread::Builder::new()
+            let fuzz_worker = thread::Builder::new()
                 .stack_size(STACK_SIZE)
                 .spawn_scoped(scope, move || {
                     let mut standard_tests_threads_finished = 0;
@@ -514,9 +520,10 @@ impl<'a> TestRunner<'a> {
                     self.process_chunk_of_tests(
                         iter_tests_with_arguments,
                         &test_result_thread_sender,
-                    );
+                    )
                 })
                 .unwrap();
+            workers.push(fuzz_worker);
 
             // Also drop main sender so the channel closes
             drop(sender);
@@ -530,9 +537,7 @@ impl<'a> TestRunner<'a> {
                 let mut current_test_count = 0;
                 let total_test_count = *total_test_count;
 
-                self.formatter
-                    .package_start_sync(package_name, total_test_count)
-                    .expect("Could not display package start");
+                self.formatter.package_start_sync(package_name, total_test_count)?;
 
                 // Check if we have buffered test results for this package
                 if let Some(buffered_tests) = buffer.remove(package_name) {
@@ -541,8 +546,7 @@ impl<'a> TestRunner<'a> {
                             &test_result,
                             current_test_count + 1,
                             total_test_count,
-                        )
-                        .expect("Could not display test status");
+                        )?;
                         test_report.push(test_result);
                         current_test_count += 1;
                     }
@@ -575,8 +579,7 @@ impl<'a> TestRunner<'a> {
                             &test_result,
                             current_test_count + 1,
                             total_test_count,
-                        )
-                        .expect("Could not display test status");
+                        )?;
 
                         test_report.push(test_result);
 
@@ -587,17 +590,15 @@ impl<'a> TestRunner<'a> {
                     }
                 }
 
-                self.formatter
-                    .package_end(
-                        package_name,
-                        &test_report,
-                        self.file_manager,
-                        self.parsed_files,
-                        self.args.show_output,
-                        self.args.compile_options.deny_warnings,
-                        self.args.compile_options.silence_warnings,
-                    )
-                    .expect("Could not display test report");
+                self.formatter.package_end(
+                    package_name,
+                    &test_report,
+                    self.file_manager,
+                    self.parsed_files,
+                    self.args.show_output,
+                    self.args.compile_options.deny_warnings,
+                    self.args.compile_options.silence_warnings,
+                )?;
 
                 if let Some(package_report) = coverage_per_package.remove(package_name) {
                     let lcov_path = coverage::package_lcov_path(
@@ -608,9 +609,15 @@ impl<'a> TestRunner<'a> {
                     coverage::write_package_coverage(package_report, &lcov_path);
                 }
             }
-        });
 
-        all_passed
+            // A worker that failed to display a result stops early, which can leave packages
+            // with fewer results than tests; its error explains why.
+            for worker in workers {
+                worker.join().unwrap_or_else(|panic| std::panic::resume_unwind(panic))?;
+            }
+
+            Ok(all_passed)
+        })
     }
 
     /// Compiles all packages in parallel and returns their tests and optional coverage baseline.
