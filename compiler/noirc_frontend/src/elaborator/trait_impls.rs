@@ -264,6 +264,7 @@ impl Elaborator<'_> {
                 ident,
                 location,
                 typ: self.item.impl_context.expect_self_type().clone(),
+                generics: self.item.generics.type_vars(),
                 trait_id,
                 file: trait_impl.file_id,
                 crate_id: self.crate_id,
@@ -271,13 +272,10 @@ impl Elaborator<'_> {
                 methods,
             });
 
-            let impl_generics = self.item.generics.type_vars();
-
             match self.interner.add_trait_implementation(
                 self.item.impl_context.expect_self_type().clone(),
                 trait_id,
                 trait_impl.impl_id.expect("ICE: impl_id should be set in define_function_metas"),
-                impl_generics,
                 resolved_trait_impl,
                 location,
             ) {

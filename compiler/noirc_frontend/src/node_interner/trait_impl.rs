@@ -239,7 +239,7 @@ impl NodeInterner {
     /// For example if the object type if `Foo<T'3>` then it becomes `Foo<'5>`.
     /// The difference is that `Foo<T'3>` would not unify with `Foo<T'4>`,
     /// but as `Foo<'5>` it will, allowing us to match existing implementations.
-    fn replace_generics_with_fresh_type_variable(
+    pub(super) fn replace_generics_with_fresh_type_variable(
         &self,
         object_type: &Type,
         impl_generics: GenericTypeVars,
@@ -320,7 +320,6 @@ impl NodeInterner {
         object_type: Type,
         trait_id: TraitId,
         impl_id: TraitImplId,
-        impl_generics: GenericTypeVars,
         trait_impl: Shared<TraitImpl>,
         location: Location,
     ) -> Result<Result<(), Location>, CompilationError> {
@@ -339,6 +338,7 @@ impl NodeInterner {
             .into());
         }
 
+        let impl_generics = trait_impl.borrow().generics.clone();
         let (instantiated_object_type, substitutions) =
             self.replace_generics_with_fresh_type_variable(&object_type, impl_generics);
 
@@ -400,13 +400,13 @@ impl NodeInterner {
             Ok((TraitImplKind::Prepared(..), ..)) => unreachable!(),
         }
 
-        for method in &trait_impl.borrow().methods {
-            let method_name = self.function_name(method).to_owned();
-            self.add_method(&object_type, method_name, *method, Some(trait_id))?;
-        }
-
         // The object type is generalized so that a generic impl will apply
         // to any type T, rather than just the generic type named T.
+        for method in &trait_impl.borrow().methods {
+            let method_name = self.function_name(method).to_owned();
+            self.add_method(&object_type, method_name, *method, Some(impl_id))?;
+        }
+
         let generalized_object_type = object_type.generalize_from_substitutions(substitutions);
 
         let entries = self.trait_implementation_map.entry(trait_id).or_default();

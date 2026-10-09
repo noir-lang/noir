@@ -10,8 +10,8 @@ use crate::node_interner::{
     DefinitionId, ImplSearchErrorKind, NodeInterner, TraitImplKind, TraitLookupMode,
 };
 use crate::{
-    Kind, NamedGeneric, ResolvedGenerics, Type, TypeBinding, TypeBindings, TypeVariable,
-    TypeVariableId,
+    GenericTypeVars, Kind, NamedGeneric, ResolvedGenerics, Type, TypeBinding, TypeBindings,
+    TypeVariable, TypeVariableId,
     graph::CrateId,
     node_interner::{FuncId, TraitId},
 };
@@ -108,7 +108,11 @@ pub struct Trait {
 pub struct TraitImpl {
     pub ident: Ident,
     pub location: Location,
+    /// The type the impl is for, written in terms of the impl's [`Self::generics`].
     pub typ: Type,
+    /// The impl's generics. The impl applies to every type [`Self::typ`] describes, one for each
+    /// choice of these.
+    pub generics: GenericTypeVars,
     pub trait_id: TraitId,
 
     pub file: FileId,
