@@ -107,30 +107,22 @@ impl<'context> Elaborator<'context> {
     ) -> T {
         self.elaborate_item_from_comptime(reason, f, |elaborator| {
             if let Some(function) = current_function {
-                let (
-                    source_crate,
-                    source_module,
-                    all_generics,
-                    self_type,
-                    trait_impl,
-                    trait_id,
-                    trait_bounds,
-                ) = elaborator.with_function_meta(function, |meta| {
-                    (
-                        meta.source_crate,
-                        meta.source_module,
-                        meta.all_generics.clone(),
-                        meta.self_type.clone(),
-                        meta.trait_impl,
-                        meta.trait_id,
-                        meta.all_trait_constraints().cloned().collect(),
-                    )
-                });
+                let (source_crate, source_module, all_generics, trait_bounds) = elaborator
+                    .with_function_meta(function, |meta| {
+                        (
+                            meta.source_crate,
+                            meta.source_module,
+                            meta.all_generics.clone(),
+                            meta.all_trait_constraints().cloned().collect(),
+                        )
+                    });
+                let interner = &elaborator.interner;
+                let impl_context =
+                    ImplContext::of_function(interner.function_meta(&function), interner);
                 elaborator.item.module.set_current_item(Some(DependencyId::Function(function)));
                 elaborator.crate_id = source_crate;
                 elaborator.item.module.set_local_module(source_module);
-                elaborator.item.impl_context =
-                    ImplContext::in_trait_impl(self_type, trait_id, trait_impl);
+                elaborator.item.impl_context = impl_context;
                 elaborator.item.generics = GenericsContext::new(Vec::new(), trait_bounds);
                 elaborator.introduce_generics_into_scope(all_generics);
             }
