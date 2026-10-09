@@ -841,8 +841,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     self.elaborator.interner.find_associated_type_for_impl(*trait_impl_id, name);
                 let typ = typ.expect("Expected to find associated type");
                 // The value can mention the impl's generics (`A + B` in
-                // `impl<let A: u32, let B: u32>`), which the frame's substitution binds.
-                let typ = self.ty(typ);
+                // `impl<let A: u32, let B: u32>`). A use reached through a type (`G::<7>::C`)
+                // binds them itself; otherwise the frame's substitution does.
+                let bindings = self.elaborator.interner.try_get_instantiation_bindings(id);
+                let bindings = bindings.map_or(TypeBindings::default(), |b| self.bindings(b));
+                let typ = self.ty(&typ.substitute(&bindings));
                 let location = self.elaborator.interner.expr_location(&id);
                 match typ.evaluate_to_integer(&typ.kind(), location) {
                     Ok(value) => self.evaluate_integer_literal(value.to_bigint(), id),

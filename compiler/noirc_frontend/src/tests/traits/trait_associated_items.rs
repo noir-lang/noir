@@ -2938,6 +2938,37 @@ fn associated_constant_shorthand_on_generic_trait_is_ambiguous_with_multiple_imp
 }
 
 #[test]
+fn associated_constant_shorthand_on_generic_impl_uses_the_type_arguments() {
+    let src = r#"
+    pub trait Tr<let M: u32> { let C: u32; }
+    pub struct G<let N: u32> {}
+    impl<let N: u32> Tr<N> for G<N> { let C: u32 = N * 10; }
+    fn main() -> pub u32 { G::<7>::C }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u32 {
+        70
+    }
+    ");
+}
+
+#[test]
+fn associated_constant_shorthand_on_generic_impl_is_ambiguous_with_another_impl() {
+    let src = r#"
+    pub trait Tr<let M: u32> { let C: u32; }
+    pub struct G<let N: u32> {}
+    impl<let N: u32> Tr<N> for G<N> { let C: u32 = N * 10; }
+                               ~~~~ candidate `Tr<N>` defined here
+    impl Tr<5> for G<7> { let C: u32 = 1; }
+                   ~~~~ candidate `Tr<5>` defined here
+    fn main() -> pub u32 { G::<7>::C }
+                                   ^ Multiple `impl`s of `Tr` apply to `G<7>`
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn elided_bounded_associated_type_does_not_wildcard_match_unrelated_type() {
     // `where T: Foo` elides `Foo`'s bounded associated type `Bar: Baz`, so the
     // elaborator synthesizes an implicit generic for it and assumes `<T as Foo>::Bar: Baz`.
@@ -3543,6 +3574,63 @@ fn impl_used_before_it_is_finished_applies_when_its_where_clause_holds() {
     insta::assert_snapshot!(program, @r"
     fn main$f0() -> pub u32 {
         5
+    }
+    ");
+}
+
+#[test]
+fn associated_constant_shorthand_on_generic_impl_of_non_generic_trait_uses_the_type_arguments() {
+    let src = r#"
+    pub trait Tr { let C: u32; }
+    pub struct G<let N: u32> {}
+    impl<let N: u32> Tr for G<N> { let C: u32 = N * 10; }
+    fn main() -> pub u32 { G::<7>::C }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u32 {
+        70
+    }
+    ");
+}
+
+#[test]
+fn associated_constant_shorthand_inside_generic_impl_uses_its_own_type_arguments() {
+    let src = r#"
+    pub trait HasBits { let BITS: u32; fn bits_of_eight() -> u32; }
+    pub struct UInt<let N: u32> {}
+    impl<let N: u32> HasBits for UInt<N> {
+        let BITS: u32 = N;
+        fn bits_of_eight() -> u32 { UInt::<8>::BITS }
+    }
+    fn main() -> pub u32 { UInt::<16>::bits_of_eight() }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u32 {
+        bits_of_eight$f1()
+    }
+    fn bits_of_eight$f1() -> u32 {
+        8
+    }
+    ");
+}
+
+#[test]
+fn associated_constant_shorthand_inside_generic_impl_uses_its_own_type_arguments_at_comptime() {
+    let src = r#"
+    pub trait HasBits { let BITS: u32; fn bits_of_eight() -> u32; }
+    pub struct UInt<let N: u32> {}
+    impl<let N: u32> HasBits for UInt<N> {
+        let BITS: u32 = N;
+        fn bits_of_eight() -> u32 { UInt::<8>::BITS }
+    }
+    fn main() -> pub u32 { comptime { UInt::<16>::bits_of_eight() } }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u32 {
+        8
     }
     ");
 }

@@ -1670,7 +1670,10 @@ impl<'interner> Monomorphizer<'interner> {
             DefinitionKind::AssociatedConstant(trait_impl_id, name) => {
                 let location = ident.location;
                 let assoc_typ = self.interner.find_associated_type_for_impl(*trait_impl_id, name);
-                let assoc_typ = self.ty(assoc_typ.expect("Expected to find associated type"));
+                let assoc_typ = assoc_typ.expect("Expected to find associated type");
+                // The value is written in terms of the impl's generics, which this use binds.
+                let bindings = self.instantiation_bindings(expr_id).unwrap_or_default();
+                let assoc_typ = self.ty(&assoc_typ.substitute(&bindings));
                 match assoc_typ.evaluate_to_integer(&assoc_typ.kind(), location) {
                     Ok(value) => {
                         let typ = Self::convert_type(&typ, location)?;
