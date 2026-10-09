@@ -1347,3 +1347,129 @@ fn default_method_uses_associated_type_of_grandparent() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn method_bound_on_unrelated_trait_uses_the_implementors_associated_type() {
+    let src = r#"
+    trait Conv { type O; fn conv(self) -> Self::O; }
+    pub trait User {
+        fn m(self) -> <Self as Conv>::O where Self: Conv { Conv::conv(self) }
+        fn n(self) -> Field where Self: Conv { let _ = Conv::conv(self); 7 }
+    }
+    pub struct S { v: Field }
+    impl Conv for S { type O = Field; fn conv(self) -> Field { self.v + 2 } }
+    impl User for S {}
+    fn main() {
+        let _: Field = S { v: 1 }.m();
+        let _: Field = S { v: 1 }.n();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn method_bound_on_unrelated_generic_trait_uses_the_implementors_associated_type() {
+    let src = r#"
+    trait Conv<X> { type O; fn conv(self, x: X) -> Self::O; }
+    pub trait User {
+        fn m(self) -> <Self as Conv<u16>>::O where Self: Conv<u16> { Conv::<u16>::conv(self, 2) }
+    }
+    pub struct S { v: Field }
+    impl Conv<u16> for S { type O = Field; fn conv(self, x: u16) -> Field { self.v + x as Field } }
+    impl User for S {}
+    fn main() {
+        let _: Field = S { v: 1 }.m();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn method_declaration_bound_on_unrelated_trait_is_callable_from_generic_code() {
+    let src = r#"
+    trait Conv { type O; fn conv(self) -> Self::O; }
+    trait User { fn m(self) -> <Self as Conv>::O where Self: Conv; }
+    pub struct S { v: Field }
+    impl Conv for S { type O = Field; fn conv(self) -> Field { self.v + 2 } }
+    impl User for S { fn m(self) -> Field { self.conv() * 10 } }
+    fn generic<T>(t: T) -> <T as Conv>::O where T: User + Conv { t.m() }
+    fn main() {
+        let _: Field = S { v: 1 }.m();
+        let _: Field = generic(S { v: 1 });
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn method_bounds_on_one_trait_with_different_arguments_have_distinct_associated_types() {
+    let src = r#"
+    trait Conv<X> { type O; fn conv(self, x: X) -> Self::O; }
+    pub trait User {
+        fn m(self) -> <Self as Conv<u8>>::O where Self: Conv<u8> + Conv<u16> {
+            let a: <Self as Conv<u8>>::O = Conv::<u8>::conv(self, 1);
+            let _b: <Self as Conv<u16>>::O = a;
+                                             ^ Expected type Self::O, found type Self::O
+            a
+        }
+    }
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn method_bound_on_supertrait_with_other_arguments_has_its_own_associated_type() {
+    let src = r#"
+    trait Conv<X> { type O; fn conv(self, x: X) -> Self::O; }
+    pub trait User: Conv<u8> {
+        fn m(self) -> <Self as Conv<u16>>::O where Self: Conv<u16> { Conv::<u16>::conv(self, 2) }
+    }
+    pub struct S { v: Field }
+    impl Conv<u8> for S { type O = bool; fn conv(self, _x: u8) -> bool { true } }
+    impl Conv<u16> for S { type O = Field; fn conv(self, x: u16) -> Field { self.v + x as Field } }
+    impl User for S {}
+    fn main() {
+        let _: Field = S { v: 1 }.m();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn method_bound_on_supertrait_with_other_arguments_is_a_distinct_projection() {
+    let src = r#"
+    trait Conv<X> { type O; fn conv(self, x: X) -> Self::O; }
+    pub trait User: Conv<u8> {
+        fn m(self) -> Field where Self: Conv<u16> {
+            let a: <Self as Conv<u8>>::O = Conv::<u8>::conv(self, 1);
+            let _b: <Self as Conv<u16>>::O = a;
+                                             ^ Expected type Self::O, found type Self::O
+            0
+        }
+    }
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn method_bound_on_supertrait_uses_the_supertraits_associated_type() {
+    let src = r#"
+    trait Parent { type A; fn get(self) -> Self::A; }
+    trait Marker {}
+    trait Child: Parent {
+        fn pair(self) -> (<Self as Parent>::A, <Self as Parent>::A) where Self: Parent + Marker {
+            (self.get(), self.get())
+        }
+    }
+    pub struct S { x: u8 }
+    impl Parent for S { type A = u8; fn get(self) -> u8 { self.x + 1 } }
+    impl Marker for S {}
+    impl Child for S {}
+    fn main() {
+        let _: (u8, u8) = S { x: 1 }.pair();
+    }
+    "#;
+    assert_no_errors(src);
+}

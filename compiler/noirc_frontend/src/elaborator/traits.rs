@@ -244,7 +244,7 @@ impl Elaborator<'_> {
                 // into the explicit form (e.g. `I: Iterator<Item = FreshGeneric>`), returning
                 // any fresh generics created in the process (`[FreshGeneric]` here).
                 let desugared_generics =
-                    this.desugar_trait_constraints(&mut unresolved_trait.trait_def.where_clause);
+                    this.desugar_where_clause(&mut unresolved_trait.trait_def.where_clause, true);
 
                 this.item.generics.add_params(desugared_generics);
 
@@ -350,10 +350,24 @@ impl Elaborator<'_> {
         &mut self,
         where_clause: &mut [UnresolvedTraitConstraint],
     ) -> Vec<ResolvedGeneric> {
+        self.desugar_where_clause(where_clause, false)
+    }
+
+    /// Like [`Self::desugar_trait_constraints`], for the where clause of a trait's own
+    /// declaration, where every bound on `Self` declares a supertrait.
+    fn desugar_where_clause(
+        &mut self,
+        where_clause: &mut [UnresolvedTraitConstraint],
+        declared_by_trait: bool,
+    ) -> Vec<ResolvedGeneric> {
         where_clause
             .iter_mut()
             .flat_map(|constraint| {
-                self.add_missing_named_generics(&constraint.typ, &mut constraint.trait_bound)
+                self.add_missing_named_generics(
+                    &constraint.typ,
+                    &mut constraint.trait_bound,
+                    declared_by_trait,
+                )
             })
             .collect()
     }
@@ -397,6 +411,7 @@ impl Elaborator<'_> {
         &mut self,
         object: &UnresolvedType,
         bound: &mut TraitBound,
+        declared_by_trait: bool,
     ) -> Vec<ResolvedGeneric> {
         let mut added_generics = Vec::new();
         let trait_path = self.validate_path(bound.trait_path.clone());
@@ -412,9 +427,11 @@ impl Elaborator<'_> {
         };
 
         let trait_name = self.projection_trait_name(trait_id, &bound.trait_generics.ordered_args);
-        let the_trait = self.get_trait(trait_id);
         let object_name = self.unresolved_type_name(object);
-        let object_is_own_self = self.in_trait_declaration() && object_name == SELF_TYPE_NAME;
+        let object_is_own_self = self.in_trait_declaration()
+            && object_name == SELF_TYPE_NAME
+            && (declared_by_trait || self.declaration_implies_written_bound(trait_id, bound));
+        let the_trait = self.get_trait(trait_id);
 
         for associated_type in &the_trait.associated_types.clone() {
             if !bound
@@ -504,6 +521,55 @@ impl Elaborator<'_> {
     fn in_trait_declaration(&self) -> bool {
         self.item.impl_context.current_trait().is_some()
             && self.item.impl_context.current_trait_impl().is_none()
+    }
+
+    /// Whether the trait whose declaration is being elaborated implies `Self: bound`, `bound`
+    /// being written on one of its items. See [`Self::declaration_implies`].
+    fn declaration_implies_written_bound(&mut self, trait_id: TraitId, bound: &TraitBound) -> bool {
+        let error_count = self.errors.len();
+        let (ordered, _) = self.resolve_type_args_inner(
+            bound.trait_generics.clone(),
+            trait_id,
+            bound.trait_path.location,
+            PathResolutionMode::MarkAsReferenced,
+            WildcardAllowed::No(WildcardDisallowedContext::TraitBound),
+        );
+        // The bound is resolved again with the rest of the where clause, which reports its errors.
+        self.errors.truncate(error_count);
+        self.declaration_implies(trait_id, &ordered)
+    }
+
+    /// Whether the trait whose declaration is being elaborated implies `Self: trait_id<ordered>`:
+    /// the bound is that trait or one of its supertraits, transitively, with these arguments.
+    /// Those are the bounds whose associated types are the trait's own (see
+    /// `lookup_associated_type_on_self`). Any other bound on `Self` is an assumption of the item
+    /// that writes it, so its associated types belong to that item.
+    fn declaration_implies(&self, trait_id: TraitId, ordered: &[Type]) -> bool {
+        let Some(current_trait) = self.item.impl_context.current_trait() else {
+            return false;
+        };
+        let the_trait = self.interner.get_trait(current_trait);
+        let self_type = the_trait.self_type();
+        let mut pending = vec![the_trait.as_constraint(the_trait.location).trait_bound];
+        let mut seen: Vec<(TraitId, Vec<Type>)> = Vec::new();
+        while let Some(bound) = pending.pop() {
+            let key = (bound.trait_id, bound.trait_generics.ordered.clone());
+            if key.0 == trait_id && key.1 == ordered {
+                return true;
+            }
+            if seen.contains(&key) {
+                continue;
+            }
+            seen.push(key);
+            for parent_bound in self.interner.get_trait(bound.trait_id).parent_bounds() {
+                pending.push(self.instantiate_parent_trait_bound(
+                    &self_type,
+                    &bound,
+                    &parent_bound,
+                ));
+            }
+        }
+        false
     }
 
     /// Whether `typ` is the `Self` of the trait whose declaration is being elaborated.
@@ -734,7 +800,8 @@ impl Elaborator<'_> {
                 );
                 let parent_trait = self.interner.get_trait(instantiated.trait_id);
                 let object_name = object_type.to_string();
-                let object_is_own_self = self.is_own_self(object_type);
+                let object_is_own_self = self.is_own_self(object_type)
+                    && self.declaration_implies(instantiated.trait_id, ordered);
 
                 let named = vecmap(&instantiated.trait_generics.named, |named_type| {
                     // An item the parent bound fixes (`Foo<Assoc = u8>`) keeps its value; only
