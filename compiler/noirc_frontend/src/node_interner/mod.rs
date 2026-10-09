@@ -189,6 +189,10 @@ pub struct NodeInterner {
     /// by splitting it up by type.
     trait_implementation_map: HashMap<TraitId, Vec<(Type, TraitImplKind)>>,
 
+    /// The self type of each trait impl, generalized over the impl's generics (a [`Type::Forall`]),
+    /// so that each use of the impl gives them fresh type variables.
+    trait_impl_self_types: HashMap<TraitImplId, Type>,
+
     /// The where clause of each trait impl, so that a lookup matches an impl only where its
     /// where clause holds.
     ///
@@ -506,6 +510,7 @@ impl Default for NodeInterner {
             impls: HashMap::default(),
             next_impl_id: 0,
             trait_implementation_map: HashMap::default(),
+            trait_impl_self_types: HashMap::default(),
             trait_impl_where_clauses: HashMap::default(),
             selected_trait_implementations: HashMap::default(),
             infix_operator_traits: HashMap::default(),
@@ -1047,12 +1052,12 @@ impl NodeInterner {
         self_type: &Type,
         method_name: String,
         method_id: FuncId,
-        trait_id: Option<TraitId>,
+        trait_impl: Option<TraitImplId>,
     ) -> Result<(), CompilationError> {
         match self_type {
             Type::Error => Ok(()),
             Type::Reference(element, _mutable) => {
-                self.add_method(element, method_name, method_id, trait_id)
+                self.add_method(element, method_name, method_id, trait_impl)
             }
             _ => {
                 let Some(key) = get_type_method_key(self_type) else {
@@ -1067,7 +1072,7 @@ impl NodeInterner {
                 let typ = self_type.clone();
 
                 // For inherent (non-trait) methods, check for overlapping implementations.
-                if trait_id.is_none()
+                if trait_impl.is_none()
                     && let Some(existing_methods) =
                         self.methods.get(&key).and_then(|m| m.get(&method_name))
                     && let Some((existing_method, existing_type)) =
@@ -1083,13 +1088,17 @@ impl NodeInterner {
                     return Err(error.into());
                 }
 
+                let trait_impl = trait_impl.map(|impl_id| {
+                    (impl_id, self.get_trait_implementation(impl_id).borrow().trait_id)
+                });
+
                 // Add the method to the collection
                 self.methods
                     .entry(key)
                     .or_default()
                     .entry(method_name)
                     .or_default()
-                    .add_method(method_id, typ, trait_id);
+                    .add_method(method_id, typ, trait_impl);
                 Ok(())
             }
         }
@@ -1545,6 +1554,11 @@ impl NodeInterner {
     /// The [Type] of each [`NamedType`] that is an associated constant is guaranteed to be a [`Type::TypeVariable`].
     pub fn get_trait_generics_for_impl(&self, impl_id: TraitImplId) -> &TraitGenerics {
         &self.trait_impl_generic_types[&impl_id]
+    }
+
+    /// The self type of the given trait impl, with fresh type variables for the impl's generics.
+    pub(crate) fn instantiate_trait_impl_self_type(&self, impl_id: TraitImplId) -> Type {
+        self.trait_impl_self_types[&impl_id].instantiate(self).0
     }
 
     /// Returns the ordered generics for the given trait impl.

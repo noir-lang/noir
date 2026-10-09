@@ -400,14 +400,16 @@ impl NodeInterner {
             Ok((TraitImplKind::Prepared(..), ..)) => unreachable!(),
         }
 
-        for method in &trait_impl.borrow().methods {
-            let method_name = self.function_name(method).to_owned();
-            self.add_method(&object_type, method_name, *method, Some(trait_id))?;
-        }
-
         // The object type is generalized so that a generic impl will apply
         // to any type T, rather than just the generic type named T.
-        let generalized_object_type = object_type.generalize_from_substitutions(substitutions);
+        let generalized_object_type =
+            object_type.clone().generalize_from_substitutions(substitutions);
+        self.trait_impl_self_types.insert(impl_id, generalized_object_type.clone());
+
+        for method in &trait_impl.borrow().methods {
+            let method_name = self.function_name(method).to_owned();
+            self.add_method(&object_type, method_name, *method, Some(impl_id))?;
+        }
 
         let entries = self.trait_implementation_map.entry(trait_id).or_default();
         entries.push((generalized_object_type, TraitImplKind::Normal(impl_id)));

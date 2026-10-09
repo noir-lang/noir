@@ -1,7 +1,7 @@
 //! Tests for trait method resolution and scope rules.
 //! Validates that trait methods are correctly resolved based on imports, handles ambiguity, and suggests missing imports.
 
-use crate::test_utils::stdlib_src;
+use crate::test_utils::{get_monomorphized, stdlib_src};
 use crate::tests::{
     assert_no_errors, check_errors, check_errors_with_stdlib, check_monomorphization_error,
 };
@@ -1178,4 +1178,81 @@ fn no_eq_impl_for_struct_in_assert_eq() {
     }
     "#;
     check_errors_with_stdlib(src, [stdlib_src::EQ]);
+}
+
+#[test]
+fn inherited_static_default_method_on_generic_impl_uses_the_type_arguments() {
+    let src = r#"
+    pub trait Lim { fn limit() -> u32; fn make() -> u32 { Self::limit() } }
+    pub struct G<let N: u32> {}
+    impl<let N: u32> Lim for G<N> { fn limit() -> u32 { N } }
+    pub struct H<T> {}
+    impl<T> Lim for H<T> { fn limit() -> u32 { 5 } }
+    fn main() -> pub (u32, u32) { (G::<7>::make(), H::<u8>::make()) }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub (u32, u32) {
+        (make$f1(), make$f2())
+    }
+    fn make$f1() -> u32 {
+        limit$f3()
+    }
+    fn make$f2() -> u32 {
+        limit$f4()
+    }
+    fn limit$f3() -> u32 {
+        7
+    }
+    fn limit$f4() -> u32 {
+        5
+    }
+    ");
+}
+
+#[test]
+fn inherited_static_default_method_on_generic_impl_is_ambiguous_with_another_trait() {
+    let src = r#"
+    pub trait A { fn limit() -> u32; fn make() -> u32 { Self::limit() } }
+    pub trait B { fn make() -> u32; }
+    pub struct G<let N: u32> {}
+    impl<let N: u32> A for G<N> { fn limit() -> u32 { N } }
+    impl<let N: u32> B for G<N> { fn make() -> u32 { 1000 } }
+    fn main() -> pub u32 { G::<7>::make() }
+                                   ^^^^ Multiple applicable items in scope
+                                   ~~~~ Multiple traits which provide `make` are implemented and in scope: `A`, `B`
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn inherited_self_default_method_on_generic_impl_keeps_the_receiver_generic() {
+    let src = r#"
+    pub trait Lim { fn limit(self) -> u32; fn me(self) -> u32 { self.limit() } }
+    pub struct G<let N: u32> {}
+    impl<let N: u32> Lim for G<N> { fn limit(self) -> u32 { N } }
+    fn main() -> pub u32 {
+        let g = G {};
+        let r = g.me();
+        let _h: G<7> = g;
+        r
+    }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u32 {
+        let g$l0 = {
+            ()
+        };
+        let r$l1 = me$f1(g$l0);
+        let _h$l2 = g$l0;
+        r$l1
+    }
+    fn me$f1(self$l3: ()) -> u32 {
+        limit$f2(self$l3)
+    }
+    fn limit$f2(self$l4: ()) -> u32 {
+        7
+    }
+    ");
 }

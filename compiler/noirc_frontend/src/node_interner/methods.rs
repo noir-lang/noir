@@ -1,6 +1,6 @@
 use crate::{
     Type, TypeBindings,
-    node_interner::{FuncId, TraitId},
+    node_interner::{FuncId, TraitId, TraitImplId},
 };
 
 use super::NodeInterner;
@@ -13,9 +13,12 @@ pub struct ImplMethod {
 
 #[derive(Debug, Clone)]
 pub struct TraitImplMethod {
-    pub typ: Type,
     pub method: FuncId,
     pub trait_id: TraitId,
+    /// The impl the method comes from. Its self type is instantiated for each lookup (see
+    /// [`NodeInterner::instantiate_trait_impl_self_type`]), so that matching `G<N>` against `G<7>`
+    /// doesn't fix `N` for any other use.
+    pub impl_id: TraitImplId,
 }
 
 /// Represents the methods on a given type that each share the same name.
@@ -34,9 +37,14 @@ pub struct Methods {
 
 impl Methods {
     /// Adds a method to this collection, without checking for overlaps.
-    pub(super) fn add_method(&mut self, method: FuncId, typ: Type, trait_id: Option<TraitId>) {
-        if let Some(trait_id) = trait_id {
-            let trait_impl_method = TraitImplMethod { typ, method, trait_id };
+    pub(super) fn add_method(
+        &mut self,
+        method: FuncId,
+        typ: Type,
+        trait_impl: Option<(TraitImplId, TraitId)>,
+    ) {
+        if let Some((impl_id, trait_id)) = trait_impl {
+            let trait_impl_method = TraitImplMethod { method, trait_id, impl_id };
             self.trait_impl_methods.push(trait_impl_method);
         } else {
             let impl_method = ImplMethod { typ, method };
@@ -123,11 +131,11 @@ impl Methods {
 
         for trait_impl_method in &self.trait_impl_methods {
             let method = trait_impl_method.method;
-            let method_type = &trait_impl_method.typ;
+            let method_type = interner.instantiate_trait_impl_self_type(trait_impl_method.impl_id);
             let trait_id = trait_impl_method.trait_id;
 
-            if Self::method_matches(typ, has_self_param, method, method_type, interner) {
-                results.push((method, trait_id, method_type.clone()));
+            if Self::method_matches(typ, has_self_param, method, &method_type, interner) {
+                results.push((method, trait_id, method_type));
             }
         }
 
@@ -140,8 +148,8 @@ impl Methods {
         has_self_param: bool,
         interner: &'a NodeInterner,
     ) -> impl Iterator<Item = (FuncId, Option<TraitId>)> + 'a {
-        self.iter().filter_map(move |(method, method_type, trait_id)| {
-            if Self::method_matches(typ, has_self_param, method, method_type, interner) {
+        self.iter(interner).filter_map(move |(method, method_type, trait_id)| {
+            if Self::method_matches(typ, has_self_param, method, &method_type, interner) {
                 Some((method, trait_id))
             } else {
                 None
@@ -150,10 +158,15 @@ impl Methods {
     }
 
     /// Iterate through each method, starting with the direct methods
-    fn iter(&self) -> impl Iterator<Item = (FuncId, &Type, Option<TraitId>)> {
-        let trait_impl_methods =
-            self.trait_impl_methods.iter().map(|m| (m.method, &m.typ, Some(m.trait_id)));
-        let direct = self.direct.iter().map(|method| (method.method, &method.typ, None));
+    fn iter<'a>(
+        &'a self,
+        interner: &'a NodeInterner,
+    ) -> impl Iterator<Item = (FuncId, Type, Option<TraitId>)> + 'a {
+        let trait_impl_methods = self.trait_impl_methods.iter().map(|method| {
+            let typ = interner.instantiate_trait_impl_self_type(method.impl_id);
+            (method.method, typ, Some(method.trait_id))
+        });
+        let direct = self.direct.iter().map(|method| (method.method, method.typ.clone(), None));
         direct.chain(trait_impl_methods)
     }
 
