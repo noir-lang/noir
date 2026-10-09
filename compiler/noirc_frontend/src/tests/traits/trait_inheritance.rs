@@ -2318,3 +2318,52 @@ fn probe1953_prepared_generic() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn trait_that_is_its_own_parent_is_a_cycle() {
+    let src = r#"
+    pub trait A: A {}
+                 ^ Dependency cycle found
+                 ~ 'A' recursively depends on itself: A -> A
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn trait_that_is_its_own_parent_with_a_blanket_impl_is_a_cycle() {
+    let src = r#"
+    pub trait Bar {}
+    pub trait A: A + Bar {}
+                 ^ Dependency cycle found
+                 ~ 'A' recursively depends on itself: A -> A
+    impl<T> A for T where T: Bar {}
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn trait_alias_of_itself_is_a_cycle() {
+    let src = r#"
+    pub trait Bar { fn bar(self) -> u32; }
+    pub trait A = A + Bar;
+    fn main() {}
+    "#;
+    let errors = get_program_errors(src);
+    assert!(
+        errors.iter().any(|error| error.to_string().contains("Dependency cycle found")),
+        "{errors:?}"
+    );
+}
+
+#[test]
+fn trait_where_clause_on_its_own_self_is_a_cycle() {
+    let src = r#"
+    pub trait A where Self: A {}
+                            ^ Dependency cycle found
+                            ~ 'A' recursively depends on itself: A -> A
+    fn main() {}
+    "#;
+    check_errors(src);
+}

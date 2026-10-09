@@ -189,6 +189,7 @@ use crate::{
     hir::{
         comptime::InterpreterError,
         def_collector::dc_crate::UnresolvedTrait,
+        resolution::errors::ResolverError,
         type_check::{TypeCheckError, generics::TraitGenerics},
     },
     hir_def::{
@@ -272,8 +273,17 @@ impl Elaborator<'_> {
                     this.item.generics.add_param(associated_type.clone());
                 }
 
-                let resolved_trait_bounds =
+                let mut resolved_trait_bounds =
                     this.resolve_trait_bounds(&unresolved_trait.trait_def.bounds);
+                // A trait that is its own parent (`trait A: A`, `trait A = A + B;`) is a cycle.
+                // The bound is dropped so that nothing tries to expand it.
+                resolved_trait_bounds.retain(|bound| {
+                    let is_own_parent = bound.trait_id == *trait_id;
+                    if is_own_parent {
+                        this.push_own_parent_cycle_error(*trait_id, bound.location);
+                    }
+                    !is_own_parent
+                });
                 for bound in &resolved_trait_bounds {
                     this.interner
                         .add_trait_dependency(DependencyId::Trait(bound.trait_id), *trait_id);
@@ -289,6 +299,17 @@ impl Elaborator<'_> {
                     .expect("Expected Self type to be set inside collect_traits")
                     .clone();
                 let mut where_clause = where_clause;
+                where_clause.retain(|constraint| {
+                    let is_own_parent =
+                        constraint.trait_bound.trait_id == *trait_id && constraint.typ == self_type;
+                    if is_own_parent {
+                        this.push_own_parent_cycle_error(
+                            *trait_id,
+                            constraint.trait_bound.location,
+                        );
+                    }
+                    !is_own_parent
+                });
                 for trait_bound in resolved_trait_bounds {
                     where_clause.push(TraitConstraint { typ: self_type.clone(), trait_bound });
                 }
@@ -575,6 +596,12 @@ impl Elaborator<'_> {
     fn is_own_self(&self, typ: &Type) -> bool {
         let current_trait = self.item.impl_context.trait_declaration();
         current_trait.is_some_and(|trait_id| self.interner.get_trait(trait_id).is_self_type(typ))
+    }
+
+    fn push_own_parent_cycle_error(&mut self, trait_id: TraitId, location: Location) {
+        let item = self.interner.get_trait(trait_id).name.to_string();
+        let cycle = format!("{item} -> {item}");
+        self.push_err(ResolverError::DependencyCycle { location, item, cycle });
     }
 
     /// Resolves a slice of trait bounds, filtering out any that fail to resolve.
