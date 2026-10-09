@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791577515903,
+  "lastUpdate": 1791577518679,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -39904,105 +39904,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "5fc1bffab44d1abbf7a78907e4a3a56d9d95ccce",
-          "message": "fix(nargo_toml): report git dependency download failures (#13807)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-10-02T14:16:16Z",
-          "tree_id": "b16fc7bc6923c3fb0c0b175b9928c1717ca4fe42",
-          "url": "https://github.com/noir-lang/noir/commit/5fc1bffab44d1abbf7a78907e4a3a56d9d95ccce"
-        },
-        "date": 1790952513537,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 822.1,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 904.6,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 666.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-no-txs",
-            "value": 374.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 394.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 493.3,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 314.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 750.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 788.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 494.5,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 771.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 934.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 284.1,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 2073.7,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 151.5,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "c7504d771f9f015a31bfe9618b0a3e2e0777dab0",
           "message": "chore(test): reuse EvaluationTracker to avoid multiple type-checks (#13866)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
           "timestamp": "2026-10-02T16:21:06Z",
@@ -44762,6 +44663,105 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/a12ceda436a1e2d93726ad23eeddc207a8807d4c"
         },
         "date": 1791569313959,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 824.3,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 909.8,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 669.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-no-txs",
+            "value": 376,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 396.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 494.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 314.6,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 752,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 790,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 496.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 773.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 936.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 285.7,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 2073.7,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 151.5,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f053fb3b15b084ded1cafe09a85a0461d0025119",
+          "message": "fix(frontend): instantiate a generic trait impl's self type when looking up its methods (#13942)",
+          "timestamp": "2026-10-09T19:55:05Z",
+          "tree_id": "65d1c790adae768104f1c8502e3e53c6b69edeb1",
+          "url": "https://github.com/noir-lang/noir/commit/f053fb3b15b084ded1cafe09a85a0461d0025119"
+        },
+        "date": 1791577421800,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
