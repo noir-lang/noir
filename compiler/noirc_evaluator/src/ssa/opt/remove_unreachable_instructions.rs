@@ -1818,4 +1818,110 @@ mod tests {
         }
         "#);
     }
+
+    #[test]
+    fn disabled_vector_push_back_onto_black_box_result() {
+        let src = "
+        acir(inline) impure fn main f0 {
+          b0(v0: u1, v1: u32):
+            v2 = make_array [Field 1, Field 2] : [Field]
+            v3, v4 = call black_box(v1, v2) -> (u32, [Field])
+            enable_side_effects v0
+            v5 = div u32 1, u32 0
+            v6, v7 = call vector_push_back(v3, v4, Field 3) -> (u32, [Field])
+            enable_side_effects u1 1
+            v8 = array_get v7, index u32 2 -> Field
+            return v8
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let (_, result) = assert_pass_does_not_affect_execution(
+            ssa,
+            vec![Value::bool(false), Value::u32(2)],
+            |ssa| ssa.remove_unreachable_instructions(),
+        );
+        assert_eq!(result, Ok(vec![Value::field(FieldElement::zero())]));
+    }
+
+    #[test]
+    fn disabled_vector_push_back_of_zero_sized_elements() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            v1 = make_array [] : [()]
+            enable_side_effects v0
+            v2 = div u32 1, u32 0
+            v5, v6 = call vector_push_back(u32 2, v1) -> (u32, [()])
+            enable_side_effects u1 1
+            return v5
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let (_, result) =
+            assert_pass_does_not_affect_execution(ssa, vec![Value::bool(false)], |ssa| {
+                ssa.remove_unreachable_instructions()
+            });
+        assert_eq!(result, Ok(vec![Value::u32(0)]));
+    }
+
+    #[test]
+    fn disabled_vector_push_back_onto_vector_of_unknown_capacity_is_kept() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            v1 = make_array [Field 1] : [Field]
+            v2 = allocate -> &mut [Field]
+            store v1 at v2
+            v3 = load v2 -> [Field]
+            enable_side_effects v0
+            v4 = div u32 1, u32 0
+            v7, v8 = call vector_push_back(u32 1, v3, Field 2) -> (u32, [Field])
+            enable_side_effects u1 1
+            v9 = array_get v8, index u32 1 -> Field
+            return v9
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let (ssa, result) =
+            assert_pass_does_not_affect_execution(ssa, vec![Value::bool(false)], |ssa| {
+                ssa.remove_unreachable_instructions()
+            });
+        assert_eq!(result, Ok(vec![Value::field(FieldElement::zero())]));
+        let main = ssa.main();
+        let keeps_push_back = main.dfg[main.entry_block()].instructions().iter().any(|id| {
+            matches!(main.dfg[*id], crate::ssa::ir::instruction::Instruction::Call { .. })
+        });
+        assert!(keeps_push_back, "the push_back has no known capacity to default to");
+    }
+
+    // Each `if` merges the two previous vectors (a Fibonacci-shaped dependency), so the number of
+    // distinct paths back to the leaves is exponential in `depth`. Sizing the default for the
+    // disabled `push_back` must not walk those paths.
+    #[test]
+    fn disabled_vector_push_back_onto_deep_if_else_chain() {
+        let depth = 64;
+        let mut src = String::from(
+            "acir(inline) predicate_pure fn main f0 {\n  b0(v0: u1, v1: u1):\n    \
+             v2 = make_array [Field 1] : [Field]\n    \
+             v3 = make_array [Field 1, Field 2] : [Field]\n",
+        );
+        for i in 4..=depth {
+            src.push_str(&format!("    v{i} = if v0 then v{} else (if v1) v{}\n", i - 1, i - 2));
+        }
+        src.push_str(&format!(
+            "    enable_side_effects v0\n    \
+             v100 = div u32 1, u32 0\n    \
+             v101, v102 = call vector_push_back(u32 2, v{depth}, Field 3) -> (u32, [Field])\n    \
+             enable_side_effects u1 1\n    \
+             v103 = array_get v102, index u32 2 -> Field\n    \
+             return v103\n}}\n"
+        ));
+        let ssa = Ssa::from_str(&src).unwrap();
+        let (_, result) = assert_pass_does_not_affect_execution(
+            ssa,
+            vec![Value::bool(false), Value::bool(true)],
+            |ssa| ssa.remove_unreachable_instructions(),
+        );
+        assert_eq!(result, Ok(vec![Value::field(FieldElement::zero())]));
+    }
 }
