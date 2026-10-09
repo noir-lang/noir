@@ -1256,3 +1256,51 @@ fn inherited_self_default_method_on_generic_impl_keeps_the_receiver_generic() {
     }
     ");
 }
+
+#[test]
+fn inherited_self_default_method_on_type_generic_impl_keeps_the_receiver_generic() {
+    let src = r#"
+    pub trait Lim { fn limit(self) -> u32; fn me(self) -> u32 { self.limit() } }
+    pub struct H<T> { x: [T; 0] }
+    impl<T> Lim for H<T> { fn limit(self) -> u32 { 5 } }
+    fn main() -> pub u32 {
+        let h = H { x: [] };
+        let r = h.me();
+        let _k: H<u8> = h;
+        r
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn inherited_self_default_method_on_generic_impl_needs_the_receiver_type_known() {
+    let src = r#"
+    pub trait Lim { fn limit(self) -> u32; fn me(self) -> u32 { self.limit() } }
+    pub struct G<let N: u32> {}
+    impl<let N: u32> Lim for G<N> { fn limit(self) -> u32 { N } }
+    fn main() -> pub u32 {
+        let g = G {};
+                ^ Type annotation needed
+                ~ Could not determine the value of the generic argument `N` declared on the struct `G`
+        g.me()
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn inherited_self_default_method_inside_generic_impl_does_not_infer_the_receiver_from_self() {
+    let src = r#"
+    pub trait Lim { fn limit(self) -> u32; fn me(self) -> u32 { self.limit() } fn two(self) -> u32; }
+    pub struct G<let N: u32> {}
+    impl<let N: u32> Lim for G<N> {
+        fn limit(self) -> u32 { N }
+        fn two(self) -> u32 { let g = G {}; g.me() }
+                                      ^ Type annotation needed
+                                      ~ Could not determine the value of the generic argument `N` declared on the struct `G`
+    }
+    fn main() -> pub u32 { G::<3> {}.two() * 100 + G::<9> {}.two() }
+    "#;
+    check_errors(src);
+}
