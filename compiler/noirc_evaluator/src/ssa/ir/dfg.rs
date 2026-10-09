@@ -1321,4 +1321,135 @@ mod tests {
         let bits = main.dfg.get_value_max_num_bits(returned);
         assert!(bits <= FieldElement::max_num_bits());
     }
+
+    /// The vector capacity of the value `main` returns.
+    fn capacity_of_returned_vector(src: &str) -> (Option<u32>, Option<u32>) {
+        let ssa = Ssa::from_str(src).unwrap();
+        let main = ssa.main();
+        let returned = main.returns().expect("expected a Return terminator")[0];
+        (
+            main.dfg.try_get_vector_capacity(returned).map(|c| c.0),
+            main.dfg.try_get_vector_backing_capacity(returned).map(|c| c.0),
+        )
+    }
+
+    #[test]
+    fn vector_capacity_of_as_vector_is_the_array_length() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            v1, v2 = call as_vector(v0) -> (u32, [Field])
+            v4, v5 = call vector_push_back(v1, v2, Field 1) -> (u32, [Field])
+            return v5
+        }
+        ";
+        assert_eq!(capacity_of_returned_vector(src), (Some(4), Some(4)));
+    }
+
+    #[test]
+    fn vector_capacity_flows_through_black_box_hint() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v1 = make_array [Field 1, Field 2] : [Field]
+            v2, v3 = call black_box(v0, v1) -> (u32, [Field])
+            return v3
+        }
+        ";
+        assert_eq!(capacity_of_returned_vector(src), (Some(2), Some(2)));
+    }
+
+    #[test]
+    fn vector_capacity_uses_constant_length_only_when_asked() {
+        // The backing array of `v1` holds 3 elements, but the semantic length passed to the
+        // `push_back` is 1.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v1 = make_array [Field 1, Field 2, Field 3] : [Field]
+            v2, v3 = call vector_push_back(u32 1, v1, Field 4) -> (u32, [Field])
+            return v3
+        }
+        ";
+        assert_eq!(capacity_of_returned_vector(src), (Some(2), Some(4)));
+    }
+
+    // Each `if` merges the two previous vectors (a Fibonacci-shaped dependency), so the number of
+    // distinct paths from the last vector back to the leaves is exponential in `depth`. This
+    // guards that the capacity of a merge is computed without walking those paths.
+    #[test]
+    fn vector_capacity_terminates_on_deep_if_else_chain() {
+        let depth = 64;
+
+        let mut src = String::from(
+            "acir(inline) fn main f0 {\n  b0(v0: u1, v1: u1):\n    \
+             v2 = make_array [Field 1] : [Field]\n    \
+             v3 = make_array [Field 1, Field 2] : [Field]\n",
+        );
+        for i in 4..=depth {
+            src.push_str(&format!("    v{i} = if v0 then v{} else (if v1) v{}\n", i - 1, i - 2));
+        }
+        src.push_str(&format!("    return v{depth}\n}}\n"));
+
+        assert_eq!(capacity_of_returned_vector(&src), (Some(2), Some(2)));
+    }
+
+    #[test]
+    fn vector_capacity_traces_through_array_set_chain() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = make_array [Field 1, Field 2, Field 3] : [Field]
+            v2 = array_set v1, index u32 0, value v0
+            v3 = array_set v2, index u32 2, value v0
+            return v3
+        }
+        ";
+        assert_eq!(capacity_of_returned_vector(src), (Some(3), Some(3)));
+    }
+
+    #[test]
+    fn vector_capacity_of_zero_sized_elements_follows_the_length() {
+        // A `make_array` of zero-sized elements holds no values, so its capacity is the number
+        // of values (zero) and growing it is only visible through the constant length.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = make_array [] : [()]
+            v3, v4 = call vector_push_back(u32 2, v0) -> (u32, [()])
+            return v4
+        }
+        ";
+        assert_eq!(capacity_of_returned_vector(src), (Some(3), Some(1)));
+    }
+
+    #[test]
+    fn vector_capacity_of_loaded_vector_is_unknown() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = make_array [Field 1] : [Field]
+            v1 = allocate -> &mut [Field]
+            store v0 at v1
+            v2 = load v1 -> [Field]
+            v5, v6 = call vector_push_back(u32 1, v2, Field 2) -> (u32, [Field])
+            return v6
+        }
+        ";
+        // The constant length still sizes the result when it is used.
+        assert_eq!(capacity_of_returned_vector(src), (Some(2), None));
+    }
+
+    #[test]
+    fn vector_capacity_that_would_overflow_is_unknown() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 4294967295]):
+            v1, v2 = call as_vector(v0) -> (u32, [Field])
+            v4, v5 = call vector_push_back(v1, v2, Field 1) -> (u32, [Field])
+            return v5
+        }
+        ";
+        assert_eq!(capacity_of_returned_vector(src), (None, None));
+    }
 }

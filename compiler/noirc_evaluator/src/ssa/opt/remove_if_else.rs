@@ -538,6 +538,7 @@ mod tests {
         assert_ssa_snapshot,
         ssa::{
             interpreter::{errors::InterpreterError, value::Value},
+            opt::assert_pass_does_not_affect_execution,
             ssa_gen::Ssa,
         },
     };
@@ -1301,5 +1302,83 @@ mod tests {
             format!("{err}").contains("without a determinable size"),
             "unexpected error: {err}"
         );
+    }
+
+    #[test]
+    fn merge_vector_returned_by_black_box_hint() {
+        // The hint returns its vector argument unchanged, so the merged vector needs its capacity
+        // even though the length passed alongside it is not a constant.
+        let src = "
+        acir(inline) impure fn main f0 {
+          b0(v0: u1, v1: u32):
+            v2 = make_array [Field 1, Field 2] : [Field]
+            v3 = make_array [Field 3] : [Field]
+            v4, v5 = call black_box(v1, v2) -> (u32, [Field])
+            v6 = not v0
+            v7 = if v0 then v5 else (if v6) v3
+            v8 = array_get v7, index u32 1 -> Field
+            return v8
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let (_, result) = assert_pass_does_not_affect_execution(
+            ssa,
+            vec![Value::bool(true), Value::u32(2)],
+            |ssa| ssa.remove_if_else().unwrap(),
+        );
+        assert_eq!(result, Ok(vec![Value::field(2_u128.into())]));
+    }
+
+    #[test]
+    fn constant_length_of_a_disabled_call_does_not_shrink_its_input_elsewhere() {
+        // The `push_back` only runs when `v0` is true, so its constant length says nothing about
+        // `v1` when `v0` is false, and the merge still has to cover both elements of `v1`.
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            v1 = make_array [Field 1, Field 2] : [Field]
+            enable_side_effects v0
+            v4, v5 = call vector_push_back(u32 0, v1, Field 3) -> (u32, [Field])
+            v6 = not v0
+            enable_side_effects u1 1
+            v7 = if v0 then v5 else (if v6) v1
+            v8 = array_get v7, index u32 1 -> Field
+            return v8
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let (_, result) =
+            assert_pass_does_not_affect_execution(ssa, vec![Value::bool(false)], |ssa| {
+                ssa.remove_if_else().unwrap()
+            });
+        assert_eq!(result, Ok(vec![Value::field(2_u128.into())]));
+    }
+
+    #[test]
+    fn merge_disabled_vector_pop_back_result() {
+        // The disabled `pop_back` returns a zeroed vector of capacity 2, which is merged with a
+        // vector of capacity 1.
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            v1 = make_array [Field 1, Field 2, Field 3] : [Field]
+            v2 = make_array [Field 4] : [Field]
+            enable_side_effects v0
+            v5, v6, v7 = call vector_pop_back(u32 3, v1) -> (u32, [Field], Field)
+            v8 = not v0
+            enable_side_effects u1 1
+            v9 = if v0 then v6 else (if v8) v2
+            v10 = array_get v9, index u32 0 -> Field
+            return v10
+        }
+        ";
+        for (input, expected) in [(true, 1_u128), (false, 4)] {
+            let ssa = Ssa::from_str(src).unwrap();
+            let (_, result) =
+                assert_pass_does_not_affect_execution(ssa, vec![Value::bool(input)], |ssa| {
+                    ssa.remove_if_else().unwrap()
+                });
+            assert_eq!(result, Ok(vec![Value::field(expected.into())]));
+        }
     }
 }
