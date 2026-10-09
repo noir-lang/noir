@@ -270,10 +270,19 @@ impl Context {
                         // over the vector length would require laying down more instructions to
                         // handle the extra padding, while preventing downstream passes or runtimes
                         // from implementing optimizations using the vector length.
-                        for (vector, length) in
-                            constant_vector_lengths(context.dfg, intrinsic, arguments)
-                        {
-                            self.vector_sizes.insert(vector, length);
+                        // A call that only runs under a predicate says nothing about the vector's
+                        // length when the predicate is false, so its length is only used when the
+                        // call always runs.
+                        let always_runs = context
+                            .dfg
+                            .get_numeric_constant(context.enable_side_effects)
+                            .is_some_and(|predicate| predicate.is_one());
+                        if always_runs {
+                            for (vector, length) in
+                                constant_vector_lengths(context.dfg, intrinsic, arguments)
+                            {
+                                self.vector_sizes.insert(vector, length);
+                            }
                         }
 
                         for flow in
@@ -989,17 +998,29 @@ mod tests {
             v18 = unchecked_add v17, v16
             enable_side_effects u1 1
             v20 = array_get v13, index u32 0 -> u32
-            v22 = array_get v13, index u32 1 -> u32
-            v23 = make_array [v20, v22] : [(u32, u32)]
+            v21 = cast v8 as u32
+            v22 = cast v14 as u32
+            v23 = unchecked_mul v21, v20
+            v24 = unchecked_mul v22, v0
+            v25 = unchecked_add v23, v24
+            v27 = array_get v13, index u32 1 -> u32
+            v28 = cast v8 as u32
+            v29 = cast v14 as u32
+            v30 = unchecked_mul v28, v27
+            v31 = unchecked_mul v29, u32 2
+            v32 = unchecked_add v30, v31
+            v33 = array_get v13, index u32 2 -> u32
+            v35 = array_get v13, index u32 3 -> u32
+            v36 = make_array [v25, v32, v33, v35] : [(u32, u32)]
             enable_side_effects v8
             enable_side_effects u1 1
-            v24 = lt v2, v18
-            constrain v24 == u1 1, "Index out of bounds"
-            v25 = unchecked_mul v2, u32 2
-            v26 = array_get v23, index v25 -> u32
-            v27 = unchecked_add v25, u32 1
-            v28 = array_get v23, index v27 -> u32
-            return v26, v28, v18
+            v37 = lt v2, v18
+            constrain v37 == u1 1, "Index out of bounds"
+            v38 = unchecked_mul v2, u32 2
+            v39 = array_get v36, index v38 -> u32
+            v40 = unchecked_add v38, u32 1
+            v41 = array_get v36, index v40 -> u32
+            return v39, v41, v18
         }
         "#);
     }

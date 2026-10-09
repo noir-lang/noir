@@ -1913,7 +1913,7 @@ mod tests {
              v100 = div u32 1, u32 0\n    \
              v101, v102 = call vector_push_back(u32 2, v{depth}, Field 3) -> (u32, [Field])\n    \
              enable_side_effects u1 1\n    \
-             v103 = array_get v102, index u32 2 -> Field\n    \
+             v103 = array_get v102, index u32 1 -> Field\n    \
              return v103\n}}\n"
         ));
         let ssa = Ssa::from_str(&src).unwrap();
