@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791586397417,
+  "lastUpdate": 1791586400682,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -25048,105 +25048,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "c7504d771f9f015a31bfe9618b0a3e2e0777dab0",
-          "message": "chore(test): reuse EvaluationTracker to avoid multiple type-checks (#13866)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
-          "timestamp": "2026-10-02T16:21:06Z",
-          "tree_id": "ce2b55254cb03cf816679c5ad2f64618c6566c91",
-          "url": "https://github.com/noir-lang/noir/commit/c7504d771f9f015a31bfe9618b0a3e2e0777dab0"
-        },
-        "date": 1790959832117,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1105.3,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 2610.6,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 2058.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-no-txs",
-            "value": 442.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 472.1,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 583.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 439.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 30785.5,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 30840.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 474.8,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 4563.3,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 4827.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 248.3,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 502.9,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 450,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "3049e7e4878fadda7a5e2b0690231c7846e67bf3",
           "message": "fix(ssa): only rebase store of array_set onto a load from the same memory epoch (#13867)",
           "timestamp": "2026-10-02T19:48:28Z",
@@ -29906,6 +29807,105 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/f053fb3b15b084ded1cafe09a85a0461d0025119"
         },
         "date": 1791577420085,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1107.7,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 2615.8,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2061.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-no-txs",
+            "value": 443.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 473.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 585.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 441.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 30787.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 30842.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 476.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 4564.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 4829,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 249.9,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 502.9,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 450,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b28a74121c7c5d73f84845d2bdee4b4d42b73663",
+          "message": "fix(frontend): bind a generic impl's generics for the Type::CONST shorthand (#13944)",
+          "timestamp": "2026-10-09T22:20:57Z",
+          "tree_id": "1724382d58d03a5f8efeedb7095cc4a3ab8a0d95",
+          "url": "https://github.com/noir-lang/noir/commit/b28a74121c7c5d73f84845d2bdee4b4d42b73663"
+        },
+        "date": 1791586326437,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
