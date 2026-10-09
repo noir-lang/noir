@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791563542737,
+  "lastUpdate": 1791568987385,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22945,48 +22945,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "52de38810a6fcabf84b8d0ee7b48ec432e3d994a",
-          "message": "fix(frontend): keep trait `Self` rigid when resolving `Self::item` in default methods (#13864)",
-          "timestamp": "2026-10-02T13:53:18Z",
-          "tree_id": "6f231e1178e67d0372bb7b4e348a7a7ac75c11eb",
-          "url": "https://github.com/noir-lang/noir/commit/52de38810a6fcabf84b8d0ee7b48ec432e3d994a"
-        },
-        "date": 1790950752485,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 97916,
-            "range": "± 299",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 87166,
-            "range": "± 1012",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2357047,
-            "range": "± 1359",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "5fc1bffab44d1abbf7a78907e4a3a56d9d95ccce",
           "message": "fix(nargo_toml): report git dependency download failures (#13807)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
@@ -25029,6 +24987,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2649011,
             "range": "± 2528",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a12ceda436a1e2d93726ad23eeddc207a8807d4c",
+          "message": "fix(frontend): check a trait impl's where clause when it is used before it is finished (#13939)",
+          "timestamp": "2026-10-09T17:39:33Z",
+          "tree_id": "6e941fd92f31cfb383336723928a028b854e8c2e",
+          "url": "https://github.com/noir-lang/noir/commit/a12ceda436a1e2d93726ad23eeddc207a8807d4c"
+        },
+        "date": 1791568893749,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 126339,
+            "range": "± 184",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 112095,
+            "range": "± 935",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3042675,
+            "range": "± 3045",
             "unit": "ns/iter"
           }
         ]
