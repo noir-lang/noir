@@ -880,7 +880,7 @@ pub fn compile_no_check(
 }
 
 /// A monomorphized program, together with everything compiling it needs from the
-/// [`NodeInterner`][noirc_frontend::node_interner::NodeInterner].
+/// [`NodeInterner`].
 ///
 /// [`compile_monomorphized`] reads nothing else from the interner, so the interner can be
 /// freed once this has been built.
@@ -961,7 +961,7 @@ fn reusable_cached_program(
 /// Compiles a monomorphized program into ACIR and Brillig.
 ///
 /// This reads the file manager, parsed files, crate graph and def maps from `context`, but not
-/// its [`NodeInterner`][noirc_frontend::node_interner::NodeInterner].
+/// its [`NodeInterner`].
 #[allow(clippy::result_large_err)]
 fn compile_monomorphized(
     context: &Context,
