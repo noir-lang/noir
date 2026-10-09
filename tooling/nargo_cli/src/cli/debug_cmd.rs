@@ -31,7 +31,7 @@ use noirc_frontend::hir::{Context, ParsedFiles};
 use super::test_cmd::TestResult;
 use super::test_cmd::formatters::Formatter;
 use super::{LockType, WorkspaceCommand};
-use crate::cli::test_cmd::formatters::PrettyFormatter;
+use crate::cli::test_cmd::formatters::{DisplayOptions, PrettyFormatter};
 use crate::errors::CliError;
 
 /// Executes a circuit in debug mode
@@ -132,9 +132,15 @@ fn print_test_result(
     file_manager: &FileManager,
     parsed_files: &ParsedFiles,
 ) {
-    let formatter: Box<dyn Formatter> = Box::new(PrettyFormatter);
-    formatter
-        .test_end_sync(&test_result, 1, 1, file_manager, parsed_files, true, false, false)
+    let options = DisplayOptions {
+        file_manager,
+        parsed_files,
+        show_output: true,
+        deny_warnings: false,
+        silence_warnings: false,
+    };
+    PrettyFormatter::new(options)
+        .test_end_sync(&test_result, 1, 1)
         .expect("Could not display test result");
 }
 
