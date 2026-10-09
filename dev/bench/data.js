@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791578059753,
+  "lastUpdate": 1791585872691,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22946,48 +22946,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "c7504d771f9f015a31bfe9618b0a3e2e0777dab0",
-          "message": "chore(test): reuse EvaluationTracker to avoid multiple type-checks (#13866)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
-          "timestamp": "2026-10-02T16:21:06Z",
-          "tree_id": "ce2b55254cb03cf816679c5ad2f64618c6566c91",
-          "url": "https://github.com/noir-lang/noir/commit/c7504d771f9f015a31bfe9618b0a3e2e0777dab0"
-        },
-        "date": 1790959340550,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 126768,
-            "range": "± 464",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 112761,
-            "range": "± 803",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3045327,
-            "range": "± 68536",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "3049e7e4878fadda7a5e2b0690231c7846e67bf3",
           "message": "fix(ssa): only rebase store of array_set onto a load from the same memory epoch (#13867)",
           "timestamp": "2026-10-02T19:48:28Z",
@@ -25029,6 +24987,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2359007,
             "range": "± 883",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b28a74121c7c5d73f84845d2bdee4b4d42b73663",
+          "message": "fix(frontend): bind a generic impl's generics for the Type::CONST shorthand (#13944)",
+          "timestamp": "2026-10-09T22:20:57Z",
+          "tree_id": "1724382d58d03a5f8efeedb7095cc4a3ab8a0d95",
+          "url": "https://github.com/noir-lang/noir/commit/b28a74121c7c5d73f84845d2bdee4b4d42b73663"
+        },
+        "date": 1791585814106,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 71767,
+            "range": "± 991",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 63381,
+            "range": "± 697",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 1741495,
+            "range": "± 13645",
             "unit": "ns/iter"
           }
         ]
