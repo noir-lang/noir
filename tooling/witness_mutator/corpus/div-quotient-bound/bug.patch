@@ -1,0 +1,16 @@
+diff --git a/compiler/noirc_evaluator/src/acir/acir_context/mod.rs b/compiler/noirc_evaluator/src/acir/acir_context/mod.rs
+index 59b8ab35869..d40b1d4e2ac 100644
+--- a/compiler/noirc_evaluator/src/acir/acir_context/mod.rs
++++ b/compiler/noirc_evaluator/src/acir/acir_context/mod.rs
+@@ -961,11 +961,6 @@ impl<F: AcirField> AcirContext<F> {
+                 let q0_big = F::modulus() / &rhs_big;
+                 let q0 = F::from_be_bytes_reduce(&q0_big.to_bytes_be());
+                 let q0_var = self.add_constant(q0);
+-                // ensure that q <= q0
+-                // We do not need to use a predicate in the range constraint because
+-                // quotient_var is the output of a brillig call
+-                self.bound_constraint_with_offset(quotient_var, q0_var, zero, max_q_bits, one)?;
+-
+                 // when q == q0, q*b+r can overflow so we need to bound r to avoid the overflow.
+                 let size_predicate = self.eq_var(q0_var, quotient_var)?;
+                 let predicate = self.mul_var(size_predicate, predicate)?;

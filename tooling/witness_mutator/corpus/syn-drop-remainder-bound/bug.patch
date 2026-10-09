@@ -1,0 +1,12 @@
+diff --git a/compiler/noirc_evaluator/src/acir/acir_context/mod.rs b/compiler/noirc_evaluator/src/acir/acir_context/mod.rs
+index 59b8ab35869..2334c74e97c 100644
+--- a/compiler/noirc_evaluator/src/acir/acir_context/mod.rs
++++ b/compiler/noirc_evaluator/src/acir/acir_context/mod.rs
+@@ -938,7 +938,6 @@ impl<F: AcirField> AcirContext<F> {
+         //   which allows an extra value for `r` that doesn't make mathematical sense (r==rhs would in itself be invalid),
+         //   however this constraint is still more restrictive than if we passed `one` for offset and `predicate` in the last position,
+         //   because when the predicate is false, that would have asserted nothing, and accepted anything at all.
+-        self.bound_constraint_with_offset(remainder_var, rhs, predicate, max_r_bits, one)?;
+ 
+         // a * predicate == (b * q + r) * predicate
+         // => predicate * (a - b * q - r) == 0

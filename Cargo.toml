@@ -31,6 +31,7 @@ members = [
     "tooling/profiler",
     "tooling/inspector",
     "tooling/workspace_layering",
+    "tooling/witness_mutator",
     # ACVM
     "acvm-repo/acir_field",
     "acvm-repo/acir",
@@ -143,6 +144,7 @@ noirc_abi = { path = "tooling/noirc_abi" }
 noirc_artifacts = { path = "tooling/noirc_artifacts" }
 noirc_artifacts_info = { path = "tooling/noirc_artifacts_info" }
 noir_artifact_cli = { path = "tooling/artifact_cli" }
+noir_witness_mutator = { path = "tooling/witness_mutator" }
 noir_ast_fuzzer = { path = "tooling/ast_fuzzer" }
 
 # Arkworks
