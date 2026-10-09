@@ -53,7 +53,10 @@ mod crate_graph;
 mod file_manager;
 
 pub use abi_gen::gen_abi;
-pub use crate_graph::{add_dep, link_to_debug_crate, prepare_crate, prepare_dependency};
+pub use crate_graph::{
+    add_dep, add_dep_in_graph, link_to_debug_crate, prepare_crate, prepare_crate_in_graph,
+    prepare_dependency, prepare_dependency_in_graph,
+};
 pub use file_manager::{
     file_manager_with_stdlib, stdlib_disk_path, stdlib_nargo_toml_source, stdlib_paths_with_source,
 };
