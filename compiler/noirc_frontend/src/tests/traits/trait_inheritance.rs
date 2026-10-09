@@ -2198,6 +2198,9 @@ fn method_bound_on_supertrait_uses_the_supertraits_associated_type() {
     }
     "#;
     assert_no_errors(src);
+}
+
+#[test]
 fn probe1811_ea_generated_impl() {
     let src = r#"
     trait Par { let N: u32; }
