@@ -71,7 +71,9 @@ fn vector_push_back_known_length_with_padding() {
     ";
     let program = ssa_to_acir_program(src);
 
-    // Note that w12 is now the third element in b3 and followed by two zero values from the pre-existing padding.
+    // Note that w12 is the third element in b1, followed by the two zero values from the pre-existing padding,
+    // and is appended at the end as well: the result has one slot more than its input, which is the
+    // capacity the SSA passes size a pushed vector with.
     // w1 has also been asserted to equal 3, the dynamic length of the vector.
     // Aside the extra padding in the memory blocks we expect this ACIR to closely match a vector whose contents do not contain padding.
     assert_circuit_snapshot!(program, @"
@@ -93,7 +95,7 @@ fn vector_push_back_known_length_with_padding() {
     READ w11 = b0[w5]
     ASSERT w1 = 3
     ASSERT w12 = 10
-    INIT b1 = [w6, w8, w12, w10, w11]
+    INIT b1 = [w6, w8, w12, w10, w11, w12]
     ASSERT w13 = 20
     WRITE b1[w0] = w13
     ");
