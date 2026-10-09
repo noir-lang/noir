@@ -864,41 +864,34 @@ impl DataFlowGraph {
                     return None;
                 }
 
-                if let Value::Intrinsic(intrinsic) = &self[*func] {
-                    use crate::ssa::ir::instruction::Intrinsic;
-                    // Try to get the semantic length, if it's a known constant.
-                    // It should be okay to use the semantic length; for example the ValueMerger would get fewer items.
-                    let length = use_constant_length
-                        .then(|| self.get_numeric_constant(arguments[0]))
-                        .flatten()
-                        .map(|length| length.to_u128() as u32)
-                        .map(SemanticLength);
-                    // Otherwise fall back to the physical capacity.
-                    let length = length.or_else(|| {
-                        self.try_get_vector_capacity_impl(arguments[1], use_constant_length)
-                    });
-                    // Then adjust it. Note that this handling of PushBack assumes that even if
-                    // the dynamic semantic length was less than the capacity, we will grow the vector.
-                    if let Some(base) = length {
-                        match intrinsic {
-                            Intrinsic::VectorPopFront
-                            | Intrinsic::VectorPopBack
-                            | Intrinsic::VectorRemove => {
-                                Some(SemanticLength(base.0.saturating_sub(1)))
-                            }
-                            Intrinsic::VectorPushBack
-                            | Intrinsic::VectorPushFront
-                            | Intrinsic::VectorInsert => {
-                                Some(SemanticLength(base.0.saturating_add(1)))
-                            }
-                            _ => None,
-                        }
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
+                let Value::Intrinsic(intrinsic) = &self[*func] else {
+                    return None;
+                };
+                use crate::ssa::ir::instruction::Intrinsic;
+                // Note that this handling of PushBack assumes that even if the dynamic semantic
+                // length was less than the capacity, we will grow the vector.
+                let adjust: fn(u32) -> u32 = match intrinsic {
+                    Intrinsic::VectorPopFront
+                    | Intrinsic::VectorPopBack
+                    | Intrinsic::VectorRemove => |base| base.saturating_sub(1),
+                    Intrinsic::VectorPushBack
+                    | Intrinsic::VectorPushFront
+                    | Intrinsic::VectorInsert => |base| base.saturating_add(1),
+                    Intrinsic::AsVector => return self.try_get_array_length(arguments[0]),
+                    _ => return None,
+                };
+                // Try to get the semantic length, if it's a known constant.
+                // It should be okay to use the semantic length; for example the ValueMerger would get fewer items.
+                let length = use_constant_length
+                    .then(|| self.get_numeric_constant(arguments[0]))
+                    .flatten()
+                    .map(|length| length.to_u128() as u32)
+                    .map(SemanticLength);
+                // Otherwise fall back to the physical capacity.
+                let base = length.or_else(|| {
+                    self.try_get_vector_capacity_impl(arguments[1], use_constant_length)
+                })?;
+                Some(SemanticLength(adjust(base.0)))
             }
             Instruction::IfElse { then_value, else_value, .. } => {
                 // The capacity is the longer of the two after merging.

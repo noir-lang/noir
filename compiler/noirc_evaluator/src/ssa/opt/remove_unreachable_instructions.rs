@@ -667,6 +667,7 @@ mod tests {
         assert_ssa_snapshot,
         ssa::{
             interpreter::value::Value,
+            ir::types::NumericType,
             opt::{assert_pass_does_not_affect_execution, assert_ssa_does_not_change},
             ssa_gen::Ssa,
         },
@@ -1760,6 +1761,60 @@ mod tests {
             v10 = make_array [u32 0, u32 0] : [u32]
             enable_side_effects u1 1
             return u32 0
+        }
+        "#);
+    }
+
+    #[test]
+    fn disabled_vector_push_back_onto_as_vector_result() {
+        // The backing capacity of `v12` is traced through `as_vector`, whose single argument is
+        // the array it converts.
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1, v1: [Field; 2]):
+            enable_side_effects v0
+            v4 = div u32 7, u32 0
+            v6, v7 = call as_vector(v1) -> (u32, [Field])
+            v8 = cast v4 as Field
+            v11, v12 = call vector_push_back(u32 2, v7, v8) -> (u32, [Field])
+            v13 = eq v11, u32 0
+            v14 = unchecked_mul v13, v0
+            constrain v14 == u1 0, \"Index out of bounds\"
+            v16 = array_get v12, index u32 0 -> Field
+            v17 = not v0
+            enable_side_effects u1 1
+            v19 = cast v0 as Field
+            v20 = cast v17 as Field
+            v21 = mul v19, v16
+            return v21
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let array = Value::array_from_iter(
+            [FieldElement::one(), FieldElement::from(2_u128)],
+            NumericType::NativeField,
+        )
+        .unwrap();
+        let (ssa, result) =
+            assert_pass_does_not_affect_execution(ssa, vec![Value::bool(false), array], |ssa| {
+                ssa.remove_unreachable_instructions()
+            });
+        assert_eq!(result, Ok(vec![Value::field(FieldElement::zero())]));
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1, v1: [Field; 2]):
+            enable_side_effects v0
+            constrain u1 0 == v0, "attempt to divide by zero"
+            v4, v5 = call as_vector(v1) -> (u32, [Field])
+            v7 = make_array [Field 0, Field 0, Field 0] : [Field]
+            constrain v0 == u1 0, "Index out of bounds"
+            v8 = not v0
+            enable_side_effects u1 1
+            v10 = cast v0 as Field
+            v11 = cast v8 as Field
+            return Field 0
         }
         "#);
     }
