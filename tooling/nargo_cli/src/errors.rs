@@ -63,4 +63,8 @@ pub enum CliError {
     /// Error from the compilation pipeline
     #[error(transparent)]
     CompileError(#[from] CompileError),
+
+    /// `nargo test` could not write its results
+    #[error("Could not display test results")]
+    TestOutput(#[source] std::io::Error),
 }
