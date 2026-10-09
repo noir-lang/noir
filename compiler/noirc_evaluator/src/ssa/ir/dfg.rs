@@ -816,7 +816,28 @@ impl DataFlowGraph {
     }
 
     /// Try to find out the capacity of a vector by tracing it back to a `MakeArray`.
+    ///
+    /// The result of a vector intrinsic whose length argument is a known constant is sized from
+    /// that length, which can be smaller than its backing array. Use
+    /// [`Self::try_get_vector_backing_capacity`] where the full backing array is needed.
     pub(crate) fn try_get_vector_capacity(&self, value: ValueId) -> Option<SemanticLength> {
+        self.try_get_vector_capacity_impl(value, true)
+    }
+
+    /// Try to find out the size of the backing array of a vector by tracing it back to a
+    /// `MakeArray`, ignoring the semantic length of any vector intrinsic along the way.
+    ///
+    /// Earlier passes may have emitted reads of every element of the backing array, so a value
+    /// that stands in for the vector must be at least this large.
+    pub(crate) fn try_get_vector_backing_capacity(&self, value: ValueId) -> Option<SemanticLength> {
+        self.try_get_vector_capacity_impl(value, false)
+    }
+
+    fn try_get_vector_capacity_impl(
+        &self,
+        value: ValueId,
+        use_constant_length: bool,
+    ) -> Option<SemanticLength> {
         // For arrays we know the size statically
         if let Some(length) = self.try_get_array_length(value) {
             return Some(length);
@@ -835,7 +856,7 @@ impl DataFlowGraph {
                 Some(length)
             }
             Instruction::ArraySet { array, .. } | Instruction::ArrayGet { array, .. } => {
-                self.try_get_vector_capacity(*array)
+                self.try_get_vector_capacity_impl(*array, use_constant_length)
             }
             Instruction::Call { func, arguments } => {
                 // Handle vector intrinsics that return vectors with known capacities
@@ -847,12 +868,15 @@ impl DataFlowGraph {
                     use crate::ssa::ir::instruction::Intrinsic;
                     // Try to get the semantic length, if it's a known constant.
                     // It should be okay to use the semantic length; for example the ValueMerger would get fewer items.
-                    let length = self
-                        .get_numeric_constant(arguments[0])
+                    let length = use_constant_length
+                        .then(|| self.get_numeric_constant(arguments[0]))
+                        .flatten()
                         .map(|length| length.to_u128() as u32)
                         .map(SemanticLength);
                     // Otherwise fall back to the physical capacity.
-                    let length = length.or_else(|| self.try_get_vector_capacity(arguments[1]));
+                    let length = length.or_else(|| {
+                        self.try_get_vector_capacity_impl(arguments[1], use_constant_length)
+                    });
                     // Then adjust it. Note that this handling of PushBack assumes that even if
                     // the dynamic semantic length was less than the capacity, we will grow the vector.
                     if let Some(base) = length {
@@ -878,8 +902,10 @@ impl DataFlowGraph {
             }
             Instruction::IfElse { then_value, else_value, .. } => {
                 // The capacity is the longer of the two after merging.
-                let then_capacity = self.try_get_vector_capacity(*then_value)?;
-                let else_capacity = self.try_get_vector_capacity(*else_value)?;
+                let then_capacity =
+                    self.try_get_vector_capacity_impl(*then_value, use_constant_length)?;
+                let else_capacity =
+                    self.try_get_vector_capacity_impl(*else_value, use_constant_length)?;
                 Some(SemanticLength(std::cmp::max(then_capacity.0, else_capacity.0)))
             }
             _ => None,

@@ -545,30 +545,24 @@ fn remove_and_replace_with_defaults(
 ) {
     let result_ids = context.dfg.instruction_results(context.instruction_id).to_vec();
     let mut replacements: Vec<(ValueId, ValueId)> = Vec::new();
-    for (i, result_id) in result_ids.iter().enumerate() {
-        let typ = context.dfg.type_of_value(*result_id).into_owned();
+    for result_id in result_ids {
+        let typ = context.dfg.type_of_value(result_id).into_owned();
         if matches!(typ, Type::Vector(_)) {
-            let Some(len) = context.dfg.try_get_vector_capacity(*result_id) else {
+            // The default vector must cover the whole backing array: reads emitted by earlier
+            // passes, for example when merging vectors, can access any element of it. The
+            // semantic length returned alongside a vector intrinsic's result gets the zero
+            // default like any other numeric result, as it does for a call made while side
+            // effects are disabled.
+            let Some(len) = context.dfg.try_get_vector_backing_capacity(result_id) else {
                 // If we can't figure out the capacity of the vector, then we cannot safely replace it with defaults.
                 return;
             };
-            // Check if this result is preceded the semantic length.
-            let follows_semantic_length = i > 0
-                && *context.dfg.type_of_value(result_ids[i - 1]) == Type::unsigned(32)
-                && matches!(context.instruction(), Instruction::Call { .. });
-
-            if follows_semantic_length {
-                replacements[i - 1].1 = context.dfg.make_constant(
-                    FieldElement::from(len.to_usize()),
-                    NumericType::Unsigned { bit_size: 32 },
-                );
-            }
             replacements.push((
-                *result_id,
+                result_id,
                 zeroed_vector_of_size(context.dfg, func_id, block_id, &typ, len.to_usize()),
             ));
         } else {
-            replacements.push((*result_id, zeroed_value(context.dfg, func_id, block_id, &typ)));
+            replacements.push((result_id, zeroed_value(context.dfg, func_id, block_id, &typ)));
         }
     }
 
@@ -1687,10 +1681,9 @@ mod tests {
             v7 = make_array [Field 0, Field 0, Field 0, Field 0, Field 0, Field 0] : [(Field, Field)]
             enable_side_effects u1 1
             v9 = cast v0 as Field
-            v10 = mul v9, Field 0
-            v11 = make_array [v10, v10, Field 0, Field 0, Field 0, Field 0] : [(Field, Field)]
+            v10 = make_array [Field 0, Field 0, Field 0, Field 0, Field 0, Field 0] : [(Field, Field)]
             enable_side_effects u1 1
-            return v10
+            return Field 0
         }
         "#);
     }
