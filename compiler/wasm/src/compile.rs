@@ -8,7 +8,7 @@ use noirc_driver::{
 };
 use noirc_frontend::{
     graph::{CrateId, CrateName},
-    hir::Context,
+    hir::{Context, ParsedFiles},
 };
 use serde::Deserialize;
 use std::{collections::BTreeMap, path::Path};
@@ -167,26 +167,24 @@ pub fn compile_program(
     file_source_map: PathToFileSourceMap,
 ) -> Result<JsCompileProgramResult, JsCompileError> {
     console_error_panic_hook::set_once();
-    let (crate_id, mut context) = prepare_context(entry_point, dependency_graph, file_source_map)?;
+    let file_manager = file_manager_with_source_map(file_source_map);
+    let parsed_files = parse_all(&file_manager);
+    let (crate_id, context) =
+        prepare_context(entry_point, dependency_graph, &file_manager, &parsed_files)?;
 
     let compile_options = CompileOptions::default();
 
-    let compiled_program =
-        noirc_driver::compile_main(&mut context, crate_id, &compile_options, None)
-            .map_err(|errs| {
-                CompileError::with_custom_diagnostics(
-                    "Failed to compile program",
-                    errs,
-                    &context.file_manager,
-                )
-            })?
-            .0;
+    let compiled_program = noirc_driver::compile_main(context, crate_id, &compile_options, None)
+        .map_err(|errs| {
+            CompileError::with_custom_diagnostics("Failed to compile program", errs, &file_manager)
+        })?
+        .0;
 
     nargo::ops::check_program(&compiled_program).map_err(|errs| {
         CompileError::with_custom_diagnostics(
             "Compiled program is not solvable",
             errs,
-            &context.file_manager,
+            &file_manager,
         )
     })?;
     let warnings = compiled_program.warnings.clone();
@@ -201,7 +199,10 @@ pub fn compile_contract(
     file_source_map: PathToFileSourceMap,
 ) -> Result<JsCompileContractResult, JsCompileError> {
     console_error_panic_hook::set_once();
-    let (crate_id, mut context) = prepare_context(entry_point, dependency_graph, file_source_map)?;
+    let file_manager = file_manager_with_source_map(file_source_map);
+    let parsed_files = parse_all(&file_manager);
+    let (crate_id, mut context) =
+        prepare_context(entry_point, dependency_graph, &file_manager, &parsed_files)?;
 
     let compile_options = CompileOptions::default();
 
@@ -221,11 +222,12 @@ pub fn compile_contract(
     Ok(JsCompileContractResult::new(compiled_contract.into(), warnings))
 }
 
-fn prepare_context(
+fn prepare_context<'a>(
     entry_point: String,
     dependency_graph: Option<JsDependencyGraph>,
-    file_source_map: PathToFileSourceMap,
-) -> Result<(CrateId, Context<'static, 'static>), JsCompileError> {
+    file_manager: &'a FileManager,
+    parsed_files: &'a ParsedFiles,
+) -> Result<(CrateId, Context<'a, 'a>), JsCompileError> {
     let dependency_graph: DependencyGraph = if let Some(dependency_graph) = dependency_graph {
         <JsValue as JsValueSerdeExt>::into_serde(&JsValue::from(dependency_graph))
             .map_err(|err| err.to_string())?
@@ -233,9 +235,7 @@ fn prepare_context(
         DependencyGraph { root_dependencies: vec![], library_dependencies: BTreeMap::new() }
     };
 
-    let fm = file_manager_with_source_map(file_source_map);
-    let parsed_files = parse_all(&fm);
-    let mut context = Context::new(fm, parsed_files);
+    let mut context = Context::from_ref_file_manager(file_manager, parsed_files);
 
     let path = Path::new(&entry_point);
     let crate_id = prepare_crate(&mut context, path);

@@ -36,7 +36,7 @@ pub(crate) fn prepare_and_compile_snippet(
     source: String,
     force_brillig: bool,
 ) -> CompilationResult<CompiledProgram> {
-    let (mut context, root_crate_id) = prepare_snippet(source);
+    let (context, root_crate_id) = prepare_snippet(source);
     let options = CompileOptions { force_brillig, ..Default::default() };
-    compile_main(&mut context, root_crate_id, &options, None)
+    compile_main(context, root_crate_id, &options, None)
 }

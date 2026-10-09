@@ -70,8 +70,7 @@ fn prepare_and_compile_snippet<W: std::io::Write + 'static>(
         skip_brillig_constraints_check: true,
         ..Default::default()
     };
-    let res = compile_main(&mut context, root_crate_id, &options, None);
-    drop(context);
+    let res = compile_main(context, root_crate_id, &options, None);
     let output = Rc::into_inner(output).expect("context is gone").into_inner();
     (res, output)
 }

@@ -3,13 +3,15 @@ use crate::compile::{
     file_manager_with_source_map,
 };
 use crate::errors::{CompileError, JsCompileError};
+use fm::FileManager;
 use nargo::parse_all;
 use noirc_driver::{
-    CompileOptions, add_dep, compile_contract, compile_main, prepare_crate, prepare_dependency,
+    CompileOptions, add_dep_in_graph, compile_contract, compile_main, prepare_crate_in_graph,
+    prepare_dependency_in_graph,
 };
 use noirc_frontend::{
-    graph::{CrateId, CrateName},
-    hir::Context,
+    graph::{CrateGraph, CrateId, CrateName},
+    hir::{Context, ParsedFiles},
 };
 use std::path::Path;
 use wasm_bindgen::prelude::wasm_bindgen;
@@ -19,9 +21,12 @@ use wasm_bindgen::prelude::wasm_bindgen;
 /// then the impl block is not picked up in javascript.
 #[wasm_bindgen]
 pub struct CompilerContext {
-    // `wasm_bindgen` currently doesn't allow lifetime parameters on structs so we must use a `'static` lifetime.
-    // `Context` must then own the `FileManager` to satisfy this lifetime.
-    context: Context<'static, 'static>,
+    // `wasm_bindgen` doesn't allow lifetime parameters on structs, so this can't hold a `Context`
+    // borrowing the files. It owns the files and the crate graph instead, and compilation builds a
+    // `Context` over them.
+    file_manager: FileManager,
+    parsed_files: ParsedFiles,
+    crate_graph: CrateGraph,
 }
 
 #[wasm_bindgen(js_name = "CrateId")]
@@ -34,19 +39,19 @@ impl CompilerContext {
     pub fn new(source_map: PathToFileSourceMap) -> CompilerContext {
         console_error_panic_hook::set_once();
 
-        let fm = file_manager_with_source_map(source_map);
-        let parsed_files = parse_all(&fm);
+        let file_manager = file_manager_with_source_map(source_map);
+        let parsed_files = parse_all(&file_manager);
 
-        CompilerContext { context: Context::new(fm, parsed_files) }
+        CompilerContext { file_manager, parsed_files, crate_graph: CrateGraph::default() }
     }
 
     #[cfg(test)]
-    pub(crate) fn crate_graph(&self) -> &noirc_frontend::graph::CrateGraph {
-        &self.context.crate_graph
+    pub(crate) fn crate_graph(&self) -> &CrateGraph {
+        &self.crate_graph
     }
     #[cfg(test)]
     pub(crate) fn root_crate_id(&self) -> CrateIDWrapper {
-        CrateIDWrapper(*self.context.root_crate_id())
+        CrateIDWrapper(*self.crate_graph.root_crate_id())
     }
 
     // Processes the root crate by adding it to the package graph and automatically
@@ -57,14 +62,22 @@ impl CompilerContext {
         let path_to_crate = Path::new(&path_to_crate);
 
         // Adds the root crate to the crate graph and returns its crate id
-        CrateIDWrapper(prepare_crate(&mut self.context, path_to_crate))
+        CrateIDWrapper(prepare_crate_in_graph(
+            &mut self.crate_graph,
+            &self.file_manager,
+            path_to_crate,
+        ))
     }
 
     pub fn process_dependency_crate(&mut self, path_to_crate: String) -> CrateIDWrapper {
         let path_to_crate = Path::new(&path_to_crate);
 
         // Adds the root crate to the crate graph and returns its crate id
-        CrateIDWrapper(prepare_dependency(&mut self.context, path_to_crate))
+        CrateIDWrapper(prepare_dependency_in_graph(
+            &mut self.crate_graph,
+            &self.file_manager,
+            path_to_crate,
+        ))
     }
 
     // Adds a named edge from one crate to the other.
@@ -86,33 +99,35 @@ impl CompilerContext {
         let parsed_crate_name: CrateName =
             crate_name.parse().map_err(|err_string| JsCompileError::new(err_string, Vec::new()))?;
 
-        add_dep(&mut self.context, from.0, to.0, parsed_crate_name);
+        add_dep_in_graph(&mut self.crate_graph, from.0, to.0, parsed_crate_name);
         Ok(())
     }
 
     pub fn compile_program(
-        mut self,
+        self,
         _program_width: usize,
     ) -> Result<JsCompileProgramResult, JsCompileError> {
         let compile_options = CompileOptions::default();
 
-        let root_crate_id = *self.context.root_crate_id();
-        let compiled_program =
-            compile_main(&mut self.context, root_crate_id, &compile_options, None)
-                .map_err(|errs| {
-                    CompileError::with_custom_diagnostics(
-                        "Failed to compile program",
-                        errs,
-                        &self.context.file_manager,
-                    )
-                })?
-                .0;
+        let root_crate_id = *self.crate_graph.root_crate_id();
+        let mut context = Context::from_ref_file_manager(&self.file_manager, &self.parsed_files);
+        context.crate_graph = self.crate_graph;
+
+        let compiled_program = compile_main(context, root_crate_id, &compile_options, None)
+            .map_err(|errs| {
+                CompileError::with_custom_diagnostics(
+                    "Failed to compile program",
+                    errs,
+                    &self.file_manager,
+                )
+            })?
+            .0;
 
         nargo::ops::check_program(&compiled_program).map_err(|errs| {
             CompileError::with_custom_diagnostics(
                 "Compiled program is not solvable",
                 errs,
-                &self.context.file_manager,
+                &self.file_manager,
             )
         })?;
         let warnings = compiled_program.warnings.clone();
@@ -121,22 +136,24 @@ impl CompilerContext {
     }
 
     pub fn compile_contract(
-        mut self,
+        self,
         _program_width: usize,
     ) -> Result<JsCompileContractResult, JsCompileError> {
         let compile_options = CompileOptions::default();
 
-        let root_crate_id = *self.context.root_crate_id();
-        let compiled_contract =
-            compile_contract(&mut self.context, root_crate_id, &compile_options)
-                .map_err(|errs| {
-                    CompileError::with_custom_diagnostics(
-                        "Failed to compile contract",
-                        errs,
-                        &self.context.file_manager,
-                    )
-                })?
-                .0;
+        let root_crate_id = *self.crate_graph.root_crate_id();
+        let mut context = Context::from_ref_file_manager(&self.file_manager, &self.parsed_files);
+        context.crate_graph = self.crate_graph;
+
+        let compiled_contract = compile_contract(&mut context, root_crate_id, &compile_options)
+            .map_err(|errs| {
+                CompileError::with_custom_diagnostics(
+                    "Failed to compile contract",
+                    errs,
+                    &self.file_manager,
+                )
+            })?
+            .0;
 
         let warnings = compiled_contract.warnings.clone();
 
@@ -257,8 +274,8 @@ fn prepare_compiler_context(
 #[cfg(test)]
 mod tests {
     use nargo::parse_all;
-    use noirc_driver::prepare_crate;
-    use noirc_frontend::hir::Context;
+    use noirc_driver::prepare_crate_in_graph;
+    use noirc_frontend::graph::CrateGraph;
 
     use crate::compile::{PathToFileSourceMap, file_manager_with_source_map};
 
@@ -267,15 +284,15 @@ mod tests {
     use super::CompilerContext;
 
     fn setup_test_context(source_map: PathToFileSourceMap) -> CompilerContext {
-        let mut fm = file_manager_with_source_map(source_map);
+        let mut file_manager = file_manager_with_source_map(source_map);
         // Add this due to us calling prepare_crate on "/main.nr" below
-        fm.add_file_with_source(Path::new("/main.nr"), "fn foo() {}".to_string());
-        let parsed_files = parse_all(&fm);
+        file_manager.add_file_with_source(Path::new("/main.nr"), "fn foo() {}".to_string());
+        let parsed_files = parse_all(&file_manager);
 
-        let mut context = Context::new(fm, parsed_files);
-        prepare_crate(&mut context, Path::new("/main.nr"));
+        let mut crate_graph = CrateGraph::default();
+        prepare_crate_in_graph(&mut crate_graph, &file_manager, Path::new("/main.nr"));
 
-        CompilerContext { context }
+        CompilerContext { file_manager, parsed_files, crate_graph }
     }
 
     #[test]

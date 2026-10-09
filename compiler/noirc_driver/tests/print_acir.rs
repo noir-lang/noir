@@ -32,9 +32,8 @@ fn compile(source: &str, force_brillig: bool) -> noirc_artifacts::program::Compi
     let root_crate_id = prepare_crate(&mut context, file_name);
 
     let options = CompileOptions { force_brillig, ..Default::default() };
-    let (program, _warnings) =
-        noirc_driver::compile_main(&mut context, root_crate_id, &options, None)
-            .expect("program should compile successfully");
+    let (program, _warnings) = noirc_driver::compile_main(context, root_crate_id, &options, None)
+        .expect("program should compile successfully");
     program
 }
 

@@ -18,7 +18,7 @@ use noirc_artifacts::contract::{CompiledContract, CompiledContractOutputs, Contr
 use noirc_artifacts::debug::{DebugFile, DebugInfo, FunctionLocation};
 use noirc_artifacts::program::CompiledProgram;
 use noirc_artifacts::ssa::{InternalBug, InternalWarning, SsaReport};
-use noirc_errors::CustomDiagnostic;
+use noirc_errors::{CustomDiagnostic, Location};
 use noirc_evaluator::brillig::brillig_ir::{
     LayoutConfig, MAX_SCRATCH_SPACE, MAX_STACK_FRAME_SIZE, MIN_SCRATCH_SPACE, MIN_STACK_FRAME_SIZE,
     NUM_STACK_FRAMES,
@@ -42,7 +42,7 @@ use noirc_frontend::hir::{Context, ParsedFiles};
 use noirc_frontend::monomorphization::{
     errors::MonomorphizationError, monomorphize, monomorphize_debug,
 };
-use noirc_frontend::node_interner::{FuncId, GlobalId, GlobalValue, TypeId};
+use noirc_frontend::node_interner::{FuncId, GlobalId, GlobalValue, NodeInterner, TypeId};
 use noirc_frontend::token::SecondaryAttributeKind;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::PathBuf;
@@ -53,7 +53,10 @@ mod crate_graph;
 mod file_manager;
 
 pub use abi_gen::gen_abi;
-pub use crate_graph::{add_dep, link_to_debug_crate, prepare_crate, prepare_dependency};
+pub use crate_graph::{
+    add_dep, add_dep_in_graph, link_to_debug_crate, prepare_crate, prepare_crate_in_graph,
+    prepare_dependency, prepare_dependency_in_graph,
+};
 pub use file_manager::{
     file_manager_with_stdlib, stdlib_disk_path, stdlib_nargo_toml_source, stdlib_paths_with_source,
 };
@@ -474,14 +477,18 @@ pub fn compute_function_abi(
 /// On error this returns the non-empty list of warnings and errors.
 ///
 /// See [`compile_no_check`] for further information about the use of `cached_program`.
+///
+/// `context` is consumed: its HIR is freed once the program has been monomorphized so that it is
+/// not kept in memory during code generation, which leaves the context unfit for any further
+/// queries.
 #[tracing::instrument(level = "trace", skip_all)]
 pub fn compile_main(
-    context: &mut Context,
+    mut context: Context,
     crate_id: CrateId,
     options: &CompileOptions,
     cached_program: Option<CompiledProgram>,
 ) -> CompilationResult<CompiledProgram> {
-    let (_, mut warnings) = check_crate(context, crate_id, options)?;
+    let (_, mut warnings) = check_crate(&mut context, crate_id, options)?;
 
     let main = context.get_main_function(&crate_id).ok_or_else(|| {
         // TODO(#2155): This error might be a better to exist in Nargo
@@ -492,9 +499,24 @@ pub fn compile_main(
         vec![err]
     })?;
 
-    let compiled_program =
-        compile_no_check(context, options, main, cached_program, options.force_compile)
-            .map_err(|error| vec![CustomDiagnostic::from(error)])?;
+    let monomorphized = monomorphize_program(&context, options, main)
+        .map_err(|error| vec![CustomDiagnostic::from(error)])?;
+    let compiled_program = match reusable_cached_program(
+        &context,
+        options,
+        &monomorphized,
+        cached_program,
+        options.force_compile,
+    ) {
+        Some(cached_program) => cached_program,
+        None => {
+            // Nothing past monomorphization reads the HIR, so free it rather than keep it alive
+            // alongside the SSA, ACIR and Brillig for the rest of compilation.
+            context.def_interner = NodeInterner::default();
+            compile_monomorphized(&context, options, monomorphized)
+                .map_err(|error| vec![CustomDiagnostic::from(error)])?
+        }
+    };
 
     let compilation_warnings =
         vecmap(compiled_program.warnings.clone(), ssa_report_to_custom_diagnostic);
@@ -851,6 +873,38 @@ pub fn compile_no_check(
     cached_program: Option<CompiledProgram>,
     force_compile: bool,
 ) -> Result<CompiledProgram, CompileError> {
+    let monomorphized = monomorphize_program(context, options, main_function)?;
+    if let Some(cached_program) =
+        reusable_cached_program(context, options, &monomorphized, cached_program, force_compile)
+    {
+        return Ok(cached_program);
+    }
+    compile_monomorphized(context, options, monomorphized)
+}
+
+/// A monomorphized program, together with everything compiling it needs from the
+/// [`NodeInterner`].
+///
+/// [`compile_monomorphized`] reads nothing else from the interner, so the interner can be
+/// freed once this has been built.
+struct MonomorphizedProgram {
+    program: noirc_frontend::monomorphization::ast::Program,
+    /// Fingerprint of `program`, stored as [`CompiledProgram::hash`].
+    hash: u64,
+    abi_parameters: Vec<AbiParameter>,
+    abi_return_type: Option<AbiType>,
+    /// Location reported if a type in the ABI fails to evaluate.
+    main_location: Location,
+}
+
+/// Monomorphizes the program with `main_function` as its entry point and computes the parts of
+/// its ABI which depend on the HIR.
+#[allow(clippy::result_large_err)]
+fn monomorphize_program(
+    context: &Context,
+    options: &CompileOptions,
+    main_function: FuncId,
+) -> Result<MonomorphizedProgram, CompileError> {
     let force_unconstrained = options.force_brillig || options.minimal_ssa;
 
     let program = if options.instrument_debug {
@@ -869,6 +923,24 @@ pub fn compile_no_check(
         println!("{program}");
     }
 
+    // Hash the AST program, which is going to be used to fingerprint the compilation artifact.
+    let hash = rustc_hash::FxBuildHasher.hash_one(&program);
+
+    let (abi_parameters, abi_return_type) = abi_gen::compute_function_abi(context, &main_function);
+    let main_location = abi_gen::get_main_function_location(context);
+
+    Ok(MonomorphizedProgram { program, hash, abi_parameters, abi_return_type, main_location })
+}
+
+/// Returns `cached_program` if it was compiled from the same monomorphized program and nothing
+/// requires compiling it again.
+fn reusable_cached_program(
+    context: &Context,
+    options: &CompileOptions,
+    monomorphized: &MonomorphizedProgram,
+    cached_program: Option<CompiledProgram>,
+    force_compile: bool,
+) -> Option<CompiledProgram> {
     // If user has specified that they want to see intermediate steps printed then we should
     // force compilation even if the program hasn't changed.
     let force_compile = force_compile
@@ -881,16 +953,26 @@ pub fn compile_no_check(
         || options.emit_ssa
         || options.minimal_ssa;
 
-    // Hash the AST program, which is going to be used to fingerprint the compilation artifact.
-    let hash = rustc_hash::FxBuildHasher.hash_one(&program);
-
-    if let Some(cached_program) = cached_program
-        && !force_compile
-        && cached_program.hash == hash
-    {
-        info!("Program matches existing artifact, returning early");
-        return Ok(cached_program);
+    let cached_program = cached_program?;
+    if force_compile || cached_program.hash != monomorphized.hash {
+        return None;
     }
+    info!("Program matches existing artifact, returning early");
+    Some(cached_program)
+}
+
+/// Compiles a monomorphized program into ACIR and Brillig.
+///
+/// This reads the file manager, parsed files, crate graph and def maps from `context`, but not
+/// its [`NodeInterner`].
+#[allow(clippy::result_large_err)]
+fn compile_monomorphized(
+    context: &Context,
+    options: &CompileOptions,
+    monomorphized: MonomorphizedProgram,
+) -> Result<CompiledProgram, CompileError> {
+    let MonomorphizedProgram { program, hash, abi_parameters, abi_return_type, main_location } =
+        monomorphized;
 
     let return_visibility = program.return_visibility();
     let mut ssa_evaluator_options = options.as_ssa_options(context.package_build_path.clone());
@@ -917,7 +999,14 @@ pub fn compile_no_check(
         )?
     };
 
-    let abi = gen_abi(context, &main_function, return_visibility, error_types);
+    let abi = abi_gen::assemble_abi(
+        context,
+        main_location,
+        abi_parameters,
+        abi_return_type,
+        return_visibility,
+        error_types,
+    );
     let file_map = filter_relevant_files(&debug, &context.file_manager, &context.parsed_files);
 
     Ok(CompiledProgram {

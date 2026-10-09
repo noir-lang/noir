@@ -27,19 +27,43 @@ pub fn gen_abi(
     error_types: BTreeMap<ErrorSelector, ErrorType>,
 ) -> Abi {
     let (parameters, return_type) = compute_function_abi(context, func_id);
+    assemble_abi(
+        context,
+        get_main_function_location(context),
+        parameters,
+        return_type,
+        return_visibility,
+        error_types,
+    )
+}
+
+/// Builds an `Abi` from a function's already computed parameters and return type, converting the
+/// circuit's error types.
+///
+/// Converting the error types reads only the crate graph and def maps from `context`, never its
+/// `NodeInterner`, so this can run after the interner has been freed. `main_location` is the
+/// location reported if a type in the ABI fails to evaluate.
+pub(super) fn assemble_abi(
+    context: &Context,
+    main_location: Location,
+    parameters: Vec<AbiParameter>,
+    return_type: Option<AbiType>,
+    return_visibility: Visibility,
+    error_types: BTreeMap<ErrorSelector, ErrorType>,
+) -> Abi {
     let return_type = return_type.map(|typ| AbiReturnType {
         abi_type: typ,
         visibility: to_abi_visibility(return_visibility),
     });
     let error_types = error_types
         .into_iter()
-        .map(|(selector, typ)| (selector, build_abi_error_type(context, typ)))
+        .map(|(selector, typ)| (selector, build_abi_error_type(context, typ, main_location)))
         .collect();
     Abi { abi_version: ABI_VERSION, parameters, return_type, error_types }
 }
 
 // Get the Span of the root crate's main function, or else a dummy span if that fails
-fn get_main_function_location(context: &Context) -> Location {
+pub(super) fn get_main_function_location(context: &Context) -> Location {
     if let Some(func_id) = context.get_main_function(context.root_crate_id()) {
         context.function_meta(&func_id).location
     } else {
@@ -47,22 +71,26 @@ fn get_main_function_location(context: &Context) -> Location {
     }
 }
 
-fn build_abi_error_type(context: &Context, typ: ErrorType) -> AbiErrorType {
+fn build_abi_error_type(
+    context: &Context,
+    typ: ErrorType,
+    main_location: Location,
+) -> AbiErrorType {
     match typ {
         ErrorType::Dynamic(typ) => {
             if let Type::FmtString(len, item_types) = typ {
-                let span = get_main_function_location(context);
-                let length = len.evaluate_to_u32(span).expect("Cannot evaluate fmt length");
+                let length =
+                    len.evaluate_to_u32(main_location).expect("Cannot evaluate fmt length");
                 let item_types = match item_types.as_ref() {
                     Type::Tuple(item_types) => {
-                        vecmap(item_types, |typ| abi_type_from_hir_type(context, typ))
+                        vecmap(item_types, |typ| abi_type_at(context, typ, main_location))
                     }
                     Type::Unit => Vec::new(),
                     _ => unreachable!("FmtString items must be a tuple or unit"),
                 };
                 AbiErrorType::FmtString { length, item_types }
             } else {
-                AbiErrorType::Custom(abi_type_from_hir_type(context, &typ))
+                AbiErrorType::Custom(abi_type_at(context, &typ, main_location))
             }
         }
         ErrorType::String(string) => AbiErrorType::String { string },
@@ -70,15 +98,21 @@ fn build_abi_error_type(context: &Context, typ: ErrorType) -> AbiErrorType {
 }
 
 pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
+    abi_type_at(context, typ, get_main_function_location(context))
+}
+
+/// Converts `typ` into an `AbiType`, reporting `main_location` if a length fails to evaluate.
+///
+/// Reads only the crate graph and def maps from `context`, not its `NodeInterner`.
+fn abi_type_at(context: &Context, typ: &Type, main_location: Location) -> AbiType {
     match typ {
         Type::FieldElement => AbiType::Field,
         Type::Array(typ, size) => {
-            let span = get_main_function_location(context);
             let length = size
-                .evaluate_to_u32(span)
+                .evaluate_to_u32(main_location)
                 .expect("Cannot have variable sized arrays as a parameter to main");
             let typ = typ.as_ref();
-            AbiType::Array { length, typ: Box::new(abi_type_from_hir_type(context, typ)) }
+            AbiType::Array { length, typ: Box::new(abi_type_at(context, typ, main_location)) }
         }
         Type::Integer(sign, bit_width) => {
             let sign = match sign {
@@ -91,9 +125,9 @@ pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
         Type::TypeVariable(binding) => {
             if binding.is_integer() || binding.is_integer_or_field() {
                 match binding.binding() {
-                    TypeBinding::Bound(typ) => abi_type_from_hir_type(context, typ),
+                    TypeBinding::Bound(typ) => abi_type_at(context, typ, main_location),
                     TypeBinding::Unbound(_id, _kind) => {
-                        abi_type_from_hir_type(context, &Type::default_int_or_field_type())
+                        abi_type_at(context, &Type::default_int_or_field_type(), main_location)
                     }
                 }
             } else {
@@ -102,9 +136,8 @@ pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
         }
         Type::Bool => AbiType::Boolean,
         Type::String(size) => {
-            let span = get_main_function_location(context);
             let size = size
-                .evaluate_to_u32(span)
+                .evaluate_to_u32(main_location)
                 .expect("Cannot have variable sized strings as a parameter to main");
             AbiType::String { length: size }
         }
@@ -113,15 +146,15 @@ pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
             let struct_type = def.borrow();
             let fields = struct_type.get_fields(args).unwrap_or_default();
             let fields =
-                vecmap(fields, |(name, typ, _)| (name, abi_type_from_hir_type(context, &typ)));
+                vecmap(fields, |(name, typ, _)| (name, abi_type_at(context, &typ, main_location)));
             // For the ABI, we always want to resolve the struct paths from the root crate
             let path = context.fully_qualified_struct_path(context.root_crate_id(), struct_type.id);
             AbiType::Struct { fields, path }
         }
-        Type::Alias(def, args) => abi_type_from_hir_type(context, &def.borrow().get_type(args)),
-        Type::CheckedCast { to, .. } => abi_type_from_hir_type(context, to),
+        Type::Alias(def, args) => abi_type_at(context, &def.borrow().get_type(args), main_location),
+        Type::CheckedCast { to, .. } => abi_type_at(context, to, main_location),
         Type::Tuple(fields) => {
-            let fields = vecmap(fields, |typ| abi_type_from_hir_type(context, typ));
+            let fields = vecmap(fields, |typ| abi_type_at(context, typ, main_location));
             AbiType::Tuple { fields }
         }
         Type::Error
