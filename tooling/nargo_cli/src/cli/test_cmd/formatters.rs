@@ -1,6 +1,5 @@
 use std::{
     io::{self, Write},
-    panic::RefUnwindSafe,
     time::Duration,
 };
 
@@ -16,53 +15,59 @@ use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, StandardStreamLoc
 
 use super::TestResult;
 
-/// A formatter for showing test results.
+/// Where `nargo test` sends its output. A formatter consumes exactly one of two event streams.
+pub(crate) enum Output<'a> {
+    /// Events as they happen, for machines.
+    Live(Box<dyn LiveFormatter + 'a>),
+    /// Events one package at a time, for humans.
+    Ordered(Box<dyn OrderedFormatter + 'a>),
+}
+
+impl Output<'_> {
+    /// The live formatter, if this output is live.
+    pub(crate) fn live(&self) -> Option<&dyn LiveFormatter> {
+        match self {
+            Output::Live(formatter) => Some(formatter.as_ref()),
+            Output::Ordered(_) => None,
+        }
+    }
+}
+
+/// Shows events the moment they happen, so a reader of the stream gets each result as soon as
+/// it exists. Packages interleave, and tests appear in the order they finish.
 ///
-/// The order of events is:
-/// 1. Compilation of all packages happen (in parallel). There's no formatter method for this.
-/// 2. If compilation is successful, one `package_start_async` for each package.
-/// 3. For each test, one `test_start_async` event and one `test_end_async` event, as the test
-///    runs (there's no `test_start_sync` event because it would happen right before `test_end_sync`)
-/// 4. For each package, sequentially:
-///     1. A `package_start_sync` event
-///     2. One `test_end_sync` event for each test
-///     3. A `package_end` event
+/// For each run:
+/// 1. `package_start` for every package, in package order, before any test runs.
+/// 2. For each test, on the worker thread that runs it: `test_start`, then `test_end`.
+/// 3. `package_end` for each package once its last result has arrived.
+pub(crate) trait LiveFormatter: Send + Sync {
+    fn package_start(&self, package_name: &str, test_count: usize) -> io::Result<()>;
+
+    fn test_start(&self, name: &str, package_name: &str) -> io::Result<()>;
+
+    fn test_end(&self, test_result: &TestResult) -> io::Result<()>;
+
+    fn package_end(&self, package_name: &str, test_results: &[TestResult]) -> io::Result<()>;
+}
+
+/// Shows results one package at a time, in package order, so the output has the same layout
+/// however the tests were scheduled. Every event is called from the main thread.
 ///
-/// The reason we have some `sync` and `async` events is that formatters that show output
-/// to humans rely on the `sync` events to show a more predictable output (package by package),
-/// and formatters that output to a machine-readable format (like JSON) rely on the `async`
-/// events to show things as soon as they happen, regardless of a package ordering.
-///
-/// Every event does nothing by default, so a formatter only implements the events it shows.
-pub(crate) trait Formatter: Send + Sync + RefUnwindSafe {
-    fn package_start_async(&self, _package_name: &str, _test_count: usize) -> io::Result<()> {
-        Ok(())
-    }
+/// For each package, in package order:
+/// 1. `package_start`
+/// 2. `test_end` for each of its tests, numbered `current` of `total`
+/// 3. `package_end`
+pub(crate) trait OrderedFormatter: Send + Sync {
+    fn package_start(&self, package_name: &str, test_count: usize) -> io::Result<()>;
 
-    fn package_start_sync(&self, _package_name: &str, _test_count: usize) -> io::Result<()> {
-        Ok(())
-    }
-
-    fn test_start_async(&self, _name: &str, _package_name: &str) -> io::Result<()> {
-        Ok(())
-    }
-
-    fn test_end_async(&self, _test_result: &TestResult) -> io::Result<()> {
-        Ok(())
-    }
-
-    fn test_end_sync(
+    fn test_end(
         &self,
-        _test_result: &TestResult,
-        _current_test_count: usize,
-        _total_test_count: usize,
-    ) -> io::Result<()> {
-        Ok(())
-    }
+        test_result: &TestResult,
+        current_test_count: usize,
+        total_test_count: usize,
+    ) -> io::Result<()>;
 
-    fn package_end(&self, _package_name: &str, _test_results: &[TestResult]) -> io::Result<()> {
-        Ok(())
-    }
+    fn package_end(&self, package_name: &str, test_results: &[TestResult]) -> io::Result<()>;
 }
 
 /// What a formatter needs to show test results, besides the results themselves.
@@ -115,12 +120,12 @@ impl<'a> PrettyFormatter<'a> {
     }
 }
 
-impl Formatter for PrettyFormatter<'_> {
-    fn package_start_sync(&self, package_name: &str, test_count: usize) -> io::Result<()> {
+impl OrderedFormatter for PrettyFormatter<'_> {
+    fn package_start(&self, package_name: &str, test_count: usize) -> io::Result<()> {
         package_start(package_name, test_count)
     }
 
-    fn test_end_sync(
+    fn test_end(
         &self,
         test_result: &TestResult,
         _current_test_count: usize,
@@ -197,12 +202,12 @@ impl<'a> TerseFormatter<'a> {
     }
 }
 
-impl Formatter for TerseFormatter<'_> {
-    fn package_start_sync(&self, package_name: &str, test_count: usize) -> io::Result<()> {
+impl OrderedFormatter for TerseFormatter<'_> {
+    fn package_start(&self, package_name: &str, test_count: usize) -> io::Result<()> {
         package_start(package_name, test_count)
     }
 
-    fn test_end_sync(
+    fn test_end(
         &self,
         test_result: &TestResult,
         current_test_count: usize,
@@ -295,18 +300,18 @@ impl<'a> JsonFormatter<'a> {
     }
 }
 
-impl Formatter for JsonFormatter<'_> {
-    fn package_start_async(&self, package_name: &str, test_count: usize) -> io::Result<()> {
+impl LiveFormatter for JsonFormatter<'_> {
+    fn package_start(&self, package_name: &str, test_count: usize) -> io::Result<()> {
         let json = json!({"type": "suite", "event": "started", "name": package_name, "test_count": test_count});
         writeln!(io::stdout(), "{json}")
     }
 
-    fn test_start_async(&self, name: &str, package_name: &str) -> io::Result<()> {
+    fn test_start(&self, name: &str, package_name: &str) -> io::Result<()> {
         let json = json!({"type": "test", "event": "started", "name": name, "suite": package_name});
         writeln!(io::stdout(), "{json}")
     }
 
-    fn test_end_async(&self, test_result: &TestResult) -> io::Result<()> {
+    fn test_end(&self, test_result: &TestResult) -> io::Result<()> {
         let mut stdout = String::new();
         if let Some(output) = self.options.output_to_show(test_result) {
             stdout.push_str(output.trim());
@@ -353,7 +358,7 @@ impl Formatter for JsonFormatter<'_> {
         writeln!(io::stdout(), "{json}")
     }
 
-    fn package_end(&self, _package_name: &str, test_results: &[TestResult]) -> io::Result<()> {
+    fn package_end(&self, package_name: &str, test_results: &[TestResult]) -> io::Result<()> {
         let mut passed = 0;
         let mut failed = 0;
         let mut ignored = 0;
@@ -365,7 +370,7 @@ impl Formatter for JsonFormatter<'_> {
             }
         }
         let event = if failed == 0 { "ok" } else { "failed" };
-        let json = json!({"type": "suite", "event": event, "passed": passed, "failed": failed, "ignored": ignored});
+        let json = json!({"type": "suite", "event": event, "name": package_name, "passed": passed, "failed": failed, "ignored": ignored});
         writeln!(io::stdout(), "{json}")
     }
 }

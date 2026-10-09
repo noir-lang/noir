@@ -1,9 +1,9 @@
 //! Integration tests for `nargo test` when the test results cannot be written to stdout.
 //!
 //! A failed write ends the run with a non-zero exit code, from whichever thread hits it first:
-//! worker threads write the `test_start_async`/`test_end_async` events and the main thread writes
-//! the per-package start, status and report events. A broken pipe means nobody is reading, so it
-//! exits without an error message; any other failure is reported on stderr.
+//! with `--format json` worker threads write each test's start and end, and with the other formats
+//! the main thread writes everything. A broken pipe means nobody is reading, so it exits without
+//! an error message; any other failure is reported on stderr.
 
 #![cfg(target_os = "linux")]
 

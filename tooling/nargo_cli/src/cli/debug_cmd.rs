@@ -29,7 +29,7 @@ use noirc_driver::CompileOptions;
 use noirc_frontend::hir::{Context, ParsedFiles};
 
 use super::test_cmd::TestResult;
-use super::test_cmd::formatters::Formatter;
+use super::test_cmd::formatters::OrderedFormatter;
 use super::{LockType, WorkspaceCommand};
 use crate::cli::test_cmd::formatters::{DisplayOptions, PrettyFormatter};
 use crate::errors::CliError;
@@ -140,7 +140,7 @@ fn print_test_result(
         silence_warnings: false,
     };
     PrettyFormatter::new(options)
-        .test_end_sync(&test_result, 1, 1)
+        .test_end(&test_result, 1, 1)
         .expect("Could not display test result");
 }
 

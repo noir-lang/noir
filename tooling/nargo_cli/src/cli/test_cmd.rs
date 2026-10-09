@@ -6,7 +6,9 @@
 //!    runs ([`RunMode`]), or that it is skipped.
 //! 3. [`TestRunner::run_tests`] hands the tests to worker threads. Each worker runs tests one at a
 //!    time ([`TestRunner::run_worker`]) and sends every result to the main thread.
-//! 4. [`TestRunner::display_results`] shows the results package by package as they arrive.
+//! 4. The main thread shows the results: one package at a time for an [`OrderedFormatter`]
+//!    ([`TestRunner::show_in_package_order`]), or as they arrive for a [`LiveFormatter`]
+//!    ([`TestRunner::report_as_completed`]).
 
 use std::{
     cell::RefCell,
@@ -27,7 +29,10 @@ use std::{
 use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use clap::Args;
 use fm::FileManager;
-use formatters::{DisplayOptions, Formatter, JsonFormatter, PrettyFormatter, TerseFormatter};
+use formatters::{
+    DisplayOptions, JsonFormatter, LiveFormatter, OrderedFormatter, Output, PrettyFormatter,
+    TerseFormatter,
+};
 use nargo::{
     FuzzExecutionConfig, FuzzFolderConfig,
     foreign_calls::{DefaultForeignCallBuilder, OracleResolverUrl},
@@ -182,11 +187,11 @@ enum Format {
 }
 
 impl Format {
-    fn formatter<'a>(&self, options: DisplayOptions<'a>) -> Box<dyn Formatter + 'a> {
+    fn output<'a>(&self, options: DisplayOptions<'a>) -> Output<'a> {
         match self {
-            Format::Pretty => Box::new(PrettyFormatter::new(options)),
-            Format::Terse => Box::new(TerseFormatter::new(options)),
-            Format::Json => Box::new(JsonFormatter::new(options)),
+            Format::Pretty => Output::Ordered(Box::new(PrettyFormatter::new(options))),
+            Format::Terse => Output::Ordered(Box::new(TerseFormatter::new(options))),
+            Format::Json => Output::Live(Box::new(JsonFormatter::new(options))),
         }
     }
 }
@@ -229,7 +234,7 @@ pub(crate) fn run(args: TestCommand, workspace: Workspace) -> Result<(), CliErro
         workspace,
         args: &args,
         pattern,
-        formatter: format.formatter(display_options),
+        output: format.output(display_options),
     };
     runner.run()
 }
@@ -241,7 +246,7 @@ struct TestRunner<'a> {
     args: &'a TestCommand,
     /// Which tests to collect, from the test names given on the command line.
     pattern: FunctionNameMatch,
-    formatter: Box<dyn Formatter + 'a>,
+    output: Output<'a>,
 }
 
 impl<'a> TestRunner<'a> {
@@ -383,18 +388,17 @@ impl<'a> TestRunner<'a> {
 
     // --- Running tests ---
 
-    /// Runs every test on worker threads and shows the results package by package.
-    /// Returns whether all tests passed.
+    /// Runs every test on worker threads and shows the results. Returns whether all tests passed.
     fn run_tests(&'a self, packages: BTreeMap<PackageName, PackageTests<'a>>) -> io::Result<bool> {
         let mut tests = Vec::new();
-        let mut reports = BTreeMap::new();
+        let mut package_results = BTreeMap::new();
         for (package_name, package) in packages {
             let test_count = package.tests.len();
-            self.formatter.package_start_async(&package_name, test_count)?;
-            reports.insert(
-                package_name,
-                PackageReport { test_count, coverage: package.coverage_baseline },
-            );
+            if let Some(formatter) = self.output.live() {
+                formatter.package_start(&package_name, test_count)?;
+            }
+            package_results
+                .insert(package_name, PackageResults::new(test_count, package.coverage_baseline));
             tests.extend(package.tests);
         }
 
@@ -428,9 +432,18 @@ impl<'a> TestRunner<'a> {
                 self.run_worker(fuzz_tests, &result_sender)
             }));
 
-            // `display_results` owns the receiver, so if it fails to write a result the receiver
-            // is dropped, the workers' next send fails and they stop picking up tests.
-            let all_passed = self.display_results(result_receiver, reports)?;
+            // The receiver is moved into the function showing the results, so if writing fails
+            // the receiver is dropped, the workers' next send fails and they stop picking up tests.
+            let all_passed = match &self.output {
+                Output::Ordered(formatter) => self.show_in_package_order(
+                    formatter.as_ref(),
+                    result_receiver,
+                    package_results,
+                )?,
+                Output::Live(formatter) => {
+                    self.report_as_completed(formatter.as_ref(), result_receiver, package_results)?
+                }
+            };
 
             // A worker that fails to write stops early, which leaves its package short of
             // results; its error explains why.
@@ -442,8 +455,8 @@ impl<'a> TestRunner<'a> {
         })
     }
 
-    /// Takes tests from `tests` until none are left, runs each one and sends its result to
-    /// [`Self::display_results`].
+    /// Takes tests from `tests` until none are left, runs each one and sends its result to the
+    /// main thread.
     fn run_worker(
         &'a self,
         tests: &Mutex<impl Iterator<Item = Test<'a>>>,
@@ -458,7 +471,9 @@ impl<'a> TestRunner<'a> {
                 break;
             };
 
-            self.formatter.test_start_async(&test.name, &test.package_name)?;
+            if let Some(formatter) = self.output.live() {
+                formatter.test_start(&test.name, &test.package_name)?;
+            }
             let started = Instant::now();
 
             let outcome = match test.run_mode {
@@ -475,7 +490,9 @@ impl<'a> TestRunner<'a> {
                 output: outcome.output,
                 time_to_run: started.elapsed(),
             };
-            self.formatter.test_end_async(&result)?;
+            if let Some(formatter) = self.output.live() {
+                formatter.test_end(&result)?;
+            }
 
             if results.send(FinishedTest { result, coverage: outcome.coverage }).is_err() {
                 break;
@@ -658,51 +675,90 @@ impl<'a> TestRunner<'a> {
     // --- Displaying results ---
 
     /// Shows results one package at a time, in package order, though the workers finish tests in
-    /// any order. Writes each package's coverage report once its tests are shown.
-    /// Returns whether all tests passed.
-    fn display_results(
+    /// any order. Returns whether all tests passed.
+    fn show_in_package_order(
         &self,
+        formatter: &dyn OrderedFormatter,
         results: Receiver<FinishedTest>,
-        packages: BTreeMap<PackageName, PackageReport>,
+        packages: BTreeMap<PackageName, PackageResults>,
     ) -> io::Result<bool> {
         let mut all_passed = true;
         // Results that arrived before it was their package's turn.
         let mut held_back = HashMap::new();
 
-        for (package_name, PackageReport { test_count, mut coverage }) in packages {
-            self.formatter.package_start_sync(&package_name, test_count)?;
+        for (package_name, mut package) in packages {
+            formatter.package_start(&package_name, package.test_count)?;
 
-            let mut shown = Vec::with_capacity(test_count);
-            while shown.len() < test_count {
+            while !package.is_complete() {
                 let Some(finished) = next_result_for(&package_name, &results, &mut held_back)
                 else {
                     break;
                 };
-
-                all_passed &= !finished.result.status.failed();
-                if let (Some(coverage), Some(test_coverage)) =
-                    (coverage.as_mut(), finished.coverage)
-                {
-                    coverage.merge_lossy(test_coverage);
-                }
-
-                self.formatter.test_end_sync(&finished.result, shown.len() + 1, test_count)?;
-                shown.push(finished.result);
+                package.add(finished);
+                let shown = package.results.len();
+                formatter.test_end(&package.results[shown - 1], shown, package.test_count)?;
             }
 
-            self.formatter.package_end(&package_name, &shown)?;
-
-            if let Some(coverage) = coverage {
-                let lcov_path = coverage::package_lcov_path(
-                    &self.workspace,
-                    &package_name,
-                    self.args.coverage_dir.as_deref(),
-                );
-                coverage::write_package_coverage(coverage, &lcov_path);
-            }
+            formatter.package_end(&package_name, &package.results)?;
+            all_passed &= self.finish_package(&package_name, package);
         }
 
         Ok(all_passed)
+    }
+
+    /// Ends each package as soon as its last result arrives, whatever order the packages finish
+    /// in. Returns whether all tests passed.
+    fn report_as_completed(
+        &self,
+        formatter: &dyn LiveFormatter,
+        results: Receiver<FinishedTest>,
+        packages: BTreeMap<PackageName, PackageResults>,
+    ) -> io::Result<bool> {
+        let mut all_passed = true;
+        let mut end_package = |package_name: &str, package: PackageResults| {
+            formatter.package_end(package_name, &package.results)?;
+            all_passed &= self.finish_package(package_name, package);
+            io::Result::Ok(())
+        };
+
+        // A package without tests has nothing to wait for.
+        let (empty, mut packages): (BTreeMap<_, _>, BTreeMap<_, _>) =
+            packages.into_iter().partition(|(_, package)| package.is_complete());
+        for (package_name, package) in empty {
+            end_package(&package_name, package)?;
+        }
+
+        for finished in results {
+            let package_name = finished.result.package_name.clone();
+            let package = packages.get_mut(&package_name).expect("result for a collected package");
+            package.add(finished);
+            if package.is_complete() {
+                let package = packages.remove(&package_name).expect("package was just found");
+                end_package(&package_name, package)?;
+            }
+        }
+
+        // Any package left has fewer results than tests: a worker stopped early, and its error
+        // explains why.
+        for (package_name, package) in packages {
+            end_package(&package_name, package)?;
+        }
+
+        Ok(all_passed)
+    }
+
+    /// Writes the package's coverage report, if there is one, and returns whether all of its tests
+    /// passed.
+    fn finish_package(&self, package_name: &str, package: PackageResults) -> bool {
+        if let Some(coverage) = package.coverage {
+            let lcov_path = coverage::package_lcov_path(
+                &self.workspace,
+                package_name,
+                self.args.coverage_dir.as_deref(),
+            );
+            coverage::write_package_coverage(coverage, &lcov_path);
+        }
+        package.results.iter().all(|result| !result.status.failed())
     }
 }
 
@@ -809,17 +865,39 @@ impl TestOutcome {
     }
 }
 
-/// A test result on its way from a worker thread to [`TestRunner::display_results`].
+/// A test result on its way from a worker thread to the main thread.
 struct FinishedTest {
     result: TestResult,
     coverage: Option<lcov::Report>,
 }
 
-/// What [`TestRunner::display_results`] needs to know about a package.
-struct PackageReport {
+/// A package's results, gathered as they come in from the workers.
+struct PackageResults {
     test_count: usize,
-    /// The package's coverage report, merged with each test's coverage as its result is shown.
+    /// The package's coverage report, merged with each test's coverage as its result comes in.
     coverage: Option<lcov::Report>,
+    results: Vec<TestResult>,
+}
+
+impl PackageResults {
+    fn new(test_count: usize, coverage_baseline: Option<lcov::Report>) -> Self {
+        PackageResults {
+            test_count,
+            coverage: coverage_baseline,
+            results: Vec::with_capacity(test_count),
+        }
+    }
+
+    fn add(&mut self, finished: FinishedTest) {
+        if let (Some(coverage), Some(test_coverage)) = (self.coverage.as_mut(), finished.coverage) {
+            coverage.merge_lossy(test_coverage);
+        }
+        self.results.push(finished.result);
+    }
+
+    fn is_complete(&self) -> bool {
+        self.results.len() == self.test_count
+    }
 }
 
 pub(crate) struct TestResult {
