@@ -4044,6 +4044,10 @@ impl Elaborator<'_> {
     }
 
     /// `parent_bound` of `trait_bound`'s trait, for the bound `self_type: trait_bound`.
+    ///
+    /// An associated item the parent bound leaves out is whatever the item being elaborated calls
+    /// it: when it already assumes this parent bound, the name it gave the item there (see
+    /// `collect_parent_associated_types`), and otherwise a fresh unknown.
     pub(crate) fn instantiate_parent_trait_bound(
         &self,
         self_type: &Type,
@@ -4052,7 +4056,13 @@ impl Elaborator<'_> {
     ) -> ResolvedTraitBound {
         let the_trait = self.interner.get_trait(trait_bound.trait_id);
         let bindings = the_trait.bound_bindings(self_type, &trait_bound.trait_generics);
-        parent_bound.instantiate(&bindings, |kind| self.interner.next_type_variable_with_kind(kind))
+        let instantiated = parent_bound
+            .instantiate(&bindings, |kind| self.interner.next_type_variable_with_kind(kind));
+        let ordered = &instantiated.trait_generics.ordered;
+        match self.item.generics.find_bound(self_type, instantiated.trait_id, ordered) {
+            Some(in_scope) => in_scope.trait_bound.clone(),
+            None => instantiated,
+        }
     }
 
     pub(crate) fn fully_qualified_trait_path_by_id(&self, trait_id: TraitId) -> String {
