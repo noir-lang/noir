@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791553100420,
+  "lastUpdate": 1791558339591,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22946,48 +22946,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "8dd374437f53627b0e62f3739d777b77554c44b9",
-          "message": "fix(comptime): keep macro call type bindings after a closure returns (#13845)",
-          "timestamp": "2026-10-02T12:03:23Z",
-          "tree_id": "4c1ac60d45e77091dfeabb384137a1513852cc02",
-          "url": "https://github.com/noir-lang/noir/commit/8dd374437f53627b0e62f3739d777b77554c44b9"
-        },
-        "date": 1790944069442,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 170115,
-            "range": "± 1021",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 136133,
-            "range": "± 696",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2644053,
-            "range": "± 4517",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -25039,6 +24997,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2141254,
             "range": "± 25993",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "5c54f51ae4b01ae39c465989f445b47231637ced",
+          "message": "fix(frontend): give each associated type projection one name inside an item (#13936)",
+          "timestamp": "2026-10-09T14:41:03Z",
+          "tree_id": "52019ef6406b817e5dacb74976ecc8f14671a0c6",
+          "url": "https://github.com/noir-lang/noir/commit/5c54f51ae4b01ae39c465989f445b47231637ced"
+        },
+        "date": 1791558263144,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 98141,
+            "range": "± 787",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 87099,
+            "range": "± 712",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2361359,
+            "range": "± 23868",
             "unit": "ns/iter"
           }
         ]
