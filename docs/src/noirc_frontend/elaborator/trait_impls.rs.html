@@ -3,7 +3,7 @@
 <a href=#3 id=3 data-nosnippet>3</a></span><span class="kw">use </span>std::rc::Rc;
 <a href=#4 id=4 data-nosnippet>4</a>
 <a href=#5 id=5 data-nosnippet>5</a><span class="kw">use crate</span>::{
-<a href=#6 id=6 data-nosnippet>6</a>    Kind, NamedGeneric, ResolvedGeneric, Shared, TypeBindings, TypeVariable,
+<a href=#6 id=6 data-nosnippet>6</a>    Kind, NamedGeneric, ResolvedGeneric, Shared, TypeBindings, TypeVariable, TypeVariableId,
 <a href=#7 id=7 data-nosnippet>7</a>    ast::{GenericTypeArgs, Ident, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
 <a href=#8 id=8 data-nosnippet>8</a>    elaborator::{PathResolutionMode, WildcardDisallowedContext, types::WildcardAllowed},
 <a href=#9 id=9 data-nosnippet>9</a>    hir::{
@@ -1180,116 +1180,145 @@
 <a href=#1180 id=1180 data-nosnippet>1180</a>    override_constraints: <span class="kw-2">&amp;</span>[TraitConstraint],
 <a href=#1181 id=1181 data-nosnippet>1181</a>    bindings: <span class="kw-2">&amp;</span>TypeBindings,
 <a href=#1182 id=1182 data-nosnippet>1182</a>) -&gt; TypeBindings {
-<a href=#1183 id=1183 data-nosnippet>1183</a>    <span class="kw">let </span>implicit_placeholder = |typ: <span class="kw-2">&amp;</span>Type| <span class="kw">match </span>typ {
-<a href=#1184 id=1184 data-nosnippet>1184</a>        Type::NamedGeneric(generic)
-<a href=#1185 id=1185 data-nosnippet>1185</a>            <span class="kw">if </span>generic.implicit &amp;&amp; generic.type_var.binding().is_unbound() =&gt;
-<a href=#1186 id=1186 data-nosnippet>1186</a>        {
-<a href=#1187 id=1187 data-nosnippet>1187</a>            <span class="prelude-val">Some</span>(generic.type_var.clone())
-<a href=#1188 id=1188 data-nosnippet>1188</a>        }
-<a href=#1189 id=1189 data-nosnippet>1189</a>        <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
-<a href=#1190 id=1190 data-nosnippet>1190</a>    };
-<a href=#1191 id=1191 data-nosnippet>1191</a>
-<a href=#1192 id=1192 data-nosnippet>1192</a>    <span class="comment">// The index of the override constraint each override placeholder was desugared for.
-<a href=#1193 id=1193 data-nosnippet>1193</a>    //
-<a href=#1194 id=1194 data-nosnippet>1194</a>    // A projection like `&lt;B as Bar&gt;::N` only resolves once `B: Bar` has been resolved and
-<a href=#1195 id=1195 data-nosnippet>1195</a>    // assumed, so the first constraint in clause order to name a placeholder is the one that
-<a href=#1196 id=1196 data-nosnippet>1196</a>    // introduced it and every later mention is one the author wrote.
-<a href=#1197 id=1197 data-nosnippet>1197</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>placeholder_home = HashMap::default();
-<a href=#1198 id=1198 data-nosnippet>1198</a>    <span class="kw">for </span>(index, constraint) <span class="kw">in </span>override_constraints.iter().enumerate() {
-<a href=#1199 id=1199 data-nosnippet>1199</a>        <span class="kw">for </span>named <span class="kw">in </span><span class="kw-2">&amp;</span>constraint.trait_bound.trait_generics.named {
-<a href=#1200 id=1200 data-nosnippet>1200</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(type_var) = implicit_placeholder(<span class="kw-2">&amp;</span>named.typ) {
-<a href=#1201 id=1201 data-nosnippet>1201</a>                placeholder_home.entry(type_var.id()).or_insert(index);
-<a href=#1202 id=1202 data-nosnippet>1202</a>            }
-<a href=#1203 id=1203 data-nosnippet>1203</a>        }
-<a href=#1204 id=1204 data-nosnippet>1204</a>    }
-<a href=#1205 id=1205 data-nosnippet>1205</a>
-<a href=#1206 id=1206 data-nosnippet>1206</a>    <span class="kw">let </span><span class="kw-2">mut </span>pairs = TypeBindings::default();
-<a href=#1207 id=1207 data-nosnippet>1207</a>
-<a href=#1208 id=1208 data-nosnippet>1208</a>    <span class="kw">for </span>declaration <span class="kw">in </span>declaration_constraints {
-<a href=#1209 id=1209 data-nosnippet>1209</a>        <span class="kw">let </span>object_type = declaration.typ.substitute(bindings).follow_bindings();
-<a href=#1210 id=1210 data-nosnippet>1210</a>        <span class="kw">let </span>ordered = vecmap(<span class="kw-2">&amp;</span>declaration.trait_bound.trait_generics.ordered, |generic| {
-<a href=#1211 id=1211 data-nosnippet>1211</a>            generic.substitute(bindings)
-<a href=#1212 id=1212 data-nosnippet>1212</a>        });
-<a href=#1213 id=1213 data-nosnippet>1213</a>
-<a href=#1214 id=1214 data-nosnippet>1214</a>        <span class="kw">let </span><span class="prelude-val">Some</span>((override_index, override_constraint)) =
-<a href=#1215 id=1215 data-nosnippet>1215</a>            override_constraints.iter().enumerate().find(|(<span class="kw">_</span>, override_constraint)| {
-<a href=#1216 id=1216 data-nosnippet>1216</a>                override_constraint.trait_bound.trait_id == declaration.trait_bound.trait_id
-<a href=#1217 id=1217 data-nosnippet>1217</a>                    &amp;&amp; override_constraint.typ.follow_bindings() == object_type
-<a href=#1218 id=1218 data-nosnippet>1218</a>                    &amp;&amp; override_constraint.trait_bound.trait_generics.ordered == ordered
-<a href=#1219 id=1219 data-nosnippet>1219</a>            })
-<a href=#1220 id=1220 data-nosnippet>1220</a>        <span class="kw">else </span>{
-<a href=#1221 id=1221 data-nosnippet>1221</a>            <span class="kw">continue</span>;
-<a href=#1222 id=1222 data-nosnippet>1222</a>        };
-<a href=#1223 id=1223 data-nosnippet>1223</a>
-<a href=#1224 id=1224 data-nosnippet>1224</a>        <span class="kw">for </span>named <span class="kw">in </span><span class="kw-2">&amp;</span>declaration.trait_bound.trait_generics.named {
-<a href=#1225 id=1225 data-nosnippet>1225</a>            <span class="kw">let </span><span class="prelude-val">Some</span>(type_var) = implicit_placeholder(<span class="kw-2">&amp;</span>named.typ) <span class="kw">else </span>{
-<a href=#1226 id=1226 data-nosnippet>1226</a>                <span class="kw">continue</span>;
-<a href=#1227 id=1227 data-nosnippet>1227</a>            };
-<a href=#1228 id=1228 data-nosnippet>1228</a>            <span class="comment">// A declaration placeholder the trait's clause itself mentions in several bounds
-<a href=#1229 id=1229 data-nosnippet>1229</a>            // keeps its first pairing, so a mismatch is reported at the later bound.
-<a href=#1230 id=1230 data-nosnippet>1230</a>            </span><span class="kw">if </span>pairs.contains_key(<span class="kw-2">&amp;</span>type_var.id()) {
-<a href=#1231 id=1231 data-nosnippet>1231</a>                <span class="kw">continue</span>;
-<a href=#1232 id=1232 data-nosnippet>1232</a>            }
-<a href=#1233 id=1233 data-nosnippet>1233</a>            <span class="kw">let </span><span class="prelude-val">Some</span>(override_named) = override_constraint
-<a href=#1234 id=1234 data-nosnippet>1234</a>                .trait_bound
-<a href=#1235 id=1235 data-nosnippet>1235</a>                .trait_generics
-<a href=#1236 id=1236 data-nosnippet>1236</a>                .named
-<a href=#1237 id=1237 data-nosnippet>1237</a>                .iter()
-<a href=#1238 id=1238 data-nosnippet>1238</a>                .find(|override_named| override_named.name.as_str() == named.name.as_str())
-<a href=#1239 id=1239 data-nosnippet>1239</a>            <span class="kw">else </span>{
-<a href=#1240 id=1240 data-nosnippet>1240</a>                <span class="kw">continue</span>;
-<a href=#1241 id=1241 data-nosnippet>1241</a>            };
-<a href=#1242 id=1242 data-nosnippet>1242</a>            <span class="kw">let </span><span class="prelude-val">Some</span>(override_type_var) = implicit_placeholder(<span class="kw-2">&amp;</span>override_named.typ) <span class="kw">else </span>{
-<a href=#1243 id=1243 data-nosnippet>1243</a>                <span class="kw">continue</span>;
-<a href=#1244 id=1244 data-nosnippet>1244</a>            };
-<a href=#1245 id=1245 data-nosnippet>1245</a>            <span class="kw">if </span>placeholder_home.get(<span class="kw-2">&amp;</span>override_type_var.id()) != <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>override_index) {
-<a href=#1246 id=1246 data-nosnippet>1246</a>                <span class="kw">continue</span>;
-<a href=#1247 id=1247 data-nosnippet>1247</a>            }
-<a href=#1248 id=1248 data-nosnippet>1248</a>
-<a href=#1249 id=1249 data-nosnippet>1249</a>            <span class="kw">let </span>kind = type_var.kind().into_owned();
-<a href=#1250 id=1250 data-nosnippet>1250</a>            pairs.insert(type_var.id(), (type_var, kind, override_named.typ.clone()));
-<a href=#1251 id=1251 data-nosnippet>1251</a>        }
-<a href=#1252 id=1252 data-nosnippet>1252</a>    }
-<a href=#1253 id=1253 data-nosnippet>1253</a>
-<a href=#1254 id=1254 data-nosnippet>1254</a>    pairs
-<a href=#1255 id=1255 data-nosnippet>1255</a>}
-<a href=#1256 id=1256 data-nosnippet>1256</a>
-<a href=#1257 id=1257 data-nosnippet>1257</a><span class="doccomment">/// Returns true if the impl-level `where` constraint and the method-level
-<a href=#1258 id=1258 data-nosnippet>1258</a>/// override constraint refer to the same trait on the same type with the same
-<a href=#1259 id=1259 data-nosnippet>1259</a>/// trait generics. Note that no type bindings are committed on success.
-<a href=#1260 id=1260 data-nosnippet>1260</a>///
-<a href=#1261 id=1261 data-nosnippet>1261</a>/// Returns a `Option` so we can use `?` without `try` blocks being stable
-<a href=#1262 id=1262 data-nosnippet>1262</a></span><span class="kw">fn </span>constraints_unify(
-<a href=#1263 id=1263 data-nosnippet>1263</a>    impl_constraint: <span class="kw-2">&amp;</span>TraitConstraint,
-<a href=#1264 id=1264 data-nosnippet>1264</a>    override_constraint: <span class="kw-2">&amp;</span>TraitConstraint,
-<a href=#1265 id=1265 data-nosnippet>1265</a>) -&gt; <span class="prelude-ty">Option</span>&lt;()&gt; {
-<a href=#1266 id=1266 data-nosnippet>1266</a>    <span class="comment">// This just lets us early-return `None` for `false` conditions
-<a href=#1267 id=1267 data-nosnippet>1267</a>    </span><span class="kw">let </span>require = |cond: bool| cond.then_some(());
+<a href=#1183 id=1183 data-nosnippet>1183</a>    <span class="comment">// The index of the override constraint each override placeholder was desugared for.
+<a href=#1184 id=1184 data-nosnippet>1184</a>    //
+<a href=#1185 id=1185 data-nosnippet>1185</a>    // A projection like `&lt;B as Bar&gt;::N` only resolves once `B: Bar` has been resolved and
+<a href=#1186 id=1186 data-nosnippet>1186</a>    // assumed, so the first constraint in clause order to name a placeholder is the one that
+<a href=#1187 id=1187 data-nosnippet>1187</a>    // introduced it and every later mention is one the author wrote.
+<a href=#1188 id=1188 data-nosnippet>1188</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>placeholder_home = HashMap::default();
+<a href=#1189 id=1189 data-nosnippet>1189</a>    <span class="kw">for </span>(index, constraint) <span class="kw">in </span>override_constraints.iter().enumerate() {
+<a href=#1190 id=1190 data-nosnippet>1190</a>        <span class="kw">for </span>named <span class="kw">in </span><span class="kw-2">&amp;</span>constraint.trait_bound.trait_generics.named {
+<a href=#1191 id=1191 data-nosnippet>1191</a>            <span class="kw">if let </span><span class="prelude-val">Some</span>(type_var) = implicit_placeholder(<span class="kw-2">&amp;</span>named.typ) {
+<a href=#1192 id=1192 data-nosnippet>1192</a>                placeholder_home.entry(type_var.id()).or_insert(index);
+<a href=#1193 id=1193 data-nosnippet>1193</a>            }
+<a href=#1194 id=1194 data-nosnippet>1194</a>        }
+<a href=#1195 id=1195 data-nosnippet>1195</a>    }
+<a href=#1196 id=1196 data-nosnippet>1196</a>
+<a href=#1197 id=1197 data-nosnippet>1197</a>    <span class="comment">// A bound can be on another bound's associated item (`&lt;B as Bar&gt;::T: Baz`,
+<a href=#1198 id=1198 data-nosnippet>1198</a>    // `C: Qux&lt;&lt;B as Bar&gt;::T&gt;`), so it only matches its override once that item is paired: repeat
+<a href=#1199 id=1199 data-nosnippet>1199</a>    // until a pass pairs nothing new.
+<a href=#1200 id=1200 data-nosnippet>1200</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>pairs = TypeBindings::default();
+<a href=#1201 id=1201 data-nosnippet>1201</a>    <span class="kw">let </span><span class="kw-2">mut </span>current = bindings.clone();
+<a href=#1202 id=1202 data-nosnippet>1202</a>    <span class="kw">loop </span>{
+<a href=#1203 id=1203 data-nosnippet>1203</a>        <span class="kw">let </span>paired = pairs.len();
+<a href=#1204 id=1204 data-nosnippet>1204</a>        <span class="kw">for </span>declaration <span class="kw">in </span>declaration_constraints {
+<a href=#1205 id=1205 data-nosnippet>1205</a>            pair_declaration_placeholders(
+<a href=#1206 id=1206 data-nosnippet>1206</a>                declaration,
+<a href=#1207 id=1207 data-nosnippet>1207</a>                override_constraints,
+<a href=#1208 id=1208 data-nosnippet>1208</a>                <span class="kw-2">&amp;</span>placeholder_home,
+<a href=#1209 id=1209 data-nosnippet>1209</a>                <span class="kw-2">&amp;</span>current,
+<a href=#1210 id=1210 data-nosnippet>1210</a>                <span class="kw-2">&amp;mut </span>pairs,
+<a href=#1211 id=1211 data-nosnippet>1211</a>            );
+<a href=#1212 id=1212 data-nosnippet>1212</a>        }
+<a href=#1213 id=1213 data-nosnippet>1213</a>        <span class="kw">if </span>pairs.len() == paired {
+<a href=#1214 id=1214 data-nosnippet>1214</a>            <span class="kw">return </span>pairs;
+<a href=#1215 id=1215 data-nosnippet>1215</a>        }
+<a href=#1216 id=1216 data-nosnippet>1216</a>        current.extend(pairs.iter().map(|(id, pair)| (<span class="kw-2">*</span>id, pair.clone())));
+<a href=#1217 id=1217 data-nosnippet>1217</a>    }
+<a href=#1218 id=1218 data-nosnippet>1218</a>}
+<a href=#1219 id=1219 data-nosnippet>1219</a>
+<a href=#1220 id=1220 data-nosnippet>1220</a><span class="doccomment">/// Pairs the placeholders of one declaration constraint with those of the override constraint
+<a href=#1221 id=1221 data-nosnippet>1221</a>/// it matches under `bindings`, if any. See [`pair_implicit_associated_generics`].
+<a href=#1222 id=1222 data-nosnippet>1222</a></span><span class="kw">fn </span>pair_declaration_placeholders(
+<a href=#1223 id=1223 data-nosnippet>1223</a>    declaration: <span class="kw-2">&amp;</span>TraitConstraint,
+<a href=#1224 id=1224 data-nosnippet>1224</a>    override_constraints: <span class="kw-2">&amp;</span>[TraitConstraint],
+<a href=#1225 id=1225 data-nosnippet>1225</a>    placeholder_home: <span class="kw-2">&amp;</span>HashMap&lt;TypeVariableId, usize&gt;,
+<a href=#1226 id=1226 data-nosnippet>1226</a>    bindings: <span class="kw-2">&amp;</span>TypeBindings,
+<a href=#1227 id=1227 data-nosnippet>1227</a>    pairs: <span class="kw-2">&amp;mut </span>TypeBindings,
+<a href=#1228 id=1228 data-nosnippet>1228</a>) {
+<a href=#1229 id=1229 data-nosnippet>1229</a>    <span class="kw">let </span>object_type = declaration.typ.substitute(bindings).follow_bindings();
+<a href=#1230 id=1230 data-nosnippet>1230</a>    <span class="kw">let </span>ordered = vecmap(<span class="kw-2">&amp;</span>declaration.trait_bound.trait_generics.ordered, |generic| {
+<a href=#1231 id=1231 data-nosnippet>1231</a>        generic.substitute(bindings)
+<a href=#1232 id=1232 data-nosnippet>1232</a>    });
+<a href=#1233 id=1233 data-nosnippet>1233</a>
+<a href=#1234 id=1234 data-nosnippet>1234</a>    <span class="kw">let </span><span class="prelude-val">Some</span>((override_index, override_constraint)) =
+<a href=#1235 id=1235 data-nosnippet>1235</a>        override_constraints.iter().enumerate().find(|(<span class="kw">_</span>, override_constraint)| {
+<a href=#1236 id=1236 data-nosnippet>1236</a>            override_constraint.trait_bound.trait_id == declaration.trait_bound.trait_id
+<a href=#1237 id=1237 data-nosnippet>1237</a>                &amp;&amp; override_constraint.typ.follow_bindings() == object_type
+<a href=#1238 id=1238 data-nosnippet>1238</a>                &amp;&amp; override_constraint.trait_bound.trait_generics.ordered == ordered
+<a href=#1239 id=1239 data-nosnippet>1239</a>        })
+<a href=#1240 id=1240 data-nosnippet>1240</a>    <span class="kw">else </span>{
+<a href=#1241 id=1241 data-nosnippet>1241</a>        <span class="kw">return</span>;
+<a href=#1242 id=1242 data-nosnippet>1242</a>    };
+<a href=#1243 id=1243 data-nosnippet>1243</a>
+<a href=#1244 id=1244 data-nosnippet>1244</a>    <span class="kw">for </span>named <span class="kw">in </span><span class="kw-2">&amp;</span>declaration.trait_bound.trait_generics.named {
+<a href=#1245 id=1245 data-nosnippet>1245</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(type_var) = implicit_placeholder(<span class="kw-2">&amp;</span>named.typ) <span class="kw">else </span>{
+<a href=#1246 id=1246 data-nosnippet>1246</a>            <span class="kw">continue</span>;
+<a href=#1247 id=1247 data-nosnippet>1247</a>        };
+<a href=#1248 id=1248 data-nosnippet>1248</a>        <span class="comment">// A declaration placeholder the trait's clause itself mentions in several bounds keeps
+<a href=#1249 id=1249 data-nosnippet>1249</a>        // its first pairing, so a mismatch is reported at the later bound.
+<a href=#1250 id=1250 data-nosnippet>1250</a>        </span><span class="kw">if </span>pairs.contains_key(<span class="kw-2">&amp;</span>type_var.id()) {
+<a href=#1251 id=1251 data-nosnippet>1251</a>            <span class="kw">continue</span>;
+<a href=#1252 id=1252 data-nosnippet>1252</a>        }
+<a href=#1253 id=1253 data-nosnippet>1253</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(override_named) = override_constraint
+<a href=#1254 id=1254 data-nosnippet>1254</a>            .trait_bound
+<a href=#1255 id=1255 data-nosnippet>1255</a>            .trait_generics
+<a href=#1256 id=1256 data-nosnippet>1256</a>            .named
+<a href=#1257 id=1257 data-nosnippet>1257</a>            .iter()
+<a href=#1258 id=1258 data-nosnippet>1258</a>            .find(|override_named| override_named.name.as_str() == named.name.as_str())
+<a href=#1259 id=1259 data-nosnippet>1259</a>        <span class="kw">else </span>{
+<a href=#1260 id=1260 data-nosnippet>1260</a>            <span class="kw">continue</span>;
+<a href=#1261 id=1261 data-nosnippet>1261</a>        };
+<a href=#1262 id=1262 data-nosnippet>1262</a>        <span class="kw">let </span><span class="prelude-val">Some</span>(override_type_var) = implicit_placeholder(<span class="kw-2">&amp;</span>override_named.typ) <span class="kw">else </span>{
+<a href=#1263 id=1263 data-nosnippet>1263</a>            <span class="kw">continue</span>;
+<a href=#1264 id=1264 data-nosnippet>1264</a>        };
+<a href=#1265 id=1265 data-nosnippet>1265</a>        <span class="kw">if </span>placeholder_home.get(<span class="kw-2">&amp;</span>override_type_var.id()) != <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>override_index) {
+<a href=#1266 id=1266 data-nosnippet>1266</a>            <span class="kw">continue</span>;
+<a href=#1267 id=1267 data-nosnippet>1267</a>        }
 <a href=#1268 id=1268 data-nosnippet>1268</a>
-<a href=#1269 id=1269 data-nosnippet>1269</a>    require(impl_constraint.trait_bound.trait_id == override_constraint.trait_bound.trait_id)<span class="question-mark">?</span>;
-<a href=#1270 id=1270 data-nosnippet>1270</a>
-<a href=#1271 id=1271 data-nosnippet>1271</a>    <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
-<a href=#1272 id=1272 data-nosnippet>1272</a>    impl_constraint.typ.try_unify(<span class="kw-2">&amp;</span>override_constraint.typ, <span class="kw-2">&amp;mut </span>bindings).ok()<span class="question-mark">?</span>;
+<a href=#1269 id=1269 data-nosnippet>1269</a>        <span class="kw">let </span>kind = type_var.kind().into_owned();
+<a href=#1270 id=1270 data-nosnippet>1270</a>        pairs.insert(type_var.id(), (type_var, kind, override_named.typ.clone()));
+<a href=#1271 id=1271 data-nosnippet>1271</a>    }
+<a href=#1272 id=1272 data-nosnippet>1272</a>}
 <a href=#1273 id=1273 data-nosnippet>1273</a>
-<a href=#1274 id=1274 data-nosnippet>1274</a>    <span class="kw">let </span>impl_generics = <span class="kw-2">&amp;</span>impl_constraint.trait_bound.trait_generics;
-<a href=#1275 id=1275 data-nosnippet>1275</a>    <span class="kw">let </span>override_generics = <span class="kw-2">&amp;</span>override_constraint.trait_bound.trait_generics;
-<a href=#1276 id=1276 data-nosnippet>1276</a>
-<a href=#1277 id=1277 data-nosnippet>1277</a>    require(impl_generics.ordered.len() == override_generics.ordered.len())<span class="question-mark">?</span>;
-<a href=#1278 id=1278 data-nosnippet>1278</a>
-<a href=#1279 id=1279 data-nosnippet>1279</a>    <span class="kw">let </span>generics = impl_generics.ordered.iter().zip(<span class="kw-2">&amp;</span>override_generics.ordered);
-<a href=#1280 id=1280 data-nosnippet>1280</a>    <span class="kw">for </span>(impl_generic, override_generic) <span class="kw">in </span>generics {
-<a href=#1281 id=1281 data-nosnippet>1281</a>        impl_generic.try_unify(override_generic, <span class="kw-2">&amp;mut </span>bindings).ok()<span class="question-mark">?</span>;
-<a href=#1282 id=1282 data-nosnippet>1282</a>    }
-<a href=#1283 id=1283 data-nosnippet>1283</a>
-<a href=#1284 id=1284 data-nosnippet>1284</a>    require(impl_generics.named.len() == override_generics.named.len())<span class="question-mark">?</span>;
+<a href=#1274 id=1274 data-nosnippet>1274</a><span class="doccomment">/// The type variable of an anonymous generic desugared for an unspecified associated item.
+<a href=#1275 id=1275 data-nosnippet>1275</a></span><span class="kw">fn </span>implicit_placeholder(typ: <span class="kw-2">&amp;</span>Type) -&gt; <span class="prelude-ty">Option</span>&lt;TypeVariable&gt; {
+<a href=#1276 id=1276 data-nosnippet>1276</a>    <span class="kw">match </span>typ {
+<a href=#1277 id=1277 data-nosnippet>1277</a>        Type::NamedGeneric(generic)
+<a href=#1278 id=1278 data-nosnippet>1278</a>            <span class="kw">if </span>generic.implicit &amp;&amp; generic.type_var.binding().is_unbound() =&gt;
+<a href=#1279 id=1279 data-nosnippet>1279</a>        {
+<a href=#1280 id=1280 data-nosnippet>1280</a>            <span class="prelude-val">Some</span>(generic.type_var.clone())
+<a href=#1281 id=1281 data-nosnippet>1281</a>        }
+<a href=#1282 id=1282 data-nosnippet>1282</a>        <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+<a href=#1283 id=1283 data-nosnippet>1283</a>    }
+<a href=#1284 id=1284 data-nosnippet>1284</a>}
 <a href=#1285 id=1285 data-nosnippet>1285</a>
-<a href=#1286 id=1286 data-nosnippet>1286</a>    <span class="kw">let </span>named_override_generics = <span class="kw-2">&amp;</span>override_generics.named;
-<a href=#1287 id=1287 data-nosnippet>1287</a>    <span class="kw">for </span>impl_named <span class="kw">in </span><span class="kw-2">&amp;</span>impl_generics.named {
-<a href=#1288 id=1288 data-nosnippet>1288</a>        <span class="kw">let </span>override_named = named_override_generics
-<a href=#1289 id=1289 data-nosnippet>1289</a>            .iter()
-<a href=#1290 id=1290 data-nosnippet>1290</a>            .find(|named| named.name.as_str() == impl_named.name.as_str())<span class="question-mark">?</span>;
-<a href=#1291 id=1291 data-nosnippet>1291</a>
-<a href=#1292 id=1292 data-nosnippet>1292</a>        impl_named.typ.try_unify(<span class="kw-2">&amp;</span>override_named.typ, <span class="kw-2">&amp;mut </span>bindings).ok()<span class="question-mark">?</span>;
-<a href=#1293 id=1293 data-nosnippet>1293</a>    }
-<a href=#1294 id=1294 data-nosnippet>1294</a>    <span class="prelude-val">Some</span>(())
-<a href=#1295 id=1295 data-nosnippet>1295</a>}</code></pre></div></section></main></body></html>
+<a href=#1286 id=1286 data-nosnippet>1286</a><span class="doccomment">/// Returns true if the impl-level `where` constraint and the method-level
+<a href=#1287 id=1287 data-nosnippet>1287</a>/// override constraint refer to the same trait on the same type with the same
+<a href=#1288 id=1288 data-nosnippet>1288</a>/// trait generics. Note that no type bindings are committed on success.
+<a href=#1289 id=1289 data-nosnippet>1289</a>///
+<a href=#1290 id=1290 data-nosnippet>1290</a>/// Returns a `Option` so we can use `?` without `try` blocks being stable
+<a href=#1291 id=1291 data-nosnippet>1291</a></span><span class="kw">fn </span>constraints_unify(
+<a href=#1292 id=1292 data-nosnippet>1292</a>    impl_constraint: <span class="kw-2">&amp;</span>TraitConstraint,
+<a href=#1293 id=1293 data-nosnippet>1293</a>    override_constraint: <span class="kw-2">&amp;</span>TraitConstraint,
+<a href=#1294 id=1294 data-nosnippet>1294</a>) -&gt; <span class="prelude-ty">Option</span>&lt;()&gt; {
+<a href=#1295 id=1295 data-nosnippet>1295</a>    <span class="comment">// This just lets us early-return `None` for `false` conditions
+<a href=#1296 id=1296 data-nosnippet>1296</a>    </span><span class="kw">let </span>require = |cond: bool| cond.then_some(());
+<a href=#1297 id=1297 data-nosnippet>1297</a>
+<a href=#1298 id=1298 data-nosnippet>1298</a>    require(impl_constraint.trait_bound.trait_id == override_constraint.trait_bound.trait_id)<span class="question-mark">?</span>;
+<a href=#1299 id=1299 data-nosnippet>1299</a>
+<a href=#1300 id=1300 data-nosnippet>1300</a>    <span class="kw">let </span><span class="kw-2">mut </span>bindings = TypeBindings::default();
+<a href=#1301 id=1301 data-nosnippet>1301</a>    impl_constraint.typ.try_unify(<span class="kw-2">&amp;</span>override_constraint.typ, <span class="kw-2">&amp;mut </span>bindings).ok()<span class="question-mark">?</span>;
+<a href=#1302 id=1302 data-nosnippet>1302</a>
+<a href=#1303 id=1303 data-nosnippet>1303</a>    <span class="kw">let </span>impl_generics = <span class="kw-2">&amp;</span>impl_constraint.trait_bound.trait_generics;
+<a href=#1304 id=1304 data-nosnippet>1304</a>    <span class="kw">let </span>override_generics = <span class="kw-2">&amp;</span>override_constraint.trait_bound.trait_generics;
+<a href=#1305 id=1305 data-nosnippet>1305</a>
+<a href=#1306 id=1306 data-nosnippet>1306</a>    require(impl_generics.ordered.len() == override_generics.ordered.len())<span class="question-mark">?</span>;
+<a href=#1307 id=1307 data-nosnippet>1307</a>
+<a href=#1308 id=1308 data-nosnippet>1308</a>    <span class="kw">let </span>generics = impl_generics.ordered.iter().zip(<span class="kw-2">&amp;</span>override_generics.ordered);
+<a href=#1309 id=1309 data-nosnippet>1309</a>    <span class="kw">for </span>(impl_generic, override_generic) <span class="kw">in </span>generics {
+<a href=#1310 id=1310 data-nosnippet>1310</a>        impl_generic.try_unify(override_generic, <span class="kw-2">&amp;mut </span>bindings).ok()<span class="question-mark">?</span>;
+<a href=#1311 id=1311 data-nosnippet>1311</a>    }
+<a href=#1312 id=1312 data-nosnippet>1312</a>
+<a href=#1313 id=1313 data-nosnippet>1313</a>    require(impl_generics.named.len() == override_generics.named.len())<span class="question-mark">?</span>;
+<a href=#1314 id=1314 data-nosnippet>1314</a>
+<a href=#1315 id=1315 data-nosnippet>1315</a>    <span class="kw">let </span>named_override_generics = <span class="kw-2">&amp;</span>override_generics.named;
+<a href=#1316 id=1316 data-nosnippet>1316</a>    <span class="kw">for </span>impl_named <span class="kw">in </span><span class="kw-2">&amp;</span>impl_generics.named {
+<a href=#1317 id=1317 data-nosnippet>1317</a>        <span class="kw">let </span>override_named = named_override_generics
+<a href=#1318 id=1318 data-nosnippet>1318</a>            .iter()
+<a href=#1319 id=1319 data-nosnippet>1319</a>            .find(|named| named.name.as_str() == impl_named.name.as_str())<span class="question-mark">?</span>;
+<a href=#1320 id=1320 data-nosnippet>1320</a>
+<a href=#1321 id=1321 data-nosnippet>1321</a>        impl_named.typ.try_unify(<span class="kw-2">&amp;</span>override_named.typ, <span class="kw-2">&amp;mut </span>bindings).ok()<span class="question-mark">?</span>;
+<a href=#1322 id=1322 data-nosnippet>1322</a>    }
+<a href=#1323 id=1323 data-nosnippet>1323</a>    <span class="prelude-val">Some</span>(())
+<a href=#1324 id=1324 data-nosnippet>1324</a>}</code></pre></div></section></main></body></html>

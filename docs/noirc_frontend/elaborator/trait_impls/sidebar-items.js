@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["constraints_unify","pair_implicit_associated_generics"]};
+window.SIDEBAR_ITEMS = {"fn":["constraints_unify","implicit_placeholder","pair_declaration_placeholders","pair_implicit_associated_generics"]};
