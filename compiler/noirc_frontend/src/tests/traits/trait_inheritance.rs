@@ -1881,10 +1881,10 @@ fn parent_bound_mentioning_self_dispatches_to_impl_for_bounded_type() {
 
 #[test]
 fn parent_bound_mentioning_self_method_call_does_not_fix_self() {
-    // `Y: Child` implies `Y: Parent<Y>`, so `y.pick` resolved through it takes a `Y`. Method
-    // lookup uses the first bound on a trait, so this reports the same error as the explicit
-    // `Y: Parent<Y> + Parent<Wide>`; it must not bind `Child`'s `Self` to `Wide`, which would
-    // make `run` dispatch `Narrow` to `impl Parent<Wide> for Narrow`.
+    // `Y: Child` implies `Y: Parent<Y>`, and `Y: Parent<Wide>` is written too, so `y.pick(w)` is
+    // `Parent<Wide>::pick`, chosen by `w`. Resolving it must not bind `Child`'s `Self` to `Wide`,
+    // which would make `run` dispatch `Narrow` to `impl Parent<Wide> for Narrow` and drop the
+    // `assert` of `impl Parent<Narrow> for Narrow`.
     let src = r#"
     trait Parent<T> { fn limit(self) -> Field; fn pick(self, o: T) -> Field; }
     trait Child: Parent<Self> {}
@@ -1905,11 +1905,11 @@ fn parent_bound_mentioning_self_method_call_does_not_fix_self() {
     impl Child for Wide {}
     impl Child for Narrow {}
     fn pin<Y: Child + Parent<Wide>>(y: Y, w: Wide) -> Field { y.pick(w) }
-                                                                     ^ Expected type Y, found type Wide
     fn run<X: Child>(x: X) -> Field { x.limit() }
     fn main(v: Field) -> pub Field { pin(Wide { v: 0 }, Wide { v: 0 }) + run(Narrow { v }) }
     "#;
-    check_errors(src);
+    let program = get_monomorphized(src).unwrap().to_string();
+    assert!(program.contains("!= 100"), "`run` must call `Parent<Narrow>::limit`:\n{program}");
 }
 
 #[test]
@@ -2366,4 +2366,19 @@ fn trait_where_clause_on_its_own_self_is_a_cycle() {
     fn main() {}
     "#;
     check_errors(src);
+}
+
+#[test]
+fn probe2055_pin_implied_bound_written_first() {
+    let src = r#"
+    trait Parent<T> { fn pick(self, o: T) -> Field; }
+    trait Child: Parent<Self> {}
+    pub struct Wide { v: Field }
+    impl Parent<Wide> for Wide { fn pick(self, o: Wide) -> Field { let _ = self; o.v } }
+    impl Child for Wide {}
+    fn pin<Y: Child + Parent<Wide>>(y: Y, w: Wide) -> Field { y.pick(w) }
+    fn pin3<Y: Parent<Wide> + Child>(y: Y, y2: Y) -> Field { y.pick(y2) }
+    fn main() -> pub Field { pin(Wide { v: 0 }, Wide { v: 1 }) + pin3(Wide { v: 0 }, Wide { v: 2 }) }
+    "#;
+    assert_no_errors(src);
 }

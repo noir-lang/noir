@@ -3482,11 +3482,12 @@ impl Elaborator<'_> {
                 (meta.trait_id, meta.all_trait_constraints().cloned().collect::<Vec<_>>())
             });
 
-        // Candidates come from the enclosing trait (for a call on its `Self`) and from the
+        // Candidates come from the enclosing trait (for a call on its `Self`) and from each of the
         // function's bounds alike, and are all considered together, so two applicable methods are
-        // reported as ambiguous whichever of the two supplies them.
+        // reported as ambiguous whichever of them supplies them. Each source is searched on its
+        // own, so a trait reached through one bound doesn't hide the same trait with other
+        // arguments from another (`Y: Child + Parent<Wide>` with `trait Child: Parent<Self>`).
         let mut matches = Vec::new();
-        let mut visited = BTreeSet::new();
 
         if let Some(trait_id) = func_meta_trait_id
             && Some(object_type) == self.item.impl_context.self_type()
@@ -3498,14 +3499,13 @@ impl Elaborator<'_> {
                 the_trait,
                 method_name,
                 &constraint.trait_bound,
-                &mut visited,
+                &mut BTreeSet::new(),
             );
             // The trait's own `Self` implements it, which is an assumption inside its methods.
-            matches.extend(
-                hierarchy
-                    .into_iter()
-                    .map(|method| HirTraitMethodReference { assumed: true, ..method }),
-            );
+            let hierarchy = hierarchy
+                .into_iter()
+                .map(|method| HirTraitMethodReference { assumed: true, ..method });
+            push_unique_methods(&mut matches, hierarchy);
         }
 
         for constraint in &func_trait_constraints {
@@ -3513,14 +3513,27 @@ impl Elaborator<'_> {
                 && let Some(the_trait) =
                     self.interner.try_get_trait(constraint.trait_bound.trait_id)
             {
-                matches.extend(self.lookup_methods_in_trait(
+                let found = self.lookup_methods_in_trait(
                     object_type,
                     the_trait,
                     method_name,
                     &constraint.trait_bound,
-                    &mut visited,
-                ));
+                    &mut BTreeSet::new(),
+                );
+                push_unique_methods(&mut matches, found);
             }
+        }
+
+        // One trait method reached through bounds that differ only in the trait's arguments
+        // (`Parent<Y>` and `Parent<Wide>`) is a single candidate whose arguments the call decides,
+        // through the bound the call's arguments then select.
+        if matches.len() > 1 && matches.iter().all(|m| m.definition == matches[0].definition) {
+            let assumed = matches.iter().all(|m| m.assumed);
+            let method = matches.swap_remove(0);
+            let trait_generics = method
+                .trait_generics
+                .map(|typ| self.interner.next_type_variable_with_kind(typ.kind().into_owned()));
+            matches = vec![HirTraitMethodReference { trait_generics, assumed, ..method }];
         }
 
         self.handle_trait_method_lookup_matches(
@@ -4113,5 +4126,22 @@ impl Elaborator<'_> {
         }
 
         fully_qualified_module_path(self.def_maps, self.crate_graph, &self.crate_id, trait_.id.0)
+    }
+}
+
+/// Adds each of `found` to `matches` unless the same trait method with the same trait arguments is
+/// already there, as when two bounds both reach it through their parents.
+fn push_unique_methods(
+    matches: &mut Vec<HirTraitMethodReference>,
+    found: impl IntoIterator<Item = HirTraitMethodReference>,
+) {
+    for method in found {
+        let duplicate = matches.iter().any(|existing| {
+            existing.definition == method.definition
+                && existing.trait_generics == method.trait_generics
+        });
+        if !duplicate {
+            matches.push(method);
+        }
     }
 }
