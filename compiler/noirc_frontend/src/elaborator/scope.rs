@@ -243,7 +243,7 @@ impl Elaborator<'_> {
                     found: item.description(self.interner),
                 })
             }
-            PathResolutionItem::TraitConstant(_, _, def_id) => {
+            PathResolutionItem::TraitConstant(_, _, _, def_id) => {
                 // TraitConstant is returned, item is Some
                 Ok(PathValue::Definition { id: def_id, item })
             }

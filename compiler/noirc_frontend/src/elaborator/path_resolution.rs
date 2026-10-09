@@ -68,8 +68,9 @@ pub(crate) enum PathResolutionItem {
     TypeTraitFunction(Type, TraitId, FuncId),
     /// A function call on a primitive type, for example `u64::from(...)` or `u64::<A, B>::from(..)`.
     PrimitiveFunction(PrimitiveType, Option<Turbofish>, FuncId),
-    /// An associated constant accessed via `Type::CONSTANT` syntax, for example `Foo::N`.
-    TraitConstant(TypeId, TraitId, DefinitionId),
+    /// An associated constant accessed via `Type::CONSTANT` syntax, for example `Foo::N`, with
+    /// the type it is accessed through (`Foo<u8>` for `Foo::<u8>::N`).
+    TraitConstant(TypeId, Type, TraitId, DefinitionId),
 }
 
 impl PathResolutionItem {
@@ -146,7 +147,7 @@ impl PathResolutionItem {
                 let name = interner.function_name(func_id);
                 format!("function `{name}`")
             }
-            PathResolutionItem::TraitConstant(type_id, trait_id, def_id) => {
+            PathResolutionItem::TraitConstant(type_id, _, trait_id, def_id) => {
                 let datatype = interner.get_type(*type_id);
                 let datatype = datatype.borrow();
                 let trait_ = interner.get_trait(*trait_id);
@@ -1107,7 +1108,8 @@ impl Elaborator<'_> {
             1 => {
                 // Exactly one matching constant with trait in scope
                 let (def_id, trait_id, _impl_id) = in_scope[0];
-                Some(Ok(PathResolutionItem::TraitConstant(type_id, *trait_id, *def_id)))
+                let self_type = self_type.clone();
+                Some(Ok(PathResolutionItem::TraitConstant(type_id, self_type, *trait_id, *def_id)))
             }
             _ => {
                 // Multiple matching constants - ambiguous. If all candidates are from the

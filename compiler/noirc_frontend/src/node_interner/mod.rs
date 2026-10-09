@@ -2,6 +2,7 @@ use std::hash::Hash;
 use std::marker::Copy;
 
 use fm::FileId;
+use iter_extended::vecmap;
 use itertools::Itertools;
 use noirc_arena::{Arena, Index};
 use noirc_errors::{Location, Span};
@@ -1609,8 +1610,23 @@ impl NodeInterner {
                 continue;
             };
 
-            let trait_id = trait_impl.borrow().trait_id;
-            let trait_generics = self.get_trait_generics_for_impl(*impl_id).ordered.clone();
+            let trait_impl = trait_impl.borrow();
+            let trait_id = trait_impl.trait_id;
+
+            // The impl's trait arguments are written in terms of its own generics
+            // (`impl<let N: u32> Tr<N> for G<N>`), so their values for `typ` come from matching the
+            // impl's instantiated self type against `typ`.
+            let (impl_type, instantiation) = trait_impl
+                .typ
+                .substitute_type_vars_with_fresh_type_vars(&trait_impl.generics, self);
+            let mut bindings = TypeBindings::default();
+            if impl_type.try_unify(typ, &mut bindings).is_err() {
+                continue;
+            }
+            let trait_generics =
+                vecmap(&self.get_trait_generics_for_impl(*impl_id).ordered, |arg| {
+                    arg.substitute(&instantiation).substitute(&bindings)
+                });
 
             if let Ok((TraitImplKind::Normal(found_impl_id), _, _)) = self
                 .try_lookup_trait_implementation(

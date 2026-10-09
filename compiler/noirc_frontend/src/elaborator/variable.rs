@@ -297,6 +297,17 @@ impl Elaborator<'_> {
                     false
                 };
 
+            if let Some(DefinitionKind::AssociatedConstant(impl_id, _)) = &definition_kind
+                && let ItemTypeBinding::ConcreteSelfType(self_type) = &item_type_binding
+            {
+                self.bind_trait_impl_generics_from_self_type(
+                    *impl_id,
+                    self_type,
+                    &mut bindings,
+                    location,
+                );
+            }
+
             if is_enum_variant_global {
                 if let Some(turbofish) = resolved_turbofish.or(type_segment_turbofish) {
                     self.bind_enum_variant_global_turbofish(
@@ -785,6 +796,27 @@ impl Elaborator<'_> {
         bindings.extend(impl_replacements);
     }
 
+    /// Bind a trait impl's generics by unifying a concrete `self_type` against the impl's self type,
+    /// for an associated constant reached through that type (`G::<7>::C`): the constant's value is
+    /// written in terms of the impl's generics.
+    fn bind_trait_impl_generics_from_self_type(
+        &mut self,
+        impl_id: TraitImplId,
+        self_type: &Type,
+        bindings: &mut TypeBindings,
+        location: Location,
+    ) {
+        let trait_impl = self.interner.get_trait_implementation(impl_id);
+        let (impl_self_type, impl_replacements) = {
+            let trait_impl = trait_impl.borrow();
+            trait_impl
+                .typ
+                .substitute_type_vars_with_fresh_type_vars(&trait_impl.generics, self.interner)
+        };
+        self.unify_or_type_mismatch(self_type, &impl_self_type, location);
+        bindings.extend(impl_replacements);
+    }
+
     /// Bind a trait's declared generics from the turbofish solved for the trait before the method,
     /// e.g. the `<u32>` in `Trait::<u32>::foo`. We only bind the trait-level portion here; method
     /// generics are handled separately by the method turbofish.
@@ -904,6 +936,9 @@ impl Elaborator<'_> {
             PathResolutionItem::TypeTraitFunction(self_type, _trait_id, _func_id) => {
                 ItemTypeBinding::SelfGeneric(self_type)
             }
+            PathResolutionItem::TraitConstant(_, self_type, _, _) => {
+                ItemTypeBinding::ConcreteSelfType(self_type)
+            }
             PathResolutionItem::PrimitiveFunction(primitive_type, turbofish, _func_id) => {
                 // Build the concrete primitive self type (e.g. `str<3>`) and unify it against the
                 // impl, just like any other concrete type.
@@ -924,8 +959,7 @@ impl Elaborator<'_> {
             | PathResolutionItem::TraitAssociatedType(..)
             | PathResolutionItem::Global(..)
             | PathResolutionItem::EnumVariant(..)
-            | PathResolutionItem::ModuleFunction(..)
-            | PathResolutionItem::TraitConstant(..) => ItemTypeBinding::None,
+            | PathResolutionItem::ModuleFunction(..) => ItemTypeBinding::None,
         };
         self.push_errors(errors);
         result
