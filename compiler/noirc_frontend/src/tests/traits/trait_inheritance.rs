@@ -2385,3 +2385,31 @@ fn probe2055_pin_implied_bound_written_first() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn path_call_keeps_trait_argument_open_while_an_impl_where_clause_is_undecided() {
+    let src = r#"
+    trait Foo { fn make() -> Self; }
+    impl Foo for u16 { fn make() -> u16 { 2 } }
+    trait Tr<T> { fn mk(self) -> T; }
+    pub struct K {}
+    impl Tr<u8> for K { fn mk(self) -> u8 { 1 } }
+    impl<T> Tr<T> for K where T: Foo { fn mk(self) -> T { T::make() } }
+    fn main() { let x = Tr::mk(K {}); let _y: u16 = x; }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn method_call_keeps_trait_argument_open_while_an_impl_where_clause_is_undecided() {
+    let src = r#"
+    trait Foo { fn make() -> Self; }
+    impl Foo for u16 { fn make() -> u16 { 2 } }
+    trait Tr<T> { fn mk(self) -> T; }
+    pub struct K {}
+    impl Tr<u8> for K { fn mk(self) -> u8 { 1 } }
+    impl<T> Tr<T> for K where T: Foo { fn mk(self) -> T { T::make() } }
+    fn main() { let x = K {}.mk(); let _y: u16 = x; }
+    "#;
+    assert_no_errors(src);
+}

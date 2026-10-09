@@ -11,7 +11,8 @@ use crate::{
     },
     hir_def::traits::TraitConstraint,
     node_interner::{
-        DefinitionKind, ExprId, GlobalValue, ImplSearchErrorKind, TraitImplKind, TypeId,
+        DefinitionKind, ExprId, GlobalValue, ImplSearchErrorKind, TraitImplKind, TraitLookupMode,
+        TypeId,
     },
 };
 use crate::{TypeVariableId, node_interner::DefinitionId};
@@ -146,7 +147,16 @@ impl Elaborator<'_> {
             .collect();
 
         for constraint in constraints {
-            let _ = constraint.find_impl(self.interner, None);
+            let bound = &constraint.trait_bound;
+            if let Ok((_, bindings, _)) = self.interner.try_lookup_trait_implementation(
+                &constraint.typ,
+                bound.trait_id,
+                &bound.trait_generics.ordered,
+                &bound.trait_generics.named,
+                TraitLookupMode::Eager,
+            ) {
+                Type::apply_type_bindings(bindings);
+            }
         }
     }
 

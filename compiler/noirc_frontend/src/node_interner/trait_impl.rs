@@ -29,6 +29,11 @@ pub(crate) enum TraitLookupMode {
     /// Looks up implementation for bindable object types, and matches only [`TraitImplKind::Assumed`].
     /// The returned bindings are not expected to be applied.
     SelfAssumedOnly,
+    /// Like [Default](TraitLookupMode::Default), but answers only once the answer can't change:
+    /// an impl whose where clause can't be checked yet (it needs a type that isn't known yet)
+    /// might still apply, so a single other matching impl is not chosen over it. Used to resolve
+    /// a call's constraints while its function is still being type-checked.
+    Eager,
     /// Like [Default](TraitLookupMode::Default), but skips every [`TraitImplKind::Assumed`] impl.
     /// Used to normalize an associated-type projection over a rigid object type: the real impl
     /// is the single ground truth, and any `where` clause hypothesis for the same type is
@@ -552,7 +557,11 @@ impl NodeInterner {
         let object_type = object_type.substitute(type_bindings);
         let is_bindable = object_type.is_bindable();
 
-        if is_bindable && matches!(mode, TraitLookupMode::Default | TraitLookupMode::IgnoreAssumed)
+        if is_bindable
+            && matches!(
+                mode,
+                TraitLookupMode::Default | TraitLookupMode::Eager | TraitLookupMode::IgnoreAssumed
+            )
         {
             return Err(ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType);
         }
@@ -564,10 +573,11 @@ impl NodeInterner {
 
         let mut matching_impls = Vec::new();
         let mut where_clause_error = None;
+        let mut where_clause_undecided = false;
 
         for (existing_object_type, impl_kind) in impls {
             let skip = match mode {
-                TraitLookupMode::Default => false,
+                TraitLookupMode::Default | TraitLookupMode::Eager => false,
                 // Match only finalized impls when detecting overlaps. Skipping `Prepared` entries
                 // keeps detection deterministic: each overlapping pair is reported exactly once,
                 // when the second impl is collected and finds the first (now `Normal`).
@@ -624,6 +634,9 @@ impl NodeInterner {
                     recursion_limit,
                 )
             {
+                if matches!(error.1, ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType) {
+                    where_clause_undecided = true;
+                }
                 // Only keep the first errors we get from a failing where clause
                 if where_clause_error.is_none() {
                     where_clause_error = Some(error);
@@ -668,7 +681,12 @@ impl NodeInterner {
             ));
         }
 
-        if matching_impls.len() == 1 {
+        if matching_impls.len() == 1
+            && where_clause_undecided
+            && matches!(mode, TraitLookupMode::Eager)
+        {
+            Err(ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType)
+        } else if matching_impls.len() == 1 {
             let (impl_, fresh_bindings, instantiation_bindings, _) = matching_impls.pop().unwrap();
             *type_bindings = fresh_bindings;
             Ok((impl_, instantiation_bindings))
