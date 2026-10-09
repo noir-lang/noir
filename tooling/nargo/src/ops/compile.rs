@@ -45,7 +45,7 @@ pub fn compile_program_with_debug_instrumenter(
     context.debug_instrumenter = debug_instrumenter;
     context.package_build_path = workspace.package_build_path(package);
 
-    noirc_driver::compile_main(&mut context, crate_id, compile_options, cached_program)
+    noirc_driver::compile_main(context, crate_id, compile_options, cached_program)
 }
 
 #[tracing::instrument(level = "trace", skip_all, fields(package_name = package.name.to_string()))]

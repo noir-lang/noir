@@ -475,17 +475,17 @@ pub fn compute_function_abi(
 ///
 /// See [`compile_no_check`] for further information about the use of `cached_program`.
 ///
-/// Unless the cached program is reused, `context.def_interner` is replaced with an empty
-/// interner once the program has been monomorphized, so the HIR is not kept in memory during
-/// code generation. `context` should therefore not be used to query the HIR afterwards.
+/// `context` is consumed: its HIR is freed once the program has been monomorphized so that it is
+/// not kept in memory during code generation, which leaves the context unfit for any further
+/// queries.
 #[tracing::instrument(level = "trace", skip_all)]
 pub fn compile_main(
-    context: &mut Context,
+    mut context: Context,
     crate_id: CrateId,
     options: &CompileOptions,
     cached_program: Option<CompiledProgram>,
 ) -> CompilationResult<CompiledProgram> {
-    let (_, mut warnings) = check_crate(context, crate_id, options)?;
+    let (_, mut warnings) = check_crate(&mut context, crate_id, options)?;
 
     let main = context.get_main_function(&crate_id).ok_or_else(|| {
         // TODO(#2155): This error might be a better to exist in Nargo
@@ -496,10 +496,10 @@ pub fn compile_main(
         vec![err]
     })?;
 
-    let monomorphized = monomorphize_program(context, options, main)
+    let monomorphized = monomorphize_program(&context, options, main)
         .map_err(|error| vec![CustomDiagnostic::from(error)])?;
     let compiled_program = match reusable_cached_program(
-        context,
+        &context,
         options,
         &monomorphized,
         cached_program,
@@ -510,7 +510,7 @@ pub fn compile_main(
             // Nothing past monomorphization reads the HIR, so free it rather than keep it alive
             // alongside the SSA, ACIR and Brillig for the rest of compilation.
             context.def_interner = NodeInterner::default();
-            compile_monomorphized(context, options, monomorphized)
+            compile_monomorphized(&context, options, monomorphized)
                 .map_err(|error| vec![CustomDiagnostic::from(error)])?
         }
     };

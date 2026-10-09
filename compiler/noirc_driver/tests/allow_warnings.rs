@@ -28,9 +28,8 @@ fn compile_warnings(source: &str) -> Vec<CustomDiagnostic> {
     let root_crate_id = prepare_crate(&mut context, file_name);
 
     let options = CompileOptions::default();
-    let (_program, warnings) =
-        noirc_driver::compile_main(&mut context, root_crate_id, &options, None)
-            .expect("program should compile successfully");
+    let (_program, warnings) = noirc_driver::compile_main(context, root_crate_id, &options, None)
+        .expect("program should compile successfully");
     warnings
 }
 

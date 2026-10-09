@@ -1,8 +1,8 @@
 //! Integration tests for `compile_main` releasing the HIR before code generation.
 //!
-//! `compile_main` empties `context.def_interner` once the program has been monomorphized. Everything
-//! code generation needs from the HIR, including the ABI's error types, must therefore be derivable
-//! without the interner.
+//! `compile_main` frees the context's `NodeInterner` once the program has been monomorphized.
+//! Everything code generation needs from the HIR, including the ABI's error types, must therefore
+//! be derivable without the interner.
 
 use std::path::Path;
 
@@ -11,7 +11,7 @@ use noirc_artifacts::program::CompiledProgram;
 use noirc_driver::{CompileOptions, file_manager_with_stdlib, prepare_crate};
 use noirc_frontend::hir::{Context, def_map::parse_file};
 
-fn compile(source: &str) -> (CompiledProgram, Context<'static, 'static>) {
+fn compile(source: &str) -> CompiledProgram {
     let root = Path::new("");
     let file_name = Path::new("main.nr");
     let mut file_manager = file_manager_with_stdlib(root);
@@ -28,19 +28,9 @@ fn compile(source: &str) -> (CompiledProgram, Context<'static, 'static>) {
     let root_crate_id = prepare_crate(&mut context, file_name);
 
     let options = CompileOptions::default();
-    let (program, _warnings) =
-        noirc_driver::compile_main(&mut context, root_crate_id, &options, None)
-            .expect("program should compile successfully");
-    (program, context)
-}
-
-#[test]
-fn compile_main_releases_the_hir() {
-    let (_program, context) = compile("fn main(x: Field) { assert(x != 0); }");
-    assert!(
-        context.def_interner.get_all_globals().is_empty(),
-        "expected compile_main to replace the interner, but it still holds the stdlib's globals"
-    );
+    let (program, _warnings) = noirc_driver::compile_main(context, root_crate_id, &options, None)
+        .expect("program should compile successfully");
+    program
 }
 
 #[test]
@@ -53,7 +43,7 @@ fn abi_error_types_resolve_after_the_hir_is_released() {
             assert(y != 1, f"bad value {y}");
         }
     "#;
-    let (program, _context) = compile(source);
+    let program = compile(source);
 
     let error_types: Vec<&AbiErrorType> = program.abi.error_types.values().collect();
     assert!(

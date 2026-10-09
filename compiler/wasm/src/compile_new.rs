@@ -91,28 +91,30 @@ impl CompilerContext {
     }
 
     pub fn compile_program(
-        mut self,
+        self,
         _program_width: usize,
     ) -> Result<JsCompileProgramResult, JsCompileError> {
         let compile_options = CompileOptions::default();
 
         let root_crate_id = *self.context.root_crate_id();
-        let compiled_program =
-            compile_main(&mut self.context, root_crate_id, &compile_options, None)
-                .map_err(|errs| {
-                    CompileError::with_custom_diagnostics(
-                        "Failed to compile program",
-                        errs,
-                        &self.context.file_manager,
-                    )
-                })?
-                .0;
+        // `compile_main` consumes the context, which owns the file manager, so keep a copy for
+        // reporting errors.
+        let file_manager = self.context.file_manager.clone();
+        let compiled_program = compile_main(self.context, root_crate_id, &compile_options, None)
+            .map_err(|errs| {
+                CompileError::with_custom_diagnostics(
+                    "Failed to compile program",
+                    errs,
+                    &file_manager,
+                )
+            })?
+            .0;
 
         nargo::ops::check_program(&compiled_program).map_err(|errs| {
             CompileError::with_custom_diagnostics(
                 "Compiled program is not solvable",
                 errs,
-                &self.context.file_manager,
+                &file_manager,
             )
         })?;
         let warnings = compiled_program.warnings.clone();
