@@ -189,11 +189,6 @@ pub struct NodeInterner {
     /// by splitting it up by type.
     trait_implementation_map: HashMap<TraitId, Vec<(Type, TraitImplKind)>>,
 
-    /// The self type of each trait impl, generalized over the impl's generics (a [`Type::Forall`]).
-    /// An impl applies to every type its self type describes, so each use instantiates the
-    /// impl's generics with its own type variables.
-    trait_impl_self_types: HashMap<TraitImplId, Type>,
-
     /// The where clause of each trait impl, so that a lookup matches an impl only where its
     /// where clause holds.
     ///
@@ -511,7 +506,6 @@ impl Default for NodeInterner {
             impls: HashMap::default(),
             next_impl_id: 0,
             trait_implementation_map: HashMap::default(),
-            trait_impl_self_types: HashMap::default(),
             trait_impl_where_clauses: HashMap::default(),
             selected_trait_implementations: HashMap::default(),
             infix_operator_traits: HashMap::default(),
@@ -1559,7 +1553,10 @@ impl NodeInterner {
 
     /// The self type of the given trait impl, with fresh type variables for the impl's generics.
     pub(crate) fn instantiate_trait_impl_self_type(&self, impl_id: TraitImplId) -> Type {
-        self.trait_impl_self_types[&impl_id].instantiate(self).0
+        let trait_impl = self.get_trait_implementation(impl_id);
+        let trait_impl = trait_impl.borrow();
+        let generics = trait_impl.generics.clone();
+        self.replace_generics_with_fresh_type_variable(&trait_impl.typ, generics).0
     }
 
     /// Returns the ordered generics for the given trait impl.
