@@ -28,7 +28,7 @@ use acvm::{
     FieldElement,
     acir::{
         AcirField,
-        brillig::lengths::{ElementTypesLength, SemanticLength, SemiFlattenedLength},
+        brillig::lengths::{ElementTypesLength, SemanticLength},
     },
 };
 use iter_extended::vecmap;
@@ -40,6 +40,7 @@ use serde_with::serde_as;
 use simplify::{SimplifyResult, simplify};
 
 pub(crate) mod simplify;
+pub(crate) mod vector_capacity;
 
 /// The `DataFlowGraph` contains most of the actual data in a function including
 /// its blocks, instructions, and values. This struct is largely responsible for
@@ -811,96 +812,6 @@ impl DataFlowGraph {
     pub(crate) fn try_get_array_length(&self, value: ValueId) -> Option<SemanticLength> {
         match *self.type_of_value(value) {
             Type::Array(_, length) => Some(length),
-            _ => None,
-        }
-    }
-
-    /// Try to find out the capacity of a vector by tracing it back to a `MakeArray`.
-    ///
-    /// The result of a vector intrinsic whose length argument is a known constant is sized from
-    /// that length, which can be smaller than its backing array. Use
-    /// [`Self::try_get_vector_backing_capacity`] where the full backing array is needed.
-    pub(crate) fn try_get_vector_capacity(&self, value: ValueId) -> Option<SemanticLength> {
-        self.try_get_vector_capacity_impl(value, true)
-    }
-
-    /// Try to find out the size of the backing array of a vector by tracing it back to a
-    /// `MakeArray`, ignoring the semantic length of any vector intrinsic along the way.
-    ///
-    /// Earlier passes may have emitted reads of every element of the backing array, so a value
-    /// that stands in for the vector must be at least this large.
-    pub(crate) fn try_get_vector_backing_capacity(&self, value: ValueId) -> Option<SemanticLength> {
-        self.try_get_vector_capacity_impl(value, false)
-    }
-
-    fn try_get_vector_capacity_impl(
-        &self,
-        value: ValueId,
-        use_constant_length: bool,
-    ) -> Option<SemanticLength> {
-        // For arrays we know the size statically
-        if let Some(length) = self.try_get_array_length(value) {
-            return Some(length);
-        }
-
-        match self.get_local_or_global_instruction(value)? {
-            Instruction::MakeArray { .. } => {
-                let (array, typ) = self.get_array_constant(value)?;
-                let elements_size = typ.element_size();
-
-                let length = if elements_size.0 == 0 {
-                    SemanticLength(assert_u32(array.len()))
-                } else {
-                    SemiFlattenedLength(assert_u32(array.len())) / elements_size
-                };
-                Some(length)
-            }
-            Instruction::ArraySet { array, .. } | Instruction::ArrayGet { array, .. } => {
-                self.try_get_vector_capacity_impl(*array, use_constant_length)
-            }
-            Instruction::Call { func, arguments } => {
-                // Handle vector intrinsics that return vectors with known capacities
-                if !matches!(*self.type_of_value(value), Type::Vector(_)) {
-                    return None;
-                }
-
-                let Value::Intrinsic(intrinsic) = &self[*func] else {
-                    return None;
-                };
-                use crate::ssa::ir::instruction::Intrinsic;
-                // Note that this handling of PushBack assumes that even if the dynamic semantic
-                // length was less than the capacity, we will grow the vector.
-                let adjust: fn(u32) -> u32 = match intrinsic {
-                    Intrinsic::VectorPopFront
-                    | Intrinsic::VectorPopBack
-                    | Intrinsic::VectorRemove => |base| base.saturating_sub(1),
-                    Intrinsic::VectorPushBack
-                    | Intrinsic::VectorPushFront
-                    | Intrinsic::VectorInsert => |base| base.saturating_add(1),
-                    Intrinsic::AsVector => return self.try_get_array_length(arguments[0]),
-                    _ => return None,
-                };
-                // Try to get the semantic length, if it's a known constant.
-                // It should be okay to use the semantic length; for example the ValueMerger would get fewer items.
-                let length = use_constant_length
-                    .then(|| self.get_numeric_constant(arguments[0]))
-                    .flatten()
-                    .map(|length| length.to_u128() as u32)
-                    .map(SemanticLength);
-                // Otherwise fall back to the physical capacity.
-                let base = length.or_else(|| {
-                    self.try_get_vector_capacity_impl(arguments[1], use_constant_length)
-                })?;
-                Some(SemanticLength(adjust(base.0)))
-            }
-            Instruction::IfElse { then_value, else_value, .. } => {
-                // The capacity is the longer of the two after merging.
-                let then_capacity =
-                    self.try_get_vector_capacity_impl(*then_value, use_constant_length)?;
-                let else_capacity =
-                    self.try_get_vector_capacity_impl(*else_value, use_constant_length)?;
-                Some(SemanticLength(std::cmp::max(then_capacity.0, else_capacity.0)))
-            }
             _ => None,
         }
     }

@@ -3,7 +3,10 @@ use std::{cmp::Ordering, collections::BTreeMap, io::Write};
 use super::{
     Ssa,
     ir::{
-        dfg::DataFlowGraph,
+        dfg::{
+            DataFlowGraph,
+            vector_capacity::{CapacityChange, vector_capacity_flows},
+        },
         function::{Function, FunctionId, RuntimeType},
         instruction::{Binary, BinaryOp, ConstrainError, Instruction, TerminatorInstruction},
         types::Type,
@@ -21,7 +24,7 @@ use crate::ssa::ir::{
 use crate::ssa::opt::pure::Purity;
 use acvm::{AcirField, FieldElement};
 use errors::{InternalError, InterpreterError, MAX_UNSIGNED_BIT_SIZE};
-use iter_extended::{try_vecmap, vecmap};
+use iter_extended::try_vecmap;
 use itertools::Itertools;
 use num_bigint::BigUint;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
@@ -1164,52 +1167,30 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         argument_ids: &[ValueId],
         results: &[ValueId],
     ) -> IResult<Vec<Value>> {
-        use crate::ssa::ir::instruction::Intrinsic;
-        // Get the length of the vector
-        if let Value::Intrinsic(intrinsic) = function {
-            let input_vector_info = match intrinsic {
-                Intrinsic::VectorPushBack
-                | Intrinsic::VectorPushFront
-                | Intrinsic::VectorInsert
-                | Intrinsic::VectorPopBack
-                | Intrinsic::VectorPopFront
-                | Intrinsic::VectorRemove => {
-                    let vec = self.lookup_array_or_vector(
-                        argument_ids[1],
-                        "uninitialized vector intrinsic",
-                    )?;
-                    Some((vec.elements.borrow().len(), vec.element_types.clone()))
-                }
-                _ => None,
-            };
-
-            if let Some((input_len, element_types)) = input_vector_info {
-                let element_count = element_types.len();
-                let output_len = match intrinsic {
-                    Intrinsic::VectorPushBack
-                    | Intrinsic::VectorPushFront
-                    | Intrinsic::VectorInsert => input_len + element_count,
-                    Intrinsic::VectorPopBack
-                    | Intrinsic::VectorPopFront
-                    | Intrinsic::VectorRemove => input_len.saturating_sub(element_count),
-                    _ => unreachable!(),
-                };
-
-                return Ok(vecmap(results, |result| {
-                    let typ = self.dfg().type_of_value(*result);
-                    if matches!(*typ, Type::Vector(_)) {
-                        Value::uninitialized_vector(&element_types, output_len, *result)
-                    } else {
-                        Value::uninitialized(&typ, *result)
-                    }
-                }));
+        let flows = match function {
+            Value::Intrinsic(intrinsic) => {
+                vector_capacity_flows(self.dfg(), *intrinsic, argument_ids, results)
             }
-        }
+            _ => Vec::new(),
+        };
 
-        Ok(vecmap(results, |result| {
+        try_vecmap(results, |result| {
             let typ = self.dfg().type_of_value(*result);
-            Value::uninitialized(&typ, *result)
-        }))
+            // A vector result keeps the backing capacity the call would have given it.
+            let Some(flow) = flows.iter().find(|flow| flow.output == *result) else {
+                return Ok(Value::uninitialized(&typ, *result));
+            };
+            let input =
+                self.lookup_array_or_vector(flow.input, "uninitialized vector intrinsic")?;
+            let input_len = input.elements.borrow().len();
+            let element_count = input.element_types.len();
+            let output_len = match flow.change {
+                CapacityChange::Same => input_len,
+                CapacityChange::Grow => input_len + element_count,
+                CapacityChange::Shrink => input_len.saturating_sub(element_count),
+            };
+            Ok(Value::uninitialized_vector(&input.element_types, output_len, *result))
+        })
     }
 
     /// Try to get a function's name or approximate it if it is not known
