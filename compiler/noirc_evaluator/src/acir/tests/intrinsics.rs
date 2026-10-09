@@ -1,6 +1,16 @@
-use acvm::assert_circuit_snapshot;
+use std::collections::BTreeMap;
 
-use crate::acir::tests::{ssa_to_acir_program, try_ssa_to_acir};
+use acvm::{
+    FieldElement,
+    acir::native_types::{Witness, WitnessMap},
+    assert_circuit_snapshot,
+    pwg::ACVMStatus,
+};
+
+use crate::{
+    acir::tests::{execute_ssa, ssa_to_acir_program, try_ssa_to_acir},
+    ssa::ssa_gen::Ssa,
+};
 
 #[test]
 fn vector_push_back_known_length() {
@@ -1474,4 +1484,76 @@ fn vector_pop_back_nested_dynamic_inner_array_regression() {
 
     try_ssa_to_acir(src)
         .expect("nested dynamic arrays inside an inline outer vector should compile");
+}
+
+/// Every vector intrinsic gives its result the backing capacity the SSA passes size it with (see
+/// `ssa::ir::dfg::vector_capacity`): one element more than its input after a push or insert, one
+/// fewer after a pop or remove, whether or not the length is known at compile time. Remove
+/// IfElse reads every slot of that capacity when it merges vectors, so a read of the last slot
+/// has to solve.
+#[test]
+fn vector_intrinsics_give_results_the_capacity_the_ssa_passes_assume() {
+    // The input has a backing capacity of 4 and a semantic length of 2.
+    let cases = [
+        (
+            "vector_push_back",
+            "v8, v9 = call vector_push_back({len}, v5, Field 10) -> (u32, [Field])",
+            4,
+        ),
+        (
+            "vector_push_front",
+            "v8, v9 = call vector_push_front({len}, v5, Field 10) -> (u32, [Field])",
+            4,
+        ),
+        (
+            "vector_insert",
+            "v8, v9 = call vector_insert({len}, v5, u32 1, Field 10) -> (u32, [Field])",
+            4,
+        ),
+        (
+            "vector_pop_back",
+            "v8, v9, v10 = call vector_pop_back({len}, v5) -> (u32, [Field], Field)",
+            2,
+        ),
+        (
+            "vector_pop_front",
+            "v10, v8, v9 = call vector_pop_front({len}, v5) -> (Field, u32, [Field])",
+            2,
+        ),
+        (
+            "vector_remove",
+            "v8, v9, v10 = call vector_remove({len}, v5, u32 1) -> (u32, [Field], Field)",
+            2,
+        ),
+    ];
+    let mut failures = Vec::new();
+    for (name, call, last_index) in cases {
+        for (length_kind, length) in [("constant", "u32 2"), ("runtime", "v1")] {
+            let call = call.replace("{len}", length);
+            let src = format!(
+                "
+                acir(inline) predicate_pure fn main f0 {{
+                  b0(v0: u32, v1: u32):
+                    v3 = make_array [Field 2, Field 3, Field 0, Field 0] : [Field]
+                    v5 = array_set v3, index v0, value Field 4
+                    {call}
+                    v11 = array_get v9, index u32 {last_index} -> Field
+                    return
+                }}
+                "
+            );
+            let witness = WitnessMap::from(BTreeMap::from([
+                (Witness(0), FieldElement::from(0_u128)),
+                (Witness(1), FieldElement::from(2_u128)),
+            ]));
+            let ssa = Ssa::from_str(&src).unwrap();
+            let status = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                execute_ssa(ssa, witness, None).0
+            }));
+            if !matches!(status, Ok(ACVMStatus::Solved)) {
+                failures.push(format!("{name} with a {length_kind} length: {status:?}"));
+            }
+        }
+    }
+    assert!(failures.is_empty(), "results without the expected capacity:\n{}", failures.join("\n"));
 }
