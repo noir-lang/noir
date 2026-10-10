@@ -23,7 +23,6 @@ use fm::{FileId, FileManager};
 use iter_extended::vecmap;
 use noirc_errors::Location;
 use std::collections::{BTreeMap, HashMap, HashSet};
-use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -58,13 +57,6 @@ pub struct Context {
     /// The parse result of each file in the file manager. Read-only and shared, like the file
     /// manager itself.
     pub parsed_files: Arc<ParsedFiles>,
-
-    pub package_build_path: PathBuf,
-
-    /// Instrument the compiled Brillig to count array/vector copies per source location.
-    /// Set only by `nargo execute --count-array-copies`, which compiles in memory so the
-    /// instrumented artifact is never persisted.
-    pub count_array_copies: bool,
 
     /// Any unstable features required by the current package or its dependencies.
     pub required_unstable_features: BTreeMap<CrateId, Vec<UnstableFeature>>,
@@ -107,8 +99,6 @@ impl Context {
             debug_instrumenter: DebugInstrumenter::default(),
             debug_crate_id: None,
             parsed_files: parsed_files.into(),
-            package_build_path: PathBuf::default(),
-            count_array_copies: false,
             required_unstable_features: BTreeMap::new(),
             unresolved_globals: Deferred::default(),
         }

@@ -9,7 +9,7 @@ use std::{
 };
 
 use fm::FileManager;
-use noirc_driver::file_manager_with_stdlib;
+use noirc_driver::{BuildSettings, file_manager_with_stdlib};
 
 use crate::{
     constants::{EXPORT_DIR, TARGET_DIR},
@@ -32,6 +32,15 @@ impl Workspace {
     pub fn package_build_path(&self, package: &Package) -> PathBuf {
         let name: String = package.name.clone().into();
         self.target_directory_path().join(name).with_extension("json")
+    }
+
+    /// The settings to compile `package` with so that what it emits lands in this workspace's
+    /// target directory.
+    pub fn build_settings(&self, package: &Package) -> BuildSettings {
+        BuildSettings {
+            package_build_path: self.package_build_path(package),
+            ..BuildSettings::default()
+        }
     }
 
     pub fn target_directory_path(&self) -> PathBuf {

@@ -7,7 +7,7 @@
 
 use std::path::Path;
 
-use noirc_driver::{CompileOptions, file_manager_with_stdlib, prepare_crate};
+use noirc_driver::{BuildSettings, CompileOptions, file_manager_with_stdlib, prepare_crate};
 use noirc_errors::CustomDiagnostic;
 use noirc_frontend::hir::{Context, ParsedFiles, def_map::parse_file};
 
@@ -28,9 +28,14 @@ fn compile_warnings(source: &str) -> Vec<CustomDiagnostic> {
     let root_crate_id = prepare_crate(&mut context, file_name);
 
     let options = CompileOptions::default();
-    let (_program, warnings) =
-        noirc_driver::compile_main(&mut context, root_crate_id, &options, None)
-            .expect("program should compile successfully");
+    let (_program, warnings) = noirc_driver::compile_main(
+        &mut context,
+        root_crate_id,
+        &options,
+        &BuildSettings::default(),
+        None,
+    )
+    .expect("program should compile successfully");
     warnings
 }
 
