@@ -154,7 +154,12 @@ fn debug_test_fn(
     run_params: RunParams,
     package_params: PackageParams,
 ) -> TestResult {
-    let compiled_program = compile_test_fn_for_debugging(test, context, compile_options);
+    let compiled_program = compile_test_fn_for_debugging(
+        test,
+        context,
+        compile_options,
+        &workspace.build_settings(package),
+    );
 
     let test_status = match compiled_program {
         Ok(compiled_program) => {
@@ -220,7 +225,7 @@ fn debug_test(
     let (file_manager, parsed_files) = load_workspace_files(&workspace);
 
     let (mut context, crate_id) =
-        prepare_package_for_debug(&Arc::new(file_manager), parsed_files, package, &workspace);
+        prepare_package_for_debug(&Arc::new(file_manager), parsed_files, package);
 
     check_crate_and_report_errors(&mut context, crate_id, &compile_options)?;
 

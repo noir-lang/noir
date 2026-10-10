@@ -2,7 +2,9 @@ use std::path::Path;
 
 use fm::FileId;
 use noirc_abi::{AbiType, AbiValue};
-use noirc_driver::{CompileOptions, ErrorsAndWarnings, file_manager_with_stdlib, prepare_crate};
+use noirc_driver::{
+    BuildSettings, CompileOptions, ErrorsAndWarnings, file_manager_with_stdlib, prepare_crate,
+};
 use noirc_errors::CustomDiagnostic;
 use noirc_frontend::hir::{Context, ParsedFiles, def_map::parse_file};
 
@@ -28,9 +30,13 @@ contract Bar {}";
     let mut context = Context::new(file_manager, parsed_files);
     let root_crate_id = prepare_crate(&mut context, file_name);
 
-    let errors =
-        noirc_driver::compile_contract(&mut context, root_crate_id, &CompileOptions::default())
-            .unwrap_err();
+    let errors = noirc_driver::compile_contract(
+        &mut context,
+        root_crate_id,
+        &CompileOptions::default(),
+        &BuildSettings::default(),
+    )
+    .unwrap_err();
 
     assert_eq!(
         errors,
@@ -62,8 +68,13 @@ fn compile_contract_with_warnings(
     let mut context = Context::new(file_manager, parsed_files);
     let root_crate_id = prepare_crate(&mut context, file_name);
 
-    noirc_driver::compile_contract(&mut context, root_crate_id, &CompileOptions::default())
-        .expect("contract should compile successfully")
+    noirc_driver::compile_contract(
+        &mut context,
+        root_crate_id,
+        &CompileOptions::default(),
+        &BuildSettings::default(),
+    )
+    .expect("contract should compile successfully")
 }
 
 fn compile_contract_source(source: &str) -> noirc_artifacts::contract::CompiledContract {
@@ -82,9 +93,13 @@ fn compile_contract_source(source: &str) -> noirc_artifacts::contract::CompiledC
     let mut context = Context::new(file_manager, parsed_files);
     let root_crate_id = prepare_crate(&mut context, file_name);
 
-    let (contract, _warnings) =
-        noirc_driver::compile_contract(&mut context, root_crate_id, &CompileOptions::default())
-            .expect("contract should compile successfully");
+    let (contract, _warnings) = noirc_driver::compile_contract(
+        &mut context,
+        root_crate_id,
+        &CompileOptions::default(),
+        &BuildSettings::default(),
+    )
+    .expect("contract should compile successfully");
     contract
 }
 

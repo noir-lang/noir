@@ -4,7 +4,8 @@ use std::sync::Arc;
 use fm::FileManager;
 use noirc_artifacts::program::CompiledProgram;
 use noirc_driver::{
-    CompileOptions, CrateId, compile_no_check, file_manager_with_stdlib, link_to_debug_crate,
+    BuildSettings, CompileOptions, CrateId, compile_no_check, file_manager_with_stdlib,
+    link_to_debug_crate,
 };
 use noirc_frontend::{
     debug::DebugInstrumenter,
@@ -69,9 +70,16 @@ pub fn compile_test_fn_for_debugging(
     test_def: &TestDefinition,
     context: &mut Context,
     compile_options: CompileOptions,
+    build_settings: &BuildSettings,
 ) -> Result<CompiledProgram, noirc_driver::CompileError> {
-    let compiled_program =
-        compile_no_check(context, &compile_options, test_def.function.id, None, false)?;
+    let compiled_program = compile_no_check(
+        context,
+        &compile_options,
+        build_settings,
+        test_def.function.id,
+        None,
+        false,
+    )?;
     Ok(compiled_program)
 }
 
@@ -134,14 +142,12 @@ pub fn prepare_package_for_debug(
     file_manager: &Arc<FileManager>,
     mut parsed_files: ParsedFiles,
     package: &Package,
-    workspace: &Workspace,
 ) -> (Context, CrateId) {
     let debug_instrumenter = instrument_package_files(&mut parsed_files, file_manager, package);
 
     let (mut context, crate_id) = prepare_package(file_manager, &Arc::new(parsed_files), package);
     link_to_debug_crate(&mut context, crate_id);
     context.debug_instrumenter = debug_instrumenter;
-    context.package_build_path = workspace.package_build_path(package);
     (context, crate_id)
 }
 

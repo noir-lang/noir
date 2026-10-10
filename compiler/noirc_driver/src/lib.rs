@@ -95,6 +95,19 @@ fn parse_max_scratch_space(s: &str) -> Result<usize, String> {
     Ok(n)
 }
 
+/// Settings of a compilation which are decided by the tool driving the compiler, as opposed to
+/// the [`CompileOptions`] which its user chooses.
+#[derive(Clone, Debug, Default)]
+pub struct BuildSettings {
+    /// The directory which `--emit-ssa` writes the SSA of the package being compiled to.
+    pub package_build_path: PathBuf,
+
+    /// Instrument the compiled Brillig to count array/vector copies per source location.
+    /// Set only by `nargo execute --count-array-copies`, which compiles in memory so the
+    /// instrumented artifact is never persisted.
+    pub count_array_copies: bool,
+}
+
 #[derive(Args, Clone, Debug)]
 pub struct CompileOptions {
     /// Force a full recompilation.
@@ -494,10 +507,18 @@ pub fn compile_main(
     context: &mut Context,
     crate_id: CrateId,
     options: &CompileOptions,
+    build_settings: &BuildSettings,
     cached_program: Option<CompiledProgram>,
 ) -> CompilationResult<CompiledProgram> {
     let mut comptime_io = options.comptime_io();
-    compile_main_with_comptime_io(context, crate_id, options, cached_program, &mut comptime_io)
+    compile_main_with_comptime_io(
+        context,
+        crate_id,
+        options,
+        build_settings,
+        cached_program,
+        &mut comptime_io,
+    )
 }
 
 /// Same as [`compile_main`], but comptime code writes to `comptime_io`, whatever `options` say
@@ -507,6 +528,7 @@ pub fn compile_main_with_comptime_io(
     context: &mut Context,
     crate_id: CrateId,
     options: &CompileOptions,
+    build_settings: &BuildSettings,
     cached_program: Option<CompiledProgram>,
     comptime_io: &mut ComptimeIo,
 ) -> CompilationResult<CompiledProgram> {
@@ -521,9 +543,15 @@ pub fn compile_main_with_comptime_io(
         vec![err]
     })?;
 
-    let compiled_program =
-        compile_no_check(context, options, main, cached_program, options.force_compile)
-            .map_err(|error| vec![CustomDiagnostic::from(error)])?;
+    let compiled_program = compile_no_check(
+        context,
+        options,
+        build_settings,
+        main,
+        cached_program,
+        options.force_compile,
+    )
+    .map_err(|error| vec![CustomDiagnostic::from(error)])?;
 
     let compilation_warnings =
         vecmap(compiled_program.warnings.clone(), ssa_report_to_custom_diagnostic);
@@ -548,6 +576,7 @@ pub fn compile_contract(
     context: &mut Context,
     crate_id: CrateId,
     options: &CompileOptions,
+    build_settings: &BuildSettings,
 ) -> CompilationResult<CompiledContract> {
     let (_, mut warnings) = check_crate(context, crate_id, options)?;
 
@@ -574,7 +603,8 @@ pub fn compile_contract(
     let module_id = ModuleId { krate: crate_id, local_id: module_id };
     let contract = read_contract(context, module_id, name);
 
-    let compiled_contract = match compile_contract_inner(context, contract, options) {
+    let compiled_contract = match compile_contract_inner(context, contract, options, build_settings)
+    {
         Ok(contract) => contract,
         Err(mut more_errors) => {
             let mut errors = warnings;
@@ -664,6 +694,7 @@ fn compile_contract_inner(
     context: &Context,
     contract: Contract,
     options: &CompileOptions,
+    build_settings: &BuildSettings,
 ) -> Result<CompiledContract, ErrorsAndWarnings> {
     let mut functions = Vec::new();
     let mut errors = Vec::new();
@@ -695,13 +726,14 @@ fn compile_contract_inner(
             }
         }
 
-        let function = match compile_no_check(context, &options, function_id, None, true) {
-            Ok(function) => function,
-            Err(new_error) => {
-                errors.push(new_error.into());
-                continue;
-            }
-        };
+        let function =
+            match compile_no_check(context, &options, build_settings, function_id, None, true) {
+                Ok(function) => function,
+                Err(new_error) => {
+                    errors.push(new_error.into());
+                    continue;
+                }
+            };
         warnings.extend(function.warnings);
         let modifiers = context.def_interner.function_modifiers(&function_id);
         let is_unconstrained = context.def_interner.function_meta(&function_id).is_unconstrained();
@@ -876,6 +908,7 @@ pub fn filter_relevant_files(
 pub fn compile_no_check(
     context: &Context,
     options: &CompileOptions,
+    build_settings: &BuildSettings,
     main_function: FuncId,
     cached_program: Option<CompiledProgram>,
     force_compile: bool,
@@ -904,7 +937,7 @@ pub fn compile_no_check(
         || options.print_acir
         || options.show_brillig
         || options.force_brillig
-        || context.count_array_copies
+        || build_settings.count_array_copies
         || options.show_ssa
         || !options.show_ssa_pass.is_empty()
         || options.emit_ssa
@@ -922,11 +955,11 @@ pub fn compile_no_check(
     }
 
     let return_visibility = program.return_visibility();
-    let mut ssa_evaluator_options = options.as_ssa_options(context.package_build_path.clone());
+    let mut ssa_evaluator_options =
+        options.as_ssa_options(build_settings.package_build_path.clone());
 
-    // The copy-site registry is what turns on the `--count-array-copies` instrumentation. It is
-    // enabled per-compilation via the context rather than through the shared `CompileOptions`.
-    if context.count_array_copies {
+    // The copy-site registry is what turns on the `--count-array-copies` instrumentation.
+    if build_settings.count_array_copies {
         ssa_evaluator_options.brillig_options.copy_site_registry =
             Some(CopySiteRegistry::default());
     }
@@ -938,7 +971,7 @@ pub fn compile_no_check(
             program,
             &ssa_evaluator_options,
             // The registry resolves copy sites to source locations, which needs the file manager.
-            if options.with_ssa_locations || context.count_array_copies {
+            if options.with_ssa_locations || build_settings.count_array_copies {
                 Some(&context.file_manager)
             } else {
                 None

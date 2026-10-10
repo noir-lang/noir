@@ -33,7 +33,7 @@ pub(super) fn run_comptime(args: ExecuteCommand, workspace: Workspace) -> Result
     let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
 
     for package in binary_packages {
-        run_package_comptime(package, &args, &workspace, &file_manager, &parsed_files)?;
+        run_package_comptime(package, &args, &file_manager, &parsed_files)?;
     }
 
     Ok(())
@@ -42,12 +42,10 @@ pub(super) fn run_comptime(args: ExecuteCommand, workspace: Workspace) -> Result
 fn run_package_comptime(
     package: &Package,
     args: &ExecuteCommand,
-    workspace: &Workspace,
     file_manager: &Arc<FileManager>,
     parsed_files: &Arc<ParsedFiles>,
 ) -> Result<(), CliError> {
     let (mut context, crate_id) = nargo::prepare_package(file_manager, parsed_files, package);
-    context.package_build_path = workspace.package_build_path(package);
     noirc_driver::link_to_debug_crate(&mut context, crate_id);
     let mut comptime_io = args.compile_options.comptime_io();
     let result = noirc_driver::check_crate_with_comptime_io(

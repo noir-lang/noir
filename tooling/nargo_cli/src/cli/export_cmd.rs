@@ -14,7 +14,7 @@ use nargo::prepare_package;
 use nargo::workspace::Workspace;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::PackageSelection;
-use noirc_driver::{CompileOptions, compile_no_check};
+use noirc_driver::{BuildSettings, CompileOptions, compile_no_check};
 
 use clap::Args;
 
@@ -83,8 +83,15 @@ fn compile_exported_functions(
         exported_functions,
         |(function_name, function_id)| -> Result<(String, CompiledProgram), CompileError> {
             // TODO: We should to refactor how to deal with compilation errors to avoid this.
-            let program = compile_no_check(&context, compile_options, function_id, None, false)
-                .map_err(|error| vec![CustomDiagnostic::from(error)]);
+            let program = compile_no_check(
+                &context,
+                compile_options,
+                &BuildSettings::default(),
+                function_id,
+                None,
+                false,
+            )
+            .map_err(|error| vec![CustomDiagnostic::from(error)]);
 
             let program = report_errors(
                 program.map(|program| (program, Vec::new())),
