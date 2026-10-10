@@ -3,7 +3,7 @@ use std::path::Path;
 use noirc_driver::{ErrorsAndWarnings, file_manager_with_stdlib, prepare_crate};
 use noirc_frontend::{
     error_reporting::report_all,
-    hir::{Context, def_map::parse_file},
+    hir::{Context, ParsedFiles, def_map::parse_file},
 };
 
 #[test]
@@ -18,7 +18,7 @@ fn stdlib_does_not_produce_constant_warnings() -> Result<(), ErrorsAndWarnings> 
     file_manager.add_file_with_source(file_name, source.to_owned()).expect(
         "Adding source buffer to file manager should never fail when file manager is empty",
     );
-    let parsed_files = file_manager
+    let parsed_files: ParsedFiles = file_manager
         .as_file_map()
         .all_file_ids()
         .map(|&file_id| (file_id, parse_file(&file_manager, file_id)))

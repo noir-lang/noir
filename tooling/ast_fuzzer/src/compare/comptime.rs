@@ -35,7 +35,7 @@ use crate::{
 
 /// Prepare a code snippet.
 /// (copied from `nargo_cli/tests/common.rs`)
-fn prepare_snippet(source: String) -> (Context<'static, 'static>, CrateId) {
+fn prepare_snippet(source: String) -> (Context, CrateId) {
     let root = Path::new("");
     let file_name = Path::new("main.nr");
     let mut file_manager = file_manager_with_stdlib(root);

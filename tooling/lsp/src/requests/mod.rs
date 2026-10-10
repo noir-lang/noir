@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
+use std::sync::Arc;
 
 use crate::notifications::fake_stdlib_workspace;
 use crate::{PackageCacheData, insert_all_files_for_workspace_into_file_manager, parse_diff};
@@ -693,7 +694,8 @@ where
         &workspace,
         &mut workspace_file_manager,
     );
-    let parsed_files = parse_diff(&workspace_file_manager, state);
+    let parsed_files = Arc::new(parse_diff(&workspace_file_manager, state));
+    let workspace_file_manager = Arc::new(workspace_file_manager);
 
     let (mut context, crate_id) =
         crate::prepare_package(&workspace_file_manager, &parsed_files, package);

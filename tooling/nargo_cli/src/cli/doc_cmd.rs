@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::{collections::HashMap, fs};
 
 use clap::Args;
@@ -54,7 +55,8 @@ impl WorkspaceCommand for DocCommand {
 pub(crate) fn run(args: DocCommand, workspace: Workspace) -> Result<(), CliError> {
     let mut workspace_file_manager = workspace.new_file_manager();
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
-    let parsed_files = parse_all(&workspace_file_manager);
+    let parsed_files = Arc::new(parse_all(&workspace_file_manager));
+    let workspace_file_manager = Arc::new(workspace_file_manager);
 
     let mut broken_links = Vec::new();
 
@@ -133,8 +135,8 @@ pub(crate) fn run(args: DocCommand, workspace: Workspace) -> Result<(), CliError
 /// its dependencies in a `HashMap` that maps a dependency's root file to
 /// its crate.
 fn package_crate(
-    file_manager: &FileManager,
-    parsed_files: &ParsedFiles,
+    file_manager: &Arc<FileManager>,
+    parsed_files: &Arc<ParsedFiles>,
     package: &Package,
     compile_options: &CompileOptions,
     item_id_to_converted_item: &mut HashMap<ItemId, ConvertedItem>,
@@ -180,7 +182,7 @@ fn collect_dependencies(
     context: &Context,
     package: Option<&Package>,
     crate_id: CrateId,
-    file_manager: &FileManager,
+    file_manager: &Arc<FileManager>,
     item_id_to_converted_item: &mut HashMap<ItemId, ConvertedItem>,
     dependencies: &mut HashMap<String, Crate>,
     broken_links: &mut Vec<BrokenLink>,

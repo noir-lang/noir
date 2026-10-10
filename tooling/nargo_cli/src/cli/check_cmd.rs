@@ -1,4 +1,5 @@
 use std::hash::BuildHasher;
+use std::sync::Arc;
 
 use crate::errors::CliError;
 
@@ -51,7 +52,8 @@ impl WorkspaceCommand for CheckCommand {
 pub(crate) fn run(args: CheckCommand, workspace: Workspace) -> Result<(), CliError> {
     let mut workspace_file_manager = workspace.new_file_manager();
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
-    let parsed_files = parse_all(&workspace_file_manager);
+    let parsed_files = Arc::new(parse_all(&workspace_file_manager));
+    let workspace_file_manager = Arc::new(workspace_file_manager);
 
     for package in &workspace {
         if args.show_program_hash {
@@ -81,8 +83,8 @@ pub(crate) fn run(args: CheckCommand, workspace: Workspace) -> Result<(), CliErr
 /// Evaluates the necessity to create or update Prover.toml and Verifier.toml based on the `allow_overwrite` flag and files' existence.
 /// Returns `true` if any file was generated or updated, `false` otherwise.
 fn check_package(
-    file_manager: &FileManager,
-    parsed_files: &ParsedFiles,
+    file_manager: &Arc<FileManager>,
+    parsed_files: &Arc<ParsedFiles>,
     package: &Package,
     compile_options: &CompileOptions,
     overwrite: bool,

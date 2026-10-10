@@ -4,7 +4,7 @@ use fm::FileId;
 use noirc_abi::{AbiType, AbiValue};
 use noirc_driver::{CompileOptions, ErrorsAndWarnings, file_manager_with_stdlib, prepare_crate};
 use noirc_errors::CustomDiagnostic;
-use noirc_frontend::hir::{Context, def_map::parse_file};
+use noirc_frontend::hir::{Context, ParsedFiles, def_map::parse_file};
 
 #[test]
 fn reject_crates_containing_multiple_contracts() -> Result<(), ErrorsAndWarnings> {
@@ -19,7 +19,7 @@ contract Bar {}";
     file_manager.add_file_with_source(file_name, source.to_owned()).expect(
         "Adding source buffer to file manager should never fail when file manager is empty",
     );
-    let parsed_files = file_manager
+    let parsed_files: ParsedFiles = file_manager
         .as_file_map()
         .all_file_ids()
         .map(|&file_id| (file_id, parse_file(&file_manager, file_id)))
@@ -53,7 +53,7 @@ fn compile_contract_with_warnings(
     file_manager.add_file_with_source(file_name, source.to_owned()).expect(
         "Adding source buffer to file manager should never fail when file manager is empty",
     );
-    let parsed_files = file_manager
+    let parsed_files: ParsedFiles = file_manager
         .as_file_map()
         .all_file_ids()
         .map(|&file_id| (file_id, parse_file(&file_manager, file_id)))
@@ -73,7 +73,7 @@ fn compile_contract_source(source: &str) -> noirc_artifacts::contract::CompiledC
     file_manager.add_file_with_source(file_name, source.to_owned()).expect(
         "Adding source buffer to file manager should never fail when file manager is empty",
     );
-    let parsed_files = file_manager
+    let parsed_files: ParsedFiles = file_manager
         .as_file_map()
         .all_file_ids()
         .map(|&file_id| (file_id, parse_file(&file_manager, file_id)))

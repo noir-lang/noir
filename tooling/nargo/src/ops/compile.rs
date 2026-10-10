@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use fm::FileManager;
 use noirc_artifacts::contract::CompiledContract;
 use noirc_artifacts::program::CompiledProgram;
@@ -11,8 +13,8 @@ use crate::prepare_package;
 use crate::{package::Package, workspace::Workspace};
 
 pub fn compile_program(
-    file_manager: &FileManager,
-    parsed_files: &ParsedFiles,
+    file_manager: &Arc<FileManager>,
+    parsed_files: &Arc<ParsedFiles>,
     workspace: &Workspace,
     package: &Package,
     compile_options: &CompileOptions,
@@ -31,8 +33,8 @@ pub fn compile_program(
 
 #[tracing::instrument(level = "trace", name = "compile_program" skip_all, fields(package = package.name.to_string()))]
 pub fn compile_program_with_debug_instrumenter(
-    file_manager: &FileManager,
-    parsed_files: &ParsedFiles,
+    file_manager: &Arc<FileManager>,
+    parsed_files: &Arc<ParsedFiles>,
     workspace: &Workspace,
     package: &Package,
     compile_options: &CompileOptions,
@@ -50,8 +52,8 @@ pub fn compile_program_with_debug_instrumenter(
 
 #[tracing::instrument(level = "trace", skip_all, fields(package_name = package.name.to_string()))]
 pub fn compile_contract(
-    file_manager: &FileManager,
-    parsed_files: &ParsedFiles,
+    file_manager: &Arc<FileManager>,
+    parsed_files: &Arc<ParsedFiles>,
     package: &Package,
     compile_options: &CompileOptions,
 ) -> CompilationResult<CompiledContract> {
