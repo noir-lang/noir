@@ -12,7 +12,7 @@ use noirc_frontend::{
     hir::Context,
 };
 use serde::Deserialize;
-use std::{collections::BTreeMap, path::Path};
+use std::{collections::BTreeMap, path::Path, sync::Arc};
 use wasm_bindgen::prelude::*;
 
 use crate::errors::{CompileError, JsCompileError};
@@ -168,23 +168,20 @@ pub fn compile_program(
     file_source_map: PathToFileSourceMap,
 ) -> Result<JsCompileProgramResult, JsCompileError> {
     console_error_panic_hook::set_once();
-    let (crate_id, mut context) = prepare_context(entry_point, dependency_graph, file_source_map)?;
+    let (crate_id, context) = prepare_context(entry_point, dependency_graph, file_source_map)?;
+    let file_manager = Arc::clone(&context.file_manager);
 
     let compile_options = CompileOptions::default();
 
     let compiled_program = noirc_driver::compile_main(
-        &mut context,
+        context,
         crate_id,
         &compile_options,
         &BuildSettings::default(),
         None,
     )
     .map_err(|errs| {
-        CompileError::with_custom_diagnostics(
-            "Failed to compile program",
-            errs,
-            &context.file_manager,
-        )
+        CompileError::with_custom_diagnostics("Failed to compile program", errs, &file_manager)
     })?
     .0;
 
@@ -192,7 +189,7 @@ pub fn compile_program(
         CompileError::with_custom_diagnostics(
             "Compiled program is not solvable",
             errs,
-            &context.file_manager,
+            &file_manager,
         )
     })?;
     let warnings = compiled_program.warnings.clone();
@@ -207,22 +204,19 @@ pub fn compile_contract(
     file_source_map: PathToFileSourceMap,
 ) -> Result<JsCompileContractResult, JsCompileError> {
     console_error_panic_hook::set_once();
-    let (crate_id, mut context) = prepare_context(entry_point, dependency_graph, file_source_map)?;
+    let (crate_id, context) = prepare_context(entry_point, dependency_graph, file_source_map)?;
+    let file_manager = Arc::clone(&context.file_manager);
 
     let compile_options = CompileOptions::default();
 
     let compiled_contract = noirc_driver::compile_contract(
-        &mut context,
+        context,
         crate_id,
         &compile_options,
         &BuildSettings::default(),
     )
     .map_err(|errs: Vec<noirc_errors::CustomDiagnostic>| {
-        CompileError::with_custom_diagnostics(
-            "Failed to compile contract",
-            errs,
-            &context.file_manager,
-        )
+        CompileError::with_custom_diagnostics("Failed to compile contract", errs, &file_manager)
     })?
     .0;
 

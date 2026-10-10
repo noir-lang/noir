@@ -38,8 +38,8 @@ use noirc_evaluator::ssa::{
 use noirc_frontend::elaborator::{FrontendOptions, UnstableFeature};
 use noirc_frontend::error_reporting::function_locations_in_parsed_module;
 use noirc_frontend::hir::comptime::ComptimeIo;
-use noirc_frontend::hir::def_map::{CrateDefMap, ModuleDefId, ModuleId};
-use noirc_frontend::hir::{Context, ParsedFiles};
+use noirc_frontend::hir::def_map::{ModuleDefId, ModuleId};
+use noirc_frontend::hir::{CheckedContext, Context, ParsedFiles};
 use noirc_frontend::monomorphization::{
     errors::MonomorphizationError, monomorphize, monomorphize_debug,
 };
@@ -443,16 +443,19 @@ pub type CompilationResult<T> = Result<(T, Warnings), ErrorsAndWarnings>;
 
 /// Run the def collection, elaboration and type checking passes.
 ///
+/// The checked context is returned whether or not there were errors, as its analysis remains
+/// usable for tooling and its files are needed to report them. Alongside it:
+///
 /// On success, this returns () alongside any warnings found during checking.
 ///
 /// On error, this returns a non-empty vector of warnings and error messages, with at least one error.
 ///
 /// Comptime code prints to stdout, unless `options` disable comptime printing.
 pub fn check_crate(
-    context: &mut Context,
+    context: Context,
     crate_id: CrateId,
     options: &CompileOptions,
-) -> CompilationResult<()> {
+) -> (CheckedContext, CompilationResult<()>) {
     check_crate_with_comptime_io(context, crate_id, options, &mut options.comptime_io())
 }
 
@@ -460,13 +463,13 @@ pub fn check_crate(
 /// about comptime printing.
 #[tracing::instrument(level = "trace", skip_all)]
 pub fn check_crate_with_comptime_io(
-    context: &mut Context,
+    context: Context,
     crate_id: CrateId,
     options: &CompileOptions,
     comptime_io: &mut ComptimeIo,
-) -> CompilationResult<()> {
-    let diagnostics =
-        CrateDefMap::collect_defs(crate_id, context, options.frontend_options(), comptime_io);
+) -> (CheckedContext, CompilationResult<()>) {
+    let (context, diagnostics) =
+        context.check_crate(crate_id, options.frontend_options(), comptime_io);
     let crate_files = context.crate_files(&crate_id);
     let warnings_and_errors: Vec<CustomDiagnostic> = diagnostics
         .iter()
@@ -481,15 +484,16 @@ pub fn check_crate_with_comptime_io(
         })
         .collect();
 
-    if has_errors(&warnings_and_errors, options.deny_warnings) {
+    let result = if has_errors(&warnings_and_errors, options.deny_warnings) {
         Err(warnings_and_errors)
     } else {
         Ok(((), warnings_and_errors))
-    }
+    };
+    (context, result)
 }
 
 pub fn compute_function_abi(
-    context: &Context,
+    context: &CheckedContext,
     crate_id: &CrateId,
 ) -> Option<(Vec<AbiParameter>, Option<AbiType>)> {
     let main_function = context.get_main_function(crate_id)?;
@@ -504,7 +508,7 @@ pub fn compute_function_abi(
 ///
 /// See [`compile_no_check`] for further information about the use of `cached_program`.
 pub fn compile_main(
-    context: &mut Context,
+    context: Context,
     crate_id: CrateId,
     options: &CompileOptions,
     build_settings: &BuildSettings,
@@ -525,14 +529,16 @@ pub fn compile_main(
 /// about comptime printing.
 #[tracing::instrument(level = "trace", skip_all)]
 pub fn compile_main_with_comptime_io(
-    context: &mut Context,
+    context: Context,
     crate_id: CrateId,
     options: &CompileOptions,
     build_settings: &BuildSettings,
     cached_program: Option<CompiledProgram>,
     comptime_io: &mut ComptimeIo,
 ) -> CompilationResult<CompiledProgram> {
-    let (_, mut warnings) = check_crate_with_comptime_io(context, crate_id, options, comptime_io)?;
+    let (context, result) = check_crate_with_comptime_io(context, crate_id, options, comptime_io);
+    let context = &context;
+    let (_, mut warnings) = result?;
 
     let main = context.get_main_function(&crate_id).ok_or_else(|| {
         // TODO(#2155): This error might be a better to exist in Nargo
@@ -573,12 +579,14 @@ pub fn compile_main_with_comptime_io(
 /// Run the frontend to check the crate for errors then compile all contracts if there were none
 #[tracing::instrument(level = "trace", skip_all)]
 pub fn compile_contract(
-    context: &mut Context,
+    context: Context,
     crate_id: CrateId,
     options: &CompileOptions,
     build_settings: &BuildSettings,
 ) -> CompilationResult<CompiledContract> {
-    let (_, mut warnings) = check_crate(context, crate_id, options)?;
+    let (context, result) = check_crate(context, crate_id, options);
+    let context = &context;
+    let (_, mut warnings) = result?;
 
     let def_map = context.def_map(&crate_id).expect("The local crate should be analyzed already");
     let mut contracts = def_map.get_all_contracts();
@@ -691,7 +699,7 @@ fn has_errors(errors: &[CustomDiagnostic], deny_warnings: bool) -> bool {
 
 /// Compile all of the functions associated with a Noir contract.
 fn compile_contract_inner(
-    context: &Context,
+    context: &CheckedContext,
     contract: Contract,
     options: &CompileOptions,
     build_settings: &BuildSettings,
@@ -906,7 +914,7 @@ pub fn filter_relevant_files(
 #[tracing::instrument(level = "trace", skip_all, fields(function_name = context.function_name(&main_function)))]
 #[allow(clippy::result_large_err)]
 pub fn compile_no_check(
-    context: &Context,
+    context: &CheckedContext,
     options: &CompileOptions,
     build_settings: &BuildSettings,
     main_function: FuncId,

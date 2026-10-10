@@ -8,7 +8,7 @@ use noirc_driver::{
 };
 use noirc_frontend::debug::DebugInstrumenter;
 use noirc_frontend::error_reporting::report_all;
-use noirc_frontend::hir::{Context, ParsedFiles};
+use noirc_frontend::hir::{CheckedContext, Context, ParsedFiles};
 
 use crate::errors::CompileError;
 use crate::prepare_package;
@@ -49,7 +49,7 @@ pub fn compile_program_with_debug_instrumenter(
     context.debug_instrumenter = debug_instrumenter;
 
     noirc_driver::compile_main(
-        &mut context,
+        context,
         crate_id,
         compile_options,
         &workspace.build_settings(package),
@@ -64,13 +64,8 @@ pub fn compile_contract(
     package: &Package,
     compile_options: &CompileOptions,
 ) -> CompilationResult<CompiledContract> {
-    let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
-    noirc_driver::compile_contract(
-        &mut context,
-        crate_id,
-        compile_options,
-        &BuildSettings::default(),
-    )
+    let (context, crate_id) = prepare_package(file_manager, parsed_files, package);
+    noirc_driver::compile_contract(context, crate_id, compile_options, &BuildSettings::default())
 }
 
 /// Constructs a single `CompilationResult` for a collection of `CompilationResult`s, merging the set of warnings/errors.
@@ -109,18 +104,19 @@ pub fn report_errors<T>(
 }
 
 /// Run the lexing, parsing, name resolution, and type checking passes and report any warnings
-/// and errors found.
+/// and errors found, returning the checked context if there were no errors.
 pub fn check_crate_and_report_errors(
-    context: &mut Context,
+    context: Context,
     crate_id: CrateId,
     options: &CompileOptions,
-) -> Result<(), CompileError> {
-    let result = check_crate(context, crate_id, options);
+) -> Result<CheckedContext, CompileError> {
+    let (context, result) = check_crate(context, crate_id, options);
     report_errors(
         result,
         &context.file_manager,
         &context.parsed_files,
         options.deny_warnings,
         options.silence_warnings,
-    )
+    )?;
+    Ok(context)
 }

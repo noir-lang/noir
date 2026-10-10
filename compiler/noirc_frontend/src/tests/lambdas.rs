@@ -262,13 +262,13 @@ fn regression_7088() {
 
 fn get_program_captures(src: &str) -> Vec<Vec<String>> {
     let (program, context, _errors) = get_program(src);
-    let interner = context.def_interner;
+    let interner = &context.def_interner;
     let mut all_captures: Vec<Vec<String>> = Vec::new();
     for func in program.into_sorted().functions {
         let func_id = interner.find_function(func.item.name()).unwrap();
         let hir_func = interner.function(&func_id);
         // Iterate over function statements and apply filtering function
-        find_lambda_captures(hir_func.block(&interner).statements(), &interner, &mut all_captures);
+        find_lambda_captures(hir_func.block(interner).statements(), interner, &mut all_captures);
     }
     all_captures
 }

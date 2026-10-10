@@ -49,7 +49,7 @@ use noirc_driver::{
 };
 use noirc_frontend::graph::CrateId;
 use noirc_frontend::hir::{
-    Context, FunctionNameMatch, ParsedFiles,
+    CheckedContext, FunctionNameMatch, ParsedFiles,
     comptime::{ComptimeIo, EvaluationTracker},
     def_map::TestFunction,
 };
@@ -369,8 +369,7 @@ impl<'a> TestRunner<'a> {
     /// found. With `--coverage` it also returns a tracker of the comptime code which elaboration
     /// evaluated in the package.
     fn elaborate(&'a self, package: &'a Package) -> Elaboration {
-        let (mut context, crate_id) =
-            prepare_package(self.file_manager, self.parsed_files, package);
+        let (context, crate_id) = prepare_package(self.file_manager, self.parsed_files, package);
 
         let mut comptime_io = self.args.compile_options.comptime_io();
         if self.args.coverage {
@@ -381,8 +380,8 @@ impl<'a> TestRunner<'a> {
             comptime_io.evaluation_tracker = Some(EvaluationTracker::new(all_files));
         }
 
-        let result = check_crate_with_comptime_io(
-            &mut context,
+        let (context, result) = check_crate_with_comptime_io(
+            context,
             crate_id,
             &self.args.compile_options,
             &mut comptime_io,
@@ -588,7 +587,7 @@ impl<'a> TestRunner<'a> {
     }
 
     /// Compiles `test_function` without running it. A test that compiles is reported as skipped.
-    fn compile_only(&self, context: &Context, test_function: &TestFunction) -> TestStatus {
+    fn compile_only(&self, context: &CheckedContext, test_function: &TestFunction) -> TestStatus {
         match noirc_driver::compile_no_check(
             context,
             &self.args.compile_options,
@@ -605,7 +604,7 @@ impl<'a> TestRunner<'a> {
     /// Runs `test_function` in the comptime interpreter, collecting its coverage if requested.
     fn interpret(
         &'a self,
-        context: &mut Context,
+        context: &mut CheckedContext,
         tracker_after_elaboration: &Option<EvaluationTracker>,
         test: &Test<'a>,
         test_function: &TestFunction,
@@ -637,7 +636,7 @@ impl<'a> TestRunner<'a> {
     /// Compiles and executes `test_function`, fuzzing it if it has arguments.
     fn execute(
         &'a self,
-        context: &Context,
+        context: &CheckedContext,
         test: &Test<'a>,
         test_function: &TestFunction,
     ) -> TestOutcome {
@@ -938,7 +937,7 @@ impl TestResult {
 
 /// The outcome of elaborating a package.
 struct Elaboration {
-    context: Context,
+    context: CheckedContext,
     crate_id: CrateId,
     /// The errors and warnings found.
     result: CompilationResult<()>,
@@ -946,7 +945,7 @@ struct Elaboration {
     tracker: Option<EvaluationTracker>,
 }
 
-/// An elaborated [`Context`] kept alive across the tests a worker thread runs.
+/// A [`CheckedContext`] kept alive across the tests a worker thread runs.
 ///
 /// Elaborating a package is the single most expensive part of `nargo test` on a large program and
 /// produces the same result for every test in that package, so a worker holds onto the context it
@@ -959,7 +958,7 @@ struct Elaboration {
 /// when a test unwinds, and `--no-context-reuse` turns sharing off for a whole run.
 struct CachedContext<'a> {
     package: &'a Package,
-    context: Context,
+    context: CheckedContext,
     crate_id: CrateId,
     /// What elaboration evaluated at comptime, which each coverage test extends a copy of.
     tracker_after_elaboration: Option<EvaluationTracker>,

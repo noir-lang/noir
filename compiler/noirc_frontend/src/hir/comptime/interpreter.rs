@@ -45,7 +45,7 @@ use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, UnaryOp};
 use crate::elaborator::{Elaborator, ElaboratorOptions};
-use crate::hir::Context;
+use crate::hir::CheckedContext;
 use crate::hir::comptime::ComptimeIo;
 use crate::hir::comptime::Integer;
 use crate::hir::comptime::ValueCell;
@@ -2026,9 +2026,11 @@ fn to_i128(value: &Value) -> Option<i128> {
     }
 }
 
-impl Context {
+impl CheckedContext {
     /// Interprets (as comptime code) the given function in the give crate, with the given arguments.
-    /// Panics if there's no main function.
+    ///
+    /// This is the one operation which mutates a checked context: what the function defines or
+    /// instantiates while it runs is added to the analysis.
     pub fn interpret_function(
         &mut self,
         main_id: FuncId,
@@ -2049,7 +2051,8 @@ impl Context {
         };
         let module_id = ModuleId { krate: crate_id, local_id };
 
-        let mut elaborator = Elaborator::from_context(self, crate_id, cli_options, comptime_io);
+        let mut elaborator =
+            Elaborator::from_context(self.context_mut(), crate_id, cli_options, comptime_io);
         elaborator.setup_interpreter_for(module_id, |interpreter| {
             let instantiation_bindings = TypeBindings::default();
             interpreter.call_function(main_id, args, instantiation_bindings, location)

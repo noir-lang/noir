@@ -66,9 +66,9 @@ fn get_expanded_package_or_error(
     package: &Package,
     compile_options: &CompileOptions,
 ) -> Result<String, CompileError> {
-    let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
+    let (context, crate_id) = prepare_package(file_manager, parsed_files, package);
 
-    check_crate_and_report_errors(&mut context, crate_id, compile_options)?;
+    let context = check_crate_and_report_errors(context, crate_id, compile_options)?;
 
     Ok(get_expanded_crate(
         crate_id,

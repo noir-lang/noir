@@ -243,8 +243,9 @@ fn compile_into_program(
 ) -> CompilationResult<Option<Program>> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
     context.debug_instrumenter = DebugInstrumenter::default();
-    let (_, warnings) =
-        check_crate_with_comptime_io(&mut context, crate_id, options, &mut ComptimeIo::silent())?;
+    let (context, result) =
+        check_crate_with_comptime_io(context, crate_id, options, &mut ComptimeIo::silent());
+    let (_, warnings) = result?;
     let Some(main) = context.get_main_function(&crate_id) else {
         return Ok((None, warnings));
     };

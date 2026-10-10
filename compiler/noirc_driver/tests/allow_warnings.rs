@@ -29,7 +29,7 @@ fn compile_warnings(source: &str) -> Vec<CustomDiagnostic> {
 
     let options = CompileOptions::default();
     let (_program, warnings) = noirc_driver::compile_main(
-        &mut context,
+        context,
         root_crate_id,
         &options,
         &BuildSettings::default(),

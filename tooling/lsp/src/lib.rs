@@ -41,7 +41,7 @@ use noirc_frontend::{
     ParsedModule,
     graph::{CrateGraph, CrateId, CrateName},
     hir::{
-        Context, FunctionNameMatch, LspMode, ParsedFiles,
+        CheckedContext, Context, FunctionNameMatch, LspMode, ParsedFiles,
         def_map::{CrateDefMap, parse_file},
     },
     node_interner::NodeInterner,
@@ -381,7 +381,7 @@ impl LspService for NargoLspService {
 }
 
 fn get_package_tests_in_crate(
-    context: &Context,
+    context: &CheckedContext,
     crate_id: &CrateId,
     crate_name: &CrateName,
 ) -> Option<Vec<NargoTest>> {

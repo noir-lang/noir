@@ -124,7 +124,7 @@ fn execute_without_artifacts(args: ExecuteCommand, workspace: Workspace) -> Resu
 
         // Passing no cached program ignores any previously persisted, un-instrumented artifact.
         let compilation_result =
-            compile_main(&mut context, crate_id, &args.compile_options, &build_settings, None);
+            compile_main(context, crate_id, &args.compile_options, &build_settings, None);
         let program = report_errors(
             compilation_result,
             &file_manager,
