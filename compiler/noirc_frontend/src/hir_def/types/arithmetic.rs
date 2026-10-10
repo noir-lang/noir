@@ -1137,10 +1137,7 @@ mod proptests {
             let root = Path::new(".");
             let file_manager = FileManager::new(root);
             let parsed_files = HashMap::new();
-            let mut context = Context::from_ref_file_manager(
-                &file_manager,
-                &parsed_files,
-            );
+            let mut context = Context::new(file_manager, parsed_files);
             let crate_id = CrateId::Root(0);
             let root_module = ModuleData::new(
                 None,

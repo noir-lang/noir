@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::sync::Arc;
 use std::time::Duration;
 
 use acvm::FieldElement;
@@ -216,10 +217,10 @@ fn debug_test(
     run_params: RunParams,
     package_params: PackageParams,
 ) -> Result<(), CliError> {
-    let (file_manager, mut parsed_files) = load_workspace_files(&workspace);
+    let (file_manager, parsed_files) = load_workspace_files(&workspace);
 
     let (mut context, crate_id) =
-        prepare_package_for_debug(&file_manager, &mut parsed_files, package, &workspace);
+        prepare_package_for_debug(&Arc::new(file_manager), parsed_files, package, &workspace);
 
     check_crate_and_report_errors(&mut context, crate_id, &compile_options)?;
 
@@ -235,7 +236,7 @@ fn debug_test(
         run_params,
         package_params,
     );
-    print_test_result(test_result, &file_manager, &parsed_files);
+    print_test_result(test_result, &context.file_manager, &context.parsed_files);
 
     Ok(())
 }

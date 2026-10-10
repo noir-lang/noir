@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::insert_all_files_for_workspace_into_file_manager;
 use async_lsp::lsp_types::{LogMessageParams, MessageType};
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
@@ -53,7 +55,8 @@ fn on_tests_request_inner(
         &workspace,
         &mut workspace_file_manager,
     );
-    let parsed_files = parse_diff(&workspace_file_manager, state);
+    let parsed_files = Arc::new(parse_diff(&workspace_file_manager, state));
+    let workspace_file_manager = Arc::new(workspace_file_manager);
 
     let package_tests: Vec<_> = workspace
         .into_iter()

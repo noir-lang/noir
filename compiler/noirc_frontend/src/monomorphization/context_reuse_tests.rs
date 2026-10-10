@@ -27,7 +27,7 @@ fn test_functions(context: &Context) -> Vec<(String, FuncId)> {
 
 /// Monomorphize `function` against `context`, returning the program it produced or the error it
 /// failed with, both rendered as text so the two can be compared and displayed.
-fn monomorphize_to_string(context: &mut Context, function: FuncId) -> String {
+fn monomorphize_to_string(context: &Context, function: FuncId) -> String {
     match monomorphize(function, &context.def_interner, false) {
         Ok(program) => program.to_string(),
         Err(error) => format!("{error:?}"),
@@ -52,19 +52,19 @@ fn assert_monomorphization_is_order_independent(src: &str) {
     let alone: Vec<String> = names
         .iter()
         .map(|name| {
-            let (_, mut context, _) = get_program(src);
+            let (_, context, _) = get_program(src);
             let (_, function) = test_functions(&context)
                 .into_iter()
                 .find(|(candidate, _)| candidate == name)
                 .expect("elaborating the same source twice yields the same test functions");
-            monomorphize_to_string(&mut context, function)
+            monomorphize_to_string(&context, function)
         })
         .collect();
 
     // What they compile to against one context, in order.
-    let (_, mut context, _) = get_program(src);
+    let (_, context, _) = get_program(src);
     for ((name, function), expected) in test_functions(&context).into_iter().zip(alone) {
-        let shared = monomorphize_to_string(&mut context, function);
+        let shared = monomorphize_to_string(&context, function);
         assert_eq!(
             shared, expected,
             "monomorphizing `{name}` against a context that had already compiled the entry \

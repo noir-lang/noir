@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::{io::Write, path::PathBuf};
 
 use acvm::{BlackBoxFunctionSolver, FieldElement};
@@ -94,8 +95,8 @@ impl WorkspaceCommand for FuzzCommand {
 fn list_harnesses_command(
     args: FuzzCommand,
     workspace: Workspace,
-    file_manager: &FileManager,
-    parsed_files: &ParsedFiles,
+    file_manager: &Arc<FileManager>,
+    parsed_files: &Arc<ParsedFiles>,
     pattern: &FunctionNameMatch,
 ) -> Result<(), CliError> {
     // Configure a thread pool with a larger stack size to prevent overflowing stack in large programs.
@@ -143,7 +144,8 @@ fn list_harnesses_command(
 pub(crate) fn run(args: FuzzCommand, workspace: Workspace) -> Result<(), CliError> {
     let mut file_manager = workspace.new_file_manager();
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut file_manager);
-    let parsed_files = parse_all(&file_manager);
+    let parsed_files = Arc::new(parse_all(&file_manager));
+    let file_manager = Arc::new(file_manager);
 
     let pattern = match &args.fuzzing_harness_name {
         Some(name) => {
@@ -227,8 +229,8 @@ pub(crate) fn run(args: FuzzCommand, workspace: Workspace) -> Result<(), CliErro
 }
 
 fn list_harnesses(
-    file_manager: &FileManager,
-    parsed_files: &ParsedFiles,
+    file_manager: &Arc<FileManager>,
+    parsed_files: &Arc<ParsedFiles>,
     package: &Package,
     fn_name: &FunctionNameMatch,
     compile_options: &CompileOptions,
@@ -245,8 +247,8 @@ fn list_harnesses(
 
 #[allow(clippy::too_many_arguments)]
 fn run_fuzzers<S: BlackBoxFunctionSolver<FieldElement> + Default>(
-    file_manager: &FileManager,
-    parsed_files: &ParsedFiles,
+    file_manager: &Arc<FileManager>,
+    parsed_files: &Arc<ParsedFiles>,
     package: &Package,
     fn_name: &FunctionNameMatch,
     show_output: bool,
@@ -298,8 +300,8 @@ fn run_fuzzers<S: BlackBoxFunctionSolver<FieldElement> + Default>(
 
 #[allow(clippy::too_many_arguments)]
 fn run_fuzzing_harness<S: BlackBoxFunctionSolver<FieldElement> + Default>(
-    file_manager: &FileManager,
-    parsed_files: &ParsedFiles,
+    file_manager: &Arc<FileManager>,
+    parsed_files: &Arc<ParsedFiles>,
     package: &Package,
     fn_name: &str,
     show_output: bool,
@@ -347,8 +349,8 @@ fn run_fuzzing_harness<S: BlackBoxFunctionSolver<FieldElement> + Default>(
 }
 
 fn get_fuzzing_harnesses_in_package(
-    file_manager: &FileManager,
-    parsed_files: &ParsedFiles,
+    file_manager: &Arc<FileManager>,
+    parsed_files: &Arc<ParsedFiles>,
     package: &Package,
     fn_name: &FunctionNameMatch,
     options: &CompileOptions,
@@ -366,8 +368,8 @@ fn get_fuzzing_harnesses_in_package(
 fn display_fuzzing_report_and_store(
     root_path: Option<PathBuf>,
     fuzzing_failure_folder: Option<String>,
-    file_manager: &FileManager,
-    parsed_files: &ParsedFiles,
+    file_manager: &Arc<FileManager>,
+    parsed_files: &Arc<ParsedFiles>,
     package: &Package,
     compile_options: &CompileOptions,
     fuzzing_report: &(String, FuzzingRunStatus),
