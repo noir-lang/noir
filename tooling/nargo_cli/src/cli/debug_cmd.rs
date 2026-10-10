@@ -27,7 +27,7 @@ use noir_debugger::{DebugExecutionResult, DebugProject, RunParams};
 use noirc_abi::Abi;
 use noirc_artifacts::program::CompiledProgram;
 use noirc_driver::CompileOptions;
-use noirc_frontend::hir::{Context, ParsedFiles};
+use noirc_frontend::hir::{CheckedContext, ParsedFiles};
 
 use super::test_cmd::TestResult;
 use super::test_cmd::formatters::OrderedFormatter;
@@ -147,7 +147,7 @@ fn print_test_result(
 
 fn debug_test_fn(
     test: &TestDefinition,
-    context: &mut Context,
+    context: &CheckedContext,
     workspace: &Workspace,
     package: &Package,
     compile_options: CompileOptions,
@@ -224,17 +224,17 @@ fn debug_test(
 ) -> Result<(), CliError> {
     let (file_manager, parsed_files) = load_workspace_files(&workspace);
 
-    let (mut context, crate_id) =
+    let (context, crate_id) =
         prepare_package_for_debug(&Arc::new(file_manager), parsed_files, package);
 
-    check_crate_and_report_errors(&mut context, crate_id, &compile_options)?;
+    let context = check_crate_and_report_errors(context, crate_id, &compile_options)?;
 
     let test =
         get_test_function_for_debug(crate_id, &context, &test_name).map_err(CliError::Generic)?;
 
     let test_result = debug_test_fn(
         &test,
-        &mut context,
+        &context,
         &workspace,
         package,
         compile_options,

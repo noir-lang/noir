@@ -9,7 +9,7 @@ use noirc_driver::{
 };
 use noirc_frontend::{
     debug::DebugInstrumenter,
-    hir::{Context, FunctionNameMatch, ParsedFiles, def_map::TestFunction},
+    hir::{CheckedContext, Context, FunctionNameMatch, ParsedFiles, def_map::TestFunction},
 };
 
 use crate::{
@@ -25,7 +25,7 @@ pub struct TestDefinition {
 }
 pub fn get_test_function_for_debug(
     crate_id: CrateId,
-    context: &Context,
+    context: &CheckedContext,
     test_name: &str,
 ) -> Result<TestDefinition, String> {
     let test_pattern = FunctionNameMatch::Contains(vec![test_name.into()]);
@@ -68,7 +68,7 @@ pub fn get_test_function_for_debug(
 
 pub fn compile_test_fn_for_debugging(
     test_def: &TestDefinition,
-    context: &mut Context,
+    context: &CheckedContext,
     compile_options: CompileOptions,
     build_settings: &BuildSettings,
 ) -> Result<CompiledProgram, noirc_driver::CompileError> {

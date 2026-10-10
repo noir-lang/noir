@@ -31,7 +31,7 @@ contract Bar {}";
     let root_crate_id = prepare_crate(&mut context, file_name);
 
     let errors = noirc_driver::compile_contract(
-        &mut context,
+        context,
         root_crate_id,
         &CompileOptions::default(),
         &BuildSettings::default(),
@@ -69,7 +69,7 @@ fn compile_contract_with_warnings(
     let root_crate_id = prepare_crate(&mut context, file_name);
 
     noirc_driver::compile_contract(
-        &mut context,
+        context,
         root_crate_id,
         &CompileOptions::default(),
         &BuildSettings::default(),
@@ -94,7 +94,7 @@ fn compile_contract_source(source: &str) -> noirc_artifacts::contract::CompiledC
     let root_crate_id = prepare_crate(&mut context, file_name);
 
     let (contract, _warnings) = noirc_driver::compile_contract(
-        &mut context,
+        context,
         root_crate_id,
         &CompileOptions::default(),
         &BuildSettings::default(),

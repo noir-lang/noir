@@ -57,9 +57,10 @@ pub(crate) fn run(args: CheckCommand, workspace: Workspace) -> Result<(), CliErr
 
     for package in &workspace {
         if args.show_program_hash {
-            let (mut context, crate_id) =
+            let (context, crate_id) =
                 prepare_package(&workspace_file_manager, &parsed_files, package);
-            check_crate(&mut context, crate_id, &args.compile_options).unwrap();
+            let (context, result) = check_crate(context, crate_id, &args.compile_options);
+            result.unwrap();
             let Some(main) = context.get_main_function(&crate_id) else {
                 continue;
             };
@@ -89,8 +90,8 @@ fn check_package(
     compile_options: &CompileOptions,
     overwrite: bool,
 ) -> Result<(), CompileError> {
-    let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
-    check_crate_and_report_errors(&mut context, crate_id, compile_options)?;
+    let (context, crate_id) = prepare_package(file_manager, parsed_files, package);
+    let context = check_crate_and_report_errors(context, crate_id, compile_options)?;
 
     if package.is_library() || package.is_contract() {
         // Libraries do not have ABIs while contracts have many, so we cannot generate a `Prover.toml` file.

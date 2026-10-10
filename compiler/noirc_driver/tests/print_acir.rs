@@ -34,7 +34,7 @@ fn compile(source: &str, force_brillig: bool) -> noirc_artifacts::program::Compi
 
     let options = CompileOptions { force_brillig, ..Default::default() };
     let (program, _warnings) = noirc_driver::compile_main(
-        &mut context,
+        context,
         root_crate_id,
         &options,
         &BuildSettings::default(),

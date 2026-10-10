@@ -11,7 +11,7 @@ use noir_greybox_fuzzer::{
 use noirc_abi::{Abi, InputMap};
 use noirc_driver::{BuildSettings, CompileOptions, compile_no_check};
 use noirc_errors::CustomDiagnostic;
-use noirc_frontend::hir::{Context, def_map::FuzzingHarness};
+use noirc_frontend::hir::{CheckedContext, def_map::FuzzingHarness};
 
 use crate::foreign_calls::ForeignCallExecutor;
 use crate::{
@@ -74,7 +74,7 @@ impl FuzzingRunStatus {
 
 #[allow(clippy::too_many_arguments)]
 pub fn run_fuzzing_harness<'a, B, F, E>(
-    context: &Context,
+    context: &CheckedContext,
     fuzzing_harness: &FuzzingHarness,
     show_output: bool,
     output_sink: Box<dyn std::io::Write + 'a>,

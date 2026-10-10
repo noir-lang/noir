@@ -106,19 +106,18 @@ fn compile_test(
 ) -> Result<(CompiledProgram, TestDefinition), LoadError> {
     let (file_manager, parsed_files) = load_workspace_files(workspace);
 
-    let (mut context, crate_id) =
+    let (context, crate_id) =
         prepare_package_for_debug(&Arc::new(file_manager), parsed_files, package);
 
-    check_crate_and_report_errors(&mut context, crate_id, &compile_options)
+    let context = check_crate_and_report_errors(context, crate_id, &compile_options)
         .map_err(|_| LoadError::Generic("Failed to compile project".into()))?;
 
     let test = get_test_function_for_debug(crate_id, &context, &test_name)
         .map_err(|_| LoadError::Generic("Failed to compile project".into()))?;
 
     let build_settings = workspace.build_settings(package);
-    let program =
-        compile_test_fn_for_debugging(&test, &mut context, compile_options, &build_settings)
-            .map_err(|_| LoadError::Generic("Failed to compile project".into()))?;
+    let program = compile_test_fn_for_debugging(&test, &context, compile_options, &build_settings)
+        .map_err(|_| LoadError::Generic("Failed to compile project".into()))?;
     Ok((program, test))
 }
 

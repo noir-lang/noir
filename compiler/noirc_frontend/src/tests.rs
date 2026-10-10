@@ -43,15 +43,15 @@ use crate::test_utils::{GetProgramOptions, get_program, get_program_with_options
 use noirc_errors::reporter::ReportedErrors;
 use noirc_errors::{CustomDiagnostic, Span};
 
-use crate::hir::Context;
 use crate::hir::def_collector::dc_crate::CompilationError;
+use crate::hir::{CheckedContext, Context};
 
 use crate::ParsedModule;
 
 pub(crate) fn get_program_using_features(
     src: &str,
     features: &[UnstableFeature],
-) -> (ParsedModule, Context, Vec<CompilationError>) {
+) -> (ParsedModule, CheckedContext, Vec<CompilationError>) {
     get_program_with_options(
         src,
         GetProgramOptions {
@@ -68,11 +68,14 @@ pub(crate) fn get_program_errors(src: &str) -> Vec<CompilationError> {
     get_program_with_options(src, Default::default()).2
 }
 
-pub(crate) fn assert_no_errors(src: &str) -> Context {
+pub(crate) fn assert_no_errors(src: &str) -> CheckedContext {
     assert_no_errors_using_features(src, FrontendOptions::test_default().enabled_unstable_features)
 }
 
-pub(crate) fn assert_no_errors_using_features(src: &str, features: &[UnstableFeature]) -> Context {
+pub(crate) fn assert_no_errors_using_features(
+    src: &str,
+    features: &[UnstableFeature],
+) -> CheckedContext {
     let (_, context, errors) = get_program_using_features(src, features);
     if !errors.is_empty() {
         let errors = errors.iter().map(CustomDiagnostic::from).collect::<Vec<_>>();
@@ -82,7 +85,7 @@ pub(crate) fn assert_no_errors_using_features(src: &str, features: &[UnstableFea
     context
 }
 
-pub fn assert_no_errors_without_report(src: &str) -> Context {
+pub fn assert_no_errors_without_report(src: &str) -> CheckedContext {
     let (_, context, errors) = get_program(src);
     assert!(errors.is_empty(), "Expected no errors");
     context

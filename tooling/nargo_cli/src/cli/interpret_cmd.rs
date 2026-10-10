@@ -248,7 +248,8 @@ fn compile_into_program(
     let (mut context, crate_id) = nargo::prepare_package(file_manager, parsed_files, package);
     context.debug_instrumenter = DebugInstrumenter::default();
     noirc_driver::link_to_debug_crate(&mut context, crate_id);
-    let (_, warnings) = noirc_driver::check_crate(&mut context, crate_id, options)?;
+    let (context, result) = noirc_driver::check_crate(context, crate_id, options);
+    let (_, warnings) = result?;
 
     let main_id = context.get_main_function(&crate_id).ok_or_else(|| {
         let err = CustomDiagnostic::from_message(

@@ -62,7 +62,7 @@ fn prepare_and_compile_snippet<W: std::io::Write + 'static>(
     output: W,
 ) -> (CompilationResult<CompiledProgram>, W) {
     let output = Rc::new(RefCell::new(output));
-    let (mut context, root_crate_id) = prepare_snippet(source);
+    let (context, root_crate_id) = prepare_snippet(source);
     let mut comptime_io = ComptimeIo::printing_to(output.clone());
     let options = CompileOptions {
         force_brillig,
@@ -72,7 +72,7 @@ fn prepare_and_compile_snippet<W: std::io::Write + 'static>(
         ..Default::default()
     };
     let res = compile_main_with_comptime_io(
-        &mut context,
+        context,
         root_crate_id,
         &options,
         &BuildSettings::default(),

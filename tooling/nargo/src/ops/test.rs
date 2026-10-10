@@ -14,7 +14,7 @@ use noirc_driver::{BuildSettings, CompileError, CompileOptions, compile_no_check
 use noirc_errors::CustomDiagnostic;
 use noirc_frontend::{
     hir::{
-        Context,
+        CheckedContext,
         comptime::{InterpreterError, Value},
         def_map::{FuzzingHarness, TestFunction},
     },
@@ -56,7 +56,7 @@ pub struct FuzzConfig {
 #[allow(clippy::too_many_arguments)]
 pub fn run_or_fuzz_test<'a, W, B, F, E>(
     blackbox_solver: &B,
-    context: &Context,
+    context: &CheckedContext,
     test_function: &TestFunction,
     output: W,
     package_name: String,
@@ -95,7 +95,7 @@ where
 /// Runs a test function. This assumes the function has no arguments.
 pub fn run_test<'a, W, B, F, E>(
     blackbox_solver: &B,
-    context: &Context,
+    context: &CheckedContext,
     test_function: &TestFunction,
     output: W,
     config: &CompileOptions,
@@ -192,7 +192,7 @@ where
 
 /// Runs the fuzzer on a test function. This assumes the function has arguments.
 pub fn fuzz_test<'a, W, B, F, E>(
-    context: &Context,
+    context: &CheckedContext,
     test_function: &TestFunction,
     output: W,
     package_name: String,
@@ -228,7 +228,7 @@ where
 }
 
 fn fuzz_test_impl<'a, W, B, F, E>(
-    context: &Context,
+    context: &CheckedContext,
     test_function: &TestFunction,
     output: W,
     package_name: String,
