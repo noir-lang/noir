@@ -1325,7 +1325,7 @@ impl Elaborator<'_> {
             self.instantiate(t, bindings, generics, &direct_generic_ids, location);
 
         if let ImplKind::TraitItem(mut method) = ident.impl_kind {
-            method.constraint.apply_bindings(&bindings);
+            method.constraint.apply_instantiation_bindings(&bindings);
             if method.assumed {
                 let trait_generics = method.constraint.trait_bound.trait_generics.clone();
                 let object_type = method.constraint.typ;
@@ -1370,7 +1370,7 @@ impl Elaborator<'_> {
         if let Some(function) = func_id {
             let function = self.function_meta(function);
             for mut constraint in function.all_trait_constraints().cloned().collect::<Vec<_>>() {
-                constraint.apply_bindings(&bindings);
+                constraint.apply_instantiation_bindings(&bindings);
 
                 // This constraint shouldn't lead to choosing a trait impl method
                 self.push_trait_constraint(constraint, **expr_id, false);
