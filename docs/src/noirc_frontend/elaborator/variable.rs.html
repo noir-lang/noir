@@ -1325,7 +1325,7 @@
 <a href=#1325 id=1325 data-nosnippet>1325</a>            <span class="self">self</span>.instantiate(t, bindings, generics, <span class="kw-2">&amp;</span>direct_generic_ids, location);
 <a href=#1326 id=1326 data-nosnippet>1326</a>
 <a href=#1327 id=1327 data-nosnippet>1327</a>        <span class="kw">if let </span>ImplKind::TraitItem(<span class="kw-2">mut </span>method) = ident.impl_kind {
-<a href=#1328 id=1328 data-nosnippet>1328</a>            method.constraint.apply_bindings(<span class="kw-2">&amp;</span>bindings);
+<a href=#1328 id=1328 data-nosnippet>1328</a>            method.constraint.apply_instantiation_bindings(<span class="kw-2">&amp;</span>bindings);
 <a href=#1329 id=1329 data-nosnippet>1329</a>            <span class="kw">if </span>method.assumed {
 <a href=#1330 id=1330 data-nosnippet>1330</a>                <span class="kw">let </span>trait_generics = method.constraint.trait_bound.trait_generics.clone();
 <a href=#1331 id=1331 data-nosnippet>1331</a>                <span class="kw">let </span>object_type = method.constraint.typ;
@@ -1370,7 +1370,7 @@
 <a href=#1370 id=1370 data-nosnippet>1370</a>        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(function) = func_id {
 <a href=#1371 id=1371 data-nosnippet>1371</a>            <span class="kw">let </span>function = <span class="self">self</span>.function_meta(function);
 <a href=#1372 id=1372 data-nosnippet>1372</a>            <span class="kw">for </span><span class="kw-2">mut </span>constraint <span class="kw">in </span>function.all_trait_constraints().cloned().collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;() {
-<a href=#1373 id=1373 data-nosnippet>1373</a>                constraint.apply_bindings(<span class="kw-2">&amp;</span>bindings);
+<a href=#1373 id=1373 data-nosnippet>1373</a>                constraint.apply_instantiation_bindings(<span class="kw-2">&amp;</span>bindings);
 <a href=#1374 id=1374 data-nosnippet>1374</a>
 <a href=#1375 id=1375 data-nosnippet>1375</a>                <span class="comment">// This constraint shouldn't lead to choosing a trait impl method
 <a href=#1376 id=1376 data-nosnippet>1376</a>                </span><span class="self">self</span>.push_trait_constraint(constraint, <span class="kw-2">**</span>expr_id, <span class="bool-val">false</span>);

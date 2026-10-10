@@ -432,7 +432,7 @@
 <a href=#432 id=432 data-nosnippet>432</a>                <span class="kw">let </span>instantiation_bindings =
 <a href=#433 id=433 data-nosnippet>433</a>                    <span class="self">self</span>.interner.get_instantiation_bindings(hir_call_expression.func);
 <a href=#434 id=434 data-nosnippet>434</a>                <span class="kw">let </span><span class="kw-2">mut </span>constraint = trait_method.constraint.clone();
-<a href=#435 id=435 data-nosnippet>435</a>                constraint.apply_bindings(instantiation_bindings);
+<a href=#435 id=435 data-nosnippet>435</a>                constraint.apply_instantiation_bindings(instantiation_bindings);
 <a href=#436 id=436 data-nosnippet>436</a>                <span class="kw">let </span>self_type = constraint.typ.follow_bindings();
 <a href=#437 id=437 data-nosnippet>437</a>                <span class="kw">let </span>method_name = <span class="self">self</span>.interner.function_name(<span class="kw-2">&amp;</span>func_id);
 <a href=#438 id=438 data-nosnippet>438</a>                <span class="self">self</span>.interner.lookup_direct_method(<span class="kw-2">&amp;</span>self_type, method_name, <span class="bool-val">false</span>).is_some()
@@ -543,7 +543,7 @@
 <a href=#543 id=543 data-nosnippet>543</a>        <span class="kw">let </span>instantiation_bindings =
 <a href=#544 id=544 data-nosnippet>544</a>            <span class="self">self</span>.interner.get_instantiation_bindings(hir_call_expression.func);
 <a href=#545 id=545 data-nosnippet>545</a>        <span class="kw">let </span><span class="kw-2">mut </span>constraint = trait_method.constraint.clone();
-<a href=#546 id=546 data-nosnippet>546</a>        constraint.apply_bindings(instantiation_bindings);
+<a href=#546 id=546 data-nosnippet>546</a>        constraint.apply_instantiation_bindings(instantiation_bindings);
 <a href=#547 id=547 data-nosnippet>547</a>
 <a href=#548 id=548 data-nosnippet>548</a>        <span class="kw">let </span>trait_id = trait_method.constraint.trait_bound.trait_id;
 <a href=#549 id=549 data-nosnippet>549</a>        <span class="kw">let </span>module_data = <span class="kw-2">&amp;</span><span class="self">self</span>.def_maps[<span class="kw-2">&amp;</span><span class="self">self</span>.module_id.krate][<span class="self">self</span>.module_id.local_id];
