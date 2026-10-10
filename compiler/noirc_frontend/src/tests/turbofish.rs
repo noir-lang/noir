@@ -1,4 +1,5 @@
 use crate::elaborator::UnstableFeature;
+use crate::test_utils::get_monomorphized;
 use crate::tests::{assert_no_errors, check_errors, get_program_using_features};
 
 #[test]
@@ -1118,4 +1119,178 @@ fn turbofish_not_allowed_on_self_type() {
     }
     "#;
     check_errors(src);
+}
+
+#[test]
+fn type_turbofish_naming_the_enclosing_impl_generic_selects_that_instance() {
+    let src = r#"
+    pub struct Bits<let K: u32> {}
+    impl<let K: u32> Bits<K> {
+        pub fn bound(_self: Self) -> u32 { K }
+    }
+    pub struct UInt<let N: u32, let B: u32> {}
+    impl<let N: u32, let B: u32> UInt<N, B> {
+        pub fn width() -> Bits<N> { Bits {} }
+        pub fn limit() -> u32 { UInt::<B, 32>::width().bound() }
+    }
+    fn main() -> pub u32 { UInt::<16, 8>::limit() }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u32 {
+        limit$f1()
+    }
+    fn limit$f1() -> u32 {
+        bound$f2(width$f3())
+    }
+    fn bound$f2(_self$l0: ()) -> u32 {
+        8
+    }
+    fn width$f3() -> () {
+        {
+            ()
+        }
+    }
+    ");
+}
+
+#[test]
+fn method_turbofish_naming_the_enclosing_impl_generic_selects_that_instance() {
+    let src = r#"
+    pub struct Bits<let K: u32> {}
+    impl<let K: u32> Bits<K> {
+        pub fn bound(_self: Self) -> u32 { K }
+    }
+    pub struct UInt<let N: u32> {}
+    impl<let N: u32> UInt<N> {
+        pub fn bits<let M: u32>() -> Bits<M> { Bits {} }
+        pub fn limit() -> u32 { UInt::<32>::bits::<N>().bound() }
+    }
+    fn main() -> pub u32 { UInt::<8>::limit() }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u32 {
+        limit$f1()
+    }
+    fn limit$f1() -> u32 {
+        bound$f2(bits$f3())
+    }
+    fn bound$f2(_self$l0: ()) -> u32 {
+        8
+    }
+    fn bits$f3() -> () {
+        {
+            ()
+        }
+    }
+    ");
+}
+
+#[test]
+fn method_turbofish_naming_the_enclosing_impl_generic_dispatches_on_that_type() {
+    let src = r#"
+    pub trait Unit { fn scale(self) -> u64; }
+    pub struct Meters {}
+    pub struct Feet {}
+    impl Unit for Meters { fn scale(self) -> u64 { 1 } }
+    impl Unit for Feet { fn scale(self) -> u64 { 3 } }
+    pub struct W<T> {}
+    impl<T> W<T> {
+        pub fn make<U>(u: U) -> U { u }
+        pub fn get(t: T) -> u64 where T: Unit { W::<Meters>::make::<T>(t).scale() }
+    }
+    fn main() -> pub u64 { W::<Feet>::get(Feet {}) }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u64 {
+        get$f1({
+            ()
+        })
+    }
+    fn get$f1(t$l0: ()) -> u64 {
+        scale$f2(make$f3(t$l0))
+    }
+    fn scale$f2(self$l1: ()) -> u64 {
+        3
+    }
+    fn make$f3(u$l2: ()) -> () {
+        u$l2
+    }
+    ");
+}
+
+#[test]
+fn type_turbofish_naming_the_enclosing_impl_generic_types_the_call_with_it() {
+    let src = r#"
+    pub struct P<let M: u32, let N: u32> {}
+    impl<let M: u32, let N: u32> P<M, N> {
+        pub fn arr() -> [Field; M] { [0; M] }
+        pub fn get() -> [Field; N] { P::<N, 3>::arr() }
+    }
+    fn main() { let _a: [Field; 2] = P::<5, 2>::get(); }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn type_turbofish_naming_the_enclosing_impl_generic_is_not_typed_with_its_other_argument() {
+    let src = r#"
+    pub struct P<let M: u32, let N: u32> {}
+    impl<let M: u32, let N: u32> P<M, N> {
+        pub fn arr() -> [Field; M] { [0; M] }
+        pub fn get() -> [Field; 3] { P::<N, 3>::arr() }
+                        ^^^^^^^^^^ expected type [Field; 3], found type [Field; N]
+                        ~~~~~~~~~~ expected [Field; 3] because of return type
+                                     ~~~~~~~~~~~~~~~~ [Field; N] returned here
+    }
+    fn main() { let _ = P::<5, 2>::get(); }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn type_turbofish_wrapping_the_enclosing_impl_generic_terminates() {
+    let src = r#"
+    pub struct W<T> {}
+    impl<T> W<T> {
+        pub fn wrap(x: T) -> [T; 1] { [x] }
+        pub fn wrap_twice(x: T) -> [[T; 1]; 1] { W::<[T; 1]>::wrap([x]) }
+    }
+    fn main() { let _: [[Field; 1]; 1] = W::<Field>::wrap_twice(1); }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn type_turbofish_naming_the_enclosing_impl_generic_instantiates_the_callees_where_clause() {
+    let src = r#"
+    pub trait Lim {}
+    pub struct W<A, B> {}
+    impl<A, B> W<A, B> where A: Lim {
+        pub fn f() {}
+        pub fn g() where B: Lim { W::<B, Field>::f() }
+    }
+    pub struct X {}
+    impl Lim for X {}
+    fn main() { W::<X, X>::g() }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn type_turbofish_swapping_the_enclosing_impl_generics_instantiates_the_callees_where_clause() {
+    let src = r#"
+    pub trait Lim {}
+    pub struct W<A, B> {}
+    impl<A, B> W<A, B> where A: Lim {
+        pub fn f() {}
+        pub fn g() where B: Lim { W::<B, A>::f() }
+    }
+    pub struct X {}
+    impl Lim for X {}
+    fn main() { W::<X, X>::g() }
+    "#;
+    assert_no_errors(src);
 }
