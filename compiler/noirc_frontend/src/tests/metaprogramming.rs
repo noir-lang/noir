@@ -4194,3 +4194,23 @@ fn resolve_resolves_global_of_its_own_module() {
     "#;
     check_errors_with_stdlib(src, [META_API_STDLIB]);
 }
+
+#[test]
+fn resolve_in_trait_impl_method_scope_resolves_parent_associated_type_on_self() {
+    let src = r#"
+    trait Parent { type Out; }
+    trait Child: Parent { fn go(x: Self::Out) -> Self::Out; }
+    pub struct Foo {}
+    impl Parent for Foo { type Out = u8; }
+    impl Child for Foo {
+        fn go(x: Self::Out) -> Self::Out {
+            comptime {
+                let _ = quote { { let y: Self::Out = 1; y } }.as_expr().unwrap().resolve(Option::none());
+            }
+            x
+        }
+    }
+    fn main() { let _ = Foo::go(1); }
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}

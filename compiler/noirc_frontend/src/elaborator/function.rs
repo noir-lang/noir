@@ -685,7 +685,7 @@ impl Elaborator<'_> {
         // the function gets a context of its own rather than whatever the caller had installed.
         let module = ModuleContext::of_item(func_meta.source_module, DependencyId::Function(id));
         let context = ItemContext::new(module)
-            .with_impl(ImplContext::of_function(&func_meta))
+            .with_impl(ImplContext::of_function(&func_meta, self.interner))
             // The generics are left empty here and filled in by `introduce_generics_into_scope`,
             // which also declares the numeric ones.
             .with_generics(GenericsContext::new(
