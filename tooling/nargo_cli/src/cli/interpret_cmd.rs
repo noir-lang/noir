@@ -85,13 +85,8 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
             &args.compile_options.as_ssa_options(workspace.package_build_path(package));
 
         // Compile into monomorphized AST
-        let program_result = compile_into_program(
-            &file_manager,
-            &parsed_files,
-            &workspace,
-            package,
-            &args.compile_options,
-        );
+        let program_result =
+            compile_into_program(&file_manager, &parsed_files, package, &args.compile_options);
 
         // Report warnings and get the AST, or exit if the compilation failed.
         let (program, abi) = report_errors(
@@ -247,13 +242,11 @@ impl PassSnapshot {
 fn compile_into_program(
     file_manager: &Arc<FileManager>,
     parsed_files: &Arc<ParsedFiles>,
-    workspace: &Workspace,
     package: &Package,
     options: &CompileOptions,
 ) -> CompilationResult<(Program, Abi)> {
     let (mut context, crate_id) = nargo::prepare_package(file_manager, parsed_files, package);
     context.debug_instrumenter = DebugInstrumenter::default();
-    context.package_build_path = workspace.package_build_path(package);
     noirc_driver::link_to_debug_crate(&mut context, crate_id);
     let (_, warnings) = noirc_driver::check_crate(&mut context, crate_id, options)?;
 

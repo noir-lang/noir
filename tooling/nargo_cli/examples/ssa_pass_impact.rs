@@ -158,7 +158,6 @@ fn main() {
                 let program = match compile_into_program(
                     &file_manager,
                     &parsed_files,
-                    &workspace,
                     package,
                     &compile_options,
                 ) {
@@ -239,13 +238,11 @@ fn show_report(pairs: Vec<(CrateName, Vec<SsaBeforeAndAfter>)>, top_impact_count
 fn compile_into_program(
     file_manager: &Arc<FileManager>,
     parsed_files: &Arc<ParsedFiles>,
-    workspace: &Workspace,
     package: &Package,
     options: &CompileOptions,
 ) -> CompilationResult<Option<Program>> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
     context.debug_instrumenter = DebugInstrumenter::default();
-    context.package_build_path = workspace.package_build_path(package);
     let (_, warnings) =
         check_crate_with_comptime_io(&mut context, crate_id, options, &mut ComptimeIo::silent())?;
     let Some(main) = context.get_main_function(&crate_id) else {

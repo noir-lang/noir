@@ -15,7 +15,7 @@ use nargo::{foreign_calls::DefaultForeignCallBuilder, parse_all};
 use noirc_abi::Abi;
 use noirc_artifacts::program::CompiledProgram;
 use noirc_driver::{
-    CompilationResult, CompileOptions, CrateId, compile_main_with_comptime_io,
+    BuildSettings, CompilationResult, CompileOptions, CrateId, compile_main_with_comptime_io,
     file_manager_with_stdlib, prepare_crate,
 };
 use noirc_errors::CustomDiagnostic;
@@ -75,6 +75,7 @@ fn prepare_and_compile_snippet<W: std::io::Write + 'static>(
         &mut context,
         root_crate_id,
         &options,
+        &BuildSettings::default(),
         None,
         &mut comptime_io,
     );

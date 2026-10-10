@@ -10,7 +10,7 @@ use acvm::{
 };
 use noirc_abi::{Abi, input_parser::json::serialize_to_json};
 use noirc_artifacts::{debug::DebugInfo, program::CompiledProgram};
-use noirc_driver::{CompileError, CompileOptions, compile_no_check};
+use noirc_driver::{BuildSettings, CompileError, CompileOptions, compile_no_check};
 use noirc_errors::CustomDiagnostic;
 use noirc_frontend::{
     hir::{
@@ -107,7 +107,14 @@ where
     F: Fn(Box<dyn std::io::Write + 'a>, layers::Unhandled) -> E,
     E: ForeignCallExecutor<FieldElement>,
 {
-    match compile_no_check(context, config, test_function.id, None, false) {
+    match compile_no_check(
+        context,
+        config,
+        &BuildSettings::default(),
+        test_function.id,
+        None,
+        false,
+    ) {
         Ok(compiled_program) => run_test_impl(
             blackbox_solver,
             compiled_program,
@@ -199,7 +206,14 @@ where
     F: Fn(Box<dyn std::io::Write + 'a>, layers::Unhandled) -> E + Sync,
     E: ForeignCallExecutor<FieldElement>,
 {
-    match compile_no_check(context, config, test_function.id, None, false) {
+    match compile_no_check(
+        context,
+        config,
+        &BuildSettings::default(),
+        test_function.id,
+        None,
+        false,
+    ) {
         Ok(_) => fuzz_test_impl::<W, B, F, E>(
             context,
             test_function,
