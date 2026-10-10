@@ -3222,14 +3222,15 @@ fn sibling_bound_on_one_trait_is_rejected_when_it_makes_the_body_ill_typed() {
     }
 
     pub fn f<T>(x: T) -> u8
+                         ^^ expected type u8, found type u32
+                         ~~ expected u8 because of return type
     where
         T: Foo<u32, Assoc = u32>,
         T: Foo<u8, Assoc = u8>,
         T: Foo<u8, Assoc = u8>,
     {
         Foo::<u32>::get(x)
-        ^^^^^^^^^^^^^^^ No matching impl found for `T: Foo<u32, Assoc = u8>`
-        ~~~~~~~~~~~~~~~ No impl for `T: Foo<u32, Assoc = u8>`
+        ~~~~~~~~~~~~~~~~~~ u32 returned here
     }
 
     fn main() {
