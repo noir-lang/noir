@@ -259,6 +259,7 @@ impl std::ops::Deref for CheckedContext {
 impl CheckedContext {
     /// Wraps a context whose crates the caller has collected and elaborated by other means than
     /// [`Context::check_crate`].
+    #[cfg(any(test, feature = "test_utils"))]
     pub(crate) fn assume_checked(context: Context) -> Self {
         Self { context }
     }
