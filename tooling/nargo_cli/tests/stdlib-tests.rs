@@ -5,6 +5,7 @@ use fm::FileManager;
 use nargo::foreign_calls::DefaultForeignCallBuilder;
 use noirc_driver::{CompileOptions, check_crate, file_manager_with_stdlib};
 use noirc_frontend::error_reporting::report_one;
+use noirc_frontend::hir::comptime::ComptimeIo;
 use noirc_frontend::hir::{FunctionNameMatch, ParsedFiles};
 use std::io::Write;
 use std::sync::Arc;
@@ -135,7 +136,11 @@ fn run_stdlib_tests(force: Force, inliner_aggressiveness: i64) {
                 }
                 Force::Comptime => {
                     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                        let result = context.interpret_function(test_function.id, Vec::new());
+                        let result = context.interpret_function(
+                            test_function.id,
+                            Vec::new(),
+                            &mut ComptimeIo::stdout(),
+                        );
                         test_status_comptime_interpret_result(result, &test_function)
                     }));
                     match result {

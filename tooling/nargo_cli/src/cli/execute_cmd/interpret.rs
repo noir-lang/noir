@@ -49,7 +49,13 @@ fn run_package_comptime(
     let (mut context, crate_id) = nargo::prepare_package(file_manager, parsed_files, package);
     context.package_build_path = workspace.package_build_path(package);
     noirc_driver::link_to_debug_crate(&mut context, crate_id);
-    let result = noirc_driver::check_crate(&mut context, crate_id, &args.compile_options);
+    let mut comptime_io = args.compile_options.comptime_io();
+    let result = noirc_driver::check_crate_with_comptime_io(
+        &mut context,
+        crate_id,
+        &args.compile_options,
+        &mut comptime_io,
+    );
     match report_errors(
         result,
         &context.file_manager,
@@ -84,7 +90,7 @@ fn run_package_comptime(
         input_value_to_comptime_value(&return_value, func_meta.return_type(), location)
     });
 
-    match context.interpret_function(main_id, func_args) {
+    match context.interpret_function(main_id, func_args, &mut comptime_io) {
         Ok(result) => {
             let result_as_string = output_value_to_string(&result, &context);
 
