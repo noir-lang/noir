@@ -166,7 +166,7 @@ impl TraitConstraint {
 
     /// Like [`Self::apply_bindings`], for the bindings that instantiating an item at a use
     /// produced: each replacement is used as is (see [`Type::substitute_simultaneous`]).
-    pub fn apply_instantiation_bindings(&mut self, instantiation_bindings: &TypeBindings) {
+    pub(crate) fn apply_instantiation_bindings(&mut self, instantiation_bindings: &TypeBindings) {
         self.typ = self.typ.substitute_simultaneous(instantiation_bindings);
         let generics = &mut self.trait_bound.trait_generics;
         for typ in &mut generics.ordered {
