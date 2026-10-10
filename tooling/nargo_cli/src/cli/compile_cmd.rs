@@ -1,6 +1,7 @@
 use std::hash::BuildHasher;
 use std::io::{Read, Write};
 use std::path::Path;
+use std::sync::Arc;
 use std::time::Duration;
 
 use fm::FileManager;
@@ -117,7 +118,7 @@ fn watch_workspace(
 pub fn parse_workspace(
     workspace: &Workspace,
     debug_compile_stdin: Option<String>,
-) -> (FileManager, ParsedFiles) {
+) -> (Arc<FileManager>, Arc<ParsedFiles>) {
     let mut file_manager = workspace.new_file_manager();
 
     if let Some(main_nr) = debug_compile_stdin {
@@ -126,7 +127,8 @@ pub fn parse_workspace(
         insert_all_files_for_workspace_into_file_manager(workspace, &mut file_manager);
     }
 
-    let parsed_files = parse_all(&file_manager);
+    let parsed_files = Arc::new(parse_all(&file_manager));
+    let file_manager = Arc::new(file_manager);
     (file_manager, parsed_files)
 }
 
@@ -164,8 +166,8 @@ pub fn compile_workspace_full(
 /// Compile binary and contract packages.
 /// Returns the merged warnings or errors.
 fn compile_workspace(
-    file_manager: &FileManager,
-    parsed_files: &ParsedFiles,
+    file_manager: &Arc<FileManager>,
+    parsed_files: &Arc<ParsedFiles>,
     workspace: &Workspace,
     compile_options: &CompileOptions,
 ) -> Result<CompilationResult<()>, CliError> {
@@ -202,8 +204,8 @@ fn compile_workspace(
 
 /// Compile the given binary packages in the workspace.
 fn compile_programs(
-    file_manager: &FileManager,
-    parsed_files: &ParsedFiles,
+    file_manager: &Arc<FileManager>,
+    parsed_files: &Arc<ParsedFiles>,
     workspace: &Workspace,
     binary_packages: &[Package],
     compile_options: &CompileOptions,
@@ -277,8 +279,8 @@ fn compile_programs(
 
 /// Compile the given contracts in the workspace.
 fn compile_contracts(
-    file_manager: &FileManager,
-    parsed_files: &ParsedFiles,
+    file_manager: &Arc<FileManager>,
+    parsed_files: &Arc<ParsedFiles>,
     contract_packages: &[Package],
     compile_options: &CompileOptions,
     target_dir: &Path,

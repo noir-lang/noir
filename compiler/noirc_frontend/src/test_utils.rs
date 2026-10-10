@@ -130,11 +130,11 @@ pub enum Expect {
 pub(crate) fn get_program_with_options(
     src: &str,
     options: GetProgramOptions,
-) -> (ParsedModule, Context<'static, 'static>, Vec<CompilationError>) {
+) -> (ParsedModule, Context, Vec<CompilationError>) {
     let root = Path::new("/");
     let mut fm = FileManager::new(root);
     let root_file_id = fm.add_file_with_source(Path::new("test_file"), src.to_string()).unwrap();
-    let mut context = Context::new(fm, Default::default());
+    let mut context = Context::new(fm, ParsedFiles::default());
 
     context.def_interner.populate_dummy_operator_traits();
     let root_crate_id = if options.root_and_stdlib {

@@ -3,6 +3,7 @@
 use std::collections::BTreeMap;
 use std::io::{self, Write};
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use fm::{FileId, FileManager};
 use iter_extended::vecmap;
@@ -134,7 +135,7 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
             ..Default::default()
         };
         let file_manager =
-            if args.compile_options.with_ssa_locations { Some(&file_manager) } else { None };
+            if args.compile_options.with_ssa_locations { Some(&*file_manager) } else { None };
         let mut last_ssa_printed: Option<String> = None;
         let mut previous_snapshot: Option<PassSnapshot> = None;
 
@@ -244,8 +245,8 @@ impl PassSnapshot {
 /// This isn't exposed through the `nargo` library operations at the moment, so this is a
 /// bit of copy pasting from the functions that normally produce an artifact.
 fn compile_into_program(
-    file_manager: &FileManager,
-    parsed_files: &ParsedFiles,
+    file_manager: &Arc<FileManager>,
+    parsed_files: &Arc<ParsedFiles>,
     workspace: &Workspace,
     package: &Package,
     options: &CompileOptions,

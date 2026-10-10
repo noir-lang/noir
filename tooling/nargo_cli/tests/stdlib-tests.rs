@@ -7,6 +7,7 @@ use noirc_driver::{CompileOptions, check_crate, file_manager_with_stdlib};
 use noirc_frontend::error_reporting::report_one;
 use noirc_frontend::hir::{FunctionNameMatch, ParsedFiles};
 use std::io::Write;
+use std::sync::Arc;
 use std::{collections::BTreeMap, path::PathBuf};
 
 use nargo::{
@@ -65,7 +66,8 @@ fn run_stdlib_tests(force: Force, inliner_aggressiveness: i64) {
 
     let mut file_manager = file_manager_with_stdlib(&PathBuf::from("."));
     file_manager.add_file_with_source_canonical_path(&PathBuf::from("main.nr"), "".to_owned());
-    let parsed_files = parse_all(&file_manager);
+    let parsed_files = Arc::new(parse_all(&file_manager));
+    let file_manager = Arc::new(file_manager);
 
     // We need a dummy package as we cannot compile the stdlib on its own.
     let dummy_package = Package {

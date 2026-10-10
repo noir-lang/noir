@@ -51,7 +51,7 @@ use crate::ParsedModule;
 pub(crate) fn get_program_using_features(
     src: &str,
     features: &[UnstableFeature],
-) -> (ParsedModule, Context<'static, 'static>, Vec<CompilationError>) {
+) -> (ParsedModule, Context, Vec<CompilationError>) {
     get_program_with_options(
         src,
         GetProgramOptions {
@@ -68,14 +68,11 @@ pub(crate) fn get_program_errors(src: &str) -> Vec<CompilationError> {
     get_program_with_options(src, Default::default()).2
 }
 
-pub(crate) fn assert_no_errors(src: &str) -> Context<'static, 'static> {
+pub(crate) fn assert_no_errors(src: &str) -> Context {
     assert_no_errors_using_features(src, FrontendOptions::test_default().enabled_unstable_features)
 }
 
-pub(crate) fn assert_no_errors_using_features(
-    src: &str,
-    features: &[UnstableFeature],
-) -> Context<'static, 'static> {
+pub(crate) fn assert_no_errors_using_features(src: &str, features: &[UnstableFeature]) -> Context {
     let (_, context, errors) = get_program_using_features(src, features);
     if !errors.is_empty() {
         let errors = errors.iter().map(CustomDiagnostic::from).collect::<Vec<_>>();
@@ -85,7 +82,7 @@ pub(crate) fn assert_no_errors_using_features(
     context
 }
 
-pub fn assert_no_errors_without_report(src: &str) -> Context<'_, '_> {
+pub fn assert_no_errors_without_report(src: &str) -> Context {
     let (_, context, errors) = get_program(src);
     assert!(errors.is_empty(), "Expected no errors");
     context

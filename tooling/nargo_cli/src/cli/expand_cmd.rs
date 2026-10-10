@@ -9,6 +9,7 @@ use nargo_expand::get_expanded_crate;
 use nargo_toml::PackageSelection;
 use noirc_driver::CompileOptions;
 use noirc_frontend::hir::ParsedFiles;
+use std::sync::Arc;
 
 use crate::errors::CliError;
 
@@ -38,7 +39,8 @@ impl WorkspaceCommand for ExpandCommand {
 pub(crate) fn run(args: ExpandCommand, workspace: Workspace) -> Result<(), CliError> {
     let mut workspace_file_manager = workspace.new_file_manager();
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
-    let parsed_files = parse_all(&workspace_file_manager);
+    let parsed_files = Arc::new(parse_all(&workspace_file_manager));
+    let workspace_file_manager = Arc::new(workspace_file_manager);
 
     for package in &workspace {
         expand_package(&workspace_file_manager, &parsed_files, package, &args.compile_options)?;
@@ -48,8 +50,8 @@ pub(crate) fn run(args: ExpandCommand, workspace: Workspace) -> Result<(), CliEr
 }
 
 fn expand_package(
-    file_manager: &FileManager,
-    parsed_files: &ParsedFiles,
+    file_manager: &Arc<FileManager>,
+    parsed_files: &Arc<ParsedFiles>,
     package: &Package,
     compile_options: &CompileOptions,
 ) -> Result<(), CompileError> {
@@ -59,8 +61,8 @@ fn expand_package(
 }
 
 fn get_expanded_package_or_error(
-    file_manager: &FileManager,
-    parsed_files: &ParsedFiles,
+    file_manager: &Arc<FileManager>,
+    parsed_files: &Arc<ParsedFiles>,
     package: &Package,
     compile_options: &CompileOptions,
 ) -> Result<String, CompileError> {

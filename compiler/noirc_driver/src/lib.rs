@@ -632,7 +632,7 @@ fn has_errors(errors: &[CustomDiagnostic], deny_warnings: bool) -> bool {
 
 /// Compile all of the functions associated with a Noir contract.
 fn compile_contract_inner(
-    context: &mut Context,
+    context: &Context,
     contract: Contract,
     options: &CompileOptions,
 ) -> Result<CompiledContract, ErrorsAndWarnings> {

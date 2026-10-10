@@ -363,12 +363,12 @@ fn offset_to_line(offset: u32, line_starts: &[u32]) -> u32 {
 }
 
 struct LineStartsCache<'a> {
-    context: &'a Context<'a, 'a>,
+    context: &'a Context,
     line_starts: HashMap<FileId, Vec<u32>>,
 }
 
 impl<'a> LineStartsCache<'a> {
-    fn new(context: &'a Context<'a, 'a>) -> Self {
+    fn new(context: &'a Context) -> Self {
         Self { context, line_starts: HashMap::new() }
     }
 

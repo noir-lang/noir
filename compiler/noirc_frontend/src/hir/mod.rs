@@ -23,11 +23,11 @@ use def_map::{CrateDefMap, FuzzingHarness, fully_qualified_module_path};
 use fm::{FileId, FileManager};
 use iter_extended::vecmap;
 use noirc_errors::Location;
-use std::borrow::Cow;
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::PathBuf;
 use std::rc::Rc;
+use std::sync::Arc;
 
 use self::def_map::TestFunction;
 
@@ -36,15 +36,16 @@ pub type ParsedFiles = HashMap<FileId, (ParsedModule, Vec<ParserError>)>;
 /// Helper object which groups together several useful context objects used
 /// during name resolution. Once name resolution is finished, only the
 /// `def_interner` is required for type inference and monomorphization.
-pub struct Context<'file_manager, 'parsed_files> {
+pub struct Context {
     pub def_interner: NodeInterner,
     pub crate_graph: CrateGraph,
     pub def_maps: DefMaps,
     pub usage_tracker: UsageTracker,
-    // In the WASM context, we take ownership of the file manager,
-    // which is why this needs to be a Cow. In all use-cases, the file manager
-    // is read-only however, once it has been passed to the Context.
-    pub file_manager: Cow<'file_manager, FileManager>,
+    /// The source files of every crate in the crate graph.
+    ///
+    /// The file manager is read-only once it has been passed to the `Context`, so it is shared
+    /// between the contexts of all packages compiled from the same set of files.
+    pub file_manager: Arc<FileManager>,
 
     pub debug_instrumenter: DebugInstrumenter,
 
@@ -56,10 +57,9 @@ pub struct Context<'file_manager, 'parsed_files> {
     /// This is used to issue an error if a second `mod foo;` is declared to the same file.
     pub visited_files: BTreeMap<FileId, Location>,
 
-    // A map of all parsed files.
-    // Same as the file manager, we take ownership of the parsed files in the WASM context.
-    // Parsed files is also read only.
-    pub parsed_files: Cow<'parsed_files, ParsedFiles>,
+    /// The parse result of each file in the file manager. Read-only and shared, like the file
+    /// manager itself.
+    pub parsed_files: Arc<ParsedFiles>,
 
     pub package_build_path: PathBuf,
 
@@ -96,41 +96,25 @@ pub enum LspMode {
     SingleFile,
 }
 
-impl Context<'_, '_> {
-    pub fn new(file_manager: FileManager, parsed_files: ParsedFiles) -> Context<'static, 'static> {
+impl Context {
+    /// Creates a `Context` with an empty crate graph over the given source files.
+    ///
+    /// Both arguments accept either an owned value or an [`Arc`] which is shared with other
+    /// contexts.
+    pub fn new(
+        file_manager: impl Into<Arc<FileManager>>,
+        parsed_files: impl Into<Arc<ParsedFiles>>,
+    ) -> Context {
         Context {
             def_interner: NodeInterner::default(),
             def_maps: BTreeMap::new(),
             usage_tracker: UsageTracker::default(),
             visited_files: BTreeMap::new(),
             crate_graph: CrateGraph::default(),
-            file_manager: Cow::Owned(file_manager),
+            file_manager: file_manager.into(),
             debug_instrumenter: DebugInstrumenter::default(),
             debug_crate_id: None,
-            parsed_files: Cow::Owned(parsed_files),
-            package_build_path: PathBuf::default(),
-            count_array_copies: false,
-            interpreter_output: Some(Rc::new(RefCell::new(std::io::stdout()))),
-            required_unstable_features: BTreeMap::new(),
-            unresolved_globals: Deferred::default(),
-            evaluation_tracker: None,
-        }
-    }
-
-    pub fn from_ref_file_manager<'file_manager, 'parsed_files>(
-        file_manager: &'file_manager FileManager,
-        parsed_files: &'parsed_files ParsedFiles,
-    ) -> Context<'file_manager, 'parsed_files> {
-        Context {
-            def_interner: NodeInterner::default(),
-            def_maps: BTreeMap::new(),
-            usage_tracker: UsageTracker::default(),
-            visited_files: BTreeMap::new(),
-            crate_graph: CrateGraph::default(),
-            file_manager: Cow::Borrowed(file_manager),
-            debug_instrumenter: DebugInstrumenter::default(),
-            debug_crate_id: None,
-            parsed_files: Cow::Borrowed(parsed_files),
+            parsed_files: parsed_files.into(),
             package_build_path: PathBuf::default(),
             count_array_copies: false,
             interpreter_output: Some(Rc::new(RefCell::new(std::io::stdout()))),
@@ -142,30 +126,14 @@ impl Context<'_, '_> {
 
     /// Creates a Context from some existing components.
     /// This is only used by LSP when a file is type-checked after it has been modified.
-    pub fn from_existing<'file_manager, 'parsed_files>(
-        file_manager: &'file_manager FileManager,
-        parsed_files: &'parsed_files ParsedFiles,
+    pub fn from_existing(
+        file_manager: impl Into<Arc<FileManager>>,
+        parsed_files: impl Into<Arc<ParsedFiles>>,
         def_interner: NodeInterner,
         def_maps: DefMaps,
         crate_graph: CrateGraph,
-    ) -> Context<'file_manager, 'parsed_files> {
-        Context {
-            def_interner,
-            def_maps,
-            usage_tracker: UsageTracker::default(),
-            visited_files: BTreeMap::new(),
-            crate_graph,
-            file_manager: Cow::Borrowed(file_manager),
-            debug_instrumenter: DebugInstrumenter::default(),
-            debug_crate_id: None,
-            parsed_files: Cow::Borrowed(parsed_files),
-            package_build_path: PathBuf::default(),
-            count_array_copies: false,
-            interpreter_output: Some(Rc::new(RefCell::new(std::io::stdout()))),
-            required_unstable_features: BTreeMap::new(),
-            unresolved_globals: Deferred::default(),
-            evaluation_tracker: None,
-        }
+    ) -> Context {
+        Context { def_interner, def_maps, crate_graph, ..Context::new(file_manager, parsed_files) }
     }
 
     pub fn parsed_file_results(&self, file_id: FileId) -> (ParsedModule, Vec<ParserError>) {

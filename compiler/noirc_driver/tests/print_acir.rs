@@ -13,7 +13,7 @@ use noirc_abi::AbiErrorType;
 use noirc_driver::{
     CompileOptions, display_compiled_program, file_manager_with_stdlib, prepare_crate,
 };
-use noirc_frontend::hir::{Context, def_map::parse_file};
+use noirc_frontend::hir::{Context, ParsedFiles, def_map::parse_file};
 
 fn compile(source: &str, force_brillig: bool) -> noirc_artifacts::program::CompiledProgram {
     let root = Path::new("");
@@ -22,7 +22,7 @@ fn compile(source: &str, force_brillig: bool) -> noirc_artifacts::program::Compi
     file_manager.add_file_with_source(file_name, source.to_owned()).expect(
         "Adding source buffer to file manager should never fail when file manager is empty",
     );
-    let parsed_files = file_manager
+    let parsed_files: ParsedFiles = file_manager
         .as_file_map()
         .all_file_ids()
         .map(|&file_id| (file_id, parse_file(&file_manager, file_id)))
