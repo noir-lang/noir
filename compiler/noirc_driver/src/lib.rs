@@ -37,6 +37,7 @@ use noirc_evaluator::ssa::{
 };
 use noirc_frontend::elaborator::{FrontendOptions, UnstableFeature};
 use noirc_frontend::error_reporting::function_locations_in_parsed_module;
+use noirc_frontend::hir::comptime::ComptimeIo;
 use noirc_frontend::hir::def_map::{CrateDefMap, ModuleDefId, ModuleId};
 use noirc_frontend::hir::{Context, ParsedFiles};
 use noirc_frontend::monomorphization::{
@@ -332,6 +333,11 @@ impl Default for CompileOptions {
 }
 
 impl CompileOptions {
+    /// Where comptime code prints to under these options.
+    pub fn comptime_io(&self) -> ComptimeIo {
+        if self.disable_comptime_printing { ComptimeIo::silent() } else { ComptimeIo::stdout() }
+    }
+
     pub fn as_ssa_options(&self, package_build_path: PathBuf) -> SsaEvaluatorOptions {
         SsaEvaluatorOptions {
             ssa_logging: if !self.show_ssa_pass.is_empty() {
@@ -427,17 +433,27 @@ pub type CompilationResult<T> = Result<(T, Warnings), ErrorsAndWarnings>;
 /// On success, this returns () alongside any warnings found during checking.
 ///
 /// On error, this returns a non-empty vector of warnings and error messages, with at least one error.
-#[tracing::instrument(level = "trace", skip_all)]
+///
+/// Comptime code prints to stdout, unless `options` disable comptime printing.
 pub fn check_crate(
     context: &mut Context,
     crate_id: CrateId,
     options: &CompileOptions,
 ) -> CompilationResult<()> {
-    if options.disable_comptime_printing {
-        context.disable_comptime_printing();
-    }
+    check_crate_with_comptime_io(context, crate_id, options, &mut options.comptime_io())
+}
 
-    let diagnostics = CrateDefMap::collect_defs(crate_id, context, options.frontend_options());
+/// Same as [`check_crate`], but comptime code writes to `comptime_io`, whatever `options` say
+/// about comptime printing.
+#[tracing::instrument(level = "trace", skip_all)]
+pub fn check_crate_with_comptime_io(
+    context: &mut Context,
+    crate_id: CrateId,
+    options: &CompileOptions,
+    comptime_io: &mut ComptimeIo,
+) -> CompilationResult<()> {
+    let diagnostics =
+        CrateDefMap::collect_defs(crate_id, context, options.frontend_options(), comptime_io);
     let crate_files = context.crate_files(&crate_id);
     let warnings_and_errors: Vec<CustomDiagnostic> = diagnostics
         .iter()
@@ -474,14 +490,27 @@ pub fn compute_function_abi(
 /// On error this returns the non-empty list of warnings and errors.
 ///
 /// See [`compile_no_check`] for further information about the use of `cached_program`.
-#[tracing::instrument(level = "trace", skip_all)]
 pub fn compile_main(
     context: &mut Context,
     crate_id: CrateId,
     options: &CompileOptions,
     cached_program: Option<CompiledProgram>,
 ) -> CompilationResult<CompiledProgram> {
-    let (_, mut warnings) = check_crate(context, crate_id, options)?;
+    let mut comptime_io = options.comptime_io();
+    compile_main_with_comptime_io(context, crate_id, options, cached_program, &mut comptime_io)
+}
+
+/// Same as [`compile_main`], but comptime code writes to `comptime_io`, whatever `options` say
+/// about comptime printing.
+#[tracing::instrument(level = "trace", skip_all)]
+pub fn compile_main_with_comptime_io(
+    context: &mut Context,
+    crate_id: CrateId,
+    options: &CompileOptions,
+    cached_program: Option<CompiledProgram>,
+    comptime_io: &mut ComptimeIo,
+) -> CompilationResult<CompiledProgram> {
+    let (_, mut warnings) = check_crate_with_comptime_io(context, crate_id, options, comptime_io)?;
 
     let main = context.get_main_function(&crate_id).ok_or_else(|| {
         // TODO(#2155): This error might be a better to exist in Nargo

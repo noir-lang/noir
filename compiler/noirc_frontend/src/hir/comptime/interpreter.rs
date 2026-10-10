@@ -46,6 +46,7 @@ use rustc_hash::FxHashMap as HashMap;
 use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, UnaryOp};
 use crate::elaborator::{Elaborator, ElaboratorOptions};
 use crate::hir::Context;
+use crate::hir::comptime::ComptimeIo;
 use crate::hir::comptime::Integer;
 use crate::hir::comptime::ValueCell;
 use crate::hir::comptime::value::FormatStringFragment;
@@ -2032,6 +2033,7 @@ impl Context {
         &mut self,
         main_id: FuncId,
         args: Vec<(Value, Location)>,
+        comptime_io: &mut ComptimeIo,
     ) -> IResult<Value> {
         let func_meta = self.def_interner.function_meta(&main_id);
         let crate_id = func_meta.source_crate;
@@ -2047,7 +2049,7 @@ impl Context {
         };
         let module_id = ModuleId { krate: crate_id, local_id };
 
-        let mut elaborator = Elaborator::from_context(self, crate_id, cli_options);
+        let mut elaborator = Elaborator::from_context(self, crate_id, cli_options, comptime_io);
         elaborator.setup_interpreter_for(module_id, |interpreter| {
             let instantiation_bindings = TypeBindings::default();
             interpreter.call_function(main_id, args, instantiation_bindings, location)

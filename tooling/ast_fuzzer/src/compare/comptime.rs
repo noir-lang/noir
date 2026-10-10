@@ -15,12 +15,13 @@ use nargo::{foreign_calls::DefaultForeignCallBuilder, parse_all};
 use noirc_abi::Abi;
 use noirc_artifacts::program::CompiledProgram;
 use noirc_driver::{
-    CompilationResult, CompileOptions, CrateId, compile_main, file_manager_with_stdlib,
-    prepare_crate,
+    CompilationResult, CompileOptions, CrateId, compile_main_with_comptime_io,
+    file_manager_with_stdlib, prepare_crate,
 };
 use noirc_errors::CustomDiagnostic;
 use noirc_evaluator::ssa::SsaProgramArtifact;
 use noirc_frontend::elaborator::test_utils::ElaboratorError;
+use noirc_frontend::hir::comptime::ComptimeIo;
 use noirc_frontend::hir::def_collector::dc_crate::CompilationError;
 use noirc_frontend::{
     elaborator::test_utils::interpret, hir::Context, monomorphization::ast::Program,
@@ -62,7 +63,7 @@ fn prepare_and_compile_snippet<W: std::io::Write + 'static>(
 ) -> (CompilationResult<CompiledProgram>, W) {
     let output = Rc::new(RefCell::new(output));
     let (mut context, root_crate_id) = prepare_snippet(source);
-    context.set_comptime_printing(output.clone());
+    let mut comptime_io = ComptimeIo::printing_to(output.clone());
     let options = CompileOptions {
         force_brillig,
         silence_warnings: true,
@@ -70,8 +71,14 @@ fn prepare_and_compile_snippet<W: std::io::Write + 'static>(
         skip_brillig_constraints_check: true,
         ..Default::default()
     };
-    let res = compile_main(&mut context, root_crate_id, &options, None);
-    drop(context);
+    let res = compile_main_with_comptime_io(
+        &mut context,
+        root_crate_id,
+        &options,
+        None,
+        &mut comptime_io,
+    );
+    drop(comptime_io);
     let output = Rc::into_inner(output).expect("context is gone").into_inner();
     (res, output)
 }

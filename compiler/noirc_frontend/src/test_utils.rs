@@ -18,6 +18,7 @@ use noirc_errors::Location;
 
 use crate::hir::Context;
 use crate::hir::ParsedFiles;
+use crate::hir::comptime::ComptimeIo;
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::def_collector::dc_crate::DefCollector;
 use crate::hir::def_map::CrateDefMap;
@@ -180,6 +181,7 @@ pub(crate) fn get_program_with_options(
             program.clone().into_sorted(),
             root_file_id,
             options.frontend_options,
+            &mut ComptimeIo::stdout(),
         ));
     }
 
@@ -261,6 +263,7 @@ pub fn get_program_with_stdlib_dependency(
             root_program.into_sorted(),
             root_file_id,
             GetProgramOptions::default().frontend_options,
+            &mut ComptimeIo::stdout(),
         ));
     }
 
