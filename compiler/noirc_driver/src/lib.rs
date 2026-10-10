@@ -445,7 +445,7 @@ pub fn check_crate(
 
 /// Same as [`check_crate`], but comptime code writes to `comptime_io`, whatever `options` say
 /// about comptime printing.
-#[tracing::instrument(level = "trace", skip_all)]
+#[tracing::instrument(level = "trace", name = "check_crate", skip_all)]
 pub fn check_crate_with_comptime_io(
     context: &mut Context,
     crate_id: CrateId,
@@ -502,7 +502,7 @@ pub fn compile_main(
 
 /// Same as [`compile_main`], but comptime code writes to `comptime_io`, whatever `options` say
 /// about comptime printing.
-#[tracing::instrument(level = "trace", skip_all)]
+#[tracing::instrument(level = "trace", name = "compile_main", skip_all)]
 pub fn compile_main_with_comptime_io(
     context: &mut Context,
     crate_id: CrateId,
