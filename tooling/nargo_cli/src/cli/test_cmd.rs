@@ -44,10 +44,12 @@ use nargo::{
     workspace::Workspace,
 };
 use nargo_toml::PackageSelection;
-use noirc_driver::{CompilationResult, CompileOptions, check_crate};
+use noirc_driver::{CompilationResult, CompileOptions, check_crate_with_comptime_io};
 use noirc_frontend::graph::CrateId;
 use noirc_frontend::hir::{
-    Context, FunctionNameMatch, ParsedFiles, comptime::EvaluationTracker, def_map::TestFunction,
+    Context, FunctionNameMatch, ParsedFiles,
+    comptime::{ComptimeIo, EvaluationTracker},
+    def_map::TestFunction,
 };
 
 use crate::errors::CliError;
@@ -316,7 +318,7 @@ impl<'a> TestRunner<'a> {
 
     /// Elaborates `package`, reporting its errors and warnings, and returns its tests.
     fn collect_package_tests(&'a self, package: &'a Package) -> Result<PackageTests<'a>, CliError> {
-        let (context, crate_id, result) = self.elaborate(package);
+        let Elaboration { context, crate_id, result, .. } = self.elaborate(package);
         report_errors(
             result,
             &context.file_manager,
@@ -362,27 +364,35 @@ impl<'a> TestRunner<'a> {
     }
 
     /// Elaborates `package`, returning its context, its root crate and the errors and warnings
-    /// found.
-    fn elaborate(&'a self, package: &'a Package) -> (Context, CrateId, CompilationResult<()>) {
+    /// found. With `--coverage` it also returns a tracker of the comptime code which elaboration
+    /// evaluated in the package.
+    fn elaborate(&'a self, package: &'a Package) -> Elaboration {
         let (mut context, crate_id) =
             prepare_package(self.file_manager, self.parsed_files, package);
 
+        let mut comptime_io = self.args.compile_options.comptime_io();
         if self.args.coverage {
-            // Set the tracker before elaboration so comptime blocks executed during
+            // Track from the start of elaboration so comptime blocks executed during
             // check_crate are captured. We use all file IDs known at this point since
             // def_maps isn't populated yet; after check_crate we narrow to crate files.
             let all_files = context.file_manager.as_file_map().all_file_ids().copied().collect();
-            context.evaluation_tracker = Some(EvaluationTracker::new(all_files));
+            comptime_io.evaluation_tracker = Some(EvaluationTracker::new(all_files));
         }
 
-        let result = check_crate(&mut context, crate_id, &self.args.compile_options);
+        let result = check_crate_with_comptime_io(
+            &mut context,
+            crate_id,
+            &self.args.compile_options,
+            &mut comptime_io,
+        );
 
-        if let Some(evaluation_tracker) = context.evaluation_tracker.as_mut() {
+        let mut tracker = comptime_io.evaluation_tracker;
+        if let Some(tracker) = tracker.as_mut() {
             let crate_files = context.def_maps[&crate_id].file_ids();
-            evaluation_tracker.restrict_to_files(&crate_files);
+            tracker.restrict_to_files(&crate_files);
         }
 
-        (context, crate_id, result)
+        Elaboration { context, crate_id, result, tracker }
     }
 
     // --- Running tests ---
@@ -539,9 +549,9 @@ impl<'a> TestRunner<'a> {
         test: &Test<'a>,
     ) -> &'b mut CachedContext<'a> {
         if !cached.as_ref().is_some_and(|cached| std::ptr::eq(cached.package, test.package)) {
-            let (context, crate_id, result) = self.elaborate(test.package);
+            let Elaboration { context, crate_id, result, tracker: tracker_after_elaboration } =
+                self.elaborate(test.package);
             result.expect("Any errors should have occurred when collecting test functions");
-            let tracker_after_elaboration = context.evaluation_tracker.clone();
             *cached = Some(CachedContext {
                 package: test.package,
                 context,
@@ -598,22 +608,26 @@ impl<'a> TestRunner<'a> {
         test_function: &TestFunction,
     ) -> TestOutcome {
         let output = Rc::new(RefCell::new(Vec::new()));
-        context.set_comptime_printing(output.clone());
+        // Each test extends its own copy of what elaboration evaluated, so its coverage does
+        // not include the tests which ran against this context before it.
+        let mut comptime_io = ComptimeIo {
+            output: Some(output.clone()),
+            evaluation_tracker: tracker_after_elaboration.clone(),
+        };
 
-        let result = context.interpret_function(test_function.id, Vec::new());
+        let result = context.interpret_function(test_function.id, Vec::new(), &mut comptime_io);
         let status = nargo::ops::test_status_comptime_interpret_result(result, test_function);
 
-        context.interpreter_output = None;
-        let output = Rc::try_unwrap(output).expect("context no longer has it");
+        let evaluation_tracker = comptime_io.evaluation_tracker.take();
+        // Release the interpreter's handle on the output so it can be taken back.
+        drop(comptime_io);
+        let output = Rc::try_unwrap(output).expect("the interpreter no longer has it");
         let output = String::from_utf8(output.into_inner()).expect("not UTF-8");
 
-        let coverage = context.evaluation_tracker.take().map(|tracker| {
+        let coverage = evaluation_tracker.map(|tracker| {
             coverage::tracker_to_report(&tracker, test_function.id, test.name.as_str(), context)
         });
 
-        // Restore the post-elaboration tracker so the next test starts with a fresh copy
-        // rather than forcing a full re-elaboration.
-        context.evaluation_tracker = tracker_after_elaboration.clone();
         TestOutcome { status, output, coverage }
     }
 
@@ -919,6 +933,16 @@ impl TestResult {
     }
 }
 
+/// The outcome of elaborating a package.
+struct Elaboration {
+    context: Context,
+    crate_id: CrateId,
+    /// The errors and warnings found.
+    result: CompilationResult<()>,
+    /// What comptime code elaboration evaluated in the package, if coverage is collected.
+    tracker: Option<EvaluationTracker>,
+}
+
 /// An elaborated [`Context`] kept alive across the tests a worker thread runs.
 ///
 /// Elaborating a package is the single most expensive part of `nargo test` on a large program and
@@ -934,7 +958,6 @@ struct CachedContext<'a> {
     package: &'a Package,
     context: Context,
     crate_id: CrateId,
-    /// Post-elaboration snapshot of the evaluation tracker, cloned back into
-    /// the context before each coverage test so the tracker is not consumed.
+    /// What elaboration evaluated at comptime, which each coverage test extends a copy of.
     tracker_after_elaboration: Option<EvaluationTracker>,
 }

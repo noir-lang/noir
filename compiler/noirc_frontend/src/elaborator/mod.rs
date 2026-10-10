@@ -57,7 +57,7 @@ use crate::{
     graph::CrateId,
     hir::{
         Context,
-        comptime::{ComptimeError, EvaluationTracker, InterpreterError},
+        comptime::{ComptimeError, ComptimeIo, EvaluationTracker, InterpreterError},
         def_collector::{
             dc_crate::{
                 CollectedItems, CompilationError, CompilationErrors, UnresolvedFunctions,
@@ -315,6 +315,7 @@ impl<'context> Elaborator<'context> {
         context: &'context mut Context,
         crate_id: CrateId,
         options: ElaboratorOptions<'context>,
+        comptime_io: &'context mut ComptimeIo,
     ) -> Self {
         Self::new(
             &mut context.def_interner,
@@ -322,8 +323,8 @@ impl<'context> Elaborator<'context> {
             &mut context.usage_tracker,
             &context.crate_graph,
             context.file_manager.as_file_map(),
-            &context.interpreter_output,
-            context.evaluation_tracker.as_mut(),
+            &comptime_io.output,
+            comptime_io.evaluation_tracker.as_mut(),
             &context.required_unstable_features,
             &mut context.unresolved_globals,
             crate_id,
@@ -338,8 +339,9 @@ impl<'context> Elaborator<'context> {
         crate_id: CrateId,
         items: CollectedItems,
         options: ElaboratorOptions<'context>,
+        comptime_io: &'context mut ComptimeIo,
     ) -> CompilationErrors {
-        Self::elaborate_and_return_self(context, crate_id, items, options).errors
+        Self::elaborate_and_return_self(context, crate_id, items, options, comptime_io).errors
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
@@ -348,8 +350,9 @@ impl<'context> Elaborator<'context> {
         crate_id: CrateId,
         items: CollectedItems,
         options: ElaboratorOptions<'context>,
+        comptime_io: &'context mut ComptimeIo,
     ) -> Self {
-        let mut this = Self::from_context(context, crate_id, options);
+        let mut this = Self::from_context(context, crate_id, options, comptime_io);
         this.elaborate_items(items);
         this.check_and_pop_function_context();
         this
@@ -937,6 +940,7 @@ pub mod test_utils {
             elaborator::Elaborator,
             hir::{
                 Context, ParsedFiles,
+                comptime::ComptimeIo,
                 def_collector::{dc_crate::DefCollector, dc_mod::collect_defs},
                 def_map::{CrateDefMap, ModuleData, ModuleId},
             },
@@ -962,7 +966,7 @@ pub mod test_utils {
         let parsed_files = ParsedFiles::new();
         let mut context = Context::new(file_manager, parsed_files);
         context.def_interner.populate_dummy_operator_traits();
-        context.set_comptime_printing(output);
+        let mut comptime_io = ComptimeIo::printing_to(output);
 
         let krate = context.crate_graph.add_crate_root_and_stdlib(FileId::dummy());
 
@@ -998,6 +1002,7 @@ pub mod test_utils {
             krate,
             collector.items,
             ElaboratorOptions::test_default(),
+            &mut comptime_io,
         );
 
         // Skip the elaborator's compilation warnings

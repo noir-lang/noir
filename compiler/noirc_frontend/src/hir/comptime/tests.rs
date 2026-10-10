@@ -5,9 +5,9 @@ use std::path::PathBuf;
 use fm::{FileId, FileManager};
 use noirc_errors::Location;
 
-use super::Interpreter;
 use super::errors::InterpreterError;
 use super::value::Value;
+use super::{ComptimeIo, Interpreter};
 use crate::elaborator::{Elaborator, ElaboratorOptions};
 use crate::hir::def_collector::dc_crate::{CompilationError, DefCollector};
 use crate::hir::def_collector::dc_mod::collect_defs;
@@ -67,11 +67,13 @@ pub(crate) fn with_interpreter<T>(
 
     let main = context.get_main_function(&krate).expect("Expected 'main' function");
 
+    let mut comptime_io = ComptimeIo::stdout();
     let mut elaborator = Elaborator::elaborate_and_return_self(
         &mut context,
         krate,
         collector.items,
         ElaboratorOptions::test_default(),
+        &mut comptime_io,
     );
 
     let errors = elaborator.errors.clone();
