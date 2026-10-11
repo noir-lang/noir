@@ -519,8 +519,7 @@ impl Elaborator<'_> {
     /// Whether the item being elaborated is part of a trait's declaration (one of its methods,
     /// say), as opposed to an impl of it.
     fn in_trait_declaration(&self) -> bool {
-        self.item.impl_context.current_trait().is_some()
-            && self.item.impl_context.current_trait_impl().is_none()
+        self.item.impl_context.trait_declaration().is_some()
     }
 
     /// Whether the trait whose declaration is being elaborated implies `Self: bound`, `bound`
@@ -545,7 +544,7 @@ impl Elaborator<'_> {
     /// `lookup_associated_type_on_self`). Any other bound on `Self` is an assumption of the item
     /// that writes it, so its associated types belong to that item.
     fn declaration_implies(&self, trait_id: TraitId, ordered: &[Type]) -> bool {
-        let Some(current_trait) = self.item.impl_context.current_trait() else {
+        let Some(current_trait) = self.item.impl_context.trait_declaration() else {
             return false;
         };
         let the_trait = self.interner.get_trait(current_trait);
@@ -574,7 +573,7 @@ impl Elaborator<'_> {
 
     /// Whether `typ` is the `Self` of the trait whose declaration is being elaborated.
     fn is_own_self(&self, typ: &Type) -> bool {
-        let current_trait = self.item.impl_context.current_trait();
+        let current_trait = self.item.impl_context.trait_declaration();
         current_trait.is_some_and(|trait_id| self.interner.get_trait(trait_id).is_self_type(typ))
     }
 
@@ -643,7 +642,7 @@ impl Elaborator<'_> {
         }
 
         // Also assume `self` implements the current trait if we are inside a trait definition
-        if let Some(trait_id) = self.item.impl_context.current_trait() {
+        if let Some(trait_id) = self.item.impl_context.trait_declaration() {
             let the_trait = self.interner.get_trait(trait_id);
             let constraint = the_trait.as_constraint(the_trait.name.location());
             let self_type = self
@@ -677,7 +676,7 @@ impl Elaborator<'_> {
         }
 
         // Also remove the assumed trait implementation for `self` if this is a trait definition
-        if let Some(trait_id) = self.item.impl_context.current_trait() {
+        if let Some(trait_id) = self.item.impl_context.trait_declaration() {
             self.interner.remove_assumed_trait_implementations_for_trait(trait_id);
         }
 

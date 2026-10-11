@@ -1,6 +1,7 @@
 //! Tests for "impl stricter than trait" validation.
 //! Ensures that trait implementations don't add constraints that aren't present in the trait definition.
 
+use crate::test_utils::get_monomorphized;
 use crate::tests::{assert_no_errors, check_errors};
 
 #[test]
@@ -635,4 +636,72 @@ fn impl_method_bound_on_parent_with_other_arguments_is_stricter_than_trait() {
     fn main() {}
     "#;
     check_errors(src);
+}
+
+#[test]
+fn trait_impl_method_body_resolves_parent_associated_type_on_self() {
+    let src = r#"
+    trait Parent { type Out; }
+    trait Child: Parent { fn go(x: Self::Out) -> Self::Out; }
+    pub struct Foo {}
+    impl Parent for Foo { type Out = u8; }
+    impl Child for Foo { fn go(x: Self::Out) -> Self::Out { let y: Self::Out = x; y } }
+    fn main() { let _ = Foo::go(1); }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn trait_impl_method_body_resolves_parent_associated_type_named_like_a_primitive() {
+    let src = r#"
+    trait Parent { type Field; }
+    trait Child: Parent { fn go(x: Self::Field) -> Field; }
+    pub struct Foo {}
+    impl Parent for Foo { type Field = u8; }
+    impl Child for Foo {
+        fn go(x: Self::Field) -> Field {
+            let y: Self::Field = (x as Self::Field) + 250;
+            y as Field
+        }
+    }
+    fn main(x: u8) -> pub Field { Foo::go(x) }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0(x$l0: u8) -> pub Field {
+        go$f1(x$l0)
+    }
+    fn go$f1(x$l1: u8) -> Field {
+        let y$l2 = ((x$l1 as u8) + 250);
+        (y$l2 as Field)
+    }
+    ");
+}
+
+#[test]
+fn trait_impl_method_body_does_not_assume_the_trait_with_its_own_generics() {
+    let src = r#"
+    trait Get<T> { fn get(self) -> T; fn touch(self); }
+    pub struct S {}
+    impl Get<u8> for S {
+        fn get(self) -> u8 { 1 }
+        fn touch(self) { let _ = Get::get(self); }
+    }
+    fn main() { S {}.touch(); }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn trait_impl_method_body_resolves_parent_associated_type_in_code_from_a_macro() {
+    let src = r#"
+    trait Parent { type Out; }
+    trait Child: Parent { fn go(x: Self::Out) -> Self::Out; }
+    pub struct Foo {}
+    impl Parent for Foo { type Out = u8; }
+    comptime fn copy() -> Quoted { quote { let y: Self::Out = x; y } }
+    impl Child for Foo { fn go(x: Self::Out) -> Self::Out { copy!() } }
+    fn main() { let _ = Foo::go(1); }
+    "#;
+    assert_no_errors(src);
 }

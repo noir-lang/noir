@@ -3,7 +3,7 @@
 use crate::{
     Type,
     hir_def::function::FuncMeta,
-    node_interner::{ImplId, TraitId, TraitImplId, TypeId},
+    node_interner::{ImplId, NodeInterner, TraitId, TraitImplId, TypeId},
 };
 
 /// Where the item being elaborated sits with respect to impls and traits: what `Self` names, and
@@ -67,10 +67,17 @@ impl ImplContext {
     }
 
     /// The impl or trait a function was declared in, as recorded on its [`FuncMeta`].
-    pub(crate) fn of_function(meta: &FuncMeta) -> Self {
+    ///
+    /// For a method of a trait impl, the current trait is the one the impl implements, as when
+    /// the method's signature was resolved, even though [`FuncMeta::trait_id`] is unset for it.
+    pub(crate) fn of_function(meta: &FuncMeta, interner: &NodeInterner) -> Self {
+        let implemented_trait = meta
+            .trait_impl
+            .and_then(|impl_id| interner.try_get_trait_implementation(impl_id))
+            .map(|trait_impl| trait_impl.borrow().trait_id);
         Self {
             self_type: meta.self_type.clone(),
-            current_trait: meta.trait_id,
+            current_trait: meta.trait_id.or(implemented_trait),
             current_trait_impl: meta.trait_impl,
             current_impl: meta.impl_id,
         }
@@ -88,6 +95,13 @@ impl ImplContext {
 
     pub(crate) fn current_trait(&self) -> Option<TraitId> {
         self.current_trait
+    }
+
+    /// The trait whose declaration the item is part of (one of its methods, say). A trait impl
+    /// also has a current trait, the one it implements, but its items are not part of that
+    /// trait's declaration: `Self` there is the impl's type, not the trait's own `Self`.
+    pub(crate) fn trait_declaration(&self) -> Option<TraitId> {
+        if self.current_trait_impl.is_some() { None } else { self.current_trait }
     }
 
     pub(crate) fn current_trait_impl(&self) -> Option<TraitImplId> {
