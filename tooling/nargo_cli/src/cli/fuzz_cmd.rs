@@ -368,8 +368,8 @@ fn get_fuzzing_harnesses_in_package(
 fn display_fuzzing_report_and_store(
     root_path: Option<PathBuf>,
     fuzzing_failure_folder: Option<String>,
-    file_manager: &Arc<FileManager>,
-    parsed_files: &Arc<ParsedFiles>,
+    file_manager: &FileManager,
+    parsed_files: &ParsedFiles,
     package: &Package,
     compile_options: &CompileOptions,
     fuzzing_report: &(String, FuzzingRunStatus),

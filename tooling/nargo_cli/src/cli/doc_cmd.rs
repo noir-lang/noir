@@ -182,7 +182,7 @@ fn collect_dependencies(
     context: &Context,
     package: Option<&Package>,
     crate_id: CrateId,
-    file_manager: &Arc<FileManager>,
+    file_manager: &FileManager,
     item_id_to_converted_item: &mut HashMap<ItemId, ConvertedItem>,
     dependencies: &mut HashMap<String, Crate>,
     broken_links: &mut Vec<BrokenLink>,
