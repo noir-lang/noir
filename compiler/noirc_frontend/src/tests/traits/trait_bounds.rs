@@ -1635,3 +1635,35 @@ fn trait_where_clause_on_own_associated_type_rejects_impl_whose_associated_type_
     "#;
     check_errors(src);
 }
+
+#[test]
+fn function_checked_from_another_functions_comptime_block_does_not_see_its_where_clause() {
+    let src = r#"
+    trait Validated {}
+    trait Source { type Item: Validated; }
+    pub struct Raw { pub v: Field }
+    fn spend<M>(m: M) -> M where M: Validated { m }
+    pub fn uncalled<S>() where S: Source<Item = Raw> { comptime { let _ = helper(1); } }
+    fn helper(x: Field) -> Field { spend(Raw { v: x }).v }
+                                   ^^^^^ No matching impl found for `Raw: Validated`
+                                   ~~~~~ No impl for `Raw: Validated`
+    fn main(x: Field) -> pub Field { helper(x) }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn global_checked_from_another_functions_comptime_block_does_not_see_its_where_clause() {
+    let src = r#"
+    trait Validated {}
+    trait Source { type Item: Validated; }
+    pub struct Raw { pub v: Field }
+    fn spend<M>(m: M) -> M where M: Validated { m }
+    pub fn uncalled<S>() where S: Source<Item = Raw> { comptime { let _ = G; } }
+    global G: Field = spend(Raw { v: 1 }).v;
+                      ^^^^^ No matching impl found for `Raw: Validated`
+                      ~~~~~ No impl for `Raw: Validated`
+    fn main() -> pub Field { G }
+    "#;
+    check_errors(src);
+}
