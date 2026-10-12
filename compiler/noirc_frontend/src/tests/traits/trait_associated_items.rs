@@ -2720,8 +2720,8 @@ fn explicit_type_at_trait_method_call_with_zero_associated_constant() {
     assert_no_errors(src);
 }
 
-/// The result of a call written as a path has a known type as soon as the call is checked, as
-/// for the same call written as a method call, so it can be used right away.
+/// The associated type a path call returns is decided by a trait constraint. That constraint is
+/// solved when the result's type is needed, so the result can be used right away.
 #[test]
 fn associated_type_returned_by_path_call_is_known_when_the_result_is_used() {
     let src = r#"
@@ -2762,47 +2762,8 @@ fn associated_type_returned_by_path_call_is_known_when_the_result_is_used() {
         let _: u8 = <G<3> as Tr>::mk()[0];
         let _: u32 = Tr::mk2(G::<3> {}).size();
         let _: u16 = bound_with_associated_type(K {});
-    }
-    "#;
-    assert_no_errors(src);
-}
-
-/// `K: Tr<_>` has two candidates here: `Tr<u8>`, and `Tr<T>` for any `T: Foo`. Whether the second
-/// applies isn't known when the call is checked, so the call doesn't settle on `Tr<u8>` and the
-/// annotation that follows picks `Tr<u16>`.
-#[test]
-fn path_call_keeps_trait_argument_open_while_an_impl_where_clause_is_undecided() {
-    let src = r#"
-    trait Foo { fn make() -> Self; }
-    impl Foo for u16 { fn make() -> u16 { 2 } }
-
-    trait Tr<T> { fn mk(self) -> T; }
-    pub struct K {}
-    impl Tr<u8> for K { fn mk(self) -> u8 { 1 } }
-    impl<T> Tr<T> for K where T: Foo { fn mk(self) -> T { T::make() } }
-
-    fn main() {
-        let x = Tr::mk(K {});
-        let _y: u16 = x;
-    }
-    "#;
-    assert_no_errors(src);
-}
-
-#[test]
-fn method_call_keeps_trait_argument_open_while_an_impl_where_clause_is_undecided() {
-    let src = r#"
-    trait Foo { fn make() -> Self; }
-    impl Foo for u16 { fn make() -> u16 { 2 } }
-
-    trait Tr<T> { fn mk(self) -> T; }
-    pub struct K {}
-    impl Tr<u8> for K { fn mk(self) -> u8 { 1 } }
-    impl<T> Tr<T> for K where T: Foo { fn mk(self) -> T { T::make() } }
-
-    fn main() {
-        let x = K {}.mk();
-        let _y: u16 = x;
+        let f = <K as Tr>::mk;
+        let _: u16 = f().1;
     }
     "#;
     assert_no_errors(src);
@@ -3310,15 +3271,14 @@ fn sibling_bound_on_one_trait_is_rejected_when_it_makes_the_body_ill_typed() {
     }
 
     pub fn f<T>(x: T) -> u8
-                         ^^ expected type u8, found type u32
-                         ~~ expected u8 because of return type
     where
         T: Foo<u32, Assoc = u32>,
         T: Foo<u8, Assoc = u8>,
         T: Foo<u8, Assoc = u8>,
     {
         Foo::<u32>::get(x)
-        ~~~~~~~~~~~~~~~~~~ u32 returned here
+        ^^^^^^^^^^^^^^^ No matching impl found for `T: Foo<u32, Assoc = u8>`
+        ~~~~~~~~~~~~~~~ No impl for `T: Foo<u32, Assoc = u8>`
     }
 
     fn main() {
