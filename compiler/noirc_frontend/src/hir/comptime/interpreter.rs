@@ -2025,7 +2025,7 @@ fn to_i128(value: &Value) -> Option<i128> {
     }
 }
 
-impl Context<'_, '_> {
+impl Context {
     /// Interprets (as comptime code) the given function in the give crate, with the given arguments.
     /// Panics if there's no main function.
     pub fn interpret_function(

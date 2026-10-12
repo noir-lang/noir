@@ -13,7 +13,7 @@ use noirc_driver::{
 use noirc_frontend::hir::Context;
 
 /// Prepare a code snippet.
-fn prepare_snippet(source: String) -> (Context<'static, 'static>, CrateId) {
+fn prepare_snippet(source: String) -> (Context, CrateId) {
     let root = Path::new("");
     let file_name = Path::new("main.nr");
     let mut file_manager = file_manager_with_stdlib(root);

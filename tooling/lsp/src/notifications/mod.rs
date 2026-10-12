@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::collections::{BTreeMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::str::FromStr as _;
+use std::sync::Arc;
 
 use crate::requests::{file_path_to_file_id, uri_to_file_path};
 use crate::{
@@ -317,7 +318,8 @@ pub(crate) fn process_workspace(
         );
     }
 
-    let parsed_files = parse_diff(&workspace_file_manager, state);
+    let parsed_files = Arc::new(parse_diff(&workspace_file_manager, state));
+    let workspace_file_manager = Arc::new(workspace_file_manager);
 
     for package in workspace {
         let (mut context, crate_id) =
@@ -387,7 +389,7 @@ pub(crate) fn process_workspace_for_single_file_change(
 
     // We need to replace the file's source in the file manager
     let file_id = file_path_to_file_id(file_map, &PathString::from(&file_path))?;
-    file_manager.replace_file(file_id, file_source.to_string());
+    Arc::make_mut(&mut file_manager).replace_file(file_id, file_source.to_string());
 
     let mut node_interner = package_cache.node_interner;
 
@@ -427,7 +429,7 @@ pub(crate) fn process_workspace_for_single_file_change(
     let sorted_module = parsed_program.into_sorted();
     let def_collector = DefCollector::new(crate_def_map);
     let mut context =
-        Context::from_existing(&file_manager, &parsed_files, node_interner, def_maps, crate_graph);
+        Context::from_existing(file_manager, parsed_files, node_interner, def_maps, crate_graph);
     context.activate_lsp_mode(LspMode::SingleFile);
 
     // Here we enable all options because we won't show errors to users, so it's easier to
@@ -458,7 +460,7 @@ pub(crate) fn process_workspace_for_single_file_change(
     package_cache.def_maps = context.def_maps;
     package_cache.crate_graph = context.crate_graph;
 
-    workspace_cache.file_manager = file_manager;
+    workspace_cache.file_manager = context.file_manager;
 
     state.workspace_cache.insert(root_dir.clone(), workspace_cache);
     state.package_cache.insert(root_dir.clone(), package_cache);

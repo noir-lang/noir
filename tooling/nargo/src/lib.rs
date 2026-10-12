@@ -15,6 +15,7 @@ pub mod workspace;
 pub use self::errors::NargoError;
 pub use self::ops::FuzzExecutionConfig;
 pub use self::ops::FuzzFolderConfig;
+use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::mpsc;
 use std::thread;
@@ -290,12 +291,12 @@ pub fn parse_all(file_manager: &FileManager) -> ParsedFiles {
 }
 
 #[tracing::instrument(level = "trace", skip_all)]
-pub fn prepare_package<'file_manager, 'parsed_files>(
-    file_manager: &'file_manager FileManager,
-    parsed_files: &'parsed_files ParsedFiles,
+pub fn prepare_package(
+    file_manager: &Arc<FileManager>,
+    parsed_files: &Arc<ParsedFiles>,
     package: &Package,
-) -> (Context<'file_manager, 'parsed_files>, CrateId) {
-    let mut context = Context::from_ref_file_manager(file_manager, parsed_files);
+) -> (Context, CrateId) {
+    let mut context = Context::new(Arc::clone(file_manager), Arc::clone(parsed_files));
     let crate_id = prepare_crate(&mut context, &package.entry_path);
     add_unstable_features(&mut context, crate_id, package);
     prepare_dependencies(&mut context, crate_id, &package.dependencies);

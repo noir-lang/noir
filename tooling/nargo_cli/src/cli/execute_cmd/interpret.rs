@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use std::rc::Rc;
+use std::sync::Arc;
 
 use acvm::AcirField;
 use fm::FileManager;
@@ -42,8 +43,8 @@ fn run_package_comptime(
     package: &Package,
     args: &ExecuteCommand,
     workspace: &Workspace,
-    file_manager: &FileManager,
-    parsed_files: &ParsedFiles,
+    file_manager: &Arc<FileManager>,
+    parsed_files: &Arc<ParsedFiles>,
 ) -> Result<(), CliError> {
     let (mut context, crate_id) = nargo::prepare_package(file_manager, parsed_files, package);
     context.package_build_path = workspace.package_build_path(package);

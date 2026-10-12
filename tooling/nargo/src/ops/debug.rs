@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::sync::Arc;
 
 use fm::FileManager;
 use noirc_artifacts::program::CompiledProgram;
@@ -15,7 +16,7 @@ use crate::{
     parse_all, prepare_package, workspace::Workspace,
 };
 
-use super::{compile_program, compile_program_with_debug_instrumenter, report_errors};
+use super::{compile_program_with_debug_instrumenter, report_errors};
 
 pub struct TestDefinition {
     pub name: String,
@@ -80,30 +81,24 @@ pub fn compile_bin_package_for_debugging(
     compile_options: &CompileOptions,
 ) -> Result<CompiledProgram, CompileError> {
     let (workspace_file_manager, mut parsed_files) = load_workspace_files(workspace);
+    let workspace_file_manager = Arc::new(workspace_file_manager);
 
-    let compilation_result = if compile_options.instrument_debug {
-        let debug_state =
-            instrument_package_files(&mut parsed_files, &workspace_file_manager, package);
-
-        compile_program_with_debug_instrumenter(
-            &workspace_file_manager,
-            &parsed_files,
-            workspace,
-            package,
-            compile_options,
-            None,
-            debug_state,
-        )
+    let debug_instrumenter = if compile_options.instrument_debug {
+        instrument_package_files(&mut parsed_files, &workspace_file_manager, package)
     } else {
-        compile_program(
-            &workspace_file_manager,
-            &parsed_files,
-            workspace,
-            package,
-            compile_options,
-            None,
-        )
+        DebugInstrumenter::default()
     };
+    let parsed_files = Arc::new(parsed_files);
+
+    let compilation_result = compile_program_with_debug_instrumenter(
+        &workspace_file_manager,
+        &parsed_files,
+        workspace,
+        package,
+        compile_options,
+        None,
+        debug_instrumenter,
+    );
 
     report_errors(
         compilation_result,
@@ -134,16 +129,16 @@ pub fn compile_options_for_debugging(
     }
 }
 
-pub fn prepare_package_for_debug<'a>(
-    file_manager: &'a FileManager,
-    parsed_files: &'a mut ParsedFiles,
-    package: &'a Package,
+/// Instruments the package's parsed files for debugging and prepares a [`Context`] over them.
+pub fn prepare_package_for_debug(
+    file_manager: &Arc<FileManager>,
+    mut parsed_files: ParsedFiles,
+    package: &Package,
     workspace: &Workspace,
-) -> (Context<'a, 'a>, CrateId) {
-    let debug_instrumenter = instrument_package_files(parsed_files, file_manager, package);
+) -> (Context, CrateId) {
+    let debug_instrumenter = instrument_package_files(&mut parsed_files, file_manager, package);
 
-    // -- This :down: is from nargo::ops(compile).compile_program_with_debug_instrumenter
-    let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
+    let (mut context, crate_id) = prepare_package(file_manager, &Arc::new(parsed_files), package);
     link_to_debug_crate(&mut context, crate_id);
     context.debug_instrumenter = debug_instrumenter;
     context.package_build_path = workspace.package_build_path(package);

@@ -225,7 +225,7 @@ fn prepare_context(
     entry_point: String,
     dependency_graph: Option<JsDependencyGraph>,
     file_source_map: PathToFileSourceMap,
-) -> Result<(CrateId, Context<'static, 'static>), JsCompileError> {
+) -> Result<(CrateId, Context), JsCompileError> {
     let dependency_graph: DependencyGraph = if let Some(dependency_graph) = dependency_graph {
         <JsValue as JsValueSerdeExt>::into_serde(&JsValue::from(dependency_graph))
             .map_err(|err| err.to_string())?
@@ -313,7 +313,7 @@ mod tests {
     use super::{DependencyGraph, file_manager_with_source_map, process_dependency_graph};
     use std::{collections::BTreeMap, path::Path};
 
-    fn setup_test_context(source_map: PathToFileSourceMap) -> Context<'static, 'static> {
+    fn setup_test_context(source_map: PathToFileSourceMap) -> Context {
         let mut fm = file_manager_with_source_map(source_map);
         // Add this due to us calling prepare_crate on "/main.nr" below
         fm.add_file_with_source(Path::new("/main.nr"), "fn foo() {}".to_string());

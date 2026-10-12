@@ -10,6 +10,7 @@
 //!    ([`TestRunner::show_in_package_order`]), or as they arrive for a [`LiveFormatter`]
 //!    ([`TestRunner::report_as_completed`]).
 
+use std::sync::Arc;
 use std::{
     cell::RefCell,
     collections::{BTreeMap, HashMap, VecDeque},
@@ -209,7 +210,8 @@ impl Display for Format {
 pub(crate) fn run(args: TestCommand, workspace: Workspace) -> Result<(), CliError> {
     let mut file_manager = workspace.new_file_manager();
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut file_manager);
-    let parsed_files = parse_all(&file_manager);
+    let parsed_files = Arc::new(parse_all(&file_manager));
+    let file_manager = Arc::new(file_manager);
 
     let pattern = if args.test_names.is_empty() {
         FunctionNameMatch::Anything
@@ -240,8 +242,8 @@ pub(crate) fn run(args: TestCommand, workspace: Workspace) -> Result<(), CliErro
 }
 
 struct TestRunner<'a> {
-    file_manager: &'a FileManager,
-    parsed_files: &'a ParsedFiles,
+    file_manager: &'a Arc<FileManager>,
+    parsed_files: &'a Arc<ParsedFiles>,
     workspace: Workspace,
     args: &'a TestCommand,
     /// Which tests to collect, from the test names given on the command line.
@@ -361,10 +363,7 @@ impl<'a> TestRunner<'a> {
 
     /// Elaborates `package`, returning its context, its root crate and the errors and warnings
     /// found.
-    fn elaborate(
-        &'a self,
-        package: &'a Package,
-    ) -> (Context<'a, 'a>, CrateId, CompilationResult<()>) {
+    fn elaborate(&'a self, package: &'a Package) -> (Context, CrateId, CompilationResult<()>) {
         let (mut context, crate_id) =
             prepare_package(self.file_manager, self.parsed_files, package);
 
@@ -593,7 +592,7 @@ impl<'a> TestRunner<'a> {
     /// Runs `test_function` in the comptime interpreter, collecting its coverage if requested.
     fn interpret(
         &'a self,
-        context: &mut Context<'a, 'a>,
+        context: &mut Context,
         tracker_after_elaboration: &Option<EvaluationTracker>,
         test: &Test<'a>,
         test_function: &TestFunction,
@@ -621,7 +620,7 @@ impl<'a> TestRunner<'a> {
     /// Compiles and executes `test_function`, fuzzing it if it has arguments.
     fn execute(
         &'a self,
-        context: &Context<'a, 'a>,
+        context: &Context,
         test: &Test<'a>,
         test_function: &TestFunction,
     ) -> TestOutcome {
@@ -933,7 +932,7 @@ impl TestResult {
 /// when a test unwinds, and `--no-context-reuse` turns sharing off for a whole run.
 struct CachedContext<'a> {
     package: &'a Package,
-    context: Context<'a, 'a>,
+    context: Context,
     crate_id: CrateId,
     /// Post-elaboration snapshot of the evaluation tracker, cloned back into
     /// the context before each coverage test so the tracker is not consumed.
