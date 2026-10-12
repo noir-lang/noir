@@ -878,6 +878,7 @@ impl Elaborator<'_> {
         location: Location,
         is_macro_call: bool,
     ) -> (HirCallExpression, Type) {
+        let trait_constraints_checkpoint = self.pending_trait_constraint_checkpoint();
         let (func, func_type) = self.elaborate_expression(*call.func);
         let func_type = func_type.follow_bindings();
 
@@ -904,6 +905,9 @@ impl Elaborator<'_> {
 
         let hir_call = HirCallExpression { func, arguments, location, is_macro_call };
         let typ = self.type_check_call(&hir_call, func_type, args, location);
+        // As for a method call, so that a result whose type an impl decides (`Tr::mk(k).1`) is
+        // known before it is used.
+        self.try_resolve_trait_constraints_since(trait_constraints_checkpoint);
 
         (hir_call, typ)
     }

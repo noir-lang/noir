@@ -2720,6 +2720,94 @@ fn explicit_type_at_trait_method_call_with_zero_associated_constant() {
     assert_no_errors(src);
 }
 
+/// The result of a call written as a path has a known type as soon as the call is checked, as
+/// for the same call written as a method call, so it can be used right away.
+#[test]
+fn associated_type_returned_by_path_call_is_known_when_the_result_is_used() {
+    let src = r#"
+    pub trait Tr {
+        type Out;
+        fn mk() -> Self::Out;
+        fn mk2(self) -> Self::Out;
+    }
+
+    pub struct K {}
+    impl Tr for K {
+        type Out = (u8, u16);
+        fn mk() -> (u8, u16) { (1, 2) }
+        fn mk2(self) -> (u8, u16) { (3, 4) }
+    }
+
+    pub struct G<let N: u32> {}
+    impl<let N: u32> Tr for G<N> {
+        type Out = [u8; N];
+        fn mk() -> [u8; N] { [5; N] }
+        fn mk2(self) -> [u8; N] { [6; N] }
+    }
+
+    trait Size { fn size(self) -> u32; }
+    impl<let N: u32> Size for [u8; N] { fn size(self) -> u32 { N } }
+
+    fn bt<T: Tr>() -> T::Out { T::mk() }
+
+    fn bound_with_associated_type<T: Tr<Out = (u8, u16)>>(t: T) -> u16 { Tr::mk2(t).1 }
+
+    fn main() {
+        let _: u16 = <K as Tr>::mk().1;
+        let a = <K as Tr>::mk();
+        let _: u16 = a.1;
+        let _: u16 = Tr::mk2(K {}).1;
+        let _: u16 = bt::<K>().1;
+        let _: u32 = <G<3> as Tr>::mk().size();
+        let _: u8 = <G<3> as Tr>::mk()[0];
+        let _: u32 = Tr::mk2(G::<3> {}).size();
+        let _: u16 = bound_with_associated_type(K {});
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// `K: Tr<_>` has two candidates here: `Tr<u8>`, and `Tr<T>` for any `T: Foo`. Whether the second
+/// applies isn't known when the call is checked, so the call doesn't settle on `Tr<u8>` and the
+/// annotation that follows picks `Tr<u16>`.
+#[test]
+fn path_call_keeps_trait_argument_open_while_an_impl_where_clause_is_undecided() {
+    let src = r#"
+    trait Foo { fn make() -> Self; }
+    impl Foo for u16 { fn make() -> u16 { 2 } }
+
+    trait Tr<T> { fn mk(self) -> T; }
+    pub struct K {}
+    impl Tr<u8> for K { fn mk(self) -> u8 { 1 } }
+    impl<T> Tr<T> for K where T: Foo { fn mk(self) -> T { T::make() } }
+
+    fn main() {
+        let x = Tr::mk(K {});
+        let _y: u16 = x;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn method_call_keeps_trait_argument_open_while_an_impl_where_clause_is_undecided() {
+    let src = r#"
+    trait Foo { fn make() -> Self; }
+    impl Foo for u16 { fn make() -> u16 { 2 } }
+
+    trait Tr<T> { fn mk(self) -> T; }
+    pub struct K {}
+    impl Tr<u8> for K { fn mk(self) -> u8 { 1 } }
+    impl<T> Tr<T> for K where T: Foo { fn mk(self) -> T { T::make() } }
+
+    fn main() {
+        let x = K {}.mk();
+        let _y: u16 = x;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
 #[test]
 fn trait_associated_constant_global_uses_placeholder_statement() {
     use crate::hir::def_map::ModuleDefId;
@@ -3222,14 +3310,15 @@ fn sibling_bound_on_one_trait_is_rejected_when_it_makes_the_body_ill_typed() {
     }
 
     pub fn f<T>(x: T) -> u8
+                         ^^ expected type u8, found type u32
+                         ~~ expected u8 because of return type
     where
         T: Foo<u32, Assoc = u32>,
         T: Foo<u8, Assoc = u8>,
         T: Foo<u8, Assoc = u8>,
     {
         Foo::<u32>::get(x)
-        ^^^^^^^^^^^^^^^ No matching impl found for `T: Foo<u32, Assoc = u8>`
-        ~~~~~~~~~~~~~~~ No impl for `T: Foo<u32, Assoc = u8>`
+        ~~~~~~~~~~~~~~~~~~ u32 returned here
     }
 
     fn main() {
