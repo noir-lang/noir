@@ -108,7 +108,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: ${{ matrix.name }}
           path: ./target/release/${{ matrix.name }}
@@ -142,7 +142,7 @@ jobs:
         run: just build-package @noir-lang/noirc_abi
 
       - name: Upload artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: noirc_abi_wasm
           path: |
@@ -181,7 +181,7 @@ jobs:
         run: just build-package @noir-lang/noir_wasm
 
       - name: Upload artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: noir_wasm
           path: |
@@ -219,7 +219,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: acvm-js
           path: |
@@ -240,7 +240,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Download artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: acvm-js
           path: ./acvm-repo/acvm_js
@@ -304,7 +304,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Download artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: acvm-js
           path: ./acvm-repo/acvm_js
@@ -330,7 +330,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Download wasm package artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: noirc_abi_wasm
           path: ./tooling/noirc_abi_wasm
@@ -369,13 +369,13 @@ jobs:
           name: nargo
 
       - name: Download artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: acvm-js
           path: ./acvm-repo/acvm_js
 
       - name: Download wasm package artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: noirc_abi_wasm
           path: ./tooling/noirc_abi_wasm
@@ -406,7 +406,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Download wasm package artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: noir_wasm
           path: ./compiler/wasm
@@ -453,13 +453,13 @@ jobs:
           name: nargo
 
       - name: Download acvm_js package artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: acvm-js
           path: ./acvm-repo/acvm_js
 
       - name: Download noirc_abi package artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: noirc_abi_wasm
           path: ./tooling/noirc_abi_wasm
@@ -507,19 +507,19 @@ jobs:
           name: nargo
 
       - name: Download acvm_js package artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: acvm-js
           path: ./acvm-repo/acvm_js
 
       - name: Download noir_wasm package artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: noir_wasm
           path: ./compiler/wasm
 
       - name: Download noirc_abi package artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: noirc_abi_wasm
           path: ./tooling/noirc_abi_wasm
@@ -553,19 +553,19 @@ jobs:
   #       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
   #     - name: Download acvm_js package artifact
-  #       uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+  #       uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
   #       with:
   #         name: acvm-js
   #         path: ./acvm-repo/acvm_js
 
   #     - name: Download noir_wasm package artifact
-  #       uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+  #       uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
   #       with:
   #         name: noir_wasm
   #         path: ./compiler/wasm
 
   #     - name: Download noirc_abi package artifact
-  #       uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+  #       uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
   #       with:
   #         name: noirc_abi_wasm
   #         path: ./tooling/noirc_abi_wasm
@@ -643,13 +643,13 @@ jobs:
           name: noir-profiler
 
       - name: Download acvm_js package artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: acvm-js
           path: ./acvm-repo/acvm_js
 
       - name: Download noirc_abi package artifact
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: noirc_abi_wasm
           path: ./tooling/noirc_abi_wasm
@@ -733,7 +733,7 @@ jobs:
 
       - name: Upload test report
         if: ${{ matrix.timeout > 20 }} # We want to avoid recording benchmarking for a ton of tiny libraries, these should be covered with aggressive timeouts
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: ${{ steps.test_report_name.outputs.test_report_name }}
           path: ${{ steps.test_report_name.outputs.test_report_name }}.json
@@ -872,7 +872,7 @@ jobs:
 
       - name: Upload actual diagnostics
         if: ${{ failure() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: aztec-node-status
           path: ${{ runner.temp }}/aztec-node-status
@@ -896,7 +896,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Download matrix test reports
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           pattern: test_report_*
           path: ./reports
