@@ -56,7 +56,7 @@ use crate::{
     elaborator::types::WildcardDisallowedContext,
     graph::CrateId,
     hir::{
-        Context,
+        CheckState, Context,
         comptime::{ComptimeError, ComptimeIo, EvaluationTracker, InterpreterError},
         def_collector::{
             dc_crate::{
@@ -316,6 +316,7 @@ impl<'context> Elaborator<'context> {
         crate_id: CrateId,
         options: ElaboratorOptions<'context>,
         comptime_io: &'context mut ComptimeIo,
+        state: &'context mut CheckState,
     ) -> Self {
         Self::new(
             &mut context.def_interner,
@@ -326,7 +327,7 @@ impl<'context> Elaborator<'context> {
             &comptime_io.output,
             comptime_io.evaluation_tracker.as_mut(),
             &context.required_unstable_features,
-            &mut context.unresolved_globals,
+            &mut state.unresolved_globals,
             crate_id,
             options,
             ElaborationSession::default(),
@@ -340,8 +341,10 @@ impl<'context> Elaborator<'context> {
         items: CollectedItems,
         options: ElaboratorOptions<'context>,
         comptime_io: &'context mut ComptimeIo,
+        state: &'context mut CheckState,
     ) -> CompilationErrors {
-        Self::elaborate_and_return_self(context, crate_id, items, options, comptime_io).errors
+        Self::elaborate_and_return_self(context, crate_id, items, options, comptime_io, state)
+            .errors
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
@@ -351,8 +354,9 @@ impl<'context> Elaborator<'context> {
         items: CollectedItems,
         options: ElaboratorOptions<'context>,
         comptime_io: &'context mut ComptimeIo,
+        state: &'context mut CheckState,
     ) -> Self {
-        let mut this = Self::from_context(context, crate_id, options, comptime_io);
+        let mut this = Self::from_context(context, crate_id, options, comptime_io, state);
         this.elaborate_items(items);
         this.check_and_pop_function_context();
         this
@@ -939,7 +943,7 @@ pub mod test_utils {
         use crate::{
             elaborator::Elaborator,
             hir::{
-                Context, ParsedFiles,
+                CheckState, Context, ParsedFiles,
                 comptime::ComptimeIo,
                 def_collector::{dc_crate::DefCollector, dc_mod::collect_defs},
                 def_map::{CrateDefMap, ModuleData, ModuleId},
@@ -984,6 +988,7 @@ pub mod test_utils {
         let mut collector = DefCollector::new(def_map);
         let reuse_existing_module_declarations = false;
 
+        let mut state = CheckState::default();
         collect_defs(
             &mut collector,
             ast,
@@ -991,6 +996,7 @@ pub mod test_utils {
             root_module_id,
             krate,
             &mut context,
+            &mut state,
             reuse_existing_module_declarations,
         );
         context.def_maps.insert(krate, collector.def_map);
@@ -1003,6 +1009,7 @@ pub mod test_utils {
             collector.items,
             ElaboratorOptions::test_default(),
             &mut comptime_io,
+            &mut state,
         );
 
         // Skip the elaborator's compilation warnings

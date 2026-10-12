@@ -51,18 +51,24 @@ pub struct Context {
     /// Used to identify debug functions during monomorphization.
     pub debug_crate_id: Option<CrateId>,
 
-    /// A map of each file that already has been visited from a prior `mod foo;` declaration.
-    /// This is used to issue an error if a second `mod foo;` is declared to the same file.
-    pub visited_files: BTreeMap<FileId, Location>,
-
     /// The parse result of each file in the file manager. Read-only and shared, like the file
     /// manager itself.
     pub parsed_files: Arc<ParsedFiles>,
 
     /// Any unstable features required by the current package or its dependencies.
     pub required_unstable_features: BTreeMap<CrateId, Vec<UnstableFeature>>,
+}
 
-    /// Unresolved globals that need to be elaborated.
+/// What one run of definition collection and elaboration keeps track of across the crates it
+/// visits. It is of no use once the run is over, so it is not part of the [`Context`].
+#[derive(Default)]
+pub struct CheckState {
+    /// Each file that already has been visited from a prior `mod foo;` declaration.
+    /// This is used to issue an error if a second `mod foo;` is declared to the same file.
+    pub(crate) visited_files: BTreeMap<FileId, Location>,
+
+    /// Globals which are registered but not elaborated yet. Every elaborator of the run shares
+    /// them, so that a global one of them elaborates is not elaborated again by another.
     pub(crate) unresolved_globals: Deferred<GlobalId, UnresolvedGlobal>,
 }
 
@@ -94,14 +100,12 @@ impl Context {
             def_interner: NodeInterner::default(),
             def_maps: BTreeMap::new(),
             usage_tracker: UsageTracker::default(),
-            visited_files: BTreeMap::new(),
             crate_graph: CrateGraph::default(),
             file_manager: file_manager.into(),
             debug_instrumenter: DebugInstrumenter::default(),
             debug_crate_id: None,
             parsed_files: parsed_files.into(),
             required_unstable_features: BTreeMap::new(),
-            unresolved_globals: Deferred::default(),
         }
     }
 
@@ -128,7 +132,9 @@ impl Context {
         options: FrontendOptions,
         comptime_io: &mut ComptimeIo,
     ) -> (CheckedContext, Vec<CompilationError>) {
-        let errors = CrateDefMap::collect_defs(crate_id, &mut self, options, comptime_io);
+        let mut state = CheckState::default();
+        let errors =
+            CrateDefMap::collect_defs(crate_id, &mut self, options, comptime_io, &mut state);
         (CheckedContext { context: self }, errors)
     }
 

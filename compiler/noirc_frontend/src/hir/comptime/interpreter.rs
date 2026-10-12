@@ -45,12 +45,12 @@ use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, UnaryOp};
 use crate::elaborator::{Elaborator, ElaboratorOptions};
-use crate::hir::CheckedContext;
 use crate::hir::comptime::ComptimeIo;
 use crate::hir::comptime::Integer;
 use crate::hir::comptime::ValueCell;
 use crate::hir::comptime::value::FormatStringFragment;
 use crate::hir::def_map::ModuleId;
+use crate::hir::{CheckState, CheckedContext};
 use crate::hir_def::types::resolve_type_bindings;
 use crate::monomorphization::{compute_impl_bindings, resolve_trait_item};
 use crate::node_interner::GlobalValue;
@@ -2051,8 +2051,16 @@ impl CheckedContext {
         };
         let module_id = ModuleId { krate: crate_id, local_id };
 
-        let mut elaborator =
-            Elaborator::from_context(self.context_mut(), crate_id, cli_options, comptime_io);
+        // Whatever checking the crates registered has been elaborated by now, so the function
+        // is interpreted against a state of its own.
+        let mut state = CheckState::default();
+        let mut elaborator = Elaborator::from_context(
+            self.context_mut(),
+            crate_id,
+            cli_options,
+            comptime_io,
+            &mut state,
+        );
         elaborator.setup_interpreter_for(module_id, |interpreter| {
             let instantiation_bindings = TypeBindings::default();
             interpreter.call_function(main_id, args, instantiation_bindings, location)

@@ -41,9 +41,9 @@ use super::{
     },
     errors::{DefCollectorErrorKind, DuplicateType},
 };
-use crate::hir::Context;
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, MAIN_FUNCTION, ModuleData, ModuleId};
 use crate::hir::resolution::import::ImportDirective;
+use crate::hir::{CheckState, Context};
 use crate::hir_def::stmt::HirStatement;
 
 /// Given a module collect all definitions into `ModuleData`
@@ -61,6 +61,7 @@ struct ModCollector<'a> {
 /// and processing the file behind `mod foo;` declarations, as when a file is changed those
 /// modules should already exist and they don't need to be reprocessed (they are added as child modules
 /// to `module_id`, though).
+#[allow(clippy::too_many_arguments)]
 #[tracing::instrument(level = "trace", skip_all)]
 pub fn collect_defs(
     def_collector: &mut DefCollector,
@@ -69,6 +70,7 @@ pub fn collect_defs(
     module_id: LocalModuleId,
     crate_id: CrateId,
     context: &mut Context,
+    state: &mut CheckState,
     reuse_existing_module_declarations: bool,
 ) -> CompilationErrors {
     let mut collector = ModCollector { def_collector, file_id, module_id };
@@ -78,6 +80,7 @@ pub fn collect_defs(
     for decl in ast.module_decls {
         errors.extend(collector.parse_module_declaration(
             context,
+            state,
             decl,
             crate_id,
             file_id,
@@ -88,6 +91,7 @@ pub fn collect_defs(
 
     errors.extend(collector.collect_submodules(
         context,
+        state,
         crate_id,
         module_id,
         ast.submodules,
@@ -761,6 +765,7 @@ impl ModCollector<'_> {
     fn collect_submodules(
         &mut self,
         context: &mut Context,
+        state: &mut CheckState,
         crate_id: CrateId,
         parent_module_id: LocalModuleId,
         submodules: Vec<Documented<SortedSubModule>>,
@@ -819,6 +824,7 @@ impl ModCollector<'_> {
                         child.local_id,
                         crate_id,
                         context,
+                        state,
                         reuse_existing_module_declarations,
                     ));
                 }
@@ -843,6 +849,7 @@ impl ModCollector<'_> {
     fn parse_module_declaration(
         &mut self,
         context: &mut Context,
+        state: &mut CheckState,
         mod_decl: Documented<ModuleDeclaration>,
         crate_id: CrateId,
         parent_file_id: FileId,
@@ -888,7 +895,7 @@ impl ModCollector<'_> {
             }
         }
 
-        if let Some(old_location) = context.visited_files.get(&child_file_id) {
+        if let Some(old_location) = state.visited_files.get(&child_file_id) {
             let error = DefCollectorErrorKind::ModuleAlreadyPartOfCrate {
                 mod_name: mod_decl.ident.clone(),
                 location,
@@ -903,7 +910,7 @@ impl ModCollector<'_> {
             return errors;
         }
 
-        context.visited_files.insert(child_file_id, location);
+        state.visited_files.insert(child_file_id, location);
 
         // Parse the AST for the module we just found and then recursively look for it's defs
         let (ast, parsing_errors) = context.parsed_file_results(child_file_id);
@@ -952,6 +959,7 @@ impl ModCollector<'_> {
                     child_mod_id.local_id,
                     crate_id,
                     context,
+                    state,
                     reuse_existing_module_declarations,
                 ));
             }

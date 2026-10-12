@@ -41,6 +41,20 @@ items, so it takes `&mut self`. It is the only method which does.
 analysis apart into its per-package cache, which a single-file change then updates in place by
 elaborating that file against it directly.
 
+## State of a single check is not on the context
+
+Definition collection and elaboration keep some bookkeeping while they run over a crate graph:
+which files a `mod foo;` declaration has already claimed, and which globals are registered but
+not elaborated yet. It lives in a `CheckState` which `Context::check_crate` creates and hands
+down, so that neither a `Context` nor a `CheckedContext` carries it.
+
+Every global registered during a check is elaborated before the check returns, so
+`CheckedContext::interpret_function` runs against a new, empty `CheckState` and sees the same
+thing it would have seen in the one the check used.
+
+Tools which drive collection themselves (the language server's single-file re-check) create a
+`CheckState` per run.
+
 ## Source files are shared, not borrowed
 
 A `Context` holds its `FileManager` and parsed files as `Arc`s. They are read-only once a

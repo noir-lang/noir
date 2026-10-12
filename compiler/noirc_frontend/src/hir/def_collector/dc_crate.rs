@@ -11,12 +11,12 @@ use crate::token::SecondaryAttribute;
 use crate::usage_tracker::UnusedItem;
 use crate::{ResolvedGenerics, Type};
 
-use crate::hir::Context;
 use crate::hir::def_map::ModuleDefId;
 use crate::hir::resolution::import::{
     ImportDirective, PathResolutionError, ResolvedImport, resolve_import,
 };
 use crate::hir::resolution::visibility::trait_visibility_for_method_is_satisfied;
+use crate::hir::{CheckState, Context};
 
 use crate::ast::{DocComment, Expression, NoirEnumeration, PathKind, TypeAlias};
 use crate::node_interner::{
@@ -426,6 +426,7 @@ impl DefCollector {
         root_file_id: FileId,
         options: FrontendOptions,
         comptime_io: &mut ComptimeIo,
+        state: &mut CheckState,
     ) -> Vec<CompilationError> {
         let mut errors = CompilationErrors::default();
         let crate_id = def_map.krate();
@@ -438,7 +439,13 @@ impl DefCollector {
         let crate_graph = &context.crate_graph[crate_id];
 
         for dep in crate_graph.dependencies.clone() {
-            errors.extend(CrateDefMap::collect_defs(dep.crate_id, context, options, comptime_io));
+            errors.extend(CrateDefMap::collect_defs(
+                dep.crate_id,
+                context,
+                options,
+                comptime_io,
+                state,
+            ));
 
             let dep_def_map =
                 context.def_map(&dep.crate_id).expect("ICE: def map was just created");
@@ -474,6 +481,7 @@ impl DefCollector {
             def_collector,
             options,
             comptime_io,
+            state,
             reuse_existing_module_declarations,
             &mut errors,
         );
@@ -507,6 +515,7 @@ impl DefCollector {
         mut def_collector: DefCollector,
         options: FrontendOptions,
         comptime_io: &mut ComptimeIo,
+        state: &mut CheckState,
         reuse_existing_module_declarations: bool,
         errors: &mut CompilationErrors,
     ) {
@@ -529,6 +538,7 @@ impl DefCollector {
             local_module_id,
             crate_id,
             context,
+            state,
             reuse_existing_module_declarations,
         ));
 
@@ -565,8 +575,14 @@ impl DefCollector {
             disable_required_unstable_features: options.disable_required_unstable_features,
         };
 
-        let more_errors =
-            Elaborator::elaborate(context, crate_id, def_collector.items, cli_options, comptime_io);
+        let more_errors = Elaborator::elaborate(
+            context,
+            crate_id,
+            def_collector.items,
+            cli_options,
+            comptime_io,
+            state,
+        );
 
         errors.extend(more_errors);
     }
