@@ -24,6 +24,7 @@ use nargo_fmt::Config;
 
 use noirc_frontend::ast::Ident;
 use noirc_frontend::graph::{CrateGraph, CrateId};
+use noirc_frontend::hir::Context;
 use noirc_frontend::hir::def_map::{CrateDefMap, ModuleId};
 use noirc_frontend::node_interner::ReferenceId;
 use noirc_frontend::parser::ParserError;
@@ -697,23 +698,27 @@ where
     let parsed_files = Arc::new(parse_diff(&workspace_file_manager, state));
     let workspace_file_manager = Arc::new(workspace_file_manager);
 
-    let (mut context, crate_id) =
+    let (context, crate_id) =
         crate::prepare_package(&workspace_file_manager, &parsed_files, package);
 
     let interner;
     let def_maps;
     let usage_tracker;
-    if let Some(package_cache) = state.package_cache.get(&package.root_dir) {
+    let checked_context;
+    let context: &Context = if let Some(package_cache) = state.package_cache.get(&package.root_dir)
+    {
         interner = &package_cache.node_interner;
         def_maps = &package_cache.def_maps;
         usage_tracker = &package_cache.usage_tracker;
+        &context
     } else {
         // We ignore the warnings and errors produced by compilation while resolving the definition
-        let _ = noirc_driver::check_crate(&mut context, crate_id, &Default::default());
-        interner = &context.def_interner;
-        def_maps = &context.def_maps;
-        usage_tracker = &context.usage_tracker;
-    }
+        (checked_context, _) = noirc_driver::check_crate(context, crate_id, &Default::default());
+        interner = &checked_context.def_interner;
+        def_maps = &checked_context.def_maps;
+        usage_tracker = &checked_context.usage_tracker;
+        &checked_context
+    };
 
     let files = workspace_file_manager.as_file_map();
 

@@ -143,9 +143,9 @@ fn package_crate(
     dependencies: &mut HashMap<String, Crate>,
     broken_links: &mut Vec<BrokenLink>,
 ) -> Result<Crate, CompileError> {
-    let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
+    let (context, crate_id) = prepare_package(file_manager, parsed_files, package);
 
-    check_crate_and_report_errors(&mut context, crate_id, compile_options)?;
+    let context = check_crate_and_report_errors(context, crate_id, compile_options)?;
 
     // Process dependencies first so that if a create publicly re-exports an item
     // from a dependency, it will be found as a ConvertedItem.

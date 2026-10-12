@@ -8,9 +8,10 @@ pub mod type_check;
 
 use crate::ast::{IdentOrQuotedType, UnresolvedGenerics};
 use crate::debug::DebugInstrumenter;
-use crate::elaborator::{Deferred, UnstableFeature};
+use crate::elaborator::{Deferred, FrontendOptions, UnstableFeature};
 use crate::graph::{CrateGraph, CrateId};
-use crate::hir::def_collector::dc_crate::{CompilationErrors, UnresolvedGlobal};
+use crate::hir::comptime::ComptimeIo;
+use crate::hir::def_collector::dc_crate::{CompilationError, CompilationErrors, UnresolvedGlobal};
 use crate::hir::def_map::DefMaps;
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir_def::function::FuncMeta;
@@ -116,6 +117,21 @@ impl Context {
         Context { def_interner, def_maps, crate_graph, ..Context::new(file_manager, parsed_files) }
     }
 
+    /// Runs definition collection and elaboration on `crate_id` and its dependencies, returning
+    /// the checked context along with the errors and warnings found.
+    ///
+    /// The context is returned whether or not there were errors: tooling such as the language
+    /// server works with the analysis of programs which do not compile.
+    pub fn check_crate(
+        mut self,
+        crate_id: CrateId,
+        options: FrontendOptions,
+        comptime_io: &mut ComptimeIo,
+    ) -> (CheckedContext, Vec<CompilationError>) {
+        let errors = CrateDefMap::collect_defs(crate_id, &mut self, options, comptime_io);
+        (CheckedContext { context: self }, errors)
+    }
+
     pub fn parsed_file_results(&self, file_id: FileId) -> (ParsedModule, Vec<ParserError>) {
         self.parsed_files.get(&file_id).expect("noir file wasn't parsed").clone()
     }
@@ -168,8 +184,97 @@ impl Context {
         self.def_interner.function_meta(func_id)
     }
 
+    pub fn module(&self, module_id: def_map::ModuleId) -> &def_map::ModuleData {
+        module_id.module(&self.def_maps)
+    }
+
+    /// Generics need to be resolved before elaboration to distinguish
+    /// between normal and numeric generics.
+    /// This method is expected to be used during definition collection.
+    /// Each result is returned in a list rather than returned as a single result as to allow
+    /// definition collection to provide an error for each ill-formed numeric generic.
+    pub(crate) fn resolve_generics(
+        interner: &NodeInterner,
+        generics: &UnresolvedGenerics,
+        errors: &mut CompilationErrors,
+    ) -> ResolvedGenerics {
+        vecmap(generics, |generic| {
+            // Map the generic to a fresh type variable
+            let id = interner.next_type_variable_id();
+
+            let type_var_kind = generic.kind().unwrap_or_else(|err| {
+                errors.push(err);
+                // When there's an error, unify with any other kinds
+                Kind::Any
+            });
+            let type_var = TypeVariable::unbound(id, type_var_kind);
+            let ident = generic.ident();
+            let location = ident.location();
+
+            if let IdentOrQuotedType::Quoted(quoted_type_id, _) = ident {
+                let typ = interner.get_quoted_type(*quoted_type_id).follow_bindings();
+                if !matches!(typ, Type::NamedGeneric(..)) {
+                    errors.push(ResolverError::MacroResultInGenericsListNotAGeneric {
+                        location,
+                        typ,
+                    });
+                }
+            }
+
+            // Check for name collisions of this generic
+            let name = Rc::new(ident.to_string());
+
+            ResolvedGeneric { name, type_var, location }
+        })
+    }
+
+    pub fn crate_files(&self, crate_id: &CrateId) -> HashSet<FileId> {
+        self.def_maps.get(crate_id).map(|def_map| def_map.file_ids()).unwrap_or_default()
+    }
+
+    /// Activates LSP mode, which will track references for all definitions.
+    pub fn activate_lsp_mode(&mut self, mode: LspMode) {
+        self.def_interner.lsp_mode = Some(mode);
+    }
+}
+
+/// A [`Context`] whose crates have been through definition collection and elaboration.
+///
+/// It dereferences to the [`Context`] for reading and never hands it out mutably, so the queries
+/// and compilations which only make sense on a checked crate take a `&CheckedContext`. Running
+/// comptime code through [`CheckedContext::interpret_function`] is the one operation which
+/// needs it by `&mut`.
+pub struct CheckedContext {
+    context: Context,
+}
+
+impl std::ops::Deref for CheckedContext {
+    type Target = Context;
+
+    fn deref(&self) -> &Context {
+        &self.context
+    }
+}
+
+impl CheckedContext {
+    /// Wraps a context whose crates the caller has collected and elaborated by other means than
+    /// [`Context::check_crate`].
+    #[cfg(any(test, feature = "test_utils"))]
+    pub(crate) fn assume_checked(context: Context) -> Self {
+        Self { context }
+    }
+
+    /// Gives up the guarantee that the analysis is unchanged, to check further crates or to
+    /// take the context apart.
+    pub fn into_context(self) -> Context {
+        self.context
+    }
+
+    pub(crate) fn context_mut(&mut self) -> &mut Context {
+        &mut self.context
+    }
+
     /// Returns the `FuncId` of the 'main' function in a crate.
-    /// - Expects `check_crate` to be called beforehand
     /// - Panics if no main function is found
     pub fn get_main_function(&self, crate_id: &CrateId) -> Option<FuncId> {
         // Find the local crate, one should always be present
@@ -237,59 +342,6 @@ impl Context {
                 (function_name, function_id)
             })
             .collect()
-    }
-
-    pub fn module(&self, module_id: def_map::ModuleId) -> &def_map::ModuleData {
-        module_id.module(&self.def_maps)
-    }
-
-    /// Generics need to be resolved before elaboration to distinguish
-    /// between normal and numeric generics.
-    /// This method is expected to be used during definition collection.
-    /// Each result is returned in a list rather than returned as a single result as to allow
-    /// definition collection to provide an error for each ill-formed numeric generic.
-    pub(crate) fn resolve_generics(
-        interner: &NodeInterner,
-        generics: &UnresolvedGenerics,
-        errors: &mut CompilationErrors,
-    ) -> ResolvedGenerics {
-        vecmap(generics, |generic| {
-            // Map the generic to a fresh type variable
-            let id = interner.next_type_variable_id();
-
-            let type_var_kind = generic.kind().unwrap_or_else(|err| {
-                errors.push(err);
-                // When there's an error, unify with any other kinds
-                Kind::Any
-            });
-            let type_var = TypeVariable::unbound(id, type_var_kind);
-            let ident = generic.ident();
-            let location = ident.location();
-
-            if let IdentOrQuotedType::Quoted(quoted_type_id, _) = ident {
-                let typ = interner.get_quoted_type(*quoted_type_id).follow_bindings();
-                if !matches!(typ, Type::NamedGeneric(..)) {
-                    errors.push(ResolverError::MacroResultInGenericsListNotAGeneric {
-                        location,
-                        typ,
-                    });
-                }
-            }
-
-            // Check for name collisions of this generic
-            let name = Rc::new(ident.to_string());
-
-            ResolvedGeneric { name, type_var, location }
-        })
-    }
-
-    pub fn crate_files(&self, crate_id: &CrateId) -> HashSet<FileId> {
-        self.def_maps.get(crate_id).map(|def_map| def_map.file_ids()).unwrap_or_default()
-    }
-
-    /// Activates LSP mode, which will track references for all definitions.
-    pub fn activate_lsp_mode(&mut self, mode: LspMode) {
-        self.def_interner.lsp_mode = Some(mode);
     }
 }
 

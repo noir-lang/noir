@@ -82,10 +82,9 @@ fn run_stdlib_tests(force: Force, inliner_aggressiveness: i64) {
         dependencies: BTreeMap::new(),
     };
 
-    let (mut context, dummy_crate_id) =
-        prepare_package(&file_manager, &parsed_files, &dummy_package);
+    let (context, dummy_crate_id) = prepare_package(&file_manager, &parsed_files, &dummy_package);
 
-    let result = check_crate(&mut context, dummy_crate_id, &Default::default());
+    let (context, result) = check_crate(context, dummy_crate_id, &Default::default());
     report_errors(result, &context.file_manager, &context.parsed_files, true, false)
         .expect("Error encountered while compiling standard library");
 

@@ -16,13 +16,13 @@ use iter_extended::vecmap;
 use noirc_errors::CustomDiagnostic;
 use noirc_errors::Location;
 
-use crate::hir::Context;
 use crate::hir::ParsedFiles;
 use crate::hir::comptime::ComptimeIo;
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::def_collector::dc_crate::DefCollector;
 use crate::hir::def_map::CrateDefMap;
 use crate::hir::def_map::ModuleData;
+use crate::hir::{CheckedContext, Context};
 use crate::parser::{ItemKind, ParserErrorReason};
 use crate::token::SecondaryAttribute;
 use crate::{ParsedModule, parse_program};
@@ -113,7 +113,7 @@ pub(crate) fn remove_experimental_warnings(errors: &mut Vec<CompilationError>) {
 /// Compile a program.
 ///
 /// The stdlib is not available for these snippets.
-pub fn get_program(src: &str) -> (ParsedModule, Context, Vec<CompilationError>) {
+pub fn get_program(src: &str) -> (ParsedModule, CheckedContext, Vec<CompilationError>) {
     get_program_with_options(src, GetProgramOptions::default())
 }
 
@@ -131,7 +131,7 @@ pub enum Expect {
 pub(crate) fn get_program_with_options(
     src: &str,
     options: GetProgramOptions,
-) -> (ParsedModule, Context, Vec<CompilationError>) {
+) -> (ParsedModule, CheckedContext, Vec<CompilationError>) {
     let root = Path::new("/");
     let mut fm = FileManager::new(root);
     let root_file_id = fm.add_file_with_source(Path::new("test_file"), src.to_string()).unwrap();
@@ -185,7 +185,7 @@ pub(crate) fn get_program_with_options(
         ));
     }
 
-    (program, context, errors)
+    (program, CheckedContext::assume_checked(context), errors)
 }
 
 /// Compile a root crate that depends on a *separate* crate whose source is `stdlib_src`.

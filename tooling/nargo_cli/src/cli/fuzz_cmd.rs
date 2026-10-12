@@ -315,9 +315,9 @@ fn run_fuzzing_harness<S: BlackBoxFunctionSolver<FieldElement> + Default>(
     // This is really hacky but we can't share `Context` or `S` across threads.
     // We then need to construct a separate copy for each test.
 
-    let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
-    check_crate(&mut context, crate_id, compile_options)
-        .expect("Any errors should have occurred when collecting fuzzing harnesses");
+    let (context, crate_id) = prepare_package(file_manager, parsed_files, package);
+    let (context, result) = check_crate(context, crate_id, compile_options);
+    result.expect("Any errors should have occurred when collecting fuzzing harnesses");
 
     let pattern = FunctionNameMatch::Exact(vec![fn_name.to_string()]);
     let fuzzing_harnesses =
@@ -355,8 +355,8 @@ fn get_fuzzing_harnesses_in_package(
     fn_name: &FunctionNameMatch,
     options: &CompileOptions,
 ) -> Result<Vec<String>, CliError> {
-    let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
-    check_crate_and_report_errors(&mut context, crate_id, options)?;
+    let (context, crate_id) = prepare_package(file_manager, parsed_files, package);
+    let context = check_crate_and_report_errors(context, crate_id, options)?;
 
     Ok(context
         .get_all_fuzzing_harnesses_in_crate_matching(&crate_id, fn_name)

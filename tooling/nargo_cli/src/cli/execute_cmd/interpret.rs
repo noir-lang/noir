@@ -48,8 +48,8 @@ fn run_package_comptime(
     let (mut context, crate_id) = nargo::prepare_package(file_manager, parsed_files, package);
     noirc_driver::link_to_debug_crate(&mut context, crate_id);
     let mut comptime_io = args.compile_options.comptime_io();
-    let result = noirc_driver::check_crate_with_comptime_io(
-        &mut context,
+    let (mut context, result) = noirc_driver::check_crate_with_comptime_io(
+        context,
         crate_id,
         &args.compile_options,
         &mut comptime_io,

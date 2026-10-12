@@ -323,10 +323,11 @@ pub(crate) fn process_workspace(
     let workspace_file_manager = Arc::new(workspace_file_manager);
 
     for package in workspace {
-        let (mut context, crate_id) =
+        let (context, crate_id) =
             crate::prepare_package(&workspace_file_manager, &parsed_files, package);
 
-        let file_diagnostics = match check_crate(&mut context, crate_id, &Default::default()) {
+        let (context, result) = check_crate(context, crate_id, &Default::default());
+        let file_diagnostics = match result {
             Ok(((), warnings)) => warnings,
             Err(errors_and_warnings) => errors_and_warnings,
         };
@@ -339,6 +340,8 @@ pub(crate) fn process_workspace(
             });
         }
 
+        // The analysis is cached in parts so that single file changes can update them in place.
+        let context = context.into_context();
         state.package_cache.insert(
             package.root_dir.clone(),
             PackageCacheData {
