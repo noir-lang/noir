@@ -95,16 +95,22 @@ impl CompilerContext {
         let compile_options = CompileOptions::default();
 
         let root_crate_id = *self.context.root_crate_id();
-        let compiled_program =
-            compile_main(&mut self.context, root_crate_id, &compile_options, None)
-                .map_err(|errs| {
-                    CompileError::with_custom_diagnostics(
-                        "Failed to compile program",
-                        errs,
-                        &self.context.file_manager,
-                    )
-                })?
-                .0;
+        let compiled_program = compile_main(
+            &mut self.context,
+            root_crate_id,
+            &compile_options,
+            Path::new(""),
+            false,
+            None,
+        )
+        .map_err(|errs| {
+            CompileError::with_custom_diagnostics(
+                "Failed to compile program",
+                errs,
+                &self.context.file_manager,
+            )
+        })?
+        .0;
 
         nargo::ops::check_program(&compiled_program).map_err(|errs| {
             CompileError::with_custom_diagnostics(
@@ -126,7 +132,7 @@ impl CompilerContext {
 
         let root_crate_id = *self.context.root_crate_id();
         let compiled_contract =
-            compile_contract(&mut self.context, root_crate_id, &compile_options)
+            compile_contract(&mut self.context, root_crate_id, &compile_options, Path::new(""))
                 .map_err(|errs| {
                     CompileError::with_custom_diagnostics(
                         "Failed to compile contract",

@@ -10,6 +10,7 @@
 //!    ([`TestRunner::show_in_package_order`]), or as they arrive for a [`LiveFormatter`]
 //!    ([`TestRunner::report_as_completed`]).
 
+use std::path::Path;
 use std::sync::Arc;
 use std::{
     cell::RefCell,
@@ -590,6 +591,8 @@ impl<'a> TestRunner<'a> {
         match noirc_driver::compile_no_check(
             context,
             &self.args.compile_options,
+            Path::new(""),
+            false,
             test_function.id,
             None,
             false,

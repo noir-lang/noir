@@ -75,6 +75,8 @@ fn prepare_and_compile_snippet<W: std::io::Write + 'static>(
         &mut context,
         root_crate_id,
         &options,
+        Path::new(""),
+        false,
         None,
         &mut comptime_io,
     );

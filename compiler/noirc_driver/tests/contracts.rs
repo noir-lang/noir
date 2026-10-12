@@ -28,9 +28,13 @@ contract Bar {}";
     let mut context = Context::new(file_manager, parsed_files);
     let root_crate_id = prepare_crate(&mut context, file_name);
 
-    let errors =
-        noirc_driver::compile_contract(&mut context, root_crate_id, &CompileOptions::default())
-            .unwrap_err();
+    let errors = noirc_driver::compile_contract(
+        &mut context,
+        root_crate_id,
+        &CompileOptions::default(),
+        Path::new(""),
+    )
+    .unwrap_err();
 
     assert_eq!(
         errors,
@@ -62,8 +66,13 @@ fn compile_contract_with_warnings(
     let mut context = Context::new(file_manager, parsed_files);
     let root_crate_id = prepare_crate(&mut context, file_name);
 
-    noirc_driver::compile_contract(&mut context, root_crate_id, &CompileOptions::default())
-        .expect("contract should compile successfully")
+    noirc_driver::compile_contract(
+        &mut context,
+        root_crate_id,
+        &CompileOptions::default(),
+        Path::new(""),
+    )
+    .expect("contract should compile successfully")
 }
 
 fn compile_contract_source(source: &str) -> noirc_artifacts::contract::CompiledContract {
@@ -82,9 +91,13 @@ fn compile_contract_source(source: &str) -> noirc_artifacts::contract::CompiledC
     let mut context = Context::new(file_manager, parsed_files);
     let root_crate_id = prepare_crate(&mut context, file_name);
 
-    let (contract, _warnings) =
-        noirc_driver::compile_contract(&mut context, root_crate_id, &CompileOptions::default())
-            .expect("contract should compile successfully");
+    let (contract, _warnings) = noirc_driver::compile_contract(
+        &mut context,
+        root_crate_id,
+        &CompileOptions::default(),
+        Path::new(""),
+    )
+    .expect("contract should compile successfully");
     contract
 }
 

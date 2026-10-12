@@ -117,11 +117,17 @@ fn execute_without_artifacts(args: ExecuteCommand, workspace: Workspace) -> Resu
     for package in workspace.into_iter().filter(|package| package.is_binary()) {
         let (mut context, crate_id) = prepare_package(&file_manager, &parsed_files, package);
         link_to_debug_crate(&mut context, crate_id);
-        context.package_build_path = workspace.package_build_path(package);
-        context.count_array_copies = true;
+        let package_build_path = workspace.package_build_path(package);
 
         // Passing no cached program ignores any previously persisted, un-instrumented artifact.
-        let compilation_result = compile_main(&mut context, crate_id, &args.compile_options, None);
+        let compilation_result = compile_main(
+            &mut context,
+            crate_id,
+            &args.compile_options,
+            &package_build_path,
+            true,
+            None,
+        );
         let program = report_errors(
             compilation_result,
             &file_manager,

@@ -12,6 +12,7 @@ use noirc_abi::{Abi, InputMap};
 use noirc_driver::{CompileOptions, compile_no_check};
 use noirc_errors::CustomDiagnostic;
 use noirc_frontend::hir::{Context, def_map::FuzzingHarness};
+use std::path::Path;
 
 use crate::foreign_calls::ForeignCallExecutor;
 use crate::{
@@ -103,7 +104,15 @@ where
     let acir_config = CompileOptions { force_brillig: false, ..compile_config.clone() };
     let brillig_config = CompileOptions { force_brillig: true, ..compile_config.clone() };
 
-    let acir_program = compile_no_check(context, &acir_config, fuzzing_harness.id, None, false);
+    let acir_program = compile_no_check(
+        context,
+        &acir_config,
+        Path::new(""),
+        false,
+        fuzzing_harness.id,
+        None,
+        false,
+    );
 
     // We need to clone the acir program because it will be moved into the fuzzer
     // and we need to keep the original program for the error message and callstack
@@ -112,8 +121,15 @@ where
     } else {
         None
     };
-    let brillig_program =
-        compile_no_check(context, &brillig_config, fuzzing_harness.id, None, false);
+    let brillig_program = compile_no_check(
+        context,
+        &brillig_config,
+        Path::new(""),
+        false,
+        fuzzing_harness.id,
+        None,
+        false,
+    );
     let brillig_program_copy = if let Ok(brillig_program_internal) = &brillig_program {
         Some(brillig_program_internal.clone())
     } else {

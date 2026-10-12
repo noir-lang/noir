@@ -5,6 +5,7 @@ use noirc_artifacts::program::CompiledProgram;
 use noirc_errors::CustomDiagnostic;
 use noirc_frontend::hir::ParsedFiles;
 use rayon::prelude::*;
+use std::path::Path;
 use std::sync::Arc;
 
 use fm::FileManager;
@@ -83,8 +84,16 @@ fn compile_exported_functions(
         exported_functions,
         |(function_name, function_id)| -> Result<(String, CompiledProgram), CompileError> {
             // TODO: We should to refactor how to deal with compilation errors to avoid this.
-            let program = compile_no_check(&context, compile_options, function_id, None, false)
-                .map_err(|error| vec![CustomDiagnostic::from(error)]);
+            let program = compile_no_check(
+                &context,
+                compile_options,
+                Path::new(""),
+                false,
+                function_id,
+                None,
+                false,
+            )
+            .map_err(|error| vec![CustomDiagnostic::from(error)]);
 
             let program = report_errors(
                 program.map(|program| (program, Vec::new())),

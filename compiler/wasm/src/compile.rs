@@ -171,16 +171,22 @@ pub fn compile_program(
 
     let compile_options = CompileOptions::default();
 
-    let compiled_program =
-        noirc_driver::compile_main(&mut context, crate_id, &compile_options, None)
-            .map_err(|errs| {
-                CompileError::with_custom_diagnostics(
-                    "Failed to compile program",
-                    errs,
-                    &context.file_manager,
-                )
-            })?
-            .0;
+    let compiled_program = noirc_driver::compile_main(
+        &mut context,
+        crate_id,
+        &compile_options,
+        Path::new(""),
+        false,
+        None,
+    )
+    .map_err(|errs| {
+        CompileError::with_custom_diagnostics(
+            "Failed to compile program",
+            errs,
+            &context.file_manager,
+        )
+    })?
+    .0;
 
     nargo::ops::check_program(&compiled_program).map_err(|errs| {
         CompileError::with_custom_diagnostics(
@@ -206,7 +212,7 @@ pub fn compile_contract(
     let compile_options = CompileOptions::default();
 
     let compiled_contract =
-        noirc_driver::compile_contract(&mut context, crate_id, &compile_options)
+        noirc_driver::compile_contract(&mut context, crate_id, &compile_options, Path::new(""))
             .map_err(|errs: Vec<noirc_errors::CustomDiagnostic>| {
                 CompileError::with_custom_diagnostics(
                     "Failed to compile contract",

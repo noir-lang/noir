@@ -46,7 +46,7 @@ use noirc_frontend::monomorphization::{
 use noirc_frontend::node_interner::{FuncId, GlobalId, GlobalValue, TypeId};
 use noirc_frontend::token::SecondaryAttributeKind;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tracing::info;
 
 mod abi_gen;
@@ -489,15 +489,26 @@ pub fn compute_function_abi(
 /// On success this returns the compiled program alongside any warnings that were found.
 /// On error this returns the non-empty list of warnings and errors.
 ///
-/// See [`compile_no_check`] for further information about the use of `cached_program`.
+/// See [`compile_no_check`] for further information about the use of `package_build_path`,
+/// `count_array_copies` and `cached_program`.
 pub fn compile_main(
     context: &mut Context,
     crate_id: CrateId,
     options: &CompileOptions,
+    package_build_path: &Path,
+    count_array_copies: bool,
     cached_program: Option<CompiledProgram>,
 ) -> CompilationResult<CompiledProgram> {
     let mut comptime_io = options.comptime_io();
-    compile_main_with_comptime_io(context, crate_id, options, cached_program, &mut comptime_io)
+    compile_main_with_comptime_io(
+        context,
+        crate_id,
+        options,
+        package_build_path,
+        count_array_copies,
+        cached_program,
+        &mut comptime_io,
+    )
 }
 
 /// Same as [`compile_main`], but comptime code writes to `comptime_io`, whatever `options` say
@@ -507,6 +518,8 @@ pub fn compile_main_with_comptime_io(
     context: &mut Context,
     crate_id: CrateId,
     options: &CompileOptions,
+    package_build_path: &Path,
+    count_array_copies: bool,
     cached_program: Option<CompiledProgram>,
     comptime_io: &mut ComptimeIo,
 ) -> CompilationResult<CompiledProgram> {
@@ -521,9 +534,16 @@ pub fn compile_main_with_comptime_io(
         vec![err]
     })?;
 
-    let compiled_program =
-        compile_no_check(context, options, main, cached_program, options.force_compile)
-            .map_err(|error| vec![CustomDiagnostic::from(error)])?;
+    let compiled_program = compile_no_check(
+        context,
+        options,
+        package_build_path,
+        count_array_copies,
+        main,
+        cached_program,
+        options.force_compile,
+    )
+    .map_err(|error| vec![CustomDiagnostic::from(error)])?;
 
     let compilation_warnings =
         vecmap(compiled_program.warnings.clone(), ssa_report_to_custom_diagnostic);
@@ -543,11 +563,14 @@ pub fn compile_main_with_comptime_io(
 }
 
 /// Run the frontend to check the crate for errors then compile all contracts if there were none
+///
+/// See [`compile_no_check`] for further information about the use of `package_build_path`.
 #[tracing::instrument(level = "trace", skip_all)]
 pub fn compile_contract(
     context: &mut Context,
     crate_id: CrateId,
     options: &CompileOptions,
+    package_build_path: &Path,
 ) -> CompilationResult<CompiledContract> {
     let (_, mut warnings) = check_crate(context, crate_id, options)?;
 
@@ -574,14 +597,15 @@ pub fn compile_contract(
     let module_id = ModuleId { krate: crate_id, local_id: module_id };
     let contract = read_contract(context, module_id, name);
 
-    let compiled_contract = match compile_contract_inner(context, contract, options) {
-        Ok(contract) => contract,
-        Err(mut more_errors) => {
-            let mut errors = warnings;
-            errors.append(&mut more_errors);
-            return Err(errors);
-        }
-    };
+    let compiled_contract =
+        match compile_contract_inner(context, contract, options, package_build_path) {
+            Ok(contract) => contract,
+            Err(mut more_errors) => {
+                let mut errors = warnings;
+                errors.append(&mut more_errors);
+                return Err(errors);
+            }
+        };
 
     let compilation_warnings =
         vecmap(compiled_contract.warnings.clone(), ssa_report_to_custom_diagnostic);
@@ -664,6 +688,7 @@ fn compile_contract_inner(
     context: &Context,
     contract: Contract,
     options: &CompileOptions,
+    package_build_path: &Path,
 ) -> Result<CompiledContract, ErrorsAndWarnings> {
     let mut functions = Vec::new();
     let mut errors = Vec::new();
@@ -695,7 +720,15 @@ fn compile_contract_inner(
             }
         }
 
-        let function = match compile_no_check(context, &options, function_id, None, true) {
+        let function = match compile_no_check(
+            context,
+            &options,
+            package_build_path,
+            false,
+            function_id,
+            None,
+            true,
+        ) {
             Ok(function) => function,
             Err(new_error) => {
                 errors.push(new_error.into());
@@ -862,6 +895,13 @@ pub fn filter_relevant_files(
 ///
 /// This function assumes [`check_crate`] is called beforehand.
 ///
+/// `package_build_path` is the path of the package's artifact, which `--emit-ssa` derives the
+/// location of the SSA it writes from. It is not read otherwise.
+///
+/// `count_array_copies` instruments the compiled Brillig to count array/vector copies per source
+/// location. It is set only by `nargo execute --count-array-copies`, which compiles in memory so
+/// the instrumented artifact is never persisted.
+///
 /// Whether returned from cache or freshly compiled, the program has already been fully optimized and
 /// transformed for the proving backend (the width-bounding CSAT pass and intermediate-variable
 /// elimination, using the assembled program's Brillig side-effect information) as part of
@@ -876,6 +916,8 @@ pub fn filter_relevant_files(
 pub fn compile_no_check(
     context: &Context,
     options: &CompileOptions,
+    package_build_path: &Path,
+    count_array_copies: bool,
     main_function: FuncId,
     cached_program: Option<CompiledProgram>,
     force_compile: bool,
@@ -904,7 +946,7 @@ pub fn compile_no_check(
         || options.print_acir
         || options.show_brillig
         || options.force_brillig
-        || context.count_array_copies
+        || count_array_copies
         || options.show_ssa
         || !options.show_ssa_pass.is_empty()
         || options.emit_ssa
@@ -922,11 +964,10 @@ pub fn compile_no_check(
     }
 
     let return_visibility = program.return_visibility();
-    let mut ssa_evaluator_options = options.as_ssa_options(context.package_build_path.clone());
+    let mut ssa_evaluator_options = options.as_ssa_options(package_build_path.to_path_buf());
 
-    // The copy-site registry is what turns on the `--count-array-copies` instrumentation. It is
-    // enabled per-compilation via the context rather than through the shared `CompileOptions`.
-    if context.count_array_copies {
+    // The copy-site registry is what turns on the `--count-array-copies` instrumentation.
+    if count_array_copies {
         ssa_evaluator_options.brillig_options.copy_site_registry =
             Some(CopySiteRegistry::default());
     }
@@ -938,7 +979,7 @@ pub fn compile_no_check(
             program,
             &ssa_evaluator_options,
             // The registry resolves copy sites to source locations, which needs the file manager.
-            if options.with_ssa_locations || context.count_array_copies {
+            if options.with_ssa_locations || count_array_copies {
                 Some(&context.file_manager)
             } else {
                 None

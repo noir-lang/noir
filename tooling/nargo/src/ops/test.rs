@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::{fs::OpenOptions, path::PathBuf};
 
 use acvm::{
@@ -107,7 +108,7 @@ where
     F: Fn(Box<dyn std::io::Write + 'a>, layers::Unhandled) -> E,
     E: ForeignCallExecutor<FieldElement>,
 {
-    match compile_no_check(context, config, test_function.id, None, false) {
+    match compile_no_check(context, config, Path::new(""), false, test_function.id, None, false) {
         Ok(compiled_program) => run_test_impl(
             blackbox_solver,
             compiled_program,
@@ -199,7 +200,7 @@ where
     F: Fn(Box<dyn std::io::Write + 'a>, layers::Unhandled) -> E + Sync,
     E: ForeignCallExecutor<FieldElement>,
 {
-    match compile_no_check(context, config, test_function.id, None, false) {
+    match compile_no_check(context, config, Path::new(""), false, test_function.id, None, false) {
         Ok(_) => fuzz_test_impl::<W, B, F, E>(
             context,
             test_function,
