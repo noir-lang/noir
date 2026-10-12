@@ -2720,6 +2720,67 @@ fn explicit_type_at_trait_method_call_with_zero_associated_constant() {
     assert_no_errors(src);
 }
 
+/// The associated type a path call returns is decided by a trait constraint. That constraint is
+/// solved when the result's type is needed, so the result can be used right away.
+#[test]
+fn associated_type_returned_by_path_call_is_known_when_the_result_is_used() {
+    let src = r#"
+    pub trait Tr {
+        type Out;
+        fn mk() -> Self::Out;
+        fn mk2(self) -> Self::Out;
+    }
+
+    pub struct K {}
+    impl Tr for K {
+        type Out = (u8, u16);
+        fn mk() -> (u8, u16) { (1, 2) }
+        fn mk2(self) -> (u8, u16) { (3, 4) }
+    }
+
+    pub struct G<let N: u32> {}
+    impl<let N: u32> Tr for G<N> {
+        type Out = [u8; N];
+        fn mk() -> [u8; N] { [5; N] }
+        fn mk2(self) -> [u8; N] { [6; N] }
+    }
+
+    trait Size { fn size(self) -> u32; }
+    impl<let N: u32> Size for [u8; N] { fn size(self) -> u32 { N } }
+
+    pub struct B {}
+    impl Tr for B {
+        type Out = bool;
+        fn mk() -> bool { true }
+        fn mk2(self) -> bool { true }
+    }
+
+    fn bt<T: Tr>() -> T::Out { T::mk() }
+
+    fn bound_with_associated_type<T: Tr<Out = (u8, u16)>>(t: T) -> u16 { Tr::mk2(t).1 }
+
+    fn main() {
+        let _: u16 = <K as Tr>::mk().1;
+        let a = <K as Tr>::mk();
+        let _: u16 = a.1;
+        let _: u16 = Tr::mk2(K {}).1;
+        let _: u16 = bt::<K>().1;
+        let _: u32 = <G<3> as Tr>::mk().size();
+        let _: u8 = <G<3> as Tr>::mk()[0];
+        let _: u32 = Tr::mk2(G::<3> {}).size();
+        let _: u16 = bound_with_associated_type(K {});
+        let f = <K as Tr>::mk;
+        let _: u16 = f().1;
+        let mut b = <G<3> as Tr>::mk();
+        b[0] = 1;
+        let (_, c) = <K as Tr>::mk();
+        let _: u16 = c;
+        let _: u8 = <B as Tr>::mk() as u8;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
 #[test]
 fn trait_associated_constant_global_uses_placeholder_statement() {
     use crate::hir::def_map::ModuleDefId;

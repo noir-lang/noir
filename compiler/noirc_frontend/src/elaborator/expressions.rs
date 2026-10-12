@@ -791,7 +791,7 @@ impl Elaborator<'_> {
         let (lhs, lhs_type) = self.elaborate_expression(index_expr.collection);
         let (collection, lhs_type) = self.insert_auto_dereferences(lhs, lhs_type);
 
-        let typ = match lhs_type.follow_bindings() {
+        let typ = match self.follow_bindings_resolving_trait_constraints(&lhs_type) {
             Type::Array(ref base_type, ref size) => {
                 self.check_array_index_out_of_bounds(size, &index, location);
                 *base_type.clone()

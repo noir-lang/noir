@@ -132,6 +132,18 @@ impl Elaborator<'_> {
         self.get_function_context_mut().trait_constraints.len()
     }
 
+    /// Follows the bindings of `typ`, which is about to be inspected. If it isn't known yet, the
+    /// trait constraints queued so far are tried first, as one of them may decide it (the result
+    /// of a call that returns an associated type).
+    pub(super) fn follow_bindings_resolving_trait_constraints(&mut self, typ: &Type) -> Type {
+        let typ = typ.follow_bindings();
+        if !matches!(typ, Type::TypeVariable(_)) {
+            return typ;
+        }
+        self.try_resolve_trait_constraints_since(0);
+        typ.follow_bindings()
+    }
+
     /// Try to resolve trait constraints pushed since `checkpoint` whose object type has
     /// become concrete. Successfully resolving an impl applies its type bindings, which
     /// can bind associated-type variables that subsequent unifications (e.g. of a call's
