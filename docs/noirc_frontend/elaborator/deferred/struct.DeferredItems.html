@@ -5,8 +5,8 @@
     pub(super) trait_work: <a class="struct" href="struct.PendingTraitWork.html" title="struct noirc_frontend::elaborator::deferred::PendingTraitWork">PendingTraitWork</a>,
 }</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Every kind of deferred work the elaborator owns, in one place so that handing it to a child
 elaborator, or scoping it to one <code>elaborate_items</code> call, moves all of it or none of it.</p>
-<p>Globals are deferred the same way but are not here: they live on the <a href="../../hir/struct.Context.html" title="struct noirc_frontend::hir::Context"><code>Context</code></a> and are shared
-by reference, because a global resolved by one elaborator must stay resolved for the next.</p>
+<p>Globals are deferred the same way but are not here: they live on the <a href="../../hir/struct.CheckState.html" title="struct noirc_frontend::hir::CheckState"><code>CheckState</code></a> and are
+shared by reference, because a global resolved by one elaborator must stay resolved for the next.</p>
 </div></details><h2 id="fields" class="fields section-header">Fields<a href="#fields" class="anchor">§</a></h2><span id="structfield.function_metas" class="structfield section-header"><a href="#structfield.function_metas" class="anchor field">§</a><code>function_metas: <a class="struct" href="struct.Deferred.html" title="struct noirc_frontend::elaborator::deferred::Deferred">Deferred</a>&lt;<a class="struct" href="../../node_interner/struct.FuncId.html" title="struct noirc_frontend::node_interner::FuncId">FuncId</a>, <a class="struct" href="../function/struct.UnresolvedFunctionMeta.html" title="struct noirc_frontend::elaborator::function::UnresolvedFunctionMeta">UnresolvedFunctionMeta</a>&gt;</code></span><div class="docblock"><p>Function signatures registered before their bodies are elaborated. Registering up front and
 resolving on first read is what lets functions, globals and trait associated constants
 refer to each other regardless of source order.</p>

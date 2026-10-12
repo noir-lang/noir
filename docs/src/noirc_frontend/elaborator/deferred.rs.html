@@ -112,10 +112,10 @@
 <a href=#112 id=112 data-nosnippet>112</a><span class="doccomment">/// Every kind of deferred work the elaborator owns, in one place so that handing it to a child
 <a href=#113 id=113 data-nosnippet>113</a>/// elaborator, or scoping it to one `elaborate_items` call, moves all of it or none of it.
 <a href=#114 id=114 data-nosnippet>114</a>///
-<a href=#115 id=115 data-nosnippet>115</a>/// Globals are deferred the same way but are not here: they live on the [`Context`] and are shared
-<a href=#116 id=116 data-nosnippet>116</a>/// by reference, because a global resolved by one elaborator must stay resolved for the next.
+<a href=#115 id=115 data-nosnippet>115</a>/// Globals are deferred the same way but are not here: they live on the [`CheckState`] and are
+<a href=#116 id=116 data-nosnippet>116</a>/// shared by reference, because a global resolved by one elaborator must stay resolved for the next.
 <a href=#117 id=117 data-nosnippet>117</a>///
-<a href=#118 id=118 data-nosnippet>118</a>/// [`Context`]: crate::hir::Context
+<a href=#118 id=118 data-nosnippet>118</a>/// [`CheckState`]: crate::hir::CheckState
 <a href=#119 id=119 data-nosnippet>119</a></span><span class="attr">#[derive(Default)]
 <a href=#120 id=120 data-nosnippet>120</a></span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct </span>DeferredItems {
 <a href=#121 id=121 data-nosnippet>121</a>    <span class="doccomment">/// Function signatures registered before their bodies are elaborated. Registering up front and
