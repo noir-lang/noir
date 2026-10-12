@@ -1,6 +1,7 @@
 //! Tests for default method implementations in trait definitions.
 //! Validates type checking and usage of `Self` within default trait methods.
 
+use crate::test_utils::get_monomorphized;
 use crate::tests::{assert_no_errors, check_errors};
 
 #[test]
@@ -845,6 +846,79 @@ fn default_method_of_generic_trait_sees_parent_reached_through_two_routes_once()
     fn main() {
         let _ = S {}.c() + S {}.d() + S {}.e();
     }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn default_method_call_is_ambiguous_between_parent_trait_and_where_clause_trait() {
+    let src = r#"
+    pub trait Base {
+        fn id(self) -> Field;
+        fn check(self) -> Self { self }
+    }
+    impl Base for Field { fn id(self) -> Field { self } }
+    trait Validate { fn check(self) -> Self; }
+    impl Validate for Field { fn check(self) -> Self { assert(self != 0); self } }
+    trait Process: Base {
+        fn process(self) -> Field where Self: Validate { self.check().id() }
+                                                         ^^^^^^^^^^^^ Multiple applicable items in scope
+                                                         ~~~~~~~~~~~~ Multiple traits which provide `check` are implemented and in scope: `Base`, `Validate`
+    }
+    impl Process for Field {}
+    fn main(x: Field) -> pub Field { x.process() }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn default_method_call_names_the_where_clause_trait_to_pick_its_method() {
+    let src = r#"
+    pub trait Base {
+        fn id(self) -> Field;
+        fn check(self) -> Self { self }
+    }
+    impl Base for Field { fn id(self) -> Field { self } }
+    trait Validate { fn check(self) -> Self; }
+    impl Validate for Field { fn check(self) -> Self { assert(self != 0); self } }
+    trait Process: Base {
+        fn process(self) -> Field where Self: Validate { Validate::check(self).id() }
+    }
+    impl Process for Field {}
+    fn main(x: Field) -> pub Field { x.process() }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0(x$l0: Field) -> pub Field {
+        process$f1(x$l0)
+    }
+    fn process$f1(self$l1: Field) -> Field {
+        id$f2(check$f3(self$l1))
+    }
+    fn id$f2(self$l2: Field) -> Field {
+        self$l2
+    }
+    fn check$f3(self$l3: Field) -> Field {
+        assert((self$l3 != 0));;
+        self$l3
+    }
+    ");
+}
+
+#[test]
+fn default_method_calls_methods_of_parent_trait_and_where_clause_trait_by_distinct_names() {
+    let src = r#"
+    pub trait Base {
+        fn id(self) -> Field;
+    }
+    impl Base for Field { fn id(self) -> Field { self } }
+    trait Validate { fn check(self) -> Self; }
+    impl Validate for Field { fn check(self) -> Self { assert(self != 0); self } }
+    trait Process: Base {
+        fn process(self) -> Field where Self: Validate { self.check().id() }
+    }
+    impl Process for Field {}
+    fn main(x: Field) -> pub Field { x.process() }
     "#;
     assert_no_errors(src);
 }
