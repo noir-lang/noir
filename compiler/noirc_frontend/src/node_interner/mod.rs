@@ -190,6 +190,11 @@ pub struct NodeInterner {
     /// by splitting it up by type.
     trait_implementation_map: HashMap<TraitId, Vec<(Type, TraitImplKind)>>,
 
+    /// The [`TraitImplKind::Assumed`] impls in scope for the item being elaborated, by trait.
+    /// They are kept apart from [`Self::trait_implementation_map`] because they belong to one
+    /// item: they are set aside as a whole while another item is elaborated from inside it.
+    assumed_trait_implementations: HashMap<TraitId, Vec<(Type, TraitImplKind)>>,
+
     /// The where clause of each trait impl, so that a lookup matches an impl only where its
     /// where clause holds.
     ///
@@ -507,6 +512,7 @@ impl Default for NodeInterner {
             impls: HashMap::default(),
             next_impl_id: 0,
             trait_implementation_map: HashMap::default(),
+            assumed_trait_implementations: HashMap::default(),
             trait_impl_where_clauses: HashMap::default(),
             selected_trait_implementations: HashMap::default(),
             infix_operator_traits: HashMap::default(),
