@@ -732,6 +732,125 @@ fn supertrait_bound_mentioning_self_is_instantiated_for_the_implementing_type() 
     );
 }
 
+/// With `trait Child: Parent<Self>`, `Y: Child + Parent<Wide>` gives `Y` both `Parent<Y>` and
+/// `Parent<Wide>`, so the argument of `pick` decides which of the two a call uses.
+#[test]
+fn method_call_argument_picks_between_written_and_implied_bound_on_the_same_trait() {
+    let src = r#"
+    trait Parent<T> {
+        fn limit(self) -> Field;
+        fn pick(self, o: T) -> Field;
+    }
+    trait Child: Parent<Self> {}
+
+    struct Narrow { v: Field }
+    struct Wide { v: Field }
+
+    impl Parent<Wide> for Wide {
+        fn limit(self) -> Field { self.v }
+        fn pick(self, o: Wide) -> Field { let _ = self; o.v }
+    }
+    impl Parent<Narrow> for Narrow {
+        fn limit(self) -> Field { assert(self.v != 100); self.v }
+        fn pick(self, o: Narrow) -> Field { let _ = self; o.v + 1 }
+    }
+    impl Parent<Wide> for Narrow {
+        fn limit(self) -> Field { self.v }
+        fn pick(self, o: Wide) -> Field { let _ = self; o.v + 2 }
+    }
+    impl Child for Wide {}
+    impl Child for Narrow {}
+
+    fn pick_written<Y: Child + Parent<Wide>>(y: Y, w: Wide) -> Field { y.pick(w) }
+    fn pick_implied<Y: Parent<Wide> + Child>(y: Y, other: Y) -> Field { y.pick(other) }
+    fn run<X: Child>(x: X) -> Field { x.limit() }
+
+    fn main(v: Field) -> pub Field {
+        pick_written(Narrow { v }, Wide { v }) + pick_implied(Narrow { v }, Narrow { v })
+            + run(Narrow { v })
+    }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0(v$l0: Field) -> pub Field {
+        ((pick_written$f1({
+            let v$l1 = v$l0;
+            (v$l1)
+        }, {
+            let v$l2 = v$l0;
+            (v$l2)
+        }) + pick_implied$f2({
+            let v$l3 = v$l0;
+            (v$l3)
+        }, {
+            let v$l4 = v$l0;
+            (v$l4)
+        })) + run$f3({
+            let v$l5 = v$l0;
+            (v$l5)
+        }))
+    }
+    fn pick_written$f1(y$l6: (Field,), w$l7: (Field,)) -> Field {
+        pick$f4(y$l6, w$l7)
+    }
+    fn pick_implied$f2(y$l8: (Field,), other$l9: (Field,)) -> Field {
+        pick$f5(y$l8, other$l9)
+    }
+    fn run$f3(x$l10: (Field,)) -> Field {
+        limit$f6(x$l10)
+    }
+    fn pick$f4(self$l11: (Field,), o$l12: (Field,)) -> Field {
+        let _$l13 = self$l11;
+        (o$l12.0 + 2)
+    }
+    fn pick$f5(self$l14: (Field,), o$l15: (Field,)) -> Field {
+        let _$l16 = self$l14;
+        (o$l15.0 + 1)
+    }
+    fn limit$f6(self$l17: (Field,)) -> Field {
+        assert((self$l17.0 != 100));;
+        self$l17.0
+    }
+    ");
+}
+
+#[test]
+fn method_call_that_does_not_pick_between_two_bounds_on_the_same_trait_is_ambiguous() {
+    let src = r#"
+    trait Parent<T> {
+        fn limit(self) -> Field;
+    }
+    trait Child: Parent<Self> {}
+
+    fn limit_of<Y: Child + Parent<u8>>(y: Y) -> Field { y.limit() }
+       ^^^^^^^^ unused function limit_of
+       ~~~~~~~~ unused function
+                                                        ^^^^^^^ Multiple trait impls match the object type `Y`
+                                                        ~~~~~~~ Ambiguous impl
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn method_call_that_does_not_pick_between_two_written_bounds_on_the_same_trait_is_ambiguous() {
+    let src = r#"
+    trait Parent<T> {
+        fn limit(self) -> Field;
+    }
+
+    fn limit_of<Y: Parent<u8> + Parent<u16>>(y: Y) -> Field { y.limit() }
+       ^^^^^^^^ unused function limit_of
+       ~~~~~~~~ unused function
+                                                              ^^^^^^^ Multiple trait impls match the object type `Y`
+                                                              ~~~~~~~ Ambiguous impl
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
 /// Regression test for https://github.com/noir-lang/noir-claude/issues/1232
 ///
 /// `X::get` under `X: Child<u16>` with `trait Child<U>: Parent<U>` must resolve through
