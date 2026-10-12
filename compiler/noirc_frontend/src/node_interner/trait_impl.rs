@@ -42,6 +42,9 @@ pub(crate) enum TraitLookupMode {
     Overlapping,
 }
 
+/// The assumed impls [`NodeInterner::take_assumed_trait_implementations`] set aside.
+pub struct AssumedTraitImplementations(HashMap<TraitId, Vec<(Type, TraitImplKind)>>);
+
 impl NodeInterner {
     /// Returns what the next trait impl id is expected to be.
     pub fn next_trait_impl_id(&mut self) -> TraitImplId {
@@ -134,7 +137,8 @@ impl NodeInterner {
                 ) {
                     return Ok(true);
                 }
-                let entries = self.trait_implementation_map.entry(trait_id).or_default();
+                self.mark_trait_as_having_impls(trait_id);
+                let entries = self.assumed_trait_implementations.entry(trait_id).or_default();
                 entries.push((
                     object_type.clone(),
                     TraitImplKind::Assumed { object_type, trait_generics },
@@ -193,7 +197,7 @@ impl NodeInterner {
         if named.is_empty() {
             return false;
         }
-        let Some(entries) = self.trait_implementation_map.get_mut(&trait_id) else {
+        let Some(entries) = self.assumed_trait_implementations.get_mut(&trait_id) else {
             return false;
         };
         for (_, impl_kind) in entries.iter_mut() {
@@ -561,6 +565,8 @@ impl NodeInterner {
             .trait_implementation_map
             .get(&trait_id)
             .ok_or_else(|| ImplSearchErrorKind::NoImplFound(vec![make_constraint()]))?;
+        let assumed_impls = self.assumed_trait_implementations.get(&trait_id);
+        let impls = impls.iter().chain(assumed_impls.into_iter().flatten());
 
         let mut matching_impls = Vec::new();
         let mut where_clause_error = None;
@@ -790,6 +796,23 @@ impl NodeInterner {
         format!("{object_type:?}: {name}{generics}")
     }
 
+    /// Gives `trait_id` an entry in `trait_implementation_map`. Lookup reports a trait without
+    /// one as [`ImplSearchErrorKind::NoImplFound`], which is for a trait nothing was ever
+    /// registered for, assumed impls included.
+    fn mark_trait_as_having_impls(&mut self, trait_id: TraitId) {
+        self.trait_implementation_map.entry(trait_id).or_default();
+    }
+
+    /// Removes every assumed impl, returning them for [`Self::restore_assumed_trait_implementations`].
+    pub fn take_assumed_trait_implementations(&mut self) -> AssumedTraitImplementations {
+        AssumedTraitImplementations(std::mem::take(&mut self.assumed_trait_implementations))
+    }
+
+    /// Puts back the assumed impls [`Self::take_assumed_trait_implementations`] removed.
+    pub fn restore_assumed_trait_implementations(&mut self, assumed: AssumedTraitImplementations) {
+        self.assumed_trait_implementations = assumed.0;
+    }
+
     /// Removes all `TraitImplKind::Assumed` from the list of known impls for the given trait, and
     /// for every trait that a bound on it implies: its parent traits and the traits bounding its
     /// associated types. These are the assumed impls `Elaborator::add_trait_bound_to_scope` adds
@@ -810,8 +833,8 @@ impl NodeInterner {
         if !visited_trait_ids.insert(trait_id) {
             return;
         }
-        let entries = self.trait_implementation_map.entry(trait_id).or_default();
-        entries.retain(|(_, kind)| !matches!(kind, TraitImplKind::Assumed { .. }));
+        self.mark_trait_as_having_impls(trait_id);
+        self.assumed_trait_implementations.remove(&trait_id);
 
         // Also remove assumed implementations for the traits a bound on this one implies
         let implied_trait_ids: Vec<TraitId> = self

@@ -113,7 +113,11 @@ impl Elaborator<'_> {
         f: impl FnOnce(&mut Self) -> T,
     ) -> T {
         let outer = std::mem::replace(&mut self.item, context);
+        // The bounds an item assumes are part of its state too, although they are kept in the
+        // interner: they hold only while that item is elaborated.
+        let outer_assumed = self.interner.take_assumed_trait_implementations();
         let result = f(self);
+        self.interner.restore_assumed_trait_implementations(outer_assumed);
         self.item = outer;
         result
     }
