@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791841769185,
+  "lastUpdate": 1791841775807,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -30030,105 +30030,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "987955c48ffa1e92fa1db3c6da19d42476aa0039",
-          "message": "fix(ssa): track every field of Brillig array outputs of tuples (#13880)",
-          "timestamp": "2026-10-06T10:32:16Z",
-          "tree_id": "68cdf18c4d008ddfd5b20491d2c6a6854233271f",
-          "url": "https://github.com/noir-lang/noir/commit/987955c48ffa1e92fa1db3c6da19d42476aa0039"
-        },
-        "date": 1791284599482,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 17714,
-            "unit": "opcodes"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 89281,
-            "unit": "opcodes"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 74596,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-block-root-no-txs",
-            "value": 9082,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 9148,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 10334,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 1278,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 1388664,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 1389857,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1640,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 239491,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 251761,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 1306,
-            "unit": "opcodes"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 5699,
-            "unit": "opcodes"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 13173,
-            "unit": "opcodes"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -34898,6 +34799,105 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/61c1fa97a9ead8e9be2a1adde675da3e2577d610"
         },
         "date": 1791828953403,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 17714,
+            "unit": "opcodes"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 89281,
+            "unit": "opcodes"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 74596,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root-no-txs",
+            "value": 9082,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 9148,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 10334,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 1278,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1388691,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1389884,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1640,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 239491,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 251761,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 1306,
+            "unit": "opcodes"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 5699,
+            "unit": "opcodes"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 13173,
+            "unit": "opcodes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5f17b1ef1872d49bbe0556e546358e9b93ef82c4",
+          "message": "fix(frontend): solve pending trait constraints when a type they decide is needed (#13960)",
+          "timestamp": "2026-10-12T21:19:10Z",
+          "tree_id": "9dcb610ca7b16b41d85abebb7f5dbd47c785ad83",
+          "url": "https://github.com/noir-lang/noir/commit/5f17b1ef1872d49bbe0556e546358e9b93ef82c4"
+        },
+        "date": 1791841704999,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
