@@ -769,7 +769,7 @@
 <a href=#769 id=769 data-nosnippet>769</a>                    mutable = is_mutable;
 <a href=#770 id=770 data-nosnippet>770</a>                }
 <a href=#771 id=771 data-nosnippet>771</a>
-<a href=#772 id=772 data-nosnippet>772</a>                <span class="kw">let </span>typ = <span class="kw">match </span>lvalue_type.follow_bindings() {
+<a href=#772 id=772 data-nosnippet>772</a>                <span class="kw">let </span>typ = <span class="kw">match </span><span class="self">self</span>.follow_bindings_resolving_trait_constraints(<span class="kw-2">&amp;</span>lvalue_type) {
 <a href=#773 id=773 data-nosnippet>773</a>                    Type::Array(<span class="kw-2">ref </span>elem_type, <span class="kw-2">ref </span>size) =&gt; {
 <a href=#774 id=774 data-nosnippet>774</a>                        <span class="self">self</span>.check_array_index_out_of_bounds(size, <span class="kw-2">&amp;</span>index, location);
 <a href=#775 id=775 data-nosnippet>775</a>                        <span class="kw-2">*</span>elem_type.clone()
