@@ -187,19 +187,31 @@ Marks a function for export in compiled artifacts. This is primarily used inside
 
 ### `must_use`
 
-Produces a warning if the return value of this function call is unused. Optionally takes a message string explaining why the value should be used.
+Marks a struct type as requiring its values to be used. If an expression
+with a `#[must_use]` type is used as a statement and its value is ignored,
+Noir emits an error instead of the usual unused-result warning. Optionally
+takes a message string explaining why the value should be used.
 
 Example:
 
 ```rust
 #[must_use]
-fn important_result() -> Field {
-    42
+struct ImportantResult {
+    value: Field,
 }
 
-#[must_use = "the new vector is returned, the original is not modified"]
-fn push(vec: [Field], value: Field) -> [Field] {
-    // ...
+#[must_use = "the proof result must be checked"]
+struct ProofResult {
+    accepted: bool,
+}
+
+fn verify() -> ProofResult {
+    ProofResult { accepted: true }
+}
+
+fn main() {
+    verify(); // Error: the returned ProofResult is not used
+    let _checked = verify();
 }
 ```
 
