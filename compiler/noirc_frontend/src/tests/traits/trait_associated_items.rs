@@ -2748,6 +2748,13 @@ fn associated_type_returned_by_path_call_is_known_when_the_result_is_used() {
     trait Size { fn size(self) -> u32; }
     impl<let N: u32> Size for [u8; N] { fn size(self) -> u32 { N } }
 
+    pub struct B {}
+    impl Tr for B {
+        type Out = bool;
+        fn mk() -> bool { true }
+        fn mk2(self) -> bool { true }
+    }
+
     fn bt<T: Tr>() -> T::Out { T::mk() }
 
     fn bound_with_associated_type<T: Tr<Out = (u8, u16)>>(t: T) -> u16 { Tr::mk2(t).1 }
@@ -2764,6 +2771,11 @@ fn associated_type_returned_by_path_call_is_known_when_the_result_is_used() {
         let _: u16 = bound_with_associated_type(K {});
         let f = <K as Tr>::mk;
         let _: u16 = f().1;
+        let mut b = <G<3> as Tr>::mk();
+        b[0] = 1;
+        let (_, c) = <K as Tr>::mk();
+        let _: u16 = c;
+        let _: u8 = <B as Tr>::mk() as u8;
     }
     "#;
     assert_no_errors(src);

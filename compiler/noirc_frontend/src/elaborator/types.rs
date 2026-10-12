@@ -2602,7 +2602,7 @@ impl Elaborator<'_> {
         location: Location,
     ) -> Type {
         let to = to.follow_bindings();
-        let from_follow_bindings = from.follow_bindings();
+        let from_follow_bindings = self.follow_bindings_resolving_trait_constraints(from);
 
         use HirExpression::Literal;
         let from_value_opt = match self.interner.expression(from_expr_id) {
