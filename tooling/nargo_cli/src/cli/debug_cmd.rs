@@ -158,7 +158,7 @@ fn debug_test_fn(
         test,
         context,
         compile_options,
-        &workspace.build_settings(package),
+        &workspace.package_build_path(package),
     );
 
     let test_status = match compiled_program {

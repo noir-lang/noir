@@ -2,9 +2,7 @@ use std::path::Path;
 
 use fm::FileId;
 use noirc_abi::{AbiType, AbiValue};
-use noirc_driver::{
-    BuildSettings, CompileOptions, ErrorsAndWarnings, file_manager_with_stdlib, prepare_crate,
-};
+use noirc_driver::{CompileOptions, ErrorsAndWarnings, file_manager_with_stdlib, prepare_crate};
 use noirc_errors::CustomDiagnostic;
 use noirc_frontend::hir::{Context, ParsedFiles, def_map::parse_file};
 
@@ -34,7 +32,7 @@ contract Bar {}";
         &mut context,
         root_crate_id,
         &CompileOptions::default(),
-        &BuildSettings::default(),
+        Path::new(""),
     )
     .unwrap_err();
 
@@ -72,7 +70,7 @@ fn compile_contract_with_warnings(
         &mut context,
         root_crate_id,
         &CompileOptions::default(),
-        &BuildSettings::default(),
+        Path::new(""),
     )
     .expect("contract should compile successfully")
 }
@@ -97,7 +95,7 @@ fn compile_contract_source(source: &str) -> noirc_artifacts::contract::CompiledC
         &mut context,
         root_crate_id,
         &CompileOptions::default(),
-        &BuildSettings::default(),
+        Path::new(""),
     )
     .expect("contract should compile successfully");
     contract

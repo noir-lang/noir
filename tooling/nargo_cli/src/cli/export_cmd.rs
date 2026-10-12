@@ -5,6 +5,7 @@ use noirc_artifacts::program::CompiledProgram;
 use noirc_errors::CustomDiagnostic;
 use noirc_frontend::hir::ParsedFiles;
 use rayon::prelude::*;
+use std::path::Path;
 use std::sync::Arc;
 
 use fm::FileManager;
@@ -14,7 +15,7 @@ use nargo::prepare_package;
 use nargo::workspace::Workspace;
 use nargo::{insert_all_files_for_workspace_into_file_manager, parse_all};
 use nargo_toml::PackageSelection;
-use noirc_driver::{BuildSettings, CompileOptions, compile_no_check};
+use noirc_driver::{CompileOptions, compile_no_check};
 
 use clap::Args;
 
@@ -86,7 +87,8 @@ fn compile_exported_functions(
             let program = compile_no_check(
                 &context,
                 compile_options,
-                &BuildSettings::default(),
+                Path::new(""),
+                false,
                 function_id,
                 None,
                 false,

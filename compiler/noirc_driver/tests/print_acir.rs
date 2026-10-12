@@ -11,8 +11,7 @@ use acvm::acir::circuit::Circuit;
 use acvm::acir::native_types::Witness;
 use noirc_abi::AbiErrorType;
 use noirc_driver::{
-    BuildSettings, CompileOptions, display_compiled_program, file_manager_with_stdlib,
-    prepare_crate,
+    CompileOptions, display_compiled_program, file_manager_with_stdlib, prepare_crate,
 };
 use noirc_frontend::hir::{Context, ParsedFiles, def_map::parse_file};
 
@@ -37,7 +36,8 @@ fn compile(source: &str, force_brillig: bool) -> noirc_artifacts::program::Compi
         &mut context,
         root_crate_id,
         &options,
-        &BuildSettings::default(),
+        Path::new(""),
+        false,
         None,
     )
     .expect("program should compile successfully");

@@ -4,8 +4,7 @@ use std::sync::Arc;
 use fm::FileManager;
 use noirc_artifacts::program::CompiledProgram;
 use noirc_driver::{
-    BuildSettings, CompileOptions, CrateId, compile_no_check, file_manager_with_stdlib,
-    link_to_debug_crate,
+    CompileOptions, CrateId, compile_no_check, file_manager_with_stdlib, link_to_debug_crate,
 };
 use noirc_frontend::{
     debug::DebugInstrumenter,
@@ -70,12 +69,13 @@ pub fn compile_test_fn_for_debugging(
     test_def: &TestDefinition,
     context: &mut Context,
     compile_options: CompileOptions,
-    build_settings: &BuildSettings,
+    package_build_path: &Path,
 ) -> Result<CompiledProgram, noirc_driver::CompileError> {
     let compiled_program = compile_no_check(
         context,
         &compile_options,
-        build_settings,
+        package_build_path,
+        false,
         test_def.function.id,
         None,
         false,

@@ -115,9 +115,9 @@ fn compile_test(
     let test = get_test_function_for_debug(crate_id, &context, &test_name)
         .map_err(|_| LoadError::Generic("Failed to compile project".into()))?;
 
-    let build_settings = workspace.build_settings(package);
+    let package_build_path = workspace.package_build_path(package);
     let program =
-        compile_test_fn_for_debugging(&test, &mut context, compile_options, &build_settings)
+        compile_test_fn_for_debugging(&test, &mut context, compile_options, &package_build_path)
             .map_err(|_| LoadError::Generic("Failed to compile project".into()))?;
     Ok((program, test))
 }

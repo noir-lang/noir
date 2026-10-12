@@ -5,8 +5,7 @@ use crate::compile::{
 use crate::errors::{CompileError, JsCompileError};
 use nargo::parse_all;
 use noirc_driver::{
-    BuildSettings, CompileOptions, add_dep, compile_contract, compile_main, prepare_crate,
-    prepare_dependency,
+    CompileOptions, add_dep, compile_contract, compile_main, prepare_crate, prepare_dependency,
 };
 use noirc_frontend::{
     graph::{CrateId, CrateName},
@@ -100,7 +99,8 @@ impl CompilerContext {
             &mut self.context,
             root_crate_id,
             &compile_options,
-            &BuildSettings::default(),
+            Path::new(""),
+            false,
             None,
         )
         .map_err(|errs| {
@@ -131,20 +131,16 @@ impl CompilerContext {
         let compile_options = CompileOptions::default();
 
         let root_crate_id = *self.context.root_crate_id();
-        let compiled_contract = compile_contract(
-            &mut self.context,
-            root_crate_id,
-            &compile_options,
-            &BuildSettings::default(),
-        )
-        .map_err(|errs| {
-            CompileError::with_custom_diagnostics(
-                "Failed to compile contract",
-                errs,
-                &self.context.file_manager,
-            )
-        })?
-        .0;
+        let compiled_contract =
+            compile_contract(&mut self.context, root_crate_id, &compile_options, Path::new(""))
+                .map_err(|errs| {
+                    CompileError::with_custom_diagnostics(
+                        "Failed to compile contract",
+                        errs,
+                        &self.context.file_manager,
+                    )
+                })?
+                .0;
 
         let warnings = compiled_contract.warnings.clone();
 

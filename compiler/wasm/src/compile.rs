@@ -4,8 +4,7 @@ use js_sys::{JsString, Object};
 use nargo::parse_all;
 use noirc_artifacts::{contract::ContractArtifact, program::ProgramArtifact, ssa::SsaReport};
 use noirc_driver::{
-    BuildSettings, CompileOptions, add_dep, file_manager_with_stdlib, prepare_crate,
-    prepare_dependency,
+    CompileOptions, add_dep, file_manager_with_stdlib, prepare_crate, prepare_dependency,
 };
 use noirc_frontend::{
     graph::{CrateId, CrateName},
@@ -176,7 +175,8 @@ pub fn compile_program(
         &mut context,
         crate_id,
         &compile_options,
-        &BuildSettings::default(),
+        Path::new(""),
+        false,
         None,
     )
     .map_err(|errs| {
@@ -211,20 +211,16 @@ pub fn compile_contract(
 
     let compile_options = CompileOptions::default();
 
-    let compiled_contract = noirc_driver::compile_contract(
-        &mut context,
-        crate_id,
-        &compile_options,
-        &BuildSettings::default(),
-    )
-    .map_err(|errs: Vec<noirc_errors::CustomDiagnostic>| {
-        CompileError::with_custom_diagnostics(
-            "Failed to compile contract",
-            errs,
-            &context.file_manager,
-        )
-    })?
-    .0;
+    let compiled_contract =
+        noirc_driver::compile_contract(&mut context, crate_id, &compile_options, Path::new(""))
+            .map_err(|errs: Vec<noirc_errors::CustomDiagnostic>| {
+                CompileError::with_custom_diagnostics(
+                    "Failed to compile contract",
+                    errs,
+                    &context.file_manager,
+                )
+            })?
+            .0;
 
     let warnings = compiled_contract.warnings.clone();
 

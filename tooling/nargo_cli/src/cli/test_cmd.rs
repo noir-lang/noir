@@ -10,6 +10,7 @@
 //!    ([`TestRunner::show_in_package_order`]), or as they arrive for a [`LiveFormatter`]
 //!    ([`TestRunner::report_as_completed`]).
 
+use std::path::Path;
 use std::sync::Arc;
 use std::{
     cell::RefCell,
@@ -44,9 +45,7 @@ use nargo::{
     workspace::Workspace,
 };
 use nargo_toml::PackageSelection;
-use noirc_driver::{
-    BuildSettings, CompilationResult, CompileOptions, check_crate_with_comptime_io,
-};
+use noirc_driver::{CompilationResult, CompileOptions, check_crate_with_comptime_io};
 use noirc_frontend::graph::CrateId;
 use noirc_frontend::hir::{
     Context, FunctionNameMatch, ParsedFiles,
@@ -592,7 +591,8 @@ impl<'a> TestRunner<'a> {
         match noirc_driver::compile_no_check(
             context,
             &self.args.compile_options,
-            &BuildSettings::default(),
+            Path::new(""),
+            false,
             test_function.id,
             None,
             false,

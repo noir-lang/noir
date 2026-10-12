@@ -1,11 +1,10 @@
+use std::path::Path;
 use std::sync::Arc;
 
 use fm::FileManager;
 use noirc_artifacts::contract::CompiledContract;
 use noirc_artifacts::program::CompiledProgram;
-use noirc_driver::{
-    BuildSettings, CompilationResult, CompileOptions, CrateId, check_crate, link_to_debug_crate,
-};
+use noirc_driver::{CompilationResult, CompileOptions, CrateId, check_crate, link_to_debug_crate};
 use noirc_frontend::debug::DebugInstrumenter;
 use noirc_frontend::error_reporting::report_all;
 use noirc_frontend::hir::{Context, ParsedFiles};
@@ -52,7 +51,8 @@ pub fn compile_program_with_debug_instrumenter(
         &mut context,
         crate_id,
         compile_options,
-        &workspace.build_settings(package),
+        &workspace.package_build_path(package),
+        false,
         cached_program,
     )
 }
@@ -65,12 +65,7 @@ pub fn compile_contract(
     compile_options: &CompileOptions,
 ) -> CompilationResult<CompiledContract> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
-    noirc_driver::compile_contract(
-        &mut context,
-        crate_id,
-        compile_options,
-        &BuildSettings::default(),
-    )
+    noirc_driver::compile_contract(&mut context, crate_id, compile_options, Path::new(""))
 }
 
 /// Constructs a single `CompilationResult` for a collection of `CompilationResult`s, merging the set of warnings/errors.
