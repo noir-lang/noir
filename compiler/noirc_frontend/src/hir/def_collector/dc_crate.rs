@@ -2,7 +2,7 @@ use super::dc_mod::collect_defs;
 use super::errors::{DefCollectorErrorKind, DuplicateType};
 use crate::elaborator::Elaborator;
 use crate::graph::CrateId;
-use crate::hir::comptime::{ComptimeError, InterpreterError};
+use crate::hir::comptime::{ComptimeError, ComptimeIo, InterpreterError};
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir::type_check::{ExpectingOtherError, TypeCheckError};
@@ -425,6 +425,7 @@ impl DefCollector {
         ast: SortedModule,
         root_file_id: FileId,
         options: FrontendOptions,
+        comptime_io: &mut ComptimeIo,
     ) -> Vec<CompilationError> {
         let mut errors = CompilationErrors::default();
         let crate_id = def_map.krate();
@@ -437,7 +438,7 @@ impl DefCollector {
         let crate_graph = &context.crate_graph[crate_id];
 
         for dep in crate_graph.dependencies.clone() {
-            errors.extend(CrateDefMap::collect_defs(dep.crate_id, context, options));
+            errors.extend(CrateDefMap::collect_defs(dep.crate_id, context, options, comptime_io));
 
             let dep_def_map =
                 context.def_map(&dep.crate_id).expect("ICE: def map was just created");
@@ -472,6 +473,7 @@ impl DefCollector {
             context,
             def_collector,
             options,
+            comptime_io,
             reuse_existing_module_declarations,
             &mut errors,
         );
@@ -504,6 +506,7 @@ impl DefCollector {
         context: &mut Context,
         mut def_collector: DefCollector,
         options: FrontendOptions,
+        comptime_io: &mut ComptimeIo,
         reuse_existing_module_declarations: bool,
         errors: &mut CompilationErrors,
     ) {
@@ -563,7 +566,7 @@ impl DefCollector {
         };
 
         let more_errors =
-            Elaborator::elaborate(context, crate_id, def_collector.items, cli_options);
+            Elaborator::elaborate(context, crate_id, def_collector.items, cli_options, comptime_io);
 
         errors.extend(more_errors);
     }

@@ -10,7 +10,6 @@ use crate::ast::{IdentOrQuotedType, UnresolvedGenerics};
 use crate::debug::DebugInstrumenter;
 use crate::elaborator::{Deferred, UnstableFeature};
 use crate::graph::{CrateGraph, CrateId};
-use crate::hir::comptime::EvaluationTracker;
 use crate::hir::def_collector::dc_crate::{CompilationErrors, UnresolvedGlobal};
 use crate::hir::def_map::DefMaps;
 use crate::hir::resolution::errors::ResolverError;
@@ -23,7 +22,6 @@ use def_map::{CrateDefMap, FuzzingHarness, fully_qualified_module_path};
 use fm::{FileId, FileManager};
 use iter_extended::vecmap;
 use noirc_errors::Location;
-use std::cell::RefCell;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -68,12 +66,6 @@ pub struct Context {
     /// instrumented artifact is never persisted.
     pub count_array_copies: bool,
 
-    /// Writer for comptime prints.
-    pub interpreter_output: Option<Rc<RefCell<dyn std::io::Write>>>,
-
-    /// Tracks comptime expression locations to facilitate code coverage.
-    pub evaluation_tracker: Option<EvaluationTracker>,
-
     /// Any unstable features required by the current package or its dependencies.
     pub required_unstable_features: BTreeMap<CrateId, Vec<UnstableFeature>>,
 
@@ -117,10 +109,8 @@ impl Context {
             parsed_files: parsed_files.into(),
             package_build_path: PathBuf::default(),
             count_array_copies: false,
-            interpreter_output: Some(Rc::new(RefCell::new(std::io::stdout()))),
             required_unstable_features: BTreeMap::new(),
             unresolved_globals: Deferred::default(),
-            evaluation_tracker: None,
         }
     }
 
@@ -310,14 +300,6 @@ impl Context {
     /// Activates LSP mode, which will track references for all definitions.
     pub fn activate_lsp_mode(&mut self, mode: LspMode) {
         self.def_interner.lsp_mode = Some(mode);
-    }
-
-    pub fn disable_comptime_printing(&mut self) {
-        self.interpreter_output = None;
-    }
-
-    pub fn set_comptime_printing(&mut self, output: Rc<RefCell<dyn std::io::Write>>) {
-        self.interpreter_output = Some(output);
     }
 }
 

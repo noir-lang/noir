@@ -22,7 +22,8 @@ use nargo_toml::{
     ManifestError, PackageSelection, get_package_manifest, resolve_workspace_from_toml,
 };
 use noirc_driver::{
-    CompilationResult, CompileOptions, CrateName, NOIR_ARTIFACT_VERSION_STRING, check_crate,
+    CompilationResult, CompileOptions, CrateName, NOIR_ARTIFACT_VERSION_STRING,
+    check_crate_with_comptime_io,
 };
 use noirc_errors::CustomDiagnostic;
 use noirc_evaluator::{
@@ -32,7 +33,7 @@ use noirc_evaluator::{
 use noirc_frontend::{
     debug::DebugInstrumenter,
     elaborator::UnstableFeature,
-    hir::ParsedFiles,
+    hir::{ParsedFiles, comptime::ComptimeIo},
     monomorphization::{ast::Program, monomorphize},
 };
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -243,10 +244,10 @@ fn compile_into_program(
     options: &CompileOptions,
 ) -> CompilationResult<Option<Program>> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
-    context.disable_comptime_printing();
     context.debug_instrumenter = DebugInstrumenter::default();
     context.package_build_path = workspace.package_build_path(package);
-    let (_, warnings) = check_crate(&mut context, crate_id, options)?;
+    let (_, warnings) =
+        check_crate_with_comptime_io(&mut context, crate_id, options, &mut ComptimeIo::silent())?;
     let Some(main) = context.get_main_function(&crate_id) else {
         return Ok((None, warnings));
     };

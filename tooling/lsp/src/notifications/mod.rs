@@ -24,6 +24,7 @@ use noirc_driver::{CrateName, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_errors::reporter::CustomLabel;
 use noirc_errors::{CustomDiagnostic, DiagnosticKind, Location};
 use noirc_frontend::elaborator::{FrontendOptions, UnstableFeature};
+use noirc_frontend::hir::comptime::ComptimeIo;
 use noirc_frontend::hir::def_collector::dc_crate::{CompilationErrors, DefCollector};
 use noirc_frontend::hir::def_map::{CrateDefMap, LocalModuleId};
 use noirc_frontend::hir::{Context, LspMode};
@@ -451,6 +452,7 @@ pub(crate) fn process_workspace_for_single_file_change(
         &mut context,
         def_collector,
         options,
+        &mut ComptimeIo::stdout(),
         reuse_existing_module_declarations,
         &mut errors,
     );
