@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791829612435,
+  "lastUpdate": 1791841330191,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22976,48 +22976,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "987955c48ffa1e92fa1db3c6da19d42476aa0039",
-          "message": "fix(ssa): track every field of Brillig array outputs of tuples (#13880)",
-          "timestamp": "2026-10-06T10:32:16Z",
-          "tree_id": "68cdf18c4d008ddfd5b20491d2c6a6854233271f",
-          "url": "https://github.com/noir-lang/noir/commit/987955c48ffa1e92fa1db3c6da19d42476aa0039"
-        },
-        "date": 1791284192318,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 169585,
-            "range": "± 314",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 137370,
-            "range": "± 227",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2652902,
-            "range": "± 1647",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49699333+dependabot[bot]@users.noreply.github.com",
             "name": "dependabot[bot]",
             "username": "dependabot[bot]"
@@ -25069,6 +25027,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 1724632,
             "range": "± 16596",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5f17b1ef1872d49bbe0556e546358e9b93ef82c4",
+          "message": "fix(frontend): solve pending trait constraints when a type they decide is needed (#13960)",
+          "timestamp": "2026-10-12T21:19:10Z",
+          "tree_id": "9dcb610ca7b16b41d85abebb7f5dbd47c785ad83",
+          "url": "https://github.com/noir-lang/noir/commit/5f17b1ef1872d49bbe0556e546358e9b93ef82c4"
+        },
+        "date": 1791841239962,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 168409,
+            "range": "± 514",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136609,
+            "range": "± 1282",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2648387,
+            "range": "± 1306",
             "unit": "ns/iter"
           }
         ]
