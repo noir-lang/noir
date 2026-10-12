@@ -995,7 +995,7 @@ pub mod test_utils {
         );
         context.def_maps.insert(krate, collector.def_map);
 
-        let main = context.get_main_function(&krate).expect("Expected 'main' function");
+        let main = context.def_maps[&krate].main_function().expect("Expected 'main' function");
 
         let mut elaborator = Elaborator::elaborate_and_return_self(
             &mut context,

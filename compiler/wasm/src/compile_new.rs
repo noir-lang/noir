@@ -12,6 +12,7 @@ use noirc_frontend::{
     hir::Context,
 };
 use std::path::Path;
+use std::sync::Arc;
 use wasm_bindgen::prelude::wasm_bindgen;
 
 /// This is a wrapper class that is wasm-bindgen compatible
@@ -89,34 +90,29 @@ impl CompilerContext {
     }
 
     pub fn compile_program(
-        mut self,
+        self,
         _program_width: usize,
     ) -> Result<JsCompileProgramResult, JsCompileError> {
         let compile_options = CompileOptions::default();
 
         let root_crate_id = *self.context.root_crate_id();
-        let compiled_program = compile_main(
-            &mut self.context,
-            root_crate_id,
-            &compile_options,
-            Path::new(""),
-            false,
-            None,
-        )
-        .map_err(|errs| {
-            CompileError::with_custom_diagnostics(
-                "Failed to compile program",
-                errs,
-                &self.context.file_manager,
-            )
-        })?
-        .0;
+        let file_manager = Arc::clone(&self.context.file_manager);
+        let compiled_program =
+            compile_main(self.context, root_crate_id, &compile_options, Path::new(""), false, None)
+                .map_err(|errs| {
+                    CompileError::with_custom_diagnostics(
+                        "Failed to compile program",
+                        errs,
+                        &file_manager,
+                    )
+                })?
+                .0;
 
         nargo::ops::check_program(&compiled_program).map_err(|errs| {
             CompileError::with_custom_diagnostics(
                 "Compiled program is not solvable",
                 errs,
-                &self.context.file_manager,
+                &file_manager,
             )
         })?;
         let warnings = compiled_program.warnings.clone();
@@ -125,19 +121,20 @@ impl CompilerContext {
     }
 
     pub fn compile_contract(
-        mut self,
+        self,
         _program_width: usize,
     ) -> Result<JsCompileContractResult, JsCompileError> {
         let compile_options = CompileOptions::default();
 
         let root_crate_id = *self.context.root_crate_id();
+        let file_manager = Arc::clone(&self.context.file_manager);
         let compiled_contract =
-            compile_contract(&mut self.context, root_crate_id, &compile_options, Path::new(""))
+            compile_contract(self.context, root_crate_id, &compile_options, Path::new(""))
                 .map_err(|errs| {
                     CompileError::with_custom_diagnostics(
                         "Failed to compile contract",
                         errs,
-                        &self.context.file_manager,
+                        &file_manager,
                     )
                 })?
                 .0;

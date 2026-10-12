@@ -28,8 +28,9 @@ fn stdlib_does_not_produce_constant_warnings() -> Result<(), ErrorsAndWarnings> 
     let _ = prepare_crate(&mut context, file_name);
     let stdlib_crate_id = *context.stdlib_crate_id();
 
-    let ((), warnings) =
-        noirc_driver::check_crate(&mut context, stdlib_crate_id, &Default::default())?;
+    let (context, result) =
+        noirc_driver::check_crate(context, stdlib_crate_id, &Default::default());
+    let ((), warnings) = result?;
 
     if !warnings.is_empty() {
         report_all(&context.file_manager, &context.parsed_files, &warnings, false, false);
