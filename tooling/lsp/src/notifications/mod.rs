@@ -27,7 +27,7 @@ use noirc_frontend::elaborator::{FrontendOptions, UnstableFeature};
 use noirc_frontend::hir::comptime::ComptimeIo;
 use noirc_frontend::hir::def_collector::dc_crate::{CompilationErrors, DefCollector};
 use noirc_frontend::hir::def_map::{CrateDefMap, LocalModuleId};
-use noirc_frontend::hir::{Context, LspMode};
+use noirc_frontend::hir::{CheckState, Context, LspMode};
 use noirc_frontend::parse_program;
 
 use crate::types::{
@@ -456,6 +456,7 @@ pub(crate) fn process_workspace_for_single_file_change(
         def_collector,
         options,
         &mut ComptimeIo::stdout(),
+        &mut CheckState::default(),
         reuse_existing_module_declarations,
         &mut errors,
     );

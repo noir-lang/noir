@@ -22,7 +22,7 @@ use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::def_collector::dc_crate::DefCollector;
 use crate::hir::def_map::CrateDefMap;
 use crate::hir::def_map::ModuleData;
-use crate::hir::{CheckedContext, Context};
+use crate::hir::{CheckState, CheckedContext, Context};
 use crate::parser::{ItemKind, ParserErrorReason};
 use crate::token::SecondaryAttribute;
 use crate::{ParsedModule, parse_program};
@@ -182,6 +182,7 @@ pub(crate) fn get_program_with_options(
             root_file_id,
             options.frontend_options,
             &mut ComptimeIo::stdout(),
+            &mut CheckState::default(),
         ));
     }
 
@@ -264,6 +265,7 @@ pub fn get_program_with_stdlib_dependency(
             root_file_id,
             GetProgramOptions::default().frontend_options,
             &mut ComptimeIo::stdout(),
+            &mut CheckState::default(),
         ));
     }
 

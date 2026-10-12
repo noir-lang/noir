@@ -752,7 +752,7 @@ mod proptests {
         elaborator::{Elaborator, ElaboratorOptions},
         graph::CrateId,
         hir::{
-            Context,
+            CheckState, Context,
             comptime::{ComptimeIo, Integer, Interpreter, Value},
             def_map::{CrateDefMap, ModuleData},
         },
@@ -1155,8 +1155,14 @@ mod proptests {
                 disable_required_unstable_features: false,
             };
             let mut comptime_io = ComptimeIo::stdout();
-            let mut elaborator =
-                Elaborator::from_context(&mut context, crate_id, options, &mut comptime_io);
+            let mut state = CheckState::default();
+            let mut elaborator = Elaborator::from_context(
+                &mut context,
+                crate_id,
+                options,
+                &mut comptime_io,
+                &mut state,
+            );
             let (expr_id, expr_type) = elaborator.elaborate_expression(expr);
 
             assert_eq!(elaborator.errors.as_ref(), vec![]);

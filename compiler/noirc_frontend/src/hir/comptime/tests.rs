@@ -9,6 +9,7 @@ use super::errors::InterpreterError;
 use super::value::Value;
 use super::{ComptimeIo, Interpreter};
 use crate::elaborator::{Elaborator, ElaboratorOptions};
+use crate::hir::CheckState;
 use crate::hir::def_collector::dc_crate::{CompilationError, DefCollector};
 use crate::hir::def_collector::dc_mod::collect_defs;
 use crate::hir::def_map::{CrateDefMap, ModuleData, ModuleId};
@@ -54,6 +55,7 @@ pub(crate) fn with_interpreter<T>(
     let mut collector = DefCollector::new(def_map);
 
     let reuse_existing_module_declarations = false;
+    let mut state = CheckState::default();
     collect_defs(
         &mut collector,
         ast,
@@ -61,6 +63,7 @@ pub(crate) fn with_interpreter<T>(
         root_module_id,
         krate,
         &mut context,
+        &mut state,
         reuse_existing_module_declarations,
     );
     context.def_maps.insert(krate, collector.def_map);
@@ -74,6 +77,7 @@ pub(crate) fn with_interpreter<T>(
         collector.items,
         ElaboratorOptions::test_default(),
         &mut comptime_io,
+        &mut state,
     );
 
     let errors = elaborator.errors.clone();

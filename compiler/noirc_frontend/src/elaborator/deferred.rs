@@ -112,10 +112,10 @@ pub(super) struct PendingWhereClauseCheck {
 /// Every kind of deferred work the elaborator owns, in one place so that handing it to a child
 /// elaborator, or scoping it to one `elaborate_items` call, moves all of it or none of it.
 ///
-/// Globals are deferred the same way but are not here: they live on the [`Context`] and are shared
-/// by reference, because a global resolved by one elaborator must stay resolved for the next.
+/// Globals are deferred the same way but are not here: they live on the [`CheckState`] and are
+/// shared by reference, because a global resolved by one elaborator must stay resolved for the next.
 ///
-/// [`Context`]: crate::hir::Context
+/// [`CheckState`]: crate::hir::CheckState
 #[derive(Default)]
 pub(super) struct DeferredItems {
     /// Function signatures registered before their bodies are elaborated. Registering up front and
