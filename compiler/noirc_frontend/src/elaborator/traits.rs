@@ -189,6 +189,7 @@ use crate::{
     hir::{
         comptime::InterpreterError,
         def_collector::dc_crate::UnresolvedTrait,
+        resolution::errors::ResolverError,
         type_check::{TypeCheckError, generics::TraitGenerics},
     },
     hir_def::{
@@ -292,6 +293,23 @@ impl Elaborator<'_> {
                 for trait_bound in resolved_trait_bounds {
                     where_clause.push(TraitConstraint { typ: self_type.clone(), trait_bound });
                 }
+                // A trait that is its own parent (`trait A: A`, `trait A where Self: A`,
+                // `trait A = A + B;`) is a cycle. It is reported here because the dependency
+                // graph only reports cycles of more than one item, and the bound is dropped so
+                // that nothing expands it.
+                where_clause.retain(|constraint| {
+                    let own_parent =
+                        constraint.typ == self_type && constraint.trait_bound.trait_id == *trait_id;
+                    if own_parent {
+                        let item = unresolved_trait.trait_def.name.to_string();
+                        let index =
+                            this.interner.get_or_insert_dependency(DependencyId::Trait(*trait_id));
+                        let cycle = this.interner.get_cycle_error_string(&[index], 0);
+                        let location = constraint.trait_bound.location;
+                        this.push_err(ResolverError::DependencyCycle { location, item, cycle });
+                    }
+                    !own_parent
+                });
 
                 this.interner.update_trait(*trait_id, |trait_def| {
                     trait_def.set_where_clause(where_clause);
