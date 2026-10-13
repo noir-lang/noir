@@ -3695,3 +3695,66 @@ fn associated_constant_shorthand_inside_generic_impl_uses_its_own_type_arguments
     }
     ");
 }
+
+#[test]
+fn associated_constant_type_path_inside_generic_impl_uses_its_own_type_arguments() {
+    let src = r#"
+    pub trait HasBits { let BITS: u32; fn bits_of_eight() -> u32; }
+    pub struct UInt<let N: u32> {}
+    impl<let N: u32> HasBits for UInt<N> {
+        let BITS: u32 = N;
+        fn bits_of_eight() -> u32 { <UInt<8>>::BITS }
+    }
+    fn main() -> pub u32 { UInt::<16>::bits_of_eight() }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u32 {
+        bits_of_eight$f1()
+    }
+    fn bits_of_eight$f1() -> u32 {
+        8
+    }
+    ");
+}
+
+#[test]
+fn associated_constant_type_path_inside_generic_impl_uses_its_own_type_arguments_at_comptime() {
+    let src = r#"
+    pub trait HasBits { let BITS: u32; fn bits_of_eight() -> u32; }
+    pub struct UInt<let N: u32> {}
+    impl<let N: u32> HasBits for UInt<N> {
+        let BITS: u32 = N;
+        fn bits_of_eight() -> u32 { <UInt<8>>::BITS }
+    }
+    fn main() -> pub u32 { comptime { UInt::<16>::bits_of_eight() } }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u32 {
+        8
+    }
+    ");
+}
+
+#[test]
+fn associated_constant_type_path_of_generic_impl_outside_the_impl() {
+    let src = r#"
+    pub trait HasBits { let BITS: u32; }
+    pub struct UInt<let N: u32> {}
+    impl<let N: u32> HasBits for UInt<N> {
+        let BITS: u32 = N;
+    }
+    fn bits<let M: u32>() -> u32 { <UInt<M>>::BITS }
+    fn main() -> pub u32 { <UInt<11>>::BITS + bits::<5>() }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u32 {
+        (11 + bits$f1())
+    }
+    fn bits$f1() -> u32 {
+        5
+    }
+    ");
+}
