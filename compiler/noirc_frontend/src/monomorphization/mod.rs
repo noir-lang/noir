@@ -346,26 +346,15 @@ impl<'interner> Monomorphizer<'interner> {
         if let Type::Forall(variables, typ) = typ {
             return Type::Forall(variables.clone(), Box::new(self.ty(typ)));
         }
-        typ.substitute(&self.function.substitution)
+        self.function.substitution.apply(typ)
     }
 
-    /// Run `f` with `bindings` added to [`FunctionContext::substitution`], and take them back out
-    /// when it returns.
-    ///
-    /// Only the entries `bindings` touches are saved and restored, so the cost is proportional to
-    /// `bindings` rather than to the whole substitution.
+    /// Run `f` with `bindings` added to [`FunctionContext::substitution`] as a layer written in
+    /// terms of the bindings already there, and take them back out when it returns.
     fn with_bindings<T>(&mut self, bindings: TypeBindings, f: impl FnOnce(&mut Self) -> T) -> T {
-        let overwritten: Vec<_> = bindings
-            .into_iter()
-            .map(|(id, binding)| (id, self.function.substitution.insert(id, binding)))
-            .collect();
+        let pushed = self.function.substitution.push_layer(bindings);
         let result = f(self);
-        for (id, previous) in overwritten {
-            match previous {
-                Some(binding) => self.function.substitution.insert(id, binding),
-                None => self.function.substitution.remove(&id),
-            };
-        }
+        self.function.substitution.pop_layer(pushed);
         result
     }
 
@@ -418,7 +407,7 @@ impl<'interner> Monomorphizer<'interner> {
                     this.interner,
                     trait_method,
                     hir_id,
-                    &this.function.substitution,
+                    this.function.substitution.bindings(),
                     location,
                 )
                 .map_err(MonomorphizationError::InterpreterError)?;
@@ -2290,8 +2279,13 @@ impl<'interner> Monomorphizer<'interner> {
         use_current_runtime: bool,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let ResolvedTraitItem { item, impl_search_bindings, instantiation_bindings } =
-            resolve_trait_item(self.interner, trait_item_id, expr_id, &self.function.substitution)
-                .map_err(MonomorphizationError::InterpreterError)?;
+            resolve_trait_item(
+                self.interner,
+                trait_item_id,
+                expr_id,
+                self.function.substitution.bindings(),
+            )
+            .map_err(MonomorphizationError::InterpreterError)?;
 
         // The impl search's bindings have to stay in force while the impl's method is compiled.
         self.with_bindings(impl_search_bindings, |this| {

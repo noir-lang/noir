@@ -1,6 +1,4 @@
-use rustc_hash::FxHashSet as HashSet;
-
-use crate::{Type, TypeBindings, TypeVariableId};
+use crate::{Substitution, Type, TypeBindings, TypeVariableId};
 
 /// The types the function being interpreted sees: the bindings of its generics (a call's
 /// instantiation and impl bindings, or the ones a closure was created under) plus the types
@@ -13,60 +11,85 @@ use crate::{Type, TypeBindings, TypeVariableId};
 /// `design/comptime.md`.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct Frame {
-    bindings: TypeBindings,
-    /// The type variables in `bindings` that were solved while interpreting, rather than bound as
-    /// generics. While there are none, every value's types are already as resolved as this frame
-    /// can make them.
-    runtime_solves: HashSet<TypeVariableId>,
+    /// The bindings of generics, one layer per call or closure this frame was extended into, each
+    /// written in terms of the layers before it.
+    layers: Vec<TypeBindings>,
+    /// The type variables solved while interpreting, rather than bound as generics, written in
+    /// terms of the whole frame. While there are none, every value's types are already as
+    /// resolved as this frame can make them.
+    solves: TypeBindings,
+    /// `layers` and `solves` combined, which is what types are read through.
+    substitution: Substitution,
 }
 
 impl Frame {
     pub(crate) fn bindings(&self) -> &TypeBindings {
-        &self.bindings
+        self.substitution.bindings()
     }
 
     pub(crate) fn has_runtime_solves(&self) -> bool {
-        !self.runtime_solves.is_empty()
+        !self.solves.is_empty()
     }
 
     pub(crate) fn substitute(&self, typ: &Type) -> Type {
-        typ.substitute(&self.bindings)
+        self.substitution.apply(typ)
+    }
+
+    fn rebuild(&mut self) {
+        let mut substitution = Substitution::default();
+        for layer in &self.layers {
+            // Layers are never taken back from a frame: a call or closure extends a copy.
+            let _ = substitution.push_layer(layer.clone());
+        }
+        substitution.solve(self.solves.clone());
+        self.substitution = substitution;
+    }
+
+    /// Adds `layer`, generics bound in terms of this frame, overriding solves of the same
+    /// variables.
+    fn push_layer(&mut self, layer: TypeBindings) {
+        for var_id in layer.keys() {
+            self.solves.remove(var_id);
+        }
+        self.layers.push(layer);
+        self.rebuild();
     }
 
     /// This frame (the caller's) extended into the frame of a call made from it. The callee's own
     /// instantiation and impl bindings take precedence, which keeps each recursive call's
     /// generics its own.
     pub(crate) fn for_call(mut self, own_bindings: &TypeBindings) -> Frame {
-        for (var_id, binding) in own_bindings {
-            self.bindings.insert(*var_id, binding.clone());
-            self.runtime_solves.remove(var_id);
-        }
+        self.push_layer(own_bindings.clone());
         self
     }
 
     /// This frame (the caller's) extended into the frame of a call to a closure created in
     /// `created_in`, whose bindings take precedence.
     pub(crate) fn for_closure(mut self, created_in: Frame) -> Frame {
-        for var_id in created_in.bindings.keys() {
-            self.runtime_solves.remove(var_id);
+        let mut generics = created_in.substitution.bindings().clone();
+        generics.retain(|var_id, _| !created_in.solves.contains_key(var_id));
+        for var_id in created_in.solves.keys() {
+            self.solves.remove(var_id);
         }
-        self.bindings.extend(created_in.bindings);
-        self.runtime_solves.extend(created_in.runtime_solves);
+        self.solves.extend(created_in.solves);
+        self.push_layer(generics);
         self
     }
 
     /// Records types solved while interpreting.
     pub(crate) fn solve(&mut self, bindings: TypeBindings) {
-        self.runtime_solves.extend(bindings.keys().copied());
-        self.bindings.extend(bindings);
+        self.solves.extend(bindings);
+        self.rebuild();
     }
 
     /// Takes back solved types so that they can be solved again, possibly differently.
     pub(crate) fn forget(&mut self, var_ids: &[TypeVariableId]) {
+        let before = self.solves.len();
         for var_id in var_ids {
-            if self.runtime_solves.remove(var_id) {
-                self.bindings.remove(var_id);
-            }
+            self.solves.remove(var_id);
+        }
+        if self.solves.len() != before {
+            self.rebuild();
         }
     }
 
@@ -81,17 +104,18 @@ impl Frame {
     /// caller's solution.
     pub(crate) fn take_solves(&mut self, callee: &Frame, visible: &[&Type]) -> Vec<TypeVariableId> {
         let mut taken = Vec::new();
-        for var_id in &callee.runtime_solves {
-            let (var, kind, typ) = &callee.bindings[var_id];
-            if self.bindings.get(var_id).is_some_and(|(_, _, own)| own == typ)
+        for (var_id, (var, kind, typ)) in &callee.solves {
+            if self.solves.get(var_id).is_some_and(|(_, _, own)| own == typ)
                 || !visible.iter().any(|visible| visible.occurs(*var_id))
             {
                 continue;
             }
             let typ = callee.substitute(typ);
-            self.bindings.insert(*var_id, (var.clone(), kind.clone(), typ));
-            self.runtime_solves.insert(*var_id);
+            self.solves.insert(*var_id, (var.clone(), kind.clone(), typ));
             taken.push(*var_id);
+        }
+        if !taken.is_empty() {
+            self.rebuild();
         }
         taken
     }

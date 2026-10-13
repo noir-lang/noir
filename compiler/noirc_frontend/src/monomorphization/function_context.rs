@@ -15,7 +15,7 @@
 //! environment. The one thing it shares with the enclosing function is the generic bindings,
 //! since the lambda's types mention the enclosing function's generics.
 
-use crate::TypeBindings;
+use crate::Substitution;
 use crate::hir_def::expr::HirCapturedVar;
 use crate::node_interner;
 use rustc_hash::FxHashMap as HashMap;
@@ -60,7 +60,7 @@ pub(super) struct FunctionContext {
     /// Bindings for the generics of the function being monomorphized: the union of every set
     /// passed to a live [`Monomorphizer::with_bindings`] call. Every type the pass reads from the
     /// HIR goes through [`Monomorphizer::ty`], which applies them.
-    pub(super) substitution: TypeBindings,
+    pub(super) substitution: Substitution,
 }
 
 impl FunctionContext {
@@ -75,7 +75,7 @@ impl FunctionContext {
             lambda_env: None,
             in_unconstrained_function,
             force_unconstrained: force_brillig,
-            substitution: TypeBindings::default(),
+            substitution: Substitution::default(),
         }
     }
 }

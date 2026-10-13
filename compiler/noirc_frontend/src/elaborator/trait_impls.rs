@@ -3,7 +3,8 @@
 use std::rc::Rc;
 
 use crate::{
-    Kind, NamedGeneric, ResolvedGeneric, Shared, TypeBindings, TypeVariable, TypeVariableId,
+    Kind, NamedGeneric, ResolvedGeneric, Shared, Substitution, TypeBindings, TypeVariable,
+    TypeVariableId,
     ast::{GenericTypeArgs, Ident, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
     elaborator::{PathResolutionMode, WildcardDisallowedContext, types::WildcardAllowed},
     hir::{
@@ -777,7 +778,8 @@ impl Elaborator<'_> {
 
         // The where clause, parent bounds included, is written in terms of the trait's `Self`,
         // generics and associated types, so it is checked with this impl's.
-        let mut bindings = the_trait.bound_bindings(object_type, impl_generics);
+        let mut bindings = Substitution::default();
+        let _ = bindings.push_layer(the_trait.bound_bindings(object_type, impl_generics));
 
         self.check_trait_bounds_are_satisfied(
             the_trait.where_clause.clone(),
@@ -798,7 +800,7 @@ impl Elaborator<'_> {
         constraints: Vec<TraitConstraint>,
         impl_trait: &str,
         error_location: &Location,
-        bindings: &mut TypeBindings,
+        bindings: &mut Substitution,
     ) {
         for trait_constraint in constraints {
             let Some(trait_constraint_trait) =
@@ -813,7 +815,7 @@ impl Elaborator<'_> {
             let trait_constraint_trait_name = trait_constraint_trait.name.to_string();
 
             let mut trait_constraint = trait_constraint.clone();
-            trait_constraint.apply_bindings(bindings);
+            trait_constraint.apply_bindings(bindings.bindings());
 
             let trait_constraint_type = trait_constraint.typ;
             let trait_bound = trait_constraint.trait_bound;
@@ -842,8 +844,8 @@ impl Elaborator<'_> {
                 TraitLookupMode::Default,
             ) {
                 Ok((_, impl_bindings, impl_instantiation_bindings)) => {
-                    bindings.extend(impl_bindings);
-                    bindings.extend(impl_instantiation_bindings);
+                    bindings.solve(impl_bindings);
+                    bindings.solve(impl_instantiation_bindings);
                 }
                 Err(_) => {
                     let missing_trait =
@@ -864,8 +866,9 @@ impl Elaborator<'_> {
     fn bind_to_fresh_variable(
         &self,
         named_generics: &mut [NamedType],
-        bindings: &mut TypeBindings,
+        bindings: &mut Substitution,
     ) {
+        let mut fresh = TypeBindings::default();
         for named_type in named_generics.iter_mut() {
             match &named_type.typ {
                 Type::NamedGeneric(NamedGeneric { type_var, implicit: true, .. })
@@ -876,11 +879,14 @@ impl Elaborator<'_> {
                     let kind = type_var.kind().into_owned();
                     let new_type_var = TypeVariable::unbound(new_type_var_id, kind.clone());
                     named_type.typ = Type::TypeVariable(new_type_var.clone());
-                    bindings.insert(type_var_id, (new_type_var, kind, named_type.typ.clone()));
+                    fresh.insert(type_var_id, (new_type_var, kind, named_type.typ.clone()));
                 }
                 _ => (),
             }
         }
+        // The types already bound can mention these placeholders, so they are solved rather than
+        // added as a layer.
+        bindings.solve(fresh);
     }
 
     /// Prepares a trait impl for function metadata definition.
