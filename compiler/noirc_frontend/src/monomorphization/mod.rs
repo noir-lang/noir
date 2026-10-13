@@ -3508,8 +3508,12 @@ fn resolve_trait_item_impl(
                         candidates,
                     })
                 }
-                Err(ImplSearchErrorKind::RecursionLimitReached) => {
-                    Err(InterpreterError::TraitImplResolutionRecursionLimitReached { location })
+                Err(ImplSearchErrorKind::RecursionLimitReached(constraint)) => {
+                    let constraint = interner.display_trait_constraint(&constraint);
+                    Err(InterpreterError::TraitImplResolutionRecursionLimitReached {
+                        constraint,
+                        location,
+                    })
                 }
             }
         }
