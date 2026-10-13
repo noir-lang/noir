@@ -137,7 +137,12 @@ impl Elaborator<'_> {
     /// of a call that returns an associated type).
     pub(super) fn follow_bindings_resolving_trait_constraints(&mut self, typ: &Type) -> Type {
         let typ = typ.follow_bindings();
-        if !matches!(typ, Type::TypeVariable(_)) {
+        // A variable that is already known to be an integer or a field (the type of `1`) is
+        // usable as it is.
+        let Type::TypeVariable(variable) = &typ else {
+            return typ;
+        };
+        if variable.is_integer() || variable.is_integer_or_field() {
             return typ;
         }
         self.try_resolve_trait_constraints_since(0);
@@ -154,6 +159,15 @@ impl Elaborator<'_> {
         let constraints: Vec<_> = self.get_function_context_mut().trait_constraints[checkpoint..]
             .iter()
             .filter(|local| !local.constraint.typ.follow_bindings().is_bindable())
+            // Solving a constraint can only bind the type variables it mentions, so one that
+            // mentions none (`u32: Eq`) is left for the end of the function.
+            .filter(|local| {
+                let generics = &local.constraint.trait_bound.trait_generics;
+                let mut types = std::iter::once(&local.constraint.typ)
+                    .chain(&generics.ordered)
+                    .chain(generics.named.iter().map(|named| &named.typ));
+                types.any(Type::contains_unbound_type_variable)
+            })
             .map(|local| local.constraint.clone())
             .collect();
 
