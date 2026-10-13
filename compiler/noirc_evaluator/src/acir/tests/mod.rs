@@ -25,6 +25,7 @@ use crate::{
 use proptest::prelude::*;
 
 mod arrays;
+mod black_box;
 mod brillig_call;
 mod call;
 mod instructions;
