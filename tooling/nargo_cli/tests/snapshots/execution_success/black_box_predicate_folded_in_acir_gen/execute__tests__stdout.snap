@@ -1,0 +1,5 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+[black_box_predicate_folded_in_acir_gen] Circuit output: 0x02

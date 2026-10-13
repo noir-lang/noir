@@ -68,6 +68,17 @@ pub struct InvalidInputBitSize {
 /// it is not always efficient.
 /// Some proving systems, can implement several computations more efficiently using
 /// techniques such as custom gates and lookup tables.
+///
+/// # Predicates
+///
+/// `EcdsaSecp256k1`, `EcdsaSecp256r1`, `MultiScalarMul`, `EmbeddedCurveAdd` and
+/// `RecursiveAggregation` take a boolean `predicate`. When it is false the call is
+/// disabled: it puts no constraint on its inputs, ECDSA verification outputs `1` and
+/// the embedded curve operations output the point `(0, 0)`.
+///
+/// A predicate is either a witness or the constant `1`. A call must not be emitted with
+/// the constant predicate `0`, which backends may reject: a call which is statically
+/// disabled is resolved by the ACIR producer, which assigns its outputs directly.
 #[derive(Clone, PartialEq, Eq, Hash)]
 #[derive(Serialize, Deserialize, MsgpackTagged)]
 pub enum BlackBoxFuncCall<F> {
@@ -169,7 +180,9 @@ pub enum BlackBoxFuncCall<F> {
     ///       This is done to prevent malleability.
     ///       For more context regarding malleability you can reference BIP 0062.
     ///     - the hash of the message, as a vector of bytes
-    /// - output: 0 for failure and 1 for success
+    ///     - predicate: a witness or the constant 1, which disables the verification when
+    ///       false (see [Predicates](BlackBoxFuncCall#predicates))
+    /// - output: 0 for failure and 1 for success, or 1 if the predicate is false
     ///
     /// Expected backend behavior:
     /// - The backend MAY fail to prove this opcode if the public key is not on the secp256k1 curve.
@@ -227,10 +240,11 @@ pub enum BlackBoxFuncCall<F> {
     ///     - scalars `[s1_low, s1_high, s2_low, s2_high, ...]`. (witness, N)
     ///       For Barretenberg, they must both be less than 128 bits.
     ///       Barretenberg implementation of the blackbox also ensures that the scalars do not overflow the Grumpkin scalar field modulus.
-    ///    - predicate (witness) a boolean that disable the constraint when false
+    ///     - predicate: a witness or the constant 1, which disables the constraint when false
+    ///       (see [Predicates](BlackBoxFuncCall#predicates))
     /// - output:
     ///     - a tuple of `x` and `y` coordinates of output
-    ///       points computed as `s_low*P+s_high*2^{128}*P`
+    ///       points computed as `s_low*P+s_high*2^{128}*P`, or `(0, 0)` if the predicate is false
     ///
     /// Because the Grumpkin scalar field is bigger than the ACIR field, we
     /// provide 2 ACIR fields representing the low and high parts of the Grumpkin
@@ -261,6 +275,9 @@ pub enum BlackBoxFuncCall<F> {
     /// It also assumes neither point is the infinity point.
     ///
     /// The point at infinity is represented as `(0, 0)`.
+    ///
+    /// The `predicate` is a witness or the constant 1, which disables the addition when false.
+    /// The output is then `(0, 0)` (see [Predicates](BlackBoxFuncCall#predicates)).
     ///
     /// Coordinates of each point must be all witnesses or all constants.
     /// This is a backend requirement from Barretenberg.
@@ -332,7 +349,8 @@ pub enum BlackBoxFuncCall<F> {
         /// it expects the user to specify a proof type.
         #[tag(4)]
         proof_type: u32,
-        /// A predicate (true or false) to disable the recursive verification
+        /// A witness or the constant 1, which disables the recursive verification when false
+        /// (see [Predicates](BlackBoxFuncCall#predicates))
         #[tag(5)]
         predicate: FunctionInput<F>,
     },
