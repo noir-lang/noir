@@ -30,6 +30,7 @@ fn main() -> Result<(), String> {
     println!("cargo:rerun-if-changed={}", test_dir.as_os_str().to_str().unwrap());
 
     generate_execution_success_tests(&mut test_file, &test_dir);
+    generate_compile_idempotency_tests(&mut test_file, &test_dir);
     generate_execution_failure_tests(&mut test_file, &test_dir);
     generate_noir_test_success_tests(&mut test_file, &test_dir);
     generate_noir_test_failure_tests(&mut test_file, &test_dir);
@@ -465,6 +466,52 @@ fn min_inliner(test_name: &str) -> i64 {
         .chain(&INLINER_OVERRIDES)
         .find(|(n, _)| *n == test_name)
         .map_or(i64::MIN, |(_, i)| *i)
+}
+
+/// Programs in `execution_success` which are expected to produce different artifacts when
+/// compiled twice, either because they rely on inherently non-deterministic data or because
+/// they exercise a known source of non-determinism which hasn't been fixed yet.
+/// These should be fixed and removed from this list.
+const IGNORED_COMPILE_IDEMPOTENCY_TESTS: [&str; 0] = [];
+
+/// Here we check, for every program in `test_programs/execution_success`, that compiling it
+/// twice produces byte-for-byte identical artifacts. This guards against new sources of
+/// non-determinism being introduced into the compiler.
+/// See https://github.com/noir-lang/noir/issues/6187.
+fn generate_compile_idempotency_tests(test_file: &mut File, test_data_dir: &Path) {
+    let test_type = "execution_success";
+    let test_cases = read_test_cases(test_data_dir, test_type);
+
+    writeln!(
+        test_file,
+        "
+mod compile_idempotency {{
+    use super::*;
+    "
+    )
+    .unwrap();
+
+    for (test_name, test_dir) in test_cases {
+        if IGNORED_COMPILE_IDEMPOTENCY_TESTS.contains(&test_name.as_str()) {
+            continue;
+        }
+
+        let test_dir = test_dir.display();
+
+        write!(
+            test_file,
+            r#"
+    #[test]
+    fn compile_idempotency_{test_name}() {{
+        let test_program_dir = PathBuf::from("{test_dir}");
+        assert_compilation_is_idempotent(test_program_dir);
+    }}
+    "#
+        )
+        .unwrap();
+    }
+
+    writeln!(test_file, "}}").unwrap();
 }
 
 fn generate_execution_failure_tests(test_file: &mut File, test_data_dir: &Path) {
