@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791842397876,
+  "lastUpdate": 1791896062963,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22976,48 +22976,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "49699333+dependabot[bot]@users.noreply.github.com",
-            "name": "dependabot[bot]",
-            "username": "dependabot[bot]"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "0ea12a3fd0a9b7de511687a157082a8db1dd7afd",
-          "message": "chore(deps): bump the linter group with 3 updates (#13882)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2026-10-06T11:42:45Z",
-          "tree_id": "b39a09255c93ccbce89683aab4a223ce6a268298",
-          "url": "https://github.com/noir-lang/noir/commit/0ea12a3fd0a9b7de511687a157082a8db1dd7afd"
-        },
-        "date": 1791288443867,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 169413,
-            "range": "± 1396",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 138284,
-            "range": "± 8229",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2653593,
-            "range": "± 6556",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "49558828+AztecBot@users.noreply.github.com",
             "name": "Aztec Bot",
             "username": "AztecBot"
@@ -25069,6 +25027,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2648387,
             "range": "± 1306",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d29c03e49e7eec36a12af7ec24e8f63fc4d894a2",
+          "message": "fix(frontend): report a trait that is its own parent as a dependency cycle (#13934)",
+          "timestamp": "2026-10-13T12:30:59Z",
+          "tree_id": "1a1396f82b88ed9352d77b759735608f57c3015f",
+          "url": "https://github.com/noir-lang/noir/commit/d29c03e49e7eec36a12af7ec24e8f63fc4d894a2"
+        },
+        "date": 1791895972413,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 167746,
+            "range": "± 268",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136045,
+            "range": "± 419",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2651097,
+            "range": "± 5037",
             "unit": "ns/iter"
           }
         ]
