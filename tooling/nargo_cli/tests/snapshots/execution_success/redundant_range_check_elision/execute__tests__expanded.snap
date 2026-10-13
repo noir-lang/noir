@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(a: u64, i: u32) -> pub u32 {
+    assert(a < 16_u64);
+    assert(a < 17_u64);
+    assert(a < 10_u64);
+    let t: [(u32, u32); 3] = [(i, 1_u32), (i, 2_u32), (i, 3_u32)];
+    let (x, y): (u32, u32) = t[i % 3_u32];
+    (x + y) + (a as u32)
+}
