@@ -1142,6 +1142,79 @@ fn trait_method_and_struct_method_with_same_name() {
 }
 
 #[test]
+fn inherent_method_receiver_alias_to_reference_takes_precedence_over_trait_method() {
+    let src = r#"
+    struct Foo { x: Field }
+    type FooRef = &Foo;
+
+    impl Foo {
+        fn pick(_self: FooRef) -> u32 { 100 }
+    }
+
+    trait Pickable {
+        fn pick(self) -> bool;
+    }
+
+    impl Pickable for Foo {
+        fn pick(self) -> bool { true }
+    }
+
+    fn main() {
+        let foo = Foo { x: 7 };
+        let r = &foo;
+        let _: u32 = r.pick();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn inherent_method_nested_reference_receiver_takes_precedence_over_trait_method() {
+    let src = r#"
+    struct Foo { x: Field }
+
+    impl Foo {
+        fn d_pick(_self: &&Foo) -> u32 { 100 }
+    }
+
+    trait DoubleRef {
+        fn d_pick(self) -> bool;
+    }
+
+    impl DoubleRef for Foo {
+        fn d_pick(self) -> bool { true }
+    }
+
+    fn main() {
+        let foo = Foo { x: 1 };
+        let r = &foo;
+        let rr = &r;
+        let _: u32 = rr.d_pick();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn inherent_method_generic_alias_reference_receiver_resolves() {
+    let src = r#"
+    struct Foo<T> { x: T }
+    type Ref<T> = &T;
+
+    impl<T> Foo<T> {
+        fn through_alias(_self: Ref<Foo<T>>) -> u32 { 42 }
+    }
+
+    fn main() {
+        let foo = Foo { x: 7 };
+        let r = &foo;
+        let _: u32 = r.through_alias();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn trait_method_and_struct_method_with_same_name_and_turbofish() {
     let src = r#"
     pub struct MyStruct<T> {}
