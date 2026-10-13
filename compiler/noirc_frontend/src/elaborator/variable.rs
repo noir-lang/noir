@@ -1060,6 +1060,13 @@ impl Elaborator<'_> {
                 &mut bindings,
             );
         }
+        // An associated constant of a generic impl is written in terms of that impl's generics,
+        // which the receiver type decides (`<UInt<8>>::BITS` with `impl<let N: u32> .. for UInt<N>`).
+        if let DefinitionKind::AssociatedConstant(impl_id, _) =
+            &self.interner.definition(hir_ident.id).kind
+        {
+            self.bind_trait_impl_generics_from_self_type(*impl_id, typ, &mut bindings, location);
+        }
         let id = self.intern_expr(HirExpression::Ident(hir_ident.clone(), None), location);
         let typ = self.type_check_variable_with_bindings(hir_ident, &id, None, bindings);
         let id = self.intern_expr_type(id, typ.clone());
