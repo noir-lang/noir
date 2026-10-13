@@ -188,28 +188,32 @@
 <a href=#188 id=188 data-nosnippet>188</a>    <span class="doccomment">/// Build up a string starting from the given item containing each item in the dependency
 <a href=#189 id=189 data-nosnippet>189</a>    /// cycle. The final result will resemble `foo -&gt; bar -&gt; baz -&gt; foo`, always going back to the
 <a href=#190 id=190 data-nosnippet>190</a>    /// element at the given start index.
-<a href=#191 id=191 data-nosnippet>191</a>    </span><span class="kw">fn </span>get_cycle_error_string(<span class="kw-2">&amp;</span><span class="self">self</span>, scc: <span class="kw-2">&amp;</span>[PetGraphIndex], start_index: usize) -&gt; String {
-<a href=#192 id=192 data-nosnippet>192</a>        <span class="kw">let </span>index_to_string = |index: PetGraphIndex| <span class="kw">match </span><span class="self">self</span>.dependency_graph[index] {
-<a href=#193 id=193 data-nosnippet>193</a>            DependencyId::DataType(id) =&gt; Cow::Owned(<span class="self">self</span>.get_type(id).borrow().name.to_string()),
-<a href=#194 id=194 data-nosnippet>194</a>            DependencyId::Function(id) =&gt; Cow::Borrowed(<span class="self">self</span>.function_name(<span class="kw-2">&amp;</span>id)),
-<a href=#195 id=195 data-nosnippet>195</a>            DependencyId::Alias(id) =&gt; {
-<a href=#196 id=196 data-nosnippet>196</a>                Cow::Owned(<span class="self">self</span>.get_type_alias(id).borrow().name.to_string())
-<a href=#197 id=197 data-nosnippet>197</a>            }
-<a href=#198 id=198 data-nosnippet>198</a>            DependencyId::Global(id) =&gt; Cow::Borrowed(<span class="self">self</span>.get_global(id).ident.as_str()),
-<a href=#199 id=199 data-nosnippet>199</a>            DependencyId::Trait(id) =&gt; Cow::Owned(<span class="self">self</span>.get_trait(id).name.to_string()),
-<a href=#200 id=200 data-nosnippet>200</a>            DependencyId::Variable(loc) =&gt; {
-<a href=#201 id=201 data-nosnippet>201</a>                <span class="macro">unreachable!</span>(<span class="string">"Variable used at location {loc:?} caught in a dependency cycle"</span>)
-<a href=#202 id=202 data-nosnippet>202</a>            }
-<a href=#203 id=203 data-nosnippet>203</a>        };
-<a href=#204 id=204 data-nosnippet>204</a>
-<a href=#205 id=205 data-nosnippet>205</a>        <span class="kw">let </span><span class="kw-2">mut </span>cycle = index_to_string(scc[start_index]).to_string();
-<a href=#206 id=206 data-nosnippet>206</a>
-<a href=#207 id=207 data-nosnippet>207</a>        <span class="comment">// Reversing the dependencies here matches the order users would expect for the error message
-<a href=#208 id=208 data-nosnippet>208</a>        </span><span class="kw">for </span>i <span class="kw">in </span>(<span class="number">0</span>..scc.len()).rev() {
-<a href=#209 id=209 data-nosnippet>209</a>            cycle += <span class="string">" -&gt; "</span>;
-<a href=#210 id=210 data-nosnippet>210</a>            cycle += <span class="kw-2">&amp;</span>index_to_string(scc[(start_index + i) % scc.len()]);
-<a href=#211 id=211 data-nosnippet>211</a>        }
-<a href=#212 id=212 data-nosnippet>212</a>
-<a href=#213 id=213 data-nosnippet>213</a>        cycle
-<a href=#214 id=214 data-nosnippet>214</a>    }
-<a href=#215 id=215 data-nosnippet>215</a>}</code></pre></div></section></main></body></html>
+<a href=#191 id=191 data-nosnippet>191</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_cycle_error_string(
+<a href=#192 id=192 data-nosnippet>192</a>        <span class="kw-2">&amp;</span><span class="self">self</span>,
+<a href=#193 id=193 data-nosnippet>193</a>        scc: <span class="kw-2">&amp;</span>[PetGraphIndex],
+<a href=#194 id=194 data-nosnippet>194</a>        start_index: usize,
+<a href=#195 id=195 data-nosnippet>195</a>    ) -&gt; String {
+<a href=#196 id=196 data-nosnippet>196</a>        <span class="kw">let </span>index_to_string = |index: PetGraphIndex| <span class="kw">match </span><span class="self">self</span>.dependency_graph[index] {
+<a href=#197 id=197 data-nosnippet>197</a>            DependencyId::DataType(id) =&gt; Cow::Owned(<span class="self">self</span>.get_type(id).borrow().name.to_string()),
+<a href=#198 id=198 data-nosnippet>198</a>            DependencyId::Function(id) =&gt; Cow::Borrowed(<span class="self">self</span>.function_name(<span class="kw-2">&amp;</span>id)),
+<a href=#199 id=199 data-nosnippet>199</a>            DependencyId::Alias(id) =&gt; {
+<a href=#200 id=200 data-nosnippet>200</a>                Cow::Owned(<span class="self">self</span>.get_type_alias(id).borrow().name.to_string())
+<a href=#201 id=201 data-nosnippet>201</a>            }
+<a href=#202 id=202 data-nosnippet>202</a>            DependencyId::Global(id) =&gt; Cow::Borrowed(<span class="self">self</span>.get_global(id).ident.as_str()),
+<a href=#203 id=203 data-nosnippet>203</a>            DependencyId::Trait(id) =&gt; Cow::Owned(<span class="self">self</span>.get_trait(id).name.to_string()),
+<a href=#204 id=204 data-nosnippet>204</a>            DependencyId::Variable(loc) =&gt; {
+<a href=#205 id=205 data-nosnippet>205</a>                <span class="macro">unreachable!</span>(<span class="string">"Variable used at location {loc:?} caught in a dependency cycle"</span>)
+<a href=#206 id=206 data-nosnippet>206</a>            }
+<a href=#207 id=207 data-nosnippet>207</a>        };
+<a href=#208 id=208 data-nosnippet>208</a>
+<a href=#209 id=209 data-nosnippet>209</a>        <span class="kw">let </span><span class="kw-2">mut </span>cycle = index_to_string(scc[start_index]).to_string();
+<a href=#210 id=210 data-nosnippet>210</a>
+<a href=#211 id=211 data-nosnippet>211</a>        <span class="comment">// Reversing the dependencies here matches the order users would expect for the error message
+<a href=#212 id=212 data-nosnippet>212</a>        </span><span class="kw">for </span>i <span class="kw">in </span>(<span class="number">0</span>..scc.len()).rev() {
+<a href=#213 id=213 data-nosnippet>213</a>            cycle += <span class="string">" -&gt; "</span>;
+<a href=#214 id=214 data-nosnippet>214</a>            cycle += <span class="kw-2">&amp;</span>index_to_string(scc[(start_index + i) % scc.len()]);
+<a href=#215 id=215 data-nosnippet>215</a>        }
+<a href=#216 id=216 data-nosnippet>216</a>
+<a href=#217 id=217 data-nosnippet>217</a>        cycle
+<a href=#218 id=218 data-nosnippet>218</a>    }
+<a href=#219 id=219 data-nosnippet>219</a>}</code></pre></div></section></main></body></html>
