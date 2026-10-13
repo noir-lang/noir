@@ -174,13 +174,6 @@ impl<F: AcirField> AcirContext<F> {
                 let mut inputs = self.prepare_inputs_for_black_box_func_call(inputs, false)?;
                 // convert the predicate into witness or constant
                 let predicate = self.value_to_function_input(predicate)?;
-                // Sanity check: proving system does not expect to receive 0 predicates
-                assert_ne!(
-                    predicate,
-                    FunctionInput::Constant(F::zero()),
-                    "0 predicate should have been optimized away"
-                );
-
                 // add back the predicate into the FunctionInputs
                 inputs.insert(4, vec![predicate]);
                 inputs
@@ -207,12 +200,6 @@ impl<F: AcirField> AcirContext<F> {
                 let mut inputs = self.prepare_inputs_for_black_box_func_call(inputs, false)?;
                 // convert the predicate into witness or constant
                 let predicate = self.value_to_function_input(predicate)?;
-                // Sanity check: proving system does not expect to receive 0 predicates
-                assert_ne!(
-                    predicate,
-                    FunctionInput::Constant(F::zero()),
-                    "0 predicate should have been optimized away"
-                );
                 // add back the predicate into the FunctionInputs
                 inputs.push(vec![predicate]);
                 inputs
