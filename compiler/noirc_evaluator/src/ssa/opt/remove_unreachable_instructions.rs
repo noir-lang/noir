@@ -545,30 +545,24 @@ fn remove_and_replace_with_defaults(
 ) {
     let result_ids = context.dfg.instruction_results(context.instruction_id).to_vec();
     let mut replacements: Vec<(ValueId, ValueId)> = Vec::new();
-    for (i, result_id) in result_ids.iter().enumerate() {
-        let typ = context.dfg.type_of_value(*result_id).into_owned();
+    for result_id in result_ids {
+        let typ = context.dfg.type_of_value(result_id).into_owned();
         if matches!(typ, Type::Vector(_)) {
-            let Some(len) = context.dfg.try_get_vector_capacity(*result_id) else {
+            // The default vector must cover the whole backing array: reads emitted by earlier
+            // passes, for example when merging vectors, can access any element of it. The
+            // semantic length returned alongside a vector intrinsic's result gets the zero
+            // default like any other numeric result, as it does for a call made while side
+            // effects are disabled.
+            let Some(len) = context.dfg.try_get_vector_backing_capacity(result_id) else {
                 // If we can't figure out the capacity of the vector, then we cannot safely replace it with defaults.
                 return;
             };
-            // Check if this result is preceded the semantic length.
-            let follows_semantic_length = i > 0
-                && *context.dfg.type_of_value(result_ids[i - 1]) == Type::unsigned(32)
-                && matches!(context.instruction(), Instruction::Call { .. });
-
-            if follows_semantic_length {
-                replacements[i - 1].1 = context.dfg.make_constant(
-                    FieldElement::from(len.to_usize()),
-                    NumericType::Unsigned { bit_size: 32 },
-                );
-            }
             replacements.push((
-                *result_id,
+                result_id,
                 zeroed_vector_of_size(context.dfg, func_id, block_id, &typ, len.to_usize()),
             ));
         } else {
-            replacements.push((*result_id, zeroed_value(context.dfg, func_id, block_id, &typ)));
+            replacements.push((result_id, zeroed_value(context.dfg, func_id, block_id, &typ)));
         }
     }
 
@@ -667,9 +661,16 @@ fn should_replace_instruction_with_defaults(context: &SimpleOptimizationContext)
 
 #[cfg(test)]
 mod tests {
+    use acvm::{AcirField, FieldElement};
+
     use crate::{
         assert_ssa_snapshot,
-        ssa::{opt::assert_ssa_does_not_change, ssa_gen::Ssa},
+        ssa::{
+            interpreter::value::Value,
+            ir::types::NumericType,
+            opt::{assert_pass_does_not_affect_execution, assert_ssa_does_not_change},
+            ssa_gen::Ssa,
+        },
     };
 
     #[test]
@@ -1627,6 +1628,193 @@ mod tests {
             store Field 0 at v3
             v5 = load v3 -> Field
             return v5
+        }
+        "#);
+    }
+
+    #[test]
+    fn disabled_vector_push_back_default_keeps_backing_capacity() {
+        // The `push_back` length argument is the constant 0, but its input vector has a backing
+        // capacity of 2, so the result has a capacity of 3. The reads after the predicate is
+        // restored rely on that capacity, so the default for the disabled `push_back` must not
+        // be sized from the constant length.
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            v3 = make_array [Field 1, Field 2] : [(Field, Field)]
+            enable_side_effects v0
+            constrain u1 0 == v0, \"Index out of bounds\"
+            v6 = array_get v3, index u32 2 -> Field
+            v8 = array_get v3, index u32 3 -> Field
+            v9 = make_array [Field 1, Field 2, v6, v8] : [(Field, Field)]
+            v12, v13 = call vector_push_back(u32 0, v9, v6, v8) -> (u32, [(Field, Field)])
+            enable_side_effects u1 1
+            v15 = array_get v13, index u32 0 -> Field
+            v16 = cast v0 as Field
+            v17 = mul v16, v15
+            v19 = array_get v13, index u32 1 -> Field
+            v20 = mul v16, v19
+            v21 = array_get v13, index u32 2 -> Field
+            v22 = array_get v13, index u32 3 -> Field
+            v24 = array_get v13, index u32 4 -> Field
+            v26 = array_get v13, index u32 5 -> Field
+            v27 = make_array [v17, v20, v21, v22, v24, v26] : [(Field, Field)]
+            enable_side_effects u1 1
+            return v17
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let (ssa, result) =
+            assert_pass_does_not_affect_execution(ssa, vec![Value::bool(false)], |ssa| {
+                ssa.remove_unreachable_instructions()
+            });
+        assert_eq!(result, Ok(vec![Value::field(FieldElement::zero())]));
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            v3 = make_array [Field 1, Field 2] : [(Field, Field)]
+            enable_side_effects v0
+            constrain u1 0 == v0, "Index out of bounds"
+            constrain u1 0 == v0, "Index out of bounds"
+            v6 = make_array [Field 1, Field 2, Field 0, Field 0] : [(Field, Field)]
+            v7 = make_array [Field 0, Field 0, Field 0, Field 0, Field 0, Field 0] : [(Field, Field)]
+            enable_side_effects u1 1
+            v9 = cast v0 as Field
+            v10 = make_array [Field 0, Field 0, Field 0, Field 0, Field 0, Field 0] : [(Field, Field)]
+            enable_side_effects u1 1
+            return Field 0
+        }
+        "#);
+    }
+
+    #[test]
+    fn disabled_vector_pop_back_length_default_matches_inactive_call() {
+        // `v9` is 1 when `v0` is true, while the merged vector `v11` has a backing capacity of 3.
+        // The disabled `vector_pop_back` returns a default length, which must not be derived
+        // from that backing capacity.
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1, v1: u1):
+            v2 = make_array [u32 1] : [u32]
+            v3 = make_array [u32 1, u32 2, u32 3] : [u32]
+            v4 = not v0
+            v5 = cast v0 as u32
+            v6 = cast v4 as u32
+            v7 = unchecked_mul v5, u32 1
+            v8 = unchecked_mul v6, u32 3
+            v9 = unchecked_add v7, v8
+            v10 = if v0 then v2 else (if v4) v3
+            v11 = array_set v10, index u32 0, value u32 9
+            enable_side_effects v1
+            v12 = div u32 1, u32 0
+            v13, v14, v15 = call vector_pop_back(v9, v11) -> (u32, [u32], u32)
+            enable_side_effects u1 1
+            return v13
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let (_, result) = assert_pass_does_not_affect_execution(
+            ssa,
+            vec![Value::bool(true), Value::bool(false)],
+            |ssa| ssa.remove_unreachable_instructions(),
+        );
+        assert_eq!(result, Ok(vec![Value::u32(0)]));
+    }
+
+    #[test]
+    fn disabled_vector_pop_back_vector_default_keeps_backing_capacity() {
+        // The disabled `vector_pop_back` has a constant length of 1 but a backing capacity of 3,
+        // so its vector result has a capacity of 2 and the read of index 0 after the predicate
+        // is restored stays in bounds.
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1, v1: u32):
+            v2 = make_array [u32 1, u32 2, u32 3] : [u32]
+            v3 = array_set v2, index v1, value u32 9
+            enable_side_effects v0
+            v4 = div u32 1, u32 0
+            v5, v6, v7 = call vector_pop_back(u32 1, v3) -> (u32, [u32], u32)
+            enable_side_effects u1 1
+            v8 = array_get v6, index u32 0 -> u32
+            return v8
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let (ssa, result) = assert_pass_does_not_affect_execution(
+            ssa,
+            vec![Value::bool(false), Value::u32(0)],
+            |ssa| ssa.remove_unreachable_instructions(),
+        );
+        assert_eq!(result, Ok(vec![Value::u32(0)]));
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1, v1: u32):
+            v5 = make_array [u32 1, u32 2, u32 3] : [u32]
+            v7 = array_set v5, index v1, value u32 9
+            enable_side_effects v0
+            constrain u1 0 == v0, "attempt to divide by zero"
+            v10 = make_array [u32 0, u32 0] : [u32]
+            enable_side_effects u1 1
+            return u32 0
+        }
+        "#);
+    }
+
+    #[test]
+    fn disabled_vector_push_back_onto_as_vector_result() {
+        // The backing capacity of `v12` is traced through `as_vector`, whose single argument is
+        // the array it converts.
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1, v1: [Field; 2]):
+            enable_side_effects v0
+            v4 = div u32 7, u32 0
+            v6, v7 = call as_vector(v1) -> (u32, [Field])
+            v8 = cast v4 as Field
+            v11, v12 = call vector_push_back(u32 2, v7, v8) -> (u32, [Field])
+            v13 = eq v11, u32 0
+            v14 = unchecked_mul v13, v0
+            constrain v14 == u1 0, \"Index out of bounds\"
+            v16 = array_get v12, index u32 0 -> Field
+            v17 = not v0
+            enable_side_effects u1 1
+            v19 = cast v0 as Field
+            v20 = cast v17 as Field
+            v21 = mul v19, v16
+            return v21
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let array = Value::array_from_iter(
+            [FieldElement::one(), FieldElement::from(2_u128)],
+            NumericType::NativeField,
+        )
+        .unwrap();
+        let (ssa, result) =
+            assert_pass_does_not_affect_execution(ssa, vec![Value::bool(false), array], |ssa| {
+                ssa.remove_unreachable_instructions()
+            });
+        assert_eq!(result, Ok(vec![Value::field(FieldElement::zero())]));
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1, v1: [Field; 2]):
+            enable_side_effects v0
+            constrain u1 0 == v0, "attempt to divide by zero"
+            v4, v5 = call as_vector(v1) -> (u32, [Field])
+            v7 = make_array [Field 0, Field 0, Field 0] : [Field]
+            constrain v0 == u1 0, "Index out of bounds"
+            v8 = not v0
+            enable_side_effects u1 1
+            v10 = cast v0 as Field
+            v11 = cast v8 as Field
+            return Field 0
         }
         "#);
     }
