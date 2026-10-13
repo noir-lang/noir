@@ -22,6 +22,14 @@ impl<F: AcirField> AcirContext<F> {
         predicate: Option<AcirVar>,
     ) -> Result<Vec<AcirVar>, RuntimeError> {
         let output_count = output_count.to_usize();
+
+        // A predicate which folds to a compile-time zero means the call is statically disabled. Backends
+        // reject (or cannot represent) a constant zero predicate, so the call is resolved here to the
+        // outputs the ACVM produces for a disabled call and no opcode is emitted.
+        if let Some(disabled_output) = self.disabled_black_box_output(name, &inputs, predicate)? {
+            return Ok(vecmap(0..output_count, |_| self.add_constant(disabled_output)));
+        }
+
         // Separate out any arguments that should be constants
         let constant_inputs = match name {
             BlackBoxFunc::AES128Encrypt => {
@@ -91,6 +99,51 @@ impl<F: AcirField> AcirContext<F> {
         // We do not apply range information on the output of the black box function.
         // See issue #1439
         Ok(output_vars)
+    }
+
+    /// Returns the value of every output of a call to `name` if its predicate is a compile-time zero,
+    /// or `None` if the call is not statically disabled.
+    ///
+    /// The values match the ACVM's behaviour for a disabled call: embedded curve operations return
+    /// the point `(0, 0)` and ECDSA verification returns `true`.
+    fn disabled_black_box_output(
+        &self,
+        name: BlackBoxFunc,
+        inputs: &[AcirValue],
+        side_effects_predicate: Option<AcirVar>,
+    ) -> Result<Option<F>, RuntimeError> {
+        let (predicate, disabled_output) = match name {
+            BlackBoxFunc::MultiScalarMul => (inputs.get(2), F::zero()),
+            BlackBoxFunc::EmbeddedCurveAdd => (inputs.get(4), F::zero()),
+            BlackBoxFunc::EcdsaSecp256k1 | BlackBoxFunc::EcdsaSecp256r1 => {
+                (inputs.get(4), F::one())
+            }
+            // `RecursiveAggregation` has no outputs, so the output value is never used.
+            BlackBoxFunc::RecursiveAggregation => {
+                let predicate = side_effects_predicate
+                    .expect("ICE: RecursiveAggregation must be given the side-effects predicate");
+                let is_disabled = self.var_to_expression(predicate)?.is_zero();
+                return Ok(is_disabled.then_some(F::zero()));
+            }
+            BlackBoxFunc::AES128Encrypt
+            | BlackBoxFunc::AND
+            | BlackBoxFunc::XOR
+            | BlackBoxFunc::RANGE
+            | BlackBoxFunc::Blake2s
+            | BlackBoxFunc::Blake3
+            | BlackBoxFunc::Keccakf1600
+            | BlackBoxFunc::Poseidon2Permutation
+            | BlackBoxFunc::Sha256Compression => return Ok(None),
+        };
+        let Some(AcirValue::Var(predicate, _)) = predicate else {
+            return Err(RuntimeError::InternalError(InternalError::MissingArg {
+                name: name.name().to_string(),
+                arg: "predicate".to_string(),
+                call_stack: self.get_call_stack(),
+            }));
+        };
+        let is_disabled = self.var_to_expression(*predicate)?.is_zero();
+        Ok(is_disabled.then_some(disabled_output))
     }
 
     pub(super) fn prepare_inputs_for_black_box_func(
