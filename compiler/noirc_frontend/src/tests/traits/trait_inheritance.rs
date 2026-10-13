@@ -1639,3 +1639,44 @@ fn trait_where_clause_on_its_own_self_is_a_cycle() {
     "#;
     check_errors(src);
 }
+
+/// A parent bound is instantiated with one use's arguments for the trait's generics. Inside the
+/// trait those arguments can themselves be the trait's generics (`U: Child<V, Field>` below), and
+/// each one is used as written: `U`'s parent is `Parent<V>`, not `Parent<Field>`.
+#[test]
+fn parent_bound_arguments_naming_the_traits_own_generics_are_used_as_written() {
+    let src = r#"
+    trait Parent<T> { fn p(self) -> Field; }
+    trait Child<U, V>: Parent<U> {
+        fn c(self, u: U) -> Field where U: Child<V, Field> { let _ = self; u.p() }
+    }
+    struct A { v: Field }
+    struct B { v: Field }
+    impl Parent<B> for A { fn p(self) -> Field { assert(self.v != 100); self.v } }
+    impl Parent<Field> for A { fn p(self) -> Field { self.v } }
+    impl Child<B, Field> for A {}
+    impl Parent<A> for B { fn p(self) -> Field { self.v } }
+    impl Child<A, B> for B {}
+    fn main(v: Field) -> pub Field { let b = B { v: 7 }; b.c(A { v }) }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0(v$l0: Field) -> pub Field {
+        let b$l2 = {
+            let v$l1 = 7;
+            (v$l1)
+        };
+        c$f1(b$l2, {
+            let v$l3 = v$l0;
+            (v$l3)
+        })
+    }
+    fn c$f1(self$l4: (Field,), u$l5: (Field,)) -> Field {
+        let _$l6 = self$l4;
+        p$f2(u$l5)
+    }
+    fn p$f2(self$l7: (Field,)) -> Field {
+        self$l7.0
+    }
+    ");
+}
