@@ -1,0 +1,20 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(x: Field, b: Field, y: Field, cond: bool, expected_byte: u8, expected_bit: bool) {
+    let le_byte: [u8; 1] = x.to_le_bytes();
+    assert(le_byte[0_u32] == expected_byte);
+    let be_byte: [u8; 1] = x.to_be_bytes();
+    assert(be_byte[0_u32] == expected_byte);
+    let le_bit: [bool; 1] = b.to_le_bits();
+    assert(le_bit[0_u32] == expected_bit);
+    let be_bit: [bool; 1] = b.to_be_bits();
+    assert(be_bit[0_u32] == expected_bit);
+    let two_bytes: [u8; 2] = y.to_le_bytes();
+    assert(((two_bytes[0_u32] as Field) + ((two_bytes[1_u32] as Field) * 256_Field)) == y);
+    if cond {
+        let bad_byte: [u8; 1] = y.to_le_bytes();
+        assert(bad_byte[0_u32] == expected_byte);
+    }
+}
