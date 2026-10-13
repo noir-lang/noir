@@ -61,7 +61,7 @@
 use acir::{
     AcirField,
     circuit::{
-        Circuit, Opcode,
+        Circuit, Opcode, OpcodeLocation,
         brillig::BrilligFunctionId,
         opcodes::{BlackBoxFuncCall, BlockId, FunctionInput, MemOp},
     },
@@ -229,6 +229,21 @@ impl<'a, F: AcirField> RangeOptimizer<'a, F> {
     ) -> (Circuit<F>, Vec<usize>) {
         let mut new_order_list = Vec::with_capacity(order_list.len());
         let mut optimized_opcodes = Vec::with_capacity(self.circuit.opcodes.len());
+
+        // ACIR opcode indices which have an assertion message attached. A RANGE opcode with a
+        // message is an overflow check (e.g. "attempt to subtract with overflow"); the implied
+        // constraints we dedup against (array indexing, equalities) fail with a different error,
+        // so removing such a check would change the program's observable failure behavior.
+        let assert_message_indices: BTreeSet<usize> = self
+            .circuit
+            .assert_messages
+            .iter()
+            .filter_map(|(location, _)| match location {
+                OpcodeLocation::Acir(index) => Some(*index),
+                OpcodeLocation::Brillig { .. } => None,
+            })
+            .collect();
+
         // Consider the index beyond the last as a pseudo side effect by which time all constraints need to be inserted.
         let mut next_side_effect = self.circuit.opcodes.len();
         // Going in reverse so we can propagate the side effect information backwards.
@@ -258,6 +273,17 @@ impl<'a, F: AcirField> RangeOptimizer<'a, F> {
                 new_order_list.push(order_list[idx]);
                 continue;
             };
+
+            // A RANGE opcode carrying an assertion message is an overflow check whose failure is
+            // observable, so it must be preserved rather than deduplicated against a looser
+            // implied constraint (such as an array-index bound). `assert_messages` are keyed by
+            // original opcode positions (they are only remapped after all optimizer passes run),
+            // so look the current opcode up through `order_list`.
+            if assert_message_indices.contains(&order_list[idx]) {
+                new_order_list.push(order_list[idx]);
+                optimized_opcodes.push(opcode.clone());
+                continue;
+            }
 
             let info = self.infos.get(&witness).expect("Could not find witness. This should never be the case if `collect_ranges` is called");
 
@@ -312,7 +338,7 @@ mod tests {
     };
     use acir::{
         AcirField,
-        circuit::{Circuit, brillig::BrilligFunctionId},
+        circuit::{AssertionPayload, Circuit, OpcodeLocation, brillig::BrilligFunctionId},
         native_types::{Expression, Witness},
     };
     use test_case::test_case;
@@ -628,6 +654,44 @@ mod tests {
         public parameters: []
         return values: []
         INIT b0 = [w0, w0, w0, w0, w0, w0, w0, w0]
+        READ w2 = b0[w1]
+        ");
+    }
+
+    #[test]
+    fn overflow_check_on_array_index_is_retained() {
+        // A RANGE opcode that carries an assertion message is an overflow check (here, the result
+        // of a checked subtraction used as an array index). Even though the array length implies a
+        // tighter range, removing the check would change the program's failure from "attempt to
+        // subtract with overflow" to "Index out of bounds", diverging from the Brillig runtime.
+        let src = "
+        private parameters: [w0, w1]
+        public parameters: []
+        return values: []
+        BLACKBOX::RANGE input: w1, bits: 32
+        INIT b0 = [w0, w0, w0]
+        READ w2 = b0[w1]
+        ";
+        let mut circuit = Circuit::from_str(src).unwrap();
+        assert!(CircuitSimulator::check_circuit(&circuit).is_none());
+
+        // Attach an assertion message to the RANGE opcode (index 0), marking it as an overflow check.
+        circuit.assert_messages =
+            vec![(OpcodeLocation::Acir(0), AssertionPayload { error_selector: 1, payload: vec![] })];
+
+        let acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
+        let brillig_side_effects = BTreeMap::new();
+        let optimizer = RangeOptimizer::new(circuit, &brillig_side_effects);
+        let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
+        assert!(CircuitSimulator::check_circuit(&optimized_circuit).is_none());
+
+        // The RANGE check must survive because it has an attached assertion message.
+        assert_circuit_snapshot!(optimized_circuit, @r"
+        private parameters: [w0, w1]
+        public parameters: []
+        return values: []
+        BLACKBOX::RANGE input: w1, bits: 32
+        INIT b0 = [w0, w0, w0]
         READ w2 = b0[w1]
         ");
     }
