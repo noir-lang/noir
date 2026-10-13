@@ -679,6 +679,8 @@ impl<'interner> Monomorphizer<'interner> {
         // When monomorphizing a trait method we bind the trait's `Self` to the impl's self
         // type so that references to `Self` in the function resolve.
         let self_bindings = self.function_trait_self_bindings(&f);
+        // The impl's self type is written in terms of the impl's generics, which are bound here.
+        let self_bindings = self.bindings(&self_bindings);
         self.with_bindings(self_bindings, |this| this.function_with_self_bound(f, id, location))
     }
 
@@ -3529,13 +3531,20 @@ fn impl_instantiation_bindings(
 ) -> TypeBindings {
     let mut bindings = interner.get_instantiation_bindings(expr_id).clone();
     bindings.extend(extra_bindings);
+    // The impl method's generics and the trait's `Self` are bound to types written in terms of
+    // the trait method's generics and the impl's, which `bindings` binds.
+    let mut derived = TypeBindings::default();
     bind_trait_impl_func_generics_to_trait_func_generics(
         interner,
         method_id,
         impl_id,
-        &mut bindings,
+        &mut derived,
     );
-    bind_trait_self_to_impl_self(interner, method_id, impl_id, &mut bindings);
+    bind_trait_self_to_impl_self(interner, method_id, impl_id, &mut derived);
+    for (id, (var, kind, typ)) in derived {
+        let typ = typ.substitute(&bindings);
+        bindings.insert(id, (var, kind, typ));
+    }
     bindings
 }
 

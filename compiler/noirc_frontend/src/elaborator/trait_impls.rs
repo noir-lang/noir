@@ -842,8 +842,14 @@ impl Elaborator<'_> {
                 TraitLookupMode::Default,
             ) {
                 Ok((_, impl_bindings, impl_instantiation_bindings)) => {
-                    bindings.extend(impl_bindings);
-                    bindings.extend(impl_instantiation_bindings);
+                    // The search solves the fresh variables given to the elided associated
+                    // types above, which later bounds read through `bindings`.
+                    let mut solved = impl_bindings;
+                    solved.extend(impl_instantiation_bindings);
+                    for (_, _, typ) in bindings.values_mut() {
+                        *typ = typ.substitute(&solved);
+                    }
+                    bindings.extend(solved);
                 }
                 Err(_) => {
                     let missing_trait =
