@@ -341,7 +341,8 @@ impl ParentBound {
         bindings: &TypeBindings,
         mut fresh_placeholder: impl FnMut(Kind) -> Type,
     ) -> ResolvedTraitBound {
-        let mut trait_generics = self.0.trait_generics.map(|typ| typ.substitute(bindings));
+        let mut trait_generics =
+            self.0.trait_generics.map(|typ| typ.substitute_simultaneous(bindings));
         for (named, declared) in trait_generics.named.iter_mut().zip(&self.0.trait_generics.named) {
             if let Type::TypeVariable(placeholder) = &declared.typ {
                 named.typ = fresh_placeholder(placeholder.kind().into_owned());
@@ -461,7 +462,8 @@ impl Trait {
         for named in &trait_generics.named {
             for bound in self.associated_type_bounds.get(named.name.as_str()).into_iter().flatten()
             {
-                let trait_generics = bound.trait_generics.map(|typ| typ.substitute(&bindings));
+                let trait_generics =
+                    bound.trait_generics.map(|typ| typ.substitute_simultaneous(&bindings));
                 let trait_bound = ResolvedTraitBound { trait_generics, ..bound.clone() };
                 let constraint = TraitConstraint { typ: named.typ.clone(), trait_bound };
                 constraints.push((constraint, named.name.location()));
