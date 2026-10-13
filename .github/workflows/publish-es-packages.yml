@@ -169,11 +169,15 @@ jobs:
 
       - name: Prepare nightly version
         if: ${{ inputs.npm-tag != 'latest' }}
+        env:
+          NPM_TAG: ${{ inputs.npm-tag }}
         run: |
-          yarn nightly:version -- .${{ inputs.npm-tag }}
+          yarn nightly:version -- ".${NPM_TAG}"
 
       - name: Publish ES Packages
-        run: yarn publish:all --provenance --access public --tag ${{ inputs.npm-tag }}
+        env:
+          NPM_TAG: ${{ inputs.npm-tag }}
+        run: yarn publish:all --provenance --access public --tag "$NPM_TAG"
 
       # Raise an issue if any package failed to publish
       - name: Alert on failed publish

@@ -48,8 +48,11 @@ runs:
     - name: Install Playwright browsers
       if: steps.playwright-cache.outputs.cache-hit != 'true'
       uses: ./.github/actions/retry
+      env:
+        PLAYWRIGHT_VERSION: ${{ inputs.playwright-version }}
+        PLAYWRIGHT_BROWSERS: ${{ inputs.browsers }}
       with:
-        run: timeout 240 npx -y playwright@${{ inputs.playwright-version }} install ${{ inputs.browsers }}
+        run: timeout 240 npx -y playwright@"$PLAYWRIGHT_VERSION" install $PLAYWRIGHT_BROWSERS
 
     # GitHub-hosted Ubuntu runner images already ship Chromium's system
     # libraries, so `install-deps` is only needed for engines like WebKit.

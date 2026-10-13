@@ -15,7 +15,10 @@ runs:
 
     - name: Set ${{ inputs.name }} on PATH
       shell: bash
+      env:
+        BINARY_NAME: ${{ inputs.name }}
+        WORKSPACE: ${{ github.workspace }}
       run: |
-        binary="${{ github.workspace }}/${{ inputs.name }}/${{ inputs.name }}"
-        chmod +x $binary
-        echo "$(dirname $binary)" >> $GITHUB_PATH
+        binary="${WORKSPACE}/${BINARY_NAME}/${BINARY_NAME}"
+        chmod +x "$binary"
+        echo "$(dirname "$binary")" >> "$GITHUB_PATH"
