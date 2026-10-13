@@ -1676,7 +1676,45 @@ fn parent_bound_arguments_naming_the_traits_own_generics_are_used_as_written() {
         p$f2(u$l5)
     }
     fn p$f2(self$l7: (Field,)) -> Field {
+        assert((self$l7.0 != 100));;
         self$l7.0
     }
     ");
+}
+
+#[test]
+fn parent_bound_arguments_that_swap_the_traits_own_generics() {
+    let src = r#"
+    pub trait Parent<X> {}
+    pub trait Child<A, B>: Parent<A> {
+        fn swapped(self) where Self: Child<B, A> { let _ = self; }
+    }
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn parent_bound_argument_that_is_the_generic_it_replaces() {
+    let src = r#"
+    trait Parent<T> { fn p(self) -> Field; }
+    trait Child<U, V>: Parent<U> {
+        fn c(self, u: U) -> Field where U: Child<V, U> { let _ = self; u.p() }
+    }
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn associated_type_bound_arguments_that_swap_the_traits_own_generics() {
+    let src = r#"
+    pub trait Conv<X> {}
+    pub trait Foo<A, B> {
+        type Out: Conv<A>;
+        fn m(self) where Self: Foo<B, A, Out = u8> { let _ = self; }
+    }
+    fn main() {}
+    "#;
+    assert_no_errors(src);
 }
