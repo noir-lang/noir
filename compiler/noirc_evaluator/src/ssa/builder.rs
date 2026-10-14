@@ -232,16 +232,6 @@ impl<'local> SsaBuilder<'local> {
         Ok(self)
     }
 
-    /// Runs the given SSA pass and prints the SSA afterward if `print_ssa_passes` is true.
-    #[allow(dead_code)]
-    fn run_pass<F>(mut self, pass: F, msg: &str) -> Self
-    where
-        F: FnOnce(Ssa) -> Ssa,
-    {
-        self.ssa = time(msg, self.print_codegen_timings, || pass(self.ssa));
-        self.print(msg)
-    }
-
     /// The same as `run_pass` but for passes that may fail
     fn try_run_pass<F>(mut self, pass: F, msg: &str, last: bool) -> Result<Self, RuntimeError>
     where
