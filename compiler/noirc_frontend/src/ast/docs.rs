@@ -14,10 +14,6 @@ impl<T> Documented<T> {
     pub fn new(item: T, doc_comments: Vec<DocComment>) -> Self {
         Self { item, doc_comments }
     }
-
-    pub fn not_documented(item: T) -> Self {
-        Self { item, doc_comments: Vec::new() }
-    }
 }
 
 impl<T: Display> Display for Documented<T> {

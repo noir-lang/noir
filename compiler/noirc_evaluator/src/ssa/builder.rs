@@ -204,11 +204,6 @@ impl<'local> SsaBuilder<'local> {
         &self.ssa
     }
 
-    pub fn with_passed(mut self, passed: HashMap<String, usize>) -> Self {
-        self.passed = passed;
-        self
-    }
-
     pub fn with_skip_passes(mut self, skip_passes: Vec<String>) -> Self {
         self.skip_passes = skip_passes;
         self

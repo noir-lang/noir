@@ -443,11 +443,6 @@ impl<'interner> Monomorphizer<'interner> {
         Ok(())
     }
 
-    /// Return the item at the front of the queue, if there is one, without popping it.
-    pub fn peek_queue(&self) -> Option<&QueuedFunction> {
-        self.queue.front()
-    }
-
     pub fn finished_globals(&self) -> &HashMap<GlobalId, (String, ast::Type, ast::Expression)> {
         &self.finished_globals
     }
