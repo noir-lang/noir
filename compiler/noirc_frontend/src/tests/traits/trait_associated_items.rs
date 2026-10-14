@@ -770,9 +770,11 @@ fn associated_type_mismatch_with_inheritance() {
     pub trait Qux: Foo {
         type Baz;
         fn qux(x: Self::Baz) -> Self::Baz {
+                                ^^^^^^^^^ expected type Self::Baz, found type Self::Bar
+                                ~~~~~~~~~ expected Self::Baz because of return type
             <Self as Foo>::foo(x)
-             ^^^^^^^^^^^ No matching impl found for `Self: Foo<Bar = Self::Baz>`
-             ~~~~~~~~~~~ No impl for `Self: Foo<Bar = Self::Baz>`
+                               ^ Expected type Self::Bar, found type Self::Baz
+            ~~~~~~~~~~~~~~~~~~~~~ Self::Bar returned here
         }
     }
 
@@ -3779,4 +3781,23 @@ fn numeric_associated_type_result_is_known_when_a_method_is_called_on_it() {
     }
     "#;
     assert_no_errors(src);
+}
+
+/// When the call already says which impl it uses (`make::<K>()`, `<K as Tr>::mk()`), its
+/// associated type is that impl's from the start, so a mismatch is reported as one.
+#[test]
+fn associated_type_of_a_fully_known_trait_is_the_impls_at_the_call() {
+    let src = r#"
+    pub trait Tr { type Out; fn mk() -> Self::Out; }
+    pub struct K {}
+    impl Tr for K { type Out = u8; fn mk() -> u8 { 7 } }
+    fn make<T: Tr>() -> T::Out { T::mk() }
+    fn main() {
+        let _a: u16 = make::<K>();
+                      ^^^^^^^^^^^ Expected type u16, found type u8
+        let _b: u16 = <K as Tr>::mk();
+                      ^^^^^^^^^^^^^^^ Expected type u16, found type u8
+    }
+    "#;
+    check_errors(src);
 }
