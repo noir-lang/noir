@@ -2602,7 +2602,7 @@
 <a href=#2602 id=2602 data-nosnippet>2602</a>        location: Location,
 <a href=#2603 id=2603 data-nosnippet>2603</a>    ) -&gt; Type {
 <a href=#2604 id=2604 data-nosnippet>2604</a>        <span class="kw">let </span>to = to.follow_bindings();
-<a href=#2605 id=2605 data-nosnippet>2605</a>        <span class="kw">let </span>from_follow_bindings = <span class="self">self</span>.follow_bindings_resolving_trait_constraints(from);
+<a href=#2605 id=2605 data-nosnippet>2605</a>        <span class="kw">let </span>from_follow_bindings = <span class="self">self</span>.structurally_resolve_type(from);
 <a href=#2606 id=2606 data-nosnippet>2606</a>
 <a href=#2607 id=2607 data-nosnippet>2607</a>        <span class="kw">use </span>HirExpression::Literal;
 <a href=#2608 id=2608 data-nosnippet>2608</a>        <span class="kw">let </span>from_value_opt = <span class="kw">match </span><span class="self">self</span>.interner.expression(from_expr_id) {
@@ -3158,7 +3158,7 @@
 <a href=#3158 id=3158 data-nosnippet>3158</a>        location: Location,
 <a href=#3159 id=3159 data-nosnippet>3159</a>        dereference_lhs: <span class="prelude-ty">Option</span>&lt;<span class="kw">impl </span>FnMut(<span class="kw-2">&amp;mut </span><span class="self">Self</span>, Type, Type, bool <span class="comment">/* mutable */</span>)&gt;,
 <a href=#3160 id=3160 data-nosnippet>3160</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;(Type, usize)&gt; {
-<a href=#3161 id=3161 data-nosnippet>3161</a>        <span class="kw">let </span>lhs_type = <span class="self">self</span>.follow_bindings_resolving_trait_constraints(lhs_type);
+<a href=#3161 id=3161 data-nosnippet>3161</a>        <span class="kw">let </span>lhs_type = <span class="self">self</span>.structurally_resolve_type(lhs_type);
 <a href=#3162 id=3162 data-nosnippet>3162</a>
 <a href=#3163 id=3163 data-nosnippet>3163</a>        <span class="kw">match </span><span class="kw-2">&amp;</span>lhs_type {
 <a href=#3164 id=3164 data-nosnippet>3164</a>            Type::DataType(s, args) =&gt; {
@@ -3235,7 +3235,7 @@
 <a href=#3235 id=3235 data-nosnippet>3235</a>        object_location: Location,
 <a href=#3236 id=3236 data-nosnippet>3236</a>        check_self_param: bool,
 <a href=#3237 id=3237 data-nosnippet>3237</a>    ) -&gt; <span class="prelude-ty">Option</span>&lt;HirMethodReference&gt; {
-<a href=#3238 id=3238 data-nosnippet>3238</a>        <span class="kw">match </span><span class="self">self</span>.follow_bindings_resolving_trait_constraints(object_type) {
+<a href=#3238 id=3238 data-nosnippet>3238</a>        <span class="kw">match </span><span class="self">self</span>.structurally_resolve_type(object_type) {
 <a href=#3239 id=3239 data-nosnippet>3239</a>            <span class="comment">// TODO(https://github.com/noir-lang/noir/issues/10518): We should allow method calls on
 <a href=#3240 id=3240 data-nosnippet>3240</a>            // `impl Trait`s eventually. For now it is fine since they are only allowed on return types.
 <a href=#3241 id=3241 data-nosnippet>3241</a>            </span>Type::TraitAsType(..) =&gt; {
