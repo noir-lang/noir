@@ -3,16 +3,14 @@ use std::{cmp::Ordering, collections::BTreeMap, io::Write};
 use super::{
     Ssa,
     ir::{
-        dfg::{
-            DataFlowGraph,
-            vector_capacity::{CapacityChange, vector_capacity_flows},
-        },
+        dfg::{DataFlowGraph, vector_capacity::vector_capacity_flows},
         function::{Function, FunctionId, RuntimeType},
         instruction::{Binary, BinaryOp, ConstrainError, Instruction, TerminatorInstruction},
         types::Type,
         value::ValueId,
     },
 };
+use crate::brillig::{assert_u32, assert_usize};
 use crate::ssa::ir::{
     instruction::binary::{
         BinaryEvaluationResult, convert_signed_integer_to_field_element, eval_constant_binary_op,
@@ -22,7 +20,7 @@ use crate::ssa::ir::{
     types::NumericType,
 };
 use crate::ssa::opt::pure::Purity;
-use acvm::{AcirField, FieldElement};
+use acvm::{AcirField, FieldElement, acir::brillig::lengths::SemanticLength};
 use errors::{InternalError, InterpreterError, MAX_UNSIGNED_BIT_SIZE};
 use iter_extended::try_vecmap;
 use itertools::Itertools;
@@ -1183,13 +1181,12 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             };
             let input =
                 self.lookup_array_or_vector(flow.input, "uninitialized vector intrinsic")?;
-            let input_len = input.elements.borrow().len();
-            let element_count = input.element_types.len();
-            let output_len = match flow.change {
-                CapacityChange::Same => input_len,
-                CapacityChange::Grow => input_len + element_count,
-                CapacityChange::Shrink => input_len.saturating_sub(element_count),
-            };
+            let width = input.element_types.len();
+            let slots = input.elements.borrow().len();
+            let capacity = slots.checked_div(width).unwrap_or(0);
+            let capacity = SemanticLength(assert_u32(capacity));
+            let capacity = flow.change.apply(capacity).expect("Vector capacity overflow");
+            let output_len = assert_usize(capacity.0) * width;
             Ok(Value::uninitialized_vector(&input.element_types, output_len, *result))
         })
     }
