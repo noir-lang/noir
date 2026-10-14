@@ -7,7 +7,7 @@ use super::Elaborator;
 use crate::TypeAlias;
 use crate::ast::{Expression, ExpressionKind, GenericTypeArgs, Ident, Path, PathKind, TypePath};
 use crate::elaborator::TypedPath;
-use crate::elaborator::function_context::BindableTypeVariableKind;
+use crate::elaborator::function_context::{BindableTypeVariableKind, EagerResolution};
 use crate::elaborator::path_resolution::{
     PathResolution, PathResolutionItem, Turbofish, TypedPathSegment,
 };
@@ -1391,7 +1391,10 @@ impl Elaborator<'_> {
 
         // An associated type of a trait that is already fully known here (`<K as Tr>::Out`) is
         // known too, so it is resolved now rather than when the type is first needed.
-        self.resolve_fully_known_trait_constraints_since(constraints_checkpoint);
+        self.resolve_trait_constraints_since(
+            constraints_checkpoint,
+            EagerResolution::AtInstantiation,
+        );
 
         // Record required type variables in a predictable order to avoid nondeterminism in error messages.
         let required_type_variables = btree_map(bindings.values(), |(type_variable, _, typ)| {

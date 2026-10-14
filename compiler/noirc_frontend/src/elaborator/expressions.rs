@@ -52,7 +52,7 @@ use crate::{
 
 use super::{
     Elaborator, UnstableFeature,
-    function_context::BindableTypeVariableKind,
+    function_context::{BindableTypeVariableKind, EagerResolution},
     path_resolution::{TypedPath, TypedPathSegment},
 };
 
@@ -1096,7 +1096,10 @@ impl Elaborator<'_> {
         // available before the caller unifies `typ` against an outer annotation. We bound
         // the scan to constraints introduced by *this* call so per-call cost stays O(1)
         // in the size of the surrounding function's accumulated constraint queue.
-        self.try_resolve_trait_constraints_since(trait_constraints_checkpoint);
+        self.resolve_trait_constraints_since(
+            trait_constraints_checkpoint,
+            EagerResolution::AfterArguments,
+        );
 
         (function_call, typ)
     }

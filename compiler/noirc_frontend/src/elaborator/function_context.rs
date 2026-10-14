@@ -18,6 +18,29 @@ use crate::{TypeVariableId, node_interner::DefinitionId};
 
 use super::Elaborator;
 
+/// The point in elaborating a call at which its queued trait constraints are resolved early,
+/// which decides what a constraint must already have known for its impl to be chosen.
+#[derive(Debug, Clone, Copy)]
+pub(super) enum EagerResolution {
+    /// The call has been instantiated but its arguments aren't unified yet. Only a constraint
+    /// whose object type and trait arguments are all known is resolved: an argument can still
+    /// decide an unknown trait argument, and with it which impl applies
+    /// (`impl Tr<u8> for K` beside `impl<T> Tr<T> for K where T: Foo`).
+    AtInstantiation,
+    /// The call's arguments have been unified. A constraint whose object type is known is
+    /// resolved even if a trait argument isn't: nothing left at the call can decide it, so the
+    /// only impl for the object type does (`S: C<?T>` with just `impl C<u8> for S`).
+    AfterArguments,
+}
+
+/// The object type, trait arguments and associated types of `constraint`.
+fn constraint_types(constraint: &TraitConstraint) -> impl Iterator<Item = &Type> {
+    let generics = &constraint.trait_bound.trait_generics;
+    std::iter::once(&constraint.typ)
+        .chain(&generics.ordered)
+        .chain(generics.named.iter().map(|named| &named.typ))
+}
+
 #[derive(Default)]
 pub(super) struct FunctionContext {
     /// All type variables created in the current function.
@@ -125,8 +148,8 @@ impl Elaborator<'_> {
     }
 
     /// Number of trait constraints currently queued in the FunctionContext. Pair with
-    /// [Self::try_resolve_trait_constraints_since] to apply eager resolution to only
-    /// the constraints pushed after this checkpoint.
+    /// [Self::resolve_trait_constraints_since] to resolve only the constraints pushed after
+    /// this checkpoint.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn pending_trait_constraint_checkpoint(&mut self) -> usize {
         self.get_function_context_mut().trait_constraints.len()
@@ -146,63 +169,58 @@ impl Elaborator<'_> {
             .get_function_context_mut()
             .trait_constraints
             .iter()
-            .filter(|local| {
-                let constraint = &local.constraint;
-                let generics = &constraint.trait_bound.trait_generics;
-                let mut types = std::iter::once(&constraint.typ)
-                    .chain(&generics.ordered)
-                    .chain(generics.named.iter().map(|named| &named.typ));
-                !constraint.typ.follow_bindings().is_bindable() && types.any(|typ| typ.occurs(id))
+            .map(|local| &local.constraint)
+            .filter(|constraint| {
+                !constraint.typ.follow_bindings().is_bindable()
+                    && constraint_types(constraint).any(|typ| typ.occurs(id))
             })
-            .map(|local| local.constraint.clone())
+            .cloned()
             .collect();
-        for constraint in constraints {
-            let _ = constraint.find_impl(self.interner, None);
-        }
+        self.resolve_trait_constraints_early(constraints);
         typ.follow_bindings()
     }
 
-    /// Resolves the trait constraints pushed since `checkpoint` whose object type and trait
-    /// arguments are all known, which binds their associated types. One with an unknown part is
-    /// left for later: which impl applies can still depend on it.
-    pub(super) fn resolve_fully_known_trait_constraints_since(&mut self, checkpoint: usize) {
+    /// Resolves the trait constraints pushed since `checkpoint` that `stage` allows to be resolved
+    /// early, which binds the associated types and trait arguments their impl decides, so a
+    /// call's result type (`<K as Tr>::Out`) is known before it is unified with anything else.
+    /// Every constraint stays queued and is checked again at the end of the function.
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(super) fn resolve_trait_constraints_since(
+        &mut self,
+        checkpoint: usize,
+        stage: EagerResolution,
+    ) {
         let constraints: Vec<_> = self.get_function_context_mut().trait_constraints[checkpoint..]
             .iter()
             .map(|local| &local.constraint)
             .filter(|constraint| {
-                let ordered = &constraint.trait_bound.trait_generics.ordered;
-                !constraint.typ.contains_unbound_type_variable()
-                    && !ordered.iter().any(Type::contains_unbound_type_variable)
+                let impl_is_decided = match stage {
+                    EagerResolution::AtInstantiation => {
+                        !constraint.typ.contains_unbound_type_variable()
+                            && !constraint
+                                .trait_bound
+                                .trait_generics
+                                .ordered
+                                .iter()
+                                .any(Type::contains_unbound_type_variable)
+                    }
+                    EagerResolution::AfterArguments => {
+                        !constraint.typ.follow_bindings().is_bindable()
+                    }
+                };
+                // Solving a constraint can only bind the type variables it mentions, so one that
+                // mentions none (`u32: Eq`) is left for the end of the function.
+                impl_is_decided
+                    && constraint_types(constraint).any(Type::contains_unbound_type_variable)
             })
             .cloned()
             .collect();
-        for constraint in constraints {
-            let _ = constraint.find_impl(self.interner, None);
-        }
+        self.resolve_trait_constraints_early(constraints);
     }
 
-    /// Try to resolve trait constraints pushed since `checkpoint` whose object type has
-    /// become concrete. Successfully resolving an impl applies its type bindings, which
-    /// can bind associated-type variables that subsequent unifications (e.g. of a call's
-    /// return type against a let-binding annotation) need to see as already bound.
-    /// Constraints remain in the queue and are re-validated at function end.
-    #[tracing::instrument(level = "trace", skip_all)]
-    pub(super) fn try_resolve_trait_constraints_since(&mut self, checkpoint: usize) {
-        let constraints: Vec<_> = self.get_function_context_mut().trait_constraints[checkpoint..]
-            .iter()
-            .filter(|local| !local.constraint.typ.follow_bindings().is_bindable())
-            // Solving a constraint can only bind the type variables it mentions, so one that
-            // mentions none (`u32: Eq`) is left for the end of the function.
-            .filter(|local| {
-                let generics = &local.constraint.trait_bound.trait_generics;
-                let mut types = std::iter::once(&local.constraint.typ)
-                    .chain(&generics.ordered)
-                    .chain(generics.named.iter().map(|named| &named.typ));
-                types.any(Type::contains_unbound_type_variable)
-            })
-            .map(|local| local.constraint.clone())
-            .collect();
-
+    /// Looks up the impl of each constraint, which applies the bindings it decides. A failure is
+    /// ignored here and reported when the constraint is checked at the end of the function.
+    fn resolve_trait_constraints_early(&self, constraints: Vec<TraitConstraint>) {
         for constraint in constraints {
             let _ = constraint.find_impl(self.interner, None);
         }

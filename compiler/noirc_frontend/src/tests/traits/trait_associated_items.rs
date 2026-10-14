@@ -3801,3 +3801,33 @@ fn associated_type_of_a_fully_known_trait_is_the_impls_at_the_call() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn trait_argument_decided_by_a_call_argument_is_known_before_the_impl_is_chosen() {
+    let src = r#"
+    trait Foo {}
+    impl Foo for u16 {}
+    trait Tr<T> {
+        type Out;
+        fn mk(self, x: T) -> Self::Out;
+    }
+    struct K {}
+    impl Tr<u8> for K {
+        type Out = u8;
+        fn mk(self, _x: u8) -> u8 { 1 }
+    }
+    impl<T> Tr<T> for K where T: Foo {
+        type Out = bool;
+        fn mk(self, _x: T) -> bool { true }
+    }
+    fn main() {
+        let k = K {};
+        let a: bool = Tr::mk(k, 2_u16);
+        let b: u8 = Tr::mk(k, 3_u8);
+        let c: bool = k.mk(4_u16);
+        let d: u8 = k.mk(5_u8);
+        let _ = (a, b, c, d);
+    }
+    "#;
+    assert_no_errors(src);
+}
