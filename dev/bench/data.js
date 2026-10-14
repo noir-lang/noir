@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791993946041,
+  "lastUpdate": 1791993949130,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -34982,105 +34982,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "5305c92dbf78ebea4ad54c24fb51ef7a6a08c510",
-          "message": "chore: set MIT copyright holder to Aztec Foundation (#13905)",
-          "timestamp": "2026-10-06T19:26:14Z",
-          "tree_id": "280bc48301470cd99510223dab8d1355b88ccdcb",
-          "url": "https://github.com/noir-lang/noir/commit/5305c92dbf78ebea4ad54c24fb51ef7a6a08c510"
-        },
-        "date": 1791316644684,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.622,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 2.47,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 2.312,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-no-txs",
-            "value": 2.274,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 2.81,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 2.24,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 1.57,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 4.42,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 4.32,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 2.7,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 3.094,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 2.62,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 2.286,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.422,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.398,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "fc69868915b47ad70489d63b80175a448fd3bcec",
           "message": "chore(frontend): share comptime elaboration state through an ElaborationSession (#13911)",
           "timestamp": "2026-10-07T10:20:41Z",
@@ -39915,6 +39816,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 0.387,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5e806c4e3b41325b05be800e0f45c02a06db8a00",
+          "message": "chore(ssa): share black box argument handling in the SSA interpreter (#13981)",
+          "timestamp": "2026-10-14T15:33:18Z",
+          "tree_id": "23852d3ed4890e0ac9819f1e6e06f1e8cb234478",
+          "url": "https://github.com/noir-lang/noir/commit/5e806c4e3b41325b05be800e0f45c02a06db8a00"
+        },
+        "date": 1791993858967,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 3.336,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 2.32,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2.012,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-no-txs",
+            "value": 2.79,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 2.82,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1.8,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 2.258,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 3.51,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 4.21,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.636,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 2.682,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 2.548,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 2.91,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.428,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.384,
             "unit": "s"
           }
         ]
