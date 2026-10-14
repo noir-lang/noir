@@ -3,7 +3,7 @@
 use noirc_errors::Location;
 
 use crate::{
-    Kind, Type, TypeBindings,
+    Kind, Type, TypeBindings, TypeVariable,
     elaborator::lints::check_integer_literal_fits_its_type,
     hir::{
         comptime::{InterpreterError, Value},
@@ -11,7 +11,8 @@ use crate::{
     },
     hir_def::traits::TraitConstraint,
     node_interner::{
-        DefinitionKind, ExprId, GlobalValue, ImplSearchErrorKind, TraitImplKind, TypeId,
+        DefinitionKind, ExprId, GlobalValue, ImplSearchErrorKind, TraitImplKind, TraitLookupMode,
+        TypeId,
     },
 };
 use crate::{TypeVariableId, node_interner::DefinitionId};
@@ -65,6 +66,38 @@ struct LocalTraitConstraint {
     /// True if a reference to some function in this constraint's trait should replace the
     /// expression at `self.expr` during monomorphization.
     select_impl: bool,
+
+    /// Where [`Elaborator::select_where_possible`] has got with this constraint.
+    progress: Progress,
+}
+
+/// How far solving a queued constraint while its function is being checked has got. Whatever
+/// it reaches, the constraint is checked again at the end of the function, which reports errors
+/// and records the impl it selects.
+#[derive(Debug, Default)]
+enum Progress {
+    /// Not tried yet.
+    #[default]
+    New,
+    /// Tried while the impl to use was undecided. The type variables it was waiting on, so it is
+    /// only tried again once one of them is bound.
+    Stalled(Vec<TypeVariable>),
+    /// An impl was selected and its bindings applied.
+    Selected,
+}
+
+impl Progress {
+    /// Whether trying the constraint again could get further: it hasn't been tried, or one of
+    /// the type variables it was waiting on has been bound since.
+    fn may_advance(&self) -> bool {
+        match self {
+            Progress::New => true,
+            Progress::Stalled(waiting_on) => {
+                waiting_on.iter().any(|var| !var.binding().is_unbound())
+            }
+            Progress::Selected => false,
+        }
+    }
 }
 
 /// The kind of required type variable.
@@ -121,90 +154,52 @@ impl Elaborator<'_> {
             constraint,
             expr,
             select_impl,
+            progress: Progress::New,
         });
     }
 
-    /// Number of trait constraints currently queued in the FunctionContext. Pair with
-    /// [Self::try_resolve_trait_constraints_since] to apply eager resolution to only
-    /// the constraints pushed after this checkpoint.
-    #[tracing::instrument(level = "trace", skip_all)]
-    pub(super) fn pending_trait_constraint_checkpoint(&mut self) -> usize {
-        self.get_function_context_mut().trait_constraints.len()
-    }
-
-    /// Follows the bindings of `typ`, which is about to be inspected. If it is a type variable
-    /// that isn't known yet, the queued trait constraints that mention it are tried first, as one
-    /// of them may decide it (the result of a call that returns an associated type).
-    pub(super) fn follow_bindings_resolving_trait_constraints(&mut self, typ: &Type) -> Type {
+    /// Follows the bindings of `typ`, which is about to be inspected. If it isn't known yet, the
+    /// queued trait constraints that can be solved are solved first, as one of them may decide it
+    /// (the result of a call that returns an associated type).
+    pub(super) fn structurally_resolve_type(&mut self, typ: &Type) -> Type {
         let typ = typ.follow_bindings();
-        let Type::TypeVariable(variable) = &typ else {
+        if !matches!(typ, Type::TypeVariable(_)) {
             return typ;
-        };
-        let id = variable.id();
-        // Solving a constraint can only bind the type variables it mentions.
-        let constraints: Vec<_> = self
-            .get_function_context_mut()
-            .trait_constraints
-            .iter()
-            .filter(|local| {
-                let constraint = &local.constraint;
-                let generics = &constraint.trait_bound.trait_generics;
-                let mut types = std::iter::once(&constraint.typ)
-                    .chain(&generics.ordered)
-                    .chain(generics.named.iter().map(|named| &named.typ));
-                !constraint.typ.follow_bindings().is_bindable() && types.any(|typ| typ.occurs(id))
-            })
-            .map(|local| local.constraint.clone())
-            .collect();
-        for constraint in constraints {
-            let _ = constraint.find_impl(self.interner, None);
         }
+        self.select_where_possible();
         typ.follow_bindings()
     }
 
-    /// Resolves the trait constraints pushed since `checkpoint` whose object type and trait
-    /// arguments are all known, which binds their associated types. One with an unknown part is
-    /// left for later: which impl applies can still depend on it.
-    pub(super) fn resolve_fully_known_trait_constraints_since(&mut self, checkpoint: usize) {
-        let constraints: Vec<_> = self.get_function_context_mut().trait_constraints[checkpoint..]
-            .iter()
-            .map(|local| &local.constraint)
-            .filter(|constraint| {
-                let ordered = &constraint.trait_bound.trait_generics.ordered;
-                !constraint.typ.contains_unbound_type_variable()
-                    && !ordered.iter().any(Type::contains_unbound_type_variable)
-            })
-            .cloned()
-            .collect();
-        for constraint in constraints {
-            let _ = constraint.find_impl(self.interner, None);
+    /// Solves each queued trait constraint whose impl can already be decided, binding the type
+    /// variables that impl decides (its associated types, and the trait arguments it fixes). A
+    /// constraint whose impl still depends on an unknown type is left alone, and only tried
+    /// again once one of its types has changed.
+    pub(super) fn select_where_possible(&mut self) {
+        let context = self.function_context.last_mut().expect("no function context");
+        let mut to_try = Vec::new();
+        for (index, local) in context.trait_constraints.iter().enumerate() {
+            if local.progress.may_advance() {
+                to_try.push((index, local.constraint.clone()));
+            }
         }
-    }
-
-    /// Try to resolve trait constraints pushed since `checkpoint` whose object type has
-    /// become concrete. Successfully resolving an impl applies its type bindings, which
-    /// can bind associated-type variables that subsequent unifications (e.g. of a call's
-    /// return type against a let-binding annotation) need to see as already bound.
-    /// Constraints remain in the queue and are re-validated at function end.
-    #[tracing::instrument(level = "trace", skip_all)]
-    pub(super) fn try_resolve_trait_constraints_since(&mut self, checkpoint: usize) {
-        let constraints: Vec<_> = self.get_function_context_mut().trait_constraints[checkpoint..]
-            .iter()
-            .filter(|local| !local.constraint.typ.follow_bindings().is_bindable())
-            // Solving a constraint can only bind the type variables it mentions, so one that
-            // mentions none (`u32: Eq`) is left for the end of the function.
-            .filter(|local| {
-                let generics = &local.constraint.trait_bound.trait_generics;
-                let mut types = std::iter::once(&local.constraint.typ)
-                    .chain(&generics.ordered)
-                    .chain(generics.named.iter().map(|named| &named.typ));
-                types.any(Type::contains_unbound_type_variable)
-            })
-            .map(|local| local.constraint.clone())
-            .collect();
-
-        for constraint in constraints {
-            let _ = constraint.find_impl(self.interner, None);
+        for (index, constraint) in to_try {
+            let bound = &constraint.trait_bound;
+            let progress = match self.interner.try_lookup_trait_implementation(
+                &constraint.typ,
+                bound.trait_id,
+                &bound.trait_generics.ordered,
+                &bound.trait_generics.named,
+                TraitLookupMode::Eager,
+            ) {
+                Ok((_, bindings, _)) => {
+                    Type::apply_type_bindings(bindings);
+                    Progress::Selected
+                }
+                // Errors are reported by the check at the end of the function. A constraint whose
+                // types can't change any more is never tried again.
+                Err(_) => Progress::Stalled(unbound_type_variables(&constraint)),
+            };
+            self.get_function_context_mut().trait_constraints[index].progress = progress;
         }
     }
 
@@ -497,4 +492,18 @@ impl Elaborator<'_> {
             }
         }
     }
+}
+
+/// The unbound type variables in `constraint`'s types.
+fn unbound_type_variables(constraint: &TraitConstraint) -> Vec<TypeVariable> {
+    let mut variables = Vec::new();
+    constraint.typ.unbound_type_variables(&mut variables);
+    let generics = &constraint.trait_bound.trait_generics;
+    for typ in &generics.ordered {
+        typ.unbound_type_variables(&mut variables);
+    }
+    for named in &generics.named {
+        named.typ.unbound_type_variables(&mut variables);
+    }
+    variables
 }
