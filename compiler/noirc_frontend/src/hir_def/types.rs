@@ -1741,10 +1741,6 @@ impl Type {
             Type::NamedGeneric(NamedGeneric { type_var, .. }) | Type::TypeVariable(type_var) => {
                 type_var.has_cyclic_alias(type_recursion_context.recur())
             }
-            Type::InfixExpr(lhs, _op, rhs, _) => {
-                lhs.has_cyclic_alias_helper(type_recursion_context.clone().recur())
-                    || rhs.has_cyclic_alias_helper(type_recursion_context.recur())
-            }
             Type::Alias(def, generics) => {
                 let alias_id = def.borrow().id;
                 if type_recursion_context.insert_alias(alias_id, generics.clone()) {
@@ -1755,19 +1751,6 @@ impl Type {
                     true
                 }
             }
-            Type::TraitAsType(_id, _name, generics) => {
-                generics.ordered.iter().any(|generic| {
-                    generic.has_cyclic_alias_helper(type_recursion_context.clone().recur())
-                }) || generics.named.iter().any(|generic| {
-                    generic.typ.has_cyclic_alias_helper(type_recursion_context.clone().recur())
-                })
-            }
-            Type::String(len) => len.has_cyclic_alias_helper(type_recursion_context.recur()),
-            Type::Array(typ, len) => {
-                len.has_cyclic_alias_helper(type_recursion_context.clone().recur())
-                    || typ.has_cyclic_alias_helper(type_recursion_context.recur())
-            }
-            Type::Vector(typ) => typ.has_cyclic_alias_helper(type_recursion_context.recur()),
             Type::DataType(s, args) => {
                 let data_type = s.borrow();
                 if type_recursion_context.insert_data_type(data_type.id, args.clone()) {
@@ -1787,39 +1770,15 @@ impl Type {
                     false
                 }
             }
-            Type::Tuple(elements) => elements.iter().any(|element| {
-                element.has_cyclic_alias_helper(type_recursion_context.clone().recur())
-            }),
-            Type::FmtString(len, elements) => {
-                len.has_cyclic_alias_helper(type_recursion_context.clone().recur())
-                    || (*elements).has_cyclic_alias_helper(type_recursion_context.recur())
-            }
-            Type::CheckedCast { to, from } => {
-                to.has_cyclic_alias_helper(type_recursion_context.clone().recur())
-                    || from.has_cyclic_alias_helper(type_recursion_context.recur())
-            }
             Type::Forall(typevars, typ) => {
                 typevars
                     .iter()
                     .any(|typevar| typevar.has_cyclic_alias(type_recursion_context.clone().recur()))
                     || typ.has_cyclic_alias_helper(type_recursion_context.recur())
             }
-            Type::Function(args, ret, env, _unconstrained) => {
-                args.iter()
-                    .any(|arg| arg.has_cyclic_alias_helper(type_recursion_context.clone().recur()))
-                    || ret.has_cyclic_alias_helper(type_recursion_context.clone().recur())
-                    || env.has_cyclic_alias_helper(type_recursion_context.recur())
-            }
-            Type::Reference(element, _mutable) => {
-                element.has_cyclic_alias_helper(type_recursion_context.recur())
-            }
-            Type::FieldElement
-            | Type::Integer(_, _)
-            | Type::Bool
-            | Type::Unit
-            | Type::Error
-            | Type::Constant(_)
-            | Type::Quoted(_) => false,
+            _ => self.any_child(|child| {
+                child.has_cyclic_alias_helper(type_recursion_context.clone().recur())
+            }),
         }
     }
 
@@ -2128,41 +2087,23 @@ impl Type {
     }
 
     fn contains_type_variable_helper(&self, unbound_named_generic_counts: bool) -> bool {
-        let contains = |typ: &Type| typ.contains_type_variable_helper(unbound_named_generic_counts);
         match self {
-            Type::Integer(..)
-            | Type::Bool
-            | Type::Unit
-            | Type::FieldElement
-            | Type::Constant(..)
-            | Type::Quoted(..)
-            | Type::Error => false,
             Type::Forall(..) => true,
-            Type::Array(typ, length) => contains(length) || contains(typ),
-            Type::Vector(typ) => contains(typ),
-            Type::String(length) => contains(length),
-            Type::FmtString(length, typ) => contains(length) || contains(typ),
-            Type::Tuple(items) | Type::DataType(_, items) | Type::Alias(_, items) => {
-                items.iter().any(contains)
-            }
             Type::TypeVariable(type_var) => match type_var.binding() {
-                TypeBinding::Bound(binding) => contains(binding),
+                TypeBinding::Bound(binding) => {
+                    binding.contains_type_variable_helper(unbound_named_generic_counts)
+                }
                 TypeBinding::Unbound(_, _) => true,
             },
             Type::NamedGeneric(NamedGeneric { type_var, .. }) => match type_var.binding() {
-                TypeBinding::Bound(binding) => contains(binding),
+                TypeBinding::Bound(binding) => {
+                    binding.contains_type_variable_helper(unbound_named_generic_counts)
+                }
                 TypeBinding::Unbound(_, _) => unbound_named_generic_counts,
             },
-            Type::TraitAsType(_trait_id, _trait_name, trait_generics) => {
-                trait_generics.ordered.iter().any(contains)
-                    || trait_generics.named.iter().any(|named_type| contains(&named_type.typ))
-            }
-            Type::CheckedCast { from, to } => contains(from) || contains(to),
-            Type::Function(args, ret, env, _) => {
-                args.iter().any(contains) || contains(ret) || contains(env)
-            }
-            Type::Reference(typ, _) => contains(typ),
-            Type::InfixExpr(lhs, _, rhs, _) => contains(lhs) || contains(rhs),
+            _ => self.any_child(|child| {
+                child.contains_type_variable_helper(unbound_named_generic_counts)
+            }),
         }
     }
 
@@ -2559,109 +2500,27 @@ impl Type {
         };
 
         match self {
-            Type::Array(element, size) => {
-                let size = size.substitute(type_bindings);
-                let element = element.substitute(type_bindings);
-                Type::Array(Box::new(element), Box::new(size))
-            }
-            Type::Vector(element) => {
-                let element = element.substitute(type_bindings);
-                Type::Vector(Box::new(element))
-            }
-            Type::String(size) => {
-                let size = size.substitute(type_bindings);
-                Type::String(Box::new(size))
-            }
-            Type::FmtString(size, fields) => {
-                let size = size.substitute(type_bindings);
-                let fields = fields.substitute(type_bindings);
-                Type::FmtString(Box::new(size), Box::new(fields))
-            }
-            Type::CheckedCast { from, to } => {
-                let from = from.substitute(type_bindings);
-                let to = to.substitute(type_bindings);
-                Type::CheckedCast { from: Box::new(from), to: Box::new(to) }
-            }
             Type::NamedGeneric(NamedGeneric { type_var, .. }) | Type::TypeVariable(type_var) => {
                 substitute_binding(type_var)
             }
-            // Do not substitute fields, it can lead to infinite recursion
-            // and we should not match fields when type checking anyway.
-            Type::DataType(fields, args) => {
-                let args = vecmap(args, |arg| arg.substitute(type_bindings));
-                Type::DataType(fields.clone(), args)
-            }
-            Type::Alias(alias, args) => {
-                let args = vecmap(args, |arg| arg.substitute(type_bindings));
-                Type::Alias(alias.clone(), args)
-            }
-            Type::Tuple(fields) => {
-                let fields = vecmap(fields, |field| field.substitute(type_bindings));
-                Type::Tuple(fields)
-            }
-            Type::Forall(typevars, typ) => {
+            Type::Forall(typevars, _) => {
                 // Trying to substitute a variable within a nested Forall
                 // is usually impossible and indicative of an error in the type checker somewhere.
                 for var in typevars {
                     assert!(!type_bindings.contains_key(&var.id()));
                 }
-                let typ = Box::new(typ.substitute(type_bindings));
-                Type::Forall(typevars.clone(), typ)
+                self.map_children(|child| child.substitute(type_bindings))
             }
-            Type::Function(args, ret, env, unconstrained) => {
-                let args = vecmap(args, |arg| arg.substitute(type_bindings));
-                let ret = Box::new(ret.substitute(type_bindings));
-                let env = Box::new(env.substitute(type_bindings));
-                Type::Function(args, ret, env, *unconstrained)
-            }
-            Type::Reference(element, mutable) => {
-                Type::Reference(Box::new(element.substitute(type_bindings)), *mutable)
-            }
-
-            Type::TraitAsType(s, name, generics) => {
-                let ordered = vecmap(&generics.ordered, |arg| arg.substitute(type_bindings));
-                let named = vecmap(&generics.named, |arg| {
-                    let typ = arg.typ.substitute(type_bindings);
-                    NamedType { name: arg.name.clone(), typ }
-                });
-                Type::TraitAsType(*s, name.clone(), TraitGenerics { ordered, named })
-            }
-            Type::InfixExpr(lhs, op, rhs, inversion) => {
-                let lhs = lhs.substitute(type_bindings);
-                let rhs = rhs.substitute(type_bindings);
-                Type::InfixExpr(Box::new(lhs), *op, Box::new(rhs), *inversion)
-            }
-
-            Type::FieldElement
-            | Type::Integer(_, _)
-            | Type::Bool
-            | Type::Constant(_)
-            | Type::Error
-            | Type::Quoted(_)
-            | Type::Unit => self.clone(),
+            // Only the generic arguments of a data type are substituted, not its fields:
+            // substituting fields can lead to infinite recursion, and fields are not matched
+            // when type checking.
+            _ => self.map_children(|child| child.substitute(type_bindings)),
         }
     }
 
     /// True if the given `TypeVariableId` is free anywhere within self
     pub fn occurs(&self, target_id: TypeVariableId) -> bool {
         match self {
-            Type::Array(elem, len) => len.occurs(target_id) || elem.occurs(target_id),
-            Type::Vector(elem) => elem.occurs(target_id),
-            Type::String(len) => len.occurs(target_id),
-            Type::FmtString(len, fields) => {
-                let len_occurs = len.occurs(target_id);
-                let field_occurs = fields.occurs(target_id);
-                len_occurs || field_occurs
-            }
-            Type::DataType(_, generic_args) | Type::Alias(_, generic_args) => {
-                generic_args.iter().any(|arg| arg.occurs(target_id))
-            }
-            Type::TraitAsType(_, _, args) => {
-                args.ordered.iter().any(|arg| arg.occurs(target_id))
-                    || args.named.iter().any(|arg| arg.typ.occurs(target_id))
-            }
-            Type::Tuple(fields) => fields.iter().any(|field| field.occurs(target_id)),
-            Type::CheckedCast { from, to } => from.occurs(target_id) || to.occurs(target_id),
             Type::NamedGeneric(NamedGeneric { type_var, .. }) | Type::TypeVariable(type_var) => {
                 match type_var.binding() {
                     TypeBinding::Bound(binding) => {
@@ -2673,21 +2532,7 @@ impl Type {
             Type::Forall(typevars, typ) => {
                 !typevars.iter().any(|var| var.id() == target_id) && typ.occurs(target_id)
             }
-            Type::Function(args, ret, env, _unconstrained) => {
-                args.iter().any(|arg| arg.occurs(target_id))
-                    || ret.occurs(target_id)
-                    || env.occurs(target_id)
-            }
-            Type::Reference(element, _) => element.occurs(target_id),
-            Type::InfixExpr(lhs, _op, rhs, _) => lhs.occurs(target_id) || rhs.occurs(target_id),
-
-            Type::FieldElement
-            | Type::Integer(_, _)
-            | Type::Bool
-            | Type::Constant(_)
-            | Type::Error
-            | Type::Quoted(_)
-            | Type::Unit => false,
+            _ => self.any_child(|child| child.occurs(target_id)),
         }
     }
 
@@ -2703,67 +2548,22 @@ impl Type {
                 panic!("Type recursion limit reached - types are too large")
             }
             i += 1;
-            let recur = |typ| helper(typ, i);
+            let recur = |typ: &Type| helper(typ, i);
 
-            use Type::*;
             match this {
-                Array(elem, size) => Array(Box::new(recur(elem)), Box::new(recur(size))),
-                Vector(elem) => Vector(Box::new(recur(elem))),
-                String(size) => String(Box::new(recur(size))),
-                FmtString(size, args) => {
-                    let size = Box::new(recur(size));
-                    let args = Box::new(recur(args));
-                    FmtString(size, args)
-                }
-                DataType(def, args) => {
-                    let args = vecmap(args, recur);
-                    DataType(def.clone(), args)
-                }
-                Alias(def, args) => {
-                    // We don't need to vecmap(args, recur) since we're recursively
-                    // calling recur here already.
-                    recur(&def.borrow().get_type(args))
-                }
-                Tuple(args) => Tuple(vecmap(args, recur)),
-                CheckedCast { from, to } => {
-                    let from = Box::new(recur(from));
-                    let to = Box::new(recur(to));
-                    CheckedCast { from, to }
-                }
-                TypeVariable(var) | NamedGeneric(types::NamedGeneric { type_var: var, .. }) => {
+                // We don't need to map the alias' generics since `recur` follows
+                // every binding in the type it expands to.
+                Type::Alias(def, args) => recur(&def.borrow().get_type(args)),
+                Type::TypeVariable(var)
+                | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) => {
                     if let TypeBinding::Bound(typ) = var.binding() {
                         return recur(typ);
                     }
                     this.clone()
                 }
-                Function(args, ret, env, unconstrained) => {
-                    let args = vecmap(args, recur);
-                    let ret = Box::new(recur(ret));
-                    let env = Box::new(recur(env));
-                    Function(args, ret, env, *unconstrained)
-                }
-
-                Reference(element, mutable) => Reference(Box::new(recur(element)), *mutable),
-
-                TraitAsType(s, name, args) => {
-                    let ordered = vecmap(&args.ordered, recur);
-                    let named = vecmap(&args.named, |arg| NamedType {
-                        name: arg.name.clone(),
-                        typ: recur(&arg.typ),
-                    });
-                    TraitAsType(*s, name.clone(), TraitGenerics { ordered, named })
-                }
-                InfixExpr(lhs, op, rhs, inversion) => {
-                    let lhs = recur(lhs);
-                    let rhs = recur(rhs);
-                    InfixExpr(Box::new(lhs), *op, Box::new(rhs), *inversion)
-                }
-
                 // Expect that this function should only be called on instantiated types
-                Forall(..) => unreachable!(),
-                FieldElement | Integer(_, _) | Bool | Constant(_) | Unit | Quoted(_) | Error => {
-                    this.clone()
-                }
+                Type::Forall(..) => unreachable!(),
+                _ => this.map_children(recur),
             }
         }
         helper(self, 0)
@@ -2821,35 +2621,6 @@ impl Type {
     /// they are unbindable during type checking.
     pub fn replace_named_generics_with_type_variables(&mut self) {
         match self {
-            Type::FieldElement
-            | Type::Constant(_)
-            | Type::Integer(_, _)
-            | Type::Bool
-            | Type::Unit
-            | Type::Error
-            | Type::Quoted(_) => (),
-
-            Type::Array(elem, len) => {
-                len.replace_named_generics_with_type_variables();
-                elem.replace_named_generics_with_type_variables();
-            }
-
-            Type::Vector(elem) => elem.replace_named_generics_with_type_variables(),
-            Type::String(len) => len.replace_named_generics_with_type_variables(),
-            Type::FmtString(len, captures) => {
-                len.replace_named_generics_with_type_variables();
-                captures.replace_named_generics_with_type_variables();
-            }
-            Type::Tuple(fields) => {
-                for field in fields {
-                    field.replace_named_generics_with_type_variables();
-                }
-            }
-            Type::DataType(_, generics) => {
-                for generic in generics {
-                    generic.replace_named_generics_with_type_variables();
-                }
-            }
             Type::Alias(alias, generics) => {
                 let mut typ = alias.borrow().get_type(generics);
                 typ.replace_named_generics_with_type_variables();
@@ -2860,18 +2631,6 @@ impl Type {
                     *self = binding.clone();
                 }
             }
-            Type::TraitAsType(_, _, generics) => {
-                for generic in &mut generics.ordered {
-                    generic.replace_named_generics_with_type_variables();
-                }
-                for generic in &mut generics.named {
-                    generic.typ.replace_named_generics_with_type_variables();
-                }
-            }
-            Type::CheckedCast { from, to } => {
-                from.replace_named_generics_with_type_variables();
-                to.replace_named_generics_with_type_variables();
-            }
             Type::NamedGeneric(NamedGeneric { type_var, .. }) => {
                 if let TypeBinding::Bound(binding) = type_var.binding() {
                     let mut binding = binding.clone();
@@ -2881,18 +2640,150 @@ impl Type {
                     *self = Type::TypeVariable(type_var.clone());
                 }
             }
-            Type::Function(args, ret, env, _unconstrained) => {
-                for arg in args {
-                    arg.replace_named_generics_with_type_variables();
-                }
-                ret.replace_named_generics_with_type_variables();
-                env.replace_named_generics_with_type_variables();
+            _ => self.for_each_child_mut(Type::replace_named_generics_with_type_variables),
+        }
+    }
+
+    /// Returns true if `f` returns true for any type directly nested in this one.
+    ///
+    /// The children of a type are the types written inside it: the element and length of an
+    /// array, the generic arguments of a data type, alias or trait, the parameters, return type
+    /// and environment of a function, and so on. Type variable bindings, alias targets and data
+    /// type fields are not children; callers that need them handle those variants themselves.
+    pub(crate) fn any_child(&self, mut f: impl FnMut(&Type) -> bool) -> bool {
+        match self {
+            Type::FieldElement
+            | Type::Constant(..)
+            | Type::Integer(..)
+            | Type::Bool
+            | Type::Unit
+            | Type::Error
+            | Type::Quoted(_)
+            | Type::TypeVariable(_)
+            | Type::NamedGeneric(_) => false,
+            Type::Vector(elem) | Type::String(elem) | Type::Reference(elem, _) => f(elem),
+            Type::Forall(_, typ) => f(typ),
+            Type::Array(elem, len) => f(len) || f(elem),
+            Type::FmtString(len, captures) => f(len) || f(captures),
+            Type::CheckedCast { from, to } => f(from) || f(to),
+            Type::InfixExpr(lhs, _op, rhs, _) => f(lhs) || f(rhs),
+            Type::Tuple(items) | Type::DataType(_, items) | Type::Alias(_, items) => {
+                items.iter().any(f)
             }
-            Type::Reference(elem, _) => elem.replace_named_generics_with_type_variables(),
-            Type::Forall(_, typ) => typ.replace_named_generics_with_type_variables(),
+            Type::TraitAsType(_, _, generics) => {
+                generics.ordered.iter().any(&mut f) || generics.named.iter().any(|n| f(&n.typ))
+            }
+            Type::Function(args, ret, env, _unconstrained) => {
+                args.iter().any(&mut f) || f(ret) || f(env)
+            }
+        }
+    }
+
+    /// Calls `f` on each type directly nested in this one. See [`Type::any_child`] for what
+    /// counts as a child.
+    pub(crate) fn for_each_child(&self, mut f: impl FnMut(&Type)) {
+        self.any_child(|child| {
+            f(child);
+            false
+        });
+    }
+
+    /// Calls `f` on each type directly nested in this one, allowing it to be modified in place.
+    /// See [`Type::any_child`] for what counts as a child.
+    pub(crate) fn for_each_child_mut(&mut self, mut f: impl FnMut(&mut Type)) {
+        match self {
+            Type::FieldElement
+            | Type::Constant(..)
+            | Type::Integer(..)
+            | Type::Bool
+            | Type::Unit
+            | Type::Error
+            | Type::Quoted(_)
+            | Type::TypeVariable(_)
+            | Type::NamedGeneric(_) => (),
+            Type::Vector(elem) | Type::String(elem) | Type::Reference(elem, _) => f(elem),
+            Type::Forall(_, typ) => f(typ),
+            Type::Array(elem, len) => {
+                f(len);
+                f(elem);
+            }
+            Type::FmtString(len, captures) => {
+                f(len);
+                f(captures);
+            }
+            Type::CheckedCast { from, to } => {
+                f(from);
+                f(to);
+            }
             Type::InfixExpr(lhs, _op, rhs, _) => {
-                lhs.replace_named_generics_with_type_variables();
-                rhs.replace_named_generics_with_type_variables();
+                f(lhs);
+                f(rhs);
+            }
+            Type::Tuple(items) | Type::DataType(_, items) | Type::Alias(_, items) => {
+                items.iter_mut().for_each(f);
+            }
+            Type::TraitAsType(_, _, generics) => {
+                generics.ordered.iter_mut().for_each(&mut f);
+                generics.named.iter_mut().for_each(|named| f(&mut named.typ));
+            }
+            Type::Function(args, ret, env, _unconstrained) => {
+                args.iter_mut().for_each(&mut f);
+                f(ret);
+                f(env);
+            }
+        }
+    }
+
+    /// Returns a copy of this type with `f` applied to each type directly nested in it.
+    /// See [`Type::any_child`] for what counts as a child.
+    pub(crate) fn map_children(&self, f: impl FnMut(&Type) -> Type) -> Type {
+        let mut f = f;
+        let mut map = |typ: &Type| Box::new(f(typ));
+        match self {
+            Type::FieldElement
+            | Type::Constant(..)
+            | Type::Integer(..)
+            | Type::Bool
+            | Type::Unit
+            | Type::Error
+            | Type::Quoted(_)
+            | Type::TypeVariable(_)
+            | Type::NamedGeneric(_) => self.clone(),
+            Type::Vector(elem) => Type::Vector(map(elem)),
+            Type::String(len) => Type::String(map(len)),
+            Type::Reference(elem, mutable) => Type::Reference(map(elem), *mutable),
+            Type::Forall(typevars, typ) => Type::Forall(typevars.clone(), map(typ)),
+            Type::Array(elem, len) => {
+                let len = map(len);
+                Type::Array(map(elem), len)
+            }
+            Type::FmtString(len, captures) => {
+                let len = map(len);
+                Type::FmtString(len, map(captures))
+            }
+            Type::CheckedCast { from, to } => {
+                let from = map(from);
+                Type::CheckedCast { from, to: map(to) }
+            }
+            Type::InfixExpr(lhs, op, rhs, inversion) => {
+                let lhs = map(lhs);
+                Type::InfixExpr(lhs, *op, map(rhs), *inversion)
+            }
+            Type::Tuple(items) => Type::Tuple(vecmap(items, |item| *map(item))),
+            Type::DataType(def, args) => Type::DataType(def.clone(), vecmap(args, |a| *map(a))),
+            Type::Alias(def, args) => Type::Alias(def.clone(), vecmap(args, |a| *map(a))),
+            Type::TraitAsType(id, name, generics) => {
+                let ordered = vecmap(&generics.ordered, |arg| *map(arg));
+                let named = vecmap(&generics.named, |arg| NamedType {
+                    name: arg.name.clone(),
+                    typ: *map(&arg.typ),
+                });
+                Type::TraitAsType(*id, name.clone(), TraitGenerics { ordered, named })
+            }
+            Type::Function(args, ret, env, unconstrained) => {
+                let args = vecmap(args, |arg| *map(arg));
+                let ret = map(ret);
+                Type::Function(args, ret, map(env), *unconstrained)
             }
         }
     }
@@ -2909,74 +2800,17 @@ impl Type {
                 return;
             }
             match typ {
-                Type::FieldElement
-                | Type::Constant(_)
-                | Type::Integer(_, _)
-                | Type::Bool
-                | Type::Unit
-                | Type::Error
-                | Type::Quoted(_) => (),
-
-                Type::Array(elem, len) => {
-                    go(len, f, limit);
-                    go(elem, f, limit);
-                }
-
-                Type::Vector(elem) => go(elem, f, limit),
-                Type::String(len) => go(len, f, limit),
-                Type::FmtString(len, captures) => {
-                    go(len, f, limit);
-                    go(captures, f, limit);
-                }
-                Type::Tuple(fields) => {
-                    for field in fields {
-                        go(field, f, limit);
-                    }
-                }
-                Type::DataType(_, generics) => {
-                    for generic in generics {
-                        go(generic, f, limit);
-                    }
-                }
-                Type::Alias(alias, generics) => {
-                    for generic in generics {
-                        go(generic, f, limit);
-                    }
-                    go(&alias.borrow().typ, f, limit);
-                }
                 Type::TypeVariable(var)
                 | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) => {
-                    let var = var.binding();
-                    if let TypeBinding::Bound(binding) = var {
+                    if let TypeBinding::Bound(binding) = var.binding() {
                         go(binding, f, limit);
                     }
                 }
-                Type::TraitAsType(_, _, generics) => {
-                    for generic in &generics.ordered {
-                        go(generic, f, limit);
-                    }
-                    for generic in &generics.named {
-                        go(&generic.typ, f, limit);
-                    }
+                Type::Alias(alias, _) => {
+                    typ.for_each_child(|child| go(child, f, limit));
+                    go(&alias.borrow().typ, f, limit);
                 }
-                Type::CheckedCast { from, to } => {
-                    go(from, f, limit);
-                    go(to, f, limit);
-                }
-
-                Type::Function(args, ret, env, _unconstrained) => {
-                    for arg in args {
-                        go(arg, f, limit);
-                    }
-                    go(ret, f, limit);
-                    go(env, f, limit);
-                }
-                Type::Reference(elem, _) => go(elem, f, limit),
-                Type::Forall(_, typ) => go(typ, f, limit),
-                Type::InfixExpr(lhs, _op, rhs, _) => {
-                    go(lhs, f, limit);
-                    go(rhs, f, limit);
-                }
+                _ => typ.for_each_child(|child| go(child, f, limit)),
             }
         }
         go(self, f, TYPE_RECURSION_LIMIT);
@@ -3658,6 +3492,57 @@ mod tests {
 
     /// Creates a tuple type nested to the specified depth.
     /// For example, depth 3 creates: (((Field,),),)
+    /// `any_child`, `for_each_child_mut` and `map_children` each spell out the children of every
+    /// variant, so they must agree on which types those are and in which order.
+    #[test]
+    fn child_helpers_agree_on_children() {
+        let var = Type::TypeVariable(TypeVariable::unbound(TypeVariableId(0), Kind::Normal));
+        let numbered = Type::constant_u32;
+        let types = [
+            Type::FieldElement,
+            var,
+            Type::Array(Box::new(numbered(0)), Box::new(numbered(1))),
+            Type::Vector(Box::new(numbered(0))),
+            Type::String(Box::new(numbered(0))),
+            Type::FmtString(Box::new(numbered(0)), Box::new(numbered(1))),
+            Type::Tuple(vec![numbered(0), numbered(1), numbered(2)]),
+            Type::Function(
+                vec![numbered(0), numbered(1)],
+                Box::new(numbered(2)),
+                Box::new(numbered(3)),
+                false,
+            ),
+            Type::Reference(Box::new(numbered(0)), true),
+            Type::CheckedCast { from: Box::new(numbered(0)), to: Box::new(numbered(1)) },
+            Type::InfixExpr(
+                Box::new(numbered(0)),
+                BinaryTypeOperator::Addition,
+                Box::new(numbered(1)),
+                false,
+            ),
+            Type::Forall(GenericTypeVars::default(), Box::new(numbered(0))),
+        ];
+
+        for typ in types {
+            let mut children = Vec::new();
+            typ.for_each_child(|child| children.push(child.clone()));
+
+            let mut mut_children = Vec::new();
+            typ.clone().for_each_child_mut(|child| mut_children.push(child.clone()));
+            assert_eq!(children, mut_children, "for_each_child_mut disagrees on {typ:?}");
+
+            let mut mapped_children = Vec::new();
+            let mapped = typ.map_children(|child| {
+                mapped_children.push(child.clone());
+                child.clone()
+            });
+            assert_eq!(children, mapped_children, "map_children disagrees on {typ:?}");
+            assert_eq!(mapped, typ, "map_children with the identity changed {typ:?}");
+
+            assert_eq!(typ.any_child(|_| true), !children.is_empty());
+        }
+    }
+
     fn create_nested_tuple(depth: usize) -> Type {
         let mut typ = Type::FieldElement;
         for _ in 0..depth {
