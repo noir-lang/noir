@@ -484,7 +484,6 @@ enum TypeBody {
     EnumWithUnknownVariants,
     Struct(Vec<StructField>),
 
-    #[allow(unused)]
     Enum(Vec<EnumVariant>),
 }
 
