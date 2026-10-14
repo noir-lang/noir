@@ -162,6 +162,25 @@ impl Elaborator<'_> {
         typ.follow_bindings()
     }
 
+    /// Resolves the trait constraints pushed since `checkpoint` whose object type and trait
+    /// arguments are all known, which binds their associated types. One with an unknown part is
+    /// left for later: which impl applies can still depend on it.
+    pub(super) fn resolve_fully_known_trait_constraints_since(&mut self, checkpoint: usize) {
+        let constraints: Vec<_> = self.get_function_context_mut().trait_constraints[checkpoint..]
+            .iter()
+            .map(|local| &local.constraint)
+            .filter(|constraint| {
+                let ordered = &constraint.trait_bound.trait_generics.ordered;
+                !constraint.typ.contains_unbound_type_variable()
+                    && !ordered.iter().any(Type::contains_unbound_type_variable)
+            })
+            .cloned()
+            .collect();
+        for constraint in constraints {
+            let _ = constraint.find_impl(self.interner, None);
+        }
+    }
+
     /// Try to resolve trait constraints pushed since `checkpoint` whose object type has
     /// become concrete. Successfully resolving an impl applies its type bindings, which
     /// can bind associated-type variables that subsequent unifications (e.g. of a call's

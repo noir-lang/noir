@@ -171,7 +171,6 @@ impl CallContext {
 type IResult<T> = Result<T, InterpreterError>;
 pub type IResults = IResult<Vec<Value>>;
 
-#[allow(unused)]
 impl Ssa {
     pub fn interpret(&self, args: Vec<Value>) -> IResults {
         self.interpret_with_options(args, InterpreterOptions::default(), std::io::empty())

@@ -167,10 +167,6 @@ impl CrateDefMap {
         &self.modules
     }
 
-    pub fn modules_mut(&mut self) -> &mut Arena<ModuleData> {
-        &mut self.modules
-    }
-
     pub(crate) fn insert_module(&mut self, module: ModuleData) -> LocalModuleId {
         LocalModuleId::new(self.modules.insert(module))
     }

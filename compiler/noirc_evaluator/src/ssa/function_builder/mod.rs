@@ -267,10 +267,6 @@ impl FunctionBuilder {
         self.current_block
     }
 
-    pub fn get_current_block_index(&self) -> BasicBlockId {
-        self.current_block
-    }
-
     /// Insert an allocate instruction at the end of the current block, allocating the
     /// given amount of field elements. Returns the result of the allocate instruction,
     /// which is always a Reference to the allocated data.

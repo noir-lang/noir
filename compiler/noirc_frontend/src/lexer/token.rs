@@ -521,37 +521,6 @@ impl Token {
     pub(super) fn into_span(self, start: Position, end: Position) -> SpannedToken {
         SpannedToken(Spanned::from_position(start, end, self))
     }
-
-    /// These are all the operators allowed as part of
-    /// a short-hand assignment: `a <op>= b`
-    pub fn assign_shorthand_operators() -> [Token; 10] {
-        use Token::*;
-        [Plus, Minus, Star, Slash, Percent, Ampersand, Caret, ShiftLeft, ShiftRight, Pipe]
-    }
-
-    pub fn try_into_binary_op(self, span: Span) -> Option<Spanned<crate::ast::BinaryOpKind>> {
-        use crate::ast::BinaryOpKind::*;
-        let binary_op = match self {
-            Token::Plus => Add,
-            Token::Ampersand => And,
-            Token::Caret => Xor,
-            Token::ShiftLeft => ShiftLeft,
-            Token::ShiftRight => ShiftRight,
-            Token::Pipe => Or,
-            Token::Minus => Subtract,
-            Token::Star => Multiply,
-            Token::Slash => Divide,
-            Token::Equal => Equal,
-            Token::NotEqual => NotEqual,
-            Token::Less => Less,
-            Token::LessEqual => LessEqual,
-            Token::Greater => Greater,
-            Token::GreaterEqual => GreaterEqual,
-            Token::Percent => Modulo,
-            _ => return None,
-        };
-        Some(Spanned::from(span, binary_op))
-    }
 }
 
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
@@ -675,11 +644,6 @@ impl Attributes {
 
     pub fn function(&self) -> Option<&FunctionAttribute> {
         self.function.as_ref().map(|(attr, _)| attr)
-    }
-
-    pub fn set_function(&mut self, function: FunctionAttribute) {
-        // Assume the index in the list doesn't matter anymore at this point
-        self.function = Some((function, 0));
     }
 
     /// Returns true if one of the secondary attributes is `contract_library_method`

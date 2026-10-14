@@ -473,16 +473,6 @@ impl DefinitionKind {
     pub fn is_global(&self) -> bool {
         matches!(self, DefinitionKind::Global(..))
     }
-
-    pub fn get_rhs(&self) -> Option<ExprId> {
-        match self {
-            DefinitionKind::Function(_) => None,
-            DefinitionKind::Global(_) => None,
-            DefinitionKind::Local(id) => *id,
-            DefinitionKind::NumericGeneric(_, _) => None,
-            DefinitionKind::AssociatedConstant(_, _) => None,
-        }
-    }
 }
 
 impl Default for NodeInterner {
@@ -705,30 +695,6 @@ impl NodeInterner {
         type_alias_type.borrow_mut().set_type_and_generics(typ, generics, num_expr);
     }
 
-    /// Returns the interned statement corresponding to `stmt_id`
-    pub fn update_statement(&mut self, stmt_id: &StmtId, f: impl FnOnce(&mut HirStatement)) {
-        let def =
-            self.nodes.get_mut(stmt_id.0).expect("ice: all statement ids should have definitions");
-
-        match def {
-            Node::Statement(stmt) => f(stmt),
-            _ => panic!("ice: all statement ids should correspond to a statement in the interner"),
-        }
-    }
-
-    /// Updates the interned expression corresponding to `expr_id`
-    pub fn update_expression(&mut self, expr_id: ExprId, f: impl FnOnce(&mut HirExpression)) {
-        let def =
-            self.nodes.get_mut(expr_id.0).expect("ice: all expression ids should have definitions");
-
-        match def {
-            Node::Expression(expr) => f(expr),
-            _ => {
-                panic!("ice: all expression ids should correspond to a expression in the interner")
-            }
-        }
-    }
-
     /// In LSP mode, take note that the [Type] was referenced at a [Location].
     pub fn push_type_ref_location(&mut self, typ: &Type, location: Location) {
         if !self.is_in_lsp_mode() {
@@ -736,10 +702,6 @@ impl NodeInterner {
         }
 
         self.type_ref_locations.push((typ.clone(), location));
-    }
-
-    pub fn definition_count(&self) -> usize {
-        self.definitions.len()
     }
 
     pub fn push_definition(
@@ -844,20 +806,8 @@ impl NodeInterner {
         &self.definition(id).name
     }
 
-    pub fn expr_span(&self, expr_id: &ExprId) -> Span {
-        self.id_location(expr_id).span
-    }
-
-    pub fn try_expr_span(&self, expr_id: &ExprId) -> Option<Span> {
-        self.try_id_location(expr_id).map(|location| location.span)
-    }
-
     pub fn expr_location(&self, expr_id: &ExprId) -> Location {
         self.id_location(expr_id)
-    }
-
-    pub fn statement_span(&self, stmt_id: StmtId) -> Span {
-        self.id_location(stmt_id).span
     }
 
     pub fn statement_location(&self, stmt_id: StmtId) -> Location {

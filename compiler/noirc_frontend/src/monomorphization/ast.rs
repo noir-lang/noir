@@ -60,10 +60,6 @@ pub enum Expression {
 }
 
 impl Expression {
-    pub fn is_array_or_vector_literal(&self) -> bool {
-        matches!(self, Expression::Literal(Literal::Array(_) | Literal::Vector(_)))
-    }
-
     /// The return type of an expression, if it has an obvious one.
     pub fn return_type(&self) -> Option<Cow<Type>> {
         fn borrowed(typ: &Type) -> Option<Cow<Type>> {
@@ -619,14 +615,6 @@ impl Type {
         }
     }
 
-    /// Returns the element type of this array or vector
-    pub fn array_element_type(&self) -> Option<&Type> {
-        match self {
-            Type::Array(_, elem) | Type::Vector(elem) => Some(elem),
-            _ => None,
-        }
-    }
-
     /// Returns the number of field elements required to represent the type once encoded
     /// as a parameter to an entry point function.
     ///
@@ -700,14 +688,6 @@ impl Program {
     /// ID as `main`, although we should never expect a clash in these IDs.
     pub fn global_space_id() -> FuncId {
         FuncId(0)
-    }
-
-    /// Takes a function body by replacing it with `false` and
-    /// returning the previous value
-    pub fn take_function_body(&mut self, function: FuncId) -> Expression {
-        let function_definition = &mut self[function];
-        let replacement = Expression::Block(vec![]);
-        std::mem::replace(&mut function_definition.body, replacement)
     }
 
     pub fn return_visibility(&self) -> Visibility {
