@@ -1335,7 +1335,6 @@ impl Elaborator<'_> {
         let (typ, bindings) =
             self.instantiate(t, bindings, generics, &direct_generic_ids, location);
 
-        let constraints_checkpoint = self.pending_trait_constraint_checkpoint();
         if let ImplKind::TraitItem(mut method) = ident.impl_kind {
             method.constraint.apply_instantiation_bindings(&bindings);
             if method.assumed {
@@ -1389,9 +1388,9 @@ impl Elaborator<'_> {
             }
         }
 
-        // An associated type of a trait that is already fully known here (`<K as Tr>::Out`) is
-        // known too, so it is resolved now rather than when the type is first needed.
-        self.resolve_fully_known_trait_constraints_since(constraints_checkpoint);
+        // An associated type of a trait whose impl is already decided here (`<K as Tr>::Out`) is
+        // that impl's, so it is resolved now rather than when the type is first needed.
+        self.select_where_possible();
 
         // Record required type variables in a predictable order to avoid nondeterminism in error messages.
         let required_type_variables = btree_map(bindings.values(), |(type_variable, _, typ)| {

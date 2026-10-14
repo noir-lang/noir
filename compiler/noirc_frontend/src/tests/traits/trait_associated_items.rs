@@ -3801,3 +3801,64 @@ fn associated_type_of_a_fully_known_trait_is_the_impls_at_the_call() {
     "#;
     check_errors(src);
 }
+
+/// `K: Tr<_>` has two candidates here: `Tr<u8>`, and `Tr<T>` for any `T: Foo`. Whether the second
+/// applies isn't known when the call is checked, so no impl is chosen for it then, and the
+/// annotation that follows picks `Tr<u16>`.
+#[test]
+fn method_call_keeps_trait_argument_open_while_an_impl_where_clause_is_undecided() {
+    let src = r#"
+    trait Foo { fn make() -> Self; }
+    impl Foo for u16 { fn make() -> u16 { 2 } }
+
+    trait Tr<T> { fn mk(self) -> T; }
+    pub struct K {}
+    impl Tr<u8> for K { fn mk(self) -> u8 { 1 } }
+    impl<T> Tr<T> for K where T: Foo { fn mk(self) -> T { T::make() } }
+
+    fn main() {
+        let x = K {}.mk();
+        let _y: u16 = x;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn path_call_keeps_trait_argument_open_while_an_impl_where_clause_is_undecided() {
+    let src = r#"
+    trait Foo { fn make() -> Self; }
+    impl Foo for u16 { fn make() -> u16 { 2 } }
+
+    trait Tr<T> { fn mk(self) -> T; }
+    pub struct K {}
+    impl Tr<u8> for K { fn mk(self) -> u8 { 1 } }
+    impl<T> Tr<T> for K where T: Foo { fn mk(self) -> T { T::make() } }
+
+    fn main() {
+        let x = Tr::mk(K {});
+        let _y: u16 = x;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// With nothing deciding between `Tr<u8>` and `Tr<T> where T: Foo`, the end of the function
+/// picks the one impl that applies.
+#[test]
+fn method_call_with_an_undecided_where_clause_uses_the_impl_that_applies() {
+    let src = r#"
+    trait Foo { fn make() -> Self; }
+    impl Foo for u16 { fn make() -> u16 { 2 } }
+
+    trait Tr<T> { fn mk(self) -> T; }
+    pub struct K {}
+    impl Tr<u8> for K { fn mk(self) -> u8 { 1 } }
+    impl<T> Tr<T> for K where T: Foo { fn mk(self) -> T { T::make() } }
+
+    fn main() {
+        let _x = K {}.mk();
+    }
+    "#;
+    assert_no_errors(src);
+}
