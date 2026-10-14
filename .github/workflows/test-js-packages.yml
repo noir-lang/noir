@@ -98,6 +98,8 @@ jobs:
 
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
+          # Shared with `build-nargo-baseline`, which only runs on PRs and so never saves a cache.
+          shared-key: binaries-release
           key: x86_64-unknown-linux-gnu
           cache-on-failure: true
           save-if: ${{ github.event_name != 'merge_group' }}
@@ -112,6 +114,47 @@ jobs:
         with:
           name: ${{ matrix.name }}
           path: ./target/release/${{ matrix.name }}
+          retention-days: 3
+
+  # Builds the base branch's `nargo` so `external-repo-checks` can time each library's tests with it
+  # next to the PR's, on the same runner.
+  build-nargo-baseline:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout Noir repo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+
+      - name: Check out the base of the PR's merge commit
+        run: |
+          git checkout --detach HEAD^1
+          git log -1 --oneline
+
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.89.0
+
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          shared-key: binaries-release
+          key: x86_64-unknown-linux-gnu
+          save-if: false
+
+      - name: Build nargo
+        run: cargo build --package nargo_cli --release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: nargo-baseline
+          path: ./target/release/nargo
           retention-days: 3
 
   build-noirc-abi:
@@ -667,7 +710,13 @@ jobs:
         run: just run-examples
 
   external-repo-checks:
-    needs: [build-binaries, critical-library-list]
+    needs: [build-binaries, build-nargo-baseline, critical-library-list]
+    # The test results don't depend on `build-nargo-baseline`, which is skipped outside of PRs and
+    # only adds the base branch's timings.
+    if: >-
+      ${{ !cancelled()
+        && needs.build-binaries.result == 'success'
+        && needs.critical-library-list.result == 'success' }}
     runs-on: ubuntu-22.04
     timeout-minutes: 30
     permissions:
@@ -727,6 +776,47 @@ jobs:
           NARGO_ARGS: ${{ matrix.nargo_args }}
           NAME: ${{ steps.test_report_name.outputs.test_report_name }}
           BENCHMARK_FILE: ${{ steps.test_report_name.outputs.test_report_name }}.json
+
+      - name: Download baseline nargo binary
+        if: needs.build-nargo-baseline.result == 'success' && matrix.timeout > 20
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: nargo-baseline
+          path: ${{ runner.temp }}/nargo-baseline
+
+      # Runs after the PR's tests, so anything left warm by the first run can only favour the base.
+      - name: Run nargo test with the base branch's nargo
+        if: needs.build-nargo-baseline.result == 'success' && matrix.timeout > 20
+        run: |
+          chmod +x "$NARGO"
+
+          .github/scripts/run-external-repo-tests.sh
+
+          jq --null-input \
+            --slurpfile new "$TEST_REPORT_NAME.json" \
+            --slurpfile base "$BENCHMARK_FILE" \
+            '{ test_suite_duration: $new[0][0], baseline_test_suite_duration: $base[0][0] }' \
+            > "$GITHUB_WORKSPACE/test_comparison_$TEST_REPORT_NAME.json"
+        env:
+          NARGO: ${{ runner.temp }}/nargo-baseline/nargo
+          REPO_DIR: ./test-repo
+          PROJECT_PATH: ${{ matrix.path }}
+          NARGO_IGNORE_TEST_FAILURES_FROM_FOREIGN_CALLS: true
+          NARGO_ARGS: ${{ matrix.nargo_args }}
+          NAME: ${{ steps.test_report_name.outputs.test_report_name }}
+          TEST_REPORT_NAME: ${{ steps.test_report_name.outputs.test_report_name }}
+          # The base branch's results are only timed, not compared against the expected failures.
+          OUTPUT_FILE: ${{ runner.temp }}/baseline_test_results.jsonl
+          BENCHMARK_FILE: ${{ runner.temp }}/baseline_test_report.json
+
+      - name: Upload test timing comparison
+        if: needs.build-nargo-baseline.result == 'success' && matrix.timeout > 20
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: test_comparison_${{ steps.test_report_name.outputs.test_report_name }}
+          path: test_comparison_${{ steps.test_report_name.outputs.test_report_name }}.json
+          retention-days: 3
+          overwrite: true
 
       - name: Compare test results
         run: .github/scripts/check_test_results.sh .github/critical_libraries_status/${{ matrix.repo }}/${{ matrix.path }}.failures.jsonl .github/critical_libraries_status/${{ matrix.repo }}/${{ matrix.path }}.actual.jsonl
@@ -879,14 +969,61 @@ jobs:
           retention-days: 3
           if-no-files-found: ignore
 
+  compare_critical_library_times:
+    name: Critical library test times on the same machine
+    needs: [external-repo-checks, build-nargo-baseline]
+    # We want this job to run even if one variation of the matrix in `external-repo-checks` fails
+    if: ${{ always() && needs.build-nargo-baseline.result == 'success' }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    permissions:
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: |
+            scripts/compare_benchmark_times.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Download matrix test timing comparisons
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          pattern: test_comparison_*
+          path: ./reports
+          merge-multiple: true
+
+      - name: Compare test times
+        id: compare
+        run: |
+          SHOW_ALL=true ./scripts/compare_benchmark_times.sh ./reports >> $GITHUB_STEP_SUMMARY
+          {
+            echo "markdown<<EOF"
+            ./scripts/compare_benchmark_times.sh ./reports
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+        env:
+          SHOW_ALL: ${{ contains(github.event.pull_request.labels.*.name, 'bench-show') }}
+
+      - name: Add test time comparison to sticky comment
+        # We don't run this step on external PRs
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 # v3
+        with:
+          header: test_suite_duration
+          # delete the comment in case changes no longer impact test times
+          delete: ${{ !steps.compare.outputs.markdown }}
+          message: ${{ steps.compare.outputs.markdown }}
+
+  # Records master's test times for the benchmarks dashboard. PRs are compared against their base
+  # branch by `compare_critical_library_times`.
   upload_critical_library_report:
     name: Upload critical library report
     needs: [external-repo-checks]
     # We want this job to run even if one variation of the matrix in `external-repo-checks` fails
-    if: always()
+    if: ${{ always() && github.ref == 'refs/heads/master' }}
     runs-on: ubuntu-22.04
     permissions:
-      pull-requests: write
       # deployments permission to deploy GitHub pages website
       deployments: write
       # contents permission to update benchmark contents in gh-pages branch
@@ -909,19 +1046,16 @@ jobs:
           jq --slurp '. | flatten' ./reports/* | tee test_bench.json
 
       - name: Store benchmark result
-        # We don't run this step on external PRs
-        if: github.ref == 'refs/heads/master' || github.event.pull_request.head.repo.full_name == github.repository
         uses: benchmark-action/github-action-benchmark@4322e5726e6334590d251fc4f92bec0efafc45dc
         with:
           name: "Test Suite Duration"
           tool: "customSmallerIsBetter"
           output-file-path: ./test_bench.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          # We want this to only run on master to avoid garbage data from PRs being added.
-          auto-push: ${{ github.ref == 'refs/heads/master' }}
+          auto-push: true
           alert-threshold: "120%"
           comment-on-alert: false
-          comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
+          comment-always: false
           fail-on-alert: false
           max-items-in-chart: 50
 

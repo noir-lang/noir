@@ -409,13 +409,13 @@ jobs:
 
   external_repo_reports:
     needs: [build-nargo, build-nargo-baseline, build-noir-inspector, benchmark-projects-list]
-    # `build-nargo-baseline` is skipped outside of PRs.
+    # The reports don't depend on `build-nargo-baseline`, which is skipped outside of PRs and only
+    # adds the base branch's timings.
     if: >-
       ${{ !cancelled()
         && needs.build-nargo.result == 'success'
         && needs.build-noir-inspector.result == 'success'
-        && needs.benchmark-projects-list.result == 'success'
-        && contains(fromJSON('["success", "skipped"]'), needs.build-nargo-baseline.result) }}
+        && needs.benchmark-projects-list.result == 'success' }}
     runs-on: ubuntu-22.04
     timeout-minutes: 20
     permissions:
@@ -665,8 +665,10 @@ jobs:
             exit 1
           fi
 
-  compare_compilation_times:
-    name: Compilation time on the same machine
+  # PRs are compared against their base branch here. The `upload_*` jobs for times only record
+  # master's, for the benchmarks dashboard.
+  compare_times:
+    name: Timings on the same machine
     needs: [external_repo_reports, build-nargo-baseline, benchmark-projects-list]
     timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_reports` fails.
@@ -689,7 +691,7 @@ jobs:
           path: ./reports
           merge-multiple: true
 
-      - name: Compare compilation times
+      - name: Compare times
         id: compare
         run: |
           SHOW_ALL=true ./scripts/compare_benchmark_times.sh ./reports >> $GITHUB_STEP_SUMMARY
@@ -701,13 +703,13 @@ jobs:
         env:
           SHOW_ALL: ${{ contains(github.event.pull_request.labels.*.name, 'bench-show') }}
 
-      - name: Add compilation time comparison to sticky comment
+      - name: Add time comparison to sticky comment
         # We don't run this step on external PRs
         if: github.event.pull_request.head.repo.full_name == github.repository
         uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 # v3
         with:
-          header: compilation_time
-          # delete the comment in case changes no longer impact compilation time
+          header: timings
+          # delete the comment in case changes no longer impact any times
           delete: ${{ !steps.compare.outputs.markdown }}
           message: ${{ steps.compare.outputs.markdown }}
 
@@ -717,10 +719,9 @@ jobs:
     timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
     # but only if there are benchmark projects to report on.
-    if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
+    if: ${{ always() && github.ref == 'refs/heads/master' && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
     runs-on: ubuntu-22.04
     permissions:
-      pull-requests: write
       # deployments permission to deploy GitHub pages website
       deployments: write
       # contents permission to update benchmark contents in gh-pages branch
@@ -743,19 +744,16 @@ jobs:
           jq --slurp 'map(.compilation_time | select(.))' ./reports/* | tee time_bench.json
 
       - name: Store benchmark result
-        # We don't run this step on external PRs
-        if: github.ref == 'refs/heads/master' || github.event.pull_request.head.repo.full_name == github.repository
         uses: benchmark-action/github-action-benchmark@4322e5726e6334590d251fc4f92bec0efafc45dc
         with:
           name: "Compilation Time"
           tool: "customSmallerIsBetter"
           output-file-path: ./time_bench.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          # We want this to only run on master to avoid garbage data from PRs being added.
-          auto-push: ${{ github.ref == 'refs/heads/master' }}
+          auto-push: true
           alert-threshold: "120%"
           comment-on-alert: false
-          comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
+          comment-always: false
           fail-on-alert: false
           max-items-in-chart: 50
 
@@ -765,10 +763,9 @@ jobs:
     timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
     # but only if there are benchmark projects to report on.
-    if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
+    if: ${{ always() && github.ref == 'refs/heads/master' && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
     runs-on: ubuntu-22.04
     permissions:
-      pull-requests: write
       # deployments permission to deploy GitHub pages website
       deployments: write
       # contents permission to update benchmark contents in gh-pages branch
@@ -791,19 +788,16 @@ jobs:
           jq --slurp 'map(.elaboration_time | select(.))' ./reports/* | tee time_bench.json
 
       - name: Store benchmark result
-        # We don't run this step on external PRs
-        if: github.ref == 'refs/heads/master' || github.event.pull_request.head.repo.full_name == github.repository
         uses: benchmark-action/github-action-benchmark@4322e5726e6334590d251fc4f92bec0efafc45dc
         with:
           name: "Elaboration Time"
           tool: "customSmallerIsBetter"
           output-file-path: ./time_bench.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          # We want this to only run on master to avoid garbage data from PRs being added.
-          auto-push: ${{ github.ref == 'refs/heads/master' }}
+          auto-push: true
           alert-threshold: "120%"
           comment-on-alert: false
-          comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
+          comment-always: false
           fail-on-alert: false
           max-items-in-chart: 50
 
@@ -813,10 +807,9 @@ jobs:
     timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
     # but only if there are benchmark projects to report on.
-    if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
+    if: ${{ always() && github.ref == 'refs/heads/master' && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
     runs-on: ubuntu-22.04
     permissions:
-      pull-requests: write
       # deployments permission to deploy GitHub pages website
       deployments: write
       # contents permission to update benchmark contents in gh-pages branch
@@ -839,19 +832,16 @@ jobs:
           jq --slurp 'map(.execution_time | select(.))' ./reports/* | tee time_bench.json
 
       - name: Store benchmark result
-        # We don't run this step on external PRs
-        if: github.ref == 'refs/heads/master' || github.event.pull_request.head.repo.full_name == github.repository
         uses: benchmark-action/github-action-benchmark@4322e5726e6334590d251fc4f92bec0efafc45dc
         with:
           name: "Execution Time"
           tool: "customSmallerIsBetter"
           output-file-path: ./time_bench.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          # We want this to only run on master to avoid garbage data from PRs being added.
-          auto-push: ${{ github.ref == 'refs/heads/master' }}
+          auto-push: true
           alert-threshold: "120%"
           comment-on-alert: false
-          comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
+          comment-always: false
           fail-on-alert: false
           max-items-in-chart: 50
 
@@ -957,10 +947,9 @@ jobs:
     timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
     # but only if there are benchmark projects to report on.
-    if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
+    if: ${{ always() && github.ref == 'refs/heads/master' && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
     runs-on: ubuntu-22.04
     permissions:
-      pull-requests: write
       # deployments permission to deploy GitHub pages website
       deployments: write
       # contents permission to update benchmark contents in gh-pages branch
@@ -983,19 +972,16 @@ jobs:
           jq --slurp 'map(.brillig_compilation_time | select(.))' ./reports/* | tee time_bench.json
 
       - name: Store benchmark result
-        # We don't run this step on external PRs
-        if: github.ref == 'refs/heads/master' || github.event.pull_request.head.repo.full_name == github.repository
         uses: benchmark-action/github-action-benchmark@4322e5726e6334590d251fc4f92bec0efafc45dc
         with:
           name: "Brillig Compilation Time"
           tool: "customSmallerIsBetter"
           output-file-path: ./time_bench.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          # We want this to only run on master to avoid garbage data from PRs being added.
-          auto-push: ${{ github.ref == 'refs/heads/master' }}
+          auto-push: true
           alert-threshold: "120%"
           comment-on-alert: false
-          comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
+          comment-always: false
           fail-on-alert: false
           max-items-in-chart: 50
 
@@ -1005,10 +991,9 @@ jobs:
     timeout-minutes: 5
     # We want this job to run even if one variation of the matrix in `external_repo_reports` fails
     # but only if there are benchmark projects to report on.
-    if: ${{ always() && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
+    if: ${{ always() && github.ref == 'refs/heads/master' && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
     runs-on: ubuntu-22.04
     permissions:
-      pull-requests: write
       # deployments permission to deploy GitHub pages website
       deployments: write
       # contents permission to update benchmark contents in gh-pages branch
@@ -1031,19 +1016,16 @@ jobs:
           jq --slurp 'map(.brillig_execution_time | select(.))' ./reports/* | tee time_bench.json
 
       - name: Store benchmark result
-        # We don't run this step on external PRs
-        if: github.ref == 'refs/heads/master' || github.event.pull_request.head.repo.full_name == github.repository
         uses: benchmark-action/github-action-benchmark@4322e5726e6334590d251fc4f92bec0efafc45dc
         with:
           name: "Brillig Execution Time"
           tool: "customSmallerIsBetter"
           output-file-path: ./time_bench.json
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          # We want this to only run on master to avoid garbage data from PRs being added.
-          auto-push: ${{ github.ref == 'refs/heads/master' }}
+          auto-push: true
           alert-threshold: "120%"
           comment-on-alert: false
-          comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
+          comment-always: false
           fail-on-alert: false
           max-items-in-chart: 50
 
@@ -1213,6 +1195,7 @@ jobs:
     if: ${{ always() }}
     needs:
       - rust_benchmarks
+      - compare_times
       - upload_compilation_reports
       - upload_elaboration_reports
       - upload_execution_reports

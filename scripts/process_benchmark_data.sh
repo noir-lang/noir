@@ -42,7 +42,6 @@ average_times() {
     }' <<<${@}
 }
 
-# Takes an optional prefix, `baseline_`, to read the runs of the baseline binary instead.
 compilation_time() {
   local prefix=${1:-}
   TIMES=($(jq -r '. | select(.target == "nargo::cli" and .fields.message == "close") | .fields."time.busy"' "$INPUT_DIR/${prefix}compilation.jsonl"))
@@ -65,19 +64,13 @@ elaboration_time() {
   jq -rc "{name: \"$PROJECT_NAME\", metric: \"${prefix}elaboration_time\", value: \""$AVG_TIME"\" | tonumber, unit: \"s\"}" --null-input
 }
 
-baseline_times() {
-  if [ -f "$INPUT_DIR/baseline_compilation.jsonl" ]; then
-    compilation_time baseline_
-    elaboration_time baseline_
-  fi
-}
-
 execution_time() {
-  TIMES=($(jq -r '. | select(.target == "nargo::ops::execute" and .fields.message == "close") | .fields."time.busy"' "$INPUT_DIR/execution.jsonl"))
+  local prefix=${1:-}
+  TIMES=($(jq -r '. | select(.target == "nargo::ops::execute" and .fields.message == "close") | .fields."time.busy"' "$INPUT_DIR/${prefix}execution.jsonl"))
 
   AVG_TIME=$(average_times "${TIMES[@]}")
 
-  jq -rc "{name: \"$PROJECT_NAME\", metric: \"execution_time\", value: \""$AVG_TIME"\" | tonumber, unit: \"s\"}" --null-input
+  jq -rc "{name: \"$PROJECT_NAME\", metric: \"${prefix}execution_time\", value: \""$AVG_TIME"\" | tonumber, unit: \"s\"}" --null-input
 }
 
 artifact_size() {
@@ -93,25 +86,44 @@ num_opcodes() {
 }
 
 brillig_compilation_time() {
-  TIMES=($(jq -r '. | select(.target == "nargo::cli" and .fields.message == "close") | .fields."time.busy"' "$INPUT_DIR/brillig_compilation.jsonl"))
+  local prefix=${1:-}
+  TIMES=($(jq -r '. | select(.target == "nargo::cli" and .fields.message == "close") | .fields."time.busy"' "$INPUT_DIR/${prefix}brillig_compilation.jsonl"))
 
   AVG_TIME=$(average_times "${TIMES[@]}")
 
-  jq -rc "{name: \"$PROJECT_NAME\", metric: \"brillig_compilation_time\", value: \""$AVG_TIME"\" | tonumber, unit: \"s\"}" --null-input
+  jq -rc "{name: \"$PROJECT_NAME\", metric: \"${prefix}brillig_compilation_time\", value: \""$AVG_TIME"\" | tonumber, unit: \"s\"}" --null-input
 }
 
 brillig_execution_time() {
-  TIMES=($(jq -r '. | select(.target == "nargo::ops::execute" and .fields.message == "close") | .fields."time.busy"' "$INPUT_DIR/brillig_execution.jsonl"))
+  local prefix=${1:-}
+  TIMES=($(jq -r '. | select(.target == "nargo::ops::execute" and .fields.message == "close") | .fields."time.busy"' "$INPUT_DIR/${prefix}brillig_execution.jsonl"))
 
   AVG_TIME=$(average_times "${TIMES[@]}")
 
-  jq -rc "{name: \"$PROJECT_NAME\", metric: \"brillig_execution_time\", value: \""$AVG_TIME"\" | tonumber, unit: \"s\"}" --null-input
+  jq -rc "{name: \"$PROJECT_NAME\", metric: \"${prefix}brillig_execution_time\", value: \""$AVG_TIME"\" | tonumber, unit: \"s\"}" --null-input
 }
 
 brillig_artifact_size() {
   ARTIFACT_SIZE=$(wc -c <"$INPUT_DIR/brillig_artifact.json" | awk '{printf "%.1f\n", $1/1000}')
 
   jq -rc "{name: \"$PROJECT_NAME\", metric: \"brillig_artifact_size\", value: \""$ARTIFACT_SIZE"\" | tonumber, unit: \"KB\"}" --null-input
+}
+
+# The time functions take an optional prefix, `baseline_`, to read the runs of the baseline binary
+# instead. Its logs only exist when `gather_benchmark_data.sh` ran with `NARGO_BASELINE`.
+baseline_times() {
+  local input
+  for input in compilation execution brillig_compilation brillig_execution; do
+    if [ -f "$INPUT_DIR/baseline_$input.jsonl" ]; then
+      case $input in
+        compilation)
+          compilation_time baseline_
+          elaboration_time baseline_
+          ;;
+        *) ${input}_time baseline_ ;;
+      esac
+    fi
+  done
 }
 
 jq --slurp 'reduce .[] as $i ({}; .[$i.metric] = ($i | del(.metric)))' <<< "$(compilation_time)$(elaboration_time)$(execution_time)$(artifact_size)$(num_opcodes)$(brillig_compilation_time)$(brillig_execution_time)$(brillig_artifact_size)$(baseline_times)"
