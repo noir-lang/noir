@@ -86,6 +86,20 @@ enum Progress {
     Selected,
 }
 
+impl Progress {
+    /// Whether trying the constraint again could get further: it hasn't been tried, or one of
+    /// the type variables it was waiting on has been bound since.
+    fn may_advance(&self) -> bool {
+        match self {
+            Progress::New => true,
+            Progress::Stalled(waiting_on) => {
+                waiting_on.iter().any(|var| !var.binding().is_unbound())
+            }
+            Progress::Selected => false,
+        }
+    }
+}
+
 /// The kind of required type variable.
 #[derive(Debug, Copy, Clone)]
 pub(super) enum BindableTypeVariableKind {
@@ -164,14 +178,7 @@ impl Elaborator<'_> {
         let context = self.function_context.last_mut().expect("no function context");
         let mut to_try = Vec::new();
         for (index, local) in context.trait_constraints.iter().enumerate() {
-            let settled = match &local.progress {
-                Progress::New => false,
-                Progress::Stalled(waiting_on) => {
-                    waiting_on.iter().all(|var| var.binding().is_unbound())
-                }
-                Progress::Selected => true,
-            };
-            if !settled {
+            if local.progress.may_advance() {
                 to_try.push((index, local.constraint.clone()));
             }
         }
