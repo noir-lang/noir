@@ -22,7 +22,7 @@ macro_rules! default_to_string_impl {
     )*)
 }
 
-default_to_string_impl! { str usize u32 }
+default_to_string_impl! { str usize u32 BlackBoxOp }
 
 impl DebugToString for MemoryAddress {
     fn debug_to_string(&self) -> String {
@@ -278,110 +278,7 @@ impl DebugShow {
 
     /// Debug function for `black_box_op`
     pub(crate) fn black_box_op_instruction(&self, op: &BlackBoxOp) {
-        match op {
-            BlackBoxOp::AES128Encrypt { inputs, iv, key, outputs } => {
-                debug_println!(
-                    self.enable_debug_trace,
-                    "  AES128 ENCRYPT {} {} {}  -> {}",
-                    inputs,
-                    iv,
-                    key,
-                    outputs
-                );
-            }
-            BlackBoxOp::Keccakf1600 { input, output } => {
-                debug_println!(self.enable_debug_trace, "  KECCAKF1600 {} -> {}", input, output);
-            }
-            BlackBoxOp::Blake2s { message, output } => {
-                debug_println!(self.enable_debug_trace, "  BLAKE2S {} -> {}", message, output);
-            }
-            BlackBoxOp::Blake3 { message, output } => {
-                debug_println!(self.enable_debug_trace, "  BLAKE3 {} -> {}", message, output);
-            }
-            BlackBoxOp::EcdsaSecp256k1 {
-                hashed_msg,
-                public_key_x,
-                public_key_y,
-                signature,
-                result,
-            } => {
-                debug_println!(
-                    self.enable_debug_trace,
-                    "  ECDSA_SECP256K1 {} {} {} {} -> {}",
-                    hashed_msg,
-                    public_key_x,
-                    public_key_y,
-                    signature,
-                    result
-                );
-            }
-            BlackBoxOp::EcdsaSecp256r1 {
-                hashed_msg,
-                public_key_x,
-                public_key_y,
-                signature,
-                result,
-            } => {
-                debug_println!(
-                    self.enable_debug_trace,
-                    "  ECDSA_SECP256R1 {} {} {} {} -> {}",
-                    hashed_msg,
-                    public_key_x,
-                    public_key_y,
-                    signature,
-                    result
-                );
-            }
-            BlackBoxOp::MultiScalarMul { points, scalars, outputs } => {
-                debug_println!(
-                    self.enable_debug_trace,
-                    "  MULTI_SCALAR_MUL {} {} -> {}",
-                    points,
-                    scalars,
-                    outputs
-                );
-            }
-            BlackBoxOp::EmbeddedCurveAdd {
-                input1_x, input1_y, input2_x, input2_y, result, ..
-            } => {
-                debug_println!(
-                    self.enable_debug_trace,
-                    "  EMBEDDED_CURVE_ADD ({} {}) ({} {}) -> {}",
-                    input1_x,
-                    input1_y,
-                    input2_x,
-                    input2_y,
-                    result
-                );
-            }
-            BlackBoxOp::Poseidon2Permutation { message, output } => {
-                debug_println!(
-                    self.enable_debug_trace,
-                    "  POSEIDON2_PERMUTATION {} -> {}",
-                    message,
-                    output
-                );
-            }
-            BlackBoxOp::Sha256Compression { input, hash_values, output } => {
-                debug_println!(
-                    self.enable_debug_trace,
-                    "  SHA256COMPRESSION {} {} -> {}",
-                    input,
-                    hash_values,
-                    output
-                );
-            }
-            BlackBoxOp::ToRadix { input, radix, output_pointer, num_limbs, output_bits: _ } => {
-                debug_println!(
-                    self.enable_debug_trace,
-                    "  TO_RADIX {} {} {} -> {}",
-                    input,
-                    radix,
-                    num_limbs,
-                    output_pointer
-                );
-            }
-        }
+        debug_println!(self.enable_debug_trace, "  {}", op);
     }
 
     /// Debug function for `cast_instruction`
