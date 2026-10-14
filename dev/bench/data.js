@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792000857398,
+  "lastUpdate": 1792000975450,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22975,48 +22975,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "dd68aa1eb42e270c474e5f1638406ef7e81eddd8",
-          "message": "fix(frontend): keep a trait's `Self` rigid while checking its own methods (#13908)",
-          "timestamp": "2026-10-07T11:44:34Z",
-          "tree_id": "939a99eec55c8ef185a3210e5cbab1f6f78e39c8",
-          "url": "https://github.com/noir-lang/noir/commit/dd68aa1eb42e270c474e5f1638406ef7e81eddd8"
-        },
-        "date": 1791374770133,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 166250,
-            "range": "± 1047",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 140372,
-            "range": "± 2618",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2266701,
-            "range": "± 4004",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "70486ee8764f7668a56c57ce5a1fb1213945a00b",
           "message": "fix(frontend): substitute `Self` into a parent bound's arguments (#13916)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
@@ -25059,6 +25017,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2134133,
             "range": "± 13435",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "acfcbcbe1fc7a0d3b77406c5be7dd37239bdca62",
+          "message": "chore(frontend): share root crate collection between test helpers (#13991)",
+          "timestamp": "2026-10-14T17:40:20Z",
+          "tree_id": "316802d50ce17c1a51cc817e316bcdc28245a1ac",
+          "url": "https://github.com/noir-lang/noir/commit/acfcbcbe1fc7a0d3b77406c5be7dd37239bdca62"
+        },
+        "date": 1792000877570,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 167908,
+            "range": "± 1600",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 135983,
+            "range": "± 257",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2645368,
+            "range": "± 1795",
             "unit": "ns/iter"
           }
         ]
