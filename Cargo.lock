@@ -87,6 +87,7 @@ dependencies = [
  "blake3",
  "cbc",
  "criterion",
+ "ecdsa",
  "k256",
  "keccak",
  "log",
