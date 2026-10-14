@@ -427,26 +427,6 @@ pub fn resolve_type_bindings(bindings: &mut TypeBindings) {
     }
 }
 
-/// Pretty print type bindings for debugging
-#[allow(unused)]
-pub fn type_bindings_to_string(bindings: &TypeBindings) -> String {
-    if bindings.is_empty() {
-        return "bindings: (none)".to_string();
-    }
-
-    let mut ret = if bindings.len() == 1 {
-        "1 binding:".to_string()
-    } else {
-        format!("{} bindings:", bindings.len())
-    };
-
-    for (var, _, binding) in bindings.values() {
-        ret += &format!("\n    {var:?} := {binding:?}");
-    }
-
-    ret
-}
-
 /// Represents a struct or enum type in the type system. Each instance of this
 /// rust struct will be shared across all `Type::DataType` variants that represent
 /// the same struct or enum type.
@@ -706,21 +686,6 @@ impl DataType {
             let args = vecmap(&variant.params, |param| param.substitute(&substitutions));
             (name, args)
         }))
-    }
-
-    /// Retrieve the given variant at the given variant index of this type.
-    /// Returns None if this is not an enum type or `variant_index` is out of bounds.
-    pub fn get_variant(
-        &self,
-        variant_index: usize,
-        generic_args: &[Type],
-    ) -> Option<(String, Vec<Type>)> {
-        let substitutions = self.get_fields_substitutions(generic_args);
-        let variant = self.variants_raw()?.get(variant_index)?;
-
-        let name = variant.name.to_string();
-        let args = vecmap(&variant.params, |param| param.substitute(&substitutions));
-        Some((name, args))
     }
 
     fn get_fields_substitutions(
@@ -2604,10 +2569,6 @@ impl Type {
             }
         }
         panic!("Type recursion limit reached - types are too large")
-    }
-
-    pub fn from_generics(generics: &GenericTypeVars) -> Vec<Type> {
-        vecmap(generics, |var| Type::TypeVariable(var.clone()))
     }
 
     /// Replace any [`Type::NamedGeneric`] in this type with a [`Type::TypeVariable`]
