@@ -25,14 +25,16 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         }
     }
 
-    /// Prepare a vector for pushing a number of new (flattened) items to the back,
-    /// then write those variables to the returned write pointer.
-    pub(crate) fn vector_push_back_operation(
+    /// Prepare a vector for pushing a number of new (flattened) items to the back
+    /// (if `push_back` is true) or to the front, then write those variables to the
+    /// returned write pointer.
+    pub(crate) fn vector_push_operation(
         &mut self,
         target_vector: BrilligVector,
         source_len: SingleAddrVariable,
         source_vector: BrilligVector,
         variables_to_insert: &[BrilligVariable],
+        push_back: bool,
     ) {
         let write_pointer = self.brillig_context.allocate_register();
         self.brillig_context.call_prepare_vector_push_procedure(
@@ -41,29 +43,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
             target_vector,
             *write_pointer,
             variables_to_insert.len(),
-            true,
-        );
-
-        self.write_variables(*write_pointer, variables_to_insert);
-    }
-
-    /// Prepare a vector for pushing a number of new (flattened) items to the front,
-    /// then write those variables to the returned write pointer.
-    pub(crate) fn vector_push_front_operation(
-        &mut self,
-        target_vector: BrilligVector,
-        source_len: SingleAddrVariable,
-        source_vector: BrilligVector,
-        variables_to_insert: &[BrilligVariable],
-    ) {
-        let write_pointer = self.brillig_context.allocate_register();
-        self.brillig_context.call_prepare_vector_push_procedure(
-            source_len,
-            source_vector,
-            target_vector,
-            *write_pointer,
-            variables_to_insert.len(),
-            false,
+            push_back,
         );
 
         self.write_variables(*write_pointer, variables_to_insert);
@@ -295,21 +275,13 @@ mod tests {
                 &hoisted_globals,
             );
 
-            if push_back {
-                block.vector_push_back_operation(
-                    *target_vector,
-                    *source_len_var,
-                    *source_vector,
-                    &[item_to_insert.to_var()],
-                );
-            } else {
-                block.vector_push_front_operation(
-                    *target_vector,
-                    *source_len_var,
-                    *source_vector,
-                    &[item_to_insert.to_var()],
-                );
-            }
+            block.vector_push_operation(
+                *target_vector,
+                *source_len_var,
+                *source_vector,
+                &[item_to_insert.to_var()],
+                push_back,
+            );
 
             context.codegen_return(&[target_vector.to_var()]);
 
