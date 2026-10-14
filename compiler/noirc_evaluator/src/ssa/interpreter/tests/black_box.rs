@@ -285,3 +285,21 @@ fn test_ecdsa_r1() {
     let result = values[0].as_bool().unwrap();
     assert!(result);
 }
+
+#[test]
+fn ecdsa_with_false_predicate_is_valid() {
+    for func in ["ecdsa_secp256k1", "ecdsa_secp256r1"] {
+        let src = format!(
+            "
+  acir(inline) fn main f0  {{
+    b0(v0: [u8; 32], v1: [u8; 64]):
+      v2 = call {func}(v0, v0, v1, v0, u1 0) -> u1
+      return v2
+  }}
+      "
+        );
+        let zeros = |len: usize| from_u32_vector(&vec![0; len], NumericType::unsigned(8));
+        let values = expect_values_with_args(&src, vec![zeros(32), zeros(64)]);
+        assert_eq!(values[0].as_bool(), Some(true), "{func}");
+    }
+}

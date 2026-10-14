@@ -755,58 +755,41 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         })
     }
 
-    fn lookup_bytes(&self, value_id: ValueId, instruction: &'static str) -> IResult<Vec<u8>> {
+    /// Looks up an array or vector and converts each of its elements with `convert`.
+    fn lookup_vec<T>(
+        &self,
+        value_id: ValueId,
+        instruction: &'static str,
+        expected_type: &'static str,
+        convert: impl Fn(&Value) -> Option<T>,
+    ) -> IResult<Vec<T>> {
         let array = self.lookup_array_or_vector(value_id, instruction)?;
         let array = array.elements.borrow();
         array
             .iter()
             .map(|v| {
-                v.as_u8().ok_or_else(|| {
+                convert(v).ok_or_else(|| {
                     internal(InternalError::TypeError {
                         value_id,
                         value: v.to_string(),
-                        expected_type: "u8",
+                        expected_type,
                         instruction,
                     })
                 })
             })
-            .collect::<Result<Vec<u8>, _>>()
+            .collect()
+    }
+
+    fn lookup_bytes(&self, value_id: ValueId, instruction: &'static str) -> IResult<Vec<u8>> {
+        self.lookup_vec(value_id, instruction, "u8", Value::as_u8)
     }
 
     fn lookup_vec_u32(&self, value_id: ValueId, instruction: &'static str) -> IResult<Vec<u32>> {
-        let array = self.lookup_array_or_vector(value_id, instruction)?;
-        let array = array.elements.borrow();
-        array
-            .iter()
-            .map(|v| {
-                v.as_u32().ok_or_else(|| {
-                    internal(InternalError::TypeError {
-                        value_id,
-                        value: v.to_string(),
-                        expected_type: "u32",
-                        instruction,
-                    })
-                })
-            })
-            .collect::<Result<Vec<u32>, _>>()
+        self.lookup_vec(value_id, instruction, "u32", Value::as_u32)
     }
 
     fn lookup_vec_u64(&self, value_id: ValueId, instruction: &'static str) -> IResult<Vec<u64>> {
-        let array = self.lookup_array_or_vector(value_id, instruction)?;
-        let array = array.elements.borrow();
-        array
-            .iter()
-            .map(|v| {
-                v.as_u64().ok_or_else(|| {
-                    internal(InternalError::TypeError {
-                        value_id,
-                        value: v.to_string(),
-                        expected_type: "u64",
-                        instruction,
-                    })
-                })
-            })
-            .collect::<Result<Vec<u64>, _>>()
+        self.lookup_vec(value_id, instruction, "u64", Value::as_u64)
     }
 
     fn lookup_vec_field(
@@ -814,21 +797,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         value_id: ValueId,
         instruction: &'static str,
     ) -> IResult<Vec<FieldElement>> {
-        let array = self.lookup_array_or_vector(value_id, instruction)?;
-        let array = array.elements.borrow();
-        array
-            .iter()
-            .map(|v| {
-                v.as_field().ok_or_else(|| {
-                    internal(InternalError::TypeError {
-                        value_id,
-                        value: v.to_string(),
-                        expected_type: "Field",
-                        instruction,
-                    })
-                })
-            })
-            .collect::<Result<Vec<FieldElement>, _>>()
+        self.lookup_vec(value_id, instruction, "Field", Value::as_field)
     }
 
     fn lookup_string(&self, value_id: ValueId, instruction: &'static str) -> IResult<String> {
