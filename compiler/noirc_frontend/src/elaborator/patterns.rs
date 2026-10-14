@@ -197,9 +197,7 @@ impl Elaborator<'_> {
             Pattern::Tuple(fields, location) => {
                 // Returns Some for valid tuple types (where arity checking makes sense),
                 // None when we've already issued an error or have an invalid type.
-                let field_types = match self
-                    .follow_bindings_resolving_trait_constraints(expected_type)
-                {
+                let field_types = match self.structurally_resolve_type(expected_type) {
                     Type::Tuple(fields) => Some(fields),
                     Type::Error => None,
                     expected_type => {

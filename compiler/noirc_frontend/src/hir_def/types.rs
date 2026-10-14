@@ -2050,6 +2050,55 @@ impl Type {
         self.contains_type_variable_helper(false)
     }
 
+    /// The unbound type variables (not named generics) in this type.
+    pub(crate) fn unbound_type_variables(&self, variables: &mut Vec<TypeVariable>) {
+        let mut add = |typ: &Type| typ.unbound_type_variables(variables);
+        match self {
+            Type::Integer(..)
+            | Type::Bool
+            | Type::Unit
+            | Type::FieldElement
+            | Type::Constant(..)
+            | Type::Quoted(..)
+            | Type::Error
+            | Type::Forall(..) => (),
+            Type::Array(typ, length) => {
+                add(length);
+                add(typ);
+            }
+            Type::Vector(typ) | Type::String(typ) | Type::Reference(typ, _) => add(typ),
+            Type::FmtString(length, typ) => {
+                add(length);
+                add(typ);
+            }
+            Type::Tuple(items) | Type::DataType(_, items) | Type::Alias(_, items) => {
+                items.iter().for_each(add);
+            }
+            Type::TypeVariable(type_var) => match type_var.binding() {
+                TypeBinding::Bound(binding) => add(binding),
+                TypeBinding::Unbound(..) => variables.push(type_var.clone()),
+            },
+            Type::NamedGeneric(NamedGeneric { type_var, .. }) => {
+                if let TypeBinding::Bound(binding) = type_var.binding() {
+                    add(binding);
+                }
+            }
+            Type::TraitAsType(_, _, generics) => {
+                generics.ordered.iter().for_each(&mut add);
+                generics.named.iter().for_each(|named| add(&named.typ));
+            }
+            Type::CheckedCast { from, to } | Type::InfixExpr(from, _, to, _) => {
+                add(from);
+                add(to);
+            }
+            Type::Function(args, ret, env, _) => {
+                args.iter().for_each(&mut add);
+                add(ret);
+                add(env);
+            }
+        }
+    }
+
     fn contains_type_variable_helper(&self, unbound_named_generic_counts: bool) -> bool {
         match self {
             Type::Forall(..) => true,
