@@ -103,6 +103,8 @@ jobs:
 
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
+          # Shared with `build-nargo-baseline`, which only runs on PRs and so never saves a cache.
+          shared-key: nargo-release
           key: x86_64-unknown-linux-gnu
           cache-on-failure: true
           save-if: ${{ github.event_name != 'merge_group' }}
@@ -121,6 +123,52 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: nargo
+          path: ./dist/*
+          retention-days: 3
+
+  # Builds the base branch's `nargo` so `external_repo_reports` can time it next to the PR's on the
+  # same runner.
+  build-nargo-baseline:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout Noir repo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+
+      - name: Check out the base of the PR's merge commit
+        run: |
+          git checkout --detach HEAD^1
+          git log -1 --oneline
+
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.89.0
+
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          shared-key: nargo-release
+          key: x86_64-unknown-linux-gnu
+          save-if: false
+
+      - name: Build Nargo
+        run: cargo build --package nargo_cli --release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Package artifacts
+        run: |
+          mkdir dist
+          cp ./target/release/nargo ./dist/nargo
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: nargo-baseline
           path: ./dist/*
           retention-days: 3
 
@@ -360,7 +408,14 @@ jobs:
           overwrite: true
 
   external_repo_reports:
-    needs: [build-nargo, build-noir-inspector, benchmark-projects-list]
+    needs: [build-nargo, build-nargo-baseline, build-noir-inspector, benchmark-projects-list]
+    # `build-nargo-baseline` is skipped outside of PRs.
+    if: >-
+      ${{ !cancelled()
+        && needs.build-nargo.result == 'success'
+        && needs.build-noir-inspector.result == 'success'
+        && needs.benchmark-projects-list.result == 'success'
+        && contains(fromJSON('["success", "skipped"]'), needs.build-nargo-baseline.result) }}
     runs-on: ubuntu-22.04
     timeout-minutes: 20
     permissions:
@@ -396,6 +451,19 @@ jobs:
         uses: ./.github/actions/download-binary
         with:
           name: noir-inspector
+
+      - name: Download baseline nargo binary
+        if: needs.build-nargo-baseline.result == 'success'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: nargo-baseline
+          path: ./nargo-baseline
+
+      - name: Set baseline nargo binary
+        if: needs.build-nargo-baseline.result == 'success'
+        run: |
+          chmod +x ./nargo-baseline/nargo
+          echo "NARGO_BASELINE=${{ github.workspace }}/nargo-baseline/nargo" >> $GITHUB_ENV
 
       - name: Generate compilation report
         id: compilation_report
@@ -596,6 +664,52 @@ jobs:
             echo "Execution took: "$MEMORY"MB".
             exit 1
           fi
+
+  compare_compilation_times:
+    name: Compilation time on the same machine
+    needs: [external_repo_reports, build-nargo-baseline, benchmark-projects-list]
+    timeout-minutes: 5
+    # We want this job to run even if one variation of the matrix in `external_repo_reports` fails.
+    if: ${{ always() && needs.build-nargo-baseline.result == 'success' && needs.benchmark-projects-list.outputs.has_projects == 'true' }}
+    runs-on: ubuntu-22.04
+    permissions:
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: |
+            scripts/compare_benchmark_times.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Download matrix compilation reports
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          pattern: external_report_*
+          path: ./reports
+          merge-multiple: true
+
+      - name: Compare compilation times
+        id: compare
+        run: |
+          SHOW_ALL=true ./scripts/compare_benchmark_times.sh ./reports >> $GITHUB_STEP_SUMMARY
+          {
+            echo "markdown<<EOF"
+            ./scripts/compare_benchmark_times.sh ./reports
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+        env:
+          SHOW_ALL: ${{ contains(github.event.pull_request.labels.*.name, 'bench-show') }}
+
+      - name: Add compilation time comparison to sticky comment
+        # We don't run this step on external PRs
+        if: github.event.pull_request.head.repo.full_name == github.repository
+        uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 # v3
+        with:
+          header: compilation_time
+          # delete the comment in case changes no longer impact compilation time
+          delete: ${{ !steps.compare.outputs.markdown }}
+          message: ${{ steps.compare.outputs.markdown }}
 
   upload_compilation_reports:
     name: Upload compilation reports

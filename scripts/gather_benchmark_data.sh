@@ -26,13 +26,33 @@ setup_repo() {
     git -C $temp_dir -c advice.detachedHead=false checkout $repo_tag
 }
 
+compile_with() {
+    local nargo=$1
+    local log_dir=$2
+    NOIR_LOG=$NOIR_LOG NARGO_LOG_DIR=$log_dir $nargo compile --force --silence-warnings 2>> /dev/null
+}
+
+# When `NARGO_BASELINE` is set, each run also compiles with that binary, alternating which one goes
+# first. Both binaries are then timed on the same machine, so their ratio doesn't depend on which
+# runner the job landed on.
 compile_project() {
     echo "Compiling program (ACIR)"
     for ((i = 1; i <= NUM_COMPILE_RUNS; i++)); do
-      NOIR_LOG=$NOIR_LOG NARGO_LOG_DIR=./tmp $NARGO compile --force --silence-warnings 2>> /dev/null
+      if [ -n "${NARGO_BASELINE:-}" ] && ((i % 2 == 1)); then
+        compile_with $NARGO_BASELINE ./tmp_baseline
+        compile_with $NARGO ./tmp
+      elif [ -n "${NARGO_BASELINE:-}" ]; then
+        compile_with $NARGO ./tmp
+        compile_with $NARGO_BASELINE ./tmp_baseline
+      else
+        compile_with $NARGO ./tmp
+      fi
     done
 
     mv ./tmp/* $OUTPUT_DIR/compilation.jsonl
+    if [ -n "${NARGO_BASELINE:-}" ]; then
+      mv ./tmp_baseline/* $OUTPUT_DIR/baseline_compilation.jsonl
+    fi
 }
 
 execute_project() {
