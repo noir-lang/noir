@@ -3758,3 +3758,25 @@ fn associated_constant_type_path_of_generic_impl_outside_the_impl() {
     }
     ");
 }
+
+/// An associated type a call returns can already be known to be numeric (through `a + 1`) when a
+/// method is called on it, and the call's constraint still decides which numeric type it is.
+#[test]
+fn numeric_associated_type_result_is_known_when_a_method_is_called_on_it() {
+    let src = r#"
+    pub trait Tr { type Out; fn mk() -> Self::Out; }
+    pub struct K {}
+    impl Tr for K { type Out = u8; fn mk() -> u8 { 7 } }
+    fn make<T: Tr>() -> T::Out { T::mk() }
+    trait Byte { fn tag(self) -> u32; }
+    impl Byte for u8 { fn tag(self) -> u32 { self as u32 } }
+    trait Word { fn tag(self) -> u32; }
+    impl Word for u16 { fn tag(self) -> u32 { self as u32 } }
+    fn main() {
+        let a = make::<K>();
+        let _ = a + 1;
+        let _: u32 = a.tag();
+    }
+    "#;
+    assert_no_errors(src);
+}
