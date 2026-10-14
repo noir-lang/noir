@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["CapacityChange"],"fn":["constant_vector_lengths","make_array_capacity","vector_capacity_flows"],"struct":["CapacityFlow","CapacityTracer"]};

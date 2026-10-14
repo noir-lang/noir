@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["SizeChange"],"fn":["remove_if_else_post_check","remove_if_else_pre_check"],"struct":["Context"]};
+window.SIDEBAR_ITEMS = {"fn":["remove_if_else_post_check","remove_if_else_pre_check"],"struct":["Context"]};

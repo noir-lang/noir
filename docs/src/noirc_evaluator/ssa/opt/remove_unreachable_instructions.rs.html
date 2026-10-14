@@ -1818,4 +1818,110 @@
 <a href=#1818 id=1818 data-nosnippet>1818</a>        }
 <a href=#1819 id=1819 data-nosnippet>1819</a>        "#</span>);
 <a href=#1820 id=1820 data-nosnippet>1820</a>    }
-<a href=#1821 id=1821 data-nosnippet>1821</a>}</code></pre></div></section></main></body></html>
+<a href=#1821 id=1821 data-nosnippet>1821</a>
+<a href=#1822 id=1822 data-nosnippet>1822</a>    <span class="attr">#[test]
+<a href=#1823 id=1823 data-nosnippet>1823</a>    </span><span class="kw">fn </span>disabled_vector_push_back_onto_black_box_result() {
+<a href=#1824 id=1824 data-nosnippet>1824</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#1825 id=1825 data-nosnippet>1825</a>        acir(inline) impure fn main f0 {
+<a href=#1826 id=1826 data-nosnippet>1826</a>          b0(v0: u1, v1: u32):
+<a href=#1827 id=1827 data-nosnippet>1827</a>            v2 = make_array [Field 1, Field 2] : [Field]
+<a href=#1828 id=1828 data-nosnippet>1828</a>            v3, v4 = call black_box(v1, v2) -&gt; (u32, [Field])
+<a href=#1829 id=1829 data-nosnippet>1829</a>            enable_side_effects v0
+<a href=#1830 id=1830 data-nosnippet>1830</a>            v5 = div u32 1, u32 0
+<a href=#1831 id=1831 data-nosnippet>1831</a>            v6, v7 = call vector_push_back(v3, v4, Field 3) -&gt; (u32, [Field])
+<a href=#1832 id=1832 data-nosnippet>1832</a>            enable_side_effects u1 1
+<a href=#1833 id=1833 data-nosnippet>1833</a>            v8 = array_get v7, index u32 2 -&gt; Field
+<a href=#1834 id=1834 data-nosnippet>1834</a>            return v8
+<a href=#1835 id=1835 data-nosnippet>1835</a>        }
+<a href=#1836 id=1836 data-nosnippet>1836</a>        "</span>;
+<a href=#1837 id=1837 data-nosnippet>1837</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#1838 id=1838 data-nosnippet>1838</a>        <span class="kw">let </span>(<span class="kw">_</span>, result) = assert_pass_does_not_affect_execution(
+<a href=#1839 id=1839 data-nosnippet>1839</a>            ssa,
+<a href=#1840 id=1840 data-nosnippet>1840</a>            <span class="macro">vec!</span>[Value::bool(<span class="bool-val">false</span>), Value::u32(<span class="number">2</span>)],
+<a href=#1841 id=1841 data-nosnippet>1841</a>            |ssa| ssa.remove_unreachable_instructions(),
+<a href=#1842 id=1842 data-nosnippet>1842</a>        );
+<a href=#1843 id=1843 data-nosnippet>1843</a>        <span class="macro">assert_eq!</span>(result, <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[Value::field(FieldElement::zero())]));
+<a href=#1844 id=1844 data-nosnippet>1844</a>    }
+<a href=#1845 id=1845 data-nosnippet>1845</a>
+<a href=#1846 id=1846 data-nosnippet>1846</a>    <span class="attr">#[test]
+<a href=#1847 id=1847 data-nosnippet>1847</a>    </span><span class="kw">fn </span>disabled_vector_push_back_of_zero_sized_elements() {
+<a href=#1848 id=1848 data-nosnippet>1848</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#1849 id=1849 data-nosnippet>1849</a>        acir(inline) predicate_pure fn main f0 {
+<a href=#1850 id=1850 data-nosnippet>1850</a>          b0(v0: u1):
+<a href=#1851 id=1851 data-nosnippet>1851</a>            v1 = make_array [] : [()]
+<a href=#1852 id=1852 data-nosnippet>1852</a>            enable_side_effects v0
+<a href=#1853 id=1853 data-nosnippet>1853</a>            v2 = div u32 1, u32 0
+<a href=#1854 id=1854 data-nosnippet>1854</a>            v5, v6 = call vector_push_back(u32 2, v1) -&gt; (u32, [()])
+<a href=#1855 id=1855 data-nosnippet>1855</a>            enable_side_effects u1 1
+<a href=#1856 id=1856 data-nosnippet>1856</a>            return v5
+<a href=#1857 id=1857 data-nosnippet>1857</a>        }
+<a href=#1858 id=1858 data-nosnippet>1858</a>        "</span>;
+<a href=#1859 id=1859 data-nosnippet>1859</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#1860 id=1860 data-nosnippet>1860</a>        <span class="kw">let </span>(<span class="kw">_</span>, result) =
+<a href=#1861 id=1861 data-nosnippet>1861</a>            assert_pass_does_not_affect_execution(ssa, <span class="macro">vec!</span>[Value::bool(<span class="bool-val">false</span>)], |ssa| {
+<a href=#1862 id=1862 data-nosnippet>1862</a>                ssa.remove_unreachable_instructions()
+<a href=#1863 id=1863 data-nosnippet>1863</a>            });
+<a href=#1864 id=1864 data-nosnippet>1864</a>        <span class="macro">assert_eq!</span>(result, <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[Value::u32(<span class="number">0</span>)]));
+<a href=#1865 id=1865 data-nosnippet>1865</a>    }
+<a href=#1866 id=1866 data-nosnippet>1866</a>
+<a href=#1867 id=1867 data-nosnippet>1867</a>    <span class="attr">#[test]
+<a href=#1868 id=1868 data-nosnippet>1868</a>    </span><span class="kw">fn </span>disabled_vector_push_back_onto_vector_of_unknown_capacity_is_kept() {
+<a href=#1869 id=1869 data-nosnippet>1869</a>        <span class="kw">let </span>src = <span class="string">"
+<a href=#1870 id=1870 data-nosnippet>1870</a>        acir(inline) predicate_pure fn main f0 {
+<a href=#1871 id=1871 data-nosnippet>1871</a>          b0(v0: u1):
+<a href=#1872 id=1872 data-nosnippet>1872</a>            v1 = make_array [Field 1] : [Field]
+<a href=#1873 id=1873 data-nosnippet>1873</a>            v2 = allocate -&gt; &amp;mut [Field]
+<a href=#1874 id=1874 data-nosnippet>1874</a>            store v1 at v2
+<a href=#1875 id=1875 data-nosnippet>1875</a>            v3 = load v2 -&gt; [Field]
+<a href=#1876 id=1876 data-nosnippet>1876</a>            enable_side_effects v0
+<a href=#1877 id=1877 data-nosnippet>1877</a>            v4 = div u32 1, u32 0
+<a href=#1878 id=1878 data-nosnippet>1878</a>            v7, v8 = call vector_push_back(u32 1, v3, Field 2) -&gt; (u32, [Field])
+<a href=#1879 id=1879 data-nosnippet>1879</a>            enable_side_effects u1 1
+<a href=#1880 id=1880 data-nosnippet>1880</a>            v9 = array_get v8, index u32 1 -&gt; Field
+<a href=#1881 id=1881 data-nosnippet>1881</a>            return v9
+<a href=#1882 id=1882 data-nosnippet>1882</a>        }
+<a href=#1883 id=1883 data-nosnippet>1883</a>        "</span>;
+<a href=#1884 id=1884 data-nosnippet>1884</a>        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+<a href=#1885 id=1885 data-nosnippet>1885</a>        <span class="kw">let </span>(ssa, result) =
+<a href=#1886 id=1886 data-nosnippet>1886</a>            assert_pass_does_not_affect_execution(ssa, <span class="macro">vec!</span>[Value::bool(<span class="bool-val">false</span>)], |ssa| {
+<a href=#1887 id=1887 data-nosnippet>1887</a>                ssa.remove_unreachable_instructions()
+<a href=#1888 id=1888 data-nosnippet>1888</a>            });
+<a href=#1889 id=1889 data-nosnippet>1889</a>        <span class="macro">assert_eq!</span>(result, <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[Value::field(FieldElement::zero())]));
+<a href=#1890 id=1890 data-nosnippet>1890</a>        <span class="kw">let </span>main = ssa.main();
+<a href=#1891 id=1891 data-nosnippet>1891</a>        <span class="kw">let </span>keeps_push_back = main.dfg[main.entry_block()].instructions().iter().any(|id| {
+<a href=#1892 id=1892 data-nosnippet>1892</a>            <span class="macro">matches!</span>(main.dfg[<span class="kw-2">*</span>id], <span class="kw">crate</span>::ssa::ir::instruction::Instruction::Call { .. })
+<a href=#1893 id=1893 data-nosnippet>1893</a>        });
+<a href=#1894 id=1894 data-nosnippet>1894</a>        <span class="macro">assert!</span>(keeps_push_back, <span class="string">"the push_back has no known capacity to default to"</span>);
+<a href=#1895 id=1895 data-nosnippet>1895</a>    }
+<a href=#1896 id=1896 data-nosnippet>1896</a>
+<a href=#1897 id=1897 data-nosnippet>1897</a>    <span class="comment">// Each `if` merges the two previous vectors (a Fibonacci-shaped dependency), so the number of
+<a href=#1898 id=1898 data-nosnippet>1898</a>    // distinct paths back to the leaves is exponential in `depth`. Sizing the default for the
+<a href=#1899 id=1899 data-nosnippet>1899</a>    // disabled `push_back` must not walk those paths.
+<a href=#1900 id=1900 data-nosnippet>1900</a>    </span><span class="attr">#[test]
+<a href=#1901 id=1901 data-nosnippet>1901</a>    </span><span class="kw">fn </span>disabled_vector_push_back_onto_deep_if_else_chain() {
+<a href=#1902 id=1902 data-nosnippet>1902</a>        <span class="kw">let </span>depth = <span class="number">64</span>;
+<a href=#1903 id=1903 data-nosnippet>1903</a>        <span class="kw">let </span><span class="kw-2">mut </span>src = String::from(
+<a href=#1904 id=1904 data-nosnippet>1904</a>            <span class="string">"acir(inline) predicate_pure fn main f0 {\n  b0(v0: u1, v1: u1):\n    \
+<a href=#1905 id=1905 data-nosnippet>1905</a>             v2 = make_array [Field 1] : [Field]\n    \
+<a href=#1906 id=1906 data-nosnippet>1906</a>             v3 = make_array [Field 1, Field 2] : [Field]\n"</span>,
+<a href=#1907 id=1907 data-nosnippet>1907</a>        );
+<a href=#1908 id=1908 data-nosnippet>1908</a>        <span class="kw">for </span>i <span class="kw">in </span><span class="number">4</span>..=depth {
+<a href=#1909 id=1909 data-nosnippet>1909</a>            src.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(<span class="string">"    v{i} = if v0 then v{} else (if v1) v{}\n"</span>, i - <span class="number">1</span>, i - <span class="number">2</span>));
+<a href=#1910 id=1910 data-nosnippet>1910</a>        }
+<a href=#1911 id=1911 data-nosnippet>1911</a>        src.push_str(<span class="kw-2">&amp;</span><span class="macro">format!</span>(
+<a href=#1912 id=1912 data-nosnippet>1912</a>            <span class="string">"    enable_side_effects v0\n    \
+<a href=#1913 id=1913 data-nosnippet>1913</a>             v100 = div u32 1, u32 0\n    \
+<a href=#1914 id=1914 data-nosnippet>1914</a>             v101, v102 = call vector_push_back(u32 2, v{depth}, Field 3) -&gt; (u32, [Field])\n    \
+<a href=#1915 id=1915 data-nosnippet>1915</a>             enable_side_effects u1 1\n    \
+<a href=#1916 id=1916 data-nosnippet>1916</a>             v103 = array_get v102, index u32 1 -&gt; Field\n    \
+<a href=#1917 id=1917 data-nosnippet>1917</a>             return v103\n}}\n"
+<a href=#1918 id=1918 data-nosnippet>1918</a>        </span>));
+<a href=#1919 id=1919 data-nosnippet>1919</a>        <span class="kw">let </span>ssa = Ssa::from_str(<span class="kw-2">&amp;</span>src).unwrap();
+<a href=#1920 id=1920 data-nosnippet>1920</a>        <span class="kw">let </span>(<span class="kw">_</span>, result) = assert_pass_does_not_affect_execution(
+<a href=#1921 id=1921 data-nosnippet>1921</a>            ssa,
+<a href=#1922 id=1922 data-nosnippet>1922</a>            <span class="macro">vec!</span>[Value::bool(<span class="bool-val">false</span>), Value::bool(<span class="bool-val">true</span>)],
+<a href=#1923 id=1923 data-nosnippet>1923</a>            |ssa| ssa.remove_unreachable_instructions(),
+<a href=#1924 id=1924 data-nosnippet>1924</a>        );
+<a href=#1925 id=1925 data-nosnippet>1925</a>        <span class="macro">assert_eq!</span>(result, <span class="prelude-val">Ok</span>(<span class="macro">vec!</span>[Value::field(FieldElement::zero())]));
+<a href=#1926 id=1926 data-nosnippet>1926</a>    }
+<a href=#1927 id=1927 data-nosnippet>1927</a>}</code></pre></div></section></main></body></html>

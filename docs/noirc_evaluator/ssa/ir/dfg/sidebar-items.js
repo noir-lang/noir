@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["MAX_ELEMENTS"],"enum":["InsertInstructionResult"],"mod":["simplify"],"struct":["DataFlowGraph","GlobalsGraph"]};
+window.SIDEBAR_ITEMS = {"constant":["MAX_ELEMENTS"],"enum":["InsertInstructionResult"],"mod":["simplify","vector_capacity"],"struct":["DataFlowGraph","GlobalsGraph"]};
