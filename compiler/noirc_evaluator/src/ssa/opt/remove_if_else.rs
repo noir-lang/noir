@@ -942,6 +942,57 @@ mod tests {
     }
 
     #[test]
+    fn merge_vector_with_capacity_larger_than_length_executes_in_acir() {
+        // `vector_push_back(u32 0, v4, ..)` writes in place in ACIR: the pushed element lands
+        // inside `v4`'s backing array, so `v13` keeps one element of capacity. The merge must
+        // not read `v13` past that capacity.
+        use acvm::acir::native_types::{Witness, WitnessMap};
+        use acvm::pwg::ACVMStatus;
+        use std::collections::BTreeMap;
+
+        use crate::acir::tests::execute_ssa;
+
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32, v1: u32, v2: u32):
+            v4 = make_array [v0, u32 2] : [(u32, u32)]
+            v8 = lt v2, u32 10
+            enable_side_effects v8
+            v12, v13 = call vector_push_back(u32 0, v4, v1, u32 4) -> (u32, [(u32, u32)])
+            v14 = not v8
+            v15 = cast v8 as u32
+            v16 = cast v14 as u32
+            v17 = unchecked_mul v15, v12
+            v18 = unchecked_add v17, v16
+            v19 = if v8 then v13 else (if v14) v4
+            enable_side_effects u1 1
+            v21 = lt v2, v18
+            constrain v21 == u1 1, "Index out of bounds"
+            v22 = unchecked_mul v2, u32 2
+            v23 = array_get v19, index v22 -> u32
+            v25 = unchecked_add v22, u32 1
+            v26 = array_get v19, index v25 -> u32
+            return v23, v26, v18
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap().remove_if_else().unwrap();
+
+        let args = vec![Value::u32(5), Value::u32(10), Value::u32(0)];
+        assert_eq!(
+            ssa.interpret(args).unwrap(),
+            vec![Value::u32(10), Value::u32(4), Value::u32(1)]
+        );
+
+        let initial_witness = WitnessMap::from(BTreeMap::from([
+            (Witness(0), FieldElement::from(5u128)),
+            (Witness(1), FieldElement::from(10u128)),
+            (Witness(2), FieldElement::from(0u128)),
+        ]));
+        let (status, _) = execute_ssa(ssa, initial_witness, None);
+        assert_eq!(status, ACVMStatus::Solved);
+    }
+
+    #[test]
     fn merge_vector_with_capacity_larger_than_length() {
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
