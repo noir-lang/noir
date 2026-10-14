@@ -132,20 +132,33 @@ impl Elaborator<'_> {
         self.get_function_context_mut().trait_constraints.len()
     }
 
-    /// Follows the bindings of `typ`, which is about to be inspected. If it isn't known yet, the
-    /// trait constraints queued so far are tried first, as one of them may decide it (the result
-    /// of a call that returns an associated type).
+    /// Follows the bindings of `typ`, which is about to be inspected. If it is a type variable
+    /// that isn't known yet, the queued trait constraints that mention it are tried first, as one
+    /// of them may decide it (the result of a call that returns an associated type).
     pub(super) fn follow_bindings_resolving_trait_constraints(&mut self, typ: &Type) -> Type {
         let typ = typ.follow_bindings();
-        // A variable that is already known to be an integer or a field (the type of `1`) is
-        // usable as it is.
         let Type::TypeVariable(variable) = &typ else {
             return typ;
         };
-        if variable.is_integer() || variable.is_integer_or_field() {
-            return typ;
+        let id = variable.id();
+        // Solving a constraint can only bind the type variables it mentions.
+        let constraints: Vec<_> = self
+            .get_function_context_mut()
+            .trait_constraints
+            .iter()
+            .filter(|local| {
+                let constraint = &local.constraint;
+                let generics = &constraint.trait_bound.trait_generics;
+                let mut types = std::iter::once(&constraint.typ)
+                    .chain(&generics.ordered)
+                    .chain(generics.named.iter().map(|named| &named.typ));
+                !constraint.typ.follow_bindings().is_bindable() && types.any(|typ| typ.occurs(id))
+            })
+            .map(|local| local.constraint.clone())
+            .collect();
+        for constraint in constraints {
+            let _ = constraint.find_impl(self.interner, None);
         }
-        self.try_resolve_trait_constraints_since(0);
         typ.follow_bindings()
     }
 
