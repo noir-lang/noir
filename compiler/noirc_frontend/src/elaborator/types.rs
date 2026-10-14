@@ -3440,9 +3440,17 @@ impl Elaborator<'_> {
             return HirMethodReference::FuncId(*func_id);
         }
 
-        // Return a TraitMethodId with unbound generics. These will later be bound by the type-checker.
+        // The trait's generics at this call are unknowns that type checking solves.
         let trait_ = self.interner.get_trait(trait_id);
-        let trait_generics = trait_.get_trait_generics(location);
+        let fresh = |generic: &crate::ResolvedGeneric| {
+            self.interner.next_type_variable_with_kind(generic.kind().into_owned())
+        };
+        let ordered = vecmap(&trait_.generics, fresh);
+        let named = vecmap(&trait_.associated_types, |generic| NamedType {
+            name: Ident::new(generic.name.to_string(), location),
+            typ: fresh(generic),
+        });
+        let trait_generics = TraitGenerics { ordered, named };
         let definition = trait_.find_method(method_name, self.interner).unwrap();
         let assumed = false;
         HirMethodReference::TraitItemId(HirTraitMethodReference {
