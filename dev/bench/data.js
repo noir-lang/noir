@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792002129968,
+  "lastUpdate": 1792002315801,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22975,48 +22975,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "70486ee8764f7668a56c57ce5a1fb1213945a00b",
-          "message": "fix(frontend): substitute `Self` into a parent bound's arguments (#13916)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
-          "timestamp": "2026-10-07T12:44:32Z",
-          "tree_id": "674ce7e0411b5c72f6ca91c66b1deab17997a1b1",
-          "url": "https://github.com/noir-lang/noir/commit/70486ee8764f7668a56c57ce5a1fb1213945a00b"
-        },
-        "date": 1791378303531,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 126602,
-            "range": "± 400",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 112234,
-            "range": "± 1877",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3044942,
-            "range": "± 4527",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "7c2f1fe30e5549e89a469babaf28561b5dabb721",
           "message": "fix(frontend): instantiate parent bounds when resolving `T::item` through a supertrait (#13917)",
@@ -25059,6 +25017,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2645368,
             "range": "± 1795",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "62cd234e296141c7060523ea34edc1bca7180025",
+          "message": "fix(frontend): resolve a call's fully known trait constraints when the call is instantiated (#13971)",
+          "timestamp": "2026-10-14T18:01:12Z",
+          "tree_id": "076a74f8ece636db25f9354c7fd62fee0b2d6ace",
+          "url": "https://github.com/noir-lang/noir/commit/62cd234e296141c7060523ea34edc1bca7180025"
+        },
+        "date": 1792002221241,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 169102,
+            "range": "± 879",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136891,
+            "range": "± 1886",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2651910,
+            "range": "± 5190",
             "unit": "ns/iter"
           }
         ]
