@@ -1176,7 +1176,8 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
         try_vecmap(results, |result| {
             let typ = self.dfg().type_of_value(*result);
-            // A vector result keeps the backing capacity the call would have given it.
+            // A vector intrinsic's result gets the backing capacity the enabled intrinsic would
+            // give it in this interpreter, so that a later merge can read it in full.
             let Some(flow) = flows.iter().find(|flow| flow.output == *result) else {
                 return Ok(Value::uninitialized(&typ, *result));
             };

@@ -114,7 +114,7 @@ use crate::ssa::{
     ir::{
         dfg::{
             DataFlowGraph,
-            vector_capacity::{constant_vector_lengths, vector_capacity_flows},
+            vector_capacity::{CapacityChange, constant_vector_lengths, vector_capacity_flows},
         },
         function::Function,
         instruction::Instruction,
@@ -270,29 +270,46 @@ impl Context {
                         // over the vector length would require laying down more instructions to
                         // handle the extra padding, while preventing downstream passes or runtimes
                         // from implementing optimizations using the vector length.
-                        // A call that only runs under a predicate says nothing about the vector's
-                        // length when the predicate is false, so its length is only used when the
-                        // call always runs.
+                        let constant_lengths =
+                            constant_vector_lengths(context.dfg, intrinsic, arguments);
+
+                        // A call that only runs under a predicate says nothing about the input
+                        // vector's length when the predicate is false, so the input is only
+                        // resized when the call always runs.
                         let always_runs = context
                             .dfg
                             .get_numeric_constant(context.enable_side_effects)
                             .is_some_and(|predicate| predicate.is_one());
                         if always_runs {
-                            for (vector, length) in
-                                constant_vector_lengths(context.dfg, intrinsic, arguments)
-                            {
-                                self.vector_sizes.insert(vector, length);
+                            for (vector, length) in &constant_lengths {
+                                self.vector_sizes.insert(*vector, *length);
                             }
                         }
 
+                        // Growing the capacity must increase it: it cannot wrap around or
+                        // saturate.
+                        let apply = |change: CapacityChange, capacity| {
+                            change.apply(capacity).expect("Vector capacity overflow")
+                        };
                         for flow in
                             vector_capacity_flows(context.dfg, intrinsic, arguments, results)
                         {
-                            self.set_capacity(context.dfg, flow.input, flow.output, |capacity| {
-                                // Growing the capacity must increase it: it cannot wrap around
-                                // or saturate.
-                                flow.change.apply(capacity).expect("Vector capacity overflow")
-                            });
+                            // With a constant length the result is sized from that length, not
+                            // from the input's capacity: ACIR writes a constant-length push in
+                            // place when the backing array has room, so its result can hold fewer
+                            // elements than the input's capacity plus one. The merge then reads
+                            // only elements that every runtime's result has.
+                            let constant_length = constant_lengths
+                                .iter()
+                                .find(|(vector, _)| *vector == flow.input)
+                                .map(|(_, length)| *length);
+                            if let Some(length) = constant_length {
+                                self.vector_sizes.insert(flow.output, apply(flow.change, length));
+                            } else {
+                                self.set_capacity(context.dfg, flow.input, flow.output, |c| {
+                                    apply(flow.change, c)
+                                });
+                            }
                         }
                     }
                 }
@@ -1060,18 +1077,16 @@ mod tests {
             v30 = unchecked_mul v28, v27
             v31 = unchecked_mul v29, u32 2
             v32 = unchecked_add v30, v31
-            v33 = array_get v13, index u32 2 -> u32
-            v35 = array_get v13, index u32 3 -> u32
-            v36 = make_array [v25, v32, v33, v35] : [(u32, u32)]
+            v33 = make_array [v25, v32] : [(u32, u32)]
             enable_side_effects v8
             enable_side_effects u1 1
-            v37 = lt v2, v18
-            constrain v37 == u1 1, "Index out of bounds"
-            v38 = unchecked_mul v2, u32 2
-            v39 = array_get v36, index v38 -> u32
-            v40 = unchecked_add v38, u32 1
-            v41 = array_get v36, index v40 -> u32
-            return v39, v41, v18
+            v34 = lt v2, v18
+            constrain v34 == u1 1, "Index out of bounds"
+            v35 = unchecked_mul v2, u32 2
+            v36 = array_get v33, index v35 -> u32
+            v37 = unchecked_add v35, u32 1
+            v38 = array_get v33, index v37 -> u32
+            return v36, v38, v18
         }
         "#);
     }

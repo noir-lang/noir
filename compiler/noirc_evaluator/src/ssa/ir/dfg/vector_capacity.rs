@@ -36,8 +36,10 @@ use super::DataFlowGraph;
 pub(crate) enum CapacityChange {
     /// The result has the same capacity as the input.
     Same,
-    /// The result holds one more element than the input. A push or insert always grows the
-    /// backing array, even when the semantic length was below the capacity.
+    /// The result holds one more element than the input. Applied to the input's capacity, this
+    /// assumes the push or insert grows the backing array even when the semantic length was below
+    /// the capacity, which ACIR does not do for a constant length: apply it to the constant
+    /// length instead when there is one.
     Grow,
     /// The result holds one fewer element than the input.
     Shrink,
