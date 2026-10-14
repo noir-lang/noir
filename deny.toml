@@ -13,11 +13,6 @@ ignore = [
     # fixed quick-xml (>= 0.41.0) exists yet; drop these once one does.
     "RUSTSEC-2026-0194",
     "RUSTSEC-2026-0195",
-    # bitmaps is unmaintained (repository archived); the advisory covers all
-    # versions, so no upgrade fixes it. It is pulled in by imbl, which plans to
-    # drop it (https://github.com/jneem/imbl/issues/170). Drop this once an
-    # imbl release without bitmaps exists.
-    "RUSTSEC-2026-0247", # bitmaps
 ]
 
 # This section is considered when running `cargo deny check bans`.
