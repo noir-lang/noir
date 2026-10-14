@@ -65,19 +65,20 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@aztec/bb.js@npm:5.0.0":
-  version: 5.0.0
-  resolution: "@aztec/bb.js@npm:5.0.0"
+"@aztec/bb.js@npm:@aztec-foundation/bb.js@6.0.0-rc.6":
+  version: 6.0.0-rc.6
+  resolution: "@aztec-foundation/bb.js@npm:6.0.0-rc.6"
   dependencies:
     comlink: "npm:^4.4.1"
     commander: "npm:^12.1.0"
     idb-keyval: "npm:^6.2.1"
     msgpackr: "npm:^1.11.2"
     pako: "npm:^2.1.0"
+    proper-lockfile: "npm:^4.1.2"
     tslib: "npm:^2.4.0"
   bin:
     bb: dest/node/bin/index.js
-  checksum: 10/c81f88b867cac9df2bdaaa9b4415d4d13227c7ad45fee9b0c73f45ea8846a12a6fd867a36ba90583838b6095c5fc410a654055a0aaa4696d8aeb16c803b60235
+  checksum: 10/ea3fd053cccf9361d0052a1295e121a348a071d8c551db1d0052cf51845793360f28c538a89dab0c87667eb55eda2729357131c88df8912587c26db37878ad45
   languageName: node
   linkType: hard
 
@@ -4521,7 +4522,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "browser_example@workspace:examples/browser"
   dependencies:
-    "@aztec/bb.js": "npm:5.0.0"
+    "@aztec/bb.js": "npm:@aztec-foundation/bb.js@6.0.0-rc.6"
     "@noir-lang/noir_js": "workspace:*"
     "@playwright/test": "npm:^1.63.0"
     "@types/node": "npm:^22.20.4"
@@ -7374,7 +7375,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "integration-tests@workspace:compiler/integration-tests"
   dependencies:
-    "@aztec/bb.js": "npm:5.0.0"
+    "@aztec/bb.js": "npm:@aztec-foundation/bb.js@6.0.0-rc.6"
     "@noir-lang/noir_js": "workspace:*"
     "@noir-lang/noir_wasm": "workspace:*"
     "@nomicfoundation/hardhat-ethers": "npm:^4.2.0"
@@ -9618,6 +9619,17 @@ __metadata:
   languageName: node
   linkType: hard
 
+"proper-lockfile@npm:^4.1.2":
+  version: 4.1.2
+  resolution: "proper-lockfile@npm:4.1.2"
+  dependencies:
+    graceful-fs: "npm:^4.2.4"
+    retry: "npm:^0.12.0"
+    signal-exit: "npm:^3.0.2"
+  checksum: 10/000a4875f543f591872b36ca94531af8a6463ddb0174f41c0b004d19e231d7445268b422ff1ea595e43d238655c702250cd3d27f408e7b9d97b56f1533ba26bf
+  languageName: node
+  linkType: hard
+
 "proxy-addr@npm:^2.0.7":
   version: 2.0.8
   resolution: "proxy-addr@npm:2.0.8"
@@ -9990,6 +10002,13 @@ __metadata:
     onetime: "npm:^5.1.0"
     signal-exit: "npm:^3.0.2"
   checksum: 10/f877dd8741796b909f2a82454ec111afb84eb45890eb49ac947d87991379406b3b83ff9673a46012fca0d7844bb989f45cc5b788254cf1a39b6b5a9659de0630
+  languageName: node
+  linkType: hard
+
+"retry@npm:^0.12.0":
+  version: 0.12.0
+  resolution: "retry@npm:0.12.0"
+  checksum: 10/1f914879f97e7ee931ad05fe3afa629bd55270fc6cf1c1e589b6a99fab96d15daad0fa1a52a00c729ec0078045fe3e399bd4fd0c93bcc906957bdc17f89cb8e6
   languageName: node
   linkType: hard
 
