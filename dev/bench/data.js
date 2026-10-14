@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1791996962727,
+  "lastUpdate": 1792000857398,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22975,48 +22975,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "03bc8a2ea1e05ee68b40b02b7d666efb1b67d092",
-          "message": "chore: monomorphize each lambda body in a `FunctionContext` of its own (#13912)",
-          "timestamp": "2026-10-07T11:35:23Z",
-          "tree_id": "e6e9b7fb6e0ec28572eb558288b3e74ca283a714",
-          "url": "https://github.com/noir-lang/noir/commit/03bc8a2ea1e05ee68b40b02b7d666efb1b67d092"
-        },
-        "date": 1791374378336,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 127018,
-            "range": "± 398",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 112538,
-            "range": "± 2598",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 3041591,
-            "range": "± 1875",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "dd68aa1eb42e270c474e5f1638406ef7e81eddd8",
           "message": "fix(frontend): keep a trait's `Self` rigid while checking its own methods (#13908)",
@@ -25059,6 +25017,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 1763440,
             "range": "± 30422",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "f7d6fcda07ba51cb17e215a5b643255d7c487b69",
+          "message": "chore: delete dead code hidden behind allow(dead_code) and drop unneeded allows (#13989)",
+          "timestamp": "2026-10-14T17:34:20Z",
+          "tree_id": "5df47dce40fdc167a21cd44617e3df81fc0e9b91",
+          "url": "https://github.com/noir-lang/noir/commit/f7d6fcda07ba51cb17e215a5b643255d7c487b69"
+        },
+        "date": 1792000750371,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 160112,
+            "range": "± 753",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 141067,
+            "range": "± 2027",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2134133,
+            "range": "± 13435",
             "unit": "ns/iter"
           }
         ]
