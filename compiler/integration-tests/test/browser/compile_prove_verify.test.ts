@@ -6,7 +6,7 @@ import { TEST_LOG_LEVEL } from '../environment.js';
 import { compile, createFileManager } from '@noir-lang/noir_wasm';
 import { Noir } from '@noir-lang/noir_js';
 import { InputMap } from '@noir-lang/noirc_abi';
-import { Barretenberg, UltraHonkBackend, UltraHonkVerifierBackend } from '@aztec/bb.js';
+import { Barretenberg, UltraHonkBackend, UltraHonkVerifierBackend } from '@aztec-foundation/bb.js';
 
 import { getFile } from './utils.js';
 

@@ -65,7 +65,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@aztec/bb.js@npm:@aztec-foundation/bb.js@6.0.0-rc.6":
+"@aztec-foundation/bb.js@npm:6.0.0-rc.6":
   version: 6.0.0-rc.6
   resolution: "@aztec-foundation/bb.js@npm:6.0.0-rc.6"
   dependencies:
@@ -4522,7 +4522,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "browser_example@workspace:examples/browser"
   dependencies:
-    "@aztec/bb.js": "npm:@aztec-foundation/bb.js@6.0.0-rc.6"
+    "@aztec-foundation/bb.js": "npm:6.0.0-rc.6"
     "@noir-lang/noir_js": "workspace:*"
     "@playwright/test": "npm:^1.63.0"
     "@types/node": "npm:^22.20.4"
@@ -7375,7 +7375,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "integration-tests@workspace:compiler/integration-tests"
   dependencies:
-    "@aztec/bb.js": "npm:@aztec-foundation/bb.js@6.0.0-rc.6"
+    "@aztec-foundation/bb.js": "npm:6.0.0-rc.6"
     "@noir-lang/noir_js": "workspace:*"
     "@noir-lang/noir_wasm": "workspace:*"
     "@nomicfoundation/hardhat-ethers": "npm:^4.2.0"

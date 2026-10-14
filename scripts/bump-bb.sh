@@ -10,15 +10,12 @@ grep -rl 'bb_proof_verification' --include='Nargo.toml' . | while read -r file; 
     sed -i.bak '/bb_proof_verification/s/tag *= *"v[^"]*"/tag = "v'"$BB_VERSION"'"/' "$file" && rm "$file.bak"
 done
 
-# bb.js is published as @aztec-foundation/bb.js; alias it to @aztec/bb.js so imports stay unchanged.
-BB_JS_DEP="npm:@aztec-foundation/bb.js@$BB_VERSION"
-
 tmp=$(mktemp)
 INTEGRATION_TESTS_PACKAGE_JSON=./compiler/integration-tests/package.json
-jq --arg v "$BB_JS_DEP" '.dependencies."@aztec/bb.js" = $v' $INTEGRATION_TESTS_PACKAGE_JSON > $tmp && mv $tmp $INTEGRATION_TESTS_PACKAGE_JSON
+jq --arg v $BB_VERSION '.dependencies."@aztec-foundation/bb.js" = $v' $INTEGRATION_TESTS_PACKAGE_JSON > $tmp && mv $tmp $INTEGRATION_TESTS_PACKAGE_JSON
 
 tmp=$(mktemp)
 BROWSER_EXAMPLE_PACKAGE_JSON=./examples/browser/package.json
-jq --arg v "$BB_JS_DEP" '.dependencies."@aztec/bb.js" = $v' $BROWSER_EXAMPLE_PACKAGE_JSON > $tmp && mv $tmp $BROWSER_EXAMPLE_PACKAGE_JSON
+jq --arg v $BB_VERSION '.dependencies."@aztec-foundation/bb.js" = $v' $BROWSER_EXAMPLE_PACKAGE_JSON > $tmp && mv $tmp $BROWSER_EXAMPLE_PACKAGE_JSON
 
 YARN_ENABLE_IMMUTABLE_INSTALLS=false yarn install

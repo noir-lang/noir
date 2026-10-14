@@ -2,7 +2,7 @@ import { expect } from 'chai';
 import { network } from 'hardhat';
 import { Noir } from '@noir-lang/noir_js';
 import type { CompiledCircuit } from '@noir-lang/types';
-import { Barretenberg, UltraHonkBackend, deflattenFields } from '@aztec/bb.js';
+import { Barretenberg, UltraHonkBackend, deflattenFields } from '@aztec-foundation/bb.js';
 
 import assertLtCircuit from '../../circuits/assert_lt/target/assert_lt.json';
 import recursionCircuit from '../../circuits/recursion/target/recursion.json';

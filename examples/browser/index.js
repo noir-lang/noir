@@ -1,5 +1,5 @@
 // docs:start:imports
-import { Barretenberg, UltraHonkBackend } from '@aztec/bb.js';
+import { Barretenberg, UltraHonkBackend } from '@aztec-foundation/bb.js';
 import { Noir } from '@noir-lang/noir_js';
 import initNoirC from '@noir-lang/noirc_abi';
 import initACVM from '@noir-lang/acvm_js';
