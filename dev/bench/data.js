@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792073436068,
+  "lastUpdate": 1792073843523,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14872,95 +14872,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "64972c2d1584f75cdbecfeb51fc91dcdde682629",
-          "message": "chore: explain code by what it needs, not by the bug it fixes, in CLAUDE.md (#13923)",
-          "timestamp": "2026-10-07T21:52:06Z",
-          "tree_id": "95405c5d39c6115443e5bdba64669065836826ea",
-          "url": "https://github.com/noir-lang/noir/commit/64972c2d1584f75cdbecfeb51fc91dcdde682629"
-        },
-        "date": 1791412081656,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 307.07,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 349.94,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 336.37,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 394.56,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 391.84,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 1270,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 1270,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 392.07,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 491.34,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 501.52,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 391.24,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 88.07,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 79.77,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "bfcd7bff2986eeae0d9a4c89c0345ce9497831bb",
           "message": "fix(frontend): keep a function's implied parent bounds apart from its written ones (#13926)",
           "timestamp": "2026-10-08T12:05:47Z",
@@ -19265,6 +19176,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-checkpoint-merge",
             "value": 391.18,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1270,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1270,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 391.42,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 490.68,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 500.83,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 390.58,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 88.08,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 79.78,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c9ec59ab4fe917f5ea1a752adcebf9b37b14e3b6",
+          "message": "fix(frontend): don't choose an impl while another impl's where clause is undecided (#13999)",
+          "timestamp": "2026-10-15T13:34:19Z",
+          "tree_id": "fcc78b2c464e5a38c4d65f8ab686f649c703b5f2",
+          "url": "https://github.com/noir-lang/noir/commit/c9ec59ab4fe917f5ea1a752adcebf9b37b14e3b6"
+        },
+        "date": 1792073730100,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 306.9,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 349.75,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 336.2,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 393.9,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 391.19,
             "unit": "MB"
           },
           {
