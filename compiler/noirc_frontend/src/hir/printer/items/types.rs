@@ -187,13 +187,18 @@ impl ItemPrinter<'_, '_> {
             Type::Constant(constant) => {
                 self.push_str(&constant.to_string());
             }
-            Type::InfixExpr(lhs, op, rhs, _) => {
-                self.show_type_maybe_in_parentheses(lhs);
-                self.push(' ');
-                self.push_str(&op.to_string());
-                self.push(' ');
-                self.show_type_maybe_in_parentheses(rhs);
-            }
+            // Operands bound after the expression was built (e.g. `<T as Serialize>::N * M` once
+            // `T::N` is known) leave it stored as `10 * 1`; show the form it is compared in.
+            Type::InfixExpr(..) => match typ.canonicalize_without_checked_casts() {
+                Type::InfixExpr(lhs, op, rhs, _) => {
+                    self.show_type_maybe_in_parentheses(&lhs);
+                    self.push(' ');
+                    self.push_str(&op.to_string());
+                    self.push(' ');
+                    self.show_type_maybe_in_parentheses(&rhs);
+                }
+                simplified => self.show_type_impl(&simplified, as_expression),
+            },
             Type::Unit => {
                 if as_expression {
                     self.push_str("<()>");
@@ -222,7 +227,11 @@ impl ItemPrinter<'_, '_> {
 
 fn type_needs_parentheses(typ: &Type) -> bool {
     match typ {
-        Type::InfixExpr(..) | Type::Function(..) | Type::TraitAsType(..) => true,
+        Type::InfixExpr(..) => match typ.canonicalize_without_checked_casts() {
+            Type::InfixExpr(..) => true,
+            simplified => type_needs_parentheses(&simplified),
+        },
+        Type::Function(..) | Type::TraitAsType(..) => true,
         Type::TypeVariable(type_variable) => match type_variable.binding() {
             TypeBinding::Bound(typ) => type_needs_parentheses(typ),
             TypeBinding::Unbound(..) => false,
