@@ -427,26 +427,6 @@ pub fn resolve_type_bindings(bindings: &mut TypeBindings) {
     }
 }
 
-/// Pretty print type bindings for debugging
-#[allow(unused)]
-pub fn type_bindings_to_string(bindings: &TypeBindings) -> String {
-    if bindings.is_empty() {
-        return "bindings: (none)".to_string();
-    }
-
-    let mut ret = if bindings.len() == 1 {
-        "1 binding:".to_string()
-    } else {
-        format!("{} bindings:", bindings.len())
-    };
-
-    for (var, _, binding) in bindings.values() {
-        ret += &format!("\n    {var:?} := {binding:?}");
-    }
-
-    ret
-}
-
 /// Represents a struct or enum type in the type system. Each instance of this
 /// rust struct will be shared across all `Type::DataType` variants that represent
 /// the same struct or enum type.
@@ -484,7 +464,6 @@ enum TypeBody {
     EnumWithUnknownVariants,
     Struct(Vec<StructField>),
 
-    #[allow(unused)]
     Enum(Vec<EnumVariant>),
 }
 
@@ -707,21 +686,6 @@ impl DataType {
             let args = vecmap(&variant.params, |param| param.substitute(&substitutions));
             (name, args)
         }))
-    }
-
-    /// Retrieve the given variant at the given variant index of this type.
-    /// Returns None if this is not an enum type or `variant_index` is out of bounds.
-    pub fn get_variant(
-        &self,
-        variant_index: usize,
-        generic_args: &[Type],
-    ) -> Option<(String, Vec<Type>)> {
-        let substitutions = self.get_fields_substitutions(generic_args);
-        let variant = self.variants_raw()?.get(variant_index)?;
-
-        let name = variant.name.to_string();
-        let args = vecmap(&variant.params, |param| param.substitute(&substitutions));
-        Some((name, args))
     }
 
     fn get_fields_substitutions(
@@ -2086,6 +2050,55 @@ impl Type {
         self.contains_type_variable_helper(false)
     }
 
+    /// The unbound type variables (not named generics) in this type.
+    pub(crate) fn unbound_type_variables(&self, variables: &mut Vec<TypeVariable>) {
+        let mut add = |typ: &Type| typ.unbound_type_variables(variables);
+        match self {
+            Type::Integer(..)
+            | Type::Bool
+            | Type::Unit
+            | Type::FieldElement
+            | Type::Constant(..)
+            | Type::Quoted(..)
+            | Type::Error
+            | Type::Forall(..) => (),
+            Type::Array(typ, length) => {
+                add(length);
+                add(typ);
+            }
+            Type::Vector(typ) | Type::String(typ) | Type::Reference(typ, _) => add(typ),
+            Type::FmtString(length, typ) => {
+                add(length);
+                add(typ);
+            }
+            Type::Tuple(items) | Type::DataType(_, items) | Type::Alias(_, items) => {
+                items.iter().for_each(add);
+            }
+            Type::TypeVariable(type_var) => match type_var.binding() {
+                TypeBinding::Bound(binding) => add(binding),
+                TypeBinding::Unbound(..) => variables.push(type_var.clone()),
+            },
+            Type::NamedGeneric(NamedGeneric { type_var, .. }) => {
+                if let TypeBinding::Bound(binding) = type_var.binding() {
+                    add(binding);
+                }
+            }
+            Type::TraitAsType(_, _, generics) => {
+                generics.ordered.iter().for_each(&mut add);
+                generics.named.iter().for_each(|named| add(&named.typ));
+            }
+            Type::CheckedCast { from, to } | Type::InfixExpr(from, _, to, _) => {
+                add(from);
+                add(to);
+            }
+            Type::Function(args, ret, env, _) => {
+                args.iter().for_each(&mut add);
+                add(ret);
+                add(env);
+            }
+        }
+    }
+
     fn contains_type_variable_helper(&self, unbound_named_generic_counts: bool) -> bool {
         match self {
             Type::Forall(..) => true,
@@ -2605,10 +2618,6 @@ impl Type {
             }
         }
         panic!("Type recursion limit reached - types are too large")
-    }
-
-    pub fn from_generics(generics: &GenericTypeVars) -> Vec<Type> {
-        vecmap(generics, |var| Type::TypeVariable(var.clone()))
     }
 
     /// Replace any [`Type::NamedGeneric`] in this type with a [`Type::TypeVariable`]

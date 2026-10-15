@@ -32,9 +32,6 @@ impl<K: std::hash::Hash + Eq + Clone, V> Scope<K, V> {
     {
         self.0.get_mut(key)
     }
-    pub fn occupied_key(&mut self, key: &K) -> Option<&K> {
-        self.0.get_key_value(key).map(|(k, _)| k)
-    }
 
     // From HashMap: If the map did not have this key present, None is returned.
     pub fn add_key_value(&mut self, key: K, value: V) -> Option<V> {

@@ -44,7 +44,6 @@ use crate::{
 
 use iter_extended::vecmap;
 
-use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
 #[cfg_attr(test, derive(Arbitrary))]
@@ -69,11 +68,7 @@ impl IntegerBitSize {
     }
 }
 
-impl IntegerBitSize {
-    pub fn allowed_sizes() -> Vec<Self> {
-        IntegerBitSize::iter().collect()
-    }
-}
+impl IntegerBitSize {}
 
 impl From<IntegerBitSize> for u32 {
     fn from(size: IntegerBitSize) -> u32 {
@@ -427,10 +422,6 @@ impl UnresolvedTypeData {
 
     pub fn with_location(&self, location: Location) -> UnresolvedType {
         UnresolvedType { typ: self.clone(), location }
-    }
-
-    pub fn with_dummy_location(&self) -> UnresolvedType {
-        self.with_location(Location::dummy())
     }
 
     pub(crate) fn try_into_expression(&self) -> Option<UnresolvedTypeExpression> {
