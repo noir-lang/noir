@@ -11,22 +11,108 @@ use crate::static_assert;
 /// The size of the state accepted by the backend in `poseidon2_permutation`.
 global POSEIDON2_CONFIG_STATE_SIZE: u32 = poseidon2_config_state_size();
 
+/// Applies the SHA-256 compression function to one 512-bit message block.
+///
+/// `input` is the 16-word message block and `state` is the 8-word hash state; the result is the
+/// next hash state. Words are big-endian, as in FIPS 180-4.
+///
+/// This is only the compression function, not the SHA-256 hash: it does no padding and no length
+/// encoding, and processes exactly one block. To hash arbitrary bytes, use the
+/// [`sha256`](https://github.com/noir-lang/sha256) library, which is built on this function.
+///
+/// Example:
+///
+/// ```noir
+/// // The single padded block for the message "abc".
+/// let mut block = [0; 16];
+/// block[0] = 0x61626380; // "abc" followed by the 0x80 padding byte
+/// block[15] = 24; // message length in bits
+///
+/// // The SHA-256 initial hash state.
+/// let iv = [
+///     0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab,
+///     0x5be0cd19,
+/// ];
+///
+/// // For a one-block message, compressing the padded block gives the SHA-256 digest.
+/// let digest = std::hash::sha256_compression(block, iv);
+/// assert_eq(
+///     digest,
+///     [
+///         0xba7816bf, 0x8f01cfea, 0x414140de, 0x5dae2223, 0xb00361a3, 0x96177a9c, 0xb410ff61,
+///         0xf20015ad,
+///     ],
+/// );
+/// ```
 #[foreign(sha256_compression)]
 // docs:start:sha256_compression
 pub fn sha256_compression(input: [u32; 16], state: [u32; 8]) -> [u32; 8] {}
 // docs:end:sha256_compression
 
+/// Applies the Keccak-f[1600] permutation to a 25-lane state.
+///
+/// Each lane is a 64-bit word, and lane `x + 5 * y` holds the state word at column `x`, row `y`.
+///
+/// This is only the permutation, not a Keccak or SHA-3 hash: it does no absorbing, padding or
+/// squeezing. To hash bytes with Keccak-256, use the
+/// [`keccak256`](https://github.com/noir-lang/keccak256) library, which is built on this function.
+///
+/// Example:
+///
+/// ```noir
+/// let state = std::hash::keccakf1600([0; 25]);
+/// // The first lane of Keccak-f[1600] applied to the all-zero state.
+/// assert_eq(state[0], 0xF1258F7940E1DDE7);
+/// ```
 #[foreign(keccakf1600)]
 // docs:start:keccakf1600
 pub fn keccakf1600(input: [u64; 25]) -> [u64; 25] {}
 // docs:end:keccakf1600
 
+/// Returns the BLAKE2s-256 hash of `input`.
+///
+/// The hash is unkeyed and covers exactly the `N` bytes of `input`.
+///
+/// Example:
+///
+/// ```noir
+/// let digest = std::hash::blake2s("abc".as_bytes());
+/// assert_eq(
+///     digest,
+///     [
+///         0x50, 0x8c, 0x5e, 0x8c, 0x32, 0x7c, 0x14, 0xe2, 0xe1, 0xa7, 0x2b, 0xa3, 0x4e, 0xeb,
+///         0x45, 0x2f, 0x37, 0x45, 0x8b, 0x20, 0x9e, 0xd6, 0x3a, 0x29, 0x4d, 0x99, 0x9b, 0x4c,
+///         0x86, 0x67, 0x59, 0x82,
+///     ],
+/// );
+/// ```
 #[foreign(blake2s)]
 // docs:start:blake2s
 pub fn blake2s<let N: u32>(input: [u8; N]) -> [u8; 32]
 // docs:end:blake2s
 {}
 
+/// Returns the BLAKE3 hash of `input`, truncated to the default 32-byte output.
+///
+/// The hash is unkeyed and covers exactly the `N` bytes of `input`.
+///
+/// Example:
+///
+/// ```noir
+/// let digest = std::hash::blake3("abc".as_bytes());
+/// assert_eq(
+///     digest,
+///     [
+///         0x64, 0x37, 0xb3, 0xac, 0x38, 0x46, 0x51, 0x33, 0xff, 0xb6, 0x3b, 0x75, 0x27, 0x3a,
+///         0x8d, 0xb5, 0x48, 0xc5, 0x58, 0x46, 0x5d, 0x79, 0xdb, 0x03, 0xfd, 0x35, 0x9c, 0x6c,
+///         0xd5, 0xbd, 0x9d, 0x85,
+///     ],
+/// );
+/// ```
+///
+/// # Caveats
+///
+/// Barretenberg can't prove BLAKE3 hashes of inputs longer than 1024 bytes.
 // docs:start:blake3
 pub fn blake3<let N: u32>(input: [u8; N]) -> [u8; 32]
 // docs:end:blake3
@@ -45,12 +131,64 @@ pub fn blake3<let N: u32>(input: [u8; N]) -> [u8; 32]
 #[foreign(blake3)]
 fn __blake3<let N: u32>(input: [u8; N]) -> [u8; 32] {}
 
+/// Returns the Pedersen commitment to `input`: the point `input[0] * G[0] + ... + input[N - 1] * G[N - 1]`
+/// on the embedded curve.
+///
+/// The generators `G[i]` are fixed points derived by [`derive_generators`] from the domain
+/// separator `"DEFAULT_DOMAIN_SEPARATOR"`, and nobody knows a discrete-log relation between them,
+/// so the commitment is binding. It is not hiding unless one of the inputs is a random blinding
+/// value. Only available when compiling for the BN254 field.
+///
+/// The commitment does not include the input length, and a zero input adds nothing to the sum,
+/// so inputs that differ only by trailing zeros have the same commitment. Use [`pedersen_hash`],
+/// which does include the length, when inputs of different lengths must not collide.
+///
+/// Example:
+///
+/// ```noir
+/// use std::hash::pedersen_commitment;
+///
+/// let commitment = pedersen_commitment([1, 2]);
+/// assert(commitment != pedersen_commitment([2, 1]));
+///
+/// // Trailing zeros don't change the commitment.
+/// assert_eq(pedersen_commitment([1, 2]), pedersen_commitment([1, 2, 0]));
+/// ```
 // docs:start:pedersen_commitment
 pub fn pedersen_commitment<let N: u32>(input: [Field; N]) -> EmbeddedCurvePoint {
     // docs:end:pedersen_commitment
     pedersen_commitment_with_separator(input, 0)
 }
 
+/// Returns the Pedersen commitment to `input`, using the generators starting at index `separator`:
+/// the point `input[0] * G[separator] + ... + input[N - 1] * G[separator + N - 1]`.
+///
+/// [`pedersen_commitment`] is this function with a `separator` of 0. All the generators come from
+/// one sequence derived from `"DEFAULT_DOMAIN_SEPARATOR"`, so `separator` only chooses where in
+/// that sequence to start. Only available when compiling for the BN254 field.
+///
+/// # Caveats
+///
+/// `separator` is a generator offset, not domain separation. Commitments with different
+/// separators share generators and can be equal for different inputs: a commitment with separator
+/// 1 equals a commitment with separator 0 whose input has an extra leading zero. Like
+/// [`pedersen_commitment`], the commitment also does not include the input length.
+///
+/// Example:
+///
+/// ```noir
+/// use std::hash::{pedersen_commitment, pedersen_commitment_with_separator};
+///
+/// let x = 42;
+/// assert_eq(pedersen_commitment_with_separator([x], 0), pedersen_commitment([x]));
+///
+/// // Separator 1 starts one generator later, so it matches a leading zero at separator 0.
+/// assert_eq(pedersen_commitment_with_separator([x], 1), pedersen_commitment([0, x]));
+/// ```
+///
+/// # Failures
+///
+/// Fails to compile if `separator` is not a compile-time constant.
 #[inline_always]
 pub fn pedersen_commitment_with_separator<let N: u32>(
     input: [Field; N],
@@ -64,6 +202,24 @@ pub fn pedersen_commitment_with_separator<let N: u32>(
     multi_scalar_mul(generators, points)
 }
 
+/// Returns the Pedersen hash of `input`.
+///
+/// The hash is the x-coordinate of `input[0] * G[0] + ... + input[N - 1] * G[N - 1] + N * L`, where
+/// the generators `G[i]` are those of [`pedersen_commitment`] and `L` is a separate generator for
+/// the length. Because the length is included, inputs that differ only by trailing zeros hash to
+/// different values. Only available when compiling for the BN254 field.
+///
+/// Example:
+///
+/// ```noir
+/// use std::hash::pedersen_hash;
+///
+/// let hash = pedersen_hash([1, 2]);
+/// assert(hash != pedersen_hash([2, 1]));
+///
+/// // The length is part of the hash.
+/// assert(pedersen_hash([1, 2]) != pedersen_hash([1, 2, 0]));
+/// ```
 // docs:start:pedersen_hash
 pub fn pedersen_hash<let N: u32>(input: [Field; N]) -> Field
 // docs:end:pedersen_hash
@@ -71,6 +227,36 @@ pub fn pedersen_hash<let N: u32>(input: [Field; N]) -> Field
     pedersen_hash_with_separator(input, 0)
 }
 
+/// Returns the Pedersen hash of `input`, using the generators starting at index `separator`.
+///
+/// The hash is the x-coordinate of `input[0] * G[separator] + ... + input[N - 1] * G[separator + N - 1] + N * L`,
+/// with the generators `G[i]` and `L` of [`pedersen_hash`], which is this function with a
+/// `separator` of 0. Only available when compiling for the BN254 field.
+///
+/// # Caveats
+///
+/// `separator` is a generator offset, not domain separation. All the generators come from one
+/// sequence derived from `"DEFAULT_DOMAIN_SEPARATOR"`, so hashes with different separators can
+/// collide: `[0, x]` with separator 0 and `[x, 0]` with separator 1 have the same hash, because
+/// both compute `x * G[1] + 2 * L`. Don't use different separators to keep hashes of different
+/// kinds of data apart; include a distinct tag in the input instead, at the same position for
+/// every kind.
+///
+/// Example:
+///
+/// ```noir
+/// use std::hash::{pedersen_hash, pedersen_hash_with_separator};
+///
+/// let x = 42;
+/// assert_eq(pedersen_hash_with_separator([x], 0), pedersen_hash([x]));
+///
+/// // Different separators are not independent hash functions.
+/// assert_eq(pedersen_hash_with_separator([0, x], 0), pedersen_hash_with_separator([x, 0], 1));
+/// ```
+///
+/// # Failures
+///
+/// Fails to compile if `separator` is not a compile-time constant.
 #[no_predicates]
 pub fn pedersen_hash_with_separator<let N: u32>(input: [Field; N], separator: u32) -> Field {
     let mut scalars: [EmbeddedCurveScalar; N + 1] = [EmbeddedCurveScalar { lo: 0, hi: 0 }; N + 1];
@@ -92,6 +278,35 @@ pub fn pedersen_hash_with_separator<let N: u32>(input: [Field; N], separator: u3
     multi_scalar_mul_array_return(generators, scalars, true)[0].x
 }
 
+/// Derives `N` points on the embedded curve from a domain separator, starting at index
+/// `starting_index`.
+///
+/// Generator `i` is obtained by hashing the BLAKE3 hash of `domain_separator_bytes` together with
+/// the index `i` onto the curve, so nobody knows a discrete-log relation between any two
+/// generators. The same domain separator and index always give the same point, and the
+/// generators for different domain separators are independent. [`pedersen_commitment`] and
+/// [`pedersen_hash`] use the domain separator `"DEFAULT_DOMAIN_SEPARATOR"`.
+///
+/// Only available when compiling for the BN254 field.
+///
+/// Example:
+///
+/// ```noir
+/// use std::embedded_curve_ops::EmbeddedCurvePoint;
+/// use std::hash::derive_generators;
+///
+/// let generators: [EmbeddedCurvePoint; 2] = derive_generators("my_domain".as_bytes(), 0);
+/// assert(generators[0] != generators[1]);
+///
+/// // Starting one index later gives the same sequence shifted by one.
+/// let shifted: [EmbeddedCurvePoint; 1] = derive_generators("my_domain".as_bytes(), 1);
+/// assert_eq(shifted[0], generators[1]);
+/// ```
+///
+/// # Failures
+///
+/// Fails to compile if `domain_separator_bytes` or `starting_index` is not a compile-time
+/// constant.
 #[field(bn254)]
 #[inline_always]
 pub fn derive_generators<let N: u32, let M: u32>(
@@ -110,6 +325,23 @@ fn __derive_generators<let N: u32, let M: u32>(
     starting_index: u32,
 ) -> [EmbeddedCurvePoint; N] {}
 
+/// Applies the Poseidon2 permutation to `input`.
+///
+/// The state size `N` must equal the state size of the backend's Poseidon2 configuration, which
+/// is 4 for BN254. This is only the permutation, not a Poseidon2 hash: to hash a sequence of
+/// fields, use the [`poseidon`](https://github.com/noir-lang/poseidon) library, which builds a
+/// sponge on this function.
+///
+/// Example:
+///
+/// ```noir
+/// let state = std::hash::poseidon2_permutation([0, 1, 2, 3]);
+/// assert_eq(state[0], 0x01BD538C2EE014ED5141B29E9AE240BF8DB3FE5B9A38629A9647CF8D76C01737);
+/// ```
+///
+/// # Failures
+///
+/// Fails to compile if `N` is not the configured state size.
 pub fn poseidon2_permutation<let N: u32>(input: [Field; N]) -> [Field; N] {
     static_assert(
         N == POSEIDON2_CONFIG_STATE_SIZE,
@@ -127,9 +359,76 @@ comptime fn poseidon2_config_state_size() -> u32 {}
 // Generic hashing support.
 // Partially ported and impacted by rust.
 
-// Hash trait shall be implemented per type.
+/// A type that can be fed into a [`Hasher`].
+///
+/// `hash` writes the value to the hasher as a sequence of `Field`s. Two values that are equal
+/// must write the same sequence. The implementations in the standard library write integers and
+/// `bool`s as a single `Field`, arrays and tuples as their elements in order, and vectors as
+/// their length followed by their elements.
+///
+/// The trait can be derived with `#[derive(Hash)]`, which hashes each field of a struct in order.
+///
+/// Example:
+///
+/// ```noir
+/// use std::hash::{Hash, Hasher};
+///
+/// // A hasher that sums its inputs, to show what `hash` writes.
+/// struct Sum {
+///     total: Field,
+/// }
+///
+/// impl Hasher for Sum {
+///     fn finish(self) -> Field {
+///         self.total
+///     }
+///
+///     fn write(&mut self, input: Field) {
+///         self.total += input;
+///     }
+/// }
+///
+/// #[derive(Hash)]
+/// struct Point {
+///     x: Field,
+///     y: Field,
+/// }
+///
+/// fn main() {
+///     let mut hasher = Sum { total: 0 };
+///     Point { x: 3, y: 4 }.hash(&mut hasher);
+///     assert_eq(hasher.finish(), 7);
+/// }
+/// ```
 #[derive_via(derive_hash)]
 pub trait Hash {
+    /// Writes `self` to `state`.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// use std::hash::{Hash, Hasher};
+    ///
+    /// struct Sum {
+    ///     total: Field,
+    /// }
+    ///
+    /// impl Hasher for Sum {
+    ///     fn finish(self) -> Field {
+    ///         self.total
+    ///     }
+    ///
+    ///     fn write(&mut self, input: Field) {
+    ///         self.total += input;
+    ///     }
+    /// }
+    ///
+    /// fn main() {
+    ///     let mut hasher = Sum { total: 0 };
+    ///     (1, 2).hash(&mut hasher);
+    ///     assert_eq(hasher.finish(), 3);
+    /// }
+    /// ```
     fn hash<H>(self, state: &mut H)
     where
         H: Hasher;
@@ -151,28 +450,249 @@ comptime fn derive_hash(s: TypeDefinition) -> Quoted {
 }
 // docs:end:derive_hash
 
-// Hasher trait shall be implemented by algorithms to provide hash-agnostic means.
 // TODO: consider making the types generic here ([u8], [Field], etc.)
+/// A hash function that accepts input one `Field` at a time.
+///
+/// Values that implement [`Hash`] write themselves to a `Hasher` with [`Hasher::write`], and
+/// [`Hasher::finish`] returns the hash of everything written. Hashers are used by hash-based
+/// collections and by generic code that needs to hash values of any type.
+///
+/// Example:
+///
+/// ```noir
+/// use std::hash::Hasher;
+///
+/// struct Sum {
+///     total: Field,
+/// }
+///
+/// impl Hasher for Sum {
+///     fn finish(self) -> Field {
+///         self.total
+///     }
+///
+///     fn write(&mut self, input: Field) {
+///         self.total += input;
+///     }
+/// }
+///
+/// fn main() {
+///     let mut hasher = Sum { total: 0 };
+///     hasher.write(1);
+///     hasher.write(2);
+///     assert_eq(hasher.finish_ref(), 3);
+///     assert_eq(hasher.finish(), 3);
+/// }
+/// ```
 pub trait Hasher {
+    /// Returns the hash of everything written so far, consuming the hasher.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// use std::hash::Hasher;
+    ///
+    /// struct Sum {
+    ///     total: Field,
+    /// }
+    ///
+    /// impl Hasher for Sum {
+    ///     fn finish(self) -> Field {
+    ///         self.total
+    ///     }
+    ///
+    ///     fn write(&mut self, input: Field) {
+    ///         self.total += input;
+    ///     }
+    /// }
+    ///
+    /// fn main() {
+    ///     let mut hasher = Sum { total: 0 };
+    ///     hasher.write(4);
+    ///     assert_eq(hasher.finish(), 4);
+    /// }
+    /// ```
     fn finish(self) -> Field;
 
+    // TODO: deprecate finish() and replace it
     /// Returns the hash value without consuming the hasher.
     /// Override this for more efficient implementations that avoid copying.
-    /// TODO: deprecate finish() and replace it
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// use std::hash::Hasher;
+    ///
+    /// struct Sum {
+    ///     total: Field,
+    /// }
+    ///
+    /// impl Hasher for Sum {
+    ///     fn finish(self) -> Field {
+    ///         self.total
+    ///     }
+    ///
+    ///     fn write(&mut self, input: Field) {
+    ///         self.total += input;
+    ///     }
+    /// }
+    ///
+    /// fn main() {
+    ///     let mut hasher = Sum { total: 0 };
+    ///     hasher.write(4);
+    ///     assert_eq(hasher.finish_ref(), 4);
+    ///
+    ///     // The hasher can still be written to.
+    ///     hasher.write(1);
+    ///     assert_eq(hasher.finish_ref(), 5);
+    /// }
+    /// ```
     fn finish_ref(&self) -> Field {
         (*self).finish()
     }
 
+    /// Adds `input` to the data being hashed.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// use std::hash::Hasher;
+    ///
+    /// struct Sum {
+    ///     total: Field,
+    /// }
+    ///
+    /// impl Hasher for Sum {
+    ///     fn finish(self) -> Field {
+    ///         self.total
+    ///     }
+    ///
+    ///     fn write(&mut self, input: Field) {
+    ///         self.total += input;
+    ///     }
+    /// }
+    ///
+    /// fn main() {
+    ///     let mut hasher = Sum { total: 0 };
+    ///     hasher.write(1);
+    ///     hasher.write(2);
+    ///     assert_eq(hasher.finish(), 3);
+    /// }
+    /// ```
     fn write(&mut self, input: Field);
 }
 
-// BuildHasher is a factory trait, responsible for production of specific Hasher.
+/// A factory for [`Hasher`]s.
+///
+/// Hash-based collections take a `BuildHasher` so that each one can create fresh hashers of a
+/// chosen type. [`BuildHasherDefault`] builds any hasher that implements `Default`.
+///
+/// Example:
+///
+/// ```noir
+/// use std::hash::{BuildHasher, BuildHasherDefault, Hasher};
+///
+/// struct Sum {
+///     total: Field,
+/// }
+///
+/// impl Hasher for Sum {
+///     fn finish(self) -> Field {
+///         self.total
+///     }
+///
+///     fn write(&mut self, input: Field) {
+///         self.total += input;
+///     }
+/// }
+///
+/// impl Default for Sum {
+///     fn default() -> Self {
+///         Sum { total: 0 }
+///     }
+/// }
+///
+/// fn main() {
+///     let builder: BuildHasherDefault<Sum> = BuildHasherDefault::default();
+///     let mut hasher = builder.build_hasher();
+///     hasher.write(5);
+///     assert_eq(hasher.finish(), 5);
+/// }
+/// ```
 pub trait BuildHasher {
+    /// The type of hasher this builds.
     type H: Hasher;
 
+    /// Returns a new hasher with no input written to it.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// use std::hash::{BuildHasher, BuildHasherDefault, Hasher};
+    ///
+    /// struct Sum {
+    ///     total: Field,
+    /// }
+    ///
+    /// impl Hasher for Sum {
+    ///     fn finish(self) -> Field {
+    ///         self.total
+    ///     }
+    ///
+    ///     fn write(&mut self, input: Field) {
+    ///         self.total += input;
+    ///     }
+    /// }
+    ///
+    /// impl Default for Sum {
+    ///     fn default() -> Self {
+    ///         Sum { total: 0 }
+    ///     }
+    /// }
+    ///
+    /// fn main() {
+    ///     let builder: BuildHasherDefault<Sum> = BuildHasherDefault::default();
+    ///     let hasher = builder.build_hasher();
+    ///     assert_eq(hasher.finish(), 0);
+    /// }
+    /// ```
     fn build_hasher(self) -> H;
 }
 
+/// A [`BuildHasher`] that creates hashers of type `H` with `H::default()`.
+///
+/// Example:
+///
+/// ```noir
+/// use std::hash::{BuildHasher, BuildHasherDefault, Hasher};
+///
+/// struct Sum {
+///     total: Field,
+/// }
+///
+/// impl Hasher for Sum {
+///     fn finish(self) -> Field {
+///         self.total
+///     }
+///
+///     fn write(&mut self, input: Field) {
+///         self.total += input;
+///     }
+/// }
+///
+/// impl Default for Sum {
+///     fn default() -> Self {
+///         Sum { total: 0 }
+///     }
+/// }
+///
+/// fn main() {
+///     let builder: BuildHasherDefault<Sum> = BuildHasherDefault::default();
+///     let mut hasher = builder.build_hasher();
+///     hasher.write(5);
+///     assert_eq(hasher.finish(), 5);
+/// }
+/// ```
 pub struct BuildHasherDefault<H>;
 
 impl<H> BuildHasher for BuildHasherDefault<H>

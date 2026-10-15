@@ -53,7 +53,16 @@ underlying proof system.</p>
 <p>IMPORTANT: Prefer <code>multi_scalar_mul()</code> over repeated <code>embedded_curve_add()</code>
 for adding multiple points. This is significantly more efficient.
 For adding exactly 2 points, use <code>embedded_curve_add()</code> directly.</p>
-</div>
+<p>Returns <code>scalars[0] * points[0] + ... + scalars[N - 1] * points[N - 1]</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::embedded_curve_ops::{EmbeddedCurvePoint, EmbeddedCurveScalar, multi_scalar_mul};
+
+<span class="kw">let</span> g = EmbeddedCurvePoint::generator();
+<span class="kw">let</span> result = multi_scalar_mul([g, g.double()], [EmbeddedCurveScalar::new(<span class="number">1</span>, <span class="number">0</span>), EmbeddedCurveScalar::new(<span class="number">2</span>, <span class="number">0</span>)]);
+<span class="kw">assert_eq</span>(result, g + g.double() + g.double());</code></pre>
+<h2>Failures</h2>
+<p>Fails at execution if a point is neither on the curve nor the point at infinity, if a scalar
+limb is not less than <code>2^128</code>, or if a scalar is not less than the curve's order.</p></div>
 </div>
 </main>
 </span>

@@ -56,6 +56,27 @@
     separator: <a href="../../std/primitive.u32.html" class="primitive">u32</a>,
 ) -> <a href="../../std/embedded_curve_ops/struct.EmbeddedCurvePoint.html" class="struct">EmbeddedCurvePoint</a></code></pre>
 
+<div class="comments">
+<p>Returns the Pedersen commitment to <code>input</code>, using the generators starting at index <code>separator</code>:
+the point <code>input[0] * G[separator] + ... + input[N - 1] * G[separator + N - 1]</code>.</p>
+<p><a href="../../std/hash/fn.pedersen_commitment.html"><code>pedersen_commitment</code></a> is this function with a <code>separator</code> of 0. All the generators come from
+one sequence derived from <code>&quot;DEFAULT_DOMAIN_SEPARATOR&quot;</code>, so <code>separator</code> only chooses where in
+that sequence to start. Only available when compiling for the BN254 field.</p>
+<h2>Caveats</h2>
+<p><code>separator</code> is a generator offset, not domain separation. Commitments with different
+separators share generators and can be equal for different inputs: a commitment with separator
+1 equals a commitment with separator 0 whose input has an extra leading zero. Like
+<a href="../../std/hash/fn.pedersen_commitment.html"><code>pedersen_commitment</code></a>, the commitment also does not include the input length.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::hash::{pedersen_commitment, pedersen_commitment_with_separator};
+
+<span class="kw">let</span> x = <span class="number">42</span>;
+<span class="kw">assert_eq</span>(pedersen_commitment_with_separator([x], <span class="number">0</span>), pedersen_commitment([x]));
+
+<span class="comment">// Separator 1 starts one generator later, so it matches a leading zero at separator 0.</span>
+<span class="kw">assert_eq</span>(pedersen_commitment_with_separator([x], <span class="number">1</span>), pedersen_commitment([<span class="number">0</span>, x]));</code></pre>
+<h2>Failures</h2>
+<p>Fails to compile if <code>separator</code> is not a compile-time constant.</p></div>
 </div>
 </main>
 </span>

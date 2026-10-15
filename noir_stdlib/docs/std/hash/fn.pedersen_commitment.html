@@ -53,6 +53,24 @@
 <div id="page-content">
 <pre><code>pub fn pedersen_commitment&lt;let N: <a href="../../std/primitive.u32.html" class="primitive">u32</a>&gt;(input: [<a href="../../std/primitive.Field.html" class="primitive">Field</a>; N]) -> <a href="../../std/embedded_curve_ops/struct.EmbeddedCurvePoint.html" class="struct">EmbeddedCurvePoint</a></code></pre>
 
+<div class="comments">
+<p>Returns the Pedersen commitment to <code>input</code>: the point <code>input[0] * G[0] + ... + input[N - 1] * G[N - 1]</code>
+on the embedded curve.</p>
+<p>The generators <code>G[i]</code> are fixed points derived by <a href="../../std/hash/fn.derive_generators.html"><code>derive_generators</code></a> from the domain
+separator <code>&quot;DEFAULT_DOMAIN_SEPARATOR&quot;</code>, and nobody knows a discrete-log relation between them,
+so the commitment is binding. It is not hiding unless one of the inputs is a random blinding
+value. Only available when compiling for the BN254 field.</p>
+<p>The commitment does not include the input length, and a zero input adds nothing to the sum,
+so inputs that differ only by trailing zeros have the same commitment. Use <a href="../../std/hash/fn.pedersen_hash.html"><code>pedersen_hash</code></a>,
+which does include the length, when inputs of different lengths must not collide.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::hash::pedersen_commitment;
+
+<span class="kw">let</span> commitment = pedersen_commitment([<span class="number">1</span>, <span class="number">2</span>]);
+<span class="kw">assert</span>(commitment != pedersen_commitment([<span class="number">2</span>, <span class="number">1</span>]));
+
+<span class="comment">// Trailing zeros don't change the commitment.</span>
+<span class="kw">assert_eq</span>(pedersen_commitment([<span class="number">1</span>, <span class="number">2</span>]), pedersen_commitment([<span class="number">1</span>, <span class="number">2</span>, <span class="number">0</span>]));</code></pre></div>
 </div>
 </main>
 </span>
