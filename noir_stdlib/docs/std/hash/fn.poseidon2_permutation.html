@@ -55,15 +55,15 @@
 
 <div class="comments">
 <p>Applies the Poseidon2 permutation to <code>input</code>.</p>
-<p>The state size <code>N</code> must equal the state size of the backend's Poseidon2 configuration, which
-is 4 for BN254. This is only the permutation, not a Poseidon2 hash: to hash a sequence of
+<p>The state size <code>N</code> must equal the Poseidon2 state size for the field being compiled for,
+which is 4 for BN254. This is only the permutation, not a Poseidon2 hash: to hash a sequence of
 fields, use the <a href="https://github.com/noir-lang/poseidon"><code>poseidon</code></a> library, which builds a
 sponge on this function.</p>
 <p>Example:</p>
 <pre><code><span class="kw">let</span> state = std::hash::poseidon2_permutation([<span class="number">0</span>, <span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>]);
 <span class="kw">assert_eq</span>(state[<span class="number">0</span>], <span class="number">0x01BD538C2EE014ED5141B29E9AE240BF8DB3FE5B9A38629A9647CF8D76C01737</span>);</code></pre>
 <h2>Failures</h2>
-<p>Fails to compile if <code>N</code> is not the configured state size.</p></div>
+<p>Fails to compile if <code>N</code> is not the Poseidon2 state size.</p></div>
 </div>
 </main>
 </span>

@@ -55,8 +55,7 @@
 
 <div class="comments">
 <p>Returns the BLAKE3 hash of <code>input</code>, truncated to the default 32-byte output.</p>
-<p>The hash is unkeyed and covers exactly the <code>N</code> bytes of <code>input</code>. Barretenberg can't prove
-BLAKE3 hashes of inputs longer than 1024 bytes.</p>
+<p>The hash is unkeyed and covers exactly the <code>N</code> bytes of <code>input</code>.</p>
 <p>Example:</p>
 <pre><code><span class="kw">let</span> digest = std::hash::blake3(<span class="string">"abc"</span>.as_bytes());
 <span class="kw">assert_eq</span>(

@@ -94,8 +94,7 @@ pub fn blake2s<let N: u32>(input: [u8; N]) -> [u8; 32]
 
 /// Returns the BLAKE3 hash of `input`, truncated to the default 32-byte output.
 ///
-/// The hash is unkeyed and covers exactly the `N` bytes of `input`. Barretenberg can't prove
-/// BLAKE3 hashes of inputs longer than 1024 bytes.
+/// The hash is unkeyed and covers exactly the `N` bytes of `input`.
 ///
 /// Example:
 ///
@@ -323,8 +322,8 @@ fn __derive_generators<let N: u32, let M: u32>(
 
 /// Applies the Poseidon2 permutation to `input`.
 ///
-/// The state size `N` must equal the state size of the backend's Poseidon2 configuration, which
-/// is 4 for BN254. This is only the permutation, not a Poseidon2 hash: to hash a sequence of
+/// The state size `N` must equal the Poseidon2 state size for the field being compiled for,
+/// which is 4 for BN254. This is only the permutation, not a Poseidon2 hash: to hash a sequence of
 /// fields, use the [`poseidon`](https://github.com/noir-lang/poseidon) library, which builds a
 /// sponge on this function.
 ///
@@ -337,7 +336,7 @@ fn __derive_generators<let N: u32, let M: u32>(
 ///
 /// # Failures
 ///
-/// Fails to compile if `N` is not the configured state size.
+/// Fails to compile if `N` is not the Poseidon2 state size.
 pub fn poseidon2_permutation<let N: u32>(input: [Field; N]) -> [Field; N] {
     static_assert(
         N == POSEIDON2_CONFIG_STATE_SIZE,
