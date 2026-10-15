@@ -76,10 +76,6 @@ impl Span {
         Span(self.0.merge(other.0))
     }
 
-    pub fn to_byte_span(self) -> ByteSpan {
-        self.0
-    }
-
     pub fn start(&self) -> u32 {
         self.0.start().into()
     }

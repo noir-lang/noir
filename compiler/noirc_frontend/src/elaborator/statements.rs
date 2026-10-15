@@ -769,7 +769,7 @@ impl Elaborator<'_> {
                     mutable = is_mutable;
                 }
 
-                let typ = match self.follow_bindings_resolving_trait_constraints(&lvalue_type) {
+                let typ = match self.structurally_resolve_type(&lvalue_type) {
                     Type::Array(ref elem_type, ref size) => {
                         self.check_array_index_out_of_bounds(size, &index, location);
                         *elem_type.clone()
