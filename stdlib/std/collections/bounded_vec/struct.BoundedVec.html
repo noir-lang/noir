@@ -80,7 +80,7 @@ is a reasonable maximum bound that can be placed on the vector.</p>
 <p>Example:</p>
 <pre><code><span class="kw">let</span> <span class="kw">mut</span> vector: BoundedVec&lt;Field, <span class="number">10</span>&gt; = BoundedVec::new();
 <span class="kw">for</span> i <span class="kw">in</span> <span class="number">0</span>..<span class="number">5</span> {
-    vector.push(i);
+    vector.push(i <span class="kw">as</span> Field);
 }
 <span class="kw">assert</span>(vector.len() == <span class="number">5</span>);
 <span class="kw">assert</span>(vector.max_len() == <span class="number">10</span>);</code></pre></div>
@@ -149,7 +149,7 @@ it is unsafe! Use at your own risk!</p>
 <p>Writes an element to the vector at the given index, starting from zero.</p>
 <p>If the given index is equal to or greater than the length of the vector, this will issue a constraint failure.</p>
 <p>Example:</p>
-<pre><code><span class="kw">fn</span> foo&lt;<span class="kw">let</span> N: u32&gt;(v: BoundedVec&lt;u32, N&gt;) {
+<pre><code><span class="kw">fn</span> foo&lt;<span class="kw">let</span> N: u32&gt;(<span class="kw">mut</span> v: BoundedVec&lt;u32, N&gt;) {
     <span class="kw">let</span> first = v.get(<span class="number">0</span>);
     <span class="kw">assert</span>(first != <span class="number">42</span>);
     v.set(<span class="number">0</span>, <span class="number">42</span>);
@@ -290,7 +290,7 @@ to exceed the maximum length.</p>
 <pre><code><span class="kw">let</span> <span class="kw">mut</span> vec: BoundedVec&lt;Field, <span class="number">3</span>&gt; = BoundedVec::new();
 vec.extend_from_array([<span class="number">2</span>, <span class="number">4</span>]);
 
-<span class="kw">assert</span>(vec.len == <span class="number">2</span>);
+<span class="kw">assert</span>(vec.len() == <span class="number">2</span>);
 <span class="kw">assert</span>(vec.get(<span class="number">0</span>) == <span class="number">2</span>);
 <span class="kw">assert</span>(vec.get(<span class="number">1</span>) == <span class="number">4</span>);</code></pre></div>
 </div><code id="extend_from_vector" class="code-header">pub fn <a href="#extend_from_vector" class="fn">extend_from_vector</a>(&mut self, vector: [T])</code>
@@ -303,7 +303,7 @@ to exceed the maximum length.</p>
 <pre><code><span class="kw">let</span> <span class="kw">mut</span> vec: BoundedVec&lt;Field, <span class="number">3</span>&gt; = BoundedVec::new();
 vec.extend_from_vector([<span class="number">2</span>, <span class="number">4</span>].as_vector());
 
-<span class="kw">assert</span>(vec.len == <span class="number">2</span>);
+<span class="kw">assert</span>(vec.len() == <span class="number">2</span>);
 <span class="kw">assert</span>(vec.get(<span class="number">0</span>) == <span class="number">2</span>);
 <span class="kw">assert</span>(vec.get(<span class="number">1</span>) == <span class="number">4</span>);</code></pre></div>
 </div><code id="extend_from_bounded_vec" class="code-header">pub fn <a href="#extend_from_bounded_vec" class="fn">extend_from_bounded_vec</a>&lt;let Len: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>&gt;(&mut self, vec: <a href="../../../std/collections/bounded_vec/struct.BoundedVec.html" class="struct">BoundedVec</a>&lt;T, Len&gt;)</code>
@@ -327,7 +327,9 @@ v1.extend_from_bounded_vec(v2);
 <p>Creates a new vector, populating it with values derived from an array input.
 The maximum length of the vector is determined based on the type signature.</p>
 <p>Example:</p>
-<pre><code><span class="kw">let</span> bounded_vec: BoundedVec&lt;Field, <span class="number">10</span>&gt; = BoundedVec::from_array([<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>])</code></pre></div>
+<pre><code><span class="kw">let</span> bounded_vec: BoundedVec&lt;Field, <span class="number">10</span>&gt; = BoundedVec::from_array([<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>]);
+<span class="kw">assert_eq</span>(bounded_vec.len(), <span class="number">3</span>);
+<span class="kw">assert_eq</span>(bounded_vec.max_len(), <span class="number">10</span>);</code></pre></div>
 </div><code id="pop" class="code-header">pub fn <a href="#pop" class="fn">pop</a>(&mut self) -> T</code>
 
 <div class="padded-description"><div class="comments">
@@ -386,7 +388,8 @@ in this vector, along with its index.</p>
 <p>Example:</p>
 <pre><code><span class="kw">let</span> vec: BoundedVec&lt;u32, <span class="number">4</span>&gt; = BoundedVec::from_array([<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>]);
 <span class="kw">let</span> <span class="kw">mut</span> result = BoundedVec::&lt;u32, <span class="number">4</span>&gt;::new();
-vec.for_each(|value| result.push(value * <span class="number">2</span>));
+<span class="kw">let</span> result_ref = &<span class="kw">mut</span> result;
+vec.for_each(|value| result_ref.push(value * <span class="number">2</span>));
 
 <span class="kw">let</span> expected = BoundedVec::from_array([<span class="number">2</span>, <span class="number">4</span>, <span class="number">6</span>, <span class="number">8</span>]);
 <span class="kw">assert_eq</span>(result, expected);</code></pre></div>
@@ -397,7 +400,8 @@ vec.for_each(|value| result.push(value * <span class="number">2</span>));
 <p>Example:</p>
 <pre><code><span class="kw">let</span> vec: BoundedVec&lt;u32, <span class="number">4</span>&gt; = BoundedVec::from_array([<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>]);
 <span class="kw">let</span> <span class="kw">mut</span> result = BoundedVec::&lt;u32, <span class="number">4</span>&gt;::new();
-vec.for_eachi(|i, value| result.push(i + value * <span class="number">2</span>));
+<span class="kw">let</span> result_ref = &<span class="kw">mut</span> result;
+vec.for_eachi(|i, value| result_ref.push(i + value * <span class="number">2</span>));
 
 <span class="kw">let</span> expected = BoundedVec::from_array([<span class="number">2</span>, <span class="number">5</span>, <span class="number">8</span>, <span class="number">11</span>]);
 <span class="kw">assert_eq</span>(result, expected);</code></pre></div>
