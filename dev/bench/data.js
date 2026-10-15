@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792064854297,
+  "lastUpdate": 1792065062515,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22995,48 +22995,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "db7c9552b75d41bae57174437645b77c9529ed2f",
-          "message": "fix(frontend): instantiate parent bounds when resolving a parent's associated types for an impl (#13922)",
-          "timestamp": "2026-10-07T19:51:35Z",
-          "tree_id": "ba39061502ec19d243e78bd6b69452d679a96040",
-          "url": "https://github.com/noir-lang/noir/commit/db7c9552b75d41bae57174437645b77c9529ed2f"
-        },
-        "date": 1791404181466,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 171712,
-            "range": "± 2678",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 143461,
-            "range": "± 759",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2352233,
-            "range": "± 8019",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "104e2e0558a03bdc3581bf2d6a033325030433af",
           "message": "fix(frontend): apply the impl search's bindings to a parent impl's associated type (#13924)",
@@ -25079,6 +25037,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2648183,
             "range": "± 3130",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "22cabb09f3ab5864567b123b412ec21cc1a38f62",
+          "message": "chore(ssa): share the numeric array assertion in SSA validation (#13985)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-10-15T11:26:52Z",
+          "tree_id": "0156febf1a74459f9ab9f956ef2d90142cbdc52a",
+          "url": "https://github.com/noir-lang/noir/commit/22cabb09f3ab5864567b123b412ec21cc1a38f62"
+        },
+        "date": 1792065006953,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 67395,
+            "range": "± 1251",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 61782,
+            "range": "± 647",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 1694296,
+            "range": "± 32113",
             "unit": "ns/iter"
           }
         ]
