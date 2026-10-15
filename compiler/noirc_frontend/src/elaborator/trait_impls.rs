@@ -847,11 +847,9 @@ impl Elaborator<'_> {
         &mut self,
         impl_id: TraitImplId,
     ) {
-        let range = (impl_id, TypeVariableId(0))..=(impl_id, TypeVariableId(usize::MAX));
-        for key in self.session.deferred.trait_impl_associated_types.keys_in(range) {
-            if let Some(item) = self.session.deferred.trait_impl_associated_types.take(&key) {
-                self.resolve_trait_impl_associated_type(impl_id, item);
-            }
+        let associated_types = self.interner.get_associated_types_for_impl(impl_id).to_vec();
+        for associated_type in associated_types {
+            self.resolve_placeholder_if_unresolved(impl_id, &associated_type.typ);
         }
     }
 
@@ -865,12 +863,18 @@ impl Elaborator<'_> {
         impl_id: TraitImplId,
         name: &str,
     ) {
-        let Some(Type::NamedGeneric(named_generic)) =
-            self.interner.find_associated_type_for_impl(impl_id, name)
-        else {
+        if let Some(placeholder) = self.interner.find_associated_type_for_impl(impl_id, name) {
+            let placeholder = placeholder.clone();
+            self.resolve_placeholder_if_unresolved(impl_id, &placeholder);
+        }
+    }
+
+    /// Resolves the associated item that `placeholder`, from the impl's trait generics, stands for.
+    fn resolve_placeholder_if_unresolved(&mut self, impl_id: TraitImplId, placeholder: &Type) {
+        let Type::NamedGeneric(named_generic) = placeholder else {
             return;
         };
-        let key = (impl_id, named_generic.type_var.id());
+        let key = named_generic.type_var.id();
         if let Some(item) = self.session.deferred.trait_impl_associated_types.take(&key) {
             self.resolve_trait_impl_associated_type(impl_id, item);
         }
@@ -996,9 +1000,8 @@ impl Elaborator<'_> {
                     // This can't be done in code, but it could happen with unquoted types.
                     continue;
                 };
-                let key = (impl_id, named_generic.type_var.id());
                 self.session.deferred.trait_impl_associated_types.register(
-                    key,
+                    named_generic.type_var.id(),
                     UnresolvedImplAssociatedType {
                         module_id: trait_impl.module_id,
                         self_type: self_type.clone(),

@@ -46,11 +46,6 @@ impl<K: Ord + Copy, V> Deferred<K, V> {
         self.0.remove(key)
     }
 
-    /// The keys registered right now within `range`, in key order.
-    pub(crate) fn keys_in(&self, range: impl std::ops::RangeBounds<K>) -> Vec<K> {
-        self.0.range(range).map(|(key, _)| *key).collect()
-    }
-
     /// Removes and returns the lowest-keyed entry, for draining in declaration order.
     pub(crate) fn take_first(&mut self) -> Option<V> {
         self.0.pop_first().map(|(_, value)| value)
@@ -134,13 +129,12 @@ pub(super) struct DeferredItems {
     /// Enum variants, deferred for the same reason as [`Self::struct_fields`].
     pub(super) enum_variants: Deferred<TypeId, UnresolvedEnumVariants>,
 
-    /// The associated types and constants of each trait impl, keyed by the impl and the type
-    /// variable that stands for the item. One impl's items may name another impl's
+    /// The associated types and constants of trait impls, keyed by the type variable that stands
+    /// for each item in its impl's trait generics. One impl's items may name another impl's
     /// (`let N: u32 = <[u8; 3] as C>::N;`), or another item of the same impl through a global, so
     /// each is resolved the first time something reads it, and otherwise when the impl is
     /// collected.
-    pub(super) trait_impl_associated_types:
-        Deferred<(TraitImplId, TypeVariableId), UnresolvedImplAssociatedType>,
+    pub(super) trait_impl_associated_types: Deferred<TypeVariableId, UnresolvedImplAssociatedType>,
 
     /// Trait bookkeeping that cannot run until the drains above have resolved the metas it reads.
     pub(super) trait_work: PendingTraitWork,
