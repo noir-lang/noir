@@ -23,8 +23,8 @@ impl<let N: u32> FromCallData<N, N - 2> for Point {
     fn from_calldata(calldata: [Field; N]) -> (Self, [Field; N - 2]) {
         let (x, calldata): (Field, [Field; N - 1]) =
             <Field as FromCallData<N, N - 1>>::from_calldata(calldata);
-        let (y, calldata): (Field, [Field; N - 2]) =
-            <Field as FromCallData<N - 1, N - 2>>::from_calldata(calldata);
+        let (y, calldata): (Field, [Field; (N - 1) - 1]) =
+            <Field as FromCallData<N - 1, (N - 1) - 1>>::from_calldata(calldata);
         (Self { x: x, y: y }, calldata)
     }
 }

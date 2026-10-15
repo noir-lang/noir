@@ -1388,6 +1388,10 @@ impl Elaborator<'_> {
             }
         }
 
+        // An associated type of a trait whose impl is already decided here (`<K as Tr>::Out`) is
+        // that impl's, so it is resolved now rather than when the type is first needed.
+        self.select_where_possible();
+
         // Record required type variables in a predictable order to avoid nondeterminism in error messages.
         let required_type_variables = btree_map(bindings.values(), |(type_variable, _, typ)| {
             (type_variable.id(), typ.clone())

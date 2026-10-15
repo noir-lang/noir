@@ -16,6 +16,7 @@ use iter_extended::vecmap;
 use noirc_errors::CustomDiagnostic;
 use noirc_errors::Location;
 
+use crate::graph::CrateId;
 use crate::hir::ParsedFiles;
 use crate::hir::comptime::ComptimeIo;
 use crate::hir::def_collector::dc_crate::CompilationError;
@@ -26,7 +27,7 @@ use crate::hir::{CheckState, CheckedContext, Context};
 use crate::parser::{ItemKind, ParserErrorReason};
 use crate::token::SecondaryAttribute;
 use crate::{ParsedModule, parse_program};
-use fm::FileManager;
+use fm::{FileId, FileManager};
 
 use crate::monomorphization::{ast::Program, errors::MonomorphizationError, monomorphize};
 
@@ -149,44 +150,61 @@ pub(crate) fn get_program_with_options(
     remove_experimental_warnings(&mut errors);
 
     if options.allow_parser_errors || !has_parser_error(&errors) {
-        let inner_attributes: Vec<SecondaryAttribute> = program
-            .items
-            .iter()
-            .filter_map(|item| {
-                if let ItemKind::InnerAttribute(attribute) = &item.kind {
-                    Some(attribute.clone())
-                } else {
-                    None
-                }
-            })
-            .collect();
-
-        let location = Location::new(Default::default(), root_file_id);
-        let root_module = ModuleData::new(
-            None,
-            None,
-            location,
-            Vec::new(),
-            inner_attributes,
-            false, // is contract
-            false, // is struct
-        );
-
-        let def_map = CrateDefMap::new(root_crate_id, root_module);
-
-        // Now we want to populate the CrateDefMap using the DefCollector
-        errors.extend(DefCollector::collect_crate_and_dependencies(
-            def_map,
+        errors.extend(collect_root_crate(
             &mut context,
-            program.clone().into_sorted(),
+            program.clone(),
             root_file_id,
+            root_crate_id,
             options.frontend_options,
-            &mut ComptimeIo::stdout(),
-            &mut CheckState::default(),
         ));
     }
 
     (program, CheckedContext::assume_checked(context), errors)
+}
+
+/// Collects the definitions of the root crate parsed into `program`, along with its dependencies,
+/// returning any errors found.
+fn collect_root_crate(
+    context: &mut Context,
+    program: ParsedModule,
+    root_file_id: FileId,
+    root_crate_id: CrateId,
+    frontend_options: FrontendOptions,
+) -> Vec<CompilationError> {
+    let inner_attributes: Vec<SecondaryAttribute> = program
+        .items
+        .iter()
+        .filter_map(|item| {
+            if let ItemKind::InnerAttribute(attribute) = &item.kind {
+                Some(attribute.clone())
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    let location = Location::new(Default::default(), root_file_id);
+    let root_module = ModuleData::new(
+        None,
+        None,
+        location,
+        Vec::new(),
+        inner_attributes,
+        false, // is contract
+        false, // is struct
+    );
+
+    let def_map = CrateDefMap::new(root_crate_id, root_module);
+
+    DefCollector::collect_crate_and_dependencies(
+        def_map,
+        context,
+        program.into_sorted(),
+        root_file_id,
+        frontend_options,
+        &mut ComptimeIo::stdout(),
+        &mut CheckState::default(),
+    )
 }
 
 /// Compile a root crate that depends on a *separate* crate whose source is `stdlib_src`.
@@ -232,40 +250,13 @@ pub fn get_program_with_stdlib_dependency(
     remove_experimental_warnings(&mut errors);
 
     if !has_parser_error(&errors) {
-        let inner_attributes: Vec<SecondaryAttribute> = root_program
-            .items
-            .iter()
-            .filter_map(|item| {
-                if let ItemKind::InnerAttribute(attribute) = &item.kind {
-                    Some(attribute.clone())
-                } else {
-                    None
-                }
-            })
-            .collect();
-
-        let location = Location::new(Default::default(), root_file_id);
-        let root_module = ModuleData::new(
-            None,
-            None,
-            location,
-            Vec::new(),
-            inner_attributes,
-            false, // is contract
-            false, // is struct
-        );
-
-        let def_map = CrateDefMap::new(root_crate_id, root_module);
-
         // Collecting the root crate transitively collects its `std` dependency.
-        errors.extend(DefCollector::collect_crate_and_dependencies(
-            def_map,
+        errors.extend(collect_root_crate(
             &mut context,
-            root_program.into_sorted(),
+            root_program,
             root_file_id,
+            root_crate_id,
             GetProgramOptions::default().frontend_options,
-            &mut ComptimeIo::stdout(),
-            &mut CheckState::default(),
         ));
     }
 

@@ -146,11 +146,6 @@ impl NodeInterner {
         self.definition(global.definition_id)
     }
 
-    pub fn get_global_definition_mut(&mut self, global_id: GlobalId) -> &mut DefinitionInfo {
-        let global = self.get_global(global_id);
-        self.definition_mut(global.definition_id)
-    }
-
     pub fn get_all_globals(&self) -> &[GlobalInfo] {
         &self.globals
     }
