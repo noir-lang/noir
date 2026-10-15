@@ -803,8 +803,8 @@ fn expands_numeric_type_alias_with_its_numeric_type() {
     type Double<let N: u32>: u32 = N * 2;
 
     fn main() {
-        let arr: [Field; 2 * 2] = [0_Field; 4];
-        let _: [Field; 2 * 2] = arr;
+        let arr: [Field; 4] = [0_Field; 4];
+        let _: [Field; 4] = arr;
     }
     ");
 }
@@ -1069,6 +1069,171 @@ fn expands_function_where_clause_without_implied_parent_bounds() {
 
     fn main() {
         let _: Field = f::<S>(1_Field);
+    }
+    ");
+}
+
+// `<T as Serialize>::N * M` is built while `T`'s `N` is still unknown, so once everything is
+// bound the inferred types are `10 * 1` and `(16 * 20) + 1`. The type checker treats those as
+// `10` and `321` (the concrete return types below unify with them), and expand prints them the
+// same way.
+#[test]
+fn expands_associated_constant_arithmetic_as_folded_constant() {
+    let src = r#"
+    trait Serialize {
+        let N: u32;
+
+        fn serialize(self) -> [Field; Self::N];
+    }
+
+    impl Serialize for u8 {
+        let N: u32 = 1;
+
+        fn serialize(self) -> [Field; Self::N] {
+            [self as Field]
+        }
+    }
+
+    struct Msg {
+        a: [Field; 20],
+    }
+
+    impl Serialize for Msg {
+        let N: u32 = 20;
+
+        fn serialize(self) -> [Field; Self::N] {
+            self.a
+        }
+    }
+
+    impl<T, let M: u32> Serialize for [T; M]
+    where
+        T: Serialize,
+    {
+        let N: u32 = <T as Serialize>::N * M;
+
+        fn serialize(self) -> [Field; Self::N] {
+            [0; Self::N]
+        }
+    }
+
+    struct Bounded<T, let M: u32> {
+        items: [T; M],
+        len: u32,
+    }
+
+    impl<T, let M: u32> Serialize for Bounded<T, M>
+    where
+        T: Serialize,
+    {
+        let N: u32 = <T as Serialize>::N * M + 1;
+
+        fn serialize(self) -> [Field; Self::N] {
+            [0; Self::N]
+        }
+    }
+
+    struct Call<let N: u32> {
+        params: [Field; N],
+    }
+
+    impl<let N: u32> Call<N> {
+        fn new(params: [Field; N]) -> Self {
+            Call { params }
+        }
+    }
+
+    fn bytes_call(data: [u8; 10]) -> Call<10> {
+        let serialized_params = Serialize::serialize(data);
+        Call::new(serialized_params)
+    }
+
+    fn msgs_call(msgs: Bounded<Msg, 16>) -> Call<321> {
+        let serialized_params = Serialize::serialize(msgs);
+        Call::new(serialized_params)
+    }
+
+    fn main(data: [u8; 10], msgs: Bounded<Msg, 16>) {
+        let bytes: [Field; 10] = data.serialize();
+        let messages: [Field; 321] = msgs.serialize();
+        assert(bytes_call(data).params[0] == msgs_call(msgs).params[0]);
+        assert(bytes[0] == messages[0]);
+    }
+    "#;
+    let expanded = assert_no_errors_and_to_string(src);
+    insta::assert_snapshot!(expanded, @r"
+    trait Serialize {
+        let N: u32;
+
+        fn serialize(self) -> [Field; Self::N];
+    }
+
+    impl Serialize for u8 {
+        let N: u32 = 1_u32;
+
+        fn serialize(self) -> [Field; 1] {
+            [self as Field]
+        }
+    }
+
+    impl<let M: u32, T> Serialize for [T; M] where T: Serialize {
+        let N: u32 = M * <T as Serialize>::N;
+
+        fn serialize(self) -> [Field; M * <T as Serialize>::N] {
+            [0_Field; M * <T as Serialize>::N]
+        }
+    }
+
+    struct Msg {
+        a: [Field; 20],
+    }
+
+    impl Serialize for Msg {
+        let N: u32 = 20_u32;
+
+        fn serialize(self) -> [Field; 20] {
+            self.a
+        }
+    }
+
+    struct Bounded<T, let M: u32> {
+        items: [T; M],
+        len: u32,
+    }
+
+    impl<let M: u32, T> Serialize for Bounded<T, M> where T: Serialize {
+        let N: u32 = (M * <T as Serialize>::N) + 1;
+
+        fn serialize(self) -> [Field; (M * <T as Serialize>::N) + 1] {
+            [0_Field; (M * <T as Serialize>::N) + 1]
+        }
+    }
+
+    struct Call<let N: u32> {
+        params: [Field; N],
+    }
+
+    impl<let N: u32> Call<N> {
+        fn new(params: [Field; N]) -> Self {
+            Self { params: params}
+        }
+    }
+
+    fn bytes_call(data: [u8; 10]) -> Call<10> {
+        let serialized_params: [Field; 10] = data.serialize();
+        Call::<10>::new(serialized_params)
+    }
+
+    fn msgs_call(msgs: Bounded<Msg, 16>) -> Call<321> {
+        let serialized_params: [Field; 321] = msgs.serialize();
+        Call::<321>::new(serialized_params)
+    }
+
+    fn main(data: [u8; 10], msgs: Bounded<Msg, 16>) {
+        let bytes: [Field; 10] = data.serialize();
+        let messages: [Field; 321] = msgs.serialize();
+        assert(bytes_call(data).params[0_u32] == msgs_call(msgs).params[0_u32]);
+        assert(bytes[0_u32] == messages[0_u32]);
     }
     ");
 }
