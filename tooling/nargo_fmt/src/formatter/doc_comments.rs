@@ -361,6 +361,29 @@ fn bar() {}
     }
 
     #[test]
+    fn formats_noir_code_in_noir_tagged_fence_with_attributes() {
+        for info in ["noir ignore", "noir,should_fail"] {
+            let src = format!(
+                "/// ```{info}
+/// fn   foo()   {{  1  }}
+/// ```
+fn bar() {{}}
+"
+            );
+            let expected = format!(
+                "/// ```{info}
+/// fn foo() {{
+///     1
+/// }}
+/// ```
+fn bar() {{}}
+"
+            );
+            assert_format_wrapping_comments(&src, &expected, 80);
+        }
+    }
+
+    #[test]
     fn does_not_format_code_in_non_noir_tagged_fence() {
         let src = "/// ```rust
 /// fn   foo()   {  1  }

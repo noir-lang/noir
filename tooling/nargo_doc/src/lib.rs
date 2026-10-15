@@ -32,6 +32,7 @@ use crate::items::{
 use crate::links::{CurrentType, LinkFinder};
 pub use html::to_html;
 
+pub mod code_blocks;
 mod html;
 mod ids;
 pub mod items;
