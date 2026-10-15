@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["Deferred","DeferredItems","PendingTraitWork","PendingWhereClauseCheck"]};
+window.SIDEBAR_ITEMS = {"struct":["Deferred","DeferredItems","PendingTraitWork","PendingWhereClauseCheck","UnresolvedImplAssociatedTypes"]};
