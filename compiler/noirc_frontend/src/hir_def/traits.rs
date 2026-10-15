@@ -118,12 +118,6 @@ pub struct TraitImpl {
     pub file: FileId,
     pub crate_id: CrateId,
     pub methods: Vec<FuncId>, // methods[i] is the implementation of trait.methods[i] for Type typ
-
-    /// The where clause, if present, contains each trait requirement which must
-    /// be satisfied for this impl to be selected. E.g. in `impl Eq for [T] where T: Eq`,
-    /// `where_clause` would contain the one `T: Eq` constraint. If there is no where clause,
-    /// this Vec is empty.
-    pub where_clause: Vec<TraitConstraint>,
 }
 
 /// A completed inherent `impl` block, i.e. one that does not implement a trait,

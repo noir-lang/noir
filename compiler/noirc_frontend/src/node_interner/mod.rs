@@ -195,8 +195,8 @@ pub struct NodeInterner {
     /// item: they are set aside as a whole while another item is elaborated from inside it.
     assumed_trait_implementations: HashMap<TraitId, Vec<(Type, TraitImplKind)>>,
 
-    /// The where clause of each trait impl, so that a lookup matches an impl only where its
-    /// where clause holds.
+    /// The where clause of each trait impl, resolved once when the impl is prepared. A lookup
+    /// matches an impl only where its where clause holds.
     ///
     /// Like [`Self::trait_impl_generic_types`], this is stored outside of the `TraitImpl` object
     /// because it is needed before that object is created: a lookup can find an impl while it is
@@ -1506,6 +1506,11 @@ impl NodeInterner {
     /// The [Type] of each [`NamedType`] that is an associated constant is guaranteed to be a [`Type::TypeVariable`].
     pub fn get_trait_generics_for_impl(&self, impl_id: TraitImplId) -> &TraitGenerics {
         &self.trait_impl_generic_types[&impl_id]
+    }
+
+    /// The where clause of the given trait impl, in terms of the impl's generics.
+    pub fn get_where_clause_for_impl(&self, impl_id: TraitImplId) -> &[TraitConstraint] {
+        &self.trait_impl_where_clauses[&impl_id]
     }
 
     /// The self type of the given trait impl, with fresh type variables for the impl's generics.
