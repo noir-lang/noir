@@ -289,8 +289,11 @@ impl NodeInterner {
             return;
         }
 
+        // Stored generalized over the impl's generics, as a finished impl is, so that each lookup
+        // instantiates them.
+        let generalized_object_type = Type::Forall(impl_generics, Box::new(object_type));
         let entries = self.trait_implementation_map.entry(trait_id).or_default();
-        entries.push((object_type, TraitImplKind::Prepared(impl_id, location)));
+        entries.push((generalized_object_type, TraitImplKind::Prepared(impl_id, location)));
     }
 
     /// Adds a trait implementation to the list of known implementations.

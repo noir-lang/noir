@@ -1440,6 +1440,7 @@ impl Elaborator<'_> {
         let associated_types = match impl_kind {
             TraitImplKind::Assumed { trait_generics, .. } => Cow::Owned(trait_generics.named),
             TraitImplKind::Normal(impl_id) | TraitImplKind::Prepared(impl_id, _) => {
+                self.resolve_trait_impl_associated_types_if_unresolved(impl_id);
                 Cow::Borrowed(self.interner.get_associated_types_for_impl(impl_id))
             }
         };
