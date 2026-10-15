@@ -189,7 +189,7 @@ impl Elaborator<'_> {
                 bound.trait_id,
                 &bound.trait_generics.ordered,
                 &bound.trait_generics.named,
-                TraitLookupMode::Eager,
+                TraitLookupMode::Default,
             ) {
                 Ok((_, bindings, _)) => {
                     Type::apply_type_bindings(bindings);
