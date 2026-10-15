@@ -894,7 +894,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         if let Some(TraitImplKind::Normal(impl_id) | TraitImplKind::Prepared(impl_id, _)) =
             self.elaborator.interner.get_selected_impl_for_expression(id)
         {
-            self.elaborator.resolve_trait_impl_associated_types_if_unresolved(impl_id);
+            let name = self.elaborator.interner.definition_name(item.item_id).to_string();
+            self.elaborator.resolve_trait_impl_associated_type_if_unresolved(impl_id, &name);
         }
         let resolved =
             resolve_trait_item(self.elaborator.interner, item, id, self.frame.bindings())?;

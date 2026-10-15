@@ -19,7 +19,7 @@ use std::collections::{BTreeMap, HashSet};
 
 use super::{enums::UnresolvedEnumVariants, function::UnresolvedFunctionMeta};
 use crate::{
-    Type,
+    Type, TypeVariableId,
     ast::{Ident, UnresolvedType},
     elaborator::structs::UnresolvedStructFields,
     hir::def_map::LocalModuleId,
@@ -134,12 +134,13 @@ pub(super) struct DeferredItems {
     /// Enum variants, deferred for the same reason as [`Self::struct_fields`].
     pub(super) enum_variants: Deferred<TypeId, UnresolvedEnumVariants>,
 
-    /// The associated types and constants of each trait impl, keyed by the impl and the item's
-    /// position in it. One impl's items may name another impl's (`let N: u32 = <[u8; 3] as C>::N;`),
-    /// or another item of the same impl through a global, so they are resolved the first time a
-    /// lookup selects the impl, and otherwise when the impl is collected.
+    /// The associated types and constants of each trait impl, keyed by the impl and the type
+    /// variable that stands for the item. One impl's items may name another impl's
+    /// (`let N: u32 = <[u8; 3] as C>::N;`), or another item of the same impl through a global, so
+    /// each is resolved the first time something reads it, and otherwise when the impl is
+    /// collected.
     pub(super) trait_impl_associated_types:
-        Deferred<(TraitImplId, usize), UnresolvedImplAssociatedType>,
+        Deferred<(TraitImplId, TypeVariableId), UnresolvedImplAssociatedType>,
 
     /// Trait bookkeeping that cannot run until the drains above have resolved the metas it reads.
     pub(super) trait_work: PendingTraitWork,

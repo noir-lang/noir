@@ -840,22 +840,39 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Resolves the associated types and constants of a trait impl, binding the placeholder each
-    /// one has in the impl's trait generics, except those already resolved or being resolved.
-    ///
-    /// This runs when the impl is collected, or earlier if a lookup selects the impl first (another
-    /// impl's `let N: u32 = <[u8; 3] as C>::N;`), so the items have their values before anything
-    /// reads them. Items are resolved one at a time, so one item can read another of the same
-    /// impl, for example through a global.
-    pub(crate) fn resolve_trait_impl_associated_types_if_unresolved(
+    /// Resolves the associated types and constants of a trait impl that aren't resolved yet or being
+    /// resolved, binding the placeholder each one has in the impl's trait generics. This runs when
+    /// the impl is collected.
+    pub(super) fn resolve_trait_impl_associated_types_if_unresolved(
         &mut self,
         impl_id: TraitImplId,
     ) {
-        let deferred = &self.session.deferred.trait_impl_associated_types;
-        for key in deferred.keys_in((impl_id, 0)..=(impl_id, usize::MAX)) {
+        let range = (impl_id, TypeVariableId(0))..=(impl_id, TypeVariableId(usize::MAX));
+        for key in self.session.deferred.trait_impl_associated_types.keys_in(range) {
             if let Some(item) = self.session.deferred.trait_impl_associated_types.take(&key) {
                 self.resolve_trait_impl_associated_type(impl_id, item);
             }
+        }
+    }
+
+    /// Resolves the associated type or constant `name` of a trait impl if it isn't resolved yet or
+    /// being resolved, so that it has its value before it is read. It can be read before the impl
+    /// is collected: by another impl (`let N: u32 = <[u8; 3] as C>::N;`), or through a global that
+    /// another item of the same impl reads. Only `name` is resolved, as the impl's other items
+    /// may themselves depend on whatever is reading it.
+    pub(crate) fn resolve_trait_impl_associated_type_if_unresolved(
+        &mut self,
+        impl_id: TraitImplId,
+        name: &str,
+    ) {
+        let Some(Type::NamedGeneric(named_generic)) =
+            self.interner.find_associated_type_for_impl(impl_id, name)
+        else {
+            return;
+        };
+        let key = (impl_id, named_generic.type_var.id());
+        if let Some(item) = self.session.deferred.trait_impl_associated_types.take(&key) {
+            self.resolve_trait_impl_associated_type(impl_id, item);
         }
     }
 
@@ -971,9 +988,17 @@ impl Elaborator<'_> {
                 ));
             }
 
-            for (index, (name, typ)) in associated_types.into_iter().enumerate() {
+            for (name, typ) in associated_types {
+                let Some(Type::NamedGeneric(named_generic)) =
+                    self.interner.find_associated_type_for_impl(impl_id, name.as_str())
+                else {
+                    // This can happen if the associated type is specified directly in the impl trait generics,
+                    // This can't be done in code, but it could happen with unquoted types.
+                    continue;
+                };
+                let key = (impl_id, named_generic.type_var.id());
                 self.session.deferred.trait_impl_associated_types.register(
-                    (impl_id, index),
+                    key,
                     UnresolvedImplAssociatedType {
                         module_id: trait_impl.module_id,
                         self_type: self_type.clone(),

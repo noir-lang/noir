@@ -4127,3 +4127,24 @@ fn associated_constant_and_global_that_read_each_other() {
     "#;
     check_errors(src);
 }
+
+/// Reading one associated constant of an impl doesn't resolve its other constants first:
+/// `Bar::A` reads `Foo::B` while `Foo::A`, through `G`, reads `Bar::A`.
+#[test]
+fn reading_an_associated_constant_resolves_only_that_constant() {
+    let src = r#"
+    trait HasN { let A: u32; let B: u32; }
+    struct Bar {}
+    struct Foo {}
+    impl HasN for Bar { let A: u32 = <Foo as HasN>::B; let B: u32 = 2; }
+    impl HasN for Foo { let A: u32 = G; let B: u32 = 1; }
+    global G: u32 = <Bar as HasN>::A;
+    fn main() -> pub u32 { <Foo as HasN>::A }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u32 {
+        1
+    }
+    ");
+}
