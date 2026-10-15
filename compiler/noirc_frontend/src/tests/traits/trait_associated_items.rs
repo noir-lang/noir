@@ -4088,3 +4088,42 @@ fn where_clause_with_several_matching_impls_waits_for_the_call_argument() {
     }
     ");
 }
+
+/// An associated constant whose value reads a global that reads another constant of the same
+/// impl. There is no cycle: `N` is `G`, which is `M`, which is `1`.
+#[test]
+fn associated_constant_reads_a_global_that_reads_another_constant_of_the_same_impl() {
+    let src = r#"
+    trait HasN { let N: u32; let M: u32; }
+    struct Foo {}
+    impl HasN for Foo {
+        let N: u32 = G;
+        let M: u32 = 1;
+    }
+    global G: u32 = <Foo as HasN>::M;
+    fn main() -> pub u32 { <Foo as HasN>::N }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u32 {
+        1
+    }
+    ");
+}
+
+/// A real cycle between an associated constant and a global is an error.
+#[test]
+fn associated_constant_and_global_that_read_each_other() {
+    let src = r#"
+    trait HasN { let N: u32; }
+    struct Foo {}
+    impl HasN for Foo { let N: u32 = G; }
+                                     ^ expected type, found global `G`
+    global G: u32 = <Foo as HasN>::N;
+                     ^^^^^^^^^^^ Invalid numeric generic
+                     ~~~~~~~~~~~ Expected a constant, but found `error`
+                     ^^^^^^^^^^^ Global failed to evaluate
+    fn main() -> pub u32 { <Foo as HasN>::N }
+    "#;
+    check_errors(src);
+}
