@@ -42,7 +42,15 @@
 
 <div class="comments">
 <p>Decompose a single field into two 16 byte fields.</p>
-</div>
+<p>Returns <code>(lo, hi)</code> with <code>x == lo + hi * 2^128</code>, where <code>lo</code> and <code>hi</code> are each less than <code>2^128</code>.
+The decomposition is fully constrained and canonical: it is checked to be less than the BN254
+modulus, so there is exactly one valid <code>(lo, hi)</code> for each <code>x</code>.</p>
+<p>The functions in this module use the BN254 modulus, so they are only meaningful when compiling
+for the BN254 field.</p>
+<p>Example:</p>
+<pre><code><span class="kw">let</span> (lo, hi) = std::field::bn254::decompose(<span class="number">0x100000000000000000000000000000003</span>);
+<span class="kw">assert_eq</span>(lo, <span class="number">3</span>);
+<span class="kw">assert_eq</span>(hi, <span class="number">1</span>);</code></pre></div>
 </div>
 </main>
 </span>

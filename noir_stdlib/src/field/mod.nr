@@ -5,8 +5,22 @@ use bn254::lt as bn254_lt;
 impl Field {
     /// Asserts that `self` can be represented in `bit_size` bits.
     ///
+    /// `BIT_SIZE` must be less than the number of bits in the field modulus.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// let x: Field = 255;
+    /// x.assert_max_bit_size::<8>();
+    /// ```
+    ///
     /// # Failures
     /// Causes a constraint failure for `Field` values exceeding `2^{bit_size}`.
+    ///
+    /// ```noir should_fail
+    /// let x: Field = 256;
+    /// x.assert_max_bit_size::<8>();
+    /// ```
     // docs:start:assert_max_bit_size
     pub fn assert_max_bit_size<let BIT_SIZE: u32>(self) {
         // docs:end:assert_max_bit_size
@@ -19,6 +33,13 @@ impl Field {
 
     /// Decomposes `self` into its little endian bit decomposition as a `[bool; N]` array.
     /// This array will be zero padded should not all bits be necessary to represent `self`.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// let bits: [bool; 8] = 2.to_le_bits();
+    /// assert_eq(bits, [false, true, false, false, false, false, false, false]);
+    /// ```
     ///
     /// # Failures
     /// Causes a constraint failure for `Field` values exceeding `2^N` as the resulting array will not
@@ -52,6 +73,13 @@ impl Field {
     /// Decomposes `self` into its big endian bit decomposition as a `[bool; N]` array.
     /// This array will be zero padded should not all bits be necessary to represent `self`.
     ///
+    /// Example:
+    ///
+    /// ```noir
+    /// let bits: [bool; 8] = 2.to_be_bits();
+    /// assert_eq(bits, [false, false, false, false, false, false, true, false]);
+    /// ```
+    ///
     /// # Failures
     /// Causes a constraint failure for `Field` values exceeding `2^N` as the resulting array will not
     /// be able to represent the original `Field`.
@@ -83,6 +111,13 @@ impl Field {
 
     /// Decomposes `self` into its little endian byte decomposition as a `[u8;N]` array
     /// This array will be zero padded should not all bytes be necessary to represent `self`.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// let bytes: [u8; 4] = 0x01020304.to_le_bytes();
+    /// assert_eq(bytes, [4, 3, 2, 1]);
+    /// ```
     ///
     /// # Failures
     ///  The length N of the array must be big enough to contain all the bytes of the 'self',
@@ -120,6 +155,13 @@ impl Field {
 
     /// Decomposes `self` into its big endian byte decomposition as a `[u8;N]` array of length required to represent the field modulus
     /// This array will be zero padded should not all bytes be necessary to represent `self`.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// let bytes: [u8; 4] = 0x01020304.to_be_bytes();
+    /// assert_eq(bytes, [1, 2, 3, 4]);
+    /// ```
     ///
     /// # Failures
     ///  The length N of the array must be big enough to contain all the bytes of the 'self',
@@ -175,9 +217,20 @@ impl Field {
         __to_be_radix(self, radix)
     }
 
-    // Returns self to the power of the given exponent value.
-    // Caution: we assume the exponent fits into 32 bits
-    // using a bigger bit size impacts negatively the performance and should be done only if the exponent does not fit in 32 bits
+    /// Returns `self` raised to the power `exponent`.
+    ///
+    /// Only the low 32 bits of `exponent` are used to compute the power, which keeps the circuit
+    /// small; the exponent is constrained to fit in 32 bits.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// assert_eq(2.pow_32(10), 1024);
+    /// ```
+    ///
+    /// # Failures
+    ///
+    /// Fails if `exponent` is `2^32` or more.
     pub fn pow_32(self, exponent: Field) -> Field {
         let mut r: Field = 1;
         let b: [bool; 32] = exponent.to_le_bits();
@@ -189,11 +242,36 @@ impl Field {
         r
     }
 
-    // Parity of (prime) Field element, i.e. sgn0(x mod p) = false if x `elem` {0, ..., p-1} is even, otherwise sgn0(x mod p) = true.
+    /// Returns `true` if `self`, as an integer in `0..p`, is odd.
+    ///
+    /// This is the `sgn0` function used by hash-to-curve standards. Because `p` is odd, `-x` and
+    /// `x` have different parities for every nonzero `x`.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// assert(3.sgn0());
+    /// assert(!4.sgn0());
+    /// // -1 is p - 1, which is even.
+    /// assert(!(-1).sgn0());
+    /// ```
     pub fn sgn0(self) -> bool {
         (self as u8) % 2 == 1
     }
 
+    /// Returns `true` if `self` is less than `another`, comparing them as integers in `0..p`.
+    ///
+    /// `Field` doesn't support `<` and the other comparison operators; this is how to compare field
+    /// elements. The result is fully constrained. Field arithmetic wraps around, so `-1` is the
+    /// largest field element.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// assert(1.lt(2));
+    /// assert(!2.lt(2));
+    /// assert(!(-1).lt(1));
+    /// ```
     pub fn lt(self, another: Field) -> bool {
         if crate::compat::is_bn254() {
             bn254_lt(self, another)
@@ -204,6 +282,12 @@ impl Field {
 
     /// Convert a little endian byte array to a field element.
     /// If the provided byte array overflows the field modulus then the Field will silently wrap around.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// assert_eq(Field::from_le_bytes([4, 3, 2, 1]), 0x01020304);
+    /// ```
     ///
     /// # Failures
     /// `N` must be no greater than the number of bytes required to represent the field modulus
@@ -227,6 +311,12 @@ impl Field {
     /// Convert a big endian byte array to a field element.
     /// If the provided byte array overflows the field modulus then the Field will silently wrap around.
     ///
+    /// Example:
+    ///
+    /// ```noir
+    /// assert_eq(Field::from_be_bytes([1, 2, 3, 4]), 0x01020304);
+    /// ```
+    ///
     /// # Failures
     /// `N` must be no greater than the number of bytes required to represent the field modulus
     // docs:start:from_be_bytes
@@ -248,6 +338,12 @@ impl Field {
 
     /// Convert a little endian byte array to a field element, asserting that the input is a
     /// canonical representation (strictly less than the field modulus).
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// assert_eq(Field::from_le_bytes_checked([4, 3, 2, 1]), 0x01020304);
+    /// ```
     ///
     /// # Failures
     /// Causes a constraint failure if `bytes` encodes a value greater than or equal to the
@@ -274,6 +370,12 @@ impl Field {
 
     /// Convert a big endian byte array to a field element, asserting that the input is a
     /// canonical representation (strictly less than the field modulus).
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// assert_eq(Field::from_be_bytes_checked([1, 2, 3, 4]), 0x01020304);
+    /// ```
     ///
     /// # Failures
     /// Causes a constraint failure if `bytes` encodes a value greater than or equal to the
@@ -335,18 +437,77 @@ fn __to_le_bits<let N: u32>(value: Field) -> [bool; N] {}
 #[builtin(to_be_bits)]
 fn __to_be_bits<let N: u32>(value: Field) -> [bool; N] {}
 
+/// Returns the number of bits in the field modulus: 254 for BN254.
+///
+/// This is a `comptime` function: the value is computed at compile time for the field being
+/// compiled for. The example shows the values for BN254.
+///
+/// Example:
+///
+/// ```noir
+/// assert_eq(std::field::modulus_num_bits(), 254);
+/// ```
 #[builtin(modulus_num_bits)]
 pub comptime fn modulus_num_bits() -> u64 {}
 
+/// Returns the bits of the field modulus, most significant first, without leading zeros.
+///
+/// This is a `comptime` function: the value is computed at compile time for the field being
+/// compiled for. The example shows the values for BN254.
+///
+/// Example:
+///
+/// ```noir
+/// let bits = std::field::modulus_be_bits();
+/// assert_eq(bits.len(), 254);
+/// assert(bits[0]);
+/// ```
 #[builtin(modulus_be_bits)]
 pub comptime fn modulus_be_bits() -> [bool] {}
 
+/// Returns the bits of the field modulus, least significant first, without leading zeros.
+///
+/// This is a `comptime` function: the value is computed at compile time for the field being
+/// compiled for. The example shows the values for BN254.
+///
+/// Example:
+///
+/// ```noir
+/// let bits = std::field::modulus_le_bits();
+/// assert_eq(bits.len(), 254);
+/// // The modulus is odd.
+/// assert(bits[0]);
+/// ```
 #[builtin(modulus_le_bits)]
 pub comptime fn modulus_le_bits() -> [bool] {}
 
+/// Returns the bytes of the field modulus, most significant first.
+///
+/// This is a `comptime` function: the value is computed at compile time for the field being
+/// compiled for. The example shows the values for BN254.
+///
+/// Example:
+///
+/// ```noir
+/// let bytes = std::field::modulus_be_bytes();
+/// assert_eq(bytes.len(), 32);
+/// assert_eq(bytes[0], 0x30);
+/// ```
 #[builtin(modulus_be_bytes)]
 pub comptime fn modulus_be_bytes() -> [u8] {}
 
+/// Returns the bytes of the field modulus, least significant first.
+///
+/// This is a `comptime` function: the value is computed at compile time for the field being
+/// compiled for. The example shows the values for BN254.
+///
+/// Example:
+///
+/// ```noir
+/// let bytes = std::field::modulus_le_bytes();
+/// assert_eq(bytes.len(), 32);
+/// assert_eq(bytes[0], 0x01);
+/// ```
 #[builtin(modulus_le_bytes)]
 pub comptime fn modulus_le_bytes() -> [u8] {}
 

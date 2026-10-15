@@ -3,9 +3,9 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
 error: Field failed to decompose into specified 1 limbs
-   ┌─ std/field/mod.nr:64:20
+   ┌─ std/field/mod.nr:92:20
    │
-64 │         let bits = __to_be_bits(self);
+92 │         let bits = __to_be_bits(self);
    │                    ------------------ Assertion failed
    │
    = Call stack:
@@ -14,6 +14,6 @@ error: Field failed to decompose into specified 1 limbs
      2: main
              at src/main.nr:4:5
      3: Field::to_be_bits
-             at std/field/mod.nr:64:20
+             at std/field/mod.nr:92:20
 
 Error interpreting main function

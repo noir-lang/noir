@@ -71,10 +71,25 @@
     pub fn <a href="#wrapping_mul" class="fn">wrapping_mul</a>(self, y: Self) -> Self;
 }</code></pre>
 
+<div class="comments">
+<p><code>*</code> that wraps around instead of failing on overflow.</p>
+<p>For the integer types the result is computed modulo <code>2^N</code>, where <code>N</code> is the type's bit size; for
+signed types this is the two's complement result. For <code>Field</code> it is the same as <code>*</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::ops::WrappingMul;
+
+<span class="kw">assert_eq</span>(<span class="number">16_u8</span>.wrapping_mul(<span class="number">16</span>), <span class="number">0</span>);
+<span class="kw">assert_eq</span>((-<span class="number">128_i8</span>).wrapping_mul(-<span class="number">1</span>), -<span class="number">128</span>);</code></pre></div>
 <h2>Required methods</h2>
 <div class="padded-methods"><code id="wrapping_mul" class="code-header">pub fn <a href="#wrapping_mul" class="fn">wrapping_mul</a>(self, y: Self) -> Self</code>
 
-</div><h2>Implementors</h2>
+<div class="padded-description"><div class="comments">
+<p>Returns <code>self * y</code>, wrapping around on overflow. See <a href="../../std/ops/trait.WrappingMul.html"><code>WrappingMul</code></a>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::ops::WrappingMul;
+
+<span class="kw">assert_eq</span>(<span class="number">100_u8</span>.wrapping_mul(<span class="number">3</span>), <span class="number">44</span>);</code></pre></div>
+</div></div><h2>Implementors</h2>
 <h3 id="impl-WrappingMul-for-Field"><code class="code-header">impl <a href="../../std/ops/trait.WrappingMul.html" class="trait">WrappingMul</a> for <a href="../../std/primitive.Field.html" class="primitive">Field</a></code></h3>
 
 <h3 id="impl-WrappingMul-for-i16"><code class="code-header">impl <a href="../../std/ops/trait.WrappingMul.html" class="trait">WrappingMul</a> for <a href="../../std/primitive.i16.html" class="primitive">i16</a></code></h3>

@@ -1,7 +1,44 @@
 use crate::convert::AsPrimitive;
 
+/// The `+` operator.
+///
+/// Implemented for `Field` and the integer types. `Field` addition is modulo the field's prime.
+/// Integer addition fails if the result doesn't fit in the type, in both constrained and
+/// unconstrained code; use [`WrappingAdd`] to wrap around instead.
+///
+/// Example:
+///
+/// ```noir
+/// use std::ops::Add;
+///
+/// struct Point {
+///     x: u32,
+///     y: u32,
+/// }
+///
+/// impl Add for Point {
+///     fn add(self, other: Point) -> Point {
+///         Point { x: self.x + other.x, y: self.y + other.y }
+///     }
+/// }
+///
+/// fn main() {
+///     let p = Point { x: 1, y: 2 } + Point { x: 3, y: 4 };
+///     assert_eq(p.x, 4);
+///     assert_eq(p.y, 6);
+/// }
+/// ```
 // docs:start:add-trait
 pub trait Add {
+    /// Returns `self + other`. See [`Add`] for the behaviour on each type.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// use std::ops::Add;
+    ///
+    /// assert_eq(2_u8.add(3), 5);
+    /// ```
     fn add(self, other: Self) -> Self;
 }
 // docs:end:add-trait
@@ -58,8 +95,46 @@ impl Add for i64 {
     }
 }
 
+/// The binary `-` operator.
+///
+/// Implemented for `Field` and the integer types. `Field` subtraction is modulo the field's prime,
+/// so `0 - 1` is the largest field element. Integer subtraction fails if the result doesn't fit in
+/// the type, for example when an unsigned subtraction would go below zero; use [`WrappingSub`] to wrap
+/// around instead.
+///
+/// Example:
+///
+/// ```noir
+/// use std::ops::Sub;
+///
+/// struct Point {
+///     x: u32,
+///     y: u32,
+/// }
+///
+/// impl Sub for Point {
+///     fn sub(self, other: Point) -> Point {
+///         Point { x: self.x - other.x, y: self.y - other.y }
+///     }
+/// }
+///
+/// fn main() {
+///     let p = Point { x: 5, y: 7 } - Point { x: 2, y: 3 };
+///     assert_eq(p.x, 3);
+///     assert_eq(p.y, 4);
+/// }
+/// ```
 // docs:start:sub-trait
 pub trait Sub {
+    /// Returns `self - other`. See [`Sub`] for the behaviour on each type.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// use std::ops::Sub;
+    ///
+    /// assert_eq(5_u8.sub(3), 2);
+    /// ```
     fn sub(self, other: Self) -> Self;
 }
 // docs:end:sub-trait
@@ -116,8 +191,45 @@ impl Sub for i64 {
     }
 }
 
+/// The `*` operator.
+///
+/// Implemented for `Field` and the integer types. `Field` multiplication is modulo the field's
+/// prime. Integer multiplication fails if the result doesn't fit in the type; use [`WrappingMul`] to
+/// wrap around instead.
+///
+/// Example:
+///
+/// ```noir
+/// use std::ops::Mul;
+///
+/// struct Point {
+///     x: u32,
+///     y: u32,
+/// }
+///
+/// impl Mul for Point {
+///     fn mul(self, other: Point) -> Point {
+///         Point { x: self.x * other.x, y: self.y * other.y }
+///     }
+/// }
+///
+/// fn main() {
+///     let p = Point { x: 2, y: 3 } * Point { x: 4, y: 5 };
+///     assert_eq(p.x, 8);
+///     assert_eq(p.y, 15);
+/// }
+/// ```
 // docs:start:mul-trait
 pub trait Mul {
+    /// Returns `self * other`. See [`Mul`] for the behaviour on each type.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// use std::ops::Mul;
+    ///
+    /// assert_eq(4_u8.mul(3), 12);
+    /// ```
     fn mul(self, other: Self) -> Self;
 }
 // docs:end:mul-trait
@@ -174,8 +286,54 @@ impl Mul for i64 {
     }
 }
 
+/// The `/` operator.
+///
+/// Implemented for `Field` and the integer types.
+///
+/// - For integers, the quotient is rounded toward zero, so `-7 / 2` is `-3`.
+/// - For `Field`, `a / b` is the field element `c` with `c * b == a`: it multiplies by the inverse
+///   of `b`, and doesn't round. `1 / 2` is not zero.
+///
+/// Dividing by zero fails, for `Field` as well as for integers. For a signed type, dividing the
+/// minimum value by `-1` also fails, because the result doesn't fit.
+///
+/// Example:
+///
+/// ```noir
+/// use std::ops::Div;
+///
+/// struct Point {
+///     x: u32,
+///     y: u32,
+/// }
+///
+/// impl Div for Point {
+///     fn div(self, other: Point) -> Point {
+///         Point { x: self.x / other.x, y: self.y / other.y }
+///     }
+/// }
+///
+/// fn main() {
+///     let p = Point { x: 8, y: 9 } / Point { x: 2, y: 3 };
+///     assert_eq(p.x, 4);
+///     assert_eq(p.y, 3);
+/// }
+/// ```
 // docs:start:div-trait
 pub trait Div {
+    /// Returns `self / other`. See [`Div`] for the behaviour on each type.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// use std::ops::Div;
+    ///
+    /// assert_eq(7_u8.div(2), 3);
+    ///
+    /// // Field division multiplies by the inverse.
+    /// let half: Field = 1 / 2;
+    /// assert_eq(half * 2, 1);
+    /// ```
     fn div(self, other: Self) -> Self;
 }
 // docs:end:div-trait
@@ -232,8 +390,45 @@ impl Div for i64 {
     }
 }
 
+/// The `%` operator.
+///
+/// Implemented for the integer types; `Field` has no remainder. The result has the sign of the
+/// left operand, matching division that rounds toward zero: `-7 % 2` is `-1`. A zero divisor fails.
+///
+/// Example:
+///
+/// ```noir
+/// use std::ops::Rem;
+///
+/// struct Point {
+///     x: u32,
+///     y: u32,
+/// }
+///
+/// impl Rem for Point {
+///     fn rem(self, other: Point) -> Point {
+///         Point { x: self.x % other.x, y: self.y % other.y }
+///     }
+/// }
+///
+/// fn main() {
+///     let p = Point { x: 7, y: 9 } % Point { x: 4, y: 5 };
+///     assert_eq(p.x, 3);
+///     assert_eq(p.y, 4);
+/// }
+/// ```
 // docs:start:rem-trait
 pub trait Rem {
+    /// Returns `self % other`. See [`Rem`] for the behaviour on each type.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// use std::ops::Rem;
+    ///
+    /// assert_eq(7_u8.rem(4), 3);
+    /// assert_eq((-7_i8).rem(2), -1);
+    /// ```
     fn rem(self, other: Self) -> Self;
 }
 // docs:end:rem-trait
@@ -284,8 +479,45 @@ impl Rem for i64 {
     }
 }
 
+/// The unary `-` operator.
+///
+/// Implemented for `Field` and the signed integer types. Negating a field element gives its additive
+/// inverse modulo the field's prime. Negating the minimum value of a signed type fails, because the
+/// result doesn't fit.
+///
+/// Example:
+///
+/// ```noir
+/// use std::ops::Neg;
+///
+/// struct Point {
+///     x: i32,
+///     y: i32,
+/// }
+///
+/// impl Neg for Point {
+///     fn neg(self) -> Point {
+///         Point { x: -self.x, y: -self.y }
+///     }
+/// }
+///
+/// fn main() {
+///     let p = -Point { x: 1, y: -2 };
+///     assert_eq(p.x, -1);
+///     assert_eq(p.y, 2);
+/// }
+/// ```
 // docs:start:neg-trait
 pub trait Neg {
+    /// Returns `-self`. See [`Neg`] for the behaviour on each type.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// use std::ops::Neg;
+    ///
+    /// assert_eq(5_i8.neg(), -5);
+    /// ```
     fn neg(self) -> Self;
 }
 // docs:end:neg-trait
@@ -319,8 +551,30 @@ impl Neg for i64 {
 }
 // docs:end:neg-trait-impls
 
+/// `+` that wraps around instead of failing on overflow.
+///
+/// For the integer types the result is computed modulo `2^N`, where `N` is the type's bit size; for
+/// signed types this is the two's complement result. For `Field` it is the same as `+`.
+///
+/// Example:
+///
+/// ```noir
+/// use std::ops::WrappingAdd;
+///
+/// assert_eq(255_u8.wrapping_add(1), 0);
+/// assert_eq(127_i8.wrapping_add(1), -128);
+/// ```
 // docs:start:wrapping-add-trait
 pub trait WrappingAdd {
+    /// Returns `self + y`, wrapping around on overflow. See [`WrappingAdd`].
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// use std::ops::WrappingAdd;
+    ///
+    /// assert_eq(250_u8.wrapping_add(10), 4);
+    /// ```
     fn wrapping_add(self, y: Self) -> Self;
 }
 // docs:end:wrapping-add-trait
@@ -388,8 +642,30 @@ impl WrappingAdd for Field {
     }
 }
 
+/// `-` that wraps around instead of failing on overflow.
+///
+/// For the integer types the result is computed modulo `2^N`, where `N` is the type's bit size; for
+/// signed types this is the two's complement result. For `Field` it is the same as `-`.
+///
+/// Example:
+///
+/// ```noir
+/// use std::ops::WrappingSub;
+///
+/// assert_eq(0_u8.wrapping_sub(1), 255);
+/// assert_eq((-128_i8).wrapping_sub(1), 127);
+/// ```
 // docs:start:wrapping-sub-trait
 pub trait WrappingSub {
+    /// Returns `self - y`, wrapping around on overflow. See [`WrappingSub`].
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// use std::ops::WrappingSub;
+    ///
+    /// assert_eq(3_u8.wrapping_sub(5), 254);
+    /// ```
     fn wrapping_sub(self, y: Self) -> Self;
 }
 // docs:end:wrapping-sub-trait
@@ -454,8 +730,30 @@ impl WrappingSub for Field {
     }
 }
 
+/// `*` that wraps around instead of failing on overflow.
+///
+/// For the integer types the result is computed modulo `2^N`, where `N` is the type's bit size; for
+/// signed types this is the two's complement result. For `Field` it is the same as `*`.
+///
+/// Example:
+///
+/// ```noir
+/// use std::ops::WrappingMul;
+///
+/// assert_eq(16_u8.wrapping_mul(16), 0);
+/// assert_eq((-128_i8).wrapping_mul(-1), -128);
+/// ```
 // docs:start:wrapping-mul-trait
 pub trait WrappingMul {
+    /// Returns `self * y`, wrapping around on overflow. See [`WrappingMul`].
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// use std::ops::WrappingMul;
+    ///
+    /// assert_eq(100_u8.wrapping_mul(3), 44);
+    /// ```
     fn wrapping_mul(self, y: Self) -> Self;
 }
 // docs:end:wrapping-mul-trait

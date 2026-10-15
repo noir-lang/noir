@@ -43,6 +43,12 @@
 <div id="page-content">
 <pre><code>pub comptime fn modulus_num_bits() -> <a href="../../std/primitive.u64.html" class="primitive">u64</a></code></pre>
 
+<div class="comments">
+<p>Returns the number of bits in the field modulus: 254 for BN254.</p>
+<p>This is a <code>comptime</code> function: the value is computed at compile time for the field being
+compiled for. The example shows the values for BN254.</p>
+<p>Example:</p>
+<pre><code><span class="kw">assert_eq</span>(std::field::modulus_num_bits(), <span class="number">254</span>);</code></pre></div>
 </div>
 </main>
 </span>

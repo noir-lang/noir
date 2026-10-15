@@ -1,6 +1,41 @@
 /// Create a new `Self` value from the given `T` value
+///
+/// The standard library implements `From` only for conversions that can't lose information:
+/// widening an integer to a larger type of the same signedness, an unsigned integer to `Field`,
+/// and `bool` to an integer or `Field`. For conversions that can truncate, use `as` or
+/// [`AsPrimitive`]. Implementing `From` also provides [`Into`] in the other direction.
+///
+/// Example:
+///
+/// ```noir
+/// struct Meters {
+///     value: u32,
+/// }
+///
+/// impl From<u32> for Meters {
+///     fn from(value: u32) -> Meters {
+///         Meters { value }
+///     }
+/// }
+///
+/// fn main() {
+///     let m = Meters::from(5);
+///     assert_eq(m.value, 5);
+///
+///     let wide = u64::from(7_u8);
+///     assert_eq(wide, 7);
+/// }
+/// ```
 // docs:start:from-trait
 pub trait From<T> {
+    /// Converts `input` to `Self`.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// assert_eq(u32::from(255_u8), 255);
+    /// assert_eq(Field::from(true), 1);
+    /// ```
     fn from(input: T) -> Self;
 }
 // docs:end:from-trait
@@ -12,8 +47,26 @@ impl<T> From<T> for T {
 }
 
 /// Convert a `Self` value into a `T` value
+///
+/// `Into` is implemented automatically for every [`From`] conversion, so implement `From` rather
+/// than `Into`. The target type usually has to be given by a type annotation.
+///
+/// Example:
+///
+/// ```noir
+/// let x: u64 = 7_u8.into();
+/// assert_eq(x, 7);
+/// ```
 // docs:start:into-trait
 pub trait Into<T> {
+    /// Converts `self` to `T`.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// let x: Field = 300_u16.into();
+    /// assert_eq(x, 300);
+    /// ```
     fn into(self) -> T;
 }
 
@@ -212,9 +265,21 @@ impl From<bool> for Field {
 /// A generic interface for casting between primitive types,
 /// equivalent of using the `as` keyword between values.
 ///
-/// # Example
+/// It is implemented between every pair of `Field`, `bool` and integer types, so generic code can
+/// cast with `T: AsPrimitive<U>`. The casts behave like `as`:
 ///
-/// ```
+/// - Casting to a smaller integer type keeps the low bits, so `300 as u8` is `44`.
+/// - Casting between signed and unsigned types of the same size reinterprets the bits, so
+///   `-1_i8 as u8` is `255`.
+/// - Casting a `Field` to an integer type keeps the low bits of its integer value in `0..p`.
+///
+/// None of these fail; use [`From`] for conversions that can't lose information.
+///
+/// Example:
+///
+/// ```noir
+/// use std::convert::AsPrimitive;
+///
 /// let x: Field = 1234567890;
 /// let y: u8 = x as u8;
 /// let z: u8 = x.as_();
@@ -222,6 +287,15 @@ impl From<bool> for Field {
 /// ```
 pub trait AsPrimitive<T> {
     /// The equivalent of doing `self as T`.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// use std::convert::AsPrimitive;
+    ///
+    /// let truncated: u8 = 300_u32.as_();
+    /// assert_eq(truncated, 44);
+    /// ```
     fn as_(self) -> T;
 }
 

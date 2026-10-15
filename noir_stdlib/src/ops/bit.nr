@@ -1,5 +1,28 @@
+/// The unary `!` operator.
+///
+/// Implemented for `bool`, where it is logical negation, and for the integer types, where it flips
+/// every bit. `Field` doesn't implement it.
+///
+/// Example:
+///
+/// ```noir
+/// use std::ops::Not;
+///
+/// assert_eq(!true, false);
+/// assert_eq(!0_u8, 255);
+/// assert_eq(!0_i8, -1);
+/// ```
 // docs:start:not-trait
 pub trait Not {
+    /// Returns `!self`. See [`Not`].
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// use std::ops::Not;
+    ///
+    /// assert_eq(0x0f_u8.not(), 0xf0);
+    /// ```
     fn not(self: Self) -> Self;
 }
 // docs:end:not-trait
@@ -58,8 +81,29 @@ impl Not for i64 {
 }
 // docs:end:not-trait-impls
 
+/// The `|` operator: bitwise or.
+///
+/// Implemented for `bool` and the integer types. `Field` doesn't implement it.
+///
+/// Example:
+///
+/// ```noir
+/// use std::ops::BitOr;
+///
+/// assert_eq(0x0c_u8 | 0x0a, 0x0e);
+/// assert_eq(true | false, true);
+/// ```
 // docs:start:bitor-trait
 pub trait BitOr {
+    /// Returns `self | other`. See [`BitOr`].
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// use std::ops::BitOr;
+    ///
+    /// assert_eq(0x0c_u8.bitor(0x0a), 0x0e);
+    /// ```
     fn bitor(self, other: Self) -> Self;
 }
 // docs:end:bitor-trait
@@ -116,8 +160,29 @@ impl BitOr for i64 {
     }
 }
 
+/// The `&` operator: bitwise and.
+///
+/// Implemented for `bool` and the integer types. `Field` doesn't implement it.
+///
+/// Example:
+///
+/// ```noir
+/// use std::ops::BitAnd;
+///
+/// assert_eq(0x0c_u8 & 0x0a, 0x08);
+/// assert_eq(true & false, false);
+/// ```
 // docs:start:bitand-trait
 pub trait BitAnd {
+    /// Returns `self & other`. See [`BitAnd`].
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// use std::ops::BitAnd;
+    ///
+    /// assert_eq(0x0c_u8.bitand(0x0a), 0x08);
+    /// ```
     fn bitand(self, other: Self) -> Self;
 }
 // docs:end:bitand-trait
@@ -174,8 +239,29 @@ impl BitAnd for i64 {
     }
 }
 
+/// The `^` operator: bitwise exclusive or.
+///
+/// Implemented for `bool` and the integer types. `Field` doesn't implement it.
+///
+/// Example:
+///
+/// ```noir
+/// use std::ops::BitXor;
+///
+/// assert_eq(0x0c_u8 ^ 0x0a, 0x06);
+/// assert_eq(true ^ true, false);
+/// ```
 // docs:start:bitxor-trait
 pub trait BitXor {
+    /// Returns `self ^ other`. See [`BitXor`].
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// use std::ops::BitXor;
+    ///
+    /// assert_eq(0x0c_u8.bitxor(0x0a), 0x06);
+    /// ```
     fn bitxor(self, other: Self) -> Self;
 }
 // docs:end:bitxor-trait
@@ -232,8 +318,33 @@ impl BitXor for i64 {
     }
 }
 
+/// The `<<` operator: shifts the bits of `self` left by `other` places.
+///
+/// Implemented for the integer types; the shift amount has the same type as the value. Bits shifted
+/// out of the top are dropped without an overflow check, so a left shift of a signed value can change
+/// its sign. Shifting by the type's bit size or more fails, and so does shifting a signed value by a
+/// negative amount.
+///
+/// Example:
+///
+/// ```noir
+/// use std::ops::Shl;
+///
+/// assert_eq(1_u8 << 3, 8);
+/// // High bits are dropped.
+/// assert_eq(0x81_u8 << 1, 0x02);
+/// ```
 // docs:start:shl-trait
 pub trait Shl {
+    /// Returns `self << other`. See [`Shl`].
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// use std::ops::Shl;
+    ///
+    /// assert_eq(1_u32.shl(4), 16);
+    /// ```
     fn shl(self, other: Self) -> Self;
 }
 // docs:end:shl-trait
@@ -284,8 +395,32 @@ impl Shl for i64 {
     }
 }
 
+/// The `>>` operator: shifts the bits of `self` right by `other` places.
+///
+/// Implemented for the integer types; the shift amount has the same type as the value. Unsigned
+/// values are shifted in with zeros. Signed values are shifted arithmetically, copying the sign bit,
+/// so the result is the quotient rounded toward negative infinity: `-7 >> 1` is `-4`. Shifting by the
+/// type's bit size or more fails, and so does shifting a signed value by a negative amount.
+///
+/// Example:
+///
+/// ```noir
+/// use std::ops::Shr;
+///
+/// assert_eq(16_u8 >> 2, 4);
+/// assert_eq(-8_i8 >> 1, -4);
+/// ```
 // docs:start:shr-trait
 pub trait Shr {
+    /// Returns `self >> other`. See [`Shr`].
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// use std::ops::Shr;
+    ///
+    /// assert_eq(16_u32.shr(4), 1);
+    /// ```
     fn shr(self, other: Self) -> Self;
 }
 // docs:end:shr-trait

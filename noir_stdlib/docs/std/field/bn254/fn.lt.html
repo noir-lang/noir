@@ -40,6 +40,13 @@
 <div id="page-content">
 <pre><code>pub fn lt(a: <a href="../../../std/primitive.Field.html" class="primitive">Field</a>, b: <a href="../../../std/primitive.Field.html" class="primitive">Field</a>) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code></pre>
 
+<div class="comments">
+<p>Returns <code>true</code> if <code>a</code> is less than <code>b</code>, comparing them as integers in <code>0..p</code>.</p>
+<p>The result is fully constrained. Only meaningful when compiling for the BN254 field; prefer
+<a href="../../../std/primitive.Field.html#lt"><code>Field::lt</code></a>, which works on any field.</p>
+<p>Example:</p>
+<pre><code><span class="kw">assert</span>(std::field::bn254::lt(<span class="number">1</span>, <span class="number">2</span>));
+<span class="kw">assert</span>(!std::field::bn254::lt(-<span class="number">1</span>, <span class="number">1</span>));</code></pre></div>
 </div>
 </main>
 </span>

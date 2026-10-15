@@ -43,6 +43,14 @@
 <div id="page-content">
 <pre><code>pub comptime fn modulus_be_bits() -> [<a href="../../std/primitive.bool.html" class="primitive">bool</a>]</code></pre>
 
+<div class="comments">
+<p>Returns the bits of the field modulus, most significant first, without leading zeros.</p>
+<p>This is a <code>comptime</code> function: the value is computed at compile time for the field being
+compiled for. The example shows the values for BN254.</p>
+<p>Example:</p>
+<pre><code><span class="kw">let</span> bits = std::field::modulus_be_bits();
+<span class="kw">assert_eq</span>(bits.len(), <span class="number">254</span>);
+<span class="kw">assert</span>(bits[<span class="number">0</span>]);</code></pre></div>
 </div>
 </main>
 </span>

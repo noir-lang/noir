@@ -102,11 +102,31 @@
 
 <div class="comments">
 <p>Compare two values for equality</p>
-</div>
+<p><code>Eq</code> provides the <code>==</code> and <code>!=</code> operators. It is implemented for <code>Field</code>, the integer types,
+<code>bool</code>, <code>str</code>, arrays, vectors and tuples of <code>Eq</code> types, and can be derived with
+<code>#[derive(Eq)]</code>, which compares every field of a struct.</p>
+<p>Example:</p>
+<pre><code>#[derive(Eq)]
+<span class="kw">struct</span> Point {
+    x: Field,
+    y: Field,
+}
+
+<span class="kw">fn</span> main() {
+    <span class="kw">assert</span>(Point { x: <span class="number">1</span>, y: <span class="number">2</span> } == Point { x: <span class="number">1</span>, y: <span class="number">2</span> });
+    <span class="kw">assert</span>(Point { x: <span class="number">1</span>, y: <span class="number">2</span> } != Point { x: <span class="number">2</span>, y: <span class="number">1</span> });
+}</code></pre></div>
 <h2>Required methods</h2>
 <div class="padded-methods"><code id="eq" class="code-header">pub fn <a href="#eq" class="fn">eq</a>(self, other: Self) -> <a href="../../std/primitive.bool.html" class="primitive">bool</a></code>
 
-</div><h2>Implementors</h2>
+<div class="padded-description"><div class="comments">
+<p>Returns <code>true</code> if <code>self</code> and <code>other</code> are equal. <code>a == b</code> calls <code>a.eq(b)</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::cmp::Eq;
+
+<span class="kw">assert</span>(<span class="number">1</span>.eq(<span class="number">1</span>));
+<span class="kw">assert</span>(![<span class="number">1</span>, <span class="number">2</span>].eq([<span class="number">2</span>, <span class="number">1</span>]));</code></pre></div>
+</div></div><h2>Implementors</h2>
 <h3 id="impl-Eq-for-()"><code class="code-header">impl <a href="../../std/cmp/trait.Eq.html" class="trait">Eq</a> for ()</code></h3>
 
 <h3 id="impl-Eq-for-(A, B)"><code class="code-header">impl&lt;A, B&gt; <a href="../../std/cmp/trait.Eq.html" class="trait">Eq</a> for (A, B)
