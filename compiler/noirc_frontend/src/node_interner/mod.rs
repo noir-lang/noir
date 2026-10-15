@@ -1512,8 +1512,7 @@ impl NodeInterner {
     pub(crate) fn instantiate_trait_impl_self_type(&self, impl_id: TraitImplId) -> Type {
         let trait_impl = self.get_trait_implementation(impl_id);
         let trait_impl = trait_impl.borrow();
-        let generics = trait_impl.generics.clone();
-        self.replace_generics_with_fresh_type_variable(&trait_impl.typ, generics).0
+        trait_impl.typ.substitute_type_vars_with_fresh_type_vars(&trait_impl.generics, self).0
     }
 
     /// Returns the ordered generics for the given trait impl.
