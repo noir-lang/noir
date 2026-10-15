@@ -430,9 +430,9 @@
 <a href=#430 id=430 data-nosnippet>430</a>            <span class="kw">let </span>numeric = <span class="self">self</span>.kind_to_numeric(<span class="kw-2">&amp;</span>kind);
 <a href=#431 id=431 data-nosnippet>431</a>            Generic { name, numeric }
 <a href=#432 id=432 data-nosnippet>432</a>        });
-<a href=#433 id=433 data-nosnippet>433</a>        <span class="kw">let </span>where_clause = vecmap(<span class="kw-2">&amp;</span>trait_impl.where_clause, |constraint| {
-<a href=#434 id=434 data-nosnippet>434</a>            <span class="self">self</span>.convert_trait_constraint(constraint)
-<a href=#435 id=435 data-nosnippet>435</a>        });
+<a href=#433 id=433 data-nosnippet>433</a>        <span class="kw">let </span>where_clause = <span class="self">self</span>.interner.get_where_clause_for_impl(trait_impl_id);
+<a href=#434 id=434 data-nosnippet>434</a>        <span class="kw">let </span>where_clause =
+<a href=#435 id=435 data-nosnippet>435</a>            vecmap(where_clause, |constraint| <span class="self">self</span>.convert_trait_constraint(constraint));
 <a href=#436 id=436 data-nosnippet>436</a>        <span class="self">self</span>.trait_constraints = where_clause.clone();
 <a href=#437 id=437 data-nosnippet>437</a>        <span class="kw">let </span>methods = vecmap(item_trait_impl.methods, |func_id| <span class="self">self</span>.convert_function(func_id));
 <a href=#438 id=438 data-nosnippet>438</a>        <span class="self">self</span>.trait_constraints.clear();

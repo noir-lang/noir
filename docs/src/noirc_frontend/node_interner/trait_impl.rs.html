@@ -254,56 +254,56 @@
 <a href=#254 id=254 data-nosnippet>254</a>        where_clause: Vec&lt;TraitConstraint&gt;,
 <a href=#255 id=255 data-nosnippet>255</a>        location: Location,
 <a href=#256 id=256 data-nosnippet>256</a>    ) {
-<a href=#257 id=257 data-nosnippet>257</a>        <span class="kw">if </span><span class="macro">matches!</span>(object_type, Type::Error) {
-<a href=#258 id=258 data-nosnippet>258</a>            <span class="comment">// If we stored a prepared impl for Error, it would later unify with anything,
-<a href=#259 id=259 data-nosnippet>259</a>            // leading to potentially unexpected duplications with the real prepared impl.
-<a href=#260 id=260 data-nosnippet>260</a>            </span><span class="kw">return</span>;
-<a href=#261 id=261 data-nosnippet>261</a>        }
-<a href=#262 id=262 data-nosnippet>262</a>
-<a href=#263 id=263 data-nosnippet>263</a>        <span class="comment">// Instantiate the impl's generics, so that its object type unifies with the object type
-<a href=#264 id=264 data-nosnippet>264</a>        // of any existing impl it overlaps.
-<a href=#265 id=265 data-nosnippet>265</a>        </span><span class="kw">let </span>(instantiated_object_type, <span class="kw">_</span>) =
-<a href=#266 id=266 data-nosnippet>266</a>            object_type.substitute_type_vars_with_fresh_type_vars(<span class="kw-2">&amp;</span>impl_generics, <span class="self">self</span>);
-<a href=#267 id=267 data-nosnippet>267</a>
-<a href=#268 id=268 data-nosnippet>268</a>        <span class="comment">// Check that we haven't already some overlapping implementation.
-<a href=#269 id=269 data-nosnippet>269</a>        // Get the generics, which are inserted by `resolve_trait_impl_associated_types`
-<a href=#270 id=270 data-nosnippet>270</a>        </span><span class="kw">let </span>trait_generics = <span class="self">self</span>.get_trait_generics_for_impl(impl_id);
-<a href=#271 id=271 data-nosnippet>271</a>
-<a href=#272 id=272 data-nosnippet>272</a>        <span class="comment">// Set named generics to unbound type vars, so they unify with anything.
-<a href=#273 id=273 data-nosnippet>273</a>        </span><span class="kw">let </span>associated_types = vecmap(<span class="kw-2">&amp;</span>trait_generics.named, |named| {
-<a href=#274 id=274 data-nosnippet>274</a>            <span class="kw">let </span>typ = <span class="self">self</span>.next_type_variable();
-<a href=#275 id=275 data-nosnippet>275</a>            NamedType { name: named.name.clone(), typ }
-<a href=#276 id=276 data-nosnippet>276</a>        });
-<a href=#277 id=277 data-nosnippet>277</a>
-<a href=#278 id=278 data-nosnippet>278</a>        <span class="kw">let </span>existing = <span class="self">self</span>.try_lookup_trait_implementation(
-<a href=#279 id=279 data-nosnippet>279</a>            <span class="kw-2">&amp;</span>instantiated_object_type,
-<a href=#280 id=280 data-nosnippet>280</a>            trait_id,
-<a href=#281 id=281 data-nosnippet>281</a>            <span class="kw-2">&amp;</span>trait_generics.ordered,
-<a href=#282 id=282 data-nosnippet>282</a>            <span class="kw-2">&amp;</span>associated_types,
-<a href=#283 id=283 data-nosnippet>283</a>            TraitLookupMode::Default,
-<a href=#284 id=284 data-nosnippet>284</a>        );
-<a href=#285 id=285 data-nosnippet>285</a>
-<a href=#286 id=286 data-nosnippet>286</a>        <span class="kw">if </span>existing.is_ok() {
-<a href=#287 id=287 data-nosnippet>287</a>            <span class="kw">return</span>;
-<a href=#288 id=288 data-nosnippet>288</a>        }
-<a href=#289 id=289 data-nosnippet>289</a>
-<a href=#290 id=290 data-nosnippet>290</a>        <span class="self">self</span>.trait_impl_where_clauses.insert(impl_id, where_clause);
-<a href=#291 id=291 data-nosnippet>291</a>        <span class="kw">let </span>entries = <span class="self">self</span>.trait_implementation_map.entry(trait_id).or_default();
-<a href=#292 id=292 data-nosnippet>292</a>        entries.push((object_type, TraitImplKind::Prepared(impl_id, location)));
-<a href=#293 id=293 data-nosnippet>293</a>    }
-<a href=#294 id=294 data-nosnippet>294</a>
-<a href=#295 id=295 data-nosnippet>295</a>    <span class="doccomment">/// Adds a trait implementation to the list of known implementations.
-<a href=#296 id=296 data-nosnippet>296</a>    </span><span class="kw">pub fn </span>add_trait_implementation(
-<a href=#297 id=297 data-nosnippet>297</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#298 id=298 data-nosnippet>298</a>        object_type: Type,
-<a href=#299 id=299 data-nosnippet>299</a>        trait_id: TraitId,
-<a href=#300 id=300 data-nosnippet>300</a>        impl_id: TraitImplId,
-<a href=#301 id=301 data-nosnippet>301</a>        trait_impl: Shared&lt;TraitImpl&gt;,
-<a href=#302 id=302 data-nosnippet>302</a>        location: Location,
-<a href=#303 id=303 data-nosnippet>303</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Result</span>&lt;(), Location&gt;, CompilationError&gt; {
-<a href=#304 id=304 data-nosnippet>304</a>        <span class="self">self</span>.trait_implementations.insert(impl_id, trait_impl.clone());
-<a href=#305 id=305 data-nosnippet>305</a>        <span class="self">self</span>.trait_implementations_by_trait_id.entry(trait_id).or_default().push(impl_id);
-<a href=#306 id=306 data-nosnippet>306</a>        <span class="self">self</span>.trait_impl_where_clauses.insert(impl_id, trait_impl.borrow().where_clause.clone());
+<a href=#257 id=257 data-nosnippet>257</a>        <span class="self">self</span>.trait_impl_where_clauses.insert(impl_id, where_clause);
+<a href=#258 id=258 data-nosnippet>258</a>
+<a href=#259 id=259 data-nosnippet>259</a>        <span class="kw">if </span><span class="macro">matches!</span>(object_type, Type::Error) {
+<a href=#260 id=260 data-nosnippet>260</a>            <span class="comment">// If we stored a prepared impl for Error, it would later unify with anything,
+<a href=#261 id=261 data-nosnippet>261</a>            // leading to potentially unexpected duplications with the real prepared impl.
+<a href=#262 id=262 data-nosnippet>262</a>            </span><span class="kw">return</span>;
+<a href=#263 id=263 data-nosnippet>263</a>        }
+<a href=#264 id=264 data-nosnippet>264</a>
+<a href=#265 id=265 data-nosnippet>265</a>        <span class="comment">// Instantiate the impl's generics, so that its object type unifies with the object type
+<a href=#266 id=266 data-nosnippet>266</a>        // of any existing impl it overlaps.
+<a href=#267 id=267 data-nosnippet>267</a>        </span><span class="kw">let </span>(instantiated_object_type, <span class="kw">_</span>) =
+<a href=#268 id=268 data-nosnippet>268</a>            object_type.substitute_type_vars_with_fresh_type_vars(<span class="kw-2">&amp;</span>impl_generics, <span class="self">self</span>);
+<a href=#269 id=269 data-nosnippet>269</a>
+<a href=#270 id=270 data-nosnippet>270</a>        <span class="comment">// Check that we haven't already some overlapping implementation.
+<a href=#271 id=271 data-nosnippet>271</a>        // Get the generics, which are inserted by `resolve_trait_impl_associated_types`
+<a href=#272 id=272 data-nosnippet>272</a>        </span><span class="kw">let </span>trait_generics = <span class="self">self</span>.get_trait_generics_for_impl(impl_id);
+<a href=#273 id=273 data-nosnippet>273</a>
+<a href=#274 id=274 data-nosnippet>274</a>        <span class="comment">// Set named generics to unbound type vars, so they unify with anything.
+<a href=#275 id=275 data-nosnippet>275</a>        </span><span class="kw">let </span>associated_types = vecmap(<span class="kw-2">&amp;</span>trait_generics.named, |named| {
+<a href=#276 id=276 data-nosnippet>276</a>            <span class="kw">let </span>typ = <span class="self">self</span>.next_type_variable();
+<a href=#277 id=277 data-nosnippet>277</a>            NamedType { name: named.name.clone(), typ }
+<a href=#278 id=278 data-nosnippet>278</a>        });
+<a href=#279 id=279 data-nosnippet>279</a>
+<a href=#280 id=280 data-nosnippet>280</a>        <span class="kw">let </span>existing = <span class="self">self</span>.try_lookup_trait_implementation(
+<a href=#281 id=281 data-nosnippet>281</a>            <span class="kw-2">&amp;</span>instantiated_object_type,
+<a href=#282 id=282 data-nosnippet>282</a>            trait_id,
+<a href=#283 id=283 data-nosnippet>283</a>            <span class="kw-2">&amp;</span>trait_generics.ordered,
+<a href=#284 id=284 data-nosnippet>284</a>            <span class="kw-2">&amp;</span>associated_types,
+<a href=#285 id=285 data-nosnippet>285</a>            TraitLookupMode::Default,
+<a href=#286 id=286 data-nosnippet>286</a>        );
+<a href=#287 id=287 data-nosnippet>287</a>
+<a href=#288 id=288 data-nosnippet>288</a>        <span class="kw">if </span>existing.is_ok() {
+<a href=#289 id=289 data-nosnippet>289</a>            <span class="kw">return</span>;
+<a href=#290 id=290 data-nosnippet>290</a>        }
+<a href=#291 id=291 data-nosnippet>291</a>
+<a href=#292 id=292 data-nosnippet>292</a>        <span class="kw">let </span>entries = <span class="self">self</span>.trait_implementation_map.entry(trait_id).or_default();
+<a href=#293 id=293 data-nosnippet>293</a>        entries.push((object_type, TraitImplKind::Prepared(impl_id, location)));
+<a href=#294 id=294 data-nosnippet>294</a>    }
+<a href=#295 id=295 data-nosnippet>295</a>
+<a href=#296 id=296 data-nosnippet>296</a>    <span class="doccomment">/// Adds a trait implementation to the list of known implementations.
+<a href=#297 id=297 data-nosnippet>297</a>    </span><span class="kw">pub fn </span>add_trait_implementation(
+<a href=#298 id=298 data-nosnippet>298</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#299 id=299 data-nosnippet>299</a>        object_type: Type,
+<a href=#300 id=300 data-nosnippet>300</a>        trait_id: TraitId,
+<a href=#301 id=301 data-nosnippet>301</a>        impl_id: TraitImplId,
+<a href=#302 id=302 data-nosnippet>302</a>        trait_impl: Shared&lt;TraitImpl&gt;,
+<a href=#303 id=303 data-nosnippet>303</a>        location: Location,
+<a href=#304 id=304 data-nosnippet>304</a>    ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Result</span>&lt;(), Location&gt;, CompilationError&gt; {
+<a href=#305 id=305 data-nosnippet>305</a>        <span class="self">self</span>.trait_implementations.insert(impl_id, trait_impl.clone());
+<a href=#306 id=306 data-nosnippet>306</a>        <span class="self">self</span>.trait_implementations_by_trait_id.entry(trait_id).or_default().push(impl_id);
 <a href=#307 id=307 data-nosnippet>307</a>
 <a href=#308 id=308 data-nosnippet>308</a>        <span class="comment">// Avoid adding error types to impls since they'll conflict with every other type.
 <a href=#309 id=309 data-nosnippet>309</a>        // We don't need to return an error since we expect an error to already be issued when
@@ -352,7 +352,7 @@
 <a href=#352 id=352 data-nosnippet>352</a>                // where-clause-aware: `impl&lt;T&gt; Two for T where T: One` does not overlap
 <a href=#353 id=353 data-nosnippet>353</a>                // `impl Two for u32` when `u32: One` does not hold. The matched impl's where
 <a href=#354 id=354 data-nosnippet>354</a>                // clause was already validated during the lookup; here we validate the new one's.
-<a href=#355 id=355 data-nosnippet>355</a>                </span><span class="kw">let </span>where_clause = trait_impl.borrow().where_clause.clone();
+<a href=#355 id=355 data-nosnippet>355</a>                </span><span class="kw">let </span>where_clause = <span class="self">self</span>.get_where_clause_for_impl(impl_id).to_vec();
 <a href=#356 id=356 data-nosnippet>356</a>                <span class="kw">let </span>overlaps = <span class="self">self
 <a href=#357 id=357 data-nosnippet>357</a>                    </span>.validate_where_clause(
 <a href=#358 id=358 data-nosnippet>358</a>                        <span class="kw-2">&amp;</span>where_clause,
