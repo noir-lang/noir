@@ -1283,24 +1283,13 @@ impl Elaborator<'_> {
         self.mark_struct_as_constructed(&struct_type);
 
         // `last_segment` is optional if this constructor was resolved from a quoted type
-        let mut generics = generics.clone();
+        let generics = generics.clone();
         let mut is_self_type = false;
         let mut constructor_type_location = location;
 
         if let Some(last_segment) = last_segment {
-            let turbofish_location = last_segment.turbofish_location();
             is_self_type = last_segment.ident.is_self_type_name();
             constructor_type_location = last_segment.ident.location();
-
-            let mut errors = Vec::new();
-            generics = self.resolve_struct_turbofish_generics(
-                &struct_type.borrow(),
-                generics,
-                last_segment.generics,
-                turbofish_location,
-                &mut errors,
-            );
-            self.push_errors(errors);
         }
 
         // Each of the struct generics must be bound at the end of the function

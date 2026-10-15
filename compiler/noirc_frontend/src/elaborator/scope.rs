@@ -353,11 +353,15 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Looks up a given [Type] by name.
+    /// Looks up a given [Type] by name, applying the turbofish on the path's last segment.
     ///
-    /// This will also instantiate any struct types found.
+    /// The turbofish is resolved against the generics of the item the path names: a struct's
+    /// own generics for a struct path, and the alias's generics for an alias path, which are
+    /// then substituted into the alias body. Generics not given by a turbofish are instantiated
+    /// with fresh type variables.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn lookup_type_or_error(&mut self, path: TypedPath) -> Option<Type> {
+        let turbofish = path.last_segment().turbofish();
         let segment = path.as_single_segment();
         if let Some(segment) = segment
             && segment.ident.is_self_type_name()
@@ -369,9 +373,11 @@ impl Elaborator<'_> {
         let location = path.location;
         match self.use_path_or_error(path, PathResolutionTarget::Type) {
             Ok(PathResolutionItem::Type(struct_id)) => {
-                let struct_type = self.get_type(struct_id);
-                let generics = struct_type.borrow().instantiate(self.interner);
-                let typ = Type::DataType(struct_type, generics);
+                let mut errors = Vec::new();
+                let generics =
+                    self.resolve_struct_id_turbofish_generics(struct_id, turbofish, &mut errors);
+                self.push_errors(errors);
+                let typ = Type::DataType(self.get_type(struct_id), generics);
                 self.check_comptime_type_in_non_comptime_item(&typ, location);
                 Some(typ)
             }
@@ -381,8 +387,12 @@ impl Elaborator<'_> {
                     &Type::Alias(alias.clone(), Vec::new()),
                     location,
                 );
-                let alias = alias.borrow();
-                Some(alias.instantiate(self.interner))
+                let mut errors = Vec::new();
+                let generics =
+                    self.resolve_type_alias_id_turbofish_generics(alias_id, turbofish, &mut errors);
+                self.push_errors(errors);
+                let typ = alias.borrow().get_type(&generics);
+                Some(typ)
             }
             Ok(other) => {
                 self.push_err(ResolverError::Expected {
