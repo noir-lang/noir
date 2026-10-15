@@ -187,18 +187,18 @@ impl ItemPrinter<'_, '_> {
             Type::Constant(constant) => {
                 self.push_str(&constant.to_string());
             }
-            Type::InfixExpr(lhs, op, rhs, _) => {
-                if let Some(simplified) = simplify_infix_expr(typ) {
-                    self.show_type_impl(&simplified, as_expression);
-                    return;
+            // Operands bound after the expression was built (e.g. `<T as Serialize>::N * M` once
+            // `T::N` is known) leave it stored as `10 * 1`; show the form it is compared in.
+            Type::InfixExpr(..) => match typ.canonicalize_without_checked_casts() {
+                Type::InfixExpr(lhs, op, rhs, _) => {
+                    self.show_type_maybe_in_parentheses(&lhs);
+                    self.push(' ');
+                    self.push_str(&op.to_string());
+                    self.push(' ');
+                    self.show_type_maybe_in_parentheses(&rhs);
                 }
-
-                self.show_type_maybe_in_parentheses(lhs);
-                self.push(' ');
-                self.push_str(&op.to_string());
-                self.push(' ');
-                self.show_type_maybe_in_parentheses(rhs);
-            }
+                simplified => self.show_type_impl(&simplified, as_expression),
+            },
             Type::Unit => {
                 if as_expression {
                     self.push_str("<()>");
@@ -225,21 +225,11 @@ impl ItemPrinter<'_, '_> {
     }
 }
 
-/// An infix expression's operands may be bound to constants after the expression was built
-/// (for example an associated constant like `<T as Serialize>::N * M` once `T` and `M` are
-/// known), so the stored expression can be `10 * 1` even though the type checker treats it as
-/// `10`. Returns the canonical form when it is no longer an infix expression, so the printer
-/// shows `10` rather than `10 * 1`.
-fn simplify_infix_expr(typ: &Type) -> Option<Type> {
-    let canonical = typ.canonicalize();
-    (!matches!(canonical, Type::InfixExpr(..))).then_some(canonical)
-}
-
 fn type_needs_parentheses(typ: &Type) -> bool {
     match typ {
-        Type::InfixExpr(..) => match simplify_infix_expr(typ) {
-            Some(simplified) => type_needs_parentheses(&simplified),
-            None => true,
+        Type::InfixExpr(..) => match typ.canonicalize_without_checked_casts() {
+            Type::InfixExpr(..) => true,
+            simplified => type_needs_parentheses(&simplified),
         },
         Type::Function(..) | Type::TraitAsType(..) => true,
         Type::TypeVariable(type_variable) => match type_variable.binding() {

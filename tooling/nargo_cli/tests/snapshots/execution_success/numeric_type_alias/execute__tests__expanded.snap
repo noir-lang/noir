@@ -19,7 +19,7 @@ global N: u32 = 100;
 type AliasN<let N: u32>: u32 = N;
 
 fn main(x: Field) {
-    let arr: [Field; (2 * 2) + (2 * 2)] = [0_Field; 8];
+    let arr: [Field; 8] = [0_Field; 8];
     assert(arr.len() == 8_u32);
     let b: [u32; 12] = quadruple_array::<3>();
     assert(b[0_u32] == 0_u32);
@@ -44,7 +44,7 @@ fn main(x: Field) {
     assert(b.elements != m.elements);
     assert(trace(b) != trace(m));
     assert(sum(b) == sum(m));
-    let a: BoundedVec<Field, 4 * 2> = test_2::<4>(x);
+    let a: BoundedVec<Field, 8> = test_2::<4>(x);
     assert(a.len() == 1_u32);
 }
 

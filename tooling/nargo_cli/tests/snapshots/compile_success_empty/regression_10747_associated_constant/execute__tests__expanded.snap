@@ -68,5 +68,5 @@ pub comptime fn derive_ser(s: TypeDefinition) -> Quoted {
 
 fn main() {
     let _wrapped: Wrapped<Field, 3> = Wrapped::<Field, 3> { xs: [1_Field, 2_Field, 3_Field] };
-    let _len: u32 = <Wrapped<Field, 3> as Ser<N = 3 * 1>>::N;
+    let _len: u32 = <Wrapped<Field, 3> as Ser<N = 3>>::N;
 }
