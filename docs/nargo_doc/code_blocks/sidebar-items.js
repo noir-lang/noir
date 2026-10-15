@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"fn":["is_noir_code_block_start"]};
