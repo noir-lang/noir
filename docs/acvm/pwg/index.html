@@ -19,7 +19,7 @@ It starts by instantiating an ACVM (ACIR Virtual Machine), which executes the gi
 <p>Returns: <a href="enum.ACVMStatus.html" title="enum acvm::pwg::ACVMStatus"><code>ACVMStatus</code></a></p>
 <p>Each opcode is solved independently. In general we require its inputs to be already known, i.e previously solved,
 and the output is simply computed from the inputs, and then the output becomes ‘known’ for the subsequent opcodes.</p>
-<p>See [<code>acir::circuit::Opcode</code>] for more details.</p>
+<p>See <a href="../../acir/circuit/opcodes/enum.Opcode.html" title="enum acir::circuit::opcodes::Opcode"><code>acir::circuit::Opcode</code></a> for more details.</p>
 <p>Example:</p>
 <p>This ACIR program defines the ‘main’ function and indicates it is ‘non-transformed’.
 Indeed, some ACIR pass can transform the ACIR program in order to apply optimizations,
