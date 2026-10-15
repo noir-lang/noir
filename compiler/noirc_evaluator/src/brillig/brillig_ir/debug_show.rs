@@ -22,7 +22,7 @@ macro_rules! default_to_string_impl {
     )*)
 }
 
-default_to_string_impl! { str usize u32 BlackBoxOp }
+default_to_string_impl! { str usize u32 }
 
 impl DebugToString for MemoryAddress {
     fn debug_to_string(&self) -> String {
@@ -89,6 +89,93 @@ impl DebugToString for ValueOrArray {
             ValueOrArray::MemoryAddress(index) => index.debug_to_string(),
             ValueOrArray::HeapArray(heap_array) => heap_array.debug_to_string(),
             ValueOrArray::HeapVector(vector) => vector.debug_to_string(),
+        }
+    }
+}
+
+impl DebugToString for BlackBoxOp {
+    fn debug_to_string(&self) -> String {
+        match self {
+            BlackBoxOp::AES128Encrypt { inputs, iv, key, outputs } => format!(
+                "AES128 ENCRYPT {} {} {}  -> {}",
+                inputs.debug_to_string(),
+                iv.debug_to_string(),
+                key.debug_to_string(),
+                outputs.debug_to_string()
+            ),
+            BlackBoxOp::Keccakf1600 { input, output } => {
+                format!("KECCAKF1600 {} -> {}", input.debug_to_string(), output.debug_to_string())
+            }
+            BlackBoxOp::Blake2s { message, output } => {
+                format!("BLAKE2S {} -> {}", message.debug_to_string(), output.debug_to_string())
+            }
+            BlackBoxOp::Blake3 { message, output } => {
+                format!("BLAKE3 {} -> {}", message.debug_to_string(), output.debug_to_string())
+            }
+            BlackBoxOp::EcdsaSecp256k1 {
+                hashed_msg,
+                public_key_x,
+                public_key_y,
+                signature,
+                result,
+            } => format!(
+                "ECDSA_SECP256K1 {} {} {} {} -> {}",
+                hashed_msg.debug_to_string(),
+                public_key_x.debug_to_string(),
+                public_key_y.debug_to_string(),
+                signature.debug_to_string(),
+                result.debug_to_string()
+            ),
+            BlackBoxOp::EcdsaSecp256r1 {
+                hashed_msg,
+                public_key_x,
+                public_key_y,
+                signature,
+                result,
+            } => format!(
+                "ECDSA_SECP256R1 {} {} {} {} -> {}",
+                hashed_msg.debug_to_string(),
+                public_key_x.debug_to_string(),
+                public_key_y.debug_to_string(),
+                signature.debug_to_string(),
+                result.debug_to_string()
+            ),
+            BlackBoxOp::MultiScalarMul { points, scalars, outputs } => format!(
+                "MULTI_SCALAR_MUL {} {} -> {}",
+                points.debug_to_string(),
+                scalars.debug_to_string(),
+                outputs.debug_to_string()
+            ),
+            BlackBoxOp::EmbeddedCurveAdd { input1_x, input1_y, input2_x, input2_y, result } => {
+                format!(
+                    "EMBEDDED_CURVE_ADD ({} {}) ({} {}) -> {}",
+                    input1_x.debug_to_string(),
+                    input1_y.debug_to_string(),
+                    input2_x.debug_to_string(),
+                    input2_y.debug_to_string(),
+                    result.debug_to_string()
+                )
+            }
+            BlackBoxOp::Poseidon2Permutation { message, output } => format!(
+                "POSEIDON2_PERMUTATION {} -> {}",
+                message.debug_to_string(),
+                output.debug_to_string()
+            ),
+            BlackBoxOp::Sha256Compression { input, hash_values, output } => format!(
+                "SHA256COMPRESSION {} {} -> {}",
+                input.debug_to_string(),
+                hash_values.debug_to_string(),
+                output.debug_to_string()
+            ),
+            BlackBoxOp::ToRadix { input, radix, output_pointer, num_limbs, output_bits: _ } => {
+                format!(
+                    "TO_RADIX {} {} {} -> {}",
+                    input.debug_to_string(),
+                    radix.debug_to_string(),
+                    num_limbs.debug_to_string(),
+                    output_pointer.debug_to_string()
+                )
+            }
         }
     }
 }
@@ -300,5 +387,122 @@ impl DebugShow {
             offset,
             offset + calldata_size
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use acvm::acir::brillig::{BlackBoxOp, HeapArray, MemoryAddress, lengths::SemiFlattenedLength};
+
+    use super::DebugToString;
+    use crate::brillig::brillig_ir::ReservedRegisters;
+
+    fn array(offset: u32, size: u32) -> HeapArray {
+        HeapArray { pointer: MemoryAddress::relative(offset), size: SemiFlattenedLength(size) }
+    }
+
+    /// The `--show-brillig` trace format for black box ops is user-visible output.
+    #[test]
+    fn black_box_op_trace_format() {
+        let r = MemoryAddress::relative;
+        let cases = [
+            (
+                BlackBoxOp::AES128Encrypt {
+                    inputs: array(1, 16),
+                    iv: array(2, 16),
+                    key: array(3, 16),
+                    outputs: array(4, 16),
+                },
+                "AES128 ENCRYPT S1[0..16] S2[0..16] S3[0..16]  -> S4[0..16]",
+            ),
+            (
+                BlackBoxOp::Keccakf1600 { input: array(1, 25), output: array(2, 25) },
+                "KECCAKF1600 S1[0..25] -> S2[0..25]",
+            ),
+            (
+                BlackBoxOp::Blake2s { message: array(1, 8), output: array(2, 32) },
+                "BLAKE2S S1[0..8] -> S2[0..32]",
+            ),
+            (
+                BlackBoxOp::Blake3 { message: array(1, 8), output: array(2, 32) },
+                "BLAKE3 S1[0..8] -> S2[0..32]",
+            ),
+            (
+                BlackBoxOp::EcdsaSecp256k1 {
+                    hashed_msg: array(1, 32),
+                    public_key_x: array(2, 32),
+                    public_key_y: array(3, 32),
+                    signature: array(4, 64),
+                    result: r(5),
+                },
+                "ECDSA_SECP256K1 S1[0..32] S2[0..32] S3[0..32] S4[0..64] -> S5",
+            ),
+            (
+                BlackBoxOp::EcdsaSecp256r1 {
+                    hashed_msg: array(1, 32),
+                    public_key_x: array(2, 32),
+                    public_key_y: array(3, 32),
+                    signature: array(4, 64),
+                    result: r(5),
+                },
+                "ECDSA_SECP256R1 S1[0..32] S2[0..32] S3[0..32] S4[0..64] -> S5",
+            ),
+            (
+                BlackBoxOp::MultiScalarMul {
+                    points: array(1, 6),
+                    scalars: array(2, 4),
+                    outputs: array(3, 3),
+                },
+                "MULTI_SCALAR_MUL S1[0..6] S2[0..4] -> S3[0..3]",
+            ),
+            (
+                BlackBoxOp::EmbeddedCurveAdd {
+                    input1_x: r(1),
+                    input1_y: r(2),
+                    input2_x: r(3),
+                    input2_y: r(4),
+                    result: array(5, 3),
+                },
+                "EMBEDDED_CURVE_ADD (S1 S2) (S3 S4) -> S5[0..3]",
+            ),
+            (
+                BlackBoxOp::Poseidon2Permutation { message: array(1, 4), output: array(2, 4) },
+                "POSEIDON2_PERMUTATION S1[0..4] -> S2[0..4]",
+            ),
+            (
+                BlackBoxOp::Sha256Compression {
+                    input: array(1, 16),
+                    hash_values: array(2, 8),
+                    output: array(3, 8),
+                },
+                "SHA256COMPRESSION S1[0..16] S2[0..8] -> S3[0..8]",
+            ),
+            (
+                BlackBoxOp::ToRadix {
+                    input: r(1),
+                    radix: r(2),
+                    output_pointer: r(3),
+                    num_limbs: r(4),
+                    output_bits: r(5),
+                },
+                "TO_RADIX S1 S2 S4 -> S3",
+            ),
+            (
+                BlackBoxOp::Blake2s {
+                    message: HeapArray {
+                        pointer: ReservedRegisters::free_memory_pointer(),
+                        size: SemiFlattenedLength(8),
+                    },
+                    output: HeapArray {
+                        pointer: MemoryAddress::direct(10),
+                        size: SemiFlattenedLength(32),
+                    },
+                },
+                "BLAKE2S FreeMem[0..8] -> M10[0..32]",
+            ),
+        ];
+        for (op, expected) in cases {
+            assert_eq!(op.debug_to_string(), expected);
+        }
     }
 }
