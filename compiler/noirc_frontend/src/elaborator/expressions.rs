@@ -688,15 +688,7 @@ impl Elaborator<'_> {
         if let Some(definition_id) = self.item.body.inlined_comptime_local(expr_id) {
             let definition = self.interner.definition(definition_id);
             let name = definition.name.clone();
-            let mutable = definition.mutable;
             Self::mark_local_variable_as_mutated(definition, &mut self.scopes);
-
-            if !mutable {
-                self.push_err(TypeCheckError::CannotMutateImmutableVariable {
-                    name: name.clone(),
-                    location,
-                });
-            }
             self.push_err(ResolverError::MutatingComptimeInNonComptimeContext { name, location });
             return;
         }
@@ -705,18 +697,9 @@ impl Elaborator<'_> {
             HirExpression::Ident(hir_ident, _) => {
                 let definition = self.interner.definition(hir_ident.id);
                 let name = definition.name.clone();
-                let mutable = definition.mutable;
-                let comptime = definition.comptime;
                 Self::mark_local_variable_as_mutated(definition, &mut self.scopes);
 
-                if comptime && !self.in_comptime_context() {
-                    self.push_err(ResolverError::MutatingComptimeInNonComptimeContext {
-                        name: name.clone(),
-                        location,
-                    });
-                }
-
-                if !mutable {
+                if !definition.mutable {
                     self.push_err(TypeCheckError::CannotMutateImmutableVariable { name, location });
                 } else {
                     self.check_can_mutate_lambda_capture(hir_ident.id, name, location);

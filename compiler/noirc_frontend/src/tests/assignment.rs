@@ -750,7 +750,6 @@ fn mutable_reference_to_immutable_comptime_variable_in_runtime() {
     fn main() {
         comptime let x: u32 = 7;
         set(&mut x);
-                 ^ Cannot mutate immutable variable `x`
                  ^ Comptime variable `x` cannot be mutated in a non-comptime context
                  ~ `x` mutated here
     }
