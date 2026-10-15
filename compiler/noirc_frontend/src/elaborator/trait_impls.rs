@@ -129,8 +129,12 @@ impl Elaborator<'_> {
         if let Some(trait_id) = trait_impl.trait_id {
             self.item.generics.set_params(trait_impl.resolved_generics.clone());
 
-            let where_clause =
-                self.resolve_trait_constraints_and_add_to_scope(&trait_impl.where_clause);
+            let impl_id =
+                trait_impl.impl_id.expect("ICE: impl_id should be set in define_function_metas");
+            let where_clause = self.interner.get_where_clause_for_impl(impl_id).to_vec();
+            for constraint in &where_clause {
+                self.add_resolved_trait_constraint_to_scope(constraint);
+            }
 
             // Now solve the actual types of the associated types
             // (before this we only declared them without knowing their type)
@@ -187,7 +191,6 @@ impl Elaborator<'_> {
 
             // If there are bounds on the trait's associated types, check them now, for this impl's
             // `Self` and trait arguments.
-            let impl_id = trait_impl.impl_id.unwrap();
             let impl_constraint = TraitConstraint {
                 typ: self.item.impl_context.expect_self_type().clone(),
                 trait_bound: ResolvedTraitBound {
@@ -268,14 +271,13 @@ impl Elaborator<'_> {
                 trait_id,
                 file: trait_impl.file_id,
                 crate_id: self.crate_id,
-                where_clause,
                 methods,
             });
 
             match self.interner.add_trait_implementation(
                 self.item.impl_context.expect_self_type().clone(),
                 trait_id,
-                trait_impl.impl_id.expect("ICE: impl_id should be set in define_function_metas"),
+                impl_id,
                 resolved_trait_impl,
                 location,
             ) {
@@ -703,9 +705,9 @@ impl Elaborator<'_> {
         impl_id: Option<TraitImplId>,
     ) {
         if let Some(impl_id) = impl_id
-            && let Some(trait_implementation) = self.interner.try_get_trait_implementation(impl_id)
+            && self.interner.try_get_trait_implementation(impl_id).is_some()
         {
-            for trait_constrain in &trait_implementation.borrow().where_clause {
+            for trait_constrain in self.interner.get_where_clause_for_impl(impl_id).to_vec() {
                 let trait_bound = &trait_constrain.trait_bound;
                 self.add_trait_bound_to_scope(
                     trait_bound.location,
@@ -722,9 +724,9 @@ impl Elaborator<'_> {
         impl_id: Option<TraitImplId>,
     ) {
         if let Some(impl_id) = impl_id
-            && let Some(trait_implementation) = self.interner.try_get_trait_implementation(impl_id)
+            && self.interner.try_get_trait_implementation(impl_id).is_some()
         {
-            for trait_constrain in &trait_implementation.borrow().where_clause {
+            for trait_constrain in self.interner.get_where_clause_for_impl(impl_id).to_vec() {
                 self.interner.remove_assumed_trait_implementations_for_trait(
                     trait_constrain.trait_bound.trait_id,
                 );
