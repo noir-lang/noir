@@ -20,6 +20,7 @@ use crate::errors::CliError;
 
 mod add_cmd;
 mod check_cmd;
+mod clean_cmd;
 pub mod compile_cmd;
 mod dap_cmd;
 mod debug_cmd;
@@ -102,6 +103,7 @@ impl PackageOptions {
 #[derive(Subcommand, Clone, Debug)]
 enum NargoCommand {
     Check(check_cmd::CheckCommand),
+    Clean(clean_cmd::CleanCommand),
     Fmt(fmt_cmd::FormatCommand),
     #[command(alias = "build")]
     Compile(compile_cmd::CompileCommand),
@@ -161,6 +163,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
             with_workspace(args, config, move |_args, _workspace| fetch_cmd::run(fetched_before))
         }
         NargoCommand::Check(args) => with_workspace(args, config, check_cmd::run),
+        NargoCommand::Clean(args) => clean_cmd::run(args, config),
         NargoCommand::Compile(args) => compile_with_maybe_dummy_workspace(args, config),
         NargoCommand::Interpret(args) => with_workspace(args, config, interpret_cmd::run),
         NargoCommand::Debug(args) => with_workspace(args, config, debug_cmd::run),
