@@ -25,6 +25,9 @@ const IMPL_SEARCH_RECURSION_LIMIT: u32 = 10;
 #[derive(Clone, Copy)]
 pub(crate) enum TraitLookupMode {
     /// Does not look up implementations for bindable object types, but matches any [`TraitImplKind`].
+    /// Answers only once the answer can't change: an impl whose where clause can't be checked yet
+    /// (it needs a type that isn't known yet) might still apply, so a single other matching impl
+    /// is not chosen over it.
     Default,
     /// Looks up implementation for bindable object types, and matches only [`TraitImplKind::Assumed`].
     /// The returned bindings are not expected to be applied.
@@ -238,35 +241,6 @@ impl NodeInterner {
         false
     }
 
-    /// Replace each generic with a fresh type variable.
-    ///
-    /// For example if the object type if `Foo<T'3>` then it becomes `Foo<'5>`.
-    /// The difference is that `Foo<T'3>` would not unify with `Foo<T'4>`,
-    /// but as `Foo<'5>` it will, allowing us to match existing implementations.
-    pub(super) fn replace_generics_with_fresh_type_variable(
-        &self,
-        object_type: &Type,
-        impl_generics: GenericTypeVars,
-    ) -> (Type, TypeBindings) {
-        let substitutions = impl_generics
-            .into_iter()
-            .map(|typevar| {
-                let typevar_kind = typevar.kind().into_owned();
-                let typevar_id = typevar.id();
-                let substitution = (
-                    typevar,
-                    typevar_kind.clone(),
-                    self.next_type_variable_with_kind(typevar_kind),
-                );
-                (typevar_id, substitution)
-            })
-            .collect();
-
-        let instantiated_object_type = object_type.substitute(&substitutions);
-
-        (instantiated_object_type, substitutions)
-    }
-
     /// Adds a prepared trait implementation.
     ///
     /// This is called before the normal implementation is ready, so we can look up the
@@ -280,16 +254,18 @@ impl NodeInterner {
         where_clause: Vec<TraitConstraint>,
         location: Location,
     ) {
+        self.trait_impl_where_clauses.insert(impl_id, where_clause);
+
         if matches!(object_type, Type::Error) {
             // If we stored a prepared impl for Error, it would later unify with anything,
             // leading to potentially unexpected duplications with the real prepared impl.
             return;
         }
 
-        // When looking for an existing type, we first have to make the unifying more relaxed by replacing
-        // named generics with fresh type variables, otherwise we can end up with duplicates.
+        // Instantiate the impl's generics, so that its object type unifies with the object type
+        // of any existing impl it overlaps.
         let (instantiated_object_type, _) =
-            self.replace_generics_with_fresh_type_variable(&object_type, impl_generics);
+            object_type.substitute_type_vars_with_fresh_type_vars(&impl_generics, self);
 
         // Check that we haven't already some overlapping implementation.
         // Get the generics, which are inserted by `resolve_trait_impl_associated_types`
@@ -313,7 +289,6 @@ impl NodeInterner {
             return;
         }
 
-        self.trait_impl_where_clauses.insert(impl_id, where_clause);
         let entries = self.trait_implementation_map.entry(trait_id).or_default();
         entries.push((object_type, TraitImplKind::Prepared(impl_id, location)));
     }
@@ -329,7 +304,6 @@ impl NodeInterner {
     ) -> Result<Result<(), Location>, CompilationError> {
         self.trait_implementations.insert(impl_id, trait_impl.clone());
         self.trait_implementations_by_trait_id.entry(trait_id).or_default().push(impl_id);
-        self.trait_impl_where_clauses.insert(impl_id, trait_impl.borrow().where_clause.clone());
 
         // Avoid adding error types to impls since they'll conflict with every other type.
         // We don't need to return an error since we expect an error to already be issued when
@@ -344,7 +318,7 @@ impl NodeInterner {
 
         let impl_generics = trait_impl.borrow().generics.clone();
         let (instantiated_object_type, substitutions) =
-            self.replace_generics_with_fresh_type_variable(&object_type, impl_generics);
+            object_type.substitute_type_vars_with_fresh_type_vars(&impl_generics, self);
 
         let trait_generics = self.get_trait_generics_for_impl(impl_id);
 
@@ -378,7 +352,7 @@ impl NodeInterner {
                 // where-clause-aware: `impl<T> Two for T where T: One` does not overlap
                 // `impl Two for u32` when `u32: One` does not hold. The matched impl's where
                 // clause was already validated during the lookup; here we validate the new one's.
-                let where_clause = trait_impl.borrow().where_clause.clone();
+                let where_clause = self.get_where_clause_for_impl(impl_id).to_vec();
                 let overlaps = self
                     .validate_where_clause(
                         &where_clause,
@@ -570,6 +544,7 @@ impl NodeInterner {
 
         let mut matching_impls = Vec::new();
         let mut where_clause_error = None;
+        let mut where_clause_undecided = false;
 
         for (existing_object_type, impl_kind) in impls {
             let skip = match mode {
@@ -630,6 +605,9 @@ impl NodeInterner {
                     recursion_limit,
                 )
             {
+                if matches!(error.1, ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType) {
+                    where_clause_undecided = true;
+                }
                 // Only keep the first errors we get from a failing where clause
                 if where_clause_error.is_none() {
                     where_clause_error = Some(error);
@@ -674,7 +652,12 @@ impl NodeInterner {
             ));
         }
 
-        if matching_impls.len() == 1 {
+        if matching_impls.len() == 1
+            && where_clause_undecided
+            && !matches!(mode, TraitLookupMode::Overlapping)
+        {
+            Err(ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType)
+        } else if matching_impls.len() == 1 {
             let (impl_, fresh_bindings, instantiation_bindings, _) = matching_impls.pop().unwrap();
             *type_bindings = fresh_bindings;
             Ok((impl_, instantiation_bindings))

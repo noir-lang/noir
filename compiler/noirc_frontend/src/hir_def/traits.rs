@@ -118,12 +118,6 @@ pub struct TraitImpl {
     pub file: FileId,
     pub crate_id: CrateId,
     pub methods: Vec<FuncId>, // methods[i] is the implementation of trait.methods[i] for Type typ
-
-    /// The where clause, if present, contains each trait requirement which must
-    /// be satisfied for this impl to be selected. E.g. in `impl Eq for [T] where T: Eq`,
-    /// `where_clause` would contain the one `T: Eq` constraint. If there is no where clause,
-    /// this Vec is empty.
-    pub where_clause: Vec<TraitConstraint>,
 }
 
 /// A completed inherent `impl` block, i.e. one that does not implement a trait,
@@ -426,28 +420,6 @@ impl Trait {
         bindings
     }
 
-    /// Binds this trait's `Self` to `self_type`, and each of its ordered generics and associated
-    /// types to the argument `generics` gives for it, adding to `bindings`. An associated type
-    /// that `generics` leaves out gets no entry.
-    ///
-    /// Panics if `generics` doesn't give exactly one argument per ordered generic, or names an
-    /// associated type this trait doesn't have.
-    pub fn bind_given_arguments(
-        &self,
-        self_type: &Type,
-        generics: &TraitGenerics,
-        bindings: &mut TypeBindings,
-    ) {
-        self.self_param.bind(self_type, bindings);
-        bind_ordered_generics(&self.generics, &generics.ordered, bindings);
-        for arg in &generics.named {
-            let param = self.get_associated_type(arg.name.as_str()).unwrap_or_else(|| {
-                unreachable!("Expected to find associated type named {}", arg.name)
-            });
-            bind_generic(param, &arg.typ, bindings);
-        }
-    }
-
     /// The bounds that `self_type: ThisTrait<trait_generics>` implies on the associated types it
     /// names, each with the location of that name: `T: Foo<Out = O>` with
     /// `trait Foo { type Out: Conv<Self>; }` gives `O: Conv<T>`.
@@ -516,16 +488,6 @@ impl Trait {
     /// For example if a method returns `Self::Foo`, here we will be looking for it by the name `"Foo"`.
     pub fn get_associated_type(&self, last_name: &str) -> Option<&ResolvedGeneric> {
         self.associated_types.iter().find(|typ| typ.name.as_ref() == last_name)
-    }
-
-    /// Returns both the ordered generics of this type, and its named, associated types.
-    /// These types are all as-is and are not instantiated.
-    pub fn get_generics(&self) -> (Vec<Type>, Vec<Type>) {
-        let ordered = vecmap(&self.generics, |generic| generic.clone().into_named_generic(None));
-        let named = vecmap(&self.associated_types, |generic| {
-            generic.clone().into_named_generic(Some((SELF_TYPE_NAME, self.name.as_str())))
-        });
-        (ordered, named)
     }
 
     pub fn get_trait_generics(&self, location: Location) -> TraitGenerics {

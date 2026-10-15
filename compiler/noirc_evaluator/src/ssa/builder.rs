@@ -204,11 +204,6 @@ impl<'local> SsaBuilder<'local> {
         &self.ssa
     }
 
-    pub fn with_passed(mut self, passed: HashMap<String, usize>) -> Self {
-        self.passed = passed;
-        self
-    }
-
     pub fn with_skip_passes(mut self, skip_passes: Vec<String>) -> Self {
         self.skip_passes = skip_passes;
         self
@@ -230,16 +225,6 @@ impl<'local> SsaBuilder<'local> {
             self = self.try_run_pass(|ssa| pass.run(ssa), pass.msg, last)?;
         }
         Ok(self)
-    }
-
-    /// Runs the given SSA pass and prints the SSA afterward if `print_ssa_passes` is true.
-    #[allow(dead_code)]
-    fn run_pass<F>(mut self, pass: F, msg: &str) -> Self
-    where
-        F: FnOnce(Ssa) -> Ssa,
-    {
-        self.ssa = time(msg, self.print_codegen_timings, || pass(self.ssa));
-        self.print(msg)
     }
 
     /// The same as `run_pass` but for passes that may fail

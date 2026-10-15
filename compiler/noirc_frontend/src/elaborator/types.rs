@@ -2602,7 +2602,7 @@ impl Elaborator<'_> {
         location: Location,
     ) -> Type {
         let to = to.follow_bindings();
-        let from_follow_bindings = self.follow_bindings_resolving_trait_constraints(from);
+        let from_follow_bindings = self.structurally_resolve_type(from);
 
         use HirExpression::Literal;
         let from_value_opt = match self.interner.expression(from_expr_id) {
@@ -3158,7 +3158,7 @@ impl Elaborator<'_> {
         location: Location,
         dereference_lhs: Option<impl FnMut(&mut Self, Type, Type, bool /* mutable */)>,
     ) -> Option<(Type, usize)> {
-        let lhs_type = self.follow_bindings_resolving_trait_constraints(lhs_type);
+        let lhs_type = self.structurally_resolve_type(lhs_type);
 
         match &lhs_type {
             Type::DataType(s, args) => {
@@ -3235,7 +3235,7 @@ impl Elaborator<'_> {
         object_location: Location,
         check_self_param: bool,
     ) -> Option<HirMethodReference> {
-        match self.follow_bindings_resolving_trait_constraints(object_type) {
+        match self.structurally_resolve_type(object_type) {
             // TODO(https://github.com/noir-lang/noir/issues/10518): We should allow method calls on
             // `impl Trait`s eventually. For now it is fine since they are only allowed on return types.
             Type::TraitAsType(..) => {

@@ -1,5 +1,47 @@
 # Changelog
 
+## [1.0.0-rc.5](https://github.com/noir-lang/noir/compare/v1.0.0-rc.4...v1.0.0-rc.5) (2026-10-15)
+
+
+### Bug Fixes
+
+* **acir_gen:** Resolve blackbox calls whose predicate folds to zero during ACIR gen ([#13965](https://github.com/noir-lang/noir/issues/13965)) ([ecb6aad](https://github.com/noir-lang/noir/commit/ecb6aadbcd0ce8fd11afd7ac37b603a9cbcb2bf6))
+* **acir:** A constant-length vector_push_back grows the backing array by the pushed element ([#13945](https://github.com/noir-lang/noir/issues/13945)) ([653434d](https://github.com/noir-lang/noir/commit/653434d9f62b68f2e656492821a902531f38438f))
+* **frontend:** Apply the impl search's bindings to a parent impl's associated type ([#13924](https://github.com/noir-lang/noir/issues/13924)) ([104e2e0](https://github.com/noir-lang/noir/commit/104e2e0558a03bdc3581bf2d6a033325030433af))
+* **frontend:** Bind a generic impl's generics for an associated constant read through a type path ([#13963](https://github.com/noir-lang/noir/issues/13963)) ([644e798](https://github.com/noir-lang/noir/commit/644e798501e63c5c1cece09330b4a054ed16e47f))
+* **frontend:** Bind a generic impl's generics for the Type::CONST shorthand ([#13944](https://github.com/noir-lang/noir/issues/13944)) ([b28a741](https://github.com/noir-lang/noir/commit/b28a74121c7c5d73f84845d2bdee4b4d42b73663))
+* **frontend:** Check a trait impl's where clause when it is used before it is finished ([#13939](https://github.com/noir-lang/noir/issues/13939)) ([a12ceda](https://github.com/noir-lang/noir/commit/a12ceda436a1e2d93726ad23eeddc207a8807d4c))
+* **frontend:** Check a trait's where clause with the impl's associated types ([#13933](https://github.com/noir-lang/noir/issues/13933)) ([5a3abf2](https://github.com/noir-lang/noir/commit/5a3abf2eb158921761c6f68c146df23b947a500e))
+* **frontend:** Consider a default method's where-clause traits together with its own trait in method lookup ([#13958](https://github.com/noir-lang/noir/issues/13958)) ([1d355d8](https://github.com/noir-lang/noir/commit/1d355d8656e05fb7e3a06efab5978a0f0dd35a8f))
+* **frontend:** Expand an item's bounds in scope with one shared set of seen bounds ([#13931](https://github.com/noir-lang/noir/issues/13931)) ([d6318b9](https://github.com/noir-lang/noir/commit/d6318b9b818565d40fcccb08a48cbee237c00548))
+* **frontend:** Give each associated type projection one name inside an item ([#13936](https://github.com/noir-lang/noir/issues/13936)) ([5c54f51](https://github.com/noir-lang/noir/commit/5c54f51ae4b01ae39c465989f445b47231637ced))
+* **frontend:** Instantiate a generic trait impl's self type when looking up its methods ([#13942](https://github.com/noir-lang/noir/issues/13942)) ([f053fb3](https://github.com/noir-lang/noir/commit/f053fb3b15b084ded1cafe09a85a0461d0025119))
+* **frontend:** Instantiate a trait's associated type bounds for each use ([#13932](https://github.com/noir-lang/noir/issues/13932)) ([57102c3](https://github.com/noir-lang/noir/commit/57102c33c569a081210f1333bf4ce34c3331fc6a))
+* **frontend:** Instantiate parent and associated type bounds in one pass ([#13964](https://github.com/noir-lang/noir/issues/13964)) ([e56fa56](https://github.com/noir-lang/noir/commit/e56fa566a7a26d41e76c45480657dca9ed290bc9))
+* **frontend:** Instantiate parent bounds when resolving `T::item` through a supertrait ([#13917](https://github.com/noir-lang/noir/issues/13917)) ([7c2f1fe](https://github.com/noir-lang/noir/commit/7c2f1fe30e5549e89a469babaf28561b5dabb721))
+* **frontend:** Instantiate parent bounds when resolving a parent's associated types for an impl ([#13922](https://github.com/noir-lang/noir/issues/13922)) ([db7c955](https://github.com/noir-lang/noir/commit/db7c9552b75d41bae57174437645b77c9529ed2f))
+* **frontend:** Keep a function's implied parent bounds apart from its written ones ([#13926](https://github.com/noir-lang/noir/issues/13926)) ([bfcd7bf](https://github.com/noir-lang/noir/commit/bfcd7bff2986eeae0d9a4c89c0345ce9497831bb))
+* **frontend:** Keep a trait's `Self` rigid while checking its own methods ([#13908](https://github.com/noir-lang/noir/issues/13908)) ([dd68aa1](https://github.com/noir-lang/noir/commit/dd68aa1eb42e270c474e5f1638406ef7e81eddd8))
+* **frontend:** Keep an item's assumed trait impls out of items elaborated from inside it ([#13953](https://github.com/noir-lang/noir/issues/13953)) ([b6a7225](https://github.com/noir-lang/noir/commit/b6a722560cff7061b6ea786cd75c7e1b45fdb640))
+* **frontend:** Keep the bounds a trait's `Self` implies in scope in its default methods ([#13927](https://github.com/noir-lang/noir/issues/13927)) ([3ff693f](https://github.com/noir-lang/noir/commit/3ff693f2065c5d7727e844b75701a3c4d24eeb4e))
+* **frontend:** Keep the implemented trait as the current trait in trait impl method bodies ([#13951](https://github.com/noir-lang/noir/issues/13951)) ([a7cae84](https://github.com/noir-lang/noir/commit/a7cae8498cd82df9308d86bd596f3d2f1aeee1c6))
+* **frontend:** Let a method call's arguments pick between bounds on the same trait ([#13959](https://github.com/noir-lang/noir/issues/13959)) ([61c1fa9](https://github.com/noir-lang/noir/commit/61c1fa97a9ead8e9be2a1adde675da3e2577d610))
+* **frontend:** Make associated items elided from a supertrait bound rigid at each use ([#13918](https://github.com/noir-lang/noir/issues/13918)) ([9da2164](https://github.com/noir-lang/noir/commit/9da2164de8ad57f50ff46f7f891d47a9740c2ddf))
+* **frontend:** Move comptime local scopes from NodeInterner into ElaborationSession ([#13914](https://github.com/noir-lang/noir/issues/13914)) ([a7b0d83](https://github.com/noir-lang/noir/commit/a7b0d83c02b8a896f8def0624902b9c745096d4d))
+* **frontend:** One set of pending trait constraints, solved where possible and retried when their types change ([#13982](https://github.com/noir-lang/noir/issues/13982)) ([8f43979](https://github.com/noir-lang/noir/commit/8f43979071cd16451d176ae3a15246e5c2d29bac))
+* **frontend:** Only solve queued trait constraints early when that can bind a type ([#13962](https://github.com/noir-lang/noir/issues/13962)) ([3d8fc58](https://github.com/noir-lang/noir/commit/3d8fc58a2202e12d377fcb2555f2c098b2b4933e))
+* **frontend:** Pair an impl method's associated type placeholders to a fixpoint ([#13938](https://github.com/noir-lang/noir/issues/13938)) ([fc390a0](https://github.com/noir-lang/noir/commit/fc390a01893190a537ad23bd4278fcef0184586e))
+* **frontend:** Report a trait that is its own parent as a dependency cycle ([#13934](https://github.com/noir-lang/noir/issues/13934)) ([d29c03e](https://github.com/noir-lang/noir/commit/d29c03e49e7eec36a12af7ec24e8f63fc4d894a2))
+* **frontend:** Resolve a call's fully known trait constraints when the call is instantiated ([#13971](https://github.com/noir-lang/noir/issues/13971)) ([62cd234](https://github.com/noir-lang/noir/commit/62cd234e296141c7060523ea34edc1bca7180025))
+* **frontend:** Solve pending trait constraints when a type they decide is needed ([#13960](https://github.com/noir-lang/noir/issues/13960)) ([5f17b1e](https://github.com/noir-lang/noir/commit/5f17b1ef1872d49bbe0556e546358e9b93ef82c4))
+* **frontend:** Solve the constraints that mention a type variable before inspecting it ([#13970](https://github.com/noir-lang/noir/issues/13970)) ([41778f1](https://github.com/noir-lang/noir/commit/41778f1d2aa642b4238286d490664a0ff5e1af5e))
+* **frontend:** Substitute `Self` into a parent bound's arguments ([#13916](https://github.com/noir-lang/noir/issues/13916)) ([70486ee](https://github.com/noir-lang/noir/commit/70486ee8764f7668a56c57ce5a1fb1213945a00b))
+* **frontend:** Substitute a use's generics simultaneously when instantiating an item ([#13946](https://github.com/noir-lang/noir/issues/13946)) ([4aedf4d](https://github.com/noir-lang/noir/commit/4aedf4db1b7491a5eebc6ac0e4c2244109ce024d))
+* **nargo:** Propagate output errors from `nargo test` instead of panicking ([#13935](https://github.com/noir-lang/noir/issues/13935)) ([ab2fee2](https://github.com/noir-lang/noir/commit/ab2fee236e92115b5ac1512bb603551fc51872ff))
+* **noir_codegen:** Declare node types in tsconfig and type-check in CI ([#13921](https://github.com/noir-lang/noir/issues/13921)) ([cf00659](https://github.com/noir-lang/noir/commit/cf0065989b783d7e07579a5ac01492a332c94b62))
+* **ssa:** Deduplicate Brillig calls by call stack in the missing constraints check ([#13893](https://github.com/noir-lang/noir/issues/13893)) ([b7a4e7d](https://github.com/noir-lang/noir/commit/b7a4e7db8e965b5bc123bb57c2ece50064d23c07))
+* **ssa:** Size defaults for disabled vector results by their backing capacity ([#13940](https://github.com/noir-lang/noir/issues/13940)) ([9a2fde8](https://github.com/noir-lang/noir/commit/9a2fde8ffb509b5db6962b45d255266dd76c19fc))
+
 ## [1.0.0-rc.4](https://github.com/noir-lang/noir/compare/v1.0.0-rc.3...v1.0.0-rc.4) (2026-10-06)
 
 

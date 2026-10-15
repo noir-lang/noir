@@ -580,6 +580,12 @@ If non-empty, it disables unstable features required in crate manifests.
 
   Possible values: `true`, `false`
 
+* `--no-context-reuse` — Elaborate the package again for every test rather than sharing one elaboration per thread
+
+Sharing is a large speedup on packages with many tests, but it means a test compiles against a context that earlier tests on the same thread have already compiled against. Use this to check whether a surprising result depends on what ran before it.
+
+  Possible values: `true`, `false`
+
 * `--corpus-dir <CORPUS_DIR>` — If given, load/store fuzzer corpus from this folder
 * `--minimized-corpus-dir <MINIMIZED_CORPUS_DIR>` — If given, perform corpus minimization instead of fuzzing and store results in the given folder
 * `--fuzzing-failure-dir <FUZZING_FAILURE_DIR>` — If given, store the failing input in the given folder
