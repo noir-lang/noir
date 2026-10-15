@@ -3843,10 +3843,11 @@ fn path_call_keeps_trait_argument_open_while_an_impl_where_clause_is_undecided()
     assert_no_errors(src);
 }
 
-/// With nothing deciding between `Tr<u8>` and `Tr<T> where T: Foo`, the end of the function
-/// picks the one impl that applies.
+/// Nothing decides between `Tr<u8>` and `Tr<T> where T: Foo`, so the call needs an annotation,
+/// as in Rust (E0283). Choosing `Tr<u8>` because it is the only impl whose where clause is known
+/// to hold would make the choice depend on the order constraints are checked in.
 #[test]
-fn method_call_with_an_undecided_where_clause_uses_the_impl_that_applies() {
+fn method_call_with_an_undecided_where_clause_needs_an_annotation() {
     let src = r#"
     trait Foo { fn make() -> Self; }
     impl Foo for u16 { fn make() -> u16 { 2 } }
@@ -3858,9 +3859,78 @@ fn method_call_with_an_undecided_where_clause_uses_the_impl_that_applies() {
 
     fn main() {
         let _x = K {}.mk();
+                 ^^^^^^^ Object type is unknown in method call
+                 ~~~~~~~ Type must be known by this point to know which method to call
     }
     "#;
-    assert_no_errors(src);
+    check_errors(src);
+}
+
+const IMPLS_DECIDED_BY_WHERE_CLAUSES: &str = r#"
+    trait Bar {}
+    impl Bar for u64 {}
+    trait Baz {}
+    impl Baz for u8 {}
+
+    trait Check<U> { fn check(self, u: U, y: Field); }
+    struct A {}
+    impl Check<u8> for A { fn check(self, _u: u8, y: Field) { assert(y == 1); } }
+    impl<U> Check<U> for A where U: Bar { fn check(self, _u: U, _y: Field) {} }
+
+    trait Conv<U> { fn conv(self, u: U) -> Field; }
+    struct W {}
+    impl Conv<u64> for W { fn conv(self, _u: u64) -> Field { 10 } }
+    impl<U> Conv<U> for W where U: Baz { fn conv(self, _u: U) -> Field { 20 } }
+    "#;
+
+/// `x` could be `u8` (for `impl Check<u8>`) or `u64` (for the impl whose where clause is
+/// `U: Bar`). Nothing decides between them, so neither impl is chosen for it and `x` defaults to
+/// `Field`, which neither applies to. Swapping the two statements gives the same errors.
+#[test]
+fn check_first_does_not_choose_the_impl_for_an_unannotated_integer() {
+    let main = r#"
+    fn main(y: Field) -> pub Field {
+        let x = 5;
+        A {}.check(x, y);
+        ^^^^^^^^^^ No matching impl found for `U: Bar`
+        ~~~~~~~~~~ No impl for `U: Bar`
+        W {}.conv(x)
+        ^^^^^^^^^ No matching impl found for `U: Baz`
+        ~~~~~~~~~ No impl for `U: Baz`
+    }
+    "#;
+    check_errors(&format!("{IMPLS_DECIDED_BY_WHERE_CLAUSES}{main}"));
+}
+
+#[test]
+fn conv_first_does_not_choose_the_impl_for_an_unannotated_integer() {
+    let main = r#"
+    fn main(y: Field) -> pub Field {
+        let x = 5;
+        let r = W {}.conv(x);
+                ^^^^^^^^^ No matching impl found for `U: Baz`
+                ~~~~~~~~~ No impl for `U: Baz`
+        A {}.check(x, y);
+        ^^^^^^^^^^ No matching impl found for `U: Bar`
+        ~~~~~~~~~~ No impl for `U: Bar`
+        r
+    }
+    "#;
+    check_errors(&format!("{IMPLS_DECIDED_BY_WHERE_CLAUSES}{main}"));
+}
+
+#[test]
+fn annotated_integer_chooses_the_impl_that_applies() {
+    let main = r#"
+    fn main(y: Field) -> pub Field {
+        let x: u8 = 5;
+        A {}.check(x, y);
+        let z: u64 = 5;
+        A {}.check(z, y);
+        W {}.conv(x) + W {}.conv(z)
+    }
+    "#;
+    assert_no_errors(&format!("{IMPLS_DECIDED_BY_WHERE_CLAUSES}{main}"));
 }
 
 /// A call's argument decides the trait argument (`2_u16` makes it `Tr<u16>`), and with it which
