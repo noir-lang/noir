@@ -221,6 +221,40 @@ impl NamedGeneric {
     }
 }
 
+/// Matches the [`Type`] variants whose nested types are all reached by [`Type::any_child`],
+/// [`Type::for_each_child`], [`Type::for_each_child_mut`] and [`Type::map_children`].
+///
+/// The variants not listed here hold something those helpers skip:
+/// - [`Type::TypeVariable`] and [`Type::NamedGeneric`]: the binding
+/// - [`Type::Alias`]: the aliased type (only the generic arguments are children)
+/// - [`Type::DataType`]: the fields and variants (only the generic arguments are children)
+/// - [`Type::Forall`]: the bound type variables (only the body is a child)
+///
+/// A recursive walker over `Type` should match those variants by name and use this macro for
+/// the rest instead of a `_` arm, so that the compiler asks it what to do with every skipped
+/// payload, including the payload of any variant added later.
+macro_rules! structural_type {
+    () => {
+        Type::FieldElement
+            | Type::Constant(..)
+            | Type::Integer(..)
+            | Type::Bool
+            | Type::Unit
+            | Type::Error
+            | Type::Quoted(_)
+            | Type::Array(..)
+            | Type::Vector(_)
+            | Type::String(_)
+            | Type::FmtString(..)
+            | Type::Tuple(_)
+            | Type::Function(..)
+            | Type::Reference(..)
+            | Type::CheckedCast { .. }
+            | Type::InfixExpr(..)
+            | Type::TraitAsType(..)
+    };
+}
+
 /// Prefix of the synthetic name minted for the hidden generic that an `impl Trait` parameter
 /// desugars to. Shared between the elaborator (which mints the name) and the HIR printer
 /// (which recognizes such generics via [`NamedGeneric::is_impl_trait_parameter`]).
@@ -1740,7 +1774,7 @@ impl Type {
                     .any(|typevar| typevar.has_cyclic_alias(type_recursion_context.clone().recur()))
                     || typ.has_cyclic_alias_helper(type_recursion_context.recur())
             }
-            _ => self.any_child(|child| {
+            structural_type!() => self.any_child(|child| {
                 child.has_cyclic_alias_helper(type_recursion_context.clone().recur())
             }),
         }
@@ -2114,7 +2148,8 @@ impl Type {
                 }
                 TypeBinding::Unbound(_, _) => unbound_named_generic_counts,
             },
-            _ => self.any_child(|child| {
+            // An alias or data type contains a type variable only through its generic arguments.
+            Type::Alias(..) | Type::DataType(..) | structural_type!() => self.any_child(|child| {
                 child.contains_type_variable_helper(unbound_named_generic_counts)
             }),
         }
@@ -2524,10 +2559,12 @@ impl Type {
                 }
                 self.map_children(|child| child.substitute(type_bindings))
             }
-            // Only the generic arguments of a data type are substituted, not its fields:
-            // substituting fields can lead to infinite recursion, and fields are not matched
-            // when type checking.
-            _ => self.map_children(|child| child.substitute(type_bindings)),
+            // Only the generic arguments of a data type or alias are substituted, not its fields
+            // or aliased type: substituting fields can lead to infinite recursion, and fields are
+            // not matched when type checking.
+            Type::Alias(..) | Type::DataType(..) | structural_type!() => {
+                self.map_children(|child| child.substitute(type_bindings))
+            }
         }
     }
 
@@ -2545,7 +2582,11 @@ impl Type {
             Type::Forall(typevars, typ) => {
                 !typevars.iter().any(|var| var.id() == target_id) && typ.occurs(target_id)
             }
-            _ => self.any_child(|child| child.occurs(target_id)),
+            // The fields of a data type and the aliased type of an alias can only mention
+            // type variables through the generic arguments.
+            Type::Alias(..) | Type::DataType(..) | structural_type!() => {
+                self.any_child(|child| child.occurs(target_id))
+            }
         }
     }
 
@@ -2576,7 +2617,7 @@ impl Type {
                 }
                 // Expect that this function should only be called on instantiated types
                 Type::Forall(..) => unreachable!(),
-                _ => this.map_children(recur),
+                Type::DataType(..) | structural_type!() => this.map_children(recur),
             }
         }
         helper(self, 0)
@@ -2649,7 +2690,9 @@ impl Type {
                     *self = Type::TypeVariable(type_var.clone());
                 }
             }
-            _ => self.for_each_child_mut(Type::replace_named_generics_with_type_variables),
+            Type::DataType(..) | Type::Forall(..) | structural_type!() => {
+                self.for_each_child_mut(Type::replace_named_generics_with_type_variables);
+            }
         }
     }
 
@@ -2658,7 +2701,8 @@ impl Type {
     /// The children of a type are the types written inside it: the element and length of an
     /// array, the generic arguments of a data type, alias or trait, the parameters, return type
     /// and environment of a function, and so on. Type variable bindings, alias targets and data
-    /// type fields are not children; callers that need them handle those variants themselves.
+    /// type fields are not children; callers handle those variants themselves and match the
+    /// rest with `structural_type!()`.
     pub(crate) fn any_child(&self, mut f: impl FnMut(&Type) -> bool) -> bool {
         match self {
             Type::FieldElement
@@ -2819,7 +2863,9 @@ impl Type {
                     typ.for_each_child(|child| go(child, f, limit));
                     go(&alias.borrow().typ, f, limit);
                 }
-                _ => typ.for_each_child(|child| go(child, f, limit)),
+                Type::DataType(..) | Type::Forall(..) | structural_type!() => {
+                    typ.for_each_child(|child| go(child, f, limit));
+                }
             }
         }
         go(self, f, TYPE_RECURSION_LIMIT);
