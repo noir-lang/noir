@@ -330,18 +330,6 @@ impl Elaborator<'_> {
             }
         };
 
-        let turbofish_location = last_segment.turbofish_location();
-
-        let mut errors = Vec::new();
-        let generics = self.resolve_struct_turbofish_generics(
-            &struct_type.borrow(),
-            generics,
-            last_segment.generics,
-            turbofish_location,
-            &mut errors,
-        );
-        self.push_errors(errors);
-
         let actual_type = Type::DataType(struct_type.clone(), generics);
         let struct_id = struct_type.borrow().id;
 
