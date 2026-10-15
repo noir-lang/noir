@@ -99,22 +99,21 @@ is guaranteed to be inaccessible unless <code>get_unchecked</code> is used.</p>
 <span class="kw">assert</span>(empty_vector.len() == <span class="number">0</span>);</code></pre>
 <p>Note that whenever calling <code>new</code> the maximum length of the vector should generally be specified
 via a type signature:</p>
-<pre><code class="language-noir,ignore">fn good() -&gt; BoundedVec&lt;Field, 10&gt; {
-    // Ok! MaxLen is specified with a type annotation
-    let v1: BoundedVec&lt;Field, 3&gt; = BoundedVec::new();
-    let v2 = BoundedVec::new();
+<pre><code><span class="kw">fn</span> good() -&gt; BoundedVec&lt;Field, <span class="number">10</span>&gt; {
+    <span class="comment">// Ok! MaxLen is specified with a type annotation</span>
+    <span class="kw">let</span> v1: BoundedVec&lt;Field, <span class="number">3</span>&gt; = BoundedVec::new();
+    <span class="kw">let</span> v2 = BoundedVec::new();
 
-    // Ok! MaxLen is known from the type of `good`'s return value
+    <span class="comment">// Ok! MaxLen is known from the type of `good`'s return value</span>
     v2
 }
 
-fn bad() {
-    // Error: Type annotation needed
-    // The compiler can't infer `MaxLen` from the following code:
-    let mut v3 = BoundedVec::new();
-    v3.push(5);
-}
-</code></pre></div>
+<span class="kw">fn</span> bad() {
+    <span class="comment">// Error: Type annotation needed</span>
+    <span class="comment">// The compiler can't infer `MaxLen` from the following code:</span>
+    <span class="kw">let</span> <span class="kw">mut</span> v3 = BoundedVec::new();
+    v3.push(<span class="number">5</span>);
+}</code></pre></div>
 </div><code id="get" class="code-header">pub fn <a href="#get" class="fn">get</a>(&self, index: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>) -> T</code>
 
 <div class="padded-description"><div class="comments">
@@ -193,14 +192,13 @@ it is unsafe! Use at your own risk!</p>
 of the vector by one.</p>
 <p>Panics if the new length of the vector will be greater than the max length.</p>
 <p>Example:</p>
-<pre><code class="language-noir,should_fail">let mut v: BoundedVec&lt;Field, 2&gt; = BoundedVec::new();
+<pre><code><span class="kw">let</span> <span class="kw">mut</span> v: BoundedVec&lt;Field, <span class="number">2</span>&gt; = BoundedVec::new();
 
-v.push(1);
-v.push(2);
+v.push(<span class="number">1</span>);
+v.push(<span class="number">2</span>);
 
-// Panics with failed assertion &quot;push out of bounds&quot;
-v.push(3);
-</code></pre></div>
+<span class="comment">// Panics with failed assertion "push out of bounds"</span>
+v.push(<span class="number">3</span>);</code></pre></div>
 </div><code id="len" class="code-header">pub fn <a href="#len" class="fn">len</a>(&self) -> <a href="../../../std/primitive.u32.html" class="primitive">u32</a></code>
 
 <div class="padded-description"><div class="comments">
@@ -339,19 +337,18 @@ The maximum length of the vector is determined based on the type signature.</p>
 of the vector by one.</p>
 <p>Panics if the vector is empty.</p>
 <p>Example:</p>
-<pre><code class="language-noir,should_fail">let mut v: BoundedVec&lt;Field, 2&gt; = BoundedVec::new();
-v.push(1);
-v.push(2);
+<pre><code><span class="kw">let</span> <span class="kw">mut</span> v: BoundedVec&lt;Field, <span class="number">2</span>&gt; = BoundedVec::new();
+v.push(<span class="number">1</span>);
+v.push(<span class="number">2</span>);
 
-let two = v.pop();
-let one = v.pop();
+<span class="kw">let</span> two = v.pop();
+<span class="kw">let</span> one = v.pop();
 
-assert(two == 2);
-assert(one == 1);
+<span class="kw">assert</span>(two == <span class="number">2</span>);
+<span class="kw">assert</span>(one == <span class="number">1</span>);
 
-// error: cannot pop from an empty vector
-let _ = v.pop();
-</code></pre></div>
+<span class="comment">// error: cannot pop from an empty vector</span>
+<span class="kw">let</span> _ = v.pop();</code></pre></div>
 </div><code id="any" class="code-header">pub fn <a href="#any" class="fn">any</a>&lt;Env&gt;(self, predicate: fn[Env](T) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a>) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <div class="padded-description"><div class="comments">

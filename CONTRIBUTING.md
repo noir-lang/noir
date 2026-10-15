@@ -206,7 +206,7 @@ Every public item in `noir_stdlib` (functions, structs, traits and their methods
 
 For functions whose body is empty (`#[builtin]`, `#[foreign]` and `#[oracle]`), the behavior lives in the compiler: `compiler/noirc_frontend/src/hir/comptime/interpreter/builtin.rs` for comptime builtins, `compiler/noirc_evaluator/src/ssa/ir/instruction.rs` for runtime intrinsics, `acvm-repo/blackbox_solver` and `acvm-repo/bn254_blackbox_solver` for black box functions, and `tooling/nargo/src/foreign_calls` for oracles.
 
-Code blocks tagged `noir` are compiled and run as tests by `just check-stdlib-doc-examples`, which CI also runs. Tag a block `noir,should_fail` when the example is meant to fail an assertion, and `noir,ignore` when it can't run as a test, for example because it is meant not to compile. Untagged blocks are not checked. Run `just stdlib-doc-inventory` to see which items still need a doc comment or an example, and `just stdlib-doc` to regenerate the committed `noir_stdlib/docs` after changing a doc comment.
+Code blocks tagged `noir` are compiled and run as tests by `just check-stdlib-doc-examples`, which CI also runs. Tag a block `noir should_fail` when the example is meant to fail an assertion, and `noir ignore` when it can't run as a test, for example because it is meant not to compile. Put attributes after the language, separated by a space, so Markdown renderers still recognize the block as Noir. Untagged blocks are not checked. Run `just stdlib-doc-inventory` to see which items still need a doc comment or an example, and `just stdlib-doc` to regenerate the committed `noir_stdlib/docs` after changing a doc comment.
 
 ## Changelog
 

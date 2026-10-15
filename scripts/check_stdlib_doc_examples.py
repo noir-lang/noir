@@ -6,11 +6,12 @@ Every fenced block tagged `noir` inside a `///` or `//!` comment under
 `nargo test`. Blocks tagged with anything else (untagged, `rust`, `text`, ...)
 are documentation only and are not checked.
 
-A block's info string can carry comma-separated attributes after `noir`:
+A block's info string can carry attributes after `noir`, separated by spaces
+(or commas, as rustdoc also accepts):
 
     ```noir                  run as a test that must pass
-    ```noir,should_fail      run as `#[test(should_fail)]`: the example must fail an assertion
-    ```noir,ignore           not compiled (e.g. it needs an oracle or a `main` with inputs)
+    ```noir should_fail      run as `#[test(should_fail)]`: the example must fail an assertion
+    ```noir ignore           not compiled (e.g. it needs an oracle or a `main` with inputs)
 
 How a block becomes a test:
 
@@ -80,7 +81,7 @@ def extract_examples(path, rel_path):
             opening = FENCE.match(text.strip())
             if fence is None:
                 if opening:
-                    info = [part.strip() for part in opening.group(2).split(",") if part.strip()]
+                    info = re.split(r"[\s,]+", opening.group(2).strip()) if opening.group(2).strip() else []
                     fence = (opening.group(1), info, number, [])
             elif opening and opening.group(1) == fence[0] and not opening.group(2):
                 backticks, info, start, code = fence

@@ -43,7 +43,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// Note that whenever calling `new` the maximum length of the vector should generally be specified
     /// via a type signature:
     ///
-    /// ```noir,ignore
+    /// ```noir ignore
     /// fn good() -> BoundedVec<Field, 10> {
     ///     // Ok! MaxLen is specified with a type annotation
     ///     let v1: BoundedVec<Field, 3> = BoundedVec::new();
@@ -169,7 +169,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     ///
     /// Example:
     ///
-    /// ```noir,should_fail
+    /// ```noir should_fail
     /// let mut v: BoundedVec<Field, 2> = BoundedVec::new();
     ///
     /// v.push(1);
@@ -408,7 +408,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     ///
     /// Example:
     ///
-    /// ```noir,should_fail
+    /// ```noir should_fail
     /// let mut v: BoundedVec<Field, 2> = BoundedVec::new();
     /// v.push(1);
     /// v.push(2);
