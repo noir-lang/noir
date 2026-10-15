@@ -953,6 +953,9 @@ jobs:
             exit 1
           fi
 
+      - name: Run stdlib doc comment examples
+        run: ./scripts/check_stdlib_doc_examples.py --nargo nargo
+
   # This is a job which depends on all test jobs and reports the overall status.
   # This allows us to add/remove test jobs without having to update the required workflows.
   tests-end:

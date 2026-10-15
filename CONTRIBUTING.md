@@ -194,6 +194,20 @@ In the docs folder, you'll find the current, unreleased version, which we call `
 
 New versions are cut automatically by the release workflow. See [`docs/README.md`](docs/README.md#cutting-a-new-version) for details.
 
+### Standard library doc comments
+
+Every public item in `noir_stdlib` (functions, structs, traits and their methods, type aliases and globals) has a `///` doc comment. This is what `nargo doc`, the LSP and AI tools show for the standard library, so it is the reference for what each item does and guarantees. A doc comment has:
+
+- a one-line summary, then any longer description of the behavior and edge cases;
+- an `Example:` with a code block tagged `noir` that shows a typical call and checks the result with `assert`;
+- a `# Failures` section when the item can fail an assertion, saying under which inputs;
+- a `# Safety` section on `unconstrained` functions and on hints, saying what the caller must constrain before relying on the result;
+- a note on what is and isn't constrained whenever a caller could get that wrong: a constrained function built on an unconstrained hint should say that its result is fully constrained, and a function with a weaker guarantee than its name suggests (it wraps around the field modulus, it doesn't commit to a length, it only works at comptime) should say so.
+
+For functions whose body is empty (`#[builtin]`, `#[foreign]` and `#[oracle]`), the behavior lives in the compiler: `compiler/noirc_frontend/src/hir/comptime/interpreter/builtin.rs` for comptime builtins, `compiler/noirc_evaluator/src/ssa/ir/instruction.rs` for runtime intrinsics, `acvm-repo/blackbox_solver` and `acvm-repo/bn254_blackbox_solver` for black box functions, and `tooling/nargo/src/foreign_calls` for oracles.
+
+Code blocks tagged `noir` are compiled and run as tests by `just check-stdlib-doc-examples`, which CI also runs. Tag a block `noir,should_fail` when the example is meant to fail an assertion, and `noir,ignore` when it can't run as a test, for example because it is meant not to compile. Untagged blocks are not checked. Run `just stdlib-doc-inventory` to see which items still need a doc comment or an example, and `just stdlib-doc` to regenerate the committed `noir_stdlib/docs` after changing a doc comment.
+
 ## Changelog
 
 Noir's Changelog is automatically managed by Release Please and informed by the Conventional Commits (as discussed above).
