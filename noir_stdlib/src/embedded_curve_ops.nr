@@ -202,7 +202,9 @@ impl EmbeddedCurveScalar {
     /// The value is split into its low and high 128 bits. The split is fully constrained: both
     /// limbs are range checked, and they are checked to be the canonical decomposition of `scalar`.
     /// Every `Field` is a valid scalar, because the BN254 scalar field is smaller than the
-    /// Grumpkin scalar field. Only available when compiling for the BN254 field.
+    /// Grumpkin scalar field.
+    ///
+    /// Only available when compiling for the BN254 field.
     ///
     /// Example:
     ///
@@ -236,17 +238,14 @@ impl Hash for EmbeddedCurveScalar {
     }
 }
 
-/// Computes a multi scalar multiplication over the embedded curve.
-/// For bn254, We have Grumpkin.
+/// Returns `scalars[0] * points[0] + ... + scalars[N - 1] * points[N - 1]` on the embedded curve.
 ///
-/// The embedded curve being used is decided by the
-/// underlying proof system.
+/// The embedded curve being used is decided by the underlying proof system; for BN254 it is
+/// Grumpkin.
 ///
 /// IMPORTANT: Prefer `multi_scalar_mul()` over repeated `embedded_curve_add()`
 /// for adding multiple points. This is significantly more efficient.
 /// For adding exactly 2 points, use `embedded_curve_add()` directly.
-///
-/// Returns `scalars[0] * points[0] + ... + scalars[N - 1] * points[N - 1]`.
 ///
 /// Example:
 ///

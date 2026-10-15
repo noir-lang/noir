@@ -94,7 +94,8 @@ pub fn blake2s<let N: u32>(input: [u8; N]) -> [u8; 32]
 
 /// Returns the BLAKE3 hash of `input`, truncated to the default 32-byte output.
 ///
-/// The hash is unkeyed and covers exactly the `N` bytes of `input`.
+/// The hash is unkeyed and covers exactly the `N` bytes of `input`. Barretenberg can't prove
+/// BLAKE3 hashes of inputs longer than 1024 bytes.
 ///
 /// Example:
 ///
@@ -109,10 +110,6 @@ pub fn blake2s<let N: u32>(input: [u8; N]) -> [u8; 32]
 ///     ],
 /// );
 /// ```
-///
-/// # Caveats
-///
-/// Barretenberg can't prove BLAKE3 hashes of inputs longer than 1024 bytes.
 // docs:start:blake3
 pub fn blake3<let N: u32>(input: [u8; N]) -> [u8; 32]
 // docs:end:blake3
@@ -131,17 +128,18 @@ pub fn blake3<let N: u32>(input: [u8; N]) -> [u8; 32]
 #[foreign(blake3)]
 fn __blake3<let N: u32>(input: [u8; N]) -> [u8; 32] {}
 
-/// Returns the Pedersen commitment to `input`: the point `input[0] * G[0] + ... + input[N - 1] * G[N - 1]`
-/// on the embedded curve.
+/// Returns the Pedersen commitment to `input`, a point on the embedded curve.
 ///
-/// The generators `G[i]` are fixed points derived by [`derive_generators`] from the domain
-/// separator `"DEFAULT_DOMAIN_SEPARATOR"`, and nobody knows a discrete-log relation between them,
-/// so the commitment is binding. It is not hiding unless one of the inputs is a random blinding
-/// value. Only available when compiling for the BN254 field.
+/// The commitment is `input[0] * G[0] + ... + input[N - 1] * G[N - 1]`, where the generators
+/// `G[i]` are fixed points derived by [`derive_generators`] from the domain separator
+/// `"DEFAULT_DOMAIN_SEPARATOR"`. Nobody knows a discrete-log relation between the generators, so
+/// the commitment is binding. It is not hiding unless one of the inputs is a random blinding value.
 ///
 /// The commitment does not include the input length, and a zero input adds nothing to the sum,
 /// so inputs that differ only by trailing zeros have the same commitment. Use [`pedersen_hash`],
 /// which does include the length, when inputs of different lengths must not collide.
+///
+/// Only available when compiling for the BN254 field.
 ///
 /// Example:
 ///
@@ -160,19 +158,17 @@ pub fn pedersen_commitment<let N: u32>(input: [Field; N]) -> EmbeddedCurvePoint 
     pedersen_commitment_with_separator(input, 0)
 }
 
-/// Returns the Pedersen commitment to `input`, using the generators starting at index `separator`:
-/// the point `input[0] * G[separator] + ... + input[N - 1] * G[separator + N - 1]`.
+/// Returns the Pedersen commitment to `input`, using the generators starting at index `separator`.
 ///
+/// The commitment is `input[0] * G[separator] + ... + input[N - 1] * G[separator + N - 1]`, and
 /// [`pedersen_commitment`] is this function with a `separator` of 0. All the generators come from
-/// one sequence derived from `"DEFAULT_DOMAIN_SEPARATOR"`, so `separator` only chooses where in
-/// that sequence to start. Only available when compiling for the BN254 field.
+/// one sequence derived from `"DEFAULT_DOMAIN_SEPARATOR"`, so `separator` is a generator offset,
+/// not domain separation: commitments with different separators share generators and can be equal
+/// for different inputs. A commitment with separator 1 equals a commitment with separator 0 whose
+/// input has an extra leading zero. Like [`pedersen_commitment`], the commitment does not include
+/// the input length.
 ///
-/// # Caveats
-///
-/// `separator` is a generator offset, not domain separation. Commitments with different
-/// separators share generators and can be equal for different inputs: a commitment with separator
-/// 1 equals a commitment with separator 0 whose input has an extra leading zero. Like
-/// [`pedersen_commitment`], the commitment also does not include the input length.
+/// Only available when compiling for the BN254 field.
 ///
 /// Example:
 ///
@@ -207,7 +203,9 @@ pub fn pedersen_commitment_with_separator<let N: u32>(
 /// The hash is the x-coordinate of `input[0] * G[0] + ... + input[N - 1] * G[N - 1] + N * L`, where
 /// the generators `G[i]` are those of [`pedersen_commitment`] and `L` is a separate generator for
 /// the length. Because the length is included, inputs that differ only by trailing zeros hash to
-/// different values. Only available when compiling for the BN254 field.
+/// different values.
+///
+/// Only available when compiling for the BN254 field.
 ///
 /// Example:
 ///
@@ -231,16 +229,14 @@ pub fn pedersen_hash<let N: u32>(input: [Field; N]) -> Field
 ///
 /// The hash is the x-coordinate of `input[0] * G[separator] + ... + input[N - 1] * G[separator + N - 1] + N * L`,
 /// with the generators `G[i]` and `L` of [`pedersen_hash`], which is this function with a
-/// `separator` of 0. Only available when compiling for the BN254 field.
+/// `separator` of 0. All the generators come from one sequence derived from
+/// `"DEFAULT_DOMAIN_SEPARATOR"`, so `separator` is a generator offset, not domain separation, and
+/// hashes with different separators can collide: `[0, x]` with separator 0 and `[x, 0]` with
+/// separator 1 have the same hash, because both compute `x * G[1] + 2 * L`. Don't use different
+/// separators to keep hashes of different kinds of data apart; include a distinct tag in the input
+/// instead, at the same position for every kind.
 ///
-/// # Caveats
-///
-/// `separator` is a generator offset, not domain separation. All the generators come from one
-/// sequence derived from `"DEFAULT_DOMAIN_SEPARATOR"`, so hashes with different separators can
-/// collide: `[0, x]` with separator 0 and `[x, 0]` with separator 1 have the same hash, because
-/// both compute `x * G[1] + 2 * L`. Don't use different separators to keep hashes of different
-/// kinds of data apart; include a distinct tag in the input instead, at the same position for
-/// every kind.
+/// Only available when compiling for the BN254 field.
 ///
 /// Example:
 ///
@@ -278,10 +274,10 @@ pub fn pedersen_hash_with_separator<let N: u32>(input: [Field; N], separator: u3
     multi_scalar_mul_array_return(generators, scalars, true)[0].x
 }
 
-/// Derives `N` points on the embedded curve from a domain separator, starting at index
-/// `starting_index`.
+/// Derives `N` generator points on the embedded curve from a domain separator.
 ///
-/// Generator `i` is obtained by hashing the BLAKE3 hash of `domain_separator_bytes` together with
+/// The points are generators `starting_index` to `starting_index + N - 1` of the sequence for
+/// `domain_separator_bytes`. Generator `i` is obtained by hashing the BLAKE3 hash of `domain_separator_bytes` together with
 /// the index `i` onto the curve, so nobody knows a discrete-log relation between any two
 /// generators. The same domain separator and index always give the same point, and the
 /// generators for different domain separators are independent. [`pedersen_commitment`] and
@@ -585,14 +581,15 @@ pub trait Hasher {
 /// A factory for [`Hasher`]s.
 ///
 /// Hash-based collections take a `BuildHasher` so that each one can create fresh hashers of a
-/// chosen type. [`BuildHasherDefault`] builds any hasher that implements `Default`.
+/// chosen type. [`BuildHasherDefault`] builds any hasher that implements `Default`; implement this
+/// trait directly when building a hasher needs some state, such as a starting value.
 ///
 /// Example:
 ///
 /// ```noir
-/// use std::hash::{BuildHasher, BuildHasherDefault, Hasher};
+/// use std::hash::{BuildHasher, Hasher};
 ///
-/// struct Sum {
+/// pub struct Sum {
 ///     total: Field,
 /// }
 ///
@@ -606,17 +603,24 @@ pub trait Hasher {
 ///     }
 /// }
 ///
-/// impl Default for Sum {
-///     fn default() -> Self {
-///         Sum { total: 0 }
+/// // Builds `Sum` hashers that start from a fixed offset.
+/// struct SumFrom {
+///     start: Field,
+/// }
+///
+/// impl BuildHasher for SumFrom {
+///     type H = Sum;
+///
+///     fn build_hasher(self) -> Sum {
+///         Sum { total: self.start }
 ///     }
 /// }
 ///
 /// fn main() {
-///     let builder: BuildHasherDefault<Sum> = BuildHasherDefault::default();
+///     let builder = SumFrom { start: 10 };
 ///     let mut hasher = builder.build_hasher();
 ///     hasher.write(5);
-///     assert_eq(hasher.finish(), 5);
+///     assert_eq(hasher.finish(), 15);
 /// }
 /// ```
 pub trait BuildHasher {

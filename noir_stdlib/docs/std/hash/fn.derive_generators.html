@@ -57,9 +57,9 @@
 ) -> [<a href="../../std/embedded_curve_ops/struct.EmbeddedCurvePoint.html" class="struct">EmbeddedCurvePoint</a>; N]</code></pre>
 
 <div class="comments">
-<p>Derives <code>N</code> points on the embedded curve from a domain separator, starting at index
-<code>starting_index</code>.</p>
-<p>Generator <code>i</code> is obtained by hashing the BLAKE3 hash of <code>domain_separator_bytes</code> together with
+<p>Derives <code>N</code> generator points on the embedded curve from a domain separator.</p>
+<p>The points are generators <code>starting_index</code> to <code>starting_index + N - 1</code> of the sequence for
+<code>domain_separator_bytes</code>. Generator <code>i</code> is obtained by hashing the BLAKE3 hash of <code>domain_separator_bytes</code> together with
 the index <code>i</code> onto the curve, so nobody knows a discrete-log relation between any two
 generators. The same domain separator and index always give the same point, and the
 generators for different domain separators are independent. <a href="../../std/hash/fn.pedersen_commitment.html"><code>pedersen_commitment</code></a> and

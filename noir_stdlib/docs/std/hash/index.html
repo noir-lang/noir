@@ -110,13 +110,10 @@
 <h2 id="functions">Functions</h2><ul class="item-list">
 <li><div class="item-name"><a href="fn.blake2s.html" class="fn">blake2s</a></div><div class="item-description">Returns the BLAKE2s-256 hash of <code>input</code>.</div></li>
 <li><div class="item-name"><a href="fn.blake3.html" class="fn">blake3</a></div><div class="item-description">Returns the BLAKE3 hash of <code>input</code>, truncated to the default 32-byte output.</div></li>
-<li><div class="item-name"><a href="fn.derive_generators.html" class="fn">derive_generators</a></div><div class="item-description">Derives <code>N</code> points on the embedded curve from a domain separator, starting at index
-<code>starting_index</code>.</div></li>
+<li><div class="item-name"><a href="fn.derive_generators.html" class="fn">derive_generators</a></div><div class="item-description">Derives <code>N</code> generator points on the embedded curve from a domain separator.</div></li>
 <li><div class="item-name"><a href="fn.keccakf1600.html" class="fn">keccakf1600</a></div><div class="item-description">Applies the Keccak-f[1600] permutation to a 25-lane state.</div></li>
-<li><div class="item-name"><a href="fn.pedersen_commitment.html" class="fn">pedersen_commitment</a></div><div class="item-description">Returns the Pedersen commitment to <code>input</code>: the point <code>input[0] * G[0] + ... + input[N - 1] * G[N - 1]</code>
-on the embedded curve.</div></li>
-<li><div class="item-name"><a href="fn.pedersen_commitment_with_separator.html" class="fn">pedersen_commitment_with_separator</a></div><div class="item-description">Returns the Pedersen commitment to <code>input</code>, using the generators starting at index <code>separator</code>:
-the point <code>input[0] * G[separator] + ... + input[N - 1] * G[separator + N - 1]</code>.</div></li>
+<li><div class="item-name"><a href="fn.pedersen_commitment.html" class="fn">pedersen_commitment</a></div><div class="item-description">Returns the Pedersen commitment to <code>input</code>, a point on the embedded curve.</div></li>
+<li><div class="item-name"><a href="fn.pedersen_commitment_with_separator.html" class="fn">pedersen_commitment_with_separator</a></div><div class="item-description">Returns the Pedersen commitment to <code>input</code>, using the generators starting at index <code>separator</code>.</div></li>
 <li><div class="item-name"><a href="fn.pedersen_hash.html" class="fn">pedersen_hash</a></div><div class="item-description">Returns the Pedersen hash of <code>input</code>.</div></li>
 <li><div class="item-name"><a href="fn.pedersen_hash_with_separator.html" class="fn">pedersen_hash_with_separator</a></div><div class="item-description">Returns the Pedersen hash of <code>input</code>, using the generators starting at index <code>separator</code>.</div></li>
 <li><div class="item-name"><a href="fn.poseidon2_permutation.html" class="fn">poseidon2_permutation</a></div><div class="item-description">Applies the Poseidon2 permutation to <code>input</code>.</div></li>

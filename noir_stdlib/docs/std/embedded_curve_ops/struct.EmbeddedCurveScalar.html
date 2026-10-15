@@ -97,7 +97,8 @@ Constructing a scalar does not check either condition.</p>
 <p>The value is split into its low and high 128 bits. The split is fully constrained: both
 limbs are range checked, and they are checked to be the canonical decomposition of <code>scalar</code>.
 Every <code>Field</code> is a valid scalar, because the BN254 scalar field is smaller than the
-Grumpkin scalar field. Only available when compiling for the BN254 field.</p>
+Grumpkin scalar field.</p>
+<p>Only available when compiling for the BN254 field.</p>
 <p>Example:</p>
 <pre><code><span class="kw">use</span> std::embedded_curve_ops::EmbeddedCurveScalar;
 

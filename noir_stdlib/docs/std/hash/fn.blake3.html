@@ -55,7 +55,8 @@
 
 <div class="comments">
 <p>Returns the BLAKE3 hash of <code>input</code>, truncated to the default 32-byte output.</p>
-<p>The hash is unkeyed and covers exactly the <code>N</code> bytes of <code>input</code>.</p>
+<p>The hash is unkeyed and covers exactly the <code>N</code> bytes of <code>input</code>. Barretenberg can't prove
+BLAKE3 hashes of inputs longer than 1024 bytes.</p>
 <p>Example:</p>
 <pre><code><span class="kw">let</span> digest = std::hash::blake3(<span class="string">"abc"</span>.as_bytes());
 <span class="kw">assert_eq</span>(
@@ -65,9 +66,7 @@
         <span class="number">0x8d</span>, <span class="number">0xb5</span>, <span class="number">0x48</span>, <span class="number">0xc5</span>, <span class="number">0x58</span>, <span class="number">0x46</span>, <span class="number">0x5d</span>, <span class="number">0x79</span>, <span class="number">0xdb</span>, <span class="number">0x03</span>, <span class="number">0xfd</span>, <span class="number">0x35</span>, <span class="number">0x9c</span>, <span class="number">0x6c</span>,
         <span class="number">0xd5</span>, <span class="number">0xbd</span>, <span class="number">0x9d</span>, <span class="number">0x85</span>,
     ],
-);</code></pre>
-<h2>Caveats</h2>
-<p>Barretenberg can't prove BLAKE3 hashes of inputs longer than 1024 bytes.</p></div>
+);</code></pre></div>
 </div>
 </main>
 </span>

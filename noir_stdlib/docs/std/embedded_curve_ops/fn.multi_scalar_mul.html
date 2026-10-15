@@ -46,14 +46,12 @@
 ) -> <a href="../../std/embedded_curve_ops/struct.EmbeddedCurvePoint.html" class="struct">EmbeddedCurvePoint</a></code></pre>
 
 <div class="comments">
-<p>Computes a multi scalar multiplication over the embedded curve.
-For bn254, We have Grumpkin.</p>
-<p>The embedded curve being used is decided by the
-underlying proof system.</p>
+<p>Returns <code>scalars[0] * points[0] + ... + scalars[N - 1] * points[N - 1]</code> on the embedded curve.</p>
+<p>The embedded curve being used is decided by the underlying proof system; for BN254 it is
+Grumpkin.</p>
 <p>IMPORTANT: Prefer <code>multi_scalar_mul()</code> over repeated <code>embedded_curve_add()</code>
 for adding multiple points. This is significantly more efficient.
 For adding exactly 2 points, use <code>embedded_curve_add()</code> directly.</p>
-<p>Returns <code>scalars[0] * points[0] + ... + scalars[N - 1] * points[N - 1]</code>.</p>
 <p>Example:</p>
 <pre><code><span class="kw">use</span> std::embedded_curve_ops::{EmbeddedCurvePoint, EmbeddedCurveScalar, multi_scalar_mul};
 

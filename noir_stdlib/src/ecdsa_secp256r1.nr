@@ -1,28 +1,15 @@
-/// Verifier for ECDSA Secp256r1 signatures.
-// docs:start:ecdsa_secp256r1
-/// Verifies a ECDSA signature over the secp256r1 curve.
-/// - inputs:
-///     - x coordinate of public key as 32 bytes
-///     - y coordinate of public key as 32 bytes
-///     - the signature, as a 64 bytes array
-///       The signature internally will be represented as `(r, s)`,
-///       where `r` and `s` are fixed-sized big endian scalar values.
-///       As the `secp256r1` has a 256-bit modulus, we have a 64 byte signature
-///       while `r` and `s` will both be 32 bytes.
-///       We expect `s` to be normalized. This means given the curve's order,
-///       `s` should be less than or equal to `order / 2`.
-///       This is done to prevent malleability.
-///       For more context regarding malleability you can reference BIP 0062.
-///     - the hash of the message, as a vector of bytes
-/// - output: false for failure and true for success
+/// Verifies an ECDSA signature over the secp256r1 curve, returning `true` if it is valid.
 ///
-/// The function returns `false` rather than failing for an invalid signature, so the caller must
-/// check the result, typically with `assert`. It also returns `false` if `r` or `s` is zero, if
-/// `s` is greater than `order / 2`, or if the public key is not a point on the curve.
+/// The public key is given by its `x` and `y` coordinates, 32 bytes each. The signature is the
+/// 64 bytes `r || s`, with `r` and `s` 32 bytes each. `message_hash` is the 32-byte hash of the
+/// signed message and is used as given: the function does not hash the message, and a hash that is
+/// not less than the curve's order is reduced modulo the order, as in the ECDSA specification. All
+/// values are big-endian.
 ///
-/// `message_hash` is used as given: the function does not hash the message. A `message_hash`
-/// that is not less than the curve's order is reduced modulo the order, as in the ECDSA
-/// specification. All byte arrays are big-endian.
+/// An invalid signature makes the function return `false`, never fail, so the caller must check
+/// the result, typically with `assert`. The result is also `false` if `r` or `s` is zero, if the
+/// public key is not a point on the curve, or if `s` is greater than `order / 2`: only the
+/// low-`s` form of a signature is accepted, to prevent malleability (see BIP 0062).
 ///
 /// Example:
 ///
@@ -54,6 +41,7 @@
 /// other_hash[0] = 0;
 /// assert(!std::ecdsa_secp256r1::verify_signature(public_key_x, public_key_y, signature, other_hash));
 /// ```
+// docs:start:ecdsa_secp256r1
 pub fn verify_signature(
     public_key_x: [u8; 32],
     public_key_y: [u8; 32],
