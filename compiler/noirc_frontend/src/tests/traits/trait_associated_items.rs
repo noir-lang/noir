@@ -3964,3 +3964,62 @@ fn trait_argument_decided_by_a_call_argument_is_known_before_the_impl_is_chosen(
     "#;
     assert_no_errors(src);
 }
+
+/// An impl's associated constant can name the constant of a generic impl declared after it.
+#[test]
+fn associated_constant_names_a_generic_impl_declared_later() {
+    let src = r#"
+    trait C { let N: u32; }
+    struct S {}
+    impl C for S { let N: u32 = <[u8; 3] as C>::N; }
+    impl<let M: u32> C for [u8; M] { let N: u32 = M * 2; }
+    fn main() -> pub u32 { <S as C>::N }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u32 {
+        6
+    }
+    ");
+}
+
+/// An impl's associated type can name the type of a generic impl declared after it, including
+/// one written in terms of that impl's generics.
+#[test]
+fn associated_type_names_a_generic_impl_declared_later() {
+    let src = r#"
+    trait C { type T; }
+    struct S {}
+    struct W<Y> {}
+    impl C for S { type T = <W<u8> as C>::T; }
+    impl<Y> C for W<Y> { type T = Y; }
+    fn main() -> pub u8 {
+        let x: <S as C>::T = 7;
+        x
+    }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u8 {
+        let x$l0 = 7;
+        x$l0
+    }
+    ");
+}
+
+/// An impl is matched only where its where clause holds, also while it isn't collected yet.
+#[test]
+fn associated_constant_of_an_impl_declared_later_needs_its_where_clause() {
+    let src = r#"
+    trait B {}
+    trait C { let N: u32; }
+    struct W {}
+    struct S {}
+    impl C for S { let N: u32 = <W as C>::N; }
+                                      ^ No matching impl found for `W: B`
+                                      ~ No impl for `W: B`
+    impl C for W where W: B { let N: u32 = 5; }
+    fn main() -> pub u32 { <S as C>::N }
+    "#;
+    check_errors(src);
+}
