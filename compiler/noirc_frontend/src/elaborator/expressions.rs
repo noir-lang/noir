@@ -955,7 +955,7 @@ impl Elaborator<'_> {
 
         let method_ref = self.lookup_method(
             &object_type,
-            method_name,
+            &method_call.method_name,
             location,
             object_location,
             check_self_param,

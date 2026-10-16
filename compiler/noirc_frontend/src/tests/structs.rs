@@ -453,17 +453,19 @@ fn method_call_on_uninferred_receiver_with_multiple_inherent_impls_is_ambiguous(
 
         impl S<u8> {
             pub fn m(_self: Self) -> Field { 8 }
+                   ~ Candidate #1 is defined in an impl for the type `S<u8>`
         }
 
         impl S<u16> {
             pub fn m(_self: Self) -> Field { 16 }
+                   ~ Candidate #2 is defined in an impl for the type `S<u16>`
         }
 
         fn main() {
             let s = S { v: 5 };
             let _ = s.m();
-                    ^ Object type is unknown in method call
-                    ~ Type must be known by this point to know which method to call
+                      ^ Multiple applicable methods named `m` in scope
+                      ~ Multiple `m` found
         }
     "#;
     check_errors(src);
@@ -476,17 +478,56 @@ fn method_call_on_uninferred_receiver_with_multiple_inherent_impls_is_ambiguous_
 
         impl S<u16> {
             pub fn m(_self: Self) -> Field { 16 }
+                   ~ Candidate #1 is defined in an impl for the type `S<u16>`
         }
 
         impl S<u8> {
             pub fn m(_self: Self) -> Field { 8 }
+                   ~ Candidate #2 is defined in an impl for the type `S<u8>`
         }
 
         fn main() {
             let s = S { v: 5 };
             let _ = s.m();
-                    ^ Object type is unknown in method call
-                    ~ Type must be known by this point to know which method to call
+                      ^ Multiple applicable methods named `m` in scope
+                      ~ Multiple `m` found
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn ambiguous_method_call_on_trait_inferred_receiver_reports_only_the_ambiguity() {
+    let src = r#"
+        trait FromField {
+            fn from_field(f: Field) -> Self;
+        }
+
+        impl FromField for u8 {
+            fn from_field(f: Field) -> u8 { f as u8 }
+        }
+
+        impl FromField for u64 {
+            fn from_field(f: Field) -> u64 { f as u64 }
+        }
+
+        struct Amount<T> { v: T }
+
+        impl Amount<u8> {
+            pub fn is_small(self) -> bool { self.v < 100 }
+                   ~~~~~~~~ Candidate #1 is defined in an impl for the type `Amount<u8>`
+        }
+
+        impl Amount<u64> {
+            pub fn is_small(self) -> bool { self.v < 100 }
+                   ~~~~~~~~ Candidate #2 is defined in an impl for the type `Amount<u64>`
+        }
+
+        fn main(x: Field) {
+            let a = Amount { v: FromField::from_field(x) };
+            assert(a.is_small());
+                     ^^^^^^^^ Multiple applicable methods named `is_small` in scope
+                     ~~~~~~~~ Multiple `is_small` found
         }
     "#;
     check_errors(src);

@@ -3231,11 +3231,12 @@ impl Elaborator<'_> {
     pub(crate) fn lookup_method(
         &mut self,
         object_type: &Type,
-        method_name: &str,
+        method_ident: &Ident,
         location: Location,
         object_location: Location,
         check_self_param: bool,
     ) -> Option<HirMethodReference> {
+        let method_name = method_ident.as_str();
         match self.structurally_resolve_type(object_type) {
             // TODO(https://github.com/noir-lang/noir/issues/10518): We should allow method calls on
             // `impl Trait`s eventually. For now it is fine since they are only allowed on return types.
@@ -3258,7 +3259,7 @@ impl Elaborator<'_> {
             // This may be a data type or a primitive type.
             Type::Reference(element, _mutable) => self.lookup_method(
                 &element,
-                method_name,
+                method_ident,
                 location,
                 object_location,
                 check_self_param,
@@ -3276,7 +3277,7 @@ impl Elaborator<'_> {
 
             other => self.lookup_type_or_primitive_method(
                 &other,
-                method_name,
+                method_ident,
                 location,
                 object_location,
                 check_self_param,
@@ -3288,11 +3289,12 @@ impl Elaborator<'_> {
     fn lookup_type_or_primitive_method(
         &mut self,
         object_type: &Type,
-        method_name: &str,
+        method_ident: &Ident,
         location: Location,
         object_location: Location,
         check_self_param: bool,
     ) -> Option<HirMethodReference> {
+        let method_name = method_ident.as_str();
         // First search in the type methods. A directly-defined (inherent) method that is
         // visible from here always wins. If it exists but is not visible, we do not commit to
         // it yet: an accessible trait method may exist that should be called instead. We keep
@@ -3306,9 +3308,28 @@ impl Elaborator<'_> {
         // whose type is not yet known (`S<_>`). Picking one would fix the receiver's type from
         // whichever impl happens to be registered first, so the receiver's type must be known.
         if direct_methods.len() >= 2 {
-            self.push_err(TypeCheckError::TypeAnnotationsNeededForMethodCall {
-                location: object_location,
+            let candidates = vecmap(&direct_methods, |func_id| {
+                let meta = self.interner.function_meta(func_id);
+                let impl_type = meta.self_type.clone().unwrap_or(Type::Error);
+                (impl_type, meta.name.location)
             });
+            self.push_err(TypeCheckError::MultipleApplicableMethodsForObject {
+                method_name: method_name.to_string(),
+                candidates,
+                location: method_ident.location(),
+            });
+
+            // The object's type stays unknown, so its type variables are bound to the error type
+            // to avoid follow-on errors (e.g. an integer variable defaulting to `Field` and then
+            // failing a trait constraint that only the intended impl's type satisfies).
+            let mut unbound = Vec::new();
+            object_type.unbound_type_variables(&mut unbound);
+            let mut seen = HashSet::new();
+            for variable in unbound {
+                if seen.insert(variable.id()).is_none() {
+                    variable.bind(Type::Error);
+                }
+            }
             return None;
         }
 

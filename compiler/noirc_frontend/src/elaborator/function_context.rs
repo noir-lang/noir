@@ -340,6 +340,11 @@ impl Elaborator<'_> {
         error: ImplSearchErrorKind,
         location: Location,
     ) {
+        // An object of the error type comes from an error that has already been reported.
+        if matches!(object_type.follow_bindings(), Type::Error) {
+            return;
+        }
+
         match error {
             ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType => {
                 self.push_err(TypeCheckError::TypeAnnotationsNeededForMethodCall { location });
