@@ -31,7 +31,7 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    exclude: ['@aztec/bb.js'],
+    exclude: ['@aztec-foundation/bb.js'],
   },
   resolve: {
     alias: {
