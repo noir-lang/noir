@@ -9,6 +9,7 @@ use std::{
     path::{Path, PathBuf},
     pin::Pin,
     str::FromStr,
+    sync::Arc,
     task::{self, Poll},
 };
 
@@ -40,7 +41,7 @@ use noirc_frontend::{
     ParsedModule,
     graph::{CrateGraph, CrateId, CrateName},
     hir::{
-        Context, FunctionNameMatch, LspMode, ParsedFiles,
+        CheckedContext, Context, FunctionNameMatch, LspMode, ParsedFiles,
         def_map::{CrateDefMap, parse_file},
     },
     node_interner::NodeInterner,
@@ -126,7 +127,7 @@ pub struct LspState {
 }
 
 struct WorkspaceCacheData {
-    file_manager: FileManager,
+    file_manager: Arc<FileManager>,
 }
 
 struct PackageCacheData {
@@ -380,7 +381,7 @@ impl LspService for NargoLspService {
 }
 
 fn get_package_tests_in_crate(
-    context: &Context,
+    context: &CheckedContext,
     crate_id: &CrateId,
     crate_name: &CrateName,
 ) -> Option<Vec<NargoTest>> {
@@ -503,11 +504,11 @@ pub(crate) fn workspace_package_for_file<'a>(
     }
 }
 
-pub(crate) fn prepare_package<'file_manager, 'parsed_files>(
-    file_manager: &'file_manager FileManager,
-    parsed_files: &'parsed_files ParsedFiles,
+pub(crate) fn prepare_package(
+    file_manager: &Arc<FileManager>,
+    parsed_files: &Arc<ParsedFiles>,
     package: &Package,
-) -> (Context<'file_manager, 'parsed_files>, CrateId) {
+) -> (Context, CrateId) {
     let (mut context, crate_id) = nargo::prepare_package(file_manager, parsed_files, package);
     context.activate_lsp_mode(LspMode::Full);
     (context, crate_id)

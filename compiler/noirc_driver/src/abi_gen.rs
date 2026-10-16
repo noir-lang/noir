@@ -13,7 +13,7 @@ use noirc_frontend::TypeBinding;
 use noirc_frontend::hir::comptime::Value;
 use noirc_frontend::shared::{Signedness, Visibility};
 use noirc_frontend::{
-    hir::Context,
+    hir::CheckedContext,
     hir_def::{function::Param, stmt::HirPattern, types::Type},
     node_interner::{FuncId, NodeInterner},
 };
@@ -21,7 +21,7 @@ use noirc_frontend::{
 /// Arranges a function signature and a generated circuit's return witnesses into a
 /// `noirc_abi::Abi`.
 pub fn gen_abi(
-    context: &Context,
+    context: &CheckedContext,
     func_id: &FuncId,
     return_visibility: Visibility,
     error_types: BTreeMap<ErrorSelector, ErrorType>,
@@ -39,7 +39,7 @@ pub fn gen_abi(
 }
 
 // Get the Span of the root crate's main function, or else a dummy span if that fails
-fn get_main_function_location(context: &Context) -> Location {
+fn get_main_function_location(context: &CheckedContext) -> Location {
     if let Some(func_id) = context.get_main_function(context.root_crate_id()) {
         context.function_meta(&func_id).location
     } else {
@@ -47,7 +47,7 @@ fn get_main_function_location(context: &Context) -> Location {
     }
 }
 
-fn build_abi_error_type(context: &Context, typ: ErrorType) -> AbiErrorType {
+fn build_abi_error_type(context: &CheckedContext, typ: ErrorType) -> AbiErrorType {
     match typ {
         ErrorType::Dynamic(typ) => {
             if let Type::FmtString(len, item_types) = typ {
@@ -69,7 +69,7 @@ fn build_abi_error_type(context: &Context, typ: ErrorType) -> AbiErrorType {
     }
 }
 
-pub(super) fn abi_type_from_hir_type(context: &Context, typ: &Type) -> AbiType {
+pub(super) fn abi_type_from_hir_type(context: &CheckedContext, typ: &Type) -> AbiType {
     match typ {
         Type::FieldElement => AbiType::Field,
         Type::Array(typ, size) => {
@@ -148,7 +148,7 @@ fn to_abi_visibility(value: Visibility) -> AbiVisibility {
 }
 
 pub(super) fn compute_function_abi(
-    context: &Context,
+    context: &CheckedContext,
     func_id: &FuncId,
 ) -> (Vec<AbiParameter>, Option<AbiType>) {
     let func_meta = context.def_interner.function_meta(func_id);
@@ -176,7 +176,7 @@ fn get_param_name<'a>(pattern: &HirPattern, interner: &'a NodeInterner) -> &'a s
     }
 }
 
-fn into_abi_params(context: &Context, params: Vec<Param>) -> Vec<AbiParameter> {
+fn into_abi_params(context: &CheckedContext, params: Vec<Param>) -> Vec<AbiParameter> {
     vecmap(params, |(pattern, typ, vis)| {
         let param_name = get_param_name(&pattern, &context.def_interner).to_owned();
         let as_abi = abi_type_from_hir_type(context, &typ);

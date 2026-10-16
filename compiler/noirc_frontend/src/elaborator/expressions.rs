@@ -791,7 +791,7 @@ impl Elaborator<'_> {
         let (lhs, lhs_type) = self.elaborate_expression(index_expr.collection);
         let (collection, lhs_type) = self.insert_auto_dereferences(lhs, lhs_type);
 
-        let typ = match lhs_type.follow_bindings() {
+        let typ = match self.structurally_resolve_type(&lhs_type) {
             Type::Array(ref base_type, ref size) => {
                 self.check_array_index_out_of_bounds(size, &index, location);
                 *base_type.clone()
@@ -1015,7 +1015,6 @@ impl Elaborator<'_> {
             self.interner,
         );
 
-        let trait_constraints_checkpoint = self.pending_trait_constraint_checkpoint();
         let func_type = self.type_check_variable(function_name, &function_id, generics.clone());
 
         let function_id = self.intern_expr_type(function_id, func_type.clone());
@@ -1091,12 +1090,10 @@ impl Elaborator<'_> {
         // to a function call. This way we avoid duplicating code.
         let typ = self.type_check_call(&function_call, func_type, function_args, location);
 
-        // Argument unification may have made some constraints pushed by `type_check_variable`
-        // concrete. Resolve those now so any associated-type variables they bind are
-        // available before the caller unifies `typ` against an outer annotation. We bound
-        // the scan to constraints introduced by *this* call so per-call cost stays O(1)
-        // in the size of the surrounding function's accumulated constraint queue.
-        self.try_resolve_trait_constraints_since(trait_constraints_checkpoint);
+        // Argument unification may have decided the impl of some queued constraints, so the
+        // associated types they bind are known before the caller unifies `typ` against an outer
+        // annotation.
+        self.select_where_possible();
 
         (function_call, typ)
     }
@@ -1286,24 +1283,13 @@ impl Elaborator<'_> {
         self.mark_struct_as_constructed(&struct_type);
 
         // `last_segment` is optional if this constructor was resolved from a quoted type
-        let mut generics = generics.clone();
+        let generics = generics.clone();
         let mut is_self_type = false;
         let mut constructor_type_location = location;
 
         if let Some(last_segment) = last_segment {
-            let turbofish_location = last_segment.turbofish_location();
             is_self_type = last_segment.ident.is_self_type_name();
             constructor_type_location = last_segment.ident.location();
-
-            let mut errors = Vec::new();
-            generics = self.resolve_struct_turbofish_generics(
-                &struct_type.borrow(),
-                generics,
-                last_segment.generics,
-                turbofish_location,
-                &mut errors,
-            );
-            self.push_errors(errors);
         }
 
         // Each of the struct generics must be bound at the end of the function
@@ -1895,7 +1881,8 @@ impl Elaborator<'_> {
         });
 
         let mut interpreter = self.setup_interpreter();
-        let value = interpreter.evaluate_block(block);
+        let value =
+            interpreter.evaluate_block(block).map(|value| interpreter.apply_runtime_solves(value));
 
         let from_macro_call = false;
         let (id, typ) = self.inline_comptime_value(value, location, from_macro_call);
@@ -2057,8 +2044,7 @@ impl Elaborator<'_> {
         let constraint = TraitConstraint { typ, trait_bound };
 
         let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
-        let self_type = the_trait.self_type_typevar.clone();
-        let kind = the_trait.self_type_typevar.kind().into_owned();
+        let self_param = the_trait.self_param.clone();
 
         let Some(definition) =
             the_trait.find_method_or_constant(path.impl_item.as_str(), self.interner)
@@ -2100,7 +2086,7 @@ impl Elaborator<'_> {
         let mut bindings = TypeBindings::default();
 
         // In `<Type as Trait>::method` we know `Self` is `Type` so we bind that now
-        bindings.insert(self_type.id(), (self_type, kind, constraint.typ));
+        self_param.bind(&constraint.typ, &mut bindings);
 
         let typ = self.type_check_variable_with_bindings(ident, &id, generics, bindings);
         let id = self.intern_expr_type(id, typ.clone());

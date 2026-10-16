@@ -1,0 +1,6 @@
+[package]
+name = "black_box_predicate_folded_in_acir_gen"
+type = "bin"
+authors = [""]
+
+[dependencies]

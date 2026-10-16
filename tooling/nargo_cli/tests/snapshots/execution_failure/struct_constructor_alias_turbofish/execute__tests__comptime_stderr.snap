@@ -1,0 +1,17 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: value above cap
+  ┌─ src/main.nr:7:16
+  │
+7 │         assert(self.v <= MAX, "value above cap");
+  │                ------------- Assertion failed
+  │
+  = Call stack:
+    1: ?
+            at src/main.nr:14:4
+    2: main
+            at src/main.nr:17:5
+
+Error interpreting main function

@@ -2,7 +2,7 @@ use super::dc_mod::collect_defs;
 use super::errors::{DefCollectorErrorKind, DuplicateType};
 use crate::elaborator::Elaborator;
 use crate::graph::CrateId;
-use crate::hir::comptime::{ComptimeError, InterpreterError};
+use crate::hir::comptime::{ComptimeError, ComptimeIo, InterpreterError};
 use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleId};
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir::type_check::{ExpectingOtherError, TypeCheckError};
@@ -11,12 +11,12 @@ use crate::token::SecondaryAttribute;
 use crate::usage_tracker::UnusedItem;
 use crate::{ResolvedGenerics, Type};
 
-use crate::hir::Context;
 use crate::hir::def_map::ModuleDefId;
 use crate::hir::resolution::import::{
     ImportDirective, PathResolutionError, ResolvedImport, resolve_import,
 };
 use crate::hir::resolution::visibility::trait_visibility_for_method_is_satisfied;
+use crate::hir::{CheckState, Context};
 
 use crate::ast::{DocComment, Expression, NoirEnumeration, PathKind, TypeAlias};
 use crate::node_interner::{
@@ -106,7 +106,6 @@ pub struct UnresolvedTraitImpl {
     pub impl_id: Option<TraitImplId>,
     pub resolved_object_type: Option<Type>,
     pub resolved_generics: ResolvedGenerics,
-    pub unresolved_associated_types: Vec<(Ident, UnresolvedType)>,
 
     /// `FuncIds` in `methods.functions` that refer to a trait's own default-method
     /// `FuncId` because this impl did not override the method. The default body
@@ -425,6 +424,8 @@ impl DefCollector {
         ast: SortedModule,
         root_file_id: FileId,
         options: FrontendOptions,
+        comptime_io: &mut ComptimeIo,
+        state: &mut CheckState,
     ) -> Vec<CompilationError> {
         let mut errors = CompilationErrors::default();
         let crate_id = def_map.krate();
@@ -437,7 +438,13 @@ impl DefCollector {
         let crate_graph = &context.crate_graph[crate_id];
 
         for dep in crate_graph.dependencies.clone() {
-            errors.extend(CrateDefMap::collect_defs(dep.crate_id, context, options));
+            errors.extend(CrateDefMap::collect_defs(
+                dep.crate_id,
+                context,
+                options,
+                comptime_io,
+                state,
+            ));
 
             let dep_def_map =
                 context.def_map(&dep.crate_id).expect("ICE: def map was just created");
@@ -472,6 +479,8 @@ impl DefCollector {
             context,
             def_collector,
             options,
+            comptime_io,
+            state,
             reuse_existing_module_declarations,
             &mut errors,
         );
@@ -504,6 +513,8 @@ impl DefCollector {
         context: &mut Context,
         mut def_collector: DefCollector,
         options: FrontendOptions,
+        comptime_io: &mut ComptimeIo,
+        state: &mut CheckState,
         reuse_existing_module_declarations: bool,
         errors: &mut CompilationErrors,
     ) {
@@ -526,6 +537,7 @@ impl DefCollector {
             local_module_id,
             crate_id,
             context,
+            state,
             reuse_existing_module_declarations,
         ));
 
@@ -562,8 +574,14 @@ impl DefCollector {
             disable_required_unstable_features: options.disable_required_unstable_features,
         };
 
-        let more_errors =
-            Elaborator::elaborate(context, crate_id, def_collector.items, cli_options);
+        let more_errors = Elaborator::elaborate(
+            context,
+            crate_id,
+            def_collector.items,
+            cli_options,
+            comptime_io,
+            state,
+        );
 
         errors.extend(more_errors);
     }

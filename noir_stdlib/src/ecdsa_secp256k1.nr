@@ -1,19 +1,47 @@
+/// Verifies an ECDSA signature over the secp256k1 curve, returning `true` if it is valid.
+///
+/// The public key is given by its `x` and `y` coordinates, 32 bytes each. The signature is the
+/// 64 bytes `r || s`, with `r` and `s` 32 bytes each. `message_hash` is the 32-byte hash of the
+/// signed message and is used as given: the function does not hash the message, and a hash that is
+/// not less than the curve's order is reduced modulo the order, as in the ECDSA specification. All
+/// values are big-endian.
+///
+/// An invalid signature makes the function return `false`, never fail, so the caller must check
+/// the result, typically with `assert`. The result is also `false` if `r` or `s` is zero, if the
+/// public key is not a point on the curve, or if `s` is greater than `order / 2`: only the
+/// low-`s` form of a signature is accepted, to prevent malleability (see BIP 0062).
+///
+/// Example:
+///
+/// ```noir
+/// let message_hash = [
+///     0x3a, 0x73, 0xf4, 0x12, 0x3a, 0x5c, 0xd2, 0x12, 0x1f, 0x21, 0xcd, 0x7e, 0x8d, 0x35, 0x88, 0x35,
+///     0x47, 0x69, 0x49, 0xd0, 0x35, 0xd9, 0xc2, 0xda, 0x68, 0x06, 0xb4, 0x63, 0x3a, 0xc8, 0xc1, 0xe2,
+/// ];
+/// let public_key_x = [
+///     0xa0, 0x43, 0x4d, 0x9e, 0x47, 0xf3, 0xc8, 0x62, 0x35, 0x47, 0x7c, 0x7b, 0x1a, 0xe6, 0xae, 0x5d,
+///     0x34, 0x42, 0xd4, 0x9b, 0x19, 0x43, 0xc2, 0xb7, 0x52, 0xa6, 0x8e, 0x2a, 0x47, 0xe2, 0x47, 0xc7,
+/// ];
+/// let public_key_y = [
+///     0x89, 0x3a, 0xba, 0x42, 0x54, 0x19, 0xbc, 0x27, 0xa3, 0xb6, 0xc7, 0xe6, 0x93, 0xa2, 0x4c, 0x69,
+///     0x6f, 0x79, 0x4c, 0x2e, 0xd8, 0x77, 0xa1, 0x59, 0x3c, 0xbe, 0xe5, 0x3b, 0x03, 0x73, 0x68, 0xd7,
+/// ];
+/// let signature = [
+///     0xe5, 0x08, 0x1c, 0x80, 0xab, 0x42, 0x7d, 0xc3, 0x70, 0x34, 0x6f, 0x4a, 0x0e, 0x31, 0xaa, 0x2b,
+///     0xad, 0x8d, 0x97, 0x98, 0xc3, 0x80, 0x61, 0xdb, 0x9a, 0xe5, 0x5a, 0x4e, 0x8d, 0xf4, 0x54, 0xfd,
+///     0x28, 0x11, 0x98, 0x94, 0x34, 0x4e, 0x71, 0xb7, 0x87, 0x70, 0xcc, 0x93, 0x1d, 0x61, 0xf4, 0x80,
+///     0xec, 0xbb, 0x0b, 0x89, 0xd6, 0xeb, 0x69, 0x69, 0x01, 0x61, 0xe4, 0x9a, 0x71, 0x5f, 0xcd, 0x55,
+/// ];
+///
+/// let valid = std::ecdsa_secp256k1::verify_signature(public_key_x, public_key_y, signature, message_hash);
+/// assert(valid);
+///
+/// // A different message hash doesn't verify.
+/// let mut other_hash = message_hash;
+/// other_hash[0] = 0;
+/// assert(!std::ecdsa_secp256k1::verify_signature(public_key_x, public_key_y, signature, other_hash));
+/// ```
 // docs:start:ecdsa_secp256k1
-/// Verifies a ECDSA signature over the secp256k1 curve.
-/// - inputs:
-///     - x coordinate of public key as 32 bytes
-///     - y coordinate of public key as 32 bytes
-///     - the signature, as a 64 bytes array
-///       The signature internally will be represented as `(r, s)`,
-///       where `r` and `s` are fixed-sized big endian scalar values.
-///       As the `secp256k1` has a 256-bit modulus, we have a 64 byte signature
-///       while `r` and `s` will both be 32 bytes.
-///       We expect `s` to be normalized. This means given the curve's order,
-///       `s` should be less than or equal to `order / 2`.
-///       This is done to prevent malleability.
-///       For more context regarding malleability you can reference BIP 0062.
-///     - the hash of the message, as a vector of bytes
-/// - output: false for failure and true for success
 pub fn verify_signature(
     public_key_x: [u8; 32],
     public_key_y: [u8; 32],

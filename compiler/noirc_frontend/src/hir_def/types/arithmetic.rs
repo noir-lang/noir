@@ -32,6 +32,13 @@ impl Type {
         self.follow_bindings().canonicalize_helper(false, run_simplifications)
     }
 
+    /// Run all simplifications and drop any `CheckedCast`, keeping only its `to` side.
+    /// This is the form a type is compared in, without the validation obligations of its
+    /// casts, so it suits showing a type rather than checking one.
+    pub(crate) fn canonicalize_without_checked_casts(&self) -> Type {
+        self.follow_bindings().canonicalize_unchecked()
+    }
+
     /// Only simplify constants and drop/skip any `CheckedCast`'s
     pub(crate) fn canonicalize_checked(&self) -> Type {
         self.follow_bindings().canonicalize_checked_helper()
@@ -752,8 +759,8 @@ mod proptests {
         elaborator::{Elaborator, ElaboratorOptions},
         graph::CrateId,
         hir::{
-            Context,
-            comptime::{Integer, Interpreter, Value},
+            CheckState, Context,
+            comptime::{ComptimeIo, Integer, Interpreter, Value},
             def_map::{CrateDefMap, ModuleData},
         },
         hir_def::types::{
@@ -1137,10 +1144,7 @@ mod proptests {
             let root = Path::new(".");
             let file_manager = FileManager::new(root);
             let parsed_files = HashMap::new();
-            let mut context = Context::from_ref_file_manager(
-                &file_manager,
-                &parsed_files,
-            );
+            let mut context = Context::new(file_manager, parsed_files);
             let crate_id = CrateId::Root(0);
             let root_module = ModuleData::new(
                 None,
@@ -1157,7 +1161,15 @@ mod proptests {
                 enabled_unstable_features: &[],
                 disable_required_unstable_features: false,
             };
-            let mut elaborator = Elaborator::from_context(&mut context, crate_id, options);
+            let mut comptime_io = ComptimeIo::stdout();
+            let mut state = CheckState::default();
+            let mut elaborator = Elaborator::from_context(
+                &mut context,
+                crate_id,
+                options,
+                &mut comptime_io,
+                &mut state,
+            );
             let (expr_id, expr_type) = elaborator.elaborate_expression(expr);
 
             assert_eq!(elaborator.errors.as_ref(), vec![]);

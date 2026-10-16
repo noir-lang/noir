@@ -19,7 +19,7 @@
 <h1><a href="../../index.html">noir_stdlib</a></h1>
 <div><a href="../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.3</div>
+<div id="crate-version">1.0.0-rc.5</div>
 <h2><a href="#struct">Struct EmbeddedCurvePoint</a></h2>
 <h3>Fields</h3>
 <ul class="sidebar-list">
@@ -71,7 +71,18 @@
 <p>A point on the embedded elliptic curve
 By definition, the base field of the embedded curve is the scalar field of the proof system curve, i.e the Noir Field.
 x and y denotes the Weierstrass coordinates of the point.</p>
-</div>
+<p>For BN254 the embedded curve is Grumpkin, <code>y^2 = x^3 - 17</code>. The point at infinity is
+represented as <code>(0, 0)</code>, which is not otherwise on the curve.</p>
+<p>Constructing a point does not check that it is on the curve. <a href="../../std/embedded_curve_ops/fn.embedded_curve_add.html"><code>embedded_curve_add</code></a> and
+<a href="../../std/embedded_curve_ops/fn.multi_scalar_mul.html"><code>multi_scalar_mul</code></a> fail at execution if an input is neither on the curve nor <code>(0, 0)</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::embedded_curve_ops::EmbeddedCurvePoint;
+
+<span class="kw">let</span> g = EmbeddedCurvePoint::generator();
+<span class="kw">let</span> two_g = g + g;
+<span class="kw">assert_eq</span>(two_g, g.double());
+<span class="kw">assert_eq</span>(two_g - g, g);
+<span class="kw">assert</span>((g - g).is_infinite());</code></pre></div>
 <h2>Fields</h2>
 <div id="structfield.x" class="struct-field"><code class="code-header">x: <a href="../../std/primitive.Field.html" class="primitive">Field</a></code></div>
 <div class="padded-description"></div><div id="structfield.y" class="struct-field"><code class="code-header">y: <a href="../../std/primitive.Field.html" class="primitive">Field</a></code></div>
@@ -82,28 +93,57 @@ x and y denotes the Weierstrass coordinates of the point.</p>
 
 <div class="padded-description"><div class="comments">
 <p>Create a new point using the provided (x, y) pair</p>
-</div>
+<p>The coordinates are not checked to be on the curve.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::embedded_curve_ops::EmbeddedCurvePoint;
+
+<span class="kw">let</span> g = EmbeddedCurvePoint::generator();
+<span class="kw">assert_eq</span>(EmbeddedCurvePoint::new(g.x, g.y), g);</code></pre></div>
 </div><code id="double" class="code-header">pub fn <a href="#double" class="fn">double</a>(self) -> Self</code>
 
 <div class="padded-description"><div class="comments">
 <p>Elliptic curve point doubling operation
 returns the doubled point of a point P, i.e P+P</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::embedded_curve_ops::EmbeddedCurvePoint;
+
+<span class="kw">let</span> g = EmbeddedCurvePoint::generator();
+<span class="kw">assert_eq</span>(g.double(), g + g);</code></pre>
+<h4>Failures</h4>
+<p>Fails at execution if <code>self</code> is neither on the curve nor the point at infinity.</p></div>
 </div><code id="point_at_infinity" class="code-header">pub fn <a href="#point_at_infinity" class="fn">point_at_infinity</a>() -> Self</code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns the null element of the curve; 'the point at infinity'</p>
-</div>
+<p>It is represented as <code>(0, 0)</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::embedded_curve_ops::EmbeddedCurvePoint;
+
+<span class="kw">let</span> g = EmbeddedCurvePoint::generator();
+<span class="kw">let</span> infinity = EmbeddedCurvePoint::point_at_infinity();
+<span class="kw">assert</span>(infinity.is_infinite());
+<span class="kw">assert_eq</span>(g + infinity, g);</code></pre></div>
 </div><code id="generator" class="code-header">pub fn <a href="#generator" class="fn">generator</a>() -> Self</code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns the curve's generator point.</p>
-</div>
+<p>This is the Grumpkin generator <code>(1, sqrt(-16))</code>, the base point of
+<a href="../../std/embedded_curve_ops/fn.fixed_base_scalar_mul.html"><code>fixed_base_scalar_mul</code></a>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::embedded_curve_ops::{EmbeddedCurvePoint, EmbeddedCurveScalar, fixed_base_scalar_mul};
+
+<span class="kw">let</span> g = EmbeddedCurvePoint::generator();
+<span class="kw">assert_eq</span>(g.x, <span class="number">1</span>);
+<span class="kw">assert_eq</span>(fixed_base_scalar_mul(EmbeddedCurveScalar::new(<span class="number">1</span>, <span class="number">0</span>)), g);</code></pre></div>
 </div><code id="is_infinite" class="code-header">pub fn <a href="#is_infinite" class="fn">is_infinite</a>(self) -> <a href="../../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>True if this point is the point at infinity</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::embedded_curve_ops::EmbeddedCurvePoint;
+
+<span class="kw">assert</span>(EmbeddedCurvePoint::point_at_infinity().is_infinite());
+<span class="kw">assert</span>(!EmbeddedCurvePoint::generator().is_infinite());</code></pre></div>
 </div></div><h2>Trait implementations</h2>
 <h3 id="impl-Add-for-EmbeddedCurvePoint"><code class="code-header">impl <a href="../../std/ops/trait.Add.html" class="trait">Add</a> for <a href="../../std/embedded_curve_ops/struct.EmbeddedCurvePoint.html" class="struct">EmbeddedCurvePoint</a></code></h3>
 

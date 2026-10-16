@@ -9,7 +9,7 @@ use std::path::Path;
 
 use noirc_driver::{CompileOptions, file_manager_with_stdlib, prepare_crate};
 use noirc_errors::CustomDiagnostic;
-use noirc_frontend::hir::{Context, def_map::parse_file};
+use noirc_frontend::hir::{Context, ParsedFiles, def_map::parse_file};
 
 fn compile_warnings(source: &str) -> Vec<CustomDiagnostic> {
     let root = Path::new("");
@@ -18,7 +18,7 @@ fn compile_warnings(source: &str) -> Vec<CustomDiagnostic> {
     file_manager.add_file_with_source(file_name, source.to_owned()).expect(
         "Adding source buffer to file manager should never fail when file manager is empty",
     );
-    let parsed_files = file_manager
+    let parsed_files: ParsedFiles = file_manager
         .as_file_map()
         .all_file_ids()
         .map(|&file_id| (file_id, parse_file(&file_manager, file_id)))
@@ -29,7 +29,7 @@ fn compile_warnings(source: &str) -> Vec<CustomDiagnostic> {
 
     let options = CompileOptions::default();
     let (_program, warnings) =
-        noirc_driver::compile_main(&mut context, root_crate_id, &options, None)
+        noirc_driver::compile_main(context, root_crate_id, &options, Path::new(""), false, None)
             .expect("program should compile successfully");
     warnings
 }

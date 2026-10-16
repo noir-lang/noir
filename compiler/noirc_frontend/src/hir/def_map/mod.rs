@@ -1,7 +1,8 @@
 use crate::elaborator::FrontendOptions;
 use crate::graph::{CrateGraph, CrateId};
-use crate::hir::Context;
+use crate::hir::comptime::ComptimeIo;
 use crate::hir::def_collector::dc_crate::{CompilationError, DefCollector};
+use crate::hir::{CheckState, Context};
 use crate::node_interner::{FuncId, NodeInterner};
 use crate::parse_program;
 use crate::parser::{ParsedModule, ParserError};
@@ -106,6 +107,8 @@ impl CrateDefMap {
         crate_id: CrateId,
         context: &mut Context,
         options: FrontendOptions,
+        comptime_io: &mut ComptimeIo,
+        state: &mut CheckState,
     ) -> Vec<CompilationError> {
         // Check if this Crate has already been compiled
         // XXX: There is probably a better alternative for this.
@@ -142,6 +145,8 @@ impl CrateDefMap {
             ast,
             root_file_id,
             options,
+            comptime_io,
+            state,
         ));
 
         errors.extend(parsing_errors.iter().map(|e| e.clone().into()).collect::<Vec<_>>());
@@ -160,10 +165,6 @@ impl CrateDefMap {
 
     pub fn modules(&self) -> &Arena<ModuleData> {
         &self.modules
-    }
-
-    pub fn modules_mut(&mut self) -> &mut Arena<ModuleData> {
-        &mut self.modules
     }
 
     pub(crate) fn insert_module(&mut self, module: ModuleData) -> LocalModuleId {

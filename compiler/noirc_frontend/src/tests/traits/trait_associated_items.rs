@@ -1,7 +1,10 @@
 //! Tests for associated types and associated constants in traits.
 //! Validates accessing, computing with, and constraining associated items.
 
-use crate::tests::{assert_no_errors, check_errors, check_monomorphization_error};
+use crate::{
+    test_utils::get_monomorphized,
+    tests::{assert_no_errors, check_errors, check_monomorphization_error},
+};
 
 #[test]
 fn passes_trait_with_associated_number_to_generic_function() {
@@ -767,9 +770,11 @@ fn associated_type_mismatch_with_inheritance() {
     pub trait Qux: Foo {
         type Baz;
         fn qux(x: Self::Baz) -> Self::Baz {
+                                ^^^^^^^^^ expected type Self::Baz, found type Self::Bar
+                                ~~~~~~~~~ expected Self::Baz because of return type
             <Self as Foo>::foo(x)
-             ^^^^^^^^^^^ No matching impl found for `Self: Foo<Bar = Self::Baz>`
-             ~~~~~~~~~~~ No impl for `Self: Foo<Bar = Self::Baz>`
+                               ^ Expected type Self::Bar, found type Self::Baz
+            ~~~~~~~~~~~~~~~~~~~~~ Self::Bar returned here
         }
     }
 
@@ -2717,6 +2722,67 @@ fn explicit_type_at_trait_method_call_with_zero_associated_constant() {
     assert_no_errors(src);
 }
 
+/// The associated type a path call returns is decided by a trait constraint. That constraint is
+/// solved when the result's type is needed, so the result can be used right away.
+#[test]
+fn associated_type_returned_by_path_call_is_known_when_the_result_is_used() {
+    let src = r#"
+    pub trait Tr {
+        type Out;
+        fn mk() -> Self::Out;
+        fn mk2(self) -> Self::Out;
+    }
+
+    pub struct K {}
+    impl Tr for K {
+        type Out = (u8, u16);
+        fn mk() -> (u8, u16) { (1, 2) }
+        fn mk2(self) -> (u8, u16) { (3, 4) }
+    }
+
+    pub struct G<let N: u32> {}
+    impl<let N: u32> Tr for G<N> {
+        type Out = [u8; N];
+        fn mk() -> [u8; N] { [5; N] }
+        fn mk2(self) -> [u8; N] { [6; N] }
+    }
+
+    trait Size { fn size(self) -> u32; }
+    impl<let N: u32> Size for [u8; N] { fn size(self) -> u32 { N } }
+
+    pub struct B {}
+    impl Tr for B {
+        type Out = bool;
+        fn mk() -> bool { true }
+        fn mk2(self) -> bool { true }
+    }
+
+    fn bt<T: Tr>() -> T::Out { T::mk() }
+
+    fn bound_with_associated_type<T: Tr<Out = (u8, u16)>>(t: T) -> u16 { Tr::mk2(t).1 }
+
+    fn main() {
+        let _: u16 = <K as Tr>::mk().1;
+        let a = <K as Tr>::mk();
+        let _: u16 = a.1;
+        let _: u16 = Tr::mk2(K {}).1;
+        let _: u16 = bt::<K>().1;
+        let _: u32 = <G<3> as Tr>::mk().size();
+        let _: u8 = <G<3> as Tr>::mk()[0];
+        let _: u32 = Tr::mk2(G::<3> {}).size();
+        let _: u16 = bound_with_associated_type(K {});
+        let f = <K as Tr>::mk;
+        let _: u16 = f().1;
+        let mut b = <G<3> as Tr>::mk();
+        b[0] = 1;
+        let (_, c) = <K as Tr>::mk();
+        let _: u16 = c;
+        let _: u8 = <B as Tr>::mk() as u8;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
 #[test]
 fn trait_associated_constant_global_uses_placeholder_statement() {
     use crate::hir::def_map::ModuleDefId;
@@ -2930,6 +2996,37 @@ fn associated_constant_shorthand_on_generic_trait_is_ambiguous_with_multiple_imp
         let _: u32 = Bar::CONST;
                           ^^^^^ Multiple `impl`s of `Foo` apply to `Bar`
     }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn associated_constant_shorthand_on_generic_impl_uses_the_type_arguments() {
+    let src = r#"
+    pub trait Tr<let M: u32> { let C: u32; }
+    pub struct G<let N: u32> {}
+    impl<let N: u32> Tr<N> for G<N> { let C: u32 = N * 10; }
+    fn main() -> pub u32 { G::<7>::C }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u32 {
+        70
+    }
+    ");
+}
+
+#[test]
+fn associated_constant_shorthand_on_generic_impl_is_ambiguous_with_another_impl() {
+    let src = r#"
+    pub trait Tr<let M: u32> { let C: u32; }
+    pub struct G<let N: u32> {}
+    impl<let N: u32> Tr<N> for G<N> { let C: u32 = N * 10; }
+                               ~~~~ candidate `Tr<N>` defined here
+    impl Tr<5> for G<7> { let C: u32 = 1; }
+                   ~~~~ candidate `Tr<5>` defined here
+    fn main() -> pub u32 { G::<7>::C }
+                                   ^ Multiple `impl`s of `Tr` apply to `G<7>`
     "#;
     check_errors(src);
 }
@@ -3303,4 +3400,626 @@ fn comptime_as_trait_associated_constant_uses_function_generics() {
     }
     "#;
     assert_no_errors(src);
+}
+
+#[test]
+fn associated_type_bound_mentioning_self_is_checked_for_each_impl() {
+    let src = r#"
+    trait Conv<T> {}
+    trait Foo {
+        type Out: Conv<Self>;
+    }
+    pub struct A {}
+    pub struct S {}
+    pub struct W {}
+    impl Conv<W> for A {}
+    impl Foo for W {
+        type Out = A;
+    }
+    impl Foo for S {
+        type Out = A;
+             ^^^ No matching impl found for `A: Conv<S>`
+             ~~~ No impl for `A: Conv<S>`
+    }
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn associated_type_bound_mentioning_trait_generic_is_checked_with_impl_arguments() {
+    let src = r#"
+    trait Bound<T> {}
+    trait Foo<T> {
+        type Output: Bound<T>;
+    }
+    pub struct Out {}
+    pub struct MyType {}
+    impl Bound<u32> for Out {}
+    impl Foo<u32> for MyType {
+        type Output = Out;
+    }
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn associated_type_bound_mentioning_self_is_assumed_for_the_bounded_type() {
+    let src = r#"
+    trait Conv<T> {
+        fn conv(self) -> Field;
+    }
+    trait Foo {
+        type Out: Conv<Self>;
+    }
+    pub struct Item {}
+    pub struct Wide {}
+    impl Conv<Wide> for Item {
+        fn conv(self) -> Field { 1 }
+    }
+    impl Foo for Wide {
+        type Out = Item;
+    }
+    fn needs_conv<X, O: Conv<X>>(o: O) -> Field {
+        o.conv()
+    }
+    pub fn run<X: Foo>(o: X::Out) -> Field {
+        needs_conv::<X, X::Out>(o)
+    }
+    pub fn pin<X: Foo>(o: X::Out) -> Field {
+        needs_conv::<Wide, X::Out>(o)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^ No matching impl found for `<X as Foo>::Out: Conv<Wide>`
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~ No impl for `<X as Foo>::Out: Conv<Wide>`
+    }
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn associated_type_bound_mentioning_self_dispatches_per_bounded_type() {
+    let src = r#"
+    trait Conv<T> {
+        fn conv(self) -> Field;
+    }
+    trait Foo {
+        type Out: Conv<Self>;
+    }
+    struct A {
+        v: Field,
+    }
+    struct B {
+        v: Field,
+    }
+    struct S {}
+    struct W {}
+    impl Conv<W> for B {
+        fn conv(self) -> Field {
+            self.v
+        }
+    }
+    impl Conv<S> for A {
+        fn conv(self) -> Field {
+            assert(self.v != 100);
+            self.v
+        }
+    }
+    impl Conv<W> for A {
+        fn conv(self) -> Field {
+            self.v
+        }
+    }
+    impl Foo for W {
+        type Out = B;
+    }
+    impl Foo for S {
+        type Out = A;
+    }
+    fn run<X: Foo>(_x: X, o: X::Out) -> Field {
+        o.conv()
+    }
+    fn main(v: Field) -> pub Field {
+        run(W {}, B { v: 0 }) + run(S {}, A { v })
+    }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0(v$l0: Field) -> pub Field {
+        (run$f1({
+            ()
+        }, {
+            let v$l1 = 0;
+            (v$l1)
+        }) + run$f2({
+            ()
+        }, {
+            let v$l2 = v$l0;
+            (v$l2)
+        }))
+    }
+    fn run$f1(_x$l3: (), o$l4: (Field,)) -> Field {
+        conv$f3(o$l4)
+    }
+    fn run$f2(_x$l5: (), o$l6: (Field,)) -> Field {
+        conv$f4(o$l6)
+    }
+    fn conv$f3(self$l7: (Field,)) -> Field {
+        self$l7.0
+    }
+    fn conv$f4(self$l8: (Field,)) -> Field {
+        assert((self$l8.0 != 100));;
+        self$l8.0
+    }
+    ");
+}
+
+#[test]
+fn impl_method_matches_bound_on_associated_type_of_another_bound() {
+    let src = "
+    trait Bar { type T; }
+    trait Baz { type U; }
+    trait Foo { fn foo<B>(b: B) where B: Bar, <B as Bar>::T: Baz; }
+    impl Foo for Field { fn foo<B>(_: B) where B: Bar, <B as Bar>::T: Baz {} }
+    fn main() {}
+    ";
+    assert_no_errors(src);
+}
+
+#[test]
+fn impl_method_matches_bound_on_associated_type_of_a_later_bound() {
+    let src = "
+    trait Bar { type T; }
+    trait Baz { type U; }
+    trait Foo { fn foo<B>(b: B) where <B as Bar>::T: Baz, B: Bar; }
+    impl Foo for Field { fn foo<B>(_: B) where <B as Bar>::T: Baz, B: Bar {} }
+    fn main() {}
+    ";
+    assert_no_errors(src);
+}
+
+#[test]
+fn impl_method_matches_bound_with_associated_type_of_another_bound_as_argument() {
+    let src = "
+    trait Bar { type T; }
+    trait Qux<X> { type U; }
+    trait Foo { fn foo<B, C>(b: B, c: C) where B: Bar, C: Qux<<B as Bar>::T>; }
+    impl Foo for Field { fn foo<B, C>(_: B, _: C) where B: Bar, C: Qux<<B as Bar>::T> {} }
+    fn main() {}
+    ";
+    assert_no_errors(src);
+}
+
+#[test]
+fn impl_method_pinning_associated_type_of_another_bound_is_stricter_than_trait() {
+    let src = "
+    trait Bar { type T; }
+    trait Baz { type U; }
+    trait Foo { fn foo<B>(b: B) where B: Bar, <B as Bar>::T: Baz; }
+                   ~~~ definition of `foo` from trait
+    impl Foo for Field { fn foo<B>(_: B) where B: Bar, <B as Bar>::T: Baz<U = u8> {} }
+                                                                      ^^^ impl has stricter requirements than trait
+                                                                      ~~~ impl has extra requirement `<B as Bar>::T: Baz<U = u8>`
+    fn main() {}
+    ";
+    check_errors(src);
+}
+
+#[test]
+fn impl_used_before_it_is_finished_needs_its_where_clause() {
+    let src = r#"
+    trait B {}
+    trait C { type T; }
+    pub struct W {}
+    pub struct S {}
+    impl C for S { type T = <W as C>::T; }
+                                  ^ No matching impl found for `W: B`
+                                  ~ No impl for `W: B`
+    impl C for W where W: B { type T = u8; }
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn impl_used_before_it_is_finished_applies_when_its_where_clause_holds() {
+    let src = r#"
+    trait B {}
+    trait C { let N: u32; }
+    pub struct W {}
+    pub struct S {}
+    impl C for S { let N: u32 = <W as C>::N; }
+    impl C for W where W: B { let N: u32 = 5; }
+    impl B for W {}
+    fn main() -> pub u32 { <S as C>::N }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u32 {
+        5
+    }
+    ");
+}
+
+#[test]
+fn associated_constant_shorthand_on_generic_impl_of_non_generic_trait_uses_the_type_arguments() {
+    let src = r#"
+    pub trait Tr { let C: u32; }
+    pub struct G<let N: u32> {}
+    impl<let N: u32> Tr for G<N> { let C: u32 = N * 10; }
+    fn main() -> pub u32 { G::<7>::C }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u32 {
+        70
+    }
+    ");
+}
+
+#[test]
+fn associated_constant_shorthand_inside_generic_impl_uses_its_own_type_arguments() {
+    let src = r#"
+    pub trait HasBits { let BITS: u32; fn bits_of_eight() -> u32; }
+    pub struct UInt<let N: u32> {}
+    impl<let N: u32> HasBits for UInt<N> {
+        let BITS: u32 = N;
+        fn bits_of_eight() -> u32 { UInt::<8>::BITS }
+    }
+    fn main() -> pub u32 { UInt::<16>::bits_of_eight() }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u32 {
+        bits_of_eight$f1()
+    }
+    fn bits_of_eight$f1() -> u32 {
+        8
+    }
+    ");
+}
+
+#[test]
+fn associated_constant_shorthand_inside_generic_impl_uses_its_own_type_arguments_at_comptime() {
+    let src = r#"
+    pub trait HasBits { let BITS: u32; fn bits_of_eight() -> u32; }
+    pub struct UInt<let N: u32> {}
+    impl<let N: u32> HasBits for UInt<N> {
+        let BITS: u32 = N;
+        fn bits_of_eight() -> u32 { UInt::<8>::BITS }
+    }
+    fn main() -> pub u32 { comptime { UInt::<16>::bits_of_eight() } }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u32 {
+        8
+    }
+    ");
+}
+
+#[test]
+fn associated_constant_type_path_inside_generic_impl_uses_its_own_type_arguments() {
+    let src = r#"
+    pub trait HasBits { let BITS: u32; fn bits_of_eight() -> u32; }
+    pub struct UInt<let N: u32> {}
+    impl<let N: u32> HasBits for UInt<N> {
+        let BITS: u32 = N;
+        fn bits_of_eight() -> u32 { <UInt<8>>::BITS }
+    }
+    fn main() -> pub u32 { UInt::<16>::bits_of_eight() }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u32 {
+        bits_of_eight$f1()
+    }
+    fn bits_of_eight$f1() -> u32 {
+        8
+    }
+    ");
+}
+
+#[test]
+fn associated_constant_type_path_inside_generic_impl_uses_its_own_type_arguments_at_comptime() {
+    let src = r#"
+    pub trait HasBits { let BITS: u32; fn bits_of_eight() -> u32; }
+    pub struct UInt<let N: u32> {}
+    impl<let N: u32> HasBits for UInt<N> {
+        let BITS: u32 = N;
+        fn bits_of_eight() -> u32 { <UInt<8>>::BITS }
+    }
+    fn main() -> pub u32 { comptime { UInt::<16>::bits_of_eight() } }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u32 {
+        8
+    }
+    ");
+}
+
+#[test]
+fn associated_constant_type_path_of_generic_impl_outside_the_impl() {
+    let src = r#"
+    pub trait HasBits { let BITS: u32; }
+    pub struct UInt<let N: u32> {}
+    impl<let N: u32> HasBits for UInt<N> {
+        let BITS: u32 = N;
+    }
+    fn bits<let M: u32>() -> u32 { <UInt<M>>::BITS }
+    fn main() -> pub u32 { <UInt<11>>::BITS + bits::<5>() }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u32 {
+        (11 + bits$f1())
+    }
+    fn bits$f1() -> u32 {
+        5
+    }
+    ");
+}
+
+/// An associated type a call returns can already be known to be numeric (through `a + 1`) when a
+/// method is called on it, and the call's constraint still decides which numeric type it is.
+#[test]
+fn numeric_associated_type_result_is_known_when_a_method_is_called_on_it() {
+    let src = r#"
+    pub trait Tr { type Out; fn mk() -> Self::Out; }
+    pub struct K {}
+    impl Tr for K { type Out = u8; fn mk() -> u8 { 7 } }
+    fn make<T: Tr>() -> T::Out { T::mk() }
+    trait Byte { fn tag(self) -> u32; }
+    impl Byte for u8 { fn tag(self) -> u32 { self as u32 } }
+    trait Word { fn tag(self) -> u32; }
+    impl Word for u16 { fn tag(self) -> u32 { self as u32 } }
+    fn main() {
+        let a = make::<K>();
+        let _ = a + 1;
+        let _: u32 = a.tag();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// When the call already says which impl it uses (`make::<K>()`, `<K as Tr>::mk()`), its
+/// associated type is that impl's from the start, so a mismatch is reported as one.
+#[test]
+fn associated_type_of_a_fully_known_trait_is_the_impls_at_the_call() {
+    let src = r#"
+    pub trait Tr { type Out; fn mk() -> Self::Out; }
+    pub struct K {}
+    impl Tr for K { type Out = u8; fn mk() -> u8 { 7 } }
+    fn make<T: Tr>() -> T::Out { T::mk() }
+    fn main() {
+        let _a: u16 = make::<K>();
+                      ^^^^^^^^^^^ Expected type u16, found type u8
+        let _b: u16 = <K as Tr>::mk();
+                      ^^^^^^^^^^^^^^^ Expected type u16, found type u8
+    }
+    "#;
+    check_errors(src);
+}
+
+/// `K: Tr<_>` has two candidates here: `Tr<u8>`, and `Tr<T>` for any `T: Foo`. Whether the second
+/// applies isn't known when the call is checked, so no impl is chosen for it then, and the
+/// annotation that follows picks `Tr<u16>`.
+#[test]
+fn method_call_keeps_trait_argument_open_while_an_impl_where_clause_is_undecided() {
+    let src = r#"
+    trait Foo { fn make() -> Self; }
+    impl Foo for u16 { fn make() -> u16 { 2 } }
+
+    trait Tr<T> { fn mk(self) -> T; }
+    pub struct K {}
+    impl Tr<u8> for K { fn mk(self) -> u8 { 1 } }
+    impl<T> Tr<T> for K where T: Foo { fn mk(self) -> T { T::make() } }
+
+    fn main() {
+        let x = K {}.mk();
+        let _y: u16 = x;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn path_call_keeps_trait_argument_open_while_an_impl_where_clause_is_undecided() {
+    let src = r#"
+    trait Foo { fn make() -> Self; }
+    impl Foo for u16 { fn make() -> u16 { 2 } }
+
+    trait Tr<T> { fn mk(self) -> T; }
+    pub struct K {}
+    impl Tr<u8> for K { fn mk(self) -> u8 { 1 } }
+    impl<T> Tr<T> for K where T: Foo { fn mk(self) -> T { T::make() } }
+
+    fn main() {
+        let x = Tr::mk(K {});
+        let _y: u16 = x;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Nothing decides between `Tr<u8>` and `Tr<T> where T: Foo`, so the call needs an annotation,
+/// as in Rust (E0283). Choosing `Tr<u8>` because it is the only impl whose where clause is known
+/// to hold would make the choice depend on the order constraints are checked in.
+#[test]
+fn method_call_with_an_undecided_where_clause_needs_an_annotation() {
+    let src = r#"
+    trait Foo { fn make() -> Self; }
+    impl Foo for u16 { fn make() -> u16 { 2 } }
+
+    trait Tr<T> { fn mk(self) -> T; }
+    pub struct K {}
+    impl Tr<u8> for K { fn mk(self) -> u8 { 1 } }
+    impl<T> Tr<T> for K where T: Foo { fn mk(self) -> T { T::make() } }
+
+    fn main() {
+        let _x = K {}.mk();
+                 ^^^^^^^ Object type is unknown in method call
+                 ~~~~~~~ Type must be known by this point to know which method to call
+    }
+    "#;
+    check_errors(src);
+}
+
+const IMPLS_DECIDED_BY_WHERE_CLAUSES: &str = r#"
+    trait Bar {}
+    impl Bar for u64 {}
+    trait Baz {}
+    impl Baz for u8 {}
+
+    trait Check<U> { fn check(self, u: U, y: Field); }
+    struct A {}
+    impl Check<u8> for A { fn check(self, _u: u8, y: Field) { assert(y == 1); } }
+    impl<U> Check<U> for A where U: Bar { fn check(self, _u: U, _y: Field) {} }
+
+    trait Conv<U> { fn conv(self, u: U) -> Field; }
+    struct W {}
+    impl Conv<u64> for W { fn conv(self, _u: u64) -> Field { 10 } }
+    impl<U> Conv<U> for W where U: Baz { fn conv(self, _u: U) -> Field { 20 } }
+    "#;
+
+/// `x` could be `u8` (for `impl Check<u8>`) or `u64` (for the impl whose where clause is
+/// `U: Bar`). Nothing decides between them, so neither impl is chosen for it and `x` defaults to
+/// `Field`, which neither applies to. Swapping the two statements gives the same errors.
+#[test]
+fn check_first_does_not_choose_the_impl_for_an_unannotated_integer() {
+    let main = r#"
+    fn main(y: Field) -> pub Field {
+        let x = 5;
+        A {}.check(x, y);
+        ^^^^^^^^^^ No matching impl found for `U: Bar`
+        ~~~~~~~~~~ No impl for `U: Bar`
+        W {}.conv(x)
+        ^^^^^^^^^ No matching impl found for `U: Baz`
+        ~~~~~~~~~ No impl for `U: Baz`
+    }
+    "#;
+    check_errors(&format!("{IMPLS_DECIDED_BY_WHERE_CLAUSES}{main}"));
+}
+
+#[test]
+fn conv_first_does_not_choose_the_impl_for_an_unannotated_integer() {
+    let main = r#"
+    fn main(y: Field) -> pub Field {
+        let x = 5;
+        let r = W {}.conv(x);
+                ^^^^^^^^^ No matching impl found for `U: Baz`
+                ~~~~~~~~~ No impl for `U: Baz`
+        A {}.check(x, y);
+        ^^^^^^^^^^ No matching impl found for `U: Bar`
+        ~~~~~~~~~~ No impl for `U: Bar`
+        r
+    }
+    "#;
+    check_errors(&format!("{IMPLS_DECIDED_BY_WHERE_CLAUSES}{main}"));
+}
+
+#[test]
+fn annotated_integer_chooses_the_impl_that_applies() {
+    let main = r#"
+    fn main(y: Field) -> pub Field {
+        let x: u8 = 5;
+        A {}.check(x, y);
+        let z: u64 = 5;
+        A {}.check(z, y);
+        W {}.conv(x) + W {}.conv(z)
+    }
+    "#;
+    assert_no_errors(&format!("{IMPLS_DECIDED_BY_WHERE_CLAUSES}{main}"));
+}
+
+/// A call's argument decides the trait argument (`2_u16` makes it `Tr<u16>`), and with it which
+/// impl applies and so its associated type.
+#[test]
+fn trait_argument_decided_by_a_call_argument_is_known_before_the_impl_is_chosen() {
+    let src = r#"
+    trait Foo {}
+    impl Foo for u16 {}
+    trait Tr<T> {
+        type Out;
+        fn mk(self, x: T) -> Self::Out;
+    }
+    struct K {}
+    impl Tr<u8> for K {
+        type Out = u8;
+        fn mk(self, _x: u8) -> u8 { 1 }
+    }
+    impl<T> Tr<T> for K where T: Foo {
+        type Out = bool;
+        fn mk(self, _x: T) -> bool { true }
+    }
+    fn main() {
+        let k = K {};
+        let a: bool = Tr::mk(k, 2_u16);
+        let b: u8 = Tr::mk(k, 3_u8);
+        let c: bool = k.mk(4_u16);
+        let d: u8 = k.mk(5_u8);
+        let _ = (a, b, c, d);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// An impl's associated constant can name the constant of a generic impl declared after it.
+#[test]
+fn associated_constant_names_a_generic_impl_declared_later() {
+    let src = r#"
+    trait C { let N: u32; }
+    struct S {}
+    impl C for S { let N: u32 = <[u8; 3] as C>::N; }
+    impl<let M: u32> C for [u8; M] { let N: u32 = M * 2; }
+    fn main() -> pub u32 { <S as C>::N }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u32 {
+        6
+    }
+    ");
+}
+
+/// An impl's associated type can name the type of a generic impl declared after it, including
+/// one written in terms of that impl's generics.
+#[test]
+fn associated_type_names_a_generic_impl_declared_later() {
+    let src = r#"
+    trait C { type T; }
+    struct S {}
+    struct W<Y> {}
+    impl C for S { type T = <W<u8> as C>::T; }
+    impl<Y> C for W<Y> { type T = Y; }
+    fn main() -> pub u8 {
+        let x: <S as C>::T = 7;
+        x
+    }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u8 {
+        let x$l0 = 7;
+        x$l0
+    }
+    ");
+}
+
+/// An impl is matched only where its where clause holds, also while it isn't collected yet.
+#[test]
+fn associated_constant_of_an_impl_declared_later_needs_its_where_clause() {
+    let src = r#"
+    trait B {}
+    trait C { let N: u32; }
+    struct W {}
+    struct S {}
+    impl C for S { let N: u32 = <W as C>::N; }
+                                      ^ No matching impl found for `W: B`
+                                      ~ No impl for `W: B`
+    impl C for W where W: B { let N: u32 = 5; }
+    fn main() -> pub u32 { <S as C>::N }
+    "#;
+    check_errors(src);
 }

@@ -1,0 +1,6 @@
+[package]
+name = "brillig_constraint_discarded_tuple_output"
+type = "bin"
+authors = [""]
+
+[dependencies]

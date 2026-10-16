@@ -56,8 +56,8 @@ use crate::{
     elaborator::types::WildcardDisallowedContext,
     graph::CrateId,
     hir::{
-        Context,
-        comptime::{ComptimeError, EvaluationTracker, InterpreterError},
+        CheckState, Context,
+        comptime::{ComptimeError, ComptimeIo, EvaluationTracker, InterpreterError},
         def_collector::{
             dc_crate::{
                 CollectedItems, CompilationError, CompilationErrors, UnresolvedFunctions,
@@ -97,6 +97,7 @@ mod path_resolution;
 mod patterns;
 mod primitive_types;
 mod scope;
+mod session;
 mod statements;
 mod structs;
 mod trait_impls;
@@ -109,7 +110,6 @@ mod visibility;
 pub(crate) use self::deferred::Deferred;
 use self::traits::check_trait_impl_method_matches_declaration;
 use self::variable::VariableResolution;
-use deferred::DeferredItems;
 use fm::FileMap;
 use function_context::FunctionContext;
 use item_context::{GenericsContext, ImplContext, ItemContext, ModuleContext};
@@ -122,6 +122,7 @@ use path_resolution::{
 };
 pub(crate) use path_resolution::{TypedPath, TypedPathSegment};
 pub use primitive_types::PrimitiveType;
+use session::ElaborationSession;
 
 /// Maximum number of recursive calls allowed at comptime.
 ///
@@ -234,38 +235,12 @@ pub struct Elaborator<'context> {
 
     crate_id: CrateId,
 
-    interpreter_call_stack: imbl::Vector<Location>,
-
     /// Options from the nargo cli
     options: ElaboratorOptions<'context>,
 
-    /// Sometimes items are elaborated because a function attribute ran and generated items.
-    /// The Elaborator keeps track of these reasons so that when an error is produced it will
-    /// be wrapped in another error that will include this reason.
-    pub(crate) elaborate_reasons: imbl::Vector<ElaborateReason>,
-
-    /// Set to true when the interpreter encounters an errored expression/statement,
-    /// causing all subsequent comptime evaluation to be skipped.
-    pub(crate) comptime_evaluation_halted: bool,
-
-    /// Tracks the current macro expansion depth to prevent infinite recursion
-    /// when an attribute generates code that triggers further attribute expansion.
-    /// This is a global counter that catches both single-function and mutual recursion.
-    pub(crate) macro_expansion_depth: usize,
-
-    /// Current recursion depth.
-    recursion_depth: usize,
-
-    /// Variable names from a parent runtime scope, used for error reporting only.
-    /// When a fresh elaborator is created for comptime evaluation, this is populated
-    /// with the names of variables from the parent elaborator's scope. If a variable
-    /// lookup fails and the name is in this set, we can report a more specific error
-    /// about runtime variables not being available in comptime code.
-    parent_runtime_variables: rustc_hash::FxHashSet<String>,
-
-    /// Items registered for resolution later, and the trait bookkeeping that waits on them.
-    /// See the [`deferred`] module for why each kind is deferred and what the drains guarantee.
-    deferred: DeferredItems,
+    /// State shared with every nested elaborator created for comptime evaluation.
+    /// See the [`session`] module.
+    session: ElaborationSession,
 }
 
 #[derive(Copy, Clone)]
@@ -303,9 +278,8 @@ impl<'context> Elaborator<'context> {
         required_unstable_features: &'context BTreeMap<CrateId, Vec<UnstableFeature>>,
         unresolved_globals: &'context mut Deferred<GlobalId, UnresolvedGlobal>,
         crate_id: CrateId,
-        interpreter_call_stack: imbl::Vector<Location>,
         options: ElaboratorOptions<'context>,
-        elaborate_reasons: imbl::Vector<ElaborateReason>,
+        session: ElaborationSession,
     ) -> Self {
         // Until an item installs its own context, paths resolve against the crate root.
         let initial_module = def_maps[&crate_id].root();
@@ -325,14 +299,8 @@ impl<'context> Elaborator<'context> {
             crate_id,
             resolving_ids: BTreeSet::new(),
             function_context: vec![FunctionContext::default()],
-            interpreter_call_stack,
             options,
-            elaborate_reasons,
-            comptime_evaluation_halted: false,
-            macro_expansion_depth: 0,
-            recursion_depth: 0,
-            parent_runtime_variables: rustc_hash::FxHashSet::default(),
-            deferred: DeferredItems::default(),
+            session,
         }
     }
 
@@ -347,6 +315,8 @@ impl<'context> Elaborator<'context> {
         context: &'context mut Context,
         crate_id: CrateId,
         options: ElaboratorOptions<'context>,
+        comptime_io: &'context mut ComptimeIo,
+        state: &'context mut CheckState,
     ) -> Self {
         Self::new(
             &mut context.def_interner,
@@ -354,14 +324,13 @@ impl<'context> Elaborator<'context> {
             &mut context.usage_tracker,
             &context.crate_graph,
             context.file_manager.as_file_map(),
-            &context.interpreter_output,
-            context.evaluation_tracker.as_mut(),
+            &comptime_io.output,
+            comptime_io.evaluation_tracker.as_mut(),
             &context.required_unstable_features,
-            &mut context.unresolved_globals,
+            &mut state.unresolved_globals,
             crate_id,
-            imbl::Vector::new(),
             options,
-            imbl::Vector::new(),
+            ElaborationSession::default(),
         )
     }
 
@@ -371,8 +340,11 @@ impl<'context> Elaborator<'context> {
         crate_id: CrateId,
         items: CollectedItems,
         options: ElaboratorOptions<'context>,
+        comptime_io: &'context mut ComptimeIo,
+        state: &'context mut CheckState,
     ) -> CompilationErrors {
-        Self::elaborate_and_return_self(context, crate_id, items, options).errors
+        Self::elaborate_and_return_self(context, crate_id, items, options, comptime_io, state)
+            .errors
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
@@ -381,8 +353,10 @@ impl<'context> Elaborator<'context> {
         crate_id: CrateId,
         items: CollectedItems,
         options: ElaboratorOptions<'context>,
+        comptime_io: &'context mut ComptimeIo,
+        state: &'context mut CheckState,
     ) -> Self {
-        let mut this = Self::from_context(context, crate_id, options);
+        let mut this = Self::from_context(context, crate_id, options, comptime_io, state);
         this.elaborate_items(items);
         this.check_and_pop_function_context();
         this
@@ -398,9 +372,9 @@ impl<'context> Elaborator<'context> {
         // generated bodies can still pull them out on demand), we just don't
         // unconditionally resolve them here.
         // The same is true for struct fields, enum variants and globals.
-        let outer_pending_functions = self.deferred.function_metas.pending();
-        let outer_pending_struct_fields = self.deferred.struct_fields.pending();
-        let outer_pending_enum_variants = self.deferred.enum_variants.pending();
+        let outer_pending_functions = self.session.deferred.function_metas.pending();
+        let outer_pending_struct_fields = self.session.deferred.struct_fields.pending();
+        let outer_pending_enum_variants = self.session.deferred.enum_variants.pending();
         let outer_pending_globals = self.unresolved_globals.pending();
 
         // Scope the pending trait-method bookkeeping to this call so that a
@@ -408,7 +382,7 @@ impl<'context> Elaborator<'context> {
         // new items) doesn't consume the outer call's entries. We restore the
         // outer state on exit so the outer call can process them when its own
         // post-attribute drain runs.
-        let outer_pending_trait_work = std::mem::take(&mut self.deferred.trait_work);
+        let outer_pending_trait_work = std::mem::take(&mut self.session.deferred.trait_work);
 
         self.set_unresolved_globals_ordering(items.globals);
 
@@ -528,10 +502,11 @@ impl<'context> Elaborator<'context> {
 
         // Restore the outer call's pending bookkeeping so it can be processed
         // when the outer `elaborate_items` runs its own post-drain phases.
-        let inner = std::mem::replace(&mut self.deferred.trait_work, outer_pending_trait_work);
-        self.deferred.trait_work.records.extend(inner.records);
-        self.deferred.trait_work.no_body_func_ids.extend(inner.no_body_func_ids);
-        self.deferred.trait_work.where_clause_checks.extend(inner.where_clause_checks);
+        let inner =
+            std::mem::replace(&mut self.session.deferred.trait_work, outer_pending_trait_work);
+        self.session.deferred.trait_work.records.extend(inner.records);
+        self.session.deferred.trait_work.no_body_func_ids.extend(inner.no_body_func_ids);
+        self.session.deferred.trait_work.where_clause_checks.extend(inner.where_clause_checks);
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
@@ -887,13 +862,13 @@ impl<'context> Elaborator<'context> {
         &mut self,
         location: Location,
     ) -> Result<(), InterpreterError> {
-        if self.interpreter_call_stack.len() >= MAX_INTERPRETER_CALL_STACK_SIZE {
+        if self.session.interpreter_call_stack.len() >= MAX_INTERPRETER_CALL_STACK_SIZE {
             return Err(InterpreterError::StackOverflow {
                 location,
-                call_stack: self.interpreter_call_stack.clone(),
+                call_stack: self.session.interpreter_call_stack.clone(),
             });
         }
-        self.interpreter_call_stack.push_back(location);
+        self.session.interpreter_call_stack.push_back(location);
         Ok(())
     }
 
@@ -902,7 +877,8 @@ impl<'context> Elaborator<'context> {
     /// Panics if the call stack is empty.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn pop_interpreter_call_stack(&mut self) {
-        self.interpreter_call_stack
+        self.session
+            .interpreter_call_stack
             .pop_back()
             .expect("call stack pushes and pops should be balanced");
     }
@@ -910,18 +886,18 @@ impl<'context> Elaborator<'context> {
     /// The current interpreter call stack.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn interpreter_call_stack(&self) -> &imbl::Vector<Location> {
-        &self.interpreter_call_stack
+        &self.session.interpreter_call_stack
     }
 
     /// Check the current recursion depth. if the limit has been reached,
     /// emit an error and return `true`, otherwise return `false`.
     #[tracing::instrument(level = "trace", skip_all)]
     fn inc_recursion_depth(&mut self, location: Location) -> bool {
-        if self.recursion_depth >= MAX_RECURSION_DEPTH {
+        if self.session.recursion_depth >= MAX_RECURSION_DEPTH {
             self.push_err(ResolverError::MaximumRecursionDepthExceeded { location });
             false
         } else {
-            self.recursion_depth = self.recursion_depth.saturating_add(1);
+            self.session.recursion_depth = self.session.recursion_depth.saturating_add(1);
             true
         }
     }
@@ -929,7 +905,7 @@ impl<'context> Elaborator<'context> {
     /// Decrease the recursion depth, assuming we called `inc_recursion_depth` before and it returned `true`.
     #[tracing::instrument(level = "trace", skip_all)]
     fn dec_recursion_depth(&mut self) {
-        self.recursion_depth = self.recursion_depth.saturating_sub(1);
+        self.session.recursion_depth = self.session.recursion_depth.saturating_sub(1);
     }
 }
 
@@ -967,7 +943,8 @@ pub mod test_utils {
         use crate::{
             elaborator::Elaborator,
             hir::{
-                Context, ParsedFiles,
+                CheckState, Context, ParsedFiles,
+                comptime::ComptimeIo,
                 def_collector::{dc_crate::DefCollector, dc_mod::collect_defs},
                 def_map::{CrateDefMap, ModuleData, ModuleId},
             },
@@ -993,7 +970,7 @@ pub mod test_utils {
         let parsed_files = ParsedFiles::new();
         let mut context = Context::new(file_manager, parsed_files);
         context.def_interner.populate_dummy_operator_traits();
-        context.set_comptime_printing(output);
+        let mut comptime_io = ComptimeIo::printing_to(output);
 
         let krate = context.crate_graph.add_crate_root_and_stdlib(FileId::dummy());
 
@@ -1011,6 +988,7 @@ pub mod test_utils {
         let mut collector = DefCollector::new(def_map);
         let reuse_existing_module_declarations = false;
 
+        let mut state = CheckState::default();
         collect_defs(
             &mut collector,
             ast,
@@ -1018,17 +996,20 @@ pub mod test_utils {
             root_module_id,
             krate,
             &mut context,
+            &mut state,
             reuse_existing_module_declarations,
         );
         context.def_maps.insert(krate, collector.def_map);
 
-        let main = context.get_main_function(&krate).expect("Expected 'main' function");
+        let main = context.def_maps[&krate].main_function().expect("Expected 'main' function");
 
         let mut elaborator = Elaborator::elaborate_and_return_self(
             &mut context,
             krate,
             collector.items,
             ElaboratorOptions::test_default(),
+            &mut comptime_io,
+            &mut state,
         );
 
         // Skip the elaborator's compilation warnings

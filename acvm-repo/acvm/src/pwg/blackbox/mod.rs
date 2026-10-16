@@ -27,7 +27,7 @@ use embedded_curve_ops::{embedded_curve_add, multi_scalar_mul};
 use hash::{solve_generic_256_hash_opcode, solve_sha_256_permutation_opcode};
 use logic::{and, xor};
 pub(crate) use range::solve_range_opcode;
-use signature::ecdsa::{secp256k1_prehashed, secp256r1_prehashed};
+use signature::ecdsa::execute_ecdsa;
 
 /// Check if all of the inputs to the function have assignments
 ///
@@ -120,34 +120,29 @@ pub(crate) fn solve<F: AcirField>(
             public_key_x,
             public_key_y,
             signature,
-            hashed_message: message,
+            hashed_message,
             output,
             predicate,
-        } => secp256k1_prehashed(
-            initial_witness,
+        }
+        | BlackBoxFuncCall::EcdsaSecp256r1 {
             public_key_x,
             public_key_y,
             signature,
-            message.as_ref(),
-            predicate,
-            *output,
-        ),
-        BlackBoxFuncCall::EcdsaSecp256r1 {
-            public_key_x,
-            public_key_y,
-            signature,
-            hashed_message: message,
+            hashed_message,
             output,
             predicate,
-        } => secp256r1_prehashed(
-            initial_witness,
-            public_key_x,
-            public_key_y,
-            signature,
-            message.as_ref(),
-            predicate,
-            *output,
-        ),
+        } => {
+            let is_valid = execute_ecdsa(
+                initial_witness,
+                public_key_x,
+                public_key_y,
+                signature,
+                hashed_message.as_ref(),
+                predicate,
+                matches!(bb_func, BlackBoxFuncCall::EcdsaSecp256k1 { .. }),
+            )?;
+            insert_value(output, F::from(is_valid), initial_witness)
+        }
         BlackBoxFuncCall::MultiScalarMul { points, scalars, outputs, predicate } => {
             multi_scalar_mul(backend, initial_witness, points, scalars, *predicate, *outputs)
         }

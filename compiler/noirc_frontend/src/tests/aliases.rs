@@ -1342,3 +1342,116 @@ fn unused_expression_result_correct_span() {
     "#;
     check_errors(src);
 }
+
+#[test]
+fn struct_constructor_turbofish_on_reordering_alias_applies_to_alias_generics() {
+    let src = r#"
+    pub struct Capped<let MAX: u32, let SCALE: u32> { v: u32 }
+    type Scaled<let SCALE: u32, let MAX: u32> = Capped<MAX, SCALE>;
+
+    fn main() {
+        let _: Capped<8, 1000> = Scaled::<1000, 8> { v: 0 };
+        let _: Scaled<1000, 8> = Scaled::<1000, 8> { v: 0 };
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn struct_constructor_turbofish_on_reordering_alias_does_not_apply_to_struct_generics() {
+    let src = r#"
+    pub struct Capped<let MAX: u32, let SCALE: u32> { v: u32 }
+    type Scaled<let SCALE: u32, let MAX: u32> = Capped<MAX, SCALE>;
+
+    fn main() {
+        let _: Capped<1000, 8> = Scaled::<1000, 8> { v: 0 };
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^ Expected type Capped<1000, 8>, found type Capped<8, 1000>
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn struct_constructor_turbofish_on_alias_with_fixed_generics_keeps_alias_body() {
+    let src = r#"
+    pub struct Capped<let MAX: u32, let SCALE: u32> { v: u32 }
+    type Byte<let A: u32, let B: u32> = Capped<255, 1>;
+
+    fn main() {
+        let _: Capped<255, 1> = Byte::<100000, 1> { v: 0 };
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn struct_constructor_turbofish_on_alias_with_fewer_generics_than_struct() {
+    let src = r#"
+    pub struct Pair<A, B> { a: A, b: B }
+    type U32Pair<B> = Pair<u32, B>;
+
+    fn main() {
+        let _: Pair<u32, bool> = U32Pair::<bool> { a: 1, b: true };
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn struct_constructor_turbofish_on_alias_in_generic_function() {
+    let src = r#"
+    pub struct Capped<let MAX: u32, let SCALE: u32> { v: u32 }
+    type Scaled<let SCALE: u32, let MAX: u32> = Capped<MAX, SCALE>;
+
+    fn generic<let S: u32>(v: u32) -> Capped<8, S> {
+        Scaled::<S, 8> { v }
+    }
+
+    fn main() {
+        let _ = generic::<1000>(0);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn struct_constructor_turbofish_on_alias_checks_alias_generic_count() {
+    let src = r#"
+    pub struct Pair<A, B> { a: A, b: B }
+    type U32Pair<B> = Pair<u32, B>;
+
+    fn main() {
+        let _ = U32Pair::<u32, bool> { a: 1, b: true };
+                       ^^^^^^^^^^^^^ alias U32Pair expects 1 generic but 2 were given
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn struct_pattern_turbofish_on_reordering_alias_applies_to_alias_generics() {
+    let src = r#"
+    pub struct Capped<let MAX: u32, let SCALE: u32> { v: u32 }
+    type Scaled<let SCALE: u32, let MAX: u32> = Capped<MAX, SCALE>;
+
+    fn main() {
+        let Scaled::<1000, 8> { v } = Capped::<8, 1000> { v: 0 };
+        let _ = v;
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn struct_pattern_turbofish_on_alias_with_fewer_generics_than_struct() {
+    let src = r#"
+    pub struct Pair<A, B> { a: A, b: B }
+    type U32Pair<B> = Pair<u32, B>;
+
+    fn main() {
+        let U32Pair::<bool> { a, b } = Pair { a: 1_u32, b: true };
+        let _ = (a, b);
+    }
+    "#;
+    assert_no_errors(src);
+}

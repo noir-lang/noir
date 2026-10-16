@@ -1,4 +1,4 @@
-define: &AZ_COMMIT 5cb127606d5921cf7995287f7985e00f2c534d54
+define: &AZ_COMMIT bb15fcbbe969f11a892272715fe59f0976b086ca
 projects:
   private-kernel-inner:
     repo: AztecProtocol/aztec-packages
@@ -23,7 +23,7 @@ projects:
     brillig-compilation-timeout: 150
     brillig-execution-timeout: 1
     compilation-memory-limit: 650
-    execution-memory-limit: 350
+    execution-memory-limit: 375
   private-kernel-reset:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT

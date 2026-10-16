@@ -19,7 +19,7 @@
 <h1><a href="../../index.html">noir_stdlib</a></h1>
 <div><a href="../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.3</div>
+<div id="crate-version">1.0.0-rc.5</div>
 <h2><a href="#struct">Struct EmbeddedCurveScalar</a></h2>
 <h3>Fields</h3>
 <ul class="sidebar-list">
@@ -65,7 +65,14 @@
 <p>Scalar for the embedded curve represented as low and high limbs
 By definition, the scalar field of the embedded curve is base field of the proving system curve.
 It may not fit into a Field element, so it is represented with two Field elements; its low and high limbs.</p>
-</div>
+<p>The scalar's value is <code>lo + hi * 2^128</code>. Each limb must be less than <code>2^128</code>, and the value must
+be less than the embedded curve's order; <a href="../../std/embedded_curve_ops/fn.multi_scalar_mul.html"><code>multi_scalar_mul</code></a> fails at execution otherwise.
+Constructing a scalar does not check either condition.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::embedded_curve_ops::EmbeddedCurveScalar;
+
+<span class="kw">let</span> scalar = EmbeddedCurveScalar::from_field(<span class="number">5</span>);
+<span class="kw">assert_eq</span>(scalar, EmbeddedCurveScalar::new(<span class="number">5</span>, <span class="number">0</span>));</code></pre></div>
 <h2>Fields</h2>
 <div id="structfield.lo" class="struct-field"><code class="code-header">lo: <a href="../../std/primitive.Field.html" class="primitive">Field</a></code></div>
 <div class="padded-description"></div><div id="structfield.hi" class="struct-field"><code class="code-header">hi: <a href="../../std/primitive.Field.html" class="primitive">Field</a></code></div>
@@ -76,12 +83,28 @@ It may not fit into a Field element, so it is represented with two Field element
 
 <div class="padded-description"><div class="comments">
 <p>Create a new scalar using the provided (lo, hi) pair</p>
-</div>
+<p>The limbs are not checked to be less than <code>2^128</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::embedded_curve_ops::EmbeddedCurveScalar;
+
+<span class="comment">// 2^128 + 3</span>
+<span class="kw">let</span> scalar = EmbeddedCurveScalar::new(<span class="number">3</span>, <span class="number">1</span>);
+<span class="kw">assert_eq</span>(scalar, EmbeddedCurveScalar::from_field(<span class="number">0x100000000000000000000000000000003</span>));</code></pre></div>
 </div><code id="from_field" class="code-header">pub fn <a href="#from_field" class="fn">from_field</a>(scalar: <a href="../../std/primitive.Field.html" class="primitive">Field</a>) -> Self</code>
 
 <div class="padded-description"><div class="comments">
 <p>Create a scalar from the given bn254 field value</p>
-</div>
+<p>The value is split into its low and high 128 bits. The split is fully constrained: both
+limbs are range checked, and they are checked to be the canonical decomposition of <code>scalar</code>.
+Every <code>Field</code> is a valid scalar, because the BN254 scalar field is smaller than the
+Grumpkin scalar field.</p>
+<p>Only available when compiling for the BN254 field.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::embedded_curve_ops::EmbeddedCurveScalar;
+
+<span class="kw">let</span> scalar = EmbeddedCurveScalar::from_field(<span class="number">0x100000000000000000000000000000003</span>);
+<span class="kw">assert_eq</span>(scalar.lo, <span class="number">3</span>);
+<span class="kw">assert_eq</span>(scalar.hi, <span class="number">1</span>);</code></pre></div>
 </div></div><h2>Trait implementations</h2>
 <h3 id="impl-Eq-for-EmbeddedCurveScalar"><code class="code-header">impl <a href="../../std/cmp/trait.Eq.html" class="trait">Eq</a> for <a href="../../std/embedded_curve_ops/struct.EmbeddedCurveScalar.html" class="struct">EmbeddedCurveScalar</a></code></h3>
 

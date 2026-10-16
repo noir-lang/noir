@@ -5,6 +5,24 @@ use crate::ops::arith::{Add, Neg, Sub};
 /// A point on the embedded elliptic curve
 /// By definition, the base field of the embedded curve is the scalar field of the proof system curve, i.e the Noir Field.
 /// x and y denotes the Weierstrass coordinates of the point.
+///
+/// For BN254 the embedded curve is Grumpkin, `y^2 = x^3 - 17`. The point at infinity is
+/// represented as `(0, 0)`, which is not otherwise on the curve.
+///
+/// Constructing a point does not check that it is on the curve. [`embedded_curve_add`] and
+/// [`multi_scalar_mul`] fail at execution if an input is neither on the curve nor `(0, 0)`.
+///
+/// Example:
+///
+/// ```noir
+/// use std::embedded_curve_ops::EmbeddedCurvePoint;
+///
+/// let g = EmbeddedCurvePoint::generator();
+/// let two_g = g + g;
+/// assert_eq(two_g, g.double());
+/// assert_eq(two_g - g, g);
+/// assert((g - g).is_infinite());
+/// ```
 pub struct EmbeddedCurvePoint {
     pub x: Field,
     pub y: Field,
@@ -12,22 +30,72 @@ pub struct EmbeddedCurvePoint {
 
 impl EmbeddedCurvePoint {
     /// Create a new point using the provided (x, y) pair
+    ///
+    /// The coordinates are not checked to be on the curve.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// use std::embedded_curve_ops::EmbeddedCurvePoint;
+    ///
+    /// let g = EmbeddedCurvePoint::generator();
+    /// assert_eq(EmbeddedCurvePoint::new(g.x, g.y), g);
+    /// ```
     pub fn new(x: Field, y: Field) -> Self {
         EmbeddedCurvePoint { x, y }
     }
 
     /// Elliptic curve point doubling operation
     /// returns the doubled point of a point P, i.e P+P
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// use std::embedded_curve_ops::EmbeddedCurvePoint;
+    ///
+    /// let g = EmbeddedCurvePoint::generator();
+    /// assert_eq(g.double(), g + g);
+    /// ```
+    ///
+    /// # Failures
+    ///
+    /// Fails at execution if `self` is neither on the curve nor the point at infinity.
     pub fn double(self) -> EmbeddedCurvePoint {
         embedded_curve_add(self, self)
     }
 
     /// Returns the null element of the curve; 'the point at infinity'
+    ///
+    /// It is represented as `(0, 0)`.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// use std::embedded_curve_ops::EmbeddedCurvePoint;
+    ///
+    /// let g = EmbeddedCurvePoint::generator();
+    /// let infinity = EmbeddedCurvePoint::point_at_infinity();
+    /// assert(infinity.is_infinite());
+    /// assert_eq(g + infinity, g);
+    /// ```
     pub fn point_at_infinity() -> EmbeddedCurvePoint {
         EmbeddedCurvePoint { x: 0, y: 0 }
     }
 
     /// Returns the curve's generator point.
+    ///
+    /// This is the Grumpkin generator `(1, sqrt(-16))`, the base point of
+    /// [`fixed_base_scalar_mul`].
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// use std::embedded_curve_ops::{EmbeddedCurvePoint, EmbeddedCurveScalar, fixed_base_scalar_mul};
+    ///
+    /// let g = EmbeddedCurvePoint::generator();
+    /// assert_eq(g.x, 1);
+    /// assert_eq(fixed_base_scalar_mul(EmbeddedCurveScalar::new(1, 0)), g);
+    /// ```
     pub fn generator() -> EmbeddedCurvePoint {
         // Generator point for the grumpkin curve (y^2 = x^3 - 17)
         EmbeddedCurvePoint {
@@ -37,6 +105,15 @@ impl EmbeddedCurvePoint {
     }
 
     /// True if this point is the point at infinity
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// use std::embedded_curve_ops::EmbeddedCurvePoint;
+    ///
+    /// assert(EmbeddedCurvePoint::point_at_infinity().is_infinite());
+    /// assert(!EmbeddedCurvePoint::generator().is_infinite());
+    /// ```
     pub fn is_infinite(self) -> bool {
         (self.x == 0) & (self.y == 0)
     }
@@ -84,6 +161,19 @@ impl Hash for EmbeddedCurvePoint {
 /// Scalar for the embedded curve represented as low and high limbs
 /// By definition, the scalar field of the embedded curve is base field of the proving system curve.
 /// It may not fit into a Field element, so it is represented with two Field elements; its low and high limbs.
+///
+/// The scalar's value is `lo + hi * 2^128`. Each limb must be less than `2^128`, and the value must
+/// be less than the embedded curve's order; [`multi_scalar_mul`] fails at execution otherwise.
+/// Constructing a scalar does not check either condition.
+///
+/// Example:
+///
+/// ```noir
+/// use std::embedded_curve_ops::EmbeddedCurveScalar;
+///
+/// let scalar = EmbeddedCurveScalar::from_field(5);
+/// assert_eq(scalar, EmbeddedCurveScalar::new(5, 0));
+/// ```
 pub struct EmbeddedCurveScalar {
     pub lo: Field,
     pub hi: Field,
@@ -91,11 +181,40 @@ pub struct EmbeddedCurveScalar {
 
 impl EmbeddedCurveScalar {
     /// Create a new scalar using the provided (lo, hi) pair
+    ///
+    /// The limbs are not checked to be less than `2^128`.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// use std::embedded_curve_ops::EmbeddedCurveScalar;
+    ///
+    /// // 2^128 + 3
+    /// let scalar = EmbeddedCurveScalar::new(3, 1);
+    /// assert_eq(scalar, EmbeddedCurveScalar::from_field(0x100000000000000000000000000000003));
+    /// ```
     pub fn new(lo: Field, hi: Field) -> Self {
         EmbeddedCurveScalar { lo, hi }
     }
 
     /// Create a scalar from the given bn254 field value
+    ///
+    /// The value is split into its low and high 128 bits. The split is fully constrained: both
+    /// limbs are range checked, and they are checked to be the canonical decomposition of `scalar`.
+    /// Every `Field` is a valid scalar, because the BN254 scalar field is smaller than the
+    /// Grumpkin scalar field.
+    ///
+    /// Only available when compiling for the BN254 field.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// use std::embedded_curve_ops::EmbeddedCurveScalar;
+    ///
+    /// let scalar = EmbeddedCurveScalar::from_field(0x100000000000000000000000000000003);
+    /// assert_eq(scalar.lo, 3);
+    /// assert_eq(scalar.hi, 1);
+    /// ```
     #[field(bn254)]
     pub fn from_field(scalar: Field) -> EmbeddedCurveScalar {
         let (a, b) = crate::field::bn254::decompose(scalar);
@@ -119,15 +238,29 @@ impl Hash for EmbeddedCurveScalar {
     }
 }
 
-/// Computes a multi scalar multiplication over the embedded curve.
-/// For bn254, We have Grumpkin.
+/// Returns `scalars[0] * points[0] + ... + scalars[N - 1] * points[N - 1]` on the embedded curve.
 ///
-/// The embedded curve being used is decided by the
-/// underlying proof system.
+/// The embedded curve being used is decided by the underlying proof system; for BN254 it is
+/// Grumpkin.
 ///
 /// IMPORTANT: Prefer `multi_scalar_mul()` over repeated `embedded_curve_add()`
 /// for adding multiple points. This is significantly more efficient.
 /// For adding exactly 2 points, use `embedded_curve_add()` directly.
+///
+/// Example:
+///
+/// ```noir
+/// use std::embedded_curve_ops::{EmbeddedCurvePoint, EmbeddedCurveScalar, multi_scalar_mul};
+///
+/// let g = EmbeddedCurvePoint::generator();
+/// let result = multi_scalar_mul([g, g.double()], [EmbeddedCurveScalar::new(1, 0), EmbeddedCurveScalar::new(2, 0)]);
+/// assert_eq(result, g + g.double() + g.double());
+/// ```
+///
+/// # Failures
+///
+/// Fails at execution if a point is neither on the curve nor the point at infinity, if a scalar
+/// limb is not less than `2^128`, or if a scalar is not less than the curve's order.
 // docs:start:multi_scalar_mul
 pub fn multi_scalar_mul<let N: u32>(
     points: [EmbeddedCurvePoint; N],
@@ -138,6 +271,24 @@ pub fn multi_scalar_mul<let N: u32>(
     multi_scalar_mul_array_return(points, scalars, true)[0]
 }
 
+/// Multiplies the curve's generator by `scalar`.
+///
+/// This is `multi_scalar_mul([EmbeddedCurvePoint::generator()], [scalar])`, so `scalar` must
+/// satisfy the same conditions as in [`multi_scalar_mul`].
+///
+/// Example:
+///
+/// ```noir
+/// use std::embedded_curve_ops::{EmbeddedCurvePoint, EmbeddedCurveScalar, fixed_base_scalar_mul};
+///
+/// let g = EmbeddedCurvePoint::generator();
+/// assert_eq(fixed_base_scalar_mul(EmbeddedCurveScalar::new(2, 0)), g.double());
+/// ```
+///
+/// # Failures
+///
+/// Fails at execution if a limb of `scalar` is not less than `2^128`, or if `scalar` is not less
+/// than the curve's order.
 // docs:start:fixed_base_scalar_mul
 pub fn fixed_base_scalar_mul(scalar: EmbeddedCurveScalar) -> EmbeddedCurvePoint
 // docs:end:fixed_base_scalar_mul
@@ -158,6 +309,20 @@ pub(crate) fn multi_scalar_mul_array_return<let N: u32>(
 /// - point doubling
 /// - point at infinity
 /// As a result, you may not get optimal performance, depending on the assumptions of your inputs.
+///
+/// Example:
+///
+/// ```noir
+/// use std::embedded_curve_ops::{EmbeddedCurvePoint, embedded_curve_add};
+///
+/// let g = EmbeddedCurvePoint::generator();
+/// assert_eq(embedded_curve_add(g, g), g.double());
+/// assert(embedded_curve_add(g, -g).is_infinite());
+/// ```
+///
+/// # Failures
+///
+/// Fails at execution if either point is neither on the curve nor the point at infinity.
 // docs:start:embedded_curve_add
 pub fn embedded_curve_add(
     point1: EmbeddedCurvePoint,

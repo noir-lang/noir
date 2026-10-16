@@ -44,7 +44,7 @@ impl<let M: u32> Deserialize for Log<M> {
     let N: u32 = M;
 
     fn deserialize(serialized: [Field; M]) -> Self {
-        let fields: [Field; M] = <[Field; M] as Deserialize>::deserialize(serialized);
+        let fields: [Field; M] = <[Field; M] as Deserialize<N = M>>::deserialize(serialized);
         Self { fields: fields }
     }
 }

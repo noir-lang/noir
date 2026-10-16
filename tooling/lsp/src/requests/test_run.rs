@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::insert_all_files_for_workspace_into_file_manager;
 use async_lsp::{ErrorCode, ResponseError};
 use nargo::{
@@ -52,14 +54,16 @@ fn on_test_run_request_inner(
         &workspace,
         &mut workspace_file_manager,
     );
-    let parsed_files = parse_diff(&workspace_file_manager, state);
+    let parsed_files = Arc::new(parse_diff(&workspace_file_manager, state));
+    let workspace_file_manager = Arc::new(workspace_file_manager);
 
     // Since we filtered on crate name, this should be the only item in the iterator
     match workspace.into_iter().next() {
         Some(package) => {
-            let (mut context, crate_id) =
+            let (context, crate_id) =
                 crate::prepare_package(&workspace_file_manager, &parsed_files, package);
-            if check_crate(&mut context, crate_id, &Default::default()).is_err() {
+            let (context, result) = check_crate(context, crate_id, &Default::default());
+            if result.is_err() {
                 let result = NargoTestRunResult {
                     id: params.id.clone(),
                     result: "error".to_string(),

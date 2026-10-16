@@ -63,10 +63,6 @@ impl HirLetStatement {
             _ => panic!("can only fetch hir ident from HirPattern::Identifier"),
         }
     }
-
-    pub fn runs_comptime(&self) -> bool {
-        self.comptime || self.is_global_let
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -100,20 +96,6 @@ impl HirPattern {
             HirPattern::Mutable(pattern, _) => pattern.field_count(),
             HirPattern::Tuple(fields, _) => fields.len(),
             HirPattern::Struct(_, fields, _) => fields.len(),
-        }
-    }
-
-    /// Iterate over the fields of this pattern.
-    /// Panics if the type is not a struct or tuple.
-    pub fn iter_fields<'a>(&'a self) -> Box<dyn Iterator<Item = (String, &'a HirPattern)> + 'a> {
-        match self {
-            HirPattern::Struct(_, fields, _) => {
-                Box::new(fields.iter().map(move |(name, pattern)| (name.to_string(), pattern)))
-            }
-            HirPattern::Tuple(fields, _) => {
-                Box::new(fields.iter().enumerate().map(|(i, field)| (i.to_string(), field)))
-            }
-            other => panic!("Tried to iterate over the fields of '{other:?}', which has none"),
         }
     }
 

@@ -205,20 +205,23 @@ impl Context<'_> {
             self.resolve_vector_length(dfg, arguments[0], Some(vector_length))
         {
             let mut new_vector = self.read_array_with_type(vector, &vector_typ)?;
+            let capacity = new_vector.len();
             // length of Acir Values vector
             let len = len_const.to_u128() as usize * elements_to_push.len();
             for (i, elem) in elements_to_push.iter().enumerate() {
                 let element = self.convert_value(*elem, dfg);
                 let write_index = len + i;
 
-                // If the array is already large enough, replace the element at the write position.
-                // Otherwise, append to the end.
-                if write_index < new_vector.len() {
-                    new_vector[write_index] = element;
-                } else {
-                    new_vector.push_back(element);
+                // The SSA passes size the result of a push as one element more than its input,
+                // even when the semantic length is below the capacity, and Remove IfElse reads
+                // every slot of that capacity when merging. So the element is written at the
+                // semantic offset when it falls inside the input, and is always appended.
+                if write_index < capacity {
+                    new_vector[write_index] = element.clone();
                 }
+                new_vector.push_back(element);
             }
+            debug_assert_eq!(new_vector.len(), capacity + elements_to_push.len());
             AcirValue::Array(new_vector)
         } else {
             // Length is not known, we are going to:

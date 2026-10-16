@@ -574,16 +574,12 @@ fn errors_on_mutually_recursive_impls() {
     pub struct Baz {}
 
     impl Foo for Bar where Baz: Foo {
-                                ^^^ Constraint for `Baz: Foo` is not needed, another matching impl is already in scope
-                                ~~~ Unnecessary trait constraint in where clause
         fn foo(self) {
             (Baz {}).foo()
         }
     }
 
     impl Foo for Baz where Bar: Foo {
-                                ^^^ Constraint for `Bar: Foo` is not needed, another matching impl is already in scope
-                                ~~~ Unnecessary trait constraint in where clause
         fn foo(self) {
             (Bar {}).foo()
         }
@@ -1578,4 +1574,96 @@ fn regression_8485_does_not_panic() {
     let full_src = format!("{}\n\n{}", crate::test_utils::stdlib_src::ZEROED, src);
     let errors = crate::tests::get_program_errors(&full_src);
     assert!(!errors.is_empty(), "expected regression_8485 to produce errors without panicking");
+}
+
+#[test]
+fn trait_where_clause_on_own_associated_type_is_checked_with_impl_associated_type() {
+    let src = r#"
+    trait Marker {}
+    impl Marker for bool {}
+    trait Foo
+    where
+        Self::T: Marker,
+    {
+        type T;
+    }
+    pub struct S {}
+    impl Foo for S {
+        type T = bool;
+    }
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn parent_bound_on_own_associated_type_is_checked_with_impl_associated_type() {
+    let src = r#"
+    trait Base<X> {}
+    impl Base<bool> for S {}
+    trait Foo: Base<Self::T> {
+        type T;
+    }
+    pub struct S {}
+    impl Foo for S {
+        type T = bool;
+    }
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn trait_where_clause_on_own_associated_type_rejects_impl_whose_associated_type_fails_it() {
+    let src = r#"
+    trait Marker {}
+    trait Foo
+    where
+        Self::T: Marker,
+                 ~~~~~~ required by this bound in `Foo`
+    {
+        type T;
+    }
+    pub struct S {}
+    pub struct NotMarker {}
+    impl Foo for S {
+                 ^ The trait bound `NotMarker: Marker` is not satisfied
+                 ~ The trait `Marker` is not implemented for `NotMarker`
+        type T = NotMarker;
+    }
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn function_checked_from_another_functions_comptime_block_does_not_see_its_where_clause() {
+    let src = r#"
+    trait Validated {}
+    trait Source { type Item: Validated; }
+    pub struct Raw { pub v: Field }
+    fn spend<M>(m: M) -> M where M: Validated { m }
+    pub fn uncalled<S>() where S: Source<Item = Raw> { comptime { let _ = helper(1); } }
+    fn helper(x: Field) -> Field { spend(Raw { v: x }).v }
+                                   ^^^^^ No matching impl found for `Raw: Validated`
+                                   ~~~~~ No impl for `Raw: Validated`
+    fn main(x: Field) -> pub Field { helper(x) }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn global_checked_from_another_functions_comptime_block_does_not_see_its_where_clause() {
+    let src = r#"
+    trait Validated {}
+    trait Source { type Item: Validated; }
+    pub struct Raw { pub v: Field }
+    fn spend<M>(m: M) -> M where M: Validated { m }
+    pub fn uncalled<S>() where S: Source<Item = Raw> { comptime { let _ = G; } }
+    global G: Field = spend(Raw { v: 1 }).v;
+                      ^^^^^ No matching impl found for `Raw: Validated`
+                      ~~~~~ No impl for `Raw: Validated`
+    fn main() -> pub Field { G }
+    "#;
+    check_errors(src);
 }

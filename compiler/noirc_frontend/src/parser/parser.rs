@@ -838,14 +838,6 @@ impl<'a> Parser<'a> {
         );
     }
 
-    #[allow(unused)]
-    fn expected_mut_after_ampersand(&mut self) {
-        self.push_error(
-            ParserErrorReason::ExpectedMutAfterAmpersand { found: self.token.token().clone() },
-            self.current_token_location,
-        );
-    }
-
     fn modifiers_not_followed_by_an_item(&mut self, modifiers: Modifiers) {
         self.visibility_not_followed_by_an_item(modifiers);
         self.unconstrained_not_followed_by_an_item(modifiers);

@@ -61,6 +61,20 @@ A code comment must stand on its own when read against the post-change state of 
 
 Test: imagine cherry-picking this file into a fresh repository with no git history. If the comment would still make sense to that reader, keep it. If it only makes sense to someone who remembers the change that introduced it, move it to the commit message.
 
+Explain why the code is needed, not the bug it fixes. A comment written alongside a fix tends to describe the broken behavior and then the repair, which only makes sense to someone who saw the code before the fix. Instead, state the requirement the code meets in terms of what it does now, and leave the bug to the regression test, the commit message and the PR description:
+
+```rust
+// BAD: describes the bug, then the fix
+// An associated item the parent bound leaves out is a placeholder shared by every use of the
+// trait, so it is matched with a fresh variable instead.
+
+// GOOD: states why the code is the way it is
+// An associated item the parent bound leaves out puts no requirement on the parent impl, so it
+// is matched against a fresh variable.
+```
+
+Words such as "instead", "now", "no longer" or "anymore" in a new comment usually mean it is narrating a change. The same goes for a "rather than ..." that names what the code used to do.
+
 ## Design Decisions
 
 The `design/` directory records specific design decisions for the Noir language, compiler, and

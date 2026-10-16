@@ -432,7 +432,7 @@ impl ItemPrinter<'_, '_> {
                 let instantiation_bindings =
                     self.interner.get_instantiation_bindings(hir_call_expression.func);
                 let mut constraint = trait_method.constraint.clone();
-                constraint.apply_bindings(instantiation_bindings);
+                constraint.apply_instantiation_bindings(instantiation_bindings);
                 let self_type = constraint.typ.follow_bindings();
                 let method_name = self.interner.function_name(&func_id);
                 self.interner.lookup_direct_method(&self_type, method_name, false).is_some()
@@ -543,7 +543,7 @@ impl ItemPrinter<'_, '_> {
         let instantiation_bindings =
             self.interner.get_instantiation_bindings(hir_call_expression.func);
         let mut constraint = trait_method.constraint.clone();
-        constraint.apply_bindings(instantiation_bindings);
+        constraint.apply_instantiation_bindings(instantiation_bindings);
 
         let trait_id = trait_method.constraint.trait_bound.trait_id;
         let module_data = &self.def_maps[&self.module_id.krate][self.module_id.local_id];
@@ -878,16 +878,19 @@ impl ItemPrinter<'_, '_> {
                     return;
                 } else {
                     match &constraint.typ {
+                        // The trait's own `Self` type variable can only stay unbound inside
+                        // that trait's body, where the item is reachable as `Self::item`.
+                        Type::NamedGeneric(NamedGeneric { type_var, .. })
+                            if type_var.binding().is_unbound()
+                                && self.trait_self_typevar == Some(type_var.id()) =>
+                        {
+                            self.push_str("Self::");
+                            let name = self.interner.definition_name(trait_item.definition);
+                            self.push_str(name);
+                            return;
+                        }
                         Type::TypeVariable(type_var) if type_var.binding().is_unbound() => {
-                            // The trait's own `Self` type variable can only stay unbound inside
-                            // that trait's body, where the item is reachable as `Self::item`.
-                            if self.trait_self_typevar == Some(type_var.id()) {
-                                self.push_str("Self::");
-                                let name = self.interner.definition_name(trait_item.definition);
-                                self.push_str(name);
-                                return;
-                            }
-                            // Otherwise don't show this as `AsTraitPath`
+                            // Don't show this as `AsTraitPath`
                         }
                         _ => {
                             self.push('<');

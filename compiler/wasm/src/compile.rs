@@ -11,7 +11,7 @@ use noirc_frontend::{
     hir::Context,
 };
 use serde::Deserialize;
-use std::{collections::BTreeMap, path::Path};
+use std::{collections::BTreeMap, path::Path, sync::Arc};
 use wasm_bindgen::prelude::*;
 
 use crate::errors::{CompileError, JsCompileError};
@@ -167,17 +167,18 @@ pub fn compile_program(
     file_source_map: PathToFileSourceMap,
 ) -> Result<JsCompileProgramResult, JsCompileError> {
     console_error_panic_hook::set_once();
-    let (crate_id, mut context) = prepare_context(entry_point, dependency_graph, file_source_map)?;
+    let (crate_id, context) = prepare_context(entry_point, dependency_graph, file_source_map)?;
+    let file_manager = Arc::clone(&context.file_manager);
 
     let compile_options = CompileOptions::default();
 
     let compiled_program =
-        noirc_driver::compile_main(&mut context, crate_id, &compile_options, None)
+        noirc_driver::compile_main(context, crate_id, &compile_options, Path::new(""), false, None)
             .map_err(|errs| {
                 CompileError::with_custom_diagnostics(
                     "Failed to compile program",
                     errs,
-                    &context.file_manager,
+                    &file_manager,
                 )
             })?
             .0;
@@ -186,7 +187,7 @@ pub fn compile_program(
         CompileError::with_custom_diagnostics(
             "Compiled program is not solvable",
             errs,
-            &context.file_manager,
+            &file_manager,
         )
     })?;
     let warnings = compiled_program.warnings.clone();
@@ -201,17 +202,18 @@ pub fn compile_contract(
     file_source_map: PathToFileSourceMap,
 ) -> Result<JsCompileContractResult, JsCompileError> {
     console_error_panic_hook::set_once();
-    let (crate_id, mut context) = prepare_context(entry_point, dependency_graph, file_source_map)?;
+    let (crate_id, context) = prepare_context(entry_point, dependency_graph, file_source_map)?;
+    let file_manager = Arc::clone(&context.file_manager);
 
     let compile_options = CompileOptions::default();
 
     let compiled_contract =
-        noirc_driver::compile_contract(&mut context, crate_id, &compile_options)
+        noirc_driver::compile_contract(context, crate_id, &compile_options, Path::new(""))
             .map_err(|errs: Vec<noirc_errors::CustomDiagnostic>| {
                 CompileError::with_custom_diagnostics(
                     "Failed to compile contract",
                     errs,
-                    &context.file_manager,
+                    &file_manager,
                 )
             })?
             .0;
@@ -225,7 +227,7 @@ fn prepare_context(
     entry_point: String,
     dependency_graph: Option<JsDependencyGraph>,
     file_source_map: PathToFileSourceMap,
-) -> Result<(CrateId, Context<'static, 'static>), JsCompileError> {
+) -> Result<(CrateId, Context), JsCompileError> {
     let dependency_graph: DependencyGraph = if let Some(dependency_graph) = dependency_graph {
         <JsValue as JsValueSerdeExt>::into_serde(&JsValue::from(dependency_graph))
             .map_err(|err| err.to_string())?
@@ -313,7 +315,7 @@ mod tests {
     use super::{DependencyGraph, file_manager_with_source_map, process_dependency_graph};
     use std::{collections::BTreeMap, path::Path};
 
-    fn setup_test_context(source_map: PathToFileSourceMap) -> Context<'static, 'static> {
+    fn setup_test_context(source_map: PathToFileSourceMap) -> Context {
         let mut fm = file_manager_with_source_map(source_map);
         // Add this due to us calling prepare_crate on "/main.nr" below
         fm.add_file_with_source(Path::new("/main.nr"), "fn foo() {}".to_string());

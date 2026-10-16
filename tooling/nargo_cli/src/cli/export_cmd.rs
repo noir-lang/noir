@@ -5,6 +5,8 @@ use noirc_artifacts::program::CompiledProgram;
 use noirc_errors::CustomDiagnostic;
 use noirc_frontend::hir::ParsedFiles;
 use rayon::prelude::*;
+use std::path::Path;
+use std::sync::Arc;
 
 use fm::FileManager;
 use iter_extended::try_vecmap;
@@ -46,7 +48,8 @@ impl WorkspaceCommand for ExportCommand {
 pub(crate) fn run(args: ExportCommand, workspace: Workspace) -> Result<(), CliError> {
     let mut workspace_file_manager = workspace.new_file_manager();
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
-    let parsed_files = parse_all(&workspace_file_manager);
+    let parsed_files = Arc::new(parse_all(&workspace_file_manager));
+    let workspace_file_manager = Arc::new(workspace_file_manager);
 
     let library_packages: Vec<_> =
         workspace.into_iter().filter(|package| package.is_library()).collect();
@@ -66,14 +69,14 @@ pub(crate) fn run(args: ExportCommand, workspace: Workspace) -> Result<(), CliEr
 }
 
 fn compile_exported_functions(
-    file_manager: &FileManager,
-    parsed_files: &ParsedFiles,
+    file_manager: &Arc<FileManager>,
+    parsed_files: &Arc<ParsedFiles>,
     workspace: &Workspace,
     package: &Package,
     compile_options: &CompileOptions,
 ) -> Result<(), CliError> {
-    let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
-    check_crate_and_report_errors(&mut context, crate_id, compile_options)?;
+    let (context, crate_id) = prepare_package(file_manager, parsed_files, package);
+    let context = check_crate_and_report_errors(context, crate_id, compile_options)?;
 
     let exported_functions = context.get_all_exported_functions_in_crate(&crate_id);
 
@@ -81,8 +84,16 @@ fn compile_exported_functions(
         exported_functions,
         |(function_name, function_id)| -> Result<(String, CompiledProgram), CompileError> {
             // TODO: We should to refactor how to deal with compilation errors to avoid this.
-            let program = compile_no_check(&context, compile_options, function_id, None, false)
-                .map_err(|error| vec![CustomDiagnostic::from(error)]);
+            let program = compile_no_check(
+                &context,
+                compile_options,
+                Path::new(""),
+                false,
+                function_id,
+                None,
+                false,
+            )
+            .map_err(|error| vec![CustomDiagnostic::from(error)]);
 
             let program = report_errors(
                 program.map(|program| (program, Vec::new())),

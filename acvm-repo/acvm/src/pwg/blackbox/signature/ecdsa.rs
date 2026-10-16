@@ -1,35 +1,10 @@
-use acir::{
-    AcirField,
-    circuit::opcodes::FunctionInput,
-    native_types::{Witness, WitnessMap},
-};
+use acir::{AcirField, circuit::opcodes::FunctionInput, native_types::WitnessMap};
 use acvm_blackbox_solver::{ecdsa_secp256k1_verify, ecdsa_secp256r1_verify};
 
 use crate::{
     OpcodeResolutionError,
-    pwg::{blackbox::utils::to_u8_array, input_to_value, insert_value},
+    pwg::{blackbox::utils::to_u8_array, input_to_value},
 };
-
-pub(crate) fn secp256k1_prehashed<F: AcirField>(
-    initial_witness: &mut WitnessMap<F>,
-    public_key_x_inputs: &[FunctionInput<F>; 32],
-    public_key_y_inputs: &[FunctionInput<F>; 32],
-    signature_inputs: &[FunctionInput<F>; 64],
-    hashed_message_inputs: &[FunctionInput<F>; 32],
-    predicate: &FunctionInput<F>,
-    output: Witness,
-) -> Result<(), OpcodeResolutionError<F>> {
-    let is_valid = execute_ecdsa(
-        initial_witness,
-        public_key_x_inputs,
-        public_key_y_inputs,
-        signature_inputs,
-        hashed_message_inputs,
-        predicate,
-        true,
-    )?;
-    insert_value(&output, F::from(is_valid), initial_witness)
-}
 
 pub(crate) fn execute_ecdsa<F: AcirField>(
     initial_witness: &WitnessMap<F>,
@@ -56,25 +31,4 @@ pub(crate) fn execute_ecdsa<F: AcirField>(
     };
 
     Ok(is_valid)
-}
-
-pub(crate) fn secp256r1_prehashed<F: AcirField>(
-    initial_witness: &mut WitnessMap<F>,
-    public_key_x_inputs: &[FunctionInput<F>; 32],
-    public_key_y_inputs: &[FunctionInput<F>; 32],
-    signature_inputs: &[FunctionInput<F>; 64],
-    hashed_message_inputs: &[FunctionInput<F>; 32],
-    predicate: &FunctionInput<F>,
-    output: Witness,
-) -> Result<(), OpcodeResolutionError<F>> {
-    let is_valid = execute_ecdsa(
-        initial_witness,
-        public_key_x_inputs,
-        public_key_y_inputs,
-        signature_inputs,
-        hashed_message_inputs,
-        predicate,
-        false,
-    )?;
-    insert_value(&output, F::from(is_valid), initial_witness)
 }

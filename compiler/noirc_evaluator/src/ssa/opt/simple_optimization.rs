@@ -107,7 +107,6 @@ impl Function {
 }
 
 pub(crate) struct SimpleOptimizationContext<'dfg, 'mapping> {
-    #[allow(unused)]
     pub(crate) block_id: BasicBlockId,
     pub(crate) instruction_id: InstructionId,
     pub(crate) call_stack_id: CallStackId,

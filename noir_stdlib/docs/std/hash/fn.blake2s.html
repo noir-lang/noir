@@ -19,7 +19,7 @@
 <h1><a href="../../index.html">noir_stdlib</a></h1>
 <div><a href="../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.3</div>
+<div id="crate-version">1.0.0-rc.5</div>
 <h2>In module hash</h2>
 <h3>Structs</h3><ul class="item-list">
 <li><a href="struct.BuildHasherDefault.html">BuildHasherDefault</a></div></li>
@@ -53,6 +53,19 @@
 <div id="page-content">
 <pre><code>pub fn blake2s&lt;let N: <a href="../../std/primitive.u32.html" class="primitive">u32</a>&gt;(input: [<a href="../../std/primitive.u8.html" class="primitive">u8</a>; N]) -> [<a href="../../std/primitive.u8.html" class="primitive">u8</a>; 32]</code></pre>
 
+<div class="comments">
+<p>Returns the BLAKE2s-256 hash of <code>input</code>.</p>
+<p>The hash is unkeyed and covers exactly the <code>N</code> bytes of <code>input</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">let</span> digest = std::hash::blake2s(<span class="string">"abc"</span>.as_bytes());
+<span class="kw">assert_eq</span>(
+    digest,
+    [
+        <span class="number">0x50</span>, <span class="number">0x8c</span>, <span class="number">0x5e</span>, <span class="number">0x8c</span>, <span class="number">0x32</span>, <span class="number">0x7c</span>, <span class="number">0x14</span>, <span class="number">0xe2</span>, <span class="number">0xe1</span>, <span class="number">0xa7</span>, <span class="number">0x2b</span>, <span class="number">0xa3</span>, <span class="number">0x4e</span>, <span class="number">0xeb</span>,
+        <span class="number">0x45</span>, <span class="number">0x2f</span>, <span class="number">0x37</span>, <span class="number">0x45</span>, <span class="number">0x8b</span>, <span class="number">0x20</span>, <span class="number">0x9e</span>, <span class="number">0xd6</span>, <span class="number">0x3a</span>, <span class="number">0x29</span>, <span class="number">0x4d</span>, <span class="number">0x99</span>, <span class="number">0x9b</span>, <span class="number">0x4c</span>,
+        <span class="number">0x86</span>, <span class="number">0x67</span>, <span class="number">0x59</span>, <span class="number">0x82</span>,
+    ],
+);</code></pre></div>
 </div>
 </main>
 </span>

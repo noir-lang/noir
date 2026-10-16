@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::collections::{BTreeMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::str::FromStr as _;
+use std::sync::Arc;
 
 use crate::requests::{file_path_to_file_id, uri_to_file_path};
 use crate::{
@@ -23,9 +24,10 @@ use noirc_driver::{CrateName, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_errors::reporter::CustomLabel;
 use noirc_errors::{CustomDiagnostic, DiagnosticKind, Location};
 use noirc_frontend::elaborator::{FrontendOptions, UnstableFeature};
+use noirc_frontend::hir::comptime::ComptimeIo;
 use noirc_frontend::hir::def_collector::dc_crate::{CompilationErrors, DefCollector};
 use noirc_frontend::hir::def_map::{CrateDefMap, LocalModuleId};
-use noirc_frontend::hir::{Context, LspMode};
+use noirc_frontend::hir::{CheckState, Context, LspMode};
 use noirc_frontend::parse_program;
 
 use crate::types::{
@@ -317,13 +319,15 @@ pub(crate) fn process_workspace(
         );
     }
 
-    let parsed_files = parse_diff(&workspace_file_manager, state);
+    let parsed_files = Arc::new(parse_diff(&workspace_file_manager, state));
+    let workspace_file_manager = Arc::new(workspace_file_manager);
 
     for package in workspace {
-        let (mut context, crate_id) =
+        let (context, crate_id) =
             crate::prepare_package(&workspace_file_manager, &parsed_files, package);
 
-        let file_diagnostics = match check_crate(&mut context, crate_id, &Default::default()) {
+        let (context, result) = check_crate(context, crate_id, &Default::default());
+        let file_diagnostics = match result {
             Ok(((), warnings)) => warnings,
             Err(errors_and_warnings) => errors_and_warnings,
         };
@@ -336,6 +340,8 @@ pub(crate) fn process_workspace(
             });
         }
 
+        // The analysis is cached in parts so that single file changes can update them in place.
+        let context = context.into_context();
         state.package_cache.insert(
             package.root_dir.clone(),
             PackageCacheData {
@@ -387,7 +393,7 @@ pub(crate) fn process_workspace_for_single_file_change(
 
     // We need to replace the file's source in the file manager
     let file_id = file_path_to_file_id(file_map, &PathString::from(&file_path))?;
-    file_manager.replace_file(file_id, file_source.to_string());
+    Arc::make_mut(&mut file_manager).replace_file(file_id, file_source.to_string());
 
     let mut node_interner = package_cache.node_interner;
 
@@ -427,7 +433,7 @@ pub(crate) fn process_workspace_for_single_file_change(
     let sorted_module = parsed_program.into_sorted();
     let def_collector = DefCollector::new(crate_def_map);
     let mut context =
-        Context::from_existing(&file_manager, &parsed_files, node_interner, def_maps, crate_graph);
+        Context::from_existing(file_manager, parsed_files, node_interner, def_maps, crate_graph);
     context.activate_lsp_mode(LspMode::SingleFile);
 
     // Here we enable all options because we won't show errors to users, so it's easier to
@@ -449,6 +455,8 @@ pub(crate) fn process_workspace_for_single_file_change(
         &mut context,
         def_collector,
         options,
+        &mut ComptimeIo::stdout(),
+        &mut CheckState::default(),
         reuse_existing_module_declarations,
         &mut errors,
     );
@@ -458,7 +466,7 @@ pub(crate) fn process_workspace_for_single_file_change(
     package_cache.def_maps = context.def_maps;
     package_cache.crate_graph = context.crate_graph;
 
-    workspace_cache.file_manager = file_manager;
+    workspace_cache.file_manager = context.file_manager;
 
     state.workspace_cache.insert(root_dir.clone(), workspace_cache);
     state.package_cache.insert(root_dir.clone(), package_cache);

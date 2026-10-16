@@ -516,9 +516,7 @@ impl<'f> Validator<'f> {
                 assert_u1(&condition_type, "enable_side_effects condition");
             }
             Instruction::DecrementRc { .. } => {
-                panic!(
-                    "DecrementRc instructions unexpectedly emitted. Add back the `remove_paired_rc` pass if emitting these instructions."
-                );
+                panic!("DecrementRc instructions unexpectedly emitted");
             }
             _ => (),
         }
@@ -1568,7 +1566,9 @@ fn assert_array<'a>(typ: &'a Type, object: &str) -> (&'a Arc<Vec<Type>>, u32) {
     (elements, length.0)
 }
 
-fn assert_u1_array(typ: &Type, object: &str) -> u32 {
+/// Asserts that `typ` is an array with a single element type accepted by `assert_element`, and
+/// returns its length.
+fn assert_numeric_array(typ: &Type, object: &str, assert_element: fn(&Type, &str)) -> u32 {
     let (elements, length) = assert_array(typ, object);
     assert_eq!(
         elements.len(),
@@ -1576,56 +1576,28 @@ fn assert_u1_array(typ: &Type, object: &str) -> u32 {
         "Expected {object} to be an array of length 1, not {}",
         elements.len()
     );
-    assert_u1(&elements[0], &format!("{object} array element"));
+    assert_element(&elements[0], &format!("{object} array element"));
     length
+}
+
+fn assert_u1_array(typ: &Type, object: &str) -> u32 {
+    assert_numeric_array(typ, object, assert_u1)
 }
 
 fn assert_u8_array(typ: &Type, object: &str) -> u32 {
-    let (elements, length) = assert_array(typ, object);
-    assert_eq!(
-        elements.len(),
-        1,
-        "Expected {object} to be an array of length 1, not {}",
-        elements.len()
-    );
-    assert_u8(&elements[0], &format!("{object} array element"));
-    length
+    assert_numeric_array(typ, object, assert_u8)
 }
 
 fn assert_u32_array(typ: &Type, object: &str) -> u32 {
-    let (elements, length) = assert_array(typ, object);
-    assert_eq!(
-        elements.len(),
-        1,
-        "Expected {object} to be an array of length 1, not {}",
-        elements.len()
-    );
-    assert_u32(&elements[0], &format!("{object} array element"));
-    length
+    assert_numeric_array(typ, object, assert_u32)
 }
 
 fn assert_u64_array(typ: &Type, object: &str) -> u32 {
-    let (elements, length) = assert_array(typ, object);
-    assert_eq!(
-        elements.len(),
-        1,
-        "Expected {object} to be an array of length 1, not {}",
-        elements.len()
-    );
-    assert_u64(&elements[0], &format!("{object} array element"));
-    length
+    assert_numeric_array(typ, object, assert_u64)
 }
 
 fn assert_field_array(typ: &Type, object: &str) -> u32 {
-    let (elements, length) = assert_array(typ, object);
-    assert_eq!(
-        elements.len(),
-        1,
-        "Expected {object} to be an array of length 1, not {}",
-        elements.len()
-    );
-    assert_field(&elements[0], &format!("{object} array element"));
-    length
+    assert_numeric_array(typ, object, assert_field)
 }
 
 fn assert_array_length(actual_length: u32, expected_length: u32, object: &str) {
@@ -3144,6 +3116,19 @@ mod tests {
 
         }
 
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "StrAsBytes argument array element must be u8, not u32")]
+    fn str_as_bytes_with_wrong_array_element_type() {
+        let src = "
+        acir(inline) fn main f0 {
+            b0(v0: [u32; 3]):
+              v1 = call str_as_bytes(v0) -> [u8; 3]
+              return v1
+        }
         ";
         let _ = Ssa::from_str(src).unwrap();
     }

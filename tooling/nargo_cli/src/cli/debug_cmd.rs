@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::sync::Arc;
 use std::time::Duration;
 
 use acvm::FieldElement;
@@ -26,12 +27,12 @@ use noir_debugger::{DebugExecutionResult, DebugProject, RunParams};
 use noirc_abi::Abi;
 use noirc_artifacts::program::CompiledProgram;
 use noirc_driver::CompileOptions;
-use noirc_frontend::hir::{Context, ParsedFiles};
+use noirc_frontend::hir::{CheckedContext, ParsedFiles};
 
 use super::test_cmd::TestResult;
-use super::test_cmd::formatters::Formatter;
+use super::test_cmd::formatters::OrderedFormatter;
 use super::{LockType, WorkspaceCommand};
-use crate::cli::test_cmd::formatters::PrettyFormatter;
+use crate::cli::test_cmd::formatters::{DisplayOptions, PrettyFormatter};
 use crate::errors::CliError;
 
 /// Executes a circuit in debug mode
@@ -132,22 +133,33 @@ fn print_test_result(
     file_manager: &FileManager,
     parsed_files: &ParsedFiles,
 ) {
-    let formatter: Box<dyn Formatter> = Box::new(PrettyFormatter);
-    formatter
-        .test_end_sync(&test_result, 1, 1, file_manager, parsed_files, true, false, false)
+    let options = DisplayOptions {
+        file_manager,
+        parsed_files,
+        show_output: true,
+        deny_warnings: false,
+        silence_warnings: false,
+    };
+    PrettyFormatter::new(options)
+        .test_end(&test_result, 1, 1)
         .expect("Could not display test result");
 }
 
 fn debug_test_fn(
     test: &TestDefinition,
-    context: &mut Context,
+    context: &CheckedContext,
     workspace: &Workspace,
     package: &Package,
     compile_options: CompileOptions,
     run_params: RunParams,
     package_params: PackageParams,
 ) -> TestResult {
-    let compiled_program = compile_test_fn_for_debugging(test, context, compile_options);
+    let compiled_program = compile_test_fn_for_debugging(
+        test,
+        context,
+        compile_options,
+        &workspace.package_build_path(package),
+    );
 
     let test_status = match compiled_program {
         Ok(compiled_program) => {
@@ -210,26 +222,26 @@ fn debug_test(
     run_params: RunParams,
     package_params: PackageParams,
 ) -> Result<(), CliError> {
-    let (file_manager, mut parsed_files) = load_workspace_files(&workspace);
+    let (file_manager, parsed_files) = load_workspace_files(&workspace);
 
-    let (mut context, crate_id) =
-        prepare_package_for_debug(&file_manager, &mut parsed_files, package, &workspace);
+    let (context, crate_id) =
+        prepare_package_for_debug(&Arc::new(file_manager), parsed_files, package);
 
-    check_crate_and_report_errors(&mut context, crate_id, &compile_options)?;
+    let context = check_crate_and_report_errors(context, crate_id, &compile_options)?;
 
     let test =
         get_test_function_for_debug(crate_id, &context, &test_name).map_err(CliError::Generic)?;
 
     let test_result = debug_test_fn(
         &test,
-        &mut context,
+        &context,
         &workspace,
         package,
         compile_options,
         run_params,
         package_params,
     );
-    print_test_result(test_result, &file_manager, &parsed_files);
+    print_test_result(test_result, &context.file_manager, &context.parsed_files);
 
     Ok(())
 }

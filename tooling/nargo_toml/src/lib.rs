@@ -23,7 +23,7 @@ mod flock;
 mod git;
 mod semver;
 
-pub use errors::ManifestError;
+pub use errors::{GitError, ManifestError};
 pub use git::list_cached_git_dependencies;
 use git::{clone_git_repo, lock_git_deps};
 
@@ -331,7 +331,7 @@ impl DependencyConfig {
     ) -> Result<Dependency, ManifestError> {
         let dep = match self {
             Self::Git { git, tag, directory } => {
-                let dir_path = clone_git_repo(git, tag).map_err(ManifestError::GitError)?;
+                let dir_path = clone_git_repo(git, tag)?;
                 let project_path = if let Some(directory) = directory {
                     let internal_path = dir_path.join(directory).normalize();
                     if !internal_path.starts_with(&dir_path) {
@@ -376,7 +376,7 @@ pub fn resolve_dependency(
     pkg_root: &Path,
     dep: &DependencyConfig,
 ) -> Result<Dependency, ManifestError> {
-    let _lock = lock_git_deps().expect("Failed to lock git dependencies cache");
+    let _lock = lock_git_deps()?;
     dep.resolve_to_dependency(pkg_root, &mut Vec::new())
 }
 
@@ -434,7 +434,7 @@ fn toml_to_workspace(
     assume_default_entry: bool, // assume that the 'default_entry_path' exists, e.g. src/main.nr
 ) -> Result<Workspace, ManifestError> {
     let mut resolved = Vec::new();
-    let _lock = lock_git_deps().expect("Failed to lock git dependencies cache");
+    let _lock = lock_git_deps()?;
     let workspace = match nargo_toml.config {
         Config::Package { package_config } => {
             let member = package_config.resolve_to_package(

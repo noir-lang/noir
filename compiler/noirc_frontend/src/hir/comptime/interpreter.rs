@@ -33,7 +33,7 @@
 //! [`InterpreterError::ArgumentCountMismatch`] is an example of such an error.
 
 use std::collections::VecDeque;
-use std::{collections::hash_map::Entry, rc::Rc};
+use std::rc::Rc;
 
 use acvm::AcirField;
 use imbl::Vector;
@@ -45,11 +45,12 @@ use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, UnaryOp};
 use crate::elaborator::{Elaborator, ElaboratorOptions};
-use crate::hir::Context;
+use crate::hir::comptime::ComptimeIo;
 use crate::hir::comptime::Integer;
 use crate::hir::comptime::ValueCell;
 use crate::hir::comptime::value::FormatStringFragment;
 use crate::hir::def_map::ModuleId;
+use crate::hir::{CheckState, CheckedContext};
 use crate::hir_def::types::resolve_type_bindings;
 use crate::monomorphization::{compute_impl_bindings, resolve_trait_item};
 use crate::node_interner::GlobalValue;
@@ -82,6 +83,8 @@ mod builtin;
 mod cast;
 pub(crate) use cast::evaluate_cast_one_step;
 mod foreign;
+mod frame;
+pub(crate) use frame::Frame;
 mod infix;
 mod tracker;
 pub use tracker::EvaluationTracker;
@@ -105,7 +108,6 @@ pub(crate) use builtin::builtin_helpers;
 /// we could have a separate limit just for comptime call stack depth.
 const MAX_EVALUATION_DEPTH: usize = 300;
 
-#[allow(unused)]
 pub struct Interpreter<'local, 'interner> {
     /// To expand macros the Interpreter needs access to the Elaborator
     pub elaborator: &'local mut Elaborator<'interner>,
@@ -118,16 +120,14 @@ pub struct Interpreter<'local, 'interner> {
     /// the rhs of a global.
     current_function: Option<FuncId>,
 
-    /// Bindings for the generics of the function being interpreted: a call's instantiation and
-    /// impl bindings, or the bindings a closure was created under, plus the types macro calls in
-    /// the function have produced. Every type this interpreter reads from the HIR of that
-    /// function goes through [`Self::ty`], which applies them.
-    substitution: TypeBindings,
+    /// The types the function being interpreted sees. Every type this interpreter reads from the
+    /// HIR of that function goes through [`Self::ty`], which applies them.
+    frame: Frame,
 
-    /// The type variables each call expression's result bound in [`Self::substitution`] the last
-    /// time it was evaluated. A macro call inside a loop can produce a value of a different type
-    /// on each iteration, so those bindings are taken back out before its type is unified again.
-    macro_call_bindings: HashMap<ExprId, Vec<TypeVariableId>>,
+    /// The type variables each call expression solved in [`Self::frame`] the last time it was
+    /// evaluated: from its result, or handed back by its callee. A call in a loop can solve them
+    /// differently on each iteration, so they are taken back out before it is evaluated again.
+    call_bindings: HashMap<ExprId, Vec<TypeVariableId>>,
 
     /// Current evaluation depth.
     evaluation_depth: usize,
@@ -150,8 +150,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         Self {
             elaborator,
             current_function,
-            substitution: TypeBindings::default(),
-            macro_call_bindings: HashMap::default(),
+            frame: Frame::default(),
+            call_bindings: HashMap::default(),
             in_loop: false,
             evaluation_depth: 0,
             in_unconstrained,
@@ -168,7 +168,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         if let Type::Forall(variables, typ) = typ {
             return Type::Forall(variables.clone(), Box::new(self.ty(typ)));
         }
-        typ.substitute(&self.substitution)
+        self.frame.substitute(typ)
     }
 
     /// The type of the expression `id` as seen from the function being interpreted.
@@ -186,10 +186,17 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     /// `value` with every type it holds as seen from the function being interpreted.
     pub(super) fn value(&self, value: Value) -> Value {
-        if self.substitution.is_empty() {
+        if self.frame.bindings().is_empty() {
             return value;
         }
         value.map_types(&|typ| self.ty(typ))
+    }
+
+    /// `value` with the types solved at runtime since it was built applied: the only bindings of
+    /// this frame it can be missing, since everything else was applied when it was built (or by
+    /// its caller). This is [`Self::value`], skipped while nothing has been solved at runtime.
+    pub(crate) fn apply_runtime_solves(&self, value: Value) -> Value {
+        if self.frame.has_runtime_solves() { self.value(value) } else { value }
     }
 
     /// Call the given function with the given arguments and return the result.
@@ -204,6 +211,19 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         instantiation_bindings: TypeBindings,
         location: Location,
     ) -> IResult<Value> {
+        self.call_function_taking_solves(function, arguments, instantiation_bindings, location)
+            .map(|(result, _)| result)
+    }
+
+    /// [`Self::call_function`], also returning the type variables the callee solved and handed
+    /// back to this frame (see [`Frame::take_solves`]).
+    fn call_function_taking_solves(
+        &mut self,
+        function: FuncId,
+        arguments: Vec<(Value, Location)>,
+        instantiation_bindings: TypeBindings,
+        location: Location,
+    ) -> IResult<(Value, Vec<TypeVariableId>)> {
         self.elaborator.define_function_meta_if_undefined(function);
         let trait_method = self.elaborator.interner.get_trait_item_id(function);
 
@@ -226,19 +246,28 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             }
         };
 
-        let mut frame = instantiation_bindings;
-        frame.extend(impl_bindings);
-        let caller_substitution = std::mem::replace(&mut self.substitution, frame);
+        let mut own_bindings = instantiation_bindings;
+        own_bindings.extend(impl_bindings);
+        // The caller's frame is restored when the call returns, so the callee extends a copy.
+        let callee_frame = self.frame.clone().for_call(&own_bindings);
+        let caller_frame = std::mem::replace(&mut self.frame, callee_frame);
 
         if let Some(tracker) = self.elaborator.evaluation_tracker.as_mut() {
             tracker.track_function_call(function, location);
         }
 
-        let result = self.call_function_inner(function, arguments, location);
+        // The callee can solve a type that only its own body mentions after building a value that
+        // holds it (a `Type` taken by `type_of`, say), so resolve the result before leaving.
+        let result = self
+            .call_function_inner(function, arguments, location)
+            .map(|result| self.apply_runtime_solves(result));
 
-        self.substitution = caller_substitution;
+        let callee_frame = std::mem::replace(&mut self.frame, caller_frame);
+        let visible: Vec<&Type> = own_bindings.values().map(|(_, _, typ)| typ).collect();
+        let solves = self.frame.take_solves(&callee_frame, &visible);
+
         self.elaborator.pop_interpreter_call_stack();
-        result
+        result.map(|result| (result, solves))
     }
 
     /// Helper to check parameter count and dispatch on the function kind to run the function.
@@ -363,6 +392,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let item = format!("Comptime evaluation for builtin function '{name}'");
                 return Err(InterpreterError::Unimplemented { item, location });
             };
+            // Builtins read the types stored on their arguments directly, so resolve the types
+            // solved since each argument was built. The frame holds every solution its callers
+            // can see.
+            let arguments = vecmap(arguments, |(argument, location)| {
+                (self.apply_runtime_solves(argument), location)
+            });
             let result = self.call_builtin(builtin, arguments, return_type, location)?;
             Ok(self.value(result))
         } else if let Some(name) = func_attrs.foreign() {
@@ -399,13 +434,15 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         result
     }
 
-    /// Call a closure value with the given arguments and environment, returning the result.
+    /// Call a closure value with the given arguments and environment, returning the result and
+    /// the type variables the closure solved and handed back to this frame (see
+    /// [`Frame::take_solves`]).
     fn call_closure(
         &mut self,
         closure: Closure,
         arguments: Vec<(Value, Location)>,
         call_location: Location,
-    ) -> IResult<Value> {
+    ) -> IResult<(Value, Vec<TypeVariableId>)> {
         self.elaborator.push_interpreter_call_stack(call_location)?;
 
         // Resolve the closure body in the scope of the function it was originally evaluated in.
@@ -413,21 +450,22 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             let old_function =
                 std::mem::replace(&mut this.current_function, closure.function_scope);
 
-            let caller_substitution =
-                std::mem::replace(&mut this.substitution, closure.substitution);
+            let callee_frame = this.frame.clone().for_closure(closure.frame);
+            let caller_frame = std::mem::replace(&mut this.frame, callee_frame);
 
             // The body can solve types after a value holding them was built (`[make!()]` types
             // the array before the macro call runs), so resolve the result under the closure's
-            // substitution before leaving it.
+            // frame before leaving it.
             let result = this
                 .call_closure_inner(closure.lambda, closure.env, arguments, call_location)
-                .map(|result| this.value(result));
+                .map(|result| this.apply_runtime_solves(result));
 
-            this.substitution = caller_substitution;
+            let callee_frame = std::mem::replace(&mut this.frame, caller_frame);
+            let solves = this.frame.take_solves(&callee_frame, &[&closure.typ]);
             this.elaborator.pop_interpreter_call_stack();
 
             this.current_function = old_function;
-            result
+            result.map(|result| (result, solves))
         })
     }
 
@@ -475,50 +513,26 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     /// Returns the previous values of the internal state, to be reset when
     /// [`Self::exit_function`] is called.
     ///
-    /// Rather than physically removing the caller's scopes, the scope floor is raised to the top
-    /// of the scope stack so the callee only sees its own scopes plus the global scope. This keeps
-    /// entering a function O(1) regardless of how deep the call stack is.
+    /// The callee sees only its own scopes; see [`ComptimeScopes`](super::ComptimeScopes).
     pub(super) fn enter_function(&mut self) -> (bool, usize) {
-        let interner = &mut self.elaborator.interner;
-        let previous_floor =
-            std::mem::replace(&mut interner.comptime_scope_floor, interner.comptime_scopes.len());
-        self.push_scope();
+        let previous_floor = self.elaborator.comptime_scopes_mut().enter_function();
         (std::mem::take(&mut self.in_loop), previous_floor)
     }
 
     /// Resets the per-function state to the value previously returned by [`Self::enter_function`]
     pub(super) fn exit_function(&mut self, state: (bool, usize)) {
         self.in_loop = state.0;
-
-        // Drop every scope this function pushed (the current floor is the length recorded on entry)
-        // before restoring the caller's floor.
-        let interner = &mut self.elaborator.interner;
-        interner.comptime_scopes.truncate(interner.comptime_scope_floor);
-        interner.comptime_scope_floor = state.1;
+        self.elaborator.comptime_scopes_mut().exit_function(state.1);
     }
 
     /// Pushes a new scope to define any variables in.
-    ///
-    /// Note that the first scope is always expected to be the global scope shared by all
-    /// crates, which should never be popped.
     pub(super) fn push_scope(&mut self) {
-        self.elaborator.interner.comptime_scopes.push(HashMap::default());
+        self.elaborator.comptime_scopes_mut().push();
     }
 
-    /// Pops the topmost scope.
-    ///
-    /// Note that the first scope is expected to be the global scope of comptime values
-    /// shared between all crates, which should never be popped.
+    /// Pops the innermost scope.
     pub(super) fn pop_scope(&mut self) {
-        self.elaborator.interner.comptime_scopes.pop().expect("Expected a scope to exist");
-        assert!(!self.elaborator.interner.comptime_scopes.is_empty());
-    }
-
-    /// Returns the current scope to define comptime variables in.
-    /// The stack of scopes is always non-empty so this should never panic.
-    fn current_scope_mut(&mut self) -> &mut HashMap<DefinitionId, Value> {
-        // the global scope is always at index zero, so this is always Some
-        self.elaborator.interner.comptime_scopes.last_mut().unwrap()
+        self.elaborator.comptime_scopes_mut().pop();
     }
 
     /// Defines a pattern, putting all variables contained within the pattern in the current scope.
@@ -617,34 +631,34 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     /// Define a new variable in the current scope
     fn define(&mut self, id: DefinitionId, argument: Value) {
-        self.current_scope_mut().insert(id, argument);
+        self.elaborator.comptime_scopes_mut().define(id, argument);
     }
 
     /// Mutate an existing variable, potentially from a prior scope
     fn mutate(&mut self, id: DefinitionId, argument: Value, location: Location) -> IResult<()> {
-        let floor = self.elaborator.interner.comptime_scope_floor;
-        let scopes = &mut self.elaborator.interner.comptime_scopes;
+        // Locals of enclosing callers are not visible, so a callee cannot mutate them.
+        let slot = if let Some(local) = self.elaborator.comptime_scopes_mut().get_mut(id) {
+            local
+        } else if let DefinitionKind::Global(global_id) =
+            self.elaborator.interner.definition(id).kind
+            && let GlobalValue::Resolved(value) =
+                &mut self.elaborator.interner.get_global_mut(global_id).value
+        {
+            value
+        } else {
+            return Err(InterpreterError::VariableNotInScope { location });
+        };
 
-        // Search the current function's scopes from innermost outwards, then fall back to the
-        // global scope at index zero. Scopes belonging to enclosing callers (below the floor)
-        // are skipped so a callee cannot mutate its caller's locals.
-        for index in (floor..scopes.len()).rev().chain(std::iter::once(0)) {
-            if let Entry::Occupied(mut entry) = scopes[index].entry(id) {
-                match entry.get() {
-                    Value::Pointer(reference, true, _) => {
-                        // We can't store to the reference directly, we need to check if the value
-                        // is a struct or tuple to store to each field instead. This is so any
-                        // references to these fields are also updated.
-                        Self::store_flattened(reference, argument);
-                    }
-                    _ => {
-                        entry.insert(argument);
-                    }
-                }
-                return Ok(());
+        match slot {
+            Value::Pointer(reference, true, _) => {
+                // We can't store to the reference directly, we need to check if the value
+                // is a struct or tuple to store to each field instead. This is so any
+                // references to these fields are also updated.
+                Self::store_flattened(reference, argument);
             }
+            _ => *slot = argument,
         }
-        Err(InterpreterError::VariableNotInScope { location })
+        Ok(())
     }
 
     /// Lookup the comptime value of the given variable
@@ -654,16 +668,16 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     /// Lookup the comptime value of the given definition
     pub fn lookup_id(&self, id: DefinitionId, location: Location) -> IResult<Value> {
-        let floor = self.elaborator.interner.comptime_scope_floor;
-        let scopes = &self.elaborator.interner.comptime_scopes;
+        // Locals of enclosing callers are not visible, so a callee cannot read them.
+        if let Some(value) = self.elaborator.comptime_scopes().get(id) {
+            return Ok(value.clone());
+        }
 
-        // Search the current function's scopes from innermost outwards, then fall back to the
-        // global scope at index zero. Scopes belonging to enclosing callers (below the floor)
-        // are skipped so a callee cannot see its caller's locals.
-        for index in (floor..scopes.len()).rev().chain(std::iter::once(0)) {
-            if let Some(value) = scopes[index].get(&id) {
-                return Ok(value.clone());
-            }
+        if let DefinitionKind::Global(global_id) = self.elaborator.interner.definition(id).kind
+            && let GlobalValue::Resolved(value) =
+                &self.elaborator.interner.get_global(global_id).value
+        {
+            return Ok(value.clone());
         }
 
         let name = self.elaborator.interner.definition_name(id).to_string();
@@ -674,13 +688,13 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     /// This will automatically dereference a mutable variable if used.
     pub fn evaluate(&mut self, id: ExprId) -> IResult<Value> {
         // If comptime evaluation has been halted, don't execute anything
-        if self.elaborator.comptime_evaluation_halted {
+        if self.elaborator.comptime_evaluation_halted() {
             return Err(InterpreterError::SkippedDueToEarlierErrors);
         }
 
         // Skip expressions that had errors during elaboration and halt all future execution
         if self.elaborator.interner.exprs_with_errors.contains(&id) {
-            self.elaborator.comptime_evaluation_halted = true;
+            self.elaborator.halt_comptime_evaluation();
             return Err(InterpreterError::SkippedDueToEarlierErrors);
         }
 
@@ -744,7 +758,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 Err(InterpreterError::UnquoteFoundDuringEvaluation { location })
             }
             HirExpression::Error => {
-                self.elaborator.comptime_evaluation_halted = true;
+                self.elaborator.halt_comptime_evaluation();
                 Err(InterpreterError::SkippedDueToEarlierErrors)
             }
         };
@@ -827,8 +841,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     self.elaborator.interner.find_associated_type_for_impl(*trait_impl_id, name);
                 let typ = typ.expect("Expected to find associated type");
                 // The value can mention the impl's generics (`A + B` in
-                // `impl<let A: u32, let B: u32>`), which the frame's substitution binds.
-                let typ = self.ty(typ);
+                // `impl<let A: u32, let B: u32>`). A use reached through a type (`G::<7>::C`)
+                // binds them itself; otherwise the frame's substitution does.
+                let bindings = self.elaborator.interner.try_get_instantiation_bindings(id);
+                let bindings = bindings.map_or(TypeBindings::default(), |b| self.bindings(b));
+                let typ = self.ty(&typ.substitute(&bindings));
                 let location = self.elaborator.interner.expr_location(&id);
                 match typ.evaluate_to_integer(&typ.kind(), location) {
                     Ok(value) => self.evaluate_integer_literal(value.to_bigint(), id),
@@ -872,7 +889,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         id: ExprId,
     ) -> Result<(crate::monomorphization::TraitItem, TypeBindings), InterpreterError> {
         self.elaborator.resolve_trait_method_metas_for(item.trait_id);
-        let resolved = resolve_trait_item(self.elaborator.interner, item, id, &self.substitution)?;
+        let resolved =
+            resolve_trait_item(self.elaborator.interner, item, id, self.frame.bindings())?;
         // The interpreter runs during elaboration, where solving a trait constraint is supposed
         // to commit the inference variables it resolved — the same thing `check_trait_constraints`
         // does for a constraint solved by the type checker.
@@ -1250,16 +1268,21 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     /// Evaluates a call expression, deferring to [`Self::call_function`] or [`Self::call_closure`]
     /// once the function is determined.
     fn evaluate_call(&mut self, call: HirCallExpression, id: ExprId) -> IResult<Value> {
+        if let Some(var_ids) = self.call_bindings.remove(&id) {
+            self.frame.forget(&var_ids);
+        }
+
         let function = self.evaluate(call.func)?;
         let arguments = try_vecmap(call.arguments, |arg| {
             Ok((self.evaluate(arg)?, self.elaborator.interner.expr_location(&arg)))
         })?;
         let location = self.elaborator.interner.expr_location(&id);
 
-        match function {
+        let (result, solves) = match function {
             Value::Function(function_id, _, bindings) => {
                 let bindings = unwrap_rc(bindings);
-                let mut result = self.call_function(function_id, arguments, bindings, location)?;
+                let (mut result, mut solves) =
+                    self.call_function_taking_solves(function_id, arguments, bindings, location)?;
                 if call.is_macro_call {
                     let expr = result.into_expression(self.elaborator, location)?;
                     let expr = self.elaborator.elaborate_item_from_comptime_in_function(
@@ -1268,46 +1291,48 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                         |elaborator| elaborator.elaborate_expression(expr).0,
                     );
                     result = self.evaluate(expr)?;
-
-                    self.unify_macro_call_result_with_expected_type(id, location, &result);
+                    solves.extend(
+                        self.unify_macro_call_result_with_expected_type(id, location, &result),
+                    );
                 } else {
-                    self.solve_call_type_from_result(id, &result);
+                    solves.extend(self.solve_call_type_from_result(id, &result));
                 }
-                Ok(result)
+                (result, solves)
             }
             Value::Closure(closure) => {
-                let result = self.call_closure(*closure, arguments, location)?;
-                self.solve_call_type_from_result(id, &result);
-                Ok(result)
+                let (result, mut solves) = self.call_closure(*closure, arguments, location)?;
+                solves.extend(self.solve_call_type_from_result(id, &result));
+                (result, solves)
             }
             value => {
                 let typ = value.get_type().into_owned();
-                Err(InterpreterError::NonFunctionCalled { typ, location })
+                return Err(InterpreterError::NonFunctionCalled { typ, location });
             }
-        }
+        };
+
+        self.call_bindings.insert(id, solves);
+        Ok(result)
     }
 
     /// Macro calls are typed as type variables during type checking. Once the call has produced
-    /// a value, unify its type with the expression's and add what that solves to the frame's
-    /// substitution, so that the rest of the function sees the macro call's type.
+    /// a value, unify its type with the expression's and add what that solves to the frame, so
+    /// that the rest of the function sees the macro call's type. Returns the type variables
+    /// solved.
     fn unify_macro_call_result_with_expected_type(
         &mut self,
         id: ExprId,
         location: Location,
         result: &Value,
-    ) {
-        for var_id in self.macro_call_bindings.remove(&id).unwrap_or_default() {
-            self.substitution.remove(&var_id);
-        }
-
+    ) -> Vec<TypeVariableId> {
         let expected_type = self.expr_type(id);
         let actual_type = result.get_type();
 
         let mut bindings = TypeBindings::default();
         match actual_type.try_unify(&expected_type, &mut bindings) {
             Ok(()) => {
-                self.macro_call_bindings.insert(id, bindings.keys().copied().collect());
-                self.substitution.extend(bindings);
+                let solved = bindings.keys().copied().collect();
+                self.frame.solve(bindings);
+                solved
             }
             Err(UnificationError) => {
                 self.elaborator.push_err(self.elaborator.new_type_mismatch_error(
@@ -1315,29 +1340,27 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     &expected_type,
                     location,
                 ));
+                Vec::new()
             }
         }
     }
 
     /// A call can return the value of a macro call that ran in another frame: the body of a
-    /// closure, or a function the closure was passed to. That frame's substitution is gone once
-    /// the call returns, so if the call's type is still unsolved in this frame, solve it from the
-    /// value the call produced.
-    fn solve_call_type_from_result(&mut self, id: ExprId, result: &Value) {
-        for var_id in self.macro_call_bindings.remove(&id).unwrap_or_default() {
-            self.substitution.remove(&var_id);
-        }
-
+    /// closure, or a function the closure was passed to. If the call's type is still unsolved in
+    /// this frame, solve it from the value the call produced. Returns the type variables solved.
+    fn solve_call_type_from_result(&mut self, id: ExprId, result: &Value) -> Vec<TypeVariableId> {
         let expected_type = self.expr_type(id);
         if !expected_type.contains_unbound_type_variable() {
-            return;
+            return Vec::new();
         }
 
         let mut bindings = TypeBindings::default();
-        if result.get_type().try_unify(&expected_type, &mut bindings).is_ok() {
-            self.macro_call_bindings.insert(id, bindings.keys().copied().collect());
-            self.substitution.extend(bindings);
+        if result.get_type().try_unify(&expected_type, &mut bindings).is_err() {
+            return Vec::new();
         }
+        let solved = bindings.keys().copied().collect();
+        self.frame.solve(bindings);
+        solved
     }
 
     fn evaluate_cast(&mut self, cast: &HirCastExpression, id: ExprId) -> IResult<Value> {
@@ -1405,7 +1428,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             typ,
             function_scope: self.current_function,
             module_scope,
-            substitution: self.substitution.clone(),
+            frame: self.frame.clone(),
         };
         Ok(Value::Closure(Box::new(closure)))
     }
@@ -1417,13 +1440,13 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
     pub fn evaluate_statement(&mut self, statement: StmtId) -> IResult<Value> {
         // If comptime evaluation has been halted, don't execute anything
-        if self.elaborator.comptime_evaluation_halted {
+        if self.elaborator.comptime_evaluation_halted() {
             return Err(InterpreterError::SkippedDueToEarlierErrors);
         }
 
         // Skip statements that had errors during elaboration and halt all future execution
         if self.elaborator.interner.stmts_with_errors.contains(&statement) {
-            self.elaborator.comptime_evaluation_halted = true;
+            self.elaborator.halt_comptime_evaluation();
             return Err(InterpreterError::SkippedDueToEarlierErrors);
         }
 
@@ -1442,7 +1465,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 Ok(Value::Unit)
             }
             HirStatement::Error => {
-                self.elaborator.comptime_evaluation_halted = true;
+                self.elaborator.halt_comptime_evaluation();
                 Err(InterpreterError::SkippedDueToEarlierErrors)
             }
             HirStatement::TraitAssociatedConstant => {
@@ -1492,7 +1515,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             HirLValue::Dereference { lvalue, element_type: _, location, implicitly_added: _ } => {
                 match self.evaluate_lvalue(&lvalue)? {
                     Value::Pointer(value, _, _) => {
-                        Self::store_flattened(&value, rhs);
+                        // The pointee can outlive this frame (`&mut` parameters point into the
+                        // caller), and types this frame has solved since `rhs` was built live
+                        // only in its substitution, so resolve them before storing.
+                        Self::store_flattened(&value, self.apply_runtime_solves(rhs));
                         Ok(())
                     }
                     value => {
@@ -1712,7 +1738,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         for i in range_iterator {
             self.push_scope();
-            self.current_scope_mut().insert(index_id, get_index(i));
+            self.define(index_id, get_index(i));
 
             let must_break = self.evaluate_loop_body(block, &mut result);
 
@@ -1999,13 +2025,16 @@ fn to_i128(value: &Value) -> Option<i128> {
     }
 }
 
-impl Context<'_, '_> {
+impl CheckedContext {
     /// Interprets (as comptime code) the given function in the give crate, with the given arguments.
-    /// Panics if there's no main function.
+    ///
+    /// This is the one operation which mutates a checked context: what the function defines or
+    /// instantiates while it runs is added to the analysis.
     pub fn interpret_function(
         &mut self,
         main_id: FuncId,
         args: Vec<(Value, Location)>,
+        comptime_io: &mut ComptimeIo,
     ) -> IResult<Value> {
         let func_meta = self.def_interner.function_meta(&main_id);
         let crate_id = func_meta.source_crate;
@@ -2021,7 +2050,16 @@ impl Context<'_, '_> {
         };
         let module_id = ModuleId { krate: crate_id, local_id };
 
-        let mut elaborator = Elaborator::from_context(self, crate_id, cli_options);
+        // Whatever checking the crates registered has been elaborated by now, so the function
+        // is interpreted against a state of its own.
+        let mut state = CheckState::default();
+        let mut elaborator = Elaborator::from_context(
+            self.context_mut(),
+            crate_id,
+            cli_options,
+            comptime_io,
+            &mut state,
+        );
         elaborator.setup_interpreter_for(module_id, |interpreter| {
             let instantiation_bindings = TypeBindings::default();
             interpreter.call_function(main_id, args, instantiation_bindings, location)

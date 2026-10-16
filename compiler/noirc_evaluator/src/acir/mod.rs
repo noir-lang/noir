@@ -969,6 +969,44 @@ fn acir_post_check(context: &Context<'_>, acir: &GeneratedAcir<FieldElement>) {
     assert_no_writes_to_type_size_arrays(context, acir);
     assert_constant_reads_are_folded(context, acir);
     assert_initialized_blocks_are_used(acir);
+    assert_no_black_box_calls_with_zero_predicate(acir);
+}
+
+/// No blackbox call may carry a compile-time zero predicate. Such a call is statically disabled and
+/// must be resolved during ACIR gen: backends require a constant predicate to be true.
+#[cfg(debug_assertions)]
+fn assert_no_black_box_calls_with_zero_predicate(acir: &GeneratedAcir<FieldElement>) {
+    use acvm::acir::circuit::{
+        Opcode,
+        opcodes::{BlackBoxFuncCall, FunctionInput},
+    };
+    for opcode in acir.opcodes() {
+        let Opcode::BlackBoxFuncCall(call) = opcode else {
+            continue;
+        };
+        let predicate = match call {
+            BlackBoxFuncCall::EcdsaSecp256k1 { predicate, .. }
+            | BlackBoxFuncCall::EcdsaSecp256r1 { predicate, .. }
+            | BlackBoxFuncCall::MultiScalarMul { predicate, .. }
+            | BlackBoxFuncCall::EmbeddedCurveAdd { predicate, .. }
+            | BlackBoxFuncCall::RecursiveAggregation { predicate, .. } => predicate,
+            BlackBoxFuncCall::AES128Encrypt { .. }
+            | BlackBoxFuncCall::AND { .. }
+            | BlackBoxFuncCall::XOR { .. }
+            | BlackBoxFuncCall::RANGE { .. }
+            | BlackBoxFuncCall::Blake2s { .. }
+            | BlackBoxFuncCall::Blake3 { .. }
+            | BlackBoxFuncCall::Keccakf1600 { .. }
+            | BlackBoxFuncCall::Poseidon2Permutation { .. }
+            | BlackBoxFuncCall::Sha256Compression { .. } => continue,
+        };
+        assert_ne!(
+            *predicate,
+            FunctionInput::Constant(FieldElement::zero()),
+            "ICE: {} calls with a compile-time zero predicate should be resolved during ACIR gen, not emitted",
+            call.name()
+        );
+    }
 }
 
 /// No empty `AssertZero` opcodes (asserting `0 == 0`) should be emitted.

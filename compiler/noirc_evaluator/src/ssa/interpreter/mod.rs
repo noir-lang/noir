@@ -3,13 +3,14 @@ use std::{cmp::Ordering, collections::BTreeMap, io::Write};
 use super::{
     Ssa,
     ir::{
-        dfg::DataFlowGraph,
+        dfg::{DataFlowGraph, vector_capacity::vector_capacity_flows},
         function::{Function, FunctionId, RuntimeType},
         instruction::{Binary, BinaryOp, ConstrainError, Instruction, TerminatorInstruction},
         types::Type,
         value::ValueId,
     },
 };
+use crate::brillig::{assert_u32, assert_usize};
 use crate::ssa::ir::{
     instruction::binary::{
         BinaryEvaluationResult, convert_signed_integer_to_field_element, eval_constant_binary_op,
@@ -19,9 +20,9 @@ use crate::ssa::ir::{
     types::NumericType,
 };
 use crate::ssa::opt::pure::Purity;
-use acvm::{AcirField, FieldElement};
+use acvm::{AcirField, FieldElement, acir::brillig::lengths::SemanticLength};
 use errors::{InternalError, InterpreterError, MAX_UNSIGNED_BIT_SIZE};
-use iter_extended::{try_vecmap, vecmap};
+use iter_extended::try_vecmap;
 use itertools::Itertools;
 use num_bigint::BigUint;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
@@ -170,7 +171,6 @@ impl CallContext {
 type IResult<T> = Result<T, InterpreterError>;
 pub type IResults = IResult<Vec<Value>>;
 
-#[allow(unused)]
 impl Ssa {
     pub fn interpret(&self, args: Vec<Value>) -> IResults {
         self.interpret_with_options(args, InterpreterOptions::default(), std::io::empty())
@@ -754,58 +754,41 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         })
     }
 
-    fn lookup_bytes(&self, value_id: ValueId, instruction: &'static str) -> IResult<Vec<u8>> {
+    /// Looks up an array or vector and converts each of its elements with `convert`.
+    fn lookup_vec<T>(
+        &self,
+        value_id: ValueId,
+        instruction: &'static str,
+        expected_type: &'static str,
+        convert: impl Fn(&Value) -> Option<T>,
+    ) -> IResult<Vec<T>> {
         let array = self.lookup_array_or_vector(value_id, instruction)?;
         let array = array.elements.borrow();
         array
             .iter()
             .map(|v| {
-                v.as_u8().ok_or_else(|| {
+                convert(v).ok_or_else(|| {
                     internal(InternalError::TypeError {
                         value_id,
                         value: v.to_string(),
-                        expected_type: "u8",
+                        expected_type,
                         instruction,
                     })
                 })
             })
-            .collect::<Result<Vec<u8>, _>>()
+            .collect()
+    }
+
+    fn lookup_bytes(&self, value_id: ValueId, instruction: &'static str) -> IResult<Vec<u8>> {
+        self.lookup_vec(value_id, instruction, "u8", Value::as_u8)
     }
 
     fn lookup_vec_u32(&self, value_id: ValueId, instruction: &'static str) -> IResult<Vec<u32>> {
-        let array = self.lookup_array_or_vector(value_id, instruction)?;
-        let array = array.elements.borrow();
-        array
-            .iter()
-            .map(|v| {
-                v.as_u32().ok_or_else(|| {
-                    internal(InternalError::TypeError {
-                        value_id,
-                        value: v.to_string(),
-                        expected_type: "u32",
-                        instruction,
-                    })
-                })
-            })
-            .collect::<Result<Vec<u32>, _>>()
+        self.lookup_vec(value_id, instruction, "u32", Value::as_u32)
     }
 
     fn lookup_vec_u64(&self, value_id: ValueId, instruction: &'static str) -> IResult<Vec<u64>> {
-        let array = self.lookup_array_or_vector(value_id, instruction)?;
-        let array = array.elements.borrow();
-        array
-            .iter()
-            .map(|v| {
-                v.as_u64().ok_or_else(|| {
-                    internal(InternalError::TypeError {
-                        value_id,
-                        value: v.to_string(),
-                        expected_type: "u64",
-                        instruction,
-                    })
-                })
-            })
-            .collect::<Result<Vec<u64>, _>>()
+        self.lookup_vec(value_id, instruction, "u64", Value::as_u64)
     }
 
     fn lookup_vec_field(
@@ -813,21 +796,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         value_id: ValueId,
         instruction: &'static str,
     ) -> IResult<Vec<FieldElement>> {
-        let array = self.lookup_array_or_vector(value_id, instruction)?;
-        let array = array.elements.borrow();
-        array
-            .iter()
-            .map(|v| {
-                v.as_field().ok_or_else(|| {
-                    internal(InternalError::TypeError {
-                        value_id,
-                        value: v.to_string(),
-                        expected_type: "Field",
-                        instruction,
-                    })
-                })
-            })
-            .collect::<Result<Vec<FieldElement>, _>>()
+        self.lookup_vec(value_id, instruction, "Field", Value::as_field)
     }
 
     fn lookup_string(&self, value_id: ValueId, instruction: &'static str) -> IResult<String> {
@@ -1164,52 +1133,30 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         argument_ids: &[ValueId],
         results: &[ValueId],
     ) -> IResult<Vec<Value>> {
-        use crate::ssa::ir::instruction::Intrinsic;
-        // Get the length of the vector
-        if let Value::Intrinsic(intrinsic) = function {
-            let input_vector_info = match intrinsic {
-                Intrinsic::VectorPushBack
-                | Intrinsic::VectorPushFront
-                | Intrinsic::VectorInsert
-                | Intrinsic::VectorPopBack
-                | Intrinsic::VectorPopFront
-                | Intrinsic::VectorRemove => {
-                    let vec = self.lookup_array_or_vector(
-                        argument_ids[1],
-                        "uninitialized vector intrinsic",
-                    )?;
-                    Some((vec.elements.borrow().len(), vec.element_types.clone()))
-                }
-                _ => None,
-            };
-
-            if let Some((input_len, element_types)) = input_vector_info {
-                let element_count = element_types.len();
-                let output_len = match intrinsic {
-                    Intrinsic::VectorPushBack
-                    | Intrinsic::VectorPushFront
-                    | Intrinsic::VectorInsert => input_len + element_count,
-                    Intrinsic::VectorPopBack
-                    | Intrinsic::VectorPopFront
-                    | Intrinsic::VectorRemove => input_len.saturating_sub(element_count),
-                    _ => unreachable!(),
-                };
-
-                return Ok(vecmap(results, |result| {
-                    let typ = self.dfg().type_of_value(*result);
-                    if matches!(*typ, Type::Vector(_)) {
-                        Value::uninitialized_vector(&element_types, output_len, *result)
-                    } else {
-                        Value::uninitialized(&typ, *result)
-                    }
-                }));
+        let flows = match function {
+            Value::Intrinsic(intrinsic) => {
+                vector_capacity_flows(self.dfg(), *intrinsic, argument_ids, results)
             }
-        }
+            _ => Vec::new(),
+        };
 
-        Ok(vecmap(results, |result| {
+        try_vecmap(results, |result| {
             let typ = self.dfg().type_of_value(*result);
-            Value::uninitialized(&typ, *result)
-        }))
+            // A vector intrinsic's result gets the backing capacity the enabled intrinsic would
+            // give it in this interpreter, so that a later merge can read it in full.
+            let Some(flow) = flows.iter().find(|flow| flow.output == *result) else {
+                return Ok(Value::uninitialized(&typ, *result));
+            };
+            let input =
+                self.lookup_array_or_vector(flow.input, "uninitialized vector intrinsic")?;
+            let width = input.element_types.len();
+            let slots = input.elements.borrow().len();
+            let capacity = slots.checked_div(width).unwrap_or(0);
+            let capacity = SemanticLength(assert_u32(capacity));
+            let capacity = flow.change.apply(capacity).expect("Vector capacity overflow");
+            let output_len = assert_usize(capacity.0) * width;
+            Ok(Value::uninitialized_vector(&input.element_types, output_len, *result))
+        })
     }
 
     /// Try to get a function's name or approximate it if it is not known

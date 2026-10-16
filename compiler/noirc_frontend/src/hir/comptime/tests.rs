@@ -5,10 +5,11 @@ use std::path::PathBuf;
 use fm::{FileId, FileManager};
 use noirc_errors::Location;
 
-use super::Interpreter;
 use super::errors::InterpreterError;
 use super::value::Value;
+use super::{ComptimeIo, Interpreter};
 use crate::elaborator::{Elaborator, ElaboratorOptions};
+use crate::hir::CheckState;
 use crate::hir::def_collector::dc_crate::{CompilationError, DefCollector};
 use crate::hir::def_collector::dc_mod::collect_defs;
 use crate::hir::def_map::{CrateDefMap, ModuleData, ModuleId};
@@ -54,6 +55,7 @@ pub(crate) fn with_interpreter<T>(
     let mut collector = DefCollector::new(def_map);
 
     let reuse_existing_module_declarations = false;
+    let mut state = CheckState::default();
     collect_defs(
         &mut collector,
         ast,
@@ -61,17 +63,21 @@ pub(crate) fn with_interpreter<T>(
         root_module_id,
         krate,
         &mut context,
+        &mut state,
         reuse_existing_module_declarations,
     );
     context.def_maps.insert(krate, collector.def_map);
 
-    let main = context.get_main_function(&krate).expect("Expected 'main' function");
+    let main = context.def_maps[&krate].main_function().expect("Expected 'main' function");
 
+    let mut comptime_io = ComptimeIo::stdout();
     let mut elaborator = Elaborator::elaborate_and_return_self(
         &mut context,
         krate,
         collector.items,
         ElaboratorOptions::test_default(),
+        &mut comptime_io,
+        &mut state,
     );
 
     let errors = elaborator.errors.clone();

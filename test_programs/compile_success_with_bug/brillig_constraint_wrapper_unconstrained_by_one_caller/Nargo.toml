@@ -1,0 +1,6 @@
+[package]
+name = "brillig_constraint_wrapper_unconstrained_by_one_caller"
+type = "bin"
+authors = [""]
+
+[dependencies]

@@ -16,7 +16,7 @@ use crate::{cmp::Eq, convert::From, runtime::is_unconstrained, static_assert};
 /// ```noir
 /// let mut vector: BoundedVec<Field, 10> = BoundedVec::new();
 /// for i in 0..5 {
-///     vector.push(i);
+///     vector.push(i as Field);
 /// }
 /// assert(vector.len() == 5);
 /// assert(vector.max_len() == 10);
@@ -43,7 +43,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// Note that whenever calling `new` the maximum length of the vector should generally be specified
     /// via a type signature:
     ///
-    /// ```noir
+    /// ```noir ignore
     /// fn good() -> BoundedVec<Field, 10> {
     ///     // Ok! MaxLen is specified with a type annotation
     ///     let v1: BoundedVec<Field, 3> = BoundedVec::new();
@@ -114,7 +114,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// Example:
     ///
     /// ```noir
-    /// fn foo<let N: u32>(v: BoundedVec<u32, N>) {
+    /// fn foo<let N: u32>(mut v: BoundedVec<u32, N>) {
     ///     let first = v.get(0);
     ///     assert(first != 42);
     ///     v.set(0, 42);
@@ -169,7 +169,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     ///
     /// Example:
     ///
-    /// ```noir
+    /// ```noir should_fail
     /// let mut v: BoundedVec<Field, 2> = BoundedVec::new();
     ///
     /// v.push(1);
@@ -309,7 +309,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// let mut vec: BoundedVec<Field, 3> = BoundedVec::new();
     /// vec.extend_from_array([2, 4]);
     ///
-    /// assert(vec.len == 2);
+    /// assert(vec.len() == 2);
     /// assert(vec.get(0) == 2);
     /// assert(vec.get(1) == 4);
     /// ```
@@ -333,7 +333,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// let mut vec: BoundedVec<Field, 3> = BoundedVec::new();
     /// vec.extend_from_vector([2, 4].as_vector());
     ///
-    /// assert(vec.len == 2);
+    /// assert(vec.len() == 2);
     /// assert(vec.get(0) == 2);
     /// assert(vec.get(1) == 4);
     /// ```
@@ -390,7 +390,9 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// Example:
     ///
     /// ```noir
-    /// let bounded_vec: BoundedVec<Field, 10> = BoundedVec::from_array([1, 2, 3])
+    /// let bounded_vec: BoundedVec<Field, 10> = BoundedVec::from_array([1, 2, 3]);
+    /// assert_eq(bounded_vec.len(), 3);
+    /// assert_eq(bounded_vec.max_len(), 10);
     /// ```
     pub fn from_array<let Len: u32>(array: [T; Len]) -> Self {
         static_assert(Len <= MaxLen, "from array out of bounds");
@@ -406,7 +408,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     ///
     /// Example:
     ///
-    /// ```noir
+    /// ```noir should_fail
     /// let mut v: BoundedVec<Field, 2> = BoundedVec::new();
     /// v.push(1);
     /// v.push(2);
@@ -524,7 +526,8 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// ```noir
     /// let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
     /// let mut result = BoundedVec::<u32, 4>::new();
-    /// vec.for_each(|value| result.push(value * 2));
+    /// let result_ref = &mut result;
+    /// vec.for_each(|value| result_ref.push(value * 2));
     ///
     /// let expected = BoundedVec::from_array([2, 4, 6, 8]);
     /// assert_eq(result, expected);
@@ -550,7 +553,8 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// ```noir
     /// let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
     /// let mut result = BoundedVec::<u32, 4>::new();
-    /// vec.for_eachi(|i, value| result.push(i + value * 2));
+    /// let result_ref = &mut result;
+    /// vec.for_eachi(|i, value| result_ref.push(i + value * 2));
     ///
     /// let expected = BoundedVec::from_array([2, 5, 8, 11]);
     /// assert_eq(result, expected);

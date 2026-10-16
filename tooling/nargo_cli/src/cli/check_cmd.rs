@@ -1,4 +1,5 @@
 use std::hash::BuildHasher;
+use std::sync::Arc;
 
 use crate::errors::CliError;
 
@@ -51,13 +52,15 @@ impl WorkspaceCommand for CheckCommand {
 pub(crate) fn run(args: CheckCommand, workspace: Workspace) -> Result<(), CliError> {
     let mut workspace_file_manager = workspace.new_file_manager();
     insert_all_files_for_workspace_into_file_manager(&workspace, &mut workspace_file_manager);
-    let parsed_files = parse_all(&workspace_file_manager);
+    let parsed_files = Arc::new(parse_all(&workspace_file_manager));
+    let workspace_file_manager = Arc::new(workspace_file_manager);
 
     for package in &workspace {
         if args.show_program_hash {
-            let (mut context, crate_id) =
+            let (context, crate_id) =
                 prepare_package(&workspace_file_manager, &parsed_files, package);
-            check_crate(&mut context, crate_id, &args.compile_options).unwrap();
+            let (context, result) = check_crate(context, crate_id, &args.compile_options);
+            result.unwrap();
             let Some(main) = context.get_main_function(&crate_id) else {
                 continue;
             };
@@ -81,14 +84,14 @@ pub(crate) fn run(args: CheckCommand, workspace: Workspace) -> Result<(), CliErr
 /// Evaluates the necessity to create or update Prover.toml and Verifier.toml based on the `allow_overwrite` flag and files' existence.
 /// Returns `true` if any file was generated or updated, `false` otherwise.
 fn check_package(
-    file_manager: &FileManager,
-    parsed_files: &ParsedFiles,
+    file_manager: &Arc<FileManager>,
+    parsed_files: &Arc<ParsedFiles>,
     package: &Package,
     compile_options: &CompileOptions,
     overwrite: bool,
 ) -> Result<(), CompileError> {
-    let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
-    check_crate_and_report_errors(&mut context, crate_id, compile_options)?;
+    let (context, crate_id) = prepare_package(file_manager, parsed_files, package);
+    let context = check_crate_and_report_errors(context, crate_id, compile_options)?;
 
     if package.is_library() || package.is_contract() {
         // Libraries do not have ABIs while contracts have many, so we cannot generate a `Prover.toml` file.

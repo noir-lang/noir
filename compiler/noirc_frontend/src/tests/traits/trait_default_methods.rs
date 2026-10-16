@@ -1,6 +1,7 @@
 //! Tests for default method implementations in trait definitions.
 //! Validates type checking and usage of `Self` within default trait methods.
 
+use crate::test_utils::get_monomorphized;
 use crate::tests::{assert_no_errors, check_errors};
 
 #[test]
@@ -305,6 +306,619 @@ fn issue_8687_trait_default_method_return_type() {
     }
 
     fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn self_item_in_default_method_cannot_be_unified_with_concrete_type() {
+    let src = r#"
+    struct Narrow { v: Field }
+    struct Wide { v: Field }
+
+    trait Checked {
+        fn make(v: Field) -> Self;
+        fn validate(self) -> Field;
+        fn unused_helper() -> Field {
+            let w: Wide = Self::make(0);
+                          ^^^^^^^^^^^^^ Expected type Wide, found type Self
+            w.v
+        }
+        fn checked(self) -> Field {
+            Checked::validate(self)
+        }
+    }
+
+    impl Checked for Narrow {
+        fn make(v: Field) -> Self { Narrow { v } }
+        fn validate(self) -> Field { assert(self.v != 100); self.v }
+    }
+
+    impl Checked for Wide {
+        fn make(v: Field) -> Self { Wide { v } }
+        fn validate(self) -> Field { self.v }
+    }
+
+    fn main(w: Field) -> pub Field {
+        Narrow { v: w }.checked()
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn self_item_in_default_method_has_self_type() {
+    let src = r#"
+    trait Mk {
+        fn mk(v: Field) -> Self;
+        fn val(self) -> Field;
+        fn via_annotation(v: Field) -> Field {
+            let s: Self = Self::mk(v);
+            s.val()
+        }
+        fn via_method_call(v: Field) -> Field {
+            Self::mk(v).val()
+        }
+        fn via_trait_path(v: Field) -> Field {
+            let s = Self::mk(v);
+            Mk::val(s)
+        }
+    }
+
+    struct A { v: Field }
+
+    impl Mk for A {
+        fn mk(v: Field) -> Self { A { v } }
+        fn val(self) -> Field { self.v }
+    }
+
+    impl Mk for u8 {
+        fn mk(v: Field) -> Self { v as u8 }
+        fn val(self) -> Field { self as Field }
+    }
+
+    fn main() {
+        let _ = A::via_annotation(1) + u8::via_method_call(2) + A::via_trait_path(3);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+// Regression tests for https://github.com/noir-lang/noir-claude/issues/2042 and
+// https://github.com/noir-lang/noir-claude/issues/2061
+//
+// A default body sees `Self` through its method's meta (`ImplContext::of_function`), so that meta
+// has to hold the trait's rigid `Self`, the same as the trait's own scope does.
+//
+// In the tests below `Wide` has no `Checked` impl, so naming `Wide` (or an unbounded `T`) as a
+// `Checked` in a default body must be rejected. The assumed `Self: Checked` that holds inside the
+// trait is about the trait's own `Self` and must not be satisfied by any other type: matching it
+// would bind `Self` to that type for every default method, making `Narrow { v: w }.checked()`
+// dispatch to `Wide`'s `validate` and drop `Narrow`'s assertion.
+
+#[test]
+fn trait_path_call_on_non_implementing_type_in_default_method() {
+    let src = r#"
+    struct Narrow { v: Field }
+    struct Wide { v: Field }
+
+    trait Other {
+        fn validate(self) -> Field;
+    }
+
+    impl Other for Narrow {
+        fn validate(self) -> Field { assert(self.v != 100); self.v }
+    }
+
+    impl Other for Wide {
+        fn validate(self) -> Field { self.v }
+    }
+
+    trait Checked: Other {
+        fn tag(self) -> Field { let _ = self; 0 }
+        fn unused_helper() -> Field {
+            Checked::tag(Wide { v: 0 })
+            ^^^^^^^^^^^^ No matching impl found for `Wide: Checked`
+            ~~~~~~~~~~~~ No impl for `Wide: Checked`
+        }
+        fn checked(self) -> Field { Other::validate(self) }
+    }
+
+    impl Checked for Narrow {}
+
+    fn main(w: Field) -> pub Field {
+        Narrow { v: w }.checked()
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn as_trait_path_call_on_non_implementing_type_in_default_method() {
+    let src = r#"
+    struct Narrow { v: Field }
+    struct Wide { v: Field }
+
+    trait Other {
+        fn validate(self) -> Field;
+    }
+
+    impl Other for Narrow {
+        fn validate(self) -> Field { assert(self.v != 100); self.v }
+    }
+
+    impl Other for Wide {
+        fn validate(self) -> Field { self.v }
+    }
+
+    trait Checked: Other {
+        fn tag(self) -> Field { let _ = self; 0 }
+        fn unused_helper() -> Field {
+            <Wide as Checked>::tag(Wide { v: 0 })
+             ^^^^^^^^^^^^^^^ No matching impl found for `Wide: Checked`
+             ~~~~~~~~~~~~~~~ No impl for `Wide: Checked`
+        }
+        fn checked(self) -> Field { Other::validate(self) }
+    }
+
+    impl Checked for Narrow {}
+
+    fn main(w: Field) -> pub Field {
+        Narrow { v: w }.checked()
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn bounded_generic_call_on_non_implementing_type_in_default_method() {
+    let src = r#"
+    struct Narrow { v: Field }
+    struct Wide { v: Field }
+
+    trait Other {
+        fn validate(self) -> Field;
+    }
+
+    impl Other for Narrow {
+        fn validate(self) -> Field { assert(self.v != 100); self.v }
+    }
+
+    impl Other for Wide {
+        fn validate(self) -> Field { self.v }
+    }
+
+    trait Checked: Other {
+        fn tag(self) -> Field { let _ = self; 0 }
+        fn unused_helper() -> Field {
+            g(Wide { v: 0 })
+            ^ No matching impl found for `Wide: Checked`
+            ~ No impl for `Wide: Checked`
+        }
+        fn checked(self) -> Field { Other::validate(self) }
+    }
+
+    impl Checked for Narrow {}
+
+    fn g<T: Checked>(t: T) -> Field {
+        t.tag()
+    }
+
+    fn main(w: Field) -> pub Field {
+        Narrow { v: w }.checked()
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn macro_expanded_trait_path_call_on_non_implementing_type_in_default_method() {
+    let src = r#"
+    struct Narrow { v: Field }
+    struct Wide { v: Field }
+
+    trait Other {
+        fn validate(self) -> Field;
+    }
+
+    impl Other for Narrow {
+        fn validate(self) -> Field { assert(self.v != 100); self.v }
+    }
+
+    impl Other for Wide {
+        fn validate(self) -> Field { self.v }
+    }
+
+    comptime fn mac() -> Quoted {
+        quote { Checked::tag(Wide { v: 0 }) }
+                ^^^^^^^^^^^^ No matching impl found for `Wide: Checked`
+                ~~~~~~~~~~~~ No impl for `Wide: Checked`
+    }
+
+    trait Checked: Other {
+        fn tag(self) -> Field { let _ = self; 0 }
+        fn unused_helper() -> Field { mac!() }
+        fn checked(self) -> Field { Other::validate(self) }
+    }
+
+    impl Checked for Narrow {}
+
+    fn main(w: Field) -> pub Field {
+        Narrow { v: w }.checked()
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn trait_path_call_on_unbounded_generic_in_default_method() {
+    let src = r#"
+    struct Narrow { v: Field }
+
+    trait Checked {
+        fn tag(self) -> Field { let _ = self; 0 }
+        fn unused_helper<T>(t: T) -> Field {
+            Checked::tag(t)
+            ^^^^^^^^^^^^ No matching impl found for `T: Checked`
+            ~~~~~~~~~~~~ No impl for `T: Checked`
+        }
+    }
+
+    impl Checked for Narrow {}
+
+    fn main(w: Field) -> pub Field {
+        Narrow { v: w }.tag()
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn explicit_self_bound_on_own_trait_in_default_method() {
+    let src = r#"
+    trait Checked {
+        fn tag(self) -> Field;
+        fn tagged(self) -> Field where Self: Checked {
+            self.tag()
+        }
+        fn via_trait_path(self) -> Field {
+            Checked::tag(self)
+        }
+    }
+
+    struct A { v: Field }
+    struct B { v: Field }
+
+    impl Checked for A {
+        fn tag(self) -> Field { self.v }
+    }
+
+    impl Checked for B {
+        fn tag(self) -> Field { self.v + 1 }
+    }
+
+    fn main() {
+        let _ = A { v: 1 }.tagged() + B { v: 2 }.tagged();
+        let _ = A { v: 1 }.via_trait_path() + B { v: 2 }.via_trait_path();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn blanket_impl_of_current_trait_does_not_make_assumed_self_impl_redundant() {
+    let src = r#"
+    trait Tag {
+        fn tag(self) -> Field {
+            let _ = self;
+            0
+        }
+        fn twice(self) -> Field {
+            Tag::tag(self) + self.tag()
+        }
+    }
+
+    impl<T> Tag for T {}
+
+    struct A {}
+
+    fn main() {
+        let _ = A {}.twice() + 1.twice();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression test for https://github.com/noir-lang/noir-claude/issues/2080
+///
+/// A default method of `C: B` with `B: A` can use `A` on `Self`, through every spelling.
+#[test]
+fn default_method_sees_grandparent_trait_of_self() {
+    let src = r#"
+    trait A {
+        fn a(self) -> Field {
+            let _ = self;
+            1
+        }
+    }
+    trait B: A {}
+    fn needs_a<T: A>(t: T) -> Field {
+        t.a()
+    }
+    trait C: B {
+        fn c(self) -> Field {
+            needs_a(self) + A::a(self) + <Self as A>::a(self) + self.a()
+        }
+    }
+    struct S {}
+    impl A for S {}
+    impl B for S {}
+    impl C for S {}
+
+    fn main() {
+        let _ = S {}.c();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression test for https://github.com/noir-lang/noir-claude/issues/2080
+///
+/// A method-level `where Self: B` brings `B`'s parents into scope as well.
+#[test]
+fn default_method_sees_parents_of_where_self_bound() {
+    let src = r#"
+    trait A {
+        fn a(self) -> Field {
+            let _ = self;
+            1
+        }
+    }
+    trait B: A {}
+    fn needs_a<T: A>(t: T) -> Field {
+        t.a()
+    }
+    trait C {
+        fn c(self) -> Field
+        where
+            Self: B,
+        {
+            needs_a(self)
+        }
+    }
+    struct S {}
+    impl A for S {}
+    impl B for S {}
+    impl C for S {}
+
+    fn main() {
+        let _ = S {}.c();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression test for https://github.com/noir-lang/noir-claude/issues/2080
+///
+/// `trait C<X>: Foo<Bar = X>` with `trait Foo { type Bar: HasQux; }` gives `X: HasQux` inside
+/// `C`'s default methods.
+#[test]
+fn default_method_sees_associated_type_bound_of_parent() {
+    let src = r#"
+    trait HasQux {
+        fn qux(self) -> Field;
+    }
+    trait Foo {
+        type Bar: HasQux;
+    }
+    fn needs_q<T: HasQux>(t: T) -> Field {
+        t.qux()
+    }
+    trait C<X>: Foo<Bar = X> {
+        fn c(self, x: X) -> Field {
+            let _ = self;
+            needs_q(x)
+        }
+    }
+    struct Q {}
+    impl HasQux for Q {
+        fn qux(self) -> Field {
+            let _ = self;
+            7
+        }
+    }
+    struct S {}
+    impl Foo for S {
+        type Bar = Q;
+    }
+    impl C<Q> for S {}
+
+    fn main() {
+        let _ = S {}.c(Q {});
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// `A` reaches `C`'s default methods both directly and through `B`, and both routes name the
+/// same bound, so calls through `A` are not ambiguous.
+#[test]
+fn default_method_sees_parent_reached_through_two_routes_once() {
+    let src = r#"
+    trait A {
+        fn a(self) -> Field {
+            let _ = self;
+            1
+        }
+    }
+    trait B: A {}
+    fn needs_a<T: A>(t: T) -> Field {
+        t.a()
+    }
+    trait C: B + A {
+        fn c(self) -> Field {
+            needs_a(self) + A::a(self) + <Self as A>::a(self)
+        }
+    }
+    struct S {}
+    impl A for S {}
+    impl B for S {}
+    impl C for S {}
+
+    fn main() {
+        let _ = S {}.c();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// Regression test for https://github.com/noir-lang/noir-claude/issues/2200
+///
+/// In a method of `trait C<T>: A<T>`, `where Self: C<u8>` implies `Self: A<u8>`, which is a
+/// different bound from the `Self: A<T>` every method of `C` has.
+#[test]
+fn default_method_where_self_bound_on_own_trait_with_other_arguments_sees_its_parents() {
+    let src = r#"
+    trait A<T> {
+        fn a(self) -> T;
+    }
+    fn needs_a8<U: A<u8>>(u: U) -> u8 {
+        u.a()
+    }
+    trait C<T>: A<T> {
+        fn c(self) -> u8
+        where
+            Self: C<u8>,
+        {
+            needs_a8(self) + <Self as A<u8>>::a(self)
+        }
+    }
+    struct S {}
+    impl A<u8> for S {
+        fn a(self) -> u8 {
+            let _ = self;
+            1
+        }
+    }
+    impl C<u8> for S {}
+
+    fn main() {
+        let _ = S {}.c();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// In a generic trait, `A<T>` reaches `C`'s default methods both directly and through `B<T>`,
+/// and both routes name the same bound as the one implied by the assumed `Self: C<T>`, so calls
+/// through `A<T>` are not ambiguous.
+#[test]
+fn default_method_of_generic_trait_sees_parent_reached_through_two_routes_once() {
+    let src = r#"
+    trait A<T> {
+        fn a(self) -> T;
+    }
+    trait B<T>: A<T> {}
+    fn needs_a<T, U: A<T>>(u: U) -> T {
+        u.a()
+    }
+    trait C<T>: B<T> + A<T> {
+        fn c(self) -> T {
+            needs_a(self)
+        }
+        fn d(self) -> T {
+            A::a(self)
+        }
+        fn e(self) -> T {
+            <Self as A<T>>::a(self)
+        }
+    }
+    struct S {}
+    impl A<u8> for S {
+        fn a(self) -> u8 {
+            let _ = self;
+            1
+        }
+    }
+    impl B<u8> for S {}
+    impl C<u8> for S {}
+
+    fn main() {
+        let _ = S {}.c() + S {}.d() + S {}.e();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn default_method_call_is_ambiguous_between_parent_trait_and_where_clause_trait() {
+    let src = r#"
+    pub trait Base {
+        fn id(self) -> Field;
+        fn check(self) -> Self { self }
+    }
+    impl Base for Field { fn id(self) -> Field { self } }
+    trait Validate { fn check(self) -> Self; }
+    impl Validate for Field { fn check(self) -> Self { assert(self != 0); self } }
+    trait Process: Base {
+        fn process(self) -> Field where Self: Validate { self.check().id() }
+                                                         ^^^^^^^^^^^^ Multiple applicable items in scope
+                                                         ~~~~~~~~~~~~ Multiple traits which provide `check` are implemented and in scope: `Base`, `Validate`
+    }
+    impl Process for Field {}
+    fn main(x: Field) -> pub Field { x.process() }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn default_method_call_names_the_where_clause_trait_to_pick_its_method() {
+    let src = r#"
+    pub trait Base {
+        fn id(self) -> Field;
+        fn check(self) -> Self { self }
+    }
+    impl Base for Field { fn id(self) -> Field { self } }
+    trait Validate { fn check(self) -> Self; }
+    impl Validate for Field { fn check(self) -> Self { assert(self != 0); self } }
+    trait Process: Base {
+        fn process(self) -> Field where Self: Validate { Validate::check(self).id() }
+    }
+    impl Process for Field {}
+    fn main(x: Field) -> pub Field { x.process() }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0(x$l0: Field) -> pub Field {
+        process$f1(x$l0)
+    }
+    fn process$f1(self$l1: Field) -> Field {
+        id$f2(check$f3(self$l1))
+    }
+    fn id$f2(self$l2: Field) -> Field {
+        self$l2
+    }
+    fn check$f3(self$l3: Field) -> Field {
+        assert((self$l3 != 0));;
+        self$l3
+    }
+    ");
+}
+
+#[test]
+fn default_method_calls_methods_of_parent_trait_and_where_clause_trait_by_distinct_names() {
+    let src = r#"
+    pub trait Base {
+        fn id(self) -> Field;
+    }
+    impl Base for Field { fn id(self) -> Field { self } }
+    trait Validate { fn check(self) -> Self; }
+    impl Validate for Field { fn check(self) -> Self { assert(self != 0); self } }
+    trait Process: Base {
+        fn process(self) -> Field where Self: Validate { self.check().id() }
+    }
+    impl Process for Field {}
+    fn main(x: Field) -> pub Field { x.process() }
     "#;
     assert_no_errors(src);
 }
