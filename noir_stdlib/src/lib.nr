@@ -143,8 +143,8 @@ fn verify_proof_internal<let N: u32, let M: u32, let K: u32>(
 /// Asserts that the given value is known at compile-time.
 /// Useful for debugging for-loop bounds.
 ///
-/// In constrained code, compilation fails if `x` isn't a compile-time constant after the compiler's
-/// optimizations. It has no effect in unconstrained code.
+/// Compilation fails if `x` isn't a compile-time constant after the compiler's optimizations,
+/// in both constrained and unconstrained code. At comptime every value is known, so it passes.
 ///
 /// Example:
 ///
