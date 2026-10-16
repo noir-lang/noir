@@ -3444,7 +3444,7 @@ fn resolve_trait_item_impl(
                 impl_id,
                 expr_id,
                 TypeBindings::default(),
-            );
+            )?;
             Ok((impl_id, TypeBindings::default(), instantiation_bindings))
         }
         TraitImplKind::Assumed { object_type, trait_generics } => {
@@ -3476,7 +3476,7 @@ fn resolve_trait_item_impl(
                         impl_id,
                         expr_id,
                         instantiation_bindings,
-                    );
+                    )?;
                     Ok((impl_id, bindings, instantiation_bindings))
                 }
                 Ok((TraitImplKind::Assumed { .. }, ..)) => {
@@ -3522,7 +3522,17 @@ fn impl_instantiation_bindings(
     impl_id: node_interner::TraitImplId,
     expr_id: ExprId,
     extra_bindings: TypeBindings,
-) -> TypeBindings {
+) -> Result<TypeBindings, InterpreterError> {
+    // An impl's methods are recorded when the impl is collected. Until then only its associated
+    // constants can be read, which a global evaluated while impls are collected may do.
+    let is_method =
+        matches!(interner.definition(method_id.item_id).kind, DefinitionKind::Function(_));
+    if is_method && interner.try_get_trait_implementation(impl_id).is_none() {
+        let name = interner.definition_name(method_id.item_id).to_string();
+        let location = interner.expr_location(&expr_id);
+        return Err(InterpreterError::TraitImplMethodCalledBeforeItsImpl { name, location });
+    }
+
     let mut bindings = interner.get_instantiation_bindings(expr_id).clone();
     bindings.extend(extra_bindings);
     // The impl method's generics and the trait's `Self` are bound to types written in terms of
@@ -3539,7 +3549,7 @@ fn impl_instantiation_bindings(
         let typ = typ.substitute(&bindings);
         bindings.insert(id, (var, kind, typ));
     }
-    bindings
+    Ok(bindings)
 }
 
 /// Bind the trait's `Self` type variable to the impl's concrete self type when the impl's

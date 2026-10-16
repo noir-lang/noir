@@ -4148,3 +4148,43 @@ fn reading_an_associated_constant_resolves_only_that_constant() {
     }
     ");
 }
+
+/// A global evaluated while `Foo`'s impl is collected calls a method of `Bar`'s impl, which isn't
+/// collected yet, so its methods aren't known.
+#[test]
+fn global_calls_a_method_of_an_impl_declared_later() {
+    let src = r#"
+    trait T { let J: u32; fn f() -> u32; }
+    struct Foo {}
+    struct Bar {}
+    impl T for Foo { let J: u32 = G; fn f() -> u32 { 3 } }
+                                  ^ expected type, found global `G`
+    impl T for Bar { let J: u32 = 1; fn f() -> u32 { 5 } }
+    global G: u32 = <Bar as T>::f();
+                     ^^^^^^^^ Cannot call `f` before its trait impl is defined
+                     ~~~~~~~~ This is evaluated at compile time while trait impls are being defined. Declaring the impl earlier avoids this
+                    ^^^^^^^^^^^^^^^ Global failed to evaluate
+    fn main() -> pub u32 { <Foo as T>::J }
+    "#;
+    check_errors(src);
+}
+
+/// The same program with `Bar`'s impl declared first.
+#[test]
+fn global_calls_a_method_of_an_impl_declared_earlier() {
+    let src = r#"
+    trait T { let J: u32; fn f() -> u32; }
+    struct Foo {}
+    struct Bar {}
+    impl T for Bar { let J: u32 = 1; fn f() -> u32 { 5 } }
+    impl T for Foo { let J: u32 = G; fn f() -> u32 { 3 } }
+    global G: u32 = <Bar as T>::f();
+    fn main() -> pub u32 { <Foo as T>::J }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u32 {
+        5
+    }
+    ");
+}
