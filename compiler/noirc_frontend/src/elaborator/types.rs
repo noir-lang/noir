@@ -3227,12 +3227,15 @@ impl Elaborator<'_> {
     /// Try to look up a method on a [Type] by name:
     /// * if the object type is generic, look it up in the trait constraints
     /// * otherwise look it up directly on the type, or in traits the type implements
+    ///
+    /// `call_location` is the location of the whole method call (`object.method(..)`), or of the
+    /// method name for a `Type::method` path; most lookup errors are reported there.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn lookup_method(
         &mut self,
         object_type: &Type,
         method_ident: &Ident,
-        location: Location,
+        call_location: Location,
         object_location: Location,
         check_self_param: bool,
     ) -> Option<HirMethodReference> {
@@ -3244,14 +3247,14 @@ impl Elaborator<'_> {
                 self.push_err(TypeCheckError::UnresolvedMethodCall {
                     method_name: method_name.to_string(),
                     object_type: object_type.clone(),
-                    location,
+                    location: call_location,
                 });
                 None
             }
             Type::NamedGeneric(_) => self.lookup_method_in_trait_constraints(
                 object_type,
                 method_name,
-                location,
+                call_location,
                 object_location,
             ),
             // `DefCollectorErrorKind::ReferenceInTraitImpl`: "Trait impls are not allowed on reference types"
@@ -3260,7 +3263,7 @@ impl Elaborator<'_> {
             Type::Reference(element, _mutable) => self.lookup_method(
                 &element,
                 method_ident,
-                location,
+                call_location,
                 object_location,
                 check_self_param,
             ),
@@ -3271,14 +3274,16 @@ impl Elaborator<'_> {
 
             // The type variable must be unbound at this point since follow_bindings was called
             Type::TypeVariable(var) if *var.kind() == Kind::Normal => {
-                self.push_err(TypeCheckError::TypeAnnotationsNeededForMethodCall { location });
+                self.push_err(TypeCheckError::TypeAnnotationsNeededForMethodCall {
+                    location: call_location,
+                });
                 None
             }
 
             other => self.lookup_type_or_primitive_method(
                 &other,
                 method_ident,
-                location,
+                call_location,
                 object_location,
                 check_self_param,
             ),
@@ -3290,7 +3295,7 @@ impl Elaborator<'_> {
         &mut self,
         object_type: &Type,
         method_ident: &Ident,
-        location: Location,
+        call_location: Location,
         object_location: Location,
         check_self_param: bool,
     ) -> Option<HirMethodReference> {
@@ -3345,7 +3350,7 @@ impl Elaborator<'_> {
 
         // If there's at least one matching trait method we need to see if only one is in scope.
         if !trait_methods.is_empty() {
-            return self.return_trait_method_in_scope(&trait_methods, method_name, location);
+            return self.return_trait_method_in_scope(&trait_methods, method_name, call_location);
         }
 
         // If we couldn't find any trait methods, search in
@@ -3353,7 +3358,7 @@ impl Elaborator<'_> {
         let generic_methods =
             self.lookup_generic_methods(object_type, method_name, check_self_param);
         if !generic_methods.is_empty() {
-            return self.return_trait_method_in_scope(&generic_methods, method_name, location);
+            return self.return_trait_method_in_scope(&generic_methods, method_name, call_location);
         }
 
         // No trait method applies. Fall back to the inaccessible inherent method (if any) so the
@@ -3365,7 +3370,12 @@ impl Elaborator<'_> {
         // It could be that this type is a composite type that is bound to a trait,
         // for example `x: (T, U) ... where (T, U): SomeTrait`
         // (so this case is a generalization of the NamedGeneric case)
-        self.lookup_method_in_trait_constraints(object_type, method_name, location, object_location)
+        self.lookup_method_in_trait_constraints(
+            object_type,
+            method_name,
+            call_location,
+            object_location,
+        )
     }
 
     /// Given a list of functions and the trait they belong to, returns the one function
