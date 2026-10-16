@@ -45,7 +45,7 @@ Transforms the field into an array of bits, Little Endian.
 ```rust title="to_le_bits" showLineNumbers 
 pub fn to_le_bits<let N: u32>(self: Self) -> [bool; N] {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/field/mod.nr#L29-L31" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/field/mod.nr#L29-L31</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/field/mod.nr#L51-L53" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/field/mod.nr#L51-L53</a></sub></sup>
 
 
 example:
@@ -57,7 +57,7 @@ fn test_to_le_bits() {
     assert_eq(bits, [false, true, false, false, false, false, false, false]);
 }
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/field/mod.nr#L403-L409" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/field/mod.nr#L403-L409</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/field/mod.nr#L566-L572" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/field/mod.nr#L566-L572</a></sub></sup>
 
 
 
@@ -68,7 +68,7 @@ Transforms the field into an array of bits, Big Endian.
 ```rust title="to_be_bits" showLineNumbers 
 pub fn to_be_bits<let N: u32>(self: Self) -> [bool; N] {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/field/mod.nr#L61-L63" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/field/mod.nr#L61-L63</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/field/mod.nr#L90-L92" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/field/mod.nr#L90-L92</a></sub></sup>
 
 
 example:
@@ -80,7 +80,7 @@ fn test_to_be_bits() {
     assert_eq(bits, [false, false, false, false, false, false, true, false]);
 }
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/field/mod.nr#L394-L400" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/field/mod.nr#L394-L400</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/field/mod.nr#L557-L563" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/field/mod.nr#L557-L563</a></sub></sup>
 
 
 
@@ -91,7 +91,7 @@ Transforms into an array of bytes, Little Endian
 ```rust title="to_le_bytes" showLineNumbers 
 pub fn to_le_bytes<let N: u32>(self: Self) -> [u8; N] {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/field/mod.nr#L93-L95" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/field/mod.nr#L93-L95</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/field/mod.nr#L129-L131" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/field/mod.nr#L129-L131</a></sub></sup>
 
 
 example:
@@ -104,7 +104,7 @@ fn test_to_le_bytes() {
     assert_eq(Field::from_le_bytes::<8>(bytes), field);
 }
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/field/mod.nr#L422-L429" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/field/mod.nr#L422-L429</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/field/mod.nr#L585-L592" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/field/mod.nr#L585-L592</a></sub></sup>
 
 
 ### to_be_bytes
@@ -114,7 +114,7 @@ Transforms into an array of bytes, Big Endian
 ```rust title="to_be_bytes" showLineNumbers 
 pub fn to_be_bytes<let N: u32>(self: Self) -> [u8; N] {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/field/mod.nr#L130-L132" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/field/mod.nr#L130-L132</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/field/mod.nr#L173-L175" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/field/mod.nr#L173-L175</a></sub></sup>
 
 
 example:
@@ -127,7 +127,7 @@ fn test_to_be_bytes() {
     assert_eq(Field::from_be_bytes::<8>(bytes), field);
 }
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/field/mod.nr#L412-L419" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/field/mod.nr#L412-L419</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/field/mod.nr#L575-L582" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/field/mod.nr#L575-L582</a></sub></sup>
 
 
 ### from_le_bytes
@@ -139,7 +139,7 @@ greater than or equal to the field modulus then the result will silently wrap ar
 ```rust title="from_le_bytes" showLineNumbers 
 pub fn from_le_bytes<let N: u32>(bytes: [u8; N]) -> Field {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/field/mod.nr#L210-L212" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/field/mod.nr#L210-L212</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/field/mod.nr#L296-L298" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/field/mod.nr#L296-L298</a></sub></sup>
 
 
 ### from_be_bytes
@@ -151,7 +151,7 @@ greater than or equal to the field modulus then the result will silently wrap ar
 ```rust title="from_be_bytes" showLineNumbers 
 pub fn from_be_bytes<let N: u32>(bytes: [u8; N]) -> Field {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/field/mod.nr#L232-L234" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/field/mod.nr#L232-L234</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/field/mod.nr#L324-L326" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/field/mod.nr#L324-L326</a></sub></sup>
 
 
 ### from_le_bytes_checked
@@ -163,7 +163,7 @@ constraint failure otherwise.
 ```rust title="from_le_bytes_checked" showLineNumbers 
 pub fn from_le_bytes_checked<let N: u32>(bytes: [u8; N]) -> Field {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/field/mod.nr#L255-L257" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/field/mod.nr#L255-L257</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/field/mod.nr#L353-L355" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/field/mod.nr#L353-L355</a></sub></sup>
 
 
 ### from_be_bytes_checked
@@ -175,7 +175,7 @@ constraint failure otherwise.
 ```rust title="from_be_bytes_checked" showLineNumbers 
 pub fn from_be_bytes_checked<let N: u32>(bytes: [u8; N]) -> Field {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/field/mod.nr#L281-L283" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/field/mod.nr#L281-L283</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/field/mod.nr#L385-L387" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/field/mod.nr#L385-L387</a></sub></sup>
 
 
 ### pow_32
@@ -203,7 +203,7 @@ Adds a constraint to specify that the field can be represented with `bit_size` n
 ```rust title="assert_max_bit_size" showLineNumbers 
 pub fn assert_max_bit_size<let BIT_SIZE: u32>(self) {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/field/mod.nr#L10-L12" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/field/mod.nr#L10-L12</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/field/mod.nr#L25-L27" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/field/mod.nr#L25-L27</a></sub></sup>
 
 
 example:
