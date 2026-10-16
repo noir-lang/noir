@@ -96,7 +96,12 @@
 
 <div class="comments">
 <p>Print the given input to stdout followed by a newline</p>
-</div>
+<p>It works in constrained, unconstrained and comptime code. It is a debugging aid: it adds no
+constraints, and nothing about it ends up in a proof. Format strings interpolate values.</p>
+<p>Example:</p>
+<pre><code><span class="kw">let</span> x = <span class="number">42</span>;
+println(x);
+println(<span class="string">f"</span><span class="string">x is </span><span class="interpolation">{x}</span><span class="string">"</span>);</code></pre></div>
 </div>
 </main>
 </span>

@@ -6,9 +6,23 @@
 /// It is expected that for any implementation:
 /// - `T::empty().append(x) == x`
 /// - `x.append(T::empty()) == x`
+///
+/// It is implemented for example for vectors and `Quoted`. A vector's `join` method uses it, for example
+/// to join `Quoted` values at comptime.
+///
+/// Example:
+///
+/// ```noir
+/// use std::append::Append;
+///
+/// let v: [u32] = Append::empty();
+/// assert_eq(v.append(@[1, 2]).append(@[3]), @[1, 2, 3]);
+/// ```
 // docs:start:append-trait
 pub trait Append {
+    /// Returns the empty value, which `append` leaves unchanged.
     fn empty() -> Self;
+    /// Returns `self` followed by `other`.
     fn append(self, other: Self) -> Self;
 }
 // docs:end:append-trait

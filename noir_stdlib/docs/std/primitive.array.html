@@ -135,6 +135,7 @@ and the non-negative compile-time constant size, <code>N</code>.</p>
 
 <div class="padded-description"><div class="comments">
 <p>Returns this array as a vector.</p>
+<p>Example:</p>
 <pre><code><span class="kw">let</span> array = [<span class="number">1</span>, <span class="number">2</span>];
 <span class="kw">let</span> vector = array.as_vector();
 <span class="kw">assert_eq</span>(vector, [<span class="number">1</span>, <span class="number">2</span>].as_vector());</code></pre></div>
@@ -152,7 +153,7 @@ and the non-negative compile-time constant size, <code>N</code>.</p>
 <p>Applies a function to each element of this array along with its index,
 returning a new array containing the mapped elements.</p>
 <p>Example:</p>
-<pre><code><span class="kw">let</span> a = [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>];
+<pre><code><span class="kw">let</span> a: [u32; <span class="number">3</span>] = [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>];
 <span class="kw">let</span> b = a.mapi(|i, a| i + a * <span class="number">2</span>);
 <span class="kw">assert_eq</span>(b, [<span class="number">2</span>, <span class="number">5</span>, <span class="number">8</span>]);</code></pre></div>
 </div><code id="for_each" class="code-header">pub fn <a href="#for_each" class="fn">for_each</a>&lt;Env&gt;(&self, f: fn[Env](T))</code>
@@ -161,13 +162,13 @@ returning a new array containing the mapped elements.</p>
 <p>Applies a function to each element of this array.</p>
 <p>Example:</p>
 <pre><code><span class="kw">let</span> a = [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>];
-<span class="kw">let</span> <span class="kw">mut</span> b = [<span class="number">0</span>; <span class="number">3</span>];
-<span class="kw">let</span> <span class="kw">mut</span> i = <span class="number">0</span>;
+<span class="kw">let</span> <span class="kw">mut</span> sum = <span class="number">0</span>;
+<span class="comment">// A closure can't assign to a captured `mut` variable, so it writes through a reference.</span>
+<span class="kw">let</span> sum_ref = &<span class="kw">mut</span> sum;
 a.for_each(|x| {
-    b[i] = x;
-    i += <span class="number">1</span>;
+    *sum_ref += x;
 });
-<span class="kw">assert_eq</span>(a, b);</code></pre></div>
+<span class="kw">assert_eq</span>(sum, <span class="number">6</span>);</code></pre></div>
 </div><code id="for_eachi" class="code-header">pub fn <a href="#for_eachi" class="fn">for_eachi</a>&lt;Env&gt;(&self, f: fn[Env](<a href="../std/primitive.u32.html" class="primitive">u32</a>, T))</code>
 
 <div class="padded-description"><div class="comments">
@@ -175,8 +176,9 @@ a.for_each(|x| {
 <p>Example:</p>
 <pre><code><span class="kw">let</span> a = [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>];
 <span class="kw">let</span> <span class="kw">mut</span> b = [<span class="number">0</span>; <span class="number">3</span>];
+<span class="kw">let</span> b_ref = &<span class="kw">mut</span> b;
 a.for_eachi(|i, x| {
-    b[i] = x;
+    b_ref[i] = x;
 });
 <span class="kw">assert_eq</span>(a, b);</code></pre></div>
 </div><code id="fold" class="code-header">pub fn <a href="#fold" class="fn">fold</a>&lt;U, Env&gt;(&self, accumulator: U, f: fn[Env](U, T) -> U) -> U</code>
@@ -186,27 +188,22 @@ a.for_eachi(|i, x| {
 parameter is the initial value.</p>
 <p>This is a left fold, so the given function will be applied to the accumulator and first element of
 the array, then the second, and so on. For a given call the expected result would be equivalent to:</p>
-<pre><code><span class="kw">let</span> a1 = [<span class="number">1</span>];
-<span class="kw">let</span> a2 = [<span class="number">1</span>, <span class="number">2</span>];
-<span class="kw">let</span> a3 = [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>];
-
-<span class="kw">let</span> f = |a, b| a - b;
-a1.fold(<span class="number">10</span>, f); <span class="comment">//=&gt; f(10, 1)</span>
-a2.fold(<span class="number">10</span>, f); <span class="comment">//=&gt; f(f(10, 1), 2)</span>
-a3.fold(<span class="number">10</span>, f); <span class="comment">//=&gt; f(f(f(10, 1), 2), 3)</span>
-
-<span class="kw">assert_eq</span>(a3.fold(<span class="number">10</span>, f), <span class="number">10</span> - <span class="number">1</span> - <span class="number">2</span> - <span class="number">3</span>);</code></pre></div>
+<pre><code><span class="kw">let</span> f = |a: Field, b: Field| a - b;
+<span class="kw">assert_eq</span>([<span class="number">1</span>].fold(<span class="number">10</span>, f), f(<span class="number">10</span>, <span class="number">1</span>));
+<span class="kw">assert_eq</span>([<span class="number">1</span>, <span class="number">2</span>].fold(<span class="number">10</span>, f), f(f(<span class="number">10</span>, <span class="number">1</span>), <span class="number">2</span>));
+<span class="kw">assert_eq</span>([<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>].fold(<span class="number">10</span>, f), <span class="number">10</span> - <span class="number">1</span> - <span class="number">2</span> - <span class="number">3</span>);</code></pre></div>
 </div><code id="reduce" class="code-header">pub fn <a href="#reduce" class="fn">reduce</a>&lt;Env&gt;(&self, f: fn[Env](T, T) -> T) -> T</code>
 
 <div class="padded-description"><div class="comments">
 <p>Same as fold, but uses the first element as the starting element.</p>
-<p>Requires the input array to be non-empty.</p>
 <p>Example:</p>
 <pre><code><span class="kw">fn</span> main() {
     <span class="kw">let</span> arr = [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>];
     <span class="kw">let</span> reduced = arr.reduce(|a, b| a + b);
     <span class="kw">assert</span>(reduced == <span class="number">10</span>);
-}</code></pre></div>
+}</code></pre>
+<h4>Failures</h4>
+<p>Fails if the array is empty.</p></div>
 </div><code id="all" class="code-header">pub fn <a href="#all" class="fn">all</a>&lt;Env&gt;(&self, predicate: fn[Env](T) -> <a href="../std/primitive.bool.html" class="primitive">bool</a>) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <div class="padded-description"><div class="comments">
@@ -246,16 +243,14 @@ a3.fold(<span class="number">10</span>, f); <span class="comment">//=&gt; f(f(f(
 <div class="padded-methods"><code id="sort" class="code-header">pub fn <a href="#sort" class="fn">sort</a>(&self) -> Self</code>
 
 <div class="padded-description"><div class="comments">
-<p>Returns a new sorted array. The original array remains untouched. Notice that this function will
-only work for arrays of fields or integers, not for any arbitrary type. This is because the sorting
-logic it uses internally is optimized specifically for these values. If you need a sort function to
-sort any type, you should use the <a href="../std/primitive.array.html#sort_via"><code>Self::sort_via</code></a> function.</p>
+<p>Returns a new array sorted in ascending order. The original array remains untouched.</p>
+<p>It works for any element type that implements <code>Ord</code> and <code>Eq</code>, using <code>&lt;=</code>. <code>Field</code> doesn't implement
+<code>Ord</code>, so to sort fields, or to sort by another order, use <a href="../std/primitive.array.html#sort_via"><code>Self::sort_via</code></a>. The result
+is constrained in the same way as <code>sort_via</code>'s.</p>
 <p>Example:</p>
-<pre><code><span class="kw">fn</span> main() {
-    <span class="kw">let</span> arr = [<span class="number">42</span>, <span class="number">32</span>];
-    <span class="kw">let</span> sorted = arr.sort();
-    <span class="kw">assert</span>(sorted == [<span class="number">32</span>, <span class="number">42</span>]);
-}</code></pre></div>
+<pre><code><span class="kw">let</span> arr = [<span class="number">42_u32</span>, <span class="number">32</span>];
+<span class="kw">let</span> sorted = arr.sort();
+<span class="kw">assert_eq</span>(sorted, [<span class="number">32</span>, <span class="number">42</span>]);</code></pre></div>
 </div></div><h3><code class="code-header">impl&lt;T, let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt; [T; N]
 <div class="where-clause">where
     T: <a href="../std/cmp/trait.Eq.html" class="trait">Eq</a></div></code></h3>
@@ -266,16 +261,28 @@ sort any type, you should use the <a href="../std/primitive.array.html#sort_via"
 <p>Returns a new sorted array by sorting it with a custom comparison function.
 The original array remains untouched.
 The ordering function must return true if the first argument should be sorted to be before the second argument or is equal to the second argument.</p>
-<p>Using this method with an operator like <code>&lt;</code> that does not return <code>true</code> for equal values will result in an assertion failure for arrays with equal elements.</p>
+<p>In constrained code, using this method with an operator like <code>&lt;</code> that does not return <code>true</code> for equal values will result in an assertion failure for arrays with equal elements.</p>
+<p>The sort itself runs in unconstrained code. In constrained code, the result is then checked
+to be a permutation of the input in which every adjacent pair satisfies <code>ordering</code>, so it is
+fully constrained.</p>
 <p>Example:</p>
-<pre><code><span class="kw">fn</span> main() {
-    <span class="kw">let</span> arr = [<span class="number">42</span>, <span class="number">32</span>]
-    <span class="kw">let</span> sorted_ascending = arr.sort_via(|a, b| a &lt;= b);
-    <span class="kw">assert</span>(sorted_ascending == [<span class="number">32</span>, <span class="number">42</span>]); <span class="comment">// verifies</span>
+<pre><code><span class="kw">let</span> arr = [<span class="number">42_u32</span>, <span class="number">32</span>];
+<span class="kw">let</span> sorted_ascending = arr.sort_via(|a, b| a &lt;= b);
+<span class="kw">assert_eq</span>(sorted_ascending, [<span class="number">32</span>, <span class="number">42</span>]);
 
-    <span class="kw">let</span> sorted_descending = arr.sort_via(|a, b| a &gt;= b);
-    <span class="kw">assert</span>(sorted_descending == [<span class="number">32</span>, <span class="number">42</span>]); <span class="comment">// does not verify</span>
-}</code></pre></div>
+<span class="kw">let</span> sorted_descending = arr.sort_via(|a, b| a &gt;= b);
+<span class="kw">assert_eq</span>(sorted_descending, [<span class="number">42</span>, <span class="number">32</span>]);
+
+<span class="comment">// Fields have no `&lt;=`, so compare their integer values with `Field::lt`:</span>
+<span class="comment">// `!b.lt(a)` is `a &lt;= b`.</span>
+<span class="kw">let</span> fields: [Field; <span class="number">3</span>] = [<span class="number">3</span>, <span class="number">1</span>, <span class="number">2</span>];
+<span class="kw">assert_eq</span>(fields.sort_via(|a: Field, b| !b.lt(a)), [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>]);</code></pre>
+<h4>Failures</h4>
+<p>In constrained code, fails if, after sorting, <code>ordering</code> returns <code>false</code> for some pair of
+adjacent elements: for example, if <code>ordering</code> is <code>&lt;</code> and the array has two equal elements.
+Unconstrained code doesn't check the result.</p>
+<pre><code><span class="comment">// Fails: `&lt;` returns `false` for the two equal elements.</span>
+<span class="kw">let</span> _ = [<span class="number">2_u32</span>, <span class="number">1</span>, <span class="number">2</span>].sort_via(|a, b| a &lt; b);</code></pre></div>
 </div></div><h3><code class="code-header">impl&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt; [<a href="../std/primitive.u8.html" class="primitive">u8</a>; N]</code></h3>
 
 <div class="padded-methods"><code id="as_str_unchecked" class="code-header">pub fn <a href="#as_str_unchecked" class="fn">as_str_unchecked</a>(self) -> <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;</code>
@@ -284,10 +291,8 @@ The ordering function must return true if the first argument should be sorted to
 <p>Converts a byte array of type <code>[u8; N]</code> to a string. Note that this performs no UTF-8 validation -
 the given array is interpreted as-is as a string.</p>
 <p>Example:</p>
-<pre><code><span class="kw">fn</span> main() {
-    <span class="kw">let</span> hi = [<span class="number">104</span>, <span class="number">105</span>].as_str_unchecked();
-    <span class="kw">assert_eq</span>(hi, <span class="string">"hi"</span>);
-}</code></pre></div>
+<pre><code><span class="kw">let</span> hi = [<span class="number">104</span>, <span class="number">105</span>].as_str_unchecked();
+<span class="kw">assert_eq</span>(hi, <span class="string">"hi"</span>);</code></pre></div>
 </div></div></div>
 </main>
 </span>

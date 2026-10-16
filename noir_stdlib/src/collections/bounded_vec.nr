@@ -556,6 +556,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// ```noir
     /// let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
     /// let mut result = BoundedVec::<u32, 4>::new();
+    /// // A closure can't assign to a captured `mut` variable, so it writes through a reference.
     /// let result_ref = &mut result;
     /// vec.for_each(|value| result_ref.push(value * 2));
     ///

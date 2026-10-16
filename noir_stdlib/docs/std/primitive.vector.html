@@ -130,117 +130,204 @@
 
 <div class="padded-description"><div class="comments">
 <p>Returns the length of the vector.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">let</span> v = @[<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>];
+<span class="kw">assert_eq</span>(v.len(), <span class="number">3</span>);</code></pre></div>
 </div><code id="push_back" class="code-header">pub fn <a href="#push_back" class="fn">push_back</a>(self, elem: T) -> Self</code>
 
 <div class="padded-description"><div class="comments">
 <p>Push a new element to the end of the vector, returning a
 new vector with a length one greater than the
 original unmodified vector.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">let</span> v = @[<span class="number">1</span>, <span class="number">2</span>].push_back(<span class="number">3</span>);
+<span class="kw">assert_eq</span>(v, @[<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>]);</code></pre></div>
 </div><code id="push_front" class="code-header">pub fn <a href="#push_front" class="fn">push_front</a>(self, elem: T) -> Self</code>
 
 <div class="padded-description"><div class="comments">
 <p>Push a new element to the front of the vector, returning a
 new vector with a length one greater than the
 original unmodified vector.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">let</span> v = @[<span class="number">2</span>, <span class="number">3</span>].push_front(<span class="number">1</span>);
+<span class="kw">assert_eq</span>(v, @[<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>]);</code></pre></div>
 </div><code id="pop_back" class="code-header">pub fn <a href="#pop_back" class="fn">pop_back</a>(self) -> (Self, T)</code>
 
 <div class="padded-description"><div class="comments">
 <p>Remove the last element of the vector, returning the
 popped vector and the element in a tuple</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">let</span> (rest, last) = @[<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>].pop_back();
+<span class="kw">assert_eq</span>(rest, @[<span class="number">1</span>, <span class="number">2</span>]);
+<span class="kw">assert_eq</span>(last, <span class="number">3</span>);</code></pre>
+<h4>Failures</h4>
+<p>Fails if the vector is empty.</p>
+<pre><code><span class="kw">let</span> empty: [u32] = @[];
+<span class="comment">// Fails: the vector is empty.</span>
+<span class="kw">let</span> _ = empty.pop_back();</code></pre></div>
 </div><code id="pop_front" class="code-header">pub fn <a href="#pop_front" class="fn">pop_front</a>(self) -> (T, Self)</code>
 
 <div class="padded-description"><div class="comments">
 <p>Remove the first element of the vector, returning the
 element and the popped vector in a tuple</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">let</span> (first, rest) = @[<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>].pop_front();
+<span class="kw">assert_eq</span>(first, <span class="number">1</span>);
+<span class="kw">assert_eq</span>(rest, @[<span class="number">2</span>, <span class="number">3</span>]);</code></pre>
+<h4>Failures</h4>
+<p>Fails if the vector is empty.</p>
+<pre><code><span class="kw">let</span> empty: [u32] = @[];
+<span class="comment">// Fails: the vector is empty.</span>
+<span class="kw">let</span> _ = empty.pop_front();</code></pre></div>
 </div><code id="insert" class="code-header">pub fn <a href="#insert" class="fn">insert</a>(self, index: <a href="../std/primitive.u32.html" class="primitive">u32</a>, elem: T) -> Self</code>
 
 <div class="padded-description"><div class="comments">
 <p>Insert an element at a specified index, shifting all elements
 after it to the right</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">let</span> v = @[<span class="number">1</span>, <span class="number">3</span>].insert(<span class="number">1</span>, <span class="number">2</span>);
+<span class="kw">assert_eq</span>(v, @[<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>]);
+
+<span class="comment">// Inserting at `len()` appends.</span>
+<span class="kw">assert_eq</span>(@[<span class="number">1</span>, <span class="number">2</span>].insert(<span class="number">2</span>, <span class="number">3</span>), @[<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>]);</code></pre>
+<h4>Failures</h4>
+<p>Fails if <code>index</code> is greater than <code>len()</code>.</p>
+<pre><code><span class="kw">let</span> v = @[<span class="number">1</span>, <span class="number">2</span>];
+<span class="comment">// Fails: index 3 is past the end of a vector of length 2.</span>
+<span class="kw">let</span> _ = v.insert(<span class="number">3</span>, <span class="number">9</span>);</code></pre></div>
 </div><code id="remove" class="code-header">pub fn <a href="#remove" class="fn">remove</a>(self, index: <a href="../std/primitive.u32.html" class="primitive">u32</a>) -> (Self, T)</code>
 
 <div class="padded-description"><div class="comments">
 <p>Remove an element at a specified index, shifting all elements
 after it to the left, returning the altered vector and
 the removed element</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">let</span> (rest, removed) = @[<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>].remove(<span class="number">1</span>);
+<span class="kw">assert_eq</span>(rest, @[<span class="number">1</span>, <span class="number">3</span>]);
+<span class="kw">assert_eq</span>(removed, <span class="number">2</span>);</code></pre>
+<h4>Failures</h4>
+<p>Fails if <code>index</code> is greater than or equal to <code>len()</code>.</p>
+<pre><code><span class="kw">let</span> v = @[<span class="number">1</span>, <span class="number">2</span>];
+<span class="comment">// Fails: index 2 is past the end of a vector of length 2.</span>
+<span class="kw">let</span> _ = v.remove(<span class="number">2</span>);</code></pre></div>
 </div><code id="append" class="code-header">pub fn <a href="#append" class="fn">append</a>(self, other: Self) -> Self</code>
 
 <div class="padded-description"><div class="comments">
 <p>Append each element of the <code>other</code> vector to the end of <code>self</code>.
 This returns a new vector and leaves both input vectors unchanged.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">let</span> v = @[<span class="number">1</span>, <span class="number">2</span>].append(@[<span class="number">3</span>, <span class="number">4</span>]);
+<span class="kw">assert_eq</span>(v, @[<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>]);</code></pre></div>
 </div><code id="as_array" class="code-header">pub fn <a href="#as_array" class="fn">as_array</a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self) -> [T; N]</code>
 
 <div class="padded-description"><div class="comments">
-<p>Converts this vector into an array of length N.
-Panics if the length of this vector is not N.</p>
-</div>
+<p>Converts this vector into an array of length N.</p>
+<p>Example:</p>
+<pre><code><span class="kw">let</span> array: [u32; <span class="number">3</span>] = @[<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>].as_array();
+<span class="kw">assert_eq</span>(array, [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>]);</code></pre>
+<h4>Failures</h4>
+<p>Fails if the length of this vector is not <code>N</code>.</p>
+<pre><code><span class="kw">let</span> v = @[<span class="number">1</span>, <span class="number">2</span>];
+<span class="comment">// Fails: the vector has 2 elements, not 3.</span>
+<span class="kw">let</span> _: [u32; <span class="number">3</span>] = v.as_array();</code></pre></div>
 </div><code id="map" class="code-header">pub fn <a href="#map" class="fn">map</a>&lt;U, Env&gt;(self, f: fn[Env](T) -> U) -> [U]</code>
 
 <div class="padded-description"><div class="comments">
 <p>Apply a function to each element of the vector, returning a new vector
 containing the mapped elements.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">let</span> v = @[<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>].map(|x| x * <span class="number">2</span>);
+<span class="kw">assert_eq</span>(v, @[<span class="number">2</span>, <span class="number">4</span>, <span class="number">6</span>]);</code></pre></div>
 </div><code id="mapi" class="code-header">pub fn <a href="#mapi" class="fn">mapi</a>&lt;U, Env&gt;(self, f: fn[Env](<a href="../std/primitive.u32.html" class="primitive">u32</a>, T) -> U) -> [U]</code>
 
 <div class="padded-description"><div class="comments">
 <p>Apply a function to each element of the vector with its index, returning a
 new vector containing the mapped elements.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">let</span> v: [u32] = @[<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>];
+<span class="kw">assert_eq</span>(v.mapi(|i, x| i + x * <span class="number">2</span>), @[<span class="number">2</span>, <span class="number">5</span>, <span class="number">8</span>]);</code></pre></div>
 </div><code id="for_each" class="code-header">pub fn <a href="#for_each" class="fn">for_each</a>&lt;Env&gt;(self, f: fn[Env](T))</code>
 
 <div class="padded-description"><div class="comments">
 <p>Apply a function to each element of the vector</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">let</span> <span class="kw">mut</span> sum = <span class="number">0</span>;
+<span class="comment">// A closure can't assign to a captured `mut` variable, so it writes through a reference.</span>
+<span class="kw">let</span> sum_ref = &<span class="kw">mut</span> sum;
+@[<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>].for_each(|x| {
+    *sum_ref += x;
+});
+<span class="kw">assert_eq</span>(sum, <span class="number">6</span>);</code></pre></div>
 </div><code id="for_eachi" class="code-header">pub fn <a href="#for_eachi" class="fn">for_eachi</a>&lt;Env&gt;(self, f: fn[Env](<a href="../std/primitive.u32.html" class="primitive">u32</a>, T))</code>
 
 <div class="padded-description"><div class="comments">
 <p>Apply a function to each element of the vector with its index</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">let</span> <span class="kw">mut</span> weighted: u32 = <span class="number">0</span>;
+<span class="kw">let</span> weighted_ref = &<span class="kw">mut</span> weighted;
+@[<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>].for_eachi(|i, x| {
+    *weighted_ref += i * x;
+});
+<span class="kw">assert_eq</span>(weighted, <span class="number">0</span> * <span class="number">1</span> + <span class="number">1</span> * <span class="number">2</span> + <span class="number">2</span> * <span class="number">3</span>);</code></pre></div>
 </div><code id="fold" class="code-header">pub fn <a href="#fold" class="fn">fold</a>&lt;U, Env&gt;(self, accumulator: U, f: fn[Env](U, T) -> U) -> U</code>
 
 <div class="padded-description"><div class="comments">
 <p>Apply a function to each element of the vector and an accumulator value,
 returning the final accumulated value. This function is also sometimes
 called <code>foldl</code>, <code>fold_left</code>, <code>reduce</code>, or <code>inject</code>.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">let</span> sum = @[<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>].fold(<span class="number">10</span>, |acc, x| acc + x);
+<span class="kw">assert_eq</span>(sum, <span class="number">16</span>);</code></pre></div>
 </div><code id="reduce" class="code-header">pub fn <a href="#reduce" class="fn">reduce</a>&lt;Env&gt;(self, f: fn[Env](T, T) -> T) -> T</code>
 
 <div class="padded-description"><div class="comments">
 <p>Apply a function to each element of the vector and an accumulator value,
 returning the final accumulated value. Unlike fold, reduce uses the first
 element of the given vector as its starting accumulator value.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">let</span> product = @[<span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>].reduce(|a, b| a * b);
+<span class="kw">assert_eq</span>(product, <span class="number">24</span>);</code></pre>
+<h4>Failures</h4>
+<p>Fails if the vector is empty.</p>
+<pre><code><span class="kw">let</span> empty: [u32] = @[];
+<span class="comment">// Fails: the vector is empty.</span>
+<span class="kw">let</span> _ = empty.reduce(|a, b| a + b);</code></pre></div>
 </div><code id="filter" class="code-header">pub fn <a href="#filter" class="fn">filter</a>&lt;Env&gt;(self, predicate: fn[Env](T) -> <a href="../std/primitive.bool.html" class="primitive">bool</a>) -> Self</code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns a new vector containing only elements for which the given predicate
 returns true.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">let</span> evens = @[<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>].filter(|x: u32| x % <span class="number">2</span> == <span class="number">0</span>);
+<span class="kw">assert_eq</span>(evens, @[<span class="number">2</span>, <span class="number">4</span>]);</code></pre></div>
 </div><code id="join" class="code-header">pub fn <a href="#join" class="fn">join</a>(self, separator: T) -> T
 <div class="where-clause">where
     T: <a href="../std/append/trait.Append.html" class="trait">Append</a></div></code>
 
 <div class="padded-description"><div class="comments">
 <p>Flatten each element in the vector into one value, separated by <code>separator</code>.</p>
-</div>
+<p>The elements must implement <a href="../std/append/trait.Append.html"><code>Append</code></a>. Runtime code doesn't support vectors of vectors, so
+this is mostly used at comptime, for example to join <code>Quoted</code> values.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> fields = @[<span class="kw">quote</span> { x }, <span class="kw">quote</span> { y }];
+    <span class="kw">let</span> joined = fields.join(<span class="kw">quote</span> { , });
+    <span class="kw">assert</span>(joined == <span class="kw">quote</span> { x, y });
+}</code></pre></div>
 </div><code id="all" class="code-header">pub fn <a href="#all" class="fn">all</a>&lt;Env&gt;(self, predicate: fn[Env](T) -> <a href="../std/primitive.bool.html" class="primitive">bool</a>) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns true if all elements in the vector satisfy the predicate</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">assert</span>(@[<span class="number">2</span>, <span class="number">4</span>, <span class="number">6</span>].all(|x: u32| x % <span class="number">2</span> == <span class="number">0</span>));
+<span class="kw">assert</span>(!@[<span class="number">2</span>, <span class="number">3</span>].all(|x: u32| x % <span class="number">2</span> == <span class="number">0</span>));</code></pre></div>
 </div><code id="any" class="code-header">pub fn <a href="#any" class="fn">any</a>&lt;Env&gt;(self, predicate: fn[Env](T) -> <a href="../std/primitive.bool.html" class="primitive">bool</a>) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns true if any element in the vector satisfies the predicate</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">assert</span>(@[<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>].any(|x| x == <span class="number">2</span>));
+<span class="kw">assert</span>(!@[<span class="number">1</span>, <span class="number">3</span>].any(|x| x == <span class="number">2</span>));</code></pre></div>
 </div></div></div>
 </main>
 </span>
