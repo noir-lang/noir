@@ -26,8 +26,8 @@ use crate::ssa::{
         basic_block::BasicBlockId,
         dfg::DataFlowGraph,
         function::Function,
-        instruction::{Instruction, InstructionId, TerminatorInstruction},
-        value::ValueId,
+        instruction::{Hint, Instruction, InstructionId, Intrinsic, TerminatorInstruction},
+        value::{Value, ValueId},
     },
     ssa_gen::Ssa,
 };
@@ -196,10 +196,15 @@ impl<'f> Context<'f> {
                         self.instructions_that_can_be_made_mutable.insert(*instruction_id);
                     }
                 }
-                // Array arguments passed in calls constitute a use.
-                Instruction::Call { arguments, .. } => {
+                // Array arguments passed in calls constitute a use. An argument that the call's
+                // result can still read from is shared like an array element.
+                Instruction::Call { func, arguments } => {
+                    let keeps_arguments = call_result_keeps_array_arguments(&self.dfg[*func]);
                     for argument in arguments {
                         if self.dfg.type_of_value(*argument).is_array() {
+                            if keeps_arguments {
+                                element_arrays.insert(*argument);
+                            }
                             self.set_last_use(*argument, *instruction_id);
                         }
                     }
@@ -248,6 +253,44 @@ impl<'f> Context<'f> {
                 | Instruction::Noop => (),
             }
         }
+    }
+}
+
+/// Returns true if ACIR generation can place an array argument of a call to `func` into the
+/// call's results as a handle to the argument's memory block, so that the results observe later
+/// writes to that block.
+fn call_result_keeps_array_arguments(func: &Value) -> bool {
+    let Value::Intrinsic(intrinsic) = func else {
+        // Calls to other functions pass their arguments by value.
+        return false;
+    };
+    match intrinsic {
+        // A pushed element is placed in the result vector as-is.
+        Intrinsic::VectorPushBack | Intrinsic::VectorPushFront => true,
+        // The identity hint returns its arguments as-is.
+        Intrinsic::Hint(Hint::BlackBox) => true,
+        // These read their array arguments while the call is generated.
+        Intrinsic::VectorInsert
+        | Intrinsic::VectorRemove
+        | Intrinsic::VectorPopBack
+        | Intrinsic::VectorPopFront
+        | Intrinsic::AsVector
+        | Intrinsic::BlackBox(_)
+        | Intrinsic::ToBits(_)
+        | Intrinsic::ToRadix(_)
+        | Intrinsic::AsWitness => false,
+        // These are removed or rejected before ACIR generation.
+        Intrinsic::ArrayLen
+        | Intrinsic::ArrayAsStrUnchecked
+        | Intrinsic::StrAsBytes
+        | Intrinsic::AssertConstant
+        | Intrinsic::StaticAssert
+        | Intrinsic::ApplyRangeConstraint
+        | Intrinsic::IsUnconstrained
+        | Intrinsic::DerivePedersenGenerators
+        | Intrinsic::FieldLessThan
+        | Intrinsic::ArrayRefCount
+        | Intrinsic::VectorRefCount => false,
     }
 }
 
@@ -557,6 +600,88 @@ mod tests {
             v13 = array_get v9, index u32 0 -> [Field; 4]
             v14 = array_get v13, index u32 2 -> Field
             return v14, v12
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_mutate_array_pushed_front_into_vector() {
+        // ACIR generation keeps an array pushed into a vector as a handle to the array's memory
+        // block, so a later in-place write to that array would be observed through the vector.
+        let src = "
+            acir(inline) fn main f0 {
+              b0():
+                v0 = make_array [Field 1, Field 2] : [Field; 2]
+                v1 = make_array [Field 3, Field 4] : [Field; 2]
+                v2 = make_array [v1] : [[Field; 2]; 1]
+                v3 = array_set v0, index u32 1, value Field 7
+                v4, v5 = call as_vector(v2) -> (u32, [[Field; 2]])
+                v6, v7 = call vector_push_front(u32 1, v5, v3) -> (u32, [[Field; 2]])
+                v8 = array_set v3, index u32 0, value Field 99
+                v9 = array_get v7, index u32 0 -> [Field; 2]
+                v10 = array_get v9, index u32 0 -> Field
+                return v10, v8
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let (ssa, value) =
+            assert_pass_does_not_affect_execution(ssa, vec![], Ssa::mutable_array_set_optimization);
+        assert_eq!(value.unwrap()[0], Value::field(1_u32.into()));
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v2 = make_array [Field 1, Field 2] : [Field; 2]
+            v5 = make_array [Field 3, Field 4] : [Field; 2]
+            v6 = make_array [v5] : [[Field; 2]; 1]
+            v9 = array_set mut v2, index u32 1, value Field 7
+            v11, v12 = call as_vector(v6) -> (u32, [[Field; 2]])
+            v14, v15 = call vector_push_front(u32 1, v12, v9) -> (u32, [[Field; 2]])
+            v18 = array_set v9, index u32 0, value Field 99
+            v19 = array_get v15, index u32 0 -> [Field; 2]
+            v20 = array_get v19, index u32 0 -> Field
+            return v20, v18
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_mutate_array_pushed_back_into_vector() {
+        let src = "
+            acir(inline) fn main f0 {
+              b0():
+                v0 = make_array [Field 1, Field 2] : [Field; 2]
+                v1 = make_array [Field 3, Field 4] : [Field; 2]
+                v2 = make_array [v1] : [[Field; 2]; 1]
+                v3 = array_set v0, index u32 1, value Field 7
+                v4, v5 = call as_vector(v2) -> (u32, [[Field; 2]])
+                v6, v7 = call vector_push_back(u32 1, v5, v3) -> (u32, [[Field; 2]])
+                v8 = array_set v3, index u32 0, value Field 99
+                v9 = array_get v7, index u32 1 -> [Field; 2]
+                v10 = array_get v9, index u32 0 -> Field
+                return v10, v8
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let (ssa, value) =
+            assert_pass_does_not_affect_execution(ssa, vec![], Ssa::mutable_array_set_optimization);
+        assert_eq!(value.unwrap()[0], Value::field(1_u32.into()));
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v2 = make_array [Field 1, Field 2] : [Field; 2]
+            v5 = make_array [Field 3, Field 4] : [Field; 2]
+            v6 = make_array [v5] : [[Field; 2]; 1]
+            v9 = array_set mut v2, index u32 1, value Field 7
+            v11, v12 = call as_vector(v6) -> (u32, [[Field; 2]])
+            v14, v15 = call vector_push_back(u32 1, v12, v9) -> (u32, [[Field; 2]])
+            v18 = array_set v9, index u32 0, value Field 99
+            v19 = array_get v15, index u32 1 -> [Field; 2]
+            v20 = array_get v19, index u32 0 -> Field
+            return v20, v18
         }
         ");
     }
