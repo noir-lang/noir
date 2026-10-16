@@ -181,6 +181,10 @@ pub enum InterpreterError {
     NoImpl {
         location: Location,
     },
+    TraitImplMethodCalledBeforeItsImpl {
+        name: String,
+        location: Location,
+    },
     NoTraitItemInImpl {
         item_name: String,
         location: Location,
@@ -375,6 +379,7 @@ impl InterpreterError {
             | InterpreterError::Unimplemented { location, .. }
             | InterpreterError::InvalidInComptimeContext { location, .. }
             | InterpreterError::NoImpl { location, .. }
+            | InterpreterError::TraitImplMethodCalledBeforeItsImpl { location, .. }
             | InterpreterError::NoTraitItemInImpl { location, .. }
             | InterpreterError::ImplMethodTypeMismatch { location, .. }
             | InterpreterError::DebugEvaluateComptime { location, .. }
@@ -692,6 +697,11 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
             InterpreterError::NoImpl { location } => {
                 let msg = "No impl found due to prior type error".into();
                 CustomDiagnostic::simple_error(msg, String::new(), *location)
+            }
+            InterpreterError::TraitImplMethodCalledBeforeItsImpl { name, location } => {
+                let msg = format!("Cannot call `{name}` before its trait impl is defined");
+                let secondary = "This is evaluated at compile time while trait impls are being defined. Declaring the impl earlier avoids this".to_string();
+                CustomDiagnostic::simple_error(msg, secondary, *location)
             }
             InterpreterError::NoTraitItemInImpl { item_name, location } => {
                 let msg = format!("No method or constant named `{item_name}` found in impl due to prior type error");

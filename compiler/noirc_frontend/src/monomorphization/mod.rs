@@ -3434,18 +3434,18 @@ fn resolve_trait_item_impl(
     })?;
 
     match trait_impl {
-        TraitImplKind::Normal(impl_id) => {
+        // An impl that isn't collected yet is selected when an expression is evaluated at compile
+        // time while impls are being collected: a global initializer that reads an associated
+        // constant, for example.
+        TraitImplKind::Normal(impl_id) | TraitImplKind::Prepared(impl_id, _) => {
             let instantiation_bindings = impl_instantiation_bindings(
                 interner,
                 method_id,
                 impl_id,
                 expr_id,
                 TypeBindings::default(),
-            );
+            )?;
             Ok((impl_id, TypeBindings::default(), instantiation_bindings))
-        }
-        TraitImplKind::Prepared { .. } => {
-            unreachable!("ICE: Prepared trait impl should have been replaced by a Normal one")
         }
         TraitImplKind::Assumed { object_type, trait_generics } => {
             let location = interner.expr_location(&expr_id);
@@ -3463,7 +3463,11 @@ fn resolve_trait_item_impl(
                 &named,
                 TraitLookupMode::Default,
             ) {
-                Ok((TraitImplKind::Normal(impl_id), bindings, instantiation_bindings)) => {
+                Ok((
+                    TraitImplKind::Normal(impl_id) | TraitImplKind::Prepared(impl_id, _),
+                    bindings,
+                    instantiation_bindings,
+                )) => {
                     // The extra bindings come from impl lookup, similar to what's done when
                     // solving trait constraints in the frontend (see `check_trait_constraints`).
                     let instantiation_bindings = impl_instantiation_bindings(
@@ -3472,16 +3476,11 @@ fn resolve_trait_item_impl(
                         impl_id,
                         expr_id,
                         instantiation_bindings,
-                    );
+                    )?;
                     Ok((impl_id, bindings, instantiation_bindings))
                 }
                 Ok((TraitImplKind::Assumed { .. }, ..)) => {
                     Err(InterpreterError::NoImpl { location })
-                }
-                Ok((TraitImplKind::Prepared { .. }, ..)) => {
-                    unreachable!(
-                        "ICE: Prepared trait impl should have been replaced by a Normal one"
-                    )
                 }
                 Err(ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType) => {
                     Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location })
@@ -3523,7 +3522,17 @@ fn impl_instantiation_bindings(
     impl_id: node_interner::TraitImplId,
     expr_id: ExprId,
     extra_bindings: TypeBindings,
-) -> TypeBindings {
+) -> Result<TypeBindings, InterpreterError> {
+    // An impl's methods are recorded when the impl is collected. Until then only its associated
+    // constants can be read, which a global evaluated while impls are collected may do.
+    let is_method =
+        matches!(interner.definition(method_id.item_id).kind, DefinitionKind::Function(_));
+    if is_method && interner.try_get_trait_implementation(impl_id).is_none() {
+        let name = interner.definition_name(method_id.item_id).to_string();
+        let location = interner.expr_location(&expr_id);
+        return Err(InterpreterError::TraitImplMethodCalledBeforeItsImpl { name, location });
+    }
+
     let mut bindings = interner.get_instantiation_bindings(expr_id).clone();
     bindings.extend(extra_bindings);
     // The impl method's generics and the trait's `Self` are bound to types written in terms of
@@ -3540,7 +3549,7 @@ fn impl_instantiation_bindings(
         let typ = typ.substitute(&bindings);
         bindings.insert(id, (var, kind, typ));
     }
-    bindings
+    Ok(bindings)
 }
 
 /// Bind the trait's `Self` type variable to the impl's concrete self type when the impl's
@@ -3671,13 +3680,18 @@ pub(crate) fn resolve_trait_item(
         resolve_trait_item_impl(interner, method_id, expr_id, substitution)?;
 
     let name = interner.definition_name(method_id.item_id);
-    let impl_ = interner.get_trait_implementation(impl_id);
-    let impl_ = impl_.borrow();
-
-    for method in &impl_.methods {
-        if interner.function_name(method) == name {
-            let item = TraitItem::Method(*method);
-            return Ok(ResolvedTraitItem { item, impl_search_bindings, instantiation_bindings });
+    // An impl that isn't collected yet has no methods recorded, but its associated constants
+    // can be read.
+    if let Some(impl_) = interner.try_get_trait_implementation(impl_id) {
+        for method in &impl_.borrow().methods {
+            if interner.function_name(method) == name {
+                let item = TraitItem::Method(*method);
+                return Ok(ResolvedTraitItem {
+                    item,
+                    impl_search_bindings,
+                    instantiation_bindings,
+                });
+            }
         }
     }
 

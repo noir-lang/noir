@@ -4088,3 +4088,103 @@ fn where_clause_with_several_matching_impls_waits_for_the_call_argument() {
     }
     ");
 }
+
+/// An associated constant whose value reads a global that reads another constant of the same
+/// impl. There is no cycle: `N` is `G`, which is `M`, which is `1`.
+#[test]
+fn associated_constant_reads_a_global_that_reads_another_constant_of_the_same_impl() {
+    let src = r#"
+    trait HasN { let N: u32; let M: u32; }
+    struct Foo {}
+    impl HasN for Foo {
+        let N: u32 = G;
+        let M: u32 = 1;
+    }
+    global G: u32 = <Foo as HasN>::M;
+    fn main() -> pub u32 { <Foo as HasN>::N }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u32 {
+        1
+    }
+    ");
+}
+
+/// A real cycle between an associated constant and a global is an error.
+#[test]
+fn associated_constant_and_global_that_read_each_other() {
+    let src = r#"
+    trait HasN { let N: u32; }
+    struct Foo {}
+    impl HasN for Foo { let N: u32 = G; }
+                                     ^ expected type, found global `G`
+    global G: u32 = <Foo as HasN>::N;
+                     ^^^^^^^^^^^ Invalid numeric generic
+                     ~~~~~~~~~~~ Expected a constant, but found `error`
+                     ^^^^^^^^^^^ Global failed to evaluate
+    fn main() -> pub u32 { <Foo as HasN>::N }
+    "#;
+    check_errors(src);
+}
+
+/// Reading one associated constant of an impl doesn't resolve its other constants first:
+/// `Bar::A` reads `Foo::B` while `Foo::A`, through `G`, reads `Bar::A`.
+#[test]
+fn reading_an_associated_constant_resolves_only_that_constant() {
+    let src = r#"
+    trait HasN { let A: u32; let B: u32; }
+    struct Bar {}
+    struct Foo {}
+    impl HasN for Bar { let A: u32 = <Foo as HasN>::B; let B: u32 = 2; }
+    impl HasN for Foo { let A: u32 = G; let B: u32 = 1; }
+    global G: u32 = <Bar as HasN>::A;
+    fn main() -> pub u32 { <Foo as HasN>::A }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u32 {
+        1
+    }
+    ");
+}
+
+/// A global evaluated while `Foo`'s impl is collected calls a method of `Bar`'s impl, which isn't
+/// collected yet, so its methods aren't known.
+#[test]
+fn global_calls_a_method_of_an_impl_declared_later() {
+    let src = r#"
+    trait T { let J: u32; fn f() -> u32; }
+    struct Foo {}
+    struct Bar {}
+    impl T for Foo { let J: u32 = G; fn f() -> u32 { 3 } }
+                                  ^ expected type, found global `G`
+    impl T for Bar { let J: u32 = 1; fn f() -> u32 { 5 } }
+    global G: u32 = <Bar as T>::f();
+                     ^^^^^^^^ Cannot call `f` before its trait impl is defined
+                     ~~~~~~~~ This is evaluated at compile time while trait impls are being defined. Declaring the impl earlier avoids this
+                    ^^^^^^^^^^^^^^^ Global failed to evaluate
+    fn main() -> pub u32 { <Foo as T>::J }
+    "#;
+    check_errors(src);
+}
+
+/// The same program with `Bar`'s impl declared first.
+#[test]
+fn global_calls_a_method_of_an_impl_declared_earlier() {
+    let src = r#"
+    trait T { let J: u32; fn f() -> u32; }
+    struct Foo {}
+    struct Bar {}
+    impl T for Bar { let J: u32 = 1; fn f() -> u32 { 5 } }
+    impl T for Foo { let J: u32 = G; fn f() -> u32 { 3 } }
+    global G: u32 = <Bar as T>::f();
+    fn main() -> pub u32 { <Foo as T>::J }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u32 {
+        5
+    }
+    ");
+}
