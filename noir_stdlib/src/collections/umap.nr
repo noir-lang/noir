@@ -16,7 +16,9 @@ use crate::option::Option;
 /// code relies on. Comparing two maps with `==` fails in constrained code.
 ///
 /// The standard library has no public hasher, so this example defines a minimal one, `MyHasher`.
-/// The examples on this type's methods use it too.
+/// The examples on this type's methods use it too. Real code should use a well-distributed hasher,
+/// such as `poseidon::poseidon2::Poseidon2Hasher` from the
+/// [`poseidon`](https://github.com/noir-lang/poseidon) library.
 ///
 /// Example:
 ///
@@ -117,9 +119,11 @@ impl<K, V> Slot<K, V> {
 impl<K, V, B> UHashMap<K, V, B> {
     /// Creates a new instance of UHashMap with specified BuildHasher.
     ///
-    /// The map starts empty, with room for one entry; it grows as entries are inserted.
+    /// The map starts empty with a one-slot table, which grows as entries are inserted.
     ///
     /// Example:
+    ///
+    /// `MyHasher` is the hasher defined in the [`UHashMap`] example.
     ///
     /// ```noir
     /// use std::collections::umap::UHashMap;
@@ -145,9 +149,11 @@ impl<K, V, B> UHashMap<K, V, B> {
     /// Creates an empty map with the given BuildHasher and a table of `capacity` slots.
     ///
     /// A `capacity` of 0 is treated as 1. The table still grows as entries are inserted;
-    /// starting larger avoids the resizes.
+    /// starting larger avoids the early resizes.
     ///
     /// Example:
+    ///
+    /// `MyHasher` is the hasher defined in the [`UHashMap`] example.
     ///
     /// ```noir
     /// use std::collections::umap::UHashMap;
@@ -177,6 +183,8 @@ impl<K, V, B> UHashMap<K, V, B> {
     ///
     /// Example:
     ///
+    /// `MyHasher` is the hasher defined in the [`UHashMap`] example.
+    ///
     /// ```noir
     /// use std::collections::umap::UHashMap;
     /// use std::hash::BuildHasherDefault;
@@ -198,6 +206,8 @@ impl<K, V, B> UHashMap<K, V, B> {
     /// Returns true if the map contains a value for the specified key.
     ///
     /// Example:
+    ///
+    /// `MyHasher` is the hasher defined in the [`UHashMap`] example.
     ///
     /// ```noir
     /// use std::collections::umap::UHashMap;
@@ -224,6 +234,8 @@ impl<K, V, B> UHashMap<K, V, B> {
     ///
     /// Example:
     ///
+    /// `MyHasher` is the hasher defined in the [`UHashMap`] example.
+    ///
     /// ```noir
     /// use std::collections::umap::UHashMap;
     /// use std::hash::BuildHasherDefault;
@@ -246,6 +258,8 @@ impl<K, V, B> UHashMap<K, V, B> {
     /// The entries are in the order of the internal table, which is not the insertion order.
     ///
     /// Example:
+    ///
+    /// `MyHasher` is the hasher defined in the [`UHashMap`] example.
     ///
     /// ```noir
     /// use std::collections::umap::UHashMap;
@@ -289,6 +303,8 @@ impl<K, V, B> UHashMap<K, V, B> {
     ///
     /// Example:
     ///
+    /// `MyHasher` is the hasher defined in the [`UHashMap`] example.
+    ///
     /// ```noir
     /// use std::collections::umap::UHashMap;
     /// use std::hash::BuildHasherDefault;
@@ -329,6 +345,8 @@ impl<K, V, B> UHashMap<K, V, B> {
     /// The values are in the order of the internal table, which is not the insertion order.
     ///
     /// Example:
+    ///
+    /// `MyHasher` is the hasher defined in the [`UHashMap`] example.
     ///
     /// ```noir
     /// use std::collections::umap::UHashMap;
@@ -372,6 +390,8 @@ impl<K, V, B> UHashMap<K, V, B> {
     ///
     /// Example:
     ///
+    /// `MyHasher` is the hasher defined in the [`UHashMap`] example.
+    ///
     /// ```noir
     /// use std::collections::umap::UHashMap;
     /// use std::hash::BuildHasherDefault;
@@ -381,6 +401,11 @@ impl<K, V, B> UHashMap<K, V, B> {
     ///     let _ = map.insert(1, 10);
     ///     map.iter_mut(|key, value| (key + 100, value * 2));
     ///     assert_eq(map.get(101), Option::some(20));
+    ///
+    ///     // Entries mapped to the same key collapse into one.
+    ///     let _ = map.insert(2, 20);
+    ///     map.iter_mut(|_key, value| (0, value));
+    ///     assert_eq(map.len(), 1);
     /// }
     /// ```
     // docs:start:iter_mut
@@ -409,6 +434,8 @@ impl<K, V, B> UHashMap<K, V, B> {
     ///
     /// Example:
     ///
+    /// `MyHasher` is the hasher defined in the [`UHashMap`] example.
+    ///
     /// ```noir
     /// use std::collections::umap::UHashMap;
     /// use std::hash::BuildHasherDefault;
@@ -419,6 +446,11 @@ impl<K, V, B> UHashMap<K, V, B> {
     ///     map.iter_keys_mut(|key| key + 100);
     ///     assert_eq(map.get(101), Option::some(10));
     ///     assert(!map.contains_key(1));
+    ///
+    ///     // Keys mapped to the same key collapse into one entry.
+    ///     let _ = map.insert(2, 20);
+    ///     map.iter_keys_mut(|_key| 0);
+    ///     assert_eq(map.len(), 1);
     /// }
     /// ```
     // docs:start:iter_keys_mut
@@ -446,6 +478,8 @@ impl<K, V, B> UHashMap<K, V, B> {
     ///
     /// Example:
     ///
+    /// `MyHasher` is the hasher defined in the [`UHashMap`] example.
+    ///
     /// ```noir
     /// use std::collections::umap::UHashMap;
     /// use std::hash::BuildHasherDefault;
@@ -472,6 +506,8 @@ impl<K, V, B> UHashMap<K, V, B> {
     /// Retains only the elements specified by the predicate.
     ///
     /// Example:
+    ///
+    /// `MyHasher` is the hasher defined in the [`UHashMap`] example.
     ///
     /// ```noir
     /// use std::collections::umap::UHashMap;
@@ -505,6 +541,8 @@ impl<K, V, B> UHashMap<K, V, B> {
     ///
     /// Example:
     ///
+    /// `MyHasher` is the hasher defined in the [`UHashMap`] example.
+    ///
     /// ```noir
     /// use std::collections::umap::UHashMap;
     /// use std::hash::BuildHasherDefault;
@@ -524,10 +562,12 @@ impl<K, V, B> UHashMap<K, V, B> {
 
     /// Get the current capacity of the inner table.
     ///
-    /// The table grows when an insertion would fill half of it, so the capacity is always more
-    /// than the number of entries.
+    /// Before each insertion, the table doubles if `len() + 1` is at least half the capacity, so the
+    /// capacity is always more than the number of entries.
     ///
     /// Example:
+    ///
+    /// `MyHasher` is the hasher defined in the [`UHashMap`] example.
     ///
     /// ```noir
     /// use std::collections::umap::UHashMap;
@@ -548,6 +588,8 @@ impl<K, V, B> UHashMap<K, V, B> {
     /// Get the value by key. If it does not exist, returns none().
     ///
     /// Example:
+    ///
+    /// `MyHasher` is the hasher defined in the [`UHashMap`] example.
     ///
     /// ```noir
     /// use std::collections::umap::UHashMap;
@@ -593,6 +635,8 @@ impl<K, V, B> UHashMap<K, V, B> {
     /// if the key already has a value in this map.
     ///
     /// Example:
+    ///
+    /// `MyHasher` is the hasher defined in the [`UHashMap`] example.
     ///
     /// ```noir
     /// use std::collections::umap::UHashMap;
@@ -675,6 +719,8 @@ impl<K, V, B> UHashMap<K, V, B> {
     /// Removes a key-value entry. If key is not present, UHashMap remains unchanged.
     ///
     /// Example:
+    ///
+    /// `MyHasher` is the hasher defined in the [`UHashMap`] example.
     ///
     /// ```noir
     /// use std::collections::umap::UHashMap;

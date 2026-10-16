@@ -67,9 +67,6 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
 
     /// Retrieves an element from the vector at the given index, starting from zero.
     ///
-    /// If the given index is equal to or greater than the length of the vector, this
-    /// will issue a constraint failure.
-    ///
     /// Example:
     ///
     /// ```noir
@@ -79,6 +76,10 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     ///     assert(first != last);
     /// }
     /// ```
+    ///
+    /// # Failures
+    ///
+    /// Fails if `index` is greater than or equal to `len()`.
     pub fn get(&self, index: u32) -> T {
         assert(index < self.len, "Attempted to read past end of BoundedVec");
         self.get_unchecked(index)
@@ -87,10 +88,11 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// Retrieves an element from the vector at the given index, starting from zero, without
     /// performing a bounds check.
     ///
-    /// An `index` at or past `len()` but below `MaxLen` reads the backing storage, which holds a
-    /// zeroed value or a stale element left by `pop`, `set_len` or `set_unchecked`. Nothing
-    /// constrains that value, so only use this with an `index` known to be less than `len()`.
-    /// An `index` of `MaxLen` or more fails.
+    /// An `index` at or past `len()` but below `MaxLen` reads the backing storage there, which may
+    /// hold any value: zero after `new`, an element left behind by `pop`, `truncate` or `set_len`,
+    /// one written by `set_unchecked` or passed to `from_parts`, or whatever unconstrained code or a
+    /// program input put there. Nothing constrains that value, so only use this with an `index`
+    /// known to be less than `len()`. An `index` of `MaxLen` or more fails.
     ///
     /// Example:
     ///
@@ -104,14 +106,22 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     ///     let third = v.get_unchecked(2);
     ///     first + second + third
     /// }
+    ///
+    /// fn main() {
+    ///     let mut v: BoundedVec<u32, 5> = BoundedVec::from_array([1, 2, 3, 4]);
+    ///     assert_eq(sum_of_first_three(v), 6);
+    ///
+    ///     // Past the length, `get_unchecked` reads whatever the storage holds:
+    ///     // here, the element `pop` left behind.
+    ///     let _ = v.pop();
+    ///     assert_eq(v.get_unchecked(3), 4);
+    /// }
     /// ```
     pub fn get_unchecked(&self, index: u32) -> T {
         self.storage[index]
     }
 
     /// Writes an element to the vector at the given index, starting from zero.
-    ///
-    /// If the given index is equal to or greater than the length of the vector, this will issue a constraint failure.
     ///
     /// Example:
     ///
@@ -124,6 +134,10 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     ///     assert(new_first == 42);
     /// }
     /// ```
+    ///
+    /// # Failures
+    ///
+    /// Fails if `index` is greater than or equal to `len()`.
     pub fn set(&mut self, index: u32, value: T) {
         assert(index < self.len, "Attempted to write past end of BoundedVec");
         self.set_unchecked(index, value)
@@ -132,8 +146,9 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// Writes an element to the vector at the given index, starting from zero, without performing a bounds check.
     ///
     /// Writing at an `index` at or past `len()` but below `MaxLen` doesn't change the length: the
-    /// element is invisible to `get`, `==` and the other length-aware functions, until the length
-    /// grows to include it (for example with `set_len`). An `index` of `MaxLen` or more fails.
+    /// element is invisible to `get`, `==` and the other length-aware functions until `set_len`
+    /// grows the length to include it. `push` and the `extend_*` functions overwrite that slot
+    /// instead. An `index` of `MaxLen` or more fails.
     ///
     /// Example:
     ///
@@ -145,6 +160,10 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// // Writing past the length doesn't change it.
     /// vec.set_unchecked(2, 7);
     /// assert_eq(vec.len(), 2);
+    ///
+    /// // Growing the length with `set_len` exposes the element.
+    /// vec.set_len(3);
+    /// assert_eq(vec.get(2), 7);
     /// ```
     ///
     /// ```noir should_fail
@@ -159,8 +178,6 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// Pushes an element to the end of the vector. This increases the length
     /// of the vector by one.
     ///
-    /// Fails if the new length of the vector will be greater than the max length.
-    ///
     /// Example:
     ///
     /// ```noir should_fail
@@ -172,6 +189,10 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// // Fails with the assertion message "push out of bounds".
     /// v.push(3);
     /// ```
+    ///
+    /// # Failures
+    ///
+    /// Fails if the vector is already at its maximum length.
     pub fn push(&mut self, elem: T) {
         assert(self.len < MaxLen, "push out of bounds");
 
@@ -276,10 +297,12 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// Since arrays in Noir are immutable, mutating the returned storage array will not mutate
     /// the storage held internally by this vector.
     ///
-    /// The array includes the slots past `len()`. Those hold zeroed values or stale elements left by
-    /// `pop`, `set_len` or `set_unchecked`, so two vectors that are equal with `==` can have
-    /// different storage. Use only the first `len()` elements when the result matters, for example
-    /// before hashing it.
+    /// The array includes the slots past `len()`, which may hold any value: zero after `new`, an
+    /// element left behind by `pop`, `truncate` or `set_len`, one written by `set_unchecked` or
+    /// passed to `from_parts`, or whatever unconstrained code or a program input put there. Nothing
+    /// constrains those slots, and two vectors that are equal with `==` can have different storage.
+    /// Anything derived from the storage, such as a hash or a serialization, should read only the
+    /// first `len()` elements.
     ///
     /// Example:
     ///
@@ -302,9 +325,6 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
 
     /// Pushes each element from the given array to this vector.
     ///
-    /// Fails if pushing each element would cause the length of this vector
-    /// to exceed the maximum length.
-    ///
     /// Example:
     ///
     /// ```noir
@@ -315,6 +335,10 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// assert(vec.get(0) == 2);
     /// assert(vec.get(1) == 4);
     /// ```
+    ///
+    /// # Failures
+    ///
+    /// Fails if the new length would exceed the maximum length.
     pub fn extend_from_array<let Len: u32>(&mut self, array: [T; Len]) {
         let new_len = self.len + array.len();
         assert(new_len <= MaxLen, "extend_from_array out of bounds");
@@ -326,9 +350,6 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
 
     /// Pushes each element from the given vector to this vector.
     ///
-    /// Fails if pushing each element would cause the length of this vector
-    /// to exceed the maximum length.
-    ///
     /// Example:
     ///
     /// ```noir
@@ -339,6 +360,10 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// assert(vec.get(0) == 2);
     /// assert(vec.get(1) == 4);
     /// ```
+    ///
+    /// # Failures
+    ///
+    /// Fails if the new length would exceed the maximum length.
     pub fn extend_from_vector(&mut self, vector: [T]) {
         let new_len = self.len + vector.len();
         assert(new_len <= MaxLen, "extend_from_vector out of bounds");
@@ -351,9 +376,6 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// Pushes each element from the other vector to this vector. The length of
     /// the other vector is left unchanged.
     ///
-    /// Fails if pushing each element would cause the length of this vector
-    /// to exceed the maximum length.
-    ///
     /// ```noir
     /// let mut v1: BoundedVec<Field, 5> = BoundedVec::new();
     /// let mut v2: BoundedVec<Field, 7> = BoundedVec::new();
@@ -364,6 +386,10 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// assert(v1.storage() == [1, 2, 3, 0, 0]);
     /// assert(v2.storage() == [1, 2, 3, 0, 0, 0, 0]);
     /// ```
+    ///
+    /// # Failures
+    ///
+    /// Fails if the new length would exceed the maximum length.
     pub fn extend_from_bounded_vec<let Len: u32>(&mut self, vec: BoundedVec<T, Len>) {
         let append_len = vec.len();
         let new_len = self.len + append_len;
@@ -406,8 +432,6 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// Pops the element at the end of the vector. This will decrease the length
     /// of the vector by one.
     ///
-    /// Fails if the vector is empty.
-    ///
     /// Example:
     ///
     /// ```noir should_fail
@@ -424,6 +448,10 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// // Fails: the vector is empty.
     /// let _ = v.pop();
     /// ```
+    ///
+    /// # Failures
+    ///
+    /// Fails if the vector is empty.
     pub fn pop(&mut self) -> T {
         assert(self.len > 0, "cannot pop from an empty vector");
         self.len -= 1;

@@ -48,7 +48,9 @@ from dataclasses import dataclass
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STDLIB_SRC = os.path.join(REPO_ROOT, "noir_stdlib", "src")
 SUPPORT_FILE = os.path.join(REPO_ROOT, "scripts", "stdlib_doc_example_support.nr")
-SUPPORT_ITEM = re.compile(r"^pub\s+(?:struct|fn|trait|global|type)\s+(\w+)", re.MULTILINE)
+# A named item: `fn`, `struct`, `enum`, `trait`, `global` or `type`, with optional modifiers.
+ITEM = r"(?:unconstrained\s+|comptime\s+)*(?:fn|struct|enum|trait|global|type)"
+SUPPORT_ITEM = re.compile(rf"^pub\s+{ITEM}\s+(\w+)", re.MULTILINE)
 
 DOC_LINE = re.compile(r"^\s*//[/!](?: ?)(.*)$")
 FENCE = re.compile(r"^(`{3,})\s*(.*)$")
@@ -112,12 +114,13 @@ def collect_examples():
     return examples
 
 
-def support_items():
-    with open(SUPPORT_FILE, encoding="utf-8") as f:
-        return SUPPORT_ITEM.findall(f.read())
+def defines(lines, name):
+    """Whether `lines` declare a top-level item called `name`."""
+    pattern = re.compile(rf"^(?:pub(?:\([a-z]+\))?\s+)?{ITEM}\s+{name}\b")
+    return any(pattern.match(line) for line in lines)
 
 
-def render_example(example, support=()):
+def render_example(example, support):
     for attribute in example.attributes:
         if attribute not in ("ignore", "should_fail"):
             raise SystemExit(
@@ -127,9 +130,9 @@ def render_example(example, support=()):
     uses = [line for line in example.code if line.startswith("use ")]
     rest = [line for line in example.code if not line.startswith("use ")]
     has_items = any(TOP_LEVEL_ITEM.match(line) for line in rest)
-    main_fn = next((MAIN_FN.match(line) for line in rest if MAIN_FN.match(line)), None)
+    main_fn = next(filter(None, map(MAIN_FN.match, rest)), None)
     has_main = main_fn is not None
-    # An unconstrained `main` can only be called from an unconstrained test.
+    # An unconstrained test can call an unconstrained `main` without an `unsafe` block.
     test_fn = "unconstrained fn test() {" if main_fn and main_fn.group(1) else "fn test() {"
     test_attribute = "#[test(should_fail)]" if "should_fail" in example.attributes else "#[test]"
 
@@ -137,8 +140,7 @@ def render_example(example, support=()):
     out += [f"    {line}" for line in uses]
     for name in support:
         mentioned = any(re.search(rf"\b{name}\b", line) for line in rest)
-        defined = any(re.match(rf"^(pub\s+)?(struct|fn|trait|global|type)\s+{name}\b", line) for line in rest)
-        if mentioned and not defined:
+        if mentioned and not defines(rest, name):
             out.append(f"    use crate::doc_support::{name};")
     if has_items:
         out += [f"    {line}" if line else "" for line in rest]
@@ -162,7 +164,11 @@ def write_crate(directory, examples):
         f.write('[package]\nname = "stdlib_doc_examples"\ntype = "lib"\nauthors = [""]\n\n[dependencies]\n')
     with open(SUPPORT_FILE, encoding="utf-8") as f:
         support_source = f.read()
-    support = support_items()
+    support = SUPPORT_ITEM.findall(support_source)
+    # Each support item must be shown in full in some doc example, so readers can find it.
+    missing = [name for name in support if not any(defines(e.code, name) for e in examples)]
+    if missing:
+        raise SystemExit(f"support items not defined in any doc example: {', '.join(missing)}")
     with open(os.path.join(directory, "src", "lib.nr"), "w", encoding="utf-8") as f:
         f.write("mod doc_support {\n" + support_source + "}\n\n")
         f.write("\n\n".join(render_example(e, support) for e in examples) + "\n")

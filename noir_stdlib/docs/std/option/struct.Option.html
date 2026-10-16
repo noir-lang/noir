@@ -70,8 +70,10 @@
 <div class="comments">
 <p>Represents a value of type T or its absence.
 Use <code>Option::some(value)</code> to construct a value or <code>Option::none()</code> to record the absence of one.</p>
-<p><code>Option</code> is in the prelude. A <code>None</code> still holds a value of type <code>T</code> internally, set to the
-zeroed value of <code>T</code>; only <a href="../../std/option/struct.Option.html#unwrap_unchecked"><code>Option::unwrap_unchecked</code></a> exposes it. <code>Option</code> implements <code>Eq</code>,
+<p><code>Option</code> is in the prelude. A <code>None</code> still holds a value of type <code>T</code> internally, and only
+<a href="../../std/option/struct.Option.html#unwrap_unchecked"><code>Option::unwrap_unchecked</code></a> exposes it. <code>Option::none()</code> sets it to the zeroed value of <code>T</code>, but
+nothing constrains it in general: an <code>Option</code> returned by unconstrained code or passed in as a
+program input can hold any value in a <code>None</code>. <code>Option</code> implements <code>Eq</code>,
 <code>Ord</code> (with <code>None</code> less than any <code>Some</code>), <code>Hash</code> and <code>Default</code> (returning <code>None</code>).</p>
 <p>Example:</p>
 <pre><code><span class="kw">fn</span> find_even(values: [u32; <span class="number">3</span>]) -&gt; Option&lt;u32&gt; {
@@ -138,11 +140,19 @@ zeroed value of <code>T</code>; only <a href="../../std/option/struct.Option.htm
 Note that if <code>self</code> is <code>None</code>, there is no guarantee what value will be returned,
 only that it will be of type <code>T</code>.</p>
 <p>Use it only where <code>self.is_some()</code> has already been established, for example to avoid
-repeating an assertion. Nothing constrains the result of calling it on a <code>None</code>.</p>
+repeating an assertion.</p>
 <p>Example:</p>
-<pre><code><span class="kw">let</span> x = Option::some(<span class="number">5</span>);
-<span class="kw">if</span> x.is_some() {
-    <span class="kw">assert_eq</span>(x.unwrap_unchecked(), <span class="number">5</span>);
+<pre><code><span class="kw">fn</span> value_or_zero(x: Option&lt;u32&gt;) -&gt; u32 {
+    <span class="kw">if</span> x.is_some() {
+        x.unwrap_unchecked()
+    } <span class="kw">else</span> {
+        <span class="number">0</span>
+    }
+}
+
+<span class="kw">fn</span> main() {
+    <span class="kw">assert_eq</span>(value_or_zero(Option::some(<span class="number">5</span>)), <span class="number">5</span>);
+    <span class="kw">assert_eq</span>(value_or_zero(Option::none()), <span class="number">0</span>);
 }</code></pre></div>
 </div><code id="unwrap_or" class="code-header">pub fn <a href="#unwrap_or" class="fn">unwrap_or</a>(self, default: T) -> T</code>
 

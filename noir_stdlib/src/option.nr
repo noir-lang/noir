@@ -5,8 +5,10 @@ use crate::hash::{Hash, Hasher};
 /// Represents a value of type T or its absence.
 /// Use `Option::some(value)` to construct a value or `Option::none()` to record the absence of one.
 ///
-/// `Option` is in the prelude. A `None` still holds a value of type `T` internally, set to the
-/// zeroed value of `T`; only [`Option::unwrap_unchecked`] exposes it. `Option` implements `Eq`,
+/// `Option` is in the prelude. A `None` still holds a value of type `T` internally, and only
+/// [`Option::unwrap_unchecked`] exposes it. `Option::none()` sets it to the zeroed value of `T`, but
+/// nothing constrains it in general: an `Option` returned by unconstrained code or passed in as a
+/// program input can hold any value in a `None`. `Option` implements `Eq`,
 /// `Ord` (with `None` less than any `Some`), `Hash` and `Default` (returning `None`).
 ///
 /// Example:
@@ -109,14 +111,22 @@ impl<T> Option<T> {
     /// only that it will be of type `T`.
     ///
     /// Use it only where `self.is_some()` has already been established, for example to avoid
-    /// repeating an assertion. Nothing constrains the result of calling it on a `None`.
+    /// repeating an assertion.
     ///
     /// Example:
     ///
     /// ```noir
-    /// let x = Option::some(5);
-    /// if x.is_some() {
-    ///     assert_eq(x.unwrap_unchecked(), 5);
+    /// fn value_or_zero(x: Option<u32>) -> u32 {
+    ///     if x.is_some() {
+    ///         x.unwrap_unchecked()
+    ///     } else {
+    ///         0
+    ///     }
+    /// }
+    ///
+    /// fn main() {
+    ///     assert_eq(value_or_zero(Option::some(5)), 5);
+    ///     assert_eq(value_or_zero(Option::none()), 0);
     /// }
     /// ```
     pub fn unwrap_unchecked(self) -> T {
