@@ -447,6 +447,90 @@ fn non_turbofish_qualified_call_with_multiple_inherent_impls_is_ambiguous() {
 }
 
 #[test]
+fn method_call_on_uninferred_receiver_with_multiple_inherent_impls_is_ambiguous() {
+    let src = r#"
+        struct S<T> { v: T }
+
+        impl S<u8> {
+            pub fn m(_self: Self) -> Field { 8 }
+        }
+
+        impl S<u16> {
+            pub fn m(_self: Self) -> Field { 16 }
+        }
+
+        fn main() {
+            let s = S { v: 5 };
+            let _ = s.m();
+                    ^ Object type is unknown in method call
+                    ~ Type must be known by this point to know which method to call
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn method_call_on_uninferred_receiver_with_multiple_inherent_impls_is_ambiguous_in_either_order() {
+    let src = r#"
+        struct S<T> { v: T }
+
+        impl S<u16> {
+            pub fn m(_self: Self) -> Field { 16 }
+        }
+
+        impl S<u8> {
+            pub fn m(_self: Self) -> Field { 8 }
+        }
+
+        fn main() {
+            let s = S { v: 5 };
+            let _ = s.m();
+                    ^ Object type is unknown in method call
+                    ~ Type must be known by this point to know which method to call
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn method_call_on_concrete_receiver_with_multiple_inherent_impls_selects_its_impl() {
+    let src = r#"
+        struct S<T> { v: T }
+
+        impl S<u8> {
+            pub fn m(_self: Self) -> Field { 8 }
+        }
+
+        impl S<u16> {
+            pub fn m(_self: Self) -> Field { 16 }
+        }
+
+        fn main() {
+            let _ = S { v: 5_u16 }.m();
+            let _ = S { v: 5_u8 }.m();
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn method_call_on_uninferred_receiver_with_single_inherent_impl_infers_receiver() {
+    let src = r#"
+        struct S<T> { v: T }
+
+        impl S<u8> {
+            pub fn m(self) -> u8 { self.v }
+        }
+
+        fn main() {
+            let s = S { v: 5 };
+            let _: u8 = s.m();
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn multiple_inherent_impls_resolved_via_turbofish_or_method_call() {
     // The disambiguating spellings work and select the impl by the receiver's type.
     let src = r#"

@@ -3298,7 +3298,21 @@ impl Elaborator<'_> {
         // it yet: an accessible trait method may exist that should be called instead. We keep
         // the inherent method around as a fallback so that, if no trait method resolves, the
         // caller still reports the appropriate "private" visibility error against it.
-        let direct_method = self.lookup_direct_method(object_type, method_name, check_self_param);
+        self.resolve_method_candidate_metas(object_type, method_name);
+        let direct_methods =
+            self.interner.lookup_direct_methods(object_type, method_name, check_self_param);
+
+        // Non-overlapping inherent impls (`impl S<u8>`, `impl S<u16>`) can all apply to a receiver
+        // whose type is not yet known (`S<_>`). Picking one would fix the receiver's type from
+        // whichever impl happens to be registered first, so the receiver's type must be known.
+        if direct_methods.len() >= 2 {
+            self.push_err(TypeCheckError::TypeAnnotationsNeededForMethodCall {
+                location: object_location,
+            });
+            return None;
+        }
+
+        let direct_method = direct_methods.first().copied();
         if let Some(method_id) = direct_method
             && self.method_call_is_visible(method_id, object_type)
         {
