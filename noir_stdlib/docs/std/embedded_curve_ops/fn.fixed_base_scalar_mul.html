@@ -42,6 +42,18 @@
 <div id="page-content">
 <pre><code>pub fn fixed_base_scalar_mul(scalar: <a href="../../std/embedded_curve_ops/struct.EmbeddedCurveScalar.html" class="struct">EmbeddedCurveScalar</a>) -> <a href="../../std/embedded_curve_ops/struct.EmbeddedCurvePoint.html" class="struct">EmbeddedCurvePoint</a></code></pre>
 
+<div class="comments">
+<p>Multiplies the curve's generator by <code>scalar</code>.</p>
+<p>This is <code>multi_scalar_mul([EmbeddedCurvePoint::generator()], [scalar])</code>, so <code>scalar</code> must
+satisfy the same conditions as in <a href="../../std/embedded_curve_ops/fn.multi_scalar_mul.html"><code>multi_scalar_mul</code></a>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::embedded_curve_ops::{EmbeddedCurvePoint, EmbeddedCurveScalar, fixed_base_scalar_mul};
+
+<span class="kw">let</span> g = EmbeddedCurvePoint::generator();
+<span class="kw">assert_eq</span>(fixed_base_scalar_mul(EmbeddedCurveScalar::new(<span class="number">2</span>, <span class="number">0</span>)), g.double());</code></pre>
+<h2>Failures</h2>
+<p>Fails at execution if a limb of <code>scalar</code> is not less than <code>2^128</code>, or if <code>scalar</code> is not less
+than the curve's order.</p></div>
 </div>
 </main>
 </span>
