@@ -608,7 +608,7 @@ impl NodeInterner {
                     recursion_limit,
                 )
             {
-                if matches!(error.1, ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType) {
+                if error.1.is_undecided() {
                     where_clause_undecided = true;
                 }
                 // Only keep the first errors we get from a failing where clause
@@ -655,7 +655,9 @@ impl NodeInterner {
             ));
         }
 
-        if matching_impls.len() == 1
+        // An impl whose where clause can't be decided yet might still apply, so neither a single
+        // other match nor no match at all is an answer yet.
+        if matching_impls.len() <= 1
             && where_clause_undecided
             && !matches!(mode, TraitLookupMode::Overlapping)
         {
