@@ -1016,13 +1016,9 @@ impl Elaborator<'_> {
             return self.type_path_value_expr(resolution, &typ, turbofish.as_ref(), ident_location);
         }
 
-        let Some(method) = self.lookup_method(
-            &typ,
-            ident.as_str(),
-            ident_location,
-            typ_location,
-            check_self_param,
-        ) else {
+        let Some(method) =
+            self.lookup_method(&typ, ident, ident_location, typ_location, check_self_param)
+        else {
             let error = Expression::new(ExpressionKind::Error, ident_location);
             return self.elaborate_expression(error);
         };
@@ -1092,13 +1088,9 @@ impl Elaborator<'_> {
 
         self.interner.push_type_ref_location(&typ, typ_location);
 
-        let Some(method) = self.lookup_method(
-            &typ,
-            ident.as_str(),
-            ident_location,
-            typ_location,
-            check_self_param,
-        ) else {
+        let Some(method) =
+            self.lookup_method(&typ, ident, ident_location, typ_location, check_self_param)
+        else {
             let error = Expression::new(ExpressionKind::Error, ident_location);
             return self.elaborate_expression(error);
         };

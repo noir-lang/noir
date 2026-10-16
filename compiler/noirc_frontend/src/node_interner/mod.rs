@@ -1087,6 +1087,20 @@ impl NodeInterner {
         methods.find_direct_method(typ, check_self_param, self)
     }
 
+    /// Returns every direct (inherent) method named `method_name` that applies to `typ`.
+    pub fn lookup_direct_methods(
+        &self,
+        typ: &Type,
+        method_name: &str,
+        check_self_param: bool,
+    ) -> Vec<FuncId> {
+        let Some(key) = get_type_method_key(typ) else { return Vec::new() };
+        let Some(methods) = self.methods.get(&key).and_then(|h| h.get(method_name)) else {
+            return Vec::new();
+        };
+        methods.find_direct_methods(typ, check_self_param, self)
+    }
+
     /// Returns true if any method (direct or trait impl) is registered under `method_name`
     /// for the type's method key, regardless of type compatibility.
     pub fn has_method_with_name(&self, typ: &Type, method_name: &str) -> bool {

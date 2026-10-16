@@ -101,6 +101,22 @@ impl Methods {
         None
     }
 
+    /// Returns every direct (inherent) method that matches `typ`, in registration order.
+    pub(super) fn find_direct_methods(
+        &self,
+        typ: &Type,
+        check_self_param: bool,
+        interner: &NodeInterner,
+    ) -> Vec<FuncId> {
+        self.direct
+            .iter()
+            .filter(|method| {
+                Self::method_matches(typ, check_self_param, method.method, &method.typ, interner)
+            })
+            .map(|method| method.method)
+            .collect()
+    }
+
     /// Returns the self types of every direct (inherent) method that matches `typ`.
     ///
     /// Unlike keying by `typ`'s method key, this matches each impl's self type against `typ`, so it

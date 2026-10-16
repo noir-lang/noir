@@ -172,6 +172,13 @@ pub enum TypeCheckError {
     TypeAnnotationsNeededForFieldAccess { location: Location },
     #[error("Multiple trait impls may apply to this object type")]
     MultipleMatchingImpls { object_type: Type, candidates: Vec<String>, location: Location },
+    #[error("Multiple applicable methods named `{method_name}` in scope")]
+    MultipleApplicableMethodsForObject {
+        method_name: String,
+        /// The self type of each candidate impl, and the location of the method's name in it.
+        candidates: Vec<(Type, Location)>,
+        location: Location,
+    },
     #[error("Use of deprecated function {name}")]
     CallDeprecated { name: String, note: Option<String>, deny: bool, location: Location },
     #[error("{0}")]
@@ -370,6 +377,7 @@ impl TypeCheckError {
             | TypeCheckError::TypeAnnotationsNeededForMethodCall { location }
             | TypeCheckError::TypeAnnotationsNeededForFieldAccess { location }
             | TypeCheckError::MultipleMatchingImpls { location, .. }
+            | TypeCheckError::MultipleApplicableMethodsForObject { location, .. }
             | TypeCheckError::CallDeprecated { location, .. }
             | TypeCheckError::UnusedResultWarning { expr_location: location, .. }
             | TypeCheckError::UnusedResultError { expr_location: location, .. }
@@ -677,6 +685,23 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 for (i, candidate) in candidates.iter().enumerate() {
                     error.add_note(format!("Candidate {}: `{candidate}`", i + 1));
                 }
+                error
+            },
+            TypeCheckError::MultipleApplicableMethodsForObject { method_name, candidates, location } => {
+                let mut error = Diagnostic::simple_error(
+                    error.to_string(),
+                    format!("Multiple `{method_name}` found"),
+                    *location,
+                );
+                for (i, (impl_type, candidate_location)) in candidates.iter().enumerate() {
+                    error.add_secondary(
+                        format!("Candidate #{} is defined in an impl for the type `{impl_type}`", i + 1),
+                        *candidate_location,
+                    );
+                }
+                error.add_note(
+                    "Add a type annotation for the object so that only one of these impls applies".to_string(),
+                );
                 error
             },
             TypeCheckError::ResolverError(error) => error.into(),
