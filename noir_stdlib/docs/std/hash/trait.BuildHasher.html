@@ -19,7 +19,7 @@
 <h1><a href="../../index.html">noir_stdlib</a></h1>
 <div><a href="../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.4</div>
+<div id="crate-version">1.0.0-rc.5</div>
 <h2><a href="#trait">Trait BuildHasher</a></h2>
 <h3>Required methods</h3>
 <ul class="sidebar-list">
@@ -67,10 +67,81 @@
     pub fn <a href="#build_hasher" class="fn">build_hasher</a>(self) -> H;
 }</code></pre>
 
+<div class="comments">
+<p>A factory for <a href="../../std/hash/trait.Hasher.html"><code>Hasher</code></a>s.</p>
+<p>Hash-based collections take a <code>BuildHasher</code> so that each one can create fresh hashers of a
+chosen type. <a href="../../std/hash/struct.BuildHasherDefault.html"><code>BuildHasherDefault</code></a> builds any hasher that implements <code>Default</code>; implement this
+trait directly when building a hasher needs some state, such as a starting value.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::hash::{BuildHasher, Hasher};
+
+<span class="kw">pub</span> <span class="kw">struct</span> Sum {
+    total: Field,
+}
+
+<span class="kw">impl</span> Hasher <span class="kw">for</span> Sum {
+    <span class="kw">fn</span> finish(self) -&gt; Field {
+        self.total
+    }
+
+    <span class="kw">fn</span> write(&<span class="kw">mut</span> self, input: Field) {
+        self.total += input;
+    }
+}
+
+<span class="comment">// Builds `Sum` hashers that start from a fixed offset.</span>
+<span class="kw">struct</span> SumFrom {
+    start: Field,
+}
+
+<span class="kw">impl</span> BuildHasher <span class="kw">for</span> SumFrom {
+    <span class="kw">type</span> H = Sum;
+
+    <span class="kw">fn</span> build_hasher(self) -&gt; Sum {
+        Sum { total: self.start }
+    }
+}
+
+<span class="kw">fn</span> main() {
+    <span class="kw">let</span> builder = SumFrom { start: <span class="number">10</span> };
+    <span class="kw">let</span> <span class="kw">mut</span> hasher = builder.build_hasher();
+    hasher.write(<span class="number">5</span>);
+    <span class="kw">assert_eq</span>(hasher.finish(), <span class="number">15</span>);
+}</code></pre></div>
 <h2>Required methods</h2>
 <div class="padded-methods"><code id="build_hasher" class="code-header">pub fn <a href="#build_hasher" class="fn">build_hasher</a>(self) -> H</code>
 
-</div><h2>Implementors</h2>
+<div class="padded-description"><div class="comments">
+<p>Returns a new hasher with no input written to it.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::hash::{BuildHasher, BuildHasherDefault, Hasher};
+
+<span class="kw">struct</span> Sum {
+    total: Field,
+}
+
+<span class="kw">impl</span> Hasher <span class="kw">for</span> Sum {
+    <span class="kw">fn</span> finish(self) -&gt; Field {
+        self.total
+    }
+
+    <span class="kw">fn</span> write(&<span class="kw">mut</span> self, input: Field) {
+        self.total += input;
+    }
+}
+
+<span class="kw">impl</span> Default <span class="kw">for</span> Sum {
+    <span class="kw">fn</span> default() -&gt; Self {
+        Sum { total: <span class="number">0</span> }
+    }
+}
+
+<span class="kw">fn</span> main() {
+    <span class="kw">let</span> builder: BuildHasherDefault&lt;Sum&gt; = BuildHasherDefault::default();
+    <span class="kw">let</span> hasher = builder.build_hasher();
+    <span class="kw">assert_eq</span>(hasher.finish(), <span class="number">0</span>);
+}</code></pre></div>
+</div></div><h2>Implementors</h2>
 <h3 id="impl-BuildHasher-for-BuildHasherDefault<H>"><code class="code-header">impl&lt;H&gt; <a href="../../std/hash/trait.BuildHasher.html" class="trait">BuildHasher</a> for <a href="../../std/hash/struct.BuildHasherDefault.html" class="struct">BuildHasherDefault</a>&lt;H&gt;
 <div class="where-clause">where
     H: <a href="../../std/hash/trait.Hasher.html" class="trait">Hasher</a>,

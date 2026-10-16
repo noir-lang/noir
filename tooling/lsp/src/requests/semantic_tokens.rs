@@ -15,7 +15,10 @@ use async_lsp::{
     },
 };
 use fm::FileId;
-use nargo_doc::links::{LinkFinder, LinkTarget};
+use nargo_doc::{
+    code_blocks::is_noir_code_block_start,
+    links::{LinkFinder, LinkTarget},
+};
 use noirc_errors::Span;
 use noirc_frontend::{
     ast::{
@@ -146,7 +149,7 @@ impl<'args> SemanticTokenCollector<'args> {
 
             match code_block {
                 CodeBlock::None => {
-                    if contents == "```" || contents == "```noir" || contents == "```rust" {
+                    if is_noir_code_block_start(contents) {
                         code_block = CodeBlock::Noir;
                         fence = true;
                     } else if contents.starts_with("```") {
@@ -566,6 +569,23 @@ mod tests {
             panic!("Expected SemanticTokensResult::Tokens");
         };
         tokens.data
+    }
+
+    #[test]
+    fn test_doc_comment_code_block_with_attributes() {
+        let src_with_language_only = "
+        /// ```noir
+        /// let x: i32 = 1;
+        /// ```
+        struct Foo {}
+        ";
+        let expected = get_semantic_tokens(src_with_language_only);
+        assert!(!expected.is_empty());
+
+        for info in ["noir ignore", "noir,should_fail"] {
+            let src = src_with_language_only.replace("```noir", &format!("```{info}"));
+            assert_eq!(get_semantic_tokens(&src), expected, "code block tagged `{info}`");
+        }
     }
 
     #[test]

@@ -19,7 +19,7 @@
 <h1><a href="../../index.html">noir_stdlib</a></h1>
 <div><a href="../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.4</div>
+<div id="crate-version">1.0.0-rc.5</div>
 <h2><a href="#trait">Trait Hash</a></h2>
 <h3>Required methods</h3>
 <ul class="sidebar-list">
@@ -106,12 +106,72 @@
         H: <a href="../../std/hash/trait.Hasher.html" class="trait">Hasher</a></div>;
 }</code></pre>
 
+<div class="comments">
+<p>A type that can be fed into a <a href="../../std/hash/trait.Hasher.html"><code>Hasher</code></a>.</p>
+<p><code>hash</code> writes the value to the hasher as a sequence of <code>Field</code>s. Two values that are equal
+must write the same sequence. The implementations in the standard library write integers and
+<code>bool</code>s as a single <code>Field</code>, arrays and tuples as their elements in order, and vectors as
+their length followed by their elements.</p>
+<p>The trait can be derived with <code>#[derive(Hash)]</code>, which hashes each field of a struct in order.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::hash::{Hash, Hasher};
+
+<span class="comment">// A hasher that sums its inputs, to show what `hash` writes.</span>
+<span class="kw">struct</span> Sum {
+    total: Field,
+}
+
+<span class="kw">impl</span> Hasher <span class="kw">for</span> Sum {
+    <span class="kw">fn</span> finish(self) -&gt; Field {
+        self.total
+    }
+
+    <span class="kw">fn</span> write(&<span class="kw">mut</span> self, input: Field) {
+        self.total += input;
+    }
+}
+
+#[derive(Hash)]
+<span class="kw">struct</span> Point {
+    x: Field,
+    y: Field,
+}
+
+<span class="kw">fn</span> main() {
+    <span class="kw">let</span> <span class="kw">mut</span> hasher = Sum { total: <span class="number">0</span> };
+    Point { x: <span class="number">3</span>, y: <span class="number">4</span> }.hash(&<span class="kw">mut</span> hasher);
+    <span class="kw">assert_eq</span>(hasher.finish(), <span class="number">7</span>);
+}</code></pre></div>
 <h2>Required methods</h2>
 <div class="padded-methods"><code id="hash" class="code-header">pub fn <a href="#hash" class="fn">hash</a>&lt;H&gt;(self, state: &mut H)
 <div class="where-clause">where
     H: <a href="../../std/hash/trait.Hasher.html" class="trait">Hasher</a></div></code>
 
-</div><h2>Implementors</h2>
+<div class="padded-description"><div class="comments">
+<p>Writes <code>self</code> to <code>state</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::hash::{Hash, Hasher};
+
+<span class="kw">struct</span> Sum {
+    total: Field,
+}
+
+<span class="kw">impl</span> Hasher <span class="kw">for</span> Sum {
+    <span class="kw">fn</span> finish(self) -&gt; Field {
+        self.total
+    }
+
+    <span class="kw">fn</span> write(&<span class="kw">mut</span> self, input: Field) {
+        self.total += input;
+    }
+}
+
+<span class="kw">fn</span> main() {
+    <span class="kw">let</span> <span class="kw">mut</span> hasher = Sum { total: <span class="number">0</span> };
+    (<span class="number">1</span>, <span class="number">2</span>).hash(&<span class="kw">mut</span> hasher);
+    <span class="kw">assert_eq</span>(hasher.finish(), <span class="number">3</span>);
+}</code></pre></div>
+</div></div><h2>Implementors</h2>
 <h3 id="impl-Hash-for-()"><code class="code-header">impl <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a> for ()</code></h3>
 
 <h3 id="impl-Hash-for-(A, B)"><code class="code-header">impl&lt;A, B&gt; <a href="../../std/hash/trait.Hash.html" class="trait">Hash</a> for (A, B)

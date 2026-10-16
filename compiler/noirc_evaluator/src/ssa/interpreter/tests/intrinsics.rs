@@ -1,6 +1,6 @@
 use crate::ssa::interpreter::{
     errors::InterpreterError,
-    tests::{expect_error, expect_printed_output, expect_value},
+    tests::{expect_error, expect_printed_output, expect_value, expect_values},
     value::Value,
 };
 
@@ -284,4 +284,119 @@ fn vector_pop_from_empty() {
     ",
     );
     assert!(matches!(err, InterpreterError::PoppedFromEmptyVector { .. }));
+}
+
+/// A disabled vector intrinsic returns a zero length and a zeroed vector whose backing array has
+/// the size the call would have given it, even when the length argument is below the capacity.
+#[test]
+fn disabled_vector_push_back_keeps_backing_capacity() {
+    let values = expect_values(
+        "
+    acir(inline) fn main f0 {
+      b0():
+        v0 = make_array [Field 1, Field 2, Field 3] : [Field]
+        enable_side_effects u1 0
+        v3, v4 = call vector_push_back(u32 1, v0, Field 4) -> (u32, [Field])
+        enable_side_effects u1 1
+        v5 = array_get v4, index u32 3 -> Field
+        return v3, v5
+    }
+",
+    );
+    assert_eq!(values, vec![Value::u32(0), Value::field(0_u128.into())]);
+}
+
+#[test]
+fn disabled_vector_pop_back_shrinks_backing_capacity_by_one_element() {
+    let values = expect_values(
+        "
+    acir(inline) fn main f0 {
+      b0():
+        v0 = make_array [Field 1, Field 2, Field 3] : [Field]
+        enable_side_effects u1 0
+        v3, v4, v5 = call vector_pop_back(u32 3, v0) -> (u32, [Field], Field)
+        enable_side_effects u1 1
+        v6 = array_get v4, index u32 1 -> Field
+        return v3, v6, v5
+    }
+",
+    );
+    assert_eq!(
+        values,
+        vec![Value::u32(0), Value::field(0_u128.into()), Value::field(0_u128.into())]
+    );
+}
+
+#[test]
+fn disabled_vector_pop_back_result_has_no_element_beyond_its_backing_capacity() {
+    let error = expect_error(
+        "
+    acir(inline) fn main f0 {
+      b0():
+        v0 = make_array [Field 1, Field 2, Field 3] : [Field]
+        enable_side_effects u1 0
+        v3, v4, v5 = call vector_pop_back(u32 3, v0) -> (u32, [Field], Field)
+        enable_side_effects u1 1
+        v6 = array_get v4, index u32 2 -> Field
+        return v6
+    }
+",
+    );
+    assert!(matches!(error, InterpreterError::IndexOutOfBounds { .. }), "{error:?}");
+}
+
+#[test]
+fn disabled_vector_pop_front_shrinks_backing_capacity_by_one_element() {
+    let values = expect_values(
+        "
+    acir(inline) fn main f0 {
+      b0():
+        v0 = make_array [Field 1, Field 2, Field 3] : [Field]
+        enable_side_effects u1 0
+        v3, v4, v5 = call vector_pop_front(u32 3, v0) -> (Field, u32, [Field])
+        enable_side_effects u1 1
+        v6 = array_get v5, index u32 1 -> Field
+        return v4, v6
+    }
+",
+    );
+    assert_eq!(values, vec![Value::u32(0), Value::field(0_u128.into())]);
+}
+
+#[test]
+fn disabled_vector_push_back_of_zero_sized_elements() {
+    let value = expect_value(
+        "
+    acir(inline) fn main f0 {
+      b0():
+        v0 = make_array [] : [()]
+        enable_side_effects u1 0
+        v3, v4 = call vector_push_back(u32 2, v0) -> (u32, [()])
+        enable_side_effects u1 1
+        return v3
+    }
+",
+    );
+    assert_eq!(value, Value::u32(0));
+}
+
+/// `as_vector` and `black_box` hints do not depend on the side effects predicate, so they run
+/// even while side effects are disabled.
+#[test]
+fn as_vector_and_black_box_hint_are_not_disabled_by_enable_side_effects() {
+    let values = expect_values(
+        "
+    acir(inline) fn main f0 {
+      b0():
+        v0 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        enable_side_effects u1 0
+        v1, v2 = call as_vector(v0) -> (u32, [Field])
+        v3, v4 = call black_box(v1, v2) -> (u32, [Field])
+        enable_side_effects u1 1
+        v6 = array_get v4, index u32 2 -> Field
+        return v3, v6
+    }
+",
+    );
+    assert_eq!(values, vec![Value::u32(3), Value::field(3_u128.into())]);
 }

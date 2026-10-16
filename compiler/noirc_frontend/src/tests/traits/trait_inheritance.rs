@@ -732,6 +732,125 @@ fn supertrait_bound_mentioning_self_is_instantiated_for_the_implementing_type() 
     );
 }
 
+/// With `trait Child: Parent<Self>`, `Y: Child + Parent<Wide>` gives `Y` both `Parent<Y>` and
+/// `Parent<Wide>`, so the argument of `pick` decides which of the two a call uses.
+#[test]
+fn method_call_argument_picks_between_written_and_implied_bound_on_the_same_trait() {
+    let src = r#"
+    trait Parent<T> {
+        fn limit(self) -> Field;
+        fn pick(self, o: T) -> Field;
+    }
+    trait Child: Parent<Self> {}
+
+    struct Narrow { v: Field }
+    struct Wide { v: Field }
+
+    impl Parent<Wide> for Wide {
+        fn limit(self) -> Field { self.v }
+        fn pick(self, o: Wide) -> Field { let _ = self; o.v }
+    }
+    impl Parent<Narrow> for Narrow {
+        fn limit(self) -> Field { assert(self.v != 100); self.v }
+        fn pick(self, o: Narrow) -> Field { let _ = self; o.v + 1 }
+    }
+    impl Parent<Wide> for Narrow {
+        fn limit(self) -> Field { self.v }
+        fn pick(self, o: Wide) -> Field { let _ = self; o.v + 2 }
+    }
+    impl Child for Wide {}
+    impl Child for Narrow {}
+
+    fn pick_written<Y: Child + Parent<Wide>>(y: Y, w: Wide) -> Field { y.pick(w) }
+    fn pick_implied<Y: Parent<Wide> + Child>(y: Y, other: Y) -> Field { y.pick(other) }
+    fn run<X: Child>(x: X) -> Field { x.limit() }
+
+    fn main(v: Field) -> pub Field {
+        pick_written(Narrow { v }, Wide { v }) + pick_implied(Narrow { v }, Narrow { v })
+            + run(Narrow { v })
+    }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0(v$l0: Field) -> pub Field {
+        ((pick_written$f1({
+            let v$l1 = v$l0;
+            (v$l1)
+        }, {
+            let v$l2 = v$l0;
+            (v$l2)
+        }) + pick_implied$f2({
+            let v$l3 = v$l0;
+            (v$l3)
+        }, {
+            let v$l4 = v$l0;
+            (v$l4)
+        })) + run$f3({
+            let v$l5 = v$l0;
+            (v$l5)
+        }))
+    }
+    fn pick_written$f1(y$l6: (Field,), w$l7: (Field,)) -> Field {
+        pick$f4(y$l6, w$l7)
+    }
+    fn pick_implied$f2(y$l8: (Field,), other$l9: (Field,)) -> Field {
+        pick$f5(y$l8, other$l9)
+    }
+    fn run$f3(x$l10: (Field,)) -> Field {
+        limit$f6(x$l10)
+    }
+    fn pick$f4(self$l11: (Field,), o$l12: (Field,)) -> Field {
+        let _$l13 = self$l11;
+        (o$l12.0 + 2)
+    }
+    fn pick$f5(self$l14: (Field,), o$l15: (Field,)) -> Field {
+        let _$l16 = self$l14;
+        (o$l15.0 + 1)
+    }
+    fn limit$f6(self$l17: (Field,)) -> Field {
+        assert((self$l17.0 != 100));;
+        self$l17.0
+    }
+    ");
+}
+
+#[test]
+fn method_call_that_does_not_pick_between_two_bounds_on_the_same_trait_is_ambiguous() {
+    let src = r#"
+    trait Parent<T> {
+        fn limit(self) -> Field;
+    }
+    trait Child: Parent<Self> {}
+
+    fn limit_of<Y: Child + Parent<u8>>(y: Y) -> Field { y.limit() }
+       ^^^^^^^^ unused function limit_of
+       ~~~~~~~~ unused function
+                                                        ^^^^^^^ Multiple trait impls match the object type `Y`
+                                                        ~~~~~~~ Ambiguous impl
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn method_call_that_does_not_pick_between_two_written_bounds_on_the_same_trait_is_ambiguous() {
+    let src = r#"
+    trait Parent<T> {
+        fn limit(self) -> Field;
+    }
+
+    fn limit_of<Y: Parent<u8> + Parent<u16>>(y: Y) -> Field { y.limit() }
+       ^^^^^^^^ unused function limit_of
+       ~~~~~~~~ unused function
+                                                              ^^^^^^^ Multiple trait impls match the object type `Y`
+                                                              ~~~~~~~ Ambiguous impl
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
 /// Regression test for https://github.com/noir-lang/noir-claude/issues/1232
 ///
 /// `X::get` under `X: Child<u16>` with `trait Child<U>: Parent<U>` must resolve through
@@ -1470,6 +1589,132 @@ fn method_bound_on_supertrait_uses_the_supertraits_associated_type() {
     fn main() {
         let _: (u8, u8) = S { x: 1 }.pair();
     }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn trait_that_is_its_own_parent_is_a_cycle() {
+    let src = r#"
+    pub trait A: A {}
+                 ^ Dependency cycle found
+                 ~ 'A' recursively depends on itself: A -> A
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn trait_that_is_its_own_parent_with_a_blanket_impl_is_a_cycle() {
+    let src = r#"
+    pub trait Bar {}
+    pub trait A: A + Bar {}
+                 ^ Dependency cycle found
+                 ~ 'A' recursively depends on itself: A -> A
+    impl<T> A for T where T: Bar {}
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn trait_alias_of_itself_is_a_cycle() {
+    let src = r#"
+    pub trait Bar { fn bar(self) -> u32; }
+    pub trait A = A + Bar;
+                  ^ Dependency cycle found
+                  ~ 'A' recursively depends on itself: A -> A
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn trait_where_clause_on_its_own_self_is_a_cycle() {
+    let src = r#"
+    pub trait A where Self: A {}
+                            ^ Dependency cycle found
+                            ~ 'A' recursively depends on itself: A -> A
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+/// A parent bound is instantiated with one use's arguments for the trait's generics. Inside the
+/// trait those arguments can themselves be the trait's generics (`U: Child<V, Field>` below), and
+/// each one is used as written: `U`'s parent is `Parent<V>`, not `Parent<Field>`.
+#[test]
+fn parent_bound_arguments_naming_the_traits_own_generics_are_used_as_written() {
+    let src = r#"
+    trait Parent<T> { fn p(self) -> Field; }
+    trait Child<U, V>: Parent<U> {
+        fn c(self, u: U) -> Field where U: Child<V, Field> { let _ = self; u.p() }
+    }
+    struct A { v: Field }
+    struct B { v: Field }
+    impl Parent<B> for A { fn p(self) -> Field { assert(self.v != 100); self.v } }
+    impl Parent<Field> for A { fn p(self) -> Field { self.v } }
+    impl Child<B, Field> for A {}
+    impl Parent<A> for B { fn p(self) -> Field { self.v } }
+    impl Child<A, B> for B {}
+    fn main(v: Field) -> pub Field { let b = B { v: 7 }; b.c(A { v }) }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0(v$l0: Field) -> pub Field {
+        let b$l2 = {
+            let v$l1 = 7;
+            (v$l1)
+        };
+        c$f1(b$l2, {
+            let v$l3 = v$l0;
+            (v$l3)
+        })
+    }
+    fn c$f1(self$l4: (Field,), u$l5: (Field,)) -> Field {
+        let _$l6 = self$l4;
+        p$f2(u$l5)
+    }
+    fn p$f2(self$l7: (Field,)) -> Field {
+        assert((self$l7.0 != 100));;
+        self$l7.0
+    }
+    ");
+}
+
+#[test]
+fn parent_bound_arguments_that_swap_the_traits_own_generics() {
+    let src = r#"
+    pub trait Parent<X> {}
+    pub trait Child<A, B>: Parent<A> {
+        fn swapped(self) where Self: Child<B, A> { let _ = self; }
+    }
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn parent_bound_argument_that_is_the_generic_it_replaces() {
+    let src = r#"
+    trait Parent<T> { fn p(self) -> Field; }
+    trait Child<U, V>: Parent<U> {
+        fn c(self, u: U) -> Field where U: Child<V, U> { let _ = self; u.p() }
+    }
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn associated_type_bound_arguments_that_swap_the_traits_own_generics() {
+    let src = r#"
+    pub trait Conv<X> {}
+    pub trait Foo<A, B> {
+        type Out: Conv<A>;
+        fn m(self) where Self: Foo<B, A, Out = u8> { let _ = self; }
+    }
+    fn main() {}
     "#;
     assert_no_errors(src);
 }

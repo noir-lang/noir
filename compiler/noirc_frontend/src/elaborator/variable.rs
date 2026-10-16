@@ -24,8 +24,7 @@ use crate::hir_def::expr::{
 use crate::hir_def::traits::TraitConstraint;
 use crate::node_interner::pusher::{HasLocation, PushedExpr};
 use crate::node_interner::{
-    DefinitionId, DefinitionInfo, DefinitionKind, ExprId, FuncId, TraitId, TraitImplId,
-    TraitImplKind, TypeAliasId,
+    DefinitionId, DefinitionKind, ExprId, FuncId, TraitId, TraitImplId, TraitImplKind, TypeAliasId,
 };
 use crate::{Kind, Type, TypeBindings, TypeVariable, TypeVariableId};
 use iter_extended::{btree_map, vecmap};
@@ -225,7 +224,40 @@ impl Elaborator<'_> {
             None => (None, None),
         };
 
-        let definition_id = hir_ident.as_ref().map(|ident| ident.id);
+        let Some(hir_ident) = hir_ident else {
+            let id = self.intern_expr(HirExpression::Error, location);
+            let typ = Type::Error;
+            let id = self.intern_expr_type(id, typ.clone());
+            return (id, typ, false, location);
+        };
+
+        let is_comptime_local = !self.in_comptime_context()
+            && self.interner.definition(hir_ident.id).is_comptime_local();
+
+        let (id, typ) = self.elaborate_resolved_ident(
+            hir_ident,
+            item,
+            resolved_turbofish,
+            type_segment_turbofish,
+            location,
+        );
+        (id, typ, is_comptime_local, location)
+    }
+
+    /// Builds the expression for an identifier that a path resolved to through `item`, binding
+    /// the generics that the path decides: those of the impl, trait or enum the identifier was
+    /// found in. `item_turbofish` is the turbofish on the identifier itself and
+    /// `type_turbofish` the generic arguments of the type it was found in, when the path gives
+    /// them apart from `item` (`Foo::<u32>::Spam`, `<Foo<u32>>::Spam`).
+    fn elaborate_resolved_ident(
+        &mut self,
+        hir_ident: HirIdent,
+        item: Option<PathResolutionItem>,
+        item_turbofish: Option<Vec<Located<Type>>>,
+        type_turbofish: Option<Vec<Located<Type>>>,
+        location: Location,
+    ) -> (ExprId, Type) {
+        let definition_id = hir_ident.id;
 
         let item_type_binding = if let Some(item) = item {
             self.resolve_item_type_binding(item)
@@ -233,13 +265,9 @@ impl Elaborator<'_> {
             ItemTypeBinding::None
         };
 
-        let definition = definition_id.map(|id| self.interner.definition(id));
-        let is_comptime_local = !self.in_comptime_context()
-            && definition.is_some_and(DefinitionInfo::is_comptime_local);
-        let definition_kind = definition.as_ref().map(|definition| definition.kind.clone());
-
+        let definition_kind = self.interner.definition(definition_id).kind.clone();
         let mut bindings = TypeBindings::default();
-        let generics = if let Some(DefinitionKind::Function(func_id)) = &definition_kind {
+        let generics = if let DefinitionKind::Function(func_id) = &definition_kind {
             self.usage_tracker.mark_impl_function_as_used(func_id);
 
             match item_type_binding {
@@ -284,20 +312,20 @@ impl Elaborator<'_> {
 
             // Resolve any generics if the variable we have resolved is a function
             // and if the turbofish operator was used.
-            self.resolve_function_turbofish_generics(func_id, resolved_turbofish, location)
+            self.resolve_function_turbofish_generics(func_id, item_turbofish, location)
         } else {
             // A fieldless enum variant resolves to a global. A turbofish on the variant path
             // binds the enum's generics, which global path resolution does not carry on its
             // own. The turbofish may be on the type segment (`Foo::<u32>::Spam`) or the
             // variant segment (`Foo::Spam::<u32>`); both denote the same enum generics.
-            let is_enum_variant_global =
-                if let Some(DefinitionKind::Global(global_id)) = &definition_kind {
-                    self.interner.is_enum_variant_global(*global_id)
-                } else {
-                    false
-                };
+            let is_enum_variant_global = if let DefinitionKind::Global(global_id) = &definition_kind
+            {
+                self.interner.is_enum_variant_global(*global_id)
+            } else {
+                false
+            };
 
-            if let Some(DefinitionKind::AssociatedConstant(impl_id, _)) = &definition_kind
+            if let DefinitionKind::AssociatedConstant(impl_id, _) = &definition_kind
                 && let ItemTypeBinding::ConcreteSelfType(self_type) = &item_type_binding
             {
                 self.bind_trait_impl_generics_from_self_type(
@@ -309,15 +337,15 @@ impl Elaborator<'_> {
             }
 
             if is_enum_variant_global {
-                if let Some(turbofish) = resolved_turbofish.or(type_segment_turbofish) {
+                if let Some(turbofish) = item_turbofish.or(type_turbofish) {
                     self.bind_enum_variant_global_turbofish(
-                        definition_id.unwrap(),
+                        definition_id,
                         &turbofish,
                         location,
                         &mut bindings,
                     );
                 }
-            } else if let Some(unused_resolved_turbofish) = resolved_turbofish {
+            } else if let Some(unused_resolved_turbofish) = item_turbofish {
                 let message = format!(
                     "elaborate_variable_inner: unused resolved_turbofish: {unused_resolved_turbofish:?}"
                 );
@@ -327,22 +355,11 @@ impl Elaborator<'_> {
             None
         };
 
-        let (id, typ) = if let Some(hir_ident) = hir_ident {
-            let id = self
-                .intern_expr(HirExpression::Ident(hir_ident.clone(), generics.clone()), location);
-
-            let typ = self.type_check_variable_with_bindings(hir_ident, &id, generics, bindings);
-            let id = self.intern_expr_type(id, typ.clone());
-            (id, typ)
-        } else {
-            let expr = HirExpression::Error;
-            let id = self.intern_expr(expr, location);
-            let typ = Type::Error;
-            let id = self.intern_expr_type(id, typ.clone());
-            (id, typ)
-        };
-
-        (id, typ, is_comptime_local, location)
+        let id =
+            self.intern_expr(HirExpression::Ident(hir_ident.clone(), generics.clone()), location);
+        let typ = self.type_check_variable_with_bindings(hir_ident, &id, generics, bindings);
+        let id = self.intern_expr_type(id, typ.clone());
+        (id, typ)
     }
 
     /// Bind the type-segment turbofish of a fieldless enum variant path (e.g. `Foo::<u32>::Spam`)
@@ -1041,7 +1058,9 @@ impl Elaborator<'_> {
             unreachable!("a type's value member always resolves to an ident");
         };
 
-        let mut bindings = TypeBindings::default();
+        // The receiver type gives the generics of the enum a variant belongs to, as the type
+        // segment's turbofish does in `E::<bool>::A`.
+        let mut type_turbofish = None;
         if matches!(item, Some(PathResolutionItem::EnumVariant(_)))
             && let Type::DataType(_, generics) = typ
         {
@@ -1052,18 +1071,10 @@ impl Elaborator<'_> {
                     location: turbofish_location,
                 });
             }
-            let turbofish = vecmap(generics, |generic| Located::from(location, generic.clone()));
-            self.bind_enum_variant_global_turbofish(
-                hir_ident.id,
-                &turbofish,
-                location,
-                &mut bindings,
-            );
+            type_turbofish =
+                Some(vecmap(generics, |generic| Located::from(location, generic.clone())));
         }
-        let id = self.intern_expr(HirExpression::Ident(hir_ident.clone(), None), location);
-        let typ = self.type_check_variable_with_bindings(hir_ident, &id, None, bindings);
-        let id = self.intern_expr_type(id, typ.clone());
-        (id, typ)
+        self.elaborate_resolved_ident(hir_ident, item, None, type_turbofish, location)
     }
 
     /// Variant of [`Self::elaborate_type_path_impl_inner`] that accepts already resolved generics.
@@ -1376,6 +1387,10 @@ impl Elaborator<'_> {
                 self.push_trait_constraint(constraint, **expr_id, false);
             }
         }
+
+        // An associated type of a trait whose impl is already decided here (`<K as Tr>::Out`) is
+        // that impl's, so it is resolved now rather than when the type is first needed.
+        self.select_where_possible();
 
         // Record required type variables in a predictable order to avoid nondeterminism in error messages.
         let required_type_variables = btree_map(bindings.values(), |(type_variable, _, typ)| {

@@ -1440,6 +1440,7 @@ impl Elaborator<'_> {
         let associated_types = match impl_kind {
             TraitImplKind::Assumed { trait_generics, .. } => Cow::Owned(trait_generics.named),
             TraitImplKind::Normal(impl_id) | TraitImplKind::Prepared(impl_id, _) => {
+                self.resolve_trait_impl_associated_types_if_unresolved(impl_id);
                 Cow::Borrowed(self.interner.get_associated_types_for_impl(impl_id))
             }
         };
@@ -2602,7 +2603,7 @@ impl Elaborator<'_> {
         location: Location,
     ) -> Type {
         let to = to.follow_bindings();
-        let from_follow_bindings = from.follow_bindings();
+        let from_follow_bindings = self.structurally_resolve_type(from);
 
         use HirExpression::Literal;
         let from_value_opt = match self.interner.expression(from_expr_id) {
@@ -3158,7 +3159,7 @@ impl Elaborator<'_> {
         location: Location,
         dereference_lhs: Option<impl FnMut(&mut Self, Type, Type, bool /* mutable */)>,
     ) -> Option<(Type, usize)> {
-        let lhs_type = lhs_type.follow_bindings();
+        let lhs_type = self.structurally_resolve_type(lhs_type);
 
         match &lhs_type {
             Type::DataType(s, args) => {
@@ -3235,7 +3236,7 @@ impl Elaborator<'_> {
         object_location: Location,
         check_self_param: bool,
     ) -> Option<HirMethodReference> {
-        match object_type.follow_bindings() {
+        match self.structurally_resolve_type(object_type) {
             // TODO(https://github.com/noir-lang/noir/issues/10518): We should allow method calls on
             // `impl Trait`s eventually. For now it is fine since they are only allowed on return types.
             Type::TraitAsType(..) => {
@@ -3440,9 +3441,17 @@ impl Elaborator<'_> {
             return HirMethodReference::FuncId(*func_id);
         }
 
-        // Return a TraitMethodId with unbound generics. These will later be bound by the type-checker.
+        // The trait's generics at this call are unknowns that type checking solves.
         let trait_ = self.interner.get_trait(trait_id);
-        let trait_generics = trait_.get_trait_generics(location);
+        let fresh = |generic: &crate::ResolvedGeneric| {
+            self.interner.next_type_variable_with_kind(generic.kind().into_owned())
+        };
+        let ordered = vecmap(&trait_.generics, fresh);
+        let named = vecmap(&trait_.associated_types, |generic| NamedType {
+            name: Ident::new(generic.name.to_string(), location),
+            typ: fresh(generic),
+        });
+        let trait_generics = TraitGenerics { ordered, named };
         let definition = trait_.find_method(method_name, self.interner).unwrap();
         let assumed = false;
         HirMethodReference::TraitItemId(HirTraitMethodReference {
@@ -3482,59 +3491,49 @@ impl Elaborator<'_> {
                 (meta.trait_id, meta.all_trait_constraints().cloned().collect::<Vec<_>>())
             });
 
-        // If inside a trait method, check if it's a method on `self`
+        // Candidates come from the enclosing trait (for a call on its `Self`) and from each of the
+        // function's bounds alike, and are all considered together, so two applicable methods are
+        // reported as ambiguous whichever of them supplies them. Each source is searched on its
+        // own, so that the same trait reached with different arguments through two of them
+        // (`Y: Child + Parent<Wide>` with `trait Child: Parent<Self>`) is seen with both.
+        let mut candidates = Vec::new();
+
         if let Some(trait_id) = func_meta_trait_id
             && Some(object_type) == self.item.impl_context.self_type()
         {
             let the_trait = self.interner.get_trait(trait_id);
             let constraint = the_trait.as_constraint(the_trait.name.location());
-            let mut visited = BTreeSet::new();
-            let mut matches = self.lookup_methods_in_trait(
+            let hierarchy = self.lookup_methods_in_trait(
                 object_type,
                 the_trait,
                 method_name,
                 &constraint.trait_bound,
-                &mut visited,
+                &mut BTreeSet::new(),
             );
-            if matches.len() == 1 {
-                let method = matches.remove(0);
-                let assumed = true;
-                // If it is, it's an assumed trait
-                // Note that here we use the `trait_id` from `TraitItemId` because looking a method on a trait
-                // might return a method on a parent trait.
-                return Some(HirMethodReference::TraitItemId(HirTraitMethodReference {
-                    assumed,
-                    ..method
-                }));
-            }
-            if matches.len() > 1 {
-                return self.handle_trait_method_lookup_matches(
-                    object_type,
-                    method_name,
-                    location,
-                    object_location,
-                    matches,
-                );
-            }
+            // The trait's own `Self` implements it, which is an assumption inside its methods.
+            candidates.extend(
+                hierarchy
+                    .into_iter()
+                    .map(|method| HirTraitMethodReference { assumed: true, ..method }),
+            );
         }
-
-        let mut matches = Vec::new();
-        let mut visited = BTreeSet::new();
 
         for constraint in &func_trait_constraints {
             if *object_type == constraint.typ
                 && let Some(the_trait) =
                     self.interner.try_get_trait(constraint.trait_bound.trait_id)
             {
-                matches.extend(self.lookup_methods_in_trait(
+                candidates.extend(self.lookup_methods_in_trait(
                     object_type,
                     the_trait,
                     method_name,
                     &constraint.trait_bound,
-                    &mut visited,
+                    &mut BTreeSet::new(),
                 ));
             }
         }
+
+        let matches = self.merge_trait_method_candidates(candidates);
 
         self.handle_trait_method_lookup_matches(
             object_type,
@@ -3543,6 +3542,33 @@ impl Elaborator<'_> {
             object_location,
             matches,
         )
+    }
+
+    /// Keeps one candidate for each trait method. Several bounds can lead to the same method: with
+    /// the same trait arguments they are the same candidate, and with different ones
+    /// (`Parent<Y>` and `Parent<Wide>`) the method is still a single candidate, whose trait
+    /// arguments are left for the call to decide by selecting one of those bounds.
+    fn merge_trait_method_candidates(
+        &self,
+        candidates: Vec<HirTraitMethodReference>,
+    ) -> Vec<HirTraitMethodReference> {
+        let mut merged: Vec<HirTraitMethodReference> = Vec::new();
+        for candidate in candidates {
+            let Some(existing) =
+                merged.iter_mut().find(|existing| existing.definition == candidate.definition)
+            else {
+                merged.push(candidate);
+                continue;
+            };
+            // The method is only an assumption if no bound of the function provides it.
+            existing.assumed &= candidate.assumed;
+            if existing.trait_generics != candidate.trait_generics {
+                existing.trait_generics = existing
+                    .trait_generics
+                    .map(|typ| self.interner.next_type_variable_with_kind(typ.kind().into_owned()));
+            }
+        }
+        merged
     }
 
     #[tracing::instrument(level = "trace", skip_all)]

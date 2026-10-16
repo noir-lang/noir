@@ -199,6 +199,15 @@ stdlib-doc:
     rm -rf noir_stdlib/docs
     mv noir_stdlib/target/docs noir_stdlib/docs
 
+# Compiles and runs the `noir` code examples in the standard library's doc comments.
+check-stdlib-doc-examples:
+    cargo build -p nargo_cli
+    ./scripts/check_stdlib_doc_examples.py --nargo {{ justfile_dir() }}/target/debug/nargo
+
+# Lists public standard library items that need a doc comment or an example.
+stdlib-doc-inventory *ARGS:
+    ./scripts/stdlib_doc_inventory.py {{ ARGS }}
+
 # Visualize the CFG after a certain SSA pass and open the Mermaid Live editor.
 
 # This is mostly here for reference: it only works if the pass matches a single unique pass in the pipeline, and there are no errors.

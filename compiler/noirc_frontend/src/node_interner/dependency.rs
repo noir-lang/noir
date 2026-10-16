@@ -188,7 +188,11 @@ impl NodeInterner {
     /// Build up a string starting from the given item containing each item in the dependency
     /// cycle. The final result will resemble `foo -> bar -> baz -> foo`, always going back to the
     /// element at the given start index.
-    fn get_cycle_error_string(&self, scc: &[PetGraphIndex], start_index: usize) -> String {
+    pub(crate) fn get_cycle_error_string(
+        &self,
+        scc: &[PetGraphIndex],
+        start_index: usize,
+    ) -> String {
         let index_to_string = |index: PetGraphIndex| match self.dependency_graph[index] {
             DependencyId::DataType(id) => Cow::Owned(self.get_type(id).borrow().name.to_string()),
             DependencyId::Function(id) => Cow::Borrowed(self.function_name(&id)),

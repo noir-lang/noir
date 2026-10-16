@@ -1,0 +1,18 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(flag: bool) -> pub Field {
+    let mut out: Field = 0_Field;
+    if flag {
+        let mut values: [(Field, Field)] = @[(1_Field, 2_Field)];
+        if flag {
+            values = values.push_back(values[1_u32]);
+        };
+        if flag {
+            values = values.push_back(values[1_u32]);
+        };
+        out = values[0_u32].0;
+    };
+    out
+}

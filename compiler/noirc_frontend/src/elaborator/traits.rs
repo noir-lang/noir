@@ -189,6 +189,7 @@ use crate::{
     hir::{
         comptime::InterpreterError,
         def_collector::dc_crate::UnresolvedTrait,
+        resolution::errors::ResolverError,
         type_check::{TypeCheckError, generics::TraitGenerics},
     },
     hir_def::{
@@ -292,6 +293,23 @@ impl Elaborator<'_> {
                 for trait_bound in resolved_trait_bounds {
                     where_clause.push(TraitConstraint { typ: self_type.clone(), trait_bound });
                 }
+                // A trait that is its own parent (`trait A: A`, `trait A where Self: A`,
+                // `trait A = A + B;`) is a cycle. It is reported here because the dependency
+                // graph only reports cycles of more than one item, and the bound is dropped so
+                // that nothing expands it.
+                where_clause.retain(|constraint| {
+                    let own_parent =
+                        constraint.typ == self_type && constraint.trait_bound.trait_id == *trait_id;
+                    if own_parent {
+                        let item = unresolved_trait.trait_def.name.to_string();
+                        let index =
+                            this.interner.get_or_insert_dependency(DependencyId::Trait(*trait_id));
+                        let cycle = this.interner.get_cycle_error_string(&[index], 0);
+                        let location = constraint.trait_bound.location;
+                        this.push_err(ResolverError::DependencyCycle { location, item, cycle });
+                    }
+                    !own_parent
+                });
 
                 this.interner.update_trait(*trait_id, |trait_def| {
                     trait_def.set_where_clause(where_clause);
@@ -713,14 +731,18 @@ impl Elaborator<'_> {
         let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::TraitConstraint);
         let typ = self.resolve_type(constraint.typ.clone(), wildcard_allowed);
         let trait_bound = self.resolve_trait_bound(&constraint.trait_bound)?;
-        let location = constraint.trait_bound.trait_path.location;
-
-        self.add_trait_bound_to_scope(location, &typ, &trait_bound);
-
         let constraint = TraitConstraint { typ, trait_bound };
+        self.add_resolved_trait_constraint_to_scope(&constraint);
+        Some(constraint)
+    }
+
+    /// Adds an already resolved trait constraint to scope, as
+    /// [`Self::resolve_trait_constraint_and_add_to_scope`] does once it has resolved it.
+    pub(super) fn add_resolved_trait_constraint_to_scope(&mut self, constraint: &TraitConstraint) {
+        let bound = &constraint.trait_bound;
+        self.add_trait_bound_to_scope(bound.location, &constraint.typ, bound);
         // Also add to trait_bounds so that T::AssocType syntax can be resolved
         self.item.generics.add_bound(constraint.clone());
-        Some(constraint)
     }
 
     /// Adds the constraints for the parent traits that `constraint` implies and that have

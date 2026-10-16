@@ -32,6 +32,13 @@ impl Type {
         self.follow_bindings().canonicalize_helper(false, run_simplifications)
     }
 
+    /// Run all simplifications and drop any `CheckedCast`, keeping only its `to` side.
+    /// This is the form a type is compared in, without the validation obligations of its
+    /// casts, so it suits showing a type rather than checking one.
+    pub(crate) fn canonicalize_without_checked_casts(&self) -> Type {
+        self.follow_bindings().canonicalize_unchecked()
+    }
+
     /// Only simplify constants and drop/skip any `CheckedCast`'s
     pub(crate) fn canonicalize_checked(&self) -> Type {
         self.follow_bindings().canonicalize_checked_helper()

@@ -3,11 +3,11 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main() {
-    let (first, rest): (Field, [Field; 4 - 1]) = split_first([1_Field, 2_Field, 3_Field, 4_Field]);
+    let (first, rest): (Field, [Field; 3]) = split_first([1_Field, 2_Field, 3_Field, 4_Field]);
     assert(first == 1_Field);
     assert(rest == [2_Field, 3_Field, 4_Field]);
-    let _: (Field, [Field; 3 - 1]) = split_first([1_Field, 2_Field, 3_Field]);
-    let _: [Field; 3 + 2] = push_multiple([1_Field, 2_Field, 3_Field]);
+    let _: (Field, [Field; 2]) = split_first([1_Field, 2_Field, 3_Field]);
+    let _: [Field; 5] = push_multiple([1_Field, 2_Field, 3_Field]);
     test_constant_folding::<10>();
     test_non_constant_folding::<10, 20>();
 }
@@ -35,7 +35,7 @@ fn push<let N: u32>(array: [Field; N], element: Field) -> [Field; N + 1] {
 
 fn push_multiple<let N: u32>(array: [Field; N]) -> [Field; N + 2] {
     let array2: [Field; N + 1] = push(array, 4_Field);
-    let array3: [Field; (N + 1) + 1] = push(array2, 5_Field);
+    let array3: [Field; N + 2] = push(array2, 5_Field);
     array3
 }
 

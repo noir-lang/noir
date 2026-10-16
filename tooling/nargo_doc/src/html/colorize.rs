@@ -3,7 +3,7 @@ use noirc_frontend::{
     token::{FmtStrFragment, LocatedToken, Token},
 };
 
-use crate::html::escape_html;
+use crate::{code_blocks::is_noir_code_block_start, html::escape_html};
 
 /// Colorizes code blocks in the given Markdown.
 pub(super) fn colorize_markdown_code_blocks(comments: String) -> String {
@@ -27,12 +27,7 @@ pub(super) fn colorize_markdown_code_blocks(comments: String) -> String {
             in_code_block = !in_code_block;
         }
 
-        // We assume code blocks without a name are for Noir.
-        // We also colorize Rust because the two languages are very similar, and because some
-        // of our stdlib docs use Rust code blocks.
-        if in_code_block
-            && (trimmed_line == "```" || trimmed_line == "```noir" || trimmed_line == "```rust")
-        {
+        if in_code_block && is_noir_code_block_start(trimmed_line) {
             // This is a code block start
             highlighting = true;
         } else if !in_code_block && trimmed_line == "```" {
@@ -261,6 +256,43 @@ let bool_var = true;
         ```
         "#);
         // cSpell:enable
+    }
+
+    #[test]
+    fn test_colorize_code_blocks_with_attributes() {
+        let markdown = r#"
+Space-separated attributes:
+
+```noir ignore
+let x = 1;
+```
+
+Comma-separated attributes:
+
+```noir,should_fail
+let x = 1;
+```
+
+Not colorized:
+
+```text ignore
+let x = 1;
+```
+        "#;
+        let colorized = colorize_markdown_code_blocks(markdown.to_string());
+        assert_snapshot!(colorized, @r#"
+        Space-separated attributes:
+
+        <pre><code><span class="kw">let</span> x = <span class="number">1</span>;</code></pre>
+        Comma-separated attributes:
+
+        <pre><code><span class="kw">let</span> x = <span class="number">1</span>;</code></pre>
+        Not colorized:
+
+        ```text ignore
+        let x = 1;
+        ```
+        "#);
     }
 
     #[test]

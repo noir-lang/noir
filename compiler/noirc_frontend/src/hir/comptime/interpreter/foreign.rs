@@ -23,9 +23,8 @@ use crate::{
 use super::{
     Interpreter,
     builtin::builtin_helpers::{
-        check_arguments, check_one_argument, check_return_type_shape, check_three_arguments,
-        check_two_arguments, get_array_map, get_field, get_fixed_array_map, get_struct_field,
-        get_struct_fields, get_u8, get_u32, get_u64, to_struct, type_shape,
+        check_arguments, check_return_type_shape, get_array_map, get_field, get_fixed_array_map,
+        get_struct_field, get_struct_fields, get_u8, get_u32, get_u64, to_struct, type_shape,
     },
 };
 
@@ -94,7 +93,7 @@ fn call_foreign(
 
 /// `pub fn aes128_encrypt<let N: u32>(input: [u8; N], iv: [u8; 16], key: [u8; 16]) -> [u8]`
 fn aes128_encrypt(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    let (inputs_arg, iv_arg, key_arg) = check_three_arguments(arguments, location)?;
+    let [inputs_arg, iv_arg, key_arg] = check_arguments(arguments, location)?;
     let inputs_location = inputs_arg.1;
     let iv_location = iv_arg.1;
     let key_location = key_arg.1;
@@ -148,7 +147,7 @@ fn blake_hash(
     location: Location,
     f: impl Fn(&[u8]) -> Result<[u8; 32], BlackBoxResolutionError>,
 ) -> IResult<Value> {
-    let inputs = check_one_argument(arguments, location)?;
+    let [inputs] = check_arguments(arguments, location)?;
 
     let (inputs, _) = get_array_map(inputs, get_u8)?;
     let output = f(&inputs).map_err(|e| InterpreterError::BlackBoxError(e, location))?;
@@ -197,7 +196,7 @@ fn embedded_curve_add(
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
-    let (point1, point2, predicate) = check_three_arguments(arguments, location)?;
+    let [point1, point2, predicate] = check_arguments(arguments, location)?;
     assert_eq!(predicate.0, Value::Bool(true), "ec_add predicate should be true");
 
     let embedded_curve_point_typ = point1.0.get_type().into_owned();
@@ -227,7 +226,7 @@ fn multi_scalar_mul(
     return_type: Type,
     location: Location,
 ) -> IResult<Value> {
-    let (points, scalars, predicate) = check_three_arguments(arguments, location)?;
+    let [points, scalars, predicate] = check_arguments(arguments, location)?;
     assert_eq!(predicate.0, Value::Bool(true), "multi_scalar_mul predicate should be true");
 
     let (points, _) = get_array_map(points, get_embedded_curve_point)?;
@@ -266,7 +265,7 @@ fn multi_scalar_mul(
 
 /// `poseidon2_permutation<let N: u32>(_input: [Field; N], _state_length: u32) -> [Field; N]`
 fn poseidon2_permutation(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    let input = check_one_argument(arguments, location)?;
+    let [input] = check_arguments(arguments, location)?;
 
     let (input, typ) = get_array_map(input, get_field)?;
 
@@ -289,7 +288,7 @@ fn poseidon2_config_state_size(
 
 /// `fn keccakf1600(input: [u64; 25]) -> [u64; 25] {}`
 fn keccakf1600(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    let input = check_one_argument(arguments, location)?;
+    let [input] = check_arguments(arguments, location)?;
 
     let (state, typ) = get_fixed_array_map(input, get_u64)?;
 
@@ -302,7 +301,7 @@ fn keccakf1600(arguments: Vec<(Value, Location)>, location: Location) -> IResult
 
 /// `pub fn sha256_compression(input: [u32; 16], state: [u32; 8]) -> [u32; 8]`
 fn sha256_compression(arguments: Vec<(Value, Location)>, location: Location) -> IResult<Value> {
-    let (input, state) = check_two_arguments(arguments, location)?;
+    let [input, state] = check_arguments(arguments, location)?;
 
     let (input, _) = get_fixed_array_map(input, get_u32)?;
     let (mut state, typ) = get_fixed_array_map(state, get_u32)?;

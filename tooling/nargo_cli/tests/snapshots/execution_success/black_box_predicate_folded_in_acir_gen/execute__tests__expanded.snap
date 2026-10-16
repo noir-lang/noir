@@ -1,0 +1,52 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use std::embedded_curve_ops::{
+    embedded_curve_add, EmbeddedCurvePoint, EmbeddedCurveScalar, fixed_base_scalar_mul,
+    multi_scalar_mul,
+};
+
+global FIVE: Field = 0x05;
+
+fn main(x: Field) -> pub Field {
+    let mut r: Field = x;
+    if (x + FIVE) == x {
+        {
+            let op_rhs_0: Field = fixed_base_scalar_mul(EmbeddedCurveScalar::from_field(x)).x;
+            r = r + op_rhs_0;
+        };
+        {
+            let op_rhs_1: Field = multi_scalar_mul(
+                [EmbeddedCurvePoint::generator()],
+                [EmbeddedCurveScalar::from_field(x)],
+            )
+                .x;
+            r = r + op_rhs_1;
+        };
+        {
+            let op_rhs_2: Field = std::hash::pedersen_commitment([x]).x;
+            r = r + op_rhs_2;
+        };
+        {
+            let op_rhs_3: Field = embedded_curve_add(
+                EmbeddedCurvePoint::generator(),
+                EmbeddedCurvePoint { x: x, y: x },
+            )
+                .x;
+            r = r + op_rhs_3;
+        };
+        let bytes: [u8; 32] = x.to_be_bytes();
+        let signature: [u8; 64] = [0_u8; 64];
+        if std::ecdsa_secp256k1::verify_signature(bytes, bytes, signature, bytes) {
+            r = r + 1_Field;
+        };
+        if std::ecdsa_secp256r1::verify_signature(bytes, bytes, signature, bytes) {
+            r = r + 1_Field;
+        };
+        if !std::runtime::is_unconstrained() {
+            std::verify_proof_with_type([x], [x], [x], x, 1_u32);
+        }
+    };
+    r
+}
