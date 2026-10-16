@@ -98,6 +98,8 @@ jobs:
 
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
+          # Shared with `build-nargo-baseline`, which only runs on PRs and so never saves a cache.
+          shared-key: binaries-release
           key: x86_64-unknown-linux-gnu
           cache-on-failure: true
           save-if: ${{ github.event_name != 'merge_group' }}
@@ -112,6 +114,51 @@ jobs:
         with:
           name: ${{ matrix.name }}
           path: ./target/release/${{ matrix.name }}
+          retention-days: 3
+
+  # Builds the base branch's `nargo` so `external-repo-checks` can time each library's tests with it
+  # next to the PR's, on the same runner.
+  build-nargo-baseline:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    outputs:
+      sha: ${{ steps.base.outputs.sha }}
+
+    steps:
+      - name: Checkout Noir repo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+
+      - name: Check out the base of the PR's merge commit
+        id: base
+        run: |
+          git checkout --detach HEAD^1
+          git log -1 --oneline
+          echo "sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.89.0
+
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          shared-key: binaries-release
+          key: x86_64-unknown-linux-gnu
+          save-if: false
+
+      - name: Build nargo
+        run: cargo build --package nargo_cli --release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: nargo-baseline
+          path: ./target/release/nargo
           retention-days: 3
 
   build-noirc-abi:
@@ -667,7 +714,13 @@ jobs:
         run: just run-examples
 
   external-repo-checks:
-    needs: [build-binaries, critical-library-list]
+    needs: [build-binaries, build-nargo-baseline, critical-library-list]
+    # The test results don't depend on `build-nargo-baseline`, which is skipped outside of PRs and
+    # only adds the base branch's timings.
+    if: >-
+      ${{ !cancelled()
+        && needs.build-binaries.result == 'success'
+        && needs.critical-library-list.result == 'success' }}
     runs-on: ubuntu-22.04
     timeout-minutes: 30
     permissions:
@@ -727,6 +780,40 @@ jobs:
           NARGO_ARGS: ${{ matrix.nargo_args }}
           NAME: ${{ steps.test_report_name.outputs.test_report_name }}
           BENCHMARK_FILE: ${{ steps.test_report_name.outputs.test_report_name }}.json
+
+      - name: Download baseline nargo binary
+        if: needs.build-nargo-baseline.result == 'success' && matrix.timeout > 20
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: nargo-baseline
+          path: ${{ runner.temp }}/nargo-baseline
+
+      # Runs after the PR's tests, so anything left warm by the first run can only favour the base.
+      - name: Run nargo test with the base branch's nargo
+        if: needs.build-nargo-baseline.result == 'success' && matrix.timeout > 20
+        run: |
+          chmod +x "$NARGO"
+
+          .github/scripts/run-external-repo-tests.sh
+        env:
+          NARGO: ${{ runner.temp }}/nargo-baseline/nargo
+          REPO_DIR: ./test-repo
+          PROJECT_PATH: ${{ matrix.path }}
+          NARGO_IGNORE_TEST_FAILURES_FROM_FOREIGN_CALLS: true
+          NARGO_ARGS: ${{ matrix.nargo_args }}
+          NAME: ${{ steps.test_report_name.outputs.test_report_name }}
+          # The base branch's results are only timed, not compared against the expected failures.
+          OUTPUT_FILE: ${{ runner.temp }}/baseline_test_results.jsonl
+          BENCHMARK_FILE: baseline_${{ steps.test_report_name.outputs.test_report_name }}.json
+
+      - name: Upload baseline test report
+        if: needs.build-nargo-baseline.result == 'success' && matrix.timeout > 20
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: baseline_${{ steps.test_report_name.outputs.test_report_name }}
+          path: baseline_${{ steps.test_report_name.outputs.test_report_name }}.json
+          retention-days: 3
+          overwrite: true
 
       - name: Compare test results
         run: .github/scripts/check_test_results.sh .github/critical_libraries_status/${{ matrix.repo }}/${{ matrix.path }}.failures.jsonl .github/critical_libraries_status/${{ matrix.repo }}/${{ matrix.path }}.actual.jsonl
@@ -881,7 +968,7 @@ jobs:
 
   upload_critical_library_report:
     name: Upload critical library report
-    needs: [external-repo-checks]
+    needs: [external-repo-checks, build-nargo-baseline]
     # We want this job to run even if one variation of the matrix in `external-repo-checks` fails
     if: always()
     runs-on: ubuntu-22.04
@@ -908,6 +995,22 @@ jobs:
           shopt -s globstar
           jq --slurp '. | flatten' ./reports/* | tee test_bench.json
 
+      - name: Download the base branch's test reports
+        if: needs.build-nargo-baseline.result == 'success'
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          pattern: baseline_test_report_*
+          path: ./baseline_reports
+          merge-multiple: true
+
+      - name: Use the base branch's results as the previous ones
+        if: needs.build-nargo-baseline.result == 'success'
+        run: |
+          jq --slurp '. | flatten' ./baseline_reports/* > baseline_bench.json
+          .github/scripts/baseline-benchmark-data.sh "Test Suite Duration" "$BASE_SHA" baseline_bench.json > baseline_data.json
+        env:
+          BASE_SHA: ${{ needs.build-nargo-baseline.outputs.sha }}
+
       - name: Store benchmark result
         # We don't run this step on external PRs
         if: github.ref == 'refs/heads/master' || github.event.pull_request.head.repo.full_name == github.repository
@@ -919,6 +1022,9 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           # We want this to only run on master to avoid garbage data from PRs being added.
           auto-push: ${{ github.ref == 'refs/heads/master' }}
+          # On PRs, compare against the base branch measured in the same jobs: it ran on the same
+          # machines, so the ratio doesn't depend on which runners the jobs landed on.
+          external-data-json-path: ${{ needs.build-nargo-baseline.result == 'success' && './baseline_data.json' || '' }}
           alert-threshold: "120%"
           comment-on-alert: false
           comment-always: ${{ contains( github.event.pull_request.labels.*.name, 'bench-show') }}
