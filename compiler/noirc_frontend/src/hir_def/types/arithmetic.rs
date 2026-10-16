@@ -76,15 +76,17 @@ impl Type {
 
                 let (mut lhs, mut rhs) = (lhs, rhs);
 
-                // Move the constant to the rhs to simplify the checks below
-                if op.is_commutative() && lhs.is_constant() && !rhs.is_constant() {
-                    std::mem::swap(&mut lhs, &mut rhs);
-                }
-
-                let lhs_evaluated =
+                let mut lhs_evaluated =
                     lhs.evaluate_to_integer_helper(&kind, dummy_location, run_simplifications);
-                let rhs_evaluated =
+                let mut rhs_evaluated =
                     rhs.evaluate_to_integer_helper(&kind, dummy_location, run_simplifications);
+
+                // Move the side that evaluates to a constant to the rhs to simplify the checks
+                // below. An operand such as `0 * N` evaluates to `0`, so it moves too.
+                if op.is_commutative() && lhs_evaluated.is_ok() && rhs_evaluated.is_err() {
+                    std::mem::swap(&mut lhs, &mut rhs);
+                    std::mem::swap(&mut lhs_evaluated, &mut rhs_evaluated);
+                }
 
                 // evaluate_to_field_element also calls canonicalize so if we just called
                 // `self.evaluate_to_field_element(..)` we'd get infinite recursion.
@@ -448,6 +450,25 @@ mod tests {
         let zero = Type::constant_u32(0);
         assert_eq!((n.clone() * zero.clone()).canonicalize(), zero);
         assert_eq!((zero.clone() * n).canonicalize(), zero);
+    }
+
+    #[test]
+    fn adding_a_lhs_that_evaluates_to_zero_is_simplified_away() {
+        let var_n = TypeVariable::unbound(TypeVariableId(0), Kind::u32());
+        let n = Type::TypeVariable(var_n);
+
+        let zero_times_n = u32t(0) * n.clone();
+        let five_minus_n = u32t(5) - n;
+
+        let canonicalized = (zero_times_n.clone() + five_minus_n.clone()).canonicalize();
+        assert_eq!(canonicalized, five_minus_n);
+        assert_eq!(canonicalized.canonicalize(), canonicalized);
+
+        // `canonicalize_checked` keeps the `from` side of a `CheckedCast`, which must reach the
+        // same canonical form whether or not it was canonicalized first.
+        let checked = (zero_times_n + five_minus_n.clone()).canonicalize_checked();
+        assert_eq!(checked.canonicalize(), five_minus_n);
+        assert_eq!(checked.canonicalize_checked().canonicalize(), five_minus_n);
     }
 
     #[test]
