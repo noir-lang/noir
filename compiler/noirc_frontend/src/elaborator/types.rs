@@ -1817,6 +1817,24 @@ impl Elaborator<'_> {
     ) -> Option<TraitPathResolution> {
         let method_name = last_segment.ident.as_str();
 
+        // A turbofish that leaves the distinguishing generics as `_` (`S::<_>::m`) can match more
+        // than one non-overlapping inherent impl, exactly like `TypeName::method`, so it is
+        // ambiguous in the same way.
+        let impl_types = self.interner.matching_direct_method_types(typ, method_name);
+        if impl_types.len() >= 2 {
+            self.push_errors(generics_errors);
+            let mut errors = path_resolution.errors;
+            errors.push(PathResolutionError::MultipleApplicableMethods {
+                ident: last_segment.ident.clone(),
+                impl_types: vecmap(&impl_types, |typ| typ.to_string()),
+            });
+            return Some(TraitPathResolution {
+                method: TraitPathResolutionMethod::MultipleTraitsInScope,
+                item: None,
+                errors,
+            });
+        }
+
         if let Some(func_id) = direct_method {
             self.push_errors(generics_errors);
             return Some(self.resolve_direct_method(
@@ -1904,8 +1922,8 @@ impl Elaborator<'_> {
 
         // `TypeName::method` is ambiguous when more than one non-overlapping inherent impl
         // defines a `method` applicable to `typ` (mirroring Rust's E0034): the path names more
-        // than one function and nothing here disambiguates. Require a method call
-        // (`value.method(..)`) or turbofish (`TypeName::<..>::method(..)`) instead.
+        // than one function and nothing here disambiguates. A turbofish naming the impl's generics
+        // (`TypeName::<..>::method(..)`) does.
         let impl_types = self.interner.matching_direct_method_types(typ, method_name);
         if impl_types.len() >= 2 {
             self.push_errors(generics_errors);

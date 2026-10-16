@@ -186,10 +186,16 @@ impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
             }
             PathResolutionError::MultipleApplicableMethods { ident, impl_types } => {
                 let impls = vecmap(impl_types, |t| format!("`{t}`"));
+                // Spell the first candidate as a turbofish path (`Foo<i32>` -> `Foo::<i32>::m`).
+                let example = impl_types
+                    .first()
+                    .and_then(|typ| typ.split_once('<'))
+                    .map(|(name, args)| format!(", e.g. `{name}::<{args}::{ident}`"))
+                    .unwrap_or_default();
                 CustomDiagnostic::simple_error(
                     error.to_string(),
                     format!(
-                        "`{ident}` is defined in {}; use a method call or turbofish to disambiguate",
+                        "`{ident}` is defined in {}; name one of them with a turbofish{example}",
                         impls.join(", ")
                     ),
                     ident.location(),
