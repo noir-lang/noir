@@ -2,44 +2,146 @@ use crate::append::Append;
 
 impl<T> [T] {
     /// Returns the length of the vector.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// let v = @[1, 2, 3];
+    /// assert_eq(v.len(), 3);
+    /// ```
     #[builtin(array_len)]
     pub fn len(self) -> u32 {}
 
     /// Push a new element to the end of the vector, returning a
     /// new vector with a length one greater than the
     /// original unmodified vector.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// let v = @[1, 2].push_back(3);
+    /// assert_eq(v, @[1, 2, 3]);
+    /// ```
     #[builtin(vector_push_back)]
     pub fn push_back(self, elem: T) -> Self {}
 
     /// Push a new element to the front of the vector, returning a
     /// new vector with a length one greater than the
     /// original unmodified vector.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// let v = @[2, 3].push_front(1);
+    /// assert_eq(v, @[1, 2, 3]);
+    /// ```
     #[builtin(vector_push_front)]
     pub fn push_front(self, elem: T) -> Self {}
 
     /// Remove the last element of the vector, returning the
     /// popped vector and the element in a tuple
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// let (rest, last) = @[1, 2, 3].pop_back();
+    /// assert_eq(rest, @[1, 2]);
+    /// assert_eq(last, 3);
+    /// ```
+    ///
+    /// # Failures
+    ///
+    /// Fails if the vector is empty.
+    ///
+    /// ```noir should_fail
+    /// let empty: [u32] = @[];
+    /// // Fails: the vector is empty.
+    /// let _ = empty.pop_back();
+    /// ```
     #[builtin(vector_pop_back)]
     pub fn pop_back(self) -> (Self, T) {}
 
     /// Remove the first element of the vector, returning the
     /// element and the popped vector in a tuple
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// let (first, rest) = @[1, 2, 3].pop_front();
+    /// assert_eq(first, 1);
+    /// assert_eq(rest, @[2, 3]);
+    /// ```
+    ///
+    /// # Failures
+    ///
+    /// Fails if the vector is empty.
+    ///
+    /// ```noir should_fail
+    /// let empty: [u32] = @[];
+    /// // Fails: the vector is empty.
+    /// let _ = empty.pop_front();
+    /// ```
     #[builtin(vector_pop_front)]
     pub fn pop_front(self) -> (T, Self) {}
 
     /// Insert an element at a specified index, shifting all elements
     /// after it to the right
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// let v = @[1, 3].insert(1, 2);
+    /// assert_eq(v, @[1, 2, 3]);
+    ///
+    /// // Inserting at `len()` appends.
+    /// assert_eq(@[1, 2].insert(2, 3), @[1, 2, 3]);
+    /// ```
+    ///
+    /// # Failures
+    ///
+    /// Fails if `index` is greater than `len()`.
+    ///
+    /// ```noir should_fail
+    /// let v = @[1, 2];
+    /// // Fails: index 3 is past the end of a vector of length 2.
+    /// let _ = v.insert(3, 9);
+    /// ```
     #[builtin(vector_insert)]
     pub fn insert(self, index: u32, elem: T) -> Self {}
 
     /// Remove an element at a specified index, shifting all elements
     /// after it to the left, returning the altered vector and
     /// the removed element
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// let (rest, removed) = @[1, 2, 3].remove(1);
+    /// assert_eq(rest, @[1, 3]);
+    /// assert_eq(removed, 2);
+    /// ```
+    ///
+    /// # Failures
+    ///
+    /// Fails if `index` is greater than or equal to `len()`.
+    ///
+    /// ```noir should_fail
+    /// let v = @[1, 2];
+    /// // Fails: index 2 is past the end of a vector of length 2.
+    /// let _ = v.remove(2);
+    /// ```
     #[builtin(vector_remove)]
     pub fn remove(self, index: u32) -> (Self, T) {}
 
     /// Append each element of the `other` vector to the end of `self`.
     /// This returns a new vector and leaves both input vectors unchanged.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// let v = @[1, 2].append(@[3, 4]);
+    /// assert_eq(v, @[1, 2, 3, 4]);
+    /// ```
     pub fn append(mut self, other: Self) -> Self {
         for elem in other {
             self = self.push_back(elem);
@@ -48,7 +150,23 @@ impl<T> [T] {
     }
 
     /// Converts this vector into an array of length N.
-    /// Panics if the length of this vector is not N.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// let array: [u32; 3] = @[1, 2, 3].as_array();
+    /// assert_eq(array, [1, 2, 3]);
+    /// ```
+    ///
+    /// # Failures
+    ///
+    /// Fails if the length of this vector is not `N`.
+    ///
+    /// ```noir should_fail
+    /// let v = @[1, 2];
+    /// // Fails: the vector has 2 elements, not 3.
+    /// let _: [u32; 3] = v.as_array();
+    /// ```
     pub fn as_array<let N: u32>(self) -> [T; N] {
         assert(self.len() == N);
 
@@ -61,6 +179,13 @@ impl<T> [T] {
 
     /// Apply a function to each element of the vector, returning a new vector
     /// containing the mapped elements.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// let v = @[1, 2, 3].map(|x| x * 2);
+    /// assert_eq(v, @[2, 4, 6]);
+    /// ```
     pub fn map<U, Env>(self, f: fn[Env](T) -> U) -> [U] {
         let mut ret = [].as_vector();
         for elem in self {
@@ -71,6 +196,13 @@ impl<T> [T] {
 
     /// Apply a function to each element of the vector with its index, returning a
     /// new vector containing the mapped elements.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// let v: [u32] = @[1, 2, 3];
+    /// assert_eq(v.mapi(|i, x| i + x * 2), @[2, 5, 8]);
+    /// ```
     pub fn mapi<U, Env>(self, f: fn[Env](u32, T) -> U) -> [U] {
         let mut ret = [].as_vector();
         let mut index = 0;
@@ -82,6 +214,17 @@ impl<T> [T] {
     }
 
     /// Apply a function to each element of the vector
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// let mut sum = 0;
+    /// let sum_ref = &mut sum;
+    /// @[1, 2, 3].for_each(|x| {
+    ///     *sum_ref += x;
+    /// });
+    /// assert_eq(sum, 6);
+    /// ```
     pub fn for_each<Env>(self, f: fn[Env](T) -> ()) {
         for elem in self {
             f(elem);
@@ -89,6 +232,17 @@ impl<T> [T] {
     }
 
     /// Apply a function to each element of the vector with its index
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// let mut weighted: u32 = 0;
+    /// let weighted_ref = &mut weighted;
+    /// @[1, 2, 3].for_eachi(|i, x| {
+    ///     *weighted_ref += i * x;
+    /// });
+    /// assert_eq(weighted, 0 * 1 + 1 * 2 + 2 * 3);
+    /// ```
     pub fn for_eachi<Env>(self, f: fn[Env](u32, T) -> ()) {
         let mut index = 0;
         for elem in self {
@@ -100,6 +254,13 @@ impl<T> [T] {
     /// Apply a function to each element of the vector and an accumulator value,
     /// returning the final accumulated value. This function is also sometimes
     /// called `foldl`, `fold_left`, `reduce`, or `inject`.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// let sum = @[1, 2, 3].fold(10, |acc, x| acc + x);
+    /// assert_eq(sum, 16);
+    /// ```
     pub fn fold<U, Env>(self, mut accumulator: U, f: fn[Env](U, T) -> U) -> U {
         for elem in self {
             accumulator = f(accumulator, elem);
@@ -110,6 +271,23 @@ impl<T> [T] {
     /// Apply a function to each element of the vector and an accumulator value,
     /// returning the final accumulated value. Unlike fold, reduce uses the first
     /// element of the given vector as its starting accumulator value.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// let product = @[2, 3, 4].reduce(|a, b| a * b);
+    /// assert_eq(product, 24);
+    /// ```
+    ///
+    /// # Failures
+    ///
+    /// Fails if the vector is empty.
+    ///
+    /// ```noir should_fail
+    /// let empty: [u32] = @[];
+    /// // Fails: the vector is empty.
+    /// let _ = empty.reduce(|a, b| a + b);
+    /// ```
     pub fn reduce<Env>(self, f: fn[Env](T, T) -> T) -> T {
         let mut accumulator = self[0];
         for i in 1..self.len() {
@@ -120,6 +298,13 @@ impl<T> [T] {
 
     /// Returns a new vector containing only elements for which the given predicate
     /// returns true.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// let evens = @[1, 2, 3, 4].filter(|x: u32| x % 2 == 0);
+    /// assert_eq(evens, @[2, 4]);
+    /// ```
     pub fn filter<Env>(self, predicate: fn[Env](T) -> bool) -> Self {
         let mut ret = [].as_vector();
         for elem in self {
@@ -131,6 +316,19 @@ impl<T> [T] {
     }
 
     /// Flatten each element in the vector into one value, separated by `separator`.
+    ///
+    /// The elements must implement [`Append`](crate::append::Append). Runtime code doesn't support vectors of vectors, so
+    /// this is mostly used at comptime, for example to join `Quoted` values.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// comptime {
+    ///     let fields = @[quote { x }, quote { y }];
+    ///     let joined = fields.join(quote { , });
+    ///     assert(joined == quote { x, y });
+    /// }
+    /// ```
     pub fn join(self, separator: T) -> T
     where
         T: Append,
@@ -149,6 +347,13 @@ impl<T> [T] {
     }
 
     /// Returns true if all elements in the vector satisfy the predicate
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// assert(@[2, 4, 6].all(|x: u32| x % 2 == 0));
+    /// assert(!@[2, 3].all(|x: u32| x % 2 == 0));
+    /// ```
     pub fn all<Env>(self, predicate: fn[Env](T) -> bool) -> bool {
         let mut ret = true;
         for elem in self {
@@ -158,6 +363,13 @@ impl<T> [T] {
     }
 
     /// Returns true if any element in the vector satisfies the predicate
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// assert(@[1, 2, 3].any(|x| x == 2));
+    /// assert(!@[1, 3].any(|x| x == 2));
+    /// ```
     pub fn any<Env>(self, predicate: fn[Env](T) -> bool) -> bool {
         let mut ret = false;
         for elem in self {

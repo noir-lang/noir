@@ -41,9 +41,14 @@
 
 <div class="comments">
 <p>Returns the internal reference count of a vector value in unconstrained code.</p>
-<p>Lists only have reference count in unconstrained code - using this anywhere
+<p>Vectors only have reference count in unconstrained code - using this anywhere
 else will return zero.</p>
-</div>
+<p>It is meant for debugging how often vectors are copied in unconstrained code.</p>
+<p>Example:</p>
+<pre><code><span class="kw">unconstrained</span> <span class="kw">fn</span> main() {
+    <span class="kw">let</span> vector = @[<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>];
+    <span class="kw">assert</span>(std::mem::vector_refcount(vector) &gt; <span class="number">0</span>);
+}</code></pre></div>
 </div>
 </main>
 </span>

@@ -61,13 +61,25 @@ If not, it can be ignored.</p>
 <li><code>T::empty().append(x) == x</code></li>
 <li><code>x.append(T::empty()) == x</code></li>
 </ul>
-</div>
+<p>It is implemented for vectors and for <code>Quoted</code>. A vector's <code>join</code> method uses it, for example
+to join <code>Quoted</code> values at comptime.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::append::Append;
+
+<span class="kw">let</span> v: [u32] = Append::empty();
+<span class="kw">assert_eq</span>(v.append(@[<span class="number">1</span>, <span class="number">2</span>]).append(@[<span class="number">3</span>]), @[<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>]);</code></pre></div>
 <h2>Required methods</h2>
 <div class="padded-methods"><code id="empty" class="code-header">pub fn <a href="#empty" class="fn">empty</a>() -> Self</code>
 
-<code id="append" class="code-header">pub fn <a href="#append" class="fn">append</a>(self, other: Self) -> Self</code>
+<div class="padded-description"><div class="comments">
+<p>Returns the empty value, which <code>append</code> leaves unchanged.</p>
+</div>
+</div><code id="append" class="code-header">pub fn <a href="#append" class="fn">append</a>(self, other: Self) -> Self</code>
 
-</div><h2>Implementors</h2>
+<div class="padded-description"><div class="comments">
+<p>Returns <code>self</code> followed by <code>other</code>.</p>
+</div>
+</div></div><h2>Implementors</h2>
 <h3 id="impl-Append-for-CtString"><code class="code-header">impl <a href="../../std/append/trait.Append.html" class="trait">Append</a> for <a href="../../std/primitive.CtString.html" class="primitive">CtString</a></code></h3>
 
 <h3 id="impl-Append-for-Quoted"><code class="code-header">impl <a href="../../std/append/trait.Append.html" class="trait">Append</a> for <a href="../../std/primitive.Quoted.html" class="primitive">Quoted</a></code></h3>

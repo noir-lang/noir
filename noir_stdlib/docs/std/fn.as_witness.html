@@ -98,7 +98,10 @@
 <p>Force a field value to be a witness instead of a constant in the compiled output.
 This is often only useful for debugging compiler optimizations.</p>
 <p>This has no effect in unconstrained or comptime code.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">let</span> x: Field = <span class="number">5</span>;
+std::as_witness(x);
+<span class="kw">assert_eq</span>(x, <span class="number">5</span>);</code></pre></div>
 </div>
 </main>
 </span>
