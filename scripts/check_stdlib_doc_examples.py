@@ -26,6 +26,10 @@ How a block becomes a test:
 Each example gets its own module, named after its file and line, so examples
 cannot see each other's items and a failing test points at its source.
 
+Setup that many examples share, such as a hasher for `UHashMap`, lives once in
+`scripts/stdlib_doc_example_support.nr`. An example that mentions one of its
+`pub` items without defining it gets that item imported.
+
 The examples run against the standard library embedded in the `nargo` binary,
 so rebuild nargo after editing the stdlib (`cargo build -p nargo_cli`).
 
@@ -43,6 +47,8 @@ from dataclasses import dataclass
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STDLIB_SRC = os.path.join(REPO_ROOT, "noir_stdlib", "src")
+SUPPORT_FILE = os.path.join(REPO_ROOT, "scripts", "stdlib_doc_example_support.nr")
+SUPPORT_ITEM = re.compile(r"^pub\s+(?:struct|fn|trait|global|type)\s+(\w+)", re.MULTILINE)
 
 DOC_LINE = re.compile(r"^\s*//[/!](?: ?)(.*)$")
 FENCE = re.compile(r"^(`{3,})\s*(.*)$")
@@ -106,7 +112,12 @@ def collect_examples():
     return examples
 
 
-def render_example(example):
+def support_items():
+    with open(SUPPORT_FILE, encoding="utf-8") as f:
+        return SUPPORT_ITEM.findall(f.read())
+
+
+def render_example(example, support=()):
     for attribute in example.attributes:
         if attribute not in ("ignore", "should_fail"):
             raise SystemExit(
@@ -124,6 +135,11 @@ def render_example(example):
 
     out = [f"// {example.path}:{example.line}", f"mod {example.module_name} {{"]
     out += [f"    {line}" for line in uses]
+    for name in support:
+        mentioned = any(re.search(rf"\b{name}\b", line) for line in rest)
+        defined = any(re.match(rf"^(pub\s+)?(struct|fn|trait|global|type)\s+{name}\b", line) for line in rest)
+        if mentioned and not defined:
+            out.append(f"    use crate::doc_support::{name};")
     if has_items:
         out += [f"    {line}" if line else "" for line in rest]
         out.append(f"    {test_attribute}")
@@ -144,8 +160,12 @@ def write_crate(directory, examples):
     os.makedirs(os.path.join(directory, "src"), exist_ok=True)
     with open(os.path.join(directory, "Nargo.toml"), "w", encoding="utf-8") as f:
         f.write('[package]\nname = "stdlib_doc_examples"\ntype = "lib"\nauthors = [""]\n\n[dependencies]\n')
+    with open(SUPPORT_FILE, encoding="utf-8") as f:
+        support_source = f.read()
+    support = support_items()
     with open(os.path.join(directory, "src", "lib.nr"), "w", encoding="utf-8") as f:
-        f.write("\n\n".join(render_example(e) for e in examples) + "\n")
+        f.write("mod doc_support {\n" + support_source + "}\n\n")
+        f.write("\n\n".join(render_example(e, support) for e in examples) + "\n")
 
 
 def main():

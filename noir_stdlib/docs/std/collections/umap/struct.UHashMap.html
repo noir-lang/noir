@@ -73,7 +73,8 @@ it doesn't make results wrong.</p>
 <code>unsafe</code> block, and their results are not constrained afterward: nothing proves, for example,
 that a value returned by <code>get</code> was inserted under that key. Check any result that constrained
 code relies on. Comparing two maps with <code>==</code> fails in constrained code.</p>
-<p>The standard library has no public hasher, so the examples define a minimal one.</p>
+<p>The standard library has no public hasher, so this example defines a minimal one, <code>MyHasher</code>.
+The examples on this type's methods use it too.</p>
 <p>Example:</p>
 <pre><code><span class="kw">use</span> std::collections::umap::UHashMap;
 <span class="kw">use</span> std::hash::{BuildHasherDefault, Hasher};
@@ -91,7 +92,7 @@ code relies on. Comparing two maps with <code>==</code> fails in constrained cod
     <span class="kw">assert</span>(!map.contains_key(<span class="number">1</span>));
 }
 
-<span class="comment">// A minimal hasher for this example.</span>
+<span class="comment">// A minimal hasher, also used by the examples on this type's methods.</span>
 <span class="kw">struct</span> MyHasher {
     state: Field,
 }
@@ -123,33 +124,12 @@ code relies on. Comparing two maps with <code>==</code> fails in constrained cod
 <p>The map starts empty, with room for one entry; it grows as entries are inserted.</p>
 <p>Example:</p>
 <pre><code><span class="kw">use</span> std::collections::umap::UHashMap;
-<span class="kw">use</span> std::hash::{BuildHasherDefault, Hasher};
+<span class="kw">use</span> std::hash::BuildHasherDefault;
 
 <span class="kw">unconstrained</span> <span class="kw">fn</span> main() {
     <span class="kw">let</span> map: UHashMap&lt;Field, Field, BuildHasherDefault&lt;MyHasher&gt;&gt; =
         UHashMap::with_hasher(BuildHasherDefault::default());
     <span class="kw">assert</span>(map.is_empty());
-}
-
-<span class="comment">// A minimal hasher for this example.</span>
-<span class="kw">struct</span> MyHasher {
-    state: Field,
-}
-
-<span class="kw">impl</span> Hasher <span class="kw">for</span> MyHasher {
-    <span class="kw">fn</span> finish(self) -&gt; Field {
-        self.state
-    }
-
-    <span class="kw">fn</span> write(&<span class="kw">mut</span> self, input: Field) {
-        self.state = self.state * <span class="number">31</span> + input;
-    }
-}
-
-<span class="kw">impl</span> Default <span class="kw">for</span> MyHasher {
-    <span class="kw">fn</span> default() -&gt; Self {
-        MyHasher { state: <span class="number">0</span> }
-    }
 }</code></pre></div>
 </div><code id="with_hasher_and_capacity" class="code-header">pub fn <a href="#with_hasher_and_capacity" class="fn">with_hasher_and_capacity</a>(_build_hasher: B, capacity: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>) -> Self
 <div class="where-clause">where
@@ -161,34 +141,13 @@ code relies on. Comparing two maps with <code>==</code> fails in constrained cod
 starting larger avoids the resizes.</p>
 <p>Example:</p>
 <pre><code><span class="kw">use</span> std::collections::umap::UHashMap;
-<span class="kw">use</span> std::hash::{BuildHasherDefault, Hasher};
+<span class="kw">use</span> std::hash::BuildHasherDefault;
 
 <span class="kw">unconstrained</span> <span class="kw">fn</span> main() {
     <span class="kw">let</span> map: UHashMap&lt;Field, Field, BuildHasherDefault&lt;MyHasher&gt;&gt; =
         UHashMap::with_hasher_and_capacity(BuildHasherDefault::default(), <span class="number">8</span>);
     <span class="kw">assert_eq</span>(map.capacity(), <span class="number">8</span>);
     <span class="kw">assert</span>(map.is_empty());
-}
-
-<span class="comment">// A minimal hasher for this example.</span>
-<span class="kw">struct</span> MyHasher {
-    state: Field,
-}
-
-<span class="kw">impl</span> Hasher <span class="kw">for</span> MyHasher {
-    <span class="kw">fn</span> finish(self) -&gt; Field {
-        self.state
-    }
-
-    <span class="kw">fn</span> write(&<span class="kw">mut</span> self, input: Field) {
-        self.state = self.state * <span class="number">31</span> + input;
-    }
-}
-
-<span class="kw">impl</span> Default <span class="kw">for</span> MyHasher {
-    <span class="kw">fn</span> default() -&gt; Self {
-        MyHasher { state: <span class="number">0</span> }
-    }
 }</code></pre></div>
 </div><code id="clear" class="code-header">pub unconstrained fn <a href="#clear" class="fn">clear</a>(&mut self)</code>
 
@@ -196,34 +155,13 @@ starting larger avoids the resizes.</p>
 <p>Clears the map, removing all key-value entries.</p>
 <p>Example:</p>
 <pre><code><span class="kw">use</span> std::collections::umap::UHashMap;
-<span class="kw">use</span> std::hash::{BuildHasherDefault, Hasher};
+<span class="kw">use</span> std::hash::BuildHasherDefault;
 
 <span class="kw">unconstrained</span> <span class="kw">fn</span> main() {
     <span class="kw">let</span> <span class="kw">mut</span> map: UHashMap&lt;Field, Field, BuildHasherDefault&lt;MyHasher&gt;&gt; = UHashMap::default();
     <span class="kw">let</span> _ = map.insert(<span class="number">1</span>, <span class="number">10</span>);
     map.clear();
     <span class="kw">assert</span>(map.is_empty());
-}
-
-<span class="comment">// A minimal hasher for this example.</span>
-<span class="kw">struct</span> MyHasher {
-    state: Field,
-}
-
-<span class="kw">impl</span> Hasher <span class="kw">for</span> MyHasher {
-    <span class="kw">fn</span> finish(self) -&gt; Field {
-        self.state
-    }
-
-    <span class="kw">fn</span> write(&<span class="kw">mut</span> self, input: Field) {
-        self.state = self.state * <span class="number">31</span> + input;
-    }
-}
-
-<span class="kw">impl</span> Default <span class="kw">for</span> MyHasher {
-    <span class="kw">fn</span> default() -&gt; Self {
-        MyHasher { state: <span class="number">0</span> }
-    }
 }</code></pre></div>
 </div><code id="contains_key" class="code-header">pub unconstrained fn <a href="#contains_key" class="fn">contains_key</a>(&self, key: K) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a>
 <div class="where-clause">where
@@ -235,34 +173,13 @@ starting larger avoids the resizes.</p>
 <p>Returns true if the map contains a value for the specified key.</p>
 <p>Example:</p>
 <pre><code><span class="kw">use</span> std::collections::umap::UHashMap;
-<span class="kw">use</span> std::hash::{BuildHasherDefault, Hasher};
+<span class="kw">use</span> std::hash::BuildHasherDefault;
 
 <span class="kw">unconstrained</span> <span class="kw">fn</span> main() {
     <span class="kw">let</span> <span class="kw">mut</span> map: UHashMap&lt;Field, Field, BuildHasherDefault&lt;MyHasher&gt;&gt; = UHashMap::default();
     <span class="kw">let</span> _ = map.insert(<span class="number">1</span>, <span class="number">10</span>);
     <span class="kw">assert</span>(map.contains_key(<span class="number">1</span>));
     <span class="kw">assert</span>(!map.contains_key(<span class="number">2</span>));
-}
-
-<span class="comment">// A minimal hasher for this example.</span>
-<span class="kw">struct</span> MyHasher {
-    state: Field,
-}
-
-<span class="kw">impl</span> Hasher <span class="kw">for</span> MyHasher {
-    <span class="kw">fn</span> finish(self) -&gt; Field {
-        self.state
-    }
-
-    <span class="kw">fn</span> write(&<span class="kw">mut</span> self, input: Field) {
-        self.state = self.state * <span class="number">31</span> + input;
-    }
-}
-
-<span class="kw">impl</span> Default <span class="kw">for</span> MyHasher {
-    <span class="kw">fn</span> default() -&gt; Self {
-        MyHasher { state: <span class="number">0</span> }
-    }
 }</code></pre></div>
 </div><code id="is_empty" class="code-header">pub unconstrained fn <a href="#is_empty" class="fn">is_empty</a>(&self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
 
@@ -270,34 +187,13 @@ starting larger avoids the resizes.</p>
 <p>Returns true if the map contains no elements.</p>
 <p>Example:</p>
 <pre><code><span class="kw">use</span> std::collections::umap::UHashMap;
-<span class="kw">use</span> std::hash::{BuildHasherDefault, Hasher};
+<span class="kw">use</span> std::hash::BuildHasherDefault;
 
 <span class="kw">unconstrained</span> <span class="kw">fn</span> main() {
     <span class="kw">let</span> <span class="kw">mut</span> map: UHashMap&lt;Field, Field, BuildHasherDefault&lt;MyHasher&gt;&gt; = UHashMap::default();
     <span class="kw">assert</span>(map.is_empty());
     <span class="kw">let</span> _ = map.insert(<span class="number">1</span>, <span class="number">10</span>);
     <span class="kw">assert</span>(!map.is_empty());
-}
-
-<span class="comment">// A minimal hasher for this example.</span>
-<span class="kw">struct</span> MyHasher {
-    state: Field,
-}
-
-<span class="kw">impl</span> Hasher <span class="kw">for</span> MyHasher {
-    <span class="kw">fn</span> finish(self) -&gt; Field {
-        self.state
-    }
-
-    <span class="kw">fn</span> write(&<span class="kw">mut</span> self, input: Field) {
-        self.state = self.state * <span class="number">31</span> + input;
-    }
-}
-
-<span class="kw">impl</span> Default <span class="kw">for</span> MyHasher {
-    <span class="kw">fn</span> default() -&gt; Self {
-        MyHasher { state: <span class="number">0</span> }
-    }
 }</code></pre></div>
 </div><code id="entries" class="code-header">pub unconstrained fn <a href="#entries" class="fn">entries</a>(&self) -> [(K, V)]</code>
 
@@ -307,7 +203,7 @@ The length of the returned vector will always match the length of this UHashMap.
 The entries are in the order of the internal table, which is not the insertion order.</p>
 <p>Example:</p>
 <pre><code><span class="kw">use</span> std::collections::umap::UHashMap;
-<span class="kw">use</span> std::hash::{BuildHasherDefault, Hasher};
+<span class="kw">use</span> std::hash::BuildHasherDefault;
 
 <span class="kw">unconstrained</span> <span class="kw">fn</span> main() {
     <span class="kw">let</span> <span class="kw">mut</span> map: UHashMap&lt;Field, Field, BuildHasherDefault&lt;MyHasher&gt;&gt; = UHashMap::default();
@@ -318,27 +214,6 @@ The entries are in the order of the internal table, which is not the insertion o
     <span class="kw">assert_eq</span>(entries.len(), <span class="number">2</span>);
     <span class="kw">assert</span>(entries.any(|entry| entry == (<span class="number">1</span>, <span class="number">10</span>)));
     <span class="kw">assert</span>(entries.any(|entry| entry == (<span class="number">2</span>, <span class="number">20</span>)));
-}
-
-<span class="comment">// A minimal hasher for this example.</span>
-<span class="kw">struct</span> MyHasher {
-    state: Field,
-}
-
-<span class="kw">impl</span> Hasher <span class="kw">for</span> MyHasher {
-    <span class="kw">fn</span> finish(self) -&gt; Field {
-        self.state
-    }
-
-    <span class="kw">fn</span> write(&<span class="kw">mut</span> self, input: Field) {
-        self.state = self.state * <span class="number">31</span> + input;
-    }
-}
-
-<span class="kw">impl</span> Default <span class="kw">for</span> MyHasher {
-    <span class="kw">fn</span> default() -&gt; Self {
-        MyHasher { state: <span class="number">0</span> }
-    }
 }</code></pre></div>
 </div><code id="keys" class="code-header">pub unconstrained fn <a href="#keys" class="fn">keys</a>(&self) -> [K]</code>
 
@@ -348,7 +223,7 @@ The length of the returned vector will always match the length of this UHashMap.
 The keys are in the order of the internal table, which is not the insertion order.</p>
 <p>Example:</p>
 <pre><code><span class="kw">use</span> std::collections::umap::UHashMap;
-<span class="kw">use</span> std::hash::{BuildHasherDefault, Hasher};
+<span class="kw">use</span> std::hash::BuildHasherDefault;
 
 <span class="kw">unconstrained</span> <span class="kw">fn</span> main() {
     <span class="kw">let</span> <span class="kw">mut</span> map: UHashMap&lt;Field, Field, BuildHasherDefault&lt;MyHasher&gt;&gt; = UHashMap::default();
@@ -359,27 +234,6 @@ The keys are in the order of the internal table, which is not the insertion orde
     <span class="kw">assert_eq</span>(keys.len(), <span class="number">2</span>);
     <span class="kw">assert</span>(keys.any(|key| key == <span class="number">1</span>));
     <span class="kw">assert</span>(keys.any(|key| key == <span class="number">2</span>));
-}
-
-<span class="comment">// A minimal hasher for this example.</span>
-<span class="kw">struct</span> MyHasher {
-    state: Field,
-}
-
-<span class="kw">impl</span> Hasher <span class="kw">for</span> MyHasher {
-    <span class="kw">fn</span> finish(self) -&gt; Field {
-        self.state
-    }
-
-    <span class="kw">fn</span> write(&<span class="kw">mut</span> self, input: Field) {
-        self.state = self.state * <span class="number">31</span> + input;
-    }
-}
-
-<span class="kw">impl</span> Default <span class="kw">for</span> MyHasher {
-    <span class="kw">fn</span> default() -&gt; Self {
-        MyHasher { state: <span class="number">0</span> }
-    }
 }</code></pre></div>
 </div><code id="values" class="code-header">pub unconstrained fn <a href="#values" class="fn">values</a>(&self) -> [V]</code>
 
@@ -389,7 +243,7 @@ The length of the returned vector will always match the length of this UHashMap.
 The values are in the order of the internal table, which is not the insertion order.</p>
 <p>Example:</p>
 <pre><code><span class="kw">use</span> std::collections::umap::UHashMap;
-<span class="kw">use</span> std::hash::{BuildHasherDefault, Hasher};
+<span class="kw">use</span> std::hash::BuildHasherDefault;
 
 <span class="kw">unconstrained</span> <span class="kw">fn</span> main() {
     <span class="kw">let</span> <span class="kw">mut</span> map: UHashMap&lt;Field, Field, BuildHasherDefault&lt;MyHasher&gt;&gt; = UHashMap::default();
@@ -400,27 +254,6 @@ The values are in the order of the internal table, which is not the insertion or
     <span class="kw">assert_eq</span>(values.len(), <span class="number">2</span>);
     <span class="kw">assert</span>(values.any(|value| value == <span class="number">10</span>));
     <span class="kw">assert</span>(values.any(|value| value == <span class="number">20</span>));
-}
-
-<span class="comment">// A minimal hasher for this example.</span>
-<span class="kw">struct</span> MyHasher {
-    state: Field,
-}
-
-<span class="kw">impl</span> Hasher <span class="kw">for</span> MyHasher {
-    <span class="kw">fn</span> finish(self) -&gt; Field {
-        self.state
-    }
-
-    <span class="kw">fn</span> write(&<span class="kw">mut</span> self, input: Field) {
-        self.state = self.state * <span class="number">31</span> + input;
-    }
-}
-
-<span class="kw">impl</span> Default <span class="kw">for</span> MyHasher {
-    <span class="kw">fn</span> default() -&gt; Self {
-        MyHasher { state: <span class="number">0</span> }
-    }
 }</code></pre></div>
 </div><code id="iter_mut" class="code-header">pub unconstrained fn <a href="#iter_mut" class="fn">iter_mut</a>(&mut self, f: fn(K, V) -> (K, V))
 <div class="where-clause">where
@@ -434,34 +267,13 @@ The values are in the order of the internal table, which is not the insertion or
 only one of them is kept.</p>
 <p>Example:</p>
 <pre><code><span class="kw">use</span> std::collections::umap::UHashMap;
-<span class="kw">use</span> std::hash::{BuildHasherDefault, Hasher};
+<span class="kw">use</span> std::hash::BuildHasherDefault;
 
 <span class="kw">unconstrained</span> <span class="kw">fn</span> main() {
     <span class="kw">let</span> <span class="kw">mut</span> map: UHashMap&lt;Field, Field, BuildHasherDefault&lt;MyHasher&gt;&gt; = UHashMap::default();
     <span class="kw">let</span> _ = map.insert(<span class="number">1</span>, <span class="number">10</span>);
     map.iter_mut(|key, value| (key + <span class="number">100</span>, value * <span class="number">2</span>));
     <span class="kw">assert_eq</span>(map.get(<span class="number">101</span>), Option::some(<span class="number">20</span>));
-}
-
-<span class="comment">// A minimal hasher for this example.</span>
-<span class="kw">struct</span> MyHasher {
-    state: Field,
-}
-
-<span class="kw">impl</span> Hasher <span class="kw">for</span> MyHasher {
-    <span class="kw">fn</span> finish(self) -&gt; Field {
-        self.state
-    }
-
-    <span class="kw">fn</span> write(&<span class="kw">mut</span> self, input: Field) {
-        self.state = self.state * <span class="number">31</span> + input;
-    }
-}
-
-<span class="kw">impl</span> Default <span class="kw">for</span> MyHasher {
-    <span class="kw">fn</span> default() -&gt; Self {
-        MyHasher { state: <span class="number">0</span> }
-    }
 }</code></pre></div>
 </div><code id="iter_keys_mut" class="code-header">pub unconstrained fn <a href="#iter_keys_mut" class="fn">iter_keys_mut</a>(&mut self, f: fn(K) -> K)
 <div class="where-clause">where
@@ -475,7 +287,7 @@ only one of them is kept.</p>
 of them is kept.</p>
 <p>Example:</p>
 <pre><code><span class="kw">use</span> std::collections::umap::UHashMap;
-<span class="kw">use</span> std::hash::{BuildHasherDefault, Hasher};
+<span class="kw">use</span> std::hash::BuildHasherDefault;
 
 <span class="kw">unconstrained</span> <span class="kw">fn</span> main() {
     <span class="kw">let</span> <span class="kw">mut</span> map: UHashMap&lt;Field, Field, BuildHasherDefault&lt;MyHasher&gt;&gt; = UHashMap::default();
@@ -483,27 +295,6 @@ of them is kept.</p>
     map.iter_keys_mut(|key| key + <span class="number">100</span>);
     <span class="kw">assert_eq</span>(map.get(<span class="number">101</span>), Option::some(<span class="number">10</span>));
     <span class="kw">assert</span>(!map.contains_key(<span class="number">1</span>));
-}
-
-<span class="comment">// A minimal hasher for this example.</span>
-<span class="kw">struct</span> MyHasher {
-    state: Field,
-}
-
-<span class="kw">impl</span> Hasher <span class="kw">for</span> MyHasher {
-    <span class="kw">fn</span> finish(self) -&gt; Field {
-        self.state
-    }
-
-    <span class="kw">fn</span> write(&<span class="kw">mut</span> self, input: Field) {
-        self.state = self.state * <span class="number">31</span> + input;
-    }
-}
-
-<span class="kw">impl</span> Default <span class="kw">for</span> MyHasher {
-    <span class="kw">fn</span> default() -&gt; Self {
-        MyHasher { state: <span class="number">0</span> }
-    }
 }</code></pre></div>
 </div><code id="iter_values_mut" class="code-header">pub unconstrained fn <a href="#iter_values_mut" class="fn">iter_values_mut</a>(&mut self, f: fn(V) -> V)</code>
 
@@ -511,34 +302,13 @@ of them is kept.</p>
 <p>For each value applies mutator function.</p>
 <p>Example:</p>
 <pre><code><span class="kw">use</span> std::collections::umap::UHashMap;
-<span class="kw">use</span> std::hash::{BuildHasherDefault, Hasher};
+<span class="kw">use</span> std::hash::BuildHasherDefault;
 
 <span class="kw">unconstrained</span> <span class="kw">fn</span> main() {
     <span class="kw">let</span> <span class="kw">mut</span> map: UHashMap&lt;Field, Field, BuildHasherDefault&lt;MyHasher&gt;&gt; = UHashMap::default();
     <span class="kw">let</span> _ = map.insert(<span class="number">1</span>, <span class="number">10</span>);
     map.iter_values_mut(|value| value + <span class="number">1</span>);
     <span class="kw">assert_eq</span>(map.get(<span class="number">1</span>), Option::some(<span class="number">11</span>));
-}
-
-<span class="comment">// A minimal hasher for this example.</span>
-<span class="kw">struct</span> MyHasher {
-    state: Field,
-}
-
-<span class="kw">impl</span> Hasher <span class="kw">for</span> MyHasher {
-    <span class="kw">fn</span> finish(self) -&gt; Field {
-        self.state
-    }
-
-    <span class="kw">fn</span> write(&<span class="kw">mut</span> self, input: Field) {
-        self.state = self.state * <span class="number">31</span> + input;
-    }
-}
-
-<span class="kw">impl</span> Default <span class="kw">for</span> MyHasher {
-    <span class="kw">fn</span> default() -&gt; Self {
-        MyHasher { state: <span class="number">0</span> }
-    }
 }</code></pre></div>
 </div><code id="retain" class="code-header">pub unconstrained fn <a href="#retain" class="fn">retain</a>(&mut self, f: fn(K, V) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a>)</code>
 
@@ -546,7 +316,7 @@ of them is kept.</p>
 <p>Retains only the elements specified by the predicate.</p>
 <p>Example:</p>
 <pre><code><span class="kw">use</span> std::collections::umap::UHashMap;
-<span class="kw">use</span> std::hash::{BuildHasherDefault, Hasher};
+<span class="kw">use</span> std::hash::BuildHasherDefault;
 
 <span class="kw">unconstrained</span> <span class="kw">fn</span> main() {
     <span class="kw">let</span> <span class="kw">mut</span> map: UHashMap&lt;Field, Field, BuildHasherDefault&lt;MyHasher&gt;&gt; = UHashMap::default();
@@ -555,27 +325,6 @@ of them is kept.</p>
     map.retain(|key, _value| key != <span class="number">1</span>);
     <span class="kw">assert_eq</span>(map.len(), <span class="number">1</span>);
     <span class="kw">assert</span>(!map.contains_key(<span class="number">1</span>));
-}
-
-<span class="comment">// A minimal hasher for this example.</span>
-<span class="kw">struct</span> MyHasher {
-    state: Field,
-}
-
-<span class="kw">impl</span> Hasher <span class="kw">for</span> MyHasher {
-    <span class="kw">fn</span> finish(self) -&gt; Field {
-        self.state
-    }
-
-    <span class="kw">fn</span> write(&<span class="kw">mut</span> self, input: Field) {
-        self.state = self.state * <span class="number">31</span> + input;
-    }
-}
-
-<span class="kw">impl</span> Default <span class="kw">for</span> MyHasher {
-    <span class="kw">fn</span> default() -&gt; Self {
-        MyHasher { state: <span class="number">0</span> }
-    }
 }</code></pre></div>
 </div><code id="len" class="code-header">pub unconstrained fn <a href="#len" class="fn">len</a>(&self) -> <a href="../../../std/primitive.u32.html" class="primitive">u32</a></code>
 
@@ -583,34 +332,13 @@ of them is kept.</p>
 <p>Amount of active key-value entries.</p>
 <p>Example:</p>
 <pre><code><span class="kw">use</span> std::collections::umap::UHashMap;
-<span class="kw">use</span> std::hash::{BuildHasherDefault, Hasher};
+<span class="kw">use</span> std::hash::BuildHasherDefault;
 
 <span class="kw">unconstrained</span> <span class="kw">fn</span> main() {
     <span class="kw">let</span> <span class="kw">mut</span> map: UHashMap&lt;Field, Field, BuildHasherDefault&lt;MyHasher&gt;&gt; = UHashMap::default();
     <span class="kw">let</span> _ = map.insert(<span class="number">1</span>, <span class="number">10</span>);
     <span class="kw">let</span> _ = map.insert(<span class="number">1</span>, <span class="number">11</span>);
     <span class="kw">assert_eq</span>(map.len(), <span class="number">1</span>);
-}
-
-<span class="comment">// A minimal hasher for this example.</span>
-<span class="kw">struct</span> MyHasher {
-    state: Field,
-}
-
-<span class="kw">impl</span> Hasher <span class="kw">for</span> MyHasher {
-    <span class="kw">fn</span> finish(self) -&gt; Field {
-        self.state
-    }
-
-    <span class="kw">fn</span> write(&<span class="kw">mut</span> self, input: Field) {
-        self.state = self.state * <span class="number">31</span> + input;
-    }
-}
-
-<span class="kw">impl</span> Default <span class="kw">for</span> MyHasher {
-    <span class="kw">fn</span> default() -&gt; Self {
-        MyHasher { state: <span class="number">0</span> }
-    }
 }</code></pre></div>
 </div><code id="capacity" class="code-header">pub unconstrained fn <a href="#capacity" class="fn">capacity</a>(&self) -> <a href="../../../std/primitive.u32.html" class="primitive">u32</a></code>
 
@@ -620,33 +348,12 @@ of them is kept.</p>
 than the number of entries.</p>
 <p>Example:</p>
 <pre><code><span class="kw">use</span> std::collections::umap::UHashMap;
-<span class="kw">use</span> std::hash::{BuildHasherDefault, Hasher};
+<span class="kw">use</span> std::hash::BuildHasherDefault;
 
 <span class="kw">unconstrained</span> <span class="kw">fn</span> main() {
     <span class="kw">let</span> <span class="kw">mut</span> map: UHashMap&lt;Field, Field, BuildHasherDefault&lt;MyHasher&gt;&gt; = UHashMap::default();
     <span class="kw">let</span> _ = map.insert(<span class="number">1</span>, <span class="number">10</span>);
     <span class="kw">assert</span>(map.capacity() &gt; map.len());
-}
-
-<span class="comment">// A minimal hasher for this example.</span>
-<span class="kw">struct</span> MyHasher {
-    state: Field,
-}
-
-<span class="kw">impl</span> Hasher <span class="kw">for</span> MyHasher {
-    <span class="kw">fn</span> finish(self) -&gt; Field {
-        self.state
-    }
-
-    <span class="kw">fn</span> write(&<span class="kw">mut</span> self, input: Field) {
-        self.state = self.state * <span class="number">31</span> + input;
-    }
-}
-
-<span class="kw">impl</span> Default <span class="kw">for</span> MyHasher {
-    <span class="kw">fn</span> default() -&gt; Self {
-        MyHasher { state: <span class="number">0</span> }
-    }
 }</code></pre></div>
 </div><code id="get" class="code-header">pub unconstrained fn <a href="#get" class="fn">get</a>(&self, key: K) -> <a href="../../../std/option/struct.Option.html" class="struct">Option</a>&lt;V&gt;
 <div class="where-clause">where
@@ -658,34 +365,13 @@ than the number of entries.</p>
 <p>Get the value by key. If it does not exist, returns none().</p>
 <p>Example:</p>
 <pre><code><span class="kw">use</span> std::collections::umap::UHashMap;
-<span class="kw">use</span> std::hash::{BuildHasherDefault, Hasher};
+<span class="kw">use</span> std::hash::BuildHasherDefault;
 
 <span class="kw">unconstrained</span> <span class="kw">fn</span> main() {
     <span class="kw">let</span> <span class="kw">mut</span> map: UHashMap&lt;Field, Field, BuildHasherDefault&lt;MyHasher&gt;&gt; = UHashMap::default();
     <span class="kw">let</span> _ = map.insert(<span class="number">1</span>, <span class="number">10</span>);
     <span class="kw">assert_eq</span>(map.get(<span class="number">1</span>), Option::some(<span class="number">10</span>));
     <span class="kw">assert</span>(map.get(<span class="number">2</span>).is_none());
-}
-
-<span class="comment">// A minimal hasher for this example.</span>
-<span class="kw">struct</span> MyHasher {
-    state: Field,
-}
-
-<span class="kw">impl</span> Hasher <span class="kw">for</span> MyHasher {
-    <span class="kw">fn</span> finish(self) -&gt; Field {
-        self.state
-    }
-
-    <span class="kw">fn</span> write(&<span class="kw">mut</span> self, input: Field) {
-        self.state = self.state * <span class="number">31</span> + input;
-    }
-}
-
-<span class="kw">impl</span> Default <span class="kw">for</span> MyHasher {
-    <span class="kw">fn</span> default() -&gt; Self {
-        MyHasher { state: <span class="number">0</span> }
-    }
 }</code></pre></div>
 </div><code id="insert" class="code-header">pub unconstrained fn <a href="#insert" class="fn">insert</a>(&mut self, key: K, value: V) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a>
 <div class="where-clause">where
@@ -699,34 +385,13 @@ than the number of entries.</p>
 if the key already has a value in this map.</p>
 <p>Example:</p>
 <pre><code><span class="kw">use</span> std::collections::umap::UHashMap;
-<span class="kw">use</span> std::hash::{BuildHasherDefault, Hasher};
+<span class="kw">use</span> std::hash::BuildHasherDefault;
 
 <span class="kw">unconstrained</span> <span class="kw">fn</span> main() {
     <span class="kw">let</span> <span class="kw">mut</span> map: UHashMap&lt;Field, Field, BuildHasherDefault&lt;MyHasher&gt;&gt; = UHashMap::default();
     <span class="kw">assert</span>(map.insert(<span class="number">1</span>, <span class="number">10</span>));
     <span class="kw">assert</span>(!map.insert(<span class="number">1</span>, <span class="number">11</span>));
     <span class="kw">assert_eq</span>(map.get(<span class="number">1</span>), Option::some(<span class="number">11</span>));
-}
-
-<span class="comment">// A minimal hasher for this example.</span>
-<span class="kw">struct</span> MyHasher {
-    state: Field,
-}
-
-<span class="kw">impl</span> Hasher <span class="kw">for</span> MyHasher {
-    <span class="kw">fn</span> finish(self) -&gt; Field {
-        self.state
-    }
-
-    <span class="kw">fn</span> write(&<span class="kw">mut</span> self, input: Field) {
-        self.state = self.state * <span class="number">31</span> + input;
-    }
-}
-
-<span class="kw">impl</span> Default <span class="kw">for</span> MyHasher {
-    <span class="kw">fn</span> default() -&gt; Self {
-        MyHasher { state: <span class="number">0</span> }
-    }
 }</code></pre></div>
 </div><code id="remove" class="code-header">pub unconstrained fn <a href="#remove" class="fn">remove</a>(&mut self, key: K)
 <div class="where-clause">where
@@ -738,7 +403,7 @@ if the key already has a value in this map.</p>
 <p>Removes a key-value entry. If key is not present, UHashMap remains unchanged.</p>
 <p>Example:</p>
 <pre><code><span class="kw">use</span> std::collections::umap::UHashMap;
-<span class="kw">use</span> std::hash::{BuildHasherDefault, Hasher};
+<span class="kw">use</span> std::hash::BuildHasherDefault;
 
 <span class="kw">unconstrained</span> <span class="kw">fn</span> main() {
     <span class="kw">let</span> <span class="kw">mut</span> map: UHashMap&lt;Field, Field, BuildHasherDefault&lt;MyHasher&gt;&gt; = UHashMap::default();
@@ -746,27 +411,6 @@ if the key already has a value in this map.</p>
     map.remove(<span class="number">1</span>);
     map.remove(<span class="number">2</span>);
     <span class="kw">assert</span>(map.is_empty());
-}
-
-<span class="comment">// A minimal hasher for this example.</span>
-<span class="kw">struct</span> MyHasher {
-    state: Field,
-}
-
-<span class="kw">impl</span> Hasher <span class="kw">for</span> MyHasher {
-    <span class="kw">fn</span> finish(self) -&gt; Field {
-        self.state
-    }
-
-    <span class="kw">fn</span> write(&<span class="kw">mut</span> self, input: Field) {
-        self.state = self.state * <span class="number">31</span> + input;
-    }
-}
-
-<span class="kw">impl</span> Default <span class="kw">for</span> MyHasher {
-    <span class="kw">fn</span> default() -&gt; Self {
-        MyHasher { state: <span class="number">0</span> }
-    }
 }</code></pre></div>
 </div></div><h2>Trait implementations</h2>
 <h3 id="impl-Default-for-UHashMap<K, V, B>"><code class="code-header">impl&lt;B, K, V&gt; <a href="../../../std/default/trait.Default.html" class="trait">Default</a> for <a href="../../../std/collections/umap/struct.UHashMap.html" class="struct">UHashMap</a>&lt;K, V, B&gt;

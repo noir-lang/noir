@@ -15,7 +15,8 @@ use crate::option::Option;
 /// that a value returned by `get` was inserted under that key. Check any result that constrained
 /// code relies on. Comparing two maps with `==` fails in constrained code.
 ///
-/// The standard library has no public hasher, so the examples define a minimal one.
+/// The standard library has no public hasher, so this example defines a minimal one, `MyHasher`.
+/// The examples on this type's methods use it too.
 ///
 /// Example:
 ///
@@ -36,7 +37,7 @@ use crate::option::Option;
 ///     assert(!map.contains_key(1));
 /// }
 ///
-/// // A minimal hasher for this example.
+/// // A minimal hasher, also used by the examples on this type's methods.
 /// struct MyHasher {
 ///     state: Field,
 /// }
@@ -122,33 +123,12 @@ impl<K, V, B> UHashMap<K, V, B> {
     ///
     /// ```noir
     /// use std::collections::umap::UHashMap;
-    /// use std::hash::{BuildHasherDefault, Hasher};
+    /// use std::hash::BuildHasherDefault;
     ///
     /// unconstrained fn main() {
     ///     let map: UHashMap<Field, Field, BuildHasherDefault<MyHasher>> =
     ///         UHashMap::with_hasher(BuildHasherDefault::default());
     ///     assert(map.is_empty());
-    /// }
-    ///
-    /// // A minimal hasher for this example.
-    /// struct MyHasher {
-    ///     state: Field,
-    /// }
-    ///
-    /// impl Hasher for MyHasher {
-    ///     fn finish(self) -> Field {
-    ///         self.state
-    ///     }
-    ///
-    ///     fn write(&mut self, input: Field) {
-    ///         self.state = self.state * 31 + input;
-    ///     }
-    /// }
-    ///
-    /// impl Default for MyHasher {
-    ///     fn default() -> Self {
-    ///         MyHasher { state: 0 }
-    ///     }
     /// }
     /// ```
     // docs:start:with_hasher
@@ -171,34 +151,13 @@ impl<K, V, B> UHashMap<K, V, B> {
     ///
     /// ```noir
     /// use std::collections::umap::UHashMap;
-    /// use std::hash::{BuildHasherDefault, Hasher};
+    /// use std::hash::BuildHasherDefault;
     ///
     /// unconstrained fn main() {
     ///     let map: UHashMap<Field, Field, BuildHasherDefault<MyHasher>> =
     ///         UHashMap::with_hasher_and_capacity(BuildHasherDefault::default(), 8);
     ///     assert_eq(map.capacity(), 8);
     ///     assert(map.is_empty());
-    /// }
-    ///
-    /// // A minimal hasher for this example.
-    /// struct MyHasher {
-    ///     state: Field,
-    /// }
-    ///
-    /// impl Hasher for MyHasher {
-    ///     fn finish(self) -> Field {
-    ///         self.state
-    ///     }
-    ///
-    ///     fn write(&mut self, input: Field) {
-    ///         self.state = self.state * 31 + input;
-    ///     }
-    /// }
-    ///
-    /// impl Default for MyHasher {
-    ///     fn default() -> Self {
-    ///         MyHasher { state: 0 }
-    ///     }
     /// }
     /// ```
     pub fn with_hasher_and_capacity(_build_hasher: B, capacity: u32) -> Self
@@ -220,34 +179,13 @@ impl<K, V, B> UHashMap<K, V, B> {
     ///
     /// ```noir
     /// use std::collections::umap::UHashMap;
-    /// use std::hash::{BuildHasherDefault, Hasher};
+    /// use std::hash::BuildHasherDefault;
     ///
     /// unconstrained fn main() {
     ///     let mut map: UHashMap<Field, Field, BuildHasherDefault<MyHasher>> = UHashMap::default();
     ///     let _ = map.insert(1, 10);
     ///     map.clear();
     ///     assert(map.is_empty());
-    /// }
-    ///
-    /// // A minimal hasher for this example.
-    /// struct MyHasher {
-    ///     state: Field,
-    /// }
-    ///
-    /// impl Hasher for MyHasher {
-    ///     fn finish(self) -> Field {
-    ///         self.state
-    ///     }
-    ///
-    ///     fn write(&mut self, input: Field) {
-    ///         self.state = self.state * 31 + input;
-    ///     }
-    /// }
-    ///
-    /// impl Default for MyHasher {
-    ///     fn default() -> Self {
-    ///         MyHasher { state: 0 }
-    ///     }
     /// }
     /// ```
     // docs:start:clear
@@ -263,34 +201,13 @@ impl<K, V, B> UHashMap<K, V, B> {
     ///
     /// ```noir
     /// use std::collections::umap::UHashMap;
-    /// use std::hash::{BuildHasherDefault, Hasher};
+    /// use std::hash::BuildHasherDefault;
     ///
     /// unconstrained fn main() {
     ///     let mut map: UHashMap<Field, Field, BuildHasherDefault<MyHasher>> = UHashMap::default();
     ///     let _ = map.insert(1, 10);
     ///     assert(map.contains_key(1));
     ///     assert(!map.contains_key(2));
-    /// }
-    ///
-    /// // A minimal hasher for this example.
-    /// struct MyHasher {
-    ///     state: Field,
-    /// }
-    ///
-    /// impl Hasher for MyHasher {
-    ///     fn finish(self) -> Field {
-    ///         self.state
-    ///     }
-    ///
-    ///     fn write(&mut self, input: Field) {
-    ///         self.state = self.state * 31 + input;
-    ///     }
-    /// }
-    ///
-    /// impl Default for MyHasher {
-    ///     fn default() -> Self {
-    ///         MyHasher { state: 0 }
-    ///     }
     /// }
     /// ```
     // docs:start:contains_key
@@ -309,34 +226,13 @@ impl<K, V, B> UHashMap<K, V, B> {
     ///
     /// ```noir
     /// use std::collections::umap::UHashMap;
-    /// use std::hash::{BuildHasherDefault, Hasher};
+    /// use std::hash::BuildHasherDefault;
     ///
     /// unconstrained fn main() {
     ///     let mut map: UHashMap<Field, Field, BuildHasherDefault<MyHasher>> = UHashMap::default();
     ///     assert(map.is_empty());
     ///     let _ = map.insert(1, 10);
     ///     assert(!map.is_empty());
-    /// }
-    ///
-    /// // A minimal hasher for this example.
-    /// struct MyHasher {
-    ///     state: Field,
-    /// }
-    ///
-    /// impl Hasher for MyHasher {
-    ///     fn finish(self) -> Field {
-    ///         self.state
-    ///     }
-    ///
-    ///     fn write(&mut self, input: Field) {
-    ///         self.state = self.state * 31 + input;
-    ///     }
-    /// }
-    ///
-    /// impl Default for MyHasher {
-    ///     fn default() -> Self {
-    ///         MyHasher { state: 0 }
-    ///     }
     /// }
     /// ```
     // docs:start:is_empty
@@ -353,7 +249,7 @@ impl<K, V, B> UHashMap<K, V, B> {
     ///
     /// ```noir
     /// use std::collections::umap::UHashMap;
-    /// use std::hash::{BuildHasherDefault, Hasher};
+    /// use std::hash::BuildHasherDefault;
     ///
     /// unconstrained fn main() {
     ///     let mut map: UHashMap<Field, Field, BuildHasherDefault<MyHasher>> = UHashMap::default();
@@ -364,27 +260,6 @@ impl<K, V, B> UHashMap<K, V, B> {
     ///     assert_eq(entries.len(), 2);
     ///     assert(entries.any(|entry| entry == (1, 10)));
     ///     assert(entries.any(|entry| entry == (2, 20)));
-    /// }
-    ///
-    /// // A minimal hasher for this example.
-    /// struct MyHasher {
-    ///     state: Field,
-    /// }
-    ///
-    /// impl Hasher for MyHasher {
-    ///     fn finish(self) -> Field {
-    ///         self.state
-    ///     }
-    ///
-    ///     fn write(&mut self, input: Field) {
-    ///         self.state = self.state * 31 + input;
-    ///     }
-    /// }
-    ///
-    /// impl Default for MyHasher {
-    ///     fn default() -> Self {
-    ///         MyHasher { state: 0 }
-    ///     }
     /// }
     /// ```
     // docs:start:entries
@@ -416,7 +291,7 @@ impl<K, V, B> UHashMap<K, V, B> {
     ///
     /// ```noir
     /// use std::collections::umap::UHashMap;
-    /// use std::hash::{BuildHasherDefault, Hasher};
+    /// use std::hash::BuildHasherDefault;
     ///
     /// unconstrained fn main() {
     ///     let mut map: UHashMap<Field, Field, BuildHasherDefault<MyHasher>> = UHashMap::default();
@@ -427,27 +302,6 @@ impl<K, V, B> UHashMap<K, V, B> {
     ///     assert_eq(keys.len(), 2);
     ///     assert(keys.any(|key| key == 1));
     ///     assert(keys.any(|key| key == 2));
-    /// }
-    ///
-    /// // A minimal hasher for this example.
-    /// struct MyHasher {
-    ///     state: Field,
-    /// }
-    ///
-    /// impl Hasher for MyHasher {
-    ///     fn finish(self) -> Field {
-    ///         self.state
-    ///     }
-    ///
-    ///     fn write(&mut self, input: Field) {
-    ///         self.state = self.state * 31 + input;
-    ///     }
-    /// }
-    ///
-    /// impl Default for MyHasher {
-    ///     fn default() -> Self {
-    ///         MyHasher { state: 0 }
-    ///     }
     /// }
     /// ```
     // docs:start:keys
@@ -478,7 +332,7 @@ impl<K, V, B> UHashMap<K, V, B> {
     ///
     /// ```noir
     /// use std::collections::umap::UHashMap;
-    /// use std::hash::{BuildHasherDefault, Hasher};
+    /// use std::hash::BuildHasherDefault;
     ///
     /// unconstrained fn main() {
     ///     let mut map: UHashMap<Field, Field, BuildHasherDefault<MyHasher>> = UHashMap::default();
@@ -489,27 +343,6 @@ impl<K, V, B> UHashMap<K, V, B> {
     ///     assert_eq(values.len(), 2);
     ///     assert(values.any(|value| value == 10));
     ///     assert(values.any(|value| value == 20));
-    /// }
-    ///
-    /// // A minimal hasher for this example.
-    /// struct MyHasher {
-    ///     state: Field,
-    /// }
-    ///
-    /// impl Hasher for MyHasher {
-    ///     fn finish(self) -> Field {
-    ///         self.state
-    ///     }
-    ///
-    ///     fn write(&mut self, input: Field) {
-    ///         self.state = self.state * 31 + input;
-    ///     }
-    /// }
-    ///
-    /// impl Default for MyHasher {
-    ///     fn default() -> Self {
-    ///         MyHasher { state: 0 }
-    ///     }
     /// }
     /// ```
     // docs:start:values
@@ -541,34 +374,13 @@ impl<K, V, B> UHashMap<K, V, B> {
     ///
     /// ```noir
     /// use std::collections::umap::UHashMap;
-    /// use std::hash::{BuildHasherDefault, Hasher};
+    /// use std::hash::BuildHasherDefault;
     ///
     /// unconstrained fn main() {
     ///     let mut map: UHashMap<Field, Field, BuildHasherDefault<MyHasher>> = UHashMap::default();
     ///     let _ = map.insert(1, 10);
     ///     map.iter_mut(|key, value| (key + 100, value * 2));
     ///     assert_eq(map.get(101), Option::some(20));
-    /// }
-    ///
-    /// // A minimal hasher for this example.
-    /// struct MyHasher {
-    ///     state: Field,
-    /// }
-    ///
-    /// impl Hasher for MyHasher {
-    ///     fn finish(self) -> Field {
-    ///         self.state
-    ///     }
-    ///
-    ///     fn write(&mut self, input: Field) {
-    ///         self.state = self.state * 31 + input;
-    ///     }
-    /// }
-    ///
-    /// impl Default for MyHasher {
-    ///     fn default() -> Self {
-    ///         MyHasher { state: 0 }
-    ///     }
     /// }
     /// ```
     // docs:start:iter_mut
@@ -599,7 +411,7 @@ impl<K, V, B> UHashMap<K, V, B> {
     ///
     /// ```noir
     /// use std::collections::umap::UHashMap;
-    /// use std::hash::{BuildHasherDefault, Hasher};
+    /// use std::hash::BuildHasherDefault;
     ///
     /// unconstrained fn main() {
     ///     let mut map: UHashMap<Field, Field, BuildHasherDefault<MyHasher>> = UHashMap::default();
@@ -607,27 +419,6 @@ impl<K, V, B> UHashMap<K, V, B> {
     ///     map.iter_keys_mut(|key| key + 100);
     ///     assert_eq(map.get(101), Option::some(10));
     ///     assert(!map.contains_key(1));
-    /// }
-    ///
-    /// // A minimal hasher for this example.
-    /// struct MyHasher {
-    ///     state: Field,
-    /// }
-    ///
-    /// impl Hasher for MyHasher {
-    ///     fn finish(self) -> Field {
-    ///         self.state
-    ///     }
-    ///
-    ///     fn write(&mut self, input: Field) {
-    ///         self.state = self.state * 31 + input;
-    ///     }
-    /// }
-    ///
-    /// impl Default for MyHasher {
-    ///     fn default() -> Self {
-    ///         MyHasher { state: 0 }
-    ///     }
     /// }
     /// ```
     // docs:start:iter_keys_mut
@@ -657,34 +448,13 @@ impl<K, V, B> UHashMap<K, V, B> {
     ///
     /// ```noir
     /// use std::collections::umap::UHashMap;
-    /// use std::hash::{BuildHasherDefault, Hasher};
+    /// use std::hash::BuildHasherDefault;
     ///
     /// unconstrained fn main() {
     ///     let mut map: UHashMap<Field, Field, BuildHasherDefault<MyHasher>> = UHashMap::default();
     ///     let _ = map.insert(1, 10);
     ///     map.iter_values_mut(|value| value + 1);
     ///     assert_eq(map.get(1), Option::some(11));
-    /// }
-    ///
-    /// // A minimal hasher for this example.
-    /// struct MyHasher {
-    ///     state: Field,
-    /// }
-    ///
-    /// impl Hasher for MyHasher {
-    ///     fn finish(self) -> Field {
-    ///         self.state
-    ///     }
-    ///
-    ///     fn write(&mut self, input: Field) {
-    ///         self.state = self.state * 31 + input;
-    ///     }
-    /// }
-    ///
-    /// impl Default for MyHasher {
-    ///     fn default() -> Self {
-    ///         MyHasher { state: 0 }
-    ///     }
     /// }
     /// ```
     // docs:start:iter_values_mut
@@ -705,7 +475,7 @@ impl<K, V, B> UHashMap<K, V, B> {
     ///
     /// ```noir
     /// use std::collections::umap::UHashMap;
-    /// use std::hash::{BuildHasherDefault, Hasher};
+    /// use std::hash::BuildHasherDefault;
     ///
     /// unconstrained fn main() {
     ///     let mut map: UHashMap<Field, Field, BuildHasherDefault<MyHasher>> = UHashMap::default();
@@ -714,27 +484,6 @@ impl<K, V, B> UHashMap<K, V, B> {
     ///     map.retain(|key, _value| key != 1);
     ///     assert_eq(map.len(), 1);
     ///     assert(!map.contains_key(1));
-    /// }
-    ///
-    /// // A minimal hasher for this example.
-    /// struct MyHasher {
-    ///     state: Field,
-    /// }
-    ///
-    /// impl Hasher for MyHasher {
-    ///     fn finish(self) -> Field {
-    ///         self.state
-    ///     }
-    ///
-    ///     fn write(&mut self, input: Field) {
-    ///         self.state = self.state * 31 + input;
-    ///     }
-    /// }
-    ///
-    /// impl Default for MyHasher {
-    ///     fn default() -> Self {
-    ///         MyHasher { state: 0 }
-    ///     }
     /// }
     /// ```
     // docs:start:retain
@@ -758,34 +507,13 @@ impl<K, V, B> UHashMap<K, V, B> {
     ///
     /// ```noir
     /// use std::collections::umap::UHashMap;
-    /// use std::hash::{BuildHasherDefault, Hasher};
+    /// use std::hash::BuildHasherDefault;
     ///
     /// unconstrained fn main() {
     ///     let mut map: UHashMap<Field, Field, BuildHasherDefault<MyHasher>> = UHashMap::default();
     ///     let _ = map.insert(1, 10);
     ///     let _ = map.insert(1, 11);
     ///     assert_eq(map.len(), 1);
-    /// }
-    ///
-    /// // A minimal hasher for this example.
-    /// struct MyHasher {
-    ///     state: Field,
-    /// }
-    ///
-    /// impl Hasher for MyHasher {
-    ///     fn finish(self) -> Field {
-    ///         self.state
-    ///     }
-    ///
-    ///     fn write(&mut self, input: Field) {
-    ///         self.state = self.state * 31 + input;
-    ///     }
-    /// }
-    ///
-    /// impl Default for MyHasher {
-    ///     fn default() -> Self {
-    ///         MyHasher { state: 0 }
-    ///     }
     /// }
     /// ```
     // docs:start:len
@@ -803,33 +531,12 @@ impl<K, V, B> UHashMap<K, V, B> {
     ///
     /// ```noir
     /// use std::collections::umap::UHashMap;
-    /// use std::hash::{BuildHasherDefault, Hasher};
+    /// use std::hash::BuildHasherDefault;
     ///
     /// unconstrained fn main() {
     ///     let mut map: UHashMap<Field, Field, BuildHasherDefault<MyHasher>> = UHashMap::default();
     ///     let _ = map.insert(1, 10);
     ///     assert(map.capacity() > map.len());
-    /// }
-    ///
-    /// // A minimal hasher for this example.
-    /// struct MyHasher {
-    ///     state: Field,
-    /// }
-    ///
-    /// impl Hasher for MyHasher {
-    ///     fn finish(self) -> Field {
-    ///         self.state
-    ///     }
-    ///
-    ///     fn write(&mut self, input: Field) {
-    ///         self.state = self.state * 31 + input;
-    ///     }
-    /// }
-    ///
-    /// impl Default for MyHasher {
-    ///     fn default() -> Self {
-    ///         MyHasher { state: 0 }
-    ///     }
     /// }
     /// ```
     // docs:start:capacity
@@ -844,34 +551,13 @@ impl<K, V, B> UHashMap<K, V, B> {
     ///
     /// ```noir
     /// use std::collections::umap::UHashMap;
-    /// use std::hash::{BuildHasherDefault, Hasher};
+    /// use std::hash::BuildHasherDefault;
     ///
     /// unconstrained fn main() {
     ///     let mut map: UHashMap<Field, Field, BuildHasherDefault<MyHasher>> = UHashMap::default();
     ///     let _ = map.insert(1, 10);
     ///     assert_eq(map.get(1), Option::some(10));
     ///     assert(map.get(2).is_none());
-    /// }
-    ///
-    /// // A minimal hasher for this example.
-    /// struct MyHasher {
-    ///     state: Field,
-    /// }
-    ///
-    /// impl Hasher for MyHasher {
-    ///     fn finish(self) -> Field {
-    ///         self.state
-    ///     }
-    ///
-    ///     fn write(&mut self, input: Field) {
-    ///         self.state = self.state * 31 + input;
-    ///     }
-    /// }
-    ///
-    /// impl Default for MyHasher {
-    ///     fn default() -> Self {
-    ///         MyHasher { state: 0 }
-    ///     }
     /// }
     /// ```
     // docs:start:get
@@ -910,34 +596,13 @@ impl<K, V, B> UHashMap<K, V, B> {
     ///
     /// ```noir
     /// use std::collections::umap::UHashMap;
-    /// use std::hash::{BuildHasherDefault, Hasher};
+    /// use std::hash::BuildHasherDefault;
     ///
     /// unconstrained fn main() {
     ///     let mut map: UHashMap<Field, Field, BuildHasherDefault<MyHasher>> = UHashMap::default();
     ///     assert(map.insert(1, 10));
     ///     assert(!map.insert(1, 11));
     ///     assert_eq(map.get(1), Option::some(11));
-    /// }
-    ///
-    /// // A minimal hasher for this example.
-    /// struct MyHasher {
-    ///     state: Field,
-    /// }
-    ///
-    /// impl Hasher for MyHasher {
-    ///     fn finish(self) -> Field {
-    ///         self.state
-    ///     }
-    ///
-    ///     fn write(&mut self, input: Field) {
-    ///         self.state = self.state * 31 + input;
-    ///     }
-    /// }
-    ///
-    /// impl Default for MyHasher {
-    ///     fn default() -> Self {
-    ///         MyHasher { state: 0 }
-    ///     }
     /// }
     /// ```
     // docs:start:insert
@@ -1013,7 +678,7 @@ impl<K, V, B> UHashMap<K, V, B> {
     ///
     /// ```noir
     /// use std::collections::umap::UHashMap;
-    /// use std::hash::{BuildHasherDefault, Hasher};
+    /// use std::hash::BuildHasherDefault;
     ///
     /// unconstrained fn main() {
     ///     let mut map: UHashMap<Field, Field, BuildHasherDefault<MyHasher>> = UHashMap::default();
@@ -1021,27 +686,6 @@ impl<K, V, B> UHashMap<K, V, B> {
     ///     map.remove(1);
     ///     map.remove(2);
     ///     assert(map.is_empty());
-    /// }
-    ///
-    /// // A minimal hasher for this example.
-    /// struct MyHasher {
-    ///     state: Field,
-    /// }
-    ///
-    /// impl Hasher for MyHasher {
-    ///     fn finish(self) -> Field {
-    ///         self.state
-    ///     }
-    ///
-    ///     fn write(&mut self, input: Field) {
-    ///         self.state = self.state * 31 + input;
-    ///     }
-    /// }
-    ///
-    /// impl Default for MyHasher {
-    ///     fn default() -> Self {
-    ///         MyHasher { state: 0 }
-    ///     }
     /// }
     /// ```
     // docs:start:remove
