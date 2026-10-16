@@ -144,34 +144,6 @@ pub(crate) fn check_argument_count(
     }
 }
 
-pub(crate) fn check_one_argument(
-    arguments: Vec<(Value, Location)>,
-    location: Location,
-) -> IResult<(Value, Location)> {
-    let [arg1] = check_arguments(arguments, location)?;
-
-    Ok(arg1)
-}
-
-pub(crate) fn check_two_arguments(
-    arguments: Vec<(Value, Location)>,
-    location: Location,
-) -> IResult<((Value, Location), (Value, Location))> {
-    let [arg1, arg2] = check_arguments(arguments, location)?;
-
-    Ok((arg1, arg2))
-}
-
-#[allow(clippy::type_complexity)]
-pub(crate) fn check_three_arguments(
-    arguments: Vec<(Value, Location)>,
-    location: Location,
-) -> IResult<((Value, Location), (Value, Location), (Value, Location))> {
-    let [arg1, arg2, arg3] = check_arguments(arguments, location)?;
-
-    Ok((arg1, arg2, arg3))
-}
-
 #[allow(clippy::type_complexity)]
 pub(crate) fn check_arguments<const N: usize>(
     arguments: Vec<(Value, Location)>,
@@ -808,7 +780,7 @@ pub(super) fn hash_item<T: Hash>(
     location: Location,
     get_item: impl FnOnce((Value, Location)) -> IResult<T>,
 ) -> IResult<Value> {
-    let argument = check_one_argument(arguments, location)?;
+    let [argument] = check_arguments(arguments, location)?;
     let item = get_item(argument)?;
 
     let mut hasher = DeterministicHasher::new();
@@ -822,7 +794,7 @@ pub(super) fn eq_item<T: Eq>(
     location: Location,
     mut get_item: impl FnMut((Value, Location)) -> IResult<T>,
 ) -> IResult<Value> {
-    let (self_arg, other_arg) = check_two_arguments(arguments, location)?;
+    let [self_arg, other_arg] = check_arguments(arguments, location)?;
     let self_arg = get_item(self_arg)?;
     let other_arg = get_item(other_arg)?;
     Ok(Value::Bool(self_arg == other_arg))
