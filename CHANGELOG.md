@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.0.0-rc.6](https://github.com/noir-lang/noir/compare/v1.0.0-rc.5...v1.0.0-rc.6) (2026-10-16)
+
+
+### Bug Fixes
+
+* **frontend:** An impl search with an undecided where clause one level down is undecided ([#14013](https://github.com/noir-lang/noir/issues/14013)) ([985870e](https://github.com/noir-lang/noir/commit/985870e0e065946f468cbccb7d2e00dcaf44bfd0))
+* **frontend:** Don't choose an impl while another impl's where clause is undecided ([#13999](https://github.com/noir-lang/noir/issues/13999)) ([c9ec59a](https://github.com/noir-lang/noir/commit/c9ec59ab4fe917f5ea1a752adcebf9b37b14e3b6))
+* **frontend:** Give a comptime local read from runtime code its declared type ([#14014](https://github.com/noir-lang/noir/issues/14014)) ([0a3db9c](https://github.com/noir-lang/noir/commit/0a3db9c79be07c95820b1fd9d5dcdaaaac85a857))
+* **frontend:** Make arithmetic proptests instantiate the expression's variables ([#14022](https://github.com/noir-lang/noir/issues/14022)) ([f8ea879](https://github.com/noir-lang/noir/commit/f8ea879d591672c6f6abd20562c7e05ef484a706))
+* **frontend:** Print type-level arithmetic in its canonical form in `nargo expand` ([#14007](https://github.com/noir-lang/noir/issues/14007)) ([b094c92](https://github.com/noir-lang/noir/commit/b094c920cdc6842290c0ac296ec941482d2d6478))
+* **frontend:** Read a trait impl's associated constant from a global while the impl is collected ([#14011](https://github.com/noir-lang/noir/issues/14011)) ([0e3a9a5](https://github.com/noir-lang/noir/commit/0e3a9a55d95fc49d79b8a317339517cc2b5c32f6))
+* **frontend:** Reject a method call that several inherent impls can serve on an uninferred receiver ([#14015](https://github.com/noir-lang/noir/issues/14015)) ([3ca79f7](https://github.com/noir-lang/noir/commit/3ca79f70a7adc55f989f5281c14de7bb2475a9a6))
+* **frontend:** Resolve a struct literal's or pattern's turbofish against the type alias it names ([#13997](https://github.com/noir-lang/noir/issues/13997)) ([8b49012](https://github.com/noir-lang/noir/commit/8b490123ead8b90a87a1e33d0f19948409782629))
+* **frontend:** Resolve a trait impl's associated items the first time a lookup selects it ([#14006](https://github.com/noir-lang/noir/issues/14006)) ([c37c648](https://github.com/noir-lang/noir/commit/c37c648b59ae92a3585ec41380c0b9d28cfd0e67))
+* **frontend:** Simplify away a commutative operand that only evaluates to a constant ([#14018](https://github.com/noir-lang/noir/issues/14018)) ([4b05b39](https://github.com/noir-lang/noir/commit/4b05b39f219b34b4d20a7e6faf0e04babe58bd16))
+* **stdlib:** Count a `UHashMap` insert into a tombstone ([#13689](https://github.com/noir-lang/noir/issues/13689)) ([191767a](https://github.com/noir-lang/noir/commit/191767a3a2adb6cab3155055e12b190e7b0e8393))
+
 ## [1.0.0-rc.5](https://github.com/noir-lang/noir/compare/v1.0.0-rc.4...v1.0.0-rc.5) (2026-10-15)
 
 

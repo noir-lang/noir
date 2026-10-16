@@ -37,7 +37,7 @@ where
 {
     fn default() -> Self {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L464-L470" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L464-L470</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L829-L835" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L829-L835</a></sub></sup>
 
 
 Creates a fresh, empty UHashMap.
@@ -71,7 +71,7 @@ where
     B: BuildHasher,
 {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L72-L77" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L72-L77</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L138-L143" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L138-L143</a></sub></sup>
 
 
 Creates a hash map with an existing `BuildHasher`. This can be used to ensure multiple
@@ -97,7 +97,7 @@ where
     B: BuildHasher,
 {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L275-L281" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L275-L281</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L605-L611" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L605-L611</a></sub></sup>
 
 
 Retrieves a value from the hash map, returning `Option::none()` if it was not found.
@@ -125,7 +125,7 @@ where
     B: BuildHasher,
 {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L306-L312" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L306-L312</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L652-L658" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L652-L658</a></sub></sup>
 
 
 Inserts a new key-value pair into the map. If the key was already in the map, its
@@ -153,7 +153,7 @@ where
     B: BuildHasher,
 {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L374-L380" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L374-L380</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L739-L745" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L739-L745</a></sub></sup>
 
 
 Removes the given key-value pair from the map. If the key was not already present
@@ -177,7 +177,7 @@ assert(map.is_empty());
 ```rust title="is_empty" showLineNumbers 
 pub unconstrained fn is_empty(&self) -> bool {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L116-L118" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L116-L118</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L250-L252" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L250-L252</a></sub></sup>
 
 
 True if the length of the hash map is empty.
@@ -201,7 +201,7 @@ assert(map.is_empty());
 ```rust title="len" showLineNumbers 
 pub unconstrained fn len(&self) -> u32 {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L261-L263" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L261-L263</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L557-L559" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L557-L559</a></sub></sup>
 
 
 Returns the current length of this hash map.
@@ -232,7 +232,7 @@ assert(map.len() == 2);
 ```rust title="clear" showLineNumbers 
 pub unconstrained fn clear(&mut self) {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L97-L99" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L97-L99</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L199-L201" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L199-L201</a></sub></sup>
 
 
 Clears the hash map, removing all key-value pairs from it.
@@ -256,7 +256,7 @@ where
     B: BuildHasher,
 {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L105-L111" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L105-L111</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L223-L229" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L223-L229</a></sub></sup>
 
 
 True if the hash map contains the given key. Unlike `get`, this will not also return
@@ -280,7 +280,7 @@ if map.contains_key(7) {
 ```rust title="entries" showLineNumbers 
 pub unconstrained fn entries(&self) -> [(K, V)] {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L124-L126" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L124-L126</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L279-L281" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L279-L281</a></sub></sup>
 
 
 Returns a vector of each key-value pair present in the hash map.
@@ -309,7 +309,7 @@ for i in 0..map.capacity() {
 ```rust title="keys" showLineNumbers 
 pub unconstrained fn keys(&self) -> [K] {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L147-L149" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L147-L149</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L323-L325" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L323-L325</a></sub></sup>
 
 
 Returns a vector of each key present in the hash map.
@@ -334,7 +334,7 @@ for key in keys {
 ```rust title="values" showLineNumbers 
 pub unconstrained fn values(&self) -> [V] {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L169-L171" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L169-L171</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L366-L368" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L366-L368</a></sub></sup>
 
 
 Returns a vector of each value present in the hash map.
@@ -362,7 +362,7 @@ where
     B: BuildHasher,
 {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L190-L196" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L190-L196</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L411-L417" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L411-L417</a></sub></sup>
 
 
 Iterates through each key-value pair of the UHashMap, setting each key-value pair to the
@@ -393,7 +393,7 @@ where
     B: BuildHasher,
 {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L210-L216" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L210-L216</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L456-L462" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L456-L462</a></sub></sup>
 
 
 Iterates through the UHashMap, mutating each key to the result returned from
@@ -420,7 +420,7 @@ map.iter_keys_mut(|k| k * 2);
 ```rust title="iter_values_mut" showLineNumbers 
 pub unconstrained fn iter_values_mut(&mut self, f: fn(V) -> V) {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L232-L234" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L232-L234</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L494-L496" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L494-L496</a></sub></sup>
 
 
 Iterates through the UHashMap, applying the given function to each value and mutating the
@@ -441,7 +441,7 @@ map.iter_values_mut(|v| v / 2);
 ```rust title="retain" showLineNumbers 
 pub unconstrained fn retain(&mut self, f: fn(K, V) -> bool) {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L245-L247" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L245-L247</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L525-L527" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L525-L527</a></sub></sup>
 
 
 Retains only the key-value pairs for which the given function returns true.
@@ -466,7 +466,7 @@ where
 {
     fn default() -> Self {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L464-L470" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L464-L470</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L829-L835" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L829-L835</a></sub></sup>
 
 
 Constructs an empty UHashMap.
@@ -491,7 +491,7 @@ where
 {
     fn eq(self, other: UHashMap<K, V, B>) -> bool {
 ```
-> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L420-L428" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L420-L428</a></sub></sup>
+> <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/collections/umap.nr#L785-L793" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/collections/umap.nr#L785-L793</a></sub></sup>
 
 
 Checks if two UHashMaps are equal.
