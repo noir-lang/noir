@@ -85,7 +85,7 @@ fn main(N: pub u32, MAX_LEN: u32, x: u32) {
     assert(generic_arithmetic_in_turbofish::<4>() == 10_u32);
     assert(value_and_type_position_agree::<5>());
     assert(12_u32 == 12_u32);
-    let a: [u8; (3 * 2) + (3 * 2)] = [0_u8; 12];
+    let a: [u8; 12] = [0_u8; 12];
     assert(a.len() == 12_u32);
     assert(12_u32 == 12_u32);
     assert(12_u32 == 12_u32);

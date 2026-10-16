@@ -197,9 +197,7 @@ impl Elaborator<'_> {
             Pattern::Tuple(fields, location) => {
                 // Returns Some for valid tuple types (where arity checking makes sense),
                 // None when we've already issued an error or have an invalid type.
-                let field_types = match self
-                    .follow_bindings_resolving_trait_constraints(expected_type)
-                {
+                let field_types = match self.structurally_resolve_type(expected_type) {
                     Type::Tuple(fields) => Some(fields),
                     Type::Error => None,
                     expected_type => {
@@ -331,18 +329,6 @@ impl Elaborator<'_> {
                 return error_identifier(self);
             }
         };
-
-        let turbofish_location = last_segment.turbofish_location();
-
-        let mut errors = Vec::new();
-        let generics = self.resolve_struct_turbofish_generics(
-            &struct_type.borrow(),
-            generics,
-            last_segment.generics,
-            turbofish_location,
-            &mut errors,
-        );
-        self.push_errors(errors);
 
         let actual_type = Type::DataType(struct_type.clone(), generics);
         let struct_id = struct_type.borrow().id;

@@ -19,7 +19,7 @@
 <h1><a href="../../index.html">noir_stdlib</a></h1>
 <div><a href="../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.4</div>
+<div id="crate-version">1.0.0-rc.5</div>
 <h2>In module ecdsa_secp256k1</h2>
 <h3>Functions</h3><ul class="item-list">
 <li><a href="fn.verify_signature.html">verify_signature</a></div></li>
@@ -42,27 +42,43 @@
 ) -> <a href="../../std/primitive.bool.html" class="primitive">bool</a></code></pre>
 
 <div class="comments">
-<p>Verifies a ECDSA signature over the secp256k1 curve.</p>
-<ul>
-<li>inputs:
-<ul>
-<li>x coordinate of public key as 32 bytes</li>
-<li>y coordinate of public key as 32 bytes</li>
-<li>the signature, as a 64 bytes array
-The signature internally will be represented as <code>(r, s)</code>,
-where <code>r</code> and <code>s</code> are fixed-sized big endian scalar values.
-As the <code>secp256k1</code> has a 256-bit modulus, we have a 64 byte signature
-while <code>r</code> and <code>s</code> will both be 32 bytes.
-We expect <code>s</code> to be normalized. This means given the curve's order,
-<code>s</code> should be less than or equal to <code>order / 2</code>.
-This is done to prevent malleability.
-For more context regarding malleability you can reference BIP 0062.</li>
-<li>the hash of the message, as a vector of bytes</li>
-</ul>
-</li>
-<li>output: false for failure and true for success</li>
-</ul>
-</div>
+<p>Verifies an ECDSA signature over the secp256k1 curve, returning <code>true</code> if it is valid.</p>
+<p>The public key is given by its <code>x</code> and <code>y</code> coordinates, 32 bytes each. The signature is the
+64 bytes <code>r || s</code>, with <code>r</code> and <code>s</code> 32 bytes each. <code>message_hash</code> is the 32-byte hash of the
+signed message and is used as given: the function does not hash the message, and a hash that is
+not less than the curve's order is reduced modulo the order, as in the ECDSA specification. All
+values are big-endian.</p>
+<p>An invalid signature makes the function return <code>false</code>, never fail, so the caller must check
+the result, typically with <code>assert</code>. The result is also <code>false</code> if <code>r</code> or <code>s</code> is zero, if the
+public key is not a point on the curve, or if <code>s</code> is greater than <code>order / 2</code>: only the
+low-<code>s</code> form of a signature is accepted, to prevent malleability (see BIP 0062).</p>
+<p>Example:</p>
+<pre><code><span class="kw">let</span> message_hash = [
+    <span class="number">0x3a</span>, <span class="number">0x73</span>, <span class="number">0xf4</span>, <span class="number">0x12</span>, <span class="number">0x3a</span>, <span class="number">0x5c</span>, <span class="number">0xd2</span>, <span class="number">0x12</span>, <span class="number">0x1f</span>, <span class="number">0x21</span>, <span class="number">0xcd</span>, <span class="number">0x7e</span>, <span class="number">0x8d</span>, <span class="number">0x35</span>, <span class="number">0x88</span>, <span class="number">0x35</span>,
+    <span class="number">0x47</span>, <span class="number">0x69</span>, <span class="number">0x49</span>, <span class="number">0xd0</span>, <span class="number">0x35</span>, <span class="number">0xd9</span>, <span class="number">0xc2</span>, <span class="number">0xda</span>, <span class="number">0x68</span>, <span class="number">0x06</span>, <span class="number">0xb4</span>, <span class="number">0x63</span>, <span class="number">0x3a</span>, <span class="number">0xc8</span>, <span class="number">0xc1</span>, <span class="number">0xe2</span>,
+];
+<span class="kw">let</span> public_key_x = [
+    <span class="number">0xa0</span>, <span class="number">0x43</span>, <span class="number">0x4d</span>, <span class="number">0x9e</span>, <span class="number">0x47</span>, <span class="number">0xf3</span>, <span class="number">0xc8</span>, <span class="number">0x62</span>, <span class="number">0x35</span>, <span class="number">0x47</span>, <span class="number">0x7c</span>, <span class="number">0x7b</span>, <span class="number">0x1a</span>, <span class="number">0xe6</span>, <span class="number">0xae</span>, <span class="number">0x5d</span>,
+    <span class="number">0x34</span>, <span class="number">0x42</span>, <span class="number">0xd4</span>, <span class="number">0x9b</span>, <span class="number">0x19</span>, <span class="number">0x43</span>, <span class="number">0xc2</span>, <span class="number">0xb7</span>, <span class="number">0x52</span>, <span class="number">0xa6</span>, <span class="number">0x8e</span>, <span class="number">0x2a</span>, <span class="number">0x47</span>, <span class="number">0xe2</span>, <span class="number">0x47</span>, <span class="number">0xc7</span>,
+];
+<span class="kw">let</span> public_key_y = [
+    <span class="number">0x89</span>, <span class="number">0x3a</span>, <span class="number">0xba</span>, <span class="number">0x42</span>, <span class="number">0x54</span>, <span class="number">0x19</span>, <span class="number">0xbc</span>, <span class="number">0x27</span>, <span class="number">0xa3</span>, <span class="number">0xb6</span>, <span class="number">0xc7</span>, <span class="number">0xe6</span>, <span class="number">0x93</span>, <span class="number">0xa2</span>, <span class="number">0x4c</span>, <span class="number">0x69</span>,
+    <span class="number">0x6f</span>, <span class="number">0x79</span>, <span class="number">0x4c</span>, <span class="number">0x2e</span>, <span class="number">0xd8</span>, <span class="number">0x77</span>, <span class="number">0xa1</span>, <span class="number">0x59</span>, <span class="number">0x3c</span>, <span class="number">0xbe</span>, <span class="number">0xe5</span>, <span class="number">0x3b</span>, <span class="number">0x03</span>, <span class="number">0x73</span>, <span class="number">0x68</span>, <span class="number">0xd7</span>,
+];
+<span class="kw">let</span> signature = [
+    <span class="number">0xe5</span>, <span class="number">0x08</span>, <span class="number">0x1c</span>, <span class="number">0x80</span>, <span class="number">0xab</span>, <span class="number">0x42</span>, <span class="number">0x7d</span>, <span class="number">0xc3</span>, <span class="number">0x70</span>, <span class="number">0x34</span>, <span class="number">0x6f</span>, <span class="number">0x4a</span>, <span class="number">0x0e</span>, <span class="number">0x31</span>, <span class="number">0xaa</span>, <span class="number">0x2b</span>,
+    <span class="number">0xad</span>, <span class="number">0x8d</span>, <span class="number">0x97</span>, <span class="number">0x98</span>, <span class="number">0xc3</span>, <span class="number">0x80</span>, <span class="number">0x61</span>, <span class="number">0xdb</span>, <span class="number">0x9a</span>, <span class="number">0xe5</span>, <span class="number">0x5a</span>, <span class="number">0x4e</span>, <span class="number">0x8d</span>, <span class="number">0xf4</span>, <span class="number">0x54</span>, <span class="number">0xfd</span>,
+    <span class="number">0x28</span>, <span class="number">0x11</span>, <span class="number">0x98</span>, <span class="number">0x94</span>, <span class="number">0x34</span>, <span class="number">0x4e</span>, <span class="number">0x71</span>, <span class="number">0xb7</span>, <span class="number">0x87</span>, <span class="number">0x70</span>, <span class="number">0xcc</span>, <span class="number">0x93</span>, <span class="number">0x1d</span>, <span class="number">0x61</span>, <span class="number">0xf4</span>, <span class="number">0x80</span>,
+    <span class="number">0xec</span>, <span class="number">0xbb</span>, <span class="number">0x0b</span>, <span class="number">0x89</span>, <span class="number">0xd6</span>, <span class="number">0xeb</span>, <span class="number">0x69</span>, <span class="number">0x69</span>, <span class="number">0x01</span>, <span class="number">0x61</span>, <span class="number">0xe4</span>, <span class="number">0x9a</span>, <span class="number">0x71</span>, <span class="number">0x5f</span>, <span class="number">0xcd</span>, <span class="number">0x55</span>,
+];
+
+<span class="kw">let</span> valid = std::ecdsa_secp256k1::verify_signature(public_key_x, public_key_y, signature, message_hash);
+<span class="kw">assert</span>(valid);
+
+<span class="comment">// A different message hash doesn't verify.</span>
+<span class="kw">let</span> <span class="kw">mut</span> other_hash = message_hash;
+other_hash[<span class="number">0</span>] = <span class="number">0</span>;
+<span class="kw">assert</span>(!std::ecdsa_secp256k1::verify_signature(public_key_x, public_key_y, signature, other_hash));</code></pre></div>
 </div>
 </main>
 </span>

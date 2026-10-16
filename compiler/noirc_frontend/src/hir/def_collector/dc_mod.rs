@@ -270,7 +270,6 @@ impl ModCollector<'_> {
                 impl_id: None,
                 resolved_object_type: None,
                 resolved_generics: Vec::new(),
-                unresolved_associated_types: Vec::new(),
                 inherited_default_method_func_ids: Default::default(),
             };
 

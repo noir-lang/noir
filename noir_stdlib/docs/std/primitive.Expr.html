@@ -19,7 +19,7 @@
 <h1><a href="../index.html">noir_stdlib</a></h1>
 <div><a href="../all.html">All items</a></div>
 <h2 id="crate-name"><a href="index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.4</div>
+<div id="crate-version">1.0.0-rc.5</div>
 <h2><a href="#primitive">Primitive type Expr</a></h2>
 <h3>Methods</h3>
 <ul class="sidebar-list">
@@ -299,14 +299,12 @@ return each statement inside in a vector.</p>
 <p>Returns <code>true</code> if this expression is trailed by a semicolon.</p>
 <p>Example:</p>
 <pre><code><span class="kw">comptime</span> {
-    <span class="kw">let</span> expr1 = <span class="kw">quote</span> { <span class="number">1</span> + <span class="number">2</span> }.as_expr().unwrap();
-    <span class="kw">let</span> expr2 = <span class="kw">quote</span> { <span class="number">1</span> + <span class="number">2</span>; }.as_expr().unwrap();
+    <span class="kw">let</span> block = <span class="kw">quote</span> { { <span class="number">1</span> + <span class="number">2</span>; <span class="number">3</span> } }.as_expr().unwrap();
+    <span class="kw">let</span> statements = block.as_block().unwrap();
 
-    <span class="kw">assert</span>(expr1.as_binary_op().is_some());
-    <span class="kw">assert</span>(expr2.as_binary_op().is_some());
-
-    <span class="kw">assert</span>(!expr1.has_semicolon());
-    <span class="kw">assert</span>(expr2.has_semicolon());
+    <span class="kw">assert</span>(statements[<span class="number">0</span>].as_binary_op().is_some());
+    <span class="kw">assert</span>(statements[<span class="number">0</span>].has_semicolon());
+    <span class="kw">assert</span>(!statements[<span class="number">1</span>].has_semicolon());
 }</code></pre></div>
 </div><code id="is_break" class="code-header">pub comptime fn <a href="#is_break" class="fn">is_break</a>(self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 

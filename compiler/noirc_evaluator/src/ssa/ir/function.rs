@@ -227,17 +227,6 @@ impl Function {
         Signature::new(params, returns)
     }
 
-    /// Finds the block of the function with the Return instruction
-    pub(crate) fn find_last_block(&self) -> BasicBlockId {
-        for block in self.reachable_blocks() {
-            if matches!(self.dfg[block].terminator(), Some(TerminatorInstruction::Return { .. })) {
-                return block;
-            }
-        }
-
-        unreachable!("SSA Function {} has no reachable return instruction!", self.id())
-    }
-
     /// Total number of instructions in the reachable blocks of this function.
     pub(crate) fn num_instructions(&self) -> usize {
         self.reachable_blocks()

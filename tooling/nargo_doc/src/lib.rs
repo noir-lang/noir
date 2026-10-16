@@ -32,6 +32,7 @@ use crate::items::{
 use crate::links::{CurrentType, LinkFinder};
 pub use html::to_html;
 
+pub mod code_blocks;
 mod html;
 mod ids;
 pub mod items;
@@ -430,9 +431,9 @@ impl DocItemBuilder<'_> {
             let numeric = self.kind_to_numeric(&kind);
             Generic { name, numeric }
         });
-        let where_clause = vecmap(&trait_impl.where_clause, |constraint| {
-            self.convert_trait_constraint(constraint)
-        });
+        let where_clause = self.interner.get_where_clause_for_impl(trait_impl_id);
+        let where_clause =
+            vecmap(where_clause, |constraint| self.convert_trait_constraint(constraint));
         self.trait_constraints = where_clause.clone();
         let methods = vecmap(item_trait_impl.methods, |func_id| self.convert_function(func_id));
         self.trait_constraints.clear();

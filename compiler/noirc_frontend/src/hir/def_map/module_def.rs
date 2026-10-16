@@ -29,23 +29,9 @@ impl ModuleDefId {
         }
     }
 
-    pub fn as_type_alias(&self) -> Option<TypeAliasId> {
-        match self {
-            ModuleDefId::TypeAliasId(type_alias_id) => Some(*type_alias_id),
-            _ => None,
-        }
-    }
-
     pub fn as_trait(&self) -> Option<TraitId> {
         match self {
             ModuleDefId::TraitId(trait_id) => Some(*trait_id),
-            _ => None,
-        }
-    }
-
-    pub fn as_global(&self) -> Option<GlobalId> {
-        match self {
-            ModuleDefId::GlobalId(global_id) => Some(*global_id),
             _ => None,
         }
     }

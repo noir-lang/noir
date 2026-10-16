@@ -108,7 +108,6 @@ pub(crate) use builtin::builtin_helpers;
 /// we could have a separate limit just for comptime call stack depth.
 const MAX_EVALUATION_DEPTH: usize = 300;
 
-#[allow(unused)]
 pub struct Interpreter<'local, 'interner> {
     /// To expand macros the Interpreter needs access to the Elaborator
     pub elaborator: &'local mut Elaborator<'interner>,

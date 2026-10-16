@@ -31,5 +31,5 @@ impl<let N: u32> FromCallData<N, N - 2> for Point {
 
 fn main() {
     let calldata: [Field; 2] = [1_Field, 2_Field];
-    let _: (Point, [Field; 2 - 2]) = <Point as FromCallData<2, 2 - 2>>::from_calldata(calldata);
+    let _: (Point, [Field; 0]) = <Point as FromCallData<2, 0>>::from_calldata(calldata);
 }

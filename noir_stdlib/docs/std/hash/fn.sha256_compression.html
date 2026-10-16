@@ -19,7 +19,7 @@
 <h1><a href="../../index.html">noir_stdlib</a></h1>
 <div><a href="../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.4</div>
+<div id="crate-version">1.0.0-rc.5</div>
 <h2>In module hash</h2>
 <h3>Structs</h3><ul class="item-list">
 <li><a href="struct.BuildHasherDefault.html">BuildHasherDefault</a></div></li>
@@ -53,6 +53,34 @@
 <div id="page-content">
 <pre><code>pub fn sha256_compression(input: [<a href="../../std/primitive.u32.html" class="primitive">u32</a>; 16], state: [<a href="../../std/primitive.u32.html" class="primitive">u32</a>; 8]) -> [<a href="../../std/primitive.u32.html" class="primitive">u32</a>; 8]</code></pre>
 
+<div class="comments">
+<p>Applies the SHA-256 compression function to one 512-bit message block.</p>
+<p><code>input</code> is the 16-word message block and <code>state</code> is the 8-word hash state; the result is the
+next hash state. Words are big-endian, as in FIPS 180-4.</p>
+<p>This is only the compression function, not the SHA-256 hash: it does no padding and no length
+encoding, and processes exactly one block. To hash arbitrary bytes, use the
+<a href="https://github.com/noir-lang/sha256"><code>sha256</code></a> library, which is built on this function.</p>
+<p>Example:</p>
+<pre><code><span class="comment">// The single padded block for the message "abc".</span>
+<span class="kw">let</span> <span class="kw">mut</span> block = [<span class="number">0</span>; <span class="number">16</span>];
+block[<span class="number">0</span>] = <span class="number">0x61626380</span>; <span class="comment">// "abc" followed by the 0x80 padding byte</span>
+block[<span class="number">15</span>] = <span class="number">24</span>; <span class="comment">// message length in bits</span>
+
+<span class="comment">// The SHA-256 initial hash state.</span>
+<span class="kw">let</span> iv = [
+    <span class="number">0x6a09e667</span>, <span class="number">0xbb67ae85</span>, <span class="number">0x3c6ef372</span>, <span class="number">0xa54ff53a</span>, <span class="number">0x510e527f</span>, <span class="number">0x9b05688c</span>, <span class="number">0x1f83d9ab</span>,
+    <span class="number">0x5be0cd19</span>,
+];
+
+<span class="comment">// For a one-block message, compressing the padded block gives the SHA-256 digest.</span>
+<span class="kw">let</span> digest = std::hash::sha256_compression(block, iv);
+<span class="kw">assert_eq</span>(
+    digest,
+    [
+        <span class="number">0xba7816bf</span>, <span class="number">0x8f01cfea</span>, <span class="number">0x414140de</span>, <span class="number">0x5dae2223</span>, <span class="number">0xb00361a3</span>, <span class="number">0x96177a9c</span>, <span class="number">0xb410ff61</span>,
+        <span class="number">0xf20015ad</span>,
+    ],
+);</code></pre></div>
 </div>
 </main>
 </span>

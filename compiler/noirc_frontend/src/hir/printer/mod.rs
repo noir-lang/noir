@@ -550,11 +550,12 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
 
         self.push_str(" for ");
         self.show_type(&trait_impl.typ);
-        self.show_where_clause(&trait_impl.where_clause);
+        let where_clause = self.interner.get_where_clause_for_impl(trait_impl_id);
+        self.show_where_clause(where_clause);
         self.push_str(" {\n");
         self.increase_indent();
 
-        self.trait_constraints.clone_from(&trait_impl.where_clause);
+        self.trait_constraints = where_clause.to_vec();
 
         self.self_type = Some(trait_impl.typ.clone());
 

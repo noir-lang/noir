@@ -313,7 +313,6 @@ pub enum InterpreterError {
     SkippedDueToEarlierErrors,
 }
 
-#[allow(unused)]
 pub(super) type IResult<T> = Result<T, InterpreterError>;
 
 impl From<InterpreterError> for CompilationError {

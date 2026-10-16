@@ -19,7 +19,7 @@
 <h1><a href="../../index.html">noir_stdlib</a></h1>
 <div><a href="../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.4</div>
+<div id="crate-version">1.0.0-rc.5</div>
 <h2><a href="#trait">Trait Hasher</a></h2>
 <h3>Required methods</h3>
 <ul class="sidebar-list">
@@ -75,19 +75,121 @@
     pub fn <a href="#finish_ref" class="fn">finish_ref</a>(&self) -> <a href="../../std/primitive.Field.html" class="primitive">Field</a> { ... }
 }</code></pre>
 
+<div class="comments">
+<p>A hash function that accepts input one <code>Field</code> at a time.</p>
+<p>Values that implement <a href="../../std/hash/trait.Hash.html"><code>Hash</code></a> write themselves to a <code>Hasher</code> with <a href="../../std/hash/trait.Hasher.html#write"><code>Hasher::write</code></a>, and
+<a href="../../std/hash/trait.Hasher.html#finish"><code>Hasher::finish</code></a> returns the hash of everything written. Hashers are used by hash-based
+collections and by generic code that needs to hash values of any type.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::hash::Hasher;
+
+<span class="kw">struct</span> Sum {
+    total: Field,
+}
+
+<span class="kw">impl</span> Hasher <span class="kw">for</span> Sum {
+    <span class="kw">fn</span> finish(self) -&gt; Field {
+        self.total
+    }
+
+    <span class="kw">fn</span> write(&<span class="kw">mut</span> self, input: Field) {
+        self.total += input;
+    }
+}
+
+<span class="kw">fn</span> main() {
+    <span class="kw">let</span> <span class="kw">mut</span> hasher = Sum { total: <span class="number">0</span> };
+    hasher.write(<span class="number">1</span>);
+    hasher.write(<span class="number">2</span>);
+    <span class="kw">assert_eq</span>(hasher.finish_ref(), <span class="number">3</span>);
+    <span class="kw">assert_eq</span>(hasher.finish(), <span class="number">3</span>);
+}</code></pre></div>
 <h2>Required methods</h2>
 <div class="padded-methods"><code id="finish" class="code-header">pub fn <a href="#finish" class="fn">finish</a>(self) -> <a href="../../std/primitive.Field.html" class="primitive">Field</a></code>
 
-<code id="write" class="code-header">pub fn <a href="#write" class="fn">write</a>(&mut self, input: <a href="../../std/primitive.Field.html" class="primitive">Field</a>)</code>
+<div class="padded-description"><div class="comments">
+<p>Returns the hash of everything written so far, consuming the hasher.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::hash::Hasher;
 
-</div><h2>Provided methods</h2>
+<span class="kw">struct</span> Sum {
+    total: Field,
+}
+
+<span class="kw">impl</span> Hasher <span class="kw">for</span> Sum {
+    <span class="kw">fn</span> finish(self) -&gt; Field {
+        self.total
+    }
+
+    <span class="kw">fn</span> write(&<span class="kw">mut</span> self, input: Field) {
+        self.total += input;
+    }
+}
+
+<span class="kw">fn</span> main() {
+    <span class="kw">let</span> <span class="kw">mut</span> hasher = Sum { total: <span class="number">0</span> };
+    hasher.write(<span class="number">4</span>);
+    <span class="kw">assert_eq</span>(hasher.finish(), <span class="number">4</span>);
+}</code></pre></div>
+</div><code id="write" class="code-header">pub fn <a href="#write" class="fn">write</a>(&mut self, input: <a href="../../std/primitive.Field.html" class="primitive">Field</a>)</code>
+
+<div class="padded-description"><div class="comments">
+<p>Adds <code>input</code> to the data being hashed.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::hash::Hasher;
+
+<span class="kw">struct</span> Sum {
+    total: Field,
+}
+
+<span class="kw">impl</span> Hasher <span class="kw">for</span> Sum {
+    <span class="kw">fn</span> finish(self) -&gt; Field {
+        self.total
+    }
+
+    <span class="kw">fn</span> write(&<span class="kw">mut</span> self, input: Field) {
+        self.total += input;
+    }
+}
+
+<span class="kw">fn</span> main() {
+    <span class="kw">let</span> <span class="kw">mut</span> hasher = Sum { total: <span class="number">0</span> };
+    hasher.write(<span class="number">1</span>);
+    hasher.write(<span class="number">2</span>);
+    <span class="kw">assert_eq</span>(hasher.finish(), <span class="number">3</span>);
+}</code></pre></div>
+</div></div><h2>Provided methods</h2>
 <div class="padded-methods"><code id="finish_ref" class="code-header">pub fn <a href="#finish_ref" class="fn">finish_ref</a>(&self) -> <a href="../../std/primitive.Field.html" class="primitive">Field</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns the hash value without consuming the hasher.
-Override this for more efficient implementations that avoid copying.
-TODO: deprecate finish() and replace it</p>
-</div>
+Override this for more efficient implementations that avoid copying.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::hash::Hasher;
+
+<span class="kw">struct</span> Sum {
+    total: Field,
+}
+
+<span class="kw">impl</span> Hasher <span class="kw">for</span> Sum {
+    <span class="kw">fn</span> finish(self) -&gt; Field {
+        self.total
+    }
+
+    <span class="kw">fn</span> write(&<span class="kw">mut</span> self, input: Field) {
+        self.total += input;
+    }
+}
+
+<span class="kw">fn</span> main() {
+    <span class="kw">let</span> <span class="kw">mut</span> hasher = Sum { total: <span class="number">0</span> };
+    hasher.write(<span class="number">4</span>);
+    <span class="kw">assert_eq</span>(hasher.finish_ref(), <span class="number">4</span>);
+
+    <span class="comment">// The hasher can still be written to.</span>
+    hasher.write(<span class="number">1</span>);
+    <span class="kw">assert_eq</span>(hasher.finish_ref(), <span class="number">5</span>);
+}</code></pre></div>
 </div></div><h2>Implementors</h2>
 <h3 id="impl-Hasher-for-MaxHasher"><code class="code-header">impl <a href="../../std/hash/trait.Hasher.html" class="trait">Hasher</a> for MaxHasher</code></h3>
 

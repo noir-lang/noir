@@ -255,8 +255,9 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
             |this: &mut Self, idx: usize| this.define_variable(results[idx], dfg).extract_vector();
 
         match intrinsic {
-            Value::Intrinsic(Intrinsic::VectorPushBack) => {
+            Value::Intrinsic(push @ (Intrinsic::VectorPushBack | Intrinsic::VectorPushFront)) => {
                 // target_len, target_vector = vector_push_back source_len, source_vector, ...elements
+                // (and likewise for vector_push_front)
                 let target_len = get_target_len(self, 0);
                 let target_vector = get_target_vector(self, 1);
 
@@ -267,28 +268,12 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
                 // target_len = source_len + 1
                 self.update_vector_length(target_len, source_len, BrilligBinaryOp::Add);
 
-                self.vector_push_back_operation(
+                self.vector_push_operation(
                     target_vector,
                     source_len,
                     source_vector,
                     &item_values,
-                );
-            }
-            Value::Intrinsic(Intrinsic::VectorPushFront) => {
-                let target_len = get_target_len(self, 0);
-                let target_vector = get_target_vector(self, 1);
-
-                let item_values = vecmap(&arguments[2..element_size + 2], |arg| {
-                    self.convert_ssa_value(*arg, dfg)
-                });
-
-                self.update_vector_length(target_len, source_len, BrilligBinaryOp::Add);
-
-                self.vector_push_front_operation(
-                    target_vector,
-                    source_len,
-                    source_vector,
-                    &item_values,
+                    *push == Intrinsic::VectorPushBack,
                 );
             }
             Value::Intrinsic(Intrinsic::VectorPopBack) => {

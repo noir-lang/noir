@@ -142,7 +142,6 @@ impl Value {
         }
     }
 
-    #[allow(unused)]
     pub(crate) fn get_type(&self) -> Type {
         match self {
             Value::Numeric(numeric_value) => Type::Numeric(numeric_value.get_type()),

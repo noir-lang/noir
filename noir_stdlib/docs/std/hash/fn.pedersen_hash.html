@@ -19,7 +19,7 @@
 <h1><a href="../../index.html">noir_stdlib</a></h1>
 <div><a href="../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.4</div>
+<div id="crate-version">1.0.0-rc.5</div>
 <h2>In module hash</h2>
 <h3>Structs</h3><ul class="item-list">
 <li><a href="struct.BuildHasherDefault.html">BuildHasherDefault</a></div></li>
@@ -53,6 +53,21 @@
 <div id="page-content">
 <pre><code>pub fn pedersen_hash&lt;let N: <a href="../../std/primitive.u32.html" class="primitive">u32</a>&gt;(input: [<a href="../../std/primitive.Field.html" class="primitive">Field</a>; N]) -> <a href="../../std/primitive.Field.html" class="primitive">Field</a></code></pre>
 
+<div class="comments">
+<p>Returns the Pedersen hash of <code>input</code>.</p>
+<p>The hash is the x-coordinate of <code>input[0] * G[0] + ... + input[N - 1] * G[N - 1] + N * L</code>, where
+the generators <code>G[i]</code> are those of <a href="../../std/hash/fn.pedersen_commitment.html"><code>pedersen_commitment</code></a> and <code>L</code> is a separate generator for
+the length. Because the length is included, inputs that differ only by trailing zeros hash to
+different values.</p>
+<p>Only available when compiling for the BN254 field.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::hash::pedersen_hash;
+
+<span class="kw">let</span> hash = pedersen_hash([<span class="number">1</span>, <span class="number">2</span>]);
+<span class="kw">assert</span>(hash != pedersen_hash([<span class="number">2</span>, <span class="number">1</span>]));
+
+<span class="comment">// The length is part of the hash.</span>
+<span class="kw">assert</span>(pedersen_hash([<span class="number">1</span>, <span class="number">2</span>]) != pedersen_hash([<span class="number">1</span>, <span class="number">2</span>, <span class="number">0</span>]));</code></pre></div>
 </div>
 </main>
 </span>
