@@ -7,6 +7,7 @@
     "dev": "HOST=0.0.0.0 ENV=dev yarn preprocess && ENV=dev docusaurus start --host ${HOST:-localhost}",
     "dev:netlify": "yarn netlify dev",
     "build": "yarn preprocess && docusaurus build",
+    "routes:snapshot": "ROUTES_SNAPSHOT=update yarn build",
     "clean": "rm -rf ./processed-docs ./processed-docs-cache ./build",
     "version::stables": "ts-node ./scripts/setStable.ts",
     "serve": "serve build",
