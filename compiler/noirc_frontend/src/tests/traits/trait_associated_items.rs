@@ -4023,3 +4023,68 @@ fn associated_constant_of_an_impl_declared_later_needs_its_where_clause() {
     "#;
     check_errors(src);
 }
+
+/// `W: Conv<_>` has two candidates: `Conv<[u8]>`, and `Conv<U>` where `Wb<U>: Baz`. That where
+/// clause can't be decided yet, because the only `Baz` impl has a where clause of its own on the
+/// array's element type. So no impl is chosen until the argument makes `U` an array.
+#[test]
+fn where_clause_undecided_one_level_down_waits_for_the_call_argument() {
+    let src = r#"
+    pub struct Wb<T> { t: T }
+    trait Qux {}
+    impl Qux for u8 {}
+    trait Baz {}
+    impl<V, let N: u32> Baz for Wb<[V; N]> where V: Qux {}
+    trait Conv<U> { fn conv(self, u: U) -> Field; }
+    pub struct W {}
+    impl Conv<[u8]> for W { fn conv(self, _u: [u8]) -> Field { 10 } }
+    impl<U> Conv<U> for W where Wb<U>: Baz { fn conv(self, _u: U) -> Field { 20 } }
+    fn main() -> pub Field {
+        let x: [u8; 3] = [1, 2, 3];
+        W {}.conv(x)
+    }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub Field {
+        let x$l0 = [1, 2, 3];
+        conv$f1({
+            ()
+        }, x$l0)
+    }
+    fn conv$f1(self$l1: (), _u$l2: [u8; 3]) -> Field {
+        20
+    }
+    ");
+}
+
+/// As above, but `Wb<U>: Baz` can't be decided yet because two `Baz` impls match it.
+#[test]
+fn where_clause_with_several_matching_impls_waits_for_the_call_argument() {
+    let src = r#"
+    pub struct Wb<T> { t: T }
+    trait Baz {}
+    impl Baz for Wb<u8> {}
+    impl Baz for Wb<u16> {}
+    trait Conv<U> { fn conv(self, u: U) -> Field; }
+    pub struct W {}
+    impl Conv<u64> for W { fn conv(self, _u: u64) -> Field { 10 } }
+    impl<U> Conv<U> for W where Wb<U>: Baz { fn conv(self, _u: U) -> Field { 20 } }
+    fn main() -> pub Field {
+        let x: u8 = 5;
+        W {}.conv(x)
+    }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub Field {
+        let x$l0 = 5;
+        conv$f1({
+            ()
+        }, x$l0)
+    }
+    fn conv$f1(self$l1: (), _u$l2: u8) -> Field {
+        20
+    }
+    ");
+}

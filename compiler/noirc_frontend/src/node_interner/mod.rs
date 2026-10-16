@@ -380,6 +380,22 @@ pub enum ImplSearchErrorKind {
     RecursionLimitReached,
 }
 
+impl ImplSearchErrorKind {
+    /// Whether the search couldn't decide yet, because the answer depends on a type that isn't
+    /// known: a later binding may still make it succeed. Every other error is final.
+    pub(crate) fn is_undecided(&self) -> bool {
+        match self {
+            ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType
+            | ImplSearchErrorKind::MultipleMatching(_) => true,
+            // Reaching the limit doesn't depend on what is known yet: the impls recurse
+            // without end whatever the types turn out to be.
+            ImplSearchErrorKind::NoImplFound(_)
+            | ImplSearchErrorKind::NoMatching(_)
+            | ImplSearchErrorKind::RecursionLimitReached => false,
+        }
+    }
+}
+
 /// All the information from a function that is filled out during definition collection rather than
 /// name resolution. As a result, if information about a function is needed during name resolution,
 /// this is the only place where it is safe to retrieve it (where all fields are guaranteed to be initialized).
