@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792164595439,
+  "lastUpdate": 1792165024006,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14872,95 +14872,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "f053fb3b15b084ded1cafe09a85a0461d0025119",
-          "message": "fix(frontend): instantiate a generic trait impl's self type when looking up its methods (#13942)",
-          "timestamp": "2026-10-09T19:55:05Z",
-          "tree_id": "65d1c790adae768104f1c8502e3e53c6b69edeb1",
-          "url": "https://github.com/noir-lang/noir/commit/f053fb3b15b084ded1cafe09a85a0461d0025119"
-        },
-        "date": 1791577966553,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 306.9,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 349.77,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 336.2,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 393.81,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 391.09,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 1270,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 1270,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 391.33,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 490.6,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 500.77,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 390.5,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 88.08,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 79.79,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "b28a74121c7c5d73f84845d2bdee4b4d42b73663",
           "message": "fix(frontend): bind a generic impl's generics for the Type::CONST shorthand (#13944)",
           "timestamp": "2026-10-09T22:20:57Z",
@@ -19300,6 +19211,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "semaphore_depth_10",
             "value": 88.3,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 79.98,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0e3a9a55d95fc49d79b8a317339517cc2b5c32f6",
+          "message": "fix(frontend): read a trait impl's associated constant from a global while the impl is collected (#14011)",
+          "timestamp": "2026-10-16T14:56:09Z",
+          "tree_id": "3a924f87ac13e63617fef8fd160601eb78bf1490",
+          "url": "https://github.com/noir-lang/noir/commit/0e3a9a55d95fc49d79b8a317339517cc2b5c32f6"
+        },
+        "date": 1792164931051,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 307.06,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 349.91,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 336.36,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 394.11,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 391.4,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1270,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1270,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 391.63,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 490.9,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 501.04,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 390.8,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 88.29,
             "unit": "MB"
           },
           {
