@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792167758653,
+  "lastUpdate": 1792173036113,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22986,48 +22986,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "4aedf4db1b7491a5eebc6ac0e4c2244109ce024d",
-          "message": "fix(frontend): substitute a use's generics simultaneously when instantiating an item (#13946)",
-          "timestamp": "2026-10-10T20:24:10Z",
-          "tree_id": "fcc7b3a52615b1eff3bd64625e312aca1eba2227",
-          "url": "https://github.com/noir-lang/noir/commit/4aedf4db1b7491a5eebc6ac0e4c2244109ce024d"
-        },
-        "date": 1791665018231,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 98166,
-            "range": "± 354",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 86848,
-            "range": "± 931",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2360226,
-            "range": "± 11518",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "a7cae8498cd82df9308d86bd596f3d2f1aeee1c6",
           "message": "fix(frontend): keep the implemented trait as the current trait in trait impl method bodies (#13951)",
           "timestamp": "2026-10-11T13:41:18Z",
@@ -25069,6 +25027,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2374715,
             "range": "± 4714",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2873da68b63fa03abc2f9fd547bed64c425c4059",
+          "message": "chore(stdlib): document UHashMap and Option, and state BoundedVec's unchecked guarantees (#14021)",
+          "timestamp": "2026-10-16T17:25:53Z",
+          "tree_id": "24c3cfd414cb4c021775e16db534ba7c181e800c",
+          "url": "https://github.com/noir-lang/noir/commit/2873da68b63fa03abc2f9fd547bed64c425c4059"
+        },
+        "date": 1792172940360,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 171493,
+            "range": "± 1372",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 140088,
+            "range": "± 1511",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2653030,
+            "range": "± 1981",
             "unit": "ns/iter"
           }
         ]
