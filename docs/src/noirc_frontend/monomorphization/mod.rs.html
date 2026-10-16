@@ -3434,18 +3434,18 @@
 <a href=#3434 id=3434 data-nosnippet>3434</a>    })<span class="question-mark">?</span>;
 <a href=#3435 id=3435 data-nosnippet>3435</a>
 <a href=#3436 id=3436 data-nosnippet>3436</a>    <span class="kw">match </span>trait_impl {
-<a href=#3437 id=3437 data-nosnippet>3437</a>        TraitImplKind::Normal(impl_id) =&gt; {
-<a href=#3438 id=3438 data-nosnippet>3438</a>            <span class="kw">let </span>instantiation_bindings = impl_instantiation_bindings(
-<a href=#3439 id=3439 data-nosnippet>3439</a>                interner,
-<a href=#3440 id=3440 data-nosnippet>3440</a>                method_id,
-<a href=#3441 id=3441 data-nosnippet>3441</a>                impl_id,
-<a href=#3442 id=3442 data-nosnippet>3442</a>                expr_id,
-<a href=#3443 id=3443 data-nosnippet>3443</a>                TypeBindings::default(),
-<a href=#3444 id=3444 data-nosnippet>3444</a>            );
-<a href=#3445 id=3445 data-nosnippet>3445</a>            <span class="prelude-val">Ok</span>((impl_id, TypeBindings::default(), instantiation_bindings))
-<a href=#3446 id=3446 data-nosnippet>3446</a>        }
-<a href=#3447 id=3447 data-nosnippet>3447</a>        TraitImplKind::Prepared { .. } =&gt; {
-<a href=#3448 id=3448 data-nosnippet>3448</a>            <span class="macro">unreachable!</span>(<span class="string">"ICE: Prepared trait impl should have been replaced by a Normal one"</span>)
+<a href=#3437 id=3437 data-nosnippet>3437</a>        <span class="comment">// An impl that isn't collected yet is selected when an expression is evaluated at compile
+<a href=#3438 id=3438 data-nosnippet>3438</a>        // time while impls are being collected: a global initializer that reads an associated
+<a href=#3439 id=3439 data-nosnippet>3439</a>        // constant, for example.
+<a href=#3440 id=3440 data-nosnippet>3440</a>        </span>TraitImplKind::Normal(impl_id) | TraitImplKind::Prepared(impl_id, <span class="kw">_</span>) =&gt; {
+<a href=#3441 id=3441 data-nosnippet>3441</a>            <span class="kw">let </span>instantiation_bindings = impl_instantiation_bindings(
+<a href=#3442 id=3442 data-nosnippet>3442</a>                interner,
+<a href=#3443 id=3443 data-nosnippet>3443</a>                method_id,
+<a href=#3444 id=3444 data-nosnippet>3444</a>                impl_id,
+<a href=#3445 id=3445 data-nosnippet>3445</a>                expr_id,
+<a href=#3446 id=3446 data-nosnippet>3446</a>                TypeBindings::default(),
+<a href=#3447 id=3447 data-nosnippet>3447</a>            )<span class="question-mark">?</span>;
+<a href=#3448 id=3448 data-nosnippet>3448</a>            <span class="prelude-val">Ok</span>((impl_id, TypeBindings::default(), instantiation_bindings))
 <a href=#3449 id=3449 data-nosnippet>3449</a>        }
 <a href=#3450 id=3450 data-nosnippet>3450</a>        TraitImplKind::Assumed { object_type, trait_generics } =&gt; {
 <a href=#3451 id=3451 data-nosnippet>3451</a>            <span class="kw">let </span>location = interner.expr_location(<span class="kw-2">&amp;</span>expr_id);
@@ -3463,316 +3463,330 @@
 <a href=#3463 id=3463 data-nosnippet>3463</a>                <span class="kw-2">&amp;</span>named,
 <a href=#3464 id=3464 data-nosnippet>3464</a>                TraitLookupMode::Default,
 <a href=#3465 id=3465 data-nosnippet>3465</a>            ) {
-<a href=#3466 id=3466 data-nosnippet>3466</a>                <span class="prelude-val">Ok</span>((TraitImplKind::Normal(impl_id), bindings, instantiation_bindings)) =&gt; {
-<a href=#3467 id=3467 data-nosnippet>3467</a>                    <span class="comment">// The extra bindings come from impl lookup, similar to what's done when
-<a href=#3468 id=3468 data-nosnippet>3468</a>                    // solving trait constraints in the frontend (see `check_trait_constraints`).
-<a href=#3469 id=3469 data-nosnippet>3469</a>                    </span><span class="kw">let </span>instantiation_bindings = impl_instantiation_bindings(
-<a href=#3470 id=3470 data-nosnippet>3470</a>                        interner,
-<a href=#3471 id=3471 data-nosnippet>3471</a>                        method_id,
-<a href=#3472 id=3472 data-nosnippet>3472</a>                        impl_id,
-<a href=#3473 id=3473 data-nosnippet>3473</a>                        expr_id,
-<a href=#3474 id=3474 data-nosnippet>3474</a>                        instantiation_bindings,
-<a href=#3475 id=3475 data-nosnippet>3475</a>                    );
-<a href=#3476 id=3476 data-nosnippet>3476</a>                    <span class="prelude-val">Ok</span>((impl_id, bindings, instantiation_bindings))
-<a href=#3477 id=3477 data-nosnippet>3477</a>                }
-<a href=#3478 id=3478 data-nosnippet>3478</a>                <span class="prelude-val">Ok</span>((TraitImplKind::Assumed { .. }, ..)) =&gt; {
-<a href=#3479 id=3479 data-nosnippet>3479</a>                    <span class="prelude-val">Err</span>(InterpreterError::NoImpl { location })
-<a href=#3480 id=3480 data-nosnippet>3480</a>                }
-<a href=#3481 id=3481 data-nosnippet>3481</a>                <span class="prelude-val">Ok</span>((TraitImplKind::Prepared { .. }, ..)) =&gt; {
-<a href=#3482 id=3482 data-nosnippet>3482</a>                    <span class="macro">unreachable!</span>(
-<a href=#3483 id=3483 data-nosnippet>3483</a>                        <span class="string">"ICE: Prepared trait impl should have been replaced by a Normal one"
-<a href=#3484 id=3484 data-nosnippet>3484</a>                    </span>)
-<a href=#3485 id=3485 data-nosnippet>3485</a>                }
-<a href=#3486 id=3486 data-nosnippet>3486</a>                <span class="prelude-val">Err</span>(ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType) =&gt; {
-<a href=#3487 id=3487 data-nosnippet>3487</a>                    <span class="prelude-val">Err</span>(InterpreterError::TypeAnnotationsNeededForMethodCall { location })
-<a href=#3488 id=3488 data-nosnippet>3488</a>                }
-<a href=#3489 id=3489 data-nosnippet>3489</a>                <span class="prelude-val">Err</span>(
-<a href=#3490 id=3490 data-nosnippet>3490</a>                    ImplSearchErrorKind::NoImplFound(constraints)
-<a href=#3491 id=3491 data-nosnippet>3491</a>                    | ImplSearchErrorKind::NoMatching(constraints),
-<a href=#3492 id=3492 data-nosnippet>3492</a>                ) =&gt; {
-<a href=#3493 id=3493 data-nosnippet>3493</a>                    <span class="kw">if let </span><span class="prelude-val">Some</span>(error) =
-<a href=#3494 id=3494 data-nosnippet>3494</a>                        NoMatchingImplFoundError::new(interner, constraints, location)
-<a href=#3495 id=3495 data-nosnippet>3495</a>                    {
-<a href=#3496 id=3496 data-nosnippet>3496</a>                        <span class="prelude-val">Err</span>(InterpreterError::NoMatchingImplFound { error })
-<a href=#3497 id=3497 data-nosnippet>3497</a>                    } <span class="kw">else </span>{
-<a href=#3498 id=3498 data-nosnippet>3498</a>                        <span class="prelude-val">Err</span>(InterpreterError::NoImpl { location })
-<a href=#3499 id=3499 data-nosnippet>3499</a>                    }
-<a href=#3500 id=3500 data-nosnippet>3500</a>                }
-<a href=#3501 id=3501 data-nosnippet>3501</a>                <span class="prelude-val">Err</span>(ImplSearchErrorKind::MultipleMatching(candidates)) =&gt; {
-<a href=#3502 id=3502 data-nosnippet>3502</a>                    <span class="prelude-val">Err</span>(InterpreterError::MultipleMatchingImpls {
-<a href=#3503 id=3503 data-nosnippet>3503</a>                        object_type,
-<a href=#3504 id=3504 data-nosnippet>3504</a>                        location,
-<a href=#3505 id=3505 data-nosnippet>3505</a>                        candidates,
-<a href=#3506 id=3506 data-nosnippet>3506</a>                    })
-<a href=#3507 id=3507 data-nosnippet>3507</a>                }
-<a href=#3508 id=3508 data-nosnippet>3508</a>                <span class="prelude-val">Err</span>(ImplSearchErrorKind::RecursionLimitReached) =&gt; {
-<a href=#3509 id=3509 data-nosnippet>3509</a>                    <span class="prelude-val">Err</span>(InterpreterError::TraitImplResolutionRecursionLimitReached { location })
-<a href=#3510 id=3510 data-nosnippet>3510</a>                }
-<a href=#3511 id=3511 data-nosnippet>3511</a>            }
-<a href=#3512 id=3512 data-nosnippet>3512</a>        }
-<a href=#3513 id=3513 data-nosnippet>3513</a>    }
-<a href=#3514 id=3514 data-nosnippet>3514</a>}
-<a href=#3515 id=3515 data-nosnippet>3515</a>
-<a href=#3516 id=3516 data-nosnippet>3516</a><span class="doccomment">/// The instantiation bindings of a trait-method call expression once a concrete impl has been
-<a href=#3517 id=3517 data-nosnippet>3517</a>/// chosen for it: the expression's own, plus any discovered during impl lookup, plus the
-<a href=#3518 id=3518 data-nosnippet>3518</a>/// bindings connecting the impl method's direct generics to the trait method's generics, plus
-<a href=#3519 id=3519 data-nosnippet>3519</a>/// the trait's `Self` bound to the impl's self type when applicable.
-<a href=#3520 id=3520 data-nosnippet>3520</a></span><span class="kw">fn </span>impl_instantiation_bindings(
-<a href=#3521 id=3521 data-nosnippet>3521</a>    interner: <span class="kw-2">&amp;</span>NodeInterner,
-<a href=#3522 id=3522 data-nosnippet>3522</a>    method_id: TraitItemId,
-<a href=#3523 id=3523 data-nosnippet>3523</a>    impl_id: node_interner::TraitImplId,
-<a href=#3524 id=3524 data-nosnippet>3524</a>    expr_id: ExprId,
-<a href=#3525 id=3525 data-nosnippet>3525</a>    extra_bindings: TypeBindings,
-<a href=#3526 id=3526 data-nosnippet>3526</a>) -&gt; TypeBindings {
-<a href=#3527 id=3527 data-nosnippet>3527</a>    <span class="kw">let </span><span class="kw-2">mut </span>bindings = interner.get_instantiation_bindings(expr_id).clone();
-<a href=#3528 id=3528 data-nosnippet>3528</a>    bindings.extend(extra_bindings);
-<a href=#3529 id=3529 data-nosnippet>3529</a>    <span class="comment">// The impl method's generics and the trait's `Self` are bound to types written in terms of
-<a href=#3530 id=3530 data-nosnippet>3530</a>    // the trait method's generics and the impl's, which `bindings` binds.
-<a href=#3531 id=3531 data-nosnippet>3531</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>derived = TypeBindings::default();
-<a href=#3532 id=3532 data-nosnippet>3532</a>    bind_trait_impl_func_generics_to_trait_func_generics(
-<a href=#3533 id=3533 data-nosnippet>3533</a>        interner,
-<a href=#3534 id=3534 data-nosnippet>3534</a>        method_id,
-<a href=#3535 id=3535 data-nosnippet>3535</a>        impl_id,
-<a href=#3536 id=3536 data-nosnippet>3536</a>        <span class="kw-2">&amp;mut </span>derived,
-<a href=#3537 id=3537 data-nosnippet>3537</a>    );
-<a href=#3538 id=3538 data-nosnippet>3538</a>    bind_trait_self_to_impl_self(interner, method_id, impl_id, <span class="kw-2">&amp;mut </span>derived);
-<a href=#3539 id=3539 data-nosnippet>3539</a>    <span class="kw">for </span>(id, (var, kind, typ)) <span class="kw">in </span>derived {
-<a href=#3540 id=3540 data-nosnippet>3540</a>        <span class="kw">let </span>typ = typ.substitute(<span class="kw-2">&amp;</span>bindings);
-<a href=#3541 id=3541 data-nosnippet>3541</a>        bindings.insert(id, (var, kind, typ));
-<a href=#3542 id=3542 data-nosnippet>3542</a>    }
-<a href=#3543 id=3543 data-nosnippet>3543</a>    bindings
-<a href=#3544 id=3544 data-nosnippet>3544</a>}
-<a href=#3545 id=3545 data-nosnippet>3545</a>
-<a href=#3546 id=3546 data-nosnippet>3546</a><span class="doccomment">/// Bind the trait's `Self` type variable to the impl's concrete self type when the impl's
-<a href=#3547 id=3547 data-nosnippet>3547</a>/// matching method shares the trait's default-method `FuncId`. In this case the impl has
-<a href=#3548 id=3548 data-nosnippet>3548</a>/// no per-impl `FuncId` to attach `func_id_to_trait` to, so `function()`'s usual `force_bind`
-<a href=#3549 id=3549 data-nosnippet>3549</a>/// of `Self` doesn't run; without this helper the shared body's references to `Self`
-<a href=#3550 id=3550 data-nosnippet>3550</a>/// (e.g. `Self::N`) can't resolve at monomorphization.
-<a href=#3551 id=3551 data-nosnippet>3551</a>///
-<a href=#3552 id=3552 data-nosnippet>3552</a>/// For impl methods with their own `FuncId` (the typical case), `set_function_trait` is set
-<a href=#3553 id=3553 data-nosnippet>3553</a>/// during elaboration and `function()` already binds `Self`, so this helper is a no-op for
-<a href=#3554 id=3554 data-nosnippet>3554</a>/// them.
-<a href=#3555 id=3555 data-nosnippet>3555</a></span><span class="kw">fn </span>bind_trait_self_to_impl_self(
-<a href=#3556 id=3556 data-nosnippet>3556</a>    interner: <span class="kw-2">&amp;</span>NodeInterner,
-<a href=#3557 id=3557 data-nosnippet>3557</a>    method_id: TraitItemId,
-<a href=#3558 id=3558 data-nosnippet>3558</a>    impl_id: node_interner::TraitImplId,
-<a href=#3559 id=3559 data-nosnippet>3559</a>    bindings: <span class="kw-2">&amp;mut </span>TypeBindings,
-<a href=#3560 id=3560 data-nosnippet>3560</a>) {
-<a href=#3561 id=3561 data-nosnippet>3561</a>    <span class="comment">// Only bind `Self` when the impl inherited the trait's default body, i.e. when
-<a href=#3562 id=3562 data-nosnippet>3562</a>    // the impl's slot for this method is the trait's own `FuncId`. For overridden
-<a href=#3563 id=3563 data-nosnippet>3563</a>    // methods the impl's per-impl `FuncId` has `func_id_to_trait` set, and
-<a href=#3564 id=3564 data-nosnippet>3564</a>    // `function()` already binds `Self` from there.
-<a href=#3565 id=3565 data-nosnippet>3565</a>    </span><span class="kw">let </span>DefinitionKind::Function(trait_func_id) = interner.definition(method_id.item_id).kind
-<a href=#3566 id=3566 data-nosnippet>3566</a>    <span class="kw">else </span>{
-<a href=#3567 id=3567 data-nosnippet>3567</a>        <span class="kw">return</span>;
-<a href=#3568 id=3568 data-nosnippet>3568</a>    };
-<a href=#3569 id=3569 data-nosnippet>3569</a>    <span class="kw">let </span>impl_ = interner.get_trait_implementation(impl_id);
-<a href=#3570 id=3570 data-nosnippet>3570</a>    <span class="kw">let </span>impl_ = impl_.borrow();
-<a href=#3571 id=3571 data-nosnippet>3571</a>    <span class="kw">if </span>!impl_.methods.contains(<span class="kw-2">&amp;</span>trait_func_id) {
-<a href=#3572 id=3572 data-nosnippet>3572</a>        <span class="kw">return</span>;
-<a href=#3573 id=3573 data-nosnippet>3573</a>    }
-<a href=#3574 id=3574 data-nosnippet>3574</a>
-<a href=#3575 id=3575 data-nosnippet>3575</a>    <span class="kw">let </span>trait_def = interner.get_trait(method_id.trait_id);
-<a href=#3576 id=3576 data-nosnippet>3576</a>    trait_def.self_param.bind(<span class="kw-2">&amp;</span>impl_.typ, bindings);
-<a href=#3577 id=3577 data-nosnippet>3577</a>}
-<a href=#3578 id=3578 data-nosnippet>3578</a>
-<a href=#3579 id=3579 data-nosnippet>3579</a><span class="doccomment">/// Binds direct generics on a trait impl function to those on a corresponding trait function.
-<a href=#3580 id=3580 data-nosnippet>3580</a>///
-<a href=#3581 id=3581 data-nosnippet>3581</a>/// Consider this code:
-<a href=#3582 id=3582 data-nosnippet>3582</a>///
-<a href=#3583 id=3583 data-nosnippet>3583</a>/// ```noir
-<a href=#3584 id=3584 data-nosnippet>3584</a>/// trait Bar {
-<a href=#3585 id=3585 data-nosnippet>3585</a>///     fn baz&lt;let N: u32&gt;();
-<a href=#3586 id=3586 data-nosnippet>3586</a>/// }
-<a href=#3587 id=3587 data-nosnippet>3587</a>///
-<a href=#3588 id=3588 data-nosnippet>3588</a>/// impl Bar for Field {
-<a href=#3589 id=3589 data-nosnippet>3589</a>///     fn baz&lt;let M: u32&gt;() {
-<a href=#3590 id=3590 data-nosnippet>3590</a>///         let _ = M;
-<a href=#3591 id=3591 data-nosnippet>3591</a>///     }
-<a href=#3592 id=3592 data-nosnippet>3592</a>/// }
-<a href=#3593 id=3593 data-nosnippet>3593</a>///
-<a href=#3594 id=3594 data-nosnippet>3594</a>/// fn foo&lt;K: Bar&gt;() {
-<a href=#3595 id=3595 data-nosnippet>3595</a>///     K::baz::&lt;2&gt;();
-<a href=#3596 id=3596 data-nosnippet>3596</a>/// }
-<a href=#3597 id=3597 data-nosnippet>3597</a>///
-<a href=#3598 id=3598 data-nosnippet>3598</a>/// fn main() {
-<a href=#3599 id=3599 data-nosnippet>3599</a>///     foo::&lt;Field&gt;();
-<a href=#3600 id=3600 data-nosnippet>3600</a>/// }
-<a href=#3601 id=3601 data-nosnippet>3601</a>/// ```
+<a href=#3466 id=3466 data-nosnippet>3466</a>                <span class="prelude-val">Ok</span>((
+<a href=#3467 id=3467 data-nosnippet>3467</a>                    TraitImplKind::Normal(impl_id) | TraitImplKind::Prepared(impl_id, <span class="kw">_</span>),
+<a href=#3468 id=3468 data-nosnippet>3468</a>                    bindings,
+<a href=#3469 id=3469 data-nosnippet>3469</a>                    instantiation_bindings,
+<a href=#3470 id=3470 data-nosnippet>3470</a>                )) =&gt; {
+<a href=#3471 id=3471 data-nosnippet>3471</a>                    <span class="comment">// The extra bindings come from impl lookup, similar to what's done when
+<a href=#3472 id=3472 data-nosnippet>3472</a>                    // solving trait constraints in the frontend (see `check_trait_constraints`).
+<a href=#3473 id=3473 data-nosnippet>3473</a>                    </span><span class="kw">let </span>instantiation_bindings = impl_instantiation_bindings(
+<a href=#3474 id=3474 data-nosnippet>3474</a>                        interner,
+<a href=#3475 id=3475 data-nosnippet>3475</a>                        method_id,
+<a href=#3476 id=3476 data-nosnippet>3476</a>                        impl_id,
+<a href=#3477 id=3477 data-nosnippet>3477</a>                        expr_id,
+<a href=#3478 id=3478 data-nosnippet>3478</a>                        instantiation_bindings,
+<a href=#3479 id=3479 data-nosnippet>3479</a>                    )<span class="question-mark">?</span>;
+<a href=#3480 id=3480 data-nosnippet>3480</a>                    <span class="prelude-val">Ok</span>((impl_id, bindings, instantiation_bindings))
+<a href=#3481 id=3481 data-nosnippet>3481</a>                }
+<a href=#3482 id=3482 data-nosnippet>3482</a>                <span class="prelude-val">Ok</span>((TraitImplKind::Assumed { .. }, ..)) =&gt; {
+<a href=#3483 id=3483 data-nosnippet>3483</a>                    <span class="prelude-val">Err</span>(InterpreterError::NoImpl { location })
+<a href=#3484 id=3484 data-nosnippet>3484</a>                }
+<a href=#3485 id=3485 data-nosnippet>3485</a>                <span class="prelude-val">Err</span>(ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType) =&gt; {
+<a href=#3486 id=3486 data-nosnippet>3486</a>                    <span class="prelude-val">Err</span>(InterpreterError::TypeAnnotationsNeededForMethodCall { location })
+<a href=#3487 id=3487 data-nosnippet>3487</a>                }
+<a href=#3488 id=3488 data-nosnippet>3488</a>                <span class="prelude-val">Err</span>(
+<a href=#3489 id=3489 data-nosnippet>3489</a>                    ImplSearchErrorKind::NoImplFound(constraints)
+<a href=#3490 id=3490 data-nosnippet>3490</a>                    | ImplSearchErrorKind::NoMatching(constraints),
+<a href=#3491 id=3491 data-nosnippet>3491</a>                ) =&gt; {
+<a href=#3492 id=3492 data-nosnippet>3492</a>                    <span class="kw">if let </span><span class="prelude-val">Some</span>(error) =
+<a href=#3493 id=3493 data-nosnippet>3493</a>                        NoMatchingImplFoundError::new(interner, constraints, location)
+<a href=#3494 id=3494 data-nosnippet>3494</a>                    {
+<a href=#3495 id=3495 data-nosnippet>3495</a>                        <span class="prelude-val">Err</span>(InterpreterError::NoMatchingImplFound { error })
+<a href=#3496 id=3496 data-nosnippet>3496</a>                    } <span class="kw">else </span>{
+<a href=#3497 id=3497 data-nosnippet>3497</a>                        <span class="prelude-val">Err</span>(InterpreterError::NoImpl { location })
+<a href=#3498 id=3498 data-nosnippet>3498</a>                    }
+<a href=#3499 id=3499 data-nosnippet>3499</a>                }
+<a href=#3500 id=3500 data-nosnippet>3500</a>                <span class="prelude-val">Err</span>(ImplSearchErrorKind::MultipleMatching(candidates)) =&gt; {
+<a href=#3501 id=3501 data-nosnippet>3501</a>                    <span class="prelude-val">Err</span>(InterpreterError::MultipleMatchingImpls {
+<a href=#3502 id=3502 data-nosnippet>3502</a>                        object_type,
+<a href=#3503 id=3503 data-nosnippet>3503</a>                        location,
+<a href=#3504 id=3504 data-nosnippet>3504</a>                        candidates,
+<a href=#3505 id=3505 data-nosnippet>3505</a>                    })
+<a href=#3506 id=3506 data-nosnippet>3506</a>                }
+<a href=#3507 id=3507 data-nosnippet>3507</a>                <span class="prelude-val">Err</span>(ImplSearchErrorKind::RecursionLimitReached) =&gt; {
+<a href=#3508 id=3508 data-nosnippet>3508</a>                    <span class="prelude-val">Err</span>(InterpreterError::TraitImplResolutionRecursionLimitReached { location })
+<a href=#3509 id=3509 data-nosnippet>3509</a>                }
+<a href=#3510 id=3510 data-nosnippet>3510</a>            }
+<a href=#3511 id=3511 data-nosnippet>3511</a>        }
+<a href=#3512 id=3512 data-nosnippet>3512</a>    }
+<a href=#3513 id=3513 data-nosnippet>3513</a>}
+<a href=#3514 id=3514 data-nosnippet>3514</a>
+<a href=#3515 id=3515 data-nosnippet>3515</a><span class="doccomment">/// The instantiation bindings of a trait-method call expression once a concrete impl has been
+<a href=#3516 id=3516 data-nosnippet>3516</a>/// chosen for it: the expression's own, plus any discovered during impl lookup, plus the
+<a href=#3517 id=3517 data-nosnippet>3517</a>/// bindings connecting the impl method's direct generics to the trait method's generics, plus
+<a href=#3518 id=3518 data-nosnippet>3518</a>/// the trait's `Self` bound to the impl's self type when applicable.
+<a href=#3519 id=3519 data-nosnippet>3519</a></span><span class="kw">fn </span>impl_instantiation_bindings(
+<a href=#3520 id=3520 data-nosnippet>3520</a>    interner: <span class="kw-2">&amp;</span>NodeInterner,
+<a href=#3521 id=3521 data-nosnippet>3521</a>    method_id: TraitItemId,
+<a href=#3522 id=3522 data-nosnippet>3522</a>    impl_id: node_interner::TraitImplId,
+<a href=#3523 id=3523 data-nosnippet>3523</a>    expr_id: ExprId,
+<a href=#3524 id=3524 data-nosnippet>3524</a>    extra_bindings: TypeBindings,
+<a href=#3525 id=3525 data-nosnippet>3525</a>) -&gt; <span class="prelude-ty">Result</span>&lt;TypeBindings, InterpreterError&gt; {
+<a href=#3526 id=3526 data-nosnippet>3526</a>    <span class="comment">// An impl's methods are recorded when the impl is collected. Until then only its associated
+<a href=#3527 id=3527 data-nosnippet>3527</a>    // constants can be read, which a global evaluated while impls are collected may do.
+<a href=#3528 id=3528 data-nosnippet>3528</a>    </span><span class="kw">let </span>is_method =
+<a href=#3529 id=3529 data-nosnippet>3529</a>        <span class="macro">matches!</span>(interner.definition(method_id.item_id).kind, DefinitionKind::Function(<span class="kw">_</span>));
+<a href=#3530 id=3530 data-nosnippet>3530</a>    <span class="kw">if </span>is_method &amp;&amp; interner.try_get_trait_implementation(impl_id).is_none() {
+<a href=#3531 id=3531 data-nosnippet>3531</a>        <span class="kw">let </span>name = interner.definition_name(method_id.item_id).to_string();
+<a href=#3532 id=3532 data-nosnippet>3532</a>        <span class="kw">let </span>location = interner.expr_location(<span class="kw-2">&amp;</span>expr_id);
+<a href=#3533 id=3533 data-nosnippet>3533</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::TraitImplMethodCalledBeforeItsImpl { name, location });
+<a href=#3534 id=3534 data-nosnippet>3534</a>    }
+<a href=#3535 id=3535 data-nosnippet>3535</a>
+<a href=#3536 id=3536 data-nosnippet>3536</a>    <span class="kw">let </span><span class="kw-2">mut </span>bindings = interner.get_instantiation_bindings(expr_id).clone();
+<a href=#3537 id=3537 data-nosnippet>3537</a>    bindings.extend(extra_bindings);
+<a href=#3538 id=3538 data-nosnippet>3538</a>    <span class="comment">// The impl method's generics and the trait's `Self` are bound to types written in terms of
+<a href=#3539 id=3539 data-nosnippet>3539</a>    // the trait method's generics and the impl's, which `bindings` binds.
+<a href=#3540 id=3540 data-nosnippet>3540</a>    </span><span class="kw">let </span><span class="kw-2">mut </span>derived = TypeBindings::default();
+<a href=#3541 id=3541 data-nosnippet>3541</a>    bind_trait_impl_func_generics_to_trait_func_generics(
+<a href=#3542 id=3542 data-nosnippet>3542</a>        interner,
+<a href=#3543 id=3543 data-nosnippet>3543</a>        method_id,
+<a href=#3544 id=3544 data-nosnippet>3544</a>        impl_id,
+<a href=#3545 id=3545 data-nosnippet>3545</a>        <span class="kw-2">&amp;mut </span>derived,
+<a href=#3546 id=3546 data-nosnippet>3546</a>    );
+<a href=#3547 id=3547 data-nosnippet>3547</a>    bind_trait_self_to_impl_self(interner, method_id, impl_id, <span class="kw-2">&amp;mut </span>derived);
+<a href=#3548 id=3548 data-nosnippet>3548</a>    <span class="kw">for </span>(id, (var, kind, typ)) <span class="kw">in </span>derived {
+<a href=#3549 id=3549 data-nosnippet>3549</a>        <span class="kw">let </span>typ = typ.substitute(<span class="kw-2">&amp;</span>bindings);
+<a href=#3550 id=3550 data-nosnippet>3550</a>        bindings.insert(id, (var, kind, typ));
+<a href=#3551 id=3551 data-nosnippet>3551</a>    }
+<a href=#3552 id=3552 data-nosnippet>3552</a>    <span class="prelude-val">Ok</span>(bindings)
+<a href=#3553 id=3553 data-nosnippet>3553</a>}
+<a href=#3554 id=3554 data-nosnippet>3554</a>
+<a href=#3555 id=3555 data-nosnippet>3555</a><span class="doccomment">/// Bind the trait's `Self` type variable to the impl's concrete self type when the impl's
+<a href=#3556 id=3556 data-nosnippet>3556</a>/// matching method shares the trait's default-method `FuncId`. In this case the impl has
+<a href=#3557 id=3557 data-nosnippet>3557</a>/// no per-impl `FuncId` to attach `func_id_to_trait` to, so `function()`'s usual `force_bind`
+<a href=#3558 id=3558 data-nosnippet>3558</a>/// of `Self` doesn't run; without this helper the shared body's references to `Self`
+<a href=#3559 id=3559 data-nosnippet>3559</a>/// (e.g. `Self::N`) can't resolve at monomorphization.
+<a href=#3560 id=3560 data-nosnippet>3560</a>///
+<a href=#3561 id=3561 data-nosnippet>3561</a>/// For impl methods with their own `FuncId` (the typical case), `set_function_trait` is set
+<a href=#3562 id=3562 data-nosnippet>3562</a>/// during elaboration and `function()` already binds `Self`, so this helper is a no-op for
+<a href=#3563 id=3563 data-nosnippet>3563</a>/// them.
+<a href=#3564 id=3564 data-nosnippet>3564</a></span><span class="kw">fn </span>bind_trait_self_to_impl_self(
+<a href=#3565 id=3565 data-nosnippet>3565</a>    interner: <span class="kw-2">&amp;</span>NodeInterner,
+<a href=#3566 id=3566 data-nosnippet>3566</a>    method_id: TraitItemId,
+<a href=#3567 id=3567 data-nosnippet>3567</a>    impl_id: node_interner::TraitImplId,
+<a href=#3568 id=3568 data-nosnippet>3568</a>    bindings: <span class="kw-2">&amp;mut </span>TypeBindings,
+<a href=#3569 id=3569 data-nosnippet>3569</a>) {
+<a href=#3570 id=3570 data-nosnippet>3570</a>    <span class="comment">// Only bind `Self` when the impl inherited the trait's default body, i.e. when
+<a href=#3571 id=3571 data-nosnippet>3571</a>    // the impl's slot for this method is the trait's own `FuncId`. For overridden
+<a href=#3572 id=3572 data-nosnippet>3572</a>    // methods the impl's per-impl `FuncId` has `func_id_to_trait` set, and
+<a href=#3573 id=3573 data-nosnippet>3573</a>    // `function()` already binds `Self` from there.
+<a href=#3574 id=3574 data-nosnippet>3574</a>    </span><span class="kw">let </span>DefinitionKind::Function(trait_func_id) = interner.definition(method_id.item_id).kind
+<a href=#3575 id=3575 data-nosnippet>3575</a>    <span class="kw">else </span>{
+<a href=#3576 id=3576 data-nosnippet>3576</a>        <span class="kw">return</span>;
+<a href=#3577 id=3577 data-nosnippet>3577</a>    };
+<a href=#3578 id=3578 data-nosnippet>3578</a>    <span class="kw">let </span>impl_ = interner.get_trait_implementation(impl_id);
+<a href=#3579 id=3579 data-nosnippet>3579</a>    <span class="kw">let </span>impl_ = impl_.borrow();
+<a href=#3580 id=3580 data-nosnippet>3580</a>    <span class="kw">if </span>!impl_.methods.contains(<span class="kw-2">&amp;</span>trait_func_id) {
+<a href=#3581 id=3581 data-nosnippet>3581</a>        <span class="kw">return</span>;
+<a href=#3582 id=3582 data-nosnippet>3582</a>    }
+<a href=#3583 id=3583 data-nosnippet>3583</a>
+<a href=#3584 id=3584 data-nosnippet>3584</a>    <span class="kw">let </span>trait_def = interner.get_trait(method_id.trait_id);
+<a href=#3585 id=3585 data-nosnippet>3585</a>    trait_def.self_param.bind(<span class="kw-2">&amp;</span>impl_.typ, bindings);
+<a href=#3586 id=3586 data-nosnippet>3586</a>}
+<a href=#3587 id=3587 data-nosnippet>3587</a>
+<a href=#3588 id=3588 data-nosnippet>3588</a><span class="doccomment">/// Binds direct generics on a trait impl function to those on a corresponding trait function.
+<a href=#3589 id=3589 data-nosnippet>3589</a>///
+<a href=#3590 id=3590 data-nosnippet>3590</a>/// Consider this code:
+<a href=#3591 id=3591 data-nosnippet>3591</a>///
+<a href=#3592 id=3592 data-nosnippet>3592</a>/// ```noir
+<a href=#3593 id=3593 data-nosnippet>3593</a>/// trait Bar {
+<a href=#3594 id=3594 data-nosnippet>3594</a>///     fn baz&lt;let N: u32&gt;();
+<a href=#3595 id=3595 data-nosnippet>3595</a>/// }
+<a href=#3596 id=3596 data-nosnippet>3596</a>///
+<a href=#3597 id=3597 data-nosnippet>3597</a>/// impl Bar for Field {
+<a href=#3598 id=3598 data-nosnippet>3598</a>///     fn baz&lt;let M: u32&gt;() {
+<a href=#3599 id=3599 data-nosnippet>3599</a>///         let _ = M;
+<a href=#3600 id=3600 data-nosnippet>3600</a>///     }
+<a href=#3601 id=3601 data-nosnippet>3601</a>/// }
 <a href=#3602 id=3602 data-nosnippet>3602</a>///
-<a href=#3603 id=3603 data-nosnippet>3603</a>/// When type-checking `K::baz::&lt;2&gt;` the compiler will know that it corresponds
-<a href=#3604 id=3604 data-nosnippet>3604</a>/// to the method `baz` defined on the `Bar` trait, but won't yet know which
-<a href=#3605 id=3605 data-nosnippet>3605</a>/// trait implementation it refers to. The instantiation bindings for this
-<a href=#3606 id=3606 data-nosnippet>3606</a>/// will have the type variable `N` bound to `2`.
-<a href=#3607 id=3607 data-nosnippet>3607</a>///
-<a href=#3608 id=3608 data-nosnippet>3608</a>/// During monomorphization, on the specific call to `foo::&lt;Field&gt;()`,
-<a href=#3609 id=3609 data-nosnippet>3609</a>/// the compiler will know that `K` refers to `Field`, and that `K::baz::&lt;2&gt;`
-<a href=#3610 id=3610 data-nosnippet>3610</a>/// refers to the `baz` method on the `Bar` impl for `Field`. In that method
-<a href=#3611 id=3611 data-nosnippet>3611</a>/// the type variable `M` is unbound. Looking up its value will fail.
-<a href=#3612 id=3612 data-nosnippet>3612</a>/// However, we can bind `M` to `N`, so it eventually resolves to `2`,
-<a href=#3613 id=3613 data-nosnippet>3613</a>/// which is what this method does.
-<a href=#3614 id=3614 data-nosnippet>3614</a></span><span class="kw">fn </span>bind_trait_impl_func_generics_to_trait_func_generics(
-<a href=#3615 id=3615 data-nosnippet>3615</a>    interner: <span class="kw-2">&amp;</span>NodeInterner,
-<a href=#3616 id=3616 data-nosnippet>3616</a>    method_id: TraitItemId,
-<a href=#3617 id=3617 data-nosnippet>3617</a>    impl_id: node_interner::TraitImplId,
-<a href=#3618 id=3618 data-nosnippet>3618</a>    bindings: <span class="kw-2">&amp;mut </span>TypeBindings,
-<a href=#3619 id=3619 data-nosnippet>3619</a>) {
-<a href=#3620 id=3620 data-nosnippet>3620</a>    <span class="comment">// We know the trait method this call resolves to
-<a href=#3621 id=3621 data-nosnippet>3621</a>    </span><span class="kw">let </span>trait_func_definition = interner.definition(method_id.item_id);
-<a href=#3622 id=3622 data-nosnippet>3622</a>    <span class="kw">let </span>DefinitionKind::Function(trait_func_id) = trait_func_definition.kind <span class="kw">else </span>{
-<a href=#3623 id=3623 data-nosnippet>3623</a>        <span class="kw">return</span>;
-<a href=#3624 id=3624 data-nosnippet>3624</a>    };
-<a href=#3625 id=3625 data-nosnippet>3625</a>    <span class="kw">let </span>trait_func_meta = interner.function_meta(<span class="kw-2">&amp;</span>trait_func_id);
-<a href=#3626 id=3626 data-nosnippet>3626</a>    <span class="kw">let </span>trait_func_name = interner.definition_name(method_id.item_id);
-<a href=#3627 id=3627 data-nosnippet>3627</a>
-<a href=#3628 id=3628 data-nosnippet>3628</a>    <span class="comment">// Find the corresponding trait impl method
-<a href=#3629 id=3629 data-nosnippet>3629</a>    </span><span class="kw">let </span>trait_impl = interner.get_trait_implementation(impl_id);
-<a href=#3630 id=3630 data-nosnippet>3630</a>    <span class="kw">let </span>trait_impl = trait_impl.borrow();
-<a href=#3631 id=3631 data-nosnippet>3631</a>    <span class="kw">let </span>trait_impl_func_id = trait_impl
-<a href=#3632 id=3632 data-nosnippet>3632</a>        .methods
-<a href=#3633 id=3633 data-nosnippet>3633</a>        .iter()
-<a href=#3634 id=3634 data-nosnippet>3634</a>        .find(|method| interner.function_name(method) == trait_func_name)
-<a href=#3635 id=3635 data-nosnippet>3635</a>        .expect(<span class="string">"Expected to find trait impl method"</span>);
+<a href=#3603 id=3603 data-nosnippet>3603</a>/// fn foo&lt;K: Bar&gt;() {
+<a href=#3604 id=3604 data-nosnippet>3604</a>///     K::baz::&lt;2&gt;();
+<a href=#3605 id=3605 data-nosnippet>3605</a>/// }
+<a href=#3606 id=3606 data-nosnippet>3606</a>///
+<a href=#3607 id=3607 data-nosnippet>3607</a>/// fn main() {
+<a href=#3608 id=3608 data-nosnippet>3608</a>///     foo::&lt;Field&gt;();
+<a href=#3609 id=3609 data-nosnippet>3609</a>/// }
+<a href=#3610 id=3610 data-nosnippet>3610</a>/// ```
+<a href=#3611 id=3611 data-nosnippet>3611</a>///
+<a href=#3612 id=3612 data-nosnippet>3612</a>/// When type-checking `K::baz::&lt;2&gt;` the compiler will know that it corresponds
+<a href=#3613 id=3613 data-nosnippet>3613</a>/// to the method `baz` defined on the `Bar` trait, but won't yet know which
+<a href=#3614 id=3614 data-nosnippet>3614</a>/// trait implementation it refers to. The instantiation bindings for this
+<a href=#3615 id=3615 data-nosnippet>3615</a>/// will have the type variable `N` bound to `2`.
+<a href=#3616 id=3616 data-nosnippet>3616</a>///
+<a href=#3617 id=3617 data-nosnippet>3617</a>/// During monomorphization, on the specific call to `foo::&lt;Field&gt;()`,
+<a href=#3618 id=3618 data-nosnippet>3618</a>/// the compiler will know that `K` refers to `Field`, and that `K::baz::&lt;2&gt;`
+<a href=#3619 id=3619 data-nosnippet>3619</a>/// refers to the `baz` method on the `Bar` impl for `Field`. In that method
+<a href=#3620 id=3620 data-nosnippet>3620</a>/// the type variable `M` is unbound. Looking up its value will fail.
+<a href=#3621 id=3621 data-nosnippet>3621</a>/// However, we can bind `M` to `N`, so it eventually resolves to `2`,
+<a href=#3622 id=3622 data-nosnippet>3622</a>/// which is what this method does.
+<a href=#3623 id=3623 data-nosnippet>3623</a></span><span class="kw">fn </span>bind_trait_impl_func_generics_to_trait_func_generics(
+<a href=#3624 id=3624 data-nosnippet>3624</a>    interner: <span class="kw-2">&amp;</span>NodeInterner,
+<a href=#3625 id=3625 data-nosnippet>3625</a>    method_id: TraitItemId,
+<a href=#3626 id=3626 data-nosnippet>3626</a>    impl_id: node_interner::TraitImplId,
+<a href=#3627 id=3627 data-nosnippet>3627</a>    bindings: <span class="kw-2">&amp;mut </span>TypeBindings,
+<a href=#3628 id=3628 data-nosnippet>3628</a>) {
+<a href=#3629 id=3629 data-nosnippet>3629</a>    <span class="comment">// We know the trait method this call resolves to
+<a href=#3630 id=3630 data-nosnippet>3630</a>    </span><span class="kw">let </span>trait_func_definition = interner.definition(method_id.item_id);
+<a href=#3631 id=3631 data-nosnippet>3631</a>    <span class="kw">let </span>DefinitionKind::Function(trait_func_id) = trait_func_definition.kind <span class="kw">else </span>{
+<a href=#3632 id=3632 data-nosnippet>3632</a>        <span class="kw">return</span>;
+<a href=#3633 id=3633 data-nosnippet>3633</a>    };
+<a href=#3634 id=3634 data-nosnippet>3634</a>    <span class="kw">let </span>trait_func_meta = interner.function_meta(<span class="kw-2">&amp;</span>trait_func_id);
+<a href=#3635 id=3635 data-nosnippet>3635</a>    <span class="kw">let </span>trait_func_name = interner.definition_name(method_id.item_id);
 <a href=#3636 id=3636 data-nosnippet>3636</a>
-<a href=#3637 id=3637 data-nosnippet>3637</a>    <span class="comment">// Bind trait impl func generics to trait func generics
-<a href=#3638 id=3638 data-nosnippet>3638</a>    </span><span class="kw">let </span>trait_impl_func_meta = interner.function_meta(trait_impl_func_id);
-<a href=#3639 id=3639 data-nosnippet>3639</a>    <span class="kw">let </span>trait_impl_func_generics = <span class="kw-2">&amp;</span>trait_impl_func_meta.direct_generics;
-<a href=#3640 id=3640 data-nosnippet>3640</a>    <span class="kw">let </span>trait_func_generics = <span class="kw-2">&amp;</span>trait_func_meta.direct_generics;
-<a href=#3641 id=3641 data-nosnippet>3641</a>    <span class="macro">assert_eq!</span>(
-<a href=#3642 id=3642 data-nosnippet>3642</a>        trait_impl_func_generics.len(),
-<a href=#3643 id=3643 data-nosnippet>3643</a>        trait_func_generics.len(),
-<a href=#3644 id=3644 data-nosnippet>3644</a>        <span class="string">"Trait impl function generics and trait function generics should have the same length"
-<a href=#3645 id=3645 data-nosnippet>3645</a>    </span>);
-<a href=#3646 id=3646 data-nosnippet>3646</a>    <span class="kw">for </span>(trait_func_generic, trait_impl_func_generic) <span class="kw">in
-<a href=#3647 id=3647 data-nosnippet>3647</a>        </span>trait_func_generics.iter().zip_eq(trait_impl_func_generics.iter())
-<a href=#3648 id=3648 data-nosnippet>3648</a>    {
-<a href=#3649 id=3649 data-nosnippet>3649</a>        <span class="kw">let </span>trait_impl_generic = <span class="kw-2">&amp;</span>trait_impl_func_generic.type_var;
-<a href=#3650 id=3650 data-nosnippet>3650</a>        bindings.entry(trait_impl_generic.id()).or_insert_with(|| {
-<a href=#3651 id=3651 data-nosnippet>3651</a>            (
-<a href=#3652 id=3652 data-nosnippet>3652</a>                trait_impl_generic.clone(),
-<a href=#3653 id=3653 data-nosnippet>3653</a>                trait_impl_generic.kind().into_owned(),
-<a href=#3654 id=3654 data-nosnippet>3654</a>                Type::TypeVariable(trait_func_generic.type_var.clone()),
-<a href=#3655 id=3655 data-nosnippet>3655</a>            )
-<a href=#3656 id=3656 data-nosnippet>3656</a>        });
-<a href=#3657 id=3657 data-nosnippet>3657</a>    }
-<a href=#3658 id=3658 data-nosnippet>3658</a>}
-<a href=#3659 id=3659 data-nosnippet>3659</a>
-<a href=#3660 id=3660 data-nosnippet>3660</a><span class="doccomment">/// Look up a specific member of a trait, then look through the trait methods
-<a href=#3661 id=3661 data-nosnippet>3661</a>/// and associated constants until an item with a matching name is found.
-<a href=#3662 id=3662 data-nosnippet>3662</a>///
-<a href=#3663 id=3663 data-nosnippet>3663</a>/// Error if the name cannot be matched to anything.
-<a href=#3664 id=3664 data-nosnippet>3664</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>resolve_trait_item(
-<a href=#3665 id=3665 data-nosnippet>3665</a>    interner: <span class="kw-2">&amp;</span>NodeInterner,
-<a href=#3666 id=3666 data-nosnippet>3666</a>    method_id: TraitItemId,
-<a href=#3667 id=3667 data-nosnippet>3667</a>    expr_id: ExprId,
-<a href=#3668 id=3668 data-nosnippet>3668</a>    substitution: <span class="kw-2">&amp;</span>TypeBindings,
-<a href=#3669 id=3669 data-nosnippet>3669</a>) -&gt; <span class="prelude-ty">Result</span>&lt;ResolvedTraitItem, InterpreterError&gt; {
-<a href=#3670 id=3670 data-nosnippet>3670</a>    <span class="kw">let </span>(impl_id, impl_search_bindings, instantiation_bindings) =
-<a href=#3671 id=3671 data-nosnippet>3671</a>        resolve_trait_item_impl(interner, method_id, expr_id, substitution)<span class="question-mark">?</span>;
-<a href=#3672 id=3672 data-nosnippet>3672</a>
-<a href=#3673 id=3673 data-nosnippet>3673</a>    <span class="kw">let </span>name = interner.definition_name(method_id.item_id);
-<a href=#3674 id=3674 data-nosnippet>3674</a>    <span class="kw">let </span>impl_ = interner.get_trait_implementation(impl_id);
-<a href=#3675 id=3675 data-nosnippet>3675</a>    <span class="kw">let </span>impl_ = impl_.borrow();
-<a href=#3676 id=3676 data-nosnippet>3676</a>
-<a href=#3677 id=3677 data-nosnippet>3677</a>    <span class="kw">for </span>method <span class="kw">in </span><span class="kw-2">&amp;</span>impl_.methods {
-<a href=#3678 id=3678 data-nosnippet>3678</a>        <span class="kw">if </span>interner.function_name(method) == name {
-<a href=#3679 id=3679 data-nosnippet>3679</a>            <span class="kw">let </span>item = TraitItem::Method(<span class="kw-2">*</span>method);
-<a href=#3680 id=3680 data-nosnippet>3680</a>            <span class="kw">return </span><span class="prelude-val">Ok</span>(ResolvedTraitItem { item, impl_search_bindings, instantiation_bindings });
-<a href=#3681 id=3681 data-nosnippet>3681</a>        }
-<a href=#3682 id=3682 data-nosnippet>3682</a>    }
-<a href=#3683 id=3683 data-nosnippet>3683</a>
-<a href=#3684 id=3684 data-nosnippet>3684</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>((id, expected_type)) = interner.get_trait_impl_associated_constant(impl_id, name) {
-<a href=#3685 id=3685 data-nosnippet>3685</a>        <span class="comment">// The lookup above returns the expected type but not the value that
-<a href=#3686 id=3686 data-nosnippet>3686</a>        // is expected to resolve to a Type::Constant - we have to look that up separately.
-<a href=#3687 id=3687 data-nosnippet>3687</a>        </span><span class="kw">for </span>item <span class="kw">in </span>interner.get_associated_types_for_impl(impl_id) {
-<a href=#3688 id=3688 data-nosnippet>3688</a>            <span class="kw">if </span>item.name.as_str() == name {
-<a href=#3689 id=3689 data-nosnippet>3689</a>                <span class="kw">let </span>id = <span class="kw-2">*</span>id;
-<a href=#3690 id=3690 data-nosnippet>3690</a>                <span class="kw">let </span>expected_type = expected_type.clone();
-<a href=#3691 id=3691 data-nosnippet>3691</a>
-<a href=#3692 id=3692 data-nosnippet>3692</a>                <span class="comment">// Apply the expression's instantiation bindings. Any of the impl search's
-<a href=#3693 id=3693 data-nosnippet>3693</a>                // variables left in the value are resolved by the caller, which has the search's
-<a href=#3694 id=3694 data-nosnippet>3694</a>                // bindings in force.
-<a href=#3695 id=3695 data-nosnippet>3695</a>                </span><span class="kw">let </span>value = item.typ.substitute(<span class="kw-2">&amp;</span>instantiation_bindings);
-<a href=#3696 id=3696 data-nosnippet>3696</a>
-<a href=#3697 id=3697 data-nosnippet>3697</a>                <span class="kw">let </span>item = TraitItem::Constant { id, expected_type, value };
-<a href=#3698 id=3698 data-nosnippet>3698</a>                <span class="kw">return </span><span class="prelude-val">Ok</span>(ResolvedTraitItem {
-<a href=#3699 id=3699 data-nosnippet>3699</a>                    item,
-<a href=#3700 id=3700 data-nosnippet>3700</a>                    impl_search_bindings,
-<a href=#3701 id=3701 data-nosnippet>3701</a>                    instantiation_bindings,
-<a href=#3702 id=3702 data-nosnippet>3702</a>                });
-<a href=#3703 id=3703 data-nosnippet>3703</a>            }
-<a href=#3704 id=3704 data-nosnippet>3704</a>        }
-<a href=#3705 id=3705 data-nosnippet>3705</a>    }
-<a href=#3706 id=3706 data-nosnippet>3706</a>
-<a href=#3707 id=3707 data-nosnippet>3707</a>    <span class="kw">let </span>location = interner.expr_location(<span class="kw-2">&amp;</span>expr_id);
-<a href=#3708 id=3708 data-nosnippet>3708</a>    <span class="prelude-val">Err</span>(InterpreterError::NoTraitItemInImpl { item_name: name.to_string(), location })
-<a href=#3709 id=3709 data-nosnippet>3709</a>}
+<a href=#3637 id=3637 data-nosnippet>3637</a>    <span class="comment">// Find the corresponding trait impl method
+<a href=#3638 id=3638 data-nosnippet>3638</a>    </span><span class="kw">let </span>trait_impl = interner.get_trait_implementation(impl_id);
+<a href=#3639 id=3639 data-nosnippet>3639</a>    <span class="kw">let </span>trait_impl = trait_impl.borrow();
+<a href=#3640 id=3640 data-nosnippet>3640</a>    <span class="kw">let </span>trait_impl_func_id = trait_impl
+<a href=#3641 id=3641 data-nosnippet>3641</a>        .methods
+<a href=#3642 id=3642 data-nosnippet>3642</a>        .iter()
+<a href=#3643 id=3643 data-nosnippet>3643</a>        .find(|method| interner.function_name(method) == trait_func_name)
+<a href=#3644 id=3644 data-nosnippet>3644</a>        .expect(<span class="string">"Expected to find trait impl method"</span>);
+<a href=#3645 id=3645 data-nosnippet>3645</a>
+<a href=#3646 id=3646 data-nosnippet>3646</a>    <span class="comment">// Bind trait impl func generics to trait func generics
+<a href=#3647 id=3647 data-nosnippet>3647</a>    </span><span class="kw">let </span>trait_impl_func_meta = interner.function_meta(trait_impl_func_id);
+<a href=#3648 id=3648 data-nosnippet>3648</a>    <span class="kw">let </span>trait_impl_func_generics = <span class="kw-2">&amp;</span>trait_impl_func_meta.direct_generics;
+<a href=#3649 id=3649 data-nosnippet>3649</a>    <span class="kw">let </span>trait_func_generics = <span class="kw-2">&amp;</span>trait_func_meta.direct_generics;
+<a href=#3650 id=3650 data-nosnippet>3650</a>    <span class="macro">assert_eq!</span>(
+<a href=#3651 id=3651 data-nosnippet>3651</a>        trait_impl_func_generics.len(),
+<a href=#3652 id=3652 data-nosnippet>3652</a>        trait_func_generics.len(),
+<a href=#3653 id=3653 data-nosnippet>3653</a>        <span class="string">"Trait impl function generics and trait function generics should have the same length"
+<a href=#3654 id=3654 data-nosnippet>3654</a>    </span>);
+<a href=#3655 id=3655 data-nosnippet>3655</a>    <span class="kw">for </span>(trait_func_generic, trait_impl_func_generic) <span class="kw">in
+<a href=#3656 id=3656 data-nosnippet>3656</a>        </span>trait_func_generics.iter().zip_eq(trait_impl_func_generics.iter())
+<a href=#3657 id=3657 data-nosnippet>3657</a>    {
+<a href=#3658 id=3658 data-nosnippet>3658</a>        <span class="kw">let </span>trait_impl_generic = <span class="kw-2">&amp;</span>trait_impl_func_generic.type_var;
+<a href=#3659 id=3659 data-nosnippet>3659</a>        bindings.entry(trait_impl_generic.id()).or_insert_with(|| {
+<a href=#3660 id=3660 data-nosnippet>3660</a>            (
+<a href=#3661 id=3661 data-nosnippet>3661</a>                trait_impl_generic.clone(),
+<a href=#3662 id=3662 data-nosnippet>3662</a>                trait_impl_generic.kind().into_owned(),
+<a href=#3663 id=3663 data-nosnippet>3663</a>                Type::TypeVariable(trait_func_generic.type_var.clone()),
+<a href=#3664 id=3664 data-nosnippet>3664</a>            )
+<a href=#3665 id=3665 data-nosnippet>3665</a>        });
+<a href=#3666 id=3666 data-nosnippet>3666</a>    }
+<a href=#3667 id=3667 data-nosnippet>3667</a>}
+<a href=#3668 id=3668 data-nosnippet>3668</a>
+<a href=#3669 id=3669 data-nosnippet>3669</a><span class="doccomment">/// Look up a specific member of a trait, then look through the trait methods
+<a href=#3670 id=3670 data-nosnippet>3670</a>/// and associated constants until an item with a matching name is found.
+<a href=#3671 id=3671 data-nosnippet>3671</a>///
+<a href=#3672 id=3672 data-nosnippet>3672</a>/// Error if the name cannot be matched to anything.
+<a href=#3673 id=3673 data-nosnippet>3673</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>resolve_trait_item(
+<a href=#3674 id=3674 data-nosnippet>3674</a>    interner: <span class="kw-2">&amp;</span>NodeInterner,
+<a href=#3675 id=3675 data-nosnippet>3675</a>    method_id: TraitItemId,
+<a href=#3676 id=3676 data-nosnippet>3676</a>    expr_id: ExprId,
+<a href=#3677 id=3677 data-nosnippet>3677</a>    substitution: <span class="kw-2">&amp;</span>TypeBindings,
+<a href=#3678 id=3678 data-nosnippet>3678</a>) -&gt; <span class="prelude-ty">Result</span>&lt;ResolvedTraitItem, InterpreterError&gt; {
+<a href=#3679 id=3679 data-nosnippet>3679</a>    <span class="kw">let </span>(impl_id, impl_search_bindings, instantiation_bindings) =
+<a href=#3680 id=3680 data-nosnippet>3680</a>        resolve_trait_item_impl(interner, method_id, expr_id, substitution)<span class="question-mark">?</span>;
+<a href=#3681 id=3681 data-nosnippet>3681</a>
+<a href=#3682 id=3682 data-nosnippet>3682</a>    <span class="kw">let </span>name = interner.definition_name(method_id.item_id);
+<a href=#3683 id=3683 data-nosnippet>3683</a>    <span class="comment">// An impl that isn't collected yet has no methods recorded, but its associated constants
+<a href=#3684 id=3684 data-nosnippet>3684</a>    // can be read.
+<a href=#3685 id=3685 data-nosnippet>3685</a>    </span><span class="kw">if let </span><span class="prelude-val">Some</span>(impl_) = interner.try_get_trait_implementation(impl_id) {
+<a href=#3686 id=3686 data-nosnippet>3686</a>        <span class="kw">for </span>method <span class="kw">in </span><span class="kw-2">&amp;</span>impl_.borrow().methods {
+<a href=#3687 id=3687 data-nosnippet>3687</a>            <span class="kw">if </span>interner.function_name(method) == name {
+<a href=#3688 id=3688 data-nosnippet>3688</a>                <span class="kw">let </span>item = TraitItem::Method(<span class="kw-2">*</span>method);
+<a href=#3689 id=3689 data-nosnippet>3689</a>                <span class="kw">return </span><span class="prelude-val">Ok</span>(ResolvedTraitItem {
+<a href=#3690 id=3690 data-nosnippet>3690</a>                    item,
+<a href=#3691 id=3691 data-nosnippet>3691</a>                    impl_search_bindings,
+<a href=#3692 id=3692 data-nosnippet>3692</a>                    instantiation_bindings,
+<a href=#3693 id=3693 data-nosnippet>3693</a>                });
+<a href=#3694 id=3694 data-nosnippet>3694</a>            }
+<a href=#3695 id=3695 data-nosnippet>3695</a>        }
+<a href=#3696 id=3696 data-nosnippet>3696</a>    }
+<a href=#3697 id=3697 data-nosnippet>3697</a>
+<a href=#3698 id=3698 data-nosnippet>3698</a>    <span class="kw">if let </span><span class="prelude-val">Some</span>((id, expected_type)) = interner.get_trait_impl_associated_constant(impl_id, name) {
+<a href=#3699 id=3699 data-nosnippet>3699</a>        <span class="comment">// The lookup above returns the expected type but not the value that
+<a href=#3700 id=3700 data-nosnippet>3700</a>        // is expected to resolve to a Type::Constant - we have to look that up separately.
+<a href=#3701 id=3701 data-nosnippet>3701</a>        </span><span class="kw">for </span>item <span class="kw">in </span>interner.get_associated_types_for_impl(impl_id) {
+<a href=#3702 id=3702 data-nosnippet>3702</a>            <span class="kw">if </span>item.name.as_str() == name {
+<a href=#3703 id=3703 data-nosnippet>3703</a>                <span class="kw">let </span>id = <span class="kw-2">*</span>id;
+<a href=#3704 id=3704 data-nosnippet>3704</a>                <span class="kw">let </span>expected_type = expected_type.clone();
+<a href=#3705 id=3705 data-nosnippet>3705</a>
+<a href=#3706 id=3706 data-nosnippet>3706</a>                <span class="comment">// Apply the expression's instantiation bindings. Any of the impl search's
+<a href=#3707 id=3707 data-nosnippet>3707</a>                // variables left in the value are resolved by the caller, which has the search's
+<a href=#3708 id=3708 data-nosnippet>3708</a>                // bindings in force.
+<a href=#3709 id=3709 data-nosnippet>3709</a>                </span><span class="kw">let </span>value = item.typ.substitute(<span class="kw-2">&amp;</span>instantiation_bindings);
 <a href=#3710 id=3710 data-nosnippet>3710</a>
-<a href=#3711 id=3711 data-nosnippet>3711</a><span class="doccomment">/// A trait item resolved to the item of a particular impl by [`resolve_trait_item`].
-<a href=#3712 id=3712 data-nosnippet>3712</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>ResolvedTraitItem {
-<a href=#3713 id=3713 data-nosnippet>3713</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) item: TraitItem,
-<a href=#3714 id=3714 data-nosnippet>3714</a>    <span class="doccomment">/// The bindings produced by searching for the impl, which have to be in force while the item
-<a href=#3715 id=3715 data-nosnippet>3715</a>    /// is used.
-<a href=#3716 id=3716 data-nosnippet>3716</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) impl_search_bindings: TypeBindings,
-<a href=#3717 id=3717 data-nosnippet>3717</a>    <span class="doccomment">/// The instantiation bindings of the expression referring to the item, extended with the
-<a href=#3718 id=3718 data-nosnippet>3718</a>    /// impl's.
-<a href=#3719 id=3719 data-nosnippet>3719</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) instantiation_bindings: TypeBindings,
-<a href=#3720 id=3720 data-nosnippet>3720</a>}
-<a href=#3721 id=3721 data-nosnippet>3721</a>
-<a href=#3722 id=3722 data-nosnippet>3722</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>TraitItem {
-<a href=#3723 id=3723 data-nosnippet>3723</a>    Method(node_interner::FuncId),
-<a href=#3724 id=3724 data-nosnippet>3724</a>    Constant { id: node_interner::DefinitionId, expected_type: Type, value: Type },
-<a href=#3725 id=3725 data-nosnippet>3725</a>}
-<a href=#3726 id=3726 data-nosnippet>3726</a>
-<a href=#3727 id=3727 data-nosnippet>3727</a><span class="kw">impl </span>TraitItem {
-<a href=#3728 id=3728 data-nosnippet>3728</a>    <span class="doccomment">/// Get the function ID from a [`TraitItem::Method`].
-<a href=#3729 id=3729 data-nosnippet>3729</a>    ///
-<a href=#3730 id=3730 data-nosnippet>3730</a>    /// Panics if called on a [`TraitItem::Constant`].
-<a href=#3731 id=3731 data-nosnippet>3731</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>unwrap_method(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; node_interner::FuncId {
-<a href=#3732 id=3732 data-nosnippet>3732</a>        <span class="kw">match </span><span class="self">self </span>{
-<a href=#3733 id=3733 data-nosnippet>3733</a>            TraitItem::Method(func_id) =&gt; <span class="kw-2">*</span>func_id,
-<a href=#3734 id=3734 data-nosnippet>3734</a>            TraitItem::Constant { .. } =&gt; {
-<a href=#3735 id=3735 data-nosnippet>3735</a>                <span class="macro">panic!</span>(<span class="string">"Expected `TraitItem::Method`, but found `TraitItem::Constant`"</span>)
-<a href=#3736 id=3736 data-nosnippet>3736</a>            }
-<a href=#3737 id=3737 data-nosnippet>3737</a>        }
-<a href=#3738 id=3738 data-nosnippet>3738</a>    }
+<a href=#3711 id=3711 data-nosnippet>3711</a>                <span class="kw">let </span>item = TraitItem::Constant { id, expected_type, value };
+<a href=#3712 id=3712 data-nosnippet>3712</a>                <span class="kw">return </span><span class="prelude-val">Ok</span>(ResolvedTraitItem {
+<a href=#3713 id=3713 data-nosnippet>3713</a>                    item,
+<a href=#3714 id=3714 data-nosnippet>3714</a>                    impl_search_bindings,
+<a href=#3715 id=3715 data-nosnippet>3715</a>                    instantiation_bindings,
+<a href=#3716 id=3716 data-nosnippet>3716</a>                });
+<a href=#3717 id=3717 data-nosnippet>3717</a>            }
+<a href=#3718 id=3718 data-nosnippet>3718</a>        }
+<a href=#3719 id=3719 data-nosnippet>3719</a>    }
+<a href=#3720 id=3720 data-nosnippet>3720</a>
+<a href=#3721 id=3721 data-nosnippet>3721</a>    <span class="kw">let </span>location = interner.expr_location(<span class="kw-2">&amp;</span>expr_id);
+<a href=#3722 id=3722 data-nosnippet>3722</a>    <span class="prelude-val">Err</span>(InterpreterError::NoTraitItemInImpl { item_name: name.to_string(), location })
+<a href=#3723 id=3723 data-nosnippet>3723</a>}
+<a href=#3724 id=3724 data-nosnippet>3724</a>
+<a href=#3725 id=3725 data-nosnippet>3725</a><span class="doccomment">/// A trait item resolved to the item of a particular impl by [`resolve_trait_item`].
+<a href=#3726 id=3726 data-nosnippet>3726</a></span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>ResolvedTraitItem {
+<a href=#3727 id=3727 data-nosnippet>3727</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) item: TraitItem,
+<a href=#3728 id=3728 data-nosnippet>3728</a>    <span class="doccomment">/// The bindings produced by searching for the impl, which have to be in force while the item
+<a href=#3729 id=3729 data-nosnippet>3729</a>    /// is used.
+<a href=#3730 id=3730 data-nosnippet>3730</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) impl_search_bindings: TypeBindings,
+<a href=#3731 id=3731 data-nosnippet>3731</a>    <span class="doccomment">/// The instantiation bindings of the expression referring to the item, extended with the
+<a href=#3732 id=3732 data-nosnippet>3732</a>    /// impl's.
+<a href=#3733 id=3733 data-nosnippet>3733</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) instantiation_bindings: TypeBindings,
+<a href=#3734 id=3734 data-nosnippet>3734</a>}
+<a href=#3735 id=3735 data-nosnippet>3735</a>
+<a href=#3736 id=3736 data-nosnippet>3736</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>TraitItem {
+<a href=#3737 id=3737 data-nosnippet>3737</a>    Method(node_interner::FuncId),
+<a href=#3738 id=3738 data-nosnippet>3738</a>    Constant { id: node_interner::DefinitionId, expected_type: Type, value: Type },
 <a href=#3739 id=3739 data-nosnippet>3739</a>}
 <a href=#3740 id=3740 data-nosnippet>3740</a>
-<a href=#3741 id=3741 data-nosnippet>3741</a><span class="doccomment">/// Extend the arguments to `print` (which so far is a `bool` to show if newline is needed and
-<a href=#3742 id=3742 data-nosnippet>3742</a>/// value to be printed itself) with further metadata:
-<a href=#3743 id=3743 data-nosnippet>3743</a>/// * if we print a raw value, then append a JSON serialized `PrintableType` to describe it
-<a href=#3744 id=3744 data-nosnippet>3744</a>/// * if we are using a format string with multiple interpolations, append a separate JSON for each value in it
-<a href=#3745 id=3745 data-nosnippet>3745</a>/// * finally another `bool` to show if the print is using a format string, or a raw value
-<a href=#3746 id=3746 data-nosnippet>3746</a></span><span class="kw">pub fn </span>append_printable_type_info_for_type(typ: Type, arguments: <span class="kw-2">&amp;mut </span>Vec&lt;ast::Expression&gt;) {
-<a href=#3747 id=3747 data-nosnippet>3747</a>    <span class="kw">let </span>typ: Type = typ.follow_bindings();
-<a href=#3748 id=3748 data-nosnippet>3748</a>    <span class="kw">let </span>is_fmt_str = <span class="kw">match </span>typ {
-<a href=#3749 id=3749 data-nosnippet>3749</a>        <span class="comment">// A format string has many different possible types that need to be handled.
-<a href=#3750 id=3750 data-nosnippet>3750</a>        // Loop over each element in the format string to fetch each type's relevant metadata.
-<a href=#3751 id=3751 data-nosnippet>3751</a>        </span>Type::FmtString(<span class="kw">_</span>, elements) =&gt; {
-<a href=#3752 id=3752 data-nosnippet>3752</a>            <span class="kw">match </span><span class="kw-2">*</span>elements {
-<a href=#3753 id=3753 data-nosnippet>3753</a>                Type::Tuple(element_types) =&gt; {
-<a href=#3754 id=3754 data-nosnippet>3754</a>                    <span class="kw">for </span>typ <span class="kw">in </span>element_types {
-<a href=#3755 id=3755 data-nosnippet>3755</a>                        append_printable_type_info_inner(<span class="kw-2">&amp;</span>typ, arguments);
-<a href=#3756 id=3756 data-nosnippet>3756</a>                    }
-<a href=#3757 id=3757 data-nosnippet>3757</a>                }
-<a href=#3758 id=3758 data-nosnippet>3758</a>                Type::Unit =&gt; {}
-<a href=#3759 id=3759 data-nosnippet>3759</a>                <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: format string type should be a tuple but got a {elements}"</span>),
-<a href=#3760 id=3760 data-nosnippet>3760</a>            }
-<a href=#3761 id=3761 data-nosnippet>3761</a>            <span class="bool-val">true
-<a href=#3762 id=3762 data-nosnippet>3762</a>        </span>}
-<a href=#3763 id=3763 data-nosnippet>3763</a>        <span class="kw">_ </span>=&gt; {
-<a href=#3764 id=3764 data-nosnippet>3764</a>            append_printable_type_info_inner(<span class="kw-2">&amp;</span>typ, arguments);
-<a href=#3765 id=3765 data-nosnippet>3765</a>            <span class="bool-val">false
-<a href=#3766 id=3766 data-nosnippet>3766</a>        </span>}
-<a href=#3767 id=3767 data-nosnippet>3767</a>    };
-<a href=#3768 id=3768 data-nosnippet>3768</a>    <span class="comment">// The caller needs information as to whether it is handling a format string or a single type
-<a href=#3769 id=3769 data-nosnippet>3769</a>    </span>arguments.push(ast::Expression::Literal(ast::Literal::Bool(is_fmt_str)));
-<a href=#3770 id=3770 data-nosnippet>3770</a>}
-<a href=#3771 id=3771 data-nosnippet>3771</a>
-<a href=#3772 id=3772 data-nosnippet>3772</a><span class="kw">fn </span>append_printable_type_info_inner(typ: <span class="kw-2">&amp;</span>Type, arguments: <span class="kw-2">&amp;mut </span>Vec&lt;ast::Expression&gt;) {
-<a href=#3773 id=3773 data-nosnippet>3773</a>    <span class="kw">let </span>printable_type: PrintableType = typ.into();
-<a href=#3774 id=3774 data-nosnippet>3774</a>    <span class="kw">let </span>abi_as_string =
-<a href=#3775 id=3775 data-nosnippet>3775</a>        serde_json::to_string(<span class="kw-2">&amp;</span>printable_type).expect(<span class="string">"ICE: expected PrintableType to serialize"</span>);
-<a href=#3776 id=3776 data-nosnippet>3776</a>
-<a href=#3777 id=3777 data-nosnippet>3777</a>    arguments.push(ast::Expression::Literal(ast::Literal::Str(abi_as_string.into_bytes())));
-<a href=#3778 id=3778 data-nosnippet>3778</a>}</code></pre></div></section></main></body></html>
+<a href=#3741 id=3741 data-nosnippet>3741</a><span class="kw">impl </span>TraitItem {
+<a href=#3742 id=3742 data-nosnippet>3742</a>    <span class="doccomment">/// Get the function ID from a [`TraitItem::Method`].
+<a href=#3743 id=3743 data-nosnippet>3743</a>    ///
+<a href=#3744 id=3744 data-nosnippet>3744</a>    /// Panics if called on a [`TraitItem::Constant`].
+<a href=#3745 id=3745 data-nosnippet>3745</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>unwrap_method(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; node_interner::FuncId {
+<a href=#3746 id=3746 data-nosnippet>3746</a>        <span class="kw">match </span><span class="self">self </span>{
+<a href=#3747 id=3747 data-nosnippet>3747</a>            TraitItem::Method(func_id) =&gt; <span class="kw-2">*</span>func_id,
+<a href=#3748 id=3748 data-nosnippet>3748</a>            TraitItem::Constant { .. } =&gt; {
+<a href=#3749 id=3749 data-nosnippet>3749</a>                <span class="macro">panic!</span>(<span class="string">"Expected `TraitItem::Method`, but found `TraitItem::Constant`"</span>)
+<a href=#3750 id=3750 data-nosnippet>3750</a>            }
+<a href=#3751 id=3751 data-nosnippet>3751</a>        }
+<a href=#3752 id=3752 data-nosnippet>3752</a>    }
+<a href=#3753 id=3753 data-nosnippet>3753</a>}
+<a href=#3754 id=3754 data-nosnippet>3754</a>
+<a href=#3755 id=3755 data-nosnippet>3755</a><span class="doccomment">/// Extend the arguments to `print` (which so far is a `bool` to show if newline is needed and
+<a href=#3756 id=3756 data-nosnippet>3756</a>/// value to be printed itself) with further metadata:
+<a href=#3757 id=3757 data-nosnippet>3757</a>/// * if we print a raw value, then append a JSON serialized `PrintableType` to describe it
+<a href=#3758 id=3758 data-nosnippet>3758</a>/// * if we are using a format string with multiple interpolations, append a separate JSON for each value in it
+<a href=#3759 id=3759 data-nosnippet>3759</a>/// * finally another `bool` to show if the print is using a format string, or a raw value
+<a href=#3760 id=3760 data-nosnippet>3760</a></span><span class="kw">pub fn </span>append_printable_type_info_for_type(typ: Type, arguments: <span class="kw-2">&amp;mut </span>Vec&lt;ast::Expression&gt;) {
+<a href=#3761 id=3761 data-nosnippet>3761</a>    <span class="kw">let </span>typ: Type = typ.follow_bindings();
+<a href=#3762 id=3762 data-nosnippet>3762</a>    <span class="kw">let </span>is_fmt_str = <span class="kw">match </span>typ {
+<a href=#3763 id=3763 data-nosnippet>3763</a>        <span class="comment">// A format string has many different possible types that need to be handled.
+<a href=#3764 id=3764 data-nosnippet>3764</a>        // Loop over each element in the format string to fetch each type's relevant metadata.
+<a href=#3765 id=3765 data-nosnippet>3765</a>        </span>Type::FmtString(<span class="kw">_</span>, elements) =&gt; {
+<a href=#3766 id=3766 data-nosnippet>3766</a>            <span class="kw">match </span><span class="kw-2">*</span>elements {
+<a href=#3767 id=3767 data-nosnippet>3767</a>                Type::Tuple(element_types) =&gt; {
+<a href=#3768 id=3768 data-nosnippet>3768</a>                    <span class="kw">for </span>typ <span class="kw">in </span>element_types {
+<a href=#3769 id=3769 data-nosnippet>3769</a>                        append_printable_type_info_inner(<span class="kw-2">&amp;</span>typ, arguments);
+<a href=#3770 id=3770 data-nosnippet>3770</a>                    }
+<a href=#3771 id=3771 data-nosnippet>3771</a>                }
+<a href=#3772 id=3772 data-nosnippet>3772</a>                Type::Unit =&gt; {}
+<a href=#3773 id=3773 data-nosnippet>3773</a>                <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: format string type should be a tuple but got a {elements}"</span>),
+<a href=#3774 id=3774 data-nosnippet>3774</a>            }
+<a href=#3775 id=3775 data-nosnippet>3775</a>            <span class="bool-val">true
+<a href=#3776 id=3776 data-nosnippet>3776</a>        </span>}
+<a href=#3777 id=3777 data-nosnippet>3777</a>        <span class="kw">_ </span>=&gt; {
+<a href=#3778 id=3778 data-nosnippet>3778</a>            append_printable_type_info_inner(<span class="kw-2">&amp;</span>typ, arguments);
+<a href=#3779 id=3779 data-nosnippet>3779</a>            <span class="bool-val">false
+<a href=#3780 id=3780 data-nosnippet>3780</a>        </span>}
+<a href=#3781 id=3781 data-nosnippet>3781</a>    };
+<a href=#3782 id=3782 data-nosnippet>3782</a>    <span class="comment">// The caller needs information as to whether it is handling a format string or a single type
+<a href=#3783 id=3783 data-nosnippet>3783</a>    </span>arguments.push(ast::Expression::Literal(ast::Literal::Bool(is_fmt_str)));
+<a href=#3784 id=3784 data-nosnippet>3784</a>}
+<a href=#3785 id=3785 data-nosnippet>3785</a>
+<a href=#3786 id=3786 data-nosnippet>3786</a><span class="kw">fn </span>append_printable_type_info_inner(typ: <span class="kw-2">&amp;</span>Type, arguments: <span class="kw-2">&amp;mut </span>Vec&lt;ast::Expression&gt;) {
+<a href=#3787 id=3787 data-nosnippet>3787</a>    <span class="kw">let </span>printable_type: PrintableType = typ.into();
+<a href=#3788 id=3788 data-nosnippet>3788</a>    <span class="kw">let </span>abi_as_string =
+<a href=#3789 id=3789 data-nosnippet>3789</a>        serde_json::to_string(<span class="kw-2">&amp;</span>printable_type).expect(<span class="string">"ICE: expected PrintableType to serialize"</span>);
+<a href=#3790 id=3790 data-nosnippet>3790</a>
+<a href=#3791 id=3791 data-nosnippet>3791</a>    arguments.push(ast::Expression::Literal(ast::Literal::Str(abi_as_string.into_bytes())));
+<a href=#3792 id=3792 data-nosnippet>3792</a>}</code></pre></div></section></main></body></html>
