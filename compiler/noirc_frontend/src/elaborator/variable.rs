@@ -138,7 +138,11 @@ impl Elaborator<'_> {
             // but that's not true)
             if value.is_ok() {
                 let from_macro_call = false;
+                let variable_id = id;
                 let (id, typ) = self.inline_comptime_value(value, location, from_macro_call);
+                if let HirExpression::Ident(ident, _) = self.interner.expression(&variable_id) {
+                    self.item.body.record_inlined_comptime_local(id, ident.id);
+                }
                 self.debug_comptime(location, |interner, _| id.to_display_ast(interner).kind);
                 (id, typ)
             } else {

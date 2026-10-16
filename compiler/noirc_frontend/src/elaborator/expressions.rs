@@ -682,6 +682,17 @@ impl Elaborator<'_> {
     /// Also, if the expression is a local variable, marks it as mutated.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn check_can_mutate(&mut self, expr_id: ExprId, location: Location) {
+        // A comptime local used in runtime code has already been replaced by its value, so a
+        // mutable reference to it would point at a temporary copy and every write through it
+        // would be lost.
+        if let Some(definition_id) = self.item.body.inlined_comptime_local(expr_id) {
+            let definition = self.interner.definition(definition_id);
+            let name = definition.name.clone();
+            Self::mark_local_variable_as_mutated(definition, &mut self.scopes);
+            self.push_err(ResolverError::MutatingComptimeInNonComptimeContext { name, location });
+            return;
+        }
+
         match self.interner.expression(&expr_id) {
             HirExpression::Ident(hir_ident, _) => {
                 let definition = self.interner.definition(hir_ident.id);
