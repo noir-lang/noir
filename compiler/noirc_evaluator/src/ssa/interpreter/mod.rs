@@ -406,6 +406,16 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         }
     }
 
+    /// Changes the limit on the number of steps each later [`Interpreter::interpret_function`] may take.
+    pub(crate) fn set_step_limit(&mut self, step_limit: Option<usize>) {
+        self.options.step_limit = step_limit;
+    }
+
+    /// Number of steps the most recent [`Interpreter::interpret_function`] executed.
+    pub(crate) fn steps_taken(&self) -> usize {
+        self.evaluation.step_counter
+    }
+
     /// Interpret an entry point, assuming the globals have already been interpreted.
     ///
     /// This starts from a fresh [`Evaluation`], so no call stack or step budget is

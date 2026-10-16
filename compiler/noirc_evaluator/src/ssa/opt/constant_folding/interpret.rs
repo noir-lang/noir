@@ -33,6 +33,50 @@ use crate::ssa::{
 #[derive(Debug, Default, Clone)]
 pub(crate) struct UnfoldableCalls(pub(super) HashSet<(FunctionId, Vec<ConstantArgument>)>);
 
+/// The interpreter steps Constant Folding may spend on each constant-argument Brillig call, and
+/// the steps it has spent on calls that failed.
+///
+/// [`UnfoldableCalls`] keeps a failing call from being interpreted more than once, but distinct
+/// call sites still each pay up to the full step limit. So the steps spent on failing calls are
+/// also capped: once they add up to `step_limit`, every later call may only take
+/// `step_limit / REDUCED_STEP_LIMIT_DIVISOR` steps. Failing calls then cost at most `step_limit`,
+/// plus that reduced limit per further call site, for the whole compilation.
+///
+/// Once the cap is reached, a call that needs more than the reduced limit is not folded, even if it
+/// would have succeeded.
+#[derive(Debug, Clone)]
+pub(crate) struct InterpreterBudget {
+    /// Most interpreter steps a single call may take.
+    pub(super) step_limit: usize,
+    /// Total steps spent on calls that failed.
+    pub(super) steps_wasted: usize,
+}
+
+impl Default for InterpreterBudget {
+    fn default() -> Self {
+        Self::with_step_limit(super::DEFAULT_INTERPRETER_STEP_LIMIT)
+    }
+}
+
+/// Once failing calls have spent `step_limit` steps in total, each later call may take
+/// `step_limit / REDUCED_STEP_LIMIT_DIVISOR` steps.
+const REDUCED_STEP_LIMIT_DIVISOR: usize = 100;
+
+impl InterpreterBudget {
+    pub(super) fn with_step_limit(step_limit: usize) -> Self {
+        Self { step_limit, steps_wasted: 0 }
+    }
+
+    /// Most steps the next call may take.
+    fn call_step_limit(&self) -> usize {
+        if self.steps_wasted < self.step_limit {
+            self.step_limit
+        } else {
+            self.step_limit / REDUCED_STEP_LIMIT_DIVISOR
+        }
+    }
+}
+
 /// A constant argument of a Brillig call, in a form that can be hashed.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum ConstantArgument {
@@ -67,17 +111,22 @@ impl ConstantArgument {
 pub(crate) struct ConstantCallEvaluator<'ssa> {
     interpreter: Interpreter<'ssa, Empty>,
     unfoldable: UnfoldableCalls,
+    budget: InterpreterBudget,
 }
 
 impl<'ssa> ConstantCallEvaluator<'ssa> {
     /// `interpreter` must already have interpreted the program's globals.
-    pub(crate) fn new(interpreter: Interpreter<'ssa, Empty>, unfoldable: UnfoldableCalls) -> Self {
-        Self { interpreter, unfoldable }
+    pub(crate) fn new(
+        interpreter: Interpreter<'ssa, Empty>,
+        unfoldable: UnfoldableCalls,
+        budget: InterpreterBudget,
+    ) -> Self {
+        Self { interpreter, unfoldable, budget }
     }
 
-    /// The unfoldable calls, including those this evaluator found.
-    pub(crate) fn into_unfoldable_calls(self) -> UnfoldableCalls {
-        self.unfoldable
+    /// The unfoldable calls and the budget, including what this evaluator found and spent.
+    pub(crate) fn into_parts(self) -> (UnfoldableCalls, InterpreterBudget) {
+        (self.unfoldable, self.budget)
     }
 }
 
@@ -149,10 +198,12 @@ fn evaluate_const_argument_call(
     let interpreter_args =
         arguments.iter().map(|arg| const_ir_value_to_interpreter_value(*arg, dfg)).collect();
 
+    interpreter.set_step_limit(Some(evaluator.budget.call_step_limit()));
     match interpreter.interpret_function(*func_id, interpreter_args) {
         Ok(result_values) => EvaluationResult::Evaluated(result_values),
         Err(_) => {
             evaluator.unfoldable.0.insert(call);
+            evaluator.budget.steps_wasted += interpreter.steps_taken();
             EvaluationResult::CannotEvaluate
         }
     }

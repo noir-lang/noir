@@ -11,7 +11,7 @@ use crate::ssa::{
         function::{Function, FunctionId},
         value::Value,
     },
-    opt::constant_folding::UnfoldableCalls,
+    opt::constant_folding::{InterpreterBudget, UnfoldableCalls},
 };
 use noirc_frontend::hir_def::types::Type as HirType;
 
@@ -49,6 +49,9 @@ pub struct Ssa {
     /// Constant Folding pass of the pipeline, so that none of them interprets the same call again.
     #[serde(skip)]
     pub(crate) unfoldable_calls: UnfoldableCalls,
+    /// The interpreter step limit for those calls, and the steps spent on calls that failed.
+    #[serde(skip)]
+    pub(crate) interpreter_budget: InterpreterBudget,
 }
 
 impl Ssa {
@@ -70,6 +73,7 @@ impl Ssa {
             entry_point_to_generated_index: BTreeMap::new(),
             error_selector_to_type: error_types,
             unfoldable_calls: UnfoldableCalls::default(),
+            interpreter_budget: InterpreterBudget::default(),
         }
     }
 

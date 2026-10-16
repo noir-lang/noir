@@ -44,7 +44,7 @@ mod result_cache;
 mod simplification_cache;
 
 use interpret::try_interpret_call;
-pub(crate) use interpret::{ConstantCallEvaluator, UnfoldableCalls};
+pub(crate) use interpret::{ConstantCallEvaluator, InterpreterBudget, UnfoldableCalls};
 use result_cache::{CacheResult, InstructionResultCache};
 use simplification_cache::{ConstraintSimplificationCache, SimplificationCache};
 
@@ -103,16 +103,20 @@ impl Ssa {
         // Interpret globals once so that we do not have to repeat this computation on every Brillig call.
         interpreter.interpret_globals().expect("ICE: Interpreter failed to interpret globals");
         let unfoldable_calls = std::mem::take(&mut self.unfoldable_calls);
-        let mut evaluator = ConstantCallEvaluator::new(interpreter, unfoldable_calls);
+        let budget = self.interpreter_budget.clone();
+        let mut evaluator = ConstantCallEvaluator::new(interpreter, unfoldable_calls, budget);
         for function in acir_functions.values_mut() {
             function.constant_fold(use_constraint_info, max_iter, &mut evaluator);
         }
-        self.unfoldable_calls = evaluator.into_unfoldable_calls();
+        (self.unfoldable_calls, self.interpreter_budget) = evaluator.into_parts();
 
         // Brillig callers never evaluate calls with the interpreter, so it needs no functions.
         let no_functions = BTreeMap::new();
-        let mut evaluator =
-            ConstantCallEvaluator::new(new_interpreter(&no_functions), UnfoldableCalls::default());
+        let mut evaluator = ConstantCallEvaluator::new(
+            new_interpreter(&no_functions),
+            UnfoldableCalls::default(),
+            InterpreterBudget::default(),
+        );
         for function in brillig_functions.values_mut() {
             function.constant_fold(use_constraint_info, max_iter, &mut evaluator);
         }
@@ -124,14 +128,12 @@ impl Ssa {
 }
 
 /// Creates the interpreter used to evaluate calls to the given Brillig `functions`.
+///
+/// [`ConstantCallEvaluator`] sets the step limit of each call from its [`InterpreterBudget`].
 fn new_interpreter(functions: &BTreeMap<FunctionId, Function>) -> Interpreter<'_, Empty> {
     Interpreter::new_from_functions(
         functions,
-        InterpreterOptions {
-            no_foreign_calls: true,
-            step_limit: Some(DEFAULT_INTERPRETER_STEP_LIMIT),
-            ..Default::default()
-        },
+        InterpreterOptions { no_foreign_calls: true, ..Default::default() },
         std::io::empty(),
     )
 }
@@ -937,7 +939,9 @@ fn can_be_deduplicated(instruction: &Instruction, dfg: &DataFlowGraph) -> CanBeD
 mod test {
     use test_case::test_case;
 
-    use super::{ConstantCallEvaluator, UnfoldableCalls, interpret::ConstantArgument};
+    use super::{
+        ConstantCallEvaluator, InterpreterBudget, UnfoldableCalls, interpret::ConstantArgument,
+    };
     use crate::{
         assert_ssa_snapshot,
         ssa::{
@@ -1877,8 +1881,11 @@ mod test {
             InterpreterOptions::default(),
             std::io::empty(),
         );
-        let mut evaluator =
-            ConstantCallEvaluator::new(empty_interpreter, UnfoldableCalls::default());
+        let mut evaluator = ConstantCallEvaluator::new(
+            empty_interpreter,
+            UnfoldableCalls::default(),
+            InterpreterBudget::default(),
+        );
         ssa.main_mut().constant_fold(false, 1, &mut evaluator);
 
         // 1. v9 is a duplicate of v5 -> hoisted to b0
@@ -4278,5 +4285,51 @@ mod test {
         ssa = ssa.fold_constants(DEFAULT_MAX_ITER);
 
         assert_eq!(calls_in_main(&ssa), 3, "no call is folded");
+    }
+
+    /// Once failing calls have wasted one full step limit, later calls get a reduced limit, so
+    /// further non-terminating call sites cost little while cheap calls are still folded.
+    #[test]
+    fn calls_after_the_wasted_step_cap_get_a_reduced_step_limit() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = call f1(Field 0) -> Field
+            v1 = call f1(Field 1) -> Field
+            v2 = call f1(Field 2) -> Field
+            v3 = call f2(Field 2) -> Field
+            v4 = add v0, v1
+            v5 = add v4, v2
+            v6 = add v5, v3
+            return v6
+        }
+
+        brillig(inline) fn spin f1 {
+          b0(v0: Field):
+            jmp b1(v0)
+          b1(v1: Field):
+            v2 = add v1, Field 1
+            v3 = eq v2, Field 0
+            jmpif v3 then: b2(), else: b3()
+          b2():
+            return v1
+          b3():
+            jmp b1(v2)
+        }
+
+        brillig(inline) fn double f2 {
+          b0(v0: Field):
+            v1 = mul v0, Field 2
+            return v1
+        }
+        ";
+        let step_limit = 1000;
+        let mut ssa = Ssa::from_str(src).unwrap();
+        ssa.interpreter_budget = InterpreterBudget::with_step_limit(step_limit);
+
+        ssa = ssa.fold_constants(DEFAULT_MAX_ITER);
+
+        assert_eq!(ssa.interpreter_budget.steps_wasted, step_limit + 2 * (step_limit / 100));
+        assert_eq!(calls_in_main(&ssa), 3, "only the call to `double` is folded");
     }
 }
