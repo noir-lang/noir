@@ -561,6 +561,88 @@ mod tests {
         ");
     }
 
+    #[test]
+    fn does_not_mutate_array_pushed_front_into_vector() {
+        // ACIR generation keeps an array pushed into a vector as a handle to the array's memory
+        // block, so a later in-place write to that array would be observed through the vector.
+        let src = "
+            acir(inline) fn main f0 {
+              b0():
+                v0 = make_array [Field 1, Field 2] : [Field; 2]
+                v1 = make_array [Field 3, Field 4] : [Field; 2]
+                v2 = make_array [v1] : [[Field; 2]; 1]
+                v3 = array_set v0, index u32 1, value Field 7
+                v4, v5 = call as_vector(v2) -> (u32, [[Field; 2]])
+                v6, v7 = call vector_push_front(u32 1, v5, v3) -> (u32, [[Field; 2]])
+                v8 = array_set v3, index u32 0, value Field 99
+                v9 = array_get v7, index u32 0 -> [Field; 2]
+                v10 = array_get v9, index u32 0 -> Field
+                return v10, v8
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let (ssa, value) =
+            assert_pass_does_not_affect_execution(ssa, vec![], Ssa::mutable_array_set_optimization);
+        assert_eq!(value.unwrap()[0], Value::field(1_u32.into()));
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v2 = make_array [Field 1, Field 2] : [Field; 2]
+            v5 = make_array [Field 3, Field 4] : [Field; 2]
+            v6 = make_array [v5] : [[Field; 2]; 1]
+            v9 = array_set mut v2, index u32 1, value Field 7
+            v11, v12 = call as_vector(v6) -> (u32, [[Field; 2]])
+            v14, v15 = call vector_push_front(u32 1, v12, v9) -> (u32, [[Field; 2]])
+            v18 = array_set mut v9, index u32 0, value Field 99
+            v19 = array_get v15, index u32 0 -> [Field; 2]
+            v20 = array_get v19, index u32 0 -> Field
+            return v20, v18
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_mutate_array_pushed_back_into_vector() {
+        let src = "
+            acir(inline) fn main f0 {
+              b0():
+                v0 = make_array [Field 1, Field 2] : [Field; 2]
+                v1 = make_array [Field 3, Field 4] : [Field; 2]
+                v2 = make_array [v1] : [[Field; 2]; 1]
+                v3 = array_set v0, index u32 1, value Field 7
+                v4, v5 = call as_vector(v2) -> (u32, [[Field; 2]])
+                v6, v7 = call vector_push_back(u32 1, v5, v3) -> (u32, [[Field; 2]])
+                v8 = array_set v3, index u32 0, value Field 99
+                v9 = array_get v7, index u32 1 -> [Field; 2]
+                v10 = array_get v9, index u32 0 -> Field
+                return v10, v8
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let (ssa, value) =
+            assert_pass_does_not_affect_execution(ssa, vec![], Ssa::mutable_array_set_optimization);
+        assert_eq!(value.unwrap()[0], Value::field(1_u32.into()));
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v2 = make_array [Field 1, Field 2] : [Field; 2]
+            v5 = make_array [Field 3, Field 4] : [Field; 2]
+            v6 = make_array [v5] : [[Field; 2]; 1]
+            v9 = array_set mut v2, index u32 1, value Field 7
+            v11, v12 = call as_vector(v6) -> (u32, [[Field; 2]])
+            v14, v15 = call vector_push_back(u32 1, v12, v9) -> (u32, [[Field; 2]])
+            v18 = array_set mut v9, index u32 0, value Field 99
+            v19 = array_get v15, index u32 1 -> [Field; 2]
+            v20 = array_get v19, index u32 0 -> Field
+            return v20, v18
+        }
+        ");
+    }
+
     // A fold function is a separate circuit that owns its parameters, so the write to `v0` in
     // `f1` may be marked mutable even though `main` reads the array it passed in afterwards.
     #[test]
