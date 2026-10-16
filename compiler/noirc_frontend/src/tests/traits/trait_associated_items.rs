@@ -2306,6 +2306,8 @@ fn ambiguous_impl_with_unbound_type_variable_still_errors() {
     }
 
     pub fn f() where Wrapper<u16>: Foo {
+                                   ^^^ No matching impl found for `Wrapper<u16>: Foo<Bar = _>`
+                                   ~~~ No impl for `Wrapper<u16>: Foo<Bar = _>`
         let _x: <Wrapper<_> as Foo>::Bar = 0;
                                ^^^ Multiple trait impls match the object type `Wrapper<_>`
                                ~~~ Ambiguous impl

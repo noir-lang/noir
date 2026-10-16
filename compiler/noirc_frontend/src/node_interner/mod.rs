@@ -1543,6 +1543,14 @@ impl NodeInterner {
         &self.trait_impl_where_clauses[&impl_id]
     }
 
+    /// Like [`Self::get_where_clause_for_impl`], but `None` for an impl that has none recorded.
+    pub fn try_get_where_clause_for_impl(
+        &self,
+        impl_id: TraitImplId,
+    ) -> Option<&[TraitConstraint]> {
+        self.trait_impl_where_clauses.get(&impl_id).map(Vec::as_slice)
+    }
+
     /// The self type of the given trait impl, with fresh type variables for the impl's generics.
     pub(crate) fn instantiate_trait_impl_self_type(&self, impl_id: TraitImplId) -> Type {
         let trait_impl = self.get_trait_implementation(impl_id);

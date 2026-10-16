@@ -197,6 +197,10 @@ pub enum TypeCheckError {
     },
     #[error("No matching impl found")]
     NoMatchingImplFound(NoMatchingImplFoundError),
+    /// A `where` clause bound that names no generic parameter, so nothing can make it hold
+    /// later, and no impl satisfies it.
+    #[error("No matching impl found for a `where` clause bound that names no generic parameter")]
+    UnsatisfiedWhereClause(NoMatchingImplFoundError),
     #[error(
         "Constraint for `{typ}: {trait_name}` is not needed, another matching impl is already in scope"
     )]
@@ -417,7 +421,8 @@ impl TypeCheckError {
             TypeCheckError::DuplicateNamedTypeArg { name: ident, .. }
             | TypeCheckError::NoSuchNamedTypeArg { name: ident, .. } => ident.location(),
 
-            TypeCheckError::NoMatchingImplFound(no_matching_impl_found_error) => {
+            TypeCheckError::NoMatchingImplFound(no_matching_impl_found_error)
+            | TypeCheckError::UnsatisfiedWhereClause(no_matching_impl_found_error) => {
                 no_matching_impl_found_error.location
             }
             TypeCheckError::Context { err, .. } => err.location(),
@@ -774,6 +779,11 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 Diagnostic::simple_error(primary, secondary, *expr_location)
             }
             TypeCheckError::NoMatchingImplFound(error) => error.into(),
+            TypeCheckError::UnsatisfiedWhereClause(error) => {
+                let mut diagnostic: Diagnostic = error.into();
+                diagnostic.add_note("This bound names no generic parameter, so it must hold where it is written".to_string());
+                diagnostic
+            }
             TypeCheckError::UnneededTraitConstraint { trait_name, typ, location } => {
                 let msg = format!("Constraint for `{typ}: {trait_name}` is not needed, another matching impl is already in scope");
                 Diagnostic::simple_warning(msg, "Unnecessary trait constraint in where clause".into(), *location)

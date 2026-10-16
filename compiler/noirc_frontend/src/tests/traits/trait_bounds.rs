@@ -1667,3 +1667,102 @@ fn global_checked_from_another_functions_comptime_block_does_not_see_its_where_c
     "#;
     check_errors(src);
 }
+
+#[test]
+fn errors_on_where_clause_bound_without_generics_that_no_impl_satisfies() {
+    let src = r#"
+    trait Marker {}
+    trait Foo { fn value(self) -> Field; }
+    struct S {}
+    impl<T> Foo for T where T: Marker { fn value(self) -> Field { 1 } }
+    impl Foo for S { fn value(self) -> Field { 2 } }
+
+    fn main() -> pub Field where S: Marker { S {}.value() }
+                                    ^^^^^^ No matching impl found for `S: Marker`
+                                    ~~~~~~ No impl for `S: Marker`
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_on_where_clause_bound_without_generics_on_uncalled_function() {
+    let src = r#"
+    trait Marker {}
+    pub fn f() where Field: Marker {}
+                            ^^^^^^ No matching impl found for `Field: Marker`
+                            ~~~~~~ No impl for `Field: Marker`
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_on_where_clause_bound_without_generics_on_inherent_method() {
+    let src = r#"
+    trait Marker {}
+    pub struct S {}
+    impl S {
+        pub fn f() where Self: Marker {}
+                               ^^^^^^ No matching impl found for `S: Marker`
+                               ~~~~~~ No impl for `S: Marker`
+    }
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_on_where_clause_bound_without_generics_whose_impl_where_clause_fails() {
+    let src = r#"
+    trait Marker {}
+    trait Other {}
+    impl<T> Marker for [T; 2] where T: Other {}
+    pub fn f() where [Field; 2]: Marker {}
+                                 ^^^^^^ No matching impl found for `T: Other`
+                                 ~~~~~~ No impl for `T: Other`
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_on_where_clause_bound_without_generics_with_mismatched_associated_type() {
+    let src = r#"
+    trait Container { type Item; }
+    pub struct S {}
+    impl Container for S { type Item = u8; }
+    pub fn f() where S: Container<Item = u32> {}
+                        ^^^^^^^^^ No matching impl found for `S: Container<Item = u32>`
+                        ~~~~~~~~~ No impl for `S: Container<Item = u32>`
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn where_clause_bound_without_generics_satisfied_by_a_generic_impl_is_only_unneeded() {
+    let src = r#"
+    trait Marker {}
+    trait Other {}
+    impl Other for Field {}
+    impl<T> Marker for [T; 2] where T: Other {}
+    pub fn f() where [Field; 2]: Marker {}
+           ^ Constraint for `[Field; 2]: Marker` is not needed, another matching impl is already in scope
+           ~ Unnecessary trait constraint in where clause
+                                 ^^^^^^ Constraint for `[Field; 2]: Marker` is not needed, another matching impl is already in scope
+                                 ~~~~~~ Unnecessary trait constraint in where clause
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn does_not_check_where_clause_bounds_that_name_a_generic() {
+    let src = r#"
+    trait Marker {}
+    pub struct S<T> { pub x: T }
+    pub fn f<T>(_x: T) where S<T>: Marker {}
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}

@@ -359,6 +359,7 @@ impl<'context> Elaborator<'context> {
         let mut this = Self::from_context(context, crate_id, options, comptime_io, state);
         this.elaborate_items(items);
         this.check_and_pop_function_context();
+        this.check_where_clauses_without_generics();
         this
     }
 
