@@ -9,410 +9,410 @@
 <a href=#9 id=9 data-nosnippet>9</a><span class="kw">use </span><span class="kw">crate</span>::hir::comptime::bigint_to_field;
 <a href=#10 id=10 data-nosnippet>10</a><span class="kw">use </span>acvm::{AcirField, FieldElement};
 <a href=#11 id=11 data-nosnippet>11</a><span class="kw">use </span>builtin_helpers::{
-<a href=#12 id=12 data-nosnippet>12</a>    block_expression_to_value, byte_array_type, check_argument_count,
-<a href=#13 id=13 data-nosnippet>13</a>    check_function_not_yet_resolved, check_one_argument, check_return_type_shape,
-<a href=#14 id=14 data-nosnippet>14</a>    check_three_arguments, check_two_arguments, get_bool, get_expr, get_field, get_format_string,
-<a href=#15 id=15 data-nosnippet>15</a>    get_function_def, get_location, get_module, get_quoted, get_trait_constraint, get_trait_def,
-<a href=#16 id=16 data-nosnippet>16</a>    get_trait_impl, get_type, get_type_id, get_typed_expr, get_u32, get_vector,
-<a href=#17 id=17 data-nosnippet>17</a>    has_builtin_attribute, has_named_attribute, hir_pattern_to_tokens, new_binary_op, new_unary_op,
-<a href=#18 id=18 data-nosnippet>18</a>    parse, quote_ident, type_shape, visibility_to_quoted,
-<a href=#19 id=19 data-nosnippet>19</a>};
-<a href=#20 id=20 data-nosnippet>20</a><span class="kw">use </span>fm::FileMap;
-<a href=#21 id=21 data-nosnippet>21</a><span class="kw">use </span>imbl::Vector;
-<a href=#22 id=22 data-nosnippet>22</a><span class="kw">use </span>iter_extended::{try_vecmap, vecmap};
-<a href=#23 id=23 data-nosnippet>23</a><span class="kw">use </span>itertools::Itertools;
-<a href=#24 id=24 data-nosnippet>24</a><span class="kw">use </span>noirc_errors::Location;
-<a href=#25 id=25 data-nosnippet>25</a><span class="kw">use </span>num_bigint::BigUint;
-<a href=#26 id=26 data-nosnippet>26</a><span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
-<a href=#27 id=27 data-nosnippet>27</a>
-<a href=#28 id=28 data-nosnippet>28</a><span class="kw">use crate</span>::{
-<a href=#29 id=29 data-nosnippet>29</a>    Kind, QuotedType, Type, TypeBindings,
-<a href=#30 id=30 data-nosnippet>30</a>    ast::{
-<a href=#31 id=31 data-nosnippet>31</a>        ArrayLiteral, ConstrainKind, Expression, ExpressionKind, ForRange, IntegerBitSize, LValue,
-<a href=#32 id=32 data-nosnippet>32</a>        Literal, Pattern, Statement, StatementKind, UnsafeExpression,
-<a href=#33 id=33 data-nosnippet>33</a>    },
-<a href=#34 id=34 data-nosnippet>34</a>    elaborator::{
-<a href=#35 id=35 data-nosnippet>35</a>        ElaborateReason, Elaborator,
-<a href=#36 id=36 data-nosnippet>36</a>        types::{WildcardAllowed, WildcardDisallowedContext},
-<a href=#37 id=37 data-nosnippet>37</a>    },
-<a href=#38 id=38 data-nosnippet>38</a>    hir::{
-<a href=#39 id=39 data-nosnippet>39</a>        comptime::{
-<a href=#40 id=40 data-nosnippet>40</a>            InterpreterError, Value, ValueCell,
-<a href=#41 id=41 data-nosnippet>41</a>            display::tokens_to_string,
-<a href=#42 id=42 data-nosnippet>42</a>            errors::IResult,
-<a href=#43 id=43 data-nosnippet>43</a>            interpreter::{
-<a href=#44 id=44 data-nosnippet>44</a>                builtin::builtin_helpers::{fragments_to_bytes, fragments_to_string},
-<a href=#45 id=45 data-nosnippet>45</a>                builtin_helpers::{check_item_crate_matches_current_crate, get_option},
-<a href=#46 id=46 data-nosnippet>46</a>            },
-<a href=#47 id=47 data-nosnippet>47</a>            value::{ExprValue, FormatStringFragment, TypedExpr},
-<a href=#48 id=48 data-nosnippet>48</a>        },
-<a href=#49 id=49 data-nosnippet>49</a>        def_map::{ModuleDefId, ModuleId, fully_qualified_module_path},
-<a href=#50 id=50 data-nosnippet>50</a>        resolution::visibility::{item_in_module_is_visible, module_is_visible},
-<a href=#51 id=51 data-nosnippet>51</a>    },
-<a href=#52 id=52 data-nosnippet>52</a>    hir_def::{
-<a href=#53 id=53 data-nosnippet>53</a>        expr::{HirExpression, HirIdent, HirLiteral, ImplKind, TraitItem},
-<a href=#54 id=54 data-nosnippet>54</a>        function::FunctionBody,
-<a href=#55 id=55 data-nosnippet>55</a>        traits::{ResolvedTraitBound, TraitConstraint},
-<a href=#56 id=56 data-nosnippet>56</a>    },
-<a href=#57 id=57 data-nosnippet>57</a>    node_interner::{NodeInterner, TraitImplKind},
-<a href=#58 id=58 data-nosnippet>58</a>    parser::{Parser, StatementOrExpressionOrLValue},
-<a href=#59 id=59 data-nosnippet>59</a>    shared::{Builtin, Signedness},
-<a href=#60 id=60 data-nosnippet>60</a>    token::{LocatedToken, SecondaryAttribute, SecondaryAttributeKind, Token},
-<a href=#61 id=61 data-nosnippet>61</a>};
-<a href=#62 id=62 data-nosnippet>62</a>
-<a href=#63 id=63 data-nosnippet>63</a><span class="kw">use </span><span class="self">self</span>::builtin_helpers::{
-<a href=#64 id=64 data-nosnippet>64</a>    DeterministicHasher, eq_item, get_array, get_ctstring, get_str, get_u8, hash_item, lex,
-<a href=#65 id=65 data-nosnippet>65</a>};
-<a href=#66 id=66 data-nosnippet>66</a><span class="kw">use </span><span class="kw">super</span>::Interpreter;
-<a href=#67 id=67 data-nosnippet>67</a>
-<a href=#68 id=68 data-nosnippet>68</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>builtin_helpers;
-<a href=#69 id=69 data-nosnippet>69</a>
-<a href=#70 id=70 data-nosnippet>70</a><span class="kw">impl </span>Interpreter&lt;<span class="lifetime">'_</span>, <span class="lifetime">'_</span>&gt; {
-<a href=#71 id=71 data-nosnippet>71</a>    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>call_builtin(
-<a href=#72 id=72 data-nosnippet>72</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-<a href=#73 id=73 data-nosnippet>73</a>        builtin: Builtin,
-<a href=#74 id=74 data-nosnippet>74</a>        arguments: Vec&lt;(Value, Location)&gt;,
-<a href=#75 id=75 data-nosnippet>75</a>        return_type: Type,
-<a href=#76 id=76 data-nosnippet>76</a>        location: Location,
-<a href=#77 id=77 data-nosnippet>77</a>    ) -&gt; IResult&lt;Value&gt; {
-<a href=#78 id=78 data-nosnippet>78</a>        <span class="kw">let </span>call_stack = <span class="kw-2">&amp;</span><span class="self">self</span>.elaborator.interpreter_call_stack().clone();
-<a href=#79 id=79 data-nosnippet>79</a>        <span class="kw">let </span>expected_return_shape = type_shape(<span class="kw-2">&amp;</span>return_type);
-<a href=#80 id=80 data-nosnippet>80</a>        <span class="kw">let </span>interner = <span class="kw-2">&amp;mut </span><span class="self">self</span>.elaborator.interner;
-<a href=#81 id=81 data-nosnippet>81</a>        <span class="kw">let </span>result = <span class="kw">match </span>builtin {
-<a href=#82 id=82 data-nosnippet>82</a>            Builtin::ApplyRangeConstraint =&gt; {
-<a href=#83 id=83 data-nosnippet>83</a>                apply_range_constraint(arguments, location, call_stack)
-<a href=#84 id=84 data-nosnippet>84</a>            }
-<a href=#85 id=85 data-nosnippet>85</a>            Builtin::ArrayAsStrUnchecked =&gt; array_as_str_unchecked(arguments, location),
-<a href=#86 id=86 data-nosnippet>86</a>            Builtin::ArrayLen =&gt; array_len(arguments, location),
-<a href=#87 id=87 data-nosnippet>87</a>            Builtin::ArrayRefcount =&gt; <span class="prelude-val">Ok</span>(Value::u32(<span class="number">0</span>)),
-<a href=#88 id=88 data-nosnippet>88</a>            Builtin::AssertConstant =&gt; <span class="prelude-val">Ok</span>(Value::Unit),
-<a href=#89 id=89 data-nosnippet>89</a>            Builtin::AsVector =&gt; as_vector(arguments, location),
-<a href=#90 id=90 data-nosnippet>90</a>            Builtin::AsWitness =&gt; as_witness(arguments, location),
-<a href=#91 id=91 data-nosnippet>91</a>            Builtin::BlackBoxHint =&gt; black_box(arguments, location),
-<a href=#92 id=92 data-nosnippet>92</a>            Builtin::CheckedTransmute =&gt; checked_transmute(arguments, return_type, location),
-<a href=#93 id=93 data-nosnippet>93</a>            Builtin::CtstringAppend =&gt; ctstring_append(arguments, location),
-<a href=#94 id=94 data-nosnippet>94</a>            Builtin::CtstringEq =&gt; eq_item(arguments, location, get_ctstring),
-<a href=#95 id=95 data-nosnippet>95</a>            Builtin::CtstringHash =&gt; hash_item(arguments, location, get_ctstring),
-<a href=#96 id=96 data-nosnippet>96</a>            Builtin::DerivePedersenGenerators =&gt; {
-<a href=#97 id=97 data-nosnippet>97</a>                derive_generators(arguments, return_type, location)
-<a href=#98 id=98 data-nosnippet>98</a>            }
-<a href=#99 id=99 data-nosnippet>99</a>            Builtin::ExprAsArray =&gt; expr_as_array(interner, arguments, return_type, location),
-<a href=#100 id=100 data-nosnippet>100</a>            Builtin::ExprAsAssert =&gt; expr_as_assert(interner, arguments, return_type, location),
-<a href=#101 id=101 data-nosnippet>101</a>            Builtin::ExprAsAssertEq =&gt; {
-<a href=#102 id=102 data-nosnippet>102</a>                expr_as_assert_eq(interner, arguments, return_type, location)
-<a href=#103 id=103 data-nosnippet>103</a>            }
-<a href=#104 id=104 data-nosnippet>104</a>            Builtin::ExprAsAssign =&gt; expr_as_assign(interner, arguments, return_type, location),
-<a href=#105 id=105 data-nosnippet>105</a>            Builtin::ExprAsBinaryOp =&gt; {
-<a href=#106 id=106 data-nosnippet>106</a>                expr_as_binary_op(interner, arguments, return_type, location)
-<a href=#107 id=107 data-nosnippet>107</a>            }
-<a href=#108 id=108 data-nosnippet>108</a>            Builtin::ExprAsBlock =&gt; expr_as_block(interner, arguments, return_type, location),
-<a href=#109 id=109 data-nosnippet>109</a>            Builtin::ExprAsBool =&gt; expr_as_bool(interner, arguments, return_type, location),
-<a href=#110 id=110 data-nosnippet>110</a>            Builtin::ExprAsCast =&gt; expr_as_cast(interner, arguments, return_type, location),
-<a href=#111 id=111 data-nosnippet>111</a>            Builtin::ExprAsComptime =&gt; expr_as_comptime(interner, arguments, return_type, location),
-<a href=#112 id=112 data-nosnippet>112</a>            Builtin::ExprAsConstructor =&gt; {
-<a href=#113 id=113 data-nosnippet>113</a>                expr_as_constructor(interner, arguments, return_type, location)
-<a href=#114 id=114 data-nosnippet>114</a>            }
-<a href=#115 id=115 data-nosnippet>115</a>            Builtin::ExprAsFor =&gt; expr_as_for(interner, arguments, return_type, location),
-<a href=#116 id=116 data-nosnippet>116</a>            Builtin::ExprAsForRange =&gt; {
-<a href=#117 id=117 data-nosnippet>117</a>                expr_as_for_range(interner, arguments, return_type, location)
-<a href=#118 id=118 data-nosnippet>118</a>            }
-<a href=#119 id=119 data-nosnippet>119</a>            Builtin::ExprAsFunctionCall =&gt; {
-<a href=#120 id=120 data-nosnippet>120</a>                expr_as_function_call(interner, arguments, return_type, location)
-<a href=#121 id=121 data-nosnippet>121</a>            }
-<a href=#122 id=122 data-nosnippet>122</a>            Builtin::ExprAsIf =&gt; expr_as_if(interner, arguments, return_type, location),
-<a href=#123 id=123 data-nosnippet>123</a>            Builtin::ExprAsIndex =&gt; expr_as_index(interner, arguments, return_type, location),
-<a href=#124 id=124 data-nosnippet>124</a>            Builtin::ExprAsInteger =&gt; expr_as_integer(interner, arguments, return_type, location),
-<a href=#125 id=125 data-nosnippet>125</a>            Builtin::ExprAsLambda =&gt; expr_as_lambda(interner, arguments, return_type, location),
-<a href=#126 id=126 data-nosnippet>126</a>            Builtin::ExprAsLet =&gt; expr_as_let(interner, arguments, return_type, location),
-<a href=#127 id=127 data-nosnippet>127</a>            Builtin::ExprAsMemberAccess =&gt; {
-<a href=#128 id=128 data-nosnippet>128</a>                expr_as_member_access(interner, arguments, return_type, location)
-<a href=#129 id=129 data-nosnippet>129</a>            }
-<a href=#130 id=130 data-nosnippet>130</a>            Builtin::ExprAsMethodCall =&gt; {
-<a href=#131 id=131 data-nosnippet>131</a>                expr_as_method_call(interner, arguments, return_type, location)
-<a href=#132 id=132 data-nosnippet>132</a>            }
-<a href=#133 id=133 data-nosnippet>133</a>            Builtin::ExprAsRepeatedElementArray =&gt; {
-<a href=#134 id=134 data-nosnippet>134</a>                expr_as_repeated_element_array(interner, arguments, return_type, location)
-<a href=#135 id=135 data-nosnippet>135</a>            }
-<a href=#136 id=136 data-nosnippet>136</a>            Builtin::ExprAsRepeatedElementVector =&gt; {
-<a href=#137 id=137 data-nosnippet>137</a>                expr_as_repeated_element_vector(interner, arguments, return_type, location)
-<a href=#138 id=138 data-nosnippet>138</a>            }
-<a href=#139 id=139 data-nosnippet>139</a>            Builtin::ExprAsVector =&gt; expr_as_vector(interner, arguments, return_type, location),
-<a href=#140 id=140 data-nosnippet>140</a>            Builtin::ExprAsTuple =&gt; expr_as_tuple(interner, arguments, return_type, location),
-<a href=#141 id=141 data-nosnippet>141</a>            Builtin::ExprAsUnaryOp =&gt; expr_as_unary_op(interner, arguments, return_type, location),
-<a href=#142 id=142 data-nosnippet>142</a>            Builtin::ExprAsUnsafe =&gt; expr_as_unsafe(interner, arguments, return_type, location),
-<a href=#143 id=143 data-nosnippet>143</a>            Builtin::ExprHasSemicolon =&gt; expr_has_semicolon(interner, arguments, location),
-<a href=#144 id=144 data-nosnippet>144</a>            Builtin::ExprIsBreak =&gt; expr_is_break(interner, arguments, location),
-<a href=#145 id=145 data-nosnippet>145</a>            Builtin::ExprIsContinue =&gt; expr_is_continue(interner, arguments, location),
-<a href=#146 id=146 data-nosnippet>146</a>            Builtin::ExprResolve =&gt; expr_resolve(<span class="self">self</span>, arguments, location),
-<a href=#147 id=147 data-nosnippet>147</a>            Builtin::IsUnconstrained =&gt; {
-<a href=#148 id=148 data-nosnippet>148</a>                <span class="comment">// When in coverage mode, have the comptime interpreter treat `is_unconstrained` the same
-<a href=#149 id=149 data-nosnippet>149</a>                // way it's treated in ACIR and Brillig. Usually unconstrained code is faster and that's why
-<a href=#150 id=150 data-nosnippet>150</a>                // in non-coverage mode we want to go through the fastest path, but in coverage mode it's fine
-<a href=#151 id=151 data-nosnippet>151</a>                // if it's slower so more code is covered by tests.
-<a href=#152 id=152 data-nosnippet>152</a>                </span><span class="kw">if </span><span class="self">self</span>.elaborator.evaluation_tracker.is_some() {
-<a href=#153 id=153 data-nosnippet>153</a>                    <span class="prelude-val">Ok</span>(Value::Bool(<span class="self">self</span>.in_unconstrained))
-<a href=#154 id=154 data-nosnippet>154</a>                } <span class="kw">else </span>{
-<a href=#155 id=155 data-nosnippet>155</a>                    <span class="prelude-val">Ok</span>(Value::Bool(<span class="bool-val">true</span>))
-<a href=#156 id=156 data-nosnippet>156</a>                }
-<a href=#157 id=157 data-nosnippet>157</a>            }
-<a href=#158 id=158 data-nosnippet>158</a>            Builtin::FieldLessThan =&gt; field_less_than(arguments, location),
-<a href=#159 id=159 data-nosnippet>159</a>            Builtin::IssueError =&gt; issue_diagnostic(<span class="self">self</span>, arguments, location, <span class="bool-val">false</span>),
-<a href=#160 id=160 data-nosnippet>160</a>            Builtin::IssueWarning =&gt; issue_diagnostic(<span class="self">self</span>, arguments, location, <span class="bool-val">true</span>),
-<a href=#161 id=161 data-nosnippet>161</a>            Builtin::LocationEq =&gt; eq_item(arguments, location, get_location),
-<a href=#162 id=162 data-nosnippet>162</a>            Builtin::LocationHash =&gt; hash_item(arguments, location, get_location),
-<a href=#163 id=163 data-nosnippet>163</a>            Builtin::FmtstrAsCtstring =&gt; {
-<a href=#164 id=164 data-nosnippet>164</a>                fmtstr_as_ctstring(interner, <span class="self">self</span>.elaborator.files, arguments, location)
-<a href=#165 id=165 data-nosnippet>165</a>            }
-<a href=#166 id=166 data-nosnippet>166</a>            Builtin::FmtstrQuotedContents =&gt; {
-<a href=#167 id=167 data-nosnippet>167</a>                fmtstr_quoted_contents(interner, <span class="self">self</span>.elaborator.files, arguments, location)
-<a href=#168 id=168 data-nosnippet>168</a>            }
-<a href=#169 id=169 data-nosnippet>169</a>            Builtin::FreshTypeVariable =&gt; fresh_type_variable(interner),
-<a href=#170 id=170 data-nosnippet>170</a>            Builtin::FunctionDefAsTypedExpr =&gt; {
-<a href=#171 id=171 data-nosnippet>171</a>                function_def_as_typed_expr(<span class="self">self</span>, arguments, location)
-<a href=#172 id=172 data-nosnippet>172</a>            }
-<a href=#173 id=173 data-nosnippet>173</a>            Builtin::FunctionDefBody =&gt; function_def_body(<span class="self">self</span>, arguments, location),
-<a href=#174 id=174 data-nosnippet>174</a>            Builtin::FunctionDefDisable =&gt; function_def_disable(<span class="self">self</span>, arguments, location),
-<a href=#175 id=175 data-nosnippet>175</a>            Builtin::FunctionDefEq =&gt; eq_item(arguments, location, get_function_def),
-<a href=#176 id=176 data-nosnippet>176</a>            Builtin::FunctionDefHasBuiltinAttribute =&gt; {
-<a href=#177 id=177 data-nosnippet>177</a>                function_def_has_attribute(interner, arguments, location, <span class="bool-val">true</span>)
-<a href=#178 id=178 data-nosnippet>178</a>            }
-<a href=#179 id=179 data-nosnippet>179</a>            Builtin::FunctionDefHasNamedAttribute =&gt; {
-<a href=#180 id=180 data-nosnippet>180</a>                function_def_has_attribute(interner, arguments, location, <span class="bool-val">false</span>)
-<a href=#181 id=181 data-nosnippet>181</a>            }
-<a href=#182 id=182 data-nosnippet>182</a>            Builtin::FunctionDefNamedAttributeArgs =&gt; {
-<a href=#183 id=183 data-nosnippet>183</a>                function_def_named_attribute_args(interner, arguments, location)
-<a href=#184 id=184 data-nosnippet>184</a>            }
-<a href=#185 id=185 data-nosnippet>185</a>            Builtin::FunctionDefHash =&gt; hash_item(arguments, location, get_function_def),
-<a href=#186 id=186 data-nosnippet>186</a>            Builtin::FunctionDefIsUnconstrained =&gt; {
-<a href=#187 id=187 data-nosnippet>187</a>                function_def_is_unconstrained(<span class="self">self</span>, arguments, location)
-<a href=#188 id=188 data-nosnippet>188</a>            }
-<a href=#189 id=189 data-nosnippet>189</a>            Builtin::FunctionDefLocation =&gt; {
-<a href=#190 id=190 data-nosnippet>190</a>                function_def_location(<span class="self">self</span>.elaborator, arguments, location)
-<a href=#191 id=191 data-nosnippet>191</a>            }
-<a href=#192 id=192 data-nosnippet>192</a>            Builtin::FunctionDefModule =&gt; function_def_module(interner, arguments, location),
-<a href=#193 id=193 data-nosnippet>193</a>            Builtin::FunctionDefName =&gt; function_def_name(interner, arguments, location),
-<a href=#194 id=194 data-nosnippet>194</a>            Builtin::FunctionDefParameters =&gt; function_def_parameters(<span class="self">self</span>, arguments, location),
-<a href=#195 id=195 data-nosnippet>195</a>            Builtin::FunctionDefReturnType =&gt; function_def_return_type(<span class="self">self</span>, arguments, location),
-<a href=#196 id=196 data-nosnippet>196</a>            Builtin::FunctionDefVisibility =&gt; {
-<a href=#197 id=197 data-nosnippet>197</a>                function_def_visibility(interner, arguments, location)
-<a href=#198 id=198 data-nosnippet>198</a>            }
-<a href=#199 id=199 data-nosnippet>199</a>            Builtin::ModuleChildModules =&gt; module_child_modules(<span class="self">self</span>, arguments, location),
-<a href=#200 id=200 data-nosnippet>200</a>            Builtin::ModuleEq =&gt; eq_item(arguments, location, get_module),
-<a href=#201 id=201 data-nosnippet>201</a>            Builtin::ModuleFunctions =&gt; module_functions(<span class="self">self</span>, arguments, location),
-<a href=#202 id=202 data-nosnippet>202</a>            Builtin::ModuleHasBuiltinAttribute =&gt; {
-<a href=#203 id=203 data-nosnippet>203</a>                module_has_attribute(<span class="self">self</span>, arguments, location, <span class="bool-val">true</span>)
-<a href=#204 id=204 data-nosnippet>204</a>            }
-<a href=#205 id=205 data-nosnippet>205</a>            Builtin::ModuleHasNamedAttribute =&gt; {
-<a href=#206 id=206 data-nosnippet>206</a>                module_has_attribute(<span class="self">self</span>, arguments, location, <span class="bool-val">false</span>)
-<a href=#207 id=207 data-nosnippet>207</a>            }
-<a href=#208 id=208 data-nosnippet>208</a>            Builtin::ModuleNamedAttributeArgs =&gt; {
-<a href=#209 id=209 data-nosnippet>209</a>                module_named_attribute_args(<span class="self">self</span>, arguments, location)
-<a href=#210 id=210 data-nosnippet>210</a>            }
-<a href=#211 id=211 data-nosnippet>211</a>            Builtin::ModuleHash =&gt; hash_item(arguments, location, get_module),
-<a href=#212 id=212 data-nosnippet>212</a>            Builtin::ModuleIsContract =&gt; module_is_contract(<span class="self">self</span>, arguments, location),
-<a href=#213 id=213 data-nosnippet>213</a>            Builtin::ModuleLocation =&gt; module_location(interner, arguments, location),
-<a href=#214 id=214 data-nosnippet>214</a>            Builtin::ModuleName =&gt; module_name(interner, arguments, location),
-<a href=#215 id=215 data-nosnippet>215</a>            Builtin::ModuleParent =&gt; module_parent(<span class="self">self</span>, arguments, return_type, location),
-<a href=#216 id=216 data-nosnippet>216</a>            Builtin::ModuleStructs =&gt; module_structs(<span class="self">self</span>, arguments, location),
-<a href=#217 id=217 data-nosnippet>217</a>            Builtin::ModulusBeBits =&gt; modulus_be_bits(<span class="kw-2">&amp;</span>arguments, location),
-<a href=#218 id=218 data-nosnippet>218</a>            Builtin::ModulusBeBytes =&gt; modulus_be_bytes(<span class="kw-2">&amp;</span>arguments, location),
-<a href=#219 id=219 data-nosnippet>219</a>            Builtin::ModulusLeBits =&gt; modulus_le_bits(<span class="kw-2">&amp;</span>arguments, location),
-<a href=#220 id=220 data-nosnippet>220</a>            Builtin::ModulusLeBytes =&gt; modulus_le_bytes(<span class="kw-2">&amp;</span>arguments, location),
-<a href=#221 id=221 data-nosnippet>221</a>            Builtin::ModulusNumBits =&gt; modulus_num_bits(<span class="kw-2">&amp;</span>arguments, location),
-<a href=#222 id=222 data-nosnippet>222</a>            Builtin::QuotedAsExpr =&gt; {
-<a href=#223 id=223 data-nosnippet>223</a>                quoted_as_expr(<span class="self">self</span>.elaborator, arguments, return_type, location)
-<a href=#224 id=224 data-nosnippet>224</a>            }
-<a href=#225 id=225 data-nosnippet>225</a>            Builtin::QuotedAsModule =&gt; quoted_as_module(<span class="self">self</span>, arguments, return_type, location),
-<a href=#226 id=226 data-nosnippet>226</a>            Builtin::QuotedAsTraitConstraint =&gt; {
-<a href=#227 id=227 data-nosnippet>227</a>                quoted_as_trait_constraint(<span class="self">self</span>, arguments, location)
-<a href=#228 id=228 data-nosnippet>228</a>            }
-<a href=#229 id=229 data-nosnippet>229</a>            Builtin::QuotedAsType =&gt; quoted_as_type(<span class="self">self</span>, arguments, location),
-<a href=#230 id=230 data-nosnippet>230</a>            Builtin::QuotedEq =&gt; {
-<a href=#231 id=231 data-nosnippet>231</a>                quoted_eq(<span class="self">self</span>.elaborator.interner, <span class="self">self</span>.elaborator.files, arguments, location)
-<a href=#232 id=232 data-nosnippet>232</a>            }
-<a href=#233 id=233 data-nosnippet>233</a>            Builtin::QuotedHash =&gt; {
-<a href=#234 id=234 data-nosnippet>234</a>                quoted_hash(<span class="self">self</span>.elaborator.interner, <span class="self">self</span>.elaborator.files, arguments, location)
-<a href=#235 id=235 data-nosnippet>235</a>            }
-<a href=#236 id=236 data-nosnippet>236</a>            Builtin::QuotedLocation =&gt; quoted_location(arguments, return_type, location),
-<a href=#237 id=237 data-nosnippet>237</a>            Builtin::QuotedTokens =&gt; quoted_tokens(arguments, location),
-<a href=#238 id=238 data-nosnippet>238</a>            Builtin::VectorInsert =&gt; vector_insert(arguments, location, call_stack),
-<a href=#239 id=239 data-nosnippet>239</a>            Builtin::VectorPopBack =&gt; vector_pop_back(arguments, location, call_stack),
-<a href=#240 id=240 data-nosnippet>240</a>            Builtin::VectorPopFront =&gt; vector_pop_front(arguments, location, call_stack),
-<a href=#241 id=241 data-nosnippet>241</a>            Builtin::VectorPushBack =&gt; vector_push_back(arguments, location),
-<a href=#242 id=242 data-nosnippet>242</a>            Builtin::VectorPushFront =&gt; vector_push_front(arguments, location),
-<a href=#243 id=243 data-nosnippet>243</a>            Builtin::VectorRefcount =&gt; <span class="prelude-val">Ok</span>(Value::u32(<span class="number">0</span>)),
-<a href=#244 id=244 data-nosnippet>244</a>            Builtin::VectorRemove =&gt; vector_remove(arguments, location, call_stack),
-<a href=#245 id=245 data-nosnippet>245</a>            Builtin::StaticAssert =&gt; {
-<a href=#246 id=246 data-nosnippet>246</a>                static_assert(interner, <span class="self">self</span>.elaborator.files, arguments, location, call_stack)
-<a href=#247 id=247 data-nosnippet>247</a>            }
-<a href=#248 id=248 data-nosnippet>248</a>            Builtin::StrAsBytes =&gt; str_as_bytes(arguments, location),
-<a href=#249 id=249 data-nosnippet>249</a>            Builtin::StrAsCtstring =&gt; str_as_ctstring(arguments, location),
-<a href=#250 id=250 data-nosnippet>250</a>            Builtin::ToBeRadix =&gt; to_be_radix(arguments, return_type, location, call_stack),
-<a href=#251 id=251 data-nosnippet>251</a>            Builtin::ToLeRadix =&gt; to_le_radix(arguments, return_type, location, call_stack),
-<a href=#252 id=252 data-nosnippet>252</a>            Builtin::ToBeBits =&gt; to_be_bits(arguments, return_type, location, call_stack),
-<a href=#253 id=253 data-nosnippet>253</a>            Builtin::ToLeBits =&gt; to_le_bits(arguments, return_type, location, call_stack),
-<a href=#254 id=254 data-nosnippet>254</a>            Builtin::TraitConstraintEq =&gt; eq_item(arguments, location, get_trait_constraint),
-<a href=#255 id=255 data-nosnippet>255</a>            Builtin::TraitConstraintHash =&gt; hash_item(arguments, location, get_trait_constraint),
-<a href=#256 id=256 data-nosnippet>256</a>            Builtin::TraitDefAsTraitConstraint =&gt; {
-<a href=#257 id=257 data-nosnippet>257</a>                trait_def_as_trait_constraint(interner, arguments, location)
-<a href=#258 id=258 data-nosnippet>258</a>            }
-<a href=#259 id=259 data-nosnippet>259</a>            Builtin::TraitDefEq =&gt; eq_item(arguments, location, get_trait_def),
-<a href=#260 id=260 data-nosnippet>260</a>            Builtin::TraitDefHash =&gt; hash_item(arguments, location, get_trait_def),
-<a href=#261 id=261 data-nosnippet>261</a>            Builtin::TraitDefLocation =&gt; trait_def_location(interner, arguments, location),
-<a href=#262 id=262 data-nosnippet>262</a>            Builtin::TraitImplMethods =&gt; trait_impl_methods(interner, arguments, location),
-<a href=#263 id=263 data-nosnippet>263</a>            Builtin::TraitImplTraitGenericArgs =&gt; {
-<a href=#264 id=264 data-nosnippet>264</a>                trait_impl_trait_generic_args(interner, arguments, location)
-<a href=#265 id=265 data-nosnippet>265</a>            }
-<a href=#266 id=266 data-nosnippet>266</a>            Builtin::TypeAsArray =&gt; type_as_array(arguments, return_type, location),
-<a href=#267 id=267 data-nosnippet>267</a>            Builtin::TypeAsConstant =&gt; type_as_constant(arguments, return_type, location),
-<a href=#268 id=268 data-nosnippet>268</a>            Builtin::TypeAsInteger =&gt; type_as_integer(arguments, return_type, location),
-<a href=#269 id=269 data-nosnippet>269</a>            Builtin::TypeAsMutableReference =&gt; {
-<a href=#270 id=270 data-nosnippet>270</a>                type_as_mutable_reference(arguments, return_type, location)
-<a href=#271 id=271 data-nosnippet>271</a>            }
-<a href=#272 id=272 data-nosnippet>272</a>            Builtin::TypeAsVector =&gt; type_as_vector(arguments, return_type, location),
-<a href=#273 id=273 data-nosnippet>273</a>            Builtin::TypeAsStr =&gt; type_as_str(arguments, return_type, location),
-<a href=#274 id=274 data-nosnippet>274</a>            Builtin::TypeAsDataType =&gt; type_as_data_type(arguments, return_type, location),
-<a href=#275 id=275 data-nosnippet>275</a>            Builtin::TypeAsTuple =&gt; type_as_tuple(arguments, return_type, location),
-<a href=#276 id=276 data-nosnippet>276</a>            Builtin::TypeDefAddAbi =&gt; type_def_add_abi(<span class="self">self</span>, arguments, location),
-<a href=#277 id=277 data-nosnippet>277</a>            Builtin::TypeDefAsType =&gt; type_def_as_type(interner, arguments, location),
-<a href=#278 id=278 data-nosnippet>278</a>            Builtin::TypeDefAsTypeWithGenerics =&gt; {
-<a href=#279 id=279 data-nosnippet>279</a>                type_def_as_type_with_generics(interner, arguments, return_type, location)
-<a href=#280 id=280 data-nosnippet>280</a>            }
-<a href=#281 id=281 data-nosnippet>281</a>            Builtin::TypeDefEq =&gt; eq_item(arguments, location, get_type_id),
-<a href=#282 id=282 data-nosnippet>282</a>            Builtin::TypeDefFields =&gt; type_def_fields(<span class="self">self</span>, arguments, location, call_stack),
-<a href=#283 id=283 data-nosnippet>283</a>            Builtin::TypeDefFieldsAsWritten =&gt; {
-<a href=#284 id=284 data-nosnippet>284</a>                type_def_fields_as_written(<span class="self">self</span>, arguments, location)
-<a href=#285 id=285 data-nosnippet>285</a>            }
-<a href=#286 id=286 data-nosnippet>286</a>            Builtin::TypeDefGenerics =&gt; {
-<a href=#287 id=287 data-nosnippet>287</a>                type_def_generics(interner, arguments, return_type, location)
-<a href=#288 id=288 data-nosnippet>288</a>            }
-<a href=#289 id=289 data-nosnippet>289</a>            Builtin::TypeDefHasBuiltinAttribute =&gt; {
-<a href=#290 id=290 data-nosnippet>290</a>                type_def_has_attribute(interner, arguments, location, <span class="bool-val">true</span>)
-<a href=#291 id=291 data-nosnippet>291</a>            }
-<a href=#292 id=292 data-nosnippet>292</a>            Builtin::TypeDefHasNamedAttribute =&gt; {
-<a href=#293 id=293 data-nosnippet>293</a>                type_def_has_attribute(interner, arguments, location, <span class="bool-val">false</span>)
-<a href=#294 id=294 data-nosnippet>294</a>            }
-<a href=#295 id=295 data-nosnippet>295</a>            Builtin::TypeDefNamedAttributeArgs =&gt; {
-<a href=#296 id=296 data-nosnippet>296</a>                type_def_named_attribute_args(interner, arguments, location)
-<a href=#297 id=297 data-nosnippet>297</a>            }
-<a href=#298 id=298 data-nosnippet>298</a>            Builtin::TypeDefHash =&gt; hash_item(arguments, location, get_type_id),
-<a href=#299 id=299 data-nosnippet>299</a>            Builtin::TypeDefLocation =&gt; type_def_location(interner, arguments, location),
-<a href=#300 id=300 data-nosnippet>300</a>            Builtin::TypeDefModule =&gt; type_def_module(<span class="self">self</span>, arguments, location),
-<a href=#301 id=301 data-nosnippet>301</a>            Builtin::TypeDefName =&gt; type_def_name(interner, arguments, location),
-<a href=#302 id=302 data-nosnippet>302</a>            Builtin::TypeEq =&gt; eq_item(arguments, location, get_type),
-<a href=#303 id=303 data-nosnippet>303</a>            Builtin::TypeGetTraitImpl =&gt; {
-<a href=#304 id=304 data-nosnippet>304</a>                type_get_trait_impl(interner, arguments, return_type, location)
-<a href=#305 id=305 data-nosnippet>305</a>            }
-<a href=#306 id=306 data-nosnippet>306</a>            Builtin::TypeHash =&gt; hash_item(arguments, location, get_type),
-<a href=#307 id=307 data-nosnippet>307</a>            Builtin::TypeImplements =&gt; type_implements(interner, arguments, location),
-<a href=#308 id=308 data-nosnippet>308</a>            Builtin::TypeIsBool =&gt; type_is_bool(arguments, location),
-<a href=#309 id=309 data-nosnippet>309</a>            Builtin::TypeIsField =&gt; type_is_field(arguments, location),
-<a href=#310 id=310 data-nosnippet>310</a>            Builtin::TypeIsUnit =&gt; type_is_unit(arguments, location),
-<a href=#311 id=311 data-nosnippet>311</a>            Builtin::TypeOf =&gt; type_of(arguments, location),
-<a href=#312 id=312 data-nosnippet>312</a>            Builtin::TypedExprAsFunctionDefinition =&gt; {
-<a href=#313 id=313 data-nosnippet>313</a>                typed_expr_as_function_definition(interner, arguments, return_type, location)
-<a href=#314 id=314 data-nosnippet>314</a>            }
-<a href=#315 id=315 data-nosnippet>315</a>            Builtin::TypedExprGetType =&gt; {
-<a href=#316 id=316 data-nosnippet>316</a>                typed_expr_get_type(interner, arguments, return_type, location)
-<a href=#317 id=317 data-nosnippet>317</a>            }
-<a href=#318 id=318 data-nosnippet>318</a>            Builtin::TypedExprLocation =&gt; typed_expr_location(interner, arguments, location),
-<a href=#319 id=319 data-nosnippet>319</a>            Builtin::Zeroed =&gt; {
-<a href=#320 id=320 data-nosnippet>320</a>                <span class="comment">// Resolve any deferred struct fields or enum variants in the
-<a href=#321 id=321 data-nosnippet>321</a>                // return type so `zeroed` returns a real `Value::Struct`/`Enum`
-<a href=#322 id=322 data-nosnippet>322</a>                // instead of an opaque `Value::Zeroed` placeholder when called
-<a href=#323 id=323 data-nosnippet>323</a>                // before the post-attribute drain.
-<a href=#324 id=324 data-nosnippet>324</a>                </span><span class="self">self</span>.elaborator.define_deferred_data_types_in(<span class="kw-2">&amp;</span>return_type);
-<a href=#325 id=325 data-nosnippet>325</a>                <span class="prelude-val">Ok</span>(zeroed(return_type, location))
-<a href=#326 id=326 data-nosnippet>326</a>            }
-<a href=#327 id=327 data-nosnippet>327</a>            <span class="kw">_ </span>=&gt; {
-<a href=#328 id=328 data-nosnippet>328</a>                <span class="kw">let </span>item = <span class="macro">format!</span>(<span class="string">"Comptime evaluation for builtin function '{builtin}'"</span>);
-<a href=#329 id=329 data-nosnippet>329</a>                <span class="prelude-val">Err</span>(InterpreterError::Unimplemented { item, location })
-<a href=#330 id=330 data-nosnippet>330</a>            }
-<a href=#331 id=331 data-nosnippet>331</a>        }<span class="question-mark">?</span>;
-<a href=#332 id=332 data-nosnippet>332</a>
-<a href=#333 id=333 data-nosnippet>333</a>        check_return_type_shape(<span class="kw-2">&amp;</span>result, expected_return_shape, location)<span class="question-mark">?</span>;
-<a href=#334 id=334 data-nosnippet>334</a>        <span class="prelude-val">Ok</span>(result)
-<a href=#335 id=335 data-nosnippet>335</a>    }
-<a href=#336 id=336 data-nosnippet>336</a>}
-<a href=#337 id=337 data-nosnippet>337</a>
-<a href=#338 id=338 data-nosnippet>338</a><span class="kw">fn </span>failing_constraint&lt;T&gt;(
-<a href=#339 id=339 data-nosnippet>339</a>    message: <span class="kw">impl </span>Into&lt;String&gt;,
-<a href=#340 id=340 data-nosnippet>340</a>    location: Location,
-<a href=#341 id=341 data-nosnippet>341</a>    call_stack: <span class="kw-2">&amp;</span>Vector&lt;Location&gt;,
-<a href=#342 id=342 data-nosnippet>342</a>) -&gt; IResult&lt;T&gt; {
-<a href=#343 id=343 data-nosnippet>343</a>    <span class="prelude-val">Err</span>(InterpreterError::FailingConstraint {
-<a href=#344 id=344 data-nosnippet>344</a>        message: <span class="prelude-val">Some</span>(message.into()),
-<a href=#345 id=345 data-nosnippet>345</a>        location,
-<a href=#346 id=346 data-nosnippet>346</a>        call_stack: call_stack.clone(),
-<a href=#347 id=347 data-nosnippet>347</a>    })
-<a href=#348 id=348 data-nosnippet>348</a>}
-<a href=#349 id=349 data-nosnippet>349</a>
-<a href=#350 id=350 data-nosnippet>350</a><span class="kw">fn </span>array_len(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
-<a href=#351 id=351 data-nosnippet>351</a>    <span class="kw">let </span>(argument, argument_location) = check_one_argument(arguments, location)<span class="question-mark">?</span>;
-<a href=#352 id=352 data-nosnippet>352</a>
-<a href=#353 id=353 data-nosnippet>353</a>    <span class="kw">match </span>argument {
-<a href=#354 id=354 data-nosnippet>354</a>        Value::Array(values, <span class="kw">_</span>) | Value::Vector(values, <span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(Value::u32(values.len() <span class="kw">as </span>u32)),
-<a href=#355 id=355 data-nosnippet>355</a>        value =&gt; {
-<a href=#356 id=356 data-nosnippet>356</a>            <span class="kw">let </span>expected = <span class="string">"array"</span>.to_string();
-<a href=#357 id=357 data-nosnippet>357</a>            <span class="kw">let </span>actual = value.get_type().into_owned();
-<a href=#358 id=358 data-nosnippet>358</a>            <span class="prelude-val">Err</span>(InterpreterError::TypeMismatch { expected, actual, location: argument_location })
-<a href=#359 id=359 data-nosnippet>359</a>        }
-<a href=#360 id=360 data-nosnippet>360</a>    }
-<a href=#361 id=361 data-nosnippet>361</a>}
-<a href=#362 id=362 data-nosnippet>362</a>
-<a href=#363 id=363 data-nosnippet>363</a><span class="kw">fn </span>apply_range_constraint(
-<a href=#364 id=364 data-nosnippet>364</a>    arguments: Vec&lt;(Value, Location)&gt;,
-<a href=#365 id=365 data-nosnippet>365</a>    location: Location,
-<a href=#366 id=366 data-nosnippet>366</a>    call_stack: <span class="kw-2">&amp;</span>Vector&lt;Location&gt;,
-<a href=#367 id=367 data-nosnippet>367</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#368 id=368 data-nosnippet>368</a>    <span class="kw">let </span>(value, num_bits) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
-<a href=#369 id=369 data-nosnippet>369</a>
-<a href=#370 id=370 data-nosnippet>370</a>    <span class="kw">let </span>field = get_field(value)<span class="question-mark">?</span>;
-<a href=#371 id=371 data-nosnippet>371</a>    <span class="kw">let </span>num_bits = get_u32(num_bits)<span class="question-mark">?</span>;
-<a href=#372 id=372 data-nosnippet>372</a>    <span class="kw">let </span>field_num_bits = field.num_bits();
-<a href=#373 id=373 data-nosnippet>373</a>
-<a href=#374 id=374 data-nosnippet>374</a>    <span class="kw">if </span>field_num_bits &lt;= num_bits {
-<a href=#375 id=375 data-nosnippet>375</a>        <span class="prelude-val">Ok</span>(Value::Unit)
-<a href=#376 id=376 data-nosnippet>376</a>    } <span class="kw">else </span>{
-<a href=#377 id=377 data-nosnippet>377</a>        failing_constraint(
-<a href=#378 id=378 data-nosnippet>378</a>            <span class="macro">format!</span>(
-<a href=#379 id=379 data-nosnippet>379</a>                <span class="string">"call to assert_max_bit_size: {} has {field_num_bits} bits which do not fit in {num_bits} bits"</span>,
-<a href=#380 id=380 data-nosnippet>380</a>                field.to_short_hex()
-<a href=#381 id=381 data-nosnippet>381</a>            ),
-<a href=#382 id=382 data-nosnippet>382</a>            location,
-<a href=#383 id=383 data-nosnippet>383</a>            call_stack,
-<a href=#384 id=384 data-nosnippet>384</a>        )
-<a href=#385 id=385 data-nosnippet>385</a>    }
-<a href=#386 id=386 data-nosnippet>386</a>}
-<a href=#387 id=387 data-nosnippet>387</a>
-<a href=#388 id=388 data-nosnippet>388</a><span class="kw">fn </span>array_as_str_unchecked(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
-<a href=#389 id=389 data-nosnippet>389</a>    <span class="kw">let </span>argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
-<a href=#390 id=390 data-nosnippet>390</a>
-<a href=#391 id=391 data-nosnippet>391</a>    <span class="kw">let </span>array = get_array(argument)<span class="question-mark">?</span>.<span class="number">0</span>;
-<a href=#392 id=392 data-nosnippet>392</a>    <span class="kw">let </span>string_bytes = try_vecmap(array, |byte| get_u8((byte, location)))<span class="question-mark">?</span>;
-<a href=#393 id=393 data-nosnippet>393</a>    <span class="prelude-val">Ok</span>(Value::String(Rc::new(string_bytes)))
-<a href=#394 id=394 data-nosnippet>394</a>}
-<a href=#395 id=395 data-nosnippet>395</a>
-<a href=#396 id=396 data-nosnippet>396</a><span class="kw">fn </span>as_vector(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
-<a href=#397 id=397 data-nosnippet>397</a>    <span class="kw">let </span>(array, array_location) = check_one_argument(arguments, location)<span class="question-mark">?</span>;
-<a href=#398 id=398 data-nosnippet>398</a>
-<a href=#399 id=399 data-nosnippet>399</a>    <span class="kw">match </span>array {
-<a href=#400 id=400 data-nosnippet>400</a>        Value::Array(values, Type::Array(typ, <span class="kw">_</span>)) =&gt; <span class="prelude-val">Ok</span>(Value::Vector(values, Type::Vector(typ))),
-<a href=#401 id=401 data-nosnippet>401</a>        value =&gt; {
-<a href=#402 id=402 data-nosnippet>402</a>            <span class="kw">let </span>expected = <span class="string">"array"</span>.to_string();
-<a href=#403 id=403 data-nosnippet>403</a>            <span class="kw">let </span>actual = value.get_type().into_owned();
-<a href=#404 id=404 data-nosnippet>404</a>            <span class="prelude-val">Err</span>(InterpreterError::TypeMismatch { expected, actual, location: array_location })
-<a href=#405 id=405 data-nosnippet>405</a>        }
-<a href=#406 id=406 data-nosnippet>406</a>    }
-<a href=#407 id=407 data-nosnippet>407</a>}
-<a href=#408 id=408 data-nosnippet>408</a>
-<a href=#409 id=409 data-nosnippet>409</a><span class="kw">fn </span>as_witness(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
-<a href=#410 id=410 data-nosnippet>410</a>    check_one_argument(arguments, location)<span class="question-mark">?</span>;
-<a href=#411 id=411 data-nosnippet>411</a>    <span class="prelude-val">Ok</span>(Value::Unit)
-<a href=#412 id=412 data-nosnippet>412</a>}
-<a href=#413 id=413 data-nosnippet>413</a>
-<a href=#414 id=414 data-nosnippet>414</a><span class="kw">fn </span>black_box(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
-<a href=#415 id=415 data-nosnippet>415</a>    <span class="prelude-val">Ok</span>(check_one_argument(arguments, location)<span class="question-mark">?</span>.<span class="number">0</span>)
+<a href=#12 id=12 data-nosnippet>12</a>    block_expression_to_value, byte_array_type, check_argument_count, check_arguments,
+<a href=#13 id=13 data-nosnippet>13</a>    check_function_not_yet_resolved, check_return_type_shape, get_bool, get_expr, get_field,
+<a href=#14 id=14 data-nosnippet>14</a>    get_format_string, get_function_def, get_location, get_module, get_quoted,
+<a href=#15 id=15 data-nosnippet>15</a>    get_trait_constraint, get_trait_def, get_trait_impl, get_type, get_type_id, get_typed_expr,
+<a href=#16 id=16 data-nosnippet>16</a>    get_u32, get_vector, has_builtin_attribute, has_named_attribute, hir_pattern_to_tokens,
+<a href=#17 id=17 data-nosnippet>17</a>    new_binary_op, new_unary_op, parse, quote_ident, type_shape, visibility_to_quoted,
+<a href=#18 id=18 data-nosnippet>18</a>};
+<a href=#19 id=19 data-nosnippet>19</a><span class="kw">use </span>fm::FileMap;
+<a href=#20 id=20 data-nosnippet>20</a><span class="kw">use </span>imbl::Vector;
+<a href=#21 id=21 data-nosnippet>21</a><span class="kw">use </span>iter_extended::{try_vecmap, vecmap};
+<a href=#22 id=22 data-nosnippet>22</a><span class="kw">use </span>itertools::Itertools;
+<a href=#23 id=23 data-nosnippet>23</a><span class="kw">use </span>noirc_errors::Location;
+<a href=#24 id=24 data-nosnippet>24</a><span class="kw">use </span>num_bigint::BigUint;
+<a href=#25 id=25 data-nosnippet>25</a><span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
+<a href=#26 id=26 data-nosnippet>26</a>
+<a href=#27 id=27 data-nosnippet>27</a><span class="kw">use crate</span>::{
+<a href=#28 id=28 data-nosnippet>28</a>    Kind, QuotedType, Type, TypeBindings,
+<a href=#29 id=29 data-nosnippet>29</a>    ast::{
+<a href=#30 id=30 data-nosnippet>30</a>        ArrayLiteral, ConstrainKind, Expression, ExpressionKind, ForRange, IntegerBitSize, LValue,
+<a href=#31 id=31 data-nosnippet>31</a>        Literal, Pattern, Statement, StatementKind, UnsafeExpression,
+<a href=#32 id=32 data-nosnippet>32</a>    },
+<a href=#33 id=33 data-nosnippet>33</a>    elaborator::{
+<a href=#34 id=34 data-nosnippet>34</a>        ElaborateReason, Elaborator,
+<a href=#35 id=35 data-nosnippet>35</a>        types::{WildcardAllowed, WildcardDisallowedContext},
+<a href=#36 id=36 data-nosnippet>36</a>    },
+<a href=#37 id=37 data-nosnippet>37</a>    hir::{
+<a href=#38 id=38 data-nosnippet>38</a>        comptime::{
+<a href=#39 id=39 data-nosnippet>39</a>            InterpreterError, Value, ValueCell,
+<a href=#40 id=40 data-nosnippet>40</a>            display::tokens_to_string,
+<a href=#41 id=41 data-nosnippet>41</a>            errors::IResult,
+<a href=#42 id=42 data-nosnippet>42</a>            interpreter::{
+<a href=#43 id=43 data-nosnippet>43</a>                builtin::builtin_helpers::{fragments_to_bytes, fragments_to_string},
+<a href=#44 id=44 data-nosnippet>44</a>                builtin_helpers::{check_item_crate_matches_current_crate, get_option},
+<a href=#45 id=45 data-nosnippet>45</a>            },
+<a href=#46 id=46 data-nosnippet>46</a>            value::{ExprValue, FormatStringFragment, TypedExpr},
+<a href=#47 id=47 data-nosnippet>47</a>        },
+<a href=#48 id=48 data-nosnippet>48</a>        def_map::{ModuleDefId, ModuleId, fully_qualified_module_path},
+<a href=#49 id=49 data-nosnippet>49</a>        resolution::visibility::{item_in_module_is_visible, module_is_visible},
+<a href=#50 id=50 data-nosnippet>50</a>    },
+<a href=#51 id=51 data-nosnippet>51</a>    hir_def::{
+<a href=#52 id=52 data-nosnippet>52</a>        expr::{HirExpression, HirIdent, HirLiteral, ImplKind, TraitItem},
+<a href=#53 id=53 data-nosnippet>53</a>        function::FunctionBody,
+<a href=#54 id=54 data-nosnippet>54</a>        traits::{ResolvedTraitBound, TraitConstraint},
+<a href=#55 id=55 data-nosnippet>55</a>    },
+<a href=#56 id=56 data-nosnippet>56</a>    node_interner::{NodeInterner, TraitImplKind},
+<a href=#57 id=57 data-nosnippet>57</a>    parser::{Parser, StatementOrExpressionOrLValue},
+<a href=#58 id=58 data-nosnippet>58</a>    shared::{Builtin, Signedness},
+<a href=#59 id=59 data-nosnippet>59</a>    token::{LocatedToken, SecondaryAttribute, SecondaryAttributeKind, Token},
+<a href=#60 id=60 data-nosnippet>60</a>};
+<a href=#61 id=61 data-nosnippet>61</a>
+<a href=#62 id=62 data-nosnippet>62</a><span class="kw">use </span><span class="self">self</span>::builtin_helpers::{
+<a href=#63 id=63 data-nosnippet>63</a>    DeterministicHasher, eq_item, get_array, get_ctstring, get_str, get_u8, hash_item, lex,
+<a href=#64 id=64 data-nosnippet>64</a>};
+<a href=#65 id=65 data-nosnippet>65</a><span class="kw">use </span><span class="kw">super</span>::Interpreter;
+<a href=#66 id=66 data-nosnippet>66</a>
+<a href=#67 id=67 data-nosnippet>67</a><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>builtin_helpers;
+<a href=#68 id=68 data-nosnippet>68</a>
+<a href=#69 id=69 data-nosnippet>69</a><span class="kw">impl </span>Interpreter&lt;<span class="lifetime">'_</span>, <span class="lifetime">'_</span>&gt; {
+<a href=#70 id=70 data-nosnippet>70</a>    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>call_builtin(
+<a href=#71 id=71 data-nosnippet>71</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+<a href=#72 id=72 data-nosnippet>72</a>        builtin: Builtin,
+<a href=#73 id=73 data-nosnippet>73</a>        arguments: Vec&lt;(Value, Location)&gt;,
+<a href=#74 id=74 data-nosnippet>74</a>        return_type: Type,
+<a href=#75 id=75 data-nosnippet>75</a>        location: Location,
+<a href=#76 id=76 data-nosnippet>76</a>    ) -&gt; IResult&lt;Value&gt; {
+<a href=#77 id=77 data-nosnippet>77</a>        <span class="kw">let </span>call_stack = <span class="kw-2">&amp;</span><span class="self">self</span>.elaborator.interpreter_call_stack().clone();
+<a href=#78 id=78 data-nosnippet>78</a>        <span class="kw">let </span>expected_return_shape = type_shape(<span class="kw-2">&amp;</span>return_type);
+<a href=#79 id=79 data-nosnippet>79</a>        <span class="kw">let </span>interner = <span class="kw-2">&amp;mut </span><span class="self">self</span>.elaborator.interner;
+<a href=#80 id=80 data-nosnippet>80</a>        <span class="kw">let </span>result = <span class="kw">match </span>builtin {
+<a href=#81 id=81 data-nosnippet>81</a>            Builtin::ApplyRangeConstraint =&gt; {
+<a href=#82 id=82 data-nosnippet>82</a>                apply_range_constraint(arguments, location, call_stack)
+<a href=#83 id=83 data-nosnippet>83</a>            }
+<a href=#84 id=84 data-nosnippet>84</a>            Builtin::ArrayAsStrUnchecked =&gt; array_as_str_unchecked(arguments, location),
+<a href=#85 id=85 data-nosnippet>85</a>            Builtin::ArrayLen =&gt; array_len(arguments, location),
+<a href=#86 id=86 data-nosnippet>86</a>            Builtin::ArrayRefcount =&gt; <span class="prelude-val">Ok</span>(Value::u32(<span class="number">0</span>)),
+<a href=#87 id=87 data-nosnippet>87</a>            Builtin::AssertConstant =&gt; <span class="prelude-val">Ok</span>(Value::Unit),
+<a href=#88 id=88 data-nosnippet>88</a>            Builtin::AsVector =&gt; as_vector(arguments, location),
+<a href=#89 id=89 data-nosnippet>89</a>            Builtin::AsWitness =&gt; as_witness(arguments, location),
+<a href=#90 id=90 data-nosnippet>90</a>            Builtin::BlackBoxHint =&gt; black_box(arguments, location),
+<a href=#91 id=91 data-nosnippet>91</a>            Builtin::CheckedTransmute =&gt; checked_transmute(arguments, return_type, location),
+<a href=#92 id=92 data-nosnippet>92</a>            Builtin::CtstringAppend =&gt; ctstring_append(arguments, location),
+<a href=#93 id=93 data-nosnippet>93</a>            Builtin::CtstringEq =&gt; eq_item(arguments, location, get_ctstring),
+<a href=#94 id=94 data-nosnippet>94</a>            Builtin::CtstringHash =&gt; hash_item(arguments, location, get_ctstring),
+<a href=#95 id=95 data-nosnippet>95</a>            Builtin::DerivePedersenGenerators =&gt; {
+<a href=#96 id=96 data-nosnippet>96</a>                derive_generators(arguments, return_type, location)
+<a href=#97 id=97 data-nosnippet>97</a>            }
+<a href=#98 id=98 data-nosnippet>98</a>            Builtin::ExprAsArray =&gt; expr_as_array(interner, arguments, return_type, location),
+<a href=#99 id=99 data-nosnippet>99</a>            Builtin::ExprAsAssert =&gt; expr_as_assert(interner, arguments, return_type, location),
+<a href=#100 id=100 data-nosnippet>100</a>            Builtin::ExprAsAssertEq =&gt; {
+<a href=#101 id=101 data-nosnippet>101</a>                expr_as_assert_eq(interner, arguments, return_type, location)
+<a href=#102 id=102 data-nosnippet>102</a>            }
+<a href=#103 id=103 data-nosnippet>103</a>            Builtin::ExprAsAssign =&gt; expr_as_assign(interner, arguments, return_type, location),
+<a href=#104 id=104 data-nosnippet>104</a>            Builtin::ExprAsBinaryOp =&gt; {
+<a href=#105 id=105 data-nosnippet>105</a>                expr_as_binary_op(interner, arguments, return_type, location)
+<a href=#106 id=106 data-nosnippet>106</a>            }
+<a href=#107 id=107 data-nosnippet>107</a>            Builtin::ExprAsBlock =&gt; expr_as_block(interner, arguments, return_type, location),
+<a href=#108 id=108 data-nosnippet>108</a>            Builtin::ExprAsBool =&gt; expr_as_bool(interner, arguments, return_type, location),
+<a href=#109 id=109 data-nosnippet>109</a>            Builtin::ExprAsCast =&gt; expr_as_cast(interner, arguments, return_type, location),
+<a href=#110 id=110 data-nosnippet>110</a>            Builtin::ExprAsComptime =&gt; expr_as_comptime(interner, arguments, return_type, location),
+<a href=#111 id=111 data-nosnippet>111</a>            Builtin::ExprAsConstructor =&gt; {
+<a href=#112 id=112 data-nosnippet>112</a>                expr_as_constructor(interner, arguments, return_type, location)
+<a href=#113 id=113 data-nosnippet>113</a>            }
+<a href=#114 id=114 data-nosnippet>114</a>            Builtin::ExprAsFor =&gt; expr_as_for(interner, arguments, return_type, location),
+<a href=#115 id=115 data-nosnippet>115</a>            Builtin::ExprAsForRange =&gt; {
+<a href=#116 id=116 data-nosnippet>116</a>                expr_as_for_range(interner, arguments, return_type, location)
+<a href=#117 id=117 data-nosnippet>117</a>            }
+<a href=#118 id=118 data-nosnippet>118</a>            Builtin::ExprAsFunctionCall =&gt; {
+<a href=#119 id=119 data-nosnippet>119</a>                expr_as_function_call(interner, arguments, return_type, location)
+<a href=#120 id=120 data-nosnippet>120</a>            }
+<a href=#121 id=121 data-nosnippet>121</a>            Builtin::ExprAsIf =&gt; expr_as_if(interner, arguments, return_type, location),
+<a href=#122 id=122 data-nosnippet>122</a>            Builtin::ExprAsIndex =&gt; expr_as_index(interner, arguments, return_type, location),
+<a href=#123 id=123 data-nosnippet>123</a>            Builtin::ExprAsInteger =&gt; expr_as_integer(interner, arguments, return_type, location),
+<a href=#124 id=124 data-nosnippet>124</a>            Builtin::ExprAsLambda =&gt; expr_as_lambda(interner, arguments, return_type, location),
+<a href=#125 id=125 data-nosnippet>125</a>            Builtin::ExprAsLet =&gt; expr_as_let(interner, arguments, return_type, location),
+<a href=#126 id=126 data-nosnippet>126</a>            Builtin::ExprAsMemberAccess =&gt; {
+<a href=#127 id=127 data-nosnippet>127</a>                expr_as_member_access(interner, arguments, return_type, location)
+<a href=#128 id=128 data-nosnippet>128</a>            }
+<a href=#129 id=129 data-nosnippet>129</a>            Builtin::ExprAsMethodCall =&gt; {
+<a href=#130 id=130 data-nosnippet>130</a>                expr_as_method_call(interner, arguments, return_type, location)
+<a href=#131 id=131 data-nosnippet>131</a>            }
+<a href=#132 id=132 data-nosnippet>132</a>            Builtin::ExprAsRepeatedElementArray =&gt; {
+<a href=#133 id=133 data-nosnippet>133</a>                expr_as_repeated_element_array(interner, arguments, return_type, location)
+<a href=#134 id=134 data-nosnippet>134</a>            }
+<a href=#135 id=135 data-nosnippet>135</a>            Builtin::ExprAsRepeatedElementVector =&gt; {
+<a href=#136 id=136 data-nosnippet>136</a>                expr_as_repeated_element_vector(interner, arguments, return_type, location)
+<a href=#137 id=137 data-nosnippet>137</a>            }
+<a href=#138 id=138 data-nosnippet>138</a>            Builtin::ExprAsVector =&gt; expr_as_vector(interner, arguments, return_type, location),
+<a href=#139 id=139 data-nosnippet>139</a>            Builtin::ExprAsTuple =&gt; expr_as_tuple(interner, arguments, return_type, location),
+<a href=#140 id=140 data-nosnippet>140</a>            Builtin::ExprAsUnaryOp =&gt; expr_as_unary_op(interner, arguments, return_type, location),
+<a href=#141 id=141 data-nosnippet>141</a>            Builtin::ExprAsUnsafe =&gt; expr_as_unsafe(interner, arguments, return_type, location),
+<a href=#142 id=142 data-nosnippet>142</a>            Builtin::ExprHasSemicolon =&gt; expr_has_semicolon(interner, arguments, location),
+<a href=#143 id=143 data-nosnippet>143</a>            Builtin::ExprIsBreak =&gt; expr_is_break(interner, arguments, location),
+<a href=#144 id=144 data-nosnippet>144</a>            Builtin::ExprIsContinue =&gt; expr_is_continue(interner, arguments, location),
+<a href=#145 id=145 data-nosnippet>145</a>            Builtin::ExprResolve =&gt; expr_resolve(<span class="self">self</span>, arguments, location),
+<a href=#146 id=146 data-nosnippet>146</a>            Builtin::IsUnconstrained =&gt; {
+<a href=#147 id=147 data-nosnippet>147</a>                <span class="comment">// When in coverage mode, have the comptime interpreter treat `is_unconstrained` the same
+<a href=#148 id=148 data-nosnippet>148</a>                // way it's treated in ACIR and Brillig. Usually unconstrained code is faster and that's why
+<a href=#149 id=149 data-nosnippet>149</a>                // in non-coverage mode we want to go through the fastest path, but in coverage mode it's fine
+<a href=#150 id=150 data-nosnippet>150</a>                // if it's slower so more code is covered by tests.
+<a href=#151 id=151 data-nosnippet>151</a>                </span><span class="kw">if </span><span class="self">self</span>.elaborator.evaluation_tracker.is_some() {
+<a href=#152 id=152 data-nosnippet>152</a>                    <span class="prelude-val">Ok</span>(Value::Bool(<span class="self">self</span>.in_unconstrained))
+<a href=#153 id=153 data-nosnippet>153</a>                } <span class="kw">else </span>{
+<a href=#154 id=154 data-nosnippet>154</a>                    <span class="prelude-val">Ok</span>(Value::Bool(<span class="bool-val">true</span>))
+<a href=#155 id=155 data-nosnippet>155</a>                }
+<a href=#156 id=156 data-nosnippet>156</a>            }
+<a href=#157 id=157 data-nosnippet>157</a>            Builtin::FieldLessThan =&gt; field_less_than(arguments, location),
+<a href=#158 id=158 data-nosnippet>158</a>            Builtin::IssueError =&gt; issue_diagnostic(<span class="self">self</span>, arguments, location, <span class="bool-val">false</span>),
+<a href=#159 id=159 data-nosnippet>159</a>            Builtin::IssueWarning =&gt; issue_diagnostic(<span class="self">self</span>, arguments, location, <span class="bool-val">true</span>),
+<a href=#160 id=160 data-nosnippet>160</a>            Builtin::LocationEq =&gt; eq_item(arguments, location, get_location),
+<a href=#161 id=161 data-nosnippet>161</a>            Builtin::LocationHash =&gt; hash_item(arguments, location, get_location),
+<a href=#162 id=162 data-nosnippet>162</a>            Builtin::FmtstrAsCtstring =&gt; {
+<a href=#163 id=163 data-nosnippet>163</a>                fmtstr_as_ctstring(interner, <span class="self">self</span>.elaborator.files, arguments, location)
+<a href=#164 id=164 data-nosnippet>164</a>            }
+<a href=#165 id=165 data-nosnippet>165</a>            Builtin::FmtstrQuotedContents =&gt; {
+<a href=#166 id=166 data-nosnippet>166</a>                fmtstr_quoted_contents(interner, <span class="self">self</span>.elaborator.files, arguments, location)
+<a href=#167 id=167 data-nosnippet>167</a>            }
+<a href=#168 id=168 data-nosnippet>168</a>            Builtin::FreshTypeVariable =&gt; fresh_type_variable(interner),
+<a href=#169 id=169 data-nosnippet>169</a>            Builtin::FunctionDefAsTypedExpr =&gt; {
+<a href=#170 id=170 data-nosnippet>170</a>                function_def_as_typed_expr(<span class="self">self</span>, arguments, location)
+<a href=#171 id=171 data-nosnippet>171</a>            }
+<a href=#172 id=172 data-nosnippet>172</a>            Builtin::FunctionDefBody =&gt; function_def_body(<span class="self">self</span>, arguments, location),
+<a href=#173 id=173 data-nosnippet>173</a>            Builtin::FunctionDefDisable =&gt; function_def_disable(<span class="self">self</span>, arguments, location),
+<a href=#174 id=174 data-nosnippet>174</a>            Builtin::FunctionDefEq =&gt; eq_item(arguments, location, get_function_def),
+<a href=#175 id=175 data-nosnippet>175</a>            Builtin::FunctionDefHasBuiltinAttribute =&gt; {
+<a href=#176 id=176 data-nosnippet>176</a>                function_def_has_attribute(interner, arguments, location, <span class="bool-val">true</span>)
+<a href=#177 id=177 data-nosnippet>177</a>            }
+<a href=#178 id=178 data-nosnippet>178</a>            Builtin::FunctionDefHasNamedAttribute =&gt; {
+<a href=#179 id=179 data-nosnippet>179</a>                function_def_has_attribute(interner, arguments, location, <span class="bool-val">false</span>)
+<a href=#180 id=180 data-nosnippet>180</a>            }
+<a href=#181 id=181 data-nosnippet>181</a>            Builtin::FunctionDefNamedAttributeArgs =&gt; {
+<a href=#182 id=182 data-nosnippet>182</a>                function_def_named_attribute_args(interner, arguments, location)
+<a href=#183 id=183 data-nosnippet>183</a>            }
+<a href=#184 id=184 data-nosnippet>184</a>            Builtin::FunctionDefHash =&gt; hash_item(arguments, location, get_function_def),
+<a href=#185 id=185 data-nosnippet>185</a>            Builtin::FunctionDefIsUnconstrained =&gt; {
+<a href=#186 id=186 data-nosnippet>186</a>                function_def_is_unconstrained(<span class="self">self</span>, arguments, location)
+<a href=#187 id=187 data-nosnippet>187</a>            }
+<a href=#188 id=188 data-nosnippet>188</a>            Builtin::FunctionDefLocation =&gt; {
+<a href=#189 id=189 data-nosnippet>189</a>                function_def_location(<span class="self">self</span>.elaborator, arguments, location)
+<a href=#190 id=190 data-nosnippet>190</a>            }
+<a href=#191 id=191 data-nosnippet>191</a>            Builtin::FunctionDefModule =&gt; function_def_module(interner, arguments, location),
+<a href=#192 id=192 data-nosnippet>192</a>            Builtin::FunctionDefName =&gt; function_def_name(interner, arguments, location),
+<a href=#193 id=193 data-nosnippet>193</a>            Builtin::FunctionDefParameters =&gt; function_def_parameters(<span class="self">self</span>, arguments, location),
+<a href=#194 id=194 data-nosnippet>194</a>            Builtin::FunctionDefReturnType =&gt; function_def_return_type(<span class="self">self</span>, arguments, location),
+<a href=#195 id=195 data-nosnippet>195</a>            Builtin::FunctionDefVisibility =&gt; {
+<a href=#196 id=196 data-nosnippet>196</a>                function_def_visibility(interner, arguments, location)
+<a href=#197 id=197 data-nosnippet>197</a>            }
+<a href=#198 id=198 data-nosnippet>198</a>            Builtin::ModuleChildModules =&gt; module_child_modules(<span class="self">self</span>, arguments, location),
+<a href=#199 id=199 data-nosnippet>199</a>            Builtin::ModuleEq =&gt; eq_item(arguments, location, get_module),
+<a href=#200 id=200 data-nosnippet>200</a>            Builtin::ModuleFunctions =&gt; module_functions(<span class="self">self</span>, arguments, location),
+<a href=#201 id=201 data-nosnippet>201</a>            Builtin::ModuleHasBuiltinAttribute =&gt; {
+<a href=#202 id=202 data-nosnippet>202</a>                module_has_attribute(<span class="self">self</span>, arguments, location, <span class="bool-val">true</span>)
+<a href=#203 id=203 data-nosnippet>203</a>            }
+<a href=#204 id=204 data-nosnippet>204</a>            Builtin::ModuleHasNamedAttribute =&gt; {
+<a href=#205 id=205 data-nosnippet>205</a>                module_has_attribute(<span class="self">self</span>, arguments, location, <span class="bool-val">false</span>)
+<a href=#206 id=206 data-nosnippet>206</a>            }
+<a href=#207 id=207 data-nosnippet>207</a>            Builtin::ModuleNamedAttributeArgs =&gt; {
+<a href=#208 id=208 data-nosnippet>208</a>                module_named_attribute_args(<span class="self">self</span>, arguments, location)
+<a href=#209 id=209 data-nosnippet>209</a>            }
+<a href=#210 id=210 data-nosnippet>210</a>            Builtin::ModuleHash =&gt; hash_item(arguments, location, get_module),
+<a href=#211 id=211 data-nosnippet>211</a>            Builtin::ModuleIsContract =&gt; module_is_contract(<span class="self">self</span>, arguments, location),
+<a href=#212 id=212 data-nosnippet>212</a>            Builtin::ModuleLocation =&gt; module_location(interner, arguments, location),
+<a href=#213 id=213 data-nosnippet>213</a>            Builtin::ModuleName =&gt; module_name(interner, arguments, location),
+<a href=#214 id=214 data-nosnippet>214</a>            Builtin::ModuleParent =&gt; module_parent(<span class="self">self</span>, arguments, return_type, location),
+<a href=#215 id=215 data-nosnippet>215</a>            Builtin::ModuleStructs =&gt; module_structs(<span class="self">self</span>, arguments, location),
+<a href=#216 id=216 data-nosnippet>216</a>            Builtin::ModulusBeBits =&gt; modulus_be_bits(<span class="kw-2">&amp;</span>arguments, location),
+<a href=#217 id=217 data-nosnippet>217</a>            Builtin::ModulusBeBytes =&gt; modulus_be_bytes(<span class="kw-2">&amp;</span>arguments, location),
+<a href=#218 id=218 data-nosnippet>218</a>            Builtin::ModulusLeBits =&gt; modulus_le_bits(<span class="kw-2">&amp;</span>arguments, location),
+<a href=#219 id=219 data-nosnippet>219</a>            Builtin::ModulusLeBytes =&gt; modulus_le_bytes(<span class="kw-2">&amp;</span>arguments, location),
+<a href=#220 id=220 data-nosnippet>220</a>            Builtin::ModulusNumBits =&gt; modulus_num_bits(<span class="kw-2">&amp;</span>arguments, location),
+<a href=#221 id=221 data-nosnippet>221</a>            Builtin::QuotedAsExpr =&gt; {
+<a href=#222 id=222 data-nosnippet>222</a>                quoted_as_expr(<span class="self">self</span>.elaborator, arguments, return_type, location)
+<a href=#223 id=223 data-nosnippet>223</a>            }
+<a href=#224 id=224 data-nosnippet>224</a>            Builtin::QuotedAsModule =&gt; quoted_as_module(<span class="self">self</span>, arguments, return_type, location),
+<a href=#225 id=225 data-nosnippet>225</a>            Builtin::QuotedAsTraitConstraint =&gt; {
+<a href=#226 id=226 data-nosnippet>226</a>                quoted_as_trait_constraint(<span class="self">self</span>, arguments, location)
+<a href=#227 id=227 data-nosnippet>227</a>            }
+<a href=#228 id=228 data-nosnippet>228</a>            Builtin::QuotedAsType =&gt; quoted_as_type(<span class="self">self</span>, arguments, location),
+<a href=#229 id=229 data-nosnippet>229</a>            Builtin::QuotedEq =&gt; {
+<a href=#230 id=230 data-nosnippet>230</a>                quoted_eq(<span class="self">self</span>.elaborator.interner, <span class="self">self</span>.elaborator.files, arguments, location)
+<a href=#231 id=231 data-nosnippet>231</a>            }
+<a href=#232 id=232 data-nosnippet>232</a>            Builtin::QuotedHash =&gt; {
+<a href=#233 id=233 data-nosnippet>233</a>                quoted_hash(<span class="self">self</span>.elaborator.interner, <span class="self">self</span>.elaborator.files, arguments, location)
+<a href=#234 id=234 data-nosnippet>234</a>            }
+<a href=#235 id=235 data-nosnippet>235</a>            Builtin::QuotedLocation =&gt; quoted_location(arguments, return_type, location),
+<a href=#236 id=236 data-nosnippet>236</a>            Builtin::QuotedTokens =&gt; quoted_tokens(arguments, location),
+<a href=#237 id=237 data-nosnippet>237</a>            Builtin::VectorInsert =&gt; vector_insert(arguments, location, call_stack),
+<a href=#238 id=238 data-nosnippet>238</a>            Builtin::VectorPopBack =&gt; vector_pop_back(arguments, location, call_stack),
+<a href=#239 id=239 data-nosnippet>239</a>            Builtin::VectorPopFront =&gt; vector_pop_front(arguments, location, call_stack),
+<a href=#240 id=240 data-nosnippet>240</a>            Builtin::VectorPushBack =&gt; vector_push_back(arguments, location),
+<a href=#241 id=241 data-nosnippet>241</a>            Builtin::VectorPushFront =&gt; vector_push_front(arguments, location),
+<a href=#242 id=242 data-nosnippet>242</a>            Builtin::VectorRefcount =&gt; <span class="prelude-val">Ok</span>(Value::u32(<span class="number">0</span>)),
+<a href=#243 id=243 data-nosnippet>243</a>            Builtin::VectorRemove =&gt; vector_remove(arguments, location, call_stack),
+<a href=#244 id=244 data-nosnippet>244</a>            Builtin::StaticAssert =&gt; {
+<a href=#245 id=245 data-nosnippet>245</a>                static_assert(interner, <span class="self">self</span>.elaborator.files, arguments, location, call_stack)
+<a href=#246 id=246 data-nosnippet>246</a>            }
+<a href=#247 id=247 data-nosnippet>247</a>            Builtin::StrAsBytes =&gt; str_as_bytes(arguments, location),
+<a href=#248 id=248 data-nosnippet>248</a>            Builtin::StrAsCtstring =&gt; str_as_ctstring(arguments, location),
+<a href=#249 id=249 data-nosnippet>249</a>            Builtin::ToBeRadix =&gt; to_be_radix(arguments, return_type, location, call_stack),
+<a href=#250 id=250 data-nosnippet>250</a>            Builtin::ToLeRadix =&gt; to_le_radix(arguments, return_type, location, call_stack),
+<a href=#251 id=251 data-nosnippet>251</a>            Builtin::ToBeBits =&gt; to_be_bits(arguments, return_type, location, call_stack),
+<a href=#252 id=252 data-nosnippet>252</a>            Builtin::ToLeBits =&gt; to_le_bits(arguments, return_type, location, call_stack),
+<a href=#253 id=253 data-nosnippet>253</a>            Builtin::TraitConstraintEq =&gt; eq_item(arguments, location, get_trait_constraint),
+<a href=#254 id=254 data-nosnippet>254</a>            Builtin::TraitConstraintHash =&gt; hash_item(arguments, location, get_trait_constraint),
+<a href=#255 id=255 data-nosnippet>255</a>            Builtin::TraitDefAsTraitConstraint =&gt; {
+<a href=#256 id=256 data-nosnippet>256</a>                trait_def_as_trait_constraint(interner, arguments, location)
+<a href=#257 id=257 data-nosnippet>257</a>            }
+<a href=#258 id=258 data-nosnippet>258</a>            Builtin::TraitDefEq =&gt; eq_item(arguments, location, get_trait_def),
+<a href=#259 id=259 data-nosnippet>259</a>            Builtin::TraitDefHash =&gt; hash_item(arguments, location, get_trait_def),
+<a href=#260 id=260 data-nosnippet>260</a>            Builtin::TraitDefLocation =&gt; trait_def_location(interner, arguments, location),
+<a href=#261 id=261 data-nosnippet>261</a>            Builtin::TraitImplMethods =&gt; trait_impl_methods(interner, arguments, location),
+<a href=#262 id=262 data-nosnippet>262</a>            Builtin::TraitImplTraitGenericArgs =&gt; {
+<a href=#263 id=263 data-nosnippet>263</a>                trait_impl_trait_generic_args(interner, arguments, location)
+<a href=#264 id=264 data-nosnippet>264</a>            }
+<a href=#265 id=265 data-nosnippet>265</a>            Builtin::TypeAsArray =&gt; type_as_array(arguments, return_type, location),
+<a href=#266 id=266 data-nosnippet>266</a>            Builtin::TypeAsConstant =&gt; type_as_constant(arguments, return_type, location),
+<a href=#267 id=267 data-nosnippet>267</a>            Builtin::TypeAsInteger =&gt; type_as_integer(arguments, return_type, location),
+<a href=#268 id=268 data-nosnippet>268</a>            Builtin::TypeAsMutableReference =&gt; {
+<a href=#269 id=269 data-nosnippet>269</a>                type_as_mutable_reference(arguments, return_type, location)
+<a href=#270 id=270 data-nosnippet>270</a>            }
+<a href=#271 id=271 data-nosnippet>271</a>            Builtin::TypeAsVector =&gt; type_as_vector(arguments, return_type, location),
+<a href=#272 id=272 data-nosnippet>272</a>            Builtin::TypeAsStr =&gt; type_as_str(arguments, return_type, location),
+<a href=#273 id=273 data-nosnippet>273</a>            Builtin::TypeAsDataType =&gt; type_as_data_type(arguments, return_type, location),
+<a href=#274 id=274 data-nosnippet>274</a>            Builtin::TypeAsTuple =&gt; type_as_tuple(arguments, return_type, location),
+<a href=#275 id=275 data-nosnippet>275</a>            Builtin::TypeDefAddAbi =&gt; type_def_add_abi(<span class="self">self</span>, arguments, location),
+<a href=#276 id=276 data-nosnippet>276</a>            Builtin::TypeDefAsType =&gt; type_def_as_type(interner, arguments, location),
+<a href=#277 id=277 data-nosnippet>277</a>            Builtin::TypeDefAsTypeWithGenerics =&gt; {
+<a href=#278 id=278 data-nosnippet>278</a>                type_def_as_type_with_generics(interner, arguments, return_type, location)
+<a href=#279 id=279 data-nosnippet>279</a>            }
+<a href=#280 id=280 data-nosnippet>280</a>            Builtin::TypeDefEq =&gt; eq_item(arguments, location, get_type_id),
+<a href=#281 id=281 data-nosnippet>281</a>            Builtin::TypeDefFields =&gt; type_def_fields(<span class="self">self</span>, arguments, location, call_stack),
+<a href=#282 id=282 data-nosnippet>282</a>            Builtin::TypeDefFieldsAsWritten =&gt; {
+<a href=#283 id=283 data-nosnippet>283</a>                type_def_fields_as_written(<span class="self">self</span>, arguments, location)
+<a href=#284 id=284 data-nosnippet>284</a>            }
+<a href=#285 id=285 data-nosnippet>285</a>            Builtin::TypeDefGenerics =&gt; {
+<a href=#286 id=286 data-nosnippet>286</a>                type_def_generics(interner, arguments, return_type, location)
+<a href=#287 id=287 data-nosnippet>287</a>            }
+<a href=#288 id=288 data-nosnippet>288</a>            Builtin::TypeDefHasBuiltinAttribute =&gt; {
+<a href=#289 id=289 data-nosnippet>289</a>                type_def_has_attribute(interner, arguments, location, <span class="bool-val">true</span>)
+<a href=#290 id=290 data-nosnippet>290</a>            }
+<a href=#291 id=291 data-nosnippet>291</a>            Builtin::TypeDefHasNamedAttribute =&gt; {
+<a href=#292 id=292 data-nosnippet>292</a>                type_def_has_attribute(interner, arguments, location, <span class="bool-val">false</span>)
+<a href=#293 id=293 data-nosnippet>293</a>            }
+<a href=#294 id=294 data-nosnippet>294</a>            Builtin::TypeDefNamedAttributeArgs =&gt; {
+<a href=#295 id=295 data-nosnippet>295</a>                type_def_named_attribute_args(interner, arguments, location)
+<a href=#296 id=296 data-nosnippet>296</a>            }
+<a href=#297 id=297 data-nosnippet>297</a>            Builtin::TypeDefHash =&gt; hash_item(arguments, location, get_type_id),
+<a href=#298 id=298 data-nosnippet>298</a>            Builtin::TypeDefLocation =&gt; type_def_location(interner, arguments, location),
+<a href=#299 id=299 data-nosnippet>299</a>            Builtin::TypeDefModule =&gt; type_def_module(<span class="self">self</span>, arguments, location),
+<a href=#300 id=300 data-nosnippet>300</a>            Builtin::TypeDefName =&gt; type_def_name(interner, arguments, location),
+<a href=#301 id=301 data-nosnippet>301</a>            Builtin::TypeEq =&gt; eq_item(arguments, location, get_type),
+<a href=#302 id=302 data-nosnippet>302</a>            Builtin::TypeGetTraitImpl =&gt; {
+<a href=#303 id=303 data-nosnippet>303</a>                type_get_trait_impl(interner, arguments, return_type, location)
+<a href=#304 id=304 data-nosnippet>304</a>            }
+<a href=#305 id=305 data-nosnippet>305</a>            Builtin::TypeHash =&gt; hash_item(arguments, location, get_type),
+<a href=#306 id=306 data-nosnippet>306</a>            Builtin::TypeImplements =&gt; type_implements(interner, arguments, location),
+<a href=#307 id=307 data-nosnippet>307</a>            Builtin::TypeIsBool =&gt; type_is_bool(arguments, location),
+<a href=#308 id=308 data-nosnippet>308</a>            Builtin::TypeIsField =&gt; type_is_field(arguments, location),
+<a href=#309 id=309 data-nosnippet>309</a>            Builtin::TypeIsUnit =&gt; type_is_unit(arguments, location),
+<a href=#310 id=310 data-nosnippet>310</a>            Builtin::TypeOf =&gt; type_of(arguments, location),
+<a href=#311 id=311 data-nosnippet>311</a>            Builtin::TypedExprAsFunctionDefinition =&gt; {
+<a href=#312 id=312 data-nosnippet>312</a>                typed_expr_as_function_definition(interner, arguments, return_type, location)
+<a href=#313 id=313 data-nosnippet>313</a>            }
+<a href=#314 id=314 data-nosnippet>314</a>            Builtin::TypedExprGetType =&gt; {
+<a href=#315 id=315 data-nosnippet>315</a>                typed_expr_get_type(interner, arguments, return_type, location)
+<a href=#316 id=316 data-nosnippet>316</a>            }
+<a href=#317 id=317 data-nosnippet>317</a>            Builtin::TypedExprLocation =&gt; typed_expr_location(interner, arguments, location),
+<a href=#318 id=318 data-nosnippet>318</a>            Builtin::Zeroed =&gt; {
+<a href=#319 id=319 data-nosnippet>319</a>                <span class="comment">// Resolve any deferred struct fields or enum variants in the
+<a href=#320 id=320 data-nosnippet>320</a>                // return type so `zeroed` returns a real `Value::Struct`/`Enum`
+<a href=#321 id=321 data-nosnippet>321</a>                // instead of an opaque `Value::Zeroed` placeholder when called
+<a href=#322 id=322 data-nosnippet>322</a>                // before the post-attribute drain.
+<a href=#323 id=323 data-nosnippet>323</a>                </span><span class="self">self</span>.elaborator.define_deferred_data_types_in(<span class="kw-2">&amp;</span>return_type);
+<a href=#324 id=324 data-nosnippet>324</a>                <span class="prelude-val">Ok</span>(zeroed(return_type, location))
+<a href=#325 id=325 data-nosnippet>325</a>            }
+<a href=#326 id=326 data-nosnippet>326</a>            <span class="kw">_ </span>=&gt; {
+<a href=#327 id=327 data-nosnippet>327</a>                <span class="kw">let </span>item = <span class="macro">format!</span>(<span class="string">"Comptime evaluation for builtin function '{builtin}'"</span>);
+<a href=#328 id=328 data-nosnippet>328</a>                <span class="prelude-val">Err</span>(InterpreterError::Unimplemented { item, location })
+<a href=#329 id=329 data-nosnippet>329</a>            }
+<a href=#330 id=330 data-nosnippet>330</a>        }<span class="question-mark">?</span>;
+<a href=#331 id=331 data-nosnippet>331</a>
+<a href=#332 id=332 data-nosnippet>332</a>        check_return_type_shape(<span class="kw-2">&amp;</span>result, expected_return_shape, location)<span class="question-mark">?</span>;
+<a href=#333 id=333 data-nosnippet>333</a>        <span class="prelude-val">Ok</span>(result)
+<a href=#334 id=334 data-nosnippet>334</a>    }
+<a href=#335 id=335 data-nosnippet>335</a>}
+<a href=#336 id=336 data-nosnippet>336</a>
+<a href=#337 id=337 data-nosnippet>337</a><span class="kw">fn </span>failing_constraint&lt;T&gt;(
+<a href=#338 id=338 data-nosnippet>338</a>    message: <span class="kw">impl </span>Into&lt;String&gt;,
+<a href=#339 id=339 data-nosnippet>339</a>    location: Location,
+<a href=#340 id=340 data-nosnippet>340</a>    call_stack: <span class="kw-2">&amp;</span>Vector&lt;Location&gt;,
+<a href=#341 id=341 data-nosnippet>341</a>) -&gt; IResult&lt;T&gt; {
+<a href=#342 id=342 data-nosnippet>342</a>    <span class="prelude-val">Err</span>(InterpreterError::FailingConstraint {
+<a href=#343 id=343 data-nosnippet>343</a>        message: <span class="prelude-val">Some</span>(message.into()),
+<a href=#344 id=344 data-nosnippet>344</a>        location,
+<a href=#345 id=345 data-nosnippet>345</a>        call_stack: call_stack.clone(),
+<a href=#346 id=346 data-nosnippet>346</a>    })
+<a href=#347 id=347 data-nosnippet>347</a>}
+<a href=#348 id=348 data-nosnippet>348</a>
+<a href=#349 id=349 data-nosnippet>349</a><span class="kw">fn </span>array_len(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
+<a href=#350 id=350 data-nosnippet>350</a>    <span class="kw">let </span>[(argument, argument_location)] = check_arguments(arguments, location)<span class="question-mark">?</span>;
+<a href=#351 id=351 data-nosnippet>351</a>
+<a href=#352 id=352 data-nosnippet>352</a>    <span class="kw">match </span>argument {
+<a href=#353 id=353 data-nosnippet>353</a>        Value::Array(values, <span class="kw">_</span>) | Value::Vector(values, <span class="kw">_</span>) =&gt; <span class="prelude-val">Ok</span>(Value::u32(values.len() <span class="kw">as </span>u32)),
+<a href=#354 id=354 data-nosnippet>354</a>        value =&gt; {
+<a href=#355 id=355 data-nosnippet>355</a>            <span class="kw">let </span>expected = <span class="string">"array"</span>.to_string();
+<a href=#356 id=356 data-nosnippet>356</a>            <span class="kw">let </span>actual = value.get_type().into_owned();
+<a href=#357 id=357 data-nosnippet>357</a>            <span class="prelude-val">Err</span>(InterpreterError::TypeMismatch { expected, actual, location: argument_location })
+<a href=#358 id=358 data-nosnippet>358</a>        }
+<a href=#359 id=359 data-nosnippet>359</a>    }
+<a href=#360 id=360 data-nosnippet>360</a>}
+<a href=#361 id=361 data-nosnippet>361</a>
+<a href=#362 id=362 data-nosnippet>362</a><span class="kw">fn </span>apply_range_constraint(
+<a href=#363 id=363 data-nosnippet>363</a>    arguments: Vec&lt;(Value, Location)&gt;,
+<a href=#364 id=364 data-nosnippet>364</a>    location: Location,
+<a href=#365 id=365 data-nosnippet>365</a>    call_stack: <span class="kw-2">&amp;</span>Vector&lt;Location&gt;,
+<a href=#366 id=366 data-nosnippet>366</a>) -&gt; IResult&lt;Value&gt; {
+<a href=#367 id=367 data-nosnippet>367</a>    <span class="kw">let </span>[value, num_bits] = check_arguments(arguments, location)<span class="question-mark">?</span>;
+<a href=#368 id=368 data-nosnippet>368</a>
+<a href=#369 id=369 data-nosnippet>369</a>    <span class="kw">let </span>field = get_field(value)<span class="question-mark">?</span>;
+<a href=#370 id=370 data-nosnippet>370</a>    <span class="kw">let </span>num_bits = get_u32(num_bits)<span class="question-mark">?</span>;
+<a href=#371 id=371 data-nosnippet>371</a>    <span class="kw">let </span>field_num_bits = field.num_bits();
+<a href=#372 id=372 data-nosnippet>372</a>
+<a href=#373 id=373 data-nosnippet>373</a>    <span class="kw">if </span>field_num_bits &lt;= num_bits {
+<a href=#374 id=374 data-nosnippet>374</a>        <span class="prelude-val">Ok</span>(Value::Unit)
+<a href=#375 id=375 data-nosnippet>375</a>    } <span class="kw">else </span>{
+<a href=#376 id=376 data-nosnippet>376</a>        failing_constraint(
+<a href=#377 id=377 data-nosnippet>377</a>            <span class="macro">format!</span>(
+<a href=#378 id=378 data-nosnippet>378</a>                <span class="string">"call to assert_max_bit_size: {} has {field_num_bits} bits which do not fit in {num_bits} bits"</span>,
+<a href=#379 id=379 data-nosnippet>379</a>                field.to_short_hex()
+<a href=#380 id=380 data-nosnippet>380</a>            ),
+<a href=#381 id=381 data-nosnippet>381</a>            location,
+<a href=#382 id=382 data-nosnippet>382</a>            call_stack,
+<a href=#383 id=383 data-nosnippet>383</a>        )
+<a href=#384 id=384 data-nosnippet>384</a>    }
+<a href=#385 id=385 data-nosnippet>385</a>}
+<a href=#386 id=386 data-nosnippet>386</a>
+<a href=#387 id=387 data-nosnippet>387</a><span class="kw">fn </span>array_as_str_unchecked(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
+<a href=#388 id=388 data-nosnippet>388</a>    <span class="kw">let </span>[argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
+<a href=#389 id=389 data-nosnippet>389</a>
+<a href=#390 id=390 data-nosnippet>390</a>    <span class="kw">let </span>array = get_array(argument)<span class="question-mark">?</span>.<span class="number">0</span>;
+<a href=#391 id=391 data-nosnippet>391</a>    <span class="kw">let </span>string_bytes = try_vecmap(array, |byte| get_u8((byte, location)))<span class="question-mark">?</span>;
+<a href=#392 id=392 data-nosnippet>392</a>    <span class="prelude-val">Ok</span>(Value::String(Rc::new(string_bytes)))
+<a href=#393 id=393 data-nosnippet>393</a>}
+<a href=#394 id=394 data-nosnippet>394</a>
+<a href=#395 id=395 data-nosnippet>395</a><span class="kw">fn </span>as_vector(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
+<a href=#396 id=396 data-nosnippet>396</a>    <span class="kw">let </span>[(array, array_location)] = check_arguments(arguments, location)<span class="question-mark">?</span>;
+<a href=#397 id=397 data-nosnippet>397</a>
+<a href=#398 id=398 data-nosnippet>398</a>    <span class="kw">match </span>array {
+<a href=#399 id=399 data-nosnippet>399</a>        Value::Array(values, Type::Array(typ, <span class="kw">_</span>)) =&gt; <span class="prelude-val">Ok</span>(Value::Vector(values, Type::Vector(typ))),
+<a href=#400 id=400 data-nosnippet>400</a>        value =&gt; {
+<a href=#401 id=401 data-nosnippet>401</a>            <span class="kw">let </span>expected = <span class="string">"array"</span>.to_string();
+<a href=#402 id=402 data-nosnippet>402</a>            <span class="kw">let </span>actual = value.get_type().into_owned();
+<a href=#403 id=403 data-nosnippet>403</a>            <span class="prelude-val">Err</span>(InterpreterError::TypeMismatch { expected, actual, location: array_location })
+<a href=#404 id=404 data-nosnippet>404</a>        }
+<a href=#405 id=405 data-nosnippet>405</a>    }
+<a href=#406 id=406 data-nosnippet>406</a>}
+<a href=#407 id=407 data-nosnippet>407</a>
+<a href=#408 id=408 data-nosnippet>408</a><span class="kw">fn </span>as_witness(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
+<a href=#409 id=409 data-nosnippet>409</a>    check_arguments::&lt;<span class="number">1</span>&gt;(arguments, location)<span class="question-mark">?</span>;
+<a href=#410 id=410 data-nosnippet>410</a>    <span class="prelude-val">Ok</span>(Value::Unit)
+<a href=#411 id=411 data-nosnippet>411</a>}
+<a href=#412 id=412 data-nosnippet>412</a>
+<a href=#413 id=413 data-nosnippet>413</a><span class="kw">fn </span>black_box(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
+<a href=#414 id=414 data-nosnippet>414</a>    <span class="kw">let </span>[(value, <span class="kw">_</span>)] = check_arguments(arguments, location)<span class="question-mark">?</span>;
+<a href=#415 id=415 data-nosnippet>415</a>    <span class="prelude-val">Ok</span>(value)
 <a href=#416 id=416 data-nosnippet>416</a>}
 <a href=#417 id=417 data-nosnippet>417</a>
 <a href=#418 id=418 data-nosnippet>418</a><span class="kw">fn </span>checked_transmute(
@@ -420,7 +420,7 @@
 <a href=#420 id=420 data-nosnippet>420</a>    return_type: Type,
 <a href=#421 id=421 data-nosnippet>421</a>    location: Location,
 <a href=#422 id=422 data-nosnippet>422</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#423 id=423 data-nosnippet>423</a>    <span class="kw">let </span>(value, location) = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#423 id=423 data-nosnippet>423</a>    <span class="kw">let </span>[(value, location)] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#424 id=424 data-nosnippet>424</a>
 <a href=#425 id=425 data-nosnippet>425</a>    <span class="kw">if </span>value.get_type().try_unify_with_default_bindings(<span class="kw-2">&amp;</span>return_type).is_err() {
 <a href=#426 id=426 data-nosnippet>426</a>        <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::CheckedTransmuteFailed {
@@ -434,7 +434,7 @@
 <a href=#434 id=434 data-nosnippet>434</a>}
 <a href=#435 id=435 data-nosnippet>435</a>
 <a href=#436 id=436 data-nosnippet>436</a><span class="kw">fn </span>vector_push_back(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
-<a href=#437 id=437 data-nosnippet>437</a>    <span class="kw">let </span>(vector, (element, <span class="kw">_</span>)) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
+<a href=#437 id=437 data-nosnippet>437</a>    <span class="kw">let </span>[vector, (element, <span class="kw">_</span>)] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#438 id=438 data-nosnippet>438</a>
 <a href=#439 id=439 data-nosnippet>439</a>    <span class="kw">let </span>(<span class="kw-2">mut </span>values, typ) = get_vector(vector)<span class="question-mark">?</span>;
 <a href=#440 id=440 data-nosnippet>440</a>    values.push_back(element);
@@ -449,7 +449,7 @@
 <a href=#449 id=449 data-nosnippet>449</a>    location: Location,
 <a href=#450 id=450 data-nosnippet>450</a>    call_stack: <span class="kw-2">&amp;</span>Vector&lt;Location&gt;,
 <a href=#451 id=451 data-nosnippet>451</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#452 id=452 data-nosnippet>452</a>    <span class="kw">let </span>(predicate, message) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
+<a href=#452 id=452 data-nosnippet>452</a>    <span class="kw">let </span>[predicate, message] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#453 id=453 data-nosnippet>453</a>    <span class="kw">let </span>predicate = get_bool(predicate)<span class="question-mark">?</span>;
 <a href=#454 id=454 data-nosnippet>454</a>    <span class="kw">let </span>message = message.<span class="number">0</span>.display(interner, files).to_string();
 <a href=#455 id=455 data-nosnippet>455</a>
@@ -476,8 +476,8 @@
 <a href=#476 id=476 data-nosnippet>476</a>    location: Location,
 <a href=#477 id=477 data-nosnippet>477</a>    is_warning: bool,
 <a href=#478 id=478 data-nosnippet>478</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#479 id=479 data-nosnippet>479</a>    <span class="kw">let </span>(msg_argument, (secondary, secondary_location), location_argument) =
-<a href=#480 id=480 data-nosnippet>480</a>        check_three_arguments(arguments, location)<span class="question-mark">?</span>;
+<a href=#479 id=479 data-nosnippet>479</a>    <span class="kw">let </span>[msg_argument, (secondary, secondary_location), location_argument] =
+<a href=#480 id=480 data-nosnippet>480</a>        check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#481 id=481 data-nosnippet>481</a>    <span class="kw">let </span>(fragments, <span class="kw">_</span>, <span class="kw">_</span>) = get_format_string(msg_argument)<span class="question-mark">?</span>;
 <a href=#482 id=482 data-nosnippet>482</a>
 <a href=#483 id=483 data-nosnippet>483</a>    <span class="comment">// Unwrap the `Option&lt;fmtstr&lt;N, T&gt;&gt;`
@@ -502,7 +502,7 @@
 <a href=#502 id=502 data-nosnippet>502</a>}
 <a href=#503 id=503 data-nosnippet>503</a>
 <a href=#504 id=504 data-nosnippet>504</a><span class="kw">fn </span>str_as_bytes(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
-<a href=#505 id=505 data-nosnippet>505</a>    <span class="kw">let </span>string = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#505 id=505 data-nosnippet>505</a>    <span class="kw">let </span>[string] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#506 id=506 data-nosnippet>506</a>    <span class="kw">let </span>string_bytes = get_str(string)<span class="question-mark">?</span>;
 <a href=#507 id=507 data-nosnippet>507</a>    <span class="kw">let </span>bytes: Vector&lt;Value&gt; = string_bytes.iter().copied().map(Value::u8).collect();
 <a href=#508 id=508 data-nosnippet>508</a>    <span class="kw">let </span>byte_array_type = byte_array_type(bytes.len());
@@ -511,7 +511,7 @@
 <a href=#511 id=511 data-nosnippet>511</a>
 <a href=#512 id=512 data-nosnippet>512</a><span class="comment">// fn str_as_ctstring(self) -&gt; CtString
 <a href=#513 id=513 data-nosnippet>513</a></span><span class="kw">fn </span>str_as_ctstring(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
-<a href=#514 id=514 data-nosnippet>514</a>    <span class="kw">let </span>self_argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#514 id=514 data-nosnippet>514</a>    <span class="kw">let </span>[self_argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#515 id=515 data-nosnippet>515</a>    <span class="kw">let </span>string_bytes = get_str(self_argument)<span class="question-mark">?</span>;
 <a href=#516 id=516 data-nosnippet>516</a>    <span class="prelude-val">Ok</span>(Value::CtString(string_bytes))
 <a href=#517 id=517 data-nosnippet>517</a>}
@@ -522,7 +522,7 @@
 <a href=#522 id=522 data-nosnippet>522</a>    arguments: Vec&lt;(Value, Location)&gt;,
 <a href=#523 id=523 data-nosnippet>523</a>    location: Location,
 <a href=#524 id=524 data-nosnippet>524</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#525 id=525 data-nosnippet>525</a>    <span class="kw">let </span>(self_argument, attribute) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
+<a href=#525 id=525 data-nosnippet>525</a>    <span class="kw">let </span>[self_argument, attribute] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#526 id=526 data-nosnippet>526</a>    <span class="kw">let </span>attribute_location = attribute.<span class="number">1</span>;
 <a href=#527 id=527 data-nosnippet>527</a>    <span class="kw">let </span>attribute = get_ctstring(attribute)<span class="question-mark">?</span>;
 <a href=#528 id=528 data-nosnippet>528</a>    <span class="kw">let </span>attribute = String::from_utf8_lossy(<span class="kw-2">&amp;</span>attribute);
@@ -549,7 +549,7 @@
 <a href=#549 id=549 data-nosnippet>549</a>    arguments: Vec&lt;(Value, Location)&gt;,
 <a href=#550 id=550 data-nosnippet>550</a>    location: Location,
 <a href=#551 id=551 data-nosnippet>551</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#552 id=552 data-nosnippet>552</a>    <span class="kw">let </span>argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#552 id=552 data-nosnippet>552</a>    <span class="kw">let </span>[argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#553 id=553 data-nosnippet>553</a>    <span class="kw">let </span>struct_id = get_type_id(argument)<span class="question-mark">?</span>;
 <a href=#554 id=554 data-nosnippet>554</a>    <span class="kw">let </span>type_def_rc = interner.get_type(struct_id);
 <a href=#555 id=555 data-nosnippet>555</a>    <span class="kw">let </span>type_def = type_def_rc.borrow();
@@ -567,7 +567,7 @@
 <a href=#567 id=567 data-nosnippet>567</a>    return_type: Type,
 <a href=#568 id=568 data-nosnippet>568</a>    location: Location,
 <a href=#569 id=569 data-nosnippet>569</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#570 id=570 data-nosnippet>570</a>    <span class="kw">let </span>(type_def, generics) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
+<a href=#570 id=570 data-nosnippet>570</a>    <span class="kw">let </span>[type_def, generics] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#571 id=571 data-nosnippet>571</a>    <span class="kw">let </span>type_id = get_type_id(type_def)<span class="question-mark">?</span>;
 <a href=#572 id=572 data-nosnippet>572</a>    <span class="kw">let </span>type_def_rc = interner.get_type(type_id);
 <a href=#573 id=573 data-nosnippet>573</a>    <span class="kw">let </span>type_def = type_def_rc.borrow();
@@ -596,7 +596,7 @@
 <a href=#596 id=596 data-nosnippet>596</a>    return_type: Type,
 <a href=#597 id=597 data-nosnippet>597</a>    location: Location,
 <a href=#598 id=598 data-nosnippet>598</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#599 id=599 data-nosnippet>599</a>    <span class="kw">let </span>argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#599 id=599 data-nosnippet>599</a>    <span class="kw">let </span>[argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#600 id=600 data-nosnippet>600</a>    <span class="kw">let </span>type_id = get_type_id(argument)<span class="question-mark">?</span>;
 <a href=#601 id=601 data-nosnippet>601</a>    <span class="kw">let </span>type_def = interner.get_type(type_id);
 <a href=#602 id=602 data-nosnippet>602</a>    <span class="kw">let </span>type_def = type_def.borrow();
@@ -646,7 +646,7 @@
 <a href=#646 id=646 data-nosnippet>646</a>    location: Location,
 <a href=#647 id=647 data-nosnippet>647</a>    builtin_only: bool,
 <a href=#648 id=648 data-nosnippet>648</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#649 id=649 data-nosnippet>649</a>    <span class="kw">let </span>(self_argument, name) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
+<a href=#649 id=649 data-nosnippet>649</a>    <span class="kw">let </span>[self_argument, name] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#650 id=650 data-nosnippet>650</a>    <span class="kw">let </span>type_id = get_type_id(self_argument)<span class="question-mark">?</span>;
 <a href=#651 id=651 data-nosnippet>651</a>
 <a href=#652 id=652 data-nosnippet>652</a>    <span class="kw">let </span>name = get_str(name)<span class="question-mark">?</span>;
@@ -714,7 +714,7 @@
 <a href=#714 id=714 data-nosnippet>714</a>    arguments: Vec&lt;(Value, Location)&gt;,
 <a href=#715 id=715 data-nosnippet>715</a>    location: Location,
 <a href=#716 id=716 data-nosnippet>716</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#717 id=717 data-nosnippet>717</a>    <span class="kw">let </span>(self_argument, name) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
+<a href=#717 id=717 data-nosnippet>717</a>    <span class="kw">let </span>[self_argument, name] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#718 id=718 data-nosnippet>718</a>    <span class="kw">let </span>type_id = get_type_id(self_argument)<span class="question-mark">?</span>;
 <a href=#719 id=719 data-nosnippet>719</a>    <span class="kw">let </span>name = get_str(name)<span class="question-mark">?</span>;
 <a href=#720 id=720 data-nosnippet>720</a>    <span class="kw">let </span>name = String::from_utf8_lossy(<span class="kw-2">&amp;</span>name).to_string();
@@ -730,7 +730,7 @@
 <a href=#730 id=730 data-nosnippet>730</a>    arguments: Vec&lt;(Value, Location)&gt;,
 <a href=#731 id=731 data-nosnippet>731</a>    location: Location,
 <a href=#732 id=732 data-nosnippet>732</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#733 id=733 data-nosnippet>733</a>    <span class="kw">let </span>(self_argument, name) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
+<a href=#733 id=733 data-nosnippet>733</a>    <span class="kw">let </span>[self_argument, name] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#734 id=734 data-nosnippet>734</a>    <span class="kw">let </span>func_id = get_function_def(self_argument)<span class="question-mark">?</span>;
 <a href=#735 id=735 data-nosnippet>735</a>    <span class="kw">let </span>name = get_str(name)<span class="question-mark">?</span>;
 <a href=#736 id=736 data-nosnippet>736</a>    <span class="kw">let </span>name = String::from_utf8_lossy(<span class="kw-2">&amp;</span>name).to_string();
@@ -748,7 +748,7 @@
 <a href=#748 id=748 data-nosnippet>748</a>    arguments: Vec&lt;(Value, Location)&gt;,
 <a href=#749 id=749 data-nosnippet>749</a>    location: Location,
 <a href=#750 id=750 data-nosnippet>750</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#751 id=751 data-nosnippet>751</a>    <span class="kw">let </span>(self_argument, name) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
+<a href=#751 id=751 data-nosnippet>751</a>    <span class="kw">let </span>[self_argument, name] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#752 id=752 data-nosnippet>752</a>    <span class="kw">let </span>module_id = get_module(self_argument)<span class="question-mark">?</span>;
 <a href=#753 id=753 data-nosnippet>753</a>    <span class="kw">let </span>name = get_str(name)<span class="question-mark">?</span>;
 <a href=#754 id=754 data-nosnippet>754</a>    <span class="kw">let </span>name = String::from_utf8_lossy(<span class="kw-2">&amp;</span>name).to_string();
@@ -769,7 +769,7 @@
 <a href=#769 id=769 data-nosnippet>769</a>    location: Location,
 <a href=#770 id=770 data-nosnippet>770</a>    call_stack: <span class="kw-2">&amp;</span>Vector&lt;Location&gt;,
 <a href=#771 id=771 data-nosnippet>771</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#772 id=772 data-nosnippet>772</a>    <span class="kw">let </span>(typ, generic_args) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
+<a href=#772 id=772 data-nosnippet>772</a>    <span class="kw">let </span>[typ, generic_args] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#773 id=773 data-nosnippet>773</a>    <span class="kw">let </span>struct_id = get_type_id(typ)<span class="question-mark">?</span>;
 <a href=#774 id=774 data-nosnippet>774</a>
 <a href=#775 id=775 data-nosnippet>775</a>    interpreter.elaborator.define_struct_fields_if_undefined(struct_id);
@@ -838,7 +838,7 @@
 <a href=#838 id=838 data-nosnippet>838</a>    arguments: Vec&lt;(Value, Location)&gt;,
 <a href=#839 id=839 data-nosnippet>839</a>    location: Location,
 <a href=#840 id=840 data-nosnippet>840</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#841 id=841 data-nosnippet>841</a>    <span class="kw">let </span>argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#841 id=841 data-nosnippet>841</a>    <span class="kw">let </span>[argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#842 id=842 data-nosnippet>842</a>    <span class="kw">let </span>struct_id = get_type_id(argument)<span class="question-mark">?</span>;
 <a href=#843 id=843 data-nosnippet>843</a>
 <a href=#844 id=844 data-nosnippet>844</a>    interpreter.elaborator.define_struct_fields_if_undefined(struct_id);
@@ -873,7 +873,7 @@
 <a href=#873 id=873 data-nosnippet>873</a>    arguments: Vec&lt;(Value, Location)&gt;,
 <a href=#874 id=874 data-nosnippet>874</a>    location: Location,
 <a href=#875 id=875 data-nosnippet>875</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#876 id=876 data-nosnippet>876</a>    <span class="kw">let </span>self_argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#876 id=876 data-nosnippet>876</a>    <span class="kw">let </span>[self_argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#877 id=877 data-nosnippet>877</a>    <span class="kw">let </span>struct_id = get_type_id(self_argument)<span class="question-mark">?</span>;
 <a href=#878 id=878 data-nosnippet>878</a>    <span class="kw">let </span>parent = struct_id.parent_module_id(interpreter.elaborator.def_maps);
 <a href=#879 id=879 data-nosnippet>879</a>    <span class="prelude-val">Ok</span>(Value::ModuleDefinition(parent))
@@ -885,7 +885,7 @@
 <a href=#885 id=885 data-nosnippet>885</a>    arguments: Vec&lt;(Value, Location)&gt;,
 <a href=#886 id=886 data-nosnippet>886</a>    location: Location,
 <a href=#887 id=887 data-nosnippet>887</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#888 id=888 data-nosnippet>888</a>    <span class="kw">let </span>self_argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#888 id=888 data-nosnippet>888</a>    <span class="kw">let </span>[self_argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#889 id=889 data-nosnippet>889</a>    <span class="kw">let </span>type_id = get_type_id(self_argument)<span class="question-mark">?</span>;
 <a href=#890 id=890 data-nosnippet>890</a>    <span class="prelude-val">Ok</span>(Value::Location(interner.get_type(type_id).borrow().location))
 <a href=#891 id=891 data-nosnippet>891</a>}
@@ -896,7 +896,7 @@
 <a href=#896 id=896 data-nosnippet>896</a>    arguments: Vec&lt;(Value, Location)&gt;,
 <a href=#897 id=897 data-nosnippet>897</a>    location: Location,
 <a href=#898 id=898 data-nosnippet>898</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#899 id=899 data-nosnippet>899</a>    <span class="kw">let </span>self_argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#899 id=899 data-nosnippet>899</a>    <span class="kw">let </span>[self_argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#900 id=900 data-nosnippet>900</a>    <span class="kw">let </span>struct_id = get_type_id(self_argument)<span class="question-mark">?</span>;
 <a href=#901 id=901 data-nosnippet>901</a>    <span class="kw">let </span>the_struct = interner.get_type(struct_id);
 <a href=#902 id=902 data-nosnippet>902</a>
@@ -910,7 +910,7 @@
 <a href=#910 id=910 data-nosnippet>910</a>    location: Location,
 <a href=#911 id=911 data-nosnippet>911</a>    call_stack: <span class="kw-2">&amp;</span>Vector&lt;Location&gt;,
 <a href=#912 id=912 data-nosnippet>912</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#913 id=913 data-nosnippet>913</a>    <span class="kw">let </span>(vector, index) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
+<a href=#913 id=913 data-nosnippet>913</a>    <span class="kw">let </span>[vector, index] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#914 id=914 data-nosnippet>914</a>
 <a href=#915 id=915 data-nosnippet>915</a>    <span class="kw">let </span>(<span class="kw-2">mut </span>values, typ) = get_vector(vector)<span class="question-mark">?</span>;
 <a href=#916 id=916 data-nosnippet>916</a>    <span class="kw">let </span>index = get_u32(index)<span class="question-mark">? </span><span class="kw">as </span>usize;
@@ -939,7 +939,7 @@
 <a href=#939 id=939 data-nosnippet>939</a>}
 <a href=#940 id=940 data-nosnippet>940</a>
 <a href=#941 id=941 data-nosnippet>941</a><span class="kw">fn </span>vector_push_front(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
-<a href=#942 id=942 data-nosnippet>942</a>    <span class="kw">let </span>(vector, (element, <span class="kw">_</span>)) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
+<a href=#942 id=942 data-nosnippet>942</a>    <span class="kw">let </span>[vector, (element, <span class="kw">_</span>)] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#943 id=943 data-nosnippet>943</a>
 <a href=#944 id=944 data-nosnippet>944</a>    <span class="kw">let </span>(<span class="kw-2">mut </span>values, typ) = get_vector(vector)<span class="question-mark">?</span>;
 <a href=#945 id=945 data-nosnippet>945</a>    values.push_front(element);
@@ -951,7 +951,7 @@
 <a href=#951 id=951 data-nosnippet>951</a>    location: Location,
 <a href=#952 id=952 data-nosnippet>952</a>    call_stack: <span class="kw-2">&amp;</span>Vector&lt;Location&gt;,
 <a href=#953 id=953 data-nosnippet>953</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#954 id=954 data-nosnippet>954</a>    <span class="kw">let </span>argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#954 id=954 data-nosnippet>954</a>    <span class="kw">let </span>[argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#955 id=955 data-nosnippet>955</a>
 <a href=#956 id=956 data-nosnippet>956</a>    <span class="kw">let </span>(<span class="kw-2">mut </span>values, typ) = get_vector(argument)<span class="question-mark">?</span>;
 <a href=#957 id=957 data-nosnippet>957</a>    <span class="kw">match </span>values.pop_front() {
@@ -974,7 +974,7 @@
 <a href=#974 id=974 data-nosnippet>974</a>    location: Location,
 <a href=#975 id=975 data-nosnippet>975</a>    call_stack: <span class="kw-2">&amp;</span>Vector&lt;Location&gt;,
 <a href=#976 id=976 data-nosnippet>976</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#977 id=977 data-nosnippet>977</a>    <span class="kw">let </span>argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#977 id=977 data-nosnippet>977</a>    <span class="kw">let </span>[argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#978 id=978 data-nosnippet>978</a>
 <a href=#979 id=979 data-nosnippet>979</a>    <span class="kw">let </span>(<span class="kw-2">mut </span>values, typ) = get_vector(argument)<span class="question-mark">?</span>;
 <a href=#980 id=980 data-nosnippet>980</a>    <span class="kw">match </span>values.pop_back() {
@@ -997,7 +997,7 @@
 <a href=#997 id=997 data-nosnippet>997</a>    location: Location,
 <a href=#998 id=998 data-nosnippet>998</a>    call_stack: <span class="kw-2">&amp;</span>Vector&lt;Location&gt;,
 <a href=#999 id=999 data-nosnippet>999</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#1000 id=1000 data-nosnippet>1000</a>    <span class="kw">let </span>(vector, index, (element, <span class="kw">_</span>)) = check_three_arguments(arguments, location)<span class="question-mark">?</span>;
+<a href=#1000 id=1000 data-nosnippet>1000</a>    <span class="kw">let </span>[vector, index, (element, <span class="kw">_</span>)] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#1001 id=1001 data-nosnippet>1001</a>
 <a href=#1002 id=1002 data-nosnippet>1002</a>    <span class="kw">let </span>(<span class="kw-2">mut </span>values, typ) = get_vector(vector)<span class="question-mark">?</span>;
 <a href=#1003 id=1003 data-nosnippet>1003</a>    <span class="kw">let </span>index = get_u32(index)<span class="question-mark">? </span><span class="kw">as </span>usize;
@@ -1022,7 +1022,7 @@
 <a href=#1022 id=1022 data-nosnippet>1022</a>    return_type: Type,
 <a href=#1023 id=1023 data-nosnippet>1023</a>    location: Location,
 <a href=#1024 id=1024 data-nosnippet>1024</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#1025 id=1025 data-nosnippet>1025</a>    <span class="kw">let </span>argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#1025 id=1025 data-nosnippet>1025</a>    <span class="kw">let </span>[argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#1026 id=1026 data-nosnippet>1026</a>
 <a href=#1027 id=1027 data-nosnippet>1027</a>    <span class="kw">let </span>result = parse(
 <a href=#1028 id=1028 data-nosnippet>1028</a>        elaborator,
@@ -1052,7 +1052,7 @@
 <a href=#1052 id=1052 data-nosnippet>1052</a>    return_type: Type,
 <a href=#1053 id=1053 data-nosnippet>1053</a>    location: Location,
 <a href=#1054 id=1054 data-nosnippet>1054</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#1055 id=1055 data-nosnippet>1055</a>    <span class="kw">let </span>argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#1055 id=1055 data-nosnippet>1055</a>    <span class="kw">let </span>[argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#1056 id=1056 data-nosnippet>1056</a>
 <a href=#1057 id=1057 data-nosnippet>1057</a>    <span class="kw">let </span>path =
 <a href=#1058 id=1058 data-nosnippet>1058</a>        parse(interpreter.elaborator, argument, Parser::parse_path_no_turbofish_or_error, <span class="string">"a path"</span>)
@@ -1077,7 +1077,7 @@
 <a href=#1077 id=1077 data-nosnippet>1077</a>    arguments: Vec&lt;(Value, Location)&gt;,
 <a href=#1078 id=1078 data-nosnippet>1078</a>    location: Location,
 <a href=#1079 id=1079 data-nosnippet>1079</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#1080 id=1080 data-nosnippet>1080</a>    <span class="kw">let </span>argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#1080 id=1080 data-nosnippet>1080</a>    <span class="kw">let </span>[argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#1081 id=1081 data-nosnippet>1081</a>    <span class="kw">let </span>trait_bound = parse(
 <a href=#1082 id=1082 data-nosnippet>1082</a>        interpreter.elaborator,
 <a href=#1083 id=1083 data-nosnippet>1083</a>        argument,
@@ -1104,7 +1104,7 @@
 <a href=#1104 id=1104 data-nosnippet>1104</a>    arguments: Vec&lt;(Value, Location)&gt;,
 <a href=#1105 id=1105 data-nosnippet>1105</a>    location: Location,
 <a href=#1106 id=1106 data-nosnippet>1106</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#1107 id=1107 data-nosnippet>1107</a>    <span class="kw">let </span>argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#1107 id=1107 data-nosnippet>1107</a>    <span class="kw">let </span>[argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#1108 id=1108 data-nosnippet>1108</a>    <span class="kw">let </span>typ = parse(
 <a href=#1109 id=1109 data-nosnippet>1109</a>        interpreter.elaborator,
 <a href=#1110 id=1110 data-nosnippet>1110</a>        argument,
@@ -1127,7 +1127,7 @@
 <a href=#1127 id=1127 data-nosnippet>1127</a>
 <a href=#1128 id=1128 data-nosnippet>1128</a><span class="comment">// fn tokens(quoted: Quoted) -&gt; [Quoted]
 <a href=#1129 id=1129 data-nosnippet>1129</a></span><span class="kw">fn </span>quoted_tokens(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
-<a href=#1130 id=1130 data-nosnippet>1130</a>    <span class="kw">let </span>argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#1130 id=1130 data-nosnippet>1130</a>    <span class="kw">let </span>[argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#1131 id=1131 data-nosnippet>1131</a>    <span class="kw">let </span>value = get_quoted(argument)<span class="question-mark">?</span>;
 <a href=#1132 id=1132 data-nosnippet>1132</a>
 <a href=#1133 id=1133 data-nosnippet>1133</a>    <span class="prelude-val">Ok</span>(Value::Vector(
@@ -1142,7 +1142,7 @@
 <a href=#1142 id=1142 data-nosnippet>1142</a>    return_type: Type,
 <a href=#1143 id=1143 data-nosnippet>1143</a>    location: Location,
 <a href=#1144 id=1144 data-nosnippet>1144</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#1145 id=1145 data-nosnippet>1145</a>    <span class="kw">let </span>argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#1145 id=1145 data-nosnippet>1145</a>    <span class="kw">let </span>[argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#1146 id=1146 data-nosnippet>1146</a>    <span class="kw">let </span>tokens = get_quoted(argument)<span class="question-mark">?</span>;
 <a href=#1147 id=1147 data-nosnippet>1147</a>
 <a href=#1148 id=1148 data-nosnippet>1148</a>    <span class="kw">let </span>merged = <span class="kw">match </span>(tokens.first(), tokens.last()) {
@@ -1159,7 +1159,7 @@
 <a href=#1159 id=1159 data-nosnippet>1159</a>    location: Location,
 <a href=#1160 id=1160 data-nosnippet>1160</a>    call_stack: <span class="kw-2">&amp;</span>Vector&lt;Location&gt;,
 <a href=#1161 id=1161 data-nosnippet>1161</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#1162 id=1162 data-nosnippet>1162</a>    <span class="kw">let </span>value = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#1162 id=1162 data-nosnippet>1162</a>    <span class="kw">let </span>[value] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#1163 id=1163 data-nosnippet>1163</a>    <span class="kw">let </span>radix = (Value::u32(<span class="number">2</span>), value.<span class="number">1</span>);
 <a href=#1164 id=1164 data-nosnippet>1164</a>    to_be_radix(<span class="macro">vec!</span>[value, radix], return_type, location, call_stack)
 <a href=#1165 id=1165 data-nosnippet>1165</a>}
@@ -1170,7 +1170,7 @@
 <a href=#1170 id=1170 data-nosnippet>1170</a>    location: Location,
 <a href=#1171 id=1171 data-nosnippet>1171</a>    call_stack: <span class="kw-2">&amp;</span>Vector&lt;Location&gt;,
 <a href=#1172 id=1172 data-nosnippet>1172</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#1173 id=1173 data-nosnippet>1173</a>    <span class="kw">let </span>value = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#1173 id=1173 data-nosnippet>1173</a>    <span class="kw">let </span>[value] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#1174 id=1174 data-nosnippet>1174</a>    <span class="kw">let </span>radix = (Value::u32(<span class="number">2</span>), value.<span class="number">1</span>);
 <a href=#1175 id=1175 data-nosnippet>1175</a>    to_le_radix(<span class="macro">vec!</span>[value, radix], return_type, location, call_stack)
 <a href=#1176 id=1176 data-nosnippet>1176</a>}
@@ -1197,7 +1197,7 @@
 <a href=#1197 id=1197 data-nosnippet>1197</a>    location: Location,
 <a href=#1198 id=1198 data-nosnippet>1198</a>    call_stack: <span class="kw-2">&amp;</span>Vector&lt;Location&gt;,
 <a href=#1199 id=1199 data-nosnippet>1199</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#1200 id=1200 data-nosnippet>1200</a>    <span class="kw">let </span>(value, radix) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
+<a href=#1200 id=1200 data-nosnippet>1200</a>    <span class="kw">let </span>[value, radix] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#1201 id=1201 data-nosnippet>1201</a>
 <a href=#1202 id=1202 data-nosnippet>1202</a>    <span class="kw">let </span>value = get_field(value)<span class="question-mark">?</span>;
 <a href=#1203 id=1203 data-nosnippet>1203</a>    <span class="kw">let </span>radix = get_u32(radix)<span class="question-mark">?</span>;
@@ -1416,7 +1416,7 @@
 <a href=#1416 id=1416 data-nosnippet>1416</a><span class="kw">where
 <a href=#1417 id=1417 data-nosnippet>1417</a>    </span>F: FnOnce(Type) -&gt; IResult&lt;<span class="prelude-ty">Option</span>&lt;Value&gt;&gt;,
 <a href=#1418 id=1418 data-nosnippet>1418</a>{
-<a href=#1419 id=1419 data-nosnippet>1419</a>    <span class="kw">let </span>value = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#1419 id=1419 data-nosnippet>1419</a>    <span class="kw">let </span>[value] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#1420 id=1420 data-nosnippet>1420</a>    <span class="kw">let </span>typ = get_type(value)<span class="question-mark">?</span>;
 <a href=#1421 id=1421 data-nosnippet>1421</a>
 <a href=#1422 id=1422 data-nosnippet>1422</a>    <span class="kw">let </span>option_value = f(typ)<span class="question-mark">?</span>;
@@ -1432,7 +1432,7 @@
 <a href=#1432 id=1432 data-nosnippet>1432</a>    return_type: Type,
 <a href=#1433 id=1433 data-nosnippet>1433</a>    location: Location,
 <a href=#1434 id=1434 data-nosnippet>1434</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#1435 id=1435 data-nosnippet>1435</a>    <span class="kw">let </span>(typ, constraint) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
+<a href=#1435 id=1435 data-nosnippet>1435</a>    <span class="kw">let </span>[typ, constraint] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#1436 id=1436 data-nosnippet>1436</a>
 <a href=#1437 id=1437 data-nosnippet>1437</a>    <span class="kw">let </span>typ = get_type(typ)<span class="question-mark">?</span>;
 <a href=#1438 id=1438 data-nosnippet>1438</a>    <span class="kw">let </span>(trait_id, generics) = get_trait_constraint(constraint)<span class="question-mark">?</span>;
@@ -1456,7 +1456,7 @@
 <a href=#1456 id=1456 data-nosnippet>1456</a>    arguments: Vec&lt;(Value, Location)&gt;,
 <a href=#1457 id=1457 data-nosnippet>1457</a>    location: Location,
 <a href=#1458 id=1458 data-nosnippet>1458</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#1459 id=1459 data-nosnippet>1459</a>    <span class="kw">let </span>(typ, constraint) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
+<a href=#1459 id=1459 data-nosnippet>1459</a>    <span class="kw">let </span>[typ, constraint] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#1460 id=1460 data-nosnippet>1460</a>
 <a href=#1461 id=1461 data-nosnippet>1461</a>    <span class="kw">let </span>typ = get_type(typ)<span class="question-mark">?</span>;
 <a href=#1462 id=1462 data-nosnippet>1462</a>    <span class="kw">let </span>(trait_id, generics) = get_trait_constraint(constraint)<span class="question-mark">?</span>;
@@ -1469,7 +1469,7 @@
 <a href=#1469 id=1469 data-nosnippet>1469</a>
 <a href=#1470 id=1470 data-nosnippet>1470</a><span class="comment">// fn is_bool(self) -&gt; bool
 <a href=#1471 id=1471 data-nosnippet>1471</a></span><span class="kw">fn </span>type_is_bool(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
-<a href=#1472 id=1472 data-nosnippet>1472</a>    <span class="kw">let </span>value = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#1472 id=1472 data-nosnippet>1472</a>    <span class="kw">let </span>[value] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#1473 id=1473 data-nosnippet>1473</a>    <span class="kw">let </span>typ = get_type(value)<span class="question-mark">?</span>;
 <a href=#1474 id=1474 data-nosnippet>1474</a>
 <a href=#1475 id=1475 data-nosnippet>1475</a>    <span class="prelude-val">Ok</span>(Value::Bool(<span class="macro">matches!</span>(typ, Type::Bool)))
@@ -1477,7 +1477,7 @@
 <a href=#1477 id=1477 data-nosnippet>1477</a>
 <a href=#1478 id=1478 data-nosnippet>1478</a><span class="comment">// fn is_field(self) -&gt; bool
 <a href=#1479 id=1479 data-nosnippet>1479</a></span><span class="kw">fn </span>type_is_field(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
-<a href=#1480 id=1480 data-nosnippet>1480</a>    <span class="kw">let </span>value = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#1480 id=1480 data-nosnippet>1480</a>    <span class="kw">let </span>[value] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#1481 id=1481 data-nosnippet>1481</a>    <span class="kw">let </span>typ = get_type(value)<span class="question-mark">?</span>;
 <a href=#1482 id=1482 data-nosnippet>1482</a>
 <a href=#1483 id=1483 data-nosnippet>1483</a>    <span class="prelude-val">Ok</span>(Value::Bool(<span class="macro">matches!</span>(typ, Type::FieldElement)))
@@ -1485,7 +1485,7 @@
 <a href=#1485 id=1485 data-nosnippet>1485</a>
 <a href=#1486 id=1486 data-nosnippet>1486</a><span class="comment">// fn is_unit(self) -&gt; bool
 <a href=#1487 id=1487 data-nosnippet>1487</a></span><span class="kw">fn </span>type_is_unit(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
-<a href=#1488 id=1488 data-nosnippet>1488</a>    <span class="kw">let </span>value = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#1488 id=1488 data-nosnippet>1488</a>    <span class="kw">let </span>[value] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#1489 id=1489 data-nosnippet>1489</a>    <span class="kw">let </span>typ = get_type(value)<span class="question-mark">?</span>;
 <a href=#1490 id=1490 data-nosnippet>1490</a>
 <a href=#1491 id=1491 data-nosnippet>1491</a>    <span class="prelude-val">Ok</span>(Value::Bool(<span class="macro">matches!</span>(typ, Type::Unit)))
@@ -1493,7 +1493,7 @@
 <a href=#1493 id=1493 data-nosnippet>1493</a>
 <a href=#1494 id=1494 data-nosnippet>1494</a><span class="comment">// fn type_of&lt;T&gt;(x: T) -&gt; Type
 <a href=#1495 id=1495 data-nosnippet>1495</a></span><span class="kw">fn </span>type_of(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
-<a href=#1496 id=1496 data-nosnippet>1496</a>    <span class="kw">let </span>(value, <span class="kw">_</span>) = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#1496 id=1496 data-nosnippet>1496</a>    <span class="kw">let </span>[(value, <span class="kw">_</span>)] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#1497 id=1497 data-nosnippet>1497</a>    <span class="kw">let </span>typ = value.get_type().into_owned();
 <a href=#1498 id=1498 data-nosnippet>1498</a>    <span class="prelude-val">Ok</span>(Value::Type(typ))
 <a href=#1499 id=1499 data-nosnippet>1499</a>}
@@ -1504,7 +1504,7 @@
 <a href=#1504 id=1504 data-nosnippet>1504</a>    arguments: Vec&lt;(Value, Location)&gt;,
 <a href=#1505 id=1505 data-nosnippet>1505</a>    location: Location,
 <a href=#1506 id=1506 data-nosnippet>1506</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#1507 id=1507 data-nosnippet>1507</a>    <span class="kw">let </span>argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#1507 id=1507 data-nosnippet>1507</a>    <span class="kw">let </span>[argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#1508 id=1508 data-nosnippet>1508</a>
 <a href=#1509 id=1509 data-nosnippet>1509</a>    <span class="kw">let </span>trait_impl_id = get_trait_impl(argument)<span class="question-mark">?</span>;
 <a href=#1510 id=1510 data-nosnippet>1510</a>    <span class="kw">let </span>trait_impl = interner.get_trait_implementation(trait_impl_id);
@@ -1522,7 +1522,7 @@
 <a href=#1522 id=1522 data-nosnippet>1522</a>    arguments: Vec&lt;(Value, Location)&gt;,
 <a href=#1523 id=1523 data-nosnippet>1523</a>    location: Location,
 <a href=#1524 id=1524 data-nosnippet>1524</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#1525 id=1525 data-nosnippet>1525</a>    <span class="kw">let </span>argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#1525 id=1525 data-nosnippet>1525</a>    <span class="kw">let </span>[argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#1526 id=1526 data-nosnippet>1526</a>
 <a href=#1527 id=1527 data-nosnippet>1527</a>    <span class="kw">let </span>trait_impl_id = get_trait_impl(argument)<span class="question-mark">?</span>;
 <a href=#1528 id=1528 data-nosnippet>1528</a>    <span class="kw">let </span>ordered_generics = interner.get_ordered_generics_for_impl(trait_impl_id);
@@ -1539,7 +1539,7 @@
 <a href=#1539 id=1539 data-nosnippet>1539</a>    return_type: Type,
 <a href=#1540 id=1540 data-nosnippet>1540</a>    location: Location,
 <a href=#1541 id=1541 data-nosnippet>1541</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#1542 id=1542 data-nosnippet>1542</a>    <span class="kw">let </span>self_argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#1542 id=1542 data-nosnippet>1542</a>    <span class="kw">let </span>[self_argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#1543 id=1543 data-nosnippet>1543</a>    <span class="kw">let </span>typed_expr = get_typed_expr(self_argument)<span class="question-mark">?</span>;
 <a href=#1544 id=1544 data-nosnippet>1544</a>    <span class="kw">let </span>option_value = <span class="kw">if let </span>TypedExpr::ExprId(expr_id) = typed_expr {
 <a href=#1545 id=1545 data-nosnippet>1545</a>        <span class="kw">let </span>func_id = interner.lookup_function_from_expr(<span class="kw-2">&amp;</span>expr_id, location)<span class="question-mark">?</span>;
@@ -1557,7 +1557,7 @@
 <a href=#1557 id=1557 data-nosnippet>1557</a>    return_type: Type,
 <a href=#1558 id=1558 data-nosnippet>1558</a>    location: Location,
 <a href=#1559 id=1559 data-nosnippet>1559</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#1560 id=1560 data-nosnippet>1560</a>    <span class="kw">let </span>self_argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#1560 id=1560 data-nosnippet>1560</a>    <span class="kw">let </span>[self_argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#1561 id=1561 data-nosnippet>1561</a>    <span class="kw">let </span>typed_expr = get_typed_expr(self_argument)<span class="question-mark">?</span>;
 <a href=#1562 id=1562 data-nosnippet>1562</a>    <span class="kw">let </span>option_value = <span class="kw">if let </span>TypedExpr::ExprId(expr_id) = typed_expr {
 <a href=#1563 id=1563 data-nosnippet>1563</a>        <span class="kw">let </span>typ = interner.id_type(expr_id);
@@ -1923,7 +1923,7 @@
 <a href=#1923 id=1923 data-nosnippet>1923</a>    return_type: Type,
 <a href=#1924 id=1924 data-nosnippet>1924</a>    location: Location,
 <a href=#1925 id=1925 data-nosnippet>1925</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#1926 id=1926 data-nosnippet>1926</a>    <span class="kw">let </span>self_argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#1926 id=1926 data-nosnippet>1926</a>    <span class="kw">let </span>[self_argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#1927 id=1927 data-nosnippet>1927</a>    <span class="kw">let </span>expr_value = get_expr(interner, self_argument)<span class="question-mark">?</span>;
 <a href=#1928 id=1928 data-nosnippet>1928</a>    <span class="kw">let </span>expr_value = unwrap_expr_value(interner, expr_value);
 <a href=#1929 id=1929 data-nosnippet>1929</a>
@@ -2373,7 +2373,7 @@
 <a href=#2373 id=2373 data-nosnippet>2373</a>    arguments: Vec&lt;(Value, Location)&gt;,
 <a href=#2374 id=2374 data-nosnippet>2374</a>    location: Location,
 <a href=#2375 id=2375 data-nosnippet>2375</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#2376 id=2376 data-nosnippet>2376</a>    <span class="kw">let </span>self_argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#2376 id=2376 data-nosnippet>2376</a>    <span class="kw">let </span>[self_argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#2377 id=2377 data-nosnippet>2377</a>    <span class="kw">let </span>expr_value = get_expr(interner, self_argument)<span class="question-mark">?</span>;
 <a href=#2378 id=2378 data-nosnippet>2378</a>    <span class="kw">let </span>expr_value = unwrap_expr_value_except_semi(interner, expr_value);
 <a href=#2379 id=2379 data-nosnippet>2379</a>    <span class="prelude-val">Ok</span>(Value::Bool(<span class="macro">matches!</span>(expr_value, ExprValue::Statement(StatementKind::Semi(..)))))
@@ -2385,7 +2385,7 @@
 <a href=#2385 id=2385 data-nosnippet>2385</a>    arguments: Vec&lt;(Value, Location)&gt;,
 <a href=#2386 id=2386 data-nosnippet>2386</a>    location: Location,
 <a href=#2387 id=2387 data-nosnippet>2387</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#2388 id=2388 data-nosnippet>2388</a>    <span class="kw">let </span>self_argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#2388 id=2388 data-nosnippet>2388</a>    <span class="kw">let </span>[self_argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#2389 id=2389 data-nosnippet>2389</a>    <span class="kw">let </span>expr_value = get_expr(interner, self_argument)<span class="question-mark">?</span>;
 <a href=#2390 id=2390 data-nosnippet>2390</a>    <span class="kw">let </span>expr_value = unwrap_expr_value(interner, expr_value);
 <a href=#2391 id=2391 data-nosnippet>2391</a>    <span class="prelude-val">Ok</span>(Value::Bool(<span class="macro">matches!</span>(expr_value, ExprValue::Statement(StatementKind::Break))))
@@ -2397,7 +2397,7 @@
 <a href=#2397 id=2397 data-nosnippet>2397</a>    arguments: Vec&lt;(Value, Location)&gt;,
 <a href=#2398 id=2398 data-nosnippet>2398</a>    location: Location,
 <a href=#2399 id=2399 data-nosnippet>2399</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#2400 id=2400 data-nosnippet>2400</a>    <span class="kw">let </span>self_argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#2400 id=2400 data-nosnippet>2400</a>    <span class="kw">let </span>[self_argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#2401 id=2401 data-nosnippet>2401</a>    <span class="kw">let </span>expr_value = get_expr(interner, self_argument)<span class="question-mark">?</span>;
 <a href=#2402 id=2402 data-nosnippet>2402</a>    <span class="kw">let </span>expr_value = unwrap_expr_value(interner, expr_value);
 <a href=#2403 id=2403 data-nosnippet>2403</a>    <span class="prelude-val">Ok</span>(Value::Bool(<span class="macro">matches!</span>(expr_value, ExprValue::Statement(StatementKind::Continue))))
@@ -2414,7 +2414,7 @@
 <a href=#2414 id=2414 data-nosnippet>2414</a><span class="kw">where
 <a href=#2415 id=2415 data-nosnippet>2415</a>    </span>F: FnOnce(ExprValue) -&gt; <span class="prelude-ty">Option</span>&lt;Value&gt;,
 <a href=#2416 id=2416 data-nosnippet>2416</a>{
-<a href=#2417 id=2417 data-nosnippet>2417</a>    <span class="kw">let </span>self_argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#2417 id=2417 data-nosnippet>2417</a>    <span class="kw">let </span>[self_argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#2418 id=2418 data-nosnippet>2418</a>    <span class="kw">let </span>expr_value = get_expr(interner, self_argument)<span class="question-mark">?</span>;
 <a href=#2419 id=2419 data-nosnippet>2419</a>    <span class="kw">let </span>expr_value = unwrap_expr_value(interner, expr_value);
 <a href=#2420 id=2420 data-nosnippet>2420</a>
@@ -2428,7 +2428,7 @@
 <a href=#2428 id=2428 data-nosnippet>2428</a>    arguments: Vec&lt;(Value, Location)&gt;,
 <a href=#2429 id=2429 data-nosnippet>2429</a>    location: Location,
 <a href=#2430 id=2430 data-nosnippet>2430</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#2431 id=2431 data-nosnippet>2431</a>    <span class="kw">let </span>(self_argument, func) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
+<a href=#2431 id=2431 data-nosnippet>2431</a>    <span class="kw">let </span>[self_argument, func] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#2432 id=2432 data-nosnippet>2432</a>    <span class="kw">let </span>self_argument_location = self_argument.<span class="number">1</span>;
 <a href=#2433 id=2433 data-nosnippet>2433</a>    <span class="kw">let </span>expr_value = get_expr(interpreter.elaborator.interner, self_argument)<span class="question-mark">?</span>;
 <a href=#2434 id=2434 data-nosnippet>2434</a>    <span class="kw">let </span>expr_value = unwrap_expr_value(interpreter.elaborator.interner, expr_value);
@@ -2557,7 +2557,7 @@
 <a href=#2557 id=2557 data-nosnippet>2557</a>    arguments: Vec&lt;(Value, Location)&gt;,
 <a href=#2558 id=2558 data-nosnippet>2558</a>    location: Location,
 <a href=#2559 id=2559 data-nosnippet>2559</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#2560 id=2560 data-nosnippet>2560</a>    <span class="kw">let </span>self_argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#2560 id=2560 data-nosnippet>2560</a>    <span class="kw">let </span>[self_argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#2561 id=2561 data-nosnippet>2561</a>    <span class="kw">let </span>(fragments, <span class="kw">_</span>, <span class="kw">_</span>) = get_format_string(self_argument)<span class="question-mark">?</span>;
 <a href=#2562 id=2562 data-nosnippet>2562</a>    <span class="kw">let </span>bytes = fragments_to_bytes(<span class="kw-2">&amp;</span>fragments, interner, files);
 <a href=#2563 id=2563 data-nosnippet>2563</a>    <span class="prelude-val">Ok</span>(Value::CtString(Rc::new(bytes)))
@@ -2570,7 +2570,7 @@
 <a href=#2570 id=2570 data-nosnippet>2570</a>    arguments: Vec&lt;(Value, Location)&gt;,
 <a href=#2571 id=2571 data-nosnippet>2571</a>    location: Location,
 <a href=#2572 id=2572 data-nosnippet>2572</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#2573 id=2573 data-nosnippet>2573</a>    <span class="kw">let </span>self_argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#2573 id=2573 data-nosnippet>2573</a>    <span class="kw">let </span>[self_argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#2574 id=2574 data-nosnippet>2574</a>    <span class="kw">let </span>(fragments, <span class="kw">_</span>, <span class="kw">_</span>) = get_format_string(self_argument)<span class="question-mark">?</span>;
 <a href=#2575 id=2575 data-nosnippet>2575</a>    <span class="kw">let </span>string = fragments_to_string(<span class="kw-2">&amp;</span>fragments, interner, files);
 <a href=#2576 id=2576 data-nosnippet>2576</a>    <span class="kw">let </span>tokens = lex(<span class="kw-2">&amp;</span>string, location);
@@ -2588,7 +2588,7 @@
 <a href=#2588 id=2588 data-nosnippet>2588</a>    arguments: Vec&lt;(Value, Location)&gt;,
 <a href=#2589 id=2589 data-nosnippet>2589</a>    location: Location,
 <a href=#2590 id=2590 data-nosnippet>2590</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#2591 id=2591 data-nosnippet>2591</a>    <span class="kw">let </span>self_argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#2591 id=2591 data-nosnippet>2591</a>    <span class="kw">let </span>[self_argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#2592 id=2592 data-nosnippet>2592</a>    <span class="kw">let </span>func_id = get_function_def(self_argument)<span class="question-mark">?</span>;
 <a href=#2593 id=2593 data-nosnippet>2593</a>    <span class="kw">let </span>trait_impl_id = interpreter.elaborator.function_meta(func_id).trait_impl;
 <a href=#2594 id=2594 data-nosnippet>2594</a>
@@ -2695,7 +2695,7 @@
 <a href=#2695 id=2695 data-nosnippet>2695</a>    arguments: Vec&lt;(Value, Location)&gt;,
 <a href=#2696 id=2696 data-nosnippet>2696</a>    location: Location,
 <a href=#2697 id=2697 data-nosnippet>2697</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#2698 id=2698 data-nosnippet>2698</a>    <span class="kw">let </span>self_argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#2698 id=2698 data-nosnippet>2698</a>    <span class="kw">let </span>[self_argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#2699 id=2699 data-nosnippet>2699</a>    <span class="kw">let </span>func_id = get_function_def(self_argument)<span class="question-mark">?</span>;
 <a href=#2700 id=2700 data-nosnippet>2700</a>    <span class="kw">let </span>func_meta = interpreter.elaborator.function_meta(func_id);
 <a href=#2701 id=2701 data-nosnippet>2701</a>    <span class="kw">if let </span>FunctionBody::Unresolved(<span class="kw">_</span>, block_expr, <span class="kw">_</span>) = <span class="kw-2">&amp;</span>func_meta.function_body {
@@ -2711,7 +2711,7 @@
 <a href=#2711 id=2711 data-nosnippet>2711</a>    arguments: Vec&lt;(Value, Location)&gt;,
 <a href=#2712 id=2712 data-nosnippet>2712</a>    location: Location,
 <a href=#2713 id=2713 data-nosnippet>2713</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#2714 id=2714 data-nosnippet>2714</a>    <span class="kw">let </span>(self_argument, error_message) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
+<a href=#2714 id=2714 data-nosnippet>2714</a>    <span class="kw">let </span>[self_argument, error_message] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#2715 id=2715 data-nosnippet>2715</a>    <span class="kw">let </span>error_message = get_ctstring(error_message)<span class="question-mark">?</span>;
 <a href=#2716 id=2716 data-nosnippet>2716</a>    <span class="kw">let </span>error_message = String::from_utf8_lossy(<span class="kw-2">&amp;</span>error_message).into_owned();
 <a href=#2717 id=2717 data-nosnippet>2717</a>
@@ -2750,7 +2750,7 @@
 <a href=#2750 id=2750 data-nosnippet>2750</a>    location: Location,
 <a href=#2751 id=2751 data-nosnippet>2751</a>    builtin_only: bool,
 <a href=#2752 id=2752 data-nosnippet>2752</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#2753 id=2753 data-nosnippet>2753</a>    <span class="kw">let </span>(self_argument, name) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
+<a href=#2753 id=2753 data-nosnippet>2753</a>    <span class="kw">let </span>[self_argument, name] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#2754 id=2754 data-nosnippet>2754</a>    <span class="kw">let </span>func_id = get_function_def(self_argument)<span class="question-mark">?</span>;
 <a href=#2755 id=2755 data-nosnippet>2755</a>
 <a href=#2756 id=2756 data-nosnippet>2756</a>    <span class="kw">let </span>name = <span class="kw-2">&amp;*</span>get_str(name)<span class="question-mark">?</span>;
@@ -2778,7 +2778,7 @@
 <a href=#2778 id=2778 data-nosnippet>2778</a>    arguments: Vec&lt;(Value, Location)&gt;,
 <a href=#2779 id=2779 data-nosnippet>2779</a>    location: Location,
 <a href=#2780 id=2780 data-nosnippet>2780</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#2781 id=2781 data-nosnippet>2781</a>    <span class="kw">let </span>self_argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#2781 id=2781 data-nosnippet>2781</a>    <span class="kw">let </span>[self_argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#2782 id=2782 data-nosnippet>2782</a>    <span class="kw">let </span>func_id = get_function_def(self_argument)<span class="question-mark">?</span>;
 <a href=#2783 id=2783 data-nosnippet>2783</a>    <span class="kw">let </span>is_unconstrained = interpreter.elaborator.function_meta(func_id).is_unconstrained();
 <a href=#2784 id=2784 data-nosnippet>2784</a>    <span class="prelude-val">Ok</span>(Value::Bool(is_unconstrained))
@@ -2790,7 +2790,7 @@
 <a href=#2790 id=2790 data-nosnippet>2790</a>    arguments: Vec&lt;(Value, Location)&gt;,
 <a href=#2791 id=2791 data-nosnippet>2791</a>    location: Location,
 <a href=#2792 id=2792 data-nosnippet>2792</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#2793 id=2793 data-nosnippet>2793</a>    <span class="kw">let </span>self_argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#2793 id=2793 data-nosnippet>2793</a>    <span class="kw">let </span>[self_argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#2794 id=2794 data-nosnippet>2794</a>    <span class="kw">let </span>func_id = get_function_def(self_argument)<span class="question-mark">?</span>;
 <a href=#2795 id=2795 data-nosnippet>2795</a>    <span class="kw">let </span>module = interner.function_module(func_id);
 <a href=#2796 id=2796 data-nosnippet>2796</a>    <span class="prelude-val">Ok</span>(Value::ModuleDefinition(module))
@@ -2802,7 +2802,7 @@
 <a href=#2802 id=2802 data-nosnippet>2802</a>    arguments: Vec&lt;(Value, Location)&gt;,
 <a href=#2803 id=2803 data-nosnippet>2803</a>    location: Location,
 <a href=#2804 id=2804 data-nosnippet>2804</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#2805 id=2805 data-nosnippet>2805</a>    <span class="kw">let </span>self_argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#2805 id=2805 data-nosnippet>2805</a>    <span class="kw">let </span>[self_argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#2806 id=2806 data-nosnippet>2806</a>    <span class="kw">let </span>func_id = get_function_def(self_argument)<span class="question-mark">?</span>;
 <a href=#2807 id=2807 data-nosnippet>2807</a>    <span class="prelude-val">Ok</span>(Value::Location(elaborator.function_meta(func_id).location))
 <a href=#2808 id=2808 data-nosnippet>2808</a>}
@@ -2813,7 +2813,7 @@
 <a href=#2813 id=2813 data-nosnippet>2813</a>    arguments: Vec&lt;(Value, Location)&gt;,
 <a href=#2814 id=2814 data-nosnippet>2814</a>    location: Location,
 <a href=#2815 id=2815 data-nosnippet>2815</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#2816 id=2816 data-nosnippet>2816</a>    <span class="kw">let </span>self_argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#2816 id=2816 data-nosnippet>2816</a>    <span class="kw">let </span>[self_argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#2817 id=2817 data-nosnippet>2817</a>    <span class="kw">let </span>func_id = get_function_def(self_argument)<span class="question-mark">?</span>;
 <a href=#2818 id=2818 data-nosnippet>2818</a>    <span class="kw">let </span>name = interner.function_name(<span class="kw-2">&amp;</span>func_id).to_string();
 <a href=#2819 id=2819 data-nosnippet>2819</a>    <span class="kw">let </span>token = Token::Ident(name);
@@ -2828,7 +2828,7 @@
 <a href=#2828 id=2828 data-nosnippet>2828</a>    arguments: Vec&lt;(Value, Location)&gt;,
 <a href=#2829 id=2829 data-nosnippet>2829</a>    location: Location,
 <a href=#2830 id=2830 data-nosnippet>2830</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#2831 id=2831 data-nosnippet>2831</a>    <span class="kw">let </span>self_argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#2831 id=2831 data-nosnippet>2831</a>    <span class="kw">let </span>[self_argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#2832 id=2832 data-nosnippet>2832</a>    <span class="kw">let </span>func_id = get_function_def(self_argument)<span class="question-mark">?</span>;
 <a href=#2833 id=2833 data-nosnippet>2833</a>    <span class="kw">let </span>parameters_meta: Vec&lt;<span class="kw">_</span>&gt; = interpreter
 <a href=#2834 id=2834 data-nosnippet>2834</a>        .elaborator
@@ -2863,7 +2863,7 @@
 <a href=#2863 id=2863 data-nosnippet>2863</a>    arguments: Vec&lt;(Value, Location)&gt;,
 <a href=#2864 id=2864 data-nosnippet>2864</a>    location: Location,
 <a href=#2865 id=2865 data-nosnippet>2865</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#2866 id=2866 data-nosnippet>2866</a>    <span class="kw">let </span>self_argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#2866 id=2866 data-nosnippet>2866</a>    <span class="kw">let </span>[self_argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#2867 id=2867 data-nosnippet>2867</a>    <span class="kw">let </span>func_id = get_function_def(self_argument)<span class="question-mark">?</span>;
 <a href=#2868 id=2868 data-nosnippet>2868</a>    <span class="kw">let </span>func_meta = interpreter.elaborator.function_meta(func_id);
 <a href=#2869 id=2869 data-nosnippet>2869</a>
@@ -2876,7 +2876,7 @@
 <a href=#2876 id=2876 data-nosnippet>2876</a>    arguments: Vec&lt;(Value, Location)&gt;,
 <a href=#2877 id=2877 data-nosnippet>2877</a>    location: Location,
 <a href=#2878 id=2878 data-nosnippet>2878</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#2879 id=2879 data-nosnippet>2879</a>    <span class="kw">let </span>self_argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#2879 id=2879 data-nosnippet>2879</a>    <span class="kw">let </span>[self_argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#2880 id=2880 data-nosnippet>2880</a>    <span class="kw">let </span>func_id = get_function_def(self_argument)<span class="question-mark">?</span>;
 <a href=#2881 id=2881 data-nosnippet>2881</a>    <span class="kw">let </span>visibility = interner.function_visibility(func_id);
 <a href=#2882 id=2882 data-nosnippet>2882</a>    <span class="prelude-val">Ok</span>(visibility_to_quoted(visibility, location))
@@ -2888,7 +2888,7 @@
 <a href=#2888 id=2888 data-nosnippet>2888</a>    arguments: Vec&lt;(Value, Location)&gt;,
 <a href=#2889 id=2889 data-nosnippet>2889</a>    location: Location,
 <a href=#2890 id=2890 data-nosnippet>2890</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#2891 id=2891 data-nosnippet>2891</a>    <span class="kw">let </span>self_argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#2891 id=2891 data-nosnippet>2891</a>    <span class="kw">let </span>[self_argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#2892 id=2892 data-nosnippet>2892</a>    <span class="kw">let </span>module_id = get_module(self_argument)<span class="question-mark">?</span>;
 <a href=#2893 id=2893 data-nosnippet>2893</a>    <span class="kw">let </span>module_data = interpreter.elaborator.get_module(module_id);
 <a href=#2894 id=2894 data-nosnippet>2894</a>
@@ -2909,7 +2909,7 @@
 <a href=#2909 id=2909 data-nosnippet>2909</a>    arguments: Vec&lt;(Value, Location)&gt;,
 <a href=#2910 id=2910 data-nosnippet>2910</a>    location: Location,
 <a href=#2911 id=2911 data-nosnippet>2911</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#2912 id=2912 data-nosnippet>2912</a>    <span class="kw">let </span>self_argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#2912 id=2912 data-nosnippet>2912</a>    <span class="kw">let </span>[self_argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#2913 id=2913 data-nosnippet>2913</a>    <span class="kw">let </span>module_id = get_module(self_argument)<span class="question-mark">?</span>;
 <a href=#2914 id=2914 data-nosnippet>2914</a>    <span class="kw">let </span>module_data = interpreter.elaborator.get_module(module_id);
 <a href=#2915 id=2915 data-nosnippet>2915</a>    <span class="kw">let </span>func_ids = module_data
@@ -2936,7 +2936,7 @@
 <a href=#2936 id=2936 data-nosnippet>2936</a>    return_type: Type,
 <a href=#2937 id=2937 data-nosnippet>2937</a>    location: Location,
 <a href=#2938 id=2938 data-nosnippet>2938</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#2939 id=2939 data-nosnippet>2939</a>    <span class="kw">let </span>self_argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#2939 id=2939 data-nosnippet>2939</a>    <span class="kw">let </span>[self_argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#2940 id=2940 data-nosnippet>2940</a>    <span class="kw">let </span>module_id = get_module(self_argument)<span class="question-mark">?</span>;
 <a href=#2941 id=2941 data-nosnippet>2941</a>    <span class="kw">let </span>module_data = interpreter.elaborator.get_module(module_id);
 <a href=#2942 id=2942 data-nosnippet>2942</a>
@@ -2953,7 +2953,7 @@
 <a href=#2953 id=2953 data-nosnippet>2953</a>    arguments: Vec&lt;(Value, Location)&gt;,
 <a href=#2954 id=2954 data-nosnippet>2954</a>    location: Location,
 <a href=#2955 id=2955 data-nosnippet>2955</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#2956 id=2956 data-nosnippet>2956</a>    <span class="kw">let </span>self_argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#2956 id=2956 data-nosnippet>2956</a>    <span class="kw">let </span>[self_argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#2957 id=2957 data-nosnippet>2957</a>    <span class="kw">let </span>module_id = get_module(self_argument)<span class="question-mark">?</span>;
 <a href=#2958 id=2958 data-nosnippet>2958</a>    <span class="kw">let </span>module_data = interpreter.elaborator.get_module(module_id);
 <a href=#2959 id=2959 data-nosnippet>2959</a>    <span class="kw">let </span>struct_ids = module_data
@@ -2981,7 +2981,7 @@
 <a href=#2981 id=2981 data-nosnippet>2981</a>    location: Location,
 <a href=#2982 id=2982 data-nosnippet>2982</a>    builtin_only: bool,
 <a href=#2983 id=2983 data-nosnippet>2983</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#2984 id=2984 data-nosnippet>2984</a>    <span class="kw">let </span>(self_argument, name) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
+<a href=#2984 id=2984 data-nosnippet>2984</a>    <span class="kw">let </span>[self_argument, name] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#2985 id=2985 data-nosnippet>2985</a>    <span class="kw">let </span>module_id = get_module(self_argument)<span class="question-mark">?</span>;
 <a href=#2986 id=2986 data-nosnippet>2986</a>    <span class="kw">let </span>module_data = interpreter.elaborator.get_module(module_id);
 <a href=#2987 id=2987 data-nosnippet>2987</a>
@@ -3003,7 +3003,7 @@
 <a href=#3003 id=3003 data-nosnippet>3003</a>    arguments: Vec&lt;(Value, Location)&gt;,
 <a href=#3004 id=3004 data-nosnippet>3004</a>    location: Location,
 <a href=#3005 id=3005 data-nosnippet>3005</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#3006 id=3006 data-nosnippet>3006</a>    <span class="kw">let </span>self_argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#3006 id=3006 data-nosnippet>3006</a>    <span class="kw">let </span>[self_argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#3007 id=3007 data-nosnippet>3007</a>    <span class="kw">let </span>module_id = get_module(self_argument)<span class="question-mark">?</span>;
 <a href=#3008 id=3008 data-nosnippet>3008</a>    <span class="prelude-val">Ok</span>(Value::Bool(interpreter.elaborator.module_is_contract(module_id)))
 <a href=#3009 id=3009 data-nosnippet>3009</a>}
@@ -3014,7 +3014,7 @@
 <a href=#3014 id=3014 data-nosnippet>3014</a>    arguments: Vec&lt;(Value, Location)&gt;,
 <a href=#3015 id=3015 data-nosnippet>3015</a>    location: Location,
 <a href=#3016 id=3016 data-nosnippet>3016</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#3017 id=3017 data-nosnippet>3017</a>    <span class="kw">let </span>self_argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#3017 id=3017 data-nosnippet>3017</a>    <span class="kw">let </span>[self_argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#3018 id=3018 data-nosnippet>3018</a>    <span class="kw">let </span>module_id = get_module(self_argument)<span class="question-mark">?</span>;
 <a href=#3019 id=3019 data-nosnippet>3019</a>    <span class="kw">let </span>name = <span class="kw-2">&amp;</span>interner.module_attributes(module_id).name;
 <a href=#3020 id=3020 data-nosnippet>3020</a>    <span class="kw">let </span>token = Token::Ident(name.clone());
@@ -3073,7 +3073,7 @@
 <a href=#3073 id=3073 data-nosnippet>3073</a>    arguments: Vec&lt;(Value, Location)&gt;,
 <a href=#3074 id=3074 data-nosnippet>3074</a>    location: Location,
 <a href=#3075 id=3075 data-nosnippet>3075</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#3076 id=3076 data-nosnippet>3076</a>    <span class="kw">let </span>(self_arg, other_arg) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
+<a href=#3076 id=3076 data-nosnippet>3076</a>    <span class="kw">let </span>[self_arg, other_arg] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#3077 id=3077 data-nosnippet>3077</a>    <span class="kw">let </span>self_arg = get_quoted(self_arg)<span class="question-mark">?</span>;
 <a href=#3078 id=3078 data-nosnippet>3078</a>    <span class="kw">let </span>other_arg = get_quoted(other_arg)<span class="question-mark">?</span>;
 <a href=#3079 id=3079 data-nosnippet>3079</a>
@@ -3093,7 +3093,7 @@
 <a href=#3093 id=3093 data-nosnippet>3093</a>    arguments: Vec&lt;(Value, Location)&gt;,
 <a href=#3094 id=3094 data-nosnippet>3094</a>    location: Location,
 <a href=#3095 id=3095 data-nosnippet>3095</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#3096 id=3096 data-nosnippet>3096</a>    <span class="kw">let </span>argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#3096 id=3096 data-nosnippet>3096</a>    <span class="kw">let </span>[argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#3097 id=3097 data-nosnippet>3097</a>    <span class="kw">let </span>tokens = get_quoted(argument)<span class="question-mark">?</span>;
 <a href=#3098 id=3098 data-nosnippet>3098</a>
 <a href=#3099 id=3099 data-nosnippet>3099</a>    <span class="comment">// For consistency with quoted_eq, we compute the hash of the Quoted string representation.
@@ -3109,7 +3109,7 @@
 <a href=#3109 id=3109 data-nosnippet>3109</a>    arguments: Vec&lt;(Value, Location)&gt;,
 <a href=#3110 id=3110 data-nosnippet>3110</a>    location: Location,
 <a href=#3111 id=3111 data-nosnippet>3111</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#3112 id=3112 data-nosnippet>3112</a>    <span class="kw">let </span>argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#3112 id=3112 data-nosnippet>3112</a>    <span class="kw">let </span>[argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#3113 id=3113 data-nosnippet>3113</a>
 <a href=#3114 id=3114 data-nosnippet>3114</a>    <span class="kw">let </span>trait_id = get_trait_def(argument)<span class="question-mark">?</span>;
 <a href=#3115 id=3115 data-nosnippet>3115</a>    <span class="kw">let </span>constraint = interner.get_trait(trait_id).as_constraint(location);
@@ -3123,7 +3123,7 @@
 <a href=#3123 id=3123 data-nosnippet>3123</a>    arguments: Vec&lt;(Value, Location)&gt;,
 <a href=#3124 id=3124 data-nosnippet>3124</a>    location: Location,
 <a href=#3125 id=3125 data-nosnippet>3125</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#3126 id=3126 data-nosnippet>3126</a>    <span class="kw">let </span>self_argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#3126 id=3126 data-nosnippet>3126</a>    <span class="kw">let </span>[self_argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#3127 id=3127 data-nosnippet>3127</a>    <span class="kw">let </span>trait_id = get_trait_def(self_argument)<span class="question-mark">?</span>;
 <a href=#3128 id=3128 data-nosnippet>3128</a>    <span class="prelude-val">Ok</span>(Value::Location(interner.get_trait(trait_id).location))
 <a href=#3129 id=3129 data-nosnippet>3129</a>}
@@ -3134,7 +3134,7 @@
 <a href=#3134 id=3134 data-nosnippet>3134</a>    arguments: Vec&lt;(Value, Location)&gt;,
 <a href=#3135 id=3135 data-nosnippet>3135</a>    location: Location,
 <a href=#3136 id=3136 data-nosnippet>3136</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#3137 id=3137 data-nosnippet>3137</a>    <span class="kw">let </span>self_argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#3137 id=3137 data-nosnippet>3137</a>    <span class="kw">let </span>[self_argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#3138 id=3138 data-nosnippet>3138</a>    <span class="kw">let </span>module_id = get_module(self_argument)<span class="question-mark">?</span>;
 <a href=#3139 id=3139 data-nosnippet>3139</a>    <span class="prelude-val">Ok</span>(Value::Location(interner.module_attributes(module_id).location))
 <a href=#3140 id=3140 data-nosnippet>3140</a>}
@@ -3145,7 +3145,7 @@
 <a href=#3145 id=3145 data-nosnippet>3145</a>    arguments: Vec&lt;(Value, Location)&gt;,
 <a href=#3146 id=3146 data-nosnippet>3146</a>    location: Location,
 <a href=#3147 id=3147 data-nosnippet>3147</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#3148 id=3148 data-nosnippet>3148</a>    <span class="kw">let </span>self_argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+<a href=#3148 id=3148 data-nosnippet>3148</a>    <span class="kw">let </span>[self_argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#3149 id=3149 data-nosnippet>3149</a>    <span class="kw">let </span>typed_expr = get_typed_expr(self_argument)<span class="question-mark">?</span>;
 <a href=#3150 id=3150 data-nosnippet>3150</a>    <span class="kw">let </span>loc = <span class="kw">match </span>typed_expr {
 <a href=#3151 id=3151 data-nosnippet>3151</a>        TypedExpr::ExprId(expr_id) =&gt; interner.expr_location(<span class="kw-2">&amp;</span>expr_id),
@@ -3184,7 +3184,7 @@
 <a href=#3184 id=3184 data-nosnippet>3184</a>
 <a href=#3185 id=3185 data-nosnippet>3185</a><span class="comment">// fn append(self, other: CtString) -&gt; CtString
 <a href=#3186 id=3186 data-nosnippet>3186</a></span><span class="kw">fn </span>ctstring_append(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
-<a href=#3187 id=3187 data-nosnippet>3187</a>    <span class="kw">let </span>(self_argument, other_argument) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
+<a href=#3187 id=3187 data-nosnippet>3187</a>    <span class="kw">let </span>[self_argument, other_argument] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#3188 id=3188 data-nosnippet>3188</a>    <span class="kw">let </span>self_bytes = get_ctstring(self_argument)<span class="question-mark">?</span>;
 <a href=#3189 id=3189 data-nosnippet>3189</a>    <span class="kw">let </span>other_bytes = get_ctstring(other_argument)<span class="question-mark">?</span>;
 <a href=#3190 id=3190 data-nosnippet>3190</a>
@@ -3198,7 +3198,7 @@
 <a href=#3198 id=3198 data-nosnippet>3198</a>    return_type: Type,
 <a href=#3199 id=3199 data-nosnippet>3199</a>    location: Location,
 <a href=#3200 id=3200 data-nosnippet>3200</a>) -&gt; IResult&lt;Value&gt; {
-<a href=#3201 id=3201 data-nosnippet>3201</a>    <span class="kw">let </span>(domain_separator_string, starting_index) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
+<a href=#3201 id=3201 data-nosnippet>3201</a>    <span class="kw">let </span>[domain_separator_string, starting_index] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#3202 id=3202 data-nosnippet>3202</a>
 <a href=#3203 id=3203 data-nosnippet>3203</a>    <span class="kw">let </span>domain_separator_location = domain_separator_string.<span class="number">1</span>;
 <a href=#3204 id=3204 data-nosnippet>3204</a>    <span class="kw">let </span>(domain_separator_string, <span class="kw">_</span>) = get_array(domain_separator_string)<span class="question-mark">?</span>;
@@ -3240,7 +3240,7 @@
 <a href=#3240 id=3240 data-nosnippet>3240</a>}
 <a href=#3241 id=3241 data-nosnippet>3241</a>
 <a href=#3242 id=3242 data-nosnippet>3242</a><span class="kw">fn </span>field_less_than(arguments: Vec&lt;(Value, Location)&gt;, location: Location) -&gt; IResult&lt;Value&gt; {
-<a href=#3243 id=3243 data-nosnippet>3243</a>    <span class="kw">let </span>(lhs, rhs) = check_two_arguments(arguments, location)<span class="question-mark">?</span>;
+<a href=#3243 id=3243 data-nosnippet>3243</a>    <span class="kw">let </span>[lhs, rhs] = check_arguments(arguments, location)<span class="question-mark">?</span>;
 <a href=#3244 id=3244 data-nosnippet>3244</a>
 <a href=#3245 id=3245 data-nosnippet>3245</a>    <span class="kw">let </span>lhs = get_field(lhs)<span class="question-mark">?</span>;
 <a href=#3246 id=3246 data-nosnippet>3246</a>    <span class="kw">let </span>rhs = get_field(rhs)<span class="question-mark">?</span>;
