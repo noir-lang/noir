@@ -22,6 +22,8 @@
 /// }
 /// ```
 ///
+/// Calling it fails the program with `message`:
+///
 /// ```noir should_fail
 /// // Fails with the message "something went wrong".
 /// let _: u8 = panic("something went wrong");

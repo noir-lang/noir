@@ -46,7 +46,9 @@ pub struct OracleMock {
 impl OracleMock {
     /// Creates a mock for the oracle called `name`.
     ///
-    /// Until it is cleared, calls to that oracle are answered by this mock.
+    /// Until it is cleared or reaches its [`OracleMock::times`] limit, the mock answers the calls to
+    /// that oracle that match its parameters (see [`OracleMock::with_params`]). When several mocks
+    /// match a call, the one created first answers it.
     ///
     /// Example:
     ///
@@ -57,8 +59,10 @@ impl OracleMock {
     /// unconstrained fn get_value(x: Field) -> Field {}
     ///
     /// unconstrained fn main() {
-    ///     let _mock = OracleMock::mock("get_value").returns(42);
-    ///     assert_eq(get_value(1), 42);
+    ///     let _first = OracleMock::mock("get_value").returns(1);
+    ///     let _second = OracleMock::mock("get_value").returns(2);
+    ///     // `_first` was created first, so it answers.
+    ///     assert_eq(get_value(0), 1);
     /// }
     /// ```
     pub unconstrained fn mock<let N: u32>(name: str<N>) -> Self {
@@ -67,7 +71,8 @@ impl OracleMock {
 
     /// Makes the mock answer only calls whose arguments equal `params`.
     ///
-    /// For an oracle with several parameters, pass them as a tuple.
+    /// For an oracle with several parameters, pass them as a tuple. For a single parameter, the value
+    /// and a one-element tuple (`(1,)`) are equivalent.
     ///
     /// Example:
     ///
@@ -107,7 +112,7 @@ impl OracleMock {
         get_mock_last_params_oracle(self.id)
     }
 
-    /// Sets the value the mock returns.
+    /// Sets the value the mock returns. Calling it again replaces that value.
     ///
     /// Example:
     ///
@@ -118,8 +123,10 @@ impl OracleMock {
     /// unconstrained fn get_value(x: Field) -> Field {}
     ///
     /// unconstrained fn main() {
-    ///     let _mock = OracleMock::mock("get_value").returns(42);
+    ///     let mock = OracleMock::mock("get_value").returns(42);
     ///     assert_eq(get_value(1), 42);
+    ///     let _ = mock.returns(43);
+    ///     assert_eq(get_value(1), 43);
     /// }
     /// ```
     pub unconstrained fn returns<R>(self, returns: R) -> Self {
@@ -139,9 +146,12 @@ impl OracleMock {
     /// unconstrained fn get_value(x: Field) -> Field {}
     ///
     /// unconstrained fn main() {
-    ///     let mock = OracleMock::mock("get_value").returns(42).times(2);
-    ///     assert_eq(get_value(1), 42);
-    ///     assert_eq(mock.times_called(), 1);
+    ///     let _first = OracleMock::mock("get_value").returns(1).times(2);
+    ///     let _second = OracleMock::mock("get_value").returns(2);
+    ///     assert_eq(get_value(0), 1);
+    ///     assert_eq(get_value(0), 1);
+    ///     // `_first` has answered twice and is removed, so `_second` answers.
+    ///     assert_eq(get_value(0), 2);
     /// }
     /// ```
     pub unconstrained fn times(self, times: u64) -> Self {

@@ -7,7 +7,7 @@
 /// - `T::empty().append(x) == x`
 /// - `x.append(T::empty()) == x`
 ///
-/// It is implemented for vectors and for `Quoted`. A vector's `join` method uses it, for example
+/// It is implemented for example for vectors and `Quoted`. A vector's `join` method uses it, for example
 /// to join `Quoted` values at comptime.
 ///
 /// Example:

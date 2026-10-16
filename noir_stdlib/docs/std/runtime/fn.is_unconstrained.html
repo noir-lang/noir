@@ -41,7 +41,7 @@
 <p>It is resolved at compile time for each context, so a function can use it to pick an
 implementation: a direct computation in unconstrained code, and a constrained one elsewhere.</p>
 <p>Example:</p>
-<pre><code><span class="kw">fn</span> context() -&gt; bool {
+<pre><code><span class="kw">fn</span> constrained_context() -&gt; bool {
     std::runtime::is_unconstrained()
 }
 
@@ -50,7 +50,7 @@ implementation: a direct computation in unconstrained code, and a constrained on
 }
 
 <span class="kw">fn</span> main() {
-    <span class="kw">assert</span>(!context());
+    <span class="kw">assert</span>(!constrained_context());
     <span class="comment">// Safety: calling an unconstrained function just to read the result.</span>
     <span class="kw">assert</span>(<span class="kw">unsafe</span> { unconstrained_context() });
 }</code></pre></div>

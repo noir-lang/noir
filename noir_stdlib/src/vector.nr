@@ -219,6 +219,7 @@ impl<T> [T] {
     ///
     /// ```noir
     /// let mut sum = 0;
+    /// // A closure can't assign to a captured `mut` variable, so it writes through a reference.
     /// let sum_ref = &mut sum;
     /// @[1, 2, 3].for_each(|x| {
     ///     *sum_ref += x;

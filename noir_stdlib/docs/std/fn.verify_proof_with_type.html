@@ -124,10 +124,10 @@ for a single backend to support verifying multiple proving schemes.</li>
 This is because different backends may differ in how they hash their verification keys.
 It is then the responsibility of either the noir developer (by explicitly hashing the verification key
 in the correct manner) or by the proving system itself internally asserting the correctness of <code>key_hash</code>.</p>
-<p><code>proof_type</code> must be a compile-time constant in constrained code.</p>
+<p>It can only be called from constrained code, and <code>proof_type</code> must be a compile-time constant.</p>
 <p>Example:</p>
-<p>The sizes of the key, proof and public inputs, and the meaning of <code>proof_type</code>, depend on the
-backend, so this example doesn't run.</p>
+<p>The sizes of the key, proof and public inputs, and the value of <code>proof_type</code>, are placeholders:
+the real ones depend on the proving backend.</p>
 <pre><code><span class="kw">fn</span> main(
     verification_key: [Field; <span class="number">115</span>],
     proof: [Field; <span class="number">93</span>],

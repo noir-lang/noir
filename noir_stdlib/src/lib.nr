@@ -101,12 +101,12 @@ pub fn print<T>(input: T) {
 /// It is then the responsibility of either the noir developer (by explicitly hashing the verification key
 /// in the correct manner) or by the proving system itself internally asserting the correctness of `key_hash`.
 ///
-/// `proof_type` must be a compile-time constant in constrained code.
+/// It can only be called from constrained code, and `proof_type` must be a compile-time constant.
 ///
 /// Example:
 ///
-/// The sizes of the key, proof and public inputs, and the meaning of `proof_type`, depend on the
-/// backend, so this example doesn't run.
+/// The sizes of the key, proof and public inputs, and the value of `proof_type`, are placeholders:
+/// the real ones depend on the proving backend.
 ///
 /// ```noir ignore
 /// fn main(

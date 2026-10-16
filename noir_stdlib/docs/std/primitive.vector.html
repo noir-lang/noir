@@ -252,6 +252,7 @@ new vector containing the mapped elements.</p>
 <p>Apply a function to each element of the vector</p>
 <p>Example:</p>
 <pre><code><span class="kw">let</span> <span class="kw">mut</span> sum = <span class="number">0</span>;
+<span class="comment">// A closure can't assign to a captured `mut` variable, so it writes through a reference.</span>
 <span class="kw">let</span> sum_ref = &<span class="kw">mut</span> sum;
 @[<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>].for_each(|x| {
     *sum_ref += x;

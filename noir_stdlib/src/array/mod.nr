@@ -79,6 +79,7 @@ impl<T, let N: u32> [T; N] {
     /// ```noir
     /// let a = [1, 2, 3];
     /// let mut sum = 0;
+    /// // A closure can't assign to a captured `mut` variable, so it writes through a reference.
     /// let sum_ref = &mut sum;
     /// a.for_each(|x| {
     ///     *sum_ref += x;
@@ -220,7 +221,7 @@ where
 {
     /// Returns a new array sorted in ascending order. The original array remains untouched.
     ///
-    /// It works for any element type that implements `Ord`, using `<=`. `Field` doesn't implement
+    /// It works for any element type that implements `Ord` and `Eq`, using `<=`. `Field` doesn't implement
     /// `Ord`, so to sort fields, or to sort by another order, use [`Self::sort_via`]. The result
     /// is constrained in the same way as `sort_via`'s.
     ///
@@ -244,7 +245,7 @@ where
     /// The original array remains untouched.
     /// The ordering function must return true if the first argument should be sorted to be before the second argument or is equal to the second argument.
     ///
-    /// Using this method with an operator like `<` that does not return `true` for equal values will result in an assertion failure for arrays with equal elements.
+    /// In constrained code, using this method with an operator like `<` that does not return `true` for equal values will result in an assertion failure for arrays with equal elements.
     ///
     /// The sort itself runs in unconstrained code. In constrained code, the result is then checked
     /// to be a permutation of the input in which every adjacent pair satisfies `ordering`, so it is
@@ -260,15 +261,17 @@ where
     /// let sorted_descending = arr.sort_via(|a, b| a >= b);
     /// assert_eq(sorted_descending, [42, 32]);
     ///
-    /// // Fields have no `<=`, so compare their integer values with `Field::lt`.
+    /// // Fields have no `<=`, so compare their integer values with `Field::lt`:
+    /// // `!b.lt(a)` is `a <= b`.
     /// let fields: [Field; 3] = [3, 1, 2];
     /// assert_eq(fields.sort_via(|a: Field, b| !b.lt(a)), [1, 2, 3]);
     /// ```
     ///
     /// # Failures
     ///
-    /// Fails if, after sorting, `ordering` returns `false` for some pair of adjacent elements: for
-    /// example, if `ordering` is `<` and the array has two equal elements.
+    /// In constrained code, fails if, after sorting, `ordering` returns `false` for some pair of
+    /// adjacent elements: for example, if `ordering` is `<` and the array has two equal elements.
+    /// Unconstrained code doesn't check the result.
     ///
     /// ```noir should_fail
     /// // Fails: `<` returns `false` for the two equal elements.
