@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792164477801,
+  "lastUpdate": 1792164481500,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4968,105 +4968,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "f053fb3b15b084ded1cafe09a85a0461d0025119",
-          "message": "fix(frontend): instantiate a generic trait impl's self type when looking up its methods (#13942)",
-          "timestamp": "2026-10-09T19:55:05Z",
-          "tree_id": "65d1c790adae768104f1c8502e3e53c6b69edeb1",
-          "url": "https://github.com/noir-lang/noir/commit/f053fb3b15b084ded1cafe09a85a0461d0025119"
-        },
-        "date": 1791577421575,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.352,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 8,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.288,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-no-txs",
-            "value": 2.688,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 3.22,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 3.31,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 2.828,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 230,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 195,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 2.33,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 19.1,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 15.28,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 2.83,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.877,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.46,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "b28a74121c7c5d73f84845d2bdee4b4d42b73663",
           "message": "fix(frontend): bind a generic impl's generics for the Type::CONST shorthand (#13944)",
           "timestamp": "2026-10-09T22:20:57Z",
@@ -9901,6 +9802,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.76,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0e3a9a55d95fc49d79b8a317339517cc2b5c32f6",
+          "message": "fix(frontend): read a trait impl's associated constant from a global while the impl is collected (#14011)",
+          "timestamp": "2026-10-16T14:56:09Z",
+          "tree_id": "3a924f87ac13e63617fef8fd160601eb78bf1490",
+          "url": "https://github.com/noir-lang/noir/commit/0e3a9a55d95fc49d79b8a317339517cc2b5c32f6"
+        },
+        "date": 1792164380785,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 3.02,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 9.7,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.602,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-no-txs",
+            "value": 3.386,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 2.64,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 2.99,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 2.97,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 200,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 228,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 2.444,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 17.44,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 16.44,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 2.886,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.885,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.986,
             "unit": "s"
           }
         ]
