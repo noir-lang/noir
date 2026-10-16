@@ -342,7 +342,7 @@ fn instantiate_generic() {
 fn use_impl_method() {
     let _: i32 = >|<Default::default();
 }"#,
-            "    std::default\n    trait Default\n\n---\n\nReturn an implementation-defined default value for the given type.\nThis is most often a zeroed value or an empty container, but there\nare no actual restrictions on what an implementation could return.\n",
+            "    std::default\n    trait Default\n\n---\n\nReturn an implementation-defined default value for the given type.\nThis is most often a zeroed value or an empty container, but there\nare no actual restrictions on what an implementation could return.\n\nThe standard library's implementations return zero for `Field` and the integer types,\n`false` for `bool`, an empty vector, and arrays and tuples whose elements are all default\nvalues. Deriving it with `#[derive(Default)]` sets every field of a struct to its default.\n\nExample:\n\n```noir\n#[derive(Default)]\nstruct Config {\n    limit: u32,\n    enabled: bool,\n}\n\nfn main() {\n    let config: Config = Default::default();\n    assert_eq(config.limit, 0);\n    assert(!config.enabled);\n}\n```\n",
         );
     }
 
