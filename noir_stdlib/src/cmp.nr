@@ -244,7 +244,7 @@ impl Eq for Ordering {
 /// Example:
 ///
 /// ```noir
-/// use std::cmp::{Ord, Ordering};
+/// use std::cmp::Ordering;
 ///
 /// assert_eq(1_u8.cmp(2), Ordering::less());
 /// assert_eq(2_u8.cmp(2), Ordering::equal());
@@ -263,7 +263,7 @@ impl Ordering {
     /// Example:
     ///
     /// ```noir
-    /// use std::cmp::{Ord, Ordering};
+    /// use std::cmp::Ordering;
     ///
     /// assert_eq(1_u8.cmp(2), Ordering::less());
     /// ```
@@ -276,7 +276,7 @@ impl Ordering {
     /// Example:
     ///
     /// ```noir
-    /// use std::cmp::{Ord, Ordering};
+    /// use std::cmp::Ordering;
     ///
     /// assert_eq(2_u8.cmp(2), Ordering::equal());
     /// ```
@@ -289,7 +289,7 @@ impl Ordering {
     /// Example:
     ///
     /// ```noir
-    /// use std::cmp::{Ord, Ordering};
+    /// use std::cmp::Ordering;
     ///
     /// assert_eq(3_u8.cmp(2), Ordering::greater());
     /// ```

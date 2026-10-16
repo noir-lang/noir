@@ -77,9 +77,7 @@ values are shifted in with zeros. Signed values are shifted arithmetically, copy
 so the result is the quotient rounded toward negative infinity: <code>-7 &gt;&gt; 1</code> is <code>-4</code>. Shifting by the
 type's bit size or more fails, and so does shifting a signed value by a negative amount.</p>
 <p>Example:</p>
-<pre><code><span class="kw">use</span> std::ops::Shr;
-
-<span class="kw">assert_eq</span>(<span class="number">16_u8</span> &gt;&gt; <span class="number">2</span>, <span class="number">4</span>);
+<pre><code><span class="kw">assert_eq</span>(<span class="number">16_u8</span> &gt;&gt; <span class="number">2</span>, <span class="number">4</span>);
 <span class="kw">assert_eq</span>(-<span class="number">8_i8</span> &gt;&gt; <span class="number">1</span>, -<span class="number">4</span>);</code></pre></div>
 <h2>Required methods</h2>
 <div class="padded-methods"><code id="shr" class="code-header">pub fn <a href="#shr" class="fn">shr</a>(self, other: Self) -> Self</code>

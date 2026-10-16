@@ -76,9 +76,7 @@
 <p>Implemented for <code>bool</code>, where it is logical negation, and for the integer types, where it flips
 every bit. <code>Field</code> doesn't implement it.</p>
 <p>Example:</p>
-<pre><code><span class="kw">use</span> std::ops::Not;
-
-<span class="kw">assert_eq</span>(!<span class="bool-var">true</span>, <span class="bool-var">false</span>);
+<pre><code><span class="kw">assert_eq</span>(!<span class="bool-var">true</span>, <span class="bool-var">false</span>);
 <span class="kw">assert_eq</span>(!<span class="number">0_u8</span>, <span class="number">255</span>);
 <span class="kw">assert_eq</span>(!<span class="number">0_i8</span>, -<span class="number">1</span>);</code></pre></div>
 <h2>Required methods</h2>

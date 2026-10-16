@@ -77,9 +77,7 @@ out of the top are dropped without an overflow check, so a left shift of a signe
 its sign. Shifting by the type's bit size or more fails, and so does shifting a signed value by a
 negative amount.</p>
 <p>Example:</p>
-<pre><code><span class="kw">use</span> std::ops::Shl;
-
-<span class="kw">assert_eq</span>(<span class="number">1_u8</span> &lt;&lt; <span class="number">3</span>, <span class="number">8</span>);
+<pre><code><span class="kw">assert_eq</span>(<span class="number">1_u8</span> &lt;&lt; <span class="number">3</span>, <span class="number">8</span>);
 <span class="comment">// High bits are dropped.</span>
 <span class="kw">assert_eq</span>(<span class="number">0x81_u8</span> &lt;&lt; <span class="number">1</span>, <span class="number">0x02</span>);</code></pre></div>
 <h2>Required methods</h2>

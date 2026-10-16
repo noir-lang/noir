@@ -6,8 +6,6 @@
 /// Example:
 ///
 /// ```noir
-/// use std::ops::Not;
-///
 /// assert_eq(!true, false);
 /// assert_eq(!0_u8, 255);
 /// assert_eq(!0_i8, -1);
@@ -80,8 +78,6 @@ impl Not for i64 {
 /// Example:
 ///
 /// ```noir
-/// use std::ops::BitOr;
-///
 /// assert_eq(0x0c_u8 | 0x0a, 0x0e);
 /// assert_eq(true | false, true);
 /// ```
@@ -151,8 +147,6 @@ impl BitOr for i64 {
 /// Example:
 ///
 /// ```noir
-/// use std::ops::BitAnd;
-///
 /// assert_eq(0x0c_u8 & 0x0a, 0x08);
 /// assert_eq(true & false, false);
 /// ```
@@ -222,8 +216,6 @@ impl BitAnd for i64 {
 /// Example:
 ///
 /// ```noir
-/// use std::ops::BitXor;
-///
 /// assert_eq(0x0c_u8 ^ 0x0a, 0x06);
 /// assert_eq(true ^ true, false);
 /// ```
@@ -296,8 +288,6 @@ impl BitXor for i64 {
 /// Example:
 ///
 /// ```noir
-/// use std::ops::Shl;
-///
 /// assert_eq(1_u8 << 3, 8);
 /// // High bits are dropped.
 /// assert_eq(0x81_u8 << 1, 0x02);
@@ -365,8 +355,6 @@ impl Shl for i64 {
 /// Example:
 ///
 /// ```noir
-/// use std::ops::Shr;
-///
 /// assert_eq(16_u8 >> 2, 4);
 /// assert_eq(-8_i8 >> 1, -4);
 /// ```
