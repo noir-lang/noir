@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792160905541,
+  "lastUpdate": 1792160914199,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -25088,105 +25088,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "fc390a01893190a537ad23bd4278fcef0184586e",
-          "message": "fix(frontend): pair an impl method's associated type placeholders to a fixpoint (#13938)",
-          "timestamp": "2026-10-09T15:50:32Z",
-          "tree_id": "9d0c3c187252eda5ffd2a887362b21c1eb5b88d8",
-          "url": "https://github.com/noir-lang/noir/commit/fc390a01893190a537ad23bd4278fcef0184586e"
-        },
-        "date": 1791562929351,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1107.7,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 2615.8,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 2061.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-no-txs",
-            "value": 443.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 473.8,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 585.3,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 441.5,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 30787.1,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 30842.5,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 476.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 4564.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 4829,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 249.9,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 502.9,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 450,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "a12ceda436a1e2d93726ad23eeddc207a8807d4c",
           "message": "fix(frontend): check a trait impl's where clause when it is used before it is finished (#13939)",
           "timestamp": "2026-10-09T17:39:33Z",
@@ -30021,6 +29922,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 450,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d68a383795fe7a3651701388956b216c6c48afb6",
+          "message": "chore(stdlib): document field, integer, operator, comparison and conversion APIs (#14012)",
+          "timestamp": "2026-10-16T13:57:06Z",
+          "tree_id": "2fcb3669a968bbd4e944724c57144508ab5f2e21",
+          "url": "https://github.com/noir-lang/noir/commit/d68a383795fe7a3651701388956b216c6c48afb6"
+        },
+        "date": 1792160813536,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1139.4,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 2645.3,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2091.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-no-txs",
+            "value": 467.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 497.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 609.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 466.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 30821.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 30876.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 501.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 4590.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 4852.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 271.5,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 509.6,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 454.6,
             "unit": "KB"
           }
         ]
