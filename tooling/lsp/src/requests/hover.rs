@@ -40,6 +40,20 @@ mod hover_tests {
         assert_eq!(hover_text, expected_text);
     }
 
+    /// Asserts that the hover text starts with `expected_signature` followed by a non-empty doc
+    /// comment section, without checking the doc comment's text. Use this for items whose doc
+    /// comments live in the standard library, so that editing those docs doesn't break the test.
+    fn assert_hover_signature_with_docs(src: &str, expected_signature: &str) {
+        let hover_text = get_hover_text(src);
+        let Some(docs) = hover_text.strip_prefix(expected_signature) else {
+            panic!("expected hover text to start with {expected_signature:?}, got {hover_text:?}");
+        };
+        let docs = docs.trim_start_matches('\n').strip_prefix("---").unwrap_or_else(|| {
+            panic!("expected a doc comment section after the signature, got {hover_text:?}")
+        });
+        assert!(!docs.trim().is_empty(), "expected a non-empty doc comment, got {hover_text:?}");
+    }
+
     fn get_hover_text(src: &str) -> String {
         let (mut state, file_uri, position, _src) =
             test_utils::init_lsp_server_with_inline_source_and_cursor(
@@ -337,12 +351,12 @@ fn instantiate_generic() {
 
     #[test]
     fn hover_on_trait_on_call() {
-        assert_hover(
+        assert_hover_signature_with_docs(
             r#"use std::default::Default;
 fn use_impl_method() {
     let _: i32 = >|<Default::default();
 }"#,
-            "    std::default\n    trait Default\n\n---\n\nReturn an implementation-defined default value for the given type.\nThis is most often a zeroed value or an empty container, but there\nare no actual restrictions on what an implementation could return.\n\nThe standard library's implementations return zero for `Field` and the integer types,\n`false` for `bool`, an empty vector, and arrays and tuples whose elements are all default\nvalues. Deriving it with `#[derive(Default)]` sets every field of a struct to its default.\n\nExample:\n\n```noir\n#[derive(Default)]\nstruct Config {\n    limit: u32,\n    enabled: bool,\n}\n\nfn main() {\n    let config: Config = Default::default();\n    assert_eq(config.limit, 0);\n    assert(!config.enabled);\n}\n```\n",
+            "    std::default\n    trait Default",
         );
     }
 
@@ -640,12 +654,12 @@ fn use_struct() {
 
     #[test]
     fn hover_on_i32() {
-        let hover_text = get_hover_text(
+        assert_hover_signature_with_docs(
             r#"fn use_parameter(some_param: i3>|<2) {
     let _ = some_param;
 }"#,
+            "    i32",
         );
-        assert_eq!(&hover_text, "    i32\n---\nThe 32-bit signed integer type.\n");
     }
 
     #[test]
