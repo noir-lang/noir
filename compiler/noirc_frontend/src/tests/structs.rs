@@ -643,6 +643,101 @@ fn wildcard_turbofish_call_with_single_inherent_impl_infers_receiver() {
 }
 
 #[test]
+fn ambiguous_qualified_call_on_trait_inferred_receiver_reports_only_the_ambiguity() {
+    let src = r#"
+        trait FromField {
+            fn from_field(f: Field) -> Self;
+        }
+
+        impl FromField for u8 {
+            fn from_field(f: Field) -> u8 { f as u8 }
+        }
+
+        impl FromField for u64 {
+            fn from_field(f: Field) -> u64 { f as u64 }
+        }
+
+        struct Amount<T> { v: T }
+
+        impl Amount<u8> {
+            pub fn is_small(self) -> bool { self.v < 100 }
+        }
+
+        impl Amount<u64> {
+            pub fn is_small(self) -> bool { self.v < 100 }
+        }
+
+        fn main(x: Field) {
+            let a = Amount { v: FromField::from_field(x) };
+            assert(Amount::is_small(a));
+                           ^^^^^^^^ Multiple applicable methods named `is_small` in scope
+                           ~~~~~~~~ `is_small` is defined in `Amount<u8>`, `Amount<u64>`; name one of them with a turbofish, e.g. `Amount::<u8>::is_small`
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn ambiguous_wildcard_turbofish_call_on_trait_inferred_receiver_reports_only_the_ambiguity() {
+    let src = r#"
+        trait FromField {
+            fn from_field(f: Field) -> Self;
+        }
+
+        impl FromField for u8 {
+            fn from_field(f: Field) -> u8 { f as u8 }
+        }
+
+        impl FromField for u64 {
+            fn from_field(f: Field) -> u64 { f as u64 }
+        }
+
+        struct Amount<T> { v: T }
+
+        impl Amount<u8> {
+            pub fn is_small(self) -> bool { self.v < 100 }
+        }
+
+        impl Amount<u64> {
+            pub fn is_small(self) -> bool { self.v < 100 }
+        }
+
+        fn main(x: Field) {
+            let a = Amount { v: FromField::from_field(x) };
+            assert(Amount::<_>::is_small(a));
+                                ^^^^^^^^ Multiple applicable methods named `is_small` in scope
+                                ~~~~~~~~ `is_small` is defined in `Amount<u8>`, `Amount<u64>`; name one of them with a turbofish, e.g. `Amount::<u8>::is_small`
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn unresolved_call_on_trait_inferred_argument_reports_only_the_resolution_error() {
+    let src = r#"
+        trait FromField {
+            fn from_field(f: Field) -> Self;
+        }
+
+        impl FromField for u8 {
+            fn from_field(f: Field) -> u8 { f as u8 }
+        }
+
+        impl FromField for u64 {
+            fn from_field(f: Field) -> u64 { f as u64 }
+        }
+
+        fn main(x: Field) {
+            let a = FromField::from_field(x);
+            missing(a);
+            ^^^^^^^ cannot find `missing` in this scope
+            ~~~~~~~ not found in this scope
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
 fn method_call_on_concrete_receiver_with_multiple_inherent_impls_selects_its_impl() {
     let src = r#"
         struct S<T> { v: T }
