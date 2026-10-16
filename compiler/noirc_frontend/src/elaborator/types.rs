@@ -1708,9 +1708,11 @@ impl Elaborator<'_> {
         self.interner.lookup_generic_methods(typ, method_name, has_self_arg)
     }
 
-    /// The trait methods that apply to `typ`: those of impls for `typ`'s own type and those of
-    /// impls for all types `T` (`impl<T> Foo for T where T: Bar`). Both kinds are candidates
-    /// together, since where `typ: Bar` is assumed, both impls apply and the call is ambiguous.
+    /// The trait methods of impls for `typ`'s own type, if there are any, together with those of
+    /// impls for all types `T` (`impl<T> Foo for T where T: Bar`) whose where clause is known to
+    /// hold for `typ`: both impls apply, so neither is preferred. An impl for all types `T` whose
+    /// where clause can't be decided yet (`impl<T, U> Into<T> for U where T: From<U>` with `T`
+    /// unknown) is left out, so a type's own impl is the one selected.
     fn lookup_all_trait_methods(
         &mut self,
         typ: &Type,
@@ -1718,7 +1720,16 @@ impl Elaborator<'_> {
         has_self_arg: bool,
     ) -> Vec<(FuncId, TraitId, Type)> {
         let mut methods = self.lookup_trait_methods(typ, method_name, has_self_arg);
-        methods.extend(self.lookup_generic_methods(typ, method_name, has_self_arg));
+        if methods.is_empty() {
+            return methods;
+        }
+        let generic_methods = self.lookup_generic_methods(typ, method_name, has_self_arg);
+        methods.extend(generic_methods.into_iter().filter(|(func_id, ..)| {
+            self.interner
+                .function_meta(func_id)
+                .trait_impl
+                .is_some_and(|impl_id| self.interner.trait_impl_where_clause_holds(impl_id, typ))
+        }));
         methods
     }
 
@@ -3391,6 +3402,14 @@ impl Elaborator<'_> {
         // If there's at least one matching trait method we need to see if only one is in scope.
         if !trait_methods.is_empty() {
             return self.return_trait_method_in_scope(&trait_methods, method_name, call_location);
+        }
+
+        // If we couldn't find any trait methods, search in
+        // impls for all types `T`, e.g. `impl<T> Foo for T`
+        let generic_methods =
+            self.lookup_generic_methods(object_type, method_name, check_self_param);
+        if !generic_methods.is_empty() {
+            return self.return_trait_method_in_scope(&generic_methods, method_name, call_location);
         }
 
         // No trait method applies. Fall back to the inaccessible inherent method (if any) so the
