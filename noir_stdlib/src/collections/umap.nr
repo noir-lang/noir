@@ -660,7 +660,7 @@ impl<K, V, B> UHashMap<K, V, B> {
 
         let hash = self.hash(key);
         let mut insert_index: u32 = 0;
-        let mut increment_length = false;
+        let mut key_exists = false;
         let mut found_deleted_candidate = false;
 
         for attempt in 0..self._table.len() {
@@ -671,6 +671,7 @@ impl<K, V, B> UHashMap<K, V, B> {
                 if slot._key == key {
                     // Key exists: update in place without changing length.
                     insert_index = index;
+                    key_exists = true;
                     break;
                 }
             } else if slot._is_deleted {
@@ -685,7 +686,6 @@ impl<K, V, B> UHashMap<K, V, B> {
                 if !found_deleted_candidate {
                     insert_index = index;
                 }
-                increment_length = true;
                 break;
             }
         }
@@ -694,10 +694,12 @@ impl<K, V, B> UHashMap<K, V, B> {
         s.set(key, value);
         self._table[insert_index] = s;
 
-        if increment_length {
+        // A key the probe didn't find is new wherever it lands: in the empty slot that ended the
+        // probe, or in a deleted slot remembered on the way.
+        if !key_exists {
             self._len += 1;
         }
-        increment_length
+        !key_exists
     }
 
     unconstrained fn try_resize(&mut self)
@@ -928,6 +930,48 @@ mod test {
         let mut m: UHashMap<Field, Field, BuildHasherDefault<Poseidon2Hasher>> =
             UHashMap::with_hasher_and_capacity(BuildHasherDefault::<Poseidon2Hasher> {}, 0);
         let _ = m.insert(1, 1); // This used to produce an index out of bounds
+    }
+
+    #[test]
+    unconstrained fn test_length_tracks_entries_across_insert_remove_churn() {
+        // `try_resize` counts live entries only, so a map that never holds more than one entry
+        // never resizes, while `remove` turns every slot it empties into a deleted slot. With
+        // `IdentityHasher` and capacity 8, key `i` starts its probe at slot `i % 8`, so keys 0..=7
+        // leave every slot deleted and each later key lands in a deleted slot without the probe
+        // ever reaching an empty one.
+        let mut map = UHashMap::<Field, Field, BuildHasherDefault<IdentityHasher>>::with_hasher_and_capacity(
+            BuildHasherDefault::<IdentityHasher> {},
+            8,
+        );
+
+        for i in 0..16 {
+            let key = i as Field;
+
+            assert(map.insert(key, key), "inserting a fresh key reports a new entry");
+            assert_eq(map.len(), 1);
+            assert_eq(map.entries().len(), 1);
+
+            map.remove(key);
+            assert_eq(map.len(), 0);
+            assert_eq(map.entries().len(), 0);
+        }
+    }
+
+    struct IdentityHasher {
+        _v: Field,
+    }
+    impl Default for IdentityHasher {
+        fn default() -> Self {
+            IdentityHasher { _v: 0 }
+        }
+    }
+    impl Hasher for IdentityHasher {
+        fn finish(self) -> Field {
+            self._v
+        }
+        fn write(&mut self, input: Field) {
+            self._v = input;
+        }
     }
 
     struct MaxHasher {
