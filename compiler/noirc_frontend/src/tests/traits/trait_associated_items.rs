@@ -4188,3 +4188,75 @@ fn global_calls_a_method_of_an_impl_declared_earlier() {
     }
     ");
 }
+
+#[test]
+fn method_call_that_a_blanket_impl_also_serves_under_a_where_clause_is_ambiguous() {
+    let src = r#"
+    trait Marker {}
+    trait Foo {
+        fn value(self) -> Field;
+    }
+    struct S {}
+    impl<T> Foo for T where T: Marker {
+        fn value(self) -> Field { 1 }
+    }
+    impl Foo for S {
+        fn value(self) -> Field { 2 }
+    }
+
+    fn main() -> pub Field where S: Marker {
+        S {}.value()
+        ^^^^^^^^^^ Multiple trait impls match the object type `S`
+        ~~~~~~~~~~ Ambiguous impl
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn type_path_call_that_a_blanket_impl_also_serves_under_a_where_clause_is_ambiguous() {
+    let src = r#"
+    trait Marker {}
+    trait Foo {
+        fn value(self) -> Field;
+    }
+    struct S {}
+    impl<T> Foo for T where T: Marker {
+        fn value(self) -> Field { 1 }
+    }
+    impl Foo for S {
+        fn value(self) -> Field { 2 }
+    }
+
+    fn main() -> pub Field where S: Marker {
+        S::value(S {})
+        ^^^^^^^^ Multiple trait impls match the object type `S`
+        ~~~~~~~~ Ambiguous impl
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn turbofish_path_call_that_a_blanket_impl_also_serves_under_a_where_clause_is_ambiguous() {
+    let src = r#"
+    trait Marker {}
+    trait Foo {
+        fn value(self) -> Field;
+    }
+    struct G<T> {}
+    impl<T> Foo for T where T: Marker {
+        fn value(self) -> Field { 1 }
+    }
+    impl Foo for G<u8> {
+        fn value(self) -> Field { 2 }
+    }
+
+    fn main() -> pub Field where G<u8>: Marker {
+        G::<u8>::value(G {})
+        ^^^^^^^^^^^^^^ Multiple trait impls match the object type `G<u8>`
+        ~~~~~~~~~~~~~~ Ambiguous impl
+    }
+    "#;
+    check_errors(src);
+}

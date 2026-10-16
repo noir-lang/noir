@@ -1708,6 +1708,20 @@ impl Elaborator<'_> {
         self.interner.lookup_generic_methods(typ, method_name, has_self_arg)
     }
 
+    /// The trait methods that apply to `typ`: those of impls for `typ`'s own type and those of
+    /// impls for all types `T` (`impl<T> Foo for T where T: Bar`). Both kinds are candidates
+    /// together, since where `typ: Bar` is assumed, both impls apply and the call is ambiguous.
+    fn lookup_all_trait_methods(
+        &mut self,
+        typ: &Type,
+        method_name: &str,
+        has_self_arg: bool,
+    ) -> Vec<(FuncId, TraitId, Type)> {
+        let mut methods = self.lookup_trait_methods(typ, method_name, has_self_arg);
+        methods.extend(self.lookup_generic_methods(typ, method_name, has_self_arg));
+        methods
+    }
+
     fn resolve_method_candidate_metas(&mut self, typ: &Type, method_name: &str) {
         for func_id in self.interner.method_candidate_ids(typ, method_name) {
             self.define_function_meta_if_undefined(func_id);
@@ -1829,7 +1843,7 @@ impl Elaborator<'_> {
         }
 
         let has_self_arg = false;
-        let type_trait_methods = self.lookup_trait_methods(typ, method_name, has_self_arg);
+        let type_trait_methods = self.lookup_all_trait_methods(typ, method_name, has_self_arg);
 
         // If no method matches the turbofish type but the name is a known method for this type
         // (just incompatible), report an error. If the name isn't a method at all (e.g. it's an
@@ -2005,7 +2019,7 @@ impl Elaborator<'_> {
 
         let has_self_arg = false;
         let trait_methods = trait_methods
-            .unwrap_or_else(|| self.lookup_trait_methods(typ, method_name, has_self_arg));
+            .unwrap_or_else(|| self.lookup_all_trait_methods(typ, method_name, has_self_arg));
 
         if trait_methods.is_empty() {
             return None;
@@ -3347,19 +3361,12 @@ impl Elaborator<'_> {
         }
 
         // Next lookup all matching trait methods.
-        let trait_methods = self.lookup_trait_methods(object_type, method_name, check_self_param);
+        let trait_methods =
+            self.lookup_all_trait_methods(object_type, method_name, check_self_param);
 
         // If there's at least one matching trait method we need to see if only one is in scope.
         if !trait_methods.is_empty() {
             return self.return_trait_method_in_scope(&trait_methods, method_name, call_location);
-        }
-
-        // If we couldn't find any trait methods, search in
-        // impls for all types `T`, e.g. `impl<T> Foo for T`
-        let generic_methods =
-            self.lookup_generic_methods(object_type, method_name, check_self_param);
-        if !generic_methods.is_empty() {
-            return self.return_trait_method_in_scope(&generic_methods, method_name, call_location);
         }
 
         // No trait method applies. Fall back to the inaccessible inherent method (if any) so the
