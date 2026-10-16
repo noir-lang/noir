@@ -18,7 +18,8 @@ How a block becomes a test:
 - `use` lines are kept at the top of the example's module.
 - If the block declares top-level items (`fn`, `struct`, `impl`, `trait`,
   `global`, attributes, ...) it is placed in the module as written. A
-  `fn main()` without parameters, if present, is called from the test;
+  `fn main()` or `unconstrained fn main()` without parameters, if present, is
+  called from the test (an unconstrained test for an unconstrained `main`);
   otherwise the items are only compiled.
 - Otherwise the block is the body of the test function.
 
@@ -115,7 +116,10 @@ def render_example(example):
     uses = [line for line in example.code if line.startswith("use ")]
     rest = [line for line in example.code if not line.startswith("use ")]
     has_items = any(TOP_LEVEL_ITEM.match(line) for line in rest)
-    has_main = any(MAIN_FN.match(line) for line in rest)
+    main_fn = next((MAIN_FN.match(line) for line in rest if MAIN_FN.match(line)), None)
+    has_main = main_fn is not None
+    # An unconstrained `main` can only be called from an unconstrained test.
+    test_fn = "unconstrained fn test() {" if main_fn and main_fn.group(1) else "fn test() {"
     test_attribute = "#[test(should_fail)]" if "should_fail" in example.attributes else "#[test]"
 
     out = [f"// {example.path}:{example.line}", f"mod {example.module_name} {{"]
@@ -123,7 +127,7 @@ def render_example(example):
     if has_items:
         out += [f"    {line}" if line else "" for line in rest]
         out.append(f"    {test_attribute}")
-        out.append("    fn test() {")
+        out.append(f"    {test_fn}")
         if has_main:
             out.append("        main();")
         out.append("    }")
