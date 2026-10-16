@@ -574,12 +574,16 @@ fn errors_on_mutually_recursive_impls() {
     pub struct Baz {}
 
     impl Foo for Bar where Baz: Foo {
+                                ^^^ No matching impl found for `Bar: Foo`
+                                ~~~ No impl for `Bar: Foo`
         fn foo(self) {
             (Baz {}).foo()
         }
     }
 
     impl Foo for Baz where Bar: Foo {
+                                ^^^ No matching impl found for `Baz: Foo`
+                                ~~~ No impl for `Baz: Foo`
         fn foo(self) {
             (Bar {}).foo()
         }
@@ -1762,6 +1766,48 @@ fn does_not_check_where_clause_bounds_that_name_a_generic() {
     trait Marker {}
     pub struct S<T> { pub x: T }
     pub fn f<T>(_x: T) where S<T>: Marker {}
+    fn main() {}
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn errors_on_trait_impl_where_clause_bound_without_generics_that_no_impl_satisfies() {
+    let src = r#"
+    trait Marker {}
+    trait Foo {}
+    pub struct S {}
+    impl Foo for S where S: Marker {}
+                            ^^^^^^ No matching impl found for `S: Marker`
+                            ~~~~~~ No impl for `S: Marker`
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn errors_on_inherent_impl_where_clause_bound_without_generics_that_no_impl_satisfies() {
+    let src = r#"
+    trait Marker {}
+    pub struct S {}
+    impl S where Field: Marker {
+                        ^^^^^^ No matching impl found for `Field: Marker`
+                        ~~~~~~ No impl for `Field: Marker`
+        pub fn f() {}
+        pub fn g() {}
+    }
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn does_not_check_impl_where_clause_bounds_that_name_a_generic() {
+    let src = r#"
+    trait Marker {}
+    trait Foo {}
+    pub struct S<T> { pub x: T }
+    impl<T> Foo for S<T> where S<T>: Marker {}
     fn main() {}
     "#;
     assert_no_errors(src);
