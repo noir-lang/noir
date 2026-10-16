@@ -38,7 +38,6 @@ mod mutable_array_set;
 mod normalize_value_ids;
 mod preprocess_fns;
 pub(crate) mod pure;
-mod rc;
 mod remove_bit_shifts;
 mod remove_enable_side_effects;
 mod remove_if_else;

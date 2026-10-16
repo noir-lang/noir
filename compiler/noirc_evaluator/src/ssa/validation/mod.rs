@@ -516,9 +516,7 @@ impl<'f> Validator<'f> {
                 assert_u1(&condition_type, "enable_side_effects condition");
             }
             Instruction::DecrementRc { .. } => {
-                panic!(
-                    "DecrementRc instructions unexpectedly emitted. Add back the `remove_paired_rc` pass if emitting these instructions."
-                );
+                panic!("DecrementRc instructions unexpectedly emitted");
             }
             _ => (),
         }
