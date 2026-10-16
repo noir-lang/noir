@@ -11,7 +11,7 @@ use crate::{
             errors::{DefCollectorErrorKind, DuplicateType},
         },
     },
-    test_utils::{get_monomorphized_with_stdlib, stdlib_src},
+    test_utils::{get_monomorphized, get_monomorphized_with_stdlib, stdlib_src},
     tests::{check_errors_using_features, check_errors_with_stdlib},
 };
 
@@ -4213,4 +4213,64 @@ fn resolve_in_trait_impl_method_scope_resolves_parent_associated_type_on_self() 
     fn main() { let _ = Foo::go(1); }
     "#;
     check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
+
+#[test]
+fn comptime_let_read_has_declared_vector_type() {
+    let src = r#"
+    fn main() {
+        comptime let v: [u8] = @[];
+        let _w: [Field] = v;
+                          ^ Expected type [Field], found type [u8]
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn comptime_let_read_selects_trait_impl_from_declared_type() {
+    let src = r#"
+    trait FromField {
+        fn from_field(x: Field) -> Self;
+    }
+
+    impl FromField for u8 {
+        fn from_field(x: Field) -> u8 { x as u8 }
+    }
+
+    impl FromField for u32 {
+        fn from_field(x: Field) -> u32 { x as u32 }
+    }
+
+    fn push<T>(v: [T], x: T) -> [T] {
+        let _ = x;
+        v
+    }
+
+    fn main(x: Field) -> pub bool {
+        comptime let v: [u8] = @[];
+        let w = push(v, FromField::from_field(x));
+        w[0] > 200
+    }
+    "#;
+    let program = get_monomorphized(src).expect("Expected program to monomorphize");
+    let program = program.to_string();
+    assert!(program.contains("-> u8"), "Expected the u8 impl to be selected:\n{program}");
+    assert!(!program.contains("-> u32"), "Expected the u32 impl not to be selected:\n{program}");
+}
+
+#[test]
+fn comptime_let_read_has_declared_unconstrained_fn_type() {
+    let src = r#"
+    fn probe(x: u32) -> u32 {
+        x
+    }
+
+    fn main(x: u32) -> pub u32 {
+        comptime let f: unconstrained fn(u32) -> u32 = probe;
+        f(x)
+        ^^^^ Call to unconstrained function from constrained function is unsafe and must be in an unconstrained function or unsafe block
+    }
+    "#;
+    check_errors(src);
 }

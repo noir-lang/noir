@@ -138,8 +138,18 @@ impl Elaborator<'_> {
             // but that's not true)
             if value.is_ok() {
                 let from_macro_call = false;
-                let (id, typ) = self.inline_comptime_value(value, location, from_macro_call);
+                let (id, inlined_typ) =
+                    self.inline_comptime_value(value, location, from_macro_call);
                 self.debug_comptime(location, |interner, _| id.to_display_ast(interner).kind);
+
+                // The inlined value is re-elaborated from its printed form, which can carry less
+                // type information than the binding (an empty `@[]` has no element type, and a
+                // function item has its own `fn` type). Every read of the binding must have the
+                // binding's type, so the inlined expression is checked against it and given it.
+                self.unify_with_coercions(&inlined_typ, &typ, id, location, |elaborator| {
+                    elaborator.new_type_mismatch_error(&inlined_typ, &typ, location).into()
+                });
+                self.interner.push_expr_type(id, typ.clone());
                 (id, typ)
             } else {
                 (id, typ)
