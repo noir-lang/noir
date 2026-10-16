@@ -197,7 +197,7 @@ of the vector by one.</p>
 v.push(<span class="number">1</span>);
 v.push(<span class="number">2</span>);
 
-<span class="comment">// Panics with failed assertion "push out of bounds"</span>
+<span class="comment">// Fails with the assertion message "push out of bounds".</span>
 v.push(<span class="number">3</span>);</code></pre></div>
 </div><code id="len" class="code-header">pub fn <a href="#len" class="fn">len</a>(&self) -> <a href="../../../std/primitive.u32.html" class="primitive">u32</a></code>
 
@@ -347,7 +347,7 @@ v.push(<span class="number">2</span>);
 <span class="kw">assert</span>(two == <span class="number">2</span>);
 <span class="kw">assert</span>(one == <span class="number">1</span>);
 
-<span class="comment">// error: cannot pop from an empty vector</span>
+<span class="comment">// Fails: the vector is empty.</span>
 <span class="kw">let</span> _ = v.pop();</code></pre></div>
 </div><code id="any" class="code-header">pub fn <a href="#any" class="fn">any</a>&lt;Env&gt;(self, predicate: fn[Env](T) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a>) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
 

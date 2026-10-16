@@ -293,8 +293,6 @@ Traits for a bit shift left and bit shift right.
 Implementing `Shl` for a type allows the left shift operator (`<<`) to be used with the implementation type.
 Similarly, implementing `Shr` allows the right shift operator (`>>`) to be used with the type.
 
-Note that bit shifting is not currently implemented for signed types.
-
 The implementations block below is given for the `Shl` trait, but the same types that implement
 `Shl` also implement `Shr`.
 

@@ -48,6 +48,21 @@ fn assert_gt_limbs(a: (Field, Field), b: (Field, Field)) {
 }
 
 /// Decompose a single field into two 16 byte fields.
+///
+/// Returns `(lo, hi)` with `x == lo + hi * 2^128`, where `lo` and `hi` are each less than `2^128`.
+/// The decomposition is fully constrained and canonical: it is checked to be less than the BN254
+/// modulus, so there is exactly one valid `(lo, hi)` for each `x`.
+///
+/// The functions in this module use the BN254 modulus, so they are only meaningful when compiling
+/// for the BN254 field.
+///
+/// Example:
+///
+/// ```noir
+/// let (lo, hi) = std::field::bn254::decompose(0x100000000000000000000000000000003);
+/// assert_eq(lo, 3);
+/// assert_eq(hi, 1);
+/// ```
 pub fn decompose(x: Field) -> (Field, Field) {
     if is_unconstrained() {
         compute_decomposition(x)
@@ -71,6 +86,21 @@ pub fn decompose(x: Field) -> (Field, Field) {
     }
 }
 
+/// Asserts that `a` is greater than `b`, comparing them as integers in `0..p`.
+///
+/// Fully constrained. Only meaningful when compiling for the BN254 field.
+///
+/// Example:
+///
+/// ```noir
+/// std::field::bn254::assert_gt(2, 1);
+/// // -1 is the largest field element.
+/// std::field::bn254::assert_gt(-1, 1);
+/// ```
+///
+/// # Failures
+///
+/// Fails if `a` is less than or equal to `b`.
 pub fn assert_gt(a: Field, b: Field) {
     if is_unconstrained() {
         assert(
@@ -87,10 +117,34 @@ pub fn assert_gt(a: Field, b: Field) {
     }
 }
 
+/// Asserts that `a` is less than `b`, comparing them as integers in `0..p`.
+///
+/// Fully constrained. Only meaningful when compiling for the BN254 field.
+///
+/// Example:
+///
+/// ```noir
+/// std::field::bn254::assert_lt(1, 2);
+/// ```
+///
+/// # Failures
+///
+/// Fails if `a` is greater than or equal to `b`.
 pub fn assert_lt(a: Field, b: Field) {
     assert_gt(b, a);
 }
 
+/// Returns `true` if `a` is greater than `b`, comparing them as integers in `0..p`.
+///
+/// The result is fully constrained. Only meaningful when compiling for the BN254 field; prefer
+/// [`Field::lt`], which works on any field.
+///
+/// Example:
+///
+/// ```noir
+/// assert(std::field::bn254::gt(2, 1));
+/// assert(!std::field::bn254::gt(1, 1));
+/// ```
 pub fn gt(a: Field, b: Field) -> bool {
     if is_unconstrained() {
         // Safety: unsafe in unconstrained
@@ -113,6 +167,17 @@ pub fn gt(a: Field, b: Field) -> bool {
     }
 }
 
+/// Returns `true` if `a` is less than `b`, comparing them as integers in `0..p`.
+///
+/// The result is fully constrained. Only meaningful when compiling for the BN254 field; prefer
+/// [`Field::lt`], which works on any field.
+///
+/// Example:
+///
+/// ```noir
+/// assert(std::field::bn254::lt(1, 2));
+/// assert(!std::field::bn254::lt(-1, 1));
+/// ```
 pub fn lt(a: Field, b: Field) -> bool {
     gt(b, a)
 }

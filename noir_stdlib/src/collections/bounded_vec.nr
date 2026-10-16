@@ -175,7 +175,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// v.push(1);
     /// v.push(2);
     ///
-    /// // Panics with failed assertion "push out of bounds"
+    /// // Fails with the assertion message "push out of bounds".
     /// v.push(3);
     /// ```
     pub fn push(&mut self, elem: T) {
@@ -419,7 +419,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// assert(two == 2);
     /// assert(one == 1);
     ///
-    /// // error: cannot pop from an empty vector
+    /// // Fails: the vector is empty.
     /// let _ = v.pop();
     /// ```
     pub fn pop(&mut self) -> T {
