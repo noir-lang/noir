@@ -1,0 +1,32 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(
+    seed: [[Field; 2]; 1],
+    xs: [Field; 3],
+    idx: [u32; 3],
+    j: u32,
+    a: [Field; 2],
+    b: [[Field; 2]; 1],
+    i: u32,
+    k: u32,
+) -> pub [Field; 2] {
+    let mut row: [Field; 2] = [0_Field; 2];
+    let mut rows: [[Field; 2]] = seed.as_vector();
+    for n in 0_u32..3_u32 {
+        row[idx[n]] = xs[n];
+        rows = rows.push_back(row);
+    }
+    row[idx[0_u32]] = 1000_Field;
+    let sum: Field = rows[j][0_u32] + rows[j][1_u32];
+    assert(sum == 5_Field);
+    assert(row[0_u32] == 1000_Field);
+    let mut e: [Field; 2] = a;
+    e[i] = 7_Field;
+    let v: [[Field; 2]] = b.as_vector().push_front(e);
+    e[k] = 99_Field;
+    assert(v[0_u32][0_u32] == 1_Field);
+    assert(e[0_u32] == 99_Field);
+    [sum, v[0_u32][0_u32]]
+}

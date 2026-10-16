@@ -1,0 +1,7 @@
+[package]
+name = "regression_mutable_array_set_vector_push"
+version = "0.1.0"
+type = "bin"
+authors = [""]
+
+[dependencies]
