@@ -44,6 +44,7 @@ mod result_cache;
 mod simplification_cache;
 
 use interpret::try_interpret_call;
+pub(crate) use interpret::{ConstantCallEvaluator, UnfoldableCalls};
 use result_cache::{CacheResult, InstructionResultCache};
 use simplification_cache::{ConstraintSimplificationCache, SimplificationCache};
 
@@ -101,15 +102,19 @@ impl Ssa {
         let mut interpreter = new_interpreter(&brillig_functions);
         // Interpret globals once so that we do not have to repeat this computation on every Brillig call.
         interpreter.interpret_globals().expect("ICE: Interpreter failed to interpret globals");
+        let unfoldable_calls = std::mem::take(&mut self.unfoldable_calls);
+        let mut evaluator = ConstantCallEvaluator::new(interpreter, unfoldable_calls);
         for function in acir_functions.values_mut() {
-            function.constant_fold(use_constraint_info, max_iter, &mut interpreter);
+            function.constant_fold(use_constraint_info, max_iter, &mut evaluator);
         }
+        self.unfoldable_calls = evaluator.into_unfoldable_calls();
 
         // Brillig callers never evaluate calls with the interpreter, so it needs no functions.
         let no_functions = BTreeMap::new();
-        let mut interpreter = new_interpreter(&no_functions);
+        let mut evaluator =
+            ConstantCallEvaluator::new(new_interpreter(&no_functions), UnfoldableCalls::default());
         for function in brillig_functions.values_mut() {
-            function.constant_fold(use_constraint_info, max_iter, &mut interpreter);
+            function.constant_fold(use_constraint_info, max_iter, &mut evaluator);
         }
 
         brillig_functions.append(&mut acir_functions);
@@ -138,7 +143,7 @@ impl Function {
         &mut self,
         use_constraint_info: bool,
         max_iter: usize,
-        interpreter: &mut Interpreter<Empty>,
+        evaluator: &mut ConstantCallEvaluator,
     ) {
         let loops = Loops::find_all(self, LoopOrder::OutsideIn);
 
@@ -171,7 +176,7 @@ impl Function {
                     &dom,
                     &mut loop_headers,
                     block,
-                    interpreter,
+                    evaluator,
                 );
                 context.enqueue(&dom, self.dfg[block].successors());
             }
@@ -347,7 +352,7 @@ impl Context {
         dom: &DominatorTree,
         loop_headers: &mut HashMap<BasicBlockId, HashSet<ValueId>>,
         block_id: BasicBlockId,
-        interpreter: &mut Interpreter<Empty>,
+        evaluator: &mut ConstantCallEvaluator,
     ) {
         let instructions = dfg[block_id].take_instructions();
 
@@ -367,7 +372,7 @@ impl Context {
                 block_id,
                 instruction_id,
                 &mut side_effects_enabled_var,
-                interpreter,
+                evaluator,
             );
         }
 
@@ -403,7 +408,7 @@ impl Context {
         block: BasicBlockId,
         id: InstructionId,
         side_effects_enabled_var: &mut ValueId,
-        interpreter: &mut Interpreter<Empty>,
+        evaluator: &mut ConstantCallEvaluator,
     ) {
         let constraint_simplification_mapping =
             self.constraint_simplification_mappings.get(*side_effects_enabled_var);
@@ -509,7 +514,7 @@ impl Context {
             Self::push_instruction(id, instruction.clone(), &old_results, target_block, dfg)
         } else {
             // We only want to try to inline Brillig calls for Brillig entry points (functions called from an ACIR runtime).
-            try_interpret_call(&instruction, target_block, dfg, interpreter)
+            try_interpret_call(&instruction, target_block, dfg, evaluator)
                 // Otherwise, try inserting the instruction again to apply any optimizations using the newly resolved inputs.
                 .unwrap_or_else(|| {
                     Self::push_instruction(id, instruction.clone(), &old_results, target_block, dfg)
@@ -932,12 +937,14 @@ fn can_be_deduplicated(instruction: &Instruction, dfg: &DataFlowGraph) -> CanBeD
 mod test {
     use test_case::test_case;
 
+    use super::{ConstantCallEvaluator, UnfoldableCalls, interpret::ConstantArgument};
     use crate::{
         assert_ssa_snapshot,
         ssa::{
             Ssa,
             interpreter::{Interpreter, InterpreterOptions, value::Value},
             ir::{
+                function::FunctionId,
                 types::{NumericType, Type},
                 value::ValueMapping,
             },
@@ -947,6 +954,7 @@ mod test {
             },
         },
     };
+    use rustc_hash::FxHashSet as HashSet;
     use std::collections::BTreeMap;
 
     // Do just 1 iteration in tests where we want to minimize the expected changes in the SSA.
@@ -1864,12 +1872,14 @@ mod test {
 
         // First demonstrate what happens if we don't revisit.
         let empty_functions_map = BTreeMap::new();
-        let mut empty_interpreter = Interpreter::new_from_functions(
+        let empty_interpreter = Interpreter::new_from_functions(
             &empty_functions_map,
             InterpreterOptions::default(),
             std::io::empty(),
         );
-        ssa.main_mut().constant_fold(false, 1, &mut empty_interpreter);
+        let mut evaluator =
+            ConstantCallEvaluator::new(empty_interpreter, UnfoldableCalls::default());
+        ssa.main_mut().constant_fold(false, 1, &mut evaluator);
 
         // 1. v9 is a duplicate of v5 -> hoisted to b0
         // 2. v13 is a duplicate of v9 -> immediately deduplicated because it's now in b0
@@ -4184,5 +4194,89 @@ mod test {
             Ok(vec![Value::field(106_u128.into())]),
             "the mutator observes its own copy"
         );
+    }
+
+    /// The calls in `main` cannot be folded, though each would run at execution time: `oracle`
+    /// makes an oracle call, which the interpreter does not perform, and `recurse(Field 1500)`
+    /// recurses deeper than the interpreter's 1000-frame call stack. `double(Field 2)` can be
+    /// folded.
+    const UNFOLDABLE_CALLS: &str = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = call f1(Field 1) -> Field
+            v1 = call f2(Field 1500) -> Field
+            v2 = call f3(Field 2) -> Field
+            v3 = add v0, v1
+            v4 = add v3, v2
+            return v4
+        }
+
+        brillig(inline) fn oracle f1 {
+          b0(v0: Field):
+            v1 = call get_value_oracle(v0) -> Field
+            return v1
+        }
+
+        brillig(inline) fn recurse f2 {
+          b0(v0: Field):
+            v1 = eq v0, Field 0
+            jmpif v1 then: b1(), else: b2()
+          b1():
+            jmp b3(Field 0)
+          b2():
+            v2 = sub v0, Field 1
+            v3 = call f2(v2) -> Field
+            v4 = add v3, Field 1
+            jmp b3(v4)
+          b3(v5: Field):
+            return v5
+        }
+
+        brillig(inline) fn double f3 {
+          b0(v0: Field):
+            v1 = mul v0, Field 2
+            return v1
+        }
+        ";
+
+    fn field_argument(value: u128) -> ConstantArgument {
+        ConstantArgument::Numeric(value.into(), NumericType::NativeField)
+    }
+
+    fn calls_in_main(ssa: &Ssa) -> usize {
+        let main = ssa.main();
+        main.dfg[main.entry_block()]
+            .instructions()
+            .iter()
+            .filter(|id| matches!(main.dfg[**id], super::Instruction::Call { .. }))
+            .count()
+    }
+
+    /// Constant Folding records on the `Ssa` each call it failed to evaluate, keyed by callee
+    /// and arguments, and folds the calls it can evaluate.
+    #[test]
+    fn unfoldable_calls_are_recorded_on_the_ssa() {
+        let mut ssa = Ssa::from_str(UNFOLDABLE_CALLS).unwrap();
+
+        ssa = ssa.fold_constants(DEFAULT_MAX_ITER);
+
+        let expected = HashSet::from_iter([
+            (FunctionId::test_new(1), vec![field_argument(1)]),
+            (FunctionId::test_new(2), vec![field_argument(1500)]),
+        ]);
+        assert_eq!(ssa.unfoldable_calls.0, expected);
+        assert_eq!(calls_in_main(&ssa), 2, "`double(Field 2)` is folded");
+    }
+
+    /// A call recorded as unfoldable is not interpreted again by a later pass.
+    /// `double(Field 2)` would fold to `Field 4`, so it staying a call shows it was skipped.
+    #[test]
+    fn recorded_unfoldable_call_is_not_interpreted_again() {
+        let mut ssa = Ssa::from_str(UNFOLDABLE_CALLS).unwrap();
+        ssa.unfoldable_calls.0.insert((FunctionId::test_new(3), vec![field_argument(2)]));
+
+        ssa = ssa.fold_constants(DEFAULT_MAX_ITER);
+
+        assert_eq!(calls_in_main(&ssa), 3, "no call is folded");
     }
 }

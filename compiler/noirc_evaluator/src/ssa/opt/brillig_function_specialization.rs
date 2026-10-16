@@ -239,6 +239,7 @@ fn optimize_clone(
     all_functions: &BTreeMap<FunctionId, Function>,
 ) {
     use crate::ssa::interpreter::{Interpreter, InterpreterOptions};
+    use crate::ssa::opt::constant_folding::{ConstantCallEvaluator, UnfoldableCalls};
 
     // Simplify CFG: fold constant jmpifs, merge blocks.
     function.simplify_function();
@@ -261,7 +262,8 @@ fn optimize_clone(
     );
     interpreter.interpret_globals().expect("ICE: Interpreter failed to interpret globals");
 
-    function.constant_fold(false, constant_folding_max_iter, &mut interpreter);
+    let mut evaluator = ConstantCallEvaluator::new(interpreter, UnfoldableCalls::default());
+    function.constant_fold(false, constant_folding_max_iter, &mut evaluator);
 
     // Simplify CFG again after folding to merge any newly-dead blocks.
     // Note: We skip per-function DIE here because it is intentionally private

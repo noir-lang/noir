@@ -6,9 +6,12 @@ use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
-use crate::ssa::ir::{
-    function::{Function, FunctionId},
-    value::Value,
+use crate::ssa::{
+    ir::{
+        function::{Function, FunctionId},
+        value::Value,
+    },
+    opt::constant_folding::UnfoldableCalls,
 };
 use noirc_frontend::hir_def::types::Type as HirType;
 
@@ -42,6 +45,10 @@ pub struct Ssa {
     /// ABI not the actual SSA IR.
     #[serde(skip)]
     pub error_selector_to_type: BTreeMap<ErrorSelector, HirType>,
+    /// Constant-argument Brillig calls that Constant Folding failed to evaluate. Shared by every
+    /// Constant Folding pass of the pipeline, so that none of them interprets the same call again.
+    #[serde(skip)]
+    pub(crate) unfoldable_calls: UnfoldableCalls,
 }
 
 impl Ssa {
@@ -62,6 +69,7 @@ impl Ssa {
             next_id: max_id.to_u32() + 1,
             entry_point_to_generated_index: BTreeMap::new(),
             error_selector_to_type: error_types,
+            unfoldable_calls: UnfoldableCalls::default(),
         }
     }
 

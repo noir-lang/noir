@@ -19,7 +19,7 @@ mod check_u128_mul_overflow;
 mod checked_to_unchecked;
 #[cfg(debug_assertions)]
 mod checks;
-mod constant_folding;
+pub(crate) mod constant_folding;
 mod defunctionalize;
 mod die;
 mod evaluate_static_assert_and_assert_constant;

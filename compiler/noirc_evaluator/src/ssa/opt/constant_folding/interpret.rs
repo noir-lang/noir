@@ -1,18 +1,85 @@
 use std::io::Empty;
 
+use acvm::FieldElement;
 use imbl::Vector;
 use iter_extended::vecmap;
+use rustc_hash::FxHashSet as HashSet;
 
 use crate::ssa::{
     interpreter::{Interpreter, value::Value as InterpreterValue},
     ir::{
         basic_block::BasicBlockId,
         dfg::DataFlowGraph,
+        function::FunctionId,
         instruction::Instruction,
-        types::Type,
+        types::{NumericType, Type},
         value::{Value, ValueId},
     },
 };
+
+/// Constant-argument Brillig calls that the interpreter failed to evaluate.
+///
+/// Many of these calls run fine when the program executes. The callee may make an oracle or
+/// `print` call, which the interpreter does not perform, recurse deeper than the interpreter's
+/// call stack allows, or need more steps than its step limit. Others would fail if they ran, but
+/// sit on a branch the program never takes. In every case the failure is decided by the callee
+/// and its arguments alone, since the interpreter is deterministic. This set lives on
+/// [`Ssa`][crate::ssa::ssa_gen::Ssa] so that every Constant Folding pass of the pipeline skips
+/// those calls, instead of interpreting each of them again up to the point where it fails.
+///
+/// Passes between two Constant Folding runs can change a callee, for instance by making it cheaper
+/// or removing a `print`, so a call skipped here might be foldable later. Giving up that fold
+/// bounds the work to one attempt per callee and arguments for the whole compilation.
+#[derive(Debug, Default, Clone)]
+pub(crate) struct UnfoldableCalls(pub(super) HashSet<(FunctionId, Vec<ConstantArgument>)>);
+
+/// A constant argument of a Brillig call, in a form that can be hashed.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) enum ConstantArgument {
+    Numeric(FieldElement, NumericType),
+    Array(Vec<ConstantArgument>, Type),
+}
+
+impl ConstantArgument {
+    fn from_value(value_id: ValueId, dfg: &DataFlowGraph) -> Self {
+        let typ = dfg.type_of_value(value_id);
+        match &*typ {
+            Type::Numeric(numeric_type) => {
+                let constant =
+                    dfg.get_numeric_constant(value_id).expect("Should have a numeric constant");
+                ConstantArgument::Numeric(constant, *numeric_type)
+            }
+            Type::Array(..) | Type::Vector(..) => {
+                let (elements, _) =
+                    dfg.get_array_constant(value_id).expect("Should have an array constant");
+                let elements = elements.iter().map(|e| Self::from_value(*e, dfg)).collect();
+                ConstantArgument::Array(elements, (*typ).clone())
+            }
+            Type::Reference(..) | Type::Function => {
+                unreachable!("Cannot be a constant value")
+            }
+        }
+    }
+}
+
+/// Evaluates Brillig calls with constant arguments so that Constant Folding can replace them
+/// with their results.
+pub(crate) struct ConstantCallEvaluator<'ssa> {
+    interpreter: Interpreter<'ssa, Empty>,
+    unfoldable: UnfoldableCalls,
+}
+
+impl<'ssa> ConstantCallEvaluator<'ssa> {
+    /// `interpreter` must already have interpreted the program's globals.
+    pub(crate) fn new(interpreter: Interpreter<'ssa, Empty>, unfoldable: UnfoldableCalls) -> Self {
+        Self { interpreter, unfoldable }
+    }
+
+    /// The unfoldable calls, including those this evaluator found.
+    pub(crate) fn into_unfoldable_calls(self) -> UnfoldableCalls {
+        self.unfoldable
+    }
+}
 
 /// Checks if the given instruction is a call to a function with all constant arguments.
 /// If so, we can try to evaluate that function and replace the results with the evaluation results.
@@ -20,9 +87,9 @@ pub(super) fn try_interpret_call(
     instruction: &Instruction,
     block: BasicBlockId,
     dfg: &mut DataFlowGraph,
-    interpreter: &mut Interpreter<Empty>,
+    evaluator: &mut ConstantCallEvaluator,
 ) -> Option<Vec<ValueId>> {
-    let evaluation_result = evaluate_const_argument_call(instruction, interpreter, dfg);
+    let evaluation_result = evaluate_const_argument_call(instruction, evaluator, dfg);
 
     match evaluation_result {
         EvaluationResult::NotABrilligCall | EvaluationResult::CannotEvaluate => None,
@@ -52,9 +119,10 @@ enum EvaluationResult {
 /// We do this by interpreting the function's SSA to calculate the result.
 fn evaluate_const_argument_call(
     instruction: &Instruction,
-    interpreter: &mut Interpreter<Empty>,
+    evaluator: &mut ConstantCallEvaluator,
     dfg: &DataFlowGraph,
 ) -> EvaluationResult {
+    let interpreter = &mut evaluator.interpreter;
     let Instruction::Call { func: func_id, arguments } = instruction else {
         return EvaluationResult::NotABrilligCall;
     };
@@ -73,14 +141,21 @@ fn evaluate_const_argument_call(
         return EvaluationResult::CannotEvaluate;
     }
 
+    let call = (*func_id, vecmap(arguments, |arg| ConstantArgument::from_value(*arg, dfg)));
+    if evaluator.unfoldable.0.contains(&call) {
+        return EvaluationResult::CannotEvaluate;
+    }
+
     let interpreter_args =
         arguments.iter().map(|arg| const_ir_value_to_interpreter_value(*arg, dfg)).collect();
 
-    let Ok(result_values) = interpreter.interpret_function(*func_id, interpreter_args) else {
-        return EvaluationResult::CannotEvaluate;
-    };
-
-    EvaluationResult::Evaluated(result_values)
+    match interpreter.interpret_function(*func_id, interpreter_args) {
+        Ok(result_values) => EvaluationResult::Evaluated(result_values),
+        Err(_) => {
+            evaluator.unfoldable.0.insert(call);
+            EvaluationResult::CannotEvaluate
+        }
+    }
 }
 
 /// Converts a constant [SSA value][Value] into an [interpreter value][InterpreterValue] for execution.
