@@ -72,10 +72,29 @@
     pub fn <a href="#sub" class="fn">sub</a>(self, other: Self) -> Self;
 }</code></pre>
 
+<div class="comments">
+<p>The binary <code>-</code> operator.</p>
+<p>Implemented for <code>Field</code> and the integer types. <code>Field</code> subtraction is modulo the field's prime,
+so <code>0 - 1</code> is the largest field element. Integer subtraction fails if the result doesn't fit in
+the type, for example when an unsigned subtraction would go below zero; use <a href="../../std/ops/trait.WrappingSub.html"><code>WrappingSub</code></a> to wrap
+around instead.</p>
+<p>Example:</p>
+<pre><code><span class="kw">assert_eq</span>(<span class="number">5_u8</span> - <span class="number">3</span>, <span class="number">2</span>);
+
+<span class="comment">// Field subtraction wraps around the prime.</span>
+<span class="kw">let</span> minus_one: Field = <span class="number">0</span> - <span class="number">1</span>;
+<span class="kw">assert_eq</span>(minus_one + <span class="number">1</span>, <span class="number">0</span>);</code></pre>
+<p>Unsigned subtraction below zero fails:</p>
+<pre><code><span class="kw">let</span> zero: u8 = <span class="number">0</span>;
+<span class="comment">// Fails: -1 doesn't fit in a `u8`.</span>
+<span class="kw">let</span> _ = zero - <span class="number">1</span>;</code></pre></div>
 <h2>Required methods</h2>
 <div class="padded-methods"><code id="sub" class="code-header">pub fn <a href="#sub" class="fn">sub</a>(self, other: Self) -> Self</code>
 
-</div><h2>Implementors</h2>
+<div class="padded-description"><div class="comments">
+<p>Returns <code>self - other</code>.</p>
+</div>
+</div></div><h2>Implementors</h2>
 <h3 id="impl-Sub-for-EmbeddedCurvePoint"><code class="code-header">impl <a href="../../std/ops/trait.Sub.html" class="trait">Sub</a> for <a href="../../std/embedded_curve_ops/struct.EmbeddedCurvePoint.html" class="struct">EmbeddedCurvePoint</a></code></h3>
 
 <h3 id="impl-Sub-for-Field"><code class="code-header">impl <a href="../../std/ops/trait.Sub.html" class="trait">Sub</a> for <a href="../../std/primitive.Field.html" class="primitive">Field</a></code></h3>

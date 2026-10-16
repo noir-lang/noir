@@ -71,10 +71,19 @@
     pub fn <a href="#bitor" class="fn">bitor</a>(self, other: Self) -> Self;
 }</code></pre>
 
+<div class="comments">
+<p>The <code>|</code> operator: bitwise or.</p>
+<p>Implemented for <code>bool</code> and the integer types. <code>Field</code> doesn't implement it.</p>
+<p>Example:</p>
+<pre><code><span class="kw">assert_eq</span>(<span class="number">0x0c_u8</span> | <span class="number">0x0a</span>, <span class="number">0x0e</span>);
+<span class="kw">assert_eq</span>(<span class="bool-var">true</span> | <span class="bool-var">false</span>, <span class="bool-var">true</span>);</code></pre></div>
 <h2>Required methods</h2>
 <div class="padded-methods"><code id="bitor" class="code-header">pub fn <a href="#bitor" class="fn">bitor</a>(self, other: Self) -> Self</code>
 
-</div><h2>Implementors</h2>
+<div class="padded-description"><div class="comments">
+<p>Returns <code>self | other</code>.</p>
+</div>
+</div></div><h2>Implementors</h2>
 <h3 id="impl-BitOr-for-bool"><code class="code-header">impl <a href="../../std/ops/trait.BitOr.html" class="trait">BitOr</a> for <a href="../../std/primitive.bool.html" class="primitive">bool</a></code></h3>
 
 <h3 id="impl-BitOr-for-i16"><code class="code-header">impl <a href="../../std/ops/trait.BitOr.html" class="trait">BitOr</a> for <a href="../../std/primitive.i16.html" class="primitive">i16</a></code></h3>

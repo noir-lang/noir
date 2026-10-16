@@ -86,11 +86,35 @@
 
 <div class="comments">
 <p>Create a new <code>Self</code> value from the given <code>T</code> value</p>
-</div>
+<p>The standard library implements <code>From</code> only for conversions that can't lose information:
+widening an integer to a larger type of the same signedness, an unsigned integer to <code>Field</code>,
+and <code>bool</code> to an integer or <code>Field</code>. For conversions that can truncate, use <code>as</code> or
+<a href="../../std/convert/trait.AsPrimitive.html"><code>AsPrimitive</code></a>. Implementing <code>From</code> also provides <a href="../../std/convert/trait.Into.html"><code>Into</code></a> in the other direction.</p>
+<p>Example:</p>
+<pre><code><span class="kw">struct</span> Meters {
+    value: u32,
+}
+
+<span class="kw">impl</span> From&lt;u32&gt; <span class="kw">for</span> Meters {
+    <span class="kw">fn</span> from(value: u32) -&gt; Meters {
+        Meters { value }
+    }
+}
+
+<span class="kw">fn</span> main() {
+    <span class="kw">let</span> m = Meters::from(<span class="number">5</span>);
+    <span class="kw">assert_eq</span>(m.value, <span class="number">5</span>);
+
+    <span class="kw">let</span> wide = u64::from(<span class="number">7_u8</span>);
+    <span class="kw">assert_eq</span>(wide, <span class="number">7</span>);
+}</code></pre></div>
 <h2>Required methods</h2>
 <div class="padded-methods"><code id="from" class="code-header">pub fn <a href="#from" class="fn">from</a>(input: T) -> Self</code>
 
-</div><h2>Implementors</h2>
+<div class="padded-description"><div class="comments">
+<p>Converts <code>input</code> to <code>Self</code>.</p>
+</div>
+</div></div><h2>Implementors</h2>
 <h3 id="impl-From&lt;[T; Len]&gt;-for-BoundedVec<T, MaxLen>"><code class="code-header">impl&lt;let Len: <a href="../../std/primitive.u32.html" class="primitive">u32</a>, let MaxLen: <a href="../../std/primitive.u32.html" class="primitive">u32</a>, T&gt; <a href="../../std/convert/trait.From.html" class="trait">From</a>&lt;[T; Len]&gt; for <a href="../../std/collections/bounded_vec/struct.BoundedVec.html" class="struct">BoundedVec</a>&lt;T, MaxLen&gt;</code></h3>
 
 <h3 id="impl-From&lt;bool&gt;-for-Field"><code class="code-header">impl <a href="../../std/convert/trait.From.html" class="trait">From</a>&lt;<a href="../../std/primitive.bool.html" class="primitive">bool</a>&gt; for <a href="../../std/primitive.Field.html" class="primitive">Field</a></code></h3>

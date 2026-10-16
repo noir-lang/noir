@@ -71,10 +71,24 @@
     pub fn <a href="#mul" class="fn">mul</a>(self, other: Self) -> Self;
 }</code></pre>
 
+<div class="comments">
+<p>The <code>*</code> operator.</p>
+<p>Implemented for <code>Field</code> and the integer types. <code>Field</code> multiplication is modulo the field's
+prime. Integer multiplication fails if the result doesn't fit in the type; use <a href="../../std/ops/trait.WrappingMul.html"><code>WrappingMul</code></a> to
+wrap around instead.</p>
+<p>Example:</p>
+<pre><code><span class="kw">assert_eq</span>(<span class="number">4_u8</span> * <span class="number">3</span>, <span class="number">12</span>);
+<span class="kw">assert_eq</span>(-<span class="number">4_i8</span> * <span class="number">3</span>, -<span class="number">12</span>);</code></pre>
+<p>A product that doesn't fit in the type fails; use <a href="../../std/ops/trait.WrappingMul.html"><code>WrappingMul</code></a> to wrap around:</p>
+<pre><code><span class="comment">// Fails: 256 doesn't fit in a `u8`.</span>
+<span class="kw">let</span> _ = <span class="number">16_u8</span> * <span class="number">16</span>;</code></pre></div>
 <h2>Required methods</h2>
 <div class="padded-methods"><code id="mul" class="code-header">pub fn <a href="#mul" class="fn">mul</a>(self, other: Self) -> Self</code>
 
-</div><h2>Implementors</h2>
+<div class="padded-description"><div class="comments">
+<p>Returns <code>self * other</code>.</p>
+</div>
+</div></div><h2>Implementors</h2>
 <h3 id="impl-Mul-for-Field"><code class="code-header">impl <a href="../../std/ops/trait.Mul.html" class="trait">Mul</a> for <a href="../../std/primitive.Field.html" class="primitive">Field</a></code></h3>
 
 <h3 id="impl-Mul-for-i16"><code class="code-header">impl <a href="../../std/ops/trait.Mul.html" class="trait">Mul</a> for <a href="../../std/primitive.i16.html" class="primitive">i16</a></code></h3>
