@@ -70,7 +70,26 @@
 <div class="comments">
 <p>Represents a value of type T or its absence.
 Use <code>Option::some(value)</code> to construct a value or <code>Option::none()</code> to record the absence of one.</p>
-</div>
+<p><code>Option</code> is in the prelude. A <code>None</code> still holds a value of type <code>T</code> internally, and only
+<a href="../../std/option/struct.Option.html#unwrap_unchecked"><code>Option::unwrap_unchecked</code></a> exposes it. <code>Option::none()</code> sets it to the zeroed value of <code>T</code>, but
+nothing constrains it in general: an <code>Option</code> returned by unconstrained code or passed in as a
+program input can hold any value in a <code>None</code>. <code>Option</code> implements <code>Eq</code>,
+<code>Ord</code> (with <code>None</code> less than any <code>Some</code>), <code>Hash</code> and <code>Default</code> (returning <code>None</code>).</p>
+<p>Example:</p>
+<pre><code><span class="kw">fn</span> find_even(values: [u32; <span class="number">3</span>]) -&gt; Option&lt;u32&gt; {
+    <span class="kw">let</span> <span class="kw">mut</span> result = Option::none();
+    <span class="kw">for</span> value <span class="kw">in</span> values {
+        <span class="kw">if</span> result.is_none() & (value % <span class="number">2</span> == <span class="number">0</span>) {
+            result = Option::some(value);
+        }
+    }
+    result
+}
+
+<span class="kw">fn</span> main() {
+    <span class="kw">assert_eq</span>(find_even([<span class="number">1</span>, <span class="number">4</span>, <span class="number">6</span>]), Option::some(<span class="number">4</span>));
+    <span class="kw">assert</span>(find_even([<span class="number">1</span>, <span class="number">3</span>, <span class="number">5</span>]).is_none());
+}</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl&lt;T&gt; <a href="../../std/option/struct.Option.html" class="struct">Option</a>&lt;T&gt;</code></h3>
 
@@ -78,45 +97,78 @@ Use <code>Option::some(value)</code> to construct a value or <code>Option::none(
 
 <div class="padded-description"><div class="comments">
 <p>Constructs a None value</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">let</span> x: Option&lt;u32&gt; = Option::none();
+<span class="kw">assert</span>(x.is_none());</code></pre></div>
 </div><code id="some" class="code-header">pub fn <a href="#some" class="fn">some</a>(_value: T) -> Self</code>
 
 <div class="padded-description"><div class="comments">
 <p>Constructs a Some wrapper around the given value</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">let</span> x = Option::some(<span class="number">5</span>);
+<span class="kw">assert</span>(x.is_some());
+<span class="kw">assert_eq</span>(x.unwrap(), <span class="number">5</span>);</code></pre></div>
 </div><code id="is_none" class="code-header">pub fn <a href="#is_none" class="fn">is_none</a>(&self) -> <a href="../../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>True if this Option is None</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">assert</span>(Option::&lt;u32&gt;::none().is_none());
+<span class="kw">assert</span>(!Option::some(<span class="number">5</span>).is_none());</code></pre></div>
 </div><code id="is_some" class="code-header">pub fn <a href="#is_some" class="fn">is_some</a>(&self) -> <a href="../../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>True if this Option is Some</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">assert</span>(Option::some(<span class="number">5</span>).is_some());
+<span class="kw">assert</span>(!Option::&lt;u32&gt;::none().is_some());</code></pre></div>
 </div><code id="unwrap" class="code-header">pub fn <a href="#unwrap" class="fn">unwrap</a>(self) -> T</code>
 
 <div class="padded-description"><div class="comments">
 <p>Asserts <code>self.is_some()</code> and returns the wrapped value.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">assert_eq</span>(Option::some(<span class="number">5</span>).unwrap(), <span class="number">5</span>);</code></pre>
+<h4>Failures</h4>
+<p>Fails if <code>self</code> is <code>None</code>.</p>
+<pre><code><span class="kw">let</span> x: Option&lt;u32&gt; = Option::none();
+<span class="comment">// Fails: `x` is `None`.</span>
+<span class="kw">let</span> _ = x.unwrap();</code></pre></div>
 </div><code id="unwrap_unchecked" class="code-header">pub fn <a href="#unwrap_unchecked" class="fn">unwrap_unchecked</a>(self) -> T</code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns the inner value without asserting <code>self.is_some()</code>
 Note that if <code>self</code> is <code>None</code>, there is no guarantee what value will be returned,
 only that it will be of type <code>T</code>.</p>
-</div>
+<p>Use it only where <code>self.is_some()</code> has already been established, for example to avoid
+repeating an assertion.</p>
+<p>Example:</p>
+<pre><code><span class="kw">fn</span> value_or_zero(x: Option&lt;u32&gt;) -&gt; u32 {
+    <span class="kw">if</span> x.is_some() {
+        x.unwrap_unchecked()
+    } <span class="kw">else</span> {
+        <span class="number">0</span>
+    }
+}
+
+<span class="kw">fn</span> main() {
+    <span class="kw">assert_eq</span>(value_or_zero(Option::some(<span class="number">5</span>)), <span class="number">5</span>);
+    <span class="kw">assert_eq</span>(value_or_zero(Option::none()), <span class="number">0</span>);
+}</code></pre></div>
 </div><code id="unwrap_or" class="code-header">pub fn <a href="#unwrap_or" class="fn">unwrap_or</a>(self, default: T) -> T</code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns the wrapped value if <code>self.is_some()</code>. Otherwise, returns the given default value.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">assert_eq</span>(Option::some(<span class="number">5</span>).unwrap_or(<span class="number">0</span>), <span class="number">5</span>);
+<span class="kw">assert_eq</span>(Option::none().unwrap_or(<span class="number">0</span>), <span class="number">0</span>);</code></pre></div>
 </div><code id="unwrap_or_else" class="code-header">pub fn <a href="#unwrap_or_else" class="fn">unwrap_or_else</a>&lt;Env&gt;(self, default: fn[Env]() -> T) -> T</code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns the wrapped value if <code>self.is_some()</code>. Otherwise, calls the given function to return
 a default value.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">assert_eq</span>(Option::some(<span class="number">5</span>).unwrap_or_else(|| <span class="number">0</span>), <span class="number">5</span>);
+<span class="kw">assert_eq</span>(Option::none().unwrap_or_else(|| <span class="number">7</span>), <span class="number">7</span>);</code></pre></div>
 </div><code id="expect" class="code-header">pub fn <a href="#expect" class="fn">expect</a>&lt;let N: <a href="../../std/primitive.u32.html" class="primitive">u32</a>, MessageTypes&gt;(
     self,
     message: <a href="../../std/primitive.fmtstr.html" class="primitive">fmtstr</a>&lt;N, MessageTypes&gt;,
@@ -124,17 +176,28 @@ a default value.</p>
 
 <div class="padded-description"><div class="comments">
 <p>Asserts <code>self.is_some()</code> with a provided custom message and returns the contained <code>Some</code> value</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">let</span> x = Option::some(<span class="number">5</span>);
+<span class="kw">assert_eq</span>(x.expect(<span class="string">f"</span><span class="string">x should be set</span><span class="string">"</span>), <span class="number">5</span>);</code></pre>
+<h4>Failures</h4>
+<p>Fails with <code>message</code> if <code>self</code> is <code>None</code>.</p>
+<pre><code><span class="kw">let</span> x: Option&lt;u32&gt; = Option::none();
+<span class="comment">// Fails with the message "x should be set".</span>
+<span class="kw">let</span> _ = x.expect(<span class="string">f"</span><span class="string">x should be set</span><span class="string">"</span>);</code></pre></div>
 </div><code id="map" class="code-header">pub fn <a href="#map" class="fn">map</a>&lt;U, Env&gt;(self, f: fn[Env](T) -> U) -> <a href="../../std/option/struct.Option.html" class="struct">Option</a>&lt;U&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If self is <code>Some(x)</code>, this returns <code>Some(f(x))</code>. Otherwise, this returns <code>None</code>.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">assert_eq</span>(Option::some(<span class="number">5</span>).map(|x| x * <span class="number">2</span>), Option::some(<span class="number">10</span>));
+<span class="kw">assert</span>(Option::&lt;u32&gt;::none().map(|x| x * <span class="number">2</span>).is_none());</code></pre></div>
 </div><code id="map_or" class="code-header">pub fn <a href="#map_or" class="fn">map_or</a>&lt;U, Env&gt;(self, default: U, f: fn[Env](T) -> U) -> U</code>
 
 <div class="padded-description"><div class="comments">
 <p>If self is <code>Some(x)</code>, this returns <code>f(x)</code>. Otherwise, this returns the given default value.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">assert_eq</span>(Option::some(<span class="number">5</span>).map_or(<span class="number">0</span>, |x| x * <span class="number">2</span>), <span class="number">10</span>);
+<span class="kw">assert_eq</span>(Option::none().map_or(<span class="number">0</span>, |x: u32| x * <span class="number">2</span>), <span class="number">0</span>);</code></pre></div>
 </div><code id="map_or_else" class="code-header">pub fn <a href="#map_or_else" class="fn">map_or_else</a>&lt;U, Env1, Env2&gt;(
     self,
     default: fn[Env1]() -> U,
@@ -143,43 +206,65 @@ a default value.</p>
 
 <div class="padded-description"><div class="comments">
 <p>If self is <code>Some(x)</code>, this returns <code>f(x)</code>. Otherwise, this returns <code>default()</code>.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">assert_eq</span>(Option::some(<span class="number">5</span>).map_or_else(|| <span class="number">0</span>, |x| x * <span class="number">2</span>), <span class="number">10</span>);
+<span class="kw">assert_eq</span>(Option::none().map_or_else(|| <span class="number">0</span>, |x: u32| x * <span class="number">2</span>), <span class="number">0</span>);</code></pre></div>
 </div><code id="and" class="code-header">pub fn <a href="#and" class="fn">and</a>(self, other: Self) -> Self</code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns None if self is None. Otherwise, this returns <code>other</code>.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">assert_eq</span>(Option::some(<span class="number">1</span>).and(Option::some(<span class="number">2</span>)), Option::some(<span class="number">2</span>));
+<span class="kw">assert</span>(Option::&lt;u32&gt;::none().and(Option::some(<span class="number">2</span>)).is_none());</code></pre></div>
 </div><code id="and_then" class="code-header">pub fn <a href="#and_then" class="fn">and_then</a>&lt;U, Env&gt;(self, f: fn[Env](T) -> <a href="../../std/option/struct.Option.html" class="struct">Option</a>&lt;U&gt;) -> <a href="../../std/option/struct.Option.html" class="struct">Option</a>&lt;U&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>If self is None, this returns None. Otherwise, this calls the given function
 with the Some value contained within self, and returns the result of that call.</p>
 <p>In some languages this function is called <code>flat_map</code> or <code>bind</code>.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">let</span> halve = |x: u32| <span class="kw">if</span> x % <span class="number">2</span> == <span class="number">0</span> { Option::some(x / <span class="number">2</span>) } <span class="kw">else</span> { Option::none() };
+<span class="kw">assert_eq</span>(Option::some(<span class="number">8</span>).and_then(halve), Option::some(<span class="number">4</span>));
+<span class="kw">assert</span>(Option::some(<span class="number">3</span>).and_then(halve).is_none());</code></pre></div>
 </div><code id="or" class="code-header">pub fn <a href="#or" class="fn">or</a>(self, other: Self) -> Self</code>
 
 <div class="padded-description"><div class="comments">
 <p>If self is Some, return self. Otherwise, return <code>other</code>.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">assert_eq</span>(Option::some(<span class="number">1</span>).or(Option::some(<span class="number">2</span>)), Option::some(<span class="number">1</span>));
+<span class="kw">assert_eq</span>(Option::none().or(Option::some(<span class="number">2</span>)), Option::some(<span class="number">2</span>));</code></pre></div>
 </div><code id="or_else" class="code-header">pub fn <a href="#or_else" class="fn">or_else</a>&lt;Env&gt;(self, default: fn[Env]() -> Self) -> Self</code>
 
 <div class="padded-description"><div class="comments">
 <p>If self is Some, return self. Otherwise, return <code>default()</code>.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">assert_eq</span>(Option::some(<span class="number">1</span>).or_else(|| Option::some(<span class="number">2</span>)), Option::some(<span class="number">1</span>));
+<span class="kw">assert_eq</span>(Option::none().or_else(|| Option::some(<span class="number">2</span>)), Option::some(<span class="number">2</span>));</code></pre></div>
 </div><code id="xor" class="code-header">pub fn <a href="#xor" class="fn">xor</a>(self, other: Self) -> Self</code>
 
-<code id="filter" class="code-header">pub fn <a href="#filter" class="fn">filter</a>&lt;Env&gt;(self, predicate: fn[Env](T) -> <a href="../../std/primitive.bool.html" class="primitive">bool</a>) -> Self</code>
+<div class="padded-description"><div class="comments">
+<p>If only one of the two Options is Some, return that option.
+Otherwise, if both options are Some or both are None, None is returned.</p>
+<p>Example:</p>
+<pre><code><span class="kw">assert_eq</span>(Option::some(<span class="number">1</span>).xor(Option::none()), Option::some(<span class="number">1</span>));
+<span class="kw">assert</span>(Option::some(<span class="number">1</span>).xor(Option::some(<span class="number">2</span>)).is_none());
+<span class="kw">assert</span>(Option::&lt;u32&gt;::none().xor(Option::none()).is_none());</code></pre></div>
+</div><code id="filter" class="code-header">pub fn <a href="#filter" class="fn">filter</a>&lt;Env&gt;(self, predicate: fn[Env](T) -> <a href="../../std/primitive.bool.html" class="primitive">bool</a>) -> Self</code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns <code>Some(x)</code> if self is <code>Some(x)</code> and <code>predicate(x)</code> is true.
 Otherwise, this returns <code>None</code></p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">assert_eq</span>(Option::some(<span class="number">4</span>).filter(|x| x % <span class="number">2</span> == <span class="number">0</span>), Option::some(<span class="number">4</span>));
+<span class="kw">assert</span>(Option::some(<span class="number">3</span>).filter(|x| x % <span class="number">2</span> == <span class="number">0</span>).is_none());</code></pre></div>
 </div><code id="flatten" class="code-header">pub fn <a href="#flatten" class="fn">flatten</a>(option: <a href="../../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;) -> Self</code>
 
 <div class="padded-description"><div class="comments">
 <p>Flattens an Option&lt;Option<T>&gt; into a Option<T>.
 This returns None if the outer Option is None. Otherwise, this returns the inner Option.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">assert_eq</span>(Option::flatten(Option::some(Option::some(<span class="number">5</span>))), Option::some(<span class="number">5</span>));
+<span class="kw">assert</span>(Option::flatten(Option::some(Option::&lt;u32&gt;::none())).is_none());</code></pre></div>
 </div></div><h2>Trait implementations</h2>
 <h3 id="impl-Default-for-Option<T>"><code class="code-header">impl&lt;T&gt; <a href="../../std/default/trait.Default.html" class="trait">Default</a> for <a href="../../std/option/struct.Option.html" class="struct">Option</a>&lt;T&gt;</code></h3>
 
