@@ -163,6 +163,7 @@ returning a new array containing the mapped elements.</p>
 <p>Example:</p>
 <pre><code><span class="kw">let</span> a = [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>];
 <span class="kw">let</span> <span class="kw">mut</span> sum = <span class="number">0</span>;
+<span class="comment">// A closure can't assign to a captured `mut` variable, so it writes through a reference.</span>
 <span class="kw">let</span> sum_ref = &<span class="kw">mut</span> sum;
 a.for_each(|x| {
     *sum_ref += x;
@@ -243,7 +244,7 @@ the array, then the second, and so on. For a given call the expected result woul
 
 <div class="padded-description"><div class="comments">
 <p>Returns a new array sorted in ascending order. The original array remains untouched.</p>
-<p>It works for any element type that implements <code>Ord</code>, using <code>&lt;=</code>. <code>Field</code> doesn't implement
+<p>It works for any element type that implements <code>Ord</code> and <code>Eq</code>, using <code>&lt;=</code>. <code>Field</code> doesn't implement
 <code>Ord</code>, so to sort fields, or to sort by another order, use <a href="../std/primitive.array.html#sort_via"><code>Self::sort_via</code></a>. The result
 is constrained in the same way as <code>sort_via</code>'s.</p>
 <p>Example:</p>
@@ -260,7 +261,7 @@ is constrained in the same way as <code>sort_via</code>'s.</p>
 <p>Returns a new sorted array by sorting it with a custom comparison function.
 The original array remains untouched.
 The ordering function must return true if the first argument should be sorted to be before the second argument or is equal to the second argument.</p>
-<p>Using this method with an operator like <code>&lt;</code> that does not return <code>true</code> for equal values will result in an assertion failure for arrays with equal elements.</p>
+<p>In constrained code, using this method with an operator like <code>&lt;</code> that does not return <code>true</code> for equal values will result in an assertion failure for arrays with equal elements.</p>
 <p>The sort itself runs in unconstrained code. In constrained code, the result is then checked
 to be a permutation of the input in which every adjacent pair satisfies <code>ordering</code>, so it is
 fully constrained.</p>
@@ -272,12 +273,14 @@ fully constrained.</p>
 <span class="kw">let</span> sorted_descending = arr.sort_via(|a, b| a &gt;= b);
 <span class="kw">assert_eq</span>(sorted_descending, [<span class="number">42</span>, <span class="number">32</span>]);
 
-<span class="comment">// Fields have no `&lt;=`, so compare their integer values with `Field::lt`.</span>
+<span class="comment">// Fields have no `&lt;=`, so compare their integer values with `Field::lt`:</span>
+<span class="comment">// `!b.lt(a)` is `a &lt;= b`.</span>
 <span class="kw">let</span> fields: [Field; <span class="number">3</span>] = [<span class="number">3</span>, <span class="number">1</span>, <span class="number">2</span>];
 <span class="kw">assert_eq</span>(fields.sort_via(|a: Field, b| !b.lt(a)), [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>]);</code></pre>
 <h4>Failures</h4>
-<p>Fails if, after sorting, <code>ordering</code> returns <code>false</code> for some pair of adjacent elements: for
-example, if <code>ordering</code> is <code>&lt;</code> and the array has two equal elements.</p>
+<p>In constrained code, fails if, after sorting, <code>ordering</code> returns <code>false</code> for some pair of
+adjacent elements: for example, if <code>ordering</code> is <code>&lt;</code> and the array has two equal elements.
+Unconstrained code doesn't check the result.</p>
 <pre><code><span class="comment">// Fails: `&lt;` returns `false` for the two equal elements.</span>
 <span class="kw">let</span> _ = [<span class="number">2_u32</span>, <span class="number">1</span>, <span class="number">2</span>].sort_via(|a, b| a &lt; b);</code></pre></div>
 </div></div><h3><code class="code-header">impl&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt; [<a href="../std/primitive.u8.html" class="primitive">u8</a>; N]</code></h3>

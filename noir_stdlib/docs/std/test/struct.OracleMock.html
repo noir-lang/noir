@@ -71,7 +71,9 @@ their methods are unconstrained.</p>
 
 <div class="padded-description"><div class="comments">
 <p>Creates a mock for the oracle called <code>name</code>.</p>
-<p>Until it is cleared, calls to that oracle are answered by this mock.</p>
+<p>Until it is cleared or reaches its <a href="../../std/test/struct.OracleMock.html#times"><code>OracleMock::times</code></a> limit, the mock answers the calls to
+that oracle that match its parameters (see <a href="../../std/test/struct.OracleMock.html#with_params"><code>OracleMock::with_params</code></a>). When several mocks
+match a call, the one created first answers it.</p>
 <p>Example:</p>
 <pre><code><span class="kw">use</span> std::test::OracleMock;
 
@@ -79,14 +81,17 @@ their methods are unconstrained.</p>
 <span class="kw">unconstrained</span> <span class="kw">fn</span> get_value(x: Field) -&gt; Field {}
 
 <span class="kw">unconstrained</span> <span class="kw">fn</span> main() {
-    <span class="kw">let</span> _mock = OracleMock::mock(<span class="string">"get_value"</span>).returns(<span class="number">42</span>);
-    <span class="kw">assert_eq</span>(get_value(<span class="number">1</span>), <span class="number">42</span>);
+    <span class="kw">let</span> _first = OracleMock::mock(<span class="string">"get_value"</span>).returns(<span class="number">1</span>);
+    <span class="kw">let</span> _second = OracleMock::mock(<span class="string">"get_value"</span>).returns(<span class="number">2</span>);
+    <span class="comment">// `_first` was created first, so it answers.</span>
+    <span class="kw">assert_eq</span>(get_value(<span class="number">0</span>), <span class="number">1</span>);
 }</code></pre></div>
 </div><code id="with_params" class="code-header">pub unconstrained fn <a href="#with_params" class="fn">with_params</a>&lt;P&gt;(self, params: P) -> Self</code>
 
 <div class="padded-description"><div class="comments">
 <p>Makes the mock answer only calls whose arguments equal <code>params</code>.</p>
-<p>For an oracle with several parameters, pass them as a tuple.</p>
+<p>For an oracle with several parameters, pass them as a tuple. For a single parameter, the value
+and a one-element tuple (<code>(1,)</code>) are equivalent.</p>
 <p>Example:</p>
 <pre><code><span class="kw">use</span> std::test::OracleMock;
 
@@ -115,7 +120,7 @@ their methods are unconstrained.</p>
 </div><code id="returns" class="code-header">pub unconstrained fn <a href="#returns" class="fn">returns</a>&lt;R&gt;(self, returns: R) -> Self</code>
 
 <div class="padded-description"><div class="comments">
-<p>Sets the value the mock returns.</p>
+<p>Sets the value the mock returns. Calling it again replaces that value.</p>
 <p>Example:</p>
 <pre><code><span class="kw">use</span> std::test::OracleMock;
 
@@ -123,8 +128,10 @@ their methods are unconstrained.</p>
 <span class="kw">unconstrained</span> <span class="kw">fn</span> get_value(x: Field) -&gt; Field {}
 
 <span class="kw">unconstrained</span> <span class="kw">fn</span> main() {
-    <span class="kw">let</span> _mock = OracleMock::mock(<span class="string">"get_value"</span>).returns(<span class="number">42</span>);
+    <span class="kw">let</span> mock = OracleMock::mock(<span class="string">"get_value"</span>).returns(<span class="number">42</span>);
     <span class="kw">assert_eq</span>(get_value(<span class="number">1</span>), <span class="number">42</span>);
+    <span class="kw">let</span> _ = mock.returns(<span class="number">43</span>);
+    <span class="kw">assert_eq</span>(get_value(<span class="number">1</span>), <span class="number">43</span>);
 }</code></pre></div>
 </div><code id="times" class="code-header">pub unconstrained fn <a href="#times" class="fn">times</a>(self, times: <a href="../../std/primitive.u64.html" class="primitive">u64</a>) -> Self</code>
 
@@ -138,9 +145,12 @@ as if <a href="../../std/test/struct.OracleMock.html#clear"><code>OracleMock::cl
 <span class="kw">unconstrained</span> <span class="kw">fn</span> get_value(x: Field) -&gt; Field {}
 
 <span class="kw">unconstrained</span> <span class="kw">fn</span> main() {
-    <span class="kw">let</span> mock = OracleMock::mock(<span class="string">"get_value"</span>).returns(<span class="number">42</span>).times(<span class="number">2</span>);
-    <span class="kw">assert_eq</span>(get_value(<span class="number">1</span>), <span class="number">42</span>);
-    <span class="kw">assert_eq</span>(mock.times_called(), <span class="number">1</span>);
+    <span class="kw">let</span> _first = OracleMock::mock(<span class="string">"get_value"</span>).returns(<span class="number">1</span>).times(<span class="number">2</span>);
+    <span class="kw">let</span> _second = OracleMock::mock(<span class="string">"get_value"</span>).returns(<span class="number">2</span>);
+    <span class="kw">assert_eq</span>(get_value(<span class="number">0</span>), <span class="number">1</span>);
+    <span class="kw">assert_eq</span>(get_value(<span class="number">0</span>), <span class="number">1</span>);
+    <span class="comment">// `_first` has answered twice and is removed, so `_second` answers.</span>
+    <span class="kw">assert_eq</span>(get_value(<span class="number">0</span>), <span class="number">2</span>);
 }</code></pre></div>
 </div><code id="clear" class="code-header">pub unconstrained fn <a href="#clear" class="fn">clear</a>(self)</code>
 

@@ -486,14 +486,14 @@ mod completion_tests {
 
         // `assert_constant`'s documentation is its stdlib doc comment, so only check that it's
         // there: editing the stdlib docs shouldn't break this test.
-        for item in &mut items {
-            if item.label == "assert_constant(…)" {
-                assert!(
-                    item.documentation.take().is_some(),
-                    "expected `assert_constant` to have documentation"
-                );
-            }
-        }
+        let assert_constant = items
+            .iter_mut()
+            .find(|item| item.label == "assert_constant(…)")
+            .expect("expected `assert_constant` among the completions");
+        assert!(
+            assert_constant.documentation.take().is_some(),
+            "expected `assert_constant` to have documentation"
+        );
 
         assert_items_match(
             items,

@@ -11,7 +11,7 @@ comptime global BN254_MODULUS_BE_BYTES: [u8] = [
 /// Example:
 ///
 /// ```noir
-/// // The examples are compiled for BN254.
+/// // nargo's default field is BN254.
 /// assert(std::compat::is_bn254());
 /// ```
 pub fn is_bn254() -> bool {

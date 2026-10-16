@@ -785,7 +785,7 @@ window.searchIndex = [
   {"name":"retain","path":"std::collections::umap::UHashMap","kind":"method","url":"std/collections/umap/struct.UHashMap.html#retain","desc":"Retains only the elements specified by the predicate."},
   {"name":"return_type","path":"std::FunctionDefinition","kind":"method","url":"std/primitive.FunctionDefinition.html#return_type","desc":""},
   {"name":"return_type","path":"std::meta::expr::LambdaExpression","kind":"method","url":"std/meta/expr/struct.LambdaExpression.html#return_type","desc":"The optional return type annotation."},
-  {"name":"returns","path":"std::test::OracleMock","kind":"method","url":"std/test/struct.OracleMock.html#returns","desc":"Sets the value the mock returns."},
+  {"name":"returns","path":"std::test::OracleMock","kind":"method","url":"std/test/struct.OracleMock.html#returns","desc":"Sets the value the mock returns. Calling it again replaces that value."},
   {"name":"rhs","path":"std::meta::expr::AssertEqExpression","kind":"method","url":"std/meta/expr/struct.AssertEqExpression.html#rhs","desc":"The right-hand side of the equality assertion."},
   {"name":"rhs","path":"std::meta::expr::AssignExpression","kind":"method","url":"std/meta/expr/struct.AssignExpression.html#rhs","desc":"The right-hand side of the assignment."},
   {"name":"rhs","path":"std::meta::expr::BinaryOpExpression","kind":"method","url":"std/meta/expr/struct.BinaryOpExpression.html#rhs","desc":"The right-hand side of the operation."},

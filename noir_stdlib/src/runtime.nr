@@ -6,7 +6,7 @@
 /// Example:
 ///
 /// ```noir
-/// fn context() -> bool {
+/// fn constrained_context() -> bool {
 ///     std::runtime::is_unconstrained()
 /// }
 ///
@@ -15,7 +15,7 @@
 /// }
 ///
 /// fn main() {
-///     assert(!context());
+///     assert(!constrained_context());
 ///     // Safety: calling an unconstrained function just to read the result.
 ///     assert(unsafe { unconstrained_context() });
 /// }
