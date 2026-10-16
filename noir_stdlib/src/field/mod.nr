@@ -219,8 +219,8 @@ impl Field {
 
     /// Returns `self` raised to the power `exponent`.
     ///
-    /// Only the low 32 bits of `exponent` are used to compute the power, which keeps the circuit
-    /// small; the exponent is constrained to fit in 32 bits.
+    /// `exponent` must be less than `2^32`. The power is computed by square-and-multiply over the
+    /// exponent's 32 bits, so the circuit size doesn't depend on the value of `exponent`.
     ///
     /// Example:
     ///
@@ -261,9 +261,10 @@ impl Field {
 
     /// Returns `true` if `self` is less than `another`, comparing them as integers in `0..p`.
     ///
-    /// `Field` doesn't support `<` and the other comparison operators; this is how to compare field
-    /// elements. The result is fully constrained. Field arithmetic wraps around, so `-1` is the
-    /// largest field element.
+    /// `Field` supports `==` and `!=`, but not the ordering operators `<`, `<=`, `>` and `>=`, and
+    /// doesn't implement [`crate::cmp::Ord`]; this is how to order field elements. For `a > b`,
+    /// use `b.lt(a)`. The result is fully constrained. Field arithmetic wraps around, so `-1` is
+    /// the largest field element.
     ///
     /// Example:
     ///

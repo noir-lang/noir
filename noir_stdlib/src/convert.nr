@@ -29,13 +29,6 @@
 // docs:start:from-trait
 pub trait From<T> {
     /// Converts `input` to `Self`.
-    ///
-    /// Example:
-    ///
-    /// ```noir
-    /// assert_eq(u32::from(255_u8), 255);
-    /// assert_eq(Field::from(true), 1);
-    /// ```
     fn from(input: T) -> Self;
 }
 // docs:end:from-trait
@@ -60,13 +53,6 @@ impl<T> From<T> for T {
 // docs:start:into-trait
 pub trait Into<T> {
     /// Converts `self` to `T`.
-    ///
-    /// Example:
-    ///
-    /// ```noir
-    /// let x: Field = 300_u16.into();
-    /// assert_eq(x, 300);
-    /// ```
     fn into(self) -> T;
 }
 
@@ -262,18 +248,22 @@ impl From<bool> for Field {
 }
 // docs:end:from-impls
 
-/// A generic interface for casting between primitive types,
-/// equivalent of using the `as` keyword between values.
+/// A generic interface for casting between primitive types, so generic code can cast with
+/// `T: AsPrimitive<U>`.
 ///
-/// It is implemented between every pair of `Field`, `bool` and integer types, so generic code can
-/// cast with `T: AsPrimitive<U>`. The casts behave like `as`:
+/// It is implemented between every pair of `bool` and integer types, and between `Field` and
+/// `bool` or the unsigned integer types. There is no implementation between `Field` and the
+/// signed integer types.
+///
+/// Casting to a number behaves like `as`, and never fails:
 ///
 /// - Casting to a smaller integer type keeps the low bits, so `300 as u8` is `44`.
 /// - Casting between signed and unsigned types of the same size reinterprets the bits, so
 ///   `-1_i8 as u8` is `255`.
 /// - Casting a `Field` to an integer type keeps the low bits of its integer value in `0..p`.
 ///
-/// None of these fail; use [`From`] for conversions that can't lose information.
+/// Casting to `bool` is `self != 0`; `as` doesn't allow casting a number to `bool`. Use [`From`]
+/// for conversions that can't lose information.
 ///
 /// Example:
 ///
@@ -284,18 +274,12 @@ impl From<bool> for Field {
 /// let y: u8 = x as u8;
 /// let z: u8 = x.as_();
 /// assert_eq(y, z);
+///
+/// let nonzero: bool = 5_u8.as_();
+/// assert(nonzero);
 /// ```
 pub trait AsPrimitive<T> {
-    /// The equivalent of doing `self as T`.
-    ///
-    /// Example:
-    ///
-    /// ```noir
-    /// use std::convert::AsPrimitive;
-    ///
-    /// let truncated: u8 = 300_u32.as_();
-    /// assert_eq(truncated, 44);
-    /// ```
+    /// Casts `self` to `T`.
     fn as_(self) -> T;
 }
 

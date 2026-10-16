@@ -84,11 +84,8 @@ signed types this is the two's complement result. For <code>Field</code> it is t
 <div class="padded-methods"><code id="wrapping_add" class="code-header">pub fn <a href="#wrapping_add" class="fn">wrapping_add</a>(self, y: Self) -> Self</code>
 
 <div class="padded-description"><div class="comments">
-<p>Returns <code>self + y</code>, wrapping around on overflow. See <a href="../../std/ops/trait.WrappingAdd.html"><code>WrappingAdd</code></a>.</p>
-<p>Example:</p>
-<pre><code><span class="kw">use</span> std::ops::WrappingAdd;
-
-<span class="kw">assert_eq</span>(<span class="number">250_u8</span>.wrapping_add(<span class="number">10</span>), <span class="number">4</span>);</code></pre></div>
+<p>Returns <code>self + y</code>, wrapping around on overflow.</p>
+</div>
 </div></div><h2>Implementors</h2>
 <h3 id="impl-WrappingAdd-for-Field"><code class="code-header">impl <a href="../../std/ops/trait.WrappingAdd.html" class="trait">WrappingAdd</a> for <a href="../../std/primitive.Field.html" class="primitive">Field</a></code></h3>
 

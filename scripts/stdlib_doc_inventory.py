@@ -7,8 +7,10 @@ enums, traits, type aliases and globals, plus the method declarations inside
 directly above it; attributes and plain `//` comments (such as the
 `// docs:start:` markers) between the doc comment and the item are skipped.
 An item has an example when its doc comment contains a code block tagged
-`noir` (see `scripts/check_stdlib_doc_examples.py`). Methods in trait impls are
-not listed: the trait's documentation covers them.
+`noir` (see `scripts/check_stdlib_doc_examples.py`). A method declaration in a
+trait needs a doc comment, but not its own example when the trait's doc comment
+has one. Methods in trait impls are not listed: the trait's documentation covers
+them.
 
 This is a line-based scan, not a parse, so it can miss unusually formatted
 items. It does not resolve visibility: a `pub` item inside a private module is
@@ -73,6 +75,7 @@ def scan_file(path, rel_path):
         lines = f.read().split("\n")
     depth = 0
     trait_depth = None  # brace depth of the `pub trait` body we are in, if any
+    trait_has_example = False  # whether that trait's doc comment has an example
     for index, line in enumerate(lines):
         code = strip_comment(line).strip()
         kind = name = None
@@ -85,10 +88,17 @@ def scan_file(path, rel_path):
                 kind, name = "trait method", method.group("name")
         if kind:
             doc = doc_comment(lines, index)
-            status = "missing" if doc is None else ("documented" if has_example(doc) else "no example")
+            if doc is None:
+                status = "missing"
+            elif has_example(doc) or (kind == "trait method" and trait_has_example):
+                status = "documented"
+            else:
+                status = "no example"
             items.append((rel_path, index + 1, kind, name, status))
         if TRAIT_START.match(code):
             trait_depth = depth
+            trait_doc = doc_comment(lines, index)
+            trait_has_example = trait_doc is not None and has_example(trait_doc)
         depth += code.count("{") - code.count("}")
         if trait_depth is not None and depth <= trait_depth and "}" in code:
             trait_depth = None

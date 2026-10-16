@@ -25,15 +25,6 @@ use crate::meta::derive_via;
 // docs:start:eq-trait
 pub trait Eq {
     /// Returns `true` if `self` and `other` are equal. `a == b` calls `a.eq(b)`.
-    ///
-    /// Example:
-    ///
-    /// ```noir
-    /// use std::cmp::Eq;
-    ///
-    /// assert(1.eq(1));
-    /// assert(![1, 2].eq([2, 1]));
-    /// ```
     fn eq(self, other: Self) -> bool;
 }
 // docs:end:eq-trait
@@ -267,7 +258,7 @@ impl Ordering {
     // Implementation note: 0, 1, and 2 for Lt, Eq, and Gt are built
     // into the compiler, do not change these without also updating
     // the compiler itself!
-    /// The result of comparing a value with a greater one.
+    /// The result of `a.cmp(b)` when `a < b`.
     ///
     /// Example:
     ///
@@ -280,7 +271,7 @@ impl Ordering {
         Ordering { result: 0 }
     }
 
-    /// The result of comparing two equal values.
+    /// The result of `a.cmp(b)` when `a == b`.
     ///
     /// Example:
     ///
@@ -293,7 +284,7 @@ impl Ordering {
         Ordering { result: 1 }
     }
 
-    /// The result of comparing a value with a smaller one.
+    /// The result of `a.cmp(b)` when `a > b`.
     ///
     /// Example:
     ///
@@ -338,14 +329,6 @@ impl Ordering {
 // docs:start:ord-trait
 pub trait Ord {
     /// Returns how `self` compares to `other`. `a < b` is `a.cmp(b) == Ordering::less()`.
-    ///
-    /// Example:
-    ///
-    /// ```noir
-    /// use std::cmp::{Ord, Ordering};
-    ///
-    /// assert_eq(true.cmp(false), Ordering::greater());
-    /// ```
     fn cmp(self, other: Self) -> Ordering;
 }
 // docs:end:ord-trait

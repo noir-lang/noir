@@ -71,7 +71,7 @@ Most often used to encode the result of a comparison operation.</p>
 <div class="padded-methods"><code id="less" class="code-header">pub fn <a href="#less" class="fn">less</a>() -> Self</code>
 
 <div class="padded-description"><div class="comments">
-<p>The result of comparing a value with a greater one.</p>
+<p>The result of <code>a.cmp(b)</code> when <code>a &lt; b</code>.</p>
 <p>Example:</p>
 <pre><code><span class="kw">use</span> std::cmp::{Ord, Ordering};
 
@@ -79,7 +79,7 @@ Most often used to encode the result of a comparison operation.</p>
 </div><code id="equal" class="code-header">pub fn <a href="#equal" class="fn">equal</a>() -> Self</code>
 
 <div class="padded-description"><div class="comments">
-<p>The result of comparing two equal values.</p>
+<p>The result of <code>a.cmp(b)</code> when <code>a == b</code>.</p>
 <p>Example:</p>
 <pre><code><span class="kw">use</span> std::cmp::{Ord, Ordering};
 
@@ -87,7 +87,7 @@ Most often used to encode the result of a comparison operation.</p>
 </div><code id="greater" class="code-header">pub fn <a href="#greater" class="fn">greater</a>() -> Self</code>
 
 <div class="padded-description"><div class="comments">
-<p>The result of comparing a value with a smaller one.</p>
+<p>The result of <code>a.cmp(b)</code> when <code>a &gt; b</code>.</p>
 <p>Example:</p>
 <pre><code><span class="kw">use</span> std::cmp::{Ord, Ordering};
 

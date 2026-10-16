@@ -213,8 +213,8 @@ and no more than the number of bytes required to represent the field modulus</p>
 
 <div class="padded-description"><div class="comments">
 <p>Returns <code>self</code> raised to the power <code>exponent</code>.</p>
-<p>Only the low 32 bits of <code>exponent</code> are used to compute the power, which keeps the circuit
-small; the exponent is constrained to fit in 32 bits.</p>
+<p><code>exponent</code> must be less than <code>2^32</code>. The power is computed by square-and-multiply over the
+exponent's 32 bits, so the circuit size doesn't depend on the value of <code>exponent</code>.</p>
 <p>Example:</p>
 <pre><code><span class="kw">assert_eq</span>(<span class="number">2</span>.pow_32(<span class="number">10</span>), <span class="number">1024</span>);</code></pre>
 <h4>Failures</h4>
@@ -234,9 +234,10 @@ small; the exponent is constrained to fit in 32 bits.</p>
 
 <div class="padded-description"><div class="comments">
 <p>Returns <code>true</code> if <code>self</code> is less than <code>another</code>, comparing them as integers in <code>0..p</code>.</p>
-<p><code>Field</code> doesn't support <code>&lt;</code> and the other comparison operators; this is how to compare field
-elements. The result is fully constrained. Field arithmetic wraps around, so <code>-1</code> is the
-largest field element.</p>
+<p><code>Field</code> supports <code>==</code> and <code>!=</code>, but not the ordering operators <code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code> and <code>&gt;=</code>, and
+doesn't implement <a href="../std/cmp/trait.Ord.html"><code>crate::cmp::Ord</code></a>; this is how to order field elements. For <code>a &gt; b</code>,
+use <code>b.lt(a)</code>. The result is fully constrained. Field arithmetic wraps around, so <code>-1</code> is
+the largest field element.</p>
 <p>Example:</p>
 <pre><code><span class="kw">assert</span>(<span class="number">1</span>.lt(<span class="number">2</span>));
 <span class="kw">assert</span>(!<span class="number">2</span>.lt(<span class="number">2</span>));

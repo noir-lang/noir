@@ -14,15 +14,7 @@
 /// ```
 // docs:start:not-trait
 pub trait Not {
-    /// Returns `!self`. See [`Not`].
-    ///
-    /// Example:
-    ///
-    /// ```noir
-    /// use std::ops::Not;
-    ///
-    /// assert_eq(0x0f_u8.not(), 0xf0);
-    /// ```
+    /// Returns `!self`.
     fn not(self: Self) -> Self;
 }
 // docs:end:not-trait
@@ -95,15 +87,7 @@ impl Not for i64 {
 /// ```
 // docs:start:bitor-trait
 pub trait BitOr {
-    /// Returns `self | other`. See [`BitOr`].
-    ///
-    /// Example:
-    ///
-    /// ```noir
-    /// use std::ops::BitOr;
-    ///
-    /// assert_eq(0x0c_u8.bitor(0x0a), 0x0e);
-    /// ```
+    /// Returns `self | other`.
     fn bitor(self, other: Self) -> Self;
 }
 // docs:end:bitor-trait
@@ -174,15 +158,7 @@ impl BitOr for i64 {
 /// ```
 // docs:start:bitand-trait
 pub trait BitAnd {
-    /// Returns `self & other`. See [`BitAnd`].
-    ///
-    /// Example:
-    ///
-    /// ```noir
-    /// use std::ops::BitAnd;
-    ///
-    /// assert_eq(0x0c_u8.bitand(0x0a), 0x08);
-    /// ```
+    /// Returns `self & other`.
     fn bitand(self, other: Self) -> Self;
 }
 // docs:end:bitand-trait
@@ -253,15 +229,7 @@ impl BitAnd for i64 {
 /// ```
 // docs:start:bitxor-trait
 pub trait BitXor {
-    /// Returns `self ^ other`. See [`BitXor`].
-    ///
-    /// Example:
-    ///
-    /// ```noir
-    /// use std::ops::BitXor;
-    ///
-    /// assert_eq(0x0c_u8.bitxor(0x0a), 0x06);
-    /// ```
+    /// Returns `self ^ other`.
     fn bitxor(self, other: Self) -> Self;
 }
 // docs:end:bitxor-trait
@@ -336,15 +304,7 @@ impl BitXor for i64 {
 /// ```
 // docs:start:shl-trait
 pub trait Shl {
-    /// Returns `self << other`. See [`Shl`].
-    ///
-    /// Example:
-    ///
-    /// ```noir
-    /// use std::ops::Shl;
-    ///
-    /// assert_eq(1_u32.shl(4), 16);
-    /// ```
+    /// Returns `self << other`.
     fn shl(self, other: Self) -> Self;
 }
 // docs:end:shl-trait
@@ -412,15 +372,7 @@ impl Shl for i64 {
 /// ```
 // docs:start:shr-trait
 pub trait Shr {
-    /// Returns `self >> other`. See [`Shr`].
-    ///
-    /// Example:
-    ///
-    /// ```noir
-    /// use std::ops::Shr;
-    ///
-    /// assert_eq(16_u32.shr(4), 1);
-    /// ```
+    /// Returns `self >> other`.
     fn shr(self, other: Self) -> Self;
 }
 // docs:end:shr-trait

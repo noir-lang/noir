@@ -27,13 +27,6 @@ use crate::meta::derive_via;
 // docs:start:default-trait
 pub trait Default {
     /// Returns the default value of `Self`.
-    ///
-    /// Example:
-    ///
-    /// ```noir
-    /// let values: [u8; 3] = Default::default();
-    /// assert_eq(values, [0, 0, 0]);
-    /// ```
     fn default() -> Self;
 }
 // docs:end:default-trait

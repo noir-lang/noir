@@ -28,17 +28,15 @@ use crate::convert::AsPrimitive;
 ///     assert_eq(p.y, 6);
 /// }
 /// ```
+///
+/// Integer overflow fails; use [`WrappingAdd`] to wrap around:
+///
+/// ```noir should_fail
+/// let _ = 255_u8 + 1;
+/// ```
 // docs:start:add-trait
 pub trait Add {
-    /// Returns `self + other`. See [`Add`] for the behaviour on each type.
-    ///
-    /// Example:
-    ///
-    /// ```noir
-    /// use std::ops::Add;
-    ///
-    /// assert_eq(2_u8.add(3), 5);
-    /// ```
+    /// Returns `self + other`.
     fn add(self, other: Self) -> Self;
 }
 // docs:end:add-trait
@@ -105,36 +103,22 @@ impl Add for i64 {
 /// Example:
 ///
 /// ```noir
-/// use std::ops::Sub;
+/// assert_eq(5_u8 - 3, 2);
 ///
-/// struct Point {
-///     x: u32,
-///     y: u32,
-/// }
+/// // Field subtraction wraps around the prime.
+/// let minus_one: Field = 0 - 1;
+/// assert_eq(minus_one + 1, 0);
+/// ```
 ///
-/// impl Sub for Point {
-///     fn sub(self, other: Point) -> Point {
-///         Point { x: self.x - other.x, y: self.y - other.y }
-///     }
-/// }
+/// Unsigned subtraction below zero fails:
 ///
-/// fn main() {
-///     let p = Point { x: 5, y: 7 } - Point { x: 2, y: 3 };
-///     assert_eq(p.x, 3);
-///     assert_eq(p.y, 4);
-/// }
+/// ```noir should_fail
+/// let zero: u8 = 0;
+/// let _ = zero - 1;
 /// ```
 // docs:start:sub-trait
 pub trait Sub {
-    /// Returns `self - other`. See [`Sub`] for the behaviour on each type.
-    ///
-    /// Example:
-    ///
-    /// ```noir
-    /// use std::ops::Sub;
-    ///
-    /// assert_eq(5_u8.sub(3), 2);
-    /// ```
+    /// Returns `self - other`.
     fn sub(self, other: Self) -> Self;
 }
 // docs:end:sub-trait
@@ -200,36 +184,18 @@ impl Sub for i64 {
 /// Example:
 ///
 /// ```noir
-/// use std::ops::Mul;
+/// assert_eq(4_u8 * 3, 12);
+/// assert_eq(-4_i8 * 3, -12);
+/// ```
 ///
-/// struct Point {
-///     x: u32,
-///     y: u32,
-/// }
+/// A product that doesn't fit in the type fails; use [`WrappingMul`] to wrap around:
 ///
-/// impl Mul for Point {
-///     fn mul(self, other: Point) -> Point {
-///         Point { x: self.x * other.x, y: self.y * other.y }
-///     }
-/// }
-///
-/// fn main() {
-///     let p = Point { x: 2, y: 3 } * Point { x: 4, y: 5 };
-///     assert_eq(p.x, 8);
-///     assert_eq(p.y, 15);
-/// }
+/// ```noir should_fail
+/// let _ = 16_u8 * 16;
 /// ```
 // docs:start:mul-trait
 pub trait Mul {
-    /// Returns `self * other`. See [`Mul`] for the behaviour on each type.
-    ///
-    /// Example:
-    ///
-    /// ```noir
-    /// use std::ops::Mul;
-    ///
-    /// assert_eq(4_u8.mul(3), 12);
-    /// ```
+    /// Returns `self * other`.
     fn mul(self, other: Self) -> Self;
 }
 // docs:end:mul-trait
@@ -295,45 +261,29 @@ impl Mul for i64 {
 ///   of `b`, and doesn't round. `1 / 2` is not zero.
 ///
 /// Dividing by zero fails, for `Field` as well as for integers. For a signed type, dividing the
-/// minimum value by `-1` also fails, because the result doesn't fit.
+/// minimum value by `-1` also fails, because the result doesn't fit. The remainder of integer
+/// division is given by [`Rem`].
 ///
 /// Example:
 ///
 /// ```noir
-/// use std::ops::Div;
+/// assert_eq(7_u8 / 2, 3);
+/// assert_eq(-7_i8 / 2, -3);
 ///
-/// struct Point {
-///     x: u32,
-///     y: u32,
-/// }
+/// // Field division multiplies by the inverse.
+/// let half: Field = 1 / 2;
+/// assert_eq(half * 2, 1);
+/// ```
 ///
-/// impl Div for Point {
-///     fn div(self, other: Point) -> Point {
-///         Point { x: self.x / other.x, y: self.y / other.y }
-///     }
-/// }
+/// Division by zero fails, for `Field` too:
 ///
-/// fn main() {
-///     let p = Point { x: 8, y: 9 } / Point { x: 2, y: 3 };
-///     assert_eq(p.x, 4);
-///     assert_eq(p.y, 3);
-/// }
+/// ```noir should_fail
+/// let zero: Field = 0;
+/// let _ = 1 / zero;
 /// ```
 // docs:start:div-trait
 pub trait Div {
-    /// Returns `self / other`. See [`Div`] for the behaviour on each type.
-    ///
-    /// Example:
-    ///
-    /// ```noir
-    /// use std::ops::Div;
-    ///
-    /// assert_eq(7_u8.div(2), 3);
-    ///
-    /// // Field division multiplies by the inverse.
-    /// let half: Field = 1 / 2;
-    /// assert_eq(half * 2, 1);
-    /// ```
+    /// Returns `self / other`.
     fn div(self, other: Self) -> Self;
 }
 // docs:end:div-trait
@@ -393,42 +343,25 @@ impl Div for i64 {
 /// The `%` operator.
 ///
 /// Implemented for the integer types; `Field` has no remainder. The result has the sign of the
-/// left operand, matching division that rounds toward zero: `-7 % 2` is `-1`. A zero divisor fails.
+/// left operand, matching [`Div`], which rounds toward zero: `-7 % 2` is `-1`. A zero divisor
+/// fails.
 ///
 /// Example:
 ///
 /// ```noir
-/// use std::ops::Rem;
+/// assert_eq(7_u8 % 4, 3);
+/// assert_eq(-7_i8 % 2, -1);
+/// assert_eq(7_i8 % -2, 1);
+/// ```
 ///
-/// struct Point {
-///     x: u32,
-///     y: u32,
-/// }
+/// A zero divisor fails:
 ///
-/// impl Rem for Point {
-///     fn rem(self, other: Point) -> Point {
-///         Point { x: self.x % other.x, y: self.y % other.y }
-///     }
-/// }
-///
-/// fn main() {
-///     let p = Point { x: 7, y: 9 } % Point { x: 4, y: 5 };
-///     assert_eq(p.x, 3);
-///     assert_eq(p.y, 4);
-/// }
+/// ```noir should_fail
+/// let _ = 7_u8 % 0;
 /// ```
 // docs:start:rem-trait
 pub trait Rem {
-    /// Returns `self % other`. See [`Rem`] for the behaviour on each type.
-    ///
-    /// Example:
-    ///
-    /// ```noir
-    /// use std::ops::Rem;
-    ///
-    /// assert_eq(7_u8.rem(4), 3);
-    /// assert_eq((-7_i8).rem(2), -1);
-    /// ```
+    /// Returns `self % other`.
     fn rem(self, other: Self) -> Self;
 }
 // docs:end:rem-trait
@@ -488,36 +421,21 @@ impl Rem for i64 {
 /// Example:
 ///
 /// ```noir
-/// use std::ops::Neg;
+/// assert_eq(-(5_i8), -5);
 ///
-/// struct Point {
-///     x: i32,
-///     y: i32,
-/// }
+/// // Negating a field element gives its additive inverse.
+/// let x: Field = 3;
+/// assert_eq(-x + x, 0);
+/// ```
 ///
-/// impl Neg for Point {
-///     fn neg(self) -> Point {
-///         Point { x: -self.x, y: -self.y }
-///     }
-/// }
+/// Negating the minimum value of a signed type fails:
 ///
-/// fn main() {
-///     let p = -Point { x: 1, y: -2 };
-///     assert_eq(p.x, -1);
-///     assert_eq(p.y, 2);
-/// }
+/// ```noir should_fail
+/// let _ = -i8::min_value();
 /// ```
 // docs:start:neg-trait
 pub trait Neg {
-    /// Returns `-self`. See [`Neg`] for the behaviour on each type.
-    ///
-    /// Example:
-    ///
-    /// ```noir
-    /// use std::ops::Neg;
-    ///
-    /// assert_eq(5_i8.neg(), -5);
-    /// ```
+    /// Returns `-self`.
     fn neg(self) -> Self;
 }
 // docs:end:neg-trait
@@ -566,15 +484,7 @@ impl Neg for i64 {
 /// ```
 // docs:start:wrapping-add-trait
 pub trait WrappingAdd {
-    /// Returns `self + y`, wrapping around on overflow. See [`WrappingAdd`].
-    ///
-    /// Example:
-    ///
-    /// ```noir
-    /// use std::ops::WrappingAdd;
-    ///
-    /// assert_eq(250_u8.wrapping_add(10), 4);
-    /// ```
+    /// Returns `self + y`, wrapping around on overflow.
     fn wrapping_add(self, y: Self) -> Self;
 }
 // docs:end:wrapping-add-trait
@@ -657,15 +567,7 @@ impl WrappingAdd for Field {
 /// ```
 // docs:start:wrapping-sub-trait
 pub trait WrappingSub {
-    /// Returns `self - y`, wrapping around on overflow. See [`WrappingSub`].
-    ///
-    /// Example:
-    ///
-    /// ```noir
-    /// use std::ops::WrappingSub;
-    ///
-    /// assert_eq(3_u8.wrapping_sub(5), 254);
-    /// ```
+    /// Returns `self - y`, wrapping around on overflow.
     fn wrapping_sub(self, y: Self) -> Self;
 }
 // docs:end:wrapping-sub-trait
@@ -745,15 +647,7 @@ impl WrappingSub for Field {
 /// ```
 // docs:start:wrapping-mul-trait
 pub trait WrappingMul {
-    /// Returns `self * y`, wrapping around on overflow. See [`WrappingMul`].
-    ///
-    /// Example:
-    ///
-    /// ```noir
-    /// use std::ops::WrappingMul;
-    ///
-    /// assert_eq(100_u8.wrapping_mul(3), 44);
-    /// ```
+    /// Returns `self * y`, wrapping around on overflow.
     fn wrapping_mul(self, y: Self) -> Self;
 }
 // docs:end:wrapping-mul-trait
