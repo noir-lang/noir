@@ -19,6 +19,7 @@ impl Field {
     ///
     /// ```noir should_fail
     /// let x: Field = 256;
+    /// // Fails: 256 needs 9 bits.
     /// x.assert_max_bit_size::<8>();
     /// ```
     // docs:start:assert_max_bit_size

@@ -97,7 +97,8 @@ unconstrained code; use <a href="../../std/ops/trait.WrappingAdd.html"><code>Wra
     <span class="kw">assert_eq</span>(p.y, <span class="number">6</span>);
 }</code></pre>
 <p>Integer overflow fails; use <a href="../../std/ops/trait.WrappingAdd.html"><code>WrappingAdd</code></a> to wrap around:</p>
-<pre><code><span class="kw">let</span> _ = <span class="number">255_u8</span> + <span class="number">1</span>;</code></pre></div>
+<pre><code><span class="comment">// Fails: 256 doesn't fit in a `u8`.</span>
+<span class="kw">let</span> _ = <span class="number">255_u8</span> + <span class="number">1</span>;</code></pre></div>
 <h2>Required methods</h2>
 <div class="padded-methods"><code id="add" class="code-header">pub fn <a href="#add" class="fn">add</a>(self, other: Self) -> Self</code>
 

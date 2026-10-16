@@ -3,15 +3,15 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
 error: Assertion failed: call to assert_max_bit_size
-   ┌─ std/field/mod.nr:31:9
+   ┌─ std/field/mod.nr:32:9
    │
-31 │         __assert_max_bit_size(self, BIT_SIZE);
+32 │         __assert_max_bit_size(self, BIT_SIZE);
    │         -------------------------------------
    │
    = Call stack:
      1: main
              at src/main.nr:5:5
      2: Field::assert_max_bit_size
-             at std/field/mod.nr:31:9
+             at std/field/mod.nr:32:9
 
 Failed assertion

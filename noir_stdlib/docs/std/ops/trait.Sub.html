@@ -86,6 +86,7 @@ around instead.</p>
 <span class="kw">assert_eq</span>(minus_one + <span class="number">1</span>, <span class="number">0</span>);</code></pre>
 <p>Unsigned subtraction below zero fails:</p>
 <pre><code><span class="kw">let</span> zero: u8 = <span class="number">0</span>;
+<span class="comment">// Fails: -1 doesn't fit in a `u8`.</span>
 <span class="kw">let</span> _ = zero - <span class="number">1</span>;</code></pre></div>
 <h2>Required methods</h2>
 <div class="padded-methods"><code id="sub" class="code-header">pub fn <a href="#sub" class="fn">sub</a>(self, other: Self) -> Self</code>

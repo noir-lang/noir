@@ -156,6 +156,7 @@ x.assert_max_bit_size::&lt;<span class="number">8</span>&gt;();</code></pre>
 <h4>Failures</h4>
 <p>Causes a constraint failure for <code>Field</code> values exceeding <code>2^{bit_size}</code>.</p>
 <pre><code><span class="kw">let</span> x: Field = <span class="number">256</span>;
+<span class="comment">// Fails: 256 needs 9 bits.</span>
 x.assert_max_bit_size::&lt;<span class="number">8</span>&gt;();</code></pre></div>
 </div><code id="to_le_bits" class="code-header">pub fn <a href="#to_le_bits" class="fn">to_le_bits</a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self) -> [<a href="../std/primitive.bool.html" class="primitive">bool</a>; N]</code>
 

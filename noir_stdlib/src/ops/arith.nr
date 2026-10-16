@@ -32,6 +32,7 @@ use crate::convert::AsPrimitive;
 /// Integer overflow fails; use [`WrappingAdd`] to wrap around:
 ///
 /// ```noir should_fail
+/// // Fails: 256 doesn't fit in a `u8`.
 /// let _ = 255_u8 + 1;
 /// ```
 // docs:start:add-trait
@@ -114,6 +115,7 @@ impl Add for i64 {
 ///
 /// ```noir should_fail
 /// let zero: u8 = 0;
+/// // Fails: -1 doesn't fit in a `u8`.
 /// let _ = zero - 1;
 /// ```
 // docs:start:sub-trait
@@ -191,6 +193,7 @@ impl Sub for i64 {
 /// A product that doesn't fit in the type fails; use [`WrappingMul`] to wrap around:
 ///
 /// ```noir should_fail
+/// // Fails: 256 doesn't fit in a `u8`.
 /// let _ = 16_u8 * 16;
 /// ```
 // docs:start:mul-trait
@@ -279,6 +282,7 @@ impl Mul for i64 {
 ///
 /// ```noir should_fail
 /// let zero: Field = 0;
+/// // Fails: division by zero.
 /// let _ = 1 / zero;
 /// ```
 // docs:start:div-trait
@@ -357,6 +361,7 @@ impl Div for i64 {
 /// A zero divisor fails:
 ///
 /// ```noir should_fail
+/// // Fails: division by zero.
 /// let _ = 7_u8 % 0;
 /// ```
 // docs:start:rem-trait
@@ -431,6 +436,7 @@ impl Rem for i64 {
 /// Negating the minimum value of a signed type fails:
 ///
 /// ```noir should_fail
+/// // Fails: 128 doesn't fit in an `i8`.
 /// let _ = -i8::min_value();
 /// ```
 // docs:start:neg-trait

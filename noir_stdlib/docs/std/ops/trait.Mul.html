@@ -80,7 +80,8 @@ wrap around instead.</p>
 <pre><code><span class="kw">assert_eq</span>(<span class="number">4_u8</span> * <span class="number">3</span>, <span class="number">12</span>);
 <span class="kw">assert_eq</span>(-<span class="number">4_i8</span> * <span class="number">3</span>, -<span class="number">12</span>);</code></pre>
 <p>A product that doesn't fit in the type fails; use <a href="../../std/ops/trait.WrappingMul.html"><code>WrappingMul</code></a> to wrap around:</p>
-<pre><code><span class="kw">let</span> _ = <span class="number">16_u8</span> * <span class="number">16</span>;</code></pre></div>
+<pre><code><span class="comment">// Fails: 256 doesn't fit in a `u8`.</span>
+<span class="kw">let</span> _ = <span class="number">16_u8</span> * <span class="number">16</span>;</code></pre></div>
 <h2>Required methods</h2>
 <div class="padded-methods"><code id="mul" class="code-header">pub fn <a href="#mul" class="fn">mul</a>(self, other: Self) -> Self</code>
 

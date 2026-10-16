@@ -91,6 +91,7 @@ division is given by <a href="../../std/ops/trait.Rem.html"><code>Rem</code></a>
 <span class="kw">assert_eq</span>(half * <span class="number">2</span>, <span class="number">1</span>);</code></pre>
 <p>Division by zero fails, for <code>Field</code> too:</p>
 <pre><code><span class="kw">let</span> zero: Field = <span class="number">0</span>;
+<span class="comment">// Fails: division by zero.</span>
 <span class="kw">let</span> _ = <span class="number">1</span> / zero;</code></pre></div>
 <h2>Required methods</h2>
 <div class="padded-methods"><code id="div" class="code-header">pub fn <a href="#div" class="fn">div</a>(self, other: Self) -> Self</code>
