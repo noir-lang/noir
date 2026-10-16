@@ -1708,12 +1708,14 @@ impl Elaborator<'_> {
         self.interner.lookup_generic_methods(typ, method_name, has_self_arg)
     }
 
-    /// The trait methods of impls for `typ`'s own type, if there are any, together with those of
-    /// impls for all types `T` (`impl<T> Foo for T where T: Bar`) whose where clause is known to
-    /// hold for `typ`: both impls apply, so neither is preferred. An impl for all types `T` whose
-    /// where clause can't be decided yet (`impl<T, U> Into<T> for U where T: From<U>` with `T`
-    /// unknown) is left out, so a type's own impl is the one selected.
-    fn lookup_all_trait_methods(
+    /// The trait methods of impls for `typ`'s own type (`impl Foo for S`), together with those of
+    /// impls for all types `T` (`impl<T> Foo for T where T: Bar`) of the same traits whose where
+    /// clause is known to hold for `typ`: both impls apply, so neither is preferred.
+    ///
+    /// An impl for all types `T` whose where clause can't be decided yet
+    /// (`impl<T, U> Into<T> for U where T: From<U>` with `T` unknown) is left out, so a type's own
+    /// impl is the one selected. When `typ` has no impl of its own the result is empty.
+    fn lookup_own_and_applicable_generic_methods(
         &mut self,
         typ: &Type,
         method_name: &str,
@@ -1723,13 +1725,16 @@ impl Elaborator<'_> {
         if methods.is_empty() {
             return methods;
         }
-        let generic_methods = self.lookup_generic_methods(typ, method_name, has_self_arg);
-        methods.extend(generic_methods.into_iter().filter(|(func_id, ..)| {
-            self.interner
-                .function_meta(func_id)
-                .trait_impl
-                .is_some_and(|impl_id| self.interner.trait_impl_where_clause_holds(impl_id, typ))
-        }));
+        for func_id in self.interner.generic_method_candidate_ids(method_name) {
+            self.define_function_meta_if_undefined(func_id);
+        }
+        let trait_ids = vecmap(&methods, |(_, trait_id, _)| *trait_id);
+        methods.extend(self.interner.lookup_applicable_generic_methods(
+            typ,
+            method_name,
+            has_self_arg,
+            &trait_ids,
+        ));
         methods
     }
 
@@ -1854,7 +1859,8 @@ impl Elaborator<'_> {
         }
 
         let has_self_arg = false;
-        let type_trait_methods = self.lookup_all_trait_methods(typ, method_name, has_self_arg);
+        let type_trait_methods =
+            self.lookup_own_and_applicable_generic_methods(typ, method_name, has_self_arg);
 
         // If no method matches the turbofish type but the name is a known method for this type
         // (just incompatible), report an error. If the name isn't a method at all (e.g. it's an
@@ -2029,8 +2035,9 @@ impl Elaborator<'_> {
         let method_name = last_segment.ident.as_str();
 
         let has_self_arg = false;
-        let trait_methods = trait_methods
-            .unwrap_or_else(|| self.lookup_all_trait_methods(typ, method_name, has_self_arg));
+        let trait_methods = trait_methods.unwrap_or_else(|| {
+            self.lookup_own_and_applicable_generic_methods(typ, method_name, has_self_arg)
+        });
 
         if trait_methods.is_empty() {
             return None;
@@ -3372,8 +3379,11 @@ impl Elaborator<'_> {
         }
 
         // Next lookup all matching trait methods.
-        let trait_methods =
-            self.lookup_all_trait_methods(object_type, method_name, check_self_param);
+        let trait_methods = self.lookup_own_and_applicable_generic_methods(
+            object_type,
+            method_name,
+            check_self_param,
+        );
 
         // If there's at least one matching trait method we need to see if only one is in scope.
         if !trait_methods.is_empty() {

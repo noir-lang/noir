@@ -1141,7 +1141,8 @@ impl NodeInterner {
         methods.direct.iter().map(|m| m.method).collect()
     }
 
-    /// Looks up methods that apply to the given type but are defined in traits.
+    /// Looks up methods of trait impls for the given type's own type (`impl Foo for S`), leaving out
+    /// impls for all types `T` (see [`Self::lookup_generic_methods`]).
     ///
     /// The third tuple element is the impl's self type as it was recorded when the impl was
     /// registered (see [`Self::add_method`]). This is the concrete type the impl applies to,
@@ -1212,6 +1213,27 @@ impl NodeInterner {
             .get(&TypeMethodKey::Generic)
             .and_then(|h| h.get(method_name))
             .map(|methods| methods.find_trait_methods(typ, has_self_arg, self))
+            .unwrap_or_default()
+    }
+
+    /// Looks up the methods of impls for all types `T` (`impl<T> Foo for T where T: Bar`) that
+    /// implement one of `trait_ids` for `typ` with their where clause known to hold.
+    pub fn lookup_applicable_generic_methods(
+        &self,
+        typ: &Type,
+        method_name: &str,
+        has_self_arg: bool,
+        trait_ids: &[TraitId],
+    ) -> Vec<(FuncId, TraitId, Type)> {
+        self.methods
+            .get(&TypeMethodKey::Generic)
+            .and_then(|h| h.get(method_name))
+            .map(|methods| {
+                methods.find_trait_methods_where(typ, has_self_arg, self, |method| {
+                    trait_ids.contains(&method.trait_id)
+                        && self.trait_impl_where_clause_holds(method.impl_id, typ)
+                })
+            })
             .unwrap_or_default()
     }
 
