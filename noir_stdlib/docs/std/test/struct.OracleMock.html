@@ -48,24 +48,132 @@
 <pre><code>pub struct OracleMock
 { <span class="comment">/* private fields */</span> }
 </code></pre>
+<div class="comments">
+<p>A mock for an oracle, for use in <code>nargo test</code>.</p>
+<p>Creating a mock makes calls to the named oracle return values set by the test, instead of
+calling an external oracle resolver. Mocks only work in tests run by <code>nargo test</code>, and all of
+their methods are unconstrained.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::test::OracleMock;
+
+#[oracle(get_value)]
+<span class="kw">unconstrained</span> <span class="kw">fn</span> get_value(x: Field) -&gt; Field {}
+
+<span class="kw">unconstrained</span> <span class="kw">fn</span> main() {
+    <span class="kw">let</span> mock = OracleMock::mock(<span class="string">"get_value"</span>).returns(<span class="number">42</span>);
+    <span class="kw">assert_eq</span>(get_value(<span class="number">1</span>), <span class="number">42</span>);
+    <span class="kw">assert_eq</span>(mock.times_called(), <span class="number">1</span>);
+}</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../../std/test/struct.OracleMock.html" class="struct">OracleMock</a></code></h3>
 
 <div class="padded-methods"><code id="mock" class="code-header">pub unconstrained fn <a href="#mock" class="fn">mock</a>&lt;let N: <a href="../../std/primitive.u32.html" class="primitive">u32</a>&gt;(name: <a href="../../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;) -> Self</code>
 
-<code id="with_params" class="code-header">pub unconstrained fn <a href="#with_params" class="fn">with_params</a>&lt;P&gt;(self, params: P) -> Self</code>
+<div class="padded-description"><div class="comments">
+<p>Creates a mock for the oracle called <code>name</code>.</p>
+<p>Until it is cleared, calls to that oracle are answered by this mock.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::test::OracleMock;
 
-<code id="get_last_params" class="code-header">pub unconstrained fn <a href="#get_last_params" class="fn">get_last_params</a>&lt;P&gt;(self) -> P</code>
+#[oracle(get_value)]
+<span class="kw">unconstrained</span> <span class="kw">fn</span> get_value(x: Field) -&gt; Field {}
 
-<code id="returns" class="code-header">pub unconstrained fn <a href="#returns" class="fn">returns</a>&lt;R&gt;(self, returns: R) -> Self</code>
+<span class="kw">unconstrained</span> <span class="kw">fn</span> main() {
+    <span class="kw">let</span> _mock = OracleMock::mock(<span class="string">"get_value"</span>).returns(<span class="number">42</span>);
+    <span class="kw">assert_eq</span>(get_value(<span class="number">1</span>), <span class="number">42</span>);
+}</code></pre></div>
+</div><code id="with_params" class="code-header">pub unconstrained fn <a href="#with_params" class="fn">with_params</a>&lt;P&gt;(self, params: P) -> Self</code>
 
-<code id="times" class="code-header">pub unconstrained fn <a href="#times" class="fn">times</a>(self, times: <a href="../../std/primitive.u64.html" class="primitive">u64</a>) -> Self</code>
+<div class="padded-description"><div class="comments">
+<p>Makes the mock answer only calls whose arguments equal <code>params</code>.</p>
+<p>For an oracle with several parameters, pass them as a tuple.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::test::OracleMock;
 
-<code id="clear" class="code-header">pub unconstrained fn <a href="#clear" class="fn">clear</a>(self)</code>
+#[oracle(get_value)]
+<span class="kw">unconstrained</span> <span class="kw">fn</span> get_value(x: Field) -&gt; Field {}
 
-<code id="times_called" class="code-header">pub unconstrained fn <a href="#times_called" class="fn">times_called</a>(self) -> <a href="../../std/primitive.Field.html" class="primitive">Field</a></code>
+<span class="kw">unconstrained</span> <span class="kw">fn</span> main() {
+    <span class="kw">let</span> _mock = OracleMock::mock(<span class="string">"get_value"</span>).with_params(<span class="number">1</span>).returns(<span class="number">10</span>);
+    <span class="kw">assert_eq</span>(get_value(<span class="number">1</span>), <span class="number">10</span>);
+}</code></pre></div>
+</div><code id="get_last_params" class="code-header">pub unconstrained fn <a href="#get_last_params" class="fn">get_last_params</a>&lt;P&gt;(self) -> P</code>
 
-</div></div>
+<div class="padded-description"><div class="comments">
+<p>Returns the arguments of the most recent call answered by this mock.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::test::OracleMock;
+
+#[oracle(get_value)]
+<span class="kw">unconstrained</span> <span class="kw">fn</span> get_value(x: Field) -&gt; Field {}
+
+<span class="kw">unconstrained</span> <span class="kw">fn</span> main() {
+    <span class="kw">let</span> mock = OracleMock::mock(<span class="string">"get_value"</span>).returns(<span class="number">0</span>);
+    <span class="kw">let</span> _ = get_value(<span class="number">7</span>);
+    <span class="kw">assert_eq</span>(mock.get_last_params::&lt;Field&gt;(), <span class="number">7</span>);
+}</code></pre></div>
+</div><code id="returns" class="code-header">pub unconstrained fn <a href="#returns" class="fn">returns</a>&lt;R&gt;(self, returns: R) -> Self</code>
+
+<div class="padded-description"><div class="comments">
+<p>Sets the value the mock returns.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::test::OracleMock;
+
+#[oracle(get_value)]
+<span class="kw">unconstrained</span> <span class="kw">fn</span> get_value(x: Field) -&gt; Field {}
+
+<span class="kw">unconstrained</span> <span class="kw">fn</span> main() {
+    <span class="kw">let</span> _mock = OracleMock::mock(<span class="string">"get_value"</span>).returns(<span class="number">42</span>);
+    <span class="kw">assert_eq</span>(get_value(<span class="number">1</span>), <span class="number">42</span>);
+}</code></pre></div>
+</div><code id="times" class="code-header">pub unconstrained fn <a href="#times" class="fn">times</a>(self, times: <a href="../../std/primitive.u64.html" class="primitive">u64</a>) -> Self</code>
+
+<div class="padded-description"><div class="comments">
+<p>Limits how many calls the mock answers. After answering that many calls, the mock is removed,
+as if <a href="../../std/test/struct.OracleMock.html#clear"><code>OracleMock::clear</code></a> had been called.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::test::OracleMock;
+
+#[oracle(get_value)]
+<span class="kw">unconstrained</span> <span class="kw">fn</span> get_value(x: Field) -&gt; Field {}
+
+<span class="kw">unconstrained</span> <span class="kw">fn</span> main() {
+    <span class="kw">let</span> mock = OracleMock::mock(<span class="string">"get_value"</span>).returns(<span class="number">42</span>).times(<span class="number">2</span>);
+    <span class="kw">assert_eq</span>(get_value(<span class="number">1</span>), <span class="number">42</span>);
+    <span class="kw">assert_eq</span>(mock.times_called(), <span class="number">1</span>);
+}</code></pre></div>
+</div><code id="clear" class="code-header">pub unconstrained fn <a href="#clear" class="fn">clear</a>(self)</code>
+
+<div class="padded-description"><div class="comments">
+<p>Removes the mock, so it no longer answers calls.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::test::OracleMock;
+
+#[oracle(get_value)]
+<span class="kw">unconstrained</span> <span class="kw">fn</span> get_value(x: Field) -&gt; Field {}
+
+<span class="kw">unconstrained</span> <span class="kw">fn</span> main() {
+    <span class="kw">let</span> mock = OracleMock::mock(<span class="string">"get_value"</span>).returns(<span class="number">42</span>);
+    <span class="kw">assert_eq</span>(get_value(<span class="number">1</span>), <span class="number">42</span>);
+    mock.clear();
+}</code></pre></div>
+</div><code id="times_called" class="code-header">pub unconstrained fn <a href="#times_called" class="fn">times_called</a>(self) -> <a href="../../std/primitive.Field.html" class="primitive">Field</a></code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns how many calls this mock has answered.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::test::OracleMock;
+
+#[oracle(get_value)]
+<span class="kw">unconstrained</span> <span class="kw">fn</span> get_value(x: Field) -&gt; Field {}
+
+<span class="kw">unconstrained</span> <span class="kw">fn</span> main() {
+    <span class="kw">let</span> mock = OracleMock::mock(<span class="string">"get_value"</span>).returns(<span class="number">42</span>);
+    <span class="kw">let</span> _ = get_value(<span class="number">1</span>);
+    <span class="kw">let</span> _ = get_value(<span class="number">2</span>);
+    <span class="kw">assert_eq</span>(mock.times_called(), <span class="number">2</span>);
+}</code></pre></div>
+</div></div></div>
 </main>
 </span>
 </body>

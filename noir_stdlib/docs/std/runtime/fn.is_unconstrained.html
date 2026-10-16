@@ -38,7 +38,22 @@
 
 <div class="comments">
 <p>True if executed in an unconstrained or comptime context, false otherwise.</p>
-</div>
+<p>It is resolved at compile time for each context, so a function can use it to pick an
+implementation: a direct computation in unconstrained code, and a constrained one elsewhere.</p>
+<p>Example:</p>
+<pre><code><span class="kw">fn</span> context() -&gt; bool {
+    std::runtime::is_unconstrained()
+}
+
+<span class="kw">unconstrained</span> <span class="kw">fn</span> unconstrained_context() -&gt; bool {
+    std::runtime::is_unconstrained()
+}
+
+<span class="kw">fn</span> main() {
+    <span class="kw">assert</span>(!context());
+    <span class="comment">// Safety: calling an unconstrained function just to read the result.</span>
+    <span class="kw">assert</span>(<span class="kw">unsafe</span> { unconstrained_context() });
+}</code></pre></div>
 </div>
 </main>
 </span>

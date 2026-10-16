@@ -97,7 +97,17 @@
 <div class="comments">
 <p>Asserts that the given value is both true and known at compile-time.
 The message can be a string, a format string, or any value, as long as it is known at compile-time</p>
-</div>
+<p>Compilation fails with <code>message</code> if <code>predicate</code> is false or isn't known at compile time. It is
+typically used to check numeric generics.</p>
+<p>Example:</p>
+<pre><code><span class="kw">fn</span> first&lt;<span class="kw">let</span> N: u32&gt;(array: [u32; N]) -&gt; u32 {
+    std::static_assert(N &gt; <span class="number">0</span>, <span class="string">"the array must not be empty"</span>);
+    array[<span class="number">0</span>]
+}
+
+<span class="kw">fn</span> main() {
+    <span class="kw">assert_eq</span>(first([<span class="number">7</span>, <span class="number">8</span>]), <span class="number">7</span>);
+}</code></pre></div>
 </div>
 </main>
 </span>

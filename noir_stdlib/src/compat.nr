@@ -5,6 +5,15 @@ comptime global BN254_MODULUS_BE_BYTES: [u8] = [
     .as_vector();
 
 /// True if the current field is bn254
+///
+/// It is evaluated at compile time from the field modulus, so code can branch on it with no cost.
+///
+/// Example:
+///
+/// ```noir
+/// // The examples are compiled for BN254.
+/// assert(std::compat::is_bn254());
+/// ```
 pub fn is_bn254() -> bool {
     comptime {
         // We can't use the `Eq` trait here due to limitations on calling non-comptime functions

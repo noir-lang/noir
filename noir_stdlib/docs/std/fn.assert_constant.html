@@ -97,7 +97,11 @@
 <div class="comments">
 <p>Asserts that the given value is known at compile-time.
 Useful for debugging for-loop bounds.</p>
-</div>
+<p>In constrained code, compilation fails if <code>x</code> isn't a compile-time constant after the compiler's
+optimizations. It has no effect in unconstrained code.</p>
+<p>Example:</p>
+<pre><code><span class="kw">let</span> n = <span class="number">2</span> + <span class="number">3</span>;
+std::assert_constant(n);</code></pre></div>
 </div>
 </main>
 </span>

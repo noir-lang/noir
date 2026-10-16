@@ -50,7 +50,7 @@ unconstrained fn quicksort_loop<T, let N: u32, Env>(
     }
 }
 
-pub unconstrained fn quicksort<T, let N: u32, Env>(
+pub(crate) unconstrained fn quicksort<T, let N: u32, Env>(
     arr: &[T; N],
     sortfn: unconstrained fn[Env](T, T) -> bool,
 ) -> [T; N] {

@@ -480,8 +480,23 @@ mod completion_tests {
             a>|<
           }
         "#;
-        assert_completion_excluding_auto_import(
-            src,
+        let (items, _) = get_completions(src);
+        let mut items: Vec<_> =
+            items.into_iter().filter(|item| item.additional_text_edits.is_none()).collect();
+
+        // `assert_constant`'s documentation is its stdlib doc comment, so only check that it's
+        // there: editing the stdlib docs shouldn't break this test.
+        for item in &mut items {
+            if item.label == "assert_constant(…)" {
+                assert!(
+                    item.documentation.take().is_some(),
+                    "expected `assert_constant` to have documentation"
+                );
+            }
+        }
+
+        assert_items_match(
+            items,
             vec![
                 completion_item_with_trigger_parameter_hints_command(snippet_completion_item(
                     "assert(…)",
@@ -489,18 +504,7 @@ mod completion_tests {
                     "assert(${1:predicate})",
                     Some("fn(T)".to_string()),
                 )),
-                {
-                    let mut item = function_completion_item(
-                        "assert_constant(…)",
-                        "assert_constant(${1:x})",
-                        "fn(T)",
-                    );
-                    item.documentation = Some(Documentation::MarkupContent(async_lsp::lsp_types::MarkupContent {
-                        kind: async_lsp::lsp_types::MarkupKind::Markdown,
-                        value: "Asserts that the given value is known at compile-time.\nUseful for debugging for-loop bounds.".to_string(),
-                    }));
-                    item
-                },
+                function_completion_item("assert_constant(…)", "assert_constant(${1:x})", "fn(T)"),
                 completion_item_with_trigger_parameter_hints_command(snippet_completion_item(
                     "assert_eq(…)",
                     CompletionItemKind::FUNCTION,

@@ -2,10 +2,25 @@ use crate::convert::From;
 
 impl<let N: u32> str<N> {
     /// Converts the given string into a byte array
+    ///
+    /// The bytes are the string's UTF-8 encoding, so `N` is its length in bytes, not characters.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// assert_eq("Noir".as_bytes(), [78, 111, 105, 114]);
+    /// assert_eq("é".as_bytes().len(), 2);
+    /// ```
     #[builtin(str_as_bytes)]
     pub fn as_bytes(self) -> [u8; N] {}
 
     /// return a byte vector of the str content
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// assert_eq("Noir".as_bytes_vec(), @[78, 111, 105, 114]);
+    /// ```
     pub fn as_bytes_vec(self: Self) -> [u8] {
         self.as_bytes().as_vector()
     }
