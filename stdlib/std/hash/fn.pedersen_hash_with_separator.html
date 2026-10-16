@@ -56,6 +56,27 @@
     separator: <a href="../../std/primitive.u32.html" class="primitive">u32</a>,
 ) -> <a href="../../std/primitive.Field.html" class="primitive">Field</a></code></pre>
 
+<div class="comments">
+<p>Returns the Pedersen hash of <code>input</code>, using the generators starting at index <code>separator</code>.</p>
+<p>The hash is the x-coordinate of <code>input[0] * G[separator] + ... + input[N - 1] * G[separator + N - 1] + N * L</code>,
+with the generators <code>G[i]</code> and <code>L</code> of <a href="../../std/hash/fn.pedersen_hash.html"><code>pedersen_hash</code></a>, which is this function with a
+<code>separator</code> of 0. All the generators come from one sequence derived from
+<code>&quot;DEFAULT_DOMAIN_SEPARATOR&quot;</code>, so <code>separator</code> is a generator offset, not domain separation, and
+hashes with different separators can collide: <code>[0, x]</code> with separator 0 and <code>[x, 0]</code> with
+separator 1 have the same hash, because both compute <code>x * G[1] + 2 * L</code>. Don't use different
+separators to keep hashes of different kinds of data apart; include a distinct tag in the input
+instead, at the same position for every kind.</p>
+<p>Only available when compiling for the BN254 field.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::hash::{pedersen_hash, pedersen_hash_with_separator};
+
+<span class="kw">let</span> x = <span class="number">42</span>;
+<span class="kw">assert_eq</span>(pedersen_hash_with_separator([x], <span class="number">0</span>), pedersen_hash([x]));
+
+<span class="comment">// Different separators are not independent hash functions.</span>
+<span class="kw">assert_eq</span>(pedersen_hash_with_separator([<span class="number">0</span>, x], <span class="number">0</span>), pedersen_hash_with_separator([x, <span class="number">0</span>], <span class="number">1</span>));</code></pre>
+<h2>Failures</h2>
+<p>Fails to compile if <code>separator</code> is not a compile-time constant.</p></div>
 </div>
 </main>
 </span>
