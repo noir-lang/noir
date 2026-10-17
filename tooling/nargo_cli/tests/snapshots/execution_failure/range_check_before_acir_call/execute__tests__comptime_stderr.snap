@@ -3,9 +3,9 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
 error: call to assert_max_bit_size: 0x010000000000 has 41 bits which do not fit in 32 bits
-   ┌─ std/field/mod.nr:17:9
+   ┌─ std/field/mod.nr:32:9
    │
-17 │         __assert_max_bit_size(self, BIT_SIZE);
+32 │         __assert_max_bit_size(self, BIT_SIZE);
    │         ------------------------------------- Assertion failed
    │
    = Call stack:
@@ -14,6 +14,6 @@ error: call to assert_max_bit_size: 0x010000000000 has 41 bits which do not fit 
      2: main
              at src/main.nr:5:5
      3: Field::assert_max_bit_size
-             at std/field/mod.nr:17:9
+             at std/field/mod.nr:32:9
 
 Error interpreting main function

@@ -19,7 +19,7 @@
 <h1><a href="../../index.html">noir_stdlib</a></h1>
 <div><a href="../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.3</div>
+<div id="crate-version">1.0.0-rc.5</div>
 <h2><a href="#struct">Struct BuildHasherDefault</a></h2>
 <h3>Trait implementations</h3>
 <ul class="sidebar-list">
@@ -59,6 +59,37 @@
 <div id="page-content">
 <pre><code>pub struct BuildHasherDefault&lt;H&gt; {}
 </code></pre>
+<div class="comments">
+<p>A <a href="../../std/hash/trait.BuildHasher.html"><code>BuildHasher</code></a> that creates hashers of type <code>H</code> with <code>H::default()</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::hash::{BuildHasher, BuildHasherDefault, Hasher};
+
+<span class="kw">struct</span> Sum {
+    total: Field,
+}
+
+<span class="kw">impl</span> Hasher <span class="kw">for</span> Sum {
+    <span class="kw">fn</span> finish(self) -&gt; Field {
+        self.total
+    }
+
+    <span class="kw">fn</span> write(&<span class="kw">mut</span> self, input: Field) {
+        self.total += input;
+    }
+}
+
+<span class="kw">impl</span> Default <span class="kw">for</span> Sum {
+    <span class="kw">fn</span> default() -&gt; Self {
+        Sum { total: <span class="number">0</span> }
+    }
+}
+
+<span class="kw">fn</span> main() {
+    <span class="kw">let</span> builder: BuildHasherDefault&lt;Sum&gt; = BuildHasherDefault::default();
+    <span class="kw">let</span> <span class="kw">mut</span> hasher = builder.build_hasher();
+    hasher.write(<span class="number">5</span>);
+    <span class="kw">assert_eq</span>(hasher.finish(), <span class="number">5</span>);
+}</code></pre></div>
 <h2>Trait implementations</h2>
 <h3 id="impl-BuildHasher-for-BuildHasherDefault<H>"><code class="code-header">impl&lt;H&gt; <a href="../../std/hash/trait.BuildHasher.html" class="trait">BuildHasher</a> for <a href="../../std/hash/struct.BuildHasherDefault.html" class="struct">BuildHasherDefault</a>&lt;H&gt;
 <div class="where-clause">where

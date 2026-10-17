@@ -4,6 +4,7 @@
 //! ```ignore
 //! cargo run -p nargo_cli --example ssa_pass_impact -- --ssa-pass "Removing Unreachable Functions"
 //! ```
+use std::sync::Arc;
 use std::{
     cmp::Ordering,
     collections::BTreeMap,
@@ -21,7 +22,8 @@ use nargo_toml::{
     ManifestError, PackageSelection, get_package_manifest, resolve_workspace_from_toml,
 };
 use noirc_driver::{
-    CompilationResult, CompileOptions, CrateName, NOIR_ARTIFACT_VERSION_STRING, check_crate,
+    CompilationResult, CompileOptions, CrateName, NOIR_ARTIFACT_VERSION_STRING,
+    check_crate_with_comptime_io,
 };
 use noirc_errors::CustomDiagnostic;
 use noirc_evaluator::{
@@ -31,7 +33,7 @@ use noirc_evaluator::{
 use noirc_frontend::{
     debug::DebugInstrumenter,
     elaborator::UnstableFeature,
-    hir::ParsedFiles,
+    hir::{ParsedFiles, comptime::ComptimeIo},
     monomorphization::{ast::Program, monomorphize},
 };
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -145,7 +147,8 @@ fn main() {
 
             let mut file_manager = workspace.new_file_manager();
             insert_all_files_for_workspace_into_file_manager(&workspace, &mut file_manager);
-            let parsed_files = parse_all(&file_manager);
+            let parsed_files = Arc::new(parse_all(&file_manager));
+            let file_manager = Arc::new(file_manager);
             let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
 
             // Cannot share the boxed closures between threads.
@@ -155,7 +158,6 @@ fn main() {
                 let program = match compile_into_program(
                     &file_manager,
                     &parsed_files,
-                    &workspace,
                     package,
                     &compile_options,
                 ) {
@@ -234,17 +236,16 @@ fn show_report(pairs: Vec<(CrateName, Vec<SsaBeforeAndAfter>)>, top_impact_count
 ///
 /// If the package has no `main` function then `None` is returned.
 fn compile_into_program(
-    file_manager: &FileManager,
-    parsed_files: &ParsedFiles,
-    workspace: &Workspace,
+    file_manager: &Arc<FileManager>,
+    parsed_files: &Arc<ParsedFiles>,
     package: &Package,
     options: &CompileOptions,
 ) -> CompilationResult<Option<Program>> {
     let (mut context, crate_id) = prepare_package(file_manager, parsed_files, package);
-    context.disable_comptime_printing();
     context.debug_instrumenter = DebugInstrumenter::default();
-    context.package_build_path = workspace.package_build_path(package);
-    let (_, warnings) = check_crate(&mut context, crate_id, options)?;
+    let (context, result) =
+        check_crate_with_comptime_io(context, crate_id, options, &mut ComptimeIo::silent());
+    let (_, warnings) = result?;
     let Some(main) = context.get_main_function(&crate_id) else {
         return Ok((None, warnings));
     };

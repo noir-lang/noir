@@ -299,7 +299,7 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
                 self.append_trait_generics(trait_generics);
             }
             Type::TypeVariable(typevar) => {
-                if typevar.id() == self.trait_.self_type_typevar.id() {
+                if typevar.id() == self.trait_.self_param.id() {
                     self.string.push_str("Self");
                     return;
                 }

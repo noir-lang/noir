@@ -19,7 +19,7 @@
 <h1><a href="../index.html">noir_stdlib</a></h1>
 <div><a href="../all.html">All items</a></div>
 <h2 id="crate-name"><a href="index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.3</div>
+<div id="crate-version">1.0.0-rc.5</div>
 <h2><a href="#primitive">Primitive type Field</a></h2>
 <h3>Methods</h3>
 <ul class="sidebar-list">
@@ -149,93 +149,138 @@ Smaller integer types (e.g. <code>u64</code>) incur extra range constraints.</p>
 
 <div class="padded-description"><div class="comments">
 <p>Asserts that <code>self</code> can be represented in <code>bit_size</code> bits.</p>
+<p><code>BIT_SIZE</code> must be less than the number of bits in the field modulus.</p>
+<p>Example:</p>
+<pre><code><span class="kw">let</span> x: Field = <span class="number">255</span>;
+x.assert_max_bit_size::&lt;<span class="number">8</span>&gt;();</code></pre>
 <h4>Failures</h4>
 <p>Causes a constraint failure for <code>Field</code> values exceeding <code>2^{bit_size}</code>.</p>
-</div>
+<pre><code><span class="kw">let</span> x: Field = <span class="number">256</span>;
+<span class="comment">// Fails: 256 needs 9 bits.</span>
+x.assert_max_bit_size::&lt;<span class="number">8</span>&gt;();</code></pre></div>
 </div><code id="to_le_bits" class="code-header">pub fn <a href="#to_le_bits" class="fn">to_le_bits</a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self) -> [<a href="../std/primitive.bool.html" class="primitive">bool</a>; N]</code>
 
 <div class="padded-description"><div class="comments">
 <p>Decomposes <code>self</code> into its little endian bit decomposition as a <code>[bool; N]</code> array.
 This array will be zero padded should not all bits be necessary to represent <code>self</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">let</span> bits: [bool; <span class="number">8</span>] = <span class="number">2</span>.to_le_bits();
+<span class="kw">assert_eq</span>(bits, [<span class="bool-var">false</span>, <span class="bool-var">true</span>, <span class="bool-var">false</span>, <span class="bool-var">false</span>, <span class="bool-var">false</span>, <span class="bool-var">false</span>, <span class="bool-var">false</span>, <span class="bool-var">false</span>]);</code></pre>
 <h4>Failures</h4>
 <p>Causes a constraint failure for <code>Field</code> values exceeding <code>2^N</code> as the resulting array will not
 be able to represent the original <code>Field</code>.</p>
 <h4>Safety</h4>
-<p>The bit decomposition returned is canonical and is guaranteed to not overflow the modulus.</p>
-</div>
+<p>The bit decomposition returned is canonical and is guaranteed to not overflow the modulus.</p></div>
 </div><code id="to_be_bits" class="code-header">pub fn <a href="#to_be_bits" class="fn">to_be_bits</a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self) -> [<a href="../std/primitive.bool.html" class="primitive">bool</a>; N]</code>
 
 <div class="padded-description"><div class="comments">
 <p>Decomposes <code>self</code> into its big endian bit decomposition as a <code>[bool; N]</code> array.
 This array will be zero padded should not all bits be necessary to represent <code>self</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">let</span> bits: [bool; <span class="number">8</span>] = <span class="number">2</span>.to_be_bits();
+<span class="kw">assert_eq</span>(bits, [<span class="bool-var">false</span>, <span class="bool-var">false</span>, <span class="bool-var">false</span>, <span class="bool-var">false</span>, <span class="bool-var">false</span>, <span class="bool-var">false</span>, <span class="bool-var">true</span>, <span class="bool-var">false</span>]);</code></pre>
 <h4>Failures</h4>
 <p>Causes a constraint failure for <code>Field</code> values exceeding <code>2^N</code> as the resulting array will not
 be able to represent the original <code>Field</code>.</p>
 <h4>Safety</h4>
-<p>The bit decomposition returned is canonical and is guaranteed to not overflow the modulus.</p>
-</div>
+<p>The bit decomposition returned is canonical and is guaranteed to not overflow the modulus.</p></div>
 </div><code id="to_le_bytes" class="code-header">pub fn <a href="#to_le_bytes" class="fn">to_le_bytes</a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self) -> [<a href="../std/primitive.u8.html" class="primitive">u8</a>; N]</code>
 
 <div class="padded-description"><div class="comments">
 <p>Decomposes <code>self</code> into its little endian byte decomposition as a <code>[u8;N]</code> array
 This array will be zero padded should not all bytes be necessary to represent <code>self</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">let</span> bytes: [u8; <span class="number">4</span>] = <span class="number">0x01020304</span>.to_le_bytes();
+<span class="kw">assert_eq</span>(bytes, [<span class="number">4</span>, <span class="number">3</span>, <span class="number">2</span>, <span class="number">1</span>]);</code></pre>
 <h4>Failures</h4>
 <p>The length N of the array must be big enough to contain all the bytes of the 'self',
 and no more than the number of bytes required to represent the field modulus</p>
 <h4>Safety</h4>
-<p>The result is ensured to be the canonical decomposition of the field element</p>
-</div>
+<p>The result is ensured to be the canonical decomposition of the field element</p></div>
 </div><code id="to_be_bytes" class="code-header">pub fn <a href="#to_be_bytes" class="fn">to_be_bytes</a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self) -> [<a href="../std/primitive.u8.html" class="primitive">u8</a>; N]</code>
 
 <div class="padded-description"><div class="comments">
 <p>Decomposes <code>self</code> into its big endian byte decomposition as a <code>[u8;N]</code> array of length required to represent the field modulus
 This array will be zero padded should not all bytes be necessary to represent <code>self</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">let</span> bytes: [u8; <span class="number">4</span>] = <span class="number">0x01020304</span>.to_be_bytes();
+<span class="kw">assert_eq</span>(bytes, [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>]);</code></pre>
 <h4>Failures</h4>
 <p>The length N of the array must be big enough to contain all the bytes of the 'self',
 and no more than the number of bytes required to represent the field modulus</p>
 <h4>Safety</h4>
-<p>The result is ensured to be the canonical decomposition of the field element</p>
-</div>
+<p>The result is ensured to be the canonical decomposition of the field element</p></div>
 </div><code id="pow_32" class="code-header">pub fn <a href="#pow_32" class="fn">pow_32</a>(self, exponent: Self) -> Self</code>
 
-<code id="sgn0" class="code-header">pub fn <a href="#sgn0" class="fn">sgn0</a>(self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
+<div class="padded-description"><div class="comments">
+<p>Returns <code>self</code> raised to the power <code>exponent</code>.</p>
+<p><code>exponent</code> must be less than <code>2^32</code>. The power is computed by square-and-multiply over the
+exponent's 32 bits, so the circuit size doesn't depend on the value of <code>exponent</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">assert_eq</span>(<span class="number">2</span>.pow_32(<span class="number">10</span>), <span class="number">1024</span>);</code></pre>
+<h4>Failures</h4>
+<p>Fails if <code>exponent</code> is <code>2^32</code> or more.</p></div>
+</div><code id="sgn0" class="code-header">pub fn <a href="#sgn0" class="fn">sgn0</a>(self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
-<code id="lt" class="code-header">pub fn <a href="#lt" class="fn">lt</a>(self, another: Self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
+<div class="padded-description"><div class="comments">
+<p>Returns <code>true</code> if <code>self</code>, as an integer in <code>0..p</code>, is odd.</p>
+<p>This is the <code>sgn0</code> function used by hash-to-curve standards. Because <code>p</code> is odd, <code>-x</code> and
+<code>x</code> have different parities for every nonzero <code>x</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">assert</span>(<span class="number">3</span>.sgn0());
+<span class="kw">assert</span>(!<span class="number">4</span>.sgn0());
+<span class="comment">// -1 is p - 1, which is even.</span>
+<span class="kw">assert</span>(!(-<span class="number">1</span>).sgn0());</code></pre></div>
+</div><code id="lt" class="code-header">pub fn <a href="#lt" class="fn">lt</a>(self, another: Self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
-<code id="from_le_bytes" class="code-header">pub fn <a href="#from_le_bytes" class="fn">from_le_bytes</a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(bytes: [<a href="../std/primitive.u8.html" class="primitive">u8</a>; N]) -> Self</code>
+<div class="padded-description"><div class="comments">
+<p>Returns <code>true</code> if <code>self</code> is less than <code>another</code>, comparing them as integers in <code>0..p</code>.</p>
+<p><code>Field</code> supports <code>==</code> and <code>!=</code>, but not the ordering operators <code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code> and <code>&gt;=</code>, and
+doesn't implement <a href="../std/cmp/trait.Ord.html"><code>crate::cmp::Ord</code></a>; this is how to order field elements. For <code>a &gt; b</code>,
+use <code>b.lt(a)</code>. The result is fully constrained. Field arithmetic wraps around, so <code>-1</code> is
+the largest field element.</p>
+<p>Example:</p>
+<pre><code><span class="kw">assert</span>(<span class="number">1</span>.lt(<span class="number">2</span>));
+<span class="kw">assert</span>(!<span class="number">2</span>.lt(<span class="number">2</span>));
+<span class="kw">assert</span>(!(-<span class="number">1</span>).lt(<span class="number">1</span>));</code></pre></div>
+</div><code id="from_le_bytes" class="code-header">pub fn <a href="#from_le_bytes" class="fn">from_le_bytes</a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(bytes: [<a href="../std/primitive.u8.html" class="primitive">u8</a>; N]) -> Self</code>
 
 <div class="padded-description"><div class="comments">
 <p>Convert a little endian byte array to a field element.
 If the provided byte array overflows the field modulus then the Field will silently wrap around.</p>
+<p>Example:</p>
+<pre><code><span class="kw">assert_eq</span>(Field::from_le_bytes([<span class="number">4</span>, <span class="number">3</span>, <span class="number">2</span>, <span class="number">1</span>]), <span class="number">0x01020304</span>);</code></pre>
 <h4>Failures</h4>
-<p><code>N</code> must be no greater than the number of bytes required to represent the field modulus</p>
-</div>
+<p><code>N</code> must be no greater than the number of bytes required to represent the field modulus</p></div>
 </div><code id="from_be_bytes" class="code-header">pub fn <a href="#from_be_bytes" class="fn">from_be_bytes</a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(bytes: [<a href="../std/primitive.u8.html" class="primitive">u8</a>; N]) -> Self</code>
 
 <div class="padded-description"><div class="comments">
 <p>Convert a big endian byte array to a field element.
 If the provided byte array overflows the field modulus then the Field will silently wrap around.</p>
+<p>Example:</p>
+<pre><code><span class="kw">assert_eq</span>(Field::from_be_bytes([<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>]), <span class="number">0x01020304</span>);</code></pre>
 <h4>Failures</h4>
-<p><code>N</code> must be no greater than the number of bytes required to represent the field modulus</p>
-</div>
+<p><code>N</code> must be no greater than the number of bytes required to represent the field modulus</p></div>
 </div><code id="from_le_bytes_checked" class="code-header">pub fn <a href="#from_le_bytes_checked" class="fn">from_le_bytes_checked</a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(bytes: [<a href="../std/primitive.u8.html" class="primitive">u8</a>; N]) -> Self</code>
 
 <div class="padded-description"><div class="comments">
 <p>Convert a little endian byte array to a field element, asserting that the input is a
 canonical representation (strictly less than the field modulus).</p>
+<p>Example:</p>
+<pre><code><span class="kw">assert_eq</span>(Field::from_le_bytes_checked([<span class="number">4</span>, <span class="number">3</span>, <span class="number">2</span>, <span class="number">1</span>]), <span class="number">0x01020304</span>);</code></pre>
 <h4>Failures</h4>
 <p>Causes a constraint failure if <code>bytes</code> encodes a value greater than or equal to the
-field modulus.</p>
-</div>
+field modulus.</p></div>
 </div><code id="from_be_bytes_checked" class="code-header">pub fn <a href="#from_be_bytes_checked" class="fn">from_be_bytes_checked</a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(bytes: [<a href="../std/primitive.u8.html" class="primitive">u8</a>; N]) -> Self</code>
 
 <div class="padded-description"><div class="comments">
 <p>Convert a big endian byte array to a field element, asserting that the input is a
 canonical representation (strictly less than the field modulus).</p>
+<p>Example:</p>
+<pre><code><span class="kw">assert_eq</span>(Field::from_be_bytes_checked([<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>]), <span class="number">0x01020304</span>);</code></pre>
 <h4>Failures</h4>
 <p>Causes a constraint failure if <code>bytes</code> encodes a value greater than or equal to the
-field modulus.</p>
-</div>
+field modulus.</p></div>
 </div></div><h2>Trait implementations</h2>
 <h3 id="impl-Add-for-Field"><code class="code-header">impl <a href="../std/ops/trait.Add.html" class="trait">Add</a> for <a href="../std/primitive.Field.html" class="primitive">Field</a></code></h3>
 

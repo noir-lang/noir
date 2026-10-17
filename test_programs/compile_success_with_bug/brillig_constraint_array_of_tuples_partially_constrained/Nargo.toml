@@ -1,0 +1,6 @@
+[package]
+name = "brillig_constraint_array_of_tuples_partially_constrained"
+type = "bin"
+authors = [""]
+
+[dependencies]

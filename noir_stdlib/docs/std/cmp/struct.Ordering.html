@@ -19,7 +19,7 @@
 <h1><a href="../../index.html">noir_stdlib</a></h1>
 <div><a href="../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.3</div>
+<div id="crate-version">1.0.0-rc.5</div>
 <h2><a href="#struct">Struct Ordering</a></h2>
 <h3>Methods</h3>
 <ul class="sidebar-list">
@@ -59,17 +59,40 @@
 <div class="comments">
 <p>A value with three states: <code>Ordering::less()</code>, <code>Ordering::equal()</code> or <code>Ordering::greater()</code>.
 Most often used to encode the result of a comparison operation.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::cmp::Ordering;
+
+<span class="kw">assert_eq</span>(<span class="number">1_u8</span>.cmp(<span class="number">2</span>), Ordering::less());
+<span class="kw">assert_eq</span>(<span class="number">2_u8</span>.cmp(<span class="number">2</span>), Ordering::equal());
+<span class="kw">assert_eq</span>(<span class="number">3_u8</span>.cmp(<span class="number">2</span>), Ordering::greater());</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../../std/cmp/struct.Ordering.html" class="struct">Ordering</a></code></h3>
 
 <div class="padded-methods"><code id="less" class="code-header">pub fn <a href="#less" class="fn">less</a>() -> Self</code>
 
-<code id="equal" class="code-header">pub fn <a href="#equal" class="fn">equal</a>() -> Self</code>
+<div class="padded-description"><div class="comments">
+<p>The result of <code>a.cmp(b)</code> when <code>a &lt; b</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::cmp::Ordering;
 
-<code id="greater" class="code-header">pub fn <a href="#greater" class="fn">greater</a>() -> Self</code>
+<span class="kw">assert_eq</span>(<span class="number">1_u8</span>.cmp(<span class="number">2</span>), Ordering::less());</code></pre></div>
+</div><code id="equal" class="code-header">pub fn <a href="#equal" class="fn">equal</a>() -> Self</code>
 
-</div><h2>Trait implementations</h2>
+<div class="padded-description"><div class="comments">
+<p>The result of <code>a.cmp(b)</code> when <code>a == b</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::cmp::Ordering;
+
+<span class="kw">assert_eq</span>(<span class="number">2_u8</span>.cmp(<span class="number">2</span>), Ordering::equal());</code></pre></div>
+</div><code id="greater" class="code-header">pub fn <a href="#greater" class="fn">greater</a>() -> Self</code>
+
+<div class="padded-description"><div class="comments">
+<p>The result of <code>a.cmp(b)</code> when <code>a &gt; b</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::cmp::Ordering;
+
+<span class="kw">assert_eq</span>(<span class="number">3_u8</span>.cmp(<span class="number">2</span>), Ordering::greater());</code></pre></div>
+</div></div><h2>Trait implementations</h2>
 <h3 id="impl-Eq-for-Ordering"><code class="code-header">impl <a href="../../std/cmp/trait.Eq.html" class="trait">Eq</a> for <a href="../../std/cmp/struct.Ordering.html" class="struct">Ordering</a></code></h3>
 
 <div class="padded-methods"><code class="code-header">pub fn <span class="fn">eq</span>(self, other: Self) -> <a href="../../std/primitive.bool.html" class="primitive">bool</a></code>

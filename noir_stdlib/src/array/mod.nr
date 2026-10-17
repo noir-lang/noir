@@ -8,11 +8,7 @@ mod quicksort;
 impl<T, let N: u32> [T; N] {
     /// Returns the length of this array.
     ///
-    /// ```noir
-    /// fn len(self) -> Field
-    /// ```
-    ///
-    /// example
+    /// Example:
     ///
     /// ```noir
     /// fn main() {

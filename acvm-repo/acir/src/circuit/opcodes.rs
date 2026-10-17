@@ -148,6 +148,9 @@ pub enum Opcode<F: AcirField> {
         outputs: Vec<BrilligOutputs>,
         /// Predicate of the Brillig execution - when the predicate evaluates to 0, execution is skipped.
         /// When the predicate evaluates to 1, execution proceeds.
+        ///
+        /// The predicate must not be the constant 0: a call which is statically disabled is
+        /// resolved by the ACIR producer, which assigns its outputs directly.
         #[tag(3)]
         predicate: Expression<F>,
     },
@@ -168,6 +171,9 @@ pub enum Opcode<F: AcirField> {
         outputs: Vec<Witness>,
         /// Predicate of the circuit execution - when the predicate evaluates to 0, execution is skipped.
         /// When the predicate evaluates to 1, execution proceeds.
+        ///
+        /// The predicate must not be the constant 0: a call which is statically disabled is
+        /// resolved by the ACIR producer, which assigns its outputs directly.
         #[tag(3)]
         predicate: Expression<F>,
     },

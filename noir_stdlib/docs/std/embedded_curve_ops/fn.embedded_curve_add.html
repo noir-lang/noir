@@ -19,7 +19,7 @@
 <h1><a href="../../index.html">noir_stdlib</a></h1>
 <div><a href="../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.3</div>
+<div id="crate-version">1.0.0-rc.5</div>
 <h2>In module embedded_curve_ops</h2>
 <h3>Structs</h3><ul class="item-list">
 <li><a href="struct.EmbeddedCurvePoint.html">EmbeddedCurvePoint</a></div></li>
@@ -54,7 +54,14 @@ IMPORTANT: this function is expected to perform a full addition in order to hand
 <li>point at infinity
 As a result, you may not get optimal performance, depending on the assumptions of your inputs.</li>
 </ul>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::embedded_curve_ops::{EmbeddedCurvePoint, embedded_curve_add};
+
+<span class="kw">let</span> g = EmbeddedCurvePoint::generator();
+<span class="kw">assert_eq</span>(embedded_curve_add(g, g), g.double());
+<span class="kw">assert</span>(embedded_curve_add(g, -g).is_infinite());</code></pre>
+<h2>Failures</h2>
+<p>Fails at execution if either point is neither on the curve nor the point at infinity.</p></div>
 </div>
 </main>
 </span>

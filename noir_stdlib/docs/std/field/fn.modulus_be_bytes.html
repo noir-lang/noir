@@ -19,7 +19,7 @@
 <h1><a href="../../index.html">noir_stdlib</a></h1>
 <div><a href="../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.3</div>
+<div id="crate-version">1.0.0-rc.5</div>
 <h2>In module field</h2>
 <h3>Modules</h3><ul class="item-list">
 <li><a href="bn254/index.html">bn254</a></div></li>
@@ -43,6 +43,14 @@
 <div id="page-content">
 <pre><code>pub comptime fn modulus_be_bytes() -> [<a href="../../std/primitive.u8.html" class="primitive">u8</a>]</code></pre>
 
+<div class="comments">
+<p>Returns the bytes of the field modulus, most significant first.</p>
+<p>This is a <code>comptime</code> function: the value is computed at compile time for the field being
+compiled for. The example shows the values for BN254.</p>
+<p>Example:</p>
+<pre><code><span class="kw">let</span> bytes = std::field::modulus_be_bytes();
+<span class="kw">assert_eq</span>(bytes.len(), <span class="number">32</span>);
+<span class="kw">assert_eq</span>(bytes[<span class="number">0</span>], <span class="number">0x30</span>);</code></pre></div>
 </div>
 </main>
 </span>

@@ -136,8 +136,11 @@ pub struct FuncMeta {
     /// Trait constraints that were specified directly on this function.
     pub trait_constraints: Vec<TraitConstraint>,
 
-    /// Trait constraints that came either from a parent item (for example a where clause on a
-    /// trait or trait impl) or from constraints on implicitly added named generics.
+    /// Trait constraints the function assumes without writing them: those from a parent item
+    /// (for example a where clause on a trait or trait impl), those on implicitly added named
+    /// generics, and the parent-trait bounds implied by `trait_constraints` that carry associated
+    /// types (`T: Checked` with `trait Checked: Source` implies `T: Source<Out = ..>`, where the
+    /// associated type is a generic of this function).
     pub extra_trait_constraints: Vec<TraitConstraint>,
 
     /// The type this method belongs to, if any
@@ -218,23 +221,6 @@ impl FuncMeta {
             Type::Forall(_, typ) => {
                 if let Type::Function(_, _, _, unconstrained) = typ.as_ref() {
                     return *unconstrained;
-                }
-            }
-            _ => (),
-        }
-        unreachable!("A function type can only be Function or Forall(Function)")
-    }
-
-    pub fn set_unconstrained(&mut self, unconstrained: bool) {
-        match &mut self.typ {
-            Type::Function(_, _, _, unconstrained_field) => {
-                *unconstrained_field = unconstrained;
-                return;
-            }
-            Type::Forall(_, typ) => {
-                if let Type::Function(_, _, _, unconstrained_field) = typ.as_mut() {
-                    *unconstrained_field = unconstrained;
-                    return;
                 }
             }
             _ => (),

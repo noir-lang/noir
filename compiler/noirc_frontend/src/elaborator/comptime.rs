@@ -107,44 +107,54 @@ impl<'context> Elaborator<'context> {
     ) -> T {
         self.elaborate_item_from_comptime(reason, f, |elaborator| {
             if let Some(function) = current_function {
-                let (
-                    source_crate,
-                    source_module,
-                    all_generics,
-                    self_type,
-                    trait_impl,
-                    trait_id,
-                    trait_bounds,
-                ) = elaborator.with_function_meta(function, |meta| {
-                    (
-                        meta.source_crate,
-                        meta.source_module,
-                        meta.all_generics.clone(),
-                        meta.self_type.clone(),
-                        meta.trait_impl,
-                        meta.trait_id,
-                        meta.all_trait_constraints().cloned().collect(),
-                    )
-                });
+                let (source_crate, source_module, all_generics, trait_bounds) = elaborator
+                    .with_function_meta(function, |meta| {
+                        (
+                            meta.source_crate,
+                            meta.source_module,
+                            meta.all_generics.clone(),
+                            meta.all_trait_constraints().cloned().collect(),
+                        )
+                    });
+                let interner = &elaborator.interner;
+                let impl_context =
+                    ImplContext::of_function(interner.function_meta(&function), interner);
                 elaborator.item.module.set_current_item(Some(DependencyId::Function(function)));
                 elaborator.crate_id = source_crate;
                 elaborator.item.module.set_local_module(source_module);
-                elaborator.item.impl_context =
-                    ImplContext::in_trait_impl(self_type, trait_id, trait_impl);
+                elaborator.item.impl_context = impl_context;
                 elaborator.item.generics = GenericsContext::new(Vec::new(), trait_bounds);
                 elaborator.introduce_generics_into_scope(all_generics);
             }
         })
     }
 
+    /// Run `f` in a fresh [`Elaborator`] so that elaborating an item on behalf of comptime code
+    /// leaves the item this elaborator is working on untouched.
+    ///
+    /// The fresh elaborator takes over this elaborator's
+    /// [`ElaborationSession`](super::session::ElaborationSession) for the duration of `f` and hands
+    /// it back afterwards, so the interpreter call stack, recursion limits, the halt flag and
+    /// deferred items carry through it unchanged. Its scopes and item context start
+    /// empty, apart from the comptime variables currently in scope. Errors it collects are merged
+    /// into this elaborator's, wrapped in `reason` if one is given.
     fn elaborate_item_from_comptime<'a, T>(
         &'a mut self,
         reason: Option<ElaborateReason>,
         f: impl FnOnce(&mut Elaborator<'a>) -> T,
         setup: impl FnOnce(&mut Elaborator<'a>),
     ) -> T {
-        // Create a fresh elaborator to ensure no state is changed from
-        // this elaborator
+        // Variables from this elaborator's scope are not visible to the fresh elaborator, but
+        // their names are recorded so that referencing one reports a runtime variable used in
+        // comptime code rather than an undeclared variable.
+        let current_scope_tree = self.scopes.0.last();
+        let local_scopes = current_scope_tree.into_iter().flat_map(|tree| tree.0.iter());
+        let local_vars: Vec<String> =
+            local_scopes.flat_map(|scope| scope.0.keys()).cloned().collect();
+        let mut session = std::mem::take(&mut self.session);
+        let enclosing_runtime_variables = session.parent_runtime_variables.clone();
+        session.parent_runtime_variables.extend(local_vars);
+
         let mut elaborator = Elaborator::new(
             self.interner,
             self.def_maps,
@@ -156,25 +166,13 @@ impl<'context> Elaborator<'context> {
             self.required_unstable_features,
             self.unresolved_globals,
             self.crate_id,
-            self.interpreter_call_stack.clone(),
             self.options,
-            self.elaborate_reasons.clone(),
+            session,
         );
-
-        // Collect (and update) variable names from the parent scope for better error messages
-        // when a runtime variable is referenced in comptime code.
-        let current_scope_tree = self.scopes.0.last();
-        let local_scopes = current_scope_tree.into_iter().flat_map(|tree| tree.0.iter());
-        let local_vars = local_scopes.flat_map(|scope| scope.0.keys()).cloned();
-        let parent_runtime_variables =
-            self.parent_runtime_variables.iter().cloned().chain(local_vars).collect();
 
         elaborator.push_function_context();
         elaborator.scopes.start_function();
-
         elaborator.item.module.set_local_module(self.item.module.local_module());
-        elaborator.parent_runtime_variables = parent_runtime_variables;
-        elaborator.deferred = std::mem::take(&mut self.deferred);
 
         setup(&mut elaborator);
 
@@ -183,26 +181,25 @@ impl<'context> Elaborator<'context> {
         let result = f(&mut elaborator);
         elaborator.check_and_pop_function_context();
 
-        self.deferred = std::mem::take(&mut elaborator.deferred);
-
         let mut errors = std::mem::take(&mut elaborator.errors);
         if let Some(reason) = reason {
             errors =
                 errors.map(|error| CompilationError::ComptimeError(reason.to_macro_error(error)));
         }
-
         self.errors.extend(errors);
-        self.comptime_evaluation_halted = elaborator.comptime_evaluation_halted;
+
+        self.session = std::mem::take(&mut elaborator.session);
+        self.session.parent_runtime_variables = enclosing_runtime_variables;
         result
     }
 
     /// Populate the elaborator's scope with the comptime variables visible to the current function.
     ///
     /// When elaborating code generated at comptime, we need to make the comptime variables in scope
-    /// available in the runtime scope. The visible scopes are the global scope together with those
-    /// at or above the comptime scope floor; scopes belonging to enclosing callers are skipped, just
-    /// as the interpreter skips them. We iterate from global to local scope so that more local
-    /// definitions naturally shadow outer ones.
+    /// available in the runtime scope. Scopes belonging to enclosing callers are skipped, just as
+    /// the interpreter skips them. We iterate from the outermost scope inwards so that more local
+    /// definitions naturally shadow outer ones. Globals are not added: generated code resolves them
+    /// by path like any other module item.
     ///
     /// Within a single scope, bindings are registered in ascending
     /// [`crate::node_interner::DefinitionId`] order. `DefinitionId`s are minted monotonically
@@ -212,20 +209,13 @@ impl<'context> Elaborator<'context> {
     /// directly would instead pick a binding by hash-bucket order.
     #[tracing::instrument(level = "trace", skip_all)]
     fn populate_scope_from_comptime_scopes(&mut self) {
-        let floor = self.interner.comptime_scope_floor;
-        let len = self.interner.comptime_scopes.len();
-
-        for index in std::iter::once(0).chain(floor..len) {
-            let mut definition_ids: Vec<_> =
-                self.interner.comptime_scopes[index].keys().copied().collect();
+        for comptime_scope in self.session.comptime_scopes.visible_scopes() {
+            let mut definition_ids: Vec<_> = comptime_scope.keys().copied().collect();
             definition_ids.sort();
-            for definition_id in &definition_ids {
-                let definition = self.interner.definition(*definition_id);
-                let name = definition.name.clone();
-                let location = definition.location;
 
-                let scope = self.scopes.get_mut_scope();
-                let ident = HirIdent::non_trait_method(*definition_id, location);
+            for definition_id in definition_ids {
+                let definition = self.interner.definition(definition_id);
+                let ident = HirIdent::non_trait_method(definition_id, definition.location);
                 let meta = ResolverMeta {
                     ident,
                     used: false,
@@ -233,7 +223,7 @@ impl<'context> Elaborator<'context> {
                     warn_if_unused: false,
                     warn_if_not_mutated: false,
                 };
-                scope.add_key_value(name.clone(), meta);
+                self.scopes.get_mut_scope().add_key_value(definition.name.clone(), meta);
             }
         }
     }
@@ -780,7 +770,6 @@ impl<'context> Elaborator<'context> {
                     impl_id: None,
                     resolved_object_type: None,
                     resolved_generics: Vec::new(),
-                    unresolved_associated_types: Vec::new(),
                     inherited_default_method_func_ids: Default::default(),
                 });
             }
@@ -930,15 +919,15 @@ impl<'context> Elaborator<'context> {
             // If we put the increment/decrement in `run_attribute`, the decrement would
             // happen before `elaborate_items` is called, so the depth counter would reset
             // before the recursive call and fail to detect the recursion.
-            if self.macro_expansion_depth >= MAX_MACRO_EXPANSION_DEPTH {
+            if self.session.macro_expansion_depth >= MAX_MACRO_EXPANSION_DEPTH {
                 self.push_err(InterpreterError::AttributeRecursionLimitExceeded {
                     location: attr.location,
                 });
                 // Halt further elaboration to prevent cascading errors
-                self.comptime_evaluation_halted = true;
+                self.halt_comptime_evaluation();
                 return;
             }
-            self.macro_expansion_depth += 1;
+            self.session.macro_expansion_depth += 1;
 
             let mut generated_items = CollectedItems::default();
             let impl_target = attr.impl_target;
@@ -963,7 +952,7 @@ impl<'context> Elaborator<'context> {
                 });
             }
 
-            self.macro_expansion_depth -= 1;
+            self.session.macro_expansion_depth -= 1;
         }
     }
 
@@ -1008,7 +997,7 @@ impl<'context> Elaborator<'context> {
     where
         F: FnOnce(&mut Elaborator) -> T,
     {
-        self.elaborate_reasons.push_back(reason);
+        self.session.elaborate_reasons.push_back(reason);
         let previous_errors = std::mem::take(&mut self.errors);
 
         let value = f(self);
@@ -1017,7 +1006,7 @@ impl<'context> Elaborator<'context> {
         let new_errors = self.wrap_errors_in_macro_error(new_errors);
         self.errors = previous_errors;
         self.push_errors(new_errors);
-        self.elaborate_reasons.pop_back();
+        self.session.elaborate_reasons.pop_back();
 
         value
     }
@@ -1027,7 +1016,7 @@ impl<'context> Elaborator<'context> {
     }
 
     fn wrap_error_in_macro_error(&self, mut error: CompilationError) -> CompilationError {
-        for reason in self.elaborate_reasons.iter().rev() {
+        for reason in self.session.elaborate_reasons.iter().rev() {
             error = CompilationError::ComptimeError(reason.to_macro_error(error));
         }
         error

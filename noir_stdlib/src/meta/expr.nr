@@ -764,14 +764,12 @@ impl Expr {
     ///
     /// ```noir
     /// comptime {
-    ///     let expr1 = quote { 1 + 2 }.as_expr().unwrap();
-    ///     let expr2 = quote { 1 + 2; }.as_expr().unwrap();
+    ///     let block = quote { { 1 + 2; 3 } }.as_expr().unwrap();
+    ///     let statements = block.as_block().unwrap();
     ///
-    ///     assert(expr1.as_binary_op().is_some());
-    ///     assert(expr2.as_binary_op().is_some());
-    ///
-    ///     assert(!expr1.has_semicolon());
-    ///     assert(expr2.has_semicolon());
+    ///     assert(statements[0].as_binary_op().is_some());
+    ///     assert(statements[0].has_semicolon());
+    ///     assert(!statements[1].has_semicolon());
     /// }
     /// ```
     #[builtin(expr_has_semicolon)]

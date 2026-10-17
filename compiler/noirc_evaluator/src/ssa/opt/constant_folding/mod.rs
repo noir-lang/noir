@@ -64,26 +64,8 @@ impl Ssa {
     ///
     /// See [`constant_folding`][self] module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
-    pub(crate) fn fold_constants(mut self, max_iter: usize) -> Ssa {
-        // Collect all brillig functions so that later we can find them when processing a call instruction
-        let brillig_functions = clone_brillig_functions(&self.functions);
-
-        let mut interpreter = Interpreter::new_from_functions(
-            &brillig_functions,
-            InterpreterOptions {
-                no_foreign_calls: true,
-                step_limit: Some(DEFAULT_INTERPRETER_STEP_LIMIT),
-                ..Default::default()
-            },
-            std::io::empty(),
-        );
-        // Interpret globals once so that we do not have to repeat this computation on every Brillig call.
-        interpreter.interpret_globals().expect("ICE: Interpreter failed to interpret globals");
-
-        for function in self.functions.values_mut() {
-            function.constant_fold(false, max_iter, &mut interpreter);
-        }
-        self
+    pub(crate) fn fold_constants(self, max_iter: usize) -> Ssa {
+        self.fold_constants_in_all_functions(false, max_iter)
     }
 
     /// Performs constant folding on each instruction.
@@ -94,41 +76,59 @@ impl Ssa {
     ///
     /// See [`constant_folding`][self] module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
-    pub(crate) fn fold_constants_using_constraints(mut self, max_iter: usize) -> Ssa {
-        // Collect all brillig functions so that later we can find them when processing a call instruction
-        let brillig_functions = clone_brillig_functions(&self.functions);
+    pub(crate) fn fold_constants_using_constraints(self, max_iter: usize) -> Ssa {
+        self.fold_constants_in_all_functions(true, max_iter)
+    }
 
-        let mut interpreter = Interpreter::new_from_functions(
-            &brillig_functions,
-            InterpreterOptions {
-                no_foreign_calls: true,
-                step_limit: Some(DEFAULT_INTERPRETER_STEP_LIMIT),
-                ..Default::default()
-            },
-            std::io::empty(),
-        );
+    /// Runs [`Function::constant_fold`] on every function.
+    ///
+    /// Only ACIR functions evaluate calls with the interpreter, and the interpreter only needs
+    /// the Brillig functions. So the functions are split by runtime: the ACIR functions are folded
+    /// first, against an interpreter that borrows the still-unfolded Brillig functions, and the
+    /// Brillig functions are folded afterwards. Moving the functions apart instead of copying the
+    /// Brillig functions for the interpreter keeps the pass from holding a second copy of all
+    /// Brillig code.
+    fn fold_constants_in_all_functions(
+        mut self,
+        use_constraint_info: bool,
+        max_iter: usize,
+    ) -> Ssa {
+        let (mut brillig_functions, mut acir_functions): (BTreeMap<_, _>, BTreeMap<_, _>) =
+            std::mem::take(&mut self.functions)
+                .into_iter()
+                .partition(|(_, function)| function.runtime().is_brillig());
+
+        let mut interpreter = new_interpreter(&brillig_functions);
         // Interpret globals once so that we do not have to repeat this computation on every Brillig call.
         interpreter.interpret_globals().expect("ICE: Interpreter failed to interpret globals");
-
-        for function in self.functions.values_mut() {
-            function.constant_fold(true, max_iter, &mut interpreter);
+        for function in acir_functions.values_mut() {
+            function.constant_fold(use_constraint_info, max_iter, &mut interpreter);
         }
+
+        // Brillig callers never evaluate calls with the interpreter, so it needs no functions.
+        let no_functions = BTreeMap::new();
+        let mut interpreter = new_interpreter(&no_functions);
+        for function in brillig_functions.values_mut() {
+            function.constant_fold(use_constraint_info, max_iter, &mut interpreter);
+        }
+
+        brillig_functions.append(&mut acir_functions);
+        self.functions = brillig_functions;
         self
     }
 }
 
-/// Clones all brillig functions stored within `all_functions` returning these in a new map.
-fn clone_brillig_functions(
-    all_functions: &BTreeMap<FunctionId, Function>,
-) -> BTreeMap<FunctionId, Function> {
-    all_functions
-        .iter()
-        .filter(|(_, func)| func.runtime().is_brillig())
-        .map(|(func_id, func)| {
-            let cloned_function = Function::clone_with_id(*func_id, func);
-            (*func_id, cloned_function)
-        })
-        .collect()
+/// Creates the interpreter used to evaluate calls to the given Brillig `functions`.
+fn new_interpreter(functions: &BTreeMap<FunctionId, Function>) -> Interpreter<'_, Empty> {
+    Interpreter::new_from_functions(
+        functions,
+        InterpreterOptions {
+            no_foreign_calls: true,
+            step_limit: Some(DEFAULT_INTERPRETER_STEP_LIMIT),
+            ..Default::default()
+        },
+        std::io::empty(),
+    )
 }
 
 impl Function {
@@ -2408,6 +2408,38 @@ mod test {
         acir(inline) fn main f0 {
           b0():
             return Field 5
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_interpret_acir_call_with_constant_arguments() {
+        let src = "
+            acir(inline) fn main f0 {
+              b0():
+                v0 = call f1(Field 2, Field 3) -> Field
+                return v0
+            }
+
+            acir(fold) fn add f1 {
+              b0(v0: Field, v1: Field):
+                v2 = add v0, v1
+                return v2
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.fold_constants(MIN_ITER);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v3 = call f1(Field 2, Field 3) -> Field
+            return v3
+        }
+        acir(fold) fn add f1 {
+          b0(v0: Field, v1: Field):
+            v2 = add v0, v1
+            return v2
         }
         ");
     }

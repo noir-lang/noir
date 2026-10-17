@@ -19,7 +19,7 @@
 <h1><a href="../../index.html">noir_stdlib</a></h1>
 <div><a href="../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.3</div>
+<div id="crate-version">1.0.0-rc.5</div>
 <h2>In module hash</h2>
 <h3>Structs</h3><ul class="item-list">
 <li><a href="struct.BuildHasherDefault.html">BuildHasherDefault</a></div></li>
@@ -56,6 +56,28 @@
     starting_index: <a href="../../std/primitive.u32.html" class="primitive">u32</a>,
 ) -> [<a href="../../std/embedded_curve_ops/struct.EmbeddedCurvePoint.html" class="struct">EmbeddedCurvePoint</a>; N]</code></pre>
 
+<div class="comments">
+<p>Derives <code>N</code> generator points on the embedded curve from a domain separator.</p>
+<p>The points are generators <code>starting_index</code> to <code>starting_index + N - 1</code> of the sequence for
+<code>domain_separator_bytes</code>. Generator <code>i</code> is obtained by hashing the BLAKE3 hash of <code>domain_separator_bytes</code> together with
+the index <code>i</code> onto the curve, so nobody knows a discrete-log relation between any two
+generators. The same domain separator and index always give the same point, and the
+generators for different domain separators are independent. <a href="../../std/hash/fn.pedersen_commitment.html"><code>pedersen_commitment</code></a> and
+<a href="../../std/hash/fn.pedersen_hash.html"><code>pedersen_hash</code></a> use the domain separator <code>&quot;DEFAULT_DOMAIN_SEPARATOR&quot;</code>.</p>
+<p>Only available when compiling for the BN254 field.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::embedded_curve_ops::EmbeddedCurvePoint;
+<span class="kw">use</span> std::hash::derive_generators;
+
+<span class="kw">let</span> generators: [EmbeddedCurvePoint; <span class="number">2</span>] = derive_generators(<span class="string">"my_domain"</span>.as_bytes(), <span class="number">0</span>);
+<span class="kw">assert</span>(generators[<span class="number">0</span>] != generators[<span class="number">1</span>]);
+
+<span class="comment">// Starting one index later gives the same sequence shifted by one.</span>
+<span class="kw">let</span> shifted: [EmbeddedCurvePoint; <span class="number">1</span>] = derive_generators(<span class="string">"my_domain"</span>.as_bytes(), <span class="number">1</span>);
+<span class="kw">assert_eq</span>(shifted[<span class="number">0</span>], generators[<span class="number">1</span>]);</code></pre>
+<h2>Failures</h2>
+<p>Fails to compile if <code>domain_separator_bytes</code> or <code>starting_index</code> is not a compile-time
+constant.</p></div>
 </div>
 </main>
 </span>

@@ -447,6 +447,131 @@ fn non_turbofish_qualified_call_with_multiple_inherent_impls_is_ambiguous() {
 }
 
 #[test]
+fn method_call_on_uninferred_receiver_with_multiple_inherent_impls_is_ambiguous() {
+    let src = r#"
+        struct S<T> { v: T }
+
+        impl S<u8> {
+            pub fn m(_self: Self) -> Field { 8 }
+                   ~ Candidate #1 is defined in an impl for the type `S<u8>`
+        }
+
+        impl S<u16> {
+            pub fn m(_self: Self) -> Field { 16 }
+                   ~ Candidate #2 is defined in an impl for the type `S<u16>`
+        }
+
+        fn main() {
+            let s = S { v: 5 };
+            let _ = s.m();
+                      ^ Multiple applicable methods named `m` in scope
+                      ~ Multiple `m` found
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn method_call_on_uninferred_receiver_with_multiple_inherent_impls_is_ambiguous_in_either_order() {
+    let src = r#"
+        struct S<T> { v: T }
+
+        impl S<u16> {
+            pub fn m(_self: Self) -> Field { 16 }
+                   ~ Candidate #1 is defined in an impl for the type `S<u16>`
+        }
+
+        impl S<u8> {
+            pub fn m(_self: Self) -> Field { 8 }
+                   ~ Candidate #2 is defined in an impl for the type `S<u8>`
+        }
+
+        fn main() {
+            let s = S { v: 5 };
+            let _ = s.m();
+                      ^ Multiple applicable methods named `m` in scope
+                      ~ Multiple `m` found
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn ambiguous_method_call_on_trait_inferred_receiver_reports_only_the_ambiguity() {
+    let src = r#"
+        trait FromField {
+            fn from_field(f: Field) -> Self;
+        }
+
+        impl FromField for u8 {
+            fn from_field(f: Field) -> u8 { f as u8 }
+        }
+
+        impl FromField for u64 {
+            fn from_field(f: Field) -> u64 { f as u64 }
+        }
+
+        struct Amount<T> { v: T }
+
+        impl Amount<u8> {
+            pub fn is_small(self) -> bool { self.v < 100 }
+                   ~~~~~~~~ Candidate #1 is defined in an impl for the type `Amount<u8>`
+        }
+
+        impl Amount<u64> {
+            pub fn is_small(self) -> bool { self.v < 100 }
+                   ~~~~~~~~ Candidate #2 is defined in an impl for the type `Amount<u64>`
+        }
+
+        fn main(x: Field) {
+            let a = Amount { v: FromField::from_field(x) };
+            assert(a.is_small());
+                     ^^^^^^^^ Multiple applicable methods named `is_small` in scope
+                     ~~~~~~~~ Multiple `is_small` found
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn method_call_on_concrete_receiver_with_multiple_inherent_impls_selects_its_impl() {
+    let src = r#"
+        struct S<T> { v: T }
+
+        impl S<u8> {
+            pub fn m(_self: Self) -> Field { 8 }
+        }
+
+        impl S<u16> {
+            pub fn m(_self: Self) -> Field { 16 }
+        }
+
+        fn main() {
+            let _ = S { v: 5_u16 }.m();
+            let _ = S { v: 5_u8 }.m();
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn method_call_on_uninferred_receiver_with_single_inherent_impl_infers_receiver() {
+    let src = r#"
+        struct S<T> { v: T }
+
+        impl S<u8> {
+            pub fn m(self) -> u8 { self.v }
+        }
+
+        fn main() {
+            let s = S { v: 5 };
+            let _: u8 = s.m();
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn multiple_inherent_impls_resolved_via_turbofish_or_method_call() {
     // The disambiguating spellings work and select the impl by the receiver's type.
     let src = r#"

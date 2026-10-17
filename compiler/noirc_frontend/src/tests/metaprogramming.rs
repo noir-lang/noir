@@ -1,4 +1,5 @@
 mod comptime_for;
+mod frame_types;
 mod skip_interpreter_on_fail;
 
 use crate::{
@@ -10,7 +11,7 @@ use crate::{
             errors::{DefCollectorErrorKind, DuplicateType},
         },
     },
-    test_utils::{get_monomorphized_with_stdlib, stdlib_src},
+    test_utils::{get_monomorphized, get_monomorphized_with_stdlib, stdlib_src},
     tests::{check_errors_using_features, check_errors_with_stdlib},
 };
 
@@ -2034,6 +2035,40 @@ fn runtime_variable_in_macro_gives_specific_error() {
     check_errors(src);
 }
 
+/// A comptime macro call reports the variables of every enclosing scope as runtime variables, but
+/// only while it runs. Here `helper` is elaborated on demand from comptime code, and `z` is in
+/// scope only inside the block holding the nested macro call, so the later use of `z` is an
+/// undeclared variable rather than a runtime one.
+#[test]
+fn runtime_variables_seen_by_nested_macro_do_not_outlive_it() {
+    let src = r#"
+    comptime fn ident(q: Quoted) -> Quoted {
+        q
+    }
+
+    comptime fn wrap(x: Field) -> Quoted {
+        quote { $x }
+    }
+
+    fn main() {
+        comptime {
+            let _ = helper();
+        }
+    }
+
+    fn helper() -> Field {
+        let w = {
+            let z = 1;
+            wrap!(ident!(quote { 2 })) + z
+        };
+        w + z
+            ^ cannot find `z` in this scope
+            ~ not found in this scope
+    }
+    "#;
+    check_errors(src);
+}
+
 #[test]
 fn does_not_allow_constructing_struct_with_private_fields_with_macro_call() {
     let src = r#"
@@ -4011,4 +4046,231 @@ fn lazily_elaborated_impl_trait_callee_does_not_inherit_callers_trait_impl() {
         [META_API_STDLIB, TRAIT_IMPL_META_API_STDLIB],
         &[UnstableFeature::TraitAsType],
     );
+}
+
+/// Code produced by a macro called from comptime code resolves globals by path, so a global
+/// from another module is only visible through its path and its visibility.
+#[test]
+fn macro_called_from_comptime_cannot_see_private_global_of_other_module() {
+    let src = r#"
+    mod foo {
+        global SECRET: Field = 7;
+               ^^^^^^ unused global SECRET
+               ~~~~~~ unused global
+    }
+
+    comptime fn get() -> Quoted {
+        quote { SECRET }
+                ^^^^^^ cannot find `SECRET` in this scope
+                ~~~~~~ not found in this scope
+    }
+
+    comptime fn caller() -> Field {
+        get!()
+    }
+
+    fn main() {
+        comptime {
+            let _ = caller();
+        }
+    }
+    "#;
+    check_errors(src);
+}
+
+/// A global of another module does not shadow a global of the same name in the module where
+/// the macro's output is elaborated.
+#[test]
+fn macro_called_from_comptime_resolves_global_of_its_own_module() {
+    let src = r#"
+    global X: Field = 1;
+
+    mod foo {
+        pub global X: Field = 2;
+    }
+
+    comptime fn get() -> Quoted {
+        quote { X }
+    }
+
+    comptime fn caller() -> Field {
+        get!()
+    }
+
+    fn main() {
+        comptime {
+            assert(caller() == 1);
+        }
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// A macro called directly from a `comptime` block resolves globals by path as well.
+#[test]
+fn macro_called_from_comptime_block_cannot_see_private_global_of_other_module() {
+    let src = r#"
+    mod a {
+        global SECRET: Field = 42;
+               ^^^^^^ unused global SECRET
+               ~~~~~~ unused global
+    }
+
+    mod b {
+        comptime fn m() -> Quoted {
+            quote { SECRET }
+                    ^^^^^^ cannot find `SECRET` in this scope
+                    ~~~~~~ not found in this scope
+        }
+
+        pub fn get() -> Field {
+            comptime { m!() }
+        }
+    }
+
+    fn main() {
+        let _ = b::get();
+    }
+    "#;
+    check_errors(src);
+}
+
+/// A macro called from a `comptime` block in `token` resolves `MAX` to `token::MAX`, not to the
+/// crate root's `MAX`.
+#[test]
+fn macro_called_from_comptime_block_resolves_global_of_its_own_module() {
+    let src = r#"
+    global MAX: Field = 1000000;
+
+    mod token {
+        global MAX: Field = 10;
+
+        comptime fn max_bound() -> Quoted {
+            quote { MAX }
+        }
+
+        pub fn check() {
+            comptime {
+                assert(max_bound!() == 10);
+            }
+        }
+    }
+
+    fn main() {
+        token::check();
+        assert(MAX != 0);
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// `Expr::resolve` in `token` resolves `MAX` to `token::MAX`, not to the crate root's `MAX`.
+#[test]
+fn resolve_resolves_global_of_its_own_module() {
+    let src = r#"
+    global MAX: Field = 1000000;
+
+    mod token {
+        use super::Option;
+
+        global MAX: Field = 10;
+
+        comptime fn resolved_bound() -> Quoted {
+            let e = quote { MAX }.as_expr().unwrap().resolve(Option::none());
+            quote { $e }
+        }
+
+        pub fn check() {
+            comptime {
+                assert(resolved_bound!() == 10);
+            }
+        }
+    }
+
+    fn main() {
+        token::check();
+        assert(MAX != 0);
+    }
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
+
+#[test]
+fn resolve_in_trait_impl_method_scope_resolves_parent_associated_type_on_self() {
+    let src = r#"
+    trait Parent { type Out; }
+    trait Child: Parent { fn go(x: Self::Out) -> Self::Out; }
+    pub struct Foo {}
+    impl Parent for Foo { type Out = u8; }
+    impl Child for Foo {
+        fn go(x: Self::Out) -> Self::Out {
+            comptime {
+                let _ = quote { { let y: Self::Out = 1; y } }.as_expr().unwrap().resolve(Option::none());
+            }
+            x
+        }
+    }
+    fn main() { let _ = Foo::go(1); }
+    "#;
+    check_errors_with_stdlib(src, [META_API_STDLIB]);
+}
+
+#[test]
+fn comptime_let_read_has_declared_vector_type() {
+    let src = r#"
+    fn main() {
+        comptime let v: [u8] = @[];
+        let _w: [Field] = v;
+                          ^ Expected type [Field], found type [u8]
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn comptime_let_read_selects_trait_impl_from_declared_type() {
+    let src = r#"
+    trait FromField {
+        fn from_field(x: Field) -> Self;
+    }
+
+    impl FromField for u8 {
+        fn from_field(x: Field) -> u8 { x as u8 }
+    }
+
+    impl FromField for u32 {
+        fn from_field(x: Field) -> u32 { x as u32 }
+    }
+
+    fn push<T>(v: [T], x: T) -> [T] {
+        let _ = x;
+        v
+    }
+
+    fn main(x: Field) -> pub bool {
+        comptime let v: [u8] = @[];
+        let w = push(v, FromField::from_field(x));
+        w[0] > 200
+    }
+    "#;
+    let program = get_monomorphized(src).expect("Expected program to monomorphize");
+    let program = program.to_string();
+    assert!(program.contains("-> u8"), "Expected the u8 impl to be selected:\n{program}");
+    assert!(!program.contains("-> u32"), "Expected the u32 impl not to be selected:\n{program}");
+}
+
+#[test]
+fn comptime_let_read_has_declared_unconstrained_fn_type() {
+    let src = r#"
+    fn probe(x: u32) -> u32 {
+        x
+    }
+
+    fn main(x: u32) -> pub u32 {
+        comptime let f: unconstrained fn(u32) -> u32 = probe;
+        f(x)
+        ^^^^ Call to unconstrained function from constrained function is unsafe and must be in an unconstrained function or unsafe block
+    }
+    "#;
+    check_errors(src);
 }

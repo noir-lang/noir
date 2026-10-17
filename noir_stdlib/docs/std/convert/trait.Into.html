@@ -19,7 +19,7 @@
 <h1><a href="../../index.html">noir_stdlib</a></h1>
 <div><a href="../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.3</div>
+<div id="crate-version">1.0.0-rc.5</div>
 <h2><a href="#trait">Trait Into</a></h2>
 <h3>Required methods</h3>
 <ul class="sidebar-list">
@@ -52,11 +52,18 @@
 
 <div class="comments">
 <p>Convert a <code>Self</code> value into a <code>T</code> value</p>
-</div>
+<p><code>Into</code> is implemented automatically for every <a href="../../std/convert/trait.From.html"><code>From</code></a> conversion, so implement <code>From</code> rather
+than <code>Into</code>. The target type usually has to be given by a type annotation.</p>
+<p>Example:</p>
+<pre><code><span class="kw">let</span> x: u64 = <span class="number">7_u8</span>.into();
+<span class="kw">assert_eq</span>(x, <span class="number">7</span>);</code></pre></div>
 <h2>Required methods</h2>
 <div class="padded-methods"><code id="into" class="code-header">pub fn <a href="#into" class="fn">into</a>(self) -> T</code>
 
-</div><h2>Implementors</h2>
+<div class="padded-description"><div class="comments">
+<p>Converts <code>self</code> to <code>T</code>.</p>
+</div>
+</div></div><h2>Implementors</h2>
 <h3 id="impl-Into&lt;T&gt;-for-U"><code class="code-header">impl&lt;T, U&gt; <a href="../../std/convert/trait.Into.html" class="trait">Into</a>&lt;T&gt; for U
 <div class="where-clause">where
     T: <a href="../../std/convert/trait.From.html" class="trait">From</a>&lt;U&gt;</div></code></h3>

@@ -19,11 +19,11 @@ use std::collections::{BTreeMap, HashSet};
 
 use super::{enums::UnresolvedEnumVariants, function::UnresolvedFunctionMeta};
 use crate::{
-    Type,
-    ast::Ident,
+    Type, TypeVariableId,
+    ast::{Ident, UnresolvedType},
     elaborator::structs::UnresolvedStructFields,
     hir::def_map::LocalModuleId,
-    hir_def::traits::TraitConstraint,
+    hir_def::{traits::TraitConstraint, types::ResolvedGenerics},
     node_interner::{FuncId, TraitId, TraitImplId, TypeId},
 };
 
@@ -112,10 +112,10 @@ pub(super) struct PendingWhereClauseCheck {
 /// Every kind of deferred work the elaborator owns, in one place so that handing it to a child
 /// elaborator, or scoping it to one `elaborate_items` call, moves all of it or none of it.
 ///
-/// Globals are deferred the same way but are not here: they live on the [`Context`] and are shared
-/// by reference, because a global resolved by one elaborator must stay resolved for the next.
+/// Globals are deferred the same way but are not here: they live on the [`CheckState`] and are
+/// shared by reference, because a global resolved by one elaborator must stay resolved for the next.
 ///
-/// [`Context`]: crate::hir::Context
+/// [`CheckState`]: crate::hir::CheckState
 #[derive(Default)]
 pub(super) struct DeferredItems {
     /// Function signatures registered before their bodies are elaborated. Registering up front and
@@ -129,6 +129,24 @@ pub(super) struct DeferredItems {
     /// Enum variants, deferred for the same reason as [`Self::struct_fields`].
     pub(super) enum_variants: Deferred<TypeId, UnresolvedEnumVariants>,
 
+    /// The associated types and constants of trait impls, keyed by the type variable that stands
+    /// for each item in its impl's trait generics. One impl's items may name another impl's
+    /// (`let N: u32 = <[u8; 3] as C>::N;`), or another item of the same impl through a global, so
+    /// each is resolved the first time something reads it, and otherwise when the impl is
+    /// collected.
+    pub(super) trait_impl_associated_types: Deferred<TypeVariableId, UnresolvedImplAssociatedType>,
+
     /// Trait bookkeeping that cannot run until the drains above have resolved the metas it reads.
     pub(super) trait_work: PendingTraitWork,
+}
+
+/// What resolving one of a trait impl's associated types or constants needs: the impl's own
+/// context, and the item's written value.
+pub(super) struct UnresolvedImplAssociatedType {
+    pub(super) module_id: LocalModuleId,
+    pub(super) self_type: Type,
+    pub(super) trait_id: TraitId,
+    pub(super) generics: ResolvedGenerics,
+    pub(super) name: Ident,
+    pub(super) typ: UnresolvedType,
 }

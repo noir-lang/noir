@@ -32,6 +32,13 @@ impl Type {
         self.follow_bindings().canonicalize_helper(false, run_simplifications)
     }
 
+    /// Run all simplifications and drop any `CheckedCast`, keeping only its `to` side.
+    /// This is the form a type is compared in, without the validation obligations of its
+    /// casts, so it suits showing a type rather than checking one.
+    pub(crate) fn canonicalize_without_checked_casts(&self) -> Type {
+        self.follow_bindings().canonicalize_unchecked()
+    }
+
     /// Only simplify constants and drop/skip any `CheckedCast`'s
     pub(crate) fn canonicalize_checked(&self) -> Type {
         self.follow_bindings().canonicalize_checked_helper()
@@ -69,15 +76,17 @@ impl Type {
 
                 let (mut lhs, mut rhs) = (lhs, rhs);
 
-                // Move the constant to the rhs to simplify the checks below
-                if op.is_commutative() && lhs.is_constant() && !rhs.is_constant() {
-                    std::mem::swap(&mut lhs, &mut rhs);
-                }
-
-                let lhs_evaluated =
+                let mut lhs_evaluated =
                     lhs.evaluate_to_integer_helper(&kind, dummy_location, run_simplifications);
-                let rhs_evaluated =
+                let mut rhs_evaluated =
                     rhs.evaluate_to_integer_helper(&kind, dummy_location, run_simplifications);
+
+                // Move the side that evaluates to a constant to the rhs to simplify the checks
+                // below. An operand such as `0 * N` evaluates to `0`, so it moves too.
+                if op.is_commutative() && lhs_evaluated.is_ok() && rhs_evaluated.is_err() {
+                    std::mem::swap(&mut lhs, &mut rhs);
+                    std::mem::swap(&mut lhs_evaluated, &mut rhs_evaluated);
+                }
 
                 // evaluate_to_field_element also calls canonicalize so if we just called
                 // `self.evaluate_to_field_element(..)` we'd get infinite recursion.
@@ -184,7 +193,7 @@ impl Type {
 
         // Maps each term to the number of times that term was used.
         let mut sorted = BTreeMap::new();
-        let mut constant = None;
+        let mut constants = Vec::new();
 
         // Push each non-constant term to `sorted` to sort them. Recur on InfixExprs with the same operator.
         while let Some(item) = queue.pop() {
@@ -193,24 +202,29 @@ impl Type {
                     queue.push(*lhs_inner);
                     queue.push(*rhs_inner);
                 }
-                Type::Constant(new_constant) => {
-                    let dummy_location = Location::dummy();
-                    if let Some(existing_constant) = constant {
-                        if let Ok(result) =
-                            op.function(existing_constant, new_constant, dummy_location)
-                        {
-                            constant = Some(result);
-                        } else {
-                            let constant = Type::Constant(new_constant);
-                            *sorted.entry(constant).or_default() += 1;
-                        }
-                    } else {
-                        constant = Some(new_constant);
-                    }
-                }
+                Type::Constant(new_constant) => constants.push(new_constant),
                 other => {
                     *sorted.entry(other).or_default() += 1;
                 }
+            }
+        }
+
+        // Fold the constants in sorted order: when a pair cannot be combined (e.g. it
+        // overflows), which constants are kept apart must not depend on the order the
+        // operands were written in.
+        constants.sort();
+        let mut constant = None;
+        for new_constant in constants {
+            let dummy_location = Location::dummy();
+            if let Some(existing_constant) = constant {
+                if let Ok(result) = op.function(existing_constant, new_constant, dummy_location) {
+                    constant = Some(result);
+                } else {
+                    let constant = Type::Constant(new_constant);
+                    *sorted.entry(constant).or_default() += 1;
+                }
+            } else {
+                constant = Some(new_constant);
             }
         }
 
@@ -444,6 +458,25 @@ mod tests {
     }
 
     #[test]
+    fn adding_a_lhs_that_evaluates_to_zero_is_simplified_away() {
+        let var_n = TypeVariable::unbound(TypeVariableId(0), Kind::u32());
+        let n = Type::TypeVariable(var_n);
+
+        let zero_times_n = u32t(0) * n.clone();
+        let five_minus_n = u32t(5) - n;
+
+        let canonicalized = (zero_times_n.clone() + five_minus_n.clone()).canonicalize();
+        assert_eq!(canonicalized, five_minus_n);
+        assert_eq!(canonicalized.canonicalize(), canonicalized);
+
+        // `canonicalize_checked` keeps the `from` side of a `CheckedCast`, which must reach the
+        // same canonical form whether or not it was canonicalized first.
+        let checked = (zero_times_n + five_minus_n.clone()).canonicalize_checked();
+        assert_eq!(checked.canonicalize(), five_minus_n);
+        assert_eq!(checked.canonicalize_checked().canonicalize(), five_minus_n);
+    }
+
+    #[test]
     fn solves_n_minus_one_plus_one_through_checked_casts() {
         // We want to test that the inclusion of a `CheckedCast` won't prevent us from canonicalizing
         // the expression `(N - 1) + 1` to `N` if there exists a `CheckedCast` on the `N - 1` term.
@@ -471,6 +504,17 @@ mod tests {
         let canonicalized_typ = one_plus_n_minus_one.canonicalize();
 
         assert_eq!(n, canonicalized_typ);
+    }
+
+    #[test]
+    fn constants_that_cannot_be_folded_are_ordered_independently_of_operand_order() {
+        use crate::hir::comptime::Integer;
+
+        // `129 * 197` overflows `u8`, so the product cannot be folded to a constant.
+        let a = Type::Constant(Integer::U8(129));
+        let b = Type::Constant(Integer::U8(197));
+
+        assert_eq!((a.clone() * b.clone()).canonicalize(), (b * a).canonicalize());
     }
 
     /// An unbound `u32` named generic, for building type-level arithmetic by hand.
@@ -752,8 +796,8 @@ mod proptests {
         elaborator::{Elaborator, ElaboratorOptions},
         graph::CrateId,
         hir::{
-            Context,
-            comptime::{Integer, Interpreter, Value},
+            CheckState, Context,
+            comptime::{ComptimeIo, Integer, Interpreter, Value},
             def_map::{CrateDefMap, ModuleData},
         },
         hir_def::types::{
@@ -1000,37 +1044,49 @@ mod proptests {
         Type::Constant(value)
     }
 
+    /// Instantiate the variables of `typ` with `bindings`.
+    ///
+    /// This substitutes rather than binding the `TypeVariable`s, because
+    /// `TypeVariable::unbound` gives every variable its own binding cell — two variables
+    /// sharing an id do not share a binding, so binding the ones in `bindings` would leave
+    /// the variables in `typ` untouched.
+    fn instantiate(typ: &Type, bindings: &[(TypeVariable, Type)]) -> Type {
+        let mut substitutions = TypeBindings::default();
+        for (var, value) in bindings {
+            substitutions.insert(var.id(), (var.clone(), var.kind().into_owned(), value.clone()));
+        }
+        typ.substitute(&substitutions)
+    }
+
     proptest! {
-        // Expecting cases that don't resolve to constants, e.g. see
-        // `arithmetic_generics_checked_cast_indirect_zeros`
-        #[should_panic(expected = "expected an InfixExpr, but found: ")]
+        /// Wherever an instantiated expression has a value, canonicalizing it before or after
+        /// instantiating gives that value.
+        ///
+        /// The value is taken from evaluating the instantiated expression without any
+        /// simplification, so every intermediate step has to fit in the type. When one does
+        /// not (e.g. it overflows), canonicalization may cancel or regroup the failing step,
+        /// so either order can still produce a constant and no comparison is made. That
+        /// failure is what a `CheckedCast` re-reports; see `design/arithmetic_generics.md`.
         #[test]
-        #[allow(clippy::redundant_clone)]
         fn instantiate_before_or_after_canonicalize(infix_type_bindings in arbitrary_infix_expr_with_bindings(10)) {
             let (infix, typ, bindings) = infix_type_bindings;
+            let kind = Kind::numeric(typ);
 
             // canonicalize
             let infix_canonicalized = infix.canonicalize();
 
-            // bind vars
-            for (var, binding) in &bindings {
-                var.bind(binding.clone());
-            }
+            let instantiated = instantiate(&infix, &bindings);
+            let run_simplifications = false;
+            let value =
+                instantiated.evaluate_to_integer_helper(&kind, Location::dummy(), run_simplifications);
 
-            // attempt to canonicalize to a constant
-            let infix = infix.canonicalize();
-            let infix_canonicalized = infix_canonicalized.canonicalize();
+            if let Ok(value) = value {
+                let infix = instantiated.canonicalize();
+                let infix_canonicalized = instantiate(&infix_canonicalized, &bindings).canonicalize();
 
-            if matches!(infix, Type::InfixExpr(..)) {
-                prop_assert!(matches!(infix_canonicalized, Type::InfixExpr(..)), "expected an InfixExpr, but found: {infix_canonicalized:?}");
-            } else {
-                // ensure result kinds are the same as the original kind
-                let kind = Kind::numeric(typ);
+                prop_assert_eq!(&infix, &Type::Constant(value));
+                prop_assert_eq!(&infix_canonicalized, &Type::Constant(value));
                 prop_assert_eq!(&*infix.kind(), &kind);
-                prop_assert_eq!(&*infix_canonicalized.kind(), &kind);
-
-                // ensure results are the same
-                prop_assert_eq!(infix, infix_canonicalized);
             }
         }
 
@@ -1048,14 +1104,9 @@ mod proptests {
             // canonicalize
             let infix_canonicalized = infix.canonicalize();
 
-            // bind vars
-            for (var, binding) in bindings {
-                var.bind(binding);
-            }
-
             // attempt to canonicalize to a constant
-            let infix = infix.canonicalize();
-            let infix_canonicalized = infix_canonicalized.canonicalize();
+            let infix = instantiate(&infix, &bindings).canonicalize();
+            let infix_canonicalized = instantiate(&infix_canonicalized, &bindings).canonicalize();
 
             // ensure result kinds are the same as the original kind
             let kind = Kind::numeric(typ);
@@ -1102,20 +1153,11 @@ mod proptests {
             // reason about them symbolically, and so when it can cancel two it should not.
             let canonicalized = infix.canonicalize();
 
-            // Instantiate by substitution rather than by binding the `TypeVariable`s, because
-            // `TypeVariable::unbound` gives every variable its own binding cell — two
-            // variables sharing an id do not share a binding, so binding one of them would
-            // leave the expression untouched.
-            let mut substitutions = TypeBindings::default();
-            for (var, value) in &bindings {
-                substitutions.insert(var.id(), (var.clone(), var.kind().into_owned(), value.clone()));
-            }
-
             let location = Location::dummy();
             let original_value =
-                infix.substitute(&substitutions).evaluate_to_integer(&kind, location);
+                instantiate(&infix, &bindings).evaluate_to_integer(&kind, location);
             let canonical_value =
-                canonicalized.substitute(&substitutions).evaluate_to_integer(&kind, location);
+                instantiate(&canonicalized, &bindings).evaluate_to_integer(&kind, location);
 
             if let Ok(original_value) = original_value {
                 prop_assert_eq!(
@@ -1137,10 +1179,7 @@ mod proptests {
             let root = Path::new(".");
             let file_manager = FileManager::new(root);
             let parsed_files = HashMap::new();
-            let mut context = Context::from_ref_file_manager(
-                &file_manager,
-                &parsed_files,
-            );
+            let mut context = Context::new(file_manager, parsed_files);
             let crate_id = CrateId::Root(0);
             let root_module = ModuleData::new(
                 None,
@@ -1157,7 +1196,15 @@ mod proptests {
                 enabled_unstable_features: &[],
                 disable_required_unstable_features: false,
             };
-            let mut elaborator = Elaborator::from_context(&mut context, crate_id, options);
+            let mut comptime_io = ComptimeIo::stdout();
+            let mut state = CheckState::default();
+            let mut elaborator = Elaborator::from_context(
+                &mut context,
+                crate_id,
+                options,
+                &mut comptime_io,
+                &mut state,
+            );
             let (expr_id, expr_type) = elaborator.elaborate_expression(expr);
 
             assert_eq!(elaborator.errors.as_ref(), vec![]);

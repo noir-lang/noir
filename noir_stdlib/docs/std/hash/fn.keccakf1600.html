@@ -19,7 +19,7 @@
 <h1><a href="../../index.html">noir_stdlib</a></h1>
 <div><a href="../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.3</div>
+<div id="crate-version">1.0.0-rc.5</div>
 <h2>In module hash</h2>
 <h3>Structs</h3><ul class="item-list">
 <li><a href="struct.BuildHasherDefault.html">BuildHasherDefault</a></div></li>
@@ -53,6 +53,16 @@
 <div id="page-content">
 <pre><code>pub fn keccakf1600(input: [<a href="../../std/primitive.u64.html" class="primitive">u64</a>; 25]) -> [<a href="../../std/primitive.u64.html" class="primitive">u64</a>; 25]</code></pre>
 
+<div class="comments">
+<p>Applies the Keccak-f[1600] permutation to a 25-lane state.</p>
+<p>Each lane is a 64-bit word, and lane <code>x + 5 * y</code> holds the state word at column <code>x</code>, row <code>y</code>.</p>
+<p>This is only the permutation, not a Keccak or SHA-3 hash: it does no absorbing, padding or
+squeezing. To hash bytes with Keccak-256, use the
+<a href="https://github.com/noir-lang/keccak256"><code>keccak256</code></a> library, which is built on this function.</p>
+<p>Example:</p>
+<pre><code><span class="kw">let</span> state = std::hash::keccakf1600([<span class="number">0</span>; <span class="number">25</span>]);
+<span class="comment">// The first lane of Keccak-f[1600] applied to the all-zero state.</span>
+<span class="kw">assert_eq</span>(state[<span class="number">0</span>], <span class="number">0xF1258F7940E1DDE7</span>);</code></pre></div>
 </div>
 </main>
 </span>

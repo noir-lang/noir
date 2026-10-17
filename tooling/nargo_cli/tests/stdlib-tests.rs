@@ -5,8 +5,10 @@ use fm::FileManager;
 use nargo::foreign_calls::DefaultForeignCallBuilder;
 use noirc_driver::{CompileOptions, check_crate, file_manager_with_stdlib};
 use noirc_frontend::error_reporting::report_one;
+use noirc_frontend::hir::comptime::ComptimeIo;
 use noirc_frontend::hir::{FunctionNameMatch, ParsedFiles};
 use std::io::Write;
+use std::sync::Arc;
 use std::{collections::BTreeMap, path::PathBuf};
 
 use nargo::{
@@ -65,7 +67,8 @@ fn run_stdlib_tests(force: Force, inliner_aggressiveness: i64) {
 
     let mut file_manager = file_manager_with_stdlib(&PathBuf::from("."));
     file_manager.add_file_with_source_canonical_path(&PathBuf::from("main.nr"), "".to_owned());
-    let parsed_files = parse_all(&file_manager);
+    let parsed_files = Arc::new(parse_all(&file_manager));
+    let file_manager = Arc::new(file_manager);
 
     // We need a dummy package as we cannot compile the stdlib on its own.
     let dummy_package = Package {
@@ -79,10 +82,9 @@ fn run_stdlib_tests(force: Force, inliner_aggressiveness: i64) {
         dependencies: BTreeMap::new(),
     };
 
-    let (mut context, dummy_crate_id) =
-        prepare_package(&file_manager, &parsed_files, &dummy_package);
+    let (context, dummy_crate_id) = prepare_package(&file_manager, &parsed_files, &dummy_package);
 
-    let result = check_crate(&mut context, dummy_crate_id, &Default::default());
+    let (context, result) = check_crate(context, dummy_crate_id, &Default::default());
     report_errors(result, &context.file_manager, &context.parsed_files, true, false)
         .expect("Error encountered while compiling standard library");
 
@@ -133,7 +135,11 @@ fn run_stdlib_tests(force: Force, inliner_aggressiveness: i64) {
                 }
                 Force::Comptime => {
                     let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                        let result = context.interpret_function(test_function.id, Vec::new());
+                        let result = context.interpret_function(
+                            test_function.id,
+                            Vec::new(),
+                            &mut ComptimeIo::stdout(),
+                        );
                         test_status_comptime_interpret_result(result, &test_function)
                     }));
                     match result {

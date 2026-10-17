@@ -19,7 +19,7 @@
 <h1><a href="../../index.html">noir_stdlib</a></h1>
 <div><a href="../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.3</div>
+<div id="crate-version">1.0.0-rc.5</div>
 <h2>In module hash</h2>
 <h3>Structs</h3><ul class="item-list">
 <li><a href="struct.BuildHasherDefault.html">BuildHasherDefault</a></div></li>
@@ -56,6 +56,26 @@
     separator: <a href="../../std/primitive.u32.html" class="primitive">u32</a>,
 ) -> <a href="../../std/embedded_curve_ops/struct.EmbeddedCurvePoint.html" class="struct">EmbeddedCurvePoint</a></code></pre>
 
+<div class="comments">
+<p>Returns the Pedersen commitment to <code>input</code>, using the generators starting at index <code>separator</code>.</p>
+<p>The commitment is <code>input[0] * G[separator] + ... + input[N - 1] * G[separator + N - 1]</code>, and
+<a href="../../std/hash/fn.pedersen_commitment.html"><code>pedersen_commitment</code></a> is this function with a <code>separator</code> of 0. All the generators come from
+one sequence derived from <code>&quot;DEFAULT_DOMAIN_SEPARATOR&quot;</code>, so <code>separator</code> is a generator offset,
+not domain separation: commitments with different separators share generators and can be equal
+for different inputs. A commitment with separator 1 equals a commitment with separator 0 whose
+input has an extra leading zero. Like <a href="../../std/hash/fn.pedersen_commitment.html"><code>pedersen_commitment</code></a>, the commitment does not include
+the input length.</p>
+<p>Only available when compiling for the BN254 field.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::hash::{pedersen_commitment, pedersen_commitment_with_separator};
+
+<span class="kw">let</span> x = <span class="number">42</span>;
+<span class="kw">assert_eq</span>(pedersen_commitment_with_separator([x], <span class="number">0</span>), pedersen_commitment([x]));
+
+<span class="comment">// Separator 1 starts one generator later, so it matches a leading zero at separator 0.</span>
+<span class="kw">assert_eq</span>(pedersen_commitment_with_separator([x], <span class="number">1</span>), pedersen_commitment([<span class="number">0</span>, x]));</code></pre>
+<h2>Failures</h2>
+<p>Fails to compile if <code>separator</code> is not a compile-time constant.</p></div>
 </div>
 </main>
 </span>

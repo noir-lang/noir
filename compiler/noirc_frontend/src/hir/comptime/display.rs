@@ -563,7 +563,8 @@ fn write_value_bytes(out: &mut Vec<u8>, value: &Value, interner: &NodeInterner, 
                 format!("<{generic_string}>")
             };
 
-            let where_clause = vecmap(&trait_impl.where_clause, |trait_constraint| {
+            let where_clause = interner.get_where_clause_for_impl(*trait_impl_id);
+            let where_clause = vecmap(where_clause, |trait_constraint| {
                 display_trait_constraint(interner, trait_constraint)
             });
             let where_clause = where_clause.join(", ");

@@ -1,6 +1,7 @@
 //! Tests for "impl stricter than trait" validation.
 //! Ensures that trait implementations don't add constraints that aren't present in the trait definition.
 
+use crate::test_utils::get_monomorphized;
 use crate::tests::{assert_no_errors, check_errors};
 
 #[test]
@@ -575,4 +576,132 @@ fn impl_stricter_than_trait_equating_associated_constants_with_bounds_reordered(
     fn main() {}
     "#;
     check_errors(src);
+}
+
+/// `impl<T> Foo for W<T> where T: Checked` with `trait Checked: Source` implies `T: Source` for the
+/// whole impl, so the impl's methods don't add a requirement the trait method lacks.
+#[test]
+fn impl_where_clause_with_parent_associated_type_is_not_stricter_than_trait() {
+    let src = r#"
+    pub trait Source {
+        type Out;
+    }
+    pub trait Checked: Source {}
+    pub struct S {}
+    impl Source for S {
+        type Out = Field;
+    }
+    impl Checked for S {}
+
+    pub trait Foo {
+        fn f(self) -> Field;
+    }
+    pub struct W<T> {}
+    impl<T> Foo for W<T> where T: Checked {
+        fn f(self) -> Field {
+            1
+        }
+    }
+
+    fn main() {
+        let _ = W::<S> {}.f();
+    }
+    "#;
+    assert_no_errors(src);
+}
+
+/// A parent bound implied by the impl's where clause is matched by its trait arguments too:
+/// with `trait Child: Parent<u8>`, a method requiring `T: Parent<u16>` is still stricter.
+#[test]
+fn impl_method_bound_on_parent_with_other_arguments_is_stricter_than_trait() {
+    let src = r#"
+    pub trait Parent<A> {
+        type Out;
+    }
+    pub trait Child: Parent<u8> {}
+
+    pub trait Foo {
+        fn f<T>(x: T) -> Field;
+           ~ definition of `f` from trait
+    }
+    pub struct W<T> {}
+    impl<U> Foo for W<U> where U: Child {
+        fn f<T>(_x: T) -> Field where T: Parent<u16> {
+                                         ^^^^^^ impl has stricter requirements than trait
+                                         ~~~~~~ impl has extra requirement `T: Parent<u16, Out = <T as Parent<u16>>::Out>`
+            1
+        }
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn trait_impl_method_body_resolves_parent_associated_type_on_self() {
+    let src = r#"
+    trait Parent { type Out; }
+    trait Child: Parent { fn go(x: Self::Out) -> Self::Out; }
+    pub struct Foo {}
+    impl Parent for Foo { type Out = u8; }
+    impl Child for Foo { fn go(x: Self::Out) -> Self::Out { let y: Self::Out = x; y } }
+    fn main() { let _ = Foo::go(1); }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn trait_impl_method_body_resolves_parent_associated_type_named_like_a_primitive() {
+    let src = r#"
+    trait Parent { type Field; }
+    trait Child: Parent { fn go(x: Self::Field) -> Field; }
+    pub struct Foo {}
+    impl Parent for Foo { type Field = u8; }
+    impl Child for Foo {
+        fn go(x: Self::Field) -> Field {
+            let y: Self::Field = (x as Self::Field) + 250;
+            y as Field
+        }
+    }
+    fn main(x: u8) -> pub Field { Foo::go(x) }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0(x$l0: u8) -> pub Field {
+        go$f1(x$l0)
+    }
+    fn go$f1(x$l1: u8) -> Field {
+        let y$l2 = ((x$l1 as u8) + 250);
+        (y$l2 as Field)
+    }
+    ");
+}
+
+#[test]
+fn trait_impl_method_body_does_not_assume_the_trait_with_its_own_generics() {
+    let src = r#"
+    trait Get<T> { fn get(self) -> T; fn touch(self); }
+    pub struct S {}
+    impl Get<u8> for S {
+        fn get(self) -> u8 { 1 }
+        fn touch(self) { let _ = Get::get(self); }
+    }
+    fn main() { S {}.touch(); }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn trait_impl_method_body_resolves_parent_associated_type_in_code_from_a_macro() {
+    let src = r#"
+    trait Parent { type Out; }
+    trait Child: Parent { fn go(x: Self::Out) -> Self::Out; }
+    pub struct Foo {}
+    impl Parent for Foo { type Out = u8; }
+    comptime fn copy() -> Quoted { quote { let y: Self::Out = x; y } }
+    impl Child for Foo { fn go(x: Self::Out) -> Self::Out { copy!() } }
+    fn main() { let _ = Foo::go(1); }
+    "#;
+    assert_no_errors(src);
 }

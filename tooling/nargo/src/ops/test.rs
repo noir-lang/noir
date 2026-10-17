@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::{fs::OpenOptions, path::PathBuf};
 
 use acvm::{
@@ -14,7 +15,7 @@ use noirc_driver::{CompileError, CompileOptions, compile_no_check};
 use noirc_errors::CustomDiagnostic;
 use noirc_frontend::{
     hir::{
-        Context,
+        CheckedContext,
         comptime::{InterpreterError, Value},
         def_map::{FuzzingHarness, TestFunction},
     },
@@ -56,7 +57,7 @@ pub struct FuzzConfig {
 #[allow(clippy::too_many_arguments)]
 pub fn run_or_fuzz_test<'a, W, B, F, E>(
     blackbox_solver: &B,
-    context: &Context,
+    context: &CheckedContext,
     test_function: &TestFunction,
     output: W,
     package_name: String,
@@ -95,7 +96,7 @@ where
 /// Runs a test function. This assumes the function has no arguments.
 pub fn run_test<'a, W, B, F, E>(
     blackbox_solver: &B,
-    context: &Context,
+    context: &CheckedContext,
     test_function: &TestFunction,
     output: W,
     config: &CompileOptions,
@@ -107,7 +108,7 @@ where
     F: Fn(Box<dyn std::io::Write + 'a>, layers::Unhandled) -> E,
     E: ForeignCallExecutor<FieldElement>,
 {
-    match compile_no_check(context, config, test_function.id, None, false) {
+    match compile_no_check(context, config, Path::new(""), false, test_function.id, None, false) {
         Ok(compiled_program) => run_test_impl(
             blackbox_solver,
             compiled_program,
@@ -185,7 +186,7 @@ where
 
 /// Runs the fuzzer on a test function. This assumes the function has arguments.
 pub fn fuzz_test<'a, W, B, F, E>(
-    context: &Context,
+    context: &CheckedContext,
     test_function: &TestFunction,
     output: W,
     package_name: String,
@@ -199,7 +200,7 @@ where
     F: Fn(Box<dyn std::io::Write + 'a>, layers::Unhandled) -> E + Sync,
     E: ForeignCallExecutor<FieldElement>,
 {
-    match compile_no_check(context, config, test_function.id, None, false) {
+    match compile_no_check(context, config, Path::new(""), false, test_function.id, None, false) {
         Ok(_) => fuzz_test_impl::<W, B, F, E>(
             context,
             test_function,
@@ -214,7 +215,7 @@ where
 }
 
 fn fuzz_test_impl<'a, W, B, F, E>(
-    context: &Context,
+    context: &CheckedContext,
     test_function: &TestFunction,
     output: W,
     package_name: String,

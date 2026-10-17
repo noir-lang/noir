@@ -14,7 +14,7 @@ use rustc_hash::FxHashMap as HashMap;
 pub(crate) use similarly_named_types::SimilarlyNamedType;
 
 use crate::{
-    BinaryTypeOperator, Kind, ResolvedGeneric, Type, TypeBinding, TypeBindings, UnificationError,
+    BinaryTypeOperator, Kind, Type, TypeBinding, TypeBindings, UnificationError,
     ast::{
         AsTraitPath, BinaryOpKind, GenericTypeArgs, Ident, IntegerBitSize, PathKind, UnaryOp,
         UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression, WILDCARD_TYPE,
@@ -41,7 +41,7 @@ use crate::{
         },
         function::FuncMeta,
         stmt::HirStatement,
-        traits::{NamedType, ResolvedTraitBound, Trait, TraitConstraint},
+        traits::{NamedType, ParentBound, ResolvedTraitBound, Trait, TraitConstraint},
     },
     modules::{get_ancestor_module_reexport, module_def_id_is_visible},
     node_interner::{
@@ -406,14 +406,19 @@ impl Elaborator<'_> {
                     return Some(typ.clone());
                 }
 
-                if let Some(trait_id) = self.item.impl_context.current_trait()
-                    && let Some(typ) = self.lookup_associated_type_in_parent_impls(
+                if let Some(trait_id) = self.item.impl_context.current_trait() {
+                    let trait_bound = ResolvedTraitBound {
                         trait_id,
+                        trait_generics: self.interner.get_trait_generics_for_impl(impl_id).clone(),
+                        location: path.location,
+                    };
+                    if let Some(typ) = self.lookup_associated_type_in_parent_impls(
+                        &trait_bound,
                         name,
                         &mut BTreeSet::new(),
-                    )
-                {
-                    return Some(typ);
+                    ) {
+                        return Some(typ);
+                    }
                 }
             }
         }
@@ -456,28 +461,31 @@ impl Elaborator<'_> {
         }
 
         let parent_trait_ids: Vec<_> =
-            the_trait.parent_bounds().map(|bound| bound.trait_id).collect();
+            the_trait.parent_bounds().map(|bound| bound.trait_id()).collect();
         for parent_id in parent_trait_ids {
             self.collect_associated_type_in_parent_traits(parent_id, name, found, visited);
         }
     }
 
-    /// Search for an associated type in parent 'trait impls'.
+    /// Search for an associated type in the impls of the parent traits of `trait_bound`, as
+    /// implemented by the current impl's self type.
     fn lookup_associated_type_in_parent_impls(
         &self,
-        trait_id: TraitId,
+        trait_bound: &ResolvedTraitBound,
         name: &str,
         visited: &mut BTreeSet<TraitId>,
     ) -> Option<Type> {
-        if !visited.insert(trait_id) {
+        if !visited.insert(trait_bound.trait_id) {
             return None;
         }
 
-        let the_trait = self.interner.get_trait(trait_id);
-        let parent_bounds: Vec<_> = the_trait.parent_bounds().cloned().collect();
+        let the_trait = self.interner.get_trait(trait_bound.trait_id);
+        let parent_bounds: Vec<_> = the_trait.parent_bounds().collect();
         let self_type = self.item.impl_context.self_type()?;
 
         for parent_bound in &parent_bounds {
+            let parent_bound =
+                &self.instantiate_parent_trait_bound(self_type, trait_bound, parent_bound);
             let result = self.interner.try_lookup_trait_implementation(
                 self_type,
                 parent_bound.trait_id,
@@ -490,13 +498,17 @@ impl Elaborator<'_> {
                 Ok((
                     TraitImplKind::Normal(parent_impl_id)
                     | TraitImplKind::Prepared(parent_impl_id, _),
-                    _,
-                    _,
+                    bindings,
+                    instantiation_bindings,
                 )) => {
+                    // The impl's associated type is written in terms of the impl's own generics
+                    // (`impl<let M: u32> P for S<M> { type Out = [u8; M]; }`); the search
+                    // instantiated those and matched them against `self_type`.
                     if let Some(typ) =
                         self.interner.find_associated_type_for_impl(parent_impl_id, name)
                     {
-                        return Some(typ.clone());
+                        let typ = typ.substitute(&instantiation_bindings).substitute(&bindings);
+                        return Some(typ);
                     }
                 }
                 Ok((TraitImplKind::Assumed { trait_generics, .. }, _, _)) => {
@@ -519,7 +531,7 @@ impl Elaborator<'_> {
 
             // Recurse into grandparent traits
             if let Some(typ) =
-                self.lookup_associated_type_in_parent_impls(parent_bound.trait_id, name, visited)
+                self.lookup_associated_type_in_parent_impls(parent_bound, name, visited)
             {
                 return Some(typ);
             }
@@ -1428,6 +1440,8 @@ impl Elaborator<'_> {
         let associated_types = match impl_kind {
             TraitImplKind::Assumed { trait_generics, .. } => Cow::Owned(trait_generics.named),
             TraitImplKind::Normal(impl_id) | TraitImplKind::Prepared(impl_id, _) => {
+                let name = path.impl_item.as_str();
+                self.resolve_trait_impl_associated_type_if_unresolved(impl_id, name);
                 Cow::Borrowed(self.interner.get_associated_types_for_impl(impl_id))
             }
         };
@@ -1623,10 +1637,15 @@ impl Elaborator<'_> {
 
         let mut matches = Vec::new();
 
-        let parent_constraints = vecmap(the_trait.parent_bounds(), |trait_bound| TraitConstraint {
-            typ: constraint.typ.clone(),
-            trait_bound: trait_bound.clone(),
-        });
+        let parent_constraints =
+            vecmap(the_trait.parent_bounds(), |parent_bound| TraitConstraint {
+                typ: constraint.typ.clone(),
+                trait_bound: self.instantiate_parent_trait_bound(
+                    &constraint.typ,
+                    &constraint.trait_bound,
+                    &parent_bound,
+                ),
+            });
 
         if let Some(definition) = the_trait.find_method_or_constant(method_name, self.interner) {
             let trait_item = TraitItem { definition, constraint, assumed: true };
@@ -2585,7 +2604,7 @@ impl Elaborator<'_> {
         location: Location,
     ) -> Type {
         let to = to.follow_bindings();
-        let from_follow_bindings = from.follow_bindings();
+        let from_follow_bindings = self.structurally_resolve_type(from);
 
         use HirExpression::Literal;
         let from_value_opt = match self.interner.expression(from_expr_id) {
@@ -3141,7 +3160,7 @@ impl Elaborator<'_> {
         location: Location,
         dereference_lhs: Option<impl FnMut(&mut Self, Type, Type, bool /* mutable */)>,
     ) -> Option<(Type, usize)> {
-        let lhs_type = lhs_type.follow_bindings();
+        let lhs_type = self.structurally_resolve_type(lhs_type);
 
         match &lhs_type {
             Type::DataType(s, args) => {
@@ -3209,30 +3228,34 @@ impl Elaborator<'_> {
     /// Try to look up a method on a [Type] by name:
     /// * if the object type is generic, look it up in the trait constraints
     /// * otherwise look it up directly on the type, or in traits the type implements
+    ///
+    /// `call_location` is the location of the whole method call (`object.method(..)`), or of the
+    /// method name for a `Type::method` path; most lookup errors are reported there.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn lookup_method(
         &mut self,
         object_type: &Type,
-        method_name: &str,
-        location: Location,
+        method_ident: &Ident,
+        call_location: Location,
         object_location: Location,
         check_self_param: bool,
     ) -> Option<HirMethodReference> {
-        match object_type.follow_bindings() {
+        let method_name = method_ident.as_str();
+        match self.structurally_resolve_type(object_type) {
             // TODO(https://github.com/noir-lang/noir/issues/10518): We should allow method calls on
             // `impl Trait`s eventually. For now it is fine since they are only allowed on return types.
             Type::TraitAsType(..) => {
                 self.push_err(TypeCheckError::UnresolvedMethodCall {
                     method_name: method_name.to_string(),
                     object_type: object_type.clone(),
-                    location,
+                    location: call_location,
                 });
                 None
             }
             Type::NamedGeneric(_) => self.lookup_method_in_trait_constraints(
                 object_type,
                 method_name,
-                location,
+                call_location,
                 object_location,
             ),
             // `DefCollectorErrorKind::ReferenceInTraitImpl`: "Trait impls are not allowed on reference types"
@@ -3240,8 +3263,8 @@ impl Elaborator<'_> {
             // This may be a data type or a primitive type.
             Type::Reference(element, _mutable) => self.lookup_method(
                 &element,
-                method_name,
-                location,
+                method_ident,
+                call_location,
                 object_location,
                 check_self_param,
             ),
@@ -3252,14 +3275,16 @@ impl Elaborator<'_> {
 
             // The type variable must be unbound at this point since follow_bindings was called
             Type::TypeVariable(var) if *var.kind() == Kind::Normal => {
-                self.push_err(TypeCheckError::TypeAnnotationsNeededForMethodCall { location });
+                self.push_err(TypeCheckError::TypeAnnotationsNeededForMethodCall {
+                    location: call_location,
+                });
                 None
             }
 
             other => self.lookup_type_or_primitive_method(
                 &other,
-                method_name,
-                location,
+                method_ident,
+                call_location,
                 object_location,
                 check_self_param,
             ),
@@ -3270,17 +3295,51 @@ impl Elaborator<'_> {
     fn lookup_type_or_primitive_method(
         &mut self,
         object_type: &Type,
-        method_name: &str,
-        location: Location,
+        method_ident: &Ident,
+        call_location: Location,
         object_location: Location,
         check_self_param: bool,
     ) -> Option<HirMethodReference> {
+        let method_name = method_ident.as_str();
         // First search in the type methods. A directly-defined (inherent) method that is
         // visible from here always wins. If it exists but is not visible, we do not commit to
         // it yet: an accessible trait method may exist that should be called instead. We keep
         // the inherent method around as a fallback so that, if no trait method resolves, the
         // caller still reports the appropriate "private" visibility error against it.
-        let direct_method = self.lookup_direct_method(object_type, method_name, check_self_param);
+        self.resolve_method_candidate_metas(object_type, method_name);
+        let direct_methods =
+            self.interner.lookup_direct_methods(object_type, method_name, check_self_param);
+
+        // Non-overlapping inherent impls (`impl S<u8>`, `impl S<u16>`) can all apply to a receiver
+        // whose type is not yet known (`S<_>`). Picking one would fix the receiver's type from
+        // whichever impl happens to be registered first, so the receiver's type must be known.
+        if direct_methods.len() >= 2 {
+            let candidates = vecmap(&direct_methods, |func_id| {
+                let meta = self.interner.function_meta(func_id);
+                let impl_type = meta.self_type.clone().unwrap_or(Type::Error);
+                (impl_type, meta.name.location)
+            });
+            self.push_err(TypeCheckError::MultipleApplicableMethodsForObject {
+                method_name: method_name.to_string(),
+                candidates,
+                location: method_ident.location(),
+            });
+
+            // The object's type stays unknown, so its type variables are bound to the error type
+            // to avoid follow-on errors (e.g. an integer variable defaulting to `Field` and then
+            // failing a trait constraint that only the intended impl's type satisfies).
+            let mut unbound = Vec::new();
+            object_type.unbound_type_variables(&mut unbound);
+            let mut seen = HashSet::new();
+            for variable in unbound {
+                if seen.insert(variable.id()).is_none() {
+                    variable.bind(Type::Error);
+                }
+            }
+            return None;
+        }
+
+        let direct_method = direct_methods.first().copied();
         if let Some(method_id) = direct_method
             && self.method_call_is_visible(method_id, object_type)
         {
@@ -3292,7 +3351,7 @@ impl Elaborator<'_> {
 
         // If there's at least one matching trait method we need to see if only one is in scope.
         if !trait_methods.is_empty() {
-            return self.return_trait_method_in_scope(&trait_methods, method_name, location);
+            return self.return_trait_method_in_scope(&trait_methods, method_name, call_location);
         }
 
         // If we couldn't find any trait methods, search in
@@ -3300,7 +3359,7 @@ impl Elaborator<'_> {
         let generic_methods =
             self.lookup_generic_methods(object_type, method_name, check_self_param);
         if !generic_methods.is_empty() {
-            return self.return_trait_method_in_scope(&generic_methods, method_name, location);
+            return self.return_trait_method_in_scope(&generic_methods, method_name, call_location);
         }
 
         // No trait method applies. Fall back to the inaccessible inherent method (if any) so the
@@ -3312,7 +3371,12 @@ impl Elaborator<'_> {
         // It could be that this type is a composite type that is bound to a trait,
         // for example `x: (T, U) ... where (T, U): SomeTrait`
         // (so this case is a generalization of the NamedGeneric case)
-        self.lookup_method_in_trait_constraints(object_type, method_name, location, object_location)
+        self.lookup_method_in_trait_constraints(
+            object_type,
+            method_name,
+            call_location,
+            object_location,
+        )
     }
 
     /// Given a list of functions and the trait they belong to, returns the one function
@@ -3423,9 +3487,17 @@ impl Elaborator<'_> {
             return HirMethodReference::FuncId(*func_id);
         }
 
-        // Return a TraitMethodId with unbound generics. These will later be bound by the type-checker.
+        // The trait's generics at this call are unknowns that type checking solves.
         let trait_ = self.interner.get_trait(trait_id);
-        let trait_generics = trait_.get_trait_generics(location);
+        let fresh = |generic: &crate::ResolvedGeneric| {
+            self.interner.next_type_variable_with_kind(generic.kind().into_owned())
+        };
+        let ordered = vecmap(&trait_.generics, fresh);
+        let named = vecmap(&trait_.associated_types, |generic| NamedType {
+            name: Ident::new(generic.name.to_string(), location),
+            typ: fresh(generic),
+        });
+        let trait_generics = TraitGenerics { ordered, named };
         let definition = trait_.find_method(method_name, self.interner).unwrap();
         let assumed = false;
         HirMethodReference::TraitItemId(HirTraitMethodReference {
@@ -3465,57 +3537,49 @@ impl Elaborator<'_> {
                 (meta.trait_id, meta.all_trait_constraints().cloned().collect::<Vec<_>>())
             });
 
-        // If inside a trait method, check if it's a method on `self`
+        // Candidates come from the enclosing trait (for a call on its `Self`) and from each of the
+        // function's bounds alike, and are all considered together, so two applicable methods are
+        // reported as ambiguous whichever of them supplies them. Each source is searched on its
+        // own, so that the same trait reached with different arguments through two of them
+        // (`Y: Child + Parent<Wide>` with `trait Child: Parent<Self>`) is seen with both.
+        let mut candidates = Vec::new();
+
         if let Some(trait_id) = func_meta_trait_id
             && Some(object_type) == self.item.impl_context.self_type()
         {
             let the_trait = self.interner.get_trait(trait_id);
             let constraint = the_trait.as_constraint(the_trait.name.location());
-            let mut visited = BTreeSet::new();
-            let mut matches = self.lookup_methods_in_trait(
+            let hierarchy = self.lookup_methods_in_trait(
+                object_type,
                 the_trait,
                 method_name,
                 &constraint.trait_bound,
-                &mut visited,
+                &mut BTreeSet::new(),
             );
-            if matches.len() == 1 {
-                let method = matches.remove(0);
-                let assumed = true;
-                // If it is, it's an assumed trait
-                // Note that here we use the `trait_id` from `TraitItemId` because looking a method on a trait
-                // might return a method on a parent trait.
-                return Some(HirMethodReference::TraitItemId(HirTraitMethodReference {
-                    assumed,
-                    ..method
-                }));
-            }
-            if matches.len() > 1 {
-                return self.handle_trait_method_lookup_matches(
-                    object_type,
-                    method_name,
-                    location,
-                    object_location,
-                    matches,
-                );
-            }
+            // The trait's own `Self` implements it, which is an assumption inside its methods.
+            candidates.extend(
+                hierarchy
+                    .into_iter()
+                    .map(|method| HirTraitMethodReference { assumed: true, ..method }),
+            );
         }
-
-        let mut matches = Vec::new();
-        let mut visited = BTreeSet::new();
 
         for constraint in &func_trait_constraints {
             if *object_type == constraint.typ
                 && let Some(the_trait) =
                     self.interner.try_get_trait(constraint.trait_bound.trait_id)
             {
-                matches.extend(self.lookup_methods_in_trait(
+                candidates.extend(self.lookup_methods_in_trait(
+                    object_type,
                     the_trait,
                     method_name,
                     &constraint.trait_bound,
-                    &mut visited,
+                    &mut BTreeSet::new(),
                 ));
             }
         }
+
+        let matches = self.merge_trait_method_candidates(candidates);
 
         self.handle_trait_method_lookup_matches(
             object_type,
@@ -3524,6 +3588,33 @@ impl Elaborator<'_> {
             object_location,
             matches,
         )
+    }
+
+    /// Keeps one candidate for each trait method. Several bounds can lead to the same method: with
+    /// the same trait arguments they are the same candidate, and with different ones
+    /// (`Parent<Y>` and `Parent<Wide>`) the method is still a single candidate, whose trait
+    /// arguments are left for the call to decide by selecting one of those bounds.
+    fn merge_trait_method_candidates(
+        &self,
+        candidates: Vec<HirTraitMethodReference>,
+    ) -> Vec<HirTraitMethodReference> {
+        let mut merged: Vec<HirTraitMethodReference> = Vec::new();
+        for candidate in candidates {
+            let Some(existing) =
+                merged.iter_mut().find(|existing| existing.definition == candidate.definition)
+            else {
+                merged.push(candidate);
+                continue;
+            };
+            // The method is only an assumption if no bound of the function provides it.
+            existing.assumed &= candidate.assumed;
+            if existing.trait_generics != candidate.trait_generics {
+                existing.trait_generics = existing
+                    .trait_generics
+                    .map(|typ| self.interner.next_type_variable_with_kind(typ.kind().into_owned()));
+            }
+        }
+        merged
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
@@ -3588,6 +3679,7 @@ impl Elaborator<'_> {
     /// a child and its parent.
     fn lookup_methods_in_trait(
         &self,
+        object_type: &Type,
         the_trait: &Trait,
         method_name: &str,
         trait_bound: &ResolvedTraitBound,
@@ -3613,15 +3705,16 @@ impl Elaborator<'_> {
         }
 
         // Search in the parent traits, if any.
-        let parent_bounds: Vec<_> = the_trait.parent_bounds().cloned().collect();
+        let parent_bounds: Vec<_> = the_trait.parent_bounds().collect();
         for parent_trait_bound in &parent_bounds {
             // Parent bound trait ids are set during trait resolution and must always resolve;
             // `get_trait` turns a violation into a clear internal error instead of silently
             // skipping the parent trait's methods.
-            let the_trait = self.interner.get_trait(parent_trait_bound.trait_id);
+            let the_trait = self.interner.get_trait(parent_trait_bound.trait_id());
             let parent_trait_bound =
-                self.instantiate_parent_trait_bound(trait_bound, parent_trait_bound);
+                self.instantiate_parent_trait_bound(object_type, trait_bound, parent_trait_bound);
             matches.extend(self.lookup_methods_in_trait(
+                object_type,
                 the_trait,
                 method_name,
                 &parent_trait_bound,
@@ -3941,6 +4034,7 @@ impl Elaborator<'_> {
         // `Self::A` where `A` is defined on a parent trait rather than this one. Without this
         // they'd be left as unresolved `<T as Parent>::A` placeholders.
         self.bind_parent_trait_associated_types(
+            &constraint.typ,
             &constraint.trait_bound,
             bindings,
             &mut BTreeSet::new(),
@@ -3953,9 +4047,7 @@ impl Elaborator<'_> {
         if assumed {
             let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
 
-            let self_type = the_trait.self_type_typevar.clone();
-            let kind = the_trait.self_type_typevar.kind();
-            bindings.insert(self_type.id(), (self_type, kind.into_owned(), constraint.typ.clone()));
+            the_trait.self_param.bind(&constraint.typ, bindings);
 
             for (param, arg) in
                 the_trait.generics.iter().zip(&constraint.trait_bound.trait_generics.ordered)
@@ -3990,6 +4082,7 @@ impl Elaborator<'_> {
     /// the trait named by `trait_bound`.
     fn bind_parent_trait_associated_types(
         &self,
+        self_type: &Type,
         trait_bound: &ResolvedTraitBound,
         bindings: &mut TypeBindings,
         visited: &mut BTreeSet<TraitId>,
@@ -4002,12 +4095,13 @@ impl Elaborator<'_> {
         // `get_trait`); use `get_trait` here too so a missing trait is a clear internal error
         // rather than a silently-empty parent-bound list.
         let parent_bounds: Vec<_> =
-            self.interner.get_trait(trait_bound.trait_id).parent_bounds().cloned().collect();
+            self.interner.get_trait(trait_bound.trait_id).parent_bounds().collect();
 
         for parent_bound in &parent_bounds {
-            let instantiated = self.instantiate_parent_trait_bound(trait_bound, parent_bound);
+            let instantiated =
+                self.instantiate_parent_trait_bound(self_type, trait_bound, parent_bound);
             self.bind_generics_from_trait_bound(&instantiated, bindings);
-            self.bind_parent_trait_associated_types(&instantiated, bindings, visited);
+            self.bind_parent_trait_associated_types(self_type, &instantiated, bindings, visited);
         }
     }
 
@@ -4018,23 +4112,28 @@ impl Elaborator<'_> {
         bindings: &mut TypeBindings,
     ) {
         let the_trait = self.interner.get_trait(trait_bound.trait_id);
-
-        bind_ordered_generics(&the_trait.generics, &trait_bound.trait_generics.ordered, bindings);
-
-        let associated_types = the_trait.associated_types.clone();
-        bind_named_generics(associated_types, &trait_bound.trait_generics.named, bindings);
+        the_trait.bind_generics(&trait_bound.trait_generics, bindings);
     }
 
+    /// `parent_bound` of `trait_bound`'s trait, for the bound `self_type: trait_bound`.
+    ///
+    /// An associated item the parent bound leaves out is whatever the item being elaborated calls
+    /// it: when it already assumes this parent bound, the name it gave the item there (see
+    /// `collect_parent_associated_types`), and otherwise a fresh unknown.
     pub(crate) fn instantiate_parent_trait_bound(
         &self,
+        self_type: &Type,
         trait_bound: &ResolvedTraitBound,
-        parent_trait_bound: &ResolvedTraitBound,
+        parent_bound: &ParentBound,
     ) -> ResolvedTraitBound {
-        let mut bindings = TypeBindings::default();
-        self.bind_generics_from_trait_bound(trait_bound, &mut bindings);
-        ResolvedTraitBound {
-            trait_generics: parent_trait_bound.trait_generics.map(|typ| typ.substitute(&bindings)),
-            ..*parent_trait_bound
+        let the_trait = self.interner.get_trait(trait_bound.trait_id);
+        let bindings = the_trait.bound_bindings(self_type, &trait_bound.trait_generics);
+        let instantiated = parent_bound
+            .instantiate(&bindings, |kind| self.interner.next_type_variable_with_kind(kind));
+        let ordered = &instantiated.trait_generics.ordered;
+        match self.item.generics.find_bound(self_type, instantiated.trait_id, ordered) {
+            Some(in_scope) => in_scope.trait_bound.clone(),
+            None => instantiated,
         }
     }
 
@@ -4099,68 +4198,5 @@ impl Elaborator<'_> {
         }
 
         fully_qualified_module_path(self.def_maps, self.crate_graph, &self.crate_id, trait_.id.0)
-    }
-}
-
-/// Binds the ordered [`ResolvedGeneric`]s of a trait to the ordered generics in a [`ResolvedTraitBound`].
-///
-/// Panics if the number of types do not match the ordered generics in the trait.
-pub(super) fn bind_ordered_generics(
-    params: &[ResolvedGeneric],
-    args: &[Type],
-    bindings: &mut TypeBindings,
-) {
-    assert_eq!(params.len(), args.len(), "unexpected number of ordered generics");
-
-    for (param, arg) in params.iter().zip_eq(args) {
-        bind_generic(param, arg, bindings);
-    }
-}
-
-/// Binds the associated [`ResolvedGeneric`]s of a trait to the named generics in a [`ResolvedTraitBound`].
-///
-/// Panics if the number of types exceeds the named generics in the trait.
-/// Any named parameter that does not appear in the arguments is bound to [`Type::Error`].
-fn bind_named_generics(
-    mut params: Vec<ResolvedGeneric>,
-    args: &[NamedType],
-    bindings: &mut TypeBindings,
-) {
-    assert!(
-        args.len() <= params.len(),
-        "bind_named_generics: trait bound has more named generics than associated types"
-    );
-
-    if params.is_empty() {
-        return;
-    }
-
-    for arg in args {
-        let i = params
-            .iter()
-            .position(|typ| *typ.name == arg.name.as_str())
-            .unwrap_or_else(|| unreachable!("Expected to find associated type named {}", arg.name));
-
-        let param = params.swap_remove(i);
-
-        bind_generic(&param, &arg.typ, bindings);
-    }
-
-    for unbound_param in params {
-        bind_generic(&unbound_param, &Type::Error, bindings);
-    }
-}
-
-/// Binds the type variable in a [`ResolvedGeneric`], e.g. a generic parameter of a trait,
-/// to a [Type], which itself can be an unbound type variable.
-///
-/// If the type variable itself appears in the type, then it does nothing.
-fn bind_generic(param: &ResolvedGeneric, arg: &Type, bindings: &mut TypeBindings) {
-    // Avoid binding t = t
-    if !arg.occurs(param.type_var.id()) {
-        bindings.insert(
-            param.type_var.id(),
-            (param.type_var.clone(), param.kind().into_owned(), arg.clone()),
-        );
     }
 }

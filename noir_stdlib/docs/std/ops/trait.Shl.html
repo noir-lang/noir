@@ -19,7 +19,7 @@
 <h1><a href="../../index.html">noir_stdlib</a></h1>
 <div><a href="../../all.html">All items</a></div>
 <h2 id="crate-name"><a href="../index.html">std</a></h2>
-<div id="crate-version">1.0.0-rc.3</div>
+<div id="crate-version">1.0.0-rc.5</div>
 <h2><a href="#trait">Trait Shl</a></h2>
 <h3>Required methods</h3>
 <ul class="sidebar-list">
@@ -70,10 +70,23 @@
     pub fn <a href="#shl" class="fn">shl</a>(self, other: Self) -> Self;
 }</code></pre>
 
+<div class="comments">
+<p>The <code>&lt;&lt;</code> operator: shifts the bits of <code>self</code> left by <code>other</code> places.</p>
+<p>Implemented for the integer types; the shift amount has the same type as the value. Bits shifted
+out of the top are dropped without an overflow check, so a left shift of a signed value can change
+its sign. Shifting by the type's bit size or more fails, and so does shifting a signed value by a
+negative amount.</p>
+<p>Example:</p>
+<pre><code><span class="kw">assert_eq</span>(<span class="number">1_u8</span> &lt;&lt; <span class="number">3</span>, <span class="number">8</span>);
+<span class="comment">// High bits are dropped.</span>
+<span class="kw">assert_eq</span>(<span class="number">0x81_u8</span> &lt;&lt; <span class="number">1</span>, <span class="number">0x02</span>);</code></pre></div>
 <h2>Required methods</h2>
 <div class="padded-methods"><code id="shl" class="code-header">pub fn <a href="#shl" class="fn">shl</a>(self, other: Self) -> Self</code>
 
-</div><h2>Implementors</h2>
+<div class="padded-description"><div class="comments">
+<p>Returns <code>self &lt;&lt; other</code>.</p>
+</div>
+</div></div><h2>Implementors</h2>
 <h3 id="impl-Shl-for-i16"><code class="code-header">impl <a href="../../std/ops/trait.Shl.html" class="trait">Shl</a> for <a href="../../std/primitive.i16.html" class="primitive">i16</a></code></h3>
 
 <h3 id="impl-Shl-for-i32"><code class="code-header">impl <a href="../../std/ops/trait.Shl.html" class="trait">Shl</a> for <a href="../../std/primitive.i32.html" class="primitive">i32</a></code></h3>

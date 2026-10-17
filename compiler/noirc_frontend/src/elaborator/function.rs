@@ -114,7 +114,7 @@ impl Elaborator<'_> {
         extra_constraints: &[(TraitConstraint, Location)],
     ) {
         for (local_module, id, func) in &function_set.functions {
-            self.deferred.function_metas.register(
+            self.session.deferred.function_metas.register(
                 *id,
                 UnresolvedFunctionMeta {
                     func: func.clone(),
@@ -172,7 +172,7 @@ impl Elaborator<'_> {
 
                 let outer_generics = this.item.generics.params().to_vec();
                 for (method_module, id, func) in &unresolved_impl.methods.functions {
-                    this.deferred.function_metas.register(
+                    this.session.deferred.function_metas.register(
                         *id,
                         UnresolvedFunctionMeta {
                             func: func.clone(),
@@ -203,7 +203,7 @@ impl Elaborator<'_> {
     ) {
         let self_type = trait_impl.methods.self_type.clone();
         for (method_module, id, func) in &trait_impl.methods.functions {
-            self.deferred.function_metas.register(
+            self.session.deferred.function_metas.register(
                 *id,
                 UnresolvedFunctionMeta {
                     func: func.clone(),
@@ -230,7 +230,7 @@ impl Elaborator<'_> {
     /// being resolved (the `remove` returns `None`, breaking cycles — the cycle
     /// will surface as an error from later phases like dependency-cycle detection).
     pub(crate) fn define_function_meta_if_undefined(&mut self, func_id: FuncId) {
-        let Some(info) = self.deferred.function_metas.take(&func_id) else {
+        let Some(info) = self.session.deferred.function_metas.take(&func_id) else {
             return;
         };
         self.resolve_unresolved_function_meta(func_id, info);
@@ -260,7 +260,7 @@ impl Elaborator<'_> {
     /// Resolves all unresolved function metas except those given in `skip`.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn resolve_unresolved_function_metas_skipping(&mut self, skip: &HashSet<FuncId>) {
-        for func_id in self.deferred.function_metas.keys_except(skip) {
+        for func_id in self.session.deferred.function_metas.keys_except(skip) {
             self.define_function_meta_if_undefined(func_id);
         }
     }
@@ -327,7 +327,7 @@ impl Elaborator<'_> {
         let name_ident = HirIdent::non_trait_method(id, location);
 
         // Add generics to scope
-        let (mut generics, associated_generics_trait_constraints) =
+        let mut generics =
             self.add_function_generics_to_scope(&func.def.generics, &mut func.def.where_clause);
 
         // Setup trait constraints
@@ -336,18 +336,28 @@ impl Elaborator<'_> {
             self.add_implied_trait_bound_to_scope(*location, &extra_constraint.typ, bound);
         }
 
-        let mut trait_constraints =
-            self.resolve_trait_constraints_and_add_to_scope(&func.def.where_clause);
-
-        // Add constraints for parent traits that have associated types.
-        let (parent_generics, parent_constraints) =
-            self.add_parent_associated_type_constraints(&trait_constraints);
-        generics.extend(parent_generics);
-        trait_constraints.extend(parent_constraints);
+        // Resolve the where clause, naming the associated items of the parent bounds each bound
+        // implies right after it: a later bound such as `<T as Parent>::Item: Foo` must name the
+        // same `<T as Parent>::Item` as the body.
+        let mut trait_constraints = Vec::new();
+        let mut implied_trait_constraints = Vec::new();
+        for constraint in &func.def.where_clause {
+            let Some(constraint) = self.resolve_trait_constraint_and_add_to_scope(constraint)
+            else {
+                continue;
+            };
+            let (parent_generics, constraints) =
+                self.add_parent_associated_type_constraints(&constraint);
+            generics.extend(parent_generics);
+            implied_trait_constraints.extend(constraints);
+            trait_constraints.push(constraint);
+        }
 
         let mut extra_trait_constraints =
             vecmap(extra_trait_constraints, |(constraint, _)| constraint.clone());
-        extra_trait_constraints.extend(associated_generics_trait_constraints);
+        let associated_type_constraints = self.associated_type_constraints(&trait_constraints);
+        extra_trait_constraints.extend(associated_type_constraints.into_iter().map(|(c, _)| c));
+        extra_trait_constraints.extend(implied_trait_constraints);
 
         // Resolve parameters
         let (parameters, parameter_types, parameter_idents) =
@@ -452,40 +462,25 @@ impl Elaborator<'_> {
 
     /// Adds function generics and associated generics (from where clause) to scope.
     ///
-    /// Returns (generics, `associated_generics_trait_constraints`) where generics contains
-    /// both associated and explicit generics in the correct order (associated first, then explicit function generics).
+    /// Returns the associated and explicit generics in the correct order (associated first, then
+    /// explicit function generics).
     #[tracing::instrument(level = "trace", skip_all)]
     fn add_function_generics_to_scope(
         &mut self,
         func_generics: &UnresolvedGenerics,
         where_clause: &mut [UnresolvedTraitConstraint],
-    ) -> (Vec<TypeVariable>, Vec<TraitConstraint>) {
+    ) -> Vec<TypeVariable> {
         self.add_generics(func_generics);
 
         let func_generics = self.item.generics.type_vars();
 
         let associated_generics = self.desugar_trait_constraints(where_clause);
 
-        let mut generics = Vec::with_capacity(associated_generics.len());
-        let mut associated_generics_trait_constraints = Vec::new();
-
-        for desugared in associated_generics {
-            for bound in desugared.bounds {
-                let typ = desugared.named_generic.clone();
-                let location = desugared.generic.location;
-                self.add_implied_trait_bound_to_scope(location, &typ, &bound);
-                associated_generics_trait_constraints
-                    .push(TraitConstraint { typ, trait_bound: bound });
-            }
-
-            generics.push(desugared.generic.type_var);
-        }
-
         // We put associated generics first, as they are implicit and implicit generics
         // come before explicit generics (see `Type::instantiate_with`).
+        let mut generics = vecmap(associated_generics, |generic| generic.type_var);
         generics.extend(func_generics);
-
-        (generics, associated_generics_trait_constraints)
+        generics
     }
 
     fn is_function_in_contract(&self) -> bool {
@@ -690,7 +685,7 @@ impl Elaborator<'_> {
         // the function gets a context of its own rather than whatever the caller had installed.
         let module = ModuleContext::of_item(func_meta.source_module, DependencyId::Function(id));
         let context = ItemContext::new(module)
-            .with_impl(ImplContext::of_function(&func_meta))
+            .with_impl(ImplContext::of_function(&func_meta, self.interner))
             // The generics are left empty here and filled in by `introduce_generics_into_scope`,
             // which also declares the numeric ones.
             .with_generics(GenericsContext::new(
@@ -714,6 +709,15 @@ impl Elaborator<'_> {
         body: BlockExpression,
         body_location: Location,
     ) {
+        // A default method of a trait is type checked once for every implementing type, so its
+        // body must leave the trait's `Self` variable unbound. A binding would be seen by every
+        // other default method of the trait and fix the impl their calls dispatch to.
+        let unbound_trait_self = func_meta
+            .trait_id
+            .filter(|_| func_meta.trait_impl.is_none())
+            .map(|trait_id| (trait_id, self.interner.get_trait(trait_id).self_param.clone()))
+            .filter(|(_, self_param)| self_param.bound_to().is_none());
+
         self.scopes.start_function();
         self.push_function_context();
 
@@ -790,6 +794,18 @@ impl Elaborator<'_> {
         self.check_and_pop_function_context();
 
         self.remove_trait_constraints_from_scope(func_meta.all_trait_constraints());
+
+        if let Some((trait_id, self_param)) = unbound_trait_self
+            && let Some(self_type) = self_param.bound_to()
+        {
+            let trait_name = self.interner.get_trait(trait_id).name.to_string();
+            self.push_err(TypeCheckError::expecting_other_error(
+                format!(
+                    "`Self` of trait `{trait_name}` was bound to `{self_type}` while type checking this default method"
+                ),
+                func_meta.name.location,
+            ));
+        }
 
         let func_scope_tree = self.scopes.end_function();
 

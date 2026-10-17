@@ -32,25 +32,27 @@ use crate::option::Option;
 ///     where T: Serialize<N>, U: Serialize<M> {}
 ///
 /// fn fresh_variable_example() {
-///     let typevar1 = std::meta::typ::fresh_type_variable();
-///     let constraint = quote { Serialize<$typevar1> }.as_trait_constraint();
-///     let field_type = quote { Field }.as_type();
+///     comptime {
+///         let typevar1 = std::meta::typ::fresh_type_variable();
+///         let constraint = quote { Serialize<$typevar1> }.as_trait_constraint();
+///         let field_type = quote { Field }.as_type();
 ///
-///     // Search for a trait impl (binding typevar1 to 1 when the impl is found):
-///     assert(field_type.implements(constraint));
+///         // Search for a trait impl (binding typevar1 to 1 when the impl is found):
+///         assert(field_type.implements(constraint));
 ///
-///     // typevar1 should be bound to the "1" generic now:
-///     assert_eq(typevar1.as_constant().unwrap(), 1);
+///         // typevar1 should be bound to the "1" generic now:
+///         assert_eq(typevar1.as_constant().unwrap(), 1);
 ///
-///     // If we want to do the same with a different type, we need to
-///     // create a new type variable now that `typevar1` is bound
-///     let typevar2 = std::meta::typ::fresh_type_variable();
-///     let constraint = quote { Serialize<$typevar2> }.as_trait_constraint();
-///     let array_type = quote { [(Field, Field); 5] }.as_type();
-///     assert(array_type.implements(constraint));
+///         // If we want to do the same with a different type, we need to
+///         // create a new type variable now that `typevar1` is bound
+///         let typevar2 = std::meta::typ::fresh_type_variable();
+///         let constraint = quote { Serialize<$typevar2> }.as_trait_constraint();
+///         let array_type = quote { [(Field, Field); 5] }.as_type();
+///         assert(array_type.implements(constraint));
 ///
-///     // Now typevar2 should be bound to the serialized pair size 2 times the array length 5
-///     assert_eq(typevar2.as_constant().unwrap(), 10);
+///         // Now typevar2 should be bound to the serialized pair size 2 times the array length 5
+///         assert_eq(typevar2.as_constant().unwrap(), 10);
+///     }
 /// }
 /// ```
 #[builtin(fresh_type_variable)]

@@ -605,9 +605,13 @@ fn format_noir_snippet(
     if !config.format_code_blocks {
         return None;
     }
+    // The language is the first word of the info string; any further words (separated by spaces
+    // or commas, as in `noir ignore` or `noir,should_fail`) are attributes.
     let lang_ok = match lang {
         None => true,
-        Some(l) => l.eq_ignore_ascii_case("noir"),
+        Some(l) => {
+            l.split([' ', '\t', ',']).next().unwrap_or_default().eq_ignore_ascii_case("noir")
+        }
     };
     if !lang_ok || source.trim().is_empty() {
         return None;

@@ -24,6 +24,7 @@ use noirc_driver::{CompileOptions, NOIR_ARTIFACT_VERSION_STRING};
 use noirc_frontend::graph::CrateName;
 use std::io::{BufRead, BufReader, BufWriter, Read, Write};
 use std::path::Path;
+use std::sync::Arc;
 
 use serde_json::Value;
 
@@ -103,19 +104,21 @@ fn compile_test(
     compile_options: CompileOptions,
     test_name: String,
 ) -> Result<(CompiledProgram, TestDefinition), LoadError> {
-    let (file_manager, mut parsed_files) = load_workspace_files(workspace);
+    let (file_manager, parsed_files) = load_workspace_files(workspace);
 
-    let (mut context, crate_id) =
-        prepare_package_for_debug(&file_manager, &mut parsed_files, package, workspace);
+    let (context, crate_id) =
+        prepare_package_for_debug(&Arc::new(file_manager), parsed_files, package);
 
-    check_crate_and_report_errors(&mut context, crate_id, &compile_options)
+    let context = check_crate_and_report_errors(context, crate_id, &compile_options)
         .map_err(|_| LoadError::Generic("Failed to compile project".into()))?;
 
     let test = get_test_function_for_debug(crate_id, &context, &test_name)
         .map_err(|_| LoadError::Generic("Failed to compile project".into()))?;
 
-    let program = compile_test_fn_for_debugging(&test, &mut context, compile_options)
-        .map_err(|_| LoadError::Generic("Failed to compile project".into()))?;
+    let package_build_path = workspace.package_build_path(package);
+    let program =
+        compile_test_fn_for_debugging(&test, &context, compile_options, &package_build_path)
+            .map_err(|_| LoadError::Generic("Failed to compile project".into()))?;
     Ok((program, test))
 }
 

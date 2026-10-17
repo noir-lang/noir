@@ -174,12 +174,10 @@ impl Elaborator<'_> {
 
         let expr = self.interner.expression(&let_statement.expression);
         if !matches!(expr, HirExpression::Error) {
-            // Globals must be elaborated at the global scope: drain every non-global scope so the
-            // initializer is defined into the global scope, and lower the scope floor to one so the
-            // initializer's own block-local scopes (which may be pushed when evaluating it during an
-            // enclosing comptime call) remain visible.
-            let saved_scopes: Vec<_> = self.interner.comptime_scopes.drain(1..).collect();
-            let saved_floor = std::mem::replace(&mut self.interner.comptime_scope_floor, 1);
+            // A global can be evaluated in the middle of a comptime call that references it. Its
+            // initializer must not see that call's locals, so it is evaluated with scopes of its
+            // own.
+            let enclosing_scopes = std::mem::take(self.comptime_scopes_mut());
 
             let mut interpreter = self.setup_interpreter();
 
@@ -201,8 +199,7 @@ impl Elaborator<'_> {
                 self.interner.resolve_global(global_id, value, comptime, self.files);
             }
 
-            self.interner.comptime_scopes.extend(saved_scopes);
-            self.interner.comptime_scope_floor = saved_floor;
+            *self.comptime_scopes_mut() = enclosing_scopes;
         }
     }
 

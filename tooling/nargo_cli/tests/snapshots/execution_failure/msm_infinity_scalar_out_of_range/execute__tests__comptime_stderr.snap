@@ -3,9 +3,9 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
 error: failed to solve blackbox function: multi_scalar_mul, reason: Limb 0000000000000000000000000000000100000000000000000000000000000000 is not less than 2^128
-    ┌─ std/embedded_curve_ops.nr:138:5
+    ┌─ std/embedded_curve_ops.nr:271:5
     │
-138 │     multi_scalar_mul_array_return(points, scalars, true)[0]
+271 │     multi_scalar_mul_array_return(points, scalars, true)[0]
     │     ----------------------------------------------------
     │
 
