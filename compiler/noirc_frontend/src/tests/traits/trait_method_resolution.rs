@@ -1403,8 +1403,10 @@ fn turbofish_path_call_that_a_blanket_impl_also_serves_under_a_where_clause_is_a
     check_errors(src);
 }
 
+/// As in Rust (E0283), a blanket impl whose where clause can't be decided yet is a candidate next
+/// to the type's own impl, so the call needs the result type.
 #[test]
-fn method_call_selects_a_types_own_impl_over_a_blanket_impl_with_an_undecided_where_clause() {
+fn method_call_with_a_blanket_impl_whose_where_clause_is_undecided_needs_annotations() {
     let src = r#"
     trait From<T> {
         fn from(input: T) -> Self;
@@ -1426,12 +1428,42 @@ fn method_call_selects_a_types_own_impl_over_a_blanket_impl_with_an_undecided_wh
 
     fn main() {
         let _ = S {}.into();
+                ^^^^^^^^^ Object type is unknown in method call
+                ~~~~~~~~~ Type must be known by this point to know which method to call
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn method_call_selects_a_types_own_impl_once_the_result_type_rules_out_the_blanket_impl() {
+    let src = r#"
+    trait From<T> {
+        fn from(input: T) -> Self;
+    }
+    trait Into<T> {
+        fn into(self) -> T;
+    }
+    impl<T, U> Into<T> for U where T: From<U> {
+        fn into(self) -> T { T::from(self) }
+    }
+    impl<T> From<T> for T {
+        fn from(input: T) -> T { input }
+    }
+
+    struct S {}
+    impl Into<Field> for S {
+        fn into(self) -> Field { 2 }
+    }
+
+    fn main() {
+        let _x: Field = S {}.into();
     }
     "#;
     let program = get_monomorphized(src).unwrap();
     insta::assert_snapshot!(program, @r"
     fn main$f0() -> () {
-        let _$l0 = into$f1({
+        let _x$l0 = into$f1({
             ()
         })
     }

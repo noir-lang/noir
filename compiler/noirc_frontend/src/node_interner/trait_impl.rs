@@ -718,9 +718,10 @@ impl NodeInterner {
         }
     }
 
-    /// Whether `impl_id` applies to `typ` with every constraint of its where clause known to hold.
-    /// A constraint that can't be decided yet (it needs type annotations) doesn't count as holding.
-    pub(crate) fn trait_impl_where_clause_holds(&self, impl_id: TraitImplId, typ: &Type) -> bool {
+    /// Whether `impl_id` may apply to `typ`: its self type unifies with `typ`, and no constraint
+    /// of its where clause is known to fail. A constraint that can't be decided yet (it needs type
+    /// annotations) may still hold, so it doesn't rule the impl out.
+    pub(crate) fn trait_impl_may_apply(&self, impl_id: TraitImplId, typ: &Type) -> bool {
         let (impl_type, instantiation_bindings) = {
             let trait_impl = self.get_trait_implementation(impl_id);
             let trait_impl = trait_impl.borrow();
@@ -733,13 +734,16 @@ impl NodeInterner {
         let Some(where_clause) = self.trait_impl_where_clauses.get(&impl_id) else {
             return true;
         };
-        self.validate_where_clause(
+        let result = self.validate_where_clause(
             where_clause,
             &mut bindings,
             &instantiation_bindings,
             IMPL_SEARCH_RECURSION_LIMIT,
+        );
+        !matches!(
+            result,
+            Err((_, ImplSearchErrorKind::NoImplFound(_) | ImplSearchErrorKind::NoMatching(_)))
         )
-        .is_ok()
     }
 
     /// Verifies that each constraint in the given where clause is valid.
