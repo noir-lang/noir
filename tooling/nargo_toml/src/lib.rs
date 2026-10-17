@@ -165,14 +165,17 @@ impl PackageConfig {
             toml: root_dir.join(PKG_FILE),
             name: name.into(),
         })?;
+        let package_name = name.clone();
 
         let mut dependencies: BTreeMap<CrateName, Dependency> = BTreeMap::new();
         for (name, dep_config) in &self.dependencies {
             let name = name.parse().map_err(|_| ManifestError::InvalidDependencyName {
+                package_name: package_name.clone(),
                 toml: root_dir.join(PKG_FILE),
                 name: name.into(),
             })?;
-            let resolved_dep = dep_config.resolve_to_dependency(root_dir, processed)?;
+            let resolved_dep =
+                dep_config.resolve_to_dependency(root_dir, &package_name, processed)?;
 
             dependencies.insert(name, resolved_dep);
         }
@@ -327,6 +330,7 @@ impl DependencyConfig {
     fn resolve_to_dependency(
         &self,
         pkg_root: &Path,
+        depender_name: &CrateName,
         processed: &mut Vec<String>,
     ) -> Result<Dependency, ManifestError> {
         let dep = match self {
@@ -359,15 +363,19 @@ impl DependencyConfig {
         // Cannot depend on a binary
         // TODO: Can we depend upon contracts?
         if dep.is_binary() {
-            Err(ManifestError::BinaryDependency(dep.package_name().clone()))
+            Err(ManifestError::BinaryDependency {
+                depender_name: depender_name.clone(),
+                dependency_name: dep.package_name().clone(),
+            })
         } else {
             Ok(dep)
         }
     }
 }
 
-/// Resolves a single dependency relative to `pkg_root`, downloading it into the global cache
-/// if it is a git dependency that hasn't been fetched yet.
+/// Resolves a single dependency declared by the package named `depender_name`, relative to
+/// `pkg_root`, downloading it into the global cache if it is a git dependency that hasn't been
+/// fetched yet.
 ///
 /// This performs the same validation as workspace resolution for one entry: it checks that the
 /// dependency's `Nargo.toml` exists and that it is not a binary package. The returned
@@ -375,9 +383,10 @@ impl DependencyConfig {
 pub fn resolve_dependency(
     pkg_root: &Path,
     dep: &DependencyConfig,
+    depender_name: &CrateName,
 ) -> Result<Dependency, ManifestError> {
     let _lock = lock_git_deps()?;
-    dep.resolve_to_dependency(pkg_root, &mut Vec::new())
+    dep.resolve_to_dependency(pkg_root, depender_name, &mut Vec::new())
 }
 
 /// Adds a dependency named `name` to the `[dependencies]` table of the manifest at `toml_path`,
@@ -825,13 +834,83 @@ my_lib = { path = "../my_lib" }
         write_pkg("the_lib", "cool_lib", "lib");
         write_pkg("the_bin", "cool_bin", "bin");
 
-        let dep = resolve_dependency(root, &DependencyConfig::Path { path: "the_lib".to_string() })
-            .expect("a library path dependency should resolve");
+        let depender = "the_depender".parse::<noirc_frontend::graph::CrateName>().unwrap();
+
+        let dep = resolve_dependency(
+            root,
+            &DependencyConfig::Path { path: "the_lib".to_string() },
+            &depender,
+        )
+        .expect("a library path dependency should resolve");
         assert_eq!(dep.package_name().to_string(), "cool_lib");
 
-        match resolve_dependency(root, &DependencyConfig::Path { path: "the_bin".to_string() }) {
-            Err(ManifestError::BinaryDependency(name)) => assert_eq!(name.to_string(), "cool_bin"),
-            _ => panic!("a binary path dependency should be rejected"),
+        let result = resolve_dependency(
+            root,
+            &DependencyConfig::Path { path: "the_bin".to_string() },
+            &depender,
+        );
+        match result {
+            Err(ManifestError::BinaryDependency { depender_name, dependency_name }) => {
+                assert_eq!(depender_name.to_string(), "the_depender");
+                assert_eq!(dependency_name.to_string(), "cool_bin");
+            }
+            Err(other) => panic!("a binary path dependency should be rejected, got: {other}"),
+            Ok(_) => panic!("a binary path dependency should be rejected"),
+        }
+    }
+
+    #[test]
+    fn manifest_error_messages_name_the_package_they_came_from() {
+        let package_name = "root_pkg".parse::<noirc_frontend::graph::CrateName>().unwrap();
+
+        let err = ManifestError::InvalidDependencyName {
+            package_name,
+            toml: PathBuf::from("Nargo.toml"),
+            name: "bad-name".to_string(),
+        };
+        let message = err.to_string();
+        assert!(message.contains("root_pkg"), "missing package name: {message}");
+        assert!(message.contains("bad-name"), "missing dependency name: {message}");
+
+        let err = ManifestError::BinaryDependency {
+            depender_name: "root_pkg".parse::<noirc_frontend::graph::CrateName>().unwrap(),
+            dependency_name: "the_bin".parse::<noirc_frontend::graph::CrateName>().unwrap(),
+        };
+        let message = err.to_string();
+        assert!(message.contains("root_pkg"), "missing depender name: {message}");
+        assert!(message.contains("the_bin"), "missing dependency name: {message}");
+    }
+
+    #[test]
+    fn resolving_a_package_with_an_invalid_dependency_name_names_that_package() {
+        use crate::resolve_dependency;
+
+        let tmp = tempfile::tempdir().unwrap();
+        let root = tmp.path();
+
+        let pkg_dir = root.join("the_lib");
+        std::fs::create_dir_all(pkg_dir.join("src")).unwrap();
+        std::fs::write(
+            pkg_dir.join(PKG_FILE),
+            "[package]\nname = \"cool_lib\"\ntype = \"lib\"\nauthors = [\"\"]\n\n[dependencies]\nbad-name = { path = \"../elsewhere\" }\n",
+        )
+        .unwrap();
+        std::fs::write(pkg_dir.join("src").join("lib.nr"), "").unwrap();
+
+        let depender = "the_depender".parse::<noirc_frontend::graph::CrateName>().unwrap();
+        let result = resolve_dependency(
+            root,
+            &DependencyConfig::Path { path: "the_lib".to_string() },
+            &depender,
+        );
+
+        match result {
+            Err(ManifestError::InvalidDependencyName { package_name, name, .. }) => {
+                assert_eq!(package_name.to_string(), "cool_lib");
+                assert_eq!(name, "bad-name");
+            }
+            Err(other) => panic!("expected an invalid dependency name error, got: {other}"),
+            Ok(_) => panic!("a package with an invalid dependency name should be rejected"),
         }
     }
 

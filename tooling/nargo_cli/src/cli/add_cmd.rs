@@ -130,7 +130,7 @@ pub(crate) fn run(args: AddCommand, workspace: Workspace) -> Result<(), CliError
 
     // Resolve the dependency before touching the manifest: this validates that it exists and is
     // not a binary, downloads git dependencies into the cache, and tells us where it landed.
-    let resolved = resolve_dependency(&package.root_dir, &dependency)?;
+    let resolved = resolve_dependency(&package.root_dir, &dependency, &package.name)?;
 
     let name = match args.name {
         Some(name) => name,
