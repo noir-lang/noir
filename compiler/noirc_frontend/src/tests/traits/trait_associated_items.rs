@@ -3618,6 +3618,8 @@ fn impl_used_before_it_is_finished_needs_its_where_clause() {
                                   ^ No matching impl found for `W: B`
                                   ~ No impl for `W: B`
     impl C for W where W: B { type T = u8; }
+                          ^ No matching impl found for `W: B`
+                          ~ No impl for `W: B`
     fn main() {}
     "#;
     check_errors(src);
@@ -4021,6 +4023,8 @@ fn associated_constant_of_an_impl_declared_later_needs_its_where_clause() {
                                       ^ No matching impl found for `W: B`
                                       ~ No impl for `W: B`
     impl C for W where W: B { let N: u32 = 5; }
+                          ^ No matching impl found for `W: B`
+                          ~ No impl for `W: B`
     fn main() -> pub u32 { <S as C>::N }
     "#;
     check_errors(src);
