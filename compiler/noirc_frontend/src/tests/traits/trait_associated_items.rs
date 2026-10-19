@@ -2288,10 +2288,11 @@ fn fully_generic_object_projection_uses_assumed_impl() {
     assert_no_errors(src);
 }
 
-/// When the object type still contains an unbound type variable, a real impl and an assumed
-/// impl that bind it differently are genuinely ambiguous: neither discharges the other.
+/// When the object type still contains an unbound type variable, a real impl and an assumed impl
+/// may bind it differently. As in Rust, the single assumed impl is selected, so `_` becomes `T`
+/// and the projection stays `<Wrapper<T> as Foo>::Bar` rather than the real impl's `u8`.
 #[test]
-fn ambiguous_impl_with_unbound_type_variable_still_errors() {
+fn assumed_impl_is_selected_over_real_impl_for_unbound_type_variable() {
     let src = r#"
     trait Foo {
         type Bar;
@@ -2305,9 +2306,35 @@ fn ambiguous_impl_with_unbound_type_variable_still_errors() {
         type Bar = u8;
     }
 
-    pub fn f() where Wrapper<u16>: Foo {
-                                   ^^^ No matching impl found for `Wrapper<u16>: Foo<Bar = _>`
-                                   ~~~ No impl for `Wrapper<u16>: Foo<Bar = _>`
+    pub fn f<T>() where Wrapper<T>: Foo {
+        let _x: <Wrapper<_> as Foo>::Bar = 0;
+                                           ^ Expected type <Wrapper<T> as Foo>::Bar, found type Field
+    }
+
+    fn main() {
+        let _ = Wrapper { val: 1 };
+    }
+    "#;
+    check_errors(src);
+}
+
+/// Two assumed impls that bind an unbound type variable differently are ambiguous.
+#[test]
+fn ambiguous_assumed_impls_with_unbound_type_variable_still_error() {
+    let src = r#"
+    trait Foo {
+        type Bar;
+    }
+
+    struct Wrapper<T> {
+        val: T,
+    }
+
+    impl Foo for Wrapper<u32> {
+        type Bar = u8;
+    }
+
+    pub fn f<T, U>() where Wrapper<T>: Foo, Wrapper<U>: Foo {
         let _x: <Wrapper<_> as Foo>::Bar = 0;
                                ^^^ Multiple trait impls match the object type `Wrapper<_>`
                                ~~~ Ambiguous impl
