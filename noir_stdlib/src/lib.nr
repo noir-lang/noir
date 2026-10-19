@@ -37,6 +37,17 @@ unconstrained fn print_unconstrained<T>(with_newline: bool, input: T) {
 }
 
 /// Print the given input to stdout followed by a newline
+///
+/// It works in constrained, unconstrained and comptime code. It is a debugging aid: it adds no
+/// constraints, and nothing about it ends up in a proof. Format strings interpolate values.
+///
+/// Example:
+///
+/// ```noir
+/// let x = 42;
+/// println(x);
+/// println(f"x is {x}");
+/// ```
 pub fn println<T>(input: T) {
     // Safety: a print statement cannot be constrained
     unsafe {
@@ -45,6 +56,15 @@ pub fn println<T>(input: T) {
 }
 
 /// Print the given input to stdout
+///
+/// Like [`println`], but without a trailing newline.
+///
+/// Example:
+///
+/// ```noir
+/// print("x = ");
+/// println(42);
+/// ```
 pub fn print<T>(input: T) {
     // Safety: a print statement cannot be constrained
     unsafe {
@@ -60,8 +80,8 @@ pub fn print<T>(input: T) {
 ///
 /// # Important Note
 ///
-/// If you are not developing your own backend such as [Barretenberg](https://github.com/AztecProtocol/barretenberg)
-/// you probably shouldn't need to interact with this function directly. It's easier and safer to use a verification
+/// If you are not developing your own proving backend, you probably shouldn't need to interact with
+/// this function directly. It's easier and safer to use a verification
 /// library which is published by the developers of the backend which will document or enforce any safety requirements.
 ///
 /// If you use this directly, you're liable to introduce underconstrainedness bugs and *your circuit will be insecure*.
@@ -80,6 +100,24 @@ pub fn print<T>(input: T) {
 /// This is because different backends may differ in how they hash their verification keys.
 /// It is then the responsibility of either the noir developer (by explicitly hashing the verification key
 /// in the correct manner) or by the proving system itself internally asserting the correctness of `key_hash`.
+///
+/// It can only be called from constrained code, and `proof_type` must be a compile-time constant.
+///
+/// Example:
+///
+/// The sizes of the key, proof and public inputs, and the value of `proof_type`, are placeholders:
+/// the real ones depend on the proving backend.
+///
+/// ```noir ignore
+/// fn main(
+///     verification_key: [Field; 115],
+///     proof: [Field; 93],
+///     public_inputs: pub [Field; 1],
+///     key_hash: Field,
+/// ) {
+///     std::verify_proof_with_type(verification_key, proof, public_inputs, key_hash, 1);
+/// }
+/// ```
 pub fn verify_proof_with_type<let N: u32, let M: u32, let K: u32>(
     verification_key: [Field; N],
     proof: [Field; M],
@@ -87,6 +125,9 @@ pub fn verify_proof_with_type<let N: u32, let M: u32, let K: u32>(
     key_hash: Field,
     proof_type: u32,
 ) {
+    // A constrained caller reached from unconstrained code is compiled as unconstrained. Skipping the
+    // check there lets it report "Cannot call `std::verify_proof_with_type` in unconstrained context"
+    // rather than "Argument is not constant".
     if !crate::runtime::is_unconstrained() {
         crate::assert_constant(proof_type);
     }
@@ -104,11 +145,37 @@ fn verify_proof_internal<let N: u32, let M: u32, let K: u32>(
 
 /// Asserts that the given value is known at compile-time.
 /// Useful for debugging for-loop bounds.
+///
+/// Compilation fails if `x` isn't a compile-time constant after the compiler's optimizations,
+/// in both constrained and unconstrained code. At comptime every value is known, so it passes.
+///
+/// Example:
+///
+/// ```noir
+/// let n = 2 + 3;
+/// std::assert_constant(n);
+/// ```
 #[builtin(assert_constant)]
 pub fn assert_constant<T>(x: T) {}
 
 /// Asserts that the given value is both true and known at compile-time.
 /// The message can be a string, a format string, or any value, as long as it is known at compile-time
+///
+/// Compilation fails with `message` if `predicate` is false or isn't known at compile time. It is
+/// typically used to check numeric generics.
+///
+/// Example:
+///
+/// ```noir
+/// fn first<let N: u32>(array: [u32; N]) -> u32 {
+///     std::static_assert(N > 0, "the array must not be empty");
+///     array[0]
+/// }
+///
+/// fn main() {
+///     assert_eq(first([7, 8]), 7);
+/// }
+/// ```
 #[builtin(static_assert)]
 pub fn static_assert<T>(predicate: bool, message: T) {}
 
@@ -116,5 +183,13 @@ pub fn static_assert<T>(predicate: bool, message: T) {}
 /// This is often only useful for debugging compiler optimizations.
 ///
 /// This has no effect in unconstrained or comptime code.
+///
+/// Example:
+///
+/// ```noir
+/// let x: Field = 5;
+/// std::as_witness(x);
+/// assert_eq(x, 5);
+/// ```
 #[builtin(as_witness)]
 pub fn as_witness(x: Field) {}
