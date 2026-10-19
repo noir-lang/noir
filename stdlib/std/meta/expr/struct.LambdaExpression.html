@@ -65,7 +65,14 @@
 { <span class="comment">/* private fields */</span> }
 </code></pre>
 <div class="comments">
-<p>A lambda expression decomposed by <a href="../../../std/primitive.Expr.html#as_lambda"><code>Expr::as_lambda</code></a>.</p></div>
+<p>A lambda expression decomposed by <a href="../../../std/primitive.Expr.html#as_lambda"><code>Expr::as_lambda</code></a>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> lambda = <span class="kw">quote</span> { |x: u32| -&gt; u32 { foo(x) } }.as_expr().unwrap().as_lambda().unwrap();
+    <span class="kw">assert_eq</span>(lambda.parameters().len(), <span class="number">1</span>);
+    <span class="kw">assert</span>(lambda.return_type().is_some());
+    <span class="kw">assert_eq</span>(lambda.body().as_block().unwrap()[<span class="number">0</span>].quoted(), <span class="kw">quote</span> { foo(x) });
+}</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../../../std/meta/expr/struct.LambdaExpression.html" class="struct">LambdaExpression</a></code></h3>
 
@@ -73,17 +80,35 @@
 
 <div class="padded-description"><div class="comments">
 <p>The lambda parameters in source order.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> lambda = <span class="kw">quote</span> { |x, y| x + y }.as_expr().unwrap().as_lambda().unwrap();
+    <span class="kw">let</span> parameters = lambda.parameters();
+    <span class="kw">assert_eq</span>(parameters.len(), <span class="number">2</span>);
+    <span class="kw">assert_eq</span>(parameters[<span class="number">1</span>].pattern().quoted(), <span class="kw">quote</span> { y });
+}</code></pre></div>
 </div><code id="return_type" class="code-header">pub comptime fn <a href="#return_type" class="fn">return_type</a>(self) -> <a href="../../../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../../../std/primitive.UnresolvedType.html" class="primitive">UnresolvedType</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>The optional return type annotation.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> lambda = <span class="kw">quote</span> { |x| -&gt; u32 { x } }.as_expr().unwrap().as_lambda().unwrap();
+    <span class="kw">let</span> typ = lambda.return_type().unwrap();
+    <span class="kw">assert_eq</span>(<span class="kw">quote</span> { $typ }, <span class="kw">quote</span> { u32 });
+
+    <span class="kw">let</span> lambda = <span class="kw">quote</span> { |x| x }.as_expr().unwrap().as_lambda().unwrap();
+    <span class="kw">assert</span>(lambda.return_type().is_none());
+}</code></pre></div>
 </div><code id="body" class="code-header">pub comptime fn <a href="#body" class="fn">body</a>(self) -> <a href="../../../std/primitive.Expr.html" class="primitive">Expr</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>The lambda body.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> lambda = <span class="kw">quote</span> { |x| foo(x) }.as_expr().unwrap().as_lambda().unwrap();
+    <span class="kw">assert_eq</span>(lambda.body().quoted(), <span class="kw">quote</span> { foo(x) });
+}</code></pre></div>
 </div></div></div>
 </main>
 </span>

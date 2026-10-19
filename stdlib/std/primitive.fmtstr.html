@@ -115,12 +115,25 @@
 
 <div class="padded-description"><div class="comments">
 <p>Returns the format string contents (that is, without the leading and trailing double quotes) as a <code>Quoted</code> value.</p>
-</div>
+<p>Interpolated values are formatted as in <code>println</code> and the result is lexed into tokens, so a
+<code>Field</code> holding <code>5</code> is written <code>0x05</code> and becomes the integer token <code>5</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> x: Field = <span class="number">3</span>;
+    <span class="kw">assert_eq</span>(<span class="string">f"</span><span class="interpolation">{x}</span><span class="string"> + 1</span><span class="string">"</span>.quoted_contents(), <span class="kw">quote</span> { <span class="number">3</span> + <span class="number">1</span> });
+}</code></pre></div>
 </div><code id="as_quoted_str" class="code-header">pub comptime fn <a href="#as_quoted_str" class="fn">as_quoted_str</a>(self) -> <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>Returns the format string contents (with the leading and trailing double quotes) as a <code>Quoted</code> string literal (not a format string literal).</p>
-</div>
+<p>Values interpolated into the string are formatted the same way as in <code>println</code>, so a <code>Field</code>
+is written in hexadecimal.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> x = <span class="number">3_u32</span>;
+    <span class="kw">let</span> message: str&lt;<span class="number">6</span>&gt; = <span class="string">f"</span><span class="string">x is </span><span class="interpolation">{x}</span><span class="string">"</span>.as_quoted_str!();
+    <span class="kw">assert_eq</span>(message, <span class="string">"x is 3"</span>);
+}</code></pre></div>
 </div></div></div>
 </main>
 </span>
