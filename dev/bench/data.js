@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792428809106,
+  "lastUpdate": 1792428831228,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19324,80 +19324,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "b6a722560cff7061b6ea786cd75c7e1b45fdb640",
-          "message": "fix(frontend): keep an item's assumed trait impls out of items elaborated from inside it (#13953)",
-          "timestamp": "2026-10-12T13:08:25Z",
-          "tree_id": "d2f60804908cc33a58f5fc3fee757dcd45a7381b",
-          "url": "https://github.com/noir-lang/noir/commit/b6a722560cff7061b6ea786cd75c7e1b45fdb640"
-        },
-        "date": 1791812609788,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_fnd_noir-protocol-circuits_crates_blob",
-            "value": 169,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_fnd_noir-protocol-circuits_crates_private-kernel-lib",
-            "value": 500,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_fnd_noir-protocol-circuits_crates_types",
-            "value": 27,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_noir-lang_noir-bignum_",
-            "value": 71,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_noir-lang_noir_bigcurve_",
-            "value": 223,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_noir-lang_noir_json_parser_",
-            "value": 6,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_noir-lang_sha256_",
-            "value": 22,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_noir-lang_sha512_",
-            "value": 7,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_zkpassport_noir-ecdsa_",
-            "value": 2,
-            "unit": "s"
-          },
-          {
-            "name": "test_report_zkpassport_noir_rsa_",
-            "value": 1,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "1d355d8656e05fb7e3a06efab5978a0f0dd35a8f",
           "message": "fix(frontend): consider a default method's where-clause traits together with its own trait in method lookup (#13958)",
           "timestamp": "2026-10-12T15:50:48Z",
@@ -22967,6 +22893,80 @@ window.BENCHMARK_DATA = {
           {
             "name": "test_report_zkpassport_noir-ecdsa_",
             "value": 2,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_zkpassport_noir_rsa_",
+            "value": 1,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5bcafb5697febc3f1ded0cc811d77bed4268a094",
+          "message": "chore(stdlib): document `std::meta` expressions, operators, `Quoted` and `CtString` (#14044)",
+          "timestamp": "2026-10-19T16:04:20Z",
+          "tree_id": "fd95b18a9e29fd4db2d07fa5a14d1fc19938ec19",
+          "url": "https://github.com/noir-lang/noir/commit/5bcafb5697febc3f1ded0cc811d77bed4268a094"
+        },
+        "date": 1792428739148,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_fnd_noir-protocol-circuits_crates_blob",
+            "value": 204,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_fnd_noir-protocol-circuits_crates_private-kernel-lib",
+            "value": 372,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_AztecProtocol_aztec-packages_noir-projects_fnd_noir-protocol-circuits_crates_types",
+            "value": 31,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_noir-lang_noir-bignum_",
+            "value": 60,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_noir-lang_noir_bigcurve_",
+            "value": 273,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_noir-lang_noir_json_parser_",
+            "value": 9,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_noir-lang_sha256_",
+            "value": 25,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_noir-lang_sha512_",
+            "value": 12,
+            "unit": "s"
+          },
+          {
+            "name": "test_report_zkpassport_noir-ecdsa_",
+            "value": 3,
             "unit": "s"
           },
           {
