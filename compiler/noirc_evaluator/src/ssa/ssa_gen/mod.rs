@@ -845,35 +845,28 @@ impl FunctionContext<'_> {
         //
         // ```noir
         // let index = start;
-        // // did_not_hit_break is set to false if a break is hit in the for body
-        // let did_not_hit_break = true;
         // for index in start..end {
-        //   body;
+        //   body; // a `break` here jumps to `final_iteration_end`
         // }
-        // if start <= end && did_not_hit_break {
+        // if start <= end {
         //   index = end;
         //   body;
         // }
+        // final_iteration_end:
         // ```
         //
         // That is, we generate an exclusive for loop and include an extra final iteration that
-        // is only executed if the start is less than the end, and if no break was hit in the loop body.
-        let did_not_hit_break_var = if inclusive {
-            let did_not_hit_break_var = self.builder.insert_allocate(Type::bool());
-            let zero = self.builder.numeric_constant(true, NumericType::bool());
-            self.builder.insert_store(did_not_hit_break_var, zero);
-            Some(did_not_hit_break_var)
-        } else {
-            None
-        };
+        // is only executed if the start is less than or equal to the end. A `break` in the
+        // exclusive iterations jumps past the final iteration, so the two copies of the body are
+        // never both reachable after a `break`.
+        let final_iteration_end = inclusive.then(|| self.builder.insert_block());
 
-        // Remember the blocks and variable used in case there are break/continue instructions
-        // within the loop which need to jump to them.
+        // Remember the blocks used in case there are break/continue instructions within the loop
+        // which need to jump to them.
         self.enter_loop(Loop {
             loop_entry,
             loop_index: Some(loop_index),
-            loop_end,
-            did_not_hit_break_var,
+            loop_end: final_iteration_end.unwrap_or(loop_end),
         });
 
         // Set the location of the initial jmp instruction to the start range. This is the location
@@ -906,28 +899,38 @@ impl FunctionContext<'_> {
         self.exit_loop();
 
         // Generate the final iteration for inclusive ranges
-        if let Some(did_not_hit_break_var) = did_not_hit_break_var {
-            let final_iteration = self.builder.insert_block();
-            let final_iteration_end = self.builder.insert_block();
-
-            let did_not_hit_break = self.builder.insert_load(did_not_hit_break_var, Type::bool());
+        if let Some(final_iteration_end) = final_iteration_end {
             // `start <= end` is equivalent to `!(start > end)`
             let end_is_less_than_start =
                 self.builder.insert_binary(end_index, BinaryOp::Lt, start_index);
             let start_is_less_than_or_equal_to_end =
                 self.builder.insert_not(end_is_less_than_start);
-            let should_execute_loop_body = self.builder.insert_binary(
-                did_not_hit_break,
-                BinaryOp::And,
-                start_is_less_than_or_equal_to_end,
-            );
-            self.builder.terminate_with_jmpif_no_args(
-                should_execute_loop_body,
-                final_iteration,
-                final_iteration_end,
-            );
 
-            self.builder.switch_to_block(final_iteration);
+            // The guard often simplifies to a constant (e.g. `0..=n` over an unsigned type), and a
+            // block must not be terminated by a `jmpif` on a constant: a known-true guard runs the
+            // final iteration in the current block, and a known-false one skips it.
+            match self
+                .builder
+                .current_function
+                .dfg
+                .get_numeric_constant(start_is_less_than_or_equal_to_end)
+            {
+                Some(constant) if constant.is_zero() => {
+                    self.builder.terminate_with_jmp(final_iteration_end, vec![]);
+                    self.builder.switch_to_block(final_iteration_end);
+                    return Ok(Self::unit_value());
+                }
+                Some(_) => (),
+                None => {
+                    let final_iteration = self.builder.insert_block();
+                    self.builder.terminate_with_jmpif_no_args(
+                        start_is_less_than_or_equal_to_end,
+                        final_iteration,
+                        final_iteration_end,
+                    );
+                    self.builder.switch_to_block(final_iteration);
+                }
+            }
 
             // We need to be in the context of a loop because a `break` in the loop, in the final
             // iteration, has to jump somewhere.
@@ -938,7 +941,6 @@ impl FunctionContext<'_> {
                 loop_entry: final_iteration_end,
                 loop_index: None,
                 loop_end: final_iteration_end,
-                did_not_hit_break_var: None,
             });
 
             // Temporarily allow redefinitions because:
@@ -981,12 +983,7 @@ impl FunctionContext<'_> {
         let loop_body = self.builder.insert_block();
         let loop_end = self.builder.insert_block();
 
-        self.enter_loop(Loop {
-            loop_entry: loop_body,
-            loop_index: None,
-            loop_end,
-            did_not_hit_break_var: None,
-        });
+        self.enter_loop(Loop { loop_entry: loop_body, loop_index: None, loop_end });
 
         self.builder.terminate_with_jmp(loop_body, vec![]);
 
@@ -1031,12 +1028,7 @@ impl FunctionContext<'_> {
         let condition = self.codegen_non_tuple_expression(&while_.condition)?;
         self.builder.terminate_with_jmpif_no_args(condition, while_body, while_end);
 
-        self.enter_loop(Loop {
-            loop_entry: while_entry,
-            loop_index: None,
-            loop_end: while_end,
-            did_not_hit_break_var: None,
-        });
+        self.enter_loop(Loop { loop_entry: while_entry, loop_index: None, loop_end: while_end });
 
         // Codegen the body
         self.builder.switch_to_block(while_body);
@@ -1593,12 +1585,6 @@ impl FunctionContext<'_> {
 
     fn codegen_break(&mut self) -> Result<Values, RuntimeError> {
         let current_loop = self.current_loop();
-
-        if let Some(did_not_hit_break_var) = current_loop.did_not_hit_break_var {
-            // `did_not_hit_break_var = false` means we hit a break
-            let zero = self.builder.numeric_constant(false, NumericType::bool());
-            self.builder.insert_store(did_not_hit_break_var, zero);
-        }
 
         let loop_end = current_loop.loop_end;
         self.builder.terminate_with_jmp(loop_end, Vec::new());
