@@ -19,8 +19,9 @@ impl Quoted {
     pub comptime fn as_expr(self) -> Option<Expr> {}
     // docs:end:as_expr
 
-    /// Interprets this token stream as a path to a module. Returns `Option::none()` if it isn't a path
-    /// or no module is found at it.
+    /// Interprets this token stream as a path to a module.
+    ///
+    /// Returns `Option::none()` if it isn't a path or no module is found at it.
     ///
     /// Example:
     ///
@@ -43,8 +44,9 @@ impl Quoted {
     pub comptime fn as_module(self) -> Option<Module> {}
     // docs:end:as_module
 
-    /// Interprets this token stream as a trait constraint without its object type, such as `Eq` or
-    /// `Into<Field>`.
+    /// Interprets this token stream as a trait constraint without its object type.
+    ///
+    /// For example `Eq` or `Into<Field>`.
     ///
     /// Compilation fails if the tokens don't parse as a trait constraint or name a trait that isn't in
     /// scope.
@@ -117,6 +119,11 @@ impl Quoted {
 }
 
 impl Eq for Quoted {
+    /// Two token streams are equal when they print the same.
+    ///
+    /// An [`Expr`] spliced into a `quote` prints with its own parentheses, so
+    /// `quote { x + y }.as_expr().unwrap().quoted()` equals `quote { (x + y) }`, not
+    /// `quote { x + y }`.
     #[builtin(quoted_eq)]
     comptime fn eq(self, other: Quoted) -> bool {}
 }

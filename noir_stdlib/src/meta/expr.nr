@@ -4,8 +4,9 @@ use crate::meta::op::BinaryOp;
 use crate::meta::op::UnaryOp;
 use crate::option::Option;
 
-/// An assert expression decomposed by [`Expr::as_assert`] into its predicate and
-/// optional message.
+/// An assert expression decomposed by [`Expr::as_assert`].
+///
+/// It holds the asserted predicate and the optional message.
 ///
 /// Example:
 ///
@@ -125,9 +126,7 @@ impl AssertEqExpression {
 ///
 /// ```noir
 /// comptime {
-///     // An assignment is a statement, so it is parsed inside a block.
-///     let block = quote { { x = y; } }.as_expr().unwrap().as_block().unwrap();
-///     let assignment = block[0].as_assign().unwrap();
+///     let assignment = quote { x = y }.as_expr().unwrap().as_assign().unwrap();
 ///     assert_eq(assignment.lhs().quoted(), quote { x });
 ///     assert_eq(assignment.rhs().quoted(), quote { y });
 /// }
@@ -144,8 +143,8 @@ impl AssignExpression {
     ///
     /// ```noir
     /// comptime {
-    ///     let block = quote { { x = y; } }.as_expr().unwrap().as_block().unwrap();
-    ///     assert_eq(block[0].as_assign().unwrap().lhs().quoted(), quote { x });
+    ///     let assignment = quote { x = y }.as_expr().unwrap().as_assign().unwrap();
+    ///     assert_eq(assignment.lhs().quoted(), quote { x });
     /// }
     /// ```
     pub comptime fn lhs(self) -> Expr {
@@ -158,8 +157,8 @@ impl AssignExpression {
     ///
     /// ```noir
     /// comptime {
-    ///     let block = quote { { x = y; } }.as_expr().unwrap().as_block().unwrap();
-    ///     assert_eq(block[0].as_assign().unwrap().rhs().quoted(), quote { y });
+    ///     let assignment = quote { x = y }.as_expr().unwrap().as_assign().unwrap();
+    ///     assert_eq(assignment.rhs().quoted(), quote { y });
     /// }
     /// ```
     pub comptime fn rhs(self) -> Expr {
@@ -1221,8 +1220,10 @@ impl Expr {
     #[builtin(expr_as_assert)]
     comptime fn as_assert_raw(self) -> Option<(Expr, Option<Expr>)> {}
 
-    /// If this expression is an assert_eq, this returns the left-hand-side and right-hand-side
-    /// expressions, together with the optional message.
+    /// Decomposes an `assert_eq(lhs, rhs, message)` expression.
+    ///
+    /// Returns the left- and right-hand sides and the optional message.
+    /// Returns `Option::none()` if this expression is anything else.
     ///
     /// Example:
     ///
@@ -1252,9 +1253,7 @@ impl Expr {
     ///
     /// ```noir
     /// comptime {
-    ///     // An assignment is a statement, so it is parsed inside a block.
-    ///     let block = quote { { x = 1; } }.as_expr().unwrap().as_block().unwrap();
-    ///     let assignment = block[0].as_assign().unwrap();
+    ///     let assignment = quote { x = 1 }.as_expr().unwrap().as_assign().unwrap();
     ///     assert_eq(assignment.lhs().quoted(), quote { x });
     /// }
     /// ```
@@ -1269,8 +1268,10 @@ impl Expr {
     #[builtin(expr_as_assign)]
     comptime fn as_assign_raw(self) -> Option<(Expr, Expr)> {}
 
-    /// If this expression is a binary operator operation `<lhs> <op> <rhs>`,
-    /// return the left-hand side, operator, and the right-hand side of the operation.
+    /// Decomposes a binary operation `<lhs> <op> <rhs>`.
+    ///
+    /// Returns the left-hand side, the operator and the right-hand side.
+    /// Returns `Option::none()` if this expression is anything else.
     ///
     /// Example:
     ///
@@ -1293,8 +1294,8 @@ impl Expr {
     #[builtin(expr_as_binary_op)]
     comptime fn as_binary_op_raw(self) -> Option<(Expr, BinaryOp, Expr)> {}
 
-    /// If this expression is a block `{ stmt1; stmt2; ...; stmtN }`, return
-    /// a vector containing each statement.
+    /// Returns each statement of a block `{ stmt1; stmt2; ...; stmtN }`.
+    /// Returns `Option::none()` if this expression is anything else.
     ///
     /// Example:
     ///
@@ -1325,8 +1326,8 @@ impl Expr {
     pub comptime fn as_bool(self) -> Option<bool> {}
     // docs:end:as_bool
 
-    /// If this expression is a cast expression `expr as type`, returns the casted
-    /// expression and the type to cast to.
+    /// Decomposes a cast `expr as type` into the expression and the type it is cast to.
+    /// Returns `Option::none()` if this expression is anything else.
     ///
     /// Example:
     ///
@@ -1347,8 +1348,8 @@ impl Expr {
     #[builtin(expr_as_cast)]
     comptime fn as_cast_raw(self) -> Option<(Expr, UnresolvedType)> {}
 
-    /// If this expression is a `comptime { stmt1; stmt2; ...; stmtN }` block,
-    /// return each statement in the block.
+    /// Returns each statement of a `comptime { stmt1; stmt2; ...; stmtN }` block.
+    /// Returns `Option::none()` if this expression is anything else.
     ///
     /// Example:
     ///
@@ -1365,8 +1366,10 @@ impl Expr {
     pub comptime fn as_comptime(self) -> Option<[Expr]> {}
     // docs:end:as_comptime
 
-    /// If this expression is a constructor `Type { field1: expr1, ..., fieldN: exprN }`,
-    /// return the type and the fields.
+    /// Decomposes a constructor `Type { field1: expr1, ..., fieldN: exprN }`.
+    ///
+    /// Returns the type and the fields.
+    /// Returns `Option::none()` if this expression is anything else.
     ///
     /// Example:
     ///
@@ -1390,8 +1393,11 @@ impl Expr {
     #[builtin(expr_as_constructor)]
     comptime fn as_constructor_raw(self) -> Option<(UnresolvedType, [(Quoted, Expr)])> {}
 
-    /// If this expression is a for statement over a single expression, return its identifier,
-    /// iterable, and body.
+    /// Decomposes a `for` loop over an expression such as an array.
+    ///
+    /// Returns the loop variable, the iterable and the body. A loop over a range is decomposed by
+    /// [`Expr::as_for_range`].
+    /// Returns `Option::none()` if this expression is anything else.
     ///
     /// Example:
     ///
@@ -1415,8 +1421,10 @@ impl Expr {
     #[builtin(expr_as_for)]
     comptime fn as_for_raw(self) -> Option<(Quoted, Expr, Expr)> {}
 
-    /// If this expression is a for statement over a range, return the identifier,
-    /// the range start, the range end, whether the range is inclusive, and the for loop body.
+    /// Decomposes a `for` loop over a range.
+    ///
+    /// Returns the loop variable, the range start and end, whether the range is inclusive, and the body.
+    /// Returns `Option::none()` if this expression is anything else.
     ///
     /// Example:
     ///
@@ -1443,8 +1451,8 @@ impl Expr {
     #[builtin(expr_as_for_range)]
     comptime fn as_for_range_raw(self) -> Option<(Quoted, Expr, Expr, bool, Expr)> {}
 
-    /// If this expression is a function call `foo(arg1, ..., argN)`, return
-    /// the function and a vector of each argument.
+    /// Decomposes a function call `foo(arg1, ..., argN)` into the function and its arguments.
+    /// Returns `Option::none()` if this expression is anything else.
     ///
     /// Example:
     ///
@@ -1468,9 +1476,11 @@ impl Expr {
     #[builtin(expr_as_function_call)]
     comptime fn as_function_call_raw(self) -> Option<(Expr, [Expr])> {}
 
-    /// If this expression is an `if condition { then_branch } else { else_branch }`,
-    /// return the condition, then branch, and else branch. If there is no else branch,
-    /// `None` is returned for that branch instead.
+    /// Decomposes an `if condition { then_branch } else { else_branch }` expression.
+    ///
+    /// Returns the condition, the then branch and the else branch, which is `Option::none()` when there
+    /// is no `else`.
+    /// Returns `Option::none()` if this expression is anything else.
     ///
     /// Example:
     ///
@@ -1492,8 +1502,8 @@ impl Expr {
     #[builtin(expr_as_if)]
     comptime fn as_if_raw(self) -> Option<(Expr, Expr, Option<Expr>)> {}
 
-    /// If this expression is an index into an array `array[index]`, return the
-    /// array and the index.
+    /// Decomposes an index `collection[index]` into the collection and the index.
+    /// Returns `Option::none()` if this expression is anything else.
     ///
     /// Example:
     ///
@@ -1514,9 +1524,11 @@ impl Expr {
     #[builtin(expr_as_index)]
     comptime fn as_index_raw(self) -> Option<(Expr, Expr)> {}
 
-    /// If this expression is an integer literal, return its value. Negative integers are encoded
-    /// as the equivalent negative field value such that e.g. `-1i8` has a value of `-1` rather
-    /// than the two's complement encoding of `255`.
+    /// Returns the value of an integer literal.
+    /// Returns `Option::none()` if this expression is anything else.
+    ///
+    /// Negative integers are encoded as the equivalent negative field value, so `-1i8` has a value of
+    /// `-1` rather than the two's complement encoding `255`.
     ///
     /// Example:
     ///
@@ -1564,8 +1576,10 @@ impl Expr {
         self,
     ) -> Option<([(Expr, Option<UnresolvedType>)], Option<UnresolvedType>, Expr)> {}
 
-    /// If this expression is a let statement, returns the let pattern as an `Expr`,
-    /// the optional type annotation, and the assigned expression.
+    /// Decomposes a `let` statement.
+    ///
+    /// Returns the pattern as an `Expr`, the optional type annotation and the assigned expression.
+    /// Returns `Option::none()` if this expression is anything else.
     ///
     /// Example:
     ///
@@ -1586,8 +1600,10 @@ impl Expr {
     #[builtin(expr_as_let)]
     comptime fn as_let_raw(self) -> Option<(Expr, Option<UnresolvedType>, Expr)> {}
 
-    /// If this expression is a member access `foo.bar`, return the struct/tuple
-    /// expression and the field. The field will be represented as a quoted value.
+    /// Decomposes a member access `foo.bar`.
+    ///
+    /// Returns the struct or tuple expression and the member name as a `Quoted` value.
+    /// Returns `Option::none()` if this expression is anything else.
     ///
     /// Example:
     ///
@@ -1608,8 +1624,10 @@ impl Expr {
     #[builtin(expr_as_member_access)]
     comptime fn as_member_access_raw(self) -> Option<(Expr, Quoted)> {}
 
-    /// If this expression is a method call `foo.bar::<generic1, ..., genericM>(arg1, ..., argN)`, return
-    /// the receiver, method name, a vector of each generic argument, and a vector of each argument.
+    /// Decomposes a method call `foo.bar::<generic1, ..., genericM>(arg1, ..., argN)`.
+    ///
+    /// Returns the receiver, the method name, the generic arguments and the arguments.
+    /// Returns `Option::none()` if this expression is anything else.
     ///
     /// Example:
     ///
@@ -1637,8 +1655,8 @@ impl Expr {
     #[builtin(expr_as_method_call)]
     comptime fn as_method_call_raw(self) -> Option<(Expr, Quoted, [UnresolvedType], [Expr])> {}
 
-    /// If this expression is a repeated element array `[elem; length]`, return
-    /// the repeated element and the length expressions.
+    /// Decomposes a repeated-element array `[elem; length]` into the element and the length.
+    /// Returns `Option::none()` if this expression is anything else.
     ///
     /// Example:
     ///
@@ -1661,8 +1679,8 @@ impl Expr {
     #[builtin(expr_as_repeated_element_array)]
     comptime fn as_repeated_element_array_raw(self) -> Option<(Expr, Expr)> {}
 
-    /// If this expression is a repeated element vector `[elem; length]`, return
-    /// the repeated element and the length expressions.
+    /// Decomposes a repeated-element vector `@[elem; length]` into the element and the length.
+    /// Returns `Option::none()` if this expression is anything else.
     ///
     /// Example:
     ///
@@ -1685,8 +1703,8 @@ impl Expr {
     #[builtin(expr_as_repeated_element_vector)]
     comptime fn as_repeated_element_vector_raw(self) -> Option<(Expr, Expr)> {}
 
-    /// If this expression is a vector literal `@[elem1, ..., elemN]`,
-    /// return each element of the vector.
+    /// Returns each element of a vector literal `@[elem1, ..., elemN]`.
+    /// Returns `Option::none()` if this expression is anything else.
     ///
     /// Example:
     ///
@@ -1703,8 +1721,8 @@ impl Expr {
     pub comptime fn as_vector(self) -> Option<[Expr]> {}
     // docs:end:as_vector
 
-    /// If this expression is a tuple `(field1, ..., fieldN)`,
-    /// return each element of the tuple.
+    /// Returns each element of a tuple `(field1, ..., fieldN)`.
+    /// Returns `Option::none()` if this expression is anything else.
     ///
     /// Example:
     ///
@@ -1720,8 +1738,11 @@ impl Expr {
     pub comptime fn as_tuple(self) -> Option<[Expr]> {}
     // docs:end:as_tuple
 
-    /// If this expression is a unary operation `<op> <rhs>`,
-    /// return the unary operator as well as the right-hand side expression.
+    /// Decomposes a unary operation `<op> <rhs>` into the operator and the right-hand side.
+    /// Returns `Option::none()` if this expression is anything else.
+    ///
+    /// An immutable reference `&x` isn't exposed to comptime code, so it also returns
+    /// `Option::none()`.
     ///
     /// Example:
     ///
@@ -1729,6 +1750,8 @@ impl Expr {
     /// comptime {
     ///     let op = quote { *x }.as_expr().unwrap().as_unary_op().unwrap();
     ///     assert(op.operator().is_dereference());
+    ///
+    ///     assert(quote { &x }.as_expr().unwrap().as_unary_op().is_none());
     /// }
     /// ```
     // docs:start:as_unary_op
@@ -1742,21 +1765,15 @@ impl Expr {
     #[builtin(expr_as_unary_op)]
     comptime fn as_unary_op_raw(self) -> Option<(UnaryOp, Expr)> {}
 
-    /// If this expression is an `unsafe { stmt1; ...; stmtN }` block,
-    /// return each statement inside in a vector.
+    /// Returns each statement of an `unsafe { stmt1; ...; stmtN }` block.
+    /// Returns `Option::none()` if this expression is anything else.
     ///
     /// Example:
     ///
     /// ```noir
     /// comptime {
-    ///     let statements = quote {
-    ///         // Safety: example
-    ///         unsafe { foo() }
-    ///     }
-    ///         .as_expr()
-    ///         .unwrap()
-    ///         .as_unsafe()
-    ///         .unwrap();
+    ///     let block = quote { /* Safety: example */ unsafe { foo() } }.as_expr().unwrap();
+    ///     let statements = block.as_unsafe().unwrap();
     ///     assert_eq(statements[0].quoted(), quote { foo() });
     /// }
     /// ```
@@ -1818,12 +1835,19 @@ impl Expr {
 
     /// Returns this expression as a `Quoted` value. It's the same as `quote { $self }`.
     ///
+    /// Two `Quoted` values are equal when they print the same. An expression prints with its own
+    /// parentheses, so `x + y` re-quoted through this method equals `quote { (x + y) }`, not
+    /// `quote { x + y }`.
+    ///
     /// Example:
     ///
     /// ```noir
     /// comptime {
     ///     let expr = quote { foo(x) }.as_expr().unwrap();
     ///     assert_eq(expr.quoted(), quote { foo(x) });
+    ///
+    ///     let sum = quote { x + y }.as_expr().unwrap();
+    ///     assert_eq(sum.quoted(), quote { (x + y) });
     /// }
     /// ```
     // docs:start:quoted

@@ -61,9 +61,10 @@ impl CtString {
         self.append(s.as_ctstring())
     }
 
-    /// CtString cannot directly return a str since the size would not be known.
-    /// To get around this, we return a quoted str and the underlying str can
-    /// be accessed using macro insertion `foo.as_quoted_str!()`.
+    /// Returns this string as a quoted string literal.
+    ///
+    /// A `CtString` can't be converted to a `str<N>` directly, because its length isn't known in its
+    /// type. Insert the literal with a macro call instead: `foo.as_quoted_str!()`.
     ///
     /// Example:
     ///
@@ -92,8 +93,9 @@ impl Append for CtString {
     comptime fn append(self, other: Self) -> Self {}
 }
 
-/// Converts a string into a [`CtString`] at compile time. It is implemented for `str<N>` and
-/// `fmtstr<N, T>`.
+/// Converts a string into a [`CtString`] at compile time.
+///
+/// It is implemented for `str<N>` and `fmtstr<N, T>`.
 ///
 /// Example:
 ///

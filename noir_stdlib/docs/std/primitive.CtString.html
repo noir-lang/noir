@@ -157,9 +157,9 @@ written in hexadecimal.</p>
 </div><code id="as_quoted_str" class="code-header">pub comptime fn <a href="#as_quoted_str" class="fn">as_quoted_str</a>(self) -> <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
 
 <div class="padded-description"><div class="comments">
-<p>CtString cannot directly return a str since the size would not be known.
-To get around this, we return a quoted str and the underlying str can
-be accessed using macro insertion <code>foo.as_quoted_str!()</code>.</p>
+<p>Returns this string as a quoted string literal.</p>
+<p>A <code>CtString</code> can't be converted to a <code>str&lt;N&gt;</code> directly, because its length isn't known in its
+type. Insert the literal with a macro call instead: <code>foo.as_quoted_str!()</code>.</p>
 <p>Example:</p>
 <pre><code><span class="kw">use</span> std::meta::ctstring::AsCtString;
 

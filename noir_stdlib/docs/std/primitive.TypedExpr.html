@@ -147,7 +147,7 @@
 <p>Returns the source location of this expression.</p>
 <p>An <code>Expr</code> doesn't keep the location of the tokens it was parsed from, so for a <code>TypedExpr</code>
 returned by <a href="../std/primitive.Expr.html#resolve"><code>Expr::resolve</code></a> this is the location of the receiver of that call: <code>expr</code> in
-<code>expr.resolve(...)</code>.</p>
+<code>expr.resolve(...)</code>. See <a href="https://github.com/noir-lang/noir/issues/14043">https://github.com/noir-lang/noir/issues/14043</a>.</p>
 <p>Pass it to <a href="../std/meta/fn.error.html"><code>std::meta::error</code></a> or <a href="../std/meta/fn.warn.html"><code>std::meta::warn</code></a>
 to report a diagnostic there.</p>
 <p>Example:</p>
@@ -155,7 +155,8 @@ to report a diagnostic there.</p>
     <span class="kw">let</span> expr = <span class="kw">quote</span> { <span class="number">1</span> + <span class="number">2</span> }.as_expr().unwrap();
     <span class="kw">let</span> first = expr.resolve(Option::none());
     <span class="kw">let</span> second = expr.resolve(Option::none());
-    <span class="comment">// Each `resolve` call is on its own line, so each result has its own location.</span>
+    <span class="comment">// Each `resolve` call is on its own line, so each result has its own location</span>
+    <span class="comment">// (https://github.com/noir-lang/noir/issues/14043).</span>
     <span class="kw">assert</span>(first.location() != second.location());
 }</code></pre></div>
 </div></div></div>

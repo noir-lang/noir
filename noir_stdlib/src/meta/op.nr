@@ -1,7 +1,8 @@
 use crate::hash::Hash;
 
-/// A unary operator in quoted code: one of `-`, `!`, `&mut` or `*`.
+/// A unary operator in quoted code.
 ///
+/// One of `-`, `!`, `&mut` or `*`.
 /// It is returned by [`UnaryOpExpression::operator`](crate::meta::expr::UnaryOpExpression::operator).
 ///
 /// Example:
@@ -144,9 +145,9 @@ impl UnaryOp {
     }
 }
 
-/// A binary operator in quoted code: one of `+`, `-`, `*`, `/`, `%`, `==`, `!=`, `<`, `<=`, `>`,
-/// `>=`, `&`, `|`, `^`, `>>` or `<<`.
+/// A binary operator in quoted code.
 ///
+/// One of `+`, `-`, `*`, `/`, `%`, `==`, `!=`, `<`, `<=`, `>`, `>=`, `&`, `|`, `^`, `>>` or `<<`.
 /// It is returned by [`BinaryOpExpression::operator`](crate::meta::expr::BinaryOpExpression::operator).
 ///
 /// Example:

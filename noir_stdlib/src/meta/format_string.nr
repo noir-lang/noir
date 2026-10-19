@@ -3,11 +3,14 @@ use super::ctstring::AsCtString;
 impl<let N: u32, T> fmtstr<N, T> {
     /// Returns the format string contents (that is, without the leading and trailing double quotes) as a `Quoted` value.
     ///
+    /// Interpolated values are formatted as in `println` and the result is lexed into tokens, so a
+    /// `Field` holding `5` is written `0x05` and becomes the integer token `5`.
+    ///
     /// Example:
     ///
     /// ```noir
     /// comptime {
-    ///     let x = 3_u32;
+    ///     let x: Field = 3;
     ///     assert_eq(f"{x} + 1".quoted_contents(), quote { 3 + 1 });
     /// }
     /// ```

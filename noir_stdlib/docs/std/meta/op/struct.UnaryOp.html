@@ -53,8 +53,9 @@
 { <span class="comment">/* private fields */</span> }
 </code></pre>
 <div class="comments">
-<p>A unary operator in quoted code: one of <code>-</code>, <code>!</code>, <code>&amp;mut</code> or <code>*</code>.</p>
-<p>It is returned by <a href="../../../std/meta/expr/struct.UnaryOpExpression.html#operator"><code>UnaryOpExpression::operator</code></a>.</p>
+<p>A unary operator in quoted code.</p>
+<p>One of <code>-</code>, <code>!</code>, <code>&amp;mut</code> or <code>*</code>.
+It is returned by <a href="../../../std/meta/expr/struct.UnaryOpExpression.html#operator"><code>UnaryOpExpression::operator</code></a>.</p>
 <p>Example:</p>
 <pre><code><span class="kw">comptime</span> {
     <span class="kw">let</span> op = <span class="kw">quote</span> { -x }.as_expr().unwrap().as_unary_op().unwrap().operator();

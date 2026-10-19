@@ -65,9 +65,9 @@
 { <span class="comment">/* private fields */</span> }
 </code></pre>
 <div class="comments">
-<p>A binary operator in quoted code: one of <code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, <code>%</code>, <code>==</code>, <code>!=</code>, <code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code>,
-<code>&gt;=</code>, <code>&amp;</code>, <code>|</code>, <code>^</code>, <code>&gt;&gt;</code> or <code>&lt;&lt;</code>.</p>
-<p>It is returned by <a href="../../../std/meta/expr/struct.BinaryOpExpression.html#operator"><code>BinaryOpExpression::operator</code></a>.</p>
+<p>A binary operator in quoted code.</p>
+<p>One of <code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, <code>%</code>, <code>==</code>, <code>!=</code>, <code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code>, <code>&gt;=</code>, <code>&amp;</code>, <code>|</code>, <code>^</code>, <code>&gt;&gt;</code> or <code>&lt;&lt;</code>.
+It is returned by <a href="../../../std/meta/expr/struct.BinaryOpExpression.html#operator"><code>BinaryOpExpression::operator</code></a>.</p>
 <p>Example:</p>
 <pre><code><span class="kw">comptime</span> {
     <span class="kw">let</span> op = <span class="kw">quote</span> { x + y }.as_expr().unwrap().as_binary_op().unwrap().operator();

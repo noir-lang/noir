@@ -129,8 +129,8 @@
 </div><code id="as_module" class="code-header">pub comptime fn <a href="#as_module" class="fn">as_module</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.Module.html" class="primitive">Module</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>Interprets this token stream as a path to a module. Returns <code>Option::none()</code> if it isn't a path
-or no module is found at it.</p>
+<p>Interprets this token stream as a path to a module.</p>
+<p>Returns <code>Option::none()</code> if it isn't a path or no module is found at it.</p>
 <p>Example:</p>
 <pre><code><span class="kw">mod</span> shapes {
     <span class="kw">pub</span> <span class="kw">mod</span> circle {}
@@ -147,8 +147,8 @@ or no module is found at it.</p>
 </div><code id="as_trait_constraint" class="code-header">pub comptime fn <a href="#as_trait_constraint" class="fn">as_trait_constraint</a>(self) -> <a href="../std/primitive.TraitConstraint.html" class="primitive">TraitConstraint</a></code>
 
 <div class="padded-description"><div class="comments">
-<p>Interprets this token stream as a trait constraint without its object type, such as <code>Eq</code> or
-<code>Into&lt;Field&gt;</code>.</p>
+<p>Interprets this token stream as a trait constraint without its object type.</p>
+<p>For example <code>Eq</code> or <code>Into&lt;Field&gt;</code>.</p>
 <p>Compilation fails if the tokens don't parse as a trait constraint or name a trait that isn't in
 scope.</p>
 <p>Example:</p>
@@ -200,7 +200,12 @@ numeric generic slot such as an array length.</p>
 
 <div class="padded-methods"><code class="code-header">pub comptime fn <span class="fn">eq</span>(self, other: Self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
-</div><h3 id="impl-Hash-for-Quoted"><code class="code-header">impl <a href="../std/hash/trait.Hash.html" class="trait">Hash</a> for <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a></code></h3>
+<div class="padded-description"><div class="comments">
+<p>Two token streams are equal when they print the same.</p>
+<p>An <a href="../std/primitive.Expr.html"><code>Expr</code></a> spliced into a <code>quote</code> prints with its own parentheses, so
+<code>quote { x + y }.as_expr().unwrap().quoted()</code> equals <code>quote { (x + y) }</code>, not
+<code>quote { x + y }</code>.</p></div>
+</div></div><h3 id="impl-Hash-for-Quoted"><code class="code-header">impl <a href="../std/hash/trait.Hash.html" class="trait">Hash</a> for <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a></code></h3>
 
 <div class="padded-methods"><code class="code-header">pub comptime fn <span class="fn">hash</span>&lt;H&gt;(self, state: &mut H)
 <div class="where-clause">where

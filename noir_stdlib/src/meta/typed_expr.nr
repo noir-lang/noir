@@ -47,7 +47,7 @@ impl TypedExpr {
     ///
     /// An `Expr` doesn't keep the location of the tokens it was parsed from, so for a `TypedExpr`
     /// returned by [`Expr::resolve`] this is the location of the receiver of that call: `expr` in
-    /// `expr.resolve(...)`.
+    /// `expr.resolve(...)`. See <https://github.com/noir-lang/noir/issues/14043>.
     ///
     /// Pass it to [`std::meta::error`](crate::meta::error) or [`std::meta::warn`](crate::meta::warn)
     /// to report a diagnostic there.
@@ -59,7 +59,8 @@ impl TypedExpr {
     ///     let expr = quote { 1 + 2 }.as_expr().unwrap();
     ///     let first = expr.resolve(Option::none());
     ///     let second = expr.resolve(Option::none());
-    ///     // Each `resolve` call is on its own line, so each result has its own location.
+    ///     // Each `resolve` call is on its own line, so each result has its own location
+    ///     // (https://github.com/noir-lang/noir/issues/14043).
     ///     assert(first.location() != second.location());
     /// }
     /// ```
