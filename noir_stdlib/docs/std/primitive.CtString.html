@@ -120,17 +120,54 @@ afterward.</p></div>
 
 <div class="padded-methods"><code id="new" class="code-header">pub comptime fn <a href="#new" class="fn">new</a>() -> Self</code>
 
-<code id="append_str" class="code-header">pub comptime fn <a href="#append_str" class="fn">append_str</a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self, s: <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;) -> Self</code>
+<div class="padded-description"><div class="comments">
+<p>Returns an empty <code>CtString</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::meta::ctstring::AsCtString;
 
-<code id="append_fmtstr" class="code-header">pub comptime fn <a href="#append_fmtstr" class="fn">append_fmtstr</a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>, T&gt;(self, s: <a href="../std/primitive.fmtstr.html" class="primitive">fmtstr</a>&lt;N, T&gt;) -> Self</code>
+<span class="kw">comptime</span> {
+    <span class="kw">let</span> empty = CtString::new();
+    <span class="kw">assert_eq</span>(empty.append_str(<span class="string">"abc"</span>), <span class="string">"abc"</span>.as_ctstring());
+}</code></pre></div>
+</div><code id="append_str" class="code-header">pub comptime fn <a href="#append_str" class="fn">append_str</a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self, s: <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;) -> Self</code>
 
-<code id="as_quoted_str" class="code-header">pub comptime fn <a href="#as_quoted_str" class="fn">as_quoted_str</a>(self) -> <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
+<div class="padded-description"><div class="comments">
+<p>Returns a new <code>CtString</code> with <code>s</code> appended to the end.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::meta::ctstring::AsCtString;
+
+<span class="kw">comptime</span> {
+    <span class="kw">let</span> greeting = <span class="string">"hello"</span>.as_ctstring().append_str(<span class="string">" world"</span>);
+    <span class="kw">assert_eq</span>(greeting, <span class="string">"hello world"</span>.as_ctstring());
+}</code></pre></div>
+</div><code id="append_fmtstr" class="code-header">pub comptime fn <a href="#append_fmtstr" class="fn">append_fmtstr</a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>, T&gt;(self, s: <a href="../std/primitive.fmtstr.html" class="primitive">fmtstr</a>&lt;N, T&gt;) -> Self</code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns a new <code>CtString</code> with the formatted string <code>s</code> appended to the end.</p>
+<p>Values interpolated into <code>s</code> are formatted the same way as in <code>println</code>, so a <code>Field</code> is
+written in hexadecimal.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::meta::ctstring::AsCtString;
+
+<span class="kw">comptime</span> {
+    <span class="kw">let</span> count = <span class="number">3_u32</span>;
+    <span class="kw">let</span> message = <span class="string">"count: "</span>.as_ctstring().append_fmtstr(<span class="string">f"</span><span class="interpolation">{count}</span><span class="string">"</span>);
+    <span class="kw">assert_eq</span>(message, <span class="string">"count: 3"</span>.as_ctstring());
+}</code></pre></div>
+</div><code id="as_quoted_str" class="code-header">pub comptime fn <a href="#as_quoted_str" class="fn">as_quoted_str</a>(self) -> <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>CtString cannot directly return a str since the size would not be known.
 To get around this, we return a quoted str and the underlying str can
 be accessed using macro insertion <code>foo.as_quoted_str!()</code>.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::meta::ctstring::AsCtString;
+
+<span class="kw">comptime</span> {
+    <span class="kw">let</span> name = <span class="string">"foo"</span>.as_ctstring().append_str(<span class="string">"bar"</span>);
+    <span class="kw">let</span> name_str: str&lt;<span class="number">6</span>&gt; = name.as_quoted_str!();
+    <span class="kw">assert_eq</span>(name_str, <span class="string">"foobar"</span>);
+}</code></pre></div>
 </div></div><h2>Trait implementations</h2>
 <h3 id="impl-Append-for-CtString"><code class="code-header">impl <a href="../std/append/trait.Append.html" class="trait">Append</a> for <a href="../std/primitive.CtString.html" class="primitive">CtString</a></code></h3>
 

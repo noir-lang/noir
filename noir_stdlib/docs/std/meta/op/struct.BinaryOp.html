@@ -64,44 +64,225 @@
 <pre><code>pub struct BinaryOp
 { <span class="comment">/* private fields */</span> }
 </code></pre>
+<div class="comments">
+<p>A binary operator in quoted code: one of <code>+</code>, <code>-</code>, <code>*</code>, <code>/</code>, <code>%</code>, <code>==</code>, <code>!=</code>, <code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code>,
+<code>&gt;=</code>, <code>&amp;</code>, <code>|</code>, <code>^</code>, <code>&gt;&gt;</code> or <code>&lt;&lt;</code>.</p>
+<p>It is returned by <a href="../../../std/meta/expr/struct.BinaryOpExpression.html#operator"><code>BinaryOpExpression::operator</code></a>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> op = <span class="kw">quote</span> { x + y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    <span class="kw">assert</span>(op.is_add());
+    <span class="kw">assert_eq</span>(op.quoted(), <span class="kw">quote</span> { + });
+}</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../../../std/meta/op/struct.BinaryOp.html" class="struct">BinaryOp</a></code></h3>
 
 <div class="padded-methods"><code id="is_add" class="code-header">pub fn <a href="#is_add" class="fn">is_add</a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
 
-<code id="is_subtract" class="code-header">pub fn <a href="#is_subtract" class="fn">is_subtract</a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
+<div class="padded-description"><div class="comments">
+<p>Returns <code>true</code> if this operator is <code>+</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> op = <span class="kw">quote</span> { x + y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    <span class="kw">assert</span>(op.is_add());
 
-<code id="is_multiply" class="code-header">pub fn <a href="#is_multiply" class="fn">is_multiply</a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
+    <span class="kw">let</span> other = <span class="kw">quote</span> { x - y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    <span class="kw">assert</span>(!other.is_add());
+}</code></pre></div>
+</div><code id="is_subtract" class="code-header">pub fn <a href="#is_subtract" class="fn">is_subtract</a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
 
-<code id="is_divide" class="code-header">pub fn <a href="#is_divide" class="fn">is_divide</a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
+<div class="padded-description"><div class="comments">
+<p>Returns <code>true</code> if this operator is <code>-</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> op = <span class="kw">quote</span> { x - y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    <span class="kw">assert</span>(op.is_subtract());
 
-<code id="is_equal" class="code-header">pub fn <a href="#is_equal" class="fn">is_equal</a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
+    <span class="kw">let</span> other = <span class="kw">quote</span> { x + y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    <span class="kw">assert</span>(!other.is_subtract());
+}</code></pre></div>
+</div><code id="is_multiply" class="code-header">pub fn <a href="#is_multiply" class="fn">is_multiply</a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
 
-<code id="is_not_equal" class="code-header">pub fn <a href="#is_not_equal" class="fn">is_not_equal</a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
+<div class="padded-description"><div class="comments">
+<p>Returns <code>true</code> if this operator is <code>*</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> op = <span class="kw">quote</span> { x * y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    <span class="kw">assert</span>(op.is_multiply());
 
-<code id="is_less_than" class="code-header">pub fn <a href="#is_less_than" class="fn">is_less_than</a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
+    <span class="kw">let</span> other = <span class="kw">quote</span> { x + y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    <span class="kw">assert</span>(!other.is_multiply());
+}</code></pre></div>
+</div><code id="is_divide" class="code-header">pub fn <a href="#is_divide" class="fn">is_divide</a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
 
-<code id="is_less_than_or_equal" class="code-header">pub fn <a href="#is_less_than_or_equal" class="fn">is_less_than_or_equal</a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
+<div class="padded-description"><div class="comments">
+<p>Returns <code>true</code> if this operator is <code>/</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> op = <span class="kw">quote</span> { x / y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    <span class="kw">assert</span>(op.is_divide());
 
-<code id="is_greater_than" class="code-header">pub fn <a href="#is_greater_than" class="fn">is_greater_than</a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
+    <span class="kw">let</span> other = <span class="kw">quote</span> { x + y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    <span class="kw">assert</span>(!other.is_divide());
+}</code></pre></div>
+</div><code id="is_equal" class="code-header">pub fn <a href="#is_equal" class="fn">is_equal</a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
 
-<code id="is_greater_than_or_equal" class="code-header">pub fn <a href="#is_greater_than_or_equal" class="fn">is_greater_than_or_equal</a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
+<div class="padded-description"><div class="comments">
+<p>Returns <code>true</code> if this operator is <code>==</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> op = <span class="kw">quote</span> { x == y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    <span class="kw">assert</span>(op.is_equal());
 
-<code id="is_and" class="code-header">pub fn <a href="#is_and" class="fn">is_and</a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
+    <span class="kw">let</span> other = <span class="kw">quote</span> { x + y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    <span class="kw">assert</span>(!other.is_equal());
+}</code></pre></div>
+</div><code id="is_not_equal" class="code-header">pub fn <a href="#is_not_equal" class="fn">is_not_equal</a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
 
-<code id="is_or" class="code-header">pub fn <a href="#is_or" class="fn">is_or</a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
+<div class="padded-description"><div class="comments">
+<p>Returns <code>true</code> if this operator is <code>!=</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> op = <span class="kw">quote</span> { x != y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    <span class="kw">assert</span>(op.is_not_equal());
 
-<code id="is_xor" class="code-header">pub fn <a href="#is_xor" class="fn">is_xor</a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
+    <span class="kw">let</span> other = <span class="kw">quote</span> { x + y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    <span class="kw">assert</span>(!other.is_not_equal());
+}</code></pre></div>
+</div><code id="is_less_than" class="code-header">pub fn <a href="#is_less_than" class="fn">is_less_than</a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
 
-<code id="is_shift_right" class="code-header">pub fn <a href="#is_shift_right" class="fn">is_shift_right</a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
+<div class="padded-description"><div class="comments">
+<p>Returns <code>true</code> if this operator is <code>&lt;</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> op = <span class="kw">quote</span> { x &lt; y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    <span class="kw">assert</span>(op.is_less_than());
 
-<code id="is_shift_left" class="code-header">pub fn <a href="#is_shift_left" class="fn">is_shift_left</a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
+    <span class="kw">let</span> other = <span class="kw">quote</span> { x + y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    <span class="kw">assert</span>(!other.is_less_than());
+}</code></pre></div>
+</div><code id="is_less_than_or_equal" class="code-header">pub fn <a href="#is_less_than_or_equal" class="fn">is_less_than_or_equal</a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
 
-<code id="is_modulo" class="code-header">pub fn <a href="#is_modulo" class="fn">is_modulo</a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
+<div class="padded-description"><div class="comments">
+<p>Returns <code>true</code> if this operator is <code>&lt;=</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> op = <span class="kw">quote</span> { x &lt;= y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    <span class="kw">assert</span>(op.is_less_than_or_equal());
 
-<code id="quoted" class="code-header">pub comptime fn <a href="#quoted" class="fn">quoted</a>(self) -> <a href="../../../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
+    <span class="kw">let</span> other = <span class="kw">quote</span> { x + y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    <span class="kw">assert</span>(!other.is_less_than_or_equal());
+}</code></pre></div>
+</div><code id="is_greater_than" class="code-header">pub fn <a href="#is_greater_than" class="fn">is_greater_than</a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
 
-</div><h2>Trait implementations</h2>
+<div class="padded-description"><div class="comments">
+<p>Returns <code>true</code> if this operator is <code>&gt;</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> op = <span class="kw">quote</span> { x &gt; y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    <span class="kw">assert</span>(op.is_greater_than());
+
+    <span class="kw">let</span> other = <span class="kw">quote</span> { x + y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    <span class="kw">assert</span>(!other.is_greater_than());
+}</code></pre></div>
+</div><code id="is_greater_than_or_equal" class="code-header">pub fn <a href="#is_greater_than_or_equal" class="fn">is_greater_than_or_equal</a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns <code>true</code> if this operator is <code>&gt;=</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> op = <span class="kw">quote</span> { x &gt;= y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    <span class="kw">assert</span>(op.is_greater_than_or_equal());
+
+    <span class="kw">let</span> other = <span class="kw">quote</span> { x + y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    <span class="kw">assert</span>(!other.is_greater_than_or_equal());
+}</code></pre></div>
+</div><code id="is_and" class="code-header">pub fn <a href="#is_and" class="fn">is_and</a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns <code>true</code> if this operator is <code>&amp;</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> op = <span class="kw">quote</span> { x & y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    <span class="kw">assert</span>(op.is_and());
+
+    <span class="kw">let</span> other = <span class="kw">quote</span> { x + y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    <span class="kw">assert</span>(!other.is_and());
+}</code></pre></div>
+</div><code id="is_or" class="code-header">pub fn <a href="#is_or" class="fn">is_or</a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns <code>true</code> if this operator is <code>|</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> op = <span class="kw">quote</span> { x | y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    <span class="kw">assert</span>(op.is_or());
+
+    <span class="kw">let</span> other = <span class="kw">quote</span> { x + y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    <span class="kw">assert</span>(!other.is_or());
+}</code></pre></div>
+</div><code id="is_xor" class="code-header">pub fn <a href="#is_xor" class="fn">is_xor</a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns <code>true</code> if this operator is <code>^</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> op = <span class="kw">quote</span> { x ^ y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    <span class="kw">assert</span>(op.is_xor());
+
+    <span class="kw">let</span> other = <span class="kw">quote</span> { x + y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    <span class="kw">assert</span>(!other.is_xor());
+}</code></pre></div>
+</div><code id="is_shift_right" class="code-header">pub fn <a href="#is_shift_right" class="fn">is_shift_right</a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns <code>true</code> if this operator is <code>&gt;&gt;</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> op = <span class="kw">quote</span> { x &gt;&gt; y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    <span class="kw">assert</span>(op.is_shift_right());
+
+    <span class="kw">let</span> other = <span class="kw">quote</span> { x + y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    <span class="kw">assert</span>(!other.is_shift_right());
+}</code></pre></div>
+</div><code id="is_shift_left" class="code-header">pub fn <a href="#is_shift_left" class="fn">is_shift_left</a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns <code>true</code> if this operator is <code>&lt;&lt;</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> op = <span class="kw">quote</span> { x &lt;&lt; y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    <span class="kw">assert</span>(op.is_shift_left());
+
+    <span class="kw">let</span> other = <span class="kw">quote</span> { x + y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    <span class="kw">assert</span>(!other.is_shift_left());
+}</code></pre></div>
+</div><code id="is_modulo" class="code-header">pub fn <a href="#is_modulo" class="fn">is_modulo</a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns <code>true</code> if this operator is <code>%</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> op = <span class="kw">quote</span> { x % y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    <span class="kw">assert</span>(op.is_modulo());
+
+    <span class="kw">let</span> other = <span class="kw">quote</span> { x + y }.as_expr().unwrap().as_binary_op().unwrap().operator();
+    <span class="kw">assert</span>(!other.is_modulo());
+}</code></pre></div>
+</div><code id="quoted" class="code-header">pub comptime fn <a href="#quoted" class="fn">quoted</a>(self) -> <a href="../../../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns this operator as a <code>Quoted</code> value, to splice into generated code.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> op = <span class="kw">quote</span> { x * y }.as_expr().unwrap().as_binary_op().unwrap().operator().quoted();
+    <span class="kw">assert_eq</span>(op, <span class="kw">quote</span> { * });
+
+    <span class="comment">// Apply the same operator to other operands.</span>
+    <span class="kw">let</span> product = <span class="kw">quote</span> { a $op b };
+    <span class="kw">assert_eq</span>(product, <span class="kw">quote</span> { a * b });
+}</code></pre></div>
+</div></div><h2>Trait implementations</h2>
 <h3 id="impl-Eq-for-BinaryOp"><code class="code-header">impl <a href="../../../std/cmp/trait.Eq.html" class="trait">Eq</a> for <a href="../../../std/meta/op/struct.BinaryOp.html" class="struct">BinaryOp</a></code></h3>
 
 <div class="padded-methods"><code class="code-header">pub fn <span class="fn">eq</span>(self, other: Self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>

@@ -64,7 +64,16 @@
 { <span class="comment">/* private fields */</span> }
 </code></pre>
 <div class="comments">
-<p>A parameter in a <a href="../../../std/meta/expr/struct.LambdaExpression.html"><code>LambdaExpression</code></a>.</p></div>
+<p>A parameter in a <a href="../../../std/meta/expr/struct.LambdaExpression.html"><code>LambdaExpression</code></a>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> lambda = <span class="kw">quote</span> { |x: u32, y| x + y }.as_expr().unwrap().as_lambda().unwrap();
+    <span class="kw">let</span> parameters = lambda.parameters();
+    <span class="kw">assert_eq</span>(parameters[<span class="number">0</span>].pattern().quoted(), <span class="kw">quote</span> { x });
+    <span class="kw">let</span> typ = parameters[<span class="number">0</span>].typ().unwrap();
+    <span class="kw">assert_eq</span>(<span class="kw">quote</span> { $typ }, <span class="kw">quote</span> { u32 });
+    <span class="kw">assert</span>(parameters[<span class="number">1</span>].typ().is_none());
+}</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../../../std/meta/expr/struct.LambdaParameter.html" class="struct">LambdaParameter</a></code></h3>
 
@@ -72,12 +81,22 @@
 
 <div class="padded-description"><div class="comments">
 <p>The parameter pattern.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> lambda = <span class="kw">quote</span> { |x| x }.as_expr().unwrap().as_lambda().unwrap();
+    <span class="kw">assert_eq</span>(lambda.parameters()[<span class="number">0</span>].pattern().quoted(), <span class="kw">quote</span> { x });
+}</code></pre></div>
 </div><code id="typ" class="code-header">pub comptime fn <a href="#typ" class="fn">typ</a>(self) -> <a href="../../../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../../../std/primitive.UnresolvedType.html" class="primitive">UnresolvedType</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>The optional parameter type annotation.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> lambda = <span class="kw">quote</span> { |x: u32, y| x + y }.as_expr().unwrap().as_lambda().unwrap();
+    <span class="kw">let</span> typ = lambda.parameters()[<span class="number">0</span>].typ().unwrap();
+    <span class="kw">assert_eq</span>(<span class="kw">quote</span> { $typ }, <span class="kw">quote</span> { u32 });
+    <span class="kw">assert</span>(lambda.parameters()[<span class="number">1</span>].typ().is_none());
+}</code></pre></div>
 </div></div></div>
 </main>
 </span>

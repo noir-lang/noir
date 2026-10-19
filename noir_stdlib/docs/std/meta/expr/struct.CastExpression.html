@@ -64,7 +64,14 @@
 { <span class="comment">/* private fields */</span> }
 </code></pre>
 <div class="comments">
-<p>A cast expression decomposed by <a href="../../../std/primitive.Expr.html#as_cast"><code>Expr::as_cast</code></a>.</p></div>
+<p>A cast expression decomposed by <a href="../../../std/primitive.Expr.html#as_cast"><code>Expr::as_cast</code></a>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> cast = <span class="kw">quote</span> { x <span class="kw">as</span> u8 }.as_expr().unwrap().as_cast().unwrap();
+    <span class="kw">assert_eq</span>(cast.expression().quoted(), <span class="kw">quote</span> { x });
+    <span class="kw">let</span> typ = cast.typ();
+    <span class="kw">assert_eq</span>(<span class="kw">quote</span> { $typ }, <span class="kw">quote</span> { u8 });
+}</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../../../std/meta/expr/struct.CastExpression.html" class="struct">CastExpression</a></code></h3>
 
@@ -72,12 +79,20 @@
 
 <div class="padded-description"><div class="comments">
 <p>The expression being cast.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> cast = <span class="kw">quote</span> { x <span class="kw">as</span> u8 }.as_expr().unwrap().as_cast().unwrap();
+    <span class="kw">assert_eq</span>(cast.expression().quoted(), <span class="kw">quote</span> { x });
+}</code></pre></div>
 </div><code id="typ" class="code-header">pub comptime fn <a href="#typ" class="fn">typ</a>(self) -> <a href="../../../std/primitive.UnresolvedType.html" class="primitive">UnresolvedType</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>The type the expression is cast to.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> typ = <span class="kw">quote</span> { x <span class="kw">as</span> u8 }.as_expr().unwrap().as_cast().unwrap().typ();
+    <span class="kw">assert_eq</span>(<span class="kw">quote</span> { $typ }, <span class="kw">quote</span> { u8 });
+}</code></pre></div>
 </div></div></div>
 </main>
 </span>

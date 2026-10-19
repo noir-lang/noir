@@ -117,17 +117,79 @@
 
 <div class="padded-methods"><code id="as_expr" class="code-header">pub comptime fn <a href="#as_expr" class="fn">as_expr</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.Expr.html" class="primitive">Expr</a>&gt;</code>
 
-<code id="as_module" class="code-header">pub comptime fn <a href="#as_module" class="fn">as_module</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.Module.html" class="primitive">Module</a>&gt;</code>
+<div class="padded-description"><div class="comments">
+<p>Parses this token stream as an expression. Returns <code>Option::none()</code> if it doesn't parse.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> call = <span class="kw">quote</span> { foo(<span class="number">1</span>) }.as_expr().unwrap();
+    <span class="kw">assert</span>(call.as_function_call().is_some());
 
-<code id="as_trait_constraint" class="code-header">pub comptime fn <a href="#as_trait_constraint" class="fn">as_trait_constraint</a>(self) -> <a href="../std/primitive.TraitConstraint.html" class="primitive">TraitConstraint</a></code>
+    <span class="kw">assert</span>(<span class="kw">quote</span> { <span class="number">1</span> + }.as_expr().is_none());
+}</code></pre></div>
+</div><code id="as_module" class="code-header">pub comptime fn <a href="#as_module" class="fn">as_module</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.Module.html" class="primitive">Module</a>&gt;</code>
 
-<code id="as_type" class="code-header">pub comptime fn <a href="#as_type" class="fn">as_type</a>(self) -> <a href="../std/primitive.Type.html" class="primitive">Type</a></code>
+<div class="padded-description"><div class="comments">
+<p>Interprets this token stream as a path to a module. Returns <code>Option::none()</code> if it isn't a path
+or no module is found at it.</p>
+<p>Example:</p>
+<pre><code><span class="kw">mod</span> shapes {
+    <span class="kw">pub</span> <span class="kw">mod</span> circle {}
+}
 
-<code id="location" class="code-header">pub comptime fn <a href="#location" class="fn">location</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.Location.html" class="primitive">Location</a>&gt;</code>
+<span class="kw">fn</span> main() {
+    <span class="kw">comptime</span> {
+        <span class="kw">let</span> module = <span class="kw">quote</span> { shapes::circle }.as_module().unwrap();
+        <span class="kw">assert_eq</span>(module.name(), <span class="kw">quote</span> { circle });
 
-<code id="tokens" class="code-header">pub comptime fn <a href="#tokens" class="fn">tokens</a>(self) -> [Self]</code>
+        <span class="kw">assert</span>(<span class="kw">quote</span> { shapes::square }.as_module().is_none());
+    }
+}</code></pre></div>
+</div><code id="as_trait_constraint" class="code-header">pub comptime fn <a href="#as_trait_constraint" class="fn">as_trait_constraint</a>(self) -> <a href="../std/primitive.TraitConstraint.html" class="primitive">TraitConstraint</a></code>
 
-</div><h2>Trait implementations</h2>
+<div class="padded-description"><div class="comments">
+<p>Interprets this token stream as a trait constraint without its object type, such as <code>Eq</code> or
+<code>Into&lt;Field&gt;</code>.</p>
+<p>Compilation fails if the tokens don't parse as a trait constraint or name a trait that isn't in
+scope.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> constraint = <span class="kw">quote</span> { Eq }.as_trait_constraint();
+    <span class="kw">assert</span>(<span class="kw">quote</span> { u32 }.as_type().implements(constraint));
+}</code></pre></div>
+</div><code id="as_type" class="code-header">pub comptime fn <a href="#as_type" class="fn">as_type</a>(self) -> <a href="../std/primitive.Type.html" class="primitive">Type</a></code>
+
+<div class="padded-description"><div class="comments">
+<p>Interprets this token stream as a resolved type.</p>
+<p>A numeric literal such as <code>4</code> is interpreted as the type-level integer <code>4</code>, so it can fill a
+numeric generic slot such as an array length.</p>
+<p>Compilation fails if the tokens don't parse as a type or name a type that isn't in scope.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> typ = <span class="kw">quote</span> { [u8; <span class="number">4</span>] }.as_type();
+    <span class="kw">let</span> array = typ.as_array().unwrap();
+    <span class="kw">assert_eq</span>(array.element_type(), <span class="kw">quote</span> { u8 }.as_type());
+    <span class="kw">assert_eq</span>(array.length_type(), <span class="kw">quote</span> { <span class="number">4</span> }.as_type());
+}</code></pre></div>
+</div><code id="location" class="code-header">pub comptime fn <a href="#location" class="fn">location</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.Location.html" class="primitive">Location</a>&gt;</code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns the source location spanning the tokens of this stream, or <code>Option::none()</code> if it is empty.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">assert</span>(<span class="kw">quote</span> { x + <span class="number">1</span> }.location().is_some());
+    <span class="kw">assert</span>(<span class="kw">quote</span> {}.location().is_none());
+}</code></pre></div>
+</div><code id="tokens" class="code-header">pub comptime fn <a href="#tokens" class="fn">tokens</a>(self) -> [Self]</code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns the individual tokens of this stream, each as its own <code>Quoted</code> value.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> tokens = <span class="kw">quote</span> { x + <span class="number">1</span> }.tokens();
+    <span class="kw">assert_eq</span>(tokens.len(), <span class="number">3</span>);
+    <span class="kw">assert_eq</span>(tokens[<span class="number">1</span>], <span class="kw">quote</span> { + });
+}</code></pre></div>
+</div></div><h2>Trait implementations</h2>
 <h3 id="impl-Append-for-Quoted"><code class="code-header">impl <a href="../std/append/trait.Append.html" class="trait">Append</a> for <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a></code></h3>
 
 <div class="padded-methods"><code class="code-header">pub comptime fn <span class="fn">empty</span>() -> Self</code>

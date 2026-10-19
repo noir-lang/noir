@@ -1,12 +1,36 @@
 use crate::append::Append;
 
 impl CtString {
+    /// Returns an empty `CtString`.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// use std::meta::ctstring::AsCtString;
+    ///
+    /// comptime {
+    ///     let empty = CtString::new();
+    ///     assert_eq(empty.append_str("abc"), "abc".as_ctstring());
+    /// }
+    /// ```
     // docs:start:new
     pub comptime fn new() -> Self {
         // docs:end:new
         "".as_ctstring()
     }
 
+    /// Returns a new `CtString` with `s` appended to the end.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// use std::meta::ctstring::AsCtString;
+    ///
+    /// comptime {
+    ///     let greeting = "hello".as_ctstring().append_str(" world");
+    ///     assert_eq(greeting, "hello world".as_ctstring());
+    /// }
+    /// ```
     // TODO(https://github.com/noir-lang/noir/issues/6980): Bug: using &mut self
     // as the object results in this method not being found
     // docs:start:append_str
@@ -15,6 +39,22 @@ impl CtString {
         self.append(s.as_ctstring())
     }
 
+    /// Returns a new `CtString` with the formatted string `s` appended to the end.
+    ///
+    /// Values interpolated into `s` are formatted the same way as in `println`, so a `Field` is
+    /// written in hexadecimal.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// use std::meta::ctstring::AsCtString;
+    ///
+    /// comptime {
+    ///     let count = 3_u32;
+    ///     let message = "count: ".as_ctstring().append_fmtstr(f"{count}");
+    ///     assert_eq(message, "count: 3".as_ctstring());
+    /// }
+    /// ```
     // docs:start:append_fmtstr
     pub comptime fn append_fmtstr<let N: u32, T>(self, s: fmtstr<N, T>) -> Self {
         // docs:end:append_fmtstr
@@ -24,6 +64,18 @@ impl CtString {
     /// CtString cannot directly return a str since the size would not be known.
     /// To get around this, we return a quoted str and the underlying str can
     /// be accessed using macro insertion `foo.as_quoted_str!()`.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// use std::meta::ctstring::AsCtString;
+    ///
+    /// comptime {
+    ///     let name = "foo".as_ctstring().append_str("bar");
+    ///     let name_str: str<6> = name.as_quoted_str!();
+    ///     assert_eq(name_str, "foobar");
+    /// }
+    /// ```
     // docs:start:as_quoted_str
     pub comptime fn as_quoted_str(self) -> Quoted {
         // docs:end:as_quoted_str
@@ -40,8 +92,22 @@ impl Append for CtString {
     comptime fn append(self, other: Self) -> Self {}
 }
 
+/// Converts a string into a [`CtString`] at compile time. It is implemented for `str<N>` and
+/// `fmtstr<N, T>`.
+///
+/// Example:
+///
+/// ```noir
+/// use std::meta::ctstring::AsCtString;
+///
+/// comptime {
+///     let x = 7_u32;
+///     assert_eq(f"x = {x}".as_ctstring(), "x = 7".as_ctstring());
+/// }
+/// ```
 // docs:start:as-ctstring
 pub trait AsCtString {
+    /// Returns this string as a `CtString`.
     comptime fn as_ctstring(self) -> CtString;
 }
 // docs:end:as-ctstring

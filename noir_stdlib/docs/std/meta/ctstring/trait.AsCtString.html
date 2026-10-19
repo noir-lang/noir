@@ -49,10 +49,23 @@
     pub comptime fn <a href="#as_ctstring" class="fn">as_ctstring</a>(self) -> <a href="../../../std/primitive.CtString.html" class="primitive">CtString</a>;
 }</code></pre>
 
+<div class="comments">
+<p>Converts a string into a <a href="../../../std/primitive.CtString.html"><code>CtString</code></a> at compile time. It is implemented for <code>str&lt;N&gt;</code> and
+<code>fmtstr&lt;N, T&gt;</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::meta::ctstring::AsCtString;
+
+<span class="kw">comptime</span> {
+    <span class="kw">let</span> x = <span class="number">7_u32</span>;
+    <span class="kw">assert_eq</span>(<span class="string">f"</span><span class="string">x = </span><span class="interpolation">{x}</span><span class="string">"</span>.as_ctstring(), <span class="string">"x = 7"</span>.as_ctstring());
+}</code></pre></div>
 <h2>Required methods</h2>
 <div class="padded-methods"><code id="as_ctstring" class="code-header">pub comptime fn <a href="#as_ctstring" class="fn">as_ctstring</a>(self) -> <a href="../../../std/primitive.CtString.html" class="primitive">CtString</a></code>
 
-</div><h2>Implementors</h2>
+<div class="padded-description"><div class="comments">
+<p>Returns this string as a <code>CtString</code>.</p>
+</div>
+</div></div><h2>Implementors</h2>
 <h3 id="impl-AsCtString-for-fmtstr&lt;N, T&gt;"><code class="code-header">impl&lt;let N: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>, T&gt; <a href="../../../std/meta/ctstring/trait.AsCtString.html" class="trait">AsCtString</a> for <a href="../../../std/primitive.fmtstr.html" class="primitive">fmtstr</a>&lt;N, T&gt;</code></h3>
 
 <h3 id="impl-AsCtString-for-str&lt;N&gt;"><code class="code-header">impl&lt;let N: <a href="../../../std/primitive.u32.html" class="primitive">u32</a>&gt; <a href="../../../std/meta/ctstring/trait.AsCtString.html" class="trait">AsCtString</a> for <a href="../../../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;</code></h3>

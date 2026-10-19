@@ -64,7 +64,15 @@
 { <span class="comment">/* private fields */</span> }
 </code></pre>
 <div class="comments">
-<p>An assignment expression decomposed by <a href="../../../std/primitive.Expr.html#as_assign"><code>Expr::as_assign</code></a>.</p></div>
+<p>An assignment expression decomposed by <a href="../../../std/primitive.Expr.html#as_assign"><code>Expr::as_assign</code></a>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="comment">// An assignment is a statement, so it is parsed inside a block.</span>
+    <span class="kw">let</span> block = <span class="kw">quote</span> { { x = y; } }.as_expr().unwrap().as_block().unwrap();
+    <span class="kw">let</span> assignment = block[<span class="number">0</span>].as_assign().unwrap();
+    <span class="kw">assert_eq</span>(assignment.lhs().quoted(), <span class="kw">quote</span> { x });
+    <span class="kw">assert_eq</span>(assignment.rhs().quoted(), <span class="kw">quote</span> { y });
+}</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../../../std/meta/expr/struct.AssignExpression.html" class="struct">AssignExpression</a></code></h3>
 
@@ -72,12 +80,20 @@
 
 <div class="padded-description"><div class="comments">
 <p>The left-hand side of the assignment.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> block = <span class="kw">quote</span> { { x = y; } }.as_expr().unwrap().as_block().unwrap();
+    <span class="kw">assert_eq</span>(block[<span class="number">0</span>].as_assign().unwrap().lhs().quoted(), <span class="kw">quote</span> { x });
+}</code></pre></div>
 </div><code id="rhs" class="code-header">pub comptime fn <a href="#rhs" class="fn">rhs</a>(self) -> <a href="../../../std/primitive.Expr.html" class="primitive">Expr</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>The right-hand side of the assignment.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> block = <span class="kw">quote</span> { { x = y; } }.as_expr().unwrap().as_block().unwrap();
+    <span class="kw">assert_eq</span>(block[<span class="number">0</span>].as_assign().unwrap().rhs().quoted(), <span class="kw">quote</span> { y });
+}</code></pre></div>
 </div></div></div>
 </main>
 </span>
