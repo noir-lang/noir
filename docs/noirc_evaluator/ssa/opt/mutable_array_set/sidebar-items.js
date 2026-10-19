@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["make_mutable","mutable_array_set_optimization_post_check","mutable_array_set_optimization_pre_check"],"struct":["Context"]};
+window.SIDEBAR_ITEMS = {"fn":["call_result_keeps_array_arguments","make_mutable","mutable_array_set_optimization_post_check","mutable_array_set_optimization_pre_check"],"struct":["Context"]};
