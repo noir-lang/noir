@@ -52,20 +52,81 @@
 <pre><code>pub struct UnaryOp
 { <span class="comment">/* private fields */</span> }
 </code></pre>
+<div class="comments">
+<p>A unary operator in quoted code.</p>
+<p>One of <code>-</code>, <code>!</code>, <code>&amp;mut</code> or <code>*</code>.
+It is returned by <a href="../../../std/meta/expr/struct.UnaryOpExpression.html#operator"><code>UnaryOpExpression::operator</code></a>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> op = <span class="kw">quote</span> { -x }.as_expr().unwrap().as_unary_op().unwrap().operator();
+    <span class="kw">assert</span>(op.is_minus());
+    <span class="kw">assert_eq</span>(op.quoted(), <span class="kw">quote</span> { - });
+}</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../../../std/meta/op/struct.UnaryOp.html" class="struct">UnaryOp</a></code></h3>
 
 <div class="padded-methods"><code id="is_minus" class="code-header">pub fn <a href="#is_minus" class="fn">is_minus</a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
 
-<code id="is_not" class="code-header">pub fn <a href="#is_not" class="fn">is_not</a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
+<div class="padded-description"><div class="comments">
+<p>Returns <code>true</code> if this operator is <code>-</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> op = <span class="kw">quote</span> { -x }.as_expr().unwrap().as_unary_op().unwrap().operator();
+    <span class="kw">assert</span>(op.is_minus());
 
-<code id="is_mutable_reference" class="code-header">pub fn <a href="#is_mutable_reference" class="fn">is_mutable_reference</a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
+    <span class="kw">let</span> other = <span class="kw">quote</span> { !x }.as_expr().unwrap().as_unary_op().unwrap().operator();
+    <span class="kw">assert</span>(!other.is_minus());
+}</code></pre></div>
+</div><code id="is_not" class="code-header">pub fn <a href="#is_not" class="fn">is_not</a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
 
-<code id="is_dereference" class="code-header">pub fn <a href="#is_dereference" class="fn">is_dereference</a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
+<div class="padded-description"><div class="comments">
+<p>Returns <code>true</code> if this operator is <code>!</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> op = <span class="kw">quote</span> { !x }.as_expr().unwrap().as_unary_op().unwrap().operator();
+    <span class="kw">assert</span>(op.is_not());
 
-<code id="quoted" class="code-header">pub comptime fn <a href="#quoted" class="fn">quoted</a>(self) -> <a href="../../../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
+    <span class="kw">let</span> other = <span class="kw">quote</span> { -x }.as_expr().unwrap().as_unary_op().unwrap().operator();
+    <span class="kw">assert</span>(!other.is_not());
+}</code></pre></div>
+</div><code id="is_mutable_reference" class="code-header">pub fn <a href="#is_mutable_reference" class="fn">is_mutable_reference</a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
 
-</div><h2>Trait implementations</h2>
+<div class="padded-description"><div class="comments">
+<p>Returns <code>true</code> if this operator is <code>&amp;mut</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> op = <span class="kw">quote</span> { &<span class="kw">mut</span> x }.as_expr().unwrap().as_unary_op().unwrap().operator();
+    <span class="kw">assert</span>(op.is_mutable_reference());
+
+    <span class="kw">let</span> other = <span class="kw">quote</span> { !x }.as_expr().unwrap().as_unary_op().unwrap().operator();
+    <span class="kw">assert</span>(!other.is_mutable_reference());
+}</code></pre></div>
+</div><code id="is_dereference" class="code-header">pub fn <a href="#is_dereference" class="fn">is_dereference</a>(self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns <code>true</code> if this operator is <code>*</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> op = <span class="kw">quote</span> { *x }.as_expr().unwrap().as_unary_op().unwrap().operator();
+    <span class="kw">assert</span>(op.is_dereference());
+
+    <span class="kw">let</span> other = <span class="kw">quote</span> { !x }.as_expr().unwrap().as_unary_op().unwrap().operator();
+    <span class="kw">assert</span>(!other.is_dereference());
+}</code></pre></div>
+</div><code id="quoted" class="code-header">pub comptime fn <a href="#quoted" class="fn">quoted</a>(self) -> <a href="../../../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns this operator as a <code>Quoted</code> value, to splice into generated code.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> op = <span class="kw">quote</span> { !x }.as_expr().unwrap().as_unary_op().unwrap().operator().quoted();
+    <span class="kw">assert_eq</span>(op, <span class="kw">quote</span> { ! });
+
+    <span class="comment">// Apply the same operator to another operand.</span>
+    <span class="kw">let</span> negated = <span class="kw">quote</span> { $op y };
+    <span class="kw">assert_eq</span>(negated, <span class="kw">quote</span> { !y });
+}</code></pre></div>
+</div></div><h2>Trait implementations</h2>
 <h3 id="impl-Eq-for-UnaryOp"><code class="code-header">impl <a href="../../../std/cmp/trait.Eq.html" class="trait">Eq</a> for <a href="../../../std/meta/op/struct.UnaryOp.html" class="struct">UnaryOp</a></code></h3>
 
 <div class="padded-methods"><code class="code-header">pub fn <span class="fn">eq</span>(self, other: Self) -> <a href="../../../std/primitive.bool.html" class="primitive">bool</a></code>

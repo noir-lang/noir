@@ -29,7 +29,7 @@ use noirc_errors::{Located, Location};
 use rustc_hash::FxHashMap as HashMap;
 use rustc_hash::FxHashSet as HashSet;
 
-use super::deferred::{PendingWhereClauseCheck, UnresolvedImplAssociatedTypes};
+use super::deferred::{PendingWhereClauseCheck, UnresolvedImplAssociatedType};
 use super::{
     Elaborator,
     item_context::{ImplContext, ItemContext, ModuleContext},
@@ -840,77 +840,77 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Resolves the associated types and constants of a trait impl, binding the placeholder each
-    /// one has in the impl's trait generics, unless they are already resolved or being resolved.
-    ///
-    /// This runs when the impl is collected, or earlier if a lookup selects the impl first (another
-    /// impl's `let N: u32 = <[u8; 3] as C>::N;`), so the items have their values before anything
-    /// reads them.
+    /// Resolves the associated types and constants of a trait impl that aren't resolved yet or being
+    /// resolved, binding the placeholder each one has in the impl's trait generics. This runs when
+    /// the impl is collected.
     pub(super) fn resolve_trait_impl_associated_types_if_unresolved(
         &mut self,
         impl_id: TraitImplId,
     ) {
-        let Some(unresolved) = self.session.deferred.trait_impl_associated_types.take(&impl_id)
-        else {
+        let associated_types = self.interner.get_associated_types_for_impl(impl_id).to_vec();
+        for associated_type in associated_types {
+            self.resolve_placeholder_if_unresolved(impl_id, &associated_type.typ);
+        }
+    }
+
+    /// Resolves the associated type or constant `name` of a trait impl if it isn't resolved yet or
+    /// being resolved, so that it has its value before it is read. It can be read before the impl
+    /// is collected: by another impl (`let N: u32 = <[u8; 3] as C>::N;`), or through a global that
+    /// another item of the same impl reads. Only `name` is resolved, as the impl's other items
+    /// may themselves depend on whatever is reading it.
+    pub(crate) fn resolve_trait_impl_associated_type_if_unresolved(
+        &mut self,
+        impl_id: TraitImplId,
+        name: &str,
+    ) {
+        if let Some(placeholder) = self.interner.find_associated_type_for_impl(impl_id, name) {
+            let placeholder = placeholder.clone();
+            self.resolve_placeholder_if_unresolved(impl_id, &placeholder);
+        }
+    }
+
+    /// Resolves the associated item that `placeholder`, from the impl's trait generics, stands for.
+    fn resolve_placeholder_if_unresolved(&mut self, impl_id: TraitImplId, placeholder: &Type) {
+        let Type::NamedGeneric(named_generic) = placeholder else {
             return;
         };
-        let UnresolvedImplAssociatedTypes {
-            module_id,
-            self_type,
-            trait_id,
-            generics,
-            types,
-            location,
-        } = unresolved;
+        let key = named_generic.type_var.id();
+        if let Some(item) = self.session.deferred.trait_impl_associated_types.take(&key) {
+            self.resolve_trait_impl_associated_type(impl_id, item);
+        }
+    }
+
+    fn resolve_trait_impl_associated_type(
+        &mut self,
+        impl_id: TraitImplId,
+        item: UnresolvedImplAssociatedType,
+    ) {
+        let UnresolvedImplAssociatedType { module_id, self_type, trait_id, generics, name, typ } =
+            item;
+        let Some(Type::NamedGeneric(named_generic)) =
+            self.interner.find_associated_type_for_impl(impl_id, name.as_str()).cloned()
+        else {
+            // This can happen if the associated type is specified directly in the impl trait generics,
+            // This can't be done in code, but it could happen with unquoted types.
+            return;
+        };
+
         let impl_context =
             ImplContext::in_trait_impl(Some(self_type), Some(trait_id), Some(impl_id));
         let context = ItemContext::new(ModuleContext::in_module(module_id)).with_impl(impl_context);
         self.with_item_context(context, |this| {
             this.item.generics.set_params(generics);
-            let where_clause = this.interner.get_where_clause_for_impl(impl_id).to_vec();
-            for constraint in &where_clause {
-                this.add_resolved_trait_constraint_to_scope(constraint);
+            for constraint in this.interner.get_where_clause_for_impl(impl_id).to_vec() {
+                this.add_resolved_trait_constraint_to_scope(&constraint);
             }
 
-            let mut types = types.into_iter().collect::<HashMap<_, _>>();
-            let associated_types = this.interner.get_associated_types_for_impl(impl_id).to_vec();
-            for associated_type in &associated_types {
-                let Type::NamedGeneric(named_generic) = &associated_type.typ else {
-                    // This can happen if the associated type is specified directly in the impl trait generics,
-                    // This can't be done in code, but it could happen with unquoted types.
-                    continue;
-                };
-
-                let Some(unresolved_type) = types.remove(&associated_type.name) else {
-                    // This too can happen if the associated type is specified directly in the impl trait generics,
-                    // like `impl<H> BuildHasher<H = H>`, where `H` is a named generic but its resolution isn't delayed.
-                    // This can't be done in code, but it could happen with unquoted types.
-                    this.push_err(TypeCheckError::expecting_other_error(
-                        "collect_trait_impl: missing associated type",
-                        location,
-                    ));
-                    continue;
-                };
-                let wildcard_allowed =
-                    WildcardAllowed::No(WildcardDisallowedContext::AssociatedType);
-                let location = unresolved_type.location;
-                let resolved_type = this.resolve_type_with_kind(
-                    unresolved_type,
-                    &associated_type.typ.kind(),
-                    wildcard_allowed,
-                );
-                this.check_trait_impl_associated_type_visibility(
-                    trait_id,
-                    &associated_type.name,
-                    &resolved_type,
-                );
-                if let Err(error) = named_generic.type_var.try_bind(
-                    resolved_type,
-                    &named_generic.type_var.kind(),
-                    location,
-                ) {
-                    this.push_err(error);
-                }
+            let wildcard_allowed = WildcardAllowed::No(WildcardDisallowedContext::AssociatedType);
+            let location = typ.location;
+            let kind = named_generic.type_var.kind();
+            let resolved_type = this.resolve_type_with_kind(typ, &kind, wildcard_allowed);
+            this.check_trait_impl_associated_type_visibility(trait_id, &name, &resolved_type);
+            if let Err(error) = named_generic.type_var.try_bind(resolved_type, &kind, location) {
+                this.push_err(error);
             }
         });
     }
@@ -977,17 +977,41 @@ impl Elaborator<'_> {
         let self_type = self.resolve_type(unresolved_type, wildcard_allowed);
 
         if let Some(trait_id) = trait_id {
-            self.session.deferred.trait_impl_associated_types.register(
-                impl_id,
-                UnresolvedImplAssociatedTypes {
-                    module_id: trait_impl.module_id,
-                    self_type: self_type.clone(),
-                    trait_id,
-                    generics: trait_impl.resolved_generics.clone(),
-                    types: associated_types,
-                    location: trait_impl.object_type.location,
-                },
-            );
+            // An associated type written directly in the impl's trait generics, as in
+            // `impl<H> BuildHasher<H = H>`, has no value to resolve. This can't be written in code,
+            // but it could come from unquoted types.
+            let written = associated_types.iter().map(|(name, _)| name).collect::<HashSet<_>>();
+            let unwritten =
+                self.interner.get_associated_types_for_impl(impl_id).iter().any(|named| {
+                    matches!(named.typ, Type::NamedGeneric(_)) && !written.contains(&named.name)
+                });
+            if unwritten {
+                self.push_err(TypeCheckError::expecting_other_error(
+                    "collect_trait_impl: missing associated type",
+                    trait_impl.object_type.location,
+                ));
+            }
+
+            for (name, typ) in associated_types {
+                let Some(Type::NamedGeneric(named_generic)) =
+                    self.interner.find_associated_type_for_impl(impl_id, name.as_str())
+                else {
+                    // This can happen if the associated type is specified directly in the impl trait generics,
+                    // This can't be done in code, but it could happen with unquoted types.
+                    continue;
+                };
+                self.session.deferred.trait_impl_associated_types.register(
+                    named_generic.type_var.id(),
+                    UnresolvedImplAssociatedType {
+                        module_id: trait_impl.module_id,
+                        self_type: self_type.clone(),
+                        trait_id,
+                        generics: trait_impl.resolved_generics.clone(),
+                        name,
+                        typ,
+                    },
+                );
+            }
 
             // The ordered generics and associated types are already stored by `resolve_trait_impl_associated_types`.
             // Now that we have resolved the self-type, register the prepared trait impl for it.

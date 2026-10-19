@@ -64,8 +64,14 @@
 { <span class="comment">/* private fields */</span> }
 </code></pre>
 <div class="comments">
-<p>An assert expression decomposed by <a href="../../../std/primitive.Expr.html#as_assert"><code>Expr::as_assert</code></a> into its predicate and
-optional message.</p></div>
+<p>An assert expression decomposed by <a href="../../../std/primitive.Expr.html#as_assert"><code>Expr::as_assert</code></a>.</p>
+<p>It holds the asserted predicate and the optional message.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> assertion = <span class="kw">quote</span> { <span class="kw">assert</span>(x, <span class="string">"x is false"</span>) }.as_expr().unwrap().as_assert().unwrap();
+    <span class="kw">assert_eq</span>(assertion.predicate().quoted(), <span class="kw">quote</span> { x });
+    <span class="kw">assert_eq</span>(assertion.message().unwrap().quoted(), <span class="kw">quote</span> { <span class="string">"x is false"</span> });
+}</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../../../std/meta/expr/struct.AssertExpression.html" class="struct">AssertExpression</a></code></h3>
 
@@ -73,12 +79,23 @@ optional message.</p></div>
 
 <div class="padded-description"><div class="comments">
 <p>The predicate being asserted.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> assertion = <span class="kw">quote</span> { <span class="kw">assert</span>(x) }.as_expr().unwrap().as_assert().unwrap();
+    <span class="kw">assert_eq</span>(assertion.predicate().quoted(), <span class="kw">quote</span> { x });
+}</code></pre></div>
 </div><code id="message" class="code-header">pub comptime fn <a href="#message" class="fn">message</a>(self) -> <a href="../../../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../../../std/primitive.Expr.html" class="primitive">Expr</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>The optional assertion message.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> assertion = <span class="kw">quote</span> { <span class="kw">assert</span>(x) }.as_expr().unwrap().as_assert().unwrap();
+    <span class="kw">assert</span>(assertion.message().is_none());
+
+    <span class="kw">let</span> assertion = <span class="kw">quote</span> { <span class="kw">assert</span>(x, <span class="string">"oops"</span>) }.as_expr().unwrap().as_assert().unwrap();
+    <span class="kw">assert_eq</span>(assertion.message().unwrap().quoted(), <span class="kw">quote</span> { <span class="string">"oops"</span> });
+}</code></pre></div>
 </div></div></div>
 </main>
 </span>

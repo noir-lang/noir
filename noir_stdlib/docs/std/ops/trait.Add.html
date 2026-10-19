@@ -72,10 +72,40 @@
     pub fn <a href="#add" class="fn">add</a>(self, other: Self) -> Self;
 }</code></pre>
 
+<div class="comments">
+<p>The <code>+</code> operator.</p>
+<p>Implemented for <code>Field</code> and the integer types. <code>Field</code> addition is modulo the field's prime.
+Integer addition fails if the result doesn't fit in the type, in both constrained and
+unconstrained code; use <a href="../../std/ops/trait.WrappingAdd.html"><code>WrappingAdd</code></a> to wrap around instead.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::ops::Add;
+
+<span class="kw">struct</span> Point {
+    x: u32,
+    y: u32,
+}
+
+<span class="kw">impl</span> Add <span class="kw">for</span> Point {
+    <span class="kw">fn</span> add(self, other: Point) -&gt; Point {
+        Point { x: self.x + other.x, y: self.y + other.y }
+    }
+}
+
+<span class="kw">fn</span> main() {
+    <span class="kw">let</span> p = Point { x: <span class="number">1</span>, y: <span class="number">2</span> } + Point { x: <span class="number">3</span>, y: <span class="number">4</span> };
+    <span class="kw">assert_eq</span>(p.x, <span class="number">4</span>);
+    <span class="kw">assert_eq</span>(p.y, <span class="number">6</span>);
+}</code></pre>
+<p>Integer overflow fails; use <a href="../../std/ops/trait.WrappingAdd.html"><code>WrappingAdd</code></a> to wrap around:</p>
+<pre><code><span class="comment">// Fails: 256 doesn't fit in a `u8`.</span>
+<span class="kw">let</span> _ = <span class="number">255_u8</span> + <span class="number">1</span>;</code></pre></div>
 <h2>Required methods</h2>
 <div class="padded-methods"><code id="add" class="code-header">pub fn <a href="#add" class="fn">add</a>(self, other: Self) -> Self</code>
 
-</div><h2>Implementors</h2>
+<div class="padded-description"><div class="comments">
+<p>Returns <code>self + other</code>.</p>
+</div>
+</div></div><h2>Implementors</h2>
 <h3 id="impl-Add-for-EmbeddedCurvePoint"><code class="code-header">impl <a href="../../std/ops/trait.Add.html" class="trait">Add</a> for <a href="../../std/embedded_curve_ops/struct.EmbeddedCurvePoint.html" class="struct">EmbeddedCurvePoint</a></code></h3>
 
 <h3 id="impl-Add-for-Field"><code class="code-header">impl <a href="../../std/ops/trait.Add.html" class="trait">Add</a> for <a href="../../std/primitive.Field.html" class="primitive">Field</a></code></h3>

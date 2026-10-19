@@ -84,11 +84,32 @@
 <div class="comments">
 <p>Compare one object to another, returning whether it is less-than, equal-to,
 or greater-than the other object.</p>
-</div>
+<p><code>Ord</code> provides the <code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code> and <code>&gt;=</code> operators. It is implemented for the integer types,
+<code>bool</code> (<code>false &lt; true</code>), and arrays, vectors and tuples of <code>Ord</code> types, which compare their
+elements in order, lexicographically. Deriving it with <code>#[derive(Ord)]</code> compares the fields
+of a struct in the order they are declared.</p>
+<p><code>Field</code> doesn't implement <code>Ord</code>, because field elements have no ordering compatible with
+field arithmetic. To compare their integer values, use
+<a href="../../std/primitive.Field.html#lt"><code>Field::lt</code></a>.</p>
+<p>Example:</p>
+<pre><code>#[derive(Eq, Ord)]
+<span class="kw">struct</span> Version {
+    major: u32,
+    minor: u32,
+}
+
+<span class="kw">fn</span> main() {
+    <span class="kw">assert</span>(Version { major: <span class="number">1</span>, minor: <span class="number">9</span> } &lt; Version { major: <span class="number">2</span>, minor: <span class="number">0</span> });
+    <span class="kw">assert</span>([<span class="number">1_u8</span>, <span class="number">2</span>] &lt; [<span class="number">1</span>, <span class="number">3</span>]);
+    <span class="kw">assert</span>((<span class="number">1_u8</span>, <span class="number">5_u8</span>) &lt; (<span class="number">2</span>, <span class="number">0</span>));
+}</code></pre></div>
 <h2>Required methods</h2>
 <div class="padded-methods"><code id="cmp" class="code-header">pub fn <a href="#cmp" class="fn">cmp</a>(self, other: Self) -> <a href="../../std/cmp/struct.Ordering.html" class="struct">Ordering</a></code>
 
-</div><h2>Implementors</h2>
+<div class="padded-description"><div class="comments">
+<p>Returns how <code>self</code> compares to <code>other</code>. <code>a &lt; b</code> is <code>a.cmp(b) == Ordering::less()</code>.</p>
+</div>
+</div></div><h2>Implementors</h2>
 <h3 id="impl-Ord-for-()"><code class="code-header">impl <a href="../../std/cmp/trait.Ord.html" class="trait">Ord</a> for ()</code></h3>
 
 <h3 id="impl-Ord-for-(A, B)"><code class="code-header">impl&lt;A, B&gt; <a href="../../std/cmp/trait.Ord.html" class="trait">Ord</a> for (A, B)

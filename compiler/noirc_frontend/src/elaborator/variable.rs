@@ -138,8 +138,18 @@ impl Elaborator<'_> {
             // but that's not true)
             if value.is_ok() {
                 let from_macro_call = false;
-                let (id, typ) = self.inline_comptime_value(value, location, from_macro_call);
+                let (id, inlined_typ) =
+                    self.inline_comptime_value(value, location, from_macro_call);
                 self.debug_comptime(location, |interner, _| id.to_display_ast(interner).kind);
+
+                // The inlined value is re-elaborated from its printed form, which can carry less
+                // type information than the binding (an empty `@[]` has no element type, and a
+                // function item has its own `fn` type). Every read of the binding must have the
+                // binding's type, so the inlined expression is checked against it and given it.
+                self.unify_with_coercions(&inlined_typ, &typ, id, location, |elaborator| {
+                    elaborator.new_type_mismatch_error(&inlined_typ, &typ, location).into()
+                });
+                self.interner.push_expr_type(id, typ.clone());
                 (id, typ)
             } else {
                 (id, typ)
@@ -1016,13 +1026,9 @@ impl Elaborator<'_> {
             return self.type_path_value_expr(resolution, &typ, turbofish.as_ref(), ident_location);
         }
 
-        let Some(method) = self.lookup_method(
-            &typ,
-            ident.as_str(),
-            ident_location,
-            typ_location,
-            check_self_param,
-        ) else {
+        let Some(method) =
+            self.lookup_method(&typ, ident, ident_location, typ_location, check_self_param)
+        else {
             let error = Expression::new(ExpressionKind::Error, ident_location);
             return self.elaborate_expression(error);
         };
@@ -1092,13 +1098,9 @@ impl Elaborator<'_> {
 
         self.interner.push_type_ref_location(&typ, typ_location);
 
-        let Some(method) = self.lookup_method(
-            &typ,
-            ident.as_str(),
-            ident_location,
-            typ_location,
-            check_self_param,
-        ) else {
+        let Some(method) =
+            self.lookup_method(&typ, ident, ident_location, typ_location, check_self_param)
+        else {
             let error = Expression::new(ExpressionKind::Error, ident_location);
             return self.elaborate_expression(error);
         };

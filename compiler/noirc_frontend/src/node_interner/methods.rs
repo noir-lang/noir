@@ -101,6 +101,22 @@ impl Methods {
         None
     }
 
+    /// Returns every direct (inherent) method that matches `typ`, in registration order.
+    pub(super) fn find_direct_methods(
+        &self,
+        typ: &Type,
+        check_self_param: bool,
+        interner: &NodeInterner,
+    ) -> Vec<FuncId> {
+        self.direct
+            .iter()
+            .filter(|method| {
+                Self::method_matches(typ, check_self_param, method.method, &method.typ, interner)
+            })
+            .map(|method| method.method)
+            .collect()
+    }
+
     /// Returns the self types of every direct (inherent) method that matches `typ`.
     ///
     /// Unlike keying by `typ`'s method key, this matches each impl's self type against `typ`, so it
@@ -128,9 +144,20 @@ impl Methods {
         has_self_param: bool,
         interner: &NodeInterner,
     ) -> Vec<(FuncId, TraitId, Type)> {
+        self.find_trait_methods_where(typ, has_self_param, interner, |_| true)
+    }
+
+    /// Like [`Self::find_trait_methods`], keeping only the methods for which `keep` holds.
+    pub(super) fn find_trait_methods_where(
+        &self,
+        typ: &Type,
+        has_self_param: bool,
+        interner: &NodeInterner,
+        keep: impl Fn(&TraitImplMethod) -> bool,
+    ) -> Vec<(FuncId, TraitId, Type)> {
         let mut results = Vec::new();
 
-        for trait_impl_method in &self.trait_impl_methods {
+        for trait_impl_method in self.trait_impl_methods.iter().filter(|method| keep(method)) {
             let method = trait_impl_method.method;
             let method_type = interner.instantiate_trait_impl_self_type(trait_impl_method.impl_id);
             let trait_id = trait_impl_method.trait_id;

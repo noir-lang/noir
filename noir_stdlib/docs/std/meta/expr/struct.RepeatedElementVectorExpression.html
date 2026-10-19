@@ -64,7 +64,13 @@
 { <span class="comment">/* private fields */</span> }
 </code></pre>
 <div class="comments">
-<p>A repeated-element vector decomposed by <a href="../../../std/primitive.Expr.html#as_repeated_element_vector"><code>Expr::as_repeated_element_vector</code></a>.</p></div>
+<p>A repeated-element vector decomposed by <a href="../../../std/primitive.Expr.html#as_repeated_element_vector"><code>Expr::as_repeated_element_vector</code></a>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> vector = <span class="kw">quote</span> { @[x; <span class="number">3</span>] }.as_expr().unwrap().as_repeated_element_vector().unwrap();
+    <span class="kw">assert_eq</span>(vector.element().quoted(), <span class="kw">quote</span> { x });
+    <span class="kw">assert_eq</span>(vector.length().as_integer().unwrap().value(), <span class="number">3</span>);
+}</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../../../std/meta/expr/struct.RepeatedElementVectorExpression.html" class="struct">RepeatedElementVectorExpression</a></code></h3>
 
@@ -72,12 +78,20 @@
 
 <div class="padded-description"><div class="comments">
 <p>The repeated element.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> vector = <span class="kw">quote</span> { @[x; <span class="number">3</span>] }.as_expr().unwrap().as_repeated_element_vector().unwrap();
+    <span class="kw">assert_eq</span>(vector.element().quoted(), <span class="kw">quote</span> { x });
+}</code></pre></div>
 </div><code id="length" class="code-header">pub comptime fn <a href="#length" class="fn">length</a>(self) -> <a href="../../../std/primitive.Expr.html" class="primitive">Expr</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>The vector length expression.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> vector = <span class="kw">quote</span> { @[x; <span class="number">3</span>] }.as_expr().unwrap().as_repeated_element_vector().unwrap();
+    <span class="kw">assert_eq</span>(vector.length().as_integer().unwrap().value(), <span class="number">3</span>);
+}</code></pre></div>
 </div></div></div>
 </main>
 </span>

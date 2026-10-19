@@ -608,7 +608,7 @@ impl NodeInterner {
                     recursion_limit,
                 )
             {
-                if matches!(error.1, ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType) {
+                if error.1.is_undecided() {
                     where_clause_undecided = true;
                 }
                 // Only keep the first errors we get from a failing where clause
@@ -655,7 +655,9 @@ impl NodeInterner {
             ));
         }
 
-        if matching_impls.len() == 1
+        // An impl whose where clause can't be decided yet might still apply, so neither a single
+        // other match nor no match at all is an answer yet.
+        if matching_impls.len() <= 1
             && where_clause_undecided
             && !matches!(mode, TraitLookupMode::Overlapping)
         {
@@ -682,12 +684,15 @@ impl NodeInterner {
             Err(ImplSearchErrorKind::NoMatching(errors))
         } else {
             // An assumed impl is a `where` clause hypothesis that an impl exists for the object
-            // type. When a real impl also matches, it discharges that hypothesis rather than
-            // competing with it: by coherence it is the unique ground truth, so prefer it over
-            // the assumed candidates. This only holds when the query is rigid (no unbound type
-            // variables in the object type or ordered generics). Otherwise the candidates may
-            // bind a variable differently - e.g. an assumed `Wrapper<u16>: Foo` and a real
-            // `impl Foo for Wrapper<u32>` both match `Wrapper<_>` - and the match is genuinely
+            // type. When the query is rigid (no unbound type variables in the object type or
+            // ordered generics) and a real impl also matches, it discharges that hypothesis
+            // rather than competing with it: by coherence it is the unique ground truth, so
+            // prefer it over the assumed candidates.
+            //
+            // Otherwise the candidates may bind a variable differently - an assumed
+            // `Wrapper<T>: Foo` and a real `impl Foo for Wrapper<u32>` both match `Wrapper<_>`.
+            // As in Rust, a single assumed candidate wins: the `where` clause is what the
+            // function was written against, so `_` becomes `T`. Several assumed candidates are
             // ambiguous.
             let query_is_rigid = !object_type.contains_unbound_type_variable()
                 && trait_generics.iter().all(|generic| {
@@ -701,7 +706,17 @@ impl NodeInterner {
                 })
                 .collect();
 
+            let assumed_impl_indexes: Vec<usize> = matching_impls
+                .iter()
+                .positions(|(kind, ..)| matches!(kind, TraitImplKind::Assumed { .. }))
+                .collect();
+
             if query_is_rigid && let [index] = real_impl_indexes[..] {
+                let (impl_, fresh_bindings, instantiation_bindings, _) =
+                    matching_impls.swap_remove(index);
+                *type_bindings = fresh_bindings;
+                Ok((impl_, instantiation_bindings))
+            } else if !query_is_rigid && let [index] = assumed_impl_indexes[..] {
                 let (impl_, fresh_bindings, instantiation_bindings, _) =
                     matching_impls.swap_remove(index);
                 *type_bindings = fresh_bindings;
@@ -714,6 +729,30 @@ impl NodeInterner {
                 Err(ImplSearchErrorKind::MultipleMatching(impls))
             }
         }
+    }
+
+    /// Whether `impl_id` applies to `typ` with every constraint of its where clause known to hold.
+    /// A constraint that can't be decided yet (it needs type annotations) doesn't count as holding.
+    pub(crate) fn trait_impl_where_clause_holds(&self, impl_id: TraitImplId, typ: &Type) -> bool {
+        let (impl_type, instantiation_bindings) = {
+            let trait_impl = self.get_trait_implementation(impl_id);
+            let trait_impl = trait_impl.borrow();
+            trait_impl.typ.substitute_type_vars_with_fresh_type_vars(&trait_impl.generics, self)
+        };
+        let mut bindings = TypeBindings::default();
+        if typ.try_unify(&impl_type, &mut bindings).is_err() {
+            return false;
+        }
+        let Some(where_clause) = self.trait_impl_where_clauses.get(&impl_id) else {
+            return true;
+        };
+        self.validate_where_clause(
+            where_clause,
+            &mut bindings,
+            &instantiation_bindings,
+            IMPL_SEARCH_RECURSION_LIMIT,
+        )
+        .is_ok()
     }
 
     /// Verifies that each constraint in the given where clause is valid.

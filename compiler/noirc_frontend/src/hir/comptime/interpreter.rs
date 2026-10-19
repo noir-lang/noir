@@ -72,7 +72,9 @@ use crate::{
         },
         types::Kind,
     },
-    node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, StmtId, TraitItemId},
+    node_interner::{
+        DefinitionId, DefinitionKind, ExprId, FuncId, StmtId, TraitImplKind, TraitItemId,
+    },
 };
 use crate::{TypeVariableId, UnificationError};
 
@@ -889,6 +891,12 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         id: ExprId,
     ) -> Result<(crate::monomorphization::TraitItem, TypeBindings), InterpreterError> {
         self.elaborator.resolve_trait_method_metas_for(item.trait_id);
+        if let Some(TraitImplKind::Normal(impl_id) | TraitImplKind::Prepared(impl_id, _)) =
+            self.elaborator.interner.get_selected_impl_for_expression(id)
+        {
+            let name = self.elaborator.interner.definition_name(item.item_id).to_string();
+            self.elaborator.resolve_trait_impl_associated_type_if_unresolved(impl_id, &name);
+        }
         let resolved =
             resolve_trait_item(self.elaborator.interner, item, id, self.frame.bindings())?;
         // The interpreter runs during elaboration, where solving a trait constraint is supposed

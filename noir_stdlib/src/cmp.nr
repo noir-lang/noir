@@ -2,9 +2,29 @@ use crate::meta::ctstring::AsCtString;
 use crate::meta::derive_via;
 
 /// Compare two values for equality
+///
+/// `Eq` provides the `==` and `!=` operators. It is implemented for `Field`, the integer types,
+/// `bool`, `str`, arrays, vectors and tuples of `Eq` types, and can be derived with
+/// `#[derive(Eq)]`, which compares every field of a struct.
+///
+/// Example:
+///
+/// ```noir
+/// #[derive(Eq)]
+/// struct Point {
+///     x: Field,
+///     y: Field,
+/// }
+///
+/// fn main() {
+///     assert(Point { x: 1, y: 2 } == Point { x: 1, y: 2 });
+///     assert(Point { x: 1, y: 2 } != Point { x: 2, y: 1 });
+/// }
+/// ```
 #[derive_via(derive_eq)]
 // docs:start:eq-trait
 pub trait Eq {
+    /// Returns `true` if `self` and `other` are equal. `a == b` calls `a.eq(b)`.
     fn eq(self, other: Self) -> bool;
 }
 // docs:end:eq-trait
@@ -220,6 +240,16 @@ impl Eq for Ordering {
 // that has 3 public functions for constructing the struct.
 /// A value with three states: `Ordering::less()`, `Ordering::equal()` or `Ordering::greater()`.
 /// Most often used to encode the result of a comparison operation.
+///
+/// Example:
+///
+/// ```noir
+/// use std::cmp::Ordering;
+///
+/// assert_eq(1_u8.cmp(2), Ordering::less());
+/// assert_eq(2_u8.cmp(2), Ordering::equal());
+/// assert_eq(3_u8.cmp(2), Ordering::greater());
+/// ```
 pub struct Ordering {
     result: Field,
 }
@@ -228,14 +258,41 @@ impl Ordering {
     // Implementation note: 0, 1, and 2 for Lt, Eq, and Gt are built
     // into the compiler, do not change these without also updating
     // the compiler itself!
+    /// The result of `a.cmp(b)` when `a < b`.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// use std::cmp::Ordering;
+    ///
+    /// assert_eq(1_u8.cmp(2), Ordering::less());
+    /// ```
     pub fn less() -> Ordering {
         Ordering { result: 0 }
     }
 
+    /// The result of `a.cmp(b)` when `a == b`.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// use std::cmp::Ordering;
+    ///
+    /// assert_eq(2_u8.cmp(2), Ordering::equal());
+    /// ```
     pub fn equal() -> Ordering {
         Ordering { result: 1 }
     }
 
+    /// The result of `a.cmp(b)` when `a > b`.
+    ///
+    /// Example:
+    ///
+    /// ```noir
+    /// use std::cmp::Ordering;
+    ///
+    /// assert_eq(3_u8.cmp(2), Ordering::greater());
+    /// ```
     pub fn greater() -> Ordering {
         Ordering { result: 2 }
     }
@@ -243,9 +300,35 @@ impl Ordering {
 
 /// Compare one object to another, returning whether it is less-than, equal-to,
 /// or greater-than the other object.
+///
+/// `Ord` provides the `<`, `<=`, `>` and `>=` operators. It is implemented for the integer types,
+/// `bool` (`false < true`), and arrays, vectors and tuples of `Ord` types, which compare their
+/// elements in order, lexicographically. Deriving it with `#[derive(Ord)]` compares the fields
+/// of a struct in the order they are declared.
+///
+/// `Field` doesn't implement `Ord`, because field elements have no ordering compatible with
+/// field arithmetic. To compare their integer values, use
+/// [`Field::lt`].
+///
+/// Example:
+///
+/// ```noir
+/// #[derive(Eq, Ord)]
+/// struct Version {
+///     major: u32,
+///     minor: u32,
+/// }
+///
+/// fn main() {
+///     assert(Version { major: 1, minor: 9 } < Version { major: 2, minor: 0 });
+///     assert([1_u8, 2] < [1, 3]);
+///     assert((1_u8, 5_u8) < (2, 0));
+/// }
+/// ```
 #[derive_via(derive_ord)]
 // docs:start:ord-trait
 pub trait Ord {
+    /// Returns how `self` compares to `other`. `a < b` is `a.cmp(b) == Ordering::less()`.
     fn cmp(self, other: Self) -> Ordering;
 }
 // docs:end:ord-trait
@@ -540,13 +623,13 @@ impl<A: Ord, B: Ord, C: Ord, D: Ord, E: Ord, F: Ord, G: Ord, H: Ord, I: Ord, J: 
 ///
 /// Returns the second argument if the comparison determines them to be equal.
 ///
-/// # Examples
+/// Example:
 ///
-/// ```
+/// ```noir
 /// use std::cmp;
 ///
-/// assert_eq(cmp::max(1, 2), 2);
-/// assert_eq(cmp::max(2, 2), 2);
+/// assert_eq(cmp::max(1_u8, 2), 2);
+/// assert_eq(cmp::max(2_u8, 2), 2);
 /// ```
 pub fn max<T>(v1: T, v2: T) -> T
 where
@@ -563,13 +646,13 @@ where
 ///
 /// Returns the first argument if the comparison determines them to be equal.
 ///
-/// # Examples
+/// Example:
 ///
-/// ```
+/// ```noir
 /// use std::cmp;
 ///
-/// assert_eq(cmp::min(1, 2), 1);
-/// assert_eq(cmp::min(2, 2), 2);
+/// assert_eq(cmp::min(1_u8, 2), 1);
+/// assert_eq(cmp::min(2_u8, 2), 2);
 /// ```
 pub fn min<T>(v1: T, v2: T) -> T
 where

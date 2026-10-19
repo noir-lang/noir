@@ -18,12 +18,17 @@ How a block becomes a test:
 - `use` lines are kept at the top of the example's module.
 - If the block declares top-level items (`fn`, `struct`, `impl`, `trait`,
   `global`, attributes, ...) it is placed in the module as written. A
-  `fn main()` without parameters, if present, is called from the test;
+  `fn main()` or `unconstrained fn main()` without parameters, if present, is
+  called from the test (an unconstrained test for an unconstrained `main`);
   otherwise the items are only compiled.
 - Otherwise the block is the body of the test function.
 
 Each example gets its own module, named after its file and line, so examples
 cannot see each other's items and a failing test points at its source.
+
+Setup that many examples share, such as a hasher for `UHashMap`, lives once in
+`scripts/stdlib_doc_example_support.nr`. An example that mentions one of its
+`pub` items without defining it gets that item imported.
 
 The examples run against the standard library embedded in the `nargo` binary,
 so rebuild nargo after editing the stdlib (`cargo build -p nargo_cli`).
@@ -42,6 +47,10 @@ from dataclasses import dataclass
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STDLIB_SRC = os.path.join(REPO_ROOT, "noir_stdlib", "src")
+SUPPORT_FILE = os.path.join(REPO_ROOT, "scripts", "stdlib_doc_example_support.nr")
+# A named item: `fn`, `struct`, `enum`, `trait`, `global` or `type`, with optional modifiers.
+ITEM = r"(?:unconstrained\s+|comptime\s+)*(?:fn|struct|enum|trait|global|type)"
+SUPPORT_ITEM = re.compile(rf"^pub\s+{ITEM}\s+(\w+)", re.MULTILINE)
 
 DOC_LINE = re.compile(r"^\s*//[/!](?: ?)(.*)$")
 FENCE = re.compile(r"^(`{3,})\s*(.*)$")
@@ -105,7 +114,13 @@ def collect_examples():
     return examples
 
 
-def render_example(example):
+def defines(lines, name):
+    """Whether `lines` declare a top-level item called `name`."""
+    pattern = re.compile(rf"^(?:pub(?:\([a-z]+\))?\s+)?{ITEM}\s+{name}\b")
+    return any(pattern.match(line) for line in lines)
+
+
+def render_example(example, support):
     for attribute in example.attributes:
         if attribute not in ("ignore", "should_fail"):
             raise SystemExit(
@@ -115,15 +130,22 @@ def render_example(example):
     uses = [line for line in example.code if line.startswith("use ")]
     rest = [line for line in example.code if not line.startswith("use ")]
     has_items = any(TOP_LEVEL_ITEM.match(line) for line in rest)
-    has_main = any(MAIN_FN.match(line) for line in rest)
+    main_fn = next(filter(None, map(MAIN_FN.match, rest)), None)
+    has_main = main_fn is not None
+    # An unconstrained test can call an unconstrained `main` without an `unsafe` block.
+    test_fn = "unconstrained fn test() {" if main_fn and main_fn.group(1) else "fn test() {"
     test_attribute = "#[test(should_fail)]" if "should_fail" in example.attributes else "#[test]"
 
     out = [f"// {example.path}:{example.line}", f"mod {example.module_name} {{"]
     out += [f"    {line}" for line in uses]
+    for name in support:
+        mentioned = any(re.search(rf"\b{name}\b", line) for line in rest)
+        if mentioned and not defines(rest, name):
+            out.append(f"    use crate::doc_support::{name};")
     if has_items:
         out += [f"    {line}" if line else "" for line in rest]
         out.append(f"    {test_attribute}")
-        out.append("    fn test() {")
+        out.append(f"    {test_fn}")
         if has_main:
             out.append("        main();")
         out.append("    }")
@@ -140,8 +162,16 @@ def write_crate(directory, examples):
     os.makedirs(os.path.join(directory, "src"), exist_ok=True)
     with open(os.path.join(directory, "Nargo.toml"), "w", encoding="utf-8") as f:
         f.write('[package]\nname = "stdlib_doc_examples"\ntype = "lib"\nauthors = [""]\n\n[dependencies]\n')
+    with open(SUPPORT_FILE, encoding="utf-8") as f:
+        support_source = f.read()
+    support = SUPPORT_ITEM.findall(support_source)
+    # Each support item must be shown in full in some doc example, so readers can find it.
+    missing = [name for name in support if not any(defines(e.code, name) for e in examples)]
+    if missing:
+        raise SystemExit(f"support items not defined in any doc example: {', '.join(missing)}")
     with open(os.path.join(directory, "src", "lib.nr"), "w", encoding="utf-8") as f:
-        f.write("\n\n".join(render_example(e) for e in examples) + "\n")
+        f.write("mod doc_support {\n" + support_source + "}\n\n")
+        f.write("\n\n".join(render_example(e, support) for e in examples) + "\n")
 
 
 def main():

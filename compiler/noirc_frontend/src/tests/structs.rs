@@ -440,10 +440,360 @@ fn non_turbofish_qualified_call_with_multiple_inherent_impls_is_ambiguous() {
         fn main() {
             let _ = Foo::tag(Foo { x: 9_u64 });
                          ^^^ Multiple applicable methods named `tag` in scope
-                         ~~~ `tag` is defined in `Foo<i32>`, `Foo<u64>`; use a method call or turbofish to disambiguate
+                         ~~~ `tag` is defined in `Foo<i32>`, `Foo<u64>`; name the impl's generics in a turbofish to pick one
         }
     "#;
     check_errors(src);
+}
+
+#[test]
+fn method_call_on_uninferred_receiver_with_multiple_inherent_impls_is_ambiguous() {
+    let src = r#"
+        struct S<T> { v: T }
+
+        impl S<u8> {
+            pub fn m(_self: Self) -> Field { 8 }
+                   ~ Candidate #1 is defined in an impl for the type `S<u8>`
+        }
+
+        impl S<u16> {
+            pub fn m(_self: Self) -> Field { 16 }
+                   ~ Candidate #2 is defined in an impl for the type `S<u16>`
+        }
+
+        fn main() {
+            let s = S { v: 5 };
+            let _ = s.m();
+                      ^ Multiple applicable methods named `m` in scope
+                      ~ Multiple `m` found
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn method_call_on_uninferred_receiver_with_multiple_inherent_impls_is_ambiguous_in_either_order() {
+    let src = r#"
+        struct S<T> { v: T }
+
+        impl S<u16> {
+            pub fn m(_self: Self) -> Field { 16 }
+                   ~ Candidate #1 is defined in an impl for the type `S<u16>`
+        }
+
+        impl S<u8> {
+            pub fn m(_self: Self) -> Field { 8 }
+                   ~ Candidate #2 is defined in an impl for the type `S<u8>`
+        }
+
+        fn main() {
+            let s = S { v: 5 };
+            let _ = s.m();
+                      ^ Multiple applicable methods named `m` in scope
+                      ~ Multiple `m` found
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn wildcard_turbofish_call_with_multiple_inherent_impls_is_ambiguous() {
+    // Regression test for https://github.com/noir-lang/noir-claude/issues/2750
+    let src = r#"
+        struct S<T> { v: T }
+
+        impl S<u8> {
+            pub fn m(_self: Self) -> Field { 8 }
+        }
+
+        impl S<u16> {
+            pub fn m(_self: Self) -> Field { 16 }
+        }
+
+        fn main() {
+            let s = S { v: 5 };
+            let _ = S::<_>::m(s);
+                            ^ Multiple applicable methods named `m` in scope
+                            ~ `m` is defined in `S<u8>`, `S<u16>`; name the impl's generics in a turbofish to pick one
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn wildcard_turbofish_call_with_multiple_inherent_impls_is_ambiguous_in_either_order() {
+    let src = r#"
+        struct S<T> { v: T }
+
+        impl S<u16> {
+            pub fn m(_self: Self) -> Field { 16 }
+        }
+
+        impl S<u8> {
+            pub fn m(_self: Self) -> Field { 8 }
+        }
+
+        fn main() {
+            let s = S { v: 5 };
+            let _ = S::<_>::m(s);
+                            ^ Multiple applicable methods named `m` in scope
+                            ~ `m` is defined in `S<u16>`, `S<u8>`; name the impl's generics in a turbofish to pick one
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn partial_wildcard_turbofish_call_with_multiple_inherent_impls_is_ambiguous() {
+    let src = r#"
+        struct P<A, B> { a: A, b: B }
+
+        impl P<u8, u8> {
+            pub fn m(_self: Self) -> Field { 8 }
+        }
+
+        impl P<u8, u16> {
+            pub fn m(_self: Self) -> Field { 16 }
+        }
+
+        fn main() {
+            let p = P { a: 1, b: 5 };
+            let _ = P::<u8, _>::m(p);
+                                ^ Multiple applicable methods named `m` in scope
+                                ~ `m` is defined in `P<u8, u8>`, `P<u8, u16>`; name the impl's generics in a turbofish to pick one
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn wildcard_turbofish_constructor_with_multiple_inherent_impls_is_ambiguous() {
+    let src = r#"
+        struct Buf<T, let N: u32> { s: [T; N] }
+
+        impl<let N: u32> Buf<u8, N> {
+            pub fn first(x: u8) -> Self { Buf { s: [x; N] } }
+        }
+
+        impl<let N: u32> Buf<u64, N> {
+            pub fn first(x: u64) -> Self { Buf { s: [x; N] } }
+        }
+
+        fn main() {
+            let _ = Buf::<_, 2>::first(5);
+                                 ^^^^^ Multiple applicable methods named `first` in scope
+                                 ~~~~~ `first` is defined in `Buf<u8, N>`, `Buf<u64, N>`; name the impl's generics in a turbofish to pick one
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn concrete_turbofish_call_with_multiple_inherent_impls_selects_matching_impl() {
+    let src = r#"
+        struct S<T> { v: T }
+
+        impl S<u8> {
+            pub fn m(_self: Self) -> u8 { 8 }
+        }
+
+        impl S<u16> {
+            pub fn m(_self: Self) -> u16 { 16 }
+        }
+
+        fn main() {
+            let s = S { v: 5 };
+            let _: u16 = S::<u16>::m(s);
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn wildcard_turbofish_call_with_single_inherent_impl_infers_receiver() {
+    let src = r#"
+        struct S<T> { v: T }
+
+        impl S<u16> {
+            pub fn m(self) -> u16 { self.v }
+        }
+
+        fn main() {
+            let s = S { v: 5 };
+            let _: u16 = S::<_>::m(s);
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn ambiguous_method_call_on_trait_inferred_receiver_reports_only_the_ambiguity() {
+    let src = r#"
+        trait FromField {
+            fn from_field(f: Field) -> Self;
+        }
+
+        impl FromField for u8 {
+            fn from_field(f: Field) -> u8 { f as u8 }
+        }
+
+        impl FromField for u64 {
+            fn from_field(f: Field) -> u64 { f as u64 }
+        }
+
+        struct Amount<T> { v: T }
+
+        impl Amount<u8> {
+            pub fn is_small(self) -> bool { self.v < 100 }
+                   ~~~~~~~~ Candidate #1 is defined in an impl for the type `Amount<u8>`
+        }
+
+        impl Amount<u64> {
+            pub fn is_small(self) -> bool { self.v < 100 }
+                   ~~~~~~~~ Candidate #2 is defined in an impl for the type `Amount<u64>`
+        }
+
+        fn main(x: Field) {
+            let a = Amount { v: FromField::from_field(x) };
+            assert(a.is_small());
+                     ^^^^^^^^ Multiple applicable methods named `is_small` in scope
+                     ~~~~~~~~ Multiple `is_small` found
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn ambiguous_qualified_call_on_trait_inferred_receiver_reports_only_the_ambiguity() {
+    let src = r#"
+        trait FromField {
+            fn from_field(f: Field) -> Self;
+        }
+
+        impl FromField for u8 {
+            fn from_field(f: Field) -> u8 { f as u8 }
+        }
+
+        impl FromField for u64 {
+            fn from_field(f: Field) -> u64 { f as u64 }
+        }
+
+        struct Amount<T> { v: T }
+
+        impl Amount<u8> {
+            pub fn is_small(self) -> bool { self.v < 100 }
+        }
+
+        impl Amount<u64> {
+            pub fn is_small(self) -> bool { self.v < 100 }
+        }
+
+        fn main(x: Field) {
+            let a = Amount { v: FromField::from_field(x) };
+            assert(Amount::is_small(a));
+                           ^^^^^^^^ Multiple applicable methods named `is_small` in scope
+                           ~~~~~~~~ `is_small` is defined in `Amount<u8>`, `Amount<u64>`; name the impl's generics in a turbofish to pick one
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn ambiguous_wildcard_turbofish_call_on_trait_inferred_receiver_reports_only_the_ambiguity() {
+    let src = r#"
+        trait FromField {
+            fn from_field(f: Field) -> Self;
+        }
+
+        impl FromField for u8 {
+            fn from_field(f: Field) -> u8 { f as u8 }
+        }
+
+        impl FromField for u64 {
+            fn from_field(f: Field) -> u64 { f as u64 }
+        }
+
+        struct Amount<T> { v: T }
+
+        impl Amount<u8> {
+            pub fn is_small(self) -> bool { self.v < 100 }
+        }
+
+        impl Amount<u64> {
+            pub fn is_small(self) -> bool { self.v < 100 }
+        }
+
+        fn main(x: Field) {
+            let a = Amount { v: FromField::from_field(x) };
+            assert(Amount::<_>::is_small(a));
+                                ^^^^^^^^ Multiple applicable methods named `is_small` in scope
+                                ~~~~~~~~ `is_small` is defined in `Amount<u8>`, `Amount<u64>`; name the impl's generics in a turbofish to pick one
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn unresolved_call_on_trait_inferred_argument_reports_only_the_resolution_error() {
+    let src = r#"
+        trait FromField {
+            fn from_field(f: Field) -> Self;
+        }
+
+        impl FromField for u8 {
+            fn from_field(f: Field) -> u8 { f as u8 }
+        }
+
+        impl FromField for u64 {
+            fn from_field(f: Field) -> u64 { f as u64 }
+        }
+
+        fn main(x: Field) {
+            let a = FromField::from_field(x);
+            missing(a);
+            ^^^^^^^ cannot find `missing` in this scope
+            ~~~~~~~ not found in this scope
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn method_call_on_concrete_receiver_with_multiple_inherent_impls_selects_its_impl() {
+    let src = r#"
+        struct S<T> { v: T }
+
+        impl S<u8> {
+            pub fn m(_self: Self) -> Field { 8 }
+        }
+
+        impl S<u16> {
+            pub fn m(_self: Self) -> Field { 16 }
+        }
+
+        fn main() {
+            let _ = S { v: 5_u16 }.m();
+            let _ = S { v: 5_u8 }.m();
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn method_call_on_uninferred_receiver_with_single_inherent_impl_infers_receiver() {
+    let src = r#"
+        struct S<T> { v: T }
+
+        impl S<u8> {
+            pub fn m(self) -> u8 { self.v }
+        }
+
+        fn main() {
+            let s = S { v: 5 };
+            let _: u8 = s.m();
+        }
+    "#;
+    assert_no_errors(src);
 }
 
 #[test]

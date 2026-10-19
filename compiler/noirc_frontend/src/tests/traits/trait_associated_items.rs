@@ -1412,8 +1412,6 @@ fn implied_associated_type_bound_stays_with_the_item_that_implies_it() {
         pub fn implies() where T: Foo<Bar = U> {}
 
         pub fn restates() where U: HasQux, U: HasQux {}
-               ^^^^^^^^ Constraint for `U: HasQux` is not needed, another matching impl is already in scope
-               ~~~~~~~~ Unnecessary trait constraint in where clause
                                               ^^^^^^ Constraint for `U: HasQux` is not needed, another matching impl is already in scope
                                               ~~~~~~ Unnecessary trait constraint in where clause
     }
@@ -2288,10 +2286,11 @@ fn fully_generic_object_projection_uses_assumed_impl() {
     assert_no_errors(src);
 }
 
-/// When the object type still contains an unbound type variable, a real impl and an assumed
-/// impl that bind it differently are genuinely ambiguous: neither discharges the other.
+/// When the object type still contains an unbound type variable, a real impl and an assumed impl
+/// may bind it differently. As in Rust, the single assumed impl is selected, so `_` becomes `T`
+/// and the projection stays `<Wrapper<T> as Foo>::Bar` rather than the real impl's `u8`.
 #[test]
-fn ambiguous_impl_with_unbound_type_variable_still_errors() {
+fn assumed_impl_is_selected_over_real_impl_for_unbound_type_variable() {
     let src = r#"
     trait Foo {
         type Bar;
@@ -2305,7 +2304,35 @@ fn ambiguous_impl_with_unbound_type_variable_still_errors() {
         type Bar = u8;
     }
 
-    pub fn f() where Wrapper<u16>: Foo {
+    pub fn f<T>() where Wrapper<T>: Foo {
+        let _x: <Wrapper<_> as Foo>::Bar = 0;
+                                           ^ Expected type <Wrapper<T> as Foo>::Bar, found type Field
+    }
+
+    fn main() {
+        let _ = Wrapper { val: 1 };
+    }
+    "#;
+    check_errors(src);
+}
+
+/// Two assumed impls that bind an unbound type variable differently are ambiguous.
+#[test]
+fn ambiguous_assumed_impls_with_unbound_type_variable_still_error() {
+    let src = r#"
+    trait Foo {
+        type Bar;
+    }
+
+    struct Wrapper<T> {
+        val: T,
+    }
+
+    impl Foo for Wrapper<u32> {
+        type Bar = u8;
+    }
+
+    pub fn f<T, U>() where Wrapper<T>: Foo, Wrapper<U>: Foo {
         let _x: <Wrapper<_> as Foo>::Bar = 0;
                                ^^^ Multiple trait impls match the object type `Wrapper<_>`
                                ~~~ Ambiguous impl
@@ -3616,6 +3643,8 @@ fn impl_used_before_it_is_finished_needs_its_where_clause() {
                                   ^ No matching impl found for `W: B`
                                   ~ No impl for `W: B`
     impl C for W where W: B { type T = u8; }
+                          ^ No matching impl found for `W: B`
+                          ~ No impl for `W: B`
     fn main() {}
     "#;
     check_errors(src);
@@ -4019,7 +4048,174 @@ fn associated_constant_of_an_impl_declared_later_needs_its_where_clause() {
                                       ^ No matching impl found for `W: B`
                                       ~ No impl for `W: B`
     impl C for W where W: B { let N: u32 = 5; }
+                          ^ No matching impl found for `W: B`
+                          ~ No impl for `W: B`
     fn main() -> pub u32 { <S as C>::N }
     "#;
     check_errors(src);
+}
+
+/// `W: Conv<_>` has two candidates: `Conv<[u8]>`, and `Conv<U>` where `Wb<U>: Baz`. That where
+/// clause can't be decided yet, because the only `Baz` impl has a where clause of its own on the
+/// array's element type. So no impl is chosen until the argument makes `U` an array.
+#[test]
+fn where_clause_undecided_one_level_down_waits_for_the_call_argument() {
+    let src = r#"
+    pub struct Wb<T> { t: T }
+    trait Qux {}
+    impl Qux for u8 {}
+    trait Baz {}
+    impl<V, let N: u32> Baz for Wb<[V; N]> where V: Qux {}
+    trait Conv<U> { fn conv(self, u: U) -> Field; }
+    pub struct W {}
+    impl Conv<[u8]> for W { fn conv(self, _u: [u8]) -> Field { 10 } }
+    impl<U> Conv<U> for W where Wb<U>: Baz { fn conv(self, _u: U) -> Field { 20 } }
+    fn main() -> pub Field {
+        let x: [u8; 3] = [1, 2, 3];
+        W {}.conv(x)
+    }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub Field {
+        let x$l0 = [1, 2, 3];
+        conv$f1({
+            ()
+        }, x$l0)
+    }
+    fn conv$f1(self$l1: (), _u$l2: [u8; 3]) -> Field {
+        20
+    }
+    ");
+}
+
+/// As above, but `Wb<U>: Baz` can't be decided yet because two `Baz` impls match it.
+#[test]
+fn where_clause_with_several_matching_impls_waits_for_the_call_argument() {
+    let src = r#"
+    pub struct Wb<T> { t: T }
+    trait Baz {}
+    impl Baz for Wb<u8> {}
+    impl Baz for Wb<u16> {}
+    trait Conv<U> { fn conv(self, u: U) -> Field; }
+    pub struct W {}
+    impl Conv<u64> for W { fn conv(self, _u: u64) -> Field { 10 } }
+    impl<U> Conv<U> for W where Wb<U>: Baz { fn conv(self, _u: U) -> Field { 20 } }
+    fn main() -> pub Field {
+        let x: u8 = 5;
+        W {}.conv(x)
+    }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub Field {
+        let x$l0 = 5;
+        conv$f1({
+            ()
+        }, x$l0)
+    }
+    fn conv$f1(self$l1: (), _u$l2: u8) -> Field {
+        20
+    }
+    ");
+}
+
+/// An associated constant whose value reads a global that reads another constant of the same
+/// impl. There is no cycle: `N` is `G`, which is `M`, which is `1`.
+#[test]
+fn associated_constant_reads_a_global_that_reads_another_constant_of_the_same_impl() {
+    let src = r#"
+    trait HasN { let N: u32; let M: u32; }
+    struct Foo {}
+    impl HasN for Foo {
+        let N: u32 = G;
+        let M: u32 = 1;
+    }
+    global G: u32 = <Foo as HasN>::M;
+    fn main() -> pub u32 { <Foo as HasN>::N }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u32 {
+        1
+    }
+    ");
+}
+
+/// A real cycle between an associated constant and a global is an error.
+#[test]
+fn associated_constant_and_global_that_read_each_other() {
+    let src = r#"
+    trait HasN { let N: u32; }
+    struct Foo {}
+    impl HasN for Foo { let N: u32 = G; }
+                                     ^ expected type, found global `G`
+    global G: u32 = <Foo as HasN>::N;
+                     ^^^^^^^^^^^ Invalid numeric generic
+                     ~~~~~~~~~~~ Expected a constant, but found `error`
+                     ^^^^^^^^^^^ Global failed to evaluate
+    fn main() -> pub u32 { <Foo as HasN>::N }
+    "#;
+    check_errors(src);
+}
+
+/// Reading one associated constant of an impl doesn't resolve its other constants first:
+/// `Bar::A` reads `Foo::B` while `Foo::A`, through `G`, reads `Bar::A`.
+#[test]
+fn reading_an_associated_constant_resolves_only_that_constant() {
+    let src = r#"
+    trait HasN { let A: u32; let B: u32; }
+    struct Bar {}
+    struct Foo {}
+    impl HasN for Bar { let A: u32 = <Foo as HasN>::B; let B: u32 = 2; }
+    impl HasN for Foo { let A: u32 = G; let B: u32 = 1; }
+    global G: u32 = <Bar as HasN>::A;
+    fn main() -> pub u32 { <Foo as HasN>::A }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u32 {
+        1
+    }
+    ");
+}
+
+/// A global evaluated while `Foo`'s impl is collected calls a method of `Bar`'s impl, which isn't
+/// collected yet, so its methods aren't known.
+#[test]
+fn global_calls_a_method_of_an_impl_declared_later() {
+    let src = r#"
+    trait T { let J: u32; fn f() -> u32; }
+    struct Foo {}
+    struct Bar {}
+    impl T for Foo { let J: u32 = G; fn f() -> u32 { 3 } }
+                                  ^ expected type, found global `G`
+    impl T for Bar { let J: u32 = 1; fn f() -> u32 { 5 } }
+    global G: u32 = <Bar as T>::f();
+                     ^^^^^^^^ Cannot call `f` before its trait impl is defined
+                     ~~~~~~~~ This is evaluated at compile time while trait impls are being defined. Declaring the impl earlier avoids this
+                    ^^^^^^^^^^^^^^^ Global failed to evaluate
+    fn main() -> pub u32 { <Foo as T>::J }
+    "#;
+    check_errors(src);
+}
+
+/// The same program with `Bar`'s impl declared first.
+#[test]
+fn global_calls_a_method_of_an_impl_declared_earlier() {
+    let src = r#"
+    trait T { let J: u32; fn f() -> u32; }
+    struct Foo {}
+    struct Bar {}
+    impl T for Bar { let J: u32 = 1; fn f() -> u32 { 5 } }
+    impl T for Foo { let J: u32 = G; fn f() -> u32 { 3 } }
+    global G: u32 = <Bar as T>::f();
+    fn main() -> pub u32 { <Foo as T>::J }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u32 {
+        5
+    }
+    ");
 }

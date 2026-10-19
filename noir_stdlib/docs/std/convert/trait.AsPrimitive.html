@@ -162,18 +162,35 @@
 }</code></pre>
 
 <div class="comments">
-<p>A generic interface for casting between primitive types,
-equivalent of using the <code>as</code> keyword between values.</p>
-<h2>Example</h2>
-<pre><code><span class="kw">let</span> x: Field = <span class="number">1234567890</span>;
+<p>A generic interface for casting between primitive types, so generic code can cast with
+<code>T: AsPrimitive&lt;U&gt;</code>.</p>
+<p>It is implemented between every pair of <code>bool</code> and integer types, and between <code>Field</code> and
+<code>bool</code> or the unsigned integer types. There is no implementation between <code>Field</code> and the
+signed integer types.</p>
+<p>Casting to a number behaves like <code>as</code>, and never fails:</p>
+<ul>
+<li>Casting to a smaller integer type keeps the low bits, so <code>300 as u8</code> is <code>44</code>.</li>
+<li>Casting between signed and unsigned types of the same size reinterprets the bits, so
+<code>-1_i8 as u8</code> is <code>255</code>.</li>
+<li>Casting a <code>Field</code> to an integer type keeps the low bits of its integer value in <code>0..p</code>.</li>
+</ul>
+<p>Casting to <code>bool</code> is <code>self != 0</code>; <code>as</code> doesn't allow casting a number to <code>bool</code>. Use <a href="../../std/convert/trait.From.html"><code>From</code></a>
+for conversions that can't lose information.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::convert::AsPrimitive;
+
+<span class="kw">let</span> x: Field = <span class="number">1234567890</span>;
 <span class="kw">let</span> y: u8 = x <span class="kw">as</span> u8;
 <span class="kw">let</span> z: u8 = x.as_();
-<span class="kw">assert_eq</span>(y, z);</code></pre></div>
+<span class="kw">assert_eq</span>(y, z);
+
+<span class="kw">let</span> nonzero: bool = <span class="number">5_u8</span>.as_();
+<span class="kw">assert</span>(nonzero);</code></pre></div>
 <h2>Required methods</h2>
 <div class="padded-methods"><code id="as_" class="code-header">pub fn <a href="#as_" class="fn">as_</a>(self) -> T</code>
 
 <div class="padded-description"><div class="comments">
-<p>The equivalent of doing <code>self as T</code>.</p>
+<p>Casts <code>self</code> to <code>T</code>.</p>
 </div>
 </div></div><h2>Implementors</h2>
 <h3 id="impl-AsPrimitive&lt;bool&gt;-for-Field"><code class="code-header">impl <a href="../../std/convert/trait.AsPrimitive.html" class="trait">AsPrimitive</a>&lt;<a href="../../std/primitive.bool.html" class="primitive">bool</a>&gt; for <a href="../../std/primitive.Field.html" class="primitive">Field</a></code></h3>
