@@ -408,6 +408,7 @@ in this vector, along with its index.</p>
 <p>Example:</p>
 <pre><code><span class="kw">let</span> vec: BoundedVec&lt;u32, <span class="number">4</span>&gt; = BoundedVec::from_array([<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>]);
 <span class="kw">let</span> <span class="kw">mut</span> result = BoundedVec::&lt;u32, <span class="number">4</span>&gt;::new();
+<span class="comment">// A closure can't assign to a captured `mut` variable, so it writes through a reference.</span>
 <span class="kw">let</span> result_ref = &<span class="kw">mut</span> result;
 vec.for_each(|value| result_ref.push(value * <span class="number">2</span>));
 
