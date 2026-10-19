@@ -65,7 +65,14 @@
 { <span class="comment">/* private fields */</span> }
 </code></pre>
 <div class="comments">
-<p>An if expression decomposed by <a href="../../../std/primitive.Expr.html#as_if"><code>Expr::as_if</code></a>.</p></div>
+<p>An if expression decomposed by <a href="../../../std/primitive.Expr.html#as_if"><code>Expr::as_if</code></a>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> if_expr = <span class="kw">quote</span> { <span class="kw">if</span> c { a } <span class="kw">else</span> { b } }.as_expr().unwrap().as_if().unwrap();
+    <span class="kw">assert_eq</span>(if_expr.condition().quoted(), <span class="kw">quote</span> { c });
+    <span class="kw">assert_eq</span>(if_expr.consequence().as_block().unwrap()[<span class="number">0</span>].quoted(), <span class="kw">quote</span> { a });
+    <span class="kw">assert</span>(if_expr.alternative().is_some());
+}</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../../../std/meta/expr/struct.IfExpression.html" class="struct">IfExpression</a></code></h3>
 
@@ -73,17 +80,33 @@
 
 <div class="padded-description"><div class="comments">
 <p>The condition controlling the expression.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> if_expr = <span class="kw">quote</span> { <span class="kw">if</span> c { a } }.as_expr().unwrap().as_if().unwrap();
+    <span class="kw">assert_eq</span>(if_expr.condition().quoted(), <span class="kw">quote</span> { c });
+}</code></pre></div>
 </div><code id="consequence" class="code-header">pub comptime fn <a href="#consequence" class="fn">consequence</a>(self) -> <a href="../../../std/primitive.Expr.html" class="primitive">Expr</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>The branch evaluated when the condition is true.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> if_expr = <span class="kw">quote</span> { <span class="kw">if</span> c { a } }.as_expr().unwrap().as_if().unwrap();
+    <span class="kw">assert_eq</span>(if_expr.consequence().as_block().unwrap()[<span class="number">0</span>].quoted(), <span class="kw">quote</span> { a });
+}</code></pre></div>
 </div><code id="alternative" class="code-header">pub comptime fn <a href="#alternative" class="fn">alternative</a>(self) -> <a href="../../../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../../../std/primitive.Expr.html" class="primitive">Expr</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
 <p>The optional branch evaluated when the condition is false.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> if_expr = <span class="kw">quote</span> { <span class="kw">if</span> c { a } }.as_expr().unwrap().as_if().unwrap();
+    <span class="kw">assert</span>(if_expr.alternative().is_none());
+
+    <span class="kw">let</span> if_expr = <span class="kw">quote</span> { <span class="kw">if</span> c { a } <span class="kw">else</span> { b } }.as_expr().unwrap().as_if().unwrap();
+    <span class="kw">let</span> alternative = if_expr.alternative().unwrap();
+    <span class="kw">assert_eq</span>(alternative.as_block().unwrap()[<span class="number">0</span>].quoted(), <span class="kw">quote</span> { b });
+}</code></pre></div>
 </div></div></div>
 </main>
 </span>
