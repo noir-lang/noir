@@ -953,6 +953,9 @@ jobs:
             exit 1
           fi
 
+      - name: Check every public stdlib item is documented
+        run: ./scripts/stdlib_doc_inventory.py --check
+
       - name: Run stdlib doc comment examples
         run: ./scripts/check_stdlib_doc_examples.py --nargo nargo
 
