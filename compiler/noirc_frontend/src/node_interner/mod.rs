@@ -1218,31 +1218,6 @@ impl NodeInterner {
             .unwrap_or_default()
     }
 
-    /// Looks up the methods of impls for all types `T` (`impl<T> Foo for T where T: Bar`) that
-    /// implement one of `trait_ids` for `typ` with their where clause known to hold.
-    ///
-    /// Empty when `typ` is itself a generic: its methods are already looked up among the impls
-    /// for all types `T` (see [`Self::lookup_trait_methods`]).
-    pub(crate) fn lookup_applicable_generic_methods(
-        &self,
-        typ: &Type,
-        method_name: &str,
-        has_self_arg: bool,
-        trait_ids: &[TraitId],
-    ) -> Vec<(FuncId, TraitId, Type)> {
-        if get_type_method_key(typ) == Some(TypeMethodKey::Generic) {
-            return Vec::new();
-        }
-        self.generic_methods(method_name)
-            .map(|methods| {
-                methods.find_trait_methods_where(typ, has_self_arg, self, |method| {
-                    trait_ids.contains(&method.trait_id)
-                        && self.trait_impl_where_clause_holds(method.impl_id, typ)
-                })
-            })
-            .unwrap_or_default()
-    }
-
     /// Tags the given identifier with the selected `trait_impl` so that monomorphization
     /// can later recover which impl was selected, or alternatively see if it needs to
     /// decide which impl to select (because the impl was Assumed).

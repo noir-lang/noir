@@ -144,20 +144,9 @@ impl Methods {
         has_self_param: bool,
         interner: &NodeInterner,
     ) -> Vec<(FuncId, TraitId, Type)> {
-        self.find_trait_methods_where(typ, has_self_param, interner, |_| true)
-    }
-
-    /// Like [`Self::find_trait_methods`], keeping only the methods for which `keep` holds.
-    pub(super) fn find_trait_methods_where(
-        &self,
-        typ: &Type,
-        has_self_param: bool,
-        interner: &NodeInterner,
-        keep: impl Fn(&TraitImplMethod) -> bool,
-    ) -> Vec<(FuncId, TraitId, Type)> {
         let mut results = Vec::new();
 
-        for trait_impl_method in self.trait_impl_methods.iter().filter(|method| keep(method)) {
+        for trait_impl_method in &self.trait_impl_methods {
             let method = trait_impl_method.method;
             let method_type = interner.instantiate_trait_impl_self_type(trait_impl_method.impl_id);
             let trait_id = trait_impl_method.trait_id;
