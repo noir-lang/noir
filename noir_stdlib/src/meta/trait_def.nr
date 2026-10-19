@@ -10,11 +10,11 @@ impl TraitDefinition {
     ///
     /// ```noir
     /// #[check]
-    /// trait Shape {
+    /// pub trait Shape {
     ///     fn area(self) -> u32;
     /// }
     ///
-    /// struct Square {
+    /// pub struct Square {
     ///     side: u32,
     /// }
     ///
@@ -44,7 +44,7 @@ impl TraitDefinition {
     ///
     /// ```noir
     /// #[check]
-    /// trait Shape {
+    /// pub trait Shape {
     ///     fn area(self) -> u32;
     /// }
     ///

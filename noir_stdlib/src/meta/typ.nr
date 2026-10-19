@@ -22,7 +22,7 @@ use crate::option::Option;
 /// Example:
 ///
 /// ```noir
-/// trait Serialize<let N: u32> {}
+/// pub trait Serialize<let N: u32> {}
 ///
 /// impl Serialize<1> for Field {}
 ///
@@ -164,13 +164,11 @@ impl IntegerType {
 /// Example:
 ///
 /// ```noir
-/// struct Pair<T, let N: u32> {
+/// pub struct Pair<T, let N: u32> {
 ///     items: [T; N],
 /// }
 ///
 /// fn main() {
-///     let _ = Pair { items: [1_u8; 2] };
-///
 ///     comptime {
 ///         let pair = quote { Pair<u8, 2> }.as_type().as_data_type().unwrap();
 ///         assert_eq(pair.definition().name(), quote { Pair });
@@ -189,13 +187,11 @@ impl DataType {
     /// Example:
     ///
     /// ```noir
-    /// struct Pair<T, let N: u32> {
+    /// pub struct Pair<T, let N: u32> {
     ///     items: [T; N],
     /// }
     ///
     /// fn main() {
-    ///     let _ = Pair { items: [1_u8; 2] };
-    ///
     ///     comptime {
     ///         let pair = quote { Pair<u8, 2> }.as_type().as_data_type().unwrap();
     ///         assert_eq(pair.definition().name(), quote { Pair });
@@ -211,13 +207,11 @@ impl DataType {
     /// Example:
     ///
     /// ```noir
-    /// struct Pair<T, let N: u32> {
+    /// pub struct Pair<T, let N: u32> {
     ///     items: [T; N],
     /// }
     ///
     /// fn main() {
-    ///     let _ = Pair { items: [1_u8; 2] };
-    ///
     ///     comptime {
     ///         let pair = quote { Pair<u8, 2> }.as_type().as_data_type().unwrap();
     ///         assert_eq(pair.generics(), @[quote { u8 }.as_type(), quote { 2 }.as_type()]);
@@ -230,7 +224,7 @@ impl DataType {
 }
 
 impl Type {
-    /// If this type is an array, return its element and length types.
+    /// If this type is an array, returns its element and length types.
     ///
     /// Example:
     ///
@@ -271,7 +265,7 @@ impl Type {
     pub comptime fn as_constant(self) -> Option<u32> {}
     // docs:end:as_constant
 
-    /// If this is an integer type, return its signedness and bit width.
+    /// If this is an integer type, returns its signedness and bit width.
     ///
     /// Example:
     ///
@@ -294,7 +288,7 @@ impl Type {
     #[builtin(type_as_integer)]
     comptime fn as_integer_raw(self) -> Option<(bool, u8)> {}
 
-    /// If this is a mutable reference type `&mut T`, returns the mutable type `T`.
+    /// If this is a mutable reference type `&mut T`, returns the referenced type `T`.
     ///
     /// Example:
     ///
@@ -311,7 +305,7 @@ impl Type {
     pub comptime fn as_mutable_reference(self) -> Option<Type> {}
     // docs:end:as_mutable_reference
 
-    /// If this is a vector type, return the element type of the vector.
+    /// If this is a vector type, returns the element type of the vector.
     ///
     /// Example:
     ///
@@ -348,13 +342,11 @@ impl Type {
     /// Example:
     ///
     /// ```noir
-    /// struct Pair<T, let N: u32> {
+    /// pub struct Pair<T, let N: u32> {
     ///     items: [T; N],
     /// }
     ///
     /// fn main() {
-    ///     let _ = Pair { items: [1_u8; 2] };
-    ///
     ///     comptime {
     ///         let pair = quote { Pair<bool, 1> }.as_type().as_data_type().unwrap();
     ///         assert_eq(pair.definition().name(), quote { Pair });
@@ -425,7 +417,7 @@ impl Type {
     /// Example:
     ///
     /// ```noir
-    /// fn foo<T>()
+    /// pub fn foo<T>()
     /// where
     ///     T: Default,
     /// {
@@ -498,9 +490,9 @@ impl Type {
 impl Eq for Type {
     /// Compares two types syntactically.
     ///
-    /// This is not the same as whether two types will type check to be the same type. Unless type
-    /// inference or generics are being used however, users should not typically have to worry about
-    /// this distinction.
+    /// This is not the same as whether two types will type check to be the same type. The two can
+    /// differ for types that contain generics or unbound type variables, which compare by how they
+    /// are written.
     #[builtin(type_eq)]
     comptime fn eq(self, other: Self) -> bool {}
 }

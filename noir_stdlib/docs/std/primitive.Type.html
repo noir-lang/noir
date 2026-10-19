@@ -129,7 +129,7 @@
 <div class="padded-methods"><code id="as_array" class="code-header">pub comptime fn <a href="#as_array" class="fn">as_array</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/meta/typ/struct.ArrayType.html" class="struct">ArrayType</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>If this type is an array, return its element and length types.</p>
+<p>If this type is an array, returns its element and length types.</p>
 <p>Example:</p>
 <pre><code><span class="kw">comptime</span> {
     <span class="kw">let</span> array_type = <span class="kw">quote</span> { [Field; <span class="number">3</span>] }.as_type();
@@ -152,7 +152,7 @@
 </div><code id="as_integer" class="code-header">pub comptime fn <a href="#as_integer" class="fn">as_integer</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/meta/typ/struct.IntegerType.html" class="struct">IntegerType</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>If this is an integer type, return its signedness and bit width.</p>
+<p>If this is an integer type, returns its signedness and bit width.</p>
 <p>Example:</p>
 <pre><code><span class="kw">comptime</span> {
     <span class="kw">let</span> integer = <span class="kw">quote</span> { u32 }.as_type().as_integer().unwrap();
@@ -165,7 +165,7 @@
 </div><code id="as_mutable_reference" class="code-header">pub comptime fn <a href="#as_mutable_reference" class="fn">as_mutable_reference</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>If this is a mutable reference type <code>&amp;mut T</code>, returns the mutable type <code>T</code>.</p>
+<p>If this is a mutable reference type <code>&amp;mut T</code>, returns the referenced type <code>T</code>.</p>
 <p>Example:</p>
 <pre><code><span class="kw">comptime</span> {
     <span class="kw">let</span> reference = <span class="kw">quote</span> { &<span class="kw">mut</span> [u8; <span class="number">2</span>] }.as_type();
@@ -176,7 +176,7 @@
 </div><code id="as_vector" class="code-header">pub comptime fn <a href="#as_vector" class="fn">as_vector</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>If this is a vector type, return the element type of the vector.</p>
+<p>If this is a vector type, returns the element type of the vector.</p>
 <p>Example:</p>
 <pre><code><span class="kw">comptime</span> {
     <span class="kw">assert_eq</span>(<span class="kw">quote</span> { [u8] }.as_type().as_vector().unwrap(), <span class="kw">quote</span> { u8 }.as_type());
@@ -198,13 +198,11 @@
 <div class="padded-description"><div class="comments">
 <p>Decomposes a struct or enum type into its <a href="../std/primitive.TypeDefinition.html"><code>TypeDefinition</code></a> and generic arguments.</p>
 <p>Example:</p>
-<pre><code><span class="kw">struct</span> Pair&lt;T, <span class="kw">let</span> N: u32&gt; {
+<pre><code><span class="kw">pub</span> <span class="kw">struct</span> Pair&lt;T, <span class="kw">let</span> N: u32&gt; {
     items: [T; N],
 }
 
 <span class="kw">fn</span> main() {
-    <span class="kw">let</span> _ = Pair { items: [<span class="number">1_u8</span>; <span class="number">2</span>] };
-
     <span class="kw">comptime</span> {
         <span class="kw">let</span> pair = <span class="kw">quote</span> { Pair&lt;bool, <span class="number">1</span>&gt; }.as_type().as_data_type().unwrap();
         <span class="kw">assert_eq</span>(pair.definition().name(), <span class="kw">quote</span> { Pair });
@@ -249,7 +247,7 @@ these cases. If you only want to know whether a type implements a trait, use
 <p>Returns <code>true</code> if this type implements the given trait.</p>
 <p>Unlike <a href="../std/primitive.Type.html#get_trait_impl"><code>Type::get_trait_impl</code></a>, this also returns <code>true</code> for any <code>where</code> constraints in scope.</p>
 <p>Example:</p>
-<pre><code><span class="kw">fn</span> foo&lt;T&gt;()
+<pre><code><span class="kw">pub</span> <span class="kw">fn</span> foo&lt;T&gt;()
 <span class="kw">where</span>
     T: Default,
 {
@@ -301,9 +299,9 @@ these cases. If you only want to know whether a type implements a trait, use
 
 <div class="padded-description"><div class="comments">
 <p>Compares two types syntactically.</p>
-<p>This is not the same as whether two types will type check to be the same type. Unless type
-inference or generics are being used however, users should not typically have to worry about
-this distinction.</p>
+<p>This is not the same as whether two types will type check to be the same type. The two can
+differ for types that contain generics or unbound type variables, which compare by how they
+are written.</p>
 </div>
 </div></div><h3 id="impl-Hash-for-Type"><code class="code-header">impl <a href="../std/hash/trait.Hash.html" class="trait">Hash</a> for <a href="../std/primitive.Type.html" class="primitive">Type</a></code></h3>
 

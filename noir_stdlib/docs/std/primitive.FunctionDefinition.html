@@ -134,7 +134,7 @@ top of a function:</p>
 <p>Splice it into quoted code to refer to the function.</p>
 <p>Example:</p>
 <pre><code>#[check]
-<span class="kw">fn</span> add(x: u32, y: u32) -&gt; u32 {
+<span class="kw">pub</span> <span class="kw">fn</span> add(x: u32, y: u32) -&gt; u32 {
     x + y
 }
 
@@ -152,7 +152,7 @@ fails for a function that was already called at compile time or that comes from 
 crate.</p>
 <p>Example:</p>
 <pre><code>#[check]
-<span class="kw">fn</span> add(x: u32, y: u32) -&gt; u32 {
+<span class="kw">pub</span> <span class="kw">fn</span> add(x: u32, y: u32) -&gt; u32 {
     x + y
 }
 
@@ -178,7 +178,7 @@ every entry point and review the output of <code>nargo expand</code> for depende
 <pre><code><span class="kw">use</span> std::meta::ctstring::AsCtString;
 
 #[replaced_by_new]
-<span class="kw">fn</span> old() {}
+<span class="kw">pub</span> <span class="kw">fn</span> old() {}
 
 <span class="kw">comptime</span> <span class="kw">fn</span> replaced_by_new(f: FunctionDefinition) {
     f.disable(<span class="string">f"</span><span class="string">`old` is disabled, use `new` instead</span><span class="string">"</span>.as_ctstring());
@@ -195,7 +195,7 @@ attribute macros. Use <a href="../std/primitive.FunctionDefinition.html#has_buil
 <pre><code>#[check]
 #['my_tag]
 #[deprecated]
-<span class="kw">fn</span> add(x: u32, y: u32) -&gt; u32 {
+<span class="kw">pub</span> <span class="kw">fn</span> add(x: u32, y: u32) -&gt; u32 {
     x + y
 }
 
@@ -216,7 +216,7 @@ inner vector holds that occurrence's arguments as quoted expressions. Tags such 
 <pre><code>#[check]
 #[route(<span class="number">1</span>)]
 #[route(<span class="number">2</span> + <span class="number">3</span>)]
-<span class="kw">fn</span> add(x: u32, y: u32) -&gt; u32 {
+<span class="kw">pub</span> <span class="kw">fn</span> add(x: u32, y: u32) -&gt; u32 {
     x + y
 }
 
@@ -240,7 +240,7 @@ macros, so a user attribute that shares a built-in's name doesn't match.</p>
 <pre><code>#[check]
 #[deprecated]
 #['my_tag]
-<span class="kw">fn</span> add(x: u32, y: u32) -&gt; u32 {
+<span class="kw">pub</span> <span class="kw">fn</span> add(x: u32, y: u32) -&gt; u32 {
     x + y
 }
 
@@ -255,12 +255,12 @@ macros, so a user attribute that shares a built-in's name doesn't match.</p>
 <p>Returns <code>true</code> if this function is <code>unconstrained</code>.</p>
 <p>Example:</p>
 <pre><code>#[check]
-<span class="kw">unconstrained</span> <span class="kw">fn</span> hint(x: u32) -&gt; u32 {
+<span class="kw">pub</span> <span class="kw">unconstrained</span> <span class="kw">fn</span> hint(x: u32) -&gt; u32 {
     x / <span class="number">2</span>
 }
 
 #[check_add]
-<span class="kw">fn</span> add(x: u32, y: u32) -&gt; u32 {
+<span class="kw">pub</span> <span class="kw">fn</span> add(x: u32, y: u32) -&gt; u32 {
     x + y
 }
 
@@ -279,7 +279,7 @@ macros, so a user attribute that shares a built-in's name doesn't match.</p>
 to report a diagnostic at the function.</p>
 <p>Example:</p>
 <pre><code>#[check]
-<span class="kw">fn</span> add(x: u32, y: u32) -&gt; u32 {
+<span class="kw">pub</span> <span class="kw">fn</span> add(x: u32, y: u32) -&gt; u32 {
     x + y
 }
 
@@ -293,7 +293,7 @@ to report a diagnostic at the function.</p>
 <div class="padded-description"><div class="comments">
 <p>Returns the module this function is defined in.</p>
 <p>Example:</p>
-<pre><code><span class="kw">mod</span> math {
+<pre><code><span class="kw">pub</span> <span class="kw">mod</span> math {
     #[check]
     <span class="kw">pub</span> <span class="kw">fn</span> add(x: u32, y: u32) -&gt; u32 {
         x + y
@@ -309,7 +309,7 @@ to report a diagnostic at the function.</p>
 <p>Returns the name of this function, without its path or generics.</p>
 <p>Example:</p>
 <pre><code>#[check]
-<span class="kw">fn</span> add(x: u32, y: u32) -&gt; u32 {
+<span class="kw">pub</span> <span class="kw">fn</span> add(x: u32, y: u32) -&gt; u32 {
     x + y
 }
 
@@ -319,10 +319,10 @@ to report a diagnostic at the function.</p>
 </div><code id="parameters" class="code-header">pub comptime fn <a href="#parameters" class="fn">parameters</a>(self) -> [<a href="../std/meta/function_def/struct.FunctionParameter.html" class="struct">FunctionParameter</a>]</code>
 
 <div class="padded-description"><div class="comments">
-<p>The parameters this function was declared with, in source order.</p>
+<p>Returns the parameters this function was declared with, in source order.</p>
 <p>Example:</p>
 <pre><code>#[check]
-<span class="kw">fn</span> add(x: u32, y: u32) -&gt; u32 {
+<span class="kw">pub</span> <span class="kw">fn</span> add(x: u32, y: u32) -&gt; u32 {
     x + y
 }
 
@@ -338,12 +338,12 @@ to report a diagnostic at the function.</p>
 <p>Returns the return type of this function. It is the unit type <code>()</code> if it declares none.</p>
 <p>Example:</p>
 <pre><code>#[check]
-<span class="kw">fn</span> add(x: u32, y: u32) -&gt; u32 {
+<span class="kw">pub</span> <span class="kw">fn</span> add(x: u32, y: u32) -&gt; u32 {
     x + y
 }
 
 #[check_log]
-<span class="kw">fn</span> log(x: u32) {
+<span class="kw">pub</span> <span class="kw">fn</span> log(x: u32) {
     println(x);
 }
 
@@ -357,7 +357,7 @@ to report a diagnostic at the function.</p>
 </div><code id="visibility" class="code-header">pub comptime fn <a href="#visibility" class="fn">visibility</a>(self) -> <a href="../std/meta/item_visibility/struct.ItemVisibility.html" class="struct">ItemVisibility</a></code>
 
 <div class="padded-description"><div class="comments">
-<p>The function's visibility.</p>
+<p>Returns the function's visibility.</p>
 <p>Example:</p>
 <pre><code>#[check]
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> add(x: u32, y: u32) -&gt; u32 {

@@ -50,7 +50,7 @@
 <p>It is returned by <a href="../../../std/primitive.TypeDefinition.html#fields"><code>TypeDefinition::fields</code></a> and <a href="../../../std/primitive.TypeDefinition.html#fields_as_written"><code>TypeDefinition::fields_as_written</code></a>.</p>
 <p>Example:</p>
 <pre><code>#[check]
-<span class="kw">struct</span> Pair&lt;T, <span class="kw">let</span> N: u32&gt; {
+<span class="kw">pub</span> <span class="kw">struct</span> Pair&lt;T, <span class="kw">let</span> N: u32&gt; {
     <span class="kw">pub</span> items: [T; N],
     count: u32,
 }
@@ -70,7 +70,7 @@
 <p>The field's declared name, as a <a href="../../../std/primitive.Quoted.html"><code>Quoted</code></a> identifier.</p>
 <p>Example:</p>
 <pre><code>#[check]
-<span class="kw">struct</span> Pair&lt;T, <span class="kw">let</span> N: u32&gt; {
+<span class="kw">pub</span> <span class="kw">struct</span> Pair&lt;T, <span class="kw">let</span> N: u32&gt; {
     <span class="kw">pub</span> items: [T; N],
     count: u32,
 }
@@ -84,7 +84,7 @@
 <p>The field's declared type.</p>
 <p>Example:</p>
 <pre><code>#[check]
-<span class="kw">struct</span> Pair&lt;T, <span class="kw">let</span> N: u32&gt; {
+<span class="kw">pub</span> <span class="kw">struct</span> Pair&lt;T, <span class="kw">let</span> N: u32&gt; {
     <span class="kw">pub</span> items: [T; N],
     count: u32,
 }
@@ -98,7 +98,7 @@
 <p>The field's declared visibility.</p>
 <p>Example:</p>
 <pre><code>#[check]
-<span class="kw">struct</span> Pair&lt;T, <span class="kw">let</span> N: u32&gt; {
+<span class="kw">pub</span> <span class="kw">struct</span> Pair&lt;T, <span class="kw">let</span> N: u32&gt; {
     <span class="kw">pub</span> items: [T; N],
     count: u32,
 }

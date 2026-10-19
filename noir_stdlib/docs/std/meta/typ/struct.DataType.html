@@ -52,13 +52,11 @@
 <p>A struct or enum type decomposed by <a href="../../../std/primitive.Type.html#as_data_type"><code>Type::as_data_type</code></a>.</p>
 <p>It holds the <a href="../../../std/primitive.TypeDefinition.html"><code>TypeDefinition</code></a> and the concrete generic arguments.</p>
 <p>Example:</p>
-<pre><code><span class="kw">struct</span> Pair&lt;T, <span class="kw">let</span> N: u32&gt; {
+<pre><code><span class="kw">pub</span> <span class="kw">struct</span> Pair&lt;T, <span class="kw">let</span> N: u32&gt; {
     items: [T; N],
 }
 
 <span class="kw">fn</span> main() {
-    <span class="kw">let</span> _ = Pair { items: [<span class="number">1_u8</span>; <span class="number">2</span>] };
-
     <span class="kw">comptime</span> {
         <span class="kw">let</span> pair = <span class="kw">quote</span> { Pair&lt;u8, <span class="number">2</span>&gt; }.as_type().as_data_type().unwrap();
         <span class="kw">assert_eq</span>(pair.definition().name(), <span class="kw">quote</span> { Pair });
@@ -73,13 +71,11 @@
 <div class="padded-description"><div class="comments">
 <p>The <a href="../../../std/primitive.TypeDefinition.html"><code>TypeDefinition</code></a> for this type.</p>
 <p>Example:</p>
-<pre><code><span class="kw">struct</span> Pair&lt;T, <span class="kw">let</span> N: u32&gt; {
+<pre><code><span class="kw">pub</span> <span class="kw">struct</span> Pair&lt;T, <span class="kw">let</span> N: u32&gt; {
     items: [T; N],
 }
 
 <span class="kw">fn</span> main() {
-    <span class="kw">let</span> _ = Pair { items: [<span class="number">1_u8</span>; <span class="number">2</span>] };
-
     <span class="kw">comptime</span> {
         <span class="kw">let</span> pair = <span class="kw">quote</span> { Pair&lt;u8, <span class="number">2</span>&gt; }.as_type().as_data_type().unwrap();
         <span class="kw">assert_eq</span>(pair.definition().name(), <span class="kw">quote</span> { Pair });
@@ -90,13 +86,11 @@
 <div class="padded-description"><div class="comments">
 <p>The concrete generic arguments applied to the definition, in source order.</p>
 <p>Example:</p>
-<pre><code><span class="kw">struct</span> Pair&lt;T, <span class="kw">let</span> N: u32&gt; {
+<pre><code><span class="kw">pub</span> <span class="kw">struct</span> Pair&lt;T, <span class="kw">let</span> N: u32&gt; {
     items: [T; N],
 }
 
 <span class="kw">fn</span> main() {
-    <span class="kw">let</span> _ = Pair { items: [<span class="number">1_u8</span>; <span class="number">2</span>] };
-
     <span class="kw">comptime</span> {
         <span class="kw">let</span> pair = <span class="kw">quote</span> { Pair&lt;u8, <span class="number">2</span>&gt; }.as_type().as_data_type().unwrap();
         <span class="kw">assert_eq</span>(pair.generics(), @[<span class="kw">quote</span> { u8 }.as_type(), <span class="kw">quote</span> { <span class="number">2</span> }.as_type()]);

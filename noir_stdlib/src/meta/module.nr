@@ -11,7 +11,7 @@ impl Module {
     /// ```noir
     /// #[check]
     /// #['my_tag]
-    /// mod shapes {}
+    /// pub mod shapes {}
     ///
     /// comptime fn check(shapes: Module) {
     ///     assert(shapes.has_named_attribute("my_tag"));
@@ -35,7 +35,7 @@ impl Module {
     /// ```noir
     /// #[check]
     /// #[version(2)]
-    /// mod shapes {}
+    /// pub mod shapes {}
     ///
     /// comptime fn version(_module: Module, _version: Field) {}
     ///
@@ -50,7 +50,7 @@ impl Module {
     pub comptime fn named_attribute_args<let N: u32>(self, name: str<N>) -> [[Quoted]] {}
     // docs:end:named_attribute_args
 
-    /// Returns `true` if this module has a built-in attribute called `name`.
+    /// Returns `true` if this module has a built-in attribute called `name`, such as `allow`.
     ///
     /// Unlike [`Module::has_named_attribute`], it ignores tags and comptime attribute macros.
     ///
@@ -58,10 +58,12 @@ impl Module {
     ///
     /// ```noir
     /// #[check]
+    /// #[allow(dead_code)]
     /// #['my_tag]
-    /// mod shapes {}
+    /// pub mod shapes {}
     ///
     /// comptime fn check(shapes: Module) {
+    ///     assert(shapes.has_builtin_attribute("allow"));
     ///     assert(!shapes.has_builtin_attribute("my_tag"));
     ///     assert(!shapes.has_builtin_attribute("check"));
     /// }
@@ -77,17 +79,7 @@ impl Module {
     ///
     /// ```noir
     /// #[check]
-    /// mod shapes {
-    ///     pub fn area(width: u32, height: u32) -> u32 {
-    ///         width * height
-    ///     }
-    ///
-    ///     pub struct Square {
-    ///         pub side: u32,
-    ///     }
-    ///
-    ///     pub mod circle {}
-    /// }
+    /// pub mod shapes {}
     ///
     /// comptime fn check(shapes: Module) {
     ///     assert(!shapes.is_contract());
@@ -98,7 +90,8 @@ impl Module {
     pub comptime fn is_contract(self) -> bool {}
     // docs:end:is_contract
 
-    /// Returns the source location of this module's name in its declaration.
+    /// Returns the location of this module: its name for an inline `mod foo { ... }`, or the start
+    /// of its file for `mod foo;`.
     ///
     /// Pass it to [`std::meta::error`](crate::meta::error) or [`std::meta::warn`](crate::meta::warn)
     /// to report a diagnostic at the module.
@@ -107,17 +100,7 @@ impl Module {
     ///
     /// ```noir
     /// #[check]
-    /// mod shapes {
-    ///     pub fn area(width: u32, height: u32) -> u32 {
-    ///         width * height
-    ///     }
-    ///
-    ///     pub struct Square {
-    ///         pub side: u32,
-    ///     }
-    ///
-    ///     pub mod circle {}
-    /// }
+    /// pub mod shapes {}
     ///
     /// comptime fn check(shapes: Module) {
     ///     // Warns "`shapes` is deprecated", pointing at `shapes`.
@@ -136,7 +119,7 @@ impl Module {
     ///
     /// ```noir
     /// #[check]
-    /// mod shapes {
+    /// pub mod shapes {
     ///     pub fn area(width: u32, height: u32) -> u32 {
     ///         width * height
     ///     }
@@ -165,7 +148,7 @@ impl Module {
     ///
     /// ```noir
     /// #[check]
-    /// mod shapes {
+    /// pub mod shapes {
     ///     pub fn area(width: u32, height: u32) -> u32 {
     ///         width * height
     ///     }
@@ -194,7 +177,7 @@ impl Module {
     ///
     /// ```noir
     /// #[check]
-    /// mod shapes {
+    /// pub mod shapes {
     ///     pub fn area(width: u32, height: u32) -> u32 {
     ///         width * height
     ///     }
@@ -225,15 +208,7 @@ impl Module {
     ///
     /// ```noir
     /// #[check]
-    /// mod shapes {
-    ///     pub fn area(width: u32, height: u32) -> u32 {
-    ///         width * height
-    ///     }
-    ///
-    ///     pub struct Square {
-    ///         pub side: u32,
-    ///     }
-    ///
+    /// pub mod shapes {
     ///     pub mod circle {}
     /// }
     ///
@@ -253,15 +228,7 @@ impl Module {
     ///
     /// ```noir
     /// #[check]
-    /// mod shapes {
-    ///     pub fn area(width: u32, height: u32) -> u32 {
-    ///         width * height
-    ///     }
-    ///
-    ///     pub struct Square {
-    ///         pub side: u32,
-    ///     }
-    ///
+    /// pub mod shapes {
     ///     pub mod circle {}
     /// }
     ///

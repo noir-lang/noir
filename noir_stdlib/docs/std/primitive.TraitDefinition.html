@@ -122,11 +122,11 @@
 <p>Generics on the trait are kept as they are, without being instantiated.</p>
 <p>Example:</p>
 <pre><code>#[check]
-<span class="kw">trait</span> Shape {
+<span class="kw">pub</span> <span class="kw">trait</span> Shape {
     <span class="kw">fn</span> area(self) -&gt; u32;
 }
 
-<span class="kw">struct</span> Square {
+<span class="kw">pub</span> <span class="kw">struct</span> Square {
     side: u32,
 }
 
@@ -149,7 +149,7 @@
 to report a diagnostic at the trait.</p>
 <p>Example:</p>
 <pre><code>#[check]
-<span class="kw">trait</span> Shape {
+<span class="kw">pub</span> <span class="kw">trait</span> Shape {
     <span class="kw">fn</span> area(self) -&gt; u32;
 }
 

@@ -6,11 +6,11 @@ impl TraitImpl {
     /// Example:
     ///
     /// ```noir
-    /// trait Convert<T> {
+    /// pub trait Convert<T> {
     ///     fn convert(self) -> T;
     /// }
     ///
-    /// struct Meters {
+    /// pub struct Meters {
     ///     value: u32,
     /// }
     ///
@@ -21,8 +21,6 @@ impl TraitImpl {
     /// }
     ///
     /// fn main() {
-    ///     let _ = Meters { value: 1 }.convert();
-    ///
     ///     comptime {
     ///         let meters = quote { Meters }.as_type();
     ///         let constraint = quote { Convert<Field> }.as_trait_constraint();
@@ -41,11 +39,11 @@ impl TraitImpl {
     /// Example:
     ///
     /// ```noir
-    /// trait Convert<T> {
+    /// pub trait Convert<T> {
     ///     fn convert(self) -> T;
     /// }
     ///
-    /// struct Meters {
+    /// pub struct Meters {
     ///     value: u32,
     /// }
     ///
@@ -56,8 +54,6 @@ impl TraitImpl {
     /// }
     ///
     /// fn main() {
-    ///     let _ = Meters { value: 1 }.convert();
-    ///
     ///     comptime {
     ///         let meters = quote { Meters }.as_type();
     ///         let constraint = quote { Convert<Field> }.as_trait_constraint();

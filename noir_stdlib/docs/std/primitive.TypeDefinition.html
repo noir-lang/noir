@@ -129,28 +129,31 @@
 
 <div class="padded-description"><div class="comments">
 <p>Adds an <code>#[abi(abi_argument)]</code> attribute to this type.</p>
-<p>The attribute exports the type in a contract's ABI under that tag.</p>
+<p>The attribute exports the type in a contract's ABI under that tag, so it only has an effect
+on a type defined inside a <code>contract</code>.</p>
 <p>It fails for a type from another crate.</p>
 <p>Example:</p>
-<pre><code><span class="kw">use</span> std::meta::ctstring::AsCtString;
+<pre><code><span class="kw">contract</span> Token {
+    <span class="kw">use</span> std::meta::ctstring::AsCtString;
 
-#[export_as_event]
-<span class="kw">struct</span> Transfer {
-    amount: u64,
-}
+    #[export_as_event]
+    <span class="kw">pub</span> <span class="kw">struct</span> Transfer {
+        amount: u64,
+    }
 
-<span class="kw">comptime</span> <span class="kw">fn</span> export_as_event(transfer: TypeDefinition) {
-    transfer.add_abi(<span class="string">"events"</span>.as_ctstring());
-    <span class="kw">assert</span>(transfer.has_builtin_attribute(<span class="string">"abi"</span>));
+    <span class="kw">comptime</span> <span class="kw">fn</span> export_as_event(transfer: TypeDefinition) {
+        transfer.add_abi(<span class="string">"events"</span>.as_ctstring());
+        <span class="kw">assert</span>(transfer.has_builtin_attribute(<span class="string">"abi"</span>));
+    }
 }</code></pre></div>
 </div><code id="as_type" class="code-header">pub comptime fn <a href="#as_type" class="fn">as_type</a>(self) -> <a href="../std/primitive.Type.html" class="primitive">Type</a></code>
 
 <div class="padded-description"><div class="comments">
-<p>Return a syntactic version of this type definition as a type.
-For example, <code>type Foo&lt;A, B&gt; { ... })</code> would return <code>Foo&lt;A, B&gt;</code> when called with this method.</p>
+<p>Returns this type definition as a type, with its generics as written: <code>Pair&lt;T, N&gt;</code> for
+<code>struct Pair&lt;T, let N: u32&gt;</code>.</p>
 <p>Example:</p>
 <pre><code>#[check]
-<span class="kw">struct</span> Pair&lt;T, <span class="kw">let</span> N: u32&gt; {
+<span class="kw">pub</span> <span class="kw">struct</span> Pair&lt;T, <span class="kw">let</span> N: u32&gt; {
     <span class="kw">pub</span> items: [T; N],
     count: u32,
 }
@@ -162,14 +165,11 @@ For example, <code>type Foo&lt;A, B&gt; { ... })</code> would return <code>Foo&l
 </div><code id="as_type_with_generics" class="code-header">pub comptime fn <a href="#as_type_with_generics" class="fn">as_type_with_generics</a>(self, generics: [<a href="../std/primitive.Type.html" class="primitive">Type</a>]) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../std/primitive.Type.html" class="primitive">Type</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>Return this type applied to the given generic arguments.
-For example, given <code>type Foo&lt;A, B&gt; { ... })</code> could be applied to <code>[quote[i32].as_type(), quote[Field].as_type()].as_vector()</code>
-to return <code>Foo&lt;i32, Field&gt;</code>.</p>
-<p>If an incorrect number of generic arguments are given, this function will return None.
-Otherwise, this function returns Some with the resulting type inside.</p>
+<p>Returns this type applied to the given generic arguments.</p>
+<p>Returns <code>Option::none()</code> if the number of generic arguments is wrong.</p>
 <p>Example:</p>
 <pre><code>#[check]
-<span class="kw">struct</span> Pair&lt;T, <span class="kw">let</span> N: u32&gt; {
+<span class="kw">pub</span> <span class="kw">struct</span> Pair&lt;T, <span class="kw">let</span> N: u32&gt; {
     <span class="kw">pub</span> items: [T; N],
     count: u32,
 }
@@ -190,7 +190,7 @@ Otherwise, this function returns Some with the resulting type inside.</p>
 <p>Example:</p>
 <pre><code>#[check]
 #['my_tag]
-<span class="kw">struct</span> Point {
+<span class="kw">pub</span> <span class="kw">struct</span> Point {
     x: u32,
 }
 
@@ -209,7 +209,7 @@ inner vector holds that occurrence's arguments as quoted expressions. Tags such 
 <p>Example:</p>
 <pre><code>#[check]
 #[table(<span class="number">1</span>)]
-<span class="kw">struct</span> Point {
+<span class="kw">pub</span> <span class="kw">struct</span> Point {
     x: u32,
 }
 
@@ -223,16 +223,18 @@ inner vector holds that occurrence's arguments as quoted expressions. Tags such 
 </div><code id="has_builtin_attribute" class="code-header">pub comptime fn <a href="#has_builtin_attribute" class="fn">has_builtin_attribute</a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self, name: <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <div class="padded-description"><div class="comments">
-<p>Returns <code>true</code> if this type has a built-in attribute called <code>name</code>, such as <code>abi</code>.</p>
+<p>Returns <code>true</code> if this type has a built-in attribute called <code>name</code>, such as <code>allow</code> or <code>abi</code>.</p>
 <p>Unlike <a href="../std/primitive.TypeDefinition.html#has_named_attribute"><code>TypeDefinition::has_named_attribute</code></a>, it ignores tags and comptime attribute macros.</p>
 <p>Example:</p>
 <pre><code>#[check]
+#[allow(dead_code)]
 #['my_tag]
-<span class="kw">struct</span> Point {
+<span class="kw">pub</span> <span class="kw">struct</span> Point {
     x: u32,
 }
 
 <span class="kw">comptime</span> <span class="kw">fn</span> check(point: TypeDefinition) {
+    <span class="kw">assert</span>(point.has_builtin_attribute(<span class="string">"allow"</span>));
     <span class="kw">assert</span>(!point.has_builtin_attribute(<span class="string">"my_tag"</span>));
     <span class="kw">assert</span>(!point.has_builtin_attribute(<span class="string">"check"</span>));
 }</code></pre></div>
@@ -244,22 +246,23 @@ inner vector holds that occurrence's arguments as quoted expressions. Tags such 
 to report a diagnostic at the type.</p>
 <p>Example:</p>
 <pre><code>#[check]
-<span class="kw">struct</span> Pair&lt;T, <span class="kw">let</span> N: u32&gt; {
+<span class="kw">pub</span> <span class="kw">struct</span> Pair&lt;T, <span class="kw">let</span> N: u32&gt; {
     <span class="kw">pub</span> items: [T; N],
     count: u32,
 }
 
 <span class="kw">comptime</span> <span class="kw">fn</span> check(pair: TypeDefinition) {
-    <span class="comment">// Warns "`count` is unused", pointing at `Pair`.</span>
-    std::meta::warn(<span class="string">f"</span><span class="string">`count` is unused</span><span class="string">"</span>, Option::&lt;fmtstr&lt;<span class="number">0</span>, ()&gt;&gt;::none(), pair.location());
+    <span class="comment">// Warns "`Pair` is deprecated", pointing at `Pair`.</span>
+    <span class="kw">let</span> name = pair.name();
+    std::meta::warn(<span class="string">f"</span><span class="string">`</span><span class="interpolation">{name}</span><span class="string">` is deprecated</span><span class="string">"</span>, Option::&lt;fmtstr&lt;<span class="number">0</span>, ()&gt;&gt;::none(), pair.location());
 }</code></pre></div>
 </div><code id="generics" class="code-header">pub comptime fn <a href="#generics" class="fn">generics</a>(self) -> [<a href="../std/meta/type_def/struct.TypeGeneric.html" class="struct">TypeGeneric</a>]</code>
 
 <div class="padded-description"><div class="comments">
-<p>Return each generic in this type definition.</p>
+<p>Returns each generic in this type definition.</p>
 <p>Example:</p>
 <pre><code>#[check]
-<span class="kw">struct</span> Pair&lt;T, <span class="kw">let</span> N: u32&gt; {
+<span class="kw">pub</span> <span class="kw">struct</span> Pair&lt;T, <span class="kw">let</span> N: u32&gt; {
     <span class="kw">pub</span> items: [T; N],
     count: u32,
 }
@@ -273,10 +276,9 @@ to report a diagnostic at the type.</p>
 
 <div class="padded-description"><div class="comments">
 <p>Returns each field in this type, with its generics replaced by <code>generic_args</code>.</p>
-<p>Any generic types used in each field type are substituted with the provided generic arguments.</p>
 <p>Example:</p>
 <pre><code>#[check]
-<span class="kw">struct</span> Pair&lt;T, <span class="kw">let</span> N: u32&gt; {
+<span class="kw">pub</span> <span class="kw">struct</span> Pair&lt;T, <span class="kw">let</span> N: u32&gt; {
     <span class="kw">pub</span> items: [T; N],
     count: u32,
 }
@@ -290,11 +292,11 @@ to report a diagnostic at the type.</p>
 
 <div class="padded-description"><div class="comments">
 <p>Returns each field in this type, with field types exactly as written.</p>
-<p>Generic arguments are left unchanged. Unless the field types are not needed, users should
-generally prefer to use <a href="../std/primitive.TypeDefinition.html#fields"><code>TypeDefinition::fields</code></a> over this function if possible.</p>
+<p>Field types may mention the type's own generics, such as <code>[T; N]</code>. Use
+<a href="../std/primitive.TypeDefinition.html#fields"><code>TypeDefinition::fields</code></a> when you need concrete types.</p>
 <p>Example:</p>
 <pre><code>#[check]
-<span class="kw">struct</span> Pair&lt;T, <span class="kw">let</span> N: u32&gt; {
+<span class="kw">pub</span> <span class="kw">struct</span> Pair&lt;T, <span class="kw">let</span> N: u32&gt; {
     <span class="kw">pub</span> items: [T; N],
     count: u32,
 }
@@ -308,7 +310,7 @@ generally prefer to use <a href="../std/primitive.TypeDefinition.html#fields"><c
 <div class="padded-description"><div class="comments">
 <p>Returns the module this type is defined in.</p>
 <p>Example:</p>
-<pre><code><span class="kw">mod</span> shapes {
+<pre><code><span class="kw">pub</span> <span class="kw">mod</span> shapes {
     #[check]
     <span class="kw">pub</span> <span class="kw">struct</span> Square {
         <span class="kw">pub</span> side: u32,
@@ -324,7 +326,7 @@ generally prefer to use <a href="../std/primitive.TypeDefinition.html#fields"><c
 <p>Returns the name of this type, without its path or generics.</p>
 <p>Example:</p>
 <pre><code>#[check]
-<span class="kw">struct</span> Pair&lt;T, <span class="kw">let</span> N: u32&gt; {
+<span class="kw">pub</span> <span class="kw">struct</span> Pair&lt;T, <span class="kw">let</span> N: u32&gt; {
     <span class="kw">pub</span> items: [T; N],
     count: u32,
 }

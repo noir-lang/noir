@@ -110,11 +110,11 @@
 <p>Returns the generic arguments of the trait this impl implements.</p>
 <p>For <code>impl Convert&lt;Field&gt; for Meters</code>, that is <code>[Field]</code>.</p>
 <p>Example:</p>
-<pre><code><span class="kw">trait</span> Convert&lt;T&gt; {
+<pre><code><span class="kw">pub</span> <span class="kw">trait</span> Convert&lt;T&gt; {
     <span class="kw">fn</span> convert(self) -&gt; T;
 }
 
-<span class="kw">struct</span> Meters {
+<span class="kw">pub</span> <span class="kw">struct</span> Meters {
     value: u32,
 }
 
@@ -125,8 +125,6 @@
 }
 
 <span class="kw">fn</span> main() {
-    <span class="kw">let</span> _ = Meters { value: <span class="number">1</span> }.convert();
-
     <span class="kw">comptime</span> {
         <span class="kw">let</span> meters = <span class="kw">quote</span> { Meters }.as_type();
         <span class="kw">let</span> constraint = <span class="kw">quote</span> { Convert&lt;Field&gt; }.as_trait_constraint();
@@ -139,11 +137,11 @@
 <div class="padded-description"><div class="comments">
 <p>Returns each method defined in this impl.</p>
 <p>Example:</p>
-<pre><code><span class="kw">trait</span> Convert&lt;T&gt; {
+<pre><code><span class="kw">pub</span> <span class="kw">trait</span> Convert&lt;T&gt; {
     <span class="kw">fn</span> convert(self) -&gt; T;
 }
 
-<span class="kw">struct</span> Meters {
+<span class="kw">pub</span> <span class="kw">struct</span> Meters {
     value: u32,
 }
 
@@ -154,8 +152,6 @@
 }
 
 <span class="kw">fn</span> main() {
-    <span class="kw">let</span> _ = Meters { value: <span class="number">1</span> }.convert();
-
     <span class="kw">comptime</span> {
         <span class="kw">let</span> meters = <span class="kw">quote</span> { Meters }.as_type();
         <span class="kw">let</span> constraint = <span class="kw">quote</span> { Convert&lt;Field&gt; }.as_trait_constraint();

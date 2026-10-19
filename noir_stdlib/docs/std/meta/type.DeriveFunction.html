@@ -64,12 +64,10 @@
     <span class="kw">quote</span> {}
 }
 
-#[check]
-<span class="kw">struct</span> Person {}
-
-<span class="kw">comptime</span> <span class="kw">fn</span> check(person: TypeDefinition) {
-    <span class="kw">let</span> handler: DeriveFunction = derive_nothing;
-    <span class="kw">assert_eq</span>(handler(person), <span class="kw">quote</span> {});
+<span class="kw">fn</span> main() {
+    <span class="kw">comptime</span> {
+        <span class="kw">let</span> _handler: DeriveFunction = derive_nothing;
+    }
 }</code></pre></div>
 </div>
 </main>

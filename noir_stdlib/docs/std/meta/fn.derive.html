@@ -56,12 +56,11 @@
 
 <div class="comments">
 <p>Implements each trait in <code>traits</code> for the type, using the derive functions registered for them.</p>
-<p>Each trait's derive function is registered with <a href="../../std/meta/fn.derive_via.html"><code>derive_via</code></a>. Use it as an attribute:
-<code>#[derive(Eq, Default)]</code>.</p>
+<p>Register derive functions with <a href="../../std/meta/fn.derive_via.html"><code>derive_via</code></a>. Use it as an attribute: <code>#[derive(Eq, Default)]</code>.</p>
 <p>Compilation fails if no derive function is registered for one of the traits.</p>
 <p>Example:</p>
 <pre><code>#[derive(Eq, Default)]
-<span class="kw">struct</span> Point {
+<span class="kw">pub</span> <span class="kw">struct</span> Point {
     x: u32,
     y: u32,
 }

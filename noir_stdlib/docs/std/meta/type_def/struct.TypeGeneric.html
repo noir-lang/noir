@@ -49,7 +49,7 @@
 <p>It is returned by <a href="../../../std/primitive.TypeDefinition.html#generics"><code>TypeDefinition::generics</code></a>.</p>
 <p>Example:</p>
 <pre><code>#[check]
-<span class="kw">struct</span> Pair&lt;T, <span class="kw">let</span> N: u32&gt; {
+<span class="kw">pub</span> <span class="kw">struct</span> Pair&lt;T, <span class="kw">let</span> N: u32&gt; {
     <span class="kw">pub</span> items: [T; N],
     count: u32,
 }
@@ -69,7 +69,7 @@
 <p>It is the generic as written in the definition, such as <code>T</code>, not a concrete type.</p>
 <p>Example:</p>
 <pre><code>#[check]
-<span class="kw">struct</span> Pair&lt;T, <span class="kw">let</span> N: u32&gt; {
+<span class="kw">pub</span> <span class="kw">struct</span> Pair&lt;T, <span class="kw">let</span> N: u32&gt; {
     <span class="kw">pub</span> items: [T; N],
     count: u32,
 }
@@ -81,10 +81,10 @@
 </div><code id="numeric_type" class="code-header">pub comptime fn <a href="#numeric_type" class="fn">numeric_type</a>(self) -> <a href="../../../std/option/struct.Option.html" class="struct">Option</a>&lt;<a href="../../../std/primitive.Type.html" class="primitive">Type</a>&gt;</code>
 
 <div class="padded-description"><div class="comments">
-<p>If this generic is numeric, the numeric type; otherwise <code>None</code>.</p>
+<p>The type of this generic if it is numeric, such as <code>u32</code> in <code>let N: u32</code>.</p>
 <p>Example:</p>
 <pre><code>#[check]
-<span class="kw">struct</span> Pair&lt;T, <span class="kw">let</span> N: u32&gt; {
+<span class="kw">pub</span> <span class="kw">struct</span> Pair&lt;T, <span class="kw">let</span> N: u32&gt; {
     <span class="kw">pub</span> items: [T; N],
     count: u32,
 }

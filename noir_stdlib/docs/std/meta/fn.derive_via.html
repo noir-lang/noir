@@ -60,7 +60,7 @@
 <p>Compilation fails if a derive function is already registered for the trait.</p>
 <p>Example:</p>
 <pre><code>#[derive_via(derive_greet)]
-<span class="kw">trait</span> Greet {
+<span class="kw">pub</span> <span class="kw">trait</span> Greet {
     <span class="kw">fn</span> greet() -&gt; str&lt;<span class="number">5</span>&gt;;
 }
 
@@ -76,7 +76,7 @@
 }
 
 #[derive(Greet)]
-<span class="kw">struct</span> Person {}
+<span class="kw">pub</span> <span class="kw">struct</span> Person {}
 
 <span class="kw">fn</span> main() {
     <span class="kw">assert_eq</span>(Person::greet(), <span class="string">"hello"</span>);

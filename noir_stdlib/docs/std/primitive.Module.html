@@ -141,7 +141,7 @@
 <p>Example:</p>
 <pre><code>#[check]
 #['my_tag]
-<span class="kw">mod</span> shapes {}
+<span class="kw">pub</span> <span class="kw">mod</span> shapes {}
 
 <span class="kw">comptime</span> <span class="kw">fn</span> check(shapes: Module) {
     <span class="kw">assert</span>(shapes.has_named_attribute(<span class="string">"my_tag"</span>));
@@ -158,7 +158,7 @@ inner vector holds that occurrence's arguments as quoted expressions. Tags such 
 <p>Example:</p>
 <pre><code>#[check]
 #[version(<span class="number">2</span>)]
-<span class="kw">mod</span> shapes {}
+<span class="kw">pub</span> <span class="kw">mod</span> shapes {}
 
 <span class="kw">comptime</span> <span class="kw">fn</span> version(_module: Module, _version: Field) {}
 
@@ -170,14 +170,16 @@ inner vector holds that occurrence's arguments as quoted expressions. Tags such 
 </div><code id="has_builtin_attribute" class="code-header">pub comptime fn <a href="#has_builtin_attribute" class="fn">has_builtin_attribute</a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self, name: <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
 <div class="padded-description"><div class="comments">
-<p>Returns <code>true</code> if this module has a built-in attribute called <code>name</code>.</p>
+<p>Returns <code>true</code> if this module has a built-in attribute called <code>name</code>, such as <code>allow</code>.</p>
 <p>Unlike <a href="../std/primitive.Module.html#has_named_attribute"><code>Module::has_named_attribute</code></a>, it ignores tags and comptime attribute macros.</p>
 <p>Example:</p>
 <pre><code>#[check]
+#[allow(dead_code)]
 #['my_tag]
-<span class="kw">mod</span> shapes {}
+<span class="kw">pub</span> <span class="kw">mod</span> shapes {}
 
 <span class="kw">comptime</span> <span class="kw">fn</span> check(shapes: Module) {
+    <span class="kw">assert</span>(shapes.has_builtin_attribute(<span class="string">"allow"</span>));
     <span class="kw">assert</span>(!shapes.has_builtin_attribute(<span class="string">"my_tag"</span>));
     <span class="kw">assert</span>(!shapes.has_builtin_attribute(<span class="string">"check"</span>));
 }</code></pre></div>
@@ -187,17 +189,7 @@ inner vector holds that occurrence's arguments as quoted expressions. Tags such 
 <p>Returns <code>true</code> if this module was declared with <code>contract name { ... }</code> rather than <code>mod</code>.</p>
 <p>Example:</p>
 <pre><code>#[check]
-<span class="kw">mod</span> shapes {
-    <span class="kw">pub</span> <span class="kw">fn</span> area(width: u32, height: u32) -&gt; u32 {
-        width * height
-    }
-
-    <span class="kw">pub</span> <span class="kw">struct</span> Square {
-        <span class="kw">pub</span> side: u32,
-    }
-
-    <span class="kw">pub</span> <span class="kw">mod</span> circle {}
-}
+<span class="kw">pub</span> <span class="kw">mod</span> shapes {}
 
 <span class="kw">comptime</span> <span class="kw">fn</span> check(shapes: Module) {
     <span class="kw">assert</span>(!shapes.is_contract());
@@ -205,22 +197,13 @@ inner vector holds that occurrence's arguments as quoted expressions. Tags such 
 </div><code id="location" class="code-header">pub comptime fn <a href="#location" class="fn">location</a>(self) -> <a href="../std/primitive.Location.html" class="primitive">Location</a></code>
 
 <div class="padded-description"><div class="comments">
-<p>Returns the source location of this module's name in its declaration.</p>
+<p>Returns the location of this module: its name for an inline <code>mod foo { ... }</code>, or the start
+of its file for <code>mod foo;</code>.</p>
 <p>Pass it to <a href="../std/meta/fn.error.html"><code>std::meta::error</code></a> or <a href="../std/meta/fn.warn.html"><code>std::meta::warn</code></a>
 to report a diagnostic at the module.</p>
 <p>Example:</p>
 <pre><code>#[check]
-<span class="kw">mod</span> shapes {
-    <span class="kw">pub</span> <span class="kw">fn</span> area(width: u32, height: u32) -&gt; u32 {
-        width * height
-    }
-
-    <span class="kw">pub</span> <span class="kw">struct</span> Square {
-        <span class="kw">pub</span> side: u32,
-    }
-
-    <span class="kw">pub</span> <span class="kw">mod</span> circle {}
-}
+<span class="kw">pub</span> <span class="kw">mod</span> shapes {}
 
 <span class="kw">comptime</span> <span class="kw">fn</span> check(shapes: Module) {
     <span class="comment">// Warns "`shapes` is deprecated", pointing at `shapes`.</span>
@@ -233,7 +216,7 @@ to report a diagnostic at the module.</p>
 <p>Returns each function defined directly in this module.</p>
 <p>Example:</p>
 <pre><code>#[check]
-<span class="kw">mod</span> shapes {
+<span class="kw">pub</span> <span class="kw">mod</span> shapes {
     <span class="kw">pub</span> <span class="kw">fn</span> area(width: u32, height: u32) -&gt; u32 {
         width * height
     }
@@ -256,7 +239,7 @@ to report a diagnostic at the module.</p>
 <p>Returns each struct defined directly in this module.</p>
 <p>Example:</p>
 <pre><code>#[check]
-<span class="kw">mod</span> shapes {
+<span class="kw">pub</span> <span class="kw">mod</span> shapes {
     <span class="kw">pub</span> <span class="kw">fn</span> area(width: u32, height: u32) -&gt; u32 {
         width * height
     }
@@ -279,7 +262,7 @@ to report a diagnostic at the module.</p>
 <p>Returns each module declared directly inside this module.</p>
 <p>Example:</p>
 <pre><code>#[check]
-<span class="kw">mod</span> shapes {
+<span class="kw">pub</span> <span class="kw">mod</span> shapes {
     <span class="kw">pub</span> <span class="kw">fn</span> area(width: u32, height: u32) -&gt; u32 {
         width * height
     }
@@ -303,15 +286,7 @@ to report a diagnostic at the module.</p>
 <p>A crate's root module has no name, so it returns an empty <code>Quoted</code>.</p>
 <p>Example:</p>
 <pre><code>#[check]
-<span class="kw">mod</span> shapes {
-    <span class="kw">pub</span> <span class="kw">fn</span> area(width: u32, height: u32) -&gt; u32 {
-        width * height
-    }
-
-    <span class="kw">pub</span> <span class="kw">struct</span> Square {
-        <span class="kw">pub</span> side: u32,
-    }
-
+<span class="kw">pub</span> <span class="kw">mod</span> shapes {
     <span class="kw">pub</span> <span class="kw">mod</span> circle {}
 }
 
@@ -325,15 +300,7 @@ to report a diagnostic at the module.</p>
 <p>Returns the module this module is declared in, or <code>Option::none()</code> for a crate's root module.</p>
 <p>Example:</p>
 <pre><code>#[check]
-<span class="kw">mod</span> shapes {
-    <span class="kw">pub</span> <span class="kw">fn</span> area(width: u32, height: u32) -&gt; u32 {
-        width * height
-    }
-
-    <span class="kw">pub</span> <span class="kw">struct</span> Square {
-        <span class="kw">pub</span> side: u32,
-    }
-
+<span class="kw">pub</span> <span class="kw">mod</span> shapes {
     <span class="kw">pub</span> <span class="kw">mod</span> circle {}
 }
 

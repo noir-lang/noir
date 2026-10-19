@@ -17,10 +17,10 @@ How a block becomes a test:
 
 - `use` lines are kept at the top of the example's module.
 - If the block declares top-level items (`fn`, `struct`, `impl`, `trait`,
-  `global`, attributes, ...) it is placed in the module as written. A
-  `fn main()` or `unconstrained fn main()` without parameters, if present, is
-  called from the test (an unconstrained test for an unconstrained `main`);
-  otherwise the items are only compiled.
+  `global`, `mod`, `contract`, attributes, ...) it is placed in the module as
+  written. A `fn main()` or `unconstrained fn main()` without parameters, if
+  present, is called from the test (an unconstrained test for an unconstrained
+  `main`); otherwise the items are only compiled.
 - Otherwise the block is the body of the test function.
 
 Each example gets its own module, named after its file and line, so examples
@@ -56,7 +56,7 @@ DOC_LINE = re.compile(r"^\s*//[/!](?: ?)(.*)$")
 FENCE = re.compile(r"^(`{3,})\s*(.*)$")
 TOP_LEVEL_ITEM = re.compile(
     r"^(pub(\([a-z]+\))?\s+)?(unconstrained\s+|comptime\s+)*"
-    r"(fn|struct|enum|impl|trait|global|mod|type)\b|^#\["
+    r"(fn|struct|enum|impl|trait|global|mod|contract|type)\b|^#\["
 )
 MAIN_FN = re.compile(r"^(unconstrained\s+)?fn\s+main\s*\(\s*\)")
 

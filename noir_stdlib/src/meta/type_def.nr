@@ -9,7 +9,7 @@ use crate::option::Option;
 ///
 /// ```noir
 /// #[check]
-/// struct Pair<T, let N: u32> {
+/// pub struct Pair<T, let N: u32> {
 ///     pub items: [T; N],
 ///     count: u32,
 /// }
@@ -34,7 +34,7 @@ impl TypeGeneric {
     ///
     /// ```noir
     /// #[check]
-    /// struct Pair<T, let N: u32> {
+    /// pub struct Pair<T, let N: u32> {
     ///     pub items: [T; N],
     ///     count: u32,
     /// }
@@ -48,13 +48,13 @@ impl TypeGeneric {
         self.typ
     }
 
-    /// If this generic is numeric, the numeric type; otherwise `None`.
+    /// The type of this generic if it is numeric, such as `u32` in `let N: u32`.
     ///
     /// Example:
     ///
     /// ```noir
     /// #[check]
-    /// struct Pair<T, let N: u32> {
+    /// pub struct Pair<T, let N: u32> {
     ///     pub items: [T; N],
     ///     count: u32,
     /// }
@@ -80,7 +80,7 @@ impl TypeGeneric {
 ///
 /// ```noir
 /// #[check]
-/// struct Pair<T, let N: u32> {
+/// pub struct Pair<T, let N: u32> {
 ///     pub items: [T; N],
 ///     count: u32,
 /// }
@@ -105,7 +105,7 @@ impl StructField {
     ///
     /// ```noir
     /// #[check]
-    /// struct Pair<T, let N: u32> {
+    /// pub struct Pair<T, let N: u32> {
     ///     pub items: [T; N],
     ///     count: u32,
     /// }
@@ -124,7 +124,7 @@ impl StructField {
     ///
     /// ```noir
     /// #[check]
-    /// struct Pair<T, let N: u32> {
+    /// pub struct Pair<T, let N: u32> {
     ///     pub items: [T; N],
     ///     count: u32,
     /// }
@@ -143,7 +143,7 @@ impl StructField {
     ///
     /// ```noir
     /// #[check]
-    /// struct Pair<T, let N: u32> {
+    /// pub struct Pair<T, let N: u32> {
     ///     pub items: [T; N],
     ///     count: u32,
     /// }
@@ -162,23 +162,26 @@ impl StructField {
 impl TypeDefinition {
     /// Adds an `#[abi(abi_argument)]` attribute to this type.
     ///
-    /// The attribute exports the type in a contract's ABI under that tag.
+    /// The attribute exports the type in a contract's ABI under that tag, so it only has an effect
+    /// on a type defined inside a `contract`.
     ///
     /// It fails for a type from another crate.
     ///
     /// Example:
     ///
     /// ```noir
-    /// use std::meta::ctstring::AsCtString;
+    /// contract Token {
+    ///     use std::meta::ctstring::AsCtString;
     ///
-    /// #[export_as_event]
-    /// struct Transfer {
-    ///     amount: u64,
-    /// }
+    ///     #[export_as_event]
+    ///     pub struct Transfer {
+    ///         amount: u64,
+    ///     }
     ///
-    /// comptime fn export_as_event(transfer: TypeDefinition) {
-    ///     transfer.add_abi("events".as_ctstring());
-    ///     assert(transfer.has_builtin_attribute("abi"));
+    ///     comptime fn export_as_event(transfer: TypeDefinition) {
+    ///         transfer.add_abi("events".as_ctstring());
+    ///         assert(transfer.has_builtin_attribute("abi"));
+    ///     }
     /// }
     /// ```
     #[builtin(type_def_add_abi)]
@@ -186,14 +189,14 @@ impl TypeDefinition {
     pub comptime fn add_abi(self, abi_argument: CtString) {}
     // docs:end:add_abi
 
-    /// Return a syntactic version of this type definition as a type.
-    /// For example, `type Foo<A, B> { ... })` would return `Foo<A, B>` when called with this method.
+    /// Returns this type definition as a type, with its generics as written: `Pair<T, N>` for
+    /// `struct Pair<T, let N: u32>`.
     ///
     /// Example:
     ///
     /// ```noir
     /// #[check]
-    /// struct Pair<T, let N: u32> {
+    /// pub struct Pair<T, let N: u32> {
     ///     pub items: [T; N],
     ///     count: u32,
     /// }
@@ -208,18 +211,15 @@ impl TypeDefinition {
     pub comptime fn as_type(self) -> Type {}
     // docs:end:as_type
 
-    /// Return this type applied to the given generic arguments.
-    /// For example, given `type Foo<A, B> { ... })` could be applied to `[quote[i32].as_type(), quote[Field].as_type()].as_vector()`
-    /// to return `Foo<i32, Field>`.
+    /// Returns this type applied to the given generic arguments.
     ///
-    /// If an incorrect number of generic arguments are given, this function will return None.
-    /// Otherwise, this function returns Some with the resulting type inside.
+    /// Returns `Option::none()` if the number of generic arguments is wrong.
     ///
     /// Example:
     ///
     /// ```noir
     /// #[check]
-    /// struct Pair<T, let N: u32> {
+    /// pub struct Pair<T, let N: u32> {
     ///     pub items: [T; N],
     ///     count: u32,
     /// }
@@ -247,7 +247,7 @@ impl TypeDefinition {
     /// ```noir
     /// #[check]
     /// #['my_tag]
-    /// struct Point {
+    /// pub struct Point {
     ///     x: u32,
     /// }
     ///
@@ -273,7 +273,7 @@ impl TypeDefinition {
     /// ```noir
     /// #[check]
     /// #[table(1)]
-    /// struct Point {
+    /// pub struct Point {
     ///     x: u32,
     /// }
     ///
@@ -290,7 +290,7 @@ impl TypeDefinition {
     pub comptime fn named_attribute_args<let N: u32>(self, name: str<N>) -> [[Quoted]] {}
     // docs:end:named_attribute_args
 
-    /// Returns `true` if this type has a built-in attribute called `name`, such as `abi`.
+    /// Returns `true` if this type has a built-in attribute called `name`, such as `allow` or `abi`.
     ///
     /// Unlike [`TypeDefinition::has_named_attribute`], it ignores tags and comptime attribute macros.
     ///
@@ -298,12 +298,14 @@ impl TypeDefinition {
     ///
     /// ```noir
     /// #[check]
+    /// #[allow(dead_code)]
     /// #['my_tag]
-    /// struct Point {
+    /// pub struct Point {
     ///     x: u32,
     /// }
     ///
     /// comptime fn check(point: TypeDefinition) {
+    ///     assert(point.has_builtin_attribute("allow"));
     ///     assert(!point.has_builtin_attribute("my_tag"));
     ///     assert(!point.has_builtin_attribute("check"));
     /// }
@@ -311,6 +313,8 @@ impl TypeDefinition {
     #[builtin(type_def_has_builtin_attribute)]
     // docs:start:has_builtin_attribute
     pub comptime fn has_builtin_attribute<let N: u32>(self, name: str<N>) -> bool {}
+    // docs:end:has_builtin_attribute
+
     /// Returns the source location of this type's name in its definition.
     ///
     /// Pass it to [`std::meta::error`](crate::meta::error) or [`std::meta::warn`](crate::meta::warn)
@@ -320,29 +324,29 @@ impl TypeDefinition {
     ///
     /// ```noir
     /// #[check]
-    /// struct Pair<T, let N: u32> {
+    /// pub struct Pair<T, let N: u32> {
     ///     pub items: [T; N],
     ///     count: u32,
     /// }
     ///
     /// comptime fn check(pair: TypeDefinition) {
-    ///     // Warns "`count` is unused", pointing at `Pair`.
-    ///     std::meta::warn(f"`count` is unused", Option::<fmtstr<0, ()>>::none(), pair.location());
+    ///     // Warns "`Pair` is deprecated", pointing at `Pair`.
+    ///     let name = pair.name();
+    ///     std::meta::warn(f"`{name}` is deprecated", Option::<fmtstr<0, ()>>::none(), pair.location());
     /// }
     /// ```
-    // docs:end:has_builtin_attribute
     #[builtin(type_def_location)]
     // docs:start:location
     pub comptime fn location(self) -> Location {}
     // docs:end:location
 
-    /// Return each generic in this type definition.
+    /// Returns each generic in this type definition.
     ///
     /// Example:
     ///
     /// ```noir
     /// #[check]
-    /// struct Pair<T, let N: u32> {
+    /// pub struct Pair<T, let N: u32> {
     ///     pub items: [T; N],
     ///     count: u32,
     /// }
@@ -366,13 +370,11 @@ impl TypeDefinition {
 
     /// Returns each field in this type, with its generics replaced by `generic_args`.
     ///
-    /// Any generic types used in each field type are substituted with the provided generic arguments.
-    ///
     /// Example:
     ///
     /// ```noir
     /// #[check]
-    /// struct Pair<T, let N: u32> {
+    /// pub struct Pair<T, let N: u32> {
     ///     pub items: [T; N],
     ///     count: u32,
     /// }
@@ -396,14 +398,14 @@ impl TypeDefinition {
 
     /// Returns each field in this type, with field types exactly as written.
     ///
-    /// Generic arguments are left unchanged. Unless the field types are not needed, users should
-    /// generally prefer to use [`TypeDefinition::fields`][Self::fields] over this function if possible.
+    /// Field types may mention the type's own generics, such as `[T; N]`. Use
+    /// [`TypeDefinition::fields`][Self::fields] when you need concrete types.
     ///
     /// Example:
     ///
     /// ```noir
     /// #[check]
-    /// struct Pair<T, let N: u32> {
+    /// pub struct Pair<T, let N: u32> {
     ///     pub items: [T; N],
     ///     count: u32,
     /// }
@@ -429,7 +431,7 @@ impl TypeDefinition {
     /// Example:
     ///
     /// ```noir
-    /// mod shapes {
+    /// pub mod shapes {
     ///     #[check]
     ///     pub struct Square {
     ///         pub side: u32,
@@ -451,7 +453,7 @@ impl TypeDefinition {
     ///
     /// ```noir
     /// #[check]
-    /// struct Pair<T, let N: u32> {
+    /// pub struct Pair<T, let N: u32> {
     ///     pub items: [T; N],
     ///     count: u32,
     /// }

@@ -63,25 +63,20 @@
 
 <div class="comments">
 <p>A helper to make a simple trait impl for a type, usually in a derive function.</p>
-<p>The impl has a couple assumptions:</p>
-<ol>
-<li>The impl only has one function, with the signature <code>function_signature</code></li>
-<li>The trait itself does not have any generics.</li>
-</ol>
-<p>While these assumptions are met, <code>make_trait_impl</code> will create an impl from a TypeDefinition,
+<p>It assumes the trait has one method, with the signature <code>function_signature</code>, and no generics.</p>
+<p>Under these assumptions, <code>make_trait_impl</code> will create an impl from a TypeDefinition,
 automatically filling in the required generics from the type, along with the where clause.
 The function body is created by mapping each field with <code>for_each_field</code> and joining the
 results with <code>join_fields_with</code>. The result of this is passed to the <code>body</code> function for
 any final processing - e.g. wrapping each field in a <code>StructConstructor { .. }</code> expression.</p>
-<p>See <code>derive_eq</code> and <code>derive_default</code> for example usage.</p>
 <p>Example:</p>
-<pre><code><span class="kw">trait</span> IsZero {
+<pre><code><span class="kw">pub</span> <span class="kw">trait</span> IsZero {
     <span class="kw">fn</span> is_zero(self) -&gt; bool;
 }
 
 <span class="comment">// An attribute that returns quoted code adds that code to the program.</span>
 #[derive_is_zero]
-<span class="kw">struct</span> Point {
+<span class="kw">pub</span> <span class="kw">struct</span> Point {
     x: u32,
     y: u32,
 }

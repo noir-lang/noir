@@ -8,7 +8,7 @@ use crate::meta::item_visibility::ItemVisibility;
 ///
 /// ```noir
 /// #[check]
-/// fn add(x: u32, y: u32) -> u32 {
+/// pub fn add(x: u32, y: u32) -> u32 {
 ///     x + y
 /// }
 ///
@@ -30,7 +30,7 @@ impl FunctionParameter {
     ///
     /// ```noir
     /// #[check]
-    /// fn add(x: u32, y: u32) -> u32 {
+    /// pub fn add(x: u32, y: u32) -> u32 {
     ///     x + y
     /// }
     ///
@@ -48,7 +48,7 @@ impl FunctionParameter {
     ///
     /// ```noir
     /// #[check]
-    /// fn add(x: u32, y: u32) -> u32 {
+    /// pub fn add(x: u32, y: u32) -> u32 {
     ///     x + y
     /// }
     ///
@@ -70,7 +70,7 @@ impl FunctionDefinition {
     ///
     /// ```noir
     /// #[check]
-    /// fn add(x: u32, y: u32) -> u32 {
+    /// pub fn add(x: u32, y: u32) -> u32 {
     ///     x + y
     /// }
     ///
@@ -95,7 +95,7 @@ impl FunctionDefinition {
     ///
     /// ```noir
     /// #[check]
-    /// fn add(x: u32, y: u32) -> u32 {
+    /// pub fn add(x: u32, y: u32) -> u32 {
     ///     x + y
     /// }
     ///
@@ -131,7 +131,7 @@ impl FunctionDefinition {
     /// use std::meta::ctstring::AsCtString;
     ///
     /// #[replaced_by_new]
-    /// fn old() {}
+    /// pub fn old() {}
     ///
     /// comptime fn replaced_by_new(f: FunctionDefinition) {
     ///     f.disable(f"`old` is disabled, use `new` instead".as_ctstring());
@@ -155,7 +155,7 @@ impl FunctionDefinition {
     /// #[check]
     /// #['my_tag]
     /// #[deprecated]
-    /// fn add(x: u32, y: u32) -> u32 {
+    /// pub fn add(x: u32, y: u32) -> u32 {
     ///     x + y
     /// }
     ///
@@ -183,7 +183,7 @@ impl FunctionDefinition {
     /// #[check]
     /// #[route(1)]
     /// #[route(2 + 3)]
-    /// fn add(x: u32, y: u32) -> u32 {
+    /// pub fn add(x: u32, y: u32) -> u32 {
     ///     x + y
     /// }
     ///
@@ -214,7 +214,7 @@ impl FunctionDefinition {
     /// #[check]
     /// #[deprecated]
     /// #['my_tag]
-    /// fn add(x: u32, y: u32) -> u32 {
+    /// pub fn add(x: u32, y: u32) -> u32 {
     ///     x + y
     /// }
     ///
@@ -235,12 +235,12 @@ impl FunctionDefinition {
     ///
     /// ```noir
     /// #[check]
-    /// unconstrained fn hint(x: u32) -> u32 {
+    /// pub unconstrained fn hint(x: u32) -> u32 {
     ///     x / 2
     /// }
     ///
     /// #[check_add]
-    /// fn add(x: u32, y: u32) -> u32 {
+    /// pub fn add(x: u32, y: u32) -> u32 {
     ///     x + y
     /// }
     ///
@@ -266,7 +266,7 @@ impl FunctionDefinition {
     ///
     /// ```noir
     /// #[check]
-    /// fn add(x: u32, y: u32) -> u32 {
+    /// pub fn add(x: u32, y: u32) -> u32 {
     ///     x + y
     /// }
     ///
@@ -286,7 +286,7 @@ impl FunctionDefinition {
     /// Example:
     ///
     /// ```noir
-    /// mod math {
+    /// pub mod math {
     ///     #[check]
     ///     pub fn add(x: u32, y: u32) -> u32 {
     ///         x + y
@@ -308,7 +308,7 @@ impl FunctionDefinition {
     ///
     /// ```noir
     /// #[check]
-    /// fn add(x: u32, y: u32) -> u32 {
+    /// pub fn add(x: u32, y: u32) -> u32 {
     ///     x + y
     /// }
     ///
@@ -321,13 +321,13 @@ impl FunctionDefinition {
     pub comptime fn name(self) -> Quoted {}
     // docs:end:name
 
-    /// The parameters this function was declared with, in source order.
+    /// Returns the parameters this function was declared with, in source order.
     ///
     /// Example:
     ///
     /// ```noir
     /// #[check]
-    /// fn add(x: u32, y: u32) -> u32 {
+    /// pub fn add(x: u32, y: u32) -> u32 {
     ///     x + y
     /// }
     ///
@@ -355,12 +355,12 @@ impl FunctionDefinition {
     ///
     /// ```noir
     /// #[check]
-    /// fn add(x: u32, y: u32) -> u32 {
+    /// pub fn add(x: u32, y: u32) -> u32 {
     ///     x + y
     /// }
     ///
     /// #[check_log]
-    /// fn log(x: u32) {
+    /// pub fn log(x: u32) {
     ///     println(x);
     /// }
     ///
@@ -377,7 +377,7 @@ impl FunctionDefinition {
     pub comptime fn return_type(self) -> Type {}
     // docs:end:return_type
 
-    /// The function's visibility.
+    /// Returns the function's visibility.
     ///
     /// Example:
     ///

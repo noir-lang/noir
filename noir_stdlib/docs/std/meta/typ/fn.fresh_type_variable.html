@@ -54,7 +54,7 @@ such as <a href="../../../std/primitive.Type.html#implements"><code>Type::implem
 <p>Note that calling <a href="../../../std/primitive.Type.html#implements"><code>Type::implements</code></a> or <a href="../../../std/primitive.Type.html#get_trait_impl"><code>Type::get_trait_impl</code></a> on a type variable will always
 fail.</p>
 <p>Example:</p>
-<pre><code><span class="kw">trait</span> Serialize&lt;<span class="kw">let</span> N: u32&gt; {}
+<pre><code><span class="kw">pub</span> <span class="kw">trait</span> Serialize&lt;<span class="kw">let</span> N: u32&gt; {}
 
 <span class="kw">impl</span> Serialize&lt;<span class="number">1</span>&gt; <span class="kw">for</span> Field {}
 
