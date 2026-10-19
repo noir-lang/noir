@@ -832,7 +832,9 @@ fn for_loop_inclusive_unknown_range_with_break() {
 /// protects it. The inclusive range lowers the body twice (exclusive iterations plus a final
 /// iteration), so the RC-invariant verifier only accepts the moved argument if no CFG path
 /// leads from the `break` of the exclusive iterations into the final iteration's copy of the call.
+/// The verifier only exists in debug builds.
 #[test]
+#[cfg(debug_assertions)]
 fn for_loop_inclusive_break_after_moving_call_argument_keeps_rc_invariant() {
     let src = "
     unconstrained fn main(a: [Field; 1], n: u32) {
