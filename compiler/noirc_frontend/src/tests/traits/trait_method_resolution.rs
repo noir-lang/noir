@@ -1526,3 +1526,66 @@ fn type_path_call_selects_a_types_own_impl_over_a_blanket_impl_of_another_trait(
     }
     ");
 }
+
+#[test]
+fn type_path_call_selects_a_blanket_impl_when_the_type_has_no_impl_of_its_own() {
+    let src = r#"
+    trait Foo {
+        fn value(self) -> Field;
+    }
+    impl<T> Foo for T {
+        fn value(self) -> Field { 1 }
+    }
+    struct S {}
+    struct G<T> {}
+
+    fn main() -> pub Field {
+        S::value(S {}) + G::<u8>::value(G::<u8> {})
+    }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub Field {
+        (value$f1({
+            ()
+        }) + value$f2({
+            ()
+        }))
+    }
+    fn value$f1(self$l0: ()) -> Field {
+        1
+    }
+    fn value$f2(self$l1: ()) -> Field {
+        1
+    }
+    ");
+}
+
+#[test]
+fn type_path_selects_an_associated_constant_over_a_blanket_impl_method_of_the_same_name() {
+    let src = r#"
+    trait Foo {
+        fn VALUE(self) -> Field;
+    }
+    impl<T> Foo for T {
+        fn VALUE(self) -> Field { 1 }
+    }
+    trait Bar {
+        let VALUE: u32;
+    }
+    struct S {}
+    impl Bar for S {
+        let VALUE: u32 = 5;
+    }
+
+    fn main() -> pub u32 {
+        S::VALUE
+    }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u32 {
+        5
+    }
+    ");
+}
