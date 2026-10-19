@@ -244,9 +244,10 @@ the array, then the second, and so on. For a given call the expected result woul
 
 <div class="padded-description"><div class="comments">
 <p>Returns a new array sorted in ascending order. The original array remains untouched.</p>
-<p>It works for any element type that implements <code>Ord</code> and <code>Eq</code>, using <code>&lt;=</code>. <code>Field</code> doesn't implement
-<code>Ord</code>, so to sort fields, or to sort by another order, use <a href="../std/primitive.array.html#sort_via"><code>Self::sort_via</code></a>. The result
-is constrained in the same way as <code>sort_via</code>'s.</p>
+<p>It works for any element type that implements <code>Ord</code>, using <code>&lt;=</code>. The type must also implement
+<code>Eq</code>, because the result is checked against the input in the same way as <a href="../std/primitive.array.html#sort_via"><code>Self::sort_via</code></a>'s.
+<code>Field</code> doesn't implement <code>Ord</code>, so to sort fields, or to sort by another order, use
+<code>sort_via</code>.</p>
 <p>Example:</p>
 <pre><code><span class="kw">let</span> arr = [<span class="number">42_u32</span>, <span class="number">32</span>];
 <span class="kw">let</span> sorted = arr.sort();
@@ -261,7 +262,6 @@ is constrained in the same way as <code>sort_via</code>'s.</p>
 <p>Returns a new sorted array by sorting it with a custom comparison function.
 The original array remains untouched.
 The ordering function must return true if the first argument should be sorted to be before the second argument or is equal to the second argument.</p>
-<p>In constrained code, using this method with an operator like <code>&lt;</code> that does not return <code>true</code> for equal values will result in an assertion failure for arrays with equal elements.</p>
 <p>The sort itself runs in unconstrained code. In constrained code, the result is then checked
 to be a permutation of the input in which every adjacent pair satisfies <code>ordering</code>, so it is
 fully constrained.</p>

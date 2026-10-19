@@ -61,7 +61,7 @@ If not, it can be ignored.</p>
 <li><code>T::empty().append(x) == x</code></li>
 <li><code>x.append(T::empty()) == x</code></li>
 </ul>
-<p>It is implemented for example for vectors and <code>Quoted</code>. A vector's <code>join</code> method uses it, for example
+<p>Implementations include vectors and <code>Quoted</code>. A vector's <code>join</code> method uses it, for example
 to join <code>Quoted</code> values at comptime.</p>
 <p>Example:</p>
 <pre><code><span class="kw">use</span> std::append::Append;

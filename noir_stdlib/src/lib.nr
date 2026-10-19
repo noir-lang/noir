@@ -125,6 +125,9 @@ pub fn verify_proof_with_type<let N: u32, let M: u32, let K: u32>(
     key_hash: Field,
     proof_type: u32,
 ) {
+    // A constrained caller reached from unconstrained code is compiled as unconstrained. Skipping the
+    // check there lets it report "Cannot call `std::verify_proof_with_type` in unconstrained context"
+    // rather than "Argument is not constant".
     if !crate::runtime::is_unconstrained() {
         crate::assert_constant(proof_type);
     }

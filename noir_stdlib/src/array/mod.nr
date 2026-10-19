@@ -221,9 +221,10 @@ where
 {
     /// Returns a new array sorted in ascending order. The original array remains untouched.
     ///
-    /// It works for any element type that implements `Ord` and `Eq`, using `<=`. `Field` doesn't implement
-    /// `Ord`, so to sort fields, or to sort by another order, use [`Self::sort_via`]. The result
-    /// is constrained in the same way as `sort_via`'s.
+    /// It works for any element type that implements `Ord`, using `<=`. The type must also implement
+    /// `Eq`, because the result is checked against the input in the same way as [`Self::sort_via`]'s.
+    /// `Field` doesn't implement `Ord`, so to sort fields, or to sort by another order, use
+    /// `sort_via`.
     ///
     /// Example:
     ///
@@ -244,8 +245,6 @@ where
     /// Returns a new sorted array by sorting it with a custom comparison function.
     /// The original array remains untouched.
     /// The ordering function must return true if the first argument should be sorted to be before the second argument or is equal to the second argument.
-    ///
-    /// In constrained code, using this method with an operator like `<` that does not return `true` for equal values will result in an assertion failure for arrays with equal elements.
     ///
     /// The sort itself runs in unconstrained code. In constrained code, the result is then checked
     /// to be a permutation of the input in which every adjacent pair satisfies `ordering`, so it is
