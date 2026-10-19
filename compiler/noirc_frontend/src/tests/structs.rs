@@ -692,7 +692,7 @@ fn ambiguous_qualified_call_on_trait_inferred_receiver_reports_only_the_ambiguit
             let a = Amount { v: FromField::from_field(x) };
             assert(Amount::is_small(a));
                            ^^^^^^^^ Multiple applicable methods named `is_small` in scope
-                           ~~~~~~~~ `is_small` is defined in `Amount<u8>`, `Amount<u64>`; use a method call or turbofish to disambiguate
+                           ~~~~~~~~ `is_small` is defined in `Amount<u8>`, `Amount<u64>`; name the impl's generics in a turbofish to pick one
         }
     "#;
     check_errors(src);
@@ -727,7 +727,7 @@ fn ambiguous_wildcard_turbofish_call_on_trait_inferred_receiver_reports_only_the
             let a = Amount { v: FromField::from_field(x) };
             assert(Amount::<_>::is_small(a));
                                 ^^^^^^^^ Multiple applicable methods named `is_small` in scope
-                                ~~~~~~~~ `is_small` is defined in `Amount<u8>`, `Amount<u64>`; use a method call or turbofish to disambiguate
+                                ~~~~~~~~ `is_small` is defined in `Amount<u8>`, `Amount<u64>`; name the impl's generics in a turbofish to pick one
         }
     "#;
     check_errors(src);
