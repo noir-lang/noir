@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792432434894,
+  "lastUpdate": 1792432813479,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -39948,105 +39948,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "4fa2a103e6e8e90d2d2be35b7df23cc009ef2e60",
-          "message": "chore(ssa): share one vector capacity model between the DFG, Remove IfElse and the interpreter (#13943)",
-          "timestamp": "2026-10-14T13:31:27Z",
-          "tree_id": "f04639a74be7672a03e04d2df0b41f23e0475449",
-          "url": "https://github.com/noir-lang/noir/commit/4fa2a103e6e8e90d2d2be35b7df23cc009ef2e60"
-        },
-        "date": 1791986418898,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 824.3,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 909.8,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 669.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-no-txs",
-            "value": 376,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 396.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 494.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 315.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 752.8,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 790.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 497,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 773.3,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 936.3,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 285.7,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 2073.7,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 151.5,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "653434d9f62b68f2e656492821a902531f38438f",
           "message": "fix(acir): a constant-length vector_push_back grows the backing array by the pushed element (#13945)",
@@ -44807,6 +44708,105 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/afefa5eae1c5601403fb8ea309393775c87c53c1"
         },
         "date": 1792431649928,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 863.6,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 940,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 700.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-no-txs",
+            "value": 400.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 420.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 519.6,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 322.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 780.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 818.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 525.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 800,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 961,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 310.3,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 2080.4,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 156.1,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fb34e1e109959ed8f4f4bf2852abaf60db91947e",
+          "message": "chore(driver): free the HIR before code generation in `compile_main` (#13920)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-10-19T17:27:45Z",
+          "tree_id": "39290e038f799733aa67248b7a6ad4605daf8823",
+          "url": "https://github.com/noir-lang/noir/commit/fb34e1e109959ed8f4f4bf2852abaf60db91947e"
+        },
+        "date": 1792432753628,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
