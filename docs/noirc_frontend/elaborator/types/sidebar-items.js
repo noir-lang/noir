@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["SELF_TYPE_NAME"],"enum":["ImplTraitDisallowedContext","TraitPathResolutionMethod","WildcardAllowed","WildcardDisallowedContext"],"mod":["similarly_named_types"],"struct":["TraitPathResolution"]};
+window.SIDEBAR_ITEMS = {"constant":["SELF_TYPE_NAME"],"enum":["ImplTraitDisallowedContext","TraitPathResolutionMethod","WildcardAllowed","WildcardDisallowedContext"],"fn":["bind_unbound_type_variables_to_error"],"mod":["similarly_named_types"],"struct":["TraitPathResolution"]};
