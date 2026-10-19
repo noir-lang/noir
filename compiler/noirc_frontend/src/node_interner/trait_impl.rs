@@ -684,12 +684,15 @@ impl NodeInterner {
             Err(ImplSearchErrorKind::NoMatching(errors))
         } else {
             // An assumed impl is a `where` clause hypothesis that an impl exists for the object
-            // type. When a real impl also matches, it discharges that hypothesis rather than
-            // competing with it: by coherence it is the unique ground truth, so prefer it over
-            // the assumed candidates. This only holds when the query is rigid (no unbound type
-            // variables in the object type or ordered generics). Otherwise the candidates may
-            // bind a variable differently - e.g. an assumed `Wrapper<u16>: Foo` and a real
-            // `impl Foo for Wrapper<u32>` both match `Wrapper<_>` - and the match is genuinely
+            // type. When the query is rigid (no unbound type variables in the object type or
+            // ordered generics) and a real impl also matches, it discharges that hypothesis
+            // rather than competing with it: by coherence it is the unique ground truth, so
+            // prefer it over the assumed candidates.
+            //
+            // Otherwise the candidates may bind a variable differently - an assumed
+            // `Wrapper<T>: Foo` and a real `impl Foo for Wrapper<u32>` both match `Wrapper<_>`.
+            // As in Rust, a single assumed candidate wins: the `where` clause is what the
+            // function was written against, so `_` becomes `T`. Several assumed candidates are
             // ambiguous.
             let query_is_rigid = !object_type.contains_unbound_type_variable()
                 && trait_generics.iter().all(|generic| {
@@ -703,7 +706,17 @@ impl NodeInterner {
                 })
                 .collect();
 
+            let assumed_impl_indexes: Vec<usize> = matching_impls
+                .iter()
+                .positions(|(kind, ..)| matches!(kind, TraitImplKind::Assumed { .. }))
+                .collect();
+
             if query_is_rigid && let [index] = real_impl_indexes[..] {
+                let (impl_, fresh_bindings, instantiation_bindings, _) =
+                    matching_impls.swap_remove(index);
+                *type_bindings = fresh_bindings;
+                Ok((impl_, instantiation_bindings))
+            } else if !query_is_rigid && let [index] = assumed_impl_indexes[..] {
                 let (impl_, fresh_bindings, instantiation_bindings, _) =
                     matching_impls.swap_remove(index);
                 *type_bindings = fresh_bindings;
