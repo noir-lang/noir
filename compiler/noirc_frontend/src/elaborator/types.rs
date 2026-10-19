@@ -1963,7 +1963,8 @@ impl Elaborator<'_> {
     /// non-overlapping inherent impl defines a `method` applicable to `typ` (mirroring Rust's
     /// E0034): the path names more than one function and nothing here disambiguates. Returns the
     /// resolution reporting [PathResolutionError::MultipleApplicableMethods] in that case, so the
-    /// call requires a method call (`value.method(..)`) or a turbofish naming the impl's generics.
+    /// call requires a turbofish naming the impl's generics, or a method call (`value.method(..)`)
+    /// on a receiver whose type is already known.
     fn ambiguous_inherent_method(
         &self,
         typ: &Type,
