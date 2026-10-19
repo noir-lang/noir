@@ -1142,7 +1142,8 @@ impl NodeInterner {
     }
 
     /// Looks up methods of trait impls for the given type's own type (`impl Foo for S`), leaving out
-    /// impls for all types `T` (see [`Self::lookup_generic_methods`]).
+    /// impls for all types `T` (see [`Self::lookup_generic_methods`]). For a generic type (`T`),
+    /// its own impls are exactly the impls for all types `T`.
     ///
     /// The third tuple element is the impl's self type as it was recorded when the impl was
     /// registered (see [`Self::add_method`]). This is the concrete type the impl applies to,
@@ -1183,12 +1184,15 @@ impl NodeInterner {
             .collect()
     }
 
+    /// The methods named `method_name` of impls for all types `T`, e.g. `impl<T> Foo for T`.
+    fn generic_methods(&self, method_name: &str) -> Option<&Methods> {
+        self.methods.get(&TypeMethodKey::Generic).and_then(|h| h.get(method_name))
+    }
+
     /// Same as [`Self::method_candidate_ids`] but for `impl<T>`-style generic
     /// trait impls keyed under `TypeMethodKey::Generic`.
     pub fn generic_method_candidate_ids(&self, method_name: &str) -> Vec<FuncId> {
-        self.methods
-            .get(&TypeMethodKey::Generic)
-            .and_then(|h| h.get(method_name))
+        self.generic_methods(method_name)
             .map(|methods| {
                 methods
                     .direct
@@ -1209,25 +1213,27 @@ impl NodeInterner {
         method_name: &str,
         has_self_arg: bool,
     ) -> Vec<(FuncId, TraitId, Type)> {
-        self.methods
-            .get(&TypeMethodKey::Generic)
-            .and_then(|h| h.get(method_name))
+        self.generic_methods(method_name)
             .map(|methods| methods.find_trait_methods(typ, has_self_arg, self))
             .unwrap_or_default()
     }
 
     /// Looks up the methods of impls for all types `T` (`impl<T> Foo for T where T: Bar`) that
     /// implement one of `trait_ids` for `typ` with their where clause known to hold.
-    pub fn lookup_applicable_generic_methods(
+    ///
+    /// Empty when `typ` is itself a generic: its methods are already looked up among the impls
+    /// for all types `T` (see [`Self::lookup_trait_methods`]).
+    pub(crate) fn lookup_applicable_generic_methods(
         &self,
         typ: &Type,
         method_name: &str,
         has_self_arg: bool,
         trait_ids: &[TraitId],
     ) -> Vec<(FuncId, TraitId, Type)> {
-        self.methods
-            .get(&TypeMethodKey::Generic)
-            .and_then(|h| h.get(method_name))
+        if get_type_method_key(typ) == Some(TypeMethodKey::Generic) {
+            return Vec::new();
+        }
+        self.generic_methods(method_name)
             .map(|methods| {
                 methods.find_trait_methods_where(typ, has_self_arg, self, |method| {
                     trait_ids.contains(&method.trait_id)

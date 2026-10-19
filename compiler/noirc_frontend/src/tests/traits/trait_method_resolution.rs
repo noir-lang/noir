@@ -1306,8 +1306,7 @@ fn inherited_self_default_method_inside_generic_impl_does_not_infer_the_receiver
 }
 
 #[test]
-fn method_call_that_a_blanket_impl_with_a_default_body_also_serves_under_a_where_clause_is_ambiguous()
- {
+fn method_call_that_a_blanket_impl_with_a_default_body_also_serves_is_ambiguous() {
     let src = r#"
     trait Marker {}
     trait Foo {
@@ -1319,15 +1318,10 @@ fn method_call_that_a_blanket_impl_with_a_default_body_also_serves_under_a_where
     struct S<U> { x: U }
     impl<T> Foo for T where T: Marker {}
     impl<U> Foo for S<U> {
-        fn value(self) -> Field {
-            let _ = self.x;
-            2
-        }
+        fn value(self) -> Field { 2 }
     }
 
-    fn value_of<U>(x: U) -> Field where S<U>: Marker {
-       ^^^^^^^^ unused function value_of
-       ~~~~~~~~ unused function
+    pub fn value_of<U>(x: U) -> Field where S<U>: Marker {
         S { x }.value()
         ^^^^^^^^^^^^^ Multiple trait impls match the object type `S<U>`
         ~~~~~~~~~~~~~ Ambiguous impl
@@ -1350,15 +1344,10 @@ fn method_call_that_a_blanket_impl_also_serves_under_a_where_clause_is_ambiguous
         fn value(self) -> Field { 1 }
     }
     impl<U> Foo for S<U> {
-        fn value(self) -> Field {
-            let _ = self.x;
-            2
-        }
+        fn value(self) -> Field { 2 }
     }
 
-    fn value_of<U>(x: U) -> Field where S<U>: Marker {
-       ^^^^^^^^ unused function value_of
-       ~~~~~~~~ unused function
+    pub fn value_of<U>(x: U) -> Field where S<U>: Marker {
         S { x }.value()
         ^^^^^^^^^^^^^ Multiple trait impls match the object type `S<U>`
         ~~~~~~~~~~~~~ Ambiguous impl
@@ -1381,15 +1370,10 @@ fn type_path_call_that_a_blanket_impl_also_serves_under_a_where_clause_is_ambigu
         fn value(self) -> Field { 1 }
     }
     impl<U> Foo for S<U> {
-        fn value(self) -> Field {
-            let _ = self.x;
-            2
-        }
+        fn value(self) -> Field { 2 }
     }
 
-    fn value_of<U>(x: U) -> Field where S<U>: Marker {
-       ^^^^^^^^ unused function value_of
-       ~~~~~~~~ unused function
+    pub fn value_of<U>(x: U) -> Field where S<U>: Marker {
         S::value(S { x })
         ^^^^^^^^ Multiple trait impls match the object type `S<U>`
         ~~~~~~~~ Ambiguous impl
@@ -1412,15 +1396,10 @@ fn turbofish_path_call_that_a_blanket_impl_also_serves_under_a_where_clause_is_a
         fn value(self) -> Field { 1 }
     }
     impl<U> Foo for S<U> {
-        fn value(self) -> Field {
-            let _ = self.x;
-            2
-        }
+        fn value(self) -> Field { 2 }
     }
 
-    fn value_of<U>(x: U) -> Field where S<U>: Marker {
-       ^^^^^^^^ unused function value_of
-       ~~~~~~~~ unused function
+    pub fn value_of<U>(x: U) -> Field where S<U>: Marker {
         S::<U>::value(S { x })
         ^^^^^^^^^^^^^ Multiple trait impls match the object type `S<U>`
         ~~~~~~~~~~~~~ Ambiguous impl
@@ -1470,35 +1449,44 @@ fn method_call_selects_a_types_own_impl_over_a_blanket_impl_with_an_undecided_wh
 }
 
 #[test]
-fn method_call_selects_a_types_own_impl_over_a_blanket_impl_whose_where_clause_fails() {
+fn calls_select_a_types_own_impl_over_a_blanket_impl_whose_where_clause_fails() {
     let src = r#"
     trait Marker {}
     trait Foo {
         fn value(self) -> Field;
     }
     struct S {}
+    struct G<T> {}
     impl<T> Foo for T where T: Marker {
         fn value(self) -> Field { 1 }
     }
     impl Foo for S {
         fn value(self) -> Field { 2 }
     }
+    impl Foo for G<u8> {
+        fn value(self) -> Field { 3 }
+    }
 
     fn main() -> pub Field {
-        S {}.value() + S::value(S {})
+        S {}.value() + S::value(S {}) + G::<u8>::value(G {})
     }
     "#;
     let program = get_monomorphized(src).unwrap();
     insta::assert_snapshot!(program, @r"
     fn main$f0() -> pub Field {
-        (value$f1({
+        ((value$f1({
             ()
         }) + value$f1({
+            ()
+        })) + value$f2({
             ()
         }))
     }
     fn value$f1(self$l0: ()) -> Field {
         2
+    }
+    fn value$f2(self$l1: ()) -> Field {
+        3
     }
     ");
 }

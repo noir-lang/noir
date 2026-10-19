@@ -1702,9 +1702,7 @@ impl Elaborator<'_> {
         method_name: &str,
         has_self_arg: bool,
     ) -> Vec<(FuncId, TraitId, Type)> {
-        for func_id in self.interner.generic_method_candidate_ids(method_name) {
-            self.define_function_meta_if_undefined(func_id);
-        }
+        self.resolve_generic_method_candidate_metas(method_name);
         self.interner.lookup_generic_methods(typ, method_name, has_self_arg)
     }
 
@@ -1725,9 +1723,7 @@ impl Elaborator<'_> {
         if methods.is_empty() {
             return methods;
         }
-        for func_id in self.interner.generic_method_candidate_ids(method_name) {
-            self.define_function_meta_if_undefined(func_id);
-        }
+        self.resolve_generic_method_candidate_metas(method_name);
         let trait_ids = vecmap(&methods, |(_, trait_id, _)| *trait_id);
         methods.extend(self.interner.lookup_applicable_generic_methods(
             typ,
@@ -1736,6 +1732,12 @@ impl Elaborator<'_> {
             &trait_ids,
         ));
         methods
+    }
+
+    fn resolve_generic_method_candidate_metas(&mut self, method_name: &str) {
+        for func_id in self.interner.generic_method_candidate_ids(method_name) {
+            self.define_function_meta_if_undefined(func_id);
+        }
     }
 
     fn resolve_method_candidate_metas(&mut self, typ: &Type, method_name: &str) {
