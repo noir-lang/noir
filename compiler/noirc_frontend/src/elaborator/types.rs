@@ -2611,7 +2611,13 @@ impl Elaborator<'_> {
             Type::Function(parameters, ret, _env, unconstrained) => {
                 self.bind_function_type_impl(parameters, ret, *unconstrained, &args, location)
             }
-            Type::Error => Type::Error,
+            // The callee failed to resolve, so nothing determines the arguments' types.
+            Type::Error => {
+                for (arg, _, _) in &args {
+                    bind_unbound_type_variables_to_error(arg);
+                }
+                Type::Error
+            }
             found => {
                 self.push_err(TypeCheckError::ExpectedFunction { found: found.clone(), location });
                 Type::Error
@@ -3349,17 +3355,8 @@ impl Elaborator<'_> {
                 location: method_ident.location(),
             });
 
-            // The object's type stays unknown, so its type variables are bound to the error type
-            // to avoid follow-on errors (e.g. an integer variable defaulting to `Field` and then
-            // failing a trait constraint that only the intended impl's type satisfies).
-            let mut unbound = Vec::new();
-            object_type.unbound_type_variables(&mut unbound);
-            let mut seen = HashSet::new();
-            for variable in unbound {
-                if seen.insert(variable.id()).is_none() {
-                    variable.bind(Type::Error);
-                }
-            }
+            // The object's type stays unknown.
+            bind_unbound_type_variables_to_error(object_type);
             return None;
         }
 
@@ -4222,5 +4219,22 @@ impl Elaborator<'_> {
         }
 
         fully_qualified_module_path(self.def_maps, self.crate_graph, &self.crate_id, trait_.id.0)
+    }
+}
+
+/// Binds every unbound type variable in `typ` to the error type.
+///
+/// Used once an error has been reported that leaves `typ` undetermined: an unbound variable would
+/// otherwise be defaulted (an integer variable to `Field`, say) or reported as needing an
+/// annotation, and the trait constraints on it would then fail with errors that only follow from
+/// the one already reported.
+fn bind_unbound_type_variables_to_error(typ: &Type) {
+    let mut unbound = Vec::new();
+    typ.unbound_type_variables(&mut unbound);
+    let mut seen = HashSet::new();
+    for variable in unbound {
+        if seen.insert(variable.id()).is_none() {
+            variable.bind(Type::Error);
+        }
     }
 }
