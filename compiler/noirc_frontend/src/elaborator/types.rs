@@ -45,8 +45,8 @@ use crate::{
     },
     modules::{get_ancestor_module_reexport, module_def_id_is_visible},
     node_interner::{
-        DependencyId, ExprId, FuncId, GlobalValue, TraitId, TraitImplId, TraitImplKind,
-        TraitItemId, TraitLookupMode,
+        DependencyId, ExprId, FuncId, GlobalValue, ImplSearchErrorKind, TraitId, TraitImplId,
+        TraitImplKind, TraitItemId, TraitLookupMode,
     },
     shared::Signedness,
 };
@@ -1702,42 +1702,10 @@ impl Elaborator<'_> {
         method_name: &str,
         has_self_arg: bool,
     ) -> Vec<(FuncId, TraitId, Type)> {
-        self.resolve_generic_method_candidate_metas(method_name);
-        self.interner.lookup_generic_methods(typ, method_name, has_self_arg)
-    }
-
-    /// The trait methods of impls for `typ`'s own type (`impl Foo for S`), together with those of
-    /// impls for all types `T` (`impl<T> Foo for T where T: Bar`) of the same traits whose where
-    /// clause is known to hold for `typ`: both impls apply, so neither is preferred.
-    ///
-    /// An impl for all types `T` whose where clause can't be decided yet
-    /// (`impl<T, U> Into<T> for U where T: From<U>` with `T` unknown) is left out, so a type's own
-    /// impl is the one selected. When `typ` has no impl of its own the result is empty.
-    fn lookup_own_and_applicable_generic_methods(
-        &mut self,
-        typ: &Type,
-        method_name: &str,
-        has_self_arg: bool,
-    ) -> Vec<(FuncId, TraitId, Type)> {
-        let mut methods = self.lookup_trait_methods(typ, method_name, has_self_arg);
-        if methods.is_empty() {
-            return methods;
-        }
-        self.resolve_generic_method_candidate_metas(method_name);
-        let trait_ids = vecmap(&methods, |(_, trait_id, _)| *trait_id);
-        methods.extend(self.interner.lookup_applicable_generic_methods(
-            typ,
-            method_name,
-            has_self_arg,
-            &trait_ids,
-        ));
-        methods
-    }
-
-    fn resolve_generic_method_candidate_metas(&mut self, method_name: &str) {
         for func_id in self.interner.generic_method_candidate_ids(method_name) {
             self.define_function_meta_if_undefined(func_id);
         }
+        self.interner.lookup_generic_methods(typ, method_name, has_self_arg)
     }
 
     fn resolve_method_candidate_metas(&mut self, typ: &Type, method_name: &str) {
@@ -1869,8 +1837,7 @@ impl Elaborator<'_> {
         }
 
         let has_self_arg = false;
-        let type_trait_methods =
-            self.lookup_own_and_applicable_generic_methods(typ, method_name, has_self_arg);
+        let type_trait_methods = self.lookup_trait_methods(typ, method_name, has_self_arg);
 
         // If no method matches the turbofish type but the name is a known method for this type
         // (just incompatible), report an error. If the name isn't a method at all (e.g. it's an
@@ -2062,16 +2029,15 @@ impl Elaborator<'_> {
         let method_name = last_segment.ident.as_str();
 
         let has_self_arg = false;
-        let trait_methods = trait_methods.unwrap_or_else(|| {
-            self.lookup_own_and_applicable_generic_methods(typ, method_name, has_self_arg)
-        });
+        let trait_methods = trait_methods
+            .unwrap_or_else(|| self.lookup_trait_methods(typ, method_name, has_self_arg));
 
         if trait_methods.is_empty() {
             return None;
         }
 
         let (hir_method_reference, error) =
-            self.get_trait_method_in_scope(&trait_methods, method_name, last_segment.location);
+            self.get_trait_method_in_scope(typ, &trait_methods, method_name, last_segment.location);
         let Some(hir_method_reference) = hir_method_reference else {
             // The method matches multiple traits (in scope, or none in scope), so there's no single
             // method to resolve to. Report the ambiguity here rather than deferring to module-based
@@ -3403,15 +3369,16 @@ impl Elaborator<'_> {
         }
 
         // Next lookup all matching trait methods.
-        let trait_methods = self.lookup_own_and_applicable_generic_methods(
-            object_type,
-            method_name,
-            check_self_param,
-        );
+        let trait_methods = self.lookup_trait_methods(object_type, method_name, check_self_param);
 
         // If there's at least one matching trait method we need to see if only one is in scope.
         if !trait_methods.is_empty() {
-            return self.return_trait_method_in_scope(&trait_methods, method_name, call_location);
+            return self.return_trait_method_in_scope(
+                object_type,
+                &trait_methods,
+                method_name,
+                call_location,
+            );
         }
 
         // If we couldn't find any trait methods, search in
@@ -3419,7 +3386,12 @@ impl Elaborator<'_> {
         let generic_methods =
             self.lookup_generic_methods(object_type, method_name, check_self_param);
         if !generic_methods.is_empty() {
-            return self.return_trait_method_in_scope(&generic_methods, method_name, call_location);
+            return self.return_trait_method_in_scope(
+                object_type,
+                &generic_methods,
+                method_name,
+                call_location,
+            );
         }
 
         // No trait method applies. Fall back to the inaccessible inherent method (if any) so the
@@ -3444,11 +3416,13 @@ impl Elaborator<'_> {
     #[tracing::instrument(level = "trace", skip_all)]
     fn return_trait_method_in_scope(
         &mut self,
+        object_type: &Type,
         trait_methods: &[(FuncId, TraitId, Type)],
         method_name: &str,
         location: Location,
     ) -> Option<HirMethodReference> {
-        let (method, error) = self.get_trait_method_in_scope(trait_methods, method_name, location);
+        let (method, error) =
+            self.get_trait_method_in_scope(object_type, trait_methods, method_name, location);
         if let Some(error) = error {
             self.push_err(error);
         }
@@ -3458,6 +3432,7 @@ impl Elaborator<'_> {
     #[tracing::instrument(level = "trace", skip_all)]
     fn get_trait_method_in_scope(
         &mut self,
+        object_type: &Type,
         trait_methods: &[(FuncId, TraitId, Type)],
         method_name: &str,
         location: Location,
@@ -3486,8 +3461,13 @@ impl Elaborator<'_> {
                 // This is the backwards-compatible case where there's a single trait but it's not in scope
                 let trait_id = *traits.iter().next().unwrap();
                 let trait_name = self.fully_qualified_trait_path_by_id(trait_id);
-                let method =
-                    self.trait_hir_method_reference(trait_id, trait_methods, method_name, location);
+                let method = self.trait_hir_method_reference(
+                    object_type,
+                    trait_id,
+                    trait_methods,
+                    method_name,
+                    location,
+                );
                 let error = PathResolutionError::TraitMethodNotInScope {
                     ident: Ident::new(method_name.into(), location),
                     trait_name,
@@ -3518,14 +3498,20 @@ impl Elaborator<'_> {
         }
 
         let trait_id = traits_in_scope[0].0;
-        let method =
-            self.trait_hir_method_reference(trait_id, trait_methods, method_name, location);
+        let method = self.trait_hir_method_reference(
+            object_type,
+            trait_id,
+            trait_methods,
+            method_name,
+            location,
+        );
         let error = None;
         (Some(method), error)
     }
 
     fn trait_hir_method_reference(
         &self,
+        object_type: &Type,
         trait_id: TraitId,
         trait_methods: &[(FuncId, TraitId, Type)],
         method_name: &str,
@@ -3537,11 +3523,15 @@ impl Elaborator<'_> {
         // the function meta carries the trait's `Self` type variable, not the impl's concrete type.
         // Fall through to the `TraitItemId` path so the caller can bind `Self` to the resolved
         // self type via the trait constraint.
+        // Exception: if another impl of the trait also applies to `object_type` at the same trait
+        // arguments (an impl for all types `T` whose where clause holds), the call is ambiguous.
+        // Fall through so the impl search reports it.
         if trait_methods.len() == 1
             && self
                 .interner
                 .try_function_meta(&trait_methods[0].0)
                 .is_none_or(|meta| meta.trait_id.is_none())
+            && !self.another_impl_also_applies(object_type, trait_methods[0].0)
         {
             let (func_id, _, _) = &trait_methods[0];
             return HirMethodReference::FuncId(*func_id);
@@ -3566,6 +3556,37 @@ impl Elaborator<'_> {
             trait_generics,
             assumed,
         })
+    }
+
+    /// Whether an impl other than `func_id`'s also implements `func_id`'s trait for `object_type`,
+    /// at the trait arguments `func_id`'s impl implements it at.
+    fn another_impl_also_applies(&self, object_type: &Type, func_id: FuncId) -> bool {
+        let Some(impl_id) = self.interner.function_meta(&func_id).trait_impl else {
+            return false;
+        };
+        let trait_impl = self.interner.get_trait_implementation(impl_id);
+        let trait_impl = trait_impl.borrow();
+        let (impl_type, instantiation_bindings) = trait_impl
+            .typ
+            .substitute_type_vars_with_fresh_type_vars(&trait_impl.generics, self.interner);
+        let mut bindings = TypeBindings::default();
+        if object_type.try_unify(&impl_type, &mut bindings).is_err() {
+            return false;
+        }
+        let trait_generics =
+            vecmap(&self.interner.get_trait_generics_for_impl(impl_id).ordered, |generic| {
+                generic.substitute(&instantiation_bindings).substitute(&bindings)
+            });
+        matches!(
+            self.interner.try_lookup_trait_implementation(
+                object_type,
+                trait_impl.trait_id,
+                &trait_generics,
+                &[],
+                TraitLookupMode::Default,
+            ),
+            Err(ImplSearchErrorKind::MultipleMatching(_))
+        )
     }
 
     /// Assuming that we are currently elaborating a function, try to look up a method in:

@@ -1526,3 +1526,65 @@ fn type_path_call_selects_a_types_own_impl_over_a_blanket_impl_of_another_trait(
     }
     ");
 }
+
+#[test]
+fn method_call_selects_a_types_own_impl_over_a_blanket_impl_at_other_trait_arguments() {
+    let src = r#"
+    struct W { v: Field }
+    trait Scale<X> {
+        fn scale(self, k: X) -> Field;
+    }
+    impl<T> Scale<Field> for T {
+        fn scale(self, k: Field) -> Field { k }
+    }
+    impl Scale<u32> for W {
+        fn scale(self, k: u32) -> Field { self.v * (k as Field) }
+    }
+
+    fn main(x: Field) -> pub Field {
+        let w = W { v: x };
+        w.scale(5)
+    }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0(x$l0: Field) -> pub Field {
+        let w$l2 = {
+            let v$l1 = x$l0;
+            (v$l1)
+        };
+        scale$f1(w$l2, 5)
+    }
+    fn scale$f1(self$l3: (Field,), k$l4: u32) -> Field {
+        (self$l3.0 * (k$l4 as Field))
+    }
+    ");
+}
+
+#[test]
+fn type_path_call_selects_a_types_own_impl_over_an_identity_blanket_impl() {
+    let src = r#"
+    trait Conv<X> {
+        fn conv(x: X) -> Self;
+    }
+    impl<T> Conv<T> for T {
+        fn conv(x: T) -> T { x }
+    }
+    impl Conv<u8> for u64 {
+        fn conv(x: u8) -> u64 { x as u64 + 100 }
+    }
+
+    fn main() -> pub u64 {
+        u64::conv(3)
+    }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u64 {
+        conv$f1(3)
+    }
+    fn conv$f1(x$l0: u8) -> u64 {
+        ((x$l0 as u64) + 100)
+    }
+    ");
+}
