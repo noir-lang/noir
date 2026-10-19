@@ -658,7 +658,7 @@ impl Elaborator<'_> {
             let (typ, bound) = (&constraint.typ, &constraint.trait_bound);
             seen.insert_root(typ, bound);
             let written = true;
-            self.add_trait_bound_to_scope_inner(location, typ, bound, written, &mut seen);
+            self.add_trait_bound_to_scope_inner(bound.location, typ, bound, written, &mut seen);
         }
 
         // Also assume `self` implements the current trait if we are inside a trait definition
@@ -1096,7 +1096,11 @@ impl Elaborator<'_> {
         match self.interner.add_assumed_trait_implementation(object.clone(), trait_id, generics) {
             Ok(true) => (),
             Ok(false) if !written => (),
+            // The same bound is added to scope more than once (see
+            // `ElaborationSession::reported_unneeded_trait_constraints`), but is reported once.
+            Ok(false) if self.session.reported_unneeded_trait_constraints.contains(&location) => (),
             Ok(false) => {
+                self.session.reported_unneeded_trait_constraints.insert(location);
                 if let Some(the_trait) = self.interner.try_get_trait(trait_id) {
                     let trait_name = the_trait.name.to_string();
                     let typ = object.clone();

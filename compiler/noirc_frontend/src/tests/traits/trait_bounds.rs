@@ -1,7 +1,11 @@
 //! Tests for trait bound checking and where clause validation.
 //! Validates that trait bounds are satisfied and constraints on associated types are correctly checked.
 
-use crate::tests::{UnstableFeature, assert_no_errors, check_errors, get_program_using_features};
+use crate::hir::def_collector::dc_crate::CompilationError;
+use crate::hir::type_check::TypeCheckError;
+use crate::tests::{
+    UnstableFeature, assert_no_errors, check_errors, get_program_errors, get_program_using_features,
+};
 
 #[test]
 fn trait_impl_for_a_type_that_implements_another_trait() {
@@ -1576,7 +1580,7 @@ fn regression_8485_does_not_panic() {
     }
     "#;
     let full_src = format!("{}\n\n{}", crate::test_utils::stdlib_src::ZEROED, src);
-    let errors = crate::tests::get_program_errors(&full_src);
+    let errors = get_program_errors(&full_src);
     assert!(!errors.is_empty(), "expected regression_8485 to produce errors without panicking");
 }
 
@@ -1753,8 +1757,6 @@ fn where_clause_bound_without_generics_satisfied_by_a_generic_impl_is_only_unnee
     impl Other for Field {}
     impl<T> Marker for [T; 2] where T: Other {}
     pub fn f() where [Field; 2]: Marker {}
-           ^ Constraint for `[Field; 2]: Marker` is not needed, another matching impl is already in scope
-           ~ Unnecessary trait constraint in where clause
                                  ^^^^^^ Constraint for `[Field; 2]: Marker` is not needed, another matching impl is already in scope
                                  ~~~~~~ Unnecessary trait constraint in where clause
     fn main() {}
@@ -1842,4 +1844,139 @@ fn does_not_report_where_clause_bound_whose_type_failed_to_resolve() {
     fn main() {}
     "#;
     check_errors(src);
+}
+
+/// Like [`check_errors`], but also checks that each "not needed" warning is reported exactly as
+/// many times as it is annotated: `check_errors` accepts a repeated diagnostic at an annotated
+/// location.
+fn check_unneeded_trait_constraint_warnings(src: &str) {
+    check_errors(src);
+
+    let is_annotation = |line: &&str| line.trim_start().starts_with(['^', '~']);
+    let expected = src.lines().filter(|line| line.trim_start().starts_with('^')).count();
+    let code = src.lines().filter(|line| !is_annotation(line)).collect::<Vec<_>>().join("\n");
+    let reported = get_program_errors(&code)
+        .into_iter()
+        .filter(|error| {
+            matches!(
+                error,
+                CompilationError::TypeError(TypeCheckError::UnneededTraitConstraint { .. })
+            )
+        })
+        .count();
+    assert_eq!(reported, expected, "expected {expected} unneeded-constraint warning(s)");
+}
+
+#[test]
+fn unneeded_function_bound_without_generics_is_reported_once() {
+    let src = r#"
+    trait Foo {}
+    pub struct W<T> { v: T }
+    impl Foo for W<u16> {}
+
+    pub fn f()
+    where
+        W<u16>: Foo,
+                ^^^ Constraint for `W<u16>: Foo` is not needed, another matching impl is already in scope
+                ~~~ Unnecessary trait constraint in where clause
+    {}
+
+    fn main() {
+        f();
+    }
+    "#;
+    check_unneeded_trait_constraint_warnings(src);
+}
+
+#[test]
+fn repeated_generic_bound_is_reported_once() {
+    let src = r#"
+    trait Foo {}
+
+    pub fn f<T>(_x: T)
+    where
+        T: Foo,
+        T: Foo,
+           ^^^ Constraint for `T: Foo` is not needed, another matching impl is already in scope
+           ~~~ Unnecessary trait constraint in where clause
+    {}
+
+    fn main() {}
+    "#;
+    check_unneeded_trait_constraint_warnings(src);
+}
+
+#[test]
+fn unneeded_trait_impl_bound_without_generics_is_reported_once() {
+    let src = r#"
+    trait Foo {}
+    impl Foo for u8 {}
+
+    trait Tr {
+        fn m();
+        fn n();
+    }
+
+    impl Tr for u16
+    where
+        u8: Foo,
+            ^^^ Constraint for `u8: Foo` is not needed, another matching impl is already in scope
+            ~~~ Unnecessary trait constraint in where clause
+    {
+        fn m() {}
+        fn n() {}
+    }
+
+    fn main() {
+        <u16 as Tr>::m();
+        <u16 as Tr>::n();
+    }
+    "#;
+    check_unneeded_trait_constraint_warnings(src);
+}
+
+#[test]
+fn unneeded_inherent_impl_bound_without_generics_is_reported_once() {
+    let src = r#"
+    trait Foo {}
+    impl Foo for u8 {}
+
+    pub struct S {}
+
+    impl S
+    where
+        u8: Foo,
+            ^^^ Constraint for `u8: Foo` is not needed, another matching impl is already in scope
+            ~~~ Unnecessary trait constraint in where clause
+    {
+        pub fn m() {}
+        pub fn n() {}
+    }
+
+    fn main() {
+        S::m();
+        S::n();
+    }
+    "#;
+    check_unneeded_trait_constraint_warnings(src);
+}
+
+#[test]
+fn unneeded_trait_method_bound_without_generics_is_reported_once() {
+    let src = r#"
+    trait Foo {}
+    impl Foo for u8 {}
+
+    pub trait Tr {
+        fn m()
+        where
+            u8: Foo,
+                ^^^ Constraint for `u8: Foo` is not needed, another matching impl is already in scope
+                ~~~ Unnecessary trait constraint in where clause
+        {}
+    }
+
+    fn main() {}
+    "#;
+    check_unneeded_trait_constraint_warnings(src);
 }
