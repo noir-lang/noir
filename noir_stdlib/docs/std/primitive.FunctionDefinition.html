@@ -129,36 +129,244 @@ top of a function:</p>
 
 <div class="padded-methods"><code id="as_typed_expr" class="code-header">pub comptime fn <a href="#as_typed_expr" class="fn">as_typed_expr</a>(self) -> <a href="../std/primitive.TypedExpr.html" class="primitive">TypedExpr</a></code>
 
-<code id="body" class="code-header">pub comptime fn <a href="#body" class="fn">body</a>(self) -> <a href="../std/primitive.Expr.html" class="primitive">Expr</a></code>
+<div class="padded-description"><div class="comments">
+<p>Returns this function as a <a href="../std/primitive.TypedExpr.html"><code>TypedExpr</code></a>.</p>
+<p>Splice it into quoted code to refer to the function.</p>
+<p>Example:</p>
+<pre><code>#[check]
+<span class="kw">fn</span> add(x: u32, y: u32) -&gt; u32 {
+    x + y
+}
 
-<code id="disable" class="code-header">pub comptime fn <a href="#disable" class="fn">disable</a>(self, error_message: <a href="../std/primitive.CtString.html" class="primitive">CtString</a>)</code>
+<span class="kw">comptime</span> <span class="kw">fn</span> check(f: FunctionDefinition) {
+    <span class="kw">let</span> function = f.as_typed_expr();
+    <span class="kw">let</span> call = <span class="kw">quote</span> { $function(<span class="number">1</span>, <span class="number">2</span>) };
+    <span class="kw">assert_eq</span>(call, <span class="kw">quote</span> { add(<span class="number">1</span>, <span class="number">2</span>) });
+}</code></pre></div>
+</div><code id="body" class="code-header">pub comptime fn <a href="#body" class="fn">body</a>(self) -> <a href="../std/primitive.Expr.html" class="primitive">Expr</a></code>
 
-<code id="has_named_attribute" class="code-header">pub comptime fn <a href="#has_named_attribute" class="fn">has_named_attribute</a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self, name: <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
+<div class="padded-description"><div class="comments">
+<p>Returns the body of this function as a block expression.</p>
+<p>Only functions of the current crate that haven't been resolved yet have a body to return, so it
+fails for a function that was already called at compile time or that comes from another
+crate.</p>
+<p>Example:</p>
+<pre><code>#[check]
+<span class="kw">fn</span> add(x: u32, y: u32) -&gt; u32 {
+    x + y
+}
 
-<code id="named_attribute_args" class="code-header">pub comptime fn <a href="#named_attribute_args" class="fn">named_attribute_args</a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self, name: <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;) -> [[<a href="../std/primitive.Quoted.html" class="primitive">Quoted</a>]]</code>
+<span class="kw">comptime</span> <span class="kw">fn</span> check(f: FunctionDefinition) {
+    <span class="kw">let</span> statements = f.body().as_block().unwrap();
+    <span class="kw">assert_eq</span>(statements.len(), <span class="number">1</span>);
+    <span class="kw">assert</span>(statements[<span class="number">0</span>].as_binary_op().unwrap().operator().is_add());
+}</code></pre></div>
+</div><code id="disable" class="code-header">pub comptime fn <a href="#disable" class="fn">disable</a>(self, error_message: <a href="../std/primitive.CtString.html" class="primitive">CtString</a>)</code>
 
-<code id="has_builtin_attribute" class="code-header">pub comptime fn <a href="#has_builtin_attribute" class="fn">has_builtin_attribute</a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self, name: <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
+<div class="padded-description"><div class="comments">
+<p>Makes any call to this function a compile error with <code>error_message</code>.</p>
+<p>An attribute that generates a replacement for a function can use it to point callers to the
+replacement. A disabled function in a contract is also removed from the contract's interface,
+as if it had <code>#[contract_library_method]</code>.</p>
+<p>It must run before the function is resolved: it fails if the function was already called at
+compile time or comes from another crate.</p>
+<h4>Security</h4>
+<p>An attribute macro from a dependency can disable any function it can name, including a
+contract entry point. The program still compiles as long as nothing calls the function, so test
+every entry point and review the output of <code>nargo expand</code> for dependencies you don't trust.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::meta::ctstring::AsCtString;
 
-<code id="is_unconstrained" class="code-header">pub comptime fn <a href="#is_unconstrained" class="fn">is_unconstrained</a>(self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
+#[replaced_by_new]
+<span class="kw">fn</span> old() {}
 
-<code id="location" class="code-header">pub comptime fn <a href="#location" class="fn">location</a>(self) -> <a href="../std/primitive.Location.html" class="primitive">Location</a></code>
+<span class="kw">comptime</span> <span class="kw">fn</span> replaced_by_new(f: FunctionDefinition) {
+    f.disable(<span class="string">f"</span><span class="string">`old` is disabled, use `new` instead</span><span class="string">"</span>.as_ctstring());
+}
 
-<code id="module" class="code-header">pub comptime fn <a href="#module" class="fn">module</a>(self) -> <a href="../std/primitive.Module.html" class="primitive">Module</a></code>
+<span class="comment">// Calling `old()` anywhere is now a compile error: "`old` is disabled, use `new` instead".</span></code></pre></div>
+</div><code id="has_named_attribute" class="code-header">pub comptime fn <a href="#has_named_attribute" class="fn">has_named_attribute</a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self, name: <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
-<code id="name" class="code-header">pub comptime fn <a href="#name" class="fn">name</a>(self) -> <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
+<div class="padded-description"><div class="comments">
+<p>Returns <code>true</code> if this function has an attribute called <code>name</code>.</p>
+<p>It matches built-in attributes such as <code>deprecated</code>, tags such as <code>#['my_tag]</code>, and comptime
+attribute macros. Use <a href="../std/primitive.FunctionDefinition.html#has_builtin_attribute"><code>FunctionDefinition::has_builtin_attribute</code></a> to match only built-in ones.</p>
+<p>Example:</p>
+<pre><code>#[check]
+#['my_tag]
+#[deprecated]
+<span class="kw">fn</span> add(x: u32, y: u32) -&gt; u32 {
+    x + y
+}
 
-<code id="parameters" class="code-header">pub comptime fn <a href="#parameters" class="fn">parameters</a>(self) -> [<a href="../std/meta/function_def/struct.FunctionParameter.html" class="struct">FunctionParameter</a>]</code>
+<span class="kw">comptime</span> <span class="kw">fn</span> check(f: FunctionDefinition) {
+    <span class="kw">assert</span>(f.has_named_attribute(<span class="string">"my_tag"</span>));
+    <span class="kw">assert</span>(f.has_named_attribute(<span class="string">"deprecated"</span>));
+    <span class="kw">assert</span>(f.has_named_attribute(<span class="string">"check"</span>));
+    <span class="kw">assert</span>(!f.has_named_attribute(<span class="string">"inline"</span>));
+}</code></pre></div>
+</div><code id="named_attribute_args" class="code-header">pub comptime fn <a href="#named_attribute_args" class="fn">named_attribute_args</a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self, name: <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;) -> [[<a href="../std/primitive.Quoted.html" class="primitive">Quoted</a>]]</code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns the arguments of each comptime attribute macro called <code>name</code> on this function.</p>
+<p>The outer vector has one entry per occurrence, so it is empty if the attribute isn't there. Each
+inner vector holds that occurrence's arguments as quoted expressions. Tags such as
+<code>#['my_tag(1)]</code> aren't macro calls, so they have no arguments here.</p>
+<p>Example:</p>
+<pre><code>#[check]
+#[route(<span class="number">1</span>)]
+#[route(<span class="number">2</span> + <span class="number">3</span>)]
+<span class="kw">fn</span> add(x: u32, y: u32) -&gt; u32 {
+    x + y
+}
+
+<span class="kw">comptime</span> <span class="kw">fn</span> route(_f: FunctionDefinition, _id: Field) {}
+
+<span class="kw">comptime</span> <span class="kw">fn</span> check(f: FunctionDefinition) {
+    <span class="kw">let</span> routes = f.named_attribute_args(<span class="string">"route"</span>);
+    <span class="kw">assert_eq</span>(routes.len(), <span class="number">2</span>);
+    <span class="kw">assert_eq</span>(routes[<span class="number">0</span>][<span class="number">0</span>], <span class="kw">quote</span> { <span class="number">1</span> });
+    <span class="kw">assert_eq</span>(routes[<span class="number">1</span>][<span class="number">0</span>], <span class="kw">quote</span> { (<span class="number">2</span> + <span class="number">3</span>) });
+
+    <span class="kw">assert_eq</span>(f.named_attribute_args(<span class="string">"missing"</span>).len(), <span class="number">0</span>);
+}</code></pre></div>
+</div><code id="has_builtin_attribute" class="code-header">pub comptime fn <a href="#has_builtin_attribute" class="fn">has_builtin_attribute</a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self, name: <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns <code>true</code> if this function has a built-in attribute called <code>name</code>, such as <code>deprecated</code>.</p>
+<p>Unlike <a href="../std/primitive.FunctionDefinition.html#has_named_attribute"><code>FunctionDefinition::has_named_attribute</code></a>, it ignores tags and comptime attribute
+macros, so a user attribute that shares a built-in's name doesn't match.</p>
+<p>Example:</p>
+<pre><code>#[check]
+#[deprecated]
+#['my_tag]
+<span class="kw">fn</span> add(x: u32, y: u32) -&gt; u32 {
+    x + y
+}
+
+<span class="kw">comptime</span> <span class="kw">fn</span> check(f: FunctionDefinition) {
+    <span class="kw">assert</span>(f.has_builtin_attribute(<span class="string">"deprecated"</span>));
+    <span class="kw">assert</span>(!f.has_builtin_attribute(<span class="string">"my_tag"</span>));
+    <span class="kw">assert</span>(!f.has_builtin_attribute(<span class="string">"check"</span>));
+}</code></pre></div>
+</div><code id="is_unconstrained" class="code-header">pub comptime fn <a href="#is_unconstrained" class="fn">is_unconstrained</a>(self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns <code>true</code> if this function is <code>unconstrained</code>.</p>
+<p>Example:</p>
+<pre><code>#[check]
+<span class="kw">unconstrained</span> <span class="kw">fn</span> hint(x: u32) -&gt; u32 {
+    x / <span class="number">2</span>
+}
+
+#[check_add]
+<span class="kw">fn</span> add(x: u32, y: u32) -&gt; u32 {
+    x + y
+}
+
+<span class="kw">comptime</span> <span class="kw">fn</span> check(f: FunctionDefinition) {
+    <span class="kw">assert</span>(f.is_unconstrained());
+}
+
+<span class="kw">comptime</span> <span class="kw">fn</span> check_add(f: FunctionDefinition) {
+    <span class="kw">assert</span>(!f.is_unconstrained());
+}</code></pre></div>
+</div><code id="location" class="code-header">pub comptime fn <a href="#location" class="fn">location</a>(self) -> <a href="../std/primitive.Location.html" class="primitive">Location</a></code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns the source location of this function's name.</p>
+<p>Pass it to <a href="../std/meta/fn.error.html"><code>std::meta::error</code></a> or <a href="../std/meta/fn.warn.html"><code>std::meta::warn</code></a>
+to report a diagnostic at the function.</p>
+<p>Example:</p>
+<pre><code>#[check]
+<span class="kw">fn</span> add(x: u32, y: u32) -&gt; u32 {
+    x + y
+}
+
+<span class="kw">comptime</span> <span class="kw">fn</span> check(f: FunctionDefinition) {
+    <span class="comment">// Warns "`add` overflows for large inputs", pointing at `add`.</span>
+    <span class="kw">let</span> name = f.name();
+    std::meta::warn(<span class="string">f"</span><span class="string">`</span><span class="interpolation">{name}</span><span class="string">` overflows for large inputs</span><span class="string">"</span>, Option::&lt;fmtstr&lt;<span class="number">0</span>, ()&gt;&gt;::none(), f.location());
+}</code></pre></div>
+</div><code id="module" class="code-header">pub comptime fn <a href="#module" class="fn">module</a>(self) -> <a href="../std/primitive.Module.html" class="primitive">Module</a></code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns the module this function is defined in.</p>
+<p>Example:</p>
+<pre><code><span class="kw">mod</span> math {
+    #[check]
+    <span class="kw">pub</span> <span class="kw">fn</span> add(x: u32, y: u32) -&gt; u32 {
+        x + y
+    }
+
+    <span class="kw">comptime</span> <span class="kw">fn</span> check(f: FunctionDefinition) {
+        <span class="kw">assert_eq</span>(f.module().name(), <span class="kw">quote</span> { math });
+    }
+}</code></pre></div>
+</div><code id="name" class="code-header">pub comptime fn <a href="#name" class="fn">name</a>(self) -> <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns the name of this function, without its path or generics.</p>
+<p>Example:</p>
+<pre><code>#[check]
+<span class="kw">fn</span> add(x: u32, y: u32) -&gt; u32 {
+    x + y
+}
+
+<span class="kw">comptime</span> <span class="kw">fn</span> check(f: FunctionDefinition) {
+    <span class="kw">assert_eq</span>(f.name(), <span class="kw">quote</span> { add });
+}</code></pre></div>
+</div><code id="parameters" class="code-header">pub comptime fn <a href="#parameters" class="fn">parameters</a>(self) -> [<a href="../std/meta/function_def/struct.FunctionParameter.html" class="struct">FunctionParameter</a>]</code>
 
 <div class="padded-description"><div class="comments">
 <p>The parameters this function was declared with, in source order.</p>
-</div>
+<p>Example:</p>
+<pre><code>#[check]
+<span class="kw">fn</span> add(x: u32, y: u32) -&gt; u32 {
+    x + y
+}
+
+<span class="kw">comptime</span> <span class="kw">fn</span> check(f: FunctionDefinition) {
+    <span class="kw">let</span> parameters = f.parameters();
+    <span class="kw">assert_eq</span>(parameters.len(), <span class="number">2</span>);
+    <span class="kw">assert_eq</span>(parameters[<span class="number">0</span>].name(), <span class="kw">quote</span> { x });
+    <span class="kw">assert_eq</span>(parameters[<span class="number">1</span>].typ(), <span class="kw">quote</span> { u32 }.as_type());
+}</code></pre></div>
 </div><code id="return_type" class="code-header">pub comptime fn <a href="#return_type" class="fn">return_type</a>(self) -> <a href="../std/primitive.Type.html" class="primitive">Type</a></code>
 
-<code id="visibility" class="code-header">pub comptime fn <a href="#visibility" class="fn">visibility</a>(self) -> <a href="../std/meta/item_visibility/struct.ItemVisibility.html" class="struct">ItemVisibility</a></code>
+<div class="padded-description"><div class="comments">
+<p>Returns the return type of this function. It is the unit type <code>()</code> if it declares none.</p>
+<p>Example:</p>
+<pre><code>#[check]
+<span class="kw">fn</span> add(x: u32, y: u32) -&gt; u32 {
+    x + y
+}
+
+#[check_log]
+<span class="kw">fn</span> log(x: u32) {
+    println(x);
+}
+
+<span class="kw">comptime</span> <span class="kw">fn</span> check(f: FunctionDefinition) {
+    <span class="kw">assert_eq</span>(f.return_type(), <span class="kw">quote</span> { u32 }.as_type());
+}
+
+<span class="kw">comptime</span> <span class="kw">fn</span> check_log(f: FunctionDefinition) {
+    <span class="kw">assert</span>(f.return_type().is_unit());
+}</code></pre></div>
+</div><code id="visibility" class="code-header">pub comptime fn <a href="#visibility" class="fn">visibility</a>(self) -> <a href="../std/meta/item_visibility/struct.ItemVisibility.html" class="struct">ItemVisibility</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>The function's visibility.</p>
-</div>
+<p>Example:</p>
+<pre><code>#[check]
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> add(x: u32, y: u32) -&gt; u32 {
+    x + y
+}
+
+<span class="kw">comptime</span> <span class="kw">fn</span> check(f: FunctionDefinition) {
+    <span class="kw">assert</span>(f.visibility().is_public_crate());
+}</code></pre></div>
 </div></div><h2>Trait implementations</h2>
 <h3 id="impl-Eq-for-FunctionDefinition"><code class="code-header">impl <a href="../std/cmp/trait.Eq.html" class="trait">Eq</a> for <a href="../std/primitive.FunctionDefinition.html" class="primitive">FunctionDefinition</a></code></h3>
 

@@ -49,8 +49,14 @@
 { <span class="comment">/* private fields */</span> }
 </code></pre>
 <div class="comments">
-<p>An array type decomposed by <a href="../../../std/primitive.Type.html#as_array"><code>Type::as_array</code></a> into its element and length
-components.</p></div>
+<p>An array type decomposed by <a href="../../../std/primitive.Type.html#as_array"><code>Type::as_array</code></a>.</p>
+<p>It holds the element type and the length type.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> array = <span class="kw">quote</span> { [u8; <span class="number">4</span>] }.as_type().as_array().unwrap();
+    <span class="kw">assert_eq</span>(array.element_type(), <span class="kw">quote</span> { u8 }.as_type());
+    <span class="kw">assert_eq</span>(array.length_type().as_constant().unwrap(), <span class="number">4</span>);
+}</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../../../std/meta/typ/struct.ArrayType.html" class="struct">ArrayType</a></code></h3>
 
@@ -58,12 +64,20 @@ components.</p></div>
 
 <div class="padded-description"><div class="comments">
 <p>The type of each element the array holds.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> array = <span class="kw">quote</span> { [u8; <span class="number">4</span>] }.as_type().as_array().unwrap();
+    <span class="kw">assert_eq</span>(array.element_type(), <span class="kw">quote</span> { u8 }.as_type());
+}</code></pre></div>
 </div><code id="length_type" class="code-header">pub comptime fn <a href="#length_type" class="fn">length_type</a>(self) -> <a href="../../../std/primitive.Type.html" class="primitive">Type</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>The type describing the array's length (a numeric-constant type).</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> array = <span class="kw">quote</span> { [u8; <span class="number">4</span>] }.as_type().as_array().unwrap();
+    <span class="kw">assert_eq</span>(array.length_type().as_constant().unwrap(), <span class="number">4</span>);
+}</code></pre></div>
 </div></div></div>
 </main>
 </span>

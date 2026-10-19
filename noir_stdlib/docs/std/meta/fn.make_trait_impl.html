@@ -62,19 +62,46 @@
 ) -> <a href="../../std/primitive.Quoted.html" class="primitive">Quoted</a></code></pre>
 
 <div class="comments">
-<p><code>make_impl</code> is a helper function to make a simple impl, usually while deriving a trait.
-This impl has a couple assumptions:</p>
+<p>A helper to make a simple trait impl for a type, usually in a derive function.</p>
+<p>The impl has a couple assumptions:</p>
 <ol>
 <li>The impl only has one function, with the signature <code>function_signature</code></li>
 <li>The trait itself does not have any generics.</li>
 </ol>
-<p>While these assumptions are met, <code>make_impl</code> will create an impl from a TypeDefinition,
+<p>While these assumptions are met, <code>make_trait_impl</code> will create an impl from a TypeDefinition,
 automatically filling in the required generics from the type, along with the where clause.
 The function body is created by mapping each field with <code>for_each_field</code> and joining the
 results with <code>join_fields_with</code>. The result of this is passed to the <code>body</code> function for
 any final processing - e.g. wrapping each field in a <code>StructConstructor { .. }</code> expression.</p>
 <p>See <code>derive_eq</code> and <code>derive_default</code> for example usage.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">trait</span> IsZero {
+    <span class="kw">fn</span> is_zero(self) -&gt; bool;
+}
+
+<span class="comment">// An attribute that returns quoted code adds that code to the program.</span>
+#[derive_is_zero]
+<span class="kw">struct</span> Point {
+    x: u32,
+    y: u32,
+}
+
+<span class="kw">comptime</span> <span class="kw">fn</span> derive_is_zero(s: TypeDefinition) -&gt; Quoted {
+    <span class="comment">// `fn is_zero(self) -&gt; bool { (self.x == 0) & (self.y == 0) }`</span>
+    std::meta::make_trait_impl(
+        s,
+        <span class="kw">quote</span> { IsZero },
+        <span class="kw">quote</span> { <span class="kw">fn</span> is_zero(self) -&gt; bool },
+        |name| <span class="kw">quote</span> { (self.$name == <span class="number">0</span>) },
+        <span class="kw">quote</span> { & },
+        |body| body,
+    )
+}
+
+<span class="kw">fn</span> main() {
+    <span class="kw">assert</span>(Point { x: <span class="number">0</span>, y: <span class="number">0</span> }.is_zero());
+    <span class="kw">assert</span>(!Point { x: <span class="number">1</span>, y: <span class="number">0</span> }.is_zero());
+}</code></pre></div>
 </div>
 </main>
 </span>

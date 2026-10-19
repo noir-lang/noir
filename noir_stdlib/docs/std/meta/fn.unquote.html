@@ -55,10 +55,14 @@
 <pre><code>pub comptime fn unquote(code: <a href="../../std/primitive.Quoted.html" class="primitive">Quoted</a>) -> <a href="../../std/primitive.Quoted.html" class="primitive">Quoted</a></code></pre>
 
 <div class="comments">
-<p>Calling unquote as a macro (via <code>unquote!(arg)</code>) will unquote
-its argument. Since this is the effect <code>!</code> already does, <code>unquote</code>
-itself does not need to do anything besides return its argument.</p>
-</div>
+<p>Returns its argument; called as a macro, <code>unquote!(code)</code> inserts <code>code</code> at the call site.</p>
+<p>Since inserting is the effect <code>!</code> already has, <code>unquote</code> itself does not need to do anything
+besides return its argument.</p>
+<p>Example:</p>
+<pre><code><span class="kw">fn</span> main() {
+    <span class="kw">let</span> sum: u32 = std::meta::unquote!(<span class="kw">quote</span> { <span class="number">1</span> + <span class="number">2</span> });
+    <span class="kw">assert_eq</span>(sum, <span class="number">3</span>);
+}</code></pre></div>
 </div>
 </main>
 </span>

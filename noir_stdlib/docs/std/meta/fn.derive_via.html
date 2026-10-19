@@ -54,6 +54,33 @@
 <div id="page-content">
 <pre><code>pub comptime fn derive_via(t: <a href="../../std/primitive.TraitDefinition.html" class="primitive">TraitDefinition</a>, f: <a href="../../std/meta/type.DeriveFunction.html" class="type">DeriveFunction</a>)</code></pre>
 
+<div class="comments">
+<p>Registers <code>f</code> as the derive function for the trait <code>t</code>, so that <code>#[derive(T)]</code> calls it.</p>
+<p>Use it as an attribute on the trait: <code>#[derive_via(f)]</code>.</p>
+<p>Compilation fails if a derive function is already registered for the trait.</p>
+<p>Example:</p>
+<pre><code>#[derive_via(derive_greet)]
+<span class="kw">trait</span> Greet {
+    <span class="kw">fn</span> greet() -&gt; str&lt;<span class="number">5</span>&gt;;
+}
+
+<span class="kw">comptime</span> <span class="kw">fn</span> derive_greet(s: TypeDefinition) -&gt; Quoted {
+    <span class="kw">let</span> typ = s.as_type();
+    <span class="kw">quote</span> {
+        <span class="kw">impl</span> Greet <span class="kw">for</span> $typ {
+            <span class="kw">fn</span> greet() -&gt; str&lt;<span class="number">5</span>&gt; {
+                <span class="string">"hello"</span>
+            }
+        }
+    }
+}
+
+#[derive(Greet)]
+<span class="kw">struct</span> Person {}
+
+<span class="kw">fn</span> main() {
+    <span class="kw">assert_eq</span>(Person::greet(), <span class="string">"hello"</span>);
+}</code></pre></div>
 </div>
 </main>
 </span>

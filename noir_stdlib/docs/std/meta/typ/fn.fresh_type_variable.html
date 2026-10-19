@@ -42,11 +42,11 @@
 <pre><code>pub comptime fn fresh_type_variable() -> <a href="../../../std/primitive.Type.html" class="primitive">Type</a></code></pre>
 
 <div class="comments">
-<p>Creates and returns an unbound type variable. This is a special kind of type internal
-to type checking which will type check with any other type. When it is type checked
-against another type it will also be set to that type. For example, if <code>a</code> is a type
-variable and we have the type equality <code>(a, i32) = (u8, i32)</code>, the compiler will set
-<code>a</code> equal to <code>u8</code>.</p>
+<p>Creates and returns an unbound type variable.</p>
+<p>This is a special kind of type internal to type checking which will type check with any other
+type. When it is type checked against another type it will also be set to that type. For
+example, if <code>a</code> is a type variable and we have the type equality <code>(a, i32) = (u8, i32)</code>, the
+compiler will set <code>a</code> equal to <code>u8</code>.</p>
 <p>Unbound type variables will often be rendered as <code>_</code> while printing them. Bound type
 variables will appear as the type they are bound to.</p>
 <p>This can be used in conjunction with functions which internally perform type checks
@@ -64,7 +64,7 @@ fail.</p>
 <span class="kw">impl</span>&lt;T, U, <span class="kw">let</span> N: u32, <span class="kw">let</span> M: u32&gt; Serialize&lt;N + M&gt; <span class="kw">for</span> (T, U)
     <span class="kw">where</span> T: Serialize&lt;N&gt;, U: Serialize&lt;M&gt; {}
 
-<span class="kw">fn</span> fresh_variable_example() {
+<span class="kw">fn</span> main() {
     <span class="kw">comptime</span> {
         <span class="kw">let</span> typevar1 = std::meta::typ::fresh_type_variable();
         <span class="kw">let</span> constraint = <span class="kw">quote</span> { Serialize&lt;$typevar1&gt; }.as_trait_constraint();
