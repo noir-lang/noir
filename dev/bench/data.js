@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792414047560,
+  "lastUpdate": 1792414116372,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22996,48 +22996,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "61c1fa97a9ead8e9be2a1adde675da3e2577d610",
-          "message": "fix(frontend): let a method call's arguments pick between bounds on the same trait (#13959)",
-          "timestamp": "2026-10-12T17:45:13Z",
-          "tree_id": "562a2fdf043de85a772a5a1397e51693d61f1cb0",
-          "url": "https://github.com/noir-lang/noir/commit/61c1fa97a9ead8e9be2a1adde675da3e2577d610"
-        },
-        "date": 1791828466351,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 69938,
-            "range": "± 1397",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 62109,
-            "range": "± 1509",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 1724632,
-            "range": "± 16596",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "5f17b1ef1872d49bbe0556e546358e9b93ef82c4",
           "message": "fix(frontend): solve pending trait constraints when a type they decide is needed (#13960)",
           "timestamp": "2026-10-12T21:19:10Z",
@@ -25079,6 +25037,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2652152,
             "range": "± 9293",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d5e8a5bc1a586bf7561c83e2d10712624323aaf2",
+          "message": "fix(ssa): make `break` in an inclusive range skip the peeled final iteration (#14035)",
+          "timestamp": "2026-10-19T12:24:44Z",
+          "tree_id": "067a7f346844ea18467c61e0126c0cb164e0228a",
+          "url": "https://github.com/noir-lang/noir/commit/d5e8a5bc1a586bf7561c83e2d10712624323aaf2"
+        },
+        "date": 1792414023156,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 168336,
+            "range": "± 851",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 138156,
+            "range": "± 5127",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2650757,
+            "range": "± 2660",
             "unit": "ns/iter"
           }
         ]
