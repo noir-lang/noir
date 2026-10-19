@@ -1684,6 +1684,8 @@ fn errors_on_where_clause_bound_without_generics_that_no_impl_satisfies() {
     fn main() -> pub Field where S: Marker { S {}.value() }
                                     ^^^^^^ No matching impl found for `S: Marker`
                                     ~~~~~~ No impl for `S: Marker`
+                                             ^^^^^^^^^^ Multiple trait impls match the object type `S`
+                                             ~~~~~~~~~~ Ambiguous impl
     "#;
     check_errors(src);
 }
