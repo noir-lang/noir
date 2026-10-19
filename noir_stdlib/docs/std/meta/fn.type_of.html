@@ -55,8 +55,12 @@
 <pre><code>pub comptime fn type_of&lt;T&gt;(x: T) -> <a href="../../std/primitive.Type.html" class="primitive">Type</a></code></pre>
 
 <div class="comments">
-<p>Returns the type of any value</p>
-</div>
+<p>Returns the type of any value.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">assert_eq</span>(std::meta::type_of(<span class="number">1_u8</span>), <span class="kw">quote</span> { u8 }.as_type());
+    <span class="kw">assert_eq</span>(std::meta::type_of([<span class="bool-var">true</span>, <span class="bool-var">false</span>]), <span class="kw">quote</span> { [bool; <span class="number">2</span>] }.as_type());
+}</code></pre></div>
 </div>
 </main>
 </span>

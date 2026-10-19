@@ -409,10 +409,13 @@ From the user's perspective it will look like this:
 struct MyStruct { my_field: u32 }
 ```
 
-To implement `derive` we'll have to create a `comptime` function that accepts
-a variable amount of traits.
+To implement `derive` we'll first keep a map from each trait to the function that derives it:
 
 #include_code derive_example noir_stdlib/src/meta/mod.nr rust
+
+Then `derive` itself is a `comptime` function that accepts a variable amount of traits:
+
+#include_code derive_example_body noir_stdlib/src/meta/mod.nr rust
 
 Registering a derive function could be done as follows:
 

@@ -54,6 +54,21 @@
 <div id="page-content">
 <pre><code>pub comptime type DeriveFunction = fn(<a href="../../std/primitive.TypeDefinition.html" class="primitive">TypeDefinition</a>) -> <a href="../../std/primitive.Quoted.html" class="primitive">Quoted</a>;</code></pre>
 
+<div class="comments">
+<p>A derive function: given a type definition, it returns a quoted trait impl for that type.</p>
+<p>Register one for a trait with <a href="../../std/meta/fn.derive_via.html"><code>derive_via</code></a>, then use the trait in <a href="../../std/meta/fn.derive.html"><code>derive</code></a>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">use</span> std::meta::DeriveFunction;
+
+<span class="kw">comptime</span> <span class="kw">fn</span> derive_nothing(_s: TypeDefinition) -&gt; Quoted {
+    <span class="kw">quote</span> {}
+}
+
+<span class="kw">fn</span> main() {
+    <span class="kw">comptime</span> {
+        <span class="kw">let</span> _handler: DeriveFunction = derive_nothing;
+    }
+}</code></pre></div>
 </div>
 </main>
 </span>
