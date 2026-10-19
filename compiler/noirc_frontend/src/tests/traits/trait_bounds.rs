@@ -591,12 +591,7 @@ fn errors_on_mutually_recursive_impls() {
 
     fn main() {
         (Bar {}).foo();
-        ^^^^^^^^^^^^ No matching impl found for `Bar: Foo`
-        ~~~~~~~~~~~~ No impl for `Bar: Foo`
-
         (Baz {}).foo();
-        ^^^^^^^^^^^^ No matching impl found for `Baz: Foo`
-        ~~~~~~~~~~~~ No impl for `Baz: Foo`
     }
     "#;
     check_errors(src);
@@ -1840,4 +1835,82 @@ fn does_not_report_where_clause_bound_whose_type_failed_to_resolve() {
     fn main() {}
     "#;
     check_errors(src);
+}
+
+#[test]
+fn where_clause_bound_without_generics_is_not_reported_again_where_the_function_is_used() {
+    let src = r#"
+    trait Marker {}
+    pub fn f() where Field: Marker {}
+                            ^^^^^^ No matching impl found for `Field: Marker`
+                            ~~~~~~ No impl for `Field: Marker`
+    fn main() {
+        f();
+        let _g = f;
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn where_clause_bound_without_generics_leaving_out_an_associated_type_is_reported_once() {
+    let src = r#"
+    trait Foo { type Bar; }
+    impl Foo for u32 { type Bar = u8; }
+    pub fn f() where u16: Foo {}
+                          ^^^ No matching impl found for `u16: Foo<Bar = _>`
+                          ~~~ No impl for `u16: Foo<Bar = _>`
+    fn main() {
+        f();
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn impl_where_clause_bound_without_generics_is_not_reported_again_where_a_method_is_used() {
+    let src = r#"
+    trait Marker {}
+    pub struct S {}
+    impl S where Field: Marker {
+                        ^^^^^^ No matching impl found for `Field: Marker`
+                        ~~~~~~ No impl for `Field: Marker`
+        pub fn m() {}
+    }
+    fn main() {
+        S::m();
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn where_clause_bound_with_generics_is_still_checked_where_the_function_is_used() {
+    let src = r#"
+    trait Marker {}
+    impl Marker for u8 {}
+    pub fn f<T>(_x: T) where T: Marker, Field: Marker {}
+                                               ^^^^^^ No matching impl found for `Field: Marker`
+                                               ~~~~~~ No impl for `Field: Marker`
+    fn main() {
+        f(1 as u8);
+        f(1 as u16);
+        ^ No matching impl found for `u16: Marker`
+        ~ No impl for `u16: Marker`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn associated_type_of_a_where_clause_bound_without_generics_is_bound_where_the_function_is_used() {
+    let src = r#"
+    trait Foo { type Bar; }
+    impl Foo for u32 { type Bar = bool; }
+    pub fn f<B>() -> [B; 0] where u32: Foo<Bar = B> { [] }
+    fn main() {
+        let _x = f();
+    }
+    "#;
+    assert_no_errors(src);
 }
