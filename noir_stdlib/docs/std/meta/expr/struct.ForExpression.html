@@ -65,24 +65,45 @@
 { <span class="comment">/* private fields */</span> }
 </code></pre>
 <div class="comments">
-<p>A for loop over an expression, decomposed by <a href="../../../std/primitive.Expr.html#as_for"><code>Expr::as_for</code></a>.</p></div>
+<p>A for loop over an expression, decomposed by <a href="../../../std/primitive.Expr.html#as_for"><code>Expr::as_for</code></a>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> for_loop = <span class="kw">quote</span> { <span class="kw">for</span> x <span class="kw">in</span> array { foo(x) } }.as_expr().unwrap().as_for().unwrap();
+    <span class="kw">assert_eq</span>(for_loop.identifier(), <span class="kw">quote</span> { x });
+    <span class="kw">assert_eq</span>(for_loop.iterable().quoted(), <span class="kw">quote</span> { array });
+    <span class="kw">assert_eq</span>(for_loop.body().as_block().unwrap()[<span class="number">0</span>].quoted(), <span class="kw">quote</span> { foo(x) });
+}</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../../../std/meta/expr/struct.ForExpression.html" class="struct">ForExpression</a></code></h3>
 
 <div class="padded-methods"><code id="identifier" class="code-header">pub comptime fn <a href="#identifier" class="fn">identifier</a>(self) -> <a href="../../../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
 
 <div class="padded-description"><div class="comments">
-<p>The loop variable as a <a href="../../../std/primitive.Quoted.html"><code>Quoted</code></a> identifier.</p></div>
+<p>The loop variable as a <a href="../../../std/primitive.Quoted.html"><code>Quoted</code></a> identifier.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> for_loop = <span class="kw">quote</span> { <span class="kw">for</span> x <span class="kw">in</span> array {} }.as_expr().unwrap().as_for().unwrap();
+    <span class="kw">assert_eq</span>(for_loop.identifier(), <span class="kw">quote</span> { x });
+}</code></pre></div>
 </div><code id="iterable" class="code-header">pub comptime fn <a href="#iterable" class="fn">iterable</a>(self) -> <a href="../../../std/primitive.Expr.html" class="primitive">Expr</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>The expression being iterated over.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> for_loop = <span class="kw">quote</span> { <span class="kw">for</span> x <span class="kw">in</span> array {} }.as_expr().unwrap().as_for().unwrap();
+    <span class="kw">assert_eq</span>(for_loop.iterable().quoted(), <span class="kw">quote</span> { array });
+}</code></pre></div>
 </div><code id="body" class="code-header">pub comptime fn <a href="#body" class="fn">body</a>(self) -> <a href="../../../std/primitive.Expr.html" class="primitive">Expr</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>The loop body.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> for_loop = <span class="kw">quote</span> { <span class="kw">for</span> x <span class="kw">in</span> array { foo(x) } }.as_expr().unwrap().as_for().unwrap();
+    <span class="kw">let</span> statements = for_loop.body().as_block().unwrap();
+    <span class="kw">assert_eq</span>(statements[<span class="number">0</span>].quoted(), <span class="kw">quote</span> { foo(x) });
+}</code></pre></div>
 </div></div></div>
 </main>
 </span>

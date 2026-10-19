@@ -440,7 +440,7 @@ fn non_turbofish_qualified_call_with_multiple_inherent_impls_is_ambiguous() {
         fn main() {
             let _ = Foo::tag(Foo { x: 9_u64 });
                          ^^^ Multiple applicable methods named `tag` in scope
-                         ~~~ `tag` is defined in `Foo<i32>`, `Foo<u64>`; use a method call or turbofish to disambiguate
+                         ~~~ `tag` is defined in `Foo<i32>`, `Foo<u64>`; name the impl's generics in a turbofish to pick one
         }
     "#;
     check_errors(src);
@@ -514,7 +514,7 @@ fn wildcard_turbofish_call_with_multiple_inherent_impls_is_ambiguous() {
             let s = S { v: 5 };
             let _ = S::<_>::m(s);
                             ^ Multiple applicable methods named `m` in scope
-                            ~ `m` is defined in `S<u8>`, `S<u16>`; use a method call or turbofish to disambiguate
+                            ~ `m` is defined in `S<u8>`, `S<u16>`; name the impl's generics in a turbofish to pick one
         }
     "#;
     check_errors(src);
@@ -537,7 +537,7 @@ fn wildcard_turbofish_call_with_multiple_inherent_impls_is_ambiguous_in_either_o
             let s = S { v: 5 };
             let _ = S::<_>::m(s);
                             ^ Multiple applicable methods named `m` in scope
-                            ~ `m` is defined in `S<u16>`, `S<u8>`; use a method call or turbofish to disambiguate
+                            ~ `m` is defined in `S<u16>`, `S<u8>`; name the impl's generics in a turbofish to pick one
         }
     "#;
     check_errors(src);
@@ -560,7 +560,7 @@ fn partial_wildcard_turbofish_call_with_multiple_inherent_impls_is_ambiguous() {
             let p = P { a: 1, b: 5 };
             let _ = P::<u8, _>::m(p);
                                 ^ Multiple applicable methods named `m` in scope
-                                ~ `m` is defined in `P<u8, u8>`, `P<u8, u16>`; use a method call or turbofish to disambiguate
+                                ~ `m` is defined in `P<u8, u8>`, `P<u8, u16>`; name the impl's generics in a turbofish to pick one
         }
     "#;
     check_errors(src);
@@ -582,7 +582,7 @@ fn wildcard_turbofish_constructor_with_multiple_inherent_impls_is_ambiguous() {
         fn main() {
             let _ = Buf::<_, 2>::first(5);
                                  ^^^^^ Multiple applicable methods named `first` in scope
-                                 ~~~~~ `first` is defined in `Buf<u8, N>`, `Buf<u64, N>`; use a method call or turbofish to disambiguate
+                                 ~~~~~ `first` is defined in `Buf<u8, N>`, `Buf<u64, N>`; name the impl's generics in a turbofish to pick one
         }
     "#;
     check_errors(src);
@@ -658,6 +658,101 @@ fn ambiguous_method_call_on_trait_inferred_receiver_reports_only_the_ambiguity()
             assert(a.is_small());
                      ^^^^^^^^ Multiple applicable methods named `is_small` in scope
                      ~~~~~~~~ Multiple `is_small` found
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn ambiguous_qualified_call_on_trait_inferred_receiver_reports_only_the_ambiguity() {
+    let src = r#"
+        trait FromField {
+            fn from_field(f: Field) -> Self;
+        }
+
+        impl FromField for u8 {
+            fn from_field(f: Field) -> u8 { f as u8 }
+        }
+
+        impl FromField for u64 {
+            fn from_field(f: Field) -> u64 { f as u64 }
+        }
+
+        struct Amount<T> { v: T }
+
+        impl Amount<u8> {
+            pub fn is_small(self) -> bool { self.v < 100 }
+        }
+
+        impl Amount<u64> {
+            pub fn is_small(self) -> bool { self.v < 100 }
+        }
+
+        fn main(x: Field) {
+            let a = Amount { v: FromField::from_field(x) };
+            assert(Amount::is_small(a));
+                           ^^^^^^^^ Multiple applicable methods named `is_small` in scope
+                           ~~~~~~~~ `is_small` is defined in `Amount<u8>`, `Amount<u64>`; name the impl's generics in a turbofish to pick one
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn ambiguous_wildcard_turbofish_call_on_trait_inferred_receiver_reports_only_the_ambiguity() {
+    let src = r#"
+        trait FromField {
+            fn from_field(f: Field) -> Self;
+        }
+
+        impl FromField for u8 {
+            fn from_field(f: Field) -> u8 { f as u8 }
+        }
+
+        impl FromField for u64 {
+            fn from_field(f: Field) -> u64 { f as u64 }
+        }
+
+        struct Amount<T> { v: T }
+
+        impl Amount<u8> {
+            pub fn is_small(self) -> bool { self.v < 100 }
+        }
+
+        impl Amount<u64> {
+            pub fn is_small(self) -> bool { self.v < 100 }
+        }
+
+        fn main(x: Field) {
+            let a = Amount { v: FromField::from_field(x) };
+            assert(Amount::<_>::is_small(a));
+                                ^^^^^^^^ Multiple applicable methods named `is_small` in scope
+                                ~~~~~~~~ `is_small` is defined in `Amount<u8>`, `Amount<u64>`; name the impl's generics in a turbofish to pick one
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn unresolved_call_on_trait_inferred_argument_reports_only_the_resolution_error() {
+    let src = r#"
+        trait FromField {
+            fn from_field(f: Field) -> Self;
+        }
+
+        impl FromField for u8 {
+            fn from_field(f: Field) -> u8 { f as u8 }
+        }
+
+        impl FromField for u64 {
+            fn from_field(f: Field) -> u64 { f as u64 }
+        }
+
+        fn main(x: Field) {
+            let a = FromField::from_field(x);
+            missing(a);
+            ^^^^^^^ cannot find `missing` in this scope
+            ~~~~~~~ not found in this scope
         }
     "#;
     check_errors(src);

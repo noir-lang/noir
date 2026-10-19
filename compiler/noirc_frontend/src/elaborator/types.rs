@@ -1702,10 +1702,42 @@ impl Elaborator<'_> {
         method_name: &str,
         has_self_arg: bool,
     ) -> Vec<(FuncId, TraitId, Type)> {
+        self.resolve_generic_method_candidate_metas(method_name);
+        self.interner.lookup_generic_methods(typ, method_name, has_self_arg)
+    }
+
+    /// The trait methods of impls for `typ`'s own type (`impl Foo for S`), together with those of
+    /// impls for all types `T` (`impl<T> Foo for T where T: Bar`) of the same traits whose where
+    /// clause is known to hold for `typ`: both impls apply, so neither is preferred.
+    ///
+    /// An impl for all types `T` whose where clause can't be decided yet
+    /// (`impl<T, U> Into<T> for U where T: From<U>` with `T` unknown) is left out, so a type's own
+    /// impl is the one selected. When `typ` has no impl of its own the result is empty.
+    fn lookup_own_and_applicable_generic_methods(
+        &mut self,
+        typ: &Type,
+        method_name: &str,
+        has_self_arg: bool,
+    ) -> Vec<(FuncId, TraitId, Type)> {
+        let mut methods = self.lookup_trait_methods(typ, method_name, has_self_arg);
+        if methods.is_empty() {
+            return methods;
+        }
+        self.resolve_generic_method_candidate_metas(method_name);
+        let trait_ids = vecmap(&methods, |(_, trait_id, _)| *trait_id);
+        methods.extend(self.interner.lookup_applicable_generic_methods(
+            typ,
+            method_name,
+            has_self_arg,
+            &trait_ids,
+        ));
+        methods
+    }
+
+    fn resolve_generic_method_candidate_metas(&mut self, method_name: &str) {
         for func_id in self.interner.generic_method_candidate_ids(method_name) {
             self.define_function_meta_if_undefined(func_id);
         }
-        self.interner.lookup_generic_methods(typ, method_name, has_self_arg)
     }
 
     fn resolve_method_candidate_metas(&mut self, typ: &Type, method_name: &str) {
@@ -1837,7 +1869,8 @@ impl Elaborator<'_> {
         }
 
         let has_self_arg = false;
-        let type_trait_methods = self.lookup_trait_methods(typ, method_name, has_self_arg);
+        let type_trait_methods =
+            self.lookup_own_and_applicable_generic_methods(typ, method_name, has_self_arg);
 
         // If no method matches the turbofish type but the name is a known method for this type
         // (just incompatible), report an error. If the name isn't a method at all (e.g. it's an
@@ -1930,7 +1963,8 @@ impl Elaborator<'_> {
     /// non-overlapping inherent impl defines a `method` applicable to `typ` (mirroring Rust's
     /// E0034): the path names more than one function and nothing here disambiguates. Returns the
     /// resolution reporting [PathResolutionError::MultipleApplicableMethods] in that case, so the
-    /// call requires a method call (`value.method(..)`) or a turbofish naming the impl's generics.
+    /// call requires a turbofish naming the impl's generics, or a method call (`value.method(..)`)
+    /// on a receiver whose type is already known.
     fn ambiguous_inherent_method(
         &self,
         typ: &Type,
@@ -2028,8 +2062,9 @@ impl Elaborator<'_> {
         let method_name = last_segment.ident.as_str();
 
         let has_self_arg = false;
-        let trait_methods = trait_methods
-            .unwrap_or_else(|| self.lookup_trait_methods(typ, method_name, has_self_arg));
+        let trait_methods = trait_methods.unwrap_or_else(|| {
+            self.lookup_own_and_applicable_generic_methods(typ, method_name, has_self_arg)
+        });
 
         if trait_methods.is_empty() {
             return None;
@@ -2611,7 +2646,13 @@ impl Elaborator<'_> {
             Type::Function(parameters, ret, _env, unconstrained) => {
                 self.bind_function_type_impl(parameters, ret, *unconstrained, &args, location)
             }
-            Type::Error => Type::Error,
+            // The callee failed to resolve, so nothing determines the arguments' types.
+            Type::Error => {
+                for (arg, _, _) in &args {
+                    bind_unbound_type_variables_to_error(arg);
+                }
+                Type::Error
+            }
             found => {
                 self.push_err(TypeCheckError::ExpectedFunction { found: found.clone(), location });
                 Type::Error
@@ -3349,17 +3390,8 @@ impl Elaborator<'_> {
                 location: method_ident.location(),
             });
 
-            // The object's type stays unknown, so its type variables are bound to the error type
-            // to avoid follow-on errors (e.g. an integer variable defaulting to `Field` and then
-            // failing a trait constraint that only the intended impl's type satisfies).
-            let mut unbound = Vec::new();
-            object_type.unbound_type_variables(&mut unbound);
-            let mut seen = HashSet::new();
-            for variable in unbound {
-                if seen.insert(variable.id()).is_none() {
-                    variable.bind(Type::Error);
-                }
-            }
+            // The object's type stays unknown.
+            bind_unbound_type_variables_to_error(object_type);
             return None;
         }
 
@@ -3371,7 +3403,11 @@ impl Elaborator<'_> {
         }
 
         // Next lookup all matching trait methods.
-        let trait_methods = self.lookup_trait_methods(object_type, method_name, check_self_param);
+        let trait_methods = self.lookup_own_and_applicable_generic_methods(
+            object_type,
+            method_name,
+            check_self_param,
+        );
 
         // If there's at least one matching trait method we need to see if only one is in scope.
         if !trait_methods.is_empty() {
@@ -4222,5 +4258,22 @@ impl Elaborator<'_> {
         }
 
         fully_qualified_module_path(self.def_maps, self.crate_graph, &self.crate_id, trait_.id.0)
+    }
+}
+
+/// Binds every unbound type variable in `typ` to the error type.
+///
+/// Used once an error has been reported that leaves `typ` undetermined: an unbound variable would
+/// otherwise be defaulted (an integer variable to `Field`, say) or reported as needing an
+/// annotation, and the trait constraints on it would then fail with errors that only follow from
+/// the one already reported.
+fn bind_unbound_type_variables_to_error(typ: &Type) {
+    let mut unbound = Vec::new();
+    typ.unbound_type_variables(&mut unbound);
+    let mut seen = HashSet::new();
+    for variable in unbound {
+        if seen.insert(variable.id()).is_none() {
+            variable.bind(Type::Error);
+        }
     }
 }

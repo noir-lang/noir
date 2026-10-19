@@ -1304,3 +1304,225 @@ fn inherited_self_default_method_inside_generic_impl_does_not_infer_the_receiver
     "#;
     check_errors(src);
 }
+
+#[test]
+fn method_call_that_a_blanket_impl_with_a_default_body_also_serves_is_ambiguous() {
+    let src = r#"
+    trait Marker {}
+    trait Foo {
+        fn value(self) -> Field {
+            let _ = self;
+            1
+        }
+    }
+    struct S<U> { x: U }
+    impl<T> Foo for T where T: Marker {}
+    impl<U> Foo for S<U> {
+        fn value(self) -> Field { 2 }
+    }
+
+    pub fn value_of<U>(x: U) -> Field where S<U>: Marker {
+        S { x }.value()
+        ^^^^^^^^^^^^^ Multiple trait impls match the object type `S<U>`
+        ~~~~~~~~~~~~~ Ambiguous impl
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn method_call_that_a_blanket_impl_also_serves_under_a_where_clause_is_ambiguous() {
+    let src = r#"
+    trait Marker {}
+    trait Foo {
+        fn value(self) -> Field;
+    }
+    struct S<U> { x: U }
+    impl<T> Foo for T where T: Marker {
+        fn value(self) -> Field { 1 }
+    }
+    impl<U> Foo for S<U> {
+        fn value(self) -> Field { 2 }
+    }
+
+    pub fn value_of<U>(x: U) -> Field where S<U>: Marker {
+        S { x }.value()
+        ^^^^^^^^^^^^^ Multiple trait impls match the object type `S<U>`
+        ~~~~~~~~~~~~~ Ambiguous impl
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn type_path_call_that_a_blanket_impl_also_serves_under_a_where_clause_is_ambiguous() {
+    let src = r#"
+    trait Marker {}
+    trait Foo {
+        fn value(self) -> Field;
+    }
+    struct S<U> { x: U }
+    impl<T> Foo for T where T: Marker {
+        fn value(self) -> Field { 1 }
+    }
+    impl<U> Foo for S<U> {
+        fn value(self) -> Field { 2 }
+    }
+
+    pub fn value_of<U>(x: U) -> Field where S<U>: Marker {
+        S::value(S { x })
+        ^^^^^^^^ Multiple trait impls match the object type `S<U>`
+        ~~~~~~~~ Ambiguous impl
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn turbofish_path_call_that_a_blanket_impl_also_serves_under_a_where_clause_is_ambiguous() {
+    let src = r#"
+    trait Marker {}
+    trait Foo {
+        fn value(self) -> Field;
+    }
+    struct S<U> { x: U }
+    impl<T> Foo for T where T: Marker {
+        fn value(self) -> Field { 1 }
+    }
+    impl<U> Foo for S<U> {
+        fn value(self) -> Field { 2 }
+    }
+
+    pub fn value_of<U>(x: U) -> Field where S<U>: Marker {
+        S::<U>::value(S { x })
+        ^^^^^^^^^^^^^ Multiple trait impls match the object type `S<U>`
+        ~~~~~~~~~~~~~ Ambiguous impl
+    }
+
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn method_call_selects_a_types_own_impl_over_a_blanket_impl_with_an_undecided_where_clause() {
+    let src = r#"
+    trait From<T> {
+        fn from(input: T) -> Self;
+    }
+    trait Into<T> {
+        fn into(self) -> T;
+    }
+    impl<T, U> Into<T> for U where T: From<U> {
+        fn into(self) -> T { T::from(self) }
+    }
+    impl<T> From<T> for T {
+        fn from(input: T) -> T { input }
+    }
+
+    struct S {}
+    impl Into<Field> for S {
+        fn into(self) -> Field { 2 }
+    }
+
+    fn main() {
+        let _ = S {}.into();
+    }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> () {
+        let _$l0 = into$f1({
+            ()
+        })
+    }
+    fn into$f1(self$l1: ()) -> Field {
+        2
+    }
+    ");
+}
+
+#[test]
+fn calls_select_a_types_own_impl_over_a_blanket_impl_whose_where_clause_fails() {
+    let src = r#"
+    trait Marker {}
+    trait Foo {
+        fn value(self) -> Field;
+    }
+    struct S {}
+    struct G<T> {}
+    impl<T> Foo for T where T: Marker {
+        fn value(self) -> Field { 1 }
+    }
+    impl Foo for S {
+        fn value(self) -> Field { 2 }
+    }
+    impl Foo for G<u8> {
+        fn value(self) -> Field { 3 }
+    }
+
+    fn main() -> pub Field {
+        S {}.value() + S::value(S {}) + G::<u8>::value(G {})
+    }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub Field {
+        ((value$f1({
+            ()
+        }) + value$f1({
+            ()
+        })) + value$f2({
+            ()
+        }))
+    }
+    fn value$f1(self$l0: ()) -> Field {
+        2
+    }
+    fn value$f2(self$l1: ()) -> Field {
+        3
+    }
+    ");
+}
+
+#[test]
+fn type_path_call_selects_a_types_own_impl_over_a_blanket_impl_of_another_trait() {
+    let src = r#"
+    trait From<T> {
+        fn from(input: T) -> Self;
+    }
+    impl<T> From<T> for T {
+        fn from(input: T) -> T { input }
+    }
+
+    trait Parse {
+        fn from(x: Field) -> Self;
+    }
+    struct S { x: Field }
+    impl Parse for S {
+        fn from(x: Field) -> Self { S { x } }
+    }
+
+    fn main() -> pub Field {
+        S::from(1).x
+    }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub Field {
+        from$f1(1).0
+    }
+    fn from$f1(x$l0: Field) -> (Field,) {
+        {
+            let x$l1 = x$l0;
+            (x$l1)
+        }
+    }
+    ");
+}

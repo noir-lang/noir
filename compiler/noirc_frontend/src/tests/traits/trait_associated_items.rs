@@ -1412,8 +1412,6 @@ fn implied_associated_type_bound_stays_with_the_item_that_implies_it() {
         pub fn implies() where T: Foo<Bar = U> {}
 
         pub fn restates() where U: HasQux, U: HasQux {}
-               ^^^^^^^^ Constraint for `U: HasQux` is not needed, another matching impl is already in scope
-               ~~~~~~~~ Unnecessary trait constraint in where clause
                                               ^^^^^^ Constraint for `U: HasQux` is not needed, another matching impl is already in scope
                                               ~~~~~~ Unnecessary trait constraint in where clause
     }

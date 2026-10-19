@@ -64,7 +64,13 @@
 { <span class="comment">/* private fields */</span> }
 </code></pre>
 <div class="comments">
-<p>An index expression decomposed by <a href="../../../std/primitive.Expr.html#as_index"><code>Expr::as_index</code></a>.</p></div>
+<p>An index expression decomposed by <a href="../../../std/primitive.Expr.html#as_index"><code>Expr::as_index</code></a>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> index = <span class="kw">quote</span> { array[i] }.as_expr().unwrap().as_index().unwrap();
+    <span class="kw">assert_eq</span>(index.collection().quoted(), <span class="kw">quote</span> { array });
+    <span class="kw">assert_eq</span>(index.index().quoted(), <span class="kw">quote</span> { i });
+}</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../../../std/meta/expr/struct.IndexExpression.html" class="struct">IndexExpression</a></code></h3>
 
@@ -72,12 +78,20 @@
 
 <div class="padded-description"><div class="comments">
 <p>The collection being indexed.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> index = <span class="kw">quote</span> { array[i] }.as_expr().unwrap().as_index().unwrap();
+    <span class="kw">assert_eq</span>(index.collection().quoted(), <span class="kw">quote</span> { array });
+}</code></pre></div>
 </div><code id="index" class="code-header">pub comptime fn <a href="#index" class="fn">index</a>(self) -> <a href="../../../std/primitive.Expr.html" class="primitive">Expr</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>The index expression.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> index = <span class="kw">quote</span> { array[i] }.as_expr().unwrap().as_index().unwrap();
+    <span class="kw">assert_eq</span>(index.index().quoted(), <span class="kw">quote</span> { i });
+}</code></pre></div>
 </div></div></div>
 </main>
 </span>

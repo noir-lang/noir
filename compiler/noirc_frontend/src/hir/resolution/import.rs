@@ -189,7 +189,7 @@ impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
                 CustomDiagnostic::simple_error(
                     error.to_string(),
                     format!(
-                        "`{ident}` is defined in {}; use a method call or turbofish to disambiguate",
+                        "`{ident}` is defined in {}; name the impl's generics in a turbofish to pick one",
                         impls.join(", ")
                     ),
                     ident.location(),
