@@ -1818,6 +1818,14 @@ impl Elaborator<'_> {
         let method_name = last_segment.ident.as_str();
 
         if let Some(func_id) = direct_method {
+            // A turbofish that leaves the distinguishing generics as `_` (`S::<_>::m`) can still
+            // match several non-overlapping inherent impls; it is ambiguous like `S::m`.
+            if let Some(ambiguity) =
+                self.ambiguous_inherent_method(typ, last_segment, &path_resolution)
+            {
+                self.push_errors(generics_errors);
+                return Some(ambiguity);
+            }
             self.push_errors(generics_errors);
             return Some(self.resolve_direct_method(
                 path_resolution.item,
@@ -1902,23 +1910,10 @@ impl Elaborator<'_> {
             return TraitPathResolution { method, item, errors };
         }
 
-        // `TypeName::method` is ambiguous when more than one non-overlapping inherent impl
-        // defines a `method` applicable to `typ` (mirroring Rust's E0034): the path names more
-        // than one function and nothing here disambiguates. Require a method call
-        // (`value.method(..)`) or turbofish (`TypeName::<..>::method(..)`) instead.
-        let impl_types = self.interner.matching_direct_method_types(typ, method_name);
-        if impl_types.len() >= 2 {
+        if let Some(ambiguity) = self.ambiguous_inherent_method(typ, last_segment, &path_resolution)
+        {
             self.push_errors(generics_errors);
-            let mut errors = path_resolution.errors;
-            errors.push(PathResolutionError::MultipleApplicableMethods {
-                ident: last_segment.ident.clone(),
-                impl_types: vecmap(&impl_types, |typ| typ.to_string()),
-            });
-            return TraitPathResolution {
-                method: TraitPathResolutionMethod::MultipleTraitsInScope,
-                item: None,
-                errors,
-            };
+            return ambiguity;
         }
 
         self.push_errors(generics_errors);
@@ -1929,6 +1924,35 @@ impl Elaborator<'_> {
             &last_segment.ident,
             path_resolution.errors,
         )
+    }
+
+    /// A `TypeName::method` or `TypeName::<..>::method` path is ambiguous when more than one
+    /// non-overlapping inherent impl defines a `method` applicable to `typ` (mirroring Rust's
+    /// E0034): the path names more than one function and nothing here disambiguates. Returns the
+    /// resolution reporting [PathResolutionError::MultipleApplicableMethods] in that case, so the
+    /// call requires a method call (`value.method(..)`) or a turbofish naming the impl's generics.
+    fn ambiguous_inherent_method(
+        &self,
+        typ: &Type,
+        last_segment: &TypedPathSegment,
+        path_resolution: &PathResolution,
+    ) -> Option<TraitPathResolution> {
+        let method_name = last_segment.ident.as_str();
+        let impl_types = self.interner.matching_direct_method_types(typ, method_name);
+        if impl_types.len() < 2 {
+            return None;
+        }
+
+        let mut errors = path_resolution.errors.clone();
+        errors.push(PathResolutionError::MultipleApplicableMethods {
+            ident: last_segment.ident.clone(),
+            impl_types: vecmap(&impl_types, |typ| typ.to_string()),
+        });
+        Some(TraitPathResolution {
+            method: TraitPathResolutionMethod::MultipleTraitsInScope,
+            item: None,
+            errors,
+        })
     }
 
     /// Resolves the head of a `Type::method` path to the concrete receiver [Type] whose methods we
