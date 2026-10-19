@@ -604,37 +604,34 @@ fn for_loop_inclusive_max_value_without_break() {
     // - b1 is the loop header
     // - b2 is the loop body
     // - b3 is the loop exit, but it performs a check to determine whether the final iteration
-    //   should be executed. In this case we check if no break was hit. The (start <= end)
-    //   condition is constant true and simplified away.
-    // - b4 is the final iteration where `index == end`
-    assert_ssa_snapshot!(ssa, @r"
+    //   should be executed. The (start <= end) condition is constant true.
+    // - b5 is the final iteration where `index == end`
+    // - b4 is the block after the final iteration
+    assert_ssa_snapshot!(ssa, @"
     acir(inline) fn main f0 {
       b0():
         v1 = allocate -> &mut u8
         store u8 0 at v1
-        v3 = allocate -> &mut u1
-        store u1 1 at v3
         jmp b1(u8 0)
       b1(v0: u8):
-        v6 = lt v0, u8 255
-        jmpif v6 then: b2(), else: b3()
+        v4 = lt v0, u8 255
+        jmpif v4 then: b2(), else: b3()
       b2():
-        v7 = load v1 -> u8
-        v8 = add v7, v0
-        store v8 at v1
-        v10 = unchecked_add v0, u8 1
-        jmp b1(v10)
+        v5 = load v1 -> u8
+        v6 = add v5, v0
+        store v6 at v1
+        v8 = unchecked_add v0, u8 1
+        jmp b1(v8)
       b3():
-        v11 = load v3 -> u1
-        jmpif v11 then: b4(), else: b5()
+        jmpif u1 1 then: b5(), else: b4()
       b4():
         v12 = load v1 -> u8
-        v13 = add v12, u8 255
-        store v13 at v1
-        jmp b5()
+        return v12
       b5():
-        v14 = load v1 -> u8
-        return v14
+        v10 = load v1 -> u8
+        v11 = add v10, u8 255
+        store v11 at v1
+        jmp b4()
     }
     ");
 }
@@ -734,52 +731,45 @@ fn for_loop_inclusive_max_value_with_break() {
     let ssa = get_initial_ssa(assert_src).unwrap();
 
     // - b1 is the loop header
-    // - b2, b4  and b5 are the loop body
-    // - b4 has the logic that happens when a break is hit. In this case we store 0 at v3
-    //   to signal this.
+    // - b2, b5 and b6 are the loop body
+    // - b5 is the `break`: it jumps to b4, the block after the final iteration, so a break
+    //   in the exclusive iterations skips the final iteration without any runtime flag.
     // - b3 is the loop exit, but it performs a check to determine whether the final iteration
-    //   should be executed. In this case we check if no break was hit. It's multiplied by
-    //   one because that "one" is (start < end) which is true in this case.
-    // - b6 is the final loop iteration where `index == end`. Note that the code for
-    //   `if cond { break; }` now has the break take us to b8, which jumps to b7, which
-    //   exits main (that is, the break skips the final iteration).
-    assert_ssa_snapshot!(ssa, @r"
+    //   should be executed. The (start <= end) condition is constant true.
+    // - b7 is the final loop iteration where `index == end`. Its `break` (b8) also jumps to b4.
+    assert_ssa_snapshot!(ssa, @"
     brillig(inline) fn main f0 {
       b0(v0: u1):
         v2 = allocate -> &mut u8
         store u8 0 at v2
-        v4 = allocate -> &mut u1
-        store u1 1 at v4
         jmp b1(u8 0)
       b1(v1: u8):
-        v7 = lt v1, u8 255
-        jmpif v7 then: b2(), else: b3()
+        v5 = lt v1, u8 255
+        jmpif v5 then: b2(), else: b3()
       b2():
-        jmpif v0 then: b4(), else: b5()
+        jmpif v0 then: b5(), else: b6()
       b3():
-        v13 = load v4 -> u1
-        jmpif v13 then: b6(), else: b7()
+        jmpif u1 1 then: b7(), else: b4()
       b4():
-        store u1 0 at v4
-        jmp b3()
+        v13 = load v2 -> u8
+        return v13
       b5():
-        v8 = load v2 -> u8
-        v9 = add v8, v1
-        store v9 at v2
-        v11 = unchecked_add v1, u8 1
-        jmp b1(v11)
+        jmp b4()
       b6():
-        jmpif v0 then: b8(), else: b9()
+        v6 = load v2 -> u8
+        v7 = add v6, v1
+        store v7 at v2
+        v9 = unchecked_add v1, u8 1
+        jmp b1(v9)
       b7():
-        v16 = load v2 -> u8
-        return v16
+        jmpif v0 then: b8(), else: b9()
       b8():
-        jmp b7()
+        jmp b4()
       b9():
-        v14 = load v2 -> u8
-        v15 = add v14, u8 255
-        store v15 at v2
-        jmp b7()
+        v11 = load v2 -> u8
+        v12 = add v11, u8 255
+        store v12 at v2
+        jmp b4()
     }
     ");
 }
@@ -800,53 +790,75 @@ fn for_loop_inclusive_unknown_range_with_break() {
     ";
     let ssa = get_initial_ssa(assert_src).unwrap();
 
-    // Here we can see in b3 that we do `lt v0, v1`, which is the condition that checks
-    // `start < end` to determine whether the final iteration should be executed
-    // (in addition to checking if a break was hit or not).
-    assert_ssa_snapshot!(ssa, @r"
+    // Here we can see in b3 that we do `lt v1, v0`, whose negation is the `start <= end`
+    // condition that determines whether the final iteration should be executed. A `break`
+    // jumps to b4, the block after the final iteration.
+    assert_ssa_snapshot!(ssa, @"
     brillig(inline) fn main f0 {
       b0(v0: u8, v1: u8):
         v3 = allocate -> &mut u8
         store u8 0 at v3
-        v5 = allocate -> &mut u1
-        store u1 1 at v5
         jmp b1(v0)
       b1(v2: u8):
-        v7 = lt v2, v1
-        jmpif v7 then: b2(), else: b3()
+        v5 = lt v2, v1
+        jmpif v5 then: b2(), else: b3()
       b2():
-        v9 = eq v2, u8 10
-        jmpif v9 then: b4(), else: b5()
+        v7 = eq v2, u8 10
+        jmpif v7 then: b5(), else: b6()
       b3():
-        v15 = load v5 -> u1
-        v16 = lt v1, v0
-        v17 = not v16
-        v18 = unchecked_mul v15, v17
-        jmpif v18 then: b6(), else: b7()
+        v12 = lt v1, v0
+        v13 = not v12
+        jmpif v13 then: b7(), else: b4()
       b4():
-        store u1 0 at v5
-        jmp b3()
+        v17 = load v3 -> u8
+        return v17
       b5():
-        v10 = load v3 -> u8
-        v11 = add v10, v2
-        store v11 at v3
-        v13 = unchecked_add v2, u8 1
-        jmp b1(v13)
+        jmp b4()
       b6():
-        v19 = eq v1, u8 10
-        jmpif v19 then: b8(), else: b9()
+        v8 = load v3 -> u8
+        v9 = add v8, v2
+        store v9 at v3
+        v11 = unchecked_add v2, u8 1
+        jmp b1(v11)
       b7():
-        v22 = load v3 -> u8
-        return v22
+        v14 = eq v1, u8 10
+        jmpif v14 then: b8(), else: b9()
       b8():
-        jmp b7()
+        jmp b4()
       b9():
-        v20 = load v3 -> u8
-        v21 = add v20, v1
-        store v21 at v3
-        jmp b7()
+        v15 = load v3 -> u8
+        v16 = add v15, v1
+        store v16 at v3
+        jmp b4()
     }
     ");
+}
+
+/// The ownership pass moves `a` into `g` because `break` follows the call, so no clone
+/// protects it. The inclusive range lowers the body twice (exclusive iterations plus a final
+/// iteration), so the RC-invariant verifier only accepts the moved argument if no CFG path
+/// leads from the `break` of the exclusive iterations into the final iteration's copy of the call.
+#[test]
+fn for_loop_inclusive_break_after_moving_call_argument_keeps_rc_invariant() {
+    let src = "
+    unconstrained fn main(a: [Field; 1], n: u32) {
+        for _ in 0..=n {
+            let _ = g(a);
+            break;
+        }
+    }
+    unconstrained fn g(mut a: [Field; 1]) -> Field {
+        a[0] = 5;
+        a[0]
+    }
+    ";
+    let ssa = get_initial_ssa(src)
+        .unwrap()
+        .mem2reg_brillig()
+        .remove_unused_instructions()
+        .remove_redundant_params();
+    crate::ssa::validation::rc_invariant::verify_all(&ssa)
+        .expect("a `break` in an inclusive range must not reach the final iteration's body");
 }
 
 #[test]
@@ -862,25 +874,22 @@ fn for_loop_inclusive_with_continue() {
 
     // Here we can see that the `continue` in the final iteration jumps
     // to the end of the loop (from b4 to b5).
-    assert_ssa_snapshot!(ssa, @r"
+    assert_ssa_snapshot!(ssa, @"
     brillig(inline) fn main f0 {
       b0():
-        v1 = allocate -> &mut u1
-        store u1 1 at v1
         jmp b1(u8 0)
       b1(v0: u8):
-        v5 = lt v0, u8 255
-        jmpif v5 then: b2(), else: b3()
+        v3 = lt v0, u8 255
+        jmpif v3 then: b2(), else: b3()
       b2():
-        v7 = unchecked_add v0, u8 1
-        jmp b1(v7)
+        v5 = unchecked_add v0, u8 1
+        jmp b1(v5)
       b3():
-        v8 = load v1 -> u1
-        jmpif v8 then: b4(), else: b5()
+        jmpif u1 1 then: b5(), else: b4()
       b4():
-        jmp b5()
-      b5():
         return
+      b5():
+        jmp b4()
     }
     ");
 }
@@ -899,34 +908,31 @@ fn for_loop_inclusive_max_value_to_max_value() {
     let ssa = get_initial_ssa(assert_src).unwrap();
 
     // Check that the final iteration is included
-    assert_ssa_snapshot!(ssa, @r"
+    assert_ssa_snapshot!(ssa, @"
     acir(inline) fn main f0 {
       b0():
         v1 = allocate -> &mut u8
         store u8 0 at v1
-        v3 = allocate -> &mut u1
-        store u1 1 at v3
         jmp b1(u8 255)
       b1(v0: u8):
-        v6 = lt v0, u8 255
-        jmpif v6 then: b2(), else: b3()
+        v4 = lt v0, u8 255
+        jmpif v4 then: b2(), else: b3()
       b2():
-        v7 = load v1 -> u8
-        v8 = add v7, v0
-        store v8 at v1
-        v10 = unchecked_add v0, u8 1
-        jmp b1(v10)
+        v5 = load v1 -> u8
+        v6 = add v5, v0
+        store v6 at v1
+        v8 = unchecked_add v0, u8 1
+        jmp b1(v8)
       b3():
-        v11 = load v3 -> u1
-        jmpif v11 then: b4(), else: b5()
+        jmpif u1 1 then: b5(), else: b4()
       b4():
         v12 = load v1 -> u8
-        v13 = add v12, u8 255
-        store v13 at v1
-        jmp b5()
+        return v12
       b5():
-        v14 = load v1 -> u8
-        return v14
+        v10 = load v1 -> u8
+        v11 = add v10, u8 255
+        store v11 at v1
+        jmp b4()
     }
     ");
 }
@@ -946,8 +952,7 @@ fn for_loop_inclusive_no_mul_by_one() {
     ";
     let ssa = get_initial_ssa(src).unwrap();
 
-    // The `did_not_hit_break` load should be used directly in the jmpif,
-    // not multiplied by `u1 1`.
+    // The final-iteration guard is a plain `jmpif` on `start <= end`, not multiplied by `u1 1`.
     let ssa_string = ssa.to_string();
     assert!(
         !ssa_string.contains("unchecked_mul"),
