@@ -497,6 +497,136 @@ fn method_call_on_uninferred_receiver_with_multiple_inherent_impls_is_ambiguous_
 }
 
 #[test]
+fn wildcard_turbofish_call_with_multiple_inherent_impls_is_ambiguous() {
+    // Regression test for https://github.com/noir-lang/noir-claude/issues/2750
+    let src = r#"
+        struct S<T> { v: T }
+
+        impl S<u8> {
+            pub fn m(_self: Self) -> Field { 8 }
+        }
+
+        impl S<u16> {
+            pub fn m(_self: Self) -> Field { 16 }
+        }
+
+        fn main() {
+            let s = S { v: 5 };
+            let _ = S::<_>::m(s);
+                            ^ Multiple applicable methods named `m` in scope
+                            ~ `m` is defined in `S<u8>`, `S<u16>`; use a method call or turbofish to disambiguate
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn wildcard_turbofish_call_with_multiple_inherent_impls_is_ambiguous_in_either_order() {
+    let src = r#"
+        struct S<T> { v: T }
+
+        impl S<u16> {
+            pub fn m(_self: Self) -> Field { 16 }
+        }
+
+        impl S<u8> {
+            pub fn m(_self: Self) -> Field { 8 }
+        }
+
+        fn main() {
+            let s = S { v: 5 };
+            let _ = S::<_>::m(s);
+                            ^ Multiple applicable methods named `m` in scope
+                            ~ `m` is defined in `S<u16>`, `S<u8>`; use a method call or turbofish to disambiguate
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn partial_wildcard_turbofish_call_with_multiple_inherent_impls_is_ambiguous() {
+    let src = r#"
+        struct P<A, B> { a: A, b: B }
+
+        impl P<u8, u8> {
+            pub fn m(_self: Self) -> Field { 8 }
+        }
+
+        impl P<u8, u16> {
+            pub fn m(_self: Self) -> Field { 16 }
+        }
+
+        fn main() {
+            let p = P { a: 1, b: 5 };
+            let _ = P::<u8, _>::m(p);
+                                ^ Multiple applicable methods named `m` in scope
+                                ~ `m` is defined in `P<u8, u8>`, `P<u8, u16>`; use a method call or turbofish to disambiguate
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn wildcard_turbofish_constructor_with_multiple_inherent_impls_is_ambiguous() {
+    let src = r#"
+        struct Buf<T, let N: u32> { s: [T; N] }
+
+        impl<let N: u32> Buf<u8, N> {
+            pub fn first(x: u8) -> Self { Buf { s: [x; N] } }
+        }
+
+        impl<let N: u32> Buf<u64, N> {
+            pub fn first(x: u64) -> Self { Buf { s: [x; N] } }
+        }
+
+        fn main() {
+            let _ = Buf::<_, 2>::first(5);
+                                 ^^^^^ Multiple applicable methods named `first` in scope
+                                 ~~~~~ `first` is defined in `Buf<u8, N>`, `Buf<u64, N>`; use a method call or turbofish to disambiguate
+        }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn concrete_turbofish_call_with_multiple_inherent_impls_selects_matching_impl() {
+    let src = r#"
+        struct S<T> { v: T }
+
+        impl S<u8> {
+            pub fn m(_self: Self) -> u8 { 8 }
+        }
+
+        impl S<u16> {
+            pub fn m(_self: Self) -> u16 { 16 }
+        }
+
+        fn main() {
+            let s = S { v: 5 };
+            let _: u16 = S::<u16>::m(s);
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
+fn wildcard_turbofish_call_with_single_inherent_impl_infers_receiver() {
+    let src = r#"
+        struct S<T> { v: T }
+
+        impl S<u16> {
+            pub fn m(self) -> u16 { self.v }
+        }
+
+        fn main() {
+            let s = S { v: 5 };
+            let _: u16 = S::<_>::m(s);
+        }
+    "#;
+    assert_no_errors(src);
+}
+
+#[test]
 fn ambiguous_method_call_on_trait_inferred_receiver_reports_only_the_ambiguity() {
     let src = r#"
         trait FromField {
