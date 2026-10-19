@@ -321,8 +321,8 @@ fn impl_stricter_than_trait_type_alias_in_constraint_typ() {
     // so the method constraint should be recognized as covered by the impl
     // constraint (i.e. no "impl has stricter requirements than trait" error).
     //
-    // An "unnecessary trait constraint" warning is emitted at each site because
-    // the method-level constraint is semantically redundant with the impl-level
+    // An "unnecessary trait constraint" warning is emitted because the
+    // method-level constraint is semantically redundant with the impl-level
     // constraint — that is exactly the condition under which the shortcut we
     // are testing should apply.
     let src = r#"
@@ -338,8 +338,6 @@ fn impl_stricter_than_trait_type_alias_in_constraint_typ() {
                                               ^^^ Constraint for `Alias<A>: Bar` is not needed, another matching impl is already in scope
                                               ~~~ Unnecessary trait constraint in where clause
         fn foo<B>() where A: Bar {}
-           ^^^ Constraint for `Alias<A>: Bar` is not needed, another matching impl is already in scope
-           ~~~ Unnecessary trait constraint in where clause
     }
 
     fn main() {}
@@ -365,8 +363,6 @@ fn impl_stricter_than_trait_type_alias_in_trait_generics() {
                                        ^^^ Constraint for `A: Bar` is not needed, another matching impl is already in scope
                                        ~~~ Unnecessary trait constraint in where clause
         fn foo<B>() where A: Bar<A> {}
-           ^^^ Constraint for `A: Bar` is not needed, another matching impl is already in scope
-           ~~~ Unnecessary trait constraint in where clause
     }
 
     fn main() {}
