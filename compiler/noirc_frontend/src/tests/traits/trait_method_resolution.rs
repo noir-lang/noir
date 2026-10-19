@@ -1316,17 +1316,24 @@ fn method_call_that_a_blanket_impl_with_a_default_body_also_serves_under_a_where
             1
         }
     }
-    struct S {}
+    struct S<U> { x: U }
     impl<T> Foo for T where T: Marker {}
-    impl Foo for S {
-        fn value(self) -> Field { 2 }
+    impl<U> Foo for S<U> {
+        fn value(self) -> Field {
+            let _ = self.x;
+            2
+        }
     }
 
-    fn main() -> pub Field where S: Marker {
-        S {}.value()
-        ^^^^^^^^^^ Multiple trait impls match the object type `S`
-        ~~~~~~~~~~ Ambiguous impl
+    fn value_of<U>(x: U) -> Field where S<U>: Marker {
+       ^^^^^^^^ unused function value_of
+       ~~~~~~~~ unused function
+        S { x }.value()
+        ^^^^^^^^^^^^^ Multiple trait impls match the object type `S<U>`
+        ~~~~~~~~~~~~~ Ambiguous impl
     }
+
+    fn main() {}
     "#;
     check_errors(src);
 }
@@ -1338,19 +1345,26 @@ fn method_call_that_a_blanket_impl_also_serves_under_a_where_clause_is_ambiguous
     trait Foo {
         fn value(self) -> Field;
     }
-    struct S {}
+    struct S<U> { x: U }
     impl<T> Foo for T where T: Marker {
         fn value(self) -> Field { 1 }
     }
-    impl Foo for S {
-        fn value(self) -> Field { 2 }
+    impl<U> Foo for S<U> {
+        fn value(self) -> Field {
+            let _ = self.x;
+            2
+        }
     }
 
-    fn main() -> pub Field where S: Marker {
-        S {}.value()
-        ^^^^^^^^^^ Multiple trait impls match the object type `S`
-        ~~~~~~~~~~ Ambiguous impl
+    fn value_of<U>(x: U) -> Field where S<U>: Marker {
+       ^^^^^^^^ unused function value_of
+       ~~~~~~~~ unused function
+        S { x }.value()
+        ^^^^^^^^^^^^^ Multiple trait impls match the object type `S<U>`
+        ~~~~~~~~~~~~~ Ambiguous impl
     }
+
+    fn main() {}
     "#;
     check_errors(src);
 }
@@ -1362,19 +1376,26 @@ fn type_path_call_that_a_blanket_impl_also_serves_under_a_where_clause_is_ambigu
     trait Foo {
         fn value(self) -> Field;
     }
-    struct S {}
+    struct S<U> { x: U }
     impl<T> Foo for T where T: Marker {
         fn value(self) -> Field { 1 }
     }
-    impl Foo for S {
-        fn value(self) -> Field { 2 }
+    impl<U> Foo for S<U> {
+        fn value(self) -> Field {
+            let _ = self.x;
+            2
+        }
     }
 
-    fn main() -> pub Field where S: Marker {
-        S::value(S {})
-        ^^^^^^^^ Multiple trait impls match the object type `S`
+    fn value_of<U>(x: U) -> Field where S<U>: Marker {
+       ^^^^^^^^ unused function value_of
+       ~~~~~~~~ unused function
+        S::value(S { x })
+        ^^^^^^^^ Multiple trait impls match the object type `S<U>`
         ~~~~~~~~ Ambiguous impl
     }
+
+    fn main() {}
     "#;
     check_errors(src);
 }
@@ -1386,19 +1407,26 @@ fn turbofish_path_call_that_a_blanket_impl_also_serves_under_a_where_clause_is_a
     trait Foo {
         fn value(self) -> Field;
     }
-    struct G<T> {}
+    struct S<U> { x: U }
     impl<T> Foo for T where T: Marker {
         fn value(self) -> Field { 1 }
     }
-    impl Foo for G<u8> {
-        fn value(self) -> Field { 2 }
+    impl<U> Foo for S<U> {
+        fn value(self) -> Field {
+            let _ = self.x;
+            2
+        }
     }
 
-    fn main() -> pub Field where G<u8>: Marker {
-        G::<u8>::value(G {})
-        ^^^^^^^^^^^^^^ Multiple trait impls match the object type `G<u8>`
-        ~~~~~~~~~~~~~~ Ambiguous impl
+    fn value_of<U>(x: U) -> Field where S<U>: Marker {
+       ^^^^^^^^ unused function value_of
+       ~~~~~~~~ unused function
+        S::<U>::value(S { x })
+        ^^^^^^^^^^^^^ Multiple trait impls match the object type `S<U>`
+        ~~~~~~~~~~~~~ Ambiguous impl
     }
+
+    fn main() {}
     "#;
     check_errors(src);
 }
