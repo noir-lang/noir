@@ -130,7 +130,13 @@ def main():
             problem = "has no doc comment" if status == "missing" else "has no `noir` example"
             print(f"noir_stdlib/src/{path}:{line}: {kind} `{name}` {problem}")
         if args.check and incomplete:
-            print(f"\n{len(incomplete)} public stdlib items need a doc comment or an example.", file=sys.stderr)
+            sys.stdout.flush()
+            print(
+                f"\n{len(incomplete)} public stdlib items need a doc comment or an example. Give each one a"
+                " `///` doc comment with a ```noir code block; `just check-stdlib-doc-examples` runs the"
+                " examples.",
+                file=sys.stderr,
+            )
             return 1
         return 0
 
