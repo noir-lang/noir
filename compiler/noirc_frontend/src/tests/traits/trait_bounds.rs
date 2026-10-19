@@ -1812,3 +1812,32 @@ fn does_not_check_impl_where_clause_bounds_that_name_a_generic() {
     "#;
     assert_no_errors(src);
 }
+
+#[test]
+fn errors_on_trait_where_clause_bound_without_generics_that_no_impl_satisfies() {
+    let src = r#"
+    trait Marker {}
+    pub trait Foo where Field: Marker {}
+                               ^^^^^^ No matching impl found for `Field: Marker`
+                               ~~~~~~ No impl for `Field: Marker`
+    pub trait Bar where u8: Marker {
+                            ^^^^^^ No matching impl found for `u8: Marker`
+                            ~~~~~~ No impl for `u8: Marker`
+        fn bar();
+        fn baz();
+    }
+    fn main() {}
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn does_not_report_where_clause_bound_whose_type_failed_to_resolve() {
+    let src = r#"
+    trait Marker {}
+    pub fn f() where Unknown: Marker {}
+                     ^^^^^^^ Could not resolve 'Unknown' in path
+    fn main() {}
+    "#;
+    check_errors(src);
+}
