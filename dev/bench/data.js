@@ -1,107 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792433537448,
+  "lastUpdate": 1792433540523,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "4fa2a103e6e8e90d2d2be35b7df23cc009ef2e60",
-          "message": "chore(ssa): share one vector capacity model between the DFG, Remove IfElse and the interpreter (#13943)",
-          "timestamp": "2026-10-14T13:31:27Z",
-          "tree_id": "f04639a74be7672a03e04d2df0b41f23e0475449",
-          "url": "https://github.com/noir-lang/noir/commit/4fa2a103e6e8e90d2d2be35b7df23cc009ef2e60"
-        },
-        "date": 1791986816348,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 318.92,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 566.86,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 543.42,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-no-txs",
-            "value": 407.36,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 410.48,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 411.29,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 389.82,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 4970,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 4970,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 389.82,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 898.76,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 831.65,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 389.82,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 109.87,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 153.35,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -4949,6 +4850,105 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512_100_bytes",
             "value": 154.16,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fb34e1e109959ed8f4f4bf2852abaf60db91947e",
+          "message": "chore(driver): free the HIR before code generation in `compile_main` (#13920)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2026-10-19T17:27:45Z",
+          "tree_id": "39290e038f799733aa67248b7a6ad4605daf8823",
+          "url": "https://github.com/noir-lang/noir/commit/fb34e1e109959ed8f4f4bf2852abaf60db91947e"
+        },
+        "date": 1792433441861,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 295.2,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 358.71,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 335.28,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-no-txs",
+            "value": 392.3,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 392.3,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 392.32,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 392.3,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 7950,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 7950,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 392.31,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 600.32,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 533.23,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 392.3,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 86,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 101.04,
             "unit": "MB"
           }
         ]
