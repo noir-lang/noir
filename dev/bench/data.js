@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792412645227,
+  "lastUpdate": 1792412865217,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22996,48 +22996,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "b6a722560cff7061b6ea786cd75c7e1b45fdb640",
-          "message": "fix(frontend): keep an item's assumed trait impls out of items elaborated from inside it (#13953)",
-          "timestamp": "2026-10-12T13:08:25Z",
-          "tree_id": "d2f60804908cc33a58f5fc3fee757dcd45a7381b",
-          "url": "https://github.com/noir-lang/noir/commit/b6a722560cff7061b6ea786cd75c7e1b45fdb640"
-        },
-        "date": 1791811885739,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 167210,
-            "range": "± 989",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 135662,
-            "range": "± 3991",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2646211,
-            "range": "± 2042",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "1d355d8656e05fb7e3a06efab5978a0f0dd35a8f",
           "message": "fix(frontend): consider a default method's where-clause traits together with its own trait in method lookup (#13958)",
           "timestamp": "2026-10-12T15:50:48Z",
@@ -25079,6 +25037,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2360544,
             "range": "± 6047",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "29b8c74d1841fbe101de11cf08fdd2a91809656b",
+          "message": "fix(frontend): reject a wildcard turbofish call that several inherent impls can serve (#14036)",
+          "timestamp": "2026-10-19T12:02:24Z",
+          "tree_id": "3b9ef83198a4b45fa089fac63d016c783843021b",
+          "url": "https://github.com/noir-lang/noir/commit/29b8c74d1841fbe101de11cf08fdd2a91809656b"
+        },
+        "date": 1792412810884,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 63965,
+            "range": "± 745",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 58785,
+            "range": "± 674",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 1631925,
+            "range": "± 7664",
             "unit": "ns/iter"
           }
         ]
