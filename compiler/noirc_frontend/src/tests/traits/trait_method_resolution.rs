@@ -1588,3 +1588,38 @@ fn type_path_call_selects_a_types_own_impl_over_an_identity_blanket_impl() {
     }
     ");
 }
+
+#[test]
+fn method_call_selects_a_blanket_impl_when_a_types_own_impl_has_a_failing_where_clause() {
+    let src = r#"
+    trait Marker {}
+    trait Other {}
+    trait Foo {
+        fn value(self) -> Field;
+    }
+    struct S<A> { x: A }
+    impl<A> Foo for S<A> where A: Marker {
+        fn value(self) -> Field { 1 }
+    }
+    impl<T> Foo for T where T: Other {
+        fn value(self) -> Field { 2 }
+    }
+    impl Other for S<Field> {}
+
+    fn main() -> pub Field {
+        S { x: 1 as Field }.value()
+    }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub Field {
+        value$f1({
+            let x$l0 = (1 as Field);
+            (x$l0)
+        })
+    }
+    fn value$f1(self$l1: (Field,)) -> Field {
+        2
+    }
+    ");
+}

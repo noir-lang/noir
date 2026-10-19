@@ -45,8 +45,8 @@ use crate::{
     },
     modules::{get_ancestor_module_reexport, module_def_id_is_visible},
     node_interner::{
-        DependencyId, ExprId, FuncId, GlobalValue, ImplSearchErrorKind, TraitId, TraitImplId,
-        TraitImplKind, TraitItemId, TraitLookupMode,
+        DependencyId, ExprId, FuncId, GlobalValue, TraitId, TraitImplId, TraitImplKind,
+        TraitItemId, TraitLookupMode,
     },
     shared::Signedness,
 };
@@ -3517,24 +3517,8 @@ impl Elaborator<'_> {
         method_name: &str,
         location: Location,
     ) -> HirMethodReference {
-        // If we find a single trait impl method, return it so we don't have to later determine the impl.
-        // Exception: if the single match points at the trait's own method declaration (which happens
-        // when an impl inherits the default body — the impl's slot shares the trait's `FuncId`),
-        // the function meta carries the trait's `Self` type variable, not the impl's concrete type.
-        // Fall through to the `TraitItemId` path so the caller can bind `Self` to the resolved
-        // self type via the trait constraint.
-        // Exception: if another impl of the trait also applies to `object_type` at the same trait
-        // arguments (an impl for all types `T` whose where clause holds), the call is ambiguous.
-        // Fall through so the impl search reports it.
-        if trait_methods.len() == 1
-            && self
-                .interner
-                .try_function_meta(&trait_methods[0].0)
-                .is_none_or(|meta| meta.trait_id.is_none())
-            && !self.another_impl_also_applies(object_type, trait_methods[0].0)
-        {
-            let (func_id, _, _) = &trait_methods[0];
-            return HirMethodReference::FuncId(*func_id);
+        if let Some(func_id) = self.directly_bound_impl_method(object_type, trait_methods) {
+            return HirMethodReference::FuncId(func_id);
         }
 
         // The trait's generics at this call are unknowns that type checking solves.
@@ -3558,35 +3542,29 @@ impl Elaborator<'_> {
         })
     }
 
-    /// Whether an impl other than `func_id`'s also implements `func_id`'s trait for `object_type`,
-    /// at the trait arguments `func_id`'s impl implements it at.
-    fn another_impl_also_applies(&self, object_type: &Type, func_id: FuncId) -> bool {
-        let Some(impl_id) = self.interner.function_meta(&func_id).trait_impl else {
-            return false;
-        };
-        let trait_impl = self.interner.get_trait_implementation(impl_id);
-        let trait_impl = trait_impl.borrow();
-        let (impl_type, instantiation_bindings) = trait_impl
-            .typ
-            .substitute_type_vars_with_fresh_type_vars(&trait_impl.generics, self.interner);
-        let mut bindings = TypeBindings::default();
-        if object_type.try_unify(&impl_type, &mut bindings).is_err() {
-            return false;
+    /// The method a call binds directly, without its impl being determined by the trait
+    /// constraint: the single candidate, when it is a method of an impl and the impl search can
+    /// select no other impl for `object_type`.
+    ///
+    /// A default body an impl inherits shares the trait's `FuncId`, whose `Self` the trait
+    /// constraint binds. A call another impl can serve goes through the trait constraint too,
+    /// which selects that impl or reports the ambiguity.
+    fn directly_bound_impl_method(
+        &self,
+        object_type: &Type,
+        trait_methods: &[(FuncId, TraitId, Type)],
+    ) -> Option<FuncId> {
+        let [(func_id, _, _)] = trait_methods else { return None };
+        let meta = self.interner.function_meta(func_id);
+        if meta.trait_id.is_some() {
+            return None;
         }
-        let trait_generics =
-            vecmap(&self.interner.get_trait_generics_for_impl(impl_id).ordered, |generic| {
-                generic.substitute(&instantiation_bindings).substitute(&bindings)
-            });
-        matches!(
-            self.interner.try_lookup_trait_implementation(
-                object_type,
-                trait_impl.trait_id,
-                &trait_generics,
-                &[],
-                TraitLookupMode::Default,
-            ),
-            Err(ImplSearchErrorKind::MultipleMatching(_))
-        )
+        if let Some(impl_id) = meta.trait_impl
+            && self.interner.another_impl_applies(object_type, impl_id)
+        {
+            return None;
+        }
+        Some(*func_id)
     }
 
     /// Assuming that we are currently elaborating a function, try to look up a method in:

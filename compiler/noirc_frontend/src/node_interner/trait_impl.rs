@@ -731,6 +731,41 @@ impl NodeInterner {
         }
     }
 
+    /// Whether the impl search for `object_type` at `impl_id`'s trait and trait arguments can
+    /// select an impl other than `impl_id`: several impls match, or another impl is the one that
+    /// matches. The search runs at the object type `impl_id` gives, so unknowns `impl_id` fixes
+    /// (an integer literal's type) are known to it. Nothing is bound.
+    pub(crate) fn another_impl_applies(&self, object_type: &Type, impl_id: TraitImplId) -> bool {
+        let (impl_type, trait_id, instantiation_bindings) = {
+            let trait_impl = self.get_trait_implementation(impl_id);
+            let trait_impl = trait_impl.borrow();
+            let (impl_type, instantiation_bindings) = trait_impl
+                .typ
+                .substitute_type_vars_with_fresh_type_vars(&trait_impl.generics, self);
+            (impl_type, trait_impl.trait_id, instantiation_bindings)
+        };
+        let mut bindings = TypeBindings::default();
+        if object_type.try_unify(&impl_type, &mut bindings).is_err() {
+            return false;
+        }
+        let object_type = object_type.substitute(&bindings);
+        let trait_generics =
+            vecmap(&self.get_trait_generics_for_impl(impl_id).ordered, |generic| {
+                generic.substitute(&instantiation_bindings).substitute(&bindings)
+            });
+        match self.try_lookup_trait_implementation(
+            &object_type,
+            trait_id,
+            &trait_generics,
+            &[],
+            TraitLookupMode::Default,
+        ) {
+            Ok((TraitImplKind::Normal(id) | TraitImplKind::Prepared(id, _), ..)) => id != impl_id,
+            Ok((TraitImplKind::Assumed { .. }, ..)) => false,
+            Err(error) => matches!(error, ImplSearchErrorKind::MultipleMatching(_)),
+        }
+    }
+
     /// Verifies that each constraint in the given where clause is valid.
     /// If an impl cannot be found for any constraint, the erroring constraint is returned.
     fn validate_where_clause(
