@@ -66,24 +66,29 @@
 <a href=#66 id=66 data-nosnippet>66</a>    /// variables of the runtime blocks being elaborated. A nested elaborator sees the variables
 <a href=#67 id=67 data-nosnippet>67</a>    /// visible to the comptime function that asked for it.
 <a href=#68 id=68 data-nosnippet>68</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) comptime_scopes: ComptimeScopes,
-<a href=#69 id=69 data-nosnippet>69</a>}
-<a href=#70 id=70 data-nosnippet>70</a>
-<a href=#71 id=71 data-nosnippet>71</a><span class="kw">impl </span>Elaborator&lt;<span class="lifetime">'_</span>&gt; {
-<a href=#72 id=72 data-nosnippet>72</a>    <span class="doccomment">/// Whether comptime evaluation has been halted by an earlier error.
-<a href=#73 id=73 data-nosnippet>73</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>comptime_evaluation_halted(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-<a href=#74 id=74 data-nosnippet>74</a>        <span class="self">self</span>.session.comptime_evaluation_halted
-<a href=#75 id=75 data-nosnippet>75</a>    }
-<a href=#76 id=76 data-nosnippet>76</a>
-<a href=#77 id=77 data-nosnippet>77</a>    <span class="doccomment">/// Skip all further comptime evaluation in this elaboration.
-<a href=#78 id=78 data-nosnippet>78</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>halt_comptime_evaluation(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
-<a href=#79 id=79 data-nosnippet>79</a>        <span class="self">self</span>.session.comptime_evaluation_halted = <span class="bool-val">true</span>;
+<a href=#69 id=69 data-nosnippet>69</a>
+<a href=#70 id=70 data-nosnippet>70</a>    <span class="doccomment">/// Where-clause bounds already reported as unneeded, by location. A bound is added to scope
+<a href=#71 id=71 data-nosnippet>71</a>    /// by every item that carries it (an impl's bound is copied into each of its methods) and
+<a href=#72 id=72 data-nosnippet>72</a>    /// again when each function body is elaborated, so this keeps the warning to one per bound.
+<a href=#73 id=73 data-nosnippet>73</a>    </span><span class="kw">pub</span>(<span class="kw">super</span>) reported_unneeded_trait_constraints: HashSet&lt;Location&gt;,
+<a href=#74 id=74 data-nosnippet>74</a>}
+<a href=#75 id=75 data-nosnippet>75</a>
+<a href=#76 id=76 data-nosnippet>76</a><span class="kw">impl </span>Elaborator&lt;<span class="lifetime">'_</span>&gt; {
+<a href=#77 id=77 data-nosnippet>77</a>    <span class="doccomment">/// Whether comptime evaluation has been halted by an earlier error.
+<a href=#78 id=78 data-nosnippet>78</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>comptime_evaluation_halted(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+<a href=#79 id=79 data-nosnippet>79</a>        <span class="self">self</span>.session.comptime_evaluation_halted
 <a href=#80 id=80 data-nosnippet>80</a>    }
 <a href=#81 id=81 data-nosnippet>81</a>
-<a href=#82 id=82 data-nosnippet>82</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>comptime_scopes(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>ComptimeScopes {
-<a href=#83 id=83 data-nosnippet>83</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.session.comptime_scopes
-<a href=#84 id=84 data-nosnippet>84</a>    }
-<a href=#85 id=85 data-nosnippet>85</a>
-<a href=#86 id=86 data-nosnippet>86</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>comptime_scopes_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>ComptimeScopes {
-<a href=#87 id=87 data-nosnippet>87</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>.session.comptime_scopes
-<a href=#88 id=88 data-nosnippet>88</a>    }
-<a href=#89 id=89 data-nosnippet>89</a>}</code></pre></div></section></main></body></html>
+<a href=#82 id=82 data-nosnippet>82</a>    <span class="doccomment">/// Skip all further comptime evaluation in this elaboration.
+<a href=#83 id=83 data-nosnippet>83</a>    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>halt_comptime_evaluation(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+<a href=#84 id=84 data-nosnippet>84</a>        <span class="self">self</span>.session.comptime_evaluation_halted = <span class="bool-val">true</span>;
+<a href=#85 id=85 data-nosnippet>85</a>    }
+<a href=#86 id=86 data-nosnippet>86</a>
+<a href=#87 id=87 data-nosnippet>87</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>comptime_scopes(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>ComptimeScopes {
+<a href=#88 id=88 data-nosnippet>88</a>        <span class="kw-2">&amp;</span><span class="self">self</span>.session.comptime_scopes
+<a href=#89 id=89 data-nosnippet>89</a>    }
+<a href=#90 id=90 data-nosnippet>90</a>
+<a href=#91 id=91 data-nosnippet>91</a>    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>comptime_scopes_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>ComptimeScopes {
+<a href=#92 id=92 data-nosnippet>92</a>        <span class="kw-2">&amp;mut </span><span class="self">self</span>.session.comptime_scopes
+<a href=#93 id=93 data-nosnippet>93</a>    }
+<a href=#94 id=94 data-nosnippet>94</a>}</code></pre></div></section></main></body></html>
