@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792421849081,
+  "lastUpdate": 1792423797137,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22991,48 +22991,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "3d8fc58a2202e12d377fcb2555f2c098b2b4933e",
-          "message": "fix(frontend): only solve queued trait constraints early when that can bind a type (#13962)",
-          "timestamp": "2026-10-13T15:11:15Z",
-          "tree_id": "1af94621da7ed48b39ed6e910914b99e0b8c7cc9",
-          "url": "https://github.com/noir-lang/noir/commit/3d8fc58a2202e12d377fcb2555f2c098b2b4933e"
-        },
-        "date": 1791906041012,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 123887,
-            "range": "± 2738",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 103282,
-            "range": "± 3141",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 1734678,
-            "range": "± 31767",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "9a2fde8ffb509b5db6962b45d255266dd76c19fc",
           "message": "fix(ssa): size defaults for disabled vector results by their backing capacity (#13940)",
           "timestamp": "2026-10-13T16:01:36Z",
@@ -25074,6 +25032,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2650800,
             "range": "± 11282",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "5934f27afc15ac58b2adf9923c277a9588e40b24",
+          "message": "fix(frontend): count a blanket impl whose where clause holds alongside a type's own trait impls (#14026)",
+          "timestamp": "2026-10-19T15:06:01Z",
+          "tree_id": "be8abb36106d39ed19b5c19ffa292ee7b6465a97",
+          "url": "https://github.com/noir-lang/noir/commit/5934f27afc15ac58b2adf9923c277a9588e40b24"
+        },
+        "date": 1792423738201,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 87935,
+            "range": "± 1491",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 61430,
+            "range": "± 1053",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 1687435,
+            "range": "± 28499",
             "unit": "ns/iter"
           }
         ]
