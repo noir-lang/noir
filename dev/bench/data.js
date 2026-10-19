@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792420810860,
+  "lastUpdate": 1792421276776,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -39948,105 +39948,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "e56fa566a7a26d41e76c45480657dca9ed290bc9",
-          "message": "fix(frontend): instantiate parent and associated type bounds in one pass (#13964)",
-          "timestamp": "2026-10-13T15:15:56Z",
-          "tree_id": "1412e00ae6d99d678dfa7b0eeb37cc2b0118f66c",
-          "url": "https://github.com/noir-lang/noir/commit/e56fa566a7a26d41e76c45480657dca9ed290bc9"
-        },
-        "date": 1791906282451,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 824.3,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset-tail",
-            "value": 909.8,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 669.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-no-txs",
-            "value": 376,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 396.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 494.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-merge",
-            "value": 315.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root-single-block",
-            "value": 752.8,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-checkpoint-root",
-            "value": 790.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 497,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-private",
-            "value": 773.3,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-base-public",
-            "value": 936.3,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-tx-merge",
-            "value": 285.7,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 2073.7,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 151.5,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "3d8fc58a2202e12d377fcb2555f2c098b2b4933e",
           "message": "fix(frontend): only solve queued trait constraints early when that can bind a type (#13962)",
@@ -44807,6 +44708,105 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/7d01bb5278e5b801c6bd5e4655311103977f86e5"
         },
         "date": 1792417163610,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 863.6,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset-tail",
+            "value": 940,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 700.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-no-txs",
+            "value": 400.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 420.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 519.6,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 322.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 780.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 818.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 525.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 800,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 961,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 310.3,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 2080.4,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 156.1,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "96d8e8bfb67a85bcca86cef561f9ded4dff3224a",
+          "message": "fix(frontend): do not report follow-on errors for the arguments of a call whose callee failed to resolve (#14045)",
+          "timestamp": "2026-10-19T14:15:45Z",
+          "tree_id": "4b6f107c1ff9983768eeb1afe221865a0a7c04ce",
+          "url": "https://github.com/noir-lang/noir/commit/96d8e8bfb67a85bcca86cef561f9ded4dff3224a"
+        },
+        "date": 1792421216436,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
