@@ -49,8 +49,14 @@
 { <span class="comment">/* private fields */</span> }
 </code></pre>
 <div class="comments">
-<p>An integer type decomposed by <a href="../../../std/primitive.Type.html#as_integer"><code>Type::as_integer</code></a> into its signedness and
-bit width.</p></div>
+<p>An integer type decomposed by <a href="../../../std/primitive.Type.html#as_integer"><code>Type::as_integer</code></a>.</p>
+<p>It holds the signedness and the bit width.</p>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">let</span> integer = <span class="kw">quote</span> { i16 }.as_type().as_integer().unwrap();
+    <span class="kw">assert</span>(integer.is_signed());
+    <span class="kw">assert_eq</span>(integer.bits(), <span class="number">16</span>);
+}</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../../../std/meta/typ/struct.IntegerType.html" class="struct">IntegerType</a></code></h3>
 
@@ -58,12 +64,20 @@ bit width.</p></div>
 
 <div class="padded-description"><div class="comments">
 <p><code>true</code> if the integer type is signed.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">assert</span>(<span class="kw">quote</span> { i16 }.as_type().as_integer().unwrap().is_signed());
+    <span class="kw">assert</span>(!<span class="kw">quote</span> { u16 }.as_type().as_integer().unwrap().is_signed());
+}</code></pre></div>
 </div><code id="bits" class="code-header">pub comptime fn <a href="#bits" class="fn">bits</a>(self) -> <a href="../../../std/primitive.u8.html" class="primitive">u8</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>The bit width of the integer type.</p>
-</div>
+<p>Example:</p>
+<pre><code><span class="kw">comptime</span> {
+    <span class="kw">assert_eq</span>(<span class="kw">quote</span> { u64 }.as_type().as_integer().unwrap().bits(), <span class="number">64</span>);
+    <span class="kw">assert_eq</span>(<span class="kw">quote</span> { u8 }.as_type().as_integer().unwrap().bits(), <span class="number">8</span>);
+}</code></pre></div>
 </div></div></div>
 </main>
 </span>

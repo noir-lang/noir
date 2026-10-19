@@ -106,9 +106,62 @@
 
 <div class="padded-methods"><code id="trait_generic_args" class="code-header">pub comptime fn <a href="#trait_generic_args" class="fn">trait_generic_args</a>(self) -> [<a href="../std/primitive.Type.html" class="primitive">Type</a>]</code>
 
-<code id="methods" class="code-header">pub comptime fn <a href="#methods" class="fn">methods</a>(self) -> [<a href="../std/primitive.FunctionDefinition.html" class="primitive">FunctionDefinition</a>]</code>
+<div class="padded-description"><div class="comments">
+<p>Returns the generic arguments of the trait this impl implements.</p>
+<p>For <code>impl Convert&lt;Field&gt; for Meters</code>, that is <code>[Field]</code>.</p>
+<p>Example:</p>
+<pre><code><span class="kw">pub</span> <span class="kw">trait</span> Convert&lt;T&gt; {
+    <span class="kw">fn</span> convert(self) -&gt; T;
+}
 
-</div></div>
+<span class="kw">pub</span> <span class="kw">struct</span> Meters {
+    value: u32,
+}
+
+<span class="kw">impl</span> Convert&lt;Field&gt; <span class="kw">for</span> Meters {
+    <span class="kw">fn</span> convert(self) -&gt; Field {
+        self.value <span class="kw">as</span> Field
+    }
+}
+
+<span class="kw">fn</span> main() {
+    <span class="kw">comptime</span> {
+        <span class="kw">let</span> meters = <span class="kw">quote</span> { Meters }.as_type();
+        <span class="kw">let</span> constraint = <span class="kw">quote</span> { Convert&lt;Field&gt; }.as_trait_constraint();
+        <span class="kw">let</span> the_impl = meters.get_trait_impl(constraint).unwrap();
+        <span class="kw">assert_eq</span>(the_impl.trait_generic_args(), @[<span class="kw">quote</span> { Field }.as_type()]);
+    }
+}</code></pre></div>
+</div><code id="methods" class="code-header">pub comptime fn <a href="#methods" class="fn">methods</a>(self) -> [<a href="../std/primitive.FunctionDefinition.html" class="primitive">FunctionDefinition</a>]</code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns each method defined in this impl.</p>
+<p>Example:</p>
+<pre><code><span class="kw">pub</span> <span class="kw">trait</span> Convert&lt;T&gt; {
+    <span class="kw">fn</span> convert(self) -&gt; T;
+}
+
+<span class="kw">pub</span> <span class="kw">struct</span> Meters {
+    value: u32,
+}
+
+<span class="kw">impl</span> Convert&lt;Field&gt; <span class="kw">for</span> Meters {
+    <span class="kw">fn</span> convert(self) -&gt; Field {
+        self.value <span class="kw">as</span> Field
+    }
+}
+
+<span class="kw">fn</span> main() {
+    <span class="kw">comptime</span> {
+        <span class="kw">let</span> meters = <span class="kw">quote</span> { Meters }.as_type();
+        <span class="kw">let</span> constraint = <span class="kw">quote</span> { Convert&lt;Field&gt; }.as_trait_constraint();
+        <span class="kw">let</span> the_impl = meters.get_trait_impl(constraint).unwrap();
+        <span class="kw">let</span> methods = the_impl.methods();
+        <span class="kw">assert_eq</span>(methods.len(), <span class="number">1</span>);
+        <span class="kw">assert_eq</span>(methods[<span class="number">0</span>].name(), <span class="kw">quote</span> { convert });
+    }
+}</code></pre></div>
+</div></div></div>
 </main>
 </span>
 </body>

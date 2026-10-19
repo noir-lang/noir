@@ -134,25 +134,181 @@
 
 <div class="padded-methods"><code id="has_named_attribute" class="code-header">pub comptime fn <a href="#has_named_attribute" class="fn">has_named_attribute</a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self, name: <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
-<code id="named_attribute_args" class="code-header">pub comptime fn <a href="#named_attribute_args" class="fn">named_attribute_args</a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self, name: <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;) -> [[<a href="../std/primitive.Quoted.html" class="primitive">Quoted</a>]]</code>
+<div class="padded-description"><div class="comments">
+<p>Returns <code>true</code> if this module has an attribute called <code>name</code>.</p>
+<p>It matches built-in attributes, tags such as <code>#['my_tag]</code>, and comptime attribute macros. Use
+<a href="../std/primitive.Module.html#has_builtin_attribute"><code>Module::has_builtin_attribute</code></a> to match only built-in ones.</p>
+<p>Example:</p>
+<pre><code>#[check]
+#['my_tag]
+<span class="kw">pub</span> <span class="kw">mod</span> shapes {}
 
-<code id="has_builtin_attribute" class="code-header">pub comptime fn <a href="#has_builtin_attribute" class="fn">has_builtin_attribute</a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self, name: <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
+<span class="kw">comptime</span> <span class="kw">fn</span> check(shapes: Module) {
+    <span class="kw">assert</span>(shapes.has_named_attribute(<span class="string">"my_tag"</span>));
+    <span class="kw">assert</span>(shapes.has_named_attribute(<span class="string">"check"</span>));
+    <span class="kw">assert</span>(!shapes.has_named_attribute(<span class="string">"other"</span>));
+}</code></pre></div>
+</div><code id="named_attribute_args" class="code-header">pub comptime fn <a href="#named_attribute_args" class="fn">named_attribute_args</a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self, name: <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;) -> [[<a href="../std/primitive.Quoted.html" class="primitive">Quoted</a>]]</code>
 
-<code id="is_contract" class="code-header">pub comptime fn <a href="#is_contract" class="fn">is_contract</a>(self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
+<div class="padded-description"><div class="comments">
+<p>Returns the arguments of each comptime attribute macro called <code>name</code> on this module.</p>
+<p>The outer vector has one entry per occurrence, so it is empty if the attribute isn't there. Each
+inner vector holds that occurrence's arguments as quoted expressions. Tags such as
+<code>#['my_tag(1)]</code> aren't macro calls, so they have no arguments here.</p>
+<p>Example:</p>
+<pre><code>#[check]
+#[version(<span class="number">2</span>)]
+<span class="kw">pub</span> <span class="kw">mod</span> shapes {}
 
-<code id="location" class="code-header">pub comptime fn <a href="#location" class="fn">location</a>(self) -> <a href="../std/primitive.Location.html" class="primitive">Location</a></code>
+<span class="kw">comptime</span> <span class="kw">fn</span> version(_module: Module, _version: Field) {}
 
-<code id="functions" class="code-header">pub comptime fn <a href="#functions" class="fn">functions</a>(self) -> [<a href="../std/primitive.FunctionDefinition.html" class="primitive">FunctionDefinition</a>]</code>
+<span class="kw">comptime</span> <span class="kw">fn</span> check(shapes: Module) {
+    <span class="kw">let</span> versions = shapes.named_attribute_args(<span class="string">"version"</span>);
+    <span class="kw">assert_eq</span>(versions.len(), <span class="number">1</span>);
+    <span class="kw">assert_eq</span>(versions[<span class="number">0</span>][<span class="number">0</span>], <span class="kw">quote</span> { <span class="number">2</span> });
+}</code></pre></div>
+</div><code id="has_builtin_attribute" class="code-header">pub comptime fn <a href="#has_builtin_attribute" class="fn">has_builtin_attribute</a>&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>&gt;(self, name: <a href="../std/primitive.str.html" class="primitive">str</a>&lt;N&gt;) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
-<code id="structs" class="code-header">pub comptime fn <a href="#structs" class="fn">structs</a>(self) -> [<a href="../std/primitive.TypeDefinition.html" class="primitive">TypeDefinition</a>]</code>
+<div class="padded-description"><div class="comments">
+<p>Returns <code>true</code> if this module has a built-in attribute called <code>name</code>, such as <code>allow</code>.</p>
+<p>Unlike <a href="../std/primitive.Module.html#has_named_attribute"><code>Module::has_named_attribute</code></a>, it ignores tags and comptime attribute macros.</p>
+<p>Example:</p>
+<pre><code>#[check]
+#[allow(dead_code)]
+#['my_tag]
+<span class="kw">pub</span> <span class="kw">mod</span> shapes {}
 
-<code id="child_modules" class="code-header">pub comptime fn <a href="#child_modules" class="fn">child_modules</a>(self) -> [Self]</code>
+<span class="kw">comptime</span> <span class="kw">fn</span> check(shapes: Module) {
+    <span class="kw">assert</span>(shapes.has_builtin_attribute(<span class="string">"allow"</span>));
+    <span class="kw">assert</span>(!shapes.has_builtin_attribute(<span class="string">"my_tag"</span>));
+    <span class="kw">assert</span>(!shapes.has_builtin_attribute(<span class="string">"check"</span>));
+}</code></pre></div>
+</div><code id="is_contract" class="code-header">pub comptime fn <a href="#is_contract" class="fn">is_contract</a>(self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
 
-<code id="name" class="code-header">pub comptime fn <a href="#name" class="fn">name</a>(self) -> <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
+<div class="padded-description"><div class="comments">
+<p>Returns <code>true</code> if this module was declared with <code>contract name { ... }</code> rather than <code>mod</code>.</p>
+<p>Example:</p>
+<pre><code>#[check]
+<span class="kw">pub</span> <span class="kw">mod</span> shapes {}
 
-<code id="parent" class="code-header">pub comptime fn <a href="#parent" class="fn">parent</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;</code>
+<span class="kw">comptime</span> <span class="kw">fn</span> check(shapes: Module) {
+    <span class="kw">assert</span>(!shapes.is_contract());
+}</code></pre></div>
+</div><code id="location" class="code-header">pub comptime fn <a href="#location" class="fn">location</a>(self) -> <a href="../std/primitive.Location.html" class="primitive">Location</a></code>
 
-</div><h2>Trait implementations</h2>
+<div class="padded-description"><div class="comments">
+<p>Returns the location of this module: its name for an inline <code>mod foo { ... }</code>, or the start
+of its file for <code>mod foo;</code>.</p>
+<p>Pass it to <a href="../std/meta/fn.error.html"><code>std::meta::error</code></a> or <a href="../std/meta/fn.warn.html"><code>std::meta::warn</code></a>
+to report a diagnostic at the module.</p>
+<p>Example:</p>
+<pre><code>#[check]
+<span class="kw">pub</span> <span class="kw">mod</span> shapes {}
+
+<span class="kw">comptime</span> <span class="kw">fn</span> check(shapes: Module) {
+    <span class="comment">// Warns "`shapes` is deprecated", pointing at `shapes`.</span>
+    <span class="kw">let</span> name = shapes.name();
+    std::meta::warn(<span class="string">f"</span><span class="string">`</span><span class="interpolation">{name}</span><span class="string">` is deprecated</span><span class="string">"</span>, Option::&lt;fmtstr&lt;<span class="number">0</span>, ()&gt;&gt;::none(), shapes.location());
+}</code></pre></div>
+</div><code id="functions" class="code-header">pub comptime fn <a href="#functions" class="fn">functions</a>(self) -> [<a href="../std/primitive.FunctionDefinition.html" class="primitive">FunctionDefinition</a>]</code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns each function defined directly in this module.</p>
+<p>Example:</p>
+<pre><code>#[check]
+<span class="kw">pub</span> <span class="kw">mod</span> shapes {
+    <span class="kw">pub</span> <span class="kw">fn</span> area(width: u32, height: u32) -&gt; u32 {
+        width * height
+    }
+
+    <span class="kw">pub</span> <span class="kw">struct</span> Square {
+        <span class="kw">pub</span> side: u32,
+    }
+
+    <span class="kw">pub</span> <span class="kw">mod</span> circle {}
+}
+
+<span class="kw">comptime</span> <span class="kw">fn</span> check(shapes: Module) {
+    <span class="kw">let</span> functions = shapes.functions();
+    <span class="kw">assert_eq</span>(functions.len(), <span class="number">1</span>);
+    <span class="kw">assert_eq</span>(functions[<span class="number">0</span>].name(), <span class="kw">quote</span> { area });
+}</code></pre></div>
+</div><code id="structs" class="code-header">pub comptime fn <a href="#structs" class="fn">structs</a>(self) -> [<a href="../std/primitive.TypeDefinition.html" class="primitive">TypeDefinition</a>]</code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns each struct defined directly in this module.</p>
+<p>Example:</p>
+<pre><code>#[check]
+<span class="kw">pub</span> <span class="kw">mod</span> shapes {
+    <span class="kw">pub</span> <span class="kw">fn</span> area(width: u32, height: u32) -&gt; u32 {
+        width * height
+    }
+
+    <span class="kw">pub</span> <span class="kw">struct</span> Square {
+        <span class="kw">pub</span> side: u32,
+    }
+
+    <span class="kw">pub</span> <span class="kw">mod</span> circle {}
+}
+
+<span class="kw">comptime</span> <span class="kw">fn</span> check(shapes: Module) {
+    <span class="kw">let</span> structs = shapes.structs();
+    <span class="kw">assert_eq</span>(structs.len(), <span class="number">1</span>);
+    <span class="kw">assert_eq</span>(structs[<span class="number">0</span>].name(), <span class="kw">quote</span> { Square });
+}</code></pre></div>
+</div><code id="child_modules" class="code-header">pub comptime fn <a href="#child_modules" class="fn">child_modules</a>(self) -> [Self]</code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns each module declared directly inside this module.</p>
+<p>Example:</p>
+<pre><code>#[check]
+<span class="kw">pub</span> <span class="kw">mod</span> shapes {
+    <span class="kw">pub</span> <span class="kw">fn</span> area(width: u32, height: u32) -&gt; u32 {
+        width * height
+    }
+
+    <span class="kw">pub</span> <span class="kw">struct</span> Square {
+        <span class="kw">pub</span> side: u32,
+    }
+
+    <span class="kw">pub</span> <span class="kw">mod</span> circle {}
+}
+
+<span class="kw">comptime</span> <span class="kw">fn</span> check(shapes: Module) {
+    <span class="kw">let</span> children = shapes.child_modules();
+    <span class="kw">assert_eq</span>(children.len(), <span class="number">1</span>);
+    <span class="kw">assert_eq</span>(children[<span class="number">0</span>].name(), <span class="kw">quote</span> { circle });
+}</code></pre></div>
+</div><code id="name" class="code-header">pub comptime fn <a href="#name" class="fn">name</a>(self) -> <a href="../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns the name of this module, without its path.</p>
+<p>A crate's root module has no name, so it returns an empty <code>Quoted</code>.</p>
+<p>Example:</p>
+<pre><code>#[check]
+<span class="kw">pub</span> <span class="kw">mod</span> shapes {
+    <span class="kw">pub</span> <span class="kw">mod</span> circle {}
+}
+
+<span class="kw">comptime</span> <span class="kw">fn</span> check(shapes: Module) {
+    <span class="kw">assert_eq</span>(shapes.name(), <span class="kw">quote</span> { shapes });
+    <span class="kw">assert_eq</span>(shapes.child_modules()[<span class="number">0</span>].name(), <span class="kw">quote</span> { circle });
+}</code></pre></div>
+</div><code id="parent" class="code-header">pub comptime fn <a href="#parent" class="fn">parent</a>(self) -> <a href="../std/option/struct.Option.html" class="struct">Option</a>&lt;Self&gt;</code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns the module this module is declared in, or <code>Option::none()</code> for a crate's root module.</p>
+<p>Example:</p>
+<pre><code>#[check]
+<span class="kw">pub</span> <span class="kw">mod</span> shapes {
+    <span class="kw">pub</span> <span class="kw">mod</span> circle {}
+}
+
+<span class="kw">comptime</span> <span class="kw">fn</span> check(shapes: Module) {
+    <span class="kw">let</span> circle = shapes.child_modules()[<span class="number">0</span>];
+    <span class="kw">assert_eq</span>(circle.parent().unwrap(), shapes);
+}</code></pre></div>
+</div></div><h2>Trait implementations</h2>
 <h3 id="impl-Eq-for-Module"><code class="code-header">impl <a href="../std/cmp/trait.Eq.html" class="trait">Eq</a> for <a href="../std/primitive.Module.html" class="primitive">Module</a></code></h3>
 
 <div class="padded-methods"><code class="code-header">pub comptime fn <span class="fn">eq</span>(self, other: Self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>

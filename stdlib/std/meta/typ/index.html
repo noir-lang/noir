@@ -62,19 +62,12 @@
 <p>Contains methods on the built-in <code>Type</code> type used for representing a type in the source program.</p>
 </div>
 <h2 id="structs">Structs</h2><ul class="item-list">
-<li><div class="item-name"><a href="struct.ArrayType.html" class="struct">ArrayType</a></div><div class="item-description">An array type decomposed by <a href="../../../std/primitive.Type.html#as_array"><code>Type::as_array</code></a> into its element and length
-components.</div></li>
-<li><div class="item-name"><a href="struct.DataType.html" class="struct">DataType</a></div><div class="item-description">A struct or enum type decomposed by <a href="../../../std/primitive.Type.html#as_data_type"><code>Type::as_data_type</code></a> into its
-<a href="../../../std/primitive.TypeDefinition.html"><code>TypeDefinition</code></a> and its concrete generic arguments.</div></li>
-<li><div class="item-name"><a href="struct.IntegerType.html" class="struct">IntegerType</a></div><div class="item-description">An integer type decomposed by <a href="../../../std/primitive.Type.html#as_integer"><code>Type::as_integer</code></a> into its signedness and
-bit width.</div></li>
+<li><div class="item-name"><a href="struct.ArrayType.html" class="struct">ArrayType</a></div><div class="item-description">An array type decomposed by <a href="../../../std/primitive.Type.html#as_array"><code>Type::as_array</code></a>.</div></li>
+<li><div class="item-name"><a href="struct.DataType.html" class="struct">DataType</a></div><div class="item-description">A struct or enum type decomposed by <a href="../../../std/primitive.Type.html#as_data_type"><code>Type::as_data_type</code></a>.</div></li>
+<li><div class="item-name"><a href="struct.IntegerType.html" class="struct">IntegerType</a></div><div class="item-description">An integer type decomposed by <a href="../../../std/primitive.Type.html#as_integer"><code>Type::as_integer</code></a>.</div></li>
 </ul>
 <h2 id="functions">Functions</h2><ul class="item-list">
-<li><div class="item-name"><a href="fn.fresh_type_variable.html" class="fn">fresh_type_variable</a></div><div class="item-description">Creates and returns an unbound type variable. This is a special kind of type internal
-to type checking which will type check with any other type. When it is type checked
-against another type it will also be set to that type. For example, if <code>a</code> is a type
-variable and we have the type equality <code>(a, i32) = (u8, i32)</code>, the compiler will set
-<code>a</code> equal to <code>u8</code>.</div></li>
+<li><div class="item-name"><a href="fn.fresh_type_variable.html" class="fn">fresh_type_variable</a></div><div class="item-description">Creates and returns an unbound type variable.</div></li>
 </ul>
 </div>
 </main>

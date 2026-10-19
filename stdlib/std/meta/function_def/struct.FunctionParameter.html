@@ -44,20 +44,48 @@
 { <span class="comment">/* private fields */</span> }
 </code></pre>
 <div class="comments">
-<p>A single parameter of a <a href="../../../std/primitive.FunctionDefinition.html"><code>FunctionDefinition</code></a>, returned from
-<a href="../../../std/primitive.FunctionDefinition.html#parameters"><code>FunctionDefinition::parameters</code></a>.</p></div>
+<p>A single parameter of a <a href="../../../std/primitive.FunctionDefinition.html"><code>FunctionDefinition</code></a>.</p>
+<p>It is returned by <a href="../../../std/primitive.FunctionDefinition.html#parameters"><code>FunctionDefinition::parameters</code></a>.</p>
+<p>Example:</p>
+<pre><code>#[check]
+<span class="kw">pub</span> <span class="kw">fn</span> add(x: u32, y: u32) -&gt; u32 {
+    x + y
+}
+
+<span class="kw">comptime</span> <span class="kw">fn</span> check(f: FunctionDefinition) {
+    <span class="kw">let</span> x = f.parameters()[<span class="number">0</span>];
+    <span class="kw">assert_eq</span>(x.name(), <span class="kw">quote</span> { x });
+    <span class="kw">assert_eq</span>(x.typ(), <span class="kw">quote</span> { u32 }.as_type());
+}</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl <a href="../../../std/meta/function_def/struct.FunctionParameter.html" class="struct">FunctionParameter</a></code></h3>
 
 <div class="padded-methods"><code id="name" class="code-header">pub comptime fn <a href="#name" class="fn">name</a>(self) -> <a href="../../../std/primitive.Quoted.html" class="primitive">Quoted</a></code>
 
 <div class="padded-description"><div class="comments">
-<p>The parameter's declared name, as a <a href="../../../std/primitive.Quoted.html"><code>Quoted</code></a> identifier.</p></div>
+<p>The parameter's declared name, as a <a href="../../../std/primitive.Quoted.html"><code>Quoted</code></a> identifier.</p>
+<p>Example:</p>
+<pre><code>#[check]
+<span class="kw">pub</span> <span class="kw">fn</span> add(x: u32, y: u32) -&gt; u32 {
+    x + y
+}
+
+<span class="kw">comptime</span> <span class="kw">fn</span> check(f: FunctionDefinition) {
+    <span class="kw">assert_eq</span>(f.parameters()[<span class="number">1</span>].name(), <span class="kw">quote</span> { y });
+}</code></pre></div>
 </div><code id="typ" class="code-header">pub comptime fn <a href="#typ" class="fn">typ</a>(self) -> <a href="../../../std/primitive.Type.html" class="primitive">Type</a></code>
 
 <div class="padded-description"><div class="comments">
 <p>The parameter's declared type.</p>
-</div>
+<p>Example:</p>
+<pre><code>#[check]
+<span class="kw">pub</span> <span class="kw">fn</span> add(x: u32, y: u32) -&gt; u32 {
+    x + y
+}
+
+<span class="kw">comptime</span> <span class="kw">fn</span> check(f: FunctionDefinition) {
+    <span class="kw">assert_eq</span>(f.parameters()[<span class="number">1</span>].typ(), <span class="kw">quote</span> { u32 }.as_type());
+}</code></pre></div>
 </div></div></div>
 </main>
 </span>

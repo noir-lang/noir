@@ -117,9 +117,51 @@
 
 <div class="padded-methods"><code id="as_trait_constraint" class="code-header">pub comptime fn <a href="#as_trait_constraint" class="fn">as_trait_constraint</a>(_self: Self) -> <a href="../std/primitive.TraitConstraint.html" class="primitive">TraitConstraint</a></code>
 
-<code id="location" class="code-header">pub comptime fn <a href="#location" class="fn">location</a>(self) -> <a href="../std/primitive.Location.html" class="primitive">Location</a></code>
+<div class="padded-description"><div class="comments">
+<p>Returns this trait as a trait constraint, such as <code>Eq</code> or <code>Into&lt;T&gt;</code>.</p>
+<p>Generics on the trait are kept as they are, without being instantiated.</p>
+<p>Example:</p>
+<pre><code>#[check]
+<span class="kw">pub</span> <span class="kw">trait</span> Shape {
+    <span class="kw">fn</span> area(self) -&gt; u32;
+}
 
-</div><h2>Trait implementations</h2>
+<span class="kw">pub</span> <span class="kw">struct</span> Square {
+    side: u32,
+}
+
+<span class="kw">impl</span> Shape <span class="kw">for</span> Square {
+    <span class="kw">fn</span> area(self) -&gt; u32 {
+        self.side * self.side
+    }
+}
+
+<span class="kw">comptime</span> <span class="kw">fn</span> check(shape: TraitDefinition) {
+    <span class="kw">let</span> constraint = shape.as_trait_constraint();
+    <span class="kw">assert</span>(<span class="kw">quote</span> { Square }.as_type().implements(constraint));
+    <span class="kw">assert</span>(!<span class="kw">quote</span> { u32 }.as_type().implements(constraint));
+}</code></pre></div>
+</div><code id="location" class="code-header">pub comptime fn <a href="#location" class="fn">location</a>(self) -> <a href="../std/primitive.Location.html" class="primitive">Location</a></code>
+
+<div class="padded-description"><div class="comments">
+<p>Returns the source location of this trait's name in its definition.</p>
+<p>Pass it to <a href="../std/meta/fn.error.html"><code>std::meta::error</code></a> or <a href="../std/meta/fn.warn.html"><code>std::meta::warn</code></a>
+to report a diagnostic at the trait.</p>
+<p>Example:</p>
+<pre><code>#[check]
+<span class="kw">pub</span> <span class="kw">trait</span> Shape {
+    <span class="kw">fn</span> area(self) -&gt; u32;
+}
+
+<span class="kw">comptime</span> <span class="kw">fn</span> check(shape: TraitDefinition) {
+    <span class="comment">// Warns "this trait has no implementations yet", pointing at `Shape`.</span>
+    std::meta::warn(
+        <span class="string">f"</span><span class="string">this trait has no implementations yet</span><span class="string">"</span>,
+        Option::&lt;fmtstr&lt;<span class="number">0</span>, ()&gt;&gt;::none(),
+        shape.location(),
+    );
+}</code></pre></div>
+</div></div><h2>Trait implementations</h2>
 <h3 id="impl-Eq-for-TraitDefinition"><code class="code-header">impl <a href="../std/cmp/trait.Eq.html" class="trait">Eq</a> for <a href="../std/primitive.TraitDefinition.html" class="primitive">TraitDefinition</a></code></h3>
 
 <div class="padded-methods"><code class="code-header">pub comptime fn <span class="fn">eq</span>(self, other: Self) -> <a href="../std/primitive.bool.html" class="primitive">bool</a></code>
