@@ -2306,6 +2306,8 @@ fn ambiguous_impl_with_unbound_type_variable_still_errors() {
     }
 
     pub fn f() where Wrapper<u16>: Foo {
+                                   ^^^ No matching impl found for `Wrapper<u16>: Foo<Bar = _>`
+                                   ~~~ No impl for `Wrapper<u16>: Foo<Bar = _>`
         let _x: <Wrapper<_> as Foo>::Bar = 0;
                                ^^^ Multiple trait impls match the object type `Wrapper<_>`
                                ~~~ Ambiguous impl
@@ -3616,6 +3618,8 @@ fn impl_used_before_it_is_finished_needs_its_where_clause() {
                                   ^ No matching impl found for `W: B`
                                   ~ No impl for `W: B`
     impl C for W where W: B { type T = u8; }
+                          ^ No matching impl found for `W: B`
+                          ~ No impl for `W: B`
     fn main() {}
     "#;
     check_errors(src);
@@ -4019,6 +4023,8 @@ fn associated_constant_of_an_impl_declared_later_needs_its_where_clause() {
                                       ^ No matching impl found for `W: B`
                                       ~ No impl for `W: B`
     impl C for W where W: B { let N: u32 = 5; }
+                          ^ No matching impl found for `W: B`
+                          ~ No impl for `W: B`
     fn main() -> pub u32 { <S as C>::N }
     "#;
     check_errors(src);

@@ -1279,7 +1279,9 @@ fn no_false_cycle_from_stale_current_item_after_type_alias() {
         trait Dummy<T> {}
         trait Foo: Dummy<A> {}
 
-        fn main(_x: A) where A: Foo {}
+        pub fn foo<T>(_x: A, _y: T) where T: Foo {}
+
+        fn main() {}
     "#;
     assert_no_errors(src);
 }
