@@ -900,20 +900,37 @@ impl FunctionContext<'_> {
 
         // Generate the final iteration for inclusive ranges
         if let Some(final_iteration_end) = final_iteration_end {
-            let final_iteration = self.builder.insert_block();
-
             // `start <= end` is equivalent to `!(start > end)`
             let end_is_less_than_start =
                 self.builder.insert_binary(end_index, BinaryOp::Lt, start_index);
             let start_is_less_than_or_equal_to_end =
                 self.builder.insert_not(end_is_less_than_start);
-            self.builder.terminate_with_jmpif_no_args(
-                start_is_less_than_or_equal_to_end,
-                final_iteration,
-                final_iteration_end,
-            );
 
-            self.builder.switch_to_block(final_iteration);
+            // The guard often simplifies to a constant (e.g. `0..=n` over an unsigned type), and a
+            // block must not be terminated by a `jmpif` on a constant: a known-true guard runs the
+            // final iteration in the current block, and a known-false one skips it.
+            match self
+                .builder
+                .current_function
+                .dfg
+                .get_numeric_constant(start_is_less_than_or_equal_to_end)
+            {
+                Some(constant) if constant.is_zero() => {
+                    self.builder.terminate_with_jmp(final_iteration_end, vec![]);
+                    self.builder.switch_to_block(final_iteration_end);
+                    return Ok(Self::unit_value());
+                }
+                Some(_) => (),
+                None => {
+                    let final_iteration = self.builder.insert_block();
+                    self.builder.terminate_with_jmpif_no_args(
+                        start_is_less_than_or_equal_to_end,
+                        final_iteration,
+                        final_iteration_end,
+                    );
+                    self.builder.switch_to_block(final_iteration);
+                }
+            }
 
             // We need to be in the context of a loop because a `break` in the loop, in the final
             // iteration, has to jump somewhere.

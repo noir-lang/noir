@@ -603,9 +603,8 @@ fn for_loop_inclusive_max_value_without_break() {
 
     // - b1 is the loop header
     // - b2 is the loop body
-    // - b3 is the loop exit, but it performs a check to determine whether the final iteration
-    //   should be executed. The (start <= end) condition is constant true.
-    // - b5 is the final iteration where `index == end`
+    // - b3 is the loop exit. The (start <= end) guard is constant true, so b3 runs the final
+    //   iteration (`index == end`) directly.
     // - b4 is the block after the final iteration
     assert_ssa_snapshot!(ssa, @"
     acir(inline) fn main f0 {
@@ -623,15 +622,13 @@ fn for_loop_inclusive_max_value_without_break() {
         v8 = unchecked_add v0, u8 1
         jmp b1(v8)
       b3():
-        jmpif u1 1 then: b5(), else: b4()
-      b4():
-        v12 = load v1 -> u8
-        return v12
-      b5():
-        v10 = load v1 -> u8
-        v11 = add v10, u8 255
-        store v11 at v1
+        v9 = load v1 -> u8
+        v10 = add v9, u8 255
+        store v10 at v1
         jmp b4()
+      b4():
+        v11 = load v1 -> u8
+        return v11
     }
     ");
 }
@@ -734,9 +731,8 @@ fn for_loop_inclusive_max_value_with_break() {
     // - b2, b5 and b6 are the loop body
     // - b5 is the `break`: it jumps to b4, the block after the final iteration, so a break
     //   in the exclusive iterations skips the final iteration without any runtime flag.
-    // - b3 is the loop exit, but it performs a check to determine whether the final iteration
-    //   should be executed. The (start <= end) condition is constant true.
-    // - b7 is the final loop iteration where `index == end`. Its `break` (b8) also jumps to b4.
+    // - b3 is the loop exit. The (start <= end) guard is constant true, so b3 starts the final
+    //   loop iteration (`index == end`) directly. Its `break` (b7) also jumps to b4.
     assert_ssa_snapshot!(ssa, @"
     brillig(inline) fn main f0 {
       b0(v0: u1):
@@ -749,10 +745,10 @@ fn for_loop_inclusive_max_value_with_break() {
       b2():
         jmpif v0 then: b5(), else: b6()
       b3():
-        jmpif u1 1 then: b7(), else: b4()
+        jmpif v0 then: b7(), else: b8()
       b4():
-        v13 = load v2 -> u8
-        return v13
+        v12 = load v2 -> u8
+        return v12
       b5():
         jmp b4()
       b6():
@@ -762,13 +758,11 @@ fn for_loop_inclusive_max_value_with_break() {
         v9 = unchecked_add v1, u8 1
         jmp b1(v9)
       b7():
-        jmpif v0 then: b8(), else: b9()
-      b8():
         jmp b4()
-      b9():
-        v11 = load v2 -> u8
-        v12 = add v11, u8 255
-        store v12 at v2
+      b8():
+        v10 = load v2 -> u8
+        v11 = add v10, u8 255
+        store v11 at v2
         jmp b4()
     }
     ");
@@ -872,8 +866,8 @@ fn for_loop_inclusive_with_continue() {
     ";
     let ssa = get_initial_ssa(assert_src).unwrap();
 
-    // Here we can see that the `continue` in the final iteration jumps
-    // to the end of the loop (from b4 to b5).
+    // Here we can see that the `continue` in the final iteration (b3) jumps
+    // to the end of the loop (b4).
     assert_ssa_snapshot!(ssa, @"
     brillig(inline) fn main f0 {
       b0():
@@ -885,11 +879,9 @@ fn for_loop_inclusive_with_continue() {
         v5 = unchecked_add v0, u8 1
         jmp b1(v5)
       b3():
-        jmpif u1 1 then: b5(), else: b4()
+        jmp b4()
       b4():
         return
-      b5():
-        jmp b4()
     }
     ");
 }
@@ -924,15 +916,13 @@ fn for_loop_inclusive_max_value_to_max_value() {
         v8 = unchecked_add v0, u8 1
         jmp b1(v8)
       b3():
-        jmpif u1 1 then: b5(), else: b4()
-      b4():
-        v12 = load v1 -> u8
-        return v12
-      b5():
-        v10 = load v1 -> u8
-        v11 = add v10, u8 255
-        store v11 at v1
+        v9 = load v1 -> u8
+        v10 = add v9, u8 255
+        store v10 at v1
         jmp b4()
+      b4():
+        v11 = load v1 -> u8
+        return v11
     }
     ");
 }
@@ -952,12 +942,41 @@ fn for_loop_inclusive_no_mul_by_one() {
     ";
     let ssa = get_initial_ssa(src).unwrap();
 
-    // The final-iteration guard is a plain `jmpif` on `start <= end`, not multiplied by `u1 1`.
+    // The final-iteration guard is `start <= end` alone, not multiplied by `u1 1`.
     let ssa_string = ssa.to_string();
     assert!(
         !ssa_string.contains("unchecked_mul"),
         "Expected no `unchecked_mul` in initial SSA for inclusive range with known bounds,\
          but found:\n{ssa_string}"
+    );
+}
+
+/// The final-iteration guard of an inclusive range is constant whenever `start <= end` is known
+/// at compile time, including `0..=n` over an unsigned type with an unknown `n`. Such a guard
+/// must not become a `jmpif` on a constant.
+#[test]
+fn for_loop_inclusive_known_guard_has_no_constant_jmpif() {
+    let src = "
+    unconstrained fn main(n: u32, cond: bool) -> pub u32 {
+        let mut sum = 0;
+        for i in 0..=n {
+            if cond {
+                break;
+            }
+            sum += i;
+        }
+        for i in 0..=255_u8 {
+            sum += i as u32;
+        }
+        sum
+    }
+    ";
+    let ssa = get_initial_ssa(src).unwrap();
+
+    let ssa_string = ssa.to_string();
+    assert!(
+        !ssa_string.contains("jmpif u1"),
+        "Expected no `jmpif` on a constant condition in initial SSA, but found:\n{ssa_string}"
     );
 }
 
