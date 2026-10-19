@@ -1219,7 +1219,8 @@ impl NodeInterner {
     }
 
     /// Looks up the methods of impls for all types `T` (`impl<T> Foo for T where T: Bar`) that
-    /// implement one of `trait_ids` for `typ` with their where clause known to hold.
+    /// implement one of `trait_ids` for `typ` with no constraint of their where clause known to
+    /// fail.
     ///
     /// Empty when `typ` is itself a generic: its methods are already looked up among the impls
     /// for all types `T` (see [`Self::lookup_trait_methods`]).
@@ -1237,7 +1238,7 @@ impl NodeInterner {
             .map(|methods| {
                 methods.find_trait_methods_where(typ, has_self_arg, self, |method| {
                     trait_ids.contains(&method.trait_id)
-                        && self.trait_impl_where_clause_holds(method.impl_id, typ)
+                        && self.trait_impl_may_apply(method.impl_id, typ)
                 })
             })
             .unwrap_or_default()

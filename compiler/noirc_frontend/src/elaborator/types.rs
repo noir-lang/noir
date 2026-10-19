@@ -1707,12 +1707,14 @@ impl Elaborator<'_> {
     }
 
     /// The trait methods of impls for `typ`'s own type (`impl Foo for S`), together with those of
-    /// impls for all types `T` (`impl<T> Foo for T where T: Bar`) of the same traits whose where
-    /// clause is known to hold for `typ`: both impls apply, so neither is preferred.
+    /// impls for all types `T` (`impl<T> Foo for T where T: Bar`) of the same traits that may
+    /// apply to `typ`: neither is preferred, so the call is ambiguous unless the impl search can
+    /// tell them apart.
     ///
-    /// An impl for all types `T` whose where clause can't be decided yet
-    /// (`impl<T, U> Into<T> for U where T: From<U>` with `T` unknown) is left out, so a type's own
-    /// impl is the one selected. When `typ` has no impl of its own the result is empty.
+    /// An impl for all types `T` whose where clause can't be decided yet counts as a candidate,
+    /// as in Rust: next to `impl Into<Field> for S`, std's `impl<T, U> Into<T> for U where
+    /// T: From<U>` makes `let _ = s.into()` ambiguous until the result type is known. When `typ`
+    /// has no impl of its own the result is empty.
     fn lookup_own_and_applicable_generic_methods(
         &mut self,
         typ: &Type,
