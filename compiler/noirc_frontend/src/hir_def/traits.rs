@@ -622,8 +622,15 @@ fn bind_named_generics(
 ///
 /// If the type variable itself appears in the type, then it does nothing.
 fn bind_generic(param: &ResolvedGeneric, arg: &Type, bindings: &mut TypeBindings) {
-    // Avoid binding t = t
-    if !arg.occurs(param.type_var.id()) {
+    // Avoid binding t = t. An argument that only contains the parameter (`[T; 2]` for `T`, in a
+    // trait's own method) is a binding like any other: instantiation replaces `T` once.
+    let is_param = match arg {
+        Type::TypeVariable(var) | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) => {
+            var.id() == param.type_var.id()
+        }
+        _ => false,
+    };
+    if !is_param {
         bindings.insert(
             param.type_var.id(),
             (param.type_var.clone(), param.kind().into_owned(), arg.clone()),

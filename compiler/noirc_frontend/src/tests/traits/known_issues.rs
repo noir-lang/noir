@@ -755,7 +755,6 @@ fn i1811_elided_parent_item_is_not_decided_by_a_function_body() {
 
 /// https://github.com/noir-lang/noir-claude/issues/2549 (o1)
 #[test]
-#[ignore = "noir-claude#2549"]
 fn i2549_qualified_call_in_a_default_method_substitutes_the_traits_generic() {
     let src = r#"
     trait Foo<T> {
@@ -772,7 +771,6 @@ fn i2549_qualified_call_in_a_default_method_substitutes_the_traits_generic() {
 
 /// https://github.com/noir-lang/noir-claude/issues/2549 (o2)
 #[test]
-#[ignore = "noir-claude#2549"]
 fn i2549_well_typed_qualified_call_in_a_default_method_is_accepted() {
     let src = r#"
     trait Foo<T> {
