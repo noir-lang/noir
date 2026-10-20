@@ -638,7 +638,6 @@ fn i2798_impl_for_an_arithmetic_array_length_overlaps_a_concrete_length() {
 
 /// https://github.com/noir-lang/noir-claude/issues/2798 (a1)
 #[test]
-#[ignore = "noir-claude#2798"]
 fn i2798_impl_for_an_arithmetic_generic_overlaps_a_concrete_one() {
     let src = r#"
     struct S<let N: u32> {}
@@ -707,7 +706,6 @@ fn i2773_chain_of_bounds_written_against_resolution_order_is_solved() {
 
 /// https://github.com/noir-lang/noir-claude/issues/2799
 #[test]
-#[ignore = "noir-claude#2799"]
 fn i2799_impl_for_n_plus_one_does_not_apply_to_zero() {
     let src = r#"
     struct S<let N: u32> {}
