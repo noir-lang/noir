@@ -266,33 +266,6 @@ impl NodeInterner {
             return;
         }
 
-        // Instantiate the impl's generics, so that its object type unifies with the object type
-        // of any existing impl it overlaps.
-        let (instantiated_object_type, _) =
-            object_type.substitute_type_vars_with_fresh_type_vars(&impl_generics, self);
-
-        // Check that we haven't already some overlapping implementation.
-        // Get the generics, which are inserted by `resolve_trait_impl_associated_types`
-        let trait_generics = self.get_trait_generics_for_impl(impl_id);
-
-        // Set named generics to unbound type vars, so they unify with anything.
-        let associated_types = vecmap(&trait_generics.named, |named| {
-            let typ = self.next_type_variable();
-            NamedType { name: named.name.clone(), typ }
-        });
-
-        let existing = self.try_lookup_trait_implementation(
-            &instantiated_object_type,
-            trait_id,
-            &trait_generics.ordered,
-            &associated_types,
-            TraitLookupMode::Default,
-        );
-
-        if existing.is_ok() {
-            return;
-        }
-
         // Stored generalized over the impl's generics, as a finished impl is, so that each lookup
         // instantiates them.
         let generalized_object_type = Type::Forall(impl_generics, Box::new(object_type));
