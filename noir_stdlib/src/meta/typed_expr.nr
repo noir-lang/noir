@@ -3,7 +3,7 @@ use crate::option::Option;
 
 impl TypedExpr {
     /// If this expression refers to a function definitions, returns it.
-    /// Otherwise returns [`Option::none()`](crate::option::Option::none).
+    /// Otherwise returns [`Option::none()`](Option::none).
     ///
     /// Example:
     ///

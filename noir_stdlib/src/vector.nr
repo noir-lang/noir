@@ -318,7 +318,7 @@ impl<T> [T] {
 
     /// Flatten each element in the vector into one value, separated by `separator`.
     ///
-    /// The elements must implement [`Append`](crate::append::Append). Runtime code doesn't support vectors of vectors, so
+    /// The elements must implement [`Append`]. Runtime code doesn't support vectors of vectors, so
     /// this is mostly used at comptime, for example to join [`Quoted`] values.
     ///
     /// Example:

@@ -221,8 +221,8 @@ where
 {
     /// Returns a new array sorted in ascending order. The original array remains untouched.
     ///
-    /// It works for any element type that implements [`Ord`](crate::cmp::Ord), using `<=`. The type
-    /// must also implement [`Eq`](crate::cmp::Eq), because the result is checked against the input
+    /// It works for any element type that implements [`Ord`], using `<=`. The type
+    /// must also implement [`Eq`], because the result is checked against the input
     /// in the same way as [`Self::sort_via`]'s. [`Field`] doesn't implement `Ord`, so to sort
     /// fields, or to sort by another order, use `sort_via`.
     ///
