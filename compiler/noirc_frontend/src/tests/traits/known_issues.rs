@@ -511,7 +511,6 @@ fn i2797_type_path_call_of_a_blanket_impl_method_runs_the_paths_types_impl() {
 /// https://github.com/noir-lang/noir-claude/issues/1718: whether an impl overrides a default
 /// method doesn't decide an integer literal's type.
 #[test]
-#[ignore = "noir-claude#1718"]
 fn i1718_default_method_call_on_an_integer_literal_does_not_depend_on_overrides() {
     let overrides_u16 = r#"
     trait Foo { fn foo(self) -> Field { 0 } }
