@@ -2871,20 +2871,19 @@ impl Elaborator<'_> {
 
         let use_impl = !lhs_type.is_numeric_value();
 
-        // If this operator isn't valid for fields we have to possibly narrow
-        // Kind::IntegerOrField to Kind::Integer.
-        // Doing so also ensures a type error if Field is used.
-        // The is_numeric check is to allow impls for custom types to bypass this.
+        // Both operands are unbound type variables here: an operand of known type is checked by
+        // that type's own rules. A numeric variable used with an operator `Field` doesn't
+        // support is narrowed to an integer, and a `Field` it is later unified with is then a
+        // type mismatch. A non-numeric variable is left for the operator's trait impl.
         if !op.kind.is_valid_for_field_type() && lhs_type.is_numeric_value() {
             let target = self.polymorphic_integer();
-
-            use crate::ast::BinaryOpKind::*;
-            use TypeCheckError::*;
-            self.unify(lhs_type, &target, |_| match op.kind {
-                Less | LessEqual | Greater | GreaterEqual => FieldComparison { location },
-                And | Or | Xor | ShiftRight | ShiftLeft => FieldBitwiseOp { location },
-                Modulo => FieldModulo { location },
-                other => unreachable!("Operator {other:?} should be valid for Field"),
+            self.unify(lhs_type, &target, |elaborator| {
+                elaborator.new_type_mismatch_with_source_error(
+                    &target,
+                    lhs_type,
+                    Source::Binary,
+                    location,
+                )
             });
         }
 
