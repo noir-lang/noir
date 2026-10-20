@@ -43,7 +43,7 @@
   "devDependencies": {
     "@esm-bundle/chai": "^4.3.4-fix.0",
     "@ltd/j-toml": "^1.38.0",
-    "@types/adm-zip": "^0.5.8",
+    "@types/adm-zip": "^0.6.0",
     "@types/chai": "^5",
     "@types/mocha": "^10.0.10",
     "@types/mocha-each": "^2.0.4",
@@ -71,7 +71,7 @@
     "path-browserify": "^1.0.1",
     "prettier": "3.9.9",
     "process": "^0.11.10",
-    "readable-stream": "^4.7.0",
+    "readable-stream": "^4.8.0",
     "sinon": "^22.1.0",
     "ts-loader": "^9.6.2",
     "tsx": "^4.23.15",
