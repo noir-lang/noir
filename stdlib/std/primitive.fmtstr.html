@@ -101,12 +101,21 @@
 <div class="comments">
 <p>A formatted string with interpolated values.</p>
 <h2>Example</h2>
-<pre><code><span class="kw">fn</span> main() {
-  <span class="kw">let</span> x = <span class="number">1</span>;
-  <span class="kw">let</span> y = <span class="number">2</span>;
-  <span class="kw">let</span> sum = <span class="number">3</span>;
-  <span class="kw">let</span> f = <span class="string">f"</span><span class="interpolation">{x}</span><span class="string"> + </span><span class="interpolation">{y}</span><span class="string"> is </span><span class="interpolation">{sum}</span><span class="string">"</span>; <span class="comment">// prints "0x01 + 0x02 is 0x03"</span>
-  println(f);
+<pre><code><span class="kw">use</span> std::meta::ctstring::AsCtString;
+
+<span class="kw">fn</span> main() {
+    <span class="kw">let</span> x = <span class="number">1</span>;
+    <span class="kw">let</span> y = <span class="number">2</span>;
+    <span class="kw">let</span> sum = <span class="number">3</span>;
+    <span class="comment">// A `Field` is formatted in hexadecimal.</span>
+    println(<span class="string">f"</span><span class="interpolation">{x}</span><span class="string"> + </span><span class="interpolation">{y}</span><span class="string"> is </span><span class="interpolation">{sum}</span><span class="string">"</span>); <span class="comment">// prints "0x01 + 0x02 is 0x03"</span>
+
+    <span class="kw">comptime</span> {
+        <span class="kw">let</span> a = <span class="number">1_u32</span>;
+        <span class="kw">let</span> b = <span class="number">2_u32</span>;
+        <span class="kw">let</span> total = a + b;
+        <span class="kw">assert_eq</span>(<span class="string">f"</span><span class="interpolation">{a}</span><span class="string"> + </span><span class="interpolation">{b}</span><span class="string"> is </span><span class="interpolation">{total}</span><span class="string">"</span>.as_ctstring(), <span class="string">"1 + 2 is 3"</span>.as_ctstring());
+    }
 }</code></pre></div>
 <h2>Implementations</h2>
 <h3><code class="code-header">impl&lt;let N: <a href="../std/primitive.u32.html" class="primitive">u32</a>, T&gt; <a href="../std/primitive.fmtstr.html" class="primitive">fmtstr</a>&lt;N, T&gt;</code></h3>

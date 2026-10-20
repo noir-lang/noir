@@ -120,7 +120,9 @@
 <pre><code><span class="kw">fn</span> main() {
     <span class="kw">comptime</span> {
         <span class="kw">let</span> typ = <span class="kw">quote</span> { i32 }.as_type();
-        println(typ); <span class="comment">// outputs "i32"</span>
+        <span class="kw">let</span> integer = typ.as_integer().unwrap();
+        <span class="kw">assert</span>(integer.is_signed());
+        <span class="kw">assert_eq</span>(integer.bits(), <span class="number">32</span>);
     }
 }</code></pre></div>
 <h2>Implementations</h2>
