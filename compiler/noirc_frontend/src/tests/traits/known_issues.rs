@@ -289,7 +289,6 @@ fn i2802_method_of_a_trait_out_of_scope_does_not_hide_a_blanket_impl_in_scope() 
 
 /// https://github.com/noir-lang/noir-claude/issues/2803 (w1): `L<T>`'s `check` needs `T: LX`.
 #[test]
-#[ignore = "noir-claude#2803"]
 fn i2803_method_call_ignores_an_inherent_method_whose_where_clause_fails() {
     let src = r#"
     pub struct L<T> { pub v: u32 }
@@ -304,7 +303,6 @@ fn i2803_method_call_ignores_an_inherent_method_whose_where_clause_fails() {
 
 /// https://github.com/noir-lang/noir-claude/issues/2803 (w2)
 #[test]
-#[ignore = "noir-claude#2803"]
 fn i2803_method_call_ignores_a_trait_impl_whose_where_clause_fails() {
     let src = r#"
     pub struct L<T> { pub v: u32 }
@@ -320,7 +318,6 @@ fn i2803_method_call_ignores_a_trait_impl_whose_where_clause_fails() {
 
 /// https://github.com/noir-lang/noir-claude/issues/2803 (w3)
 #[test]
-#[ignore = "noir-claude#2803"]
 fn i2803_method_call_ignores_a_blanket_impl_whose_where_clause_fails() {
     let src = r#"
     pub trait LX {}

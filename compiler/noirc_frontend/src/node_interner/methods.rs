@@ -86,55 +86,24 @@ impl Methods {
         None
     }
 
-    pub(super) fn find_direct_method(
-        &self,
-        typ: &Type,
-        check_self_param: bool,
-        interner: &NodeInterner,
-    ) -> Option<FuncId> {
-        for method in &self.direct {
-            if Self::method_matches(typ, check_self_param, method.method, &method.typ, interner) {
-                return Some(method.method);
-            }
-        }
-
-        None
-    }
-
-    /// Returns every direct (inherent) method that matches `typ`, in registration order.
+    /// Returns every direct (inherent) method that matches `typ`, in registration order, with the
+    /// self type of its impl.
+    ///
+    /// Each impl's self type is matched against `typ`, so this distinguishes `Foo<i32>` and
+    /// `Foo<u64>` (both match `Foo<_>`) from `u8` and `u16` (only `u8` matches `u8`), even though
+    /// same-key types like the integers share a single `Methods` entry.
     pub(super) fn find_direct_methods(
         &self,
         typ: &Type,
         check_self_param: bool,
         interner: &NodeInterner,
-    ) -> Vec<FuncId> {
+    ) -> Vec<ImplMethod> {
         self.direct
             .iter()
             .filter(|method| {
                 Self::method_matches(typ, check_self_param, method.method, &method.typ, interner)
             })
-            .map(|method| method.method)
-            .collect()
-    }
-
-    /// Returns the self types of every direct (inherent) method that matches `typ`.
-    ///
-    /// Unlike keying by `typ`'s method key, this matches each impl's self type against `typ`, so it
-    /// distinguishes `Foo<i32>` and `Foo<u64>` (both match `Foo<_>`) from `u8` and `u16` (only `u8`
-    /// matches `u8`) — even though same-key types like the integers share a single `Methods` entry.
-    /// Used to detect when `TypeName::method` is ambiguous (more than one applies).
-    pub(super) fn matching_direct_method_types(
-        &self,
-        typ: &Type,
-        check_self_param: bool,
-        interner: &NodeInterner,
-    ) -> Vec<Type> {
-        self.direct
-            .iter()
-            .filter(|method| {
-                Self::method_matches(typ, check_self_param, method.method, &method.typ, interner)
-            })
-            .map(|method| method.typ.clone())
+            .cloned()
             .collect()
     }
 
@@ -171,6 +140,19 @@ impl Methods {
             } else {
                 None
             }
+        })
+    }
+
+    /// Whether some method here applies to `typ` and its impl's where clause can hold for it.
+    pub(super) fn has_method_whose_where_clause_may_hold(
+        &self,
+        typ: &Type,
+        check_self_param: bool,
+        interner: &NodeInterner,
+    ) -> bool {
+        self.iter(interner).any(|(method, method_type, _)| {
+            Self::method_matches(typ, check_self_param, method, &method_type, interner)
+                && interner.method_impl_where_clause_may_hold(method, typ)
         })
     }
 
