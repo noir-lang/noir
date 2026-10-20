@@ -941,7 +941,6 @@ fn i2735_impl_for_an_array_length_from_a_later_impl_is_resolved() {
 
 /// https://github.com/noir-lang/noir-claude/issues/2709
 #[test]
-#[ignore = "noir-claude#2709"]
 fn i2709_where_clause_on_a_concrete_type_decides_an_associated_type() {
     let src = r#"
     pub trait Tr { type Out; fn mk() -> Self::Out; }
