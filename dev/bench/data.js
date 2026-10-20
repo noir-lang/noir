@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792503280313,
+  "lastUpdate": 1792503337950,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22990,48 +22990,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "04ed83bde8dc44f4fc7fb3a33e26161020ce7f72",
-          "message": "chore: delete unreferenced pub functions from compiler crates (#13983)",
-          "timestamp": "2026-10-14T18:02:34Z",
-          "tree_id": "7bdb91f885ccf4d8c798a85cc94f036672f6a727",
-          "url": "https://github.com/noir-lang/noir/commit/04ed83bde8dc44f4fc7fb3a33e26161020ce7f72"
-        },
-        "date": 1792002280552,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 150014,
-            "range": "± 709",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 124985,
-            "range": "± 953",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2041855,
-            "range": "± 5400",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "a4f5726550ee754d39242cc5f45f02108a348766",
           "message": "chore: fix cargo-deny findings (rustls advisories, yanked crates, stale config) (#13992)",
@@ -25074,6 +25032,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 1727689,
             "range": "± 19253",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "9df7519f6cd2da91c1fc63ef11eee5f124e155e0",
+          "message": "chore(stdlib): document the built-in `Location` type and check primitive docs in CI (#14065)",
+          "timestamp": "2026-10-20T13:07:47Z",
+          "tree_id": "706e7b9f68375f0d3fcb7795f7bf99175edaa07d",
+          "url": "https://github.com/noir-lang/noir/commit/9df7519f6cd2da91c1fc63ef11eee5f124e155e0"
+        },
+        "date": 1792503241055,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 126037,
+            "range": "± 591",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 111801,
+            "range": "± 1447",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 3043059,
+            "range": "± 6146",
             "unit": "ns/iter"
           }
         ]
