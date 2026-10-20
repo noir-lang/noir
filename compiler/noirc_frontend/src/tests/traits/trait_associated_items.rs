@@ -644,8 +644,9 @@ fn self_associated_constant_from_different_trait() {
 }
 
 #[test]
-fn self_associated_constant_does_not_cross_trait_boundaries() {
-    // Self::AssociatedConstant cannot access constants from other trait impls
+fn self_associated_constant_of_another_trait_impl_is_found() {
+    // `Self::N` names `N` of any trait in scope that `Self` implements, for a primitive `Self` as
+    // for a struct.
     let src = r#"
     trait Base {
         let N: u32;
@@ -662,13 +663,12 @@ fn self_associated_constant_does_not_cross_trait_boundaries() {
     impl Derived for u32 {
         fn get_base() -> u32 {
             Self::N
-                  ^ No method named 'N' found for type 'u32'
         }
     }
 
     fn main() {}
     "#;
-    check_errors(src);
+    assert_no_errors(src);
 }
 
 #[test]
