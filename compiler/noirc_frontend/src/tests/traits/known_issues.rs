@@ -886,7 +886,6 @@ fn i2761_impl_method_restating_a_self_projection_bound_matches_the_trait() {
 
 /// https://github.com/noir-lang/noir-claude/issues/2756
 #[test]
-#[ignore = "noir-claude#2756"]
 fn i2756_impl_where_clause_projecting_through_a_later_impl_matches_the_trait() {
     let src = r#"
     trait Eq { fn eq(self, other: Self) -> bool; }

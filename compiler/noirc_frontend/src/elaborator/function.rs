@@ -83,8 +83,8 @@ impl Elaborator<'_> {
         trait_impls: &mut [UnresolvedTraitImpl],
     ) {
         // Prepare all trait impls, so we can refer to `<Object as Trait>::Type` in function
-        // signatures. An impl whose header projects through another impl (`impl Foo<<S as C>::T>`)
-        // is prepared after the ones whose headers don't, so it finds them whatever the order
+        // signatures. An impl whose header or where clause projects through another impl
+        // (`impl Foo<<S as C>::T>`) is prepared after the ones that don't, so it finds them whatever the order
         // they are written in.
         let mut trait_constraints_and_generics = vec![None; trait_impls.len()];
         let (projecting, plain): (Vec<_>, Vec<_>) =
@@ -863,7 +863,8 @@ fn is_identifier_pattern(pattern: &HirPattern) -> bool {
     }
 }
 
-/// Whether the trait or self type of `trait_impl` contains a projection (`<S as C>::T`).
+/// Whether the trait, self type or where clause of `trait_impl` contains a projection
+/// (`<S as C>::T`).
 fn header_has_projection(trait_impl: &UnresolvedTraitImpl) -> bool {
     struct ProjectionFinder(bool);
     impl Visitor for ProjectionFinder {
@@ -880,5 +881,8 @@ fn header_has_projection(trait_impl: &UnresolvedTraitImpl) -> bool {
     let mut finder = ProjectionFinder(false);
     trait_impl.r#trait.accept(&mut finder);
     trait_impl.object_type.accept(&mut finder);
+    for constraint in &trait_impl.where_clause {
+        constraint.typ.accept(&mut finder);
+    }
     finder.0
 }
