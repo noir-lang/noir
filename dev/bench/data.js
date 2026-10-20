@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792491152012,
+  "lastUpdate": 1792491299995,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22990,48 +22990,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "7de135674176cd62f4466391bd7f6d970cb18d9a",
-          "message": "chore(frontend): share child traversal between Type walkers (#13972)",
-          "timestamp": "2026-10-14T16:18:12Z",
-          "tree_id": "513c617dc0cc6e6856016b22ce9074d48f2ffa80",
-          "url": "https://github.com/noir-lang/noir/commit/7de135674176cd62f4466391bd7f6d970cb18d9a"
-        },
-        "date": 1791995922300,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 72414,
-            "range": "± 1433",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 63855,
-            "range": "± 1260",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 1763440,
-            "range": "± 30422",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "f7d6fcda07ba51cb17e215a5b643255d7c487b69",
           "message": "chore: delete dead code hidden behind allow(dead_code) and drop unneeded allows (#13989)",
@@ -25074,6 +25032,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2646010,
             "range": "± 15297",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49699333+dependabot[bot]@users.noreply.github.com",
+            "name": "dependabot[bot]",
+            "username": "dependabot[bot]"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "226a6e1b4ae118c0741fd647d04883e8a7ff9bf7",
+          "message": "chore(deps): bump proptest-derive from 0.8.0 to 0.9.0 (#13979)\n\nSigned-off-by: dependabot[bot] <support@github.com>\nCo-authored-by: dependabot[bot] <49699333+dependabot[bot]@users.noreply.github.com>",
+          "timestamp": "2026-10-20T09:46:30Z",
+          "tree_id": "dc1e20dfa29487a5a98477d517072dbfa13354ea",
+          "url": "https://github.com/noir-lang/noir/commit/226a6e1b4ae118c0741fd647d04883e8a7ff9bf7"
+        },
+        "date": 1792491201337,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 168052,
+            "range": "± 1312",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 135788,
+            "range": "± 292",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2651975,
+            "range": "± 3740",
             "unit": "ns/iter"
           }
         ]
