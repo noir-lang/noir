@@ -894,8 +894,8 @@ impl ChunkFormatter<'_, '_> {
             };
             for index in 0..tokens_count {
                 // `<<` and `>>` are lexed as two separate tokens so that nested generic types
-                // are easier to parse, which means whitespace or a comment can sit between the
-                // two halves of a shift operator.
+                // are easier to parse. The parser accepts whitespace or a comment between the
+                // two halves of `>>`, so skip it here.
                 if index > 0 {
                     formatter.skip_comments_and_whitespace();
                 }
@@ -1838,10 +1838,6 @@ global y = 1;
 
     #[test]
     fn format_shift_written_as_two_separate_tokens() {
-        let src = "global x =  a  <  <  b  ;";
-        let expected = "global x = a << b;\n";
-        assert_format(src, expected);
-
         let src = "global x =  a  >  >  b  ;";
         let expected = "global x = a >> b;\n";
         assert_format(src, expected);
@@ -1849,10 +1845,10 @@ global y = 1;
 
     #[test]
     fn format_shift_with_a_comment_between_its_two_tokens() {
-        let src = "global x = a < // shift\n< b;";
+        let src = "global x = a > // shift\n> b;";
         let expected = "global x = a
-    < // shift
-    < b;
+    > // shift
+    > b;
 ";
         assert_format(src, expected);
     }

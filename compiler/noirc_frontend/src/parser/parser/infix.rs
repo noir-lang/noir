@@ -142,10 +142,16 @@ impl Parser<'_> {
         parse_infix!(
             self,
             Parser::parse_add_or_subtract,
-            if self.at(&Token::Less) && self.next_is(&Token::Less) {
+            if self.at(&Token::Less)
+                && self.next_is(&Token::Less)
+                && self.token.span().end() == self.next_token.span().start()
+            {
                 // Left-shift (<<) is issued as two separate < tokens by the lexer as this makes it easier
                 // to parse nested generic types. For normal expressions however, it means we have to manually
                 // parse two less-than tokens as a single left-shift here.
+                //
+                // The two tokens must be adjacent: in `a < <T as Trait>::f()` the second `<` opens a
+                // qualified path, so the first one is a less-than comparison.
                 self.bump();
                 self.bump();
                 BinaryOpKind::ShiftLeft

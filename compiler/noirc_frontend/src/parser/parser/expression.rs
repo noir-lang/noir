@@ -2186,6 +2186,28 @@ mod tests {
     }
 
     #[test]
+    fn parses_less_than_as_trait_path() {
+        let src = "1 < <U as Tr>::f(x)";
+        let expr = parse_expression_no_errors(src);
+        let ExpressionKind::Infix(infix) = expr.kind else {
+            panic!("Expected infix expression");
+        };
+        assert_eq!(infix.operator.contents, BinaryOpKind::Less);
+        assert_eq!(infix.rhs.to_string(), "<U as Tr>::f(x)");
+    }
+
+    #[test]
+    fn parses_shift_left_as_trait_path() {
+        let src = "1 << <U as Tr>::f(x)";
+        let expr = parse_expression_no_errors(src);
+        let ExpressionKind::Infix(infix) = expr.kind else {
+            panic!("Expected infix expression");
+        };
+        assert_eq!(infix.operator.contents, BinaryOpKind::ShiftLeft);
+        assert_eq!(infix.rhs.to_string(), "<U as Tr>::f(x)");
+    }
+
+    #[test]
     fn parses_comptime_expression() {
         let src = "comptime { 1 }";
         let expr = parse_expression_no_errors(src);
