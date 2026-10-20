@@ -121,6 +121,31 @@ mod primitive_fmtstr {}
 #['nargo_doc_primitive FunctionDefinition]
 mod primitive_FunctionDefinition {}
 
+/// A compile-time type which represents a source location in this program.
+///
+/// `FunctionDefinition`, `Module`, `TraitDefinition`, `TypeDefinition` and `TypedExpr` each have a
+/// `location` method. Pass the result to [`std::meta::error`](crate::meta::error) or
+/// [`std::meta::warn`](crate::meta::warn) to report a diagnostic at that item or expression.
+///
+/// Two locations are equal when they refer to the same source span.
+///
+/// Example:
+///
+/// ```noir
+/// #[check]
+/// pub fn add(x: u32, y: u32) -> u32 {
+///     x + y
+/// }
+///
+/// comptime fn check(f: FunctionDefinition) {
+///     let location: Location = f.location();
+///     assert_eq(location, f.location());
+///     assert(location != f.module().location());
+/// }
+/// ```
+#['nargo_doc_primitive Location]
+mod primitive_Location {}
+
 /// A compile-time type which represents a module in this source program.
 ///
 /// A `Module` is passed as the first argument to a macro attribute on top of a module:

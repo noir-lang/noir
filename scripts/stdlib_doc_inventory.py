@@ -12,6 +12,11 @@ trait needs a doc comment, but not its own example when the trait's doc comment
 has one. Methods in trait impls are not listed: the trait's documentation covers
 them.
 
+Built-in types such as `Field` or `Location` are documented in
+`primitive_docs.nr` by a `#['nargo_doc_primitive Name]` module. Every primitive
+type the compiler knows (`PrimitiveType::lookup_by_name`) is listed, and needs a
+doc comment there.
+
 This is a line-based scan, not a parse, so it can miss unusually formatted
 items. It does not resolve visibility: a `pub` item inside a private module is
 still listed.
@@ -30,7 +35,11 @@ from collections import Counter
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STDLIB_SRC = os.path.join(REPO_ROOT, "noir_stdlib", "src")
-EXCLUDED = ("internal" + os.sep, "primitive_docs.nr")
+PRIMITIVE_DOCS = "primitive_docs.nr"
+PRIMITIVE_TYPES = os.path.join(
+    REPO_ROOT, "compiler", "noirc_frontend", "src", "elaborator", "primitive_types.rs"
+)
+EXCLUDED = ("internal" + os.sep, PRIMITIVE_DOCS)
 
 MODIFIERS = r"(?:(?:unconstrained|comptime)\s+)*"
 PUB_ITEM = re.compile(
@@ -105,6 +114,26 @@ def scan_file(path, rel_path):
     return items
 
 
+def scan_primitives():
+    """Lists each primitive type and whether `primitive_docs.nr` documents it."""
+    with open(PRIMITIVE_TYPES, encoding="utf-8") as f:
+        names = re.findall(r'"(\w+)" => Some\(Self::', f.read())
+    if not names:
+        raise SystemExit(f"found no primitive types in {PRIMITIVE_TYPES}; update `scan_primitives`")
+    with open(os.path.join(STDLIB_SRC, PRIMITIVE_DOCS), encoding="utf-8") as f:
+        lines = f.read().split("\n")
+    documented = {}
+    for index, line in enumerate(lines):
+        entry = re.match(r"^#\['nargo_doc_primitive (\w+)\]", line.strip())
+        if entry:
+            documented[entry.group(1)] = (index + 1, doc_comment(lines, index) is not None)
+    items = []
+    for name in names:
+        line, has_doc = documented.get(name, (1, False))
+        items.append((PRIMITIVE_DOCS, line, "primitive", name, "documented" if has_doc else "missing"))
+    return items
+
+
 def collect_items():
     items = []
     for root, _, files in os.walk(STDLIB_SRC):
@@ -113,6 +142,7 @@ def collect_items():
             rel_path = os.path.relpath(path, STDLIB_SRC)
             if name.endswith(".nr") and not rel_path.startswith(EXCLUDED):
                 items.extend(scan_file(path, rel_path))
+    items.extend(scan_primitives())
     return sorted(items)
 
 
@@ -127,7 +157,12 @@ def main():
 
     if args.missing or args.check:
         for path, line, kind, name, status in incomplete:
-            problem = "has no doc comment" if status == "missing" else "has no `noir` example"
+            if kind == "primitive":
+                problem = f"needs a documented `#['nargo_doc_primitive {name}]` module"
+            elif status == "missing":
+                problem = "has no doc comment"
+            else:
+                problem = "has no `noir` example"
             print(f"noir_stdlib/src/{path}:{line}: {kind} `{name}` {problem}")
         if args.check and incomplete:
             sys.stdout.flush()
