@@ -1623,3 +1623,197 @@ fn method_call_selects_a_blanket_impl_when_a_types_own_impl_has_a_failing_where_
     }
     ");
 }
+
+#[test]
+fn type_path_call_under_where_clause_selects_the_assumed_impl_over_a_types_own_impl() {
+    let src = r#"
+    trait Small {}
+    trait Limit { fn max() -> u64; }
+    pub struct S<T> {}
+    impl Small for S<u8> {}
+    impl Limit for S<u64> { fn max() -> u64 { 18446744073709551615 } }
+    impl<T: Small> Limit for T { fn max() -> u64 { 255 } }
+
+    fn f<T>() -> u64 where S<T>: Limit { S::max() }
+
+    fn main() -> pub u64 { f::<u8>() }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u64 {
+        f$f1()
+    }
+    fn f$f1() -> u64 {
+        max$f2()
+    }
+    fn max$f2() -> u64 {
+        18446744073709551615
+    }
+    ");
+}
+
+#[test]
+fn type_path_call_under_where_clause_selects_the_assumed_impl_when_a_blanket_where_clause_is_undecided()
+ {
+    let src = r#"
+    trait Small {}
+    trait Limit { fn max() -> u64; }
+    pub struct S<T> {}
+    impl Small for S<u8> {}
+    impl Small for S<u16> {}
+    impl Limit for S<u64> { fn max() -> u64 { 18446744073709551615 } }
+    impl<T: Small> Limit for T { fn max() -> u64 { 255 } }
+
+    fn f<T>() -> u64 where S<T>: Limit { S::max() }
+
+    fn main() -> pub u64 { f::<u8>() }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u64 {
+        f$f1()
+    }
+    fn f$f1() -> u64 {
+        max$f2()
+    }
+    fn max$f2() -> u64 {
+        18446744073709551615
+    }
+    ");
+}
+
+#[test]
+fn self_type_path_call_in_a_bounded_impl_selects_the_assumed_impl_over_a_types_own_impl() {
+    let src = r#"
+    trait Small {}
+    trait Limit { fn max() -> u64; }
+    pub struct S<T> {}
+    impl Small for S<u8> {}
+    impl Small for S<u16> {}
+    impl Limit for S<u64> { fn max() -> u64 { 18446744073709551615 } }
+    impl<T: Small> Limit for T { fn max() -> u64 { 255 } }
+
+    trait Validate { fn limit() -> u64; }
+    impl<T> Validate for S<T> where S<T>: Limit {
+        fn limit() -> u64 { Self::max() }
+    }
+
+    fn main() -> pub u64 { S::<u8>::limit() }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u64 {
+        limit$f1()
+    }
+    fn limit$f1() -> u64 {
+        max$f2()
+    }
+    fn max$f2() -> u64 {
+        18446744073709551615
+    }
+    ");
+}
+
+#[test]
+fn method_call_under_where_clause_selects_the_assumed_impl_over_a_types_own_impl() {
+    let src = r#"
+    trait Baz {}
+    trait Foo { fn foo(self) -> Field; }
+    pub struct Wrapper<T> {}
+    impl Foo for Wrapper<u32> { fn foo(self) -> Field { 32 } }
+    impl<X: Baz> Foo for X { fn foo(self) -> Field { 99 } }
+    impl Baz for Wrapper<u8> {}
+
+    fn f<T>() -> Field where Wrapper<T>: Foo {
+        let w = Wrapper {};
+        w.foo()
+    }
+
+    fn main() -> pub Field { f::<u8>() }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub Field {
+        f$f1()
+    }
+    fn f$f1() -> Field {
+        let w$l0 = {
+            ()
+        };
+        foo$f2(w$l0)
+    }
+    fn foo$f2(self$l1: ()) -> Field {
+        32
+    }
+    ");
+}
+
+#[test]
+fn type_path_call_with_an_unknown_generic_and_two_applicable_impls_is_ambiguous() {
+    let src = r#"
+    trait Small {}
+    trait Limit { fn max() -> u64; }
+    pub struct S<T> {}
+    impl Small for S<u8> {}
+    impl Limit for S<u64> { fn max() -> u64 { 18446744073709551615 } }
+    impl<T: Small> Limit for T { fn max() -> u64 { 255 } }
+
+    fn main() -> pub u64 { S::max() }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn type_path_call_selects_a_blanket_impl_when_a_types_own_impl_has_a_failing_where_clause() {
+    let src = r#"
+    trait Marker {}
+    trait Other {}
+    trait Foo {
+        fn value(self) -> Field;
+    }
+    struct S<A> { x: A }
+    impl<A> Foo for S<A> where A: Marker {
+        fn value(self) -> Field { 1 }
+    }
+    impl<T> Foo for T where T: Other {
+        fn value(self) -> Field { 2 }
+    }
+    impl Other for S<Field> {}
+
+    fn main() -> pub Field {
+        S::value(S { x: 1 as Field })
+    }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub Field {
+        value$f1({
+            let x$l0 = (1 as Field);
+            (x$l0)
+        })
+    }
+    fn value$f1(self$l1: (Field,)) -> Field {
+        2
+    }
+    ");
+}
+
+#[test]
+fn type_path_call_with_an_unknown_generic_selects_a_types_only_impl() {
+    let src = r#"
+    trait Limit { fn max() -> u64; }
+    pub struct S<T> {}
+    impl Limit for S<u64> { fn max() -> u64 { 18446744073709551615 } }
+
+    fn main() -> pub u64 { S::max() }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u64 {
+        max$f1()
+    }
+    fn max$f1() -> u64 {
+        18446744073709551615
+    }
+    ");
+}
