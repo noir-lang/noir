@@ -3371,6 +3371,26 @@ impl Elaborator<'_> {
         // Next lookup all matching trait methods.
         let trait_methods = self.lookup_trait_methods(object_type, method_name, check_self_param);
 
+        // The enclosing function's assumptions about an object type that mentions a generic come
+        // before impl methods. An assumption `W<T>: Foo` is what the function was written
+        // against: the impl that serves it depends on `T` and is chosen per instantiation by the
+        // impl search, which an impl method found here would bypass. The impl method is kept
+        // only when that impl serves the assumption for every `T`.
+        if object_type.contains_type_variable()
+            && let Some(assumed) = self.trait_constraint_method_candidates(object_type, method_name)
+            && !assumed.is_empty()
+            && !self.impl_method_serves_assumption(object_type, &assumed, &trait_methods)
+        {
+            let matches = self.merge_trait_method_candidates(assumed);
+            return self.handle_trait_method_lookup_matches(
+                object_type,
+                method_name,
+                call_location,
+                object_location,
+                matches,
+            );
+        }
+
         // If there's at least one matching trait method we need to see if only one is in scope.
         if !trait_methods.is_empty() {
             return self.return_trait_method_in_scope(
@@ -3408,6 +3428,36 @@ impl Elaborator<'_> {
             method_name,
             call_location,
             object_location,
+        )
+    }
+
+    /// Whether the single impl method in `impl_methods` is the method of the single `assumed`
+    /// candidate, and the impl search proves the assumption with that method's impl without
+    /// using any assumption, so the impl serves the call whatever the generics are.
+    fn impl_method_serves_assumption(
+        &self,
+        object_type: &Type,
+        assumed: &[HirTraitMethodReference],
+        impl_methods: &[(FuncId, TraitId, Type)],
+    ) -> bool {
+        let ([assumed], [(func_id, trait_id, _)]) = (assumed, impl_methods) else {
+            return false;
+        };
+        if assumed.trait_id != *trait_id {
+            return false;
+        }
+        let Some(impl_id) = self.interner.function_meta(func_id).trait_impl else {
+            return false;
+        };
+        matches!(
+            self.interner.try_lookup_trait_implementation(
+                object_type,
+                *trait_id,
+                &assumed.trait_generics.ordered,
+                &[],
+                TraitLookupMode::IgnoreAssumed,
+            ),
+            Ok((TraitImplKind::Normal(id) | TraitImplKind::Prepared(id, _), ..)) if id == impl_id
         )
     }
 
@@ -3580,13 +3630,38 @@ impl Elaborator<'_> {
         location: Location,
         object_location: Location,
     ) -> Option<HirMethodReference> {
-        let Some(DependencyId::Function(func_id)) = self.item.module.current_item() else {
+        let Some(candidates) = self.trait_constraint_method_candidates(object_type, method_name)
+        else {
             // Unexpected method outside a function.
             self.push_err(TypeCheckError::UnresolvedMethodCall {
                 method_name: method_name.to_string(),
                 object_type: object_type.clone(),
                 location,
             });
+            return None;
+        };
+
+        let matches = self.merge_trait_method_candidates(candidates);
+
+        self.handle_trait_method_lookup_matches(
+            object_type,
+            method_name,
+            location,
+            object_location,
+            matches,
+        )
+    }
+
+    /// The methods named `method_name` that the enclosing function's assumptions provide for
+    /// `object_type`: those of the trait the function belongs to, if the object is its `Self`,
+    /// and those of each trait the function's bounds require of `object_type`. `None` outside a
+    /// function.
+    fn trait_constraint_method_candidates(
+        &mut self,
+        object_type: &Type,
+        method_name: &str,
+    ) -> Option<Vec<HirTraitMethodReference>> {
+        let Some(DependencyId::Function(func_id)) = self.item.module.current_item() else {
             return None;
         };
 
@@ -3638,15 +3713,7 @@ impl Elaborator<'_> {
             }
         }
 
-        let matches = self.merge_trait_method_candidates(candidates);
-
-        self.handle_trait_method_lookup_matches(
-            object_type,
-            method_name,
-            location,
-            object_location,
-            matches,
-        )
+        Some(candidates)
     }
 
     /// Keeps one candidate for each trait method. Several bounds can lead to the same method: with
