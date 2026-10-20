@@ -107,7 +107,7 @@ E.g. <a href="../std/cmp/trait.Eq.html"><code>Eq</code></a>, <a href="../std/def
 <pre><code><span class="kw">fn</span> main() {
     <span class="kw">comptime</span> {
         <span class="kw">let</span> constraint = <span class="kw">quote</span> { Eq }.as_trait_constraint();
-        println(constraint); <span class="comment">// outputs "Eq"</span>
+        <span class="kw">assert</span>(<span class="kw">quote</span> { u32 }.as_type().implements(constraint));
     }
 }</code></pre></div>
 <h2>Trait implementations</h2>

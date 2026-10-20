@@ -3,8 +3,9 @@
 
 Every fenced block tagged `noir` inside a `///` or `//!` comment under
 `noir_stdlib/src` becomes a `#[test]` in a scratch crate, which is then run with
-`nargo test`. Blocks tagged with anything else (untagged, `rust`, `text`, ...)
-are documentation only and are not checked.
+`nargo test`. A block tagged `text` is output or prose, not code, and is not
+checked. Any other block, including an untagged one, is an error: tag it `noir`
+so it runs, or `noir ignore` if it can't.
 
 A block's info string can carry attributes after `noir`, separated by spaces
 (or commas, as rustdoc also accepts):
@@ -91,6 +92,11 @@ def extract_examples(path, rel_path):
             if fence is None:
                 if opening:
                     info = re.split(r"[\s,]+", opening.group(2).strip()) if opening.group(2).strip() else []
+                    if not info or info[0] not in ("noir", "text"):
+                        raise SystemExit(
+                            f"{rel_path}:{number}: code block must be tagged `noir` (or `text` for "
+                            "output that isn't code), so that it is checked"
+                        )
                     fence = (opening.group(1), info, number, [])
             elif opening and opening.group(1) == fence[0] and not opening.group(2):
                 backticks, info, start, code = fence

@@ -79,10 +79,11 @@ mod primitive_CtString {}
 ///
 /// An [`Expr`] can be obtained using [`Quoted::as_expr`]:
 ///
-/// ```
+/// ```noir
 /// fn main() {
 ///     comptime {
 ///         let expr = quote { 1 + 2 }.as_expr().unwrap();
+///         assert(expr.as_binary_op().unwrap().operator().is_add());
 ///     }
 /// }
 /// ```
@@ -93,13 +94,22 @@ mod primitive_Expr {}
 ///
 /// # Example
 ///
-/// ```
+/// ```noir
+/// use std::meta::ctstring::AsCtString;
+///
 /// fn main() {
-///   let x = 1;
-///   let y = 2;
-///   let sum = 3;
-///   let f = f"{x} + {y} is {sum}"; // prints "0x01 + 0x02 is 0x03"
-///   println(f);
+///     let x = 1;
+///     let y = 2;
+///     let sum = 3;
+///     // A `Field` is formatted in hexadecimal.
+///     println(f"{x} + {y} is {sum}"); // prints "0x01 + 0x02 is 0x03"
+///
+///     comptime {
+///         let a = 1_u32;
+///         let b = 2_u32;
+///         let total = a + b;
+///         assert_eq(f"{a} + {b} is {total}".as_ctstring(), "1 + 2 is 3".as_ctstring());
+///     }
 /// }
 /// ```
 #['nargo_doc_primitive fmtstr]
@@ -110,12 +120,12 @@ mod primitive_fmtstr {}
 /// A [`FunctionDefinition`] is passed as the first argument to a macro attribute on
 /// top of a function:
 ///
-/// ```
+/// ```noir
 /// #[attr]
-/// fn foo() {}
+/// pub fn foo() {}
 ///
 /// comptime fn attr(function: FunctionDefinition) {
-///     println(function.name()); // prints "quote { foo }"
+///     assert_eq(function.name(), quote { foo });
 /// }
 /// ```
 #['nargo_doc_primitive FunctionDefinition]
@@ -150,24 +160,24 @@ mod primitive_Location {}
 ///
 /// A [`Module`] is passed as the first argument to a macro attribute on top of a module:
 ///
-/// ```
+/// ```noir
 /// #[attr]
 /// mod foo {}
 ///
 /// comptime fn attr(module: Module) {
-///     println(module.name()); // outputs "quote { foo }"
+///     assert_eq(module.name(), quote { foo });
 /// }
 /// ```
 ///
 /// It can also be obtained using [`Quoted::as_module`]:
 ///
-/// ```
+/// ```noir
 /// mod foo {}
 ///
 /// fn main() {
 ///     comptime {
 ///         let module = quote { foo }.as_module().unwrap();
-///         println(module.name()); // outputs "quote { foo }"
+///         assert_eq(module.name(), quote { foo });
 ///     }
 /// }
 /// ```
@@ -201,11 +211,11 @@ mod primitive_str {}
 ///
 /// A [`TraitConstraint`] can be obtained using [`Quoted::as_trait_constraint`]:
 ///
-/// ```
+/// ```noir
 /// fn main() {
 ///     comptime {
 ///         let constraint = quote { Eq }.as_trait_constraint();
-///         println(constraint); // outputs "Eq"
+///         assert(quote { u32 }.as_type().implements(constraint));
 ///     }
 /// }
 /// ```
@@ -216,12 +226,17 @@ mod primitive_TraitConstraint {}
 ///
 /// A [`TraitDefinition`] is passed as the first argument to a macro attribute on top of a trait:
 ///
-/// ```
+/// ```noir
 /// #[attr]
-/// trait Foo {}
+/// pub trait Foo {}
+///
+/// pub struct Bar {}
+///
+/// impl Foo for Bar {}
 ///
 /// comptime fn attr(trait_definition: TraitDefinition) {
-///     println(trait_definition); // outputs "Foo"
+///     let constraint = trait_definition.as_trait_constraint();
+///     assert(quote { Bar }.as_type().implements(constraint));
 /// }
 /// ```
 #['nargo_doc_primitive TraitDefinition]
@@ -235,11 +250,13 @@ mod primitive_TraitImpl {}
 ///
 /// It can be obtained using [`Quoted::as_type]`:
 ///
-/// ```
+/// ```noir
 /// fn main() {
 ///     comptime {
 ///         let typ = quote { i32 }.as_type();
-///         println(typ); // outputs "i32"
+///         let integer = typ.as_integer().unwrap();
+///         assert(integer.is_signed());
+///         assert_eq(integer.bits(), 32);
 ///     }
 /// }
 /// ```
@@ -250,12 +267,12 @@ mod primitive_Type {}
 ///
 /// A [`TypeDefinition`] is passed as the first argument to a macro attribute on top of a struct:
 ///
-/// ```
+/// ```noir
 /// #[attr]
-/// struct Foo {}
+/// pub struct Foo {}
 ///
 /// comptime fn attr(type_definition: TypeDefinition) {
-///     println(type_definition.name()); // outputs "Foo"
+///     assert_eq(type_definition.name(), quote { Foo });
 /// }
 /// ```
 #['nargo_doc_primitive TypeDefinition]
@@ -265,12 +282,12 @@ mod primitive_TypeDefinition {}
 ///
 /// A [`TypedExpr`] can be obtained using [`Expr::resolve`]:
 ///
-/// ```
+/// ```noir
 /// fn main() {
 ///     comptime {
 ///         let expr = quote { [1, 2, 3].len() }.as_expr().unwrap();
-///         let typ = expr.resolve(Option::none());
-///         println(typ.get_type().unwrap()); // outputs "u32"
+///         let typed = expr.resolve(Option::none());
+///         assert_eq(typed.get_type().unwrap(), quote { u32 }.as_type());
 ///     }
 /// }
 /// ```
