@@ -259,7 +259,6 @@ fn i2801_method_call_ignores_an_inherent_function_of_another_instantiation() {
 
 /// https://github.com/noir-lang/noir-claude/issues/2802, rustc: E0034
 #[test]
-#[ignore = "noir-claude#2802"]
 fn i2802_method_of_a_blanket_impl_and_a_types_impl_of_another_trait_is_ambiguous() {
     let src = r#"
     trait Check { fn check(self) -> bool; }
@@ -273,7 +272,6 @@ fn i2802_method_of_a_blanket_impl_and_a_types_impl_of_another_trait_is_ambiguous
 
 /// https://github.com/noir-lang/noir-claude/issues/2802
 #[test]
-#[ignore = "noir-claude#2802"]
 fn i2802_method_of_a_trait_out_of_scope_does_not_hide_a_blanket_impl_in_scope() {
     let src = r#"
     mod lib {
