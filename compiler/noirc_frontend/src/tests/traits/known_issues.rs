@@ -682,7 +682,6 @@ fn i2771_impl_with_a_failing_where_bound_before_an_undecided_one_does_not_apply(
 /// https://github.com/noir-lang/noir-claude/issues/2773 (c3a): the bounds decide every generic
 /// whatever order they're written in.
 #[test]
-#[ignore = "noir-claude#2773"]
 fn i2773_chain_of_bounds_written_against_resolution_order_is_solved() {
     let src = r#"
     struct S {}
