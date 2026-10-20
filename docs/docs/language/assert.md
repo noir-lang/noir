@@ -9,7 +9,7 @@ keywords: [Noir programming language, assert statement, predicate expression, co
 
 Noir includes a special `assert` function which will explicitly constrain the predicate/comparison
 expression that follows to be true. If this expression is false at runtime, the program will fail to
-be proven. As of v1.0.0-beta.2, assert statements are expressions and can be used in value contexts.
+be proven. Assert statements are expressions and can be used in value contexts.
 
 Example:
 
