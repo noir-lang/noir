@@ -1819,3 +1819,129 @@ fn type_path_call_with_an_unknown_generic_selects_a_types_only_impl() {
     }
     ");
 }
+
+#[test]
+fn method_call_under_where_clause_selects_the_assumed_trait_argument_over_an_impl_at_another() {
+    let src = r#"
+    pub struct Strict {}
+    pub struct Lenient {}
+    pub trait Validate<P> { fn validate(self) -> u32; }
+    pub struct Amount<T> { pub v: u32 }
+    impl<T> Validate<Lenient> for Amount<T> { fn validate(self) -> u32 { 0 } }
+    impl Validate<Strict> for Amount<u64> { fn validate(self) -> u32 { self.v } }
+
+    fn checked_spend<T>(a: Amount<T>) -> u32 where Amount<T>: Validate<Strict> {
+        a.validate()
+    }
+
+    fn main(x: u32) -> pub u32 { checked_spend(Amount::<u64> { v: x }) }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0(x$l0: u32) -> pub u32 {
+        checked_spend$f1({
+            let v$l1 = x$l0;
+            (v$l1)
+        })
+    }
+    fn checked_spend$f1(a$l2: (u32,)) -> u32 {
+        validate$f2(a$l2)
+    }
+    fn validate$f2(self$l3: (u32,)) -> u32 {
+        0
+    }
+    ");
+}
+
+#[test]
+fn method_call_under_where_clause_selects_the_assumed_trait_over_an_impl_of_another_trait() {
+    let src = r#"
+    pub trait Foo { fn foo(self) -> u32; }
+    pub trait Bar { fn foo(self) -> u32; }
+    pub struct W<T> { pub v: u32 }
+    impl Foo for W<u64> { fn foo(self) -> u32 { self.v + 1 } }
+    impl<T> Bar for W<T> { fn foo(self) -> u32 { self.v } }
+
+    fn g<T>(w: W<T>) -> u32 where W<T>: Foo { w.foo() }
+
+    fn main(x: u32) -> pub u32 { g(W::<u64> { v: x }) }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0(x$l0: u32) -> pub u32 {
+        g$f1({
+            let v$l1 = x$l0;
+            (v$l1)
+        })
+    }
+    fn g$f1(w$l2: (u32,)) -> u32 {
+        foo$f2(w$l2)
+    }
+    fn foo$f2(self$l3: (u32,)) -> u32 {
+        self$l3.0
+    }
+    ");
+}
+
+#[test]
+fn method_call_under_where_clause_does_not_require_the_where_clause_of_the_only_impl() {
+    let src = r#"
+    trait A { fn a() -> Field; }
+    trait Foo { fn foo(self) -> Field; }
+    pub struct W<T> { v: Field }
+    impl A for u8 { fn a() -> Field { 1 } }
+    impl<T> Foo for W<T> where T: A { fn foo(self) -> Field { 100 + T::a() + self.v } }
+    impl Foo for W<u16> { fn foo(self) -> Field { 200 + self.v } }
+
+    fn gen_where<T>(w: W<T>) -> Field where W<T>: Foo { w.foo() }
+
+    fn main(x: Field) -> pub (Field, Field) {
+        (gen_where(W::<u16> { v: x }), gen_where(W::<u8> { v: x }))
+    }
+    "#;
+    let program = get_monomorphized(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0(x$l0: Field) -> pub (Field, Field) {
+        (gen_where$f1({
+            let v$l1 = x$l0;
+            (v$l1)
+        }), gen_where$f2({
+            let v$l2 = x$l0;
+            (v$l2)
+        }))
+    }
+    fn gen_where$f1(w$l3: (Field,)) -> Field {
+        foo$f3(w$l3)
+    }
+    fn gen_where$f2(w$l4: (Field,)) -> Field {
+        foo$f4(w$l4)
+    }
+    fn foo$f3(self$l5: (Field,)) -> Field {
+        (200 + self$l5.0)
+    }
+    fn foo$f4(self$l6: (Field,)) -> Field {
+        ((100 + a$f5()) + self$l6.0)
+    }
+    fn a$f5() -> Field {
+        1
+    }
+    ");
+}
+
+#[test]
+fn method_call_without_a_where_clause_requires_the_where_clause_of_the_only_impl() {
+    let src = r#"
+    trait A {}
+    trait Foo { fn foo(self) -> Field; }
+    pub struct W<T> { v: Field }
+    impl A for u8 {}
+    impl<T> Foo for W<T> where T: A { fn foo(self) -> Field { self.v } }
+
+    fn g<T>(w: W<T>) -> Field { w.foo() }
+                                ^^^^^ No matching impl found for `T: A`
+                                ~~~~~ No impl for `T: A`
+
+    fn main(x: Field) -> pub Field { g(W::<u8> { v: x }) }
+    "#;
+    check_errors(src);
+}
