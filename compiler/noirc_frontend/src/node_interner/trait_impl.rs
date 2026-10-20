@@ -788,6 +788,17 @@ impl NodeInterner {
         }
     }
 
+    /// The bound declared at `location` in some impl's where clause, as written.
+    pub(crate) fn declared_impl_where_clause_bound(
+        &self,
+        location: Location,
+    ) -> Option<&TraitConstraint> {
+        self.trait_impl_where_clauses
+            .values()
+            .flatten()
+            .find(|bound| bound.trait_bound.location == location)
+    }
+
     /// Verifies that each constraint in the given where clause is valid.
     /// If an impl cannot be found for any constraint, the erroring constraint is returned.
     fn validate_where_clause(

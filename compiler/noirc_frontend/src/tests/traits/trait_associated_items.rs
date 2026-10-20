@@ -3921,11 +3921,11 @@ fn check_first_does_not_choose_the_impl_for_an_unannotated_integer() {
     fn main(y: Field) -> pub Field {
         let x = 5;
         A {}.check(x, y);
-        ^^^^^^^^^^ No matching impl found for `U: Bar`
-        ~~~~~~~~~~ No impl for `U: Bar`
+        ^^^^^^^^^^ No matching impl found for `Field: Bar`
+        ~~~~~~~~~~ No impl for `Field: Bar`
         W {}.conv(x)
-        ^^^^^^^^^ No matching impl found for `U: Baz`
-        ~~~~~~~~~ No impl for `U: Baz`
+        ^^^^^^^^^ No matching impl found for `Field: Baz`
+        ~~~~~~~~~ No impl for `Field: Baz`
     }
     "#;
     check_errors(&format!("{IMPLS_DECIDED_BY_WHERE_CLAUSES}{main}"));
@@ -3937,11 +3937,11 @@ fn conv_first_does_not_choose_the_impl_for_an_unannotated_integer() {
     fn main(y: Field) -> pub Field {
         let x = 5;
         let r = W {}.conv(x);
-                ^^^^^^^^^ No matching impl found for `U: Baz`
-                ~~~~~~~~~ No impl for `U: Baz`
+                ^^^^^^^^^ No matching impl found for `Field: Baz`
+                ~~~~~~~~~ No impl for `Field: Baz`
         A {}.check(x, y);
-        ^^^^^^^^^^ No matching impl found for `U: Bar`
-        ~~~~~~~~~~ No impl for `U: Bar`
+        ^^^^^^^^^^ No matching impl found for `Field: Bar`
+        ~~~~~~~~~~ No impl for `Field: Bar`
         r
     }
     "#;
