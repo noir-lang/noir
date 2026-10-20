@@ -239,6 +239,13 @@ impl Elaborator<'_> {
     /// constraint whose impl still depends on an unknown type is left alone, and only tried
     /// again once one of its types has changed.
     pub(super) fn select_where_possible(&mut self) {
+        // Selecting an impl binds variables other constraints wait on, so this repeats until a
+        // pass selects nothing.
+        while self.select_where_possible_once() {}
+    }
+
+    /// One pass of [`Self::select_where_possible`]. Returns whether it selected an impl.
+    fn select_where_possible_once(&mut self) -> bool {
         let context = self.function_context.last_mut().expect("no function context");
         let mut to_try = Vec::new();
         for index in &context.unsolved_trait_constraints {
@@ -248,8 +255,9 @@ impl Elaborator<'_> {
             }
         }
         if to_try.is_empty() {
-            return;
+            return false;
         }
+        let mut selected = false;
         for (index, constraint) in to_try {
             let bound = &constraint.trait_bound;
             let progress = match self.interner.try_lookup_trait_implementation(
@@ -261,6 +269,7 @@ impl Elaborator<'_> {
             ) {
                 Ok((impl_kind, bindings, instantiation_bindings)) => {
                     Type::apply_type_bindings(bindings);
+                    selected = true;
                     Progress::Selected(impl_kind, instantiation_bindings)
                 }
                 // Errors are reported by the check at the end of the function. A constraint whose
@@ -274,6 +283,7 @@ impl Elaborator<'_> {
         context
             .unsolved_trait_constraints
             .retain(|index| !matches!(constraints[*index].progress, Progress::Selected(..)));
+        selected
     }
 
     /// Push an `ExprId` that corresponds to an integer literal.
@@ -298,6 +308,7 @@ impl Elaborator<'_> {
     /// all still-unsolved trait constraints in this context.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(super) fn check_and_pop_function_context(&mut self) {
+        self.select_where_possible();
         let context = self.function_context.pop().expect("Imbalanced function_context pushes");
         self.bind_type_variables_from_trait_constraints(&context.trait_constraints);
         let constraints = vecmap(&context.unsolved_trait_constraints, |index| {
