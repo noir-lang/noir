@@ -1658,6 +1658,11 @@ pub(crate) fn check_trait_impl_method_matches_declaration(
         ) in trait_fn_meta.direct_generics.iter().zip(&meta.direct_generics)
         {
             let trait_fn_kind = trait_fn_generic.kind();
+            // A generic of another kind is reported where the impl's generics are resolved, and
+            // can't stand for the trait's.
+            if !trait_fn_kind.unifies(&impl_fn_generic.kind()) {
+                continue;
+            }
             let arg = impl_fn_generic.clone().into_named_generic(name, None);
             bindings.insert(
                 trait_fn_generic.id(),

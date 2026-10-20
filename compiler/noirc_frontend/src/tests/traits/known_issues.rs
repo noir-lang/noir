@@ -1062,7 +1062,6 @@ fn i1935_impl_of_a_trait_whose_where_clause_names_a_later_trait() {
 
 /// https://github.com/noir-lang/noir-claude/issues/1711
 #[test]
-#[ignore = "noir-claude#1711"]
 fn i1711_impl_method_generic_of_another_kind_than_the_traits_is_rejected() {
     let src = r#"
     trait Marker {}
