@@ -474,6 +474,15 @@ impl Elaborator<'_> {
             {
                 Err(self.unresolved_associated_item_error(&self_type, &ident))
             }
+            // A primitive type is not an item of the self type (`Self::u8` is not `u8`).
+            (Ok(_), Some(self_type))
+                if self_item
+                    .as_ref()
+                    .is_some_and(|item| PrimitiveType::lookup_by_name(item.as_str()).is_some()) =>
+            {
+                let item = self_item.expect("checked above");
+                Err(self.unresolved_associated_item_error(&self_type, &item))
+            }
             (result, _) => result,
         };
         Self::check_leaf_turbofish(result, turbofished_leaf.as_ref())

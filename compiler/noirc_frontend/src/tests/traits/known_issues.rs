@@ -1008,7 +1008,6 @@ fn i1619_associated_constant_of_a_primitive_type_is_found() {
 
 /// https://github.com/noir-lang/noir-claude/issues/2001: an inherent impl has no associated types.
 #[test]
-#[ignore = "noir-claude#2001"]
 fn i2001_self_associated_type_in_an_inherent_impl_is_rejected() {
     let src = r#"
     trait Tr { type u8; }
