@@ -964,7 +964,7 @@ impl Elaborator<'_> {
             PathResolutionItem::TypeTraitFunction(self_type, _trait_id, _func_id) => {
                 ItemTypeBinding::SelfGeneric(self_type)
             }
-            PathResolutionItem::TraitConstant(_, self_type, _, _) => {
+            PathResolutionItem::TraitConstant(self_type, _, _) => {
                 ItemTypeBinding::ConcreteSelfType(self_type)
             }
             PathResolutionItem::PrimitiveFunction(primitive_type, turbofish, _func_id) => {
