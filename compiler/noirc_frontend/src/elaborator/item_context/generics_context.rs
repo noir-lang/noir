@@ -136,8 +136,9 @@ impl GenericsContext {
         &'a self,
         name: &'a str,
     ) -> impl Iterator<Item = &'a TraitConstraint> {
+        // A bound may name the generic through an alias (`Id<T>: Foo`).
         self.trait_bounds.iter().filter(move |constraint| {
-            matches!(&constraint.typ, Type::NamedGeneric(generic) if generic.name.as_str() == name)
+            matches!(&*constraint.typ.follow_bindings_shallow(), Type::NamedGeneric(generic) if generic.name.as_str() == name)
         })
     }
 
