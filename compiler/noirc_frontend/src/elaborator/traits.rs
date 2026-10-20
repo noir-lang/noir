@@ -1849,6 +1849,30 @@ pub(super) fn is_checkable_bound(constraint: &TraitConstraint) -> bool {
         && types.chain(named).all(|typ| !contains_error_type(typ))
 }
 
+/// Whether [`Elaborator::check_where_clauses_without_generics`] decides `constraint` exactly, so
+/// a failure of any instance of it has already been reported there: on top of
+/// [`is_checkable_bound`], its associated-type arguments name no explicit generic. The
+/// declaration-site check widens such an argument to a fresh type variable, so it says nothing
+/// about the type the generic is instantiated with where the function is used. The implicit
+/// generic standing for an associated type the bound leaves out does not count: the bound places
+/// no requirement on it, so it is equally free at both sites.
+pub(super) fn is_decided_at_declaration(constraint: &TraitConstraint) -> bool {
+    is_checkable_bound(constraint)
+        && constraint
+            .trait_bound
+            .trait_generics
+            .named
+            .iter()
+            .all(|named| !contains_explicit_named_generic(&named.typ))
+}
+
+/// Whether `typ` mentions an unbound [`Type::NamedGeneric`] that was written in the source.
+fn contains_explicit_named_generic(typ: &Type) -> bool {
+    let typ = typ.follow_bindings();
+    matches!(typ, Type::NamedGeneric(NamedGeneric { implicit: false, .. }))
+        || typ.any_child(contains_explicit_named_generic)
+}
+
 /// Whether `typ` mentions [`Type::Error`], for which an error has already been reported.
 fn contains_error_type(typ: &Type) -> bool {
     let typ = typ.follow_bindings();

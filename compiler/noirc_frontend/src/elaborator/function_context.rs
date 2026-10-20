@@ -70,8 +70,10 @@ struct LocalTraitConstraint {
     /// Where [`Elaborator::select_where_possible`] has got with this constraint.
     progress: Progress,
 
-    /// True for a where-clause bound of a referenced function that names no generic. Such a
-    /// bound is checked where it is declared (see
+    /// True for a where-clause bound of a referenced function that names no generic
+    /// written in the source, not even in an associated-type argument (see
+    /// `is_decided_at_declaration`).
+    /// Such a bound is checked where it is declared (see
     /// [`Elaborator::check_where_clauses_without_generics`]), which reports it if it fails, so a
     /// failure here is not reported again. It is still solved here, for the associated types it
     /// may bind.

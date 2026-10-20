@@ -1919,6 +1919,37 @@ fn associated_type_of_a_where_clause_bound_without_generics_is_bound_where_the_f
     assert_no_errors(src);
 }
 
+#[test]
+fn where_clause_bound_with_a_generic_only_in_an_associated_type_is_checked_where_the_function_is_used()
+ {
+    let src = r#"
+    trait Foo { type Bar; }
+    impl Foo for u32 { type Bar = bool; }
+    pub fn f<B>() -> [B; 0] where u32: Foo<Bar = B> { [] }
+    fn main() {
+        let _x = f::<u8>();
+                 ^^^^^^^ No matching impl found for `u32: Foo<Bar = u8>`
+                 ~~~~~~~ No impl for `u32: Foo<Bar = u8>`
+    }
+    "#;
+    check_errors(src);
+}
+
+#[test]
+fn false_where_clause_bound_with_a_concrete_associated_type_is_reported_only_at_the_bound() {
+    let src = r#"
+    trait Foo { type Bar; }
+    impl Foo for u32 { type Bar = bool; }
+    pub fn f() where u32: Foo<Bar = u8> {}
+                          ^^^ No matching impl found for `u32: Foo<Bar = u8>`
+                          ~~~ No impl for `u32: Foo<Bar = u8>`
+    fn main() {
+        f();
+    }
+    "#;
+    check_errors(src);
+}
+
 /// Like [`check_errors`], but also checks that each "not needed" warning is reported exactly as
 /// many times as it is annotated: `check_errors` accepts a repeated diagnostic at an annotated
 /// location.
