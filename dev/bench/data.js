@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1792521947101,
+  "lastUpdate": 1792537756302,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23006,48 +23006,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "c9ec59ab4fe917f5ea1a752adcebf9b37b14e3b6",
-          "message": "fix(frontend): don't choose an impl while another impl's where clause is undecided (#13999)",
-          "timestamp": "2026-10-15T13:34:19Z",
-          "tree_id": "fcc78b2c464e5a38c4d65f8ab686f649c703b5f2",
-          "url": "https://github.com/noir-lang/noir/commit/c9ec59ab4fe917f5ea1a752adcebf9b37b14e3b6"
-        },
-        "date": 1792072727033,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 168550,
-            "range": "± 624",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 138768,
-            "range": "± 1558",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2649182,
-            "range": "± 2428",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "49558828+AztecBot@users.noreply.github.com",
-            "name": "Aztec Bot",
-            "username": "AztecBot"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "33417c59ddd5d6b993b59949fa5e27e2e1e77aaa",
           "message": "chore(frontend): instantiate a trait impl's generics with Type::substitute_type_vars_with_fresh_type_vars (#14002)",
           "timestamp": "2026-10-15T14:29:28Z",
@@ -25089,6 +25047,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2645541,
             "range": "± 4012",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "49558828+AztecBot@users.noreply.github.com",
+            "name": "Aztec Bot",
+            "username": "AztecBot"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "14bebf81474f91e29ed3f2f638b64e95f6d55d53",
+          "message": "chore(docs): fix outdated terminology and stale references (#14077)",
+          "timestamp": "2026-10-20T22:42:32Z",
+          "tree_id": "e07b999c25c070a251ffe685ba74d1338fe901c9",
+          "url": "https://github.com/noir-lang/noir/commit/14bebf81474f91e29ed3f2f638b64e95f6d55d53"
+        },
+        "date": 1792537660580,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 166825,
+            "range": "± 630",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 136254,
+            "range": "± 1281",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2648973,
+            "range": "± 2903",
             "unit": "ns/iter"
           }
         ]
