@@ -125,7 +125,10 @@ impl NodeInterner {
             TraitLookupMode::Default,
         );
         match existing {
+            // No impl applies yet, including when the trait has none at all (one declared
+            // later in the program).
             Err(ImplSearchErrorKind::NoMatching(_))
+            | Err(ImplSearchErrorKind::NoImplFound(_))
             | Err(ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType) => {
                 // The incoming bound may describe an associated type inherited from a parent (or
                 // grandparent) trait, supplied as a fresh variable that does not unify with the
@@ -168,8 +171,7 @@ impl NodeInterner {
                 }
             }
             Err(
-                error @ (ImplSearchErrorKind::NoImplFound(_)
-                | ImplSearchErrorKind::MultipleMatching(_)
+                error @ (ImplSearchErrorKind::MultipleMatching(_)
                 | ImplSearchErrorKind::RecursionLimitReached),
             ) => Err(error),
         }
