@@ -187,6 +187,19 @@ impl Methods {
         direct.chain(trait_impl_methods)
     }
 
+    /// Whether a receiver of type `typ`, or the type it references, is of the impl's self type.
+    fn receiver_matches(typ: &Type, impl_self_type: &Type) -> bool {
+        if impl_self_type.try_unify_with_default_bindings(typ).is_ok() {
+            return true;
+        }
+        match typ.follow_bindings() {
+            Type::Reference(element, _mutable) => {
+                impl_self_type.try_unify_with_default_bindings(&element).is_ok()
+            }
+            _ => false,
+        }
+    }
+
     fn method_matches(
         typ: &Type,
         check_self_param: bool,
@@ -199,13 +212,19 @@ impl Methods {
         match function_typ.instantiate(interner).0 {
             Type::Function(args, _, _, _) => {
                 if check_self_param {
+                    // The receiver must be of the impl's own self type (a method declared in
+                    // `impl W<u8>` doesn't apply to a `W<u16>`), and match the method's first
+                    // parameter.
+                    if !Self::receiver_matches(typ, &func_meta.instantiate(method_type, interner)) {
+                        return false;
+                    }
                     if let Some(object) = args.first() {
                         if object.try_unify_with_default_bindings(typ).is_ok() {
                             return true;
                         }
 
                         // Handle auto-dereferencing `&T` and `&mut T` into `T`
-                        if let Type::Reference(object, _mutable) = object
+                        if let Type::Reference(object, _mutable) = object.follow_bindings()
                             && object.try_unify_with_default_bindings(typ).is_ok()
                         {
                             return true;

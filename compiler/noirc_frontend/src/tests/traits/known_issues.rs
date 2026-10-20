@@ -220,7 +220,6 @@ fn i1950_method_call_that_several_inherent_impls_can_serve_is_ambiguous() {
 
 /// https://github.com/noir-lang/noir-claude/issues/2801: `Lib`'s `check` belongs to `u16`.
 #[test]
-#[ignore = "noir-claude#2801"]
 fn i2801_method_call_ignores_a_trait_method_of_another_types_impl() {
     let src = r#"
     trait Check { fn check(self) -> bool; }
@@ -234,7 +233,6 @@ fn i2801_method_call_ignores_a_trait_method_of_another_types_impl() {
 
 /// https://github.com/noir-lang/noir-claude/issues/2801 (the prelude's `From<u8> for u16`)
 #[test]
-#[ignore = "noir-claude#2801"]
 fn i2801_method_call_ignores_a_static_function_of_another_types_impl() {
     let src = r#"
     trait From<T> { fn from(input: T) -> Self; }
@@ -248,16 +246,15 @@ fn i2801_method_call_ignores_a_static_function_of_another_types_impl() {
 
 /// https://github.com/noir-lang/noir-claude/issues/2801 (inherent route)
 #[test]
-#[ignore = "noir-claude#2801"]
 fn i2801_method_call_ignores_an_inherent_function_of_another_instantiation() {
     let src = r#"
     pub struct W<T> { x: T }
-    impl W<u8> { pub fn m(_x: W<u16>) -> u32 { 1 } }
+    impl W<u8> { pub fn m(_x: W<u16>) -> u32 { 111 } }
     trait Tr { fn m(self) -> u32; }
-    impl Tr for W<u16> { fn m(self) -> u32 { 2 } }
+    impl Tr for W<u16> { fn m(self) -> u32 { 222 } }
     fn main() -> pub u32 { W::<u16> { x: 0 }.m() }
     "#;
-    assert_runs(src, &["2"], &["1"]);
+    assert_runs(src, &["222"], &["111"]);
 }
 
 /// https://github.com/noir-lang/noir-claude/issues/2802, rustc: E0034
@@ -463,20 +460,19 @@ fn i2769_type_path_call_skips_an_inaccessible_inherent_method_for_a_trait_method
 fn i1999_self_path_call_of_an_inherent_method_uses_the_impls_self() {
     let src = r#"
     struct Foo<T> { x: T }
-    impl Foo<u32> { fn tag() -> Field { 32 } }
+    impl Foo<u32> { fn tag() -> Field { 3232 } }
     impl Foo<u64> {
-        fn tag() -> Field { 64 }
+        fn tag() -> Field { 6464 }
         fn get_tag(_self: Self) -> Field { Self::tag() }
     }
     fn main(x: u64) -> pub Field { let foo: Foo<u64> = Foo { x }; foo.get_tag() }
     "#;
-    assert_runs(src, &["64"], &["32"]);
+    assert_runs(src, &["6464"], &["3232"]);
 }
 
 /// https://github.com/noir-lang/noir-claude/issues/1055: the inherent method takes `&Foo`, the
 /// receiver's own type, so it is found before the trait method that needs a dereference.
 #[test]
-#[ignore = "noir-claude#1055"]
 fn i1055_method_call_finds_an_inherent_method_whose_self_is_an_aliased_reference() {
     let src = r#"
     struct Foo { x: Field }
