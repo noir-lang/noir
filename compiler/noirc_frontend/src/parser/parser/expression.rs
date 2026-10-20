@@ -2197,6 +2197,18 @@ mod tests {
     }
 
     #[test]
+    fn parses_as_trait_path_whose_type_is_as_trait_path() {
+        let src = "<<A as B>::C as D>::e";
+        let expr = parse_expression_no_errors(src);
+        let ExpressionKind::AsTraitPath(as_trait_path) = expr.kind else {
+            panic!("Expected as_trait_path")
+        };
+        assert_eq!(as_trait_path.typ.typ.to_string(), "<A as B>::C");
+        assert_eq!(as_trait_path.trait_path.to_string(), "D");
+        assert_eq!(as_trait_path.impl_item.to_string(), "e");
+    }
+
+    #[test]
     fn parses_shift_left_as_trait_path() {
         let src = "1 << <U as Tr>::f(x)";
         let expr = parse_expression_no_errors(src);

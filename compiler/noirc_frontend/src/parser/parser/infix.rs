@@ -118,8 +118,7 @@ impl Parser<'_> {
         parse_infix!(
             self,
             Parser::parse_shift,
-            if self.next_token.token() != &Token::LessEqual && self.eat(&Token::Less) {
-                // Make sure to skip the `<<=` case, as `<<=` is lexed as `< <=`.
+            if self.eat(&Token::Less) {
                 BinaryOpKind::Less
             } else if self.eat(&Token::LessEqual) {
                 BinaryOpKind::LessEqual
@@ -142,18 +141,8 @@ impl Parser<'_> {
         parse_infix!(
             self,
             Parser::parse_add_or_subtract,
-            if self.at(&Token::Less)
-                && self.next_is(&Token::Less)
-                && self.token.span().end() == self.next_token.span().start()
-            {
-                // Left-shift (<<) is issued as two separate < tokens by the lexer as this makes it easier
-                // to parse nested generic types. For normal expressions however, it means we have to manually
-                // parse two less-than tokens as a single left-shift here.
-                //
-                // The two tokens must be adjacent: in `a < <T as Trait>::f()` the second `<` opens a
-                // qualified path, so the first one is a less-than comparison.
-                self.bump();
-                self.bump();
+            if !self.next_is(&Token::Assign) && self.eat(&Token::ShiftLeft) {
+                // Don't parse `x <<= ...`
                 BinaryOpKind::ShiftLeft
             } else if self.at(&Token::Greater) && self.next_is(&Token::Greater) {
                 // Right-shift (>>) is issued as two separate > tokens by the lexer as this makes it easier

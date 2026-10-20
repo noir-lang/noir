@@ -598,8 +598,37 @@ impl<'a> Parser<'a> {
         self.eat(&Token::RightBracket)
     }
 
+    /// Eats a `<`, which may be the first half of a `<<` token: `<<` is lexed as one token,
+    /// but in `Store<<T as HasKey>::Key>` it opens a generic list and then a qualified path.
     fn eat_less(&mut self) -> bool {
+        if self.at(&Token::ShiftLeft) {
+            self.split_shift_left();
+            return true;
+        }
         self.eat(&Token::Less)
+    }
+
+    /// True if the current token is `<` or starts with one.
+    fn at_less(&self) -> bool {
+        self.at(&Token::Less) || self.at(&Token::ShiftLeft)
+    }
+
+    /// True if the next token is `<` or starts with one.
+    fn next_is_less(&self) -> bool {
+        self.next_is(&Token::Less) || self.next_is(&Token::ShiftLeft)
+    }
+
+    /// Consumes the first `<` of the current `<<` token, leaving the second as the current token.
+    fn split_shift_left(&mut self) {
+        let location = self.token.location();
+        let start = location.span.start();
+        let first = Location::new(Span::single_char(start), location.file);
+        let second = Location::new(Span::single_char(start + 1), location.file);
+
+        self.previous_token_location = first;
+        self.token = LocatedToken::new(Token::Less, second);
+        self.current_token_location = second;
+        self.current_token_comments.clear();
     }
 
     fn eat_assign(&mut self) -> bool {

@@ -691,6 +691,16 @@ mod tests {
     }
 
     #[test]
+    fn format_shift_left_assign() {
+        let src = " fn foo() { x  <<=  2 ; } ";
+        let expected = "fn foo() {
+    x <<= 2;
+}
+";
+        assert_format(src, expected);
+    }
+
+    #[test]
     fn format_shift_right_assign() {
         let src = " fn foo() { x  >>=  2 ; } ";
         let expected = "fn foo() {

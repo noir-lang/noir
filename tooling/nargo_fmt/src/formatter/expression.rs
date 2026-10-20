@@ -459,7 +459,7 @@ impl ChunkFormatter<'_, '_> {
     pub(super) fn format_type_path(&mut self, type_path: TypePath) -> ChunkGroup {
         let mut group = ChunkGroup::new();
         group.text(self.chunk(|formatter| {
-            let nameless = formatter.is_at(Token::Less);
+            let nameless = formatter.is_at_less();
             if nameless {
                 formatter.write_token(Token::Less);
             }
@@ -884,18 +884,11 @@ impl ChunkFormatter<'_, '_> {
 
         group.space_or_line();
         group.text(self.chunk(|formatter| {
-            let tokens_count = if matches!(
-                infix.operator.contents,
-                BinaryOpKind::ShiftRight | BinaryOpKind::ShiftLeft
-            ) {
-                2
-            } else {
-                1
-            };
+            let tokens_count =
+                if infix.operator.contents == BinaryOpKind::ShiftRight { 2 } else { 1 };
             for index in 0..tokens_count {
-                // `<<` and `>>` are lexed as two separate tokens so that nested generic types
-                // are easier to parse. The parser accepts whitespace or a comment between the
-                // two halves of `>>`, so skip it here.
+                // `>>` is lexed as two separate tokens so that nested generic types are easier
+                // to parse, which means whitespace or a comment can sit between its two halves.
                 if index > 0 {
                     formatter.skip_comments_and_whitespace();
                 }
@@ -1840,6 +1833,20 @@ global y = 1;
     fn format_shift_written_as_two_separate_tokens() {
         let src = "global x =  a  >  >  b  ;";
         let expected = "global x = a >> b;\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_less_than_as_trait_path() {
+        let src = "global x =  1  <  <U as Tr>::f(x) ;";
+        let expected = "global x = 1 < <U as Tr>::f(x);\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_as_trait_path_whose_type_is_as_trait_path() {
+        let src = "global x =  <<A as B>::C as D>::e ;";
+        let expected = "global x = <<A as B>::C as D>::e;\n";
         assert_format(src, expected);
     }
 
