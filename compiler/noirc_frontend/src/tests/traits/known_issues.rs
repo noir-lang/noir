@@ -495,7 +495,6 @@ fn i1055_method_call_finds_an_inherent_method_whose_self_is_an_aliased_reference
 
 /// https://github.com/noir-lang/noir-claude/issues/2078
 #[test]
-#[ignore = "noir-claude#2078"]
 fn i2078_type_path_call_finds_a_method_of_a_blanket_impl() {
     let src = r#"
     struct S { n: u32 }
@@ -524,7 +523,6 @@ fn i2797_type_path_call_of_a_blanket_impl_method_has_the_paths_type() {
 
 /// https://github.com/noir-lang/noir-claude/issues/2797
 #[test]
-#[ignore = "noir-claude#2078"]
 fn i2797_type_path_call_of_a_blanket_impl_method_runs_the_paths_types_impl() {
     let src = format!("{GUARD}\nfn main(x: Field) -> pub Field {{ S::guard(x).x }}");
     assert_runs(&src, &["assert"], &[]);
