@@ -1158,7 +1158,6 @@ fn i2049_trait_method_with_an_impl_trait_parameter_can_be_implemented() {
 
 /// https://github.com/noir-lang/noir-claude/issues/2746
 #[test]
-#[ignore = "noir-claude#2746"]
 fn i2746_runtime_impl_of_a_comptime_trait_method_is_rejected() {
     let src = r#"
     trait Foo { comptime fn foo(x: Field) -> Field; }
@@ -1169,15 +1168,15 @@ fn i2746_runtime_impl_of_a_comptime_trait_method_is_rejected() {
     assert_rejected(src);
 }
 
-/// https://github.com/noir-lang/noir-claude/issues/2746
+/// https://github.com/noir-lang/noir-claude/issues/2746: a type that only exists at compile time
+/// implements a runtime trait with `comptime` methods, as the standard library's `Quoted: Eq` does.
 #[test]
-#[ignore = "noir-claude#2746"]
-fn i2746_comptime_impl_of_a_runtime_trait_method_is_rejected() {
+fn i2746_comptime_impl_of_a_runtime_trait_method_is_accepted() {
     let src = r#"
     trait Foo { fn foo(x: Field) -> Field; }
     struct S {}
     impl Foo for S { comptime fn foo(x: Field) -> Field { x + 1 } }
     fn main() {}
     "#;
-    assert_rejected(src);
+    assert_accepted(src);
 }
