@@ -9,7 +9,7 @@ impl Formatter<'_> {
     pub(super) fn format_generics(&mut self, generics: Vec<UnresolvedGeneric>) {
         self.skip_comments_and_whitespace();
 
-        if self.token != Token::Less {
+        if !self.is_at_less() {
             return;
         }
 
@@ -65,7 +65,7 @@ impl Formatter<'_> {
             self.bump();
         }
 
-        if self.token != Token::Less {
+        if !self.is_at_less() {
             return;
         }
 

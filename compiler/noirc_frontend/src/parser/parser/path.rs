@@ -123,7 +123,7 @@ impl Parser<'_> {
 
                 let generics = if allow_turbofish
                     && self.at(&Token::DoubleColon)
-                    && self.next_is(&Token::Less)
+                    && self.next_is_less()
                 {
                     self.bump();
                     self.parse_path_generics(&ParserErrorReason::AssociatedTypesNotAllowedInPaths)
@@ -160,7 +160,7 @@ impl Parser<'_> {
         &mut self,
         on_named_arg_error: &ParserErrorReason,
     ) -> Option<Vec<UnresolvedType>> {
-        if self.token.token() != &Token::Less {
+        if !self.at_less() {
             return None;
         }
 

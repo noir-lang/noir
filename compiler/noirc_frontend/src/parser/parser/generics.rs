@@ -142,7 +142,7 @@ impl Parser<'_> {
 
         // Allow `Type::<Generic>` and `Type<Generic>` as it's common to confuse them.
         // The formatter will remove the double colon.
-        if self.at(&Token::DoubleColon) && self.next_is(&Token::Less) {
+        if self.at(&Token::DoubleColon) && self.next_is_less() {
             self.bump();
         }
 

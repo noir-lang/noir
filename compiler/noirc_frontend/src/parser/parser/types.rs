@@ -612,6 +612,25 @@ mod tests {
     }
 
     #[test]
+    fn parses_generic_type_whose_first_argument_is_as_trait_path() {
+        let src = "Store<<T as HasKey>::Key>";
+        let typ = parse_type_no_errors(src);
+        assert_eq!(typ.typ.to_string(), "Store<<T as HasKey>::Key>");
+    }
+
+    #[test]
+    fn parses_as_trait_path_whose_type_is_as_trait_path() {
+        let src = "<<A as B>::C as D>::E";
+        let typ = parse_type_no_errors(src);
+        let UnresolvedTypeData::AsTraitPath(as_trait_path) = typ.typ else {
+            panic!("Expected as_trait_path")
+        };
+        assert_eq!(as_trait_path.typ.typ.to_string(), "<A as B>::C");
+        assert_eq!(as_trait_path.trait_path.to_string(), "D");
+        assert_eq!(as_trait_path.impl_item.to_string(), "E");
+    }
+
+    #[test]
     fn parses_as_trait_path() {
         let src = "<Field as foo::Bar>::baz";
         let typ = parse_type_no_errors(src);
