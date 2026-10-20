@@ -1623,3 +1623,72 @@ fn method_call_selects_a_blanket_impl_when_a_types_own_impl_has_a_failing_where_
     }
     ");
 }
+
+#[test]
+fn method_call_uses_an_enclosing_where_clause_over_an_impl_whose_where_clause_is_unknown() {
+    let src = r#"
+    trait A {}
+    trait Foo { fn foo(self) -> Field; }
+    pub struct W<T> { v: Field }
+    impl A for u8 {}
+    impl<T> Foo for W<T> where T: A { fn foo(self) -> Field { self.v } }
+    fn g<T>(w: W<T>) -> Field where W<T>: Foo { w.foo() }
+    fn main(x: Field) { assert(g(W::<u8> { v: x }) == x); }
+    "#;
+    assert_no_errors(src);
+}
+
+const OWN_IMPL_AND_BLANKET_IMPL_UNDER_A_WHERE_CLAUSE: &str = r#"
+    trait Small {}
+    trait Limit { fn max() -> u64; }
+    pub struct S<T> {}
+    impl Small for S<u8> {}
+    impl Small for S<u16> {}
+    impl Limit for S<u64> { fn max() -> u64 { 18446744073709551615 } }
+    impl<T: Small> Limit for T { fn max() -> u64 { 255 } }
+    "#;
+
+#[test]
+fn type_path_call_on_a_type_with_unknowns_uses_the_enclosing_where_clause() {
+    let main = r#"
+    fn f<T>() -> u64 where S<T>: Limit { S::max() }
+    fn main() -> pub u64 { f::<u8>() }
+    "#;
+    let program =
+        get_monomorphized(&format!("{OWN_IMPL_AND_BLANKET_IMPL_UNDER_A_WHERE_CLAUSE}{main}"))
+            .unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u64 {
+        f$f1()
+    }
+    fn f$f1() -> u64 {
+        max$f2()
+    }
+    fn max$f2() -> u64 {
+        255
+    }
+    ");
+}
+
+#[test]
+fn self_path_call_in_a_generic_impl_uses_the_impls_where_clause() {
+    let main = r#"
+    trait Validate { fn limit() -> u64; }
+    impl<T> Validate for S<T> where S<T>: Limit { fn limit() -> u64 { Self::max() } }
+    fn main() -> pub u64 { S::<u8>::limit() }
+    "#;
+    let program =
+        get_monomorphized(&format!("{OWN_IMPL_AND_BLANKET_IMPL_UNDER_A_WHERE_CLAUSE}{main}"))
+            .unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0() -> pub u64 {
+        limit$f1()
+    }
+    fn limit$f1() -> u64 {
+        max$f2()
+    }
+    fn max$f2() -> u64 {
+        255
+    }
+    ");
+}

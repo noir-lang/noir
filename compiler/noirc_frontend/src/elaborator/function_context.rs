@@ -1,5 +1,6 @@
 //! Function-local context management for type variables and trait constraints.
 
+use iter_extended::vecmap;
 use noirc_errors::Location;
 
 use crate::{
@@ -198,7 +199,32 @@ impl Elaborator<'_> {
             return typ;
         }
         self.select_where_possible();
+        let typ = typ.follow_bindings();
+        if !matches!(typ, Type::TypeVariable(_)) {
+            return typ;
+        }
+        let context = self.function_context.last().expect("no function context");
+        let constraints = vecmap(&context.trait_constraints, |local| local.constraint.clone());
+        self.select_own_impls(&constraints);
         typ.follow_bindings()
+    }
+
+    /// For each constraint that still has unknowns and that the impl search can't decide, selects
+    /// the type's own impl when exactly one matches, binding the unknowns it decides (see
+    /// [`TraitLookupMode::PreferOwnImpl`]).
+    fn select_own_impls(&self, constraints: &[TraitConstraint]) {
+        for constraint in constraints {
+            let bound = &constraint.trait_bound;
+            if let Ok((_, bindings, _)) = self.interner.try_lookup_trait_implementation(
+                &constraint.typ,
+                bound.trait_id,
+                &bound.trait_generics.ordered,
+                &bound.trait_generics.named,
+                TraitLookupMode::PreferOwnImpl,
+            ) {
+                Type::apply_type_bindings(bindings);
+            }
+        }
     }
 
     /// Solves each queued trait constraint whose impl can already be decided, binding the type
@@ -258,6 +284,8 @@ impl Elaborator<'_> {
     pub(super) fn check_and_pop_function_context(&mut self) {
         let context = self.function_context.pop().expect("Imbalanced function_context pushes");
         self.bind_type_variables_from_trait_constraints(&context.trait_constraints);
+        let constraints = vecmap(&context.trait_constraints, |local| local.constraint.clone());
+        self.select_own_impls(&constraints);
         self.check_defaultable_type_variables(context.defaultable_type_variables);
         self.check_integer_literal_fit_their_type(context.integer_literal_expr_ids);
         self.check_trait_constraints(context.trait_constraints);
